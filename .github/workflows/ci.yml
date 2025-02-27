@@ -96,12 +96,3 @@ jobs:
       - name: Build server
         run: pnpm build:server
 
-      - name: Build client
-        run: pnpm build:client
-
-      - name: Build agents    
-        run: pnpm build:agents
-        
-      - name: Build plugins    
-        run: pnpm build:plugins
-
