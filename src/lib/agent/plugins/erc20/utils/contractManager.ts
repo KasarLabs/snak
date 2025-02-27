@@ -1,4 +1,4 @@
-import { Account, CallData, RawArgs, RPC, num, hash } from 'starknet';
+import { Account, CallData, RawArgs, hash, CompiledSierra, CompiledSierraCasm, Abi } from 'starknet';
 import {
     ContractDeployResult,
     ContractDeclareResult,
@@ -11,8 +11,8 @@ import { getV3DetailsPayload } from './utils';
  * Class for managing StarkNet contract operations
  */
 export class ContractManager {
-  compiledSierra: any = {};
-  compiledCasm: any = {};
+  compiledSierra: CompiledSierra;
+  compiledCasm: CompiledSierraCasm;
 
   constructor(public account: Account) {}
 
@@ -80,14 +80,14 @@ export class ContractManager {
   /**
    * Deploys a contract on StarkNet using a specific class hash
    * @param {string} classHash - The class hash of the contract to deploy
-   * @param {any} [abi] - Optional ABI to use instead of the compiled Sierra ABI
+   * @param {Abi} [abi] - Optional ABI to use instead of the compiled Sierra ABI
    * @param {RawArgs} [constructorArgs=[]] - Arguments for the contract constructor
    * @returns {Promise<ContractDeployResult>} The result of the deployment process
    * @throws {Error} If the deployment fails
    */
   async deployContract(
     classHash: string,
-    abi?: any,
+    abi?: Abi,
     constructorArgs: RawArgs = []
   ): Promise<ContractDeployResult> {
     try {
@@ -148,10 +148,10 @@ export class ContractManager {
 
   /**
    * Extracts constructor parameters from contract ABI
-   * @param {any} [abiObject] - Optional ABI object to use instead of the compiled Sierra ABI
+   * @param {Abi} [abiObject] - Optional ABI object to use instead of the compiled Sierra ABI
    * @returns {Array<{name: string, type: string}>} Array of constructor parameter definitions
    */
-  extractConstructorParams(abiObject?: any): Array<{name: string, type: string}> {
+  extractConstructorParams(abiObject?: Abi): Array<{name: string, type: string}> {
       const abi = abiObject ? abiObject : this.compiledSierra.abi;
       const constructorDef = abi.find((item: { type: string }) => item.type === 'constructor');
       

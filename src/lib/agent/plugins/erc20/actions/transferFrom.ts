@@ -14,6 +14,7 @@ import {
 } from '../schemas/schema';
 import { validToken } from '../types/types';
 import { RpcProvider } from 'starknet';
+import { StringSelectMenuBuilder } from 'discord.js';
 
 /**
  * Transfers tokens from one address to another using an allowance.
@@ -91,7 +92,7 @@ export const transferFrom = async (
  */
 export const transferFromSignature = async (
   params: z.infer<typeof transferFromSignatureSchema>
-): Promise<any> => {
+): Promise<string> => {
   try {
     const token = await validateToken(
       new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
@@ -128,12 +129,12 @@ export const transferFromSignature = async (
     };
     return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
   } catch (error) {
-    return {
+    return JSON.stringify({
       status: 'error',
       error: {
         code: 'TRANSFERFROM_CALL_DATA_ERROR',
         message: error.message || 'Failed to generate transferFrom call data',
       },
-    };
+    });
   }
 };

@@ -83,7 +83,7 @@ export const approve = async (
  */
 export const approveSignature = async (
   params: z.infer<typeof approveSignatureSchema>
-): Promise<any> => {
+): Promise<string> => {
   try {
     const token: validToken = await validateToken(
       new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
@@ -118,12 +118,12 @@ export const approveSignature = async (
 
     return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
   } catch (error) {
-    return {
-      status: 'error',
-      error: {
-        code: 'APPROVE_CALL_DATA_ERROR',
-        message: error.message || 'Failed to generate approve call data',
-      },
-    };
+      return JSON.stringify({
+        status: 'error',
+        error: {
+          code: 'APPROVE_CALL_DATA_ERROR',
+          message: error.message || 'Failed to generate approve call data',
+        },
+    });
   }
 };

@@ -87,7 +87,7 @@ export const transfer = async (
  */
 export const transferSignature = async (
   params: z.infer<typeof transferSignatureSchema>
-): Promise<any> => {
+): Promise<string> => {
   try {
     const token = await validateToken(
       new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
@@ -122,12 +122,12 @@ export const transferSignature = async (
 
     return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
   } catch (error) {
-    return {
+    return JSON.stringify({
       status: 'error',
       error: {
         code: 'TRANSFER_CALL_DATA_ERROR',
         message: error.message || 'Failed to generate transfer call data',
       },
-    };
+    });
   }
 };
