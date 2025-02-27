@@ -1,7 +1,8 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
 import { INTERACT_ERC20_ABI } from '../abis/interact';
-import { formatBalance, validateTokenAddress } from '../utils/utils';
+import { formatBalance, validateToken } from '../utils/utils';
+import { validToken } from '../types/types';
 import { z } from 'zod';
 import {
   getAllowanceSchema,
@@ -21,14 +22,15 @@ export const getAllowance = async (
   params: z.infer<typeof getAllowanceSchema>
 ): Promise<string> => {
   try {
-    if (!params?.assetSymbol) {
-      throw new Error('Both asset symbol and account address are required');
-    }
-    const symbol = params.assetSymbol.toUpperCase();
-    const tokenAddress = validateTokenAddress(symbol);
-
     const provider = agent.getProvider();
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
+
+    const token: validToken = await validateToken(
+      provider,
+      params.assetSymbol,
+      params.assetAddress,
+    );
+
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,
@@ -39,7 +41,8 @@ export const getAllowance = async (
       status: 'success',
       owner: params.ownerAddress,
       spender: params.spenderAddress,
-      allowance: formatBalance(allowanceResponse, symbol),
+      allowance: formatBalance(allowanceResponse, token.decimals),
+      symbol: token.symbol
     });
   } catch (error) {
     return JSON.stringify({
@@ -61,16 +64,16 @@ export const getMyGivenAllowance = async (
   params: z.infer<typeof getMyGivenAllowanceSchema>
 ): Promise<string> => {
   try {
-    if (!params?.assetSymbol) {
-      throw new Error('Both asset symbol and account address are required');
-    }
-
-    const symbol = params.assetSymbol.toUpperCase();
-    const tokenAddress = validateTokenAddress(symbol);
-
     const provider = agent.getProvider();
     const ownerAddress = agent.getAccountCredentials().accountPublicKey;
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
+
+    const token: validToken = await validateToken(
+      provider,
+      params.assetSymbol,
+      params.assetAddress,
+    );
+
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       ownerAddress,
@@ -81,7 +84,8 @@ export const getMyGivenAllowance = async (
       status: 'success',
       owner: ownerAddress,
       spender: params.spenderAddress,
-      allowance: formatBalance(allowanceResponse, symbol),
+      allowance: formatBalance(allowanceResponse, token.decimals),
+      symbol: token.symbol
     });
   } catch (error) {
     return JSON.stringify({
@@ -103,16 +107,16 @@ export const getAllowanceGivenToMe = async (
   params: z.infer<typeof getAllowanceGivenToMeSchema>
 ): Promise<string> => {
   try {
-    if (!params?.assetSymbol) {
-      throw new Error('Both asset symbol and account address are required');
-    }
-
-    const symbol = params.assetSymbol.toUpperCase();
-    const tokenAddress = validateTokenAddress(symbol);
-
     const provider = agent.getProvider();
     const spenderAddress = agent.getAccountCredentials().accountPublicKey;
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
+
+    const token: validToken = await validateToken(
+      provider,
+      params.assetSymbol,
+      params.assetAddress,
+    );
+
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,
@@ -123,7 +127,8 @@ export const getAllowanceGivenToMe = async (
       status: 'success',
       owner: params.ownerAddress,
       spender: spenderAddress,
-      allowance: formatBalance(allowanceResponse, symbol),
+      allowance: formatBalance(allowanceResponse, token.decimals),
+      symbol: token.symbol
     });
   } catch (error) {
     return JSON.stringify({

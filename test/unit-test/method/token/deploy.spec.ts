@@ -15,7 +15,6 @@ describe('Deploy NFT Contract', () => {
       const result = await deployERC20Contract(agent, params);
       const parsed = JSON.parse(result);
 
-      console.log("RESULT : ", parsed);
       expect(parsed).toMatchObject({
         status: 'success',
         transactionHash: expect.any(String),

@@ -1,7 +1,8 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
 import { INTERACT_ERC20_ABI } from '../abis/interact';
-import { validateTokenAddress, formatBalance } from '../utils/utils';
+import { validateToken, formatBalance } from '../utils/utils';
+import { validToken } from '../types/types';
 import { z } from 'zod';
 import { getTotalSupplySchema } from '../schemas/schema';
 
@@ -14,25 +15,25 @@ import { getTotalSupplySchema } from '../schemas/schema';
  */
 export const getTotalSupply = async (
   agent: StarknetAgentInterface,
-  symbol: z.infer<typeof getTotalSupplySchema>
+  params: z.infer<typeof getTotalSupplySchema>
 ): Promise<string> => {
   try {
-    if (!symbol) {
-      throw new Error('Both asset symbol and account address are required');
-    }
-
-    symbol = symbol.toUpperCase();
-    const tokenAddress = validateTokenAddress(symbol);
+    const token: validToken = await validateToken(
+      agent.getProvider(),
+      params.assetSymbol,
+      params.assetAddress,
+    );
 
     const provider = agent.getProvider();
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
     const totalSupply = await tokenContract.total_supply();
 
-    const formattedSupply = formatBalance(totalSupply, symbol);
+    const formattedSupply = formatBalance(totalSupply, token.decimals);
 
     return JSON.stringify({
       status: 'success',
       totalSupply: formattedSupply,
+      symbol: token.symbol
     });
   } catch (error) {
     return JSON.stringify({

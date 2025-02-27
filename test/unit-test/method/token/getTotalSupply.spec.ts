@@ -9,9 +9,11 @@ setupTestEnvironment();
 describe('Get total supply', () => {
   describe('With perfect match inputs', () => {
     it('should get total supply for ETH', async () => {
-      const tokenAddress = 'ETH';
+      const params = {
+        assetSymbol: 'ETH'
+      }
 
-      const result = await getTotalSupply(agent, tokenAddress);
+      const result = await getTotalSupply(agent, params);
       const parsed = JSON.parse(result);
 
       expect(parsed).toMatchObject({
@@ -23,9 +25,11 @@ describe('Get total supply', () => {
 
   describe('With wrong input', () => {
     it('should fail with invalid token address', async () => {
-      const tokenAddress = 'invalid_address';
+      const params = {
+        assetSymbol: 'ddd'
+      }
 
-      const result = await getTotalSupply(agent, tokenAddress);
+      const result = await getTotalSupply(agent, params);
       const parsed = JSON.parse(result);
 
       expect(parsed).toMatchObject({

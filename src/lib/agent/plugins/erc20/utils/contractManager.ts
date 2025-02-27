@@ -54,7 +54,6 @@ export class ContractManager {
     const { isDeclared, classHash } = await this.isContractDeclared();
     
     if (isDeclared && classHash) {
-      console.log(`Contract already declared with class hash: ${classHash}`);
       return {
         transactionHash: "",
         classHash: classHash

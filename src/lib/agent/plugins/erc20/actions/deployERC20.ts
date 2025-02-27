@@ -21,7 +21,6 @@ export const deployERC20Contract = async (
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
 
-    console.log('🚀 Deploying ERC20 contract with args : ', params);
     const account = new Account(
         provider, 
         accountCredentials?.accountPublicKey,
@@ -47,17 +46,12 @@ export const deployERC20Contract = async (
         provider
     );
 
-    console.log('✅ Test Contract deployed at =', myTestContract.address);
-    // if (response.contractAddress)
-    //   addNewTokenToConstants(params.symbol, response.contractAddress);
-
     return JSON.stringify({
       status: 'success',
       transactionHash: response.transactionHash,
       contractAddress: response.contractAddress,
     });
   } catch (error) {
-    console.log('Error:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

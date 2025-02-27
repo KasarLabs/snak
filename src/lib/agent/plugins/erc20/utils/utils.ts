@@ -1,8 +1,10 @@
-import { validateAndParseAddress, Account, Call, num, RPC } from 'starknet';
+import { validateAndParseAddress, num, RPC, Contract, Provider, shortString } from 'starknet';
 import { tokenAddresses } from '../constant/constant';
-import { DECIMALS } from '../types/types';
 import { uint256 } from 'starknet';
 import { ParamsValidationResult, ExecuteV3Args } from '../types/types';
+import { DECIMALS } from '../types/types';
+import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { validToken } from '../types/types';
 
 /**
  * Returns the number of decimals for a token
@@ -18,12 +20,12 @@ export const getTokenDecimals = (symbol: string): number => {
 /**
  * Formats a balance string to the correct decimal places
  * @param rawBalance - Raw balance as a string, number or bigint
- * @param symbol - Token symbol
+  * @param decimals - Number of decimal places
  * @returns Formatted balance as a string
  */
 export const formatBalance = (
   rawBalance: bigint | string | number,
-  symbol: string
+  decimals: number
 ): string => {
   try {
     const balanceStr =
@@ -34,8 +36,6 @@ export const formatBalance = (
     if (!balanceStr || balanceStr === '0') {
       return '0';
     }
-
-    const decimals = getTokenDecimals(symbol);
 
     if (balanceStr.length <= decimals) {
       const zeros = '0'.repeat(decimals - balanceStr.length);
@@ -83,29 +83,19 @@ export const formatTokenAmount = (amount: string, decimals: number): string => {
 };
 
 /**
- * Validates and formats input parameters with strict validation
- * @param symbol - Token symbol
+ * Validates and formats the address and amount parameters
  * @param address - Starknet address
- * @param amount - Token amount
- * @returns Formatted parameters
+ * @param amount - Amount to transfer
+ * @param decimals - Number of decimal places
+ * @returns Formatted address and amount
  * @throws Error if validation fails
  */
 export const validateAndFormatParams = (
-  symbol: string,
   address: string,
-  amount: string
+  amount: string,
+  decimals: number,
 ): ParamsValidationResult => {
   try {
-    if (!symbol) {
-      throw new Error('Asset symbol is required');
-    }
-    const formattedSymbol = symbol.toUpperCase();
-
-    const tokenAddress = validateTokenAddress(formattedSymbol);
-    if (!tokenAddress) {
-      throw new Error(`Token ${formattedSymbol} not supported`);
-    }
-
     if (!address) {
       throw new Error('Address is required');
     }
@@ -114,16 +104,12 @@ export const validateAndFormatParams = (
     if (!amount) {
       throw new Error('Amount is required');
     }
-    const decimals =
-      DECIMALS[formattedSymbol as keyof typeof DECIMALS] || DECIMALS.DEFAULT;
     const formattedAmount = formatTokenAmount(amount, decimals);
     const formattedAmountUint256 = uint256.bnToUint256(formattedAmount);
 
     return {
-      formattedSymbol,
-      formattedAddress,
-      formattedAmountUint256,
-      tokenAddress,
+      address: formattedAddress,
+      amount: formattedAmountUint256
     };
   } catch (error) {
     throw new Error(`Parameter validation failed: ${error.message}`);
@@ -135,8 +121,8 @@ export const validateAndFormatParams = (
  * @returns {Object} V3 transaction details payload with gas parameters
  */
 export const getV3DetailsPayload = () => {
-  const maxL1Gas = 15000n;
-  const maxL1GasPrice = 600000n * 10n ** 9n;
+  const maxL1Gas = 2000n;
+  const maxL1GasPrice = 100000n * 10n ** 9n;
   
   return {
     version: 3,
@@ -177,3 +163,52 @@ export const executeV3Transaction = async ({
 
   return transaction_hash;
 };
+
+
+/**
+ * Validates token by his symbol or address
+ * @param {Provider} provider - The Starknet provider
+ * @param {string} assetSymbol - The ERC20 token symbol
+ * @param {string} assetAddress - The ERC20 token contract address
+ * @returns {Promise<validToken>} The valid token
+ * @throws {Error} If token is not valid
+ */
+export async function validateToken(
+  provider: Provider,
+  assetSymbol?: string,
+  assetAddress?: string
+): Promise<validToken> {
+  if (!assetSymbol && !assetAddress) {
+      throw new Error('Either asset symbol or asset address is required');
+  }
+
+  let address: string = '', symbol: string = '', decimals: number = 0;
+  if (assetSymbol) {
+    symbol = assetSymbol.toUpperCase();
+    address = validateTokenAddress(symbol);
+    if (!address) {
+      throw new Error(`Token ${symbol} not supported`);
+    }
+    decimals = DECIMALS[symbol as keyof typeof DECIMALS] || DECIMALS.DEFAULT;
+  }
+  else if (assetAddress) {
+    address = validateAndParseAddress(assetAddress);
+    try {
+      const contract = new Contract(INTERACT_ERC20_ABI, address, provider);
+      
+      const rawSymbol = await contract.symbol();
+      const decimalsBigInt = await contract.decimals().catch(() => DECIMALS.DEFAULT);
+      
+      symbol = shortString.decodeShortString(rawSymbol);
+      decimals = typeof decimalsBigInt === 'bigint' ? Number(decimalsBigInt) : decimalsBigInt;
+      
+    } catch (error) {
+      console.warn(`Error retrieving token info: ${error.message}`);
+    }
+  }
+  return {
+      address,
+      symbol,
+      decimals
+  };
+}

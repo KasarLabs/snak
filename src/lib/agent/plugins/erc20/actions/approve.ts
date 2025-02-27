@@ -1,9 +1,10 @@
-import { Account, Contract, constants } from 'starknet';
+import { Account, Contract, RpcProvider, constants } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
 import { INTERACT_ERC20_ABI } from '../abis/interact';
-import { validateAndFormatParams, executeV3Transaction } from '../utils/utils';
+import { validateAndFormatParams, executeV3Transaction, validateToken } from '../utils/utils';
 import { z } from 'zod';
 import { approveSchema, approveSignatureSchema } from '../schemas/schema';
+import { validToken } from '../types/types';
 
 /**
  * Approves token spending
@@ -17,15 +18,21 @@ export const approve = async (
   params: z.infer<typeof approveSchema>
 ): Promise<string> => {
   try {
-    const validatedParams = validateAndFormatParams(
-      params.assetSymbol,
-      params.spenderAddress,
-      params.amount
-    );
-
-    const spenderAddress = validatedParams.formattedAddress;
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
+
+    const token: validToken = await validateToken(
+      provider,
+      params.assetSymbol,
+      params.assetAddress,
+    );
+    const { address, amount } = validateAndFormatParams(
+      params.spenderAddress,
+      params.amount,
+      token.decimals
+    );
+
+    const spenderAddress = address;
 
     const account = new Account(
       provider,
@@ -37,14 +44,14 @@ export const approve = async (
 
     const contract = new Contract(
       INTERACT_ERC20_ABI,
-      validatedParams.tokenAddress,
+      token.address,
       provider
     );
     contract.connect(account);
 
     const calldata = contract.populate('approve', [
       spenderAddress,
-      validatedParams.formattedAmountUint256,
+      amount,
     ]);
 
     const txH = await executeV3Transaction({
@@ -55,7 +62,7 @@ export const approve = async (
     return JSON.stringify({
       status: 'success',
       amount: params.amount,
-      symbol: validatedParams.formattedSymbol,
+      symbol: token.symbol,
       spender_address: spenderAddress,
       transactionHash: txH,
     });
@@ -69,7 +76,7 @@ export const approve = async (
 };
 
 /**
- * Generates approve signature for batch approvals
+ * Generates approve signature
  * @param {Object} input - Approve input
  * @param {ApproveParams[]} input.params - Array of approve parameters
  * @returns {Promise<string>} JSON string with transaction result
@@ -78,27 +85,32 @@ export const approveSignature = async (
   params: z.infer<typeof approveSignatureSchema>
 ): Promise<any> => {
   try {
-    const validatedParams = validateAndFormatParams(
+    const token: validToken = await validateToken(
+      new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
       params.assetSymbol,
+      params.assetAddress,
+    );
+    const { address, amount } = validateAndFormatParams(
       params.spenderAddress,
-      params.amount
+      params.amount,
+      token.decimals
     );
 
-    const spenderAddress = validatedParams.formattedAddress;
+    const spenderAddress = address;
 
     const result = {
       status: 'success',
       transactions: {
-        contractAddress: validatedParams.tokenAddress,
+        contractAddress: token.address,
         entrypoint: 'approve',
         calldata: [
           spenderAddress,
-          validatedParams.formattedAmountUint256.low,
-          validatedParams.formattedAmountUint256.high,
+          amount.low,
+          amount.high,
         ],
       },
       additional_data: {
-        symbol: params.assetSymbol,
+        symbol: token.symbol,
         amount: params.amount,
         spenderAddress: spenderAddress,
       },

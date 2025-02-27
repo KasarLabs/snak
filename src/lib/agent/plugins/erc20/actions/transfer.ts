@@ -1,10 +1,12 @@
 import { Account, constants, Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { validateAndFormatParams, executeV3Transaction } from '../utils/utils';
+import { validateAndFormatParams, executeV3Transaction, validateToken } from '../utils/utils';
 import { z } from 'zod';
 import { transferSchema, transferSignatureSchema } from '../schemas/schema';
 import { TransferResult } from '../types/types';
 import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { validToken } from '../types/types';
+import { RpcProvider } from 'starknet';
 
 /**
  * Transfers ERC20 tokens on Starknet
@@ -18,15 +20,21 @@ export const transfer = async (
   params: z.infer<typeof transferSchema>
 ): Promise<string> => {
   try {
-    const validatedParams = validateAndFormatParams(
+    const provider = agent.getProvider();
+    const credentials = agent.getAccountCredentials();
+
+    const token: validToken = await validateToken(
+      provider,
       params.assetSymbol,
+      params.assetAddress,
+    );
+    const { address, amount } = validateAndFormatParams(
       params.recipientAddress,
-      params.amount
+      params.amount,
+      token.decimals
     );
 
-    const recipientAddress = validatedParams.formattedAddress;
-    const credentials = agent.getAccountCredentials();
-    const provider = agent.getProvider();
+    const recipientAddress = address;
 
     const account = new Account(
       provider,
@@ -38,15 +46,15 @@ export const transfer = async (
 
     const contract = new Contract(
       INTERACT_ERC20_ABI,
-      validatedParams.tokenAddress,
+      token.address,
       provider
     );
     contract.connect(account);
 
     const calldata = contract.populate('transfer', [
       recipientAddress,
-      validatedParams.formattedAmountUint256.low,
-      validatedParams.formattedAmountUint256.high,
+      amount.low,
+      amount.high,
     ]);
 
     const txH = await executeV3Transaction({
@@ -57,8 +65,8 @@ export const transfer = async (
     return JSON.stringify({
       status: 'success',
       amount: params.amount,
-      symbol: validatedParams.formattedSymbol,
-      recipients_address: params.recipientAddress,
+      symbol: token.symbol,
+      recipients_address: recipientAddress,
       transaction_hash: txH,
     });
   } catch (error) {
@@ -72,7 +80,7 @@ export const transfer = async (
 };
 
 /**
- * Generates transfer signature for batch transfers
+ * Generates transfer signature
  * @param {Object} input - Transfer input
  * @param {TransferParams} input.params - Array of transfer parameters
  * @returns {Promise<string>} JSON string with transaction result
@@ -81,27 +89,32 @@ export const transferSignature = async (
   params: z.infer<typeof transferSignatureSchema>
 ): Promise<any> => {
   try {
-    const validatedParams = validateAndFormatParams(
+    const token = await validateToken(
+      new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
       params.assetSymbol,
+      params.assetAddress,
+    );
+    const { address, amount } = validateAndFormatParams(
       params.recipientAddress,
-      params.amount
+      params.amount,
+      token.decimals
     );
 
-    const recipientAddress = validatedParams.formattedAddress;
+    const recipientAddress = address;
 
     const result = {
       status: 'success',
       transactions: {
-        contractAddress: validatedParams.tokenAddress,
+        contractAddress: token.address,
         entrypoint: 'transfer',
         calldata: [
           recipientAddress,
-          validatedParams.formattedAmountUint256.low,
-          validatedParams.formattedAmountUint256.high,
+          amount.low,
+          amount.high,
         ],
       },
       additional_data: {
-        symbol: params.assetSymbol,
+        symbol: token.symbol,
         amount: params.amount,
         recipientAddress: recipientAddress,
       },

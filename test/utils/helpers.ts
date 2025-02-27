@@ -16,19 +16,19 @@ interface EnvConfig {
 
 export const loadTestConfig = (): EnvConfig => {
   const config: EnvConfig = {
-    STARKNET_RPC_URL: 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_7/twNPk5lDPh5t6m0WV6eoXdAD2VfIN0-b',
+    STARKNET_RPC_URL: '',
     accounts: {
       account1: {
         privateKey:
-          '0x07167584593e32e17e2d3105c2e3aba97d341ac4e5843aca24fa2d77abebc915',
+          '',
         publicAddress:
           '0x06889CE7127025749Ab8c2F63c4ba26f972b16530B9aCee3255e59055c0B8CFd',
       },
       account2: {
         privateKey:
-          '0x000000000000000000000000000000000e1406455b7d66b1690803be066cbe5e',
+          '',
         publicAddress:
-          '0x078662e7352d062084b0010068b99288486c2d8b914f6e2a55ce945f8792c8b1',
+          '0x023663bBA9C5Ff71586301a9fB8aB6DAFFb23F8132941ccb6EBdc45DE1Aa3cB3',
       },
       account3: {
         privateKey:

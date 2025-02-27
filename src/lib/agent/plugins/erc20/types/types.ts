@@ -30,17 +30,25 @@ export interface TransferResult {
 }
 
 /**
- * Validated parameters for token operations
- * @property {string} formattedSymbol
- * @property {string} formattedAddress
- * @property {string} tokenAddress
- * @property {Uint256} formattedAmountUint256
+ * Validation result for a token
+ * @property {string} address - Token address
+ * @property {string} symbol - Token symbol
+ * @property {number} decimals - Token decimals
+ */
+export interface validToken {
+  address: string;
+  symbol: string;
+  decimals: number;
+}
+
+/**
+ * Validation result for parameters
+ * @property {string} address - Address
+ * @property {Uint256} amount - Amount
  */
 export interface ParamsValidationResult {
-  formattedSymbol: string;
-  formattedAddress: string;
-  tokenAddress: string;
-  formattedAmountUint256: Uint256;
+  address: string;
+  amount: Uint256;
 }
 
 /**

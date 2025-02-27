@@ -10,7 +10,7 @@ import { TelegramInterface } from 'src/lib/agent/plugins/telegram/interfaces';
 setupTestEnvironment();
 
 export const createMockStarknetAgent = (): StarknetAgentInterface => {
-  const provider = new RpcProvider({ nodeUrl: 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_7/twNPk5lDPh5t6m0WV6eoXdAD2VfIN0-b' });
+  const provider = new RpcProvider({ nodeUrl: '' });
   const twitter_interface = {};
   const telegram_interface = {};
   const json_config = undefined;
