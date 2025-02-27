@@ -1,11 +1,12 @@
 <div align="center">
   <picture>
-    <!-- For users in dark mode, load a lighter (or white) logo -->
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-black-no-bg.png?raw=true">
+    <!-- For users in dark mode, load a white logo -->
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-white-no-bg.png?raw=true">
     <!-- Default image for light mode -->
-    <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-white-no-bg.png?raw=true" width="50" alt="Starknet Agent Kit Logo">
+    <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-black-no-bg.png?raw=true" width="150" alt="Starknet Agent Kit Logo">
   </picture>
-  <strong>Snak (alpha)</strong>
+  
+  <h1>Snak (alpha)</h1>
 
 <p>
 <a href="https://www.npmjs.com/package/starknet-agent-kit">

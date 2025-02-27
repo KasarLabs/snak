@@ -138,7 +138,7 @@ const LocalRun = async () => {
   console.log(logo);
   console.log(
     createBox(
-      'Welcome to Starknet-Agent-Kit',
+      'Welcome to Snak, an advanced Agent engine powered by Starknet.',
       'For more informations, visit our documentation at https://docs.starkagent.ai'
     )
   );

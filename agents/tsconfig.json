@@ -6,7 +6,7 @@
     "paths": {
       "@/*": ["./*"],
       "@common/*": ["./common/*"],
-      "@src/*": ["./src/*"],
+      "@src/*": ["./src/*"]
     },
     "incremental": true,
     "tsBuildInfoFile": "./buildcache/.tsbuildinfo"
