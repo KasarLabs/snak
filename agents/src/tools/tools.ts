@@ -86,7 +86,7 @@ export const registerTools = async (
         index = index + 1;
 
         const imported_tool = await import(
-          `@starknet-agent-kit/plugin-${tool}/index.js`
+          `@starknet-agent-kit/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerTools !== 'function') {
           return false;

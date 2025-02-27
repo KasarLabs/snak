@@ -134,13 +134,15 @@ export const validateConfig = (config: JsonConfig) => {
   }
 };
 
-const checkParseJson = async (agent_config_name: string): Promise<JsonConfig | undefined> => {
+const checkParseJson = async (
+  agent_config_name: string
+): Promise<JsonConfig | undefined> => {
   try {
     const configPath = path.resolve(`../config/agents/${agent_config_name}`);
 
     const jsonModule = await import(configPath, { assert: { type: 'json' } });
     const json = jsonModule.default;
-    
+
     if (!json) {
       throw new Error(`Can't access to ./config/agents/config-agent.json`);
     }
