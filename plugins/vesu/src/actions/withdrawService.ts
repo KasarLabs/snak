@@ -137,7 +137,7 @@ export class WithdrawEarnService {
       pool.extensionContractAddress,
       pool.assets
     );
-  
+
     return { ...pool, assets };
   }
 
