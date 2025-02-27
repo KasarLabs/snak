@@ -19,7 +19,8 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'get_own_balance',
     plugins: 'token',
-    description: 'Get the balance of an asset in your wallet',
+    description:
+      'Get the balance of a cryptocurrency in your wallet. Extract the token symbol (like ETH, USDC) from the user query. Always use a valid token symbol.',
     schema: getOwnBalanceSchema,
     execute: getOwnBalance,
   });
