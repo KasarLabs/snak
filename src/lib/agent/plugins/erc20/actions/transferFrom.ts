@@ -5,8 +5,8 @@ import {
   constants,
 } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC20_ABI } from '../abis/erc20Abi';
-import { validateAndFormatParams, executeV3Transaction } from '../utils/token';
+import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { validateAndFormatParams, executeV3Transaction } from '../utils/utils';
 import { z } from 'zod';
 import {
   transferFromSchema,
@@ -45,7 +45,7 @@ export const transferFrom = async (
     );
 
     const contract = new Contract(
-      ERC20_ABI,
+      INTERACT_ERC20_ABI,
       validatedParams.tokenAddress,
       provider
     );

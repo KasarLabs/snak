@@ -52,3 +52,33 @@ export interface ExecuteV3Args {
   call: Call;
   account: Account;
 }
+
+/**
+ * Result of a contract declaration operation
+ * @property {string} transactionHash - Transaction hash of the declaration
+ * @property {string} classHash - Class hash of the declared contract
+ */
+export interface ContractDeclareResult {
+  transactionHash: string | undefined;
+  classHash: string | undefined;
+}
+
+/**
+ * Result of a contract deployment operation
+ * @property {string} transactionHash - Transaction hash of the deployment
+ * @property {string} contractAddress - Address of the deployed contract
+ */
+export interface ContractDeployResult {
+  transactionHash: string | undefined;
+  contractAddress: string | undefined;
+}
+
+/**
+ * Combined result of contract declaration and deployment
+ * @property {ContractDeclareResult} declare - Declaration result
+ * @property {ContractDeployResult} deploy - Deployment result
+ */
+export interface ContractDeclareAndDeployResult {
+  declare: ContractDeclareResult;
+  deploy: ContractDeployResult;
+}

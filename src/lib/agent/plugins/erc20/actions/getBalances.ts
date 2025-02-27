@@ -1,7 +1,7 @@
 import { Account, Contract, RpcProvider } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC20_ABI } from '../abis/erc20Abi';
-import { formatBalance, validateTokenAddress } from '../utils/token';
+import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { formatBalance, validateTokenAddress } from '../utils/utils';
 import { z } from 'zod';
 import { getBalanceSchema, getOwnBalanceSchema } from '../schemas/schema';
 
@@ -33,7 +33,7 @@ export const getOwnBalance = async (
 
     const account = new Account(provider, accountAddress, accountPrivateKey);
     const tokenAddress = validateTokenAddress(params.assetSymbol);
-    const tokenContract = new Contract(ERC20_ABI, tokenAddress, provider);
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
 
     const balanceResponse = await tokenContract.balanceOf(account.address);
 
@@ -76,7 +76,7 @@ export const getBalance = async (
     const tokenAddress = validateTokenAddress(params.assetSymbol);
 
     const provider = agent.getProvider();
-    const tokenContract = new Contract(ERC20_ABI, tokenAddress, provider);
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
     const balanceResponse = await tokenContract.balanceOf(
       params.accountAddress
     );

@@ -4,13 +4,13 @@ import {
   transferFromSignatureSchema,
   approveSignatureSchema,
   transferSignatureSchema,
-} from '../../../erc20/schemas/schema';
+} from '../schemas/schema';
 
-import { transferSignature } from '../../../erc20/actions/transfer';
-import { approveSignature } from '../../../erc20/actions/approve';
-import { transferFromSignature } from '../../../erc20/actions/transferFrom';
+import { transferSignature } from '../actions/transfer';
+import { approveSignature } from '../actions/approve';
+import { transferFromSignature } from '../actions/transferFrom';
 
-export const registerSignatureToolsToken = () => {
+export const registerSignatureToolsERC20 = () => {
   StarknetSignatureToolRegistry.RegisterSignatureTools({
     name: 'transfer_from',
     description: 'Return transfer_from json transaction',

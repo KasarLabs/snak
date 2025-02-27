@@ -179,3 +179,16 @@ export const transferSignatureSchema = z.object({
   amount: z.string().describe('The amount of tokens to transfer'),
   assetSymbol: z.string().describe('The symbol of the token to transfer'),
 });
+
+/**
+ * Schema for deploying an ERC20 token
+ * @typedef {Object} DeployERC20Schema
+ * @property {string} name - The name of the token
+ * @property {string} symbol - The symbol of the token
+ * @property {string} totalSupply - The total supply to mint at the deployment time
+ */
+export const deployERC20Schema = z.object({
+  name: z.string().describe('The name of the token'),
+  symbol: z.string().describe('The symbol of the token'),
+  totalSupply: z.string().describe('The total supply to mint at the deployment time'),
+});

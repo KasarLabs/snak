@@ -9,7 +9,7 @@ import { registerTwitterTools } from '../plugins/twitter/tools';
 import { registerUnraggableTools } from '../plugins/unruggable/tools';
 import { registerTransactionTools } from '../plugins/core/transaction/tools';
 import { registerRPCTools } from '../plugins/core/rpc/tools';
-import { registerTokenTools } from '../plugins/core/token/tools';
+import { registerERC20Tools } from '../plugins/erc20/tools/tools';
 import { registerAvnuTools } from '../plugins/avnu/tools';
 import { registerAccountTools } from '../plugins/core/account/tools/index';
 import { registerFibrousTools } from '../plugins/fibrous/tools';
@@ -90,7 +90,7 @@ export const registerTools = () => {
 
   registerAvnuTools();
 
-  registerTokenTools();
+  registerERC20Tools();
 
   registerRPCTools();
 

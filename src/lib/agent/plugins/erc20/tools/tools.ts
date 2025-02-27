@@ -10,21 +10,23 @@ import {
   transferSchema,
   getMyGivenAllowanceSchema,
   getAllowanceGivenToMeSchema,
-} from '../../../erc20/schemas/schema';
+  deployERC20Schema
+} from '../schemas/schema';
 
-import { getAllowance } from '../../../erc20/actions/getAllowance';
-import { getTotalSupply } from '../../../erc20/actions/getTotaSupply';
-import { transferFrom } from '../../../erc20/actions/transferFrom';
-import { getBalance, getOwnBalance } from '../../../erc20/actions/getBalances';
-import { approve } from '../../../erc20/actions/approve';
-import { transfer } from '../../../erc20/actions/transfer';
-import { getMyGivenAllowance } from '../../../erc20/actions/getAllowance';
-import { getAllowanceGivenToMe } from '../../../erc20/actions/getAllowance';
+import { getAllowance } from '../actions/getAllowance';
+import { getTotalSupply } from '../actions/getTotaSupply';
+import { transferFrom } from '../actions/transferFrom';
+import { getBalance, getOwnBalance } from '../actions/getBalances';
+import { approve } from '../actions/approve';
+import { transfer } from '../actions/transfer';
+import { getMyGivenAllowance } from '../actions/getAllowance';
+import { getAllowanceGivenToMe } from '../actions/getAllowance';
+import { deployERC20Contract } from '../actions/deployERC20';
 
-export const registerTokenTools = () => {
+export const registerERC20Tools = () => {
   StarknetToolRegistry.registerTool({
     name: 'get_allowance',
-    plugins: 'token',
+    plugins: 'erc20',
     description:
       'Get the amount of tokens that a spender is allowed to spend on behalf of an owner. Requires the token symbol (e.g., ETH, USDC), the owner address and the spender address.',
     schema: getAllowanceSchema,
@@ -33,7 +35,7 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'get_my_given_allowance',
-    plugins: 'token',
+    plugins: 'erc20',
     description:
       'Get the amount of tokens that a spender is allowed to spend on your behalf. Requires the token symbol (e.g., ETH, USDC) and the spender address.',
     schema: getMyGivenAllowanceSchema,
@@ -42,7 +44,7 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'get_allowance_given_to_me',
-    plugins: 'token',
+    plugins: 'erc20',
     description:
       'Get the amount of tokens that a you are allowed to spend on the behalf of an owner. Requires the token symbol (e.g., ETH, USDC) and the owner address.',
     schema: getAllowanceGivenToMeSchema,
@@ -51,7 +53,7 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'get_total_supply',
-    plugins: 'token',
+    plugins: 'erc20',
     description: 'Get the total supply of an token token',
     schema: getTotalSupplySchema,
     execute: getTotalSupply,
@@ -59,7 +61,7 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'transfer_from',
-    plugins: 'token',
+    plugins: 'erc20',
     description:
       'Transfer tokens from one address to another using an allowance',
     schema: transferFromSchema,
@@ -68,7 +70,7 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'get_balance',
-    plugins: 'token',
+    plugins: 'erc20',
     description: 'Get the balance of an asset for a given wallet address',
     schema: getBalanceSchema,
     execute: getBalance,
@@ -76,7 +78,7 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'get_own_balance',
-    plugins: 'token',
+    plugins: 'erc20',
     description: 'Get the balance of an asset in your wallet',
     schema: getOwnBalanceSchema,
     execute: getOwnBalance,
@@ -84,7 +86,7 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'approve',
-    plugins: 'token',
+    plugins: 'erc20',
     description: 'Approve a spender to spend tokens on your behalf',
     schema: approveSchema,
     execute: approve,
@@ -92,9 +94,17 @@ export const registerTokenTools = () => {
 
   StarknetToolRegistry.registerTool({
     name: 'transfer',
-    plugins: 'token',
+    plugins: 'erc20',
     description: 'Transfer ERC20 tokens to a specific address',
     schema: transferSchema,
     execute: transfer,
+  });
+
+  StarknetToolRegistry.registerTool({
+    name: 'deploy_erc20',
+    plugins: 'erc20',
+    description: 'Deploy a new ERC20 contract, returns the address of the deployed contract',
+    schema: deployERC20Schema,
+    execute: deployERC20Contract
   });
 };

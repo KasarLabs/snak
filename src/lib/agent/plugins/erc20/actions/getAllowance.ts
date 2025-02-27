@@ -1,7 +1,7 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC20_ABI } from '../abis/erc20Abi';
-import { formatBalance, validateTokenAddress } from '../utils/token';
+import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { formatBalance, validateTokenAddress } from '../utils/utils';
 import { z } from 'zod';
 import {
   getAllowanceSchema,
@@ -28,7 +28,7 @@ export const getAllowance = async (
     const tokenAddress = validateTokenAddress(symbol);
 
     const provider = agent.getProvider();
-    const tokenContract = new Contract(ERC20_ABI, tokenAddress, provider);
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,
@@ -70,7 +70,7 @@ export const getMyGivenAllowance = async (
 
     const provider = agent.getProvider();
     const ownerAddress = agent.getAccountCredentials().accountPublicKey;
-    const tokenContract = new Contract(ERC20_ABI, tokenAddress, provider);
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       ownerAddress,
@@ -112,7 +112,7 @@ export const getAllowanceGivenToMe = async (
 
     const provider = agent.getProvider();
     const spenderAddress = agent.getAccountCredentials().accountPublicKey;
-    const tokenContract = new Contract(ERC20_ABI, tokenAddress, provider);
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,

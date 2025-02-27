@@ -31,3 +31,6 @@ export const tokenAddresses: { [key: string]: string } = {
   wstETH: '0x42b8f0484674ca266ac5d08e4ac6a3fe65bd3129795def2dca5c34ecc5f96d2',
   xSTRK: '0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a',
 };
+
+export const ERC20_CLASSHASH = "0x1932e98bfd12e65ca0d69cd98f04352674597f15477373dfa868863e9792144"
+

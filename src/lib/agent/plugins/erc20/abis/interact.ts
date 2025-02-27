@@ -1,4 +1,4 @@
-export const ERC20_ABI = [
+export const INTERACT_ERC20_ABI = [
   {
     name: 'MintableToken',
     type: 'impl',

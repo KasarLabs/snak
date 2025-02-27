@@ -1,7 +1,7 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC20_ABI } from '../abis/erc20Abi';
-import { validateTokenAddress, formatBalance } from '../utils/token';
+import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { validateTokenAddress, formatBalance } from '../utils/utils';
 import { z } from 'zod';
 import { getTotalSupplySchema } from '../schemas/schema';
 
@@ -25,7 +25,7 @@ export const getTotalSupply = async (
     const tokenAddress = validateTokenAddress(symbol);
 
     const provider = agent.getProvider();
-    const tokenContract = new Contract(ERC20_ABI, tokenAddress, provider);
+    const tokenContract = new Contract(INTERACT_ERC20_ABI, tokenAddress, provider);
     const totalSupply = await tokenContract.total_supply();
 
     const formattedSupply = formatBalance(totalSupply, symbol);
