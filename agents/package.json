@@ -10,7 +10,7 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "start": "ts-node -r tsconfig-paths/register ./start.ts",
+    "start": "npx tsx -r tsconfig-paths/register ./start.ts",
     "lint": "eslint \"src/**/*.ts\""
   },
   "keywords": [],
