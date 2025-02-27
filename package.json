@@ -8,7 +8,7 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kasarlabs/starknet-agent-kit.git"
+    "url": "git+https://github.com/kasarlabs/snak.git"
   },
   "keywords": [
     "starknet",
