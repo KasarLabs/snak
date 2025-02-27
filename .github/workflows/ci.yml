@@ -100,8 +100,8 @@ jobs:
       - name: Build client
         run: pnpm build:frontend
 
-      -name : Build agents
-        run : pnpm build:agents
+      -name: Build agents
+        run: pnpm build:agents
       
-      -name : Build plugins
-        run : pnpm build:plugins
+      -name: Build plugins
+        run: pnpm build:plugins
