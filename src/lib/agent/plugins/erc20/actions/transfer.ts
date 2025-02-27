@@ -1,6 +1,10 @@
 import { Account, constants, Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { validateAndFormatParams, executeV3Transaction, validateToken } from '../utils/utils';
+import {
+  validateAndFormatParams,
+  executeV3Transaction,
+  validateToken,
+} from '../utils/utils';
 import { z } from 'zod';
 import { transferSchema, transferSignatureSchema } from '../schemas/schema';
 import { TransferResult } from '../types/types';
@@ -26,7 +30,7 @@ export const transfer = async (
     const token: validToken = await validateToken(
       provider,
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
     const { address, amount } = validateAndFormatParams(
       params.recipientAddress,
@@ -44,11 +48,7 @@ export const transfer = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(
-      INTERACT_ERC20_ABI,
-      token.address,
-      provider
-    );
+    const contract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
     contract.connect(account);
 
     const calldata = contract.populate('transfer', [
@@ -92,7 +92,7 @@ export const transferSignature = async (
     const token = await validateToken(
       new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
     const { address, amount } = validateAndFormatParams(
       params.recipientAddress,
@@ -107,11 +107,7 @@ export const transferSignature = async (
       transactions: {
         contractAddress: token.address,
         entrypoint: 'transfer',
-        calldata: [
-          recipientAddress,
-          amount.low,
-          amount.high,
-        ],
+        calldata: [recipientAddress, amount.low, amount.high],
       },
       additional_data: {
         symbol: token.symbol,

@@ -84,7 +84,6 @@ export const getTotalSupplySchema = z.object({
     .describe('The address of the token contract'),
 });
 
-
 /**
  * Schema for transferring tokens from one address to another using allowance
  * @typedef {Object} TransferFromSchema
@@ -98,8 +97,14 @@ export const transferFromSchema = z.object({
   fromAddress: z.string().describe('The address to transfer tokens from'),
   toAddress: z.string().describe('The address to transfer tokens to'),
   amount: z.string().describe('The amount of tokens to transfer'),
-  assetSymbol: z.string().optional().describe('The symbol of the token to transfer'),
-  assetAddress: z.string().optional().describe('The address of the token contract'),
+  assetSymbol: z
+    .string()
+    .optional()
+    .describe('The symbol of the token to transfer'),
+  assetAddress: z
+    .string()
+    .optional()
+    .describe('The address of the token contract'),
 });
 
 /**
@@ -115,8 +120,14 @@ export const transferFromSignatureSchema = z.object({
   fromAddress: z.string().describe('The address to transfer tokens from'),
   toAddress: z.string().describe('The address to transfer tokens to'),
   amount: z.string().describe('The amount of tokens to transfer'),
-  assetSymbol: z.string().optional().describe('The symbol of the token to transfer'),
-  assetAddress: z.string().optional().describe('The address of the token contract'),
+  assetSymbol: z
+    .string()
+    .optional()
+    .describe('The symbol of the token to transfer'),
+  assetAddress: z
+    .string()
+    .optional()
+    .describe('The address of the token contract'),
 });
 
 /**
@@ -187,8 +198,14 @@ export const approveSchema = z.object({
     .string()
     .describe('The address being approved to spend tokens'),
   amount: z.string().describe('The amount of tokens being approved'),
-  assetSymbol: z.string().optional().describe('The symbol of the token being approved'),
-  assetAddress: z.string().optional().describe('The address of the token contract'),
+  assetSymbol: z
+    .string()
+    .optional()
+    .describe('The symbol of the token being approved'),
+  assetAddress: z
+    .string()
+    .optional()
+    .describe('The address of the token contract'),
 });
 
 /**
@@ -204,8 +221,14 @@ export const approveSignatureSchema = z.object({
     .string()
     .describe('The address being approved to spend tokens'),
   amount: z.string().describe('The amount of tokens being approved'),
-  assetSymbol: z.string().optional().describe('The symbol of the token being approved'),
-  assetAddress: z.string().optional().describe('The address of the token contract'),
+  assetSymbol: z
+    .string()
+    .optional()
+    .describe('The symbol of the token being approved'),
+  assetAddress: z
+    .string()
+    .optional()
+    .describe('The address of the token contract'),
 });
 
 /**
@@ -219,8 +242,14 @@ export const approveSignatureSchema = z.object({
 export const transferSchema = z.object({
   recipientAddress: z.string().describe('The address to receive the tokens'),
   amount: z.string().describe('The amount of tokens to transfer'),
-  assetSymbol: z.string().optional().describe('The symbol of the token to transfer'),
-  assetAddress: z.string().optional().describe('The address of the token contract'),
+  assetSymbol: z
+    .string()
+    .optional()
+    .describe('The symbol of the token to transfer'),
+  assetAddress: z
+    .string()
+    .optional()
+    .describe('The address of the token contract'),
 });
 
 /**
@@ -234,8 +263,14 @@ export const transferSchema = z.object({
 export const transferSignatureSchema = z.object({
   recipientAddress: z.string().describe('The address to receive the tokens'),
   amount: z.string().describe('The amount of tokens to transfer'),
-  assetSymbol: z.string().optional().describe('The symbol of the token to transfer'),
-  assetAddress: z.string().optional().describe('The address of the token contract'),
+  assetSymbol: z
+    .string()
+    .optional()
+    .describe('The symbol of the token to transfer'),
+  assetAddress: z
+    .string()
+    .optional()
+    .describe('The address of the token contract'),
 });
 
 /**
@@ -248,5 +283,7 @@ export const transferSignatureSchema = z.object({
 export const deployERC20Schema = z.object({
   name: z.string().describe('The name of the token'),
   symbol: z.string().describe('The symbol of the token'),
-  totalSupply: z.string().describe('The total supply to mint at the deployment time'),
+  totalSupply: z
+    .string()
+    .describe('The total supply to mint at the deployment time'),
 });

@@ -10,7 +10,7 @@ import {
   transferSchema,
   getMyGivenAllowanceSchema,
   getAllowanceGivenToMeSchema,
-  deployERC20Schema
+  deployERC20Schema,
 } from '../schemas/schema';
 
 import { getAllowance } from '../actions/getAllowance';
@@ -103,8 +103,9 @@ export const registerERC20Tools = () => {
   StarknetToolRegistry.registerTool({
     name: 'deploy_erc20',
     plugins: 'erc20',
-    description: 'Deploy a new ERC20 contract, returns the address of the deployed contract',
+    description:
+      'Deploy a new ERC20 contract, returns the address of the deployed contract',
     schema: deployERC20Schema,
-    execute: deployERC20Contract
+    execute: deployERC20Contract,
   });
 };

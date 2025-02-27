@@ -1,7 +1,11 @@
 import { Account, Contract, RpcProvider, constants } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
 import { INTERACT_ERC20_ABI } from '../abis/interact';
-import { validateAndFormatParams, executeV3Transaction, validateToken } from '../utils/utils';
+import {
+  validateAndFormatParams,
+  executeV3Transaction,
+  validateToken,
+} from '../utils/utils';
 import { z } from 'zod';
 import { approveSchema, approveSignatureSchema } from '../schemas/schema';
 import { validToken } from '../types/types';
@@ -24,7 +28,7 @@ export const approve = async (
     const token: validToken = await validateToken(
       provider,
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
     const { address, amount } = validateAndFormatParams(
       params.spenderAddress,
@@ -42,17 +46,10 @@ export const approve = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(
-      INTERACT_ERC20_ABI,
-      token.address,
-      provider
-    );
+    const contract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
     contract.connect(account);
 
-    const calldata = contract.populate('approve', [
-      spenderAddress,
-      amount,
-    ]);
+    const calldata = contract.populate('approve', [spenderAddress, amount]);
 
     const txH = await executeV3Transaction({
       call: calldata,
@@ -88,7 +85,7 @@ export const approveSignature = async (
     const token: validToken = await validateToken(
       new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
     const { address, amount } = validateAndFormatParams(
       params.spenderAddress,
@@ -103,11 +100,7 @@ export const approveSignature = async (
       transactions: {
         contractAddress: token.address,
         entrypoint: 'approve',
-        calldata: [
-          spenderAddress,
-          amount.low,
-          amount.high,
-        ],
+        calldata: [spenderAddress, amount.low, amount.high],
       },
       additional_data: {
         symbol: token.symbol,
@@ -118,12 +111,12 @@ export const approveSignature = async (
 
     return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
   } catch (error) {
-      return JSON.stringify({
-        status: 'error',
-        error: {
-          code: 'APPROVE_CALL_DATA_ERROR',
-          message: error.message || 'Failed to generate approve call data',
-        },
+    return JSON.stringify({
+      status: 'error',
+      error: {
+        code: 'APPROVE_CALL_DATA_ERROR',
+        message: error.message || 'Failed to generate approve call data',
+      },
     });
   }
 };

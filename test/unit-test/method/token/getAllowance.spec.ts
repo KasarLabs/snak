@@ -14,7 +14,8 @@ describe('Get allowance', () => {
       const params = {
         spenderAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
         amount: '8.2',
-        assetAddress: '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'
+        assetAddress:
+          '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d',
       };
 
       const result = await approve(agent, params);

@@ -18,7 +18,7 @@ describe('Deploy NFT Contract', () => {
       expect(parsed).toMatchObject({
         status: 'success',
         transactionHash: expect.any(String),
-        contractAddress: expect.any(String)
+        contractAddress: expect.any(String),
       });
     });
   });

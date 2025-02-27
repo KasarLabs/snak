@@ -1,4 +1,11 @@
-import { validateAndParseAddress, num, RPC, Contract, Provider, shortString } from 'starknet';
+import {
+  validateAndParseAddress,
+  num,
+  RPC,
+  Contract,
+  Provider,
+  shortString,
+} from 'starknet';
 import { tokenAddresses } from '../constant/constant';
 import { uint256 } from 'starknet';
 import { ParamsValidationResult, ExecuteV3Args } from '../types/types';
@@ -20,7 +27,7 @@ export const getTokenDecimals = (symbol: string): number => {
 /**
  * Formats a balance string to the correct decimal places
  * @param rawBalance - Raw balance as a string, number or bigint
-  * @param decimals - Number of decimal places
+ * @param decimals - Number of decimal places
  * @returns Formatted balance as a string
  */
 export const formatBalance = (
@@ -93,7 +100,7 @@ export const formatTokenAmount = (amount: string, decimals: number): string => {
 export const validateAndFormatParams = (
   address: string,
   amount: string,
-  decimals: number,
+  decimals: number
 ): ParamsValidationResult => {
   try {
     if (!address) {
@@ -109,7 +116,7 @@ export const validateAndFormatParams = (
 
     return {
       address: formattedAddress,
-      amount: formattedAmountUint256
+      amount: formattedAmountUint256,
     };
   } catch (error) {
     throw new Error(`Parameter validation failed: ${error.message}`);
@@ -123,10 +130,10 @@ export const validateAndFormatParams = (
 export const getV3DetailsPayload = () => {
   const maxL1Gas = 2000n;
   const maxL1GasPrice = 100000n * 10n ** 9n;
-  
+
   return {
     version: 3,
-    maxFee: 10n ** 16n,  
+    maxFee: 10n ** 16n,
     feeDataAvailabilityMode: RPC.EDataAvailabilityMode.L1,
     tip: 10n ** 14n,
     paymasterData: [],
@@ -139,10 +146,9 @@ export const getV3DetailsPayload = () => {
         max_amount: num.toHex(0n),
         max_price_per_unit: num.toHex(0n),
       },
-    }
+    },
   };
 };
-
 
 /**
  * Executes a V3 transaction with preconfigured gas parameters
@@ -154,7 +160,10 @@ export const executeV3Transaction = async ({
   call,
   account,
 }: ExecuteV3Args): Promise<string> => {
-  const { transaction_hash } = await account.execute(call, getV3DetailsPayload());
+  const { transaction_hash } = await account.execute(
+    call,
+    getV3DetailsPayload()
+  );
 
   const receipt = await account.waitForTransaction(transaction_hash);
   if (!receipt.isSuccess()) {
@@ -163,7 +172,6 @@ export const executeV3Transaction = async ({
 
   return transaction_hash;
 };
-
 
 /**
  * Validates token by his symbol or address
@@ -179,10 +187,12 @@ export async function validateToken(
   assetAddress?: string
 ): Promise<validToken> {
   if (!assetSymbol && !assetAddress) {
-      throw new Error('Either asset symbol or asset address is required');
+    throw new Error('Either asset symbol or asset address is required');
   }
 
-  let address: string = '', symbol: string = '', decimals: number = 0;
+  let address: string = '',
+    symbol: string = '',
+    decimals: number = 0;
   if (assetSymbol) {
     symbol = assetSymbol.toUpperCase();
     address = validateTokenAddress(symbol);
@@ -190,25 +200,28 @@ export async function validateToken(
       throw new Error(`Token ${symbol} not supported`);
     }
     decimals = DECIMALS[symbol as keyof typeof DECIMALS] || DECIMALS.DEFAULT;
-  }
-  else if (assetAddress) {
+  } else if (assetAddress) {
     address = validateAndParseAddress(assetAddress);
     try {
       const contract = new Contract(INTERACT_ERC20_ABI, address, provider);
-      
+
       const rawSymbol = await contract.symbol();
-      const decimalsBigInt = await contract.decimals().catch(() => DECIMALS.DEFAULT);
-      
+      const decimalsBigInt = await contract
+        .decimals()
+        .catch(() => DECIMALS.DEFAULT);
+
       symbol = shortString.decodeShortString(rawSymbol);
-      decimals = typeof decimalsBigInt === 'bigint' ? Number(decimalsBigInt) : decimalsBigInt;
-      
+      decimals =
+        typeof decimalsBigInt === 'bigint'
+          ? Number(decimalsBigInt)
+          : decimalsBigInt;
     } catch (error) {
       console.warn(`Error retrieving token info: ${error.message}`);
     }
   }
   return {
-      address,
-      symbol,
-      decimals
+    address,
+    symbol,
+    decimals,
   };
 }

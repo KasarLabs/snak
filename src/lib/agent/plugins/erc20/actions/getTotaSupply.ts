@@ -21,11 +21,15 @@ export const getTotalSupply = async (
     const token: validToken = await validateToken(
       agent.getProvider(),
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
 
     const provider = agent.getProvider();
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const tokenContract = new Contract(
+      INTERACT_ERC20_ABI,
+      token.address,
+      provider
+    );
     const totalSupply = await tokenContract.total_supply();
 
     const formattedSupply = formatBalance(totalSupply, token.decimals);
@@ -33,7 +37,7 @@ export const getTotalSupply = async (
     return JSON.stringify({
       status: 'success',
       totalSupply: formattedSupply,
-      symbol: token.symbol
+      symbol: token.symbol,
     });
   } catch (error) {
     return JSON.stringify({

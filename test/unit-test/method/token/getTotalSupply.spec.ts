@@ -10,8 +10,8 @@ describe('Get total supply', () => {
   describe('With perfect match inputs', () => {
     it('should get total supply for ETH', async () => {
       const params = {
-        assetSymbol: 'ETH'
-      }
+        assetSymbol: 'ETH',
+      };
 
       const result = await getTotalSupply(agent, params);
       const parsed = JSON.parse(result);
@@ -26,8 +26,8 @@ describe('Get total supply', () => {
   describe('With wrong input', () => {
     it('should fail with invalid token address', async () => {
       const params = {
-        assetSymbol: 'ddd'
-      }
+        assetSymbol: 'ddd',
+      };
 
       const result = await getTotalSupply(agent, params);
       const parsed = JSON.parse(result);

@@ -27,10 +27,14 @@ export const getAllowance = async (
     const token: validToken = await validateToken(
       provider,
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
 
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const tokenContract = new Contract(
+      INTERACT_ERC20_ABI,
+      token.address,
+      provider
+    );
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,
@@ -42,7 +46,7 @@ export const getAllowance = async (
       owner: params.ownerAddress,
       spender: params.spenderAddress,
       allowance: formatBalance(allowanceResponse, token.decimals),
-      symbol: token.symbol
+      symbol: token.symbol,
     });
   } catch (error) {
     return JSON.stringify({
@@ -70,10 +74,14 @@ export const getMyGivenAllowance = async (
     const token: validToken = await validateToken(
       provider,
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
 
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const tokenContract = new Contract(
+      INTERACT_ERC20_ABI,
+      token.address,
+      provider
+    );
 
     const allowanceResponse = await tokenContract.allowance(
       ownerAddress,
@@ -85,7 +93,7 @@ export const getMyGivenAllowance = async (
       owner: ownerAddress,
       spender: params.spenderAddress,
       allowance: formatBalance(allowanceResponse, token.decimals),
-      symbol: token.symbol
+      symbol: token.symbol,
     });
   } catch (error) {
     return JSON.stringify({
@@ -113,10 +121,14 @@ export const getAllowanceGivenToMe = async (
     const token: validToken = await validateToken(
       provider,
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
 
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const tokenContract = new Contract(
+      INTERACT_ERC20_ABI,
+      token.address,
+      provider
+    );
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,
@@ -128,7 +140,7 @@ export const getAllowanceGivenToMe = async (
       owner: params.ownerAddress,
       spender: spenderAddress,
       allowance: formatBalance(allowanceResponse, token.decimals),
-      symbol: token.symbol
+      symbol: token.symbol,
     });
   } catch (error) {
     return JSON.stringify({

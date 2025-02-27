@@ -14,36 +14,36 @@ import { z } from 'zod';
  * @throws {Error} If deployment fails
  */
 export const deployERC20Contract = async (
-    agent: StarknetAgentInterface,
-    params: z.infer<typeof deployERC20Schema>
+  agent: StarknetAgentInterface,
+  params: z.infer<typeof deployERC20Schema>
 ) => {
   try {
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
 
     const account = new Account(
-        provider, 
-        accountCredentials?.accountPublicKey,
-        accountCredentials?.accountPrivateKey
+      provider,
+      accountCredentials?.accountPublicKey,
+      accountCredentials?.accountPrivateKey
     );
 
     const contractManager = new ContractManager(account);
 
     const response = await contractManager.deployContract(
-      ERC20_CLASSHASH as string, 
+      ERC20_CLASSHASH as string,
       DEPLOY_ERC20_ABI,
       {
         name: params.name,
         symbol: params.symbol,
         fixed_supply: params.totalSupply,
-        recipient: accountCredentials?.accountPublicKey
-      },
+        recipient: accountCredentials?.accountPublicKey,
+      }
     );
 
     const myTestContract = new Contract(
-        DEPLOY_ERC20_ABI,
-        response.contractAddress as string,
-        provider
+      DEPLOY_ERC20_ABI,
+      response.contractAddress as string,
+      provider
     );
 
     return JSON.stringify({

@@ -26,7 +26,7 @@ export const getOwnBalance = async (
     const token: validToken = await validateToken(
       provider,
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
 
     if (!accountAddress) {
@@ -34,7 +34,11 @@ export const getOwnBalance = async (
     }
 
     const account = new Account(provider, accountAddress, accountPrivateKey);
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const tokenContract = new Contract(
+      INTERACT_ERC20_ABI,
+      token.address,
+      provider
+    );
 
     const balanceResponse = await tokenContract.balanceOf(account.address);
 
@@ -47,7 +51,7 @@ export const getOwnBalance = async (
     return JSON.stringify({
       status: 'success',
       balance: formattedBalance,
-      symbol: token.symbol
+      symbol: token.symbol,
     });
   } catch (error) {
     return JSON.stringify({
@@ -75,11 +79,15 @@ export const getBalance = async (
     const token: validToken = await validateToken(
       agent.getProvider(),
       params.assetSymbol,
-      params.assetAddress,
+      params.assetAddress
     );
 
     const provider = agent.getProvider();
-    const tokenContract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const tokenContract = new Contract(
+      INTERACT_ERC20_ABI,
+      token.address,
+      provider
+    );
     const balanceResponse = await tokenContract.balanceOf(
       params.accountAddress
     );
@@ -94,7 +102,7 @@ export const getBalance = async (
     return JSON.stringify({
       status: 'success',
       balance: formattedBalance,
-      symbol: token.symbol
+      symbol: token.symbol,
     });
   } catch (error) {
     return JSON.stringify({
