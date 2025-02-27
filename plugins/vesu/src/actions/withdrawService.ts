@@ -130,14 +130,14 @@ export class WithdrawEarnService {
     );
     const pool = z
       .object({ data: poolParser })
-      .transform(({ data }) => data)
+      .transform(({ data }) => data as IPool)
       .parse(data);
     const assets = await this.getPoolAssetsPriceAndRiskMdx(
       pool.id,
       pool.extensionContractAddress,
       pool.assets
     );
-
+  
     return { ...pool, assets };
   }
 
