@@ -172,7 +172,7 @@ const LocalRun = async () => {
     spinner.stop();
     await validateEnvVars();
     spinner.success({ text: 'Agent initialized successfully' });
-    const agent_config = load_json_config(agent_config_name);
+    const agent_config = await load_json_config(agent_config_name);
 
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));

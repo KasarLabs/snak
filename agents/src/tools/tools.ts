@@ -22,7 +22,7 @@ export interface StarknetAgentInterface {
   transactionMonitor: TransactionMonitor;
   contractInteractor: ContractInteractor;
   getTwitterAuthMode: () => 'API' | 'CREDENTIALS' | undefined;
-  getAgentConfig: () => JsonConfig | undefined;
+  getAgentConfig: () => JsonConfig;
   getTwitterManager: () => TwitterInterface;
   getTelegramManager: () => TelegramInterface;
 }

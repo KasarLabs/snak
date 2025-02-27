@@ -2,6 +2,13 @@ import { SystemMessage } from '@langchain/core/messages';
 import { createBox, formatSection } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export interface Token {
   symbol: string;
   amount: number;
@@ -127,9 +134,13 @@ export const validateConfig = (config: JsonConfig) => {
   }
 };
 
-const checkParseJson = (agent_config_name: string): JsonConfig | undefined => {
+const checkParseJson = async (agent_config_name: string): Promise<JsonConfig | undefined> => {
   try {
-    const json = require(path.resolve(`../config/agents/${agent_config_name}`));
+    const configPath = path.resolve(`../config/agents/${agent_config_name}`);
+
+    const jsonModule = await import(configPath, { assert: { type: 'json' } });
+    const json = jsonModule.default;
+    
     if (!json) {
       throw new Error(`Can't access to ./config/agents/config-agent.json`);
     }
@@ -165,12 +176,12 @@ const checkParseJson = (agent_config_name: string): JsonConfig | undefined => {
   }
 };
 
-export const load_json_config = (
+export const load_json_config = async (
   agent_config_name: string
-): JsonConfig | undefined => {
-  const json = checkParseJson(agent_config_name);
+): Promise<JsonConfig> => {
+  const json = await checkParseJson(agent_config_name);
   if (!json) {
-    return undefined;
+    throw new Error('Failed to load JSON config');
   }
   return json;
 };

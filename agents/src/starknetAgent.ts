@@ -24,7 +24,7 @@ export interface StarknetAgentConfig {
   accountPrivateKey: string;
   signature: string;
   agentMode: string;
-  agentconfig?: JsonConfig;
+  agentconfig: JsonConfig;
 }
 
 export class StarknetAgent implements IAgent {
@@ -42,7 +42,7 @@ export class StarknetAgent implements IAgent {
   public readonly contractInteractor: ContractInteractor;
   public readonly signature: string;
   public readonly agentMode: string;
-  public readonly agentconfig?: JsonConfig | undefined;
+  public readonly agentconfig: JsonConfig;
 
   constructor(private readonly config: StarknetAgentConfig) {
     this.validateConfig(config);
@@ -238,7 +238,7 @@ export class StarknetAgent implements IAgent {
     };
   }
 
-  getAgentConfig(): JsonConfig | undefined {
+  getAgentConfig(): JsonConfig {
     return this.agentconfig;
   }
 

@@ -7,9 +7,7 @@
       "@/*": ["./*"],
       "@common/*": ["./common/*"],
       "@src/*": ["./src/*"]
-    },
-    "incremental": true,
-    "tsBuildInfoFile": "./buildcache/.tsbuildinfo"
+    }
   },
   "include": ["src/**/*", "./common/**/*", "./start.ts", "./index.ts"],
   "exclude": ["node_modules", "dist"]

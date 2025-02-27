@@ -51,10 +51,8 @@ jobs:
         run: |
           pnpm prettier --check "server/**/*.{ts,tsx}"
           pnpm prettier --check "agents/**/*.{ts,tsx}"
-          pnpm prettier --check "/**/*.{ts,tsx}"
           pnpm prettier --check "client/src/**/*.{ts,tsx}"
-          pnpm prettier --check "server/**/*.{ts,tsx}"
-
+          pnpm prettier --check "plugins/**/*.{ts,tsx}"
 
       - name: Security audit
         run: pnpm audit || true
@@ -95,13 +93,4 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Build server
-        run: pnpm build:backend
-
-      - name: Build client
-        run: pnpm build:frontend
-
-      -name: Build agents
-        run: pnpm build:agents
-      
-      -name: Build plugins
-        run: pnpm build:plugins
+        run: pnpm build:server

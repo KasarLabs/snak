@@ -5,9 +5,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    },
-    "incremental": true,
-    "tsBuildInfoFile": "./buildcache/.tsbuildinfo"
+    }
   },
   "include": ["./src/**/*", "./src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
