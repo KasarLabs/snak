@@ -5,9 +5,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
-    },
-    "incremental": true,
-    "tsBuildInfoFile": "./buildcache/.tsbuildinfo"
+    }
+
   },
   "include": [
     "./common/**/*",

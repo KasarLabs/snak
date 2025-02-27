@@ -7,9 +7,8 @@
       "@/*": ["./*"],
       "@common/*": ["./common/*"],
       "@src/*": ["./src/*"],
-    },
-    "incremental": true,
-    "tsBuildInfoFile": "./buildcache/.tsbuildinfo"
+    }
+
   },
   "include": [
     "src/**/*",
