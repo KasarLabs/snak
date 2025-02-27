@@ -1,4 +1,4 @@
-import { HSV, RGB } from '../types/ColorType';
+import { HSV, RGB } from '../types/ColorType.js';
 
 /**
  * Analyzes and converts colors between different formats (HEX, RGB, HSV)

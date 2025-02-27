@@ -1,4 +1,3 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { ProviderInterface } from 'starknet';
 /**
  * Details of a Starknet account

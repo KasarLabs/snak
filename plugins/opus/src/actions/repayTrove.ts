@@ -1,6 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { RepayTroveParams } from '../schemas';
-import { createTroveManager } from '../utils/troveManager';
+import { RepayTroveParams } from '../schemas/index.js';
+import { createTroveManager } from '../utils/troveManager.js';
 
 export const repayTrove = async (
   agent: StarknetAgentInterface,

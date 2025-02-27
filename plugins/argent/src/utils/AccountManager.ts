@@ -4,7 +4,6 @@ import {
   stark,
   hash,
   ec,
-  RpcProvider,
   CairoOption,
   CairoOptionVariant,
   CairoCustomEnum,
@@ -14,7 +13,7 @@ import {
   AccountResponse,
   BaseUtilityClass,
   TransactionResult,
-} from '../types/accounts';
+} from '../types/accounts.js';
 
 /**
  * Manages Starknet account operations for Argent wallets, including creation, deployment, and fee estimation.

@@ -1,9 +1,9 @@
-import { ATLANTIC_URL, DASHBOARD_URL } from '../constants/atlantic';
+import { ATLANTIC_URL, DASHBOARD_URL } from '../constants/atlantic.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { AtlanticParam, AtlanticRes } from '../types/Atlantic';
+import { AtlanticParam, AtlanticRes } from '../types/Atlantic.js';
 import { promises as fs } from 'fs';
-import { validateZip } from '../utils/validateZip';
-import { getFilename } from '../utils/getFilename';
+import { validateZip } from '../utils/validateZip.js';
+import { getFilename } from '../utils/getFilename.js';
 
 /**
  * Handles proof generation by sending a ZIP file to the Atlantic API.
