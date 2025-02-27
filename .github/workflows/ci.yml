@@ -94,10 +94,10 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Build server
-        run: pnpm build:backend
+        run: pnpm build:server
 
       - name: Build client
-        run: pnpm build:frontend
+        run: pnpm build:client
 
       - name: Build agents    
         run: pnpm build:agents
