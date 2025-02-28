@@ -1,1 +1,0 @@
-{"version":3,"file":"signatureTools.js","sourceRoot":"","sources":["../../src/tools/signatureTools.ts"],"names":[],"mappings":";;;AACA,sCAA6C;AAC7C,sDAA4D;AAErD,MAAM,sBAAsB,GAAG,CACpC,oBAAqC,EACrC,EAAE;IACF,oBAAoB,CAAC,IAAI,CAAC;QACxB,IAAI,EAAE,aAAa;QACnB,WAAW,EAAE,6CAA6C;QAC1D,MAAM,EAAE,yBAAgB;QACxB,OAAO,EAAE,gCAAmB;KAC7B,CAAC,CAAC;AACL,CAAC,CAAC;AATW,QAAA,sBAAsB,0BASjC"}
