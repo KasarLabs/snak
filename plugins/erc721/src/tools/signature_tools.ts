@@ -10,7 +10,9 @@ import { setApprovalForAllSignature } from '../actions/setApprovalForAll';
 import { safeTransferFromSignature } from '../actions/safeTransferFrom';
 import { SignatureTool } from '@starknet-agent-kit/agents';
 
-export const registerSignatureTools = (StarknetToolRegistry : SignatureTool[]) => {
+export const registerSignatureTools = (
+  StarknetToolRegistry: SignatureTool[]
+) => {
   StarknetToolRegistry.push({
     name: 'erc721_transferFromSignature',
     description: 'Return transferFrom json transaction for ERC721 NFT',

@@ -11,7 +11,7 @@ import { AccountManager } from '../utils/AccountManager';
  */
 export const CreateOKXAccount = async () => {
   try {
-    console.log("YOOOO");
+    console.log('YOOOO');
     const accountManager = new AccountManager(undefined);
     const accountDetails = await accountManager.createAccount(OKX_CLASSHASH);
 

@@ -71,7 +71,9 @@ export const getOwnBalance = async (
       provider
     );
 
-    const balanceResponse = await contract.balanceOf(accountCredentials.accountPublicKey);
+    const balanceResponse = await contract.balanceOf(
+      accountCredentials.accountPublicKey
+    );
 
     return JSON.stringify({
       status: 'success',

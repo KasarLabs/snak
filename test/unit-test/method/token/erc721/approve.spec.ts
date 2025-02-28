@@ -1,4 +1,4 @@
-import { approve } from  '../../../../../plugins/erc721/src/actions/approve';
+import { approve } from '../../../../../plugins/erc721/src/actions/approve';
 import { getApproved } from '../../../../../plugins/erc721/src/actions/getApproved';
 import { validateAndParseAddress } from 'starknet';
 import {

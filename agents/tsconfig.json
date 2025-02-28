@@ -6,15 +6,9 @@
     "paths": {
       "@/*": ["./*"],
       "@common/*": ["./common/*"],
-      "@src/*": ["./src/*"],
+      "@src/*": ["./src/*"]
     }
-
   },
-  "include": [
-    "src/**/*",
-    "./common/**/*",
-    "./start.ts",
-    "./index.ts" 
-  ],
+  "include": ["src/**/*", "./common/**/*", "./start.ts", "./index.ts"],
   "exclude": ["node_modules", "dist"]
 }

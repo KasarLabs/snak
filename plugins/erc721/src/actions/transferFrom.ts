@@ -93,14 +93,8 @@ export const transfer = async (
   params: z.infer<typeof transferSchema>
 ): Promise<string> => {
   try {
-    if (
-      !params?.toAddress ||
-      !params?.tokenId ||
-      !params?.contractAddress
-    ) {
-      throw new Error(
-        'To address, token ID and contract address are required'
-      );
+    if (!params?.toAddress || !params?.tokenId || !params?.contractAddress) {
+      throw new Error('To address, token ID and contract address are required');
     }
 
     const provider = agent.getProvider();

@@ -22,7 +22,7 @@ import { setApprovalForAll } from '../actions/setApprovalForAll';
 import { deployERC721Contract } from '../actions/deployERC721';
 import { StarknetTool } from '@starknet-agent-kit/agents';
 
-export const registerTools = (StarknetToolRegistry : StarknetTool[]) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'erc721_owner_of',
     plugins: 'erc721',
