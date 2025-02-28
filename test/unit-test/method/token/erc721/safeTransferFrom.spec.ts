@@ -1,4 +1,4 @@
-import { safeTransferFrom } from 'src/lib/agent/plugins/erc721/actions/safeTransferFrom';
+import { safeTransferFrom } from '../../../../../plugins/erc721/src/actions/safeTransferFrom';
 import {
   createMockStarknetAgent,
   createMockInvalidStarknetAgent,

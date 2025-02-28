@@ -1,7 +1,7 @@
 import { RpcProvider } from 'starknet';
 import * as fs from 'fs';
-import { CreateOZAccountSignature } from 'src/lib/agent/plugins/openzeppelin/actions/createAccount';
-import { DeployOZAccountSignature } from 'src/lib/agent/plugins/openzeppelin/actions/deployAccount';
+import { CreateOZAccountSignature } from '../../../../../server/agent/plugins/openzeppelin/actions/createAccount';
+import { DeployOZAccountSignature } from '../../../../../server/agent/plugins/openzeppelin/actions/deployAccount';
 
 describe('OZ Account Creation and Deployment', () => {
   let provider: RpcProvider;

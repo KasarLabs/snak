@@ -1,0 +1,25 @@
+{
+  "name": "@starknet-agent-kit/plugin-twitter",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "pnpm clean:dist && tsc",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "twitter-api-v2": "^1.19.1",
+    "agent-twitter-client": "^0.0.18"
+  },
+  "devDependencies": {
+    "@starknet-agent-kit/agents": "workspace:*"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

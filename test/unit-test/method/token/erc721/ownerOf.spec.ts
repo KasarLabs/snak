@@ -1,4 +1,4 @@
-import { getOwner } from 'src/lib/agent/plugins/erc721/actions/ownerOf';
+import { getOwner } from '../../../../../plugins/erc721/src/actions/ownerOf';
 import { createMockStarknetAgent } from 'test/jest/setEnvVars';
 import { validateAndParseAddress } from 'starknet';
 

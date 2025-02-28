@@ -1,5 +1,4 @@
-import { getOwnBalance } from 'src/lib/agent/plugins/core/token/actions/getBalances';
-import * as C from '../../../utils/constant';
+import { getOwnBalance } from '../../../../server/agent/plugins/core/token/actions/getBalances';
 import {
   createMockInvalidStarknetAgent,
   createMockStarknetAgent,
@@ -43,6 +42,7 @@ describe('getOwnBlance', () => {
       const params = {
         symbol: 'ETH',
       };
+      const invalidAgent = createMockInvalidStarknetAgent();
 
       // Act
       const result = await getOwnBalance(wrong_agent, params);

@@ -1,4 +1,4 @@
-import { simulateDeployAccountTransaction } from 'src/lib/agent/plugins/core/transaction/simulateTransaction';
+import { simulateDeployAccountTransaction } from '../../../../server/agent/plugins/core/transaction/actions/simulateTransaction';
 import * as C from '../../../utils/constant';
 import {
   createMockInvalidStarknetAgent,
@@ -137,6 +137,7 @@ describe('Simulate Deploy_Account Transaction ', () => {
         ],
       };
 
+      const invalidAgent = createMockInvalidStarknetAgent();
       // Act
 
       const result = await simulateDeployAccountTransaction(

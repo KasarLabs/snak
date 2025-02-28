@@ -1,4 +1,4 @@
-import { deployERC721Contract } from 'src/lib/agent/plugins/erc721/actions/deployERC721';
+import { deployERC721Contract } from '../../../../../plugins/erc721/src/actions/deployERC721';
 import {
   createMockStarknetAgent,
   createMockInvalidStarknetAgent,

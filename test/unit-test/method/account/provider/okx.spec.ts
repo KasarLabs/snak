@@ -1,7 +1,7 @@
 import { RpcProvider } from 'starknet';
 import * as fs from 'fs';
-import { CreateOKXAccountSignature } from 'src/lib/agent/plugins/okx/actions/createAccount';
-import { DeployOKXAccountSignature } from 'src/lib/agent/plugins/okx/actions/deployAccount';
+import { CreateOKXAccountSignature } from '../../../../../server/agent/plugins/okx/actions/createAccount';
+import { DeployOKXAccountSignature } from '../../../../../server/agent/plugins/okx/actions/deployAccount';
 
 describe('OKX Account Creation and Deployment', () => {
   let provider: RpcProvider;

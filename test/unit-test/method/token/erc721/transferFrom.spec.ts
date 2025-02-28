@@ -1,4 +1,4 @@
-import { transferFrom } from 'src/lib/agent/plugins/erc721/actions/transferFrom';
+import { transferFrom } from '../../../../../plugins/erc721/src/actions/transferFrom';
 import {
   createMockStarknetAgent,
   createMockInvalidStarknetAgent,

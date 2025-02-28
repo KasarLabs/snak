@@ -1,8 +1,7 @@
-import { getBalance } from 'src/lib/agent/plugins/core/token/actions/getBalances';
+import { getBalance } from '../../../../server/agent/plugins/core/token/actions/getBalances';
 import { Contract } from 'starknet';
-import { string } from 'zod';
 import { createMockStarknetAgent } from 'test/jest/setEnvVars';
-import { ERC20_ABI } from 'src/lib/agent/plugins/core/token/abis/erc20Abi';
+import { ERC20_ABI } from '../../../../server/agent/plugins/core/token/abis/erc20Abi';
 
 const agent = createMockStarknetAgent();
 
@@ -34,6 +33,7 @@ describe('Read -> Get_Balance -> get_balance', () => {
         expect.any(String),
         expect.any(Object)
       );
+      console.log(parsed.balance);
     });
 
     it('should return correct USDC balance with 6 decimals', async () => {
@@ -46,6 +46,7 @@ describe('Read -> Get_Balance -> get_balance', () => {
       const parsed = JSON.parse(result);
 
       expect(parsed.status).toBe('success');
+      console.log(parsed.balance);
     });
   });
 

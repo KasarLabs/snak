@@ -1,4 +1,4 @@
-import { simulateDeployTransaction } from 'src/lib/agent/plugins/core/transaction/simulateTransaction';
+import { simulateDeployTransaction } from '../../../../server/agent/plugins/core/transaction/actions/simulateTransaction';
 import * as C from '../../../utils/constant';
 import {
   createMockInvalidStarknetAgent,
@@ -143,6 +143,8 @@ describe('Simulate Deploy Transaction ', () => {
   describe('With invalid params', () => {
     it('should fail reason : invalid private_key', async () => {
       // Arrange
+      const invalidAgent = createMockInvalidStarknetAgent();
+
       const params = {
         accountAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
         payloads: [

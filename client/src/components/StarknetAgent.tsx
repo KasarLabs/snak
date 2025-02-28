@@ -315,7 +315,6 @@ const StarknetAgent = () => {
         body: JSON.stringify({ request: input }),
         credentials: 'include',
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -459,7 +458,6 @@ const StarknetAgent = () => {
           throw new Error(errorText);
         }
       }
-
       const response = await fetch('/api/key/request', {
         method: 'POST',
         headers: {

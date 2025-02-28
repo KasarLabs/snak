@@ -1,7 +1,7 @@
 import { RpcProvider } from 'starknet';
 import * as fs from 'fs';
-import { CreateAXAccountSignature } from 'src/lib/agent/plugins/argentx/actions/createAccount';
-import { DeployAXAccountSignature } from 'src/lib/agent/plugins/argentx/actions/deployAccount';
+import { CreateArgentAccountSignature } from '../../../../../server/agent/plugins/argent/actions/createAccount';
+import { DeployArgentAccountSignature } from '../../../../../server/agent/plugins/argent/actions/deployAccount';
 
 describe('AX Account Creation and Deployment', () => {
   let provider: RpcProvider;
@@ -17,7 +17,7 @@ describe('AX Account Creation and Deployment', () => {
       return;
     }
 
-    const result = await CreateAXAccountSignature();
+    const result = await CreateArgentAccountSignature();
 
     const data = JSON.parse(result);
 
@@ -44,7 +44,7 @@ describe('AX Account Creation and Deployment', () => {
       privateKey: process.env.PRIVATEKEY as string,
     };
 
-    const result = await DeployAXAccountSignature(accountDetails);
+    const result = await DeployArgentAccountSignature(accountDetails);
 
     const deployResult = JSON.parse(result);
     expect(deployResult.status).toBe('success');

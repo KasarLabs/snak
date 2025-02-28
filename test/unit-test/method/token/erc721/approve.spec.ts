@@ -1,5 +1,5 @@
-import { approve } from 'src/lib/agent/plugins/erc721/actions/approve';
-import { getApproved } from 'src/lib/agent/plugins/erc721/actions/getApproved';
+import { approve } from  '../../../../../plugins/erc721/src/actions/approve';
+import { getApproved } from '../../../../../plugins/erc721/src/actions/getApproved';
 import { validateAndParseAddress } from 'starknet';
 import {
   createMockStarknetAgent,

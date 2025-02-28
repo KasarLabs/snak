@@ -1,4 +1,4 @@
-import { getApproved } from 'src/lib/agent/plugins/erc721/actions/getApproved';
+import { getApproved } from '../../../../../plugins/erc721/src/actions/getApproved';
 import { createMockStarknetAgent } from 'test/jest/setEnvVars';
 
 const agent = createMockStarknetAgent();

@@ -108,10 +108,10 @@ pnpm dev
 
 ### Adding a New Protocol Integration
 
-1. Create a new directory under `src/lib/agent/plugins/`:
+1. Create a new directory under `@plugins/`:
 
 ```
-src/lib/agent/plugins/your-protocol/
+@plugins/your-protocol/
 ├── abis/         # Protocol-specific ABIs
 ├── actions/      # Protocol actions
 ├── utils/        # Utility functions
@@ -135,7 +135,8 @@ src/lib/agent/plugins/your-protocol/
 Example:
 
 ```typescript
-StarknetToolRegistry.registerTool({
+StarknetToolRegistry.push
+({
   name: 'your_action_name',
   description: 'Description of what your action does',
   schema: yourActionSchema,

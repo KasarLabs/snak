@@ -1,5 +1,5 @@
-import { setApprovalForAll } from 'src/lib/agent/plugins/erc721/actions/setApprovalForAll';
-import { isApprovedForAll } from 'src/lib/agent/plugins/erc721/actions/isApprovedForAll';
+import { setApprovalForAll } from '../../../../../plugins/erc721/src/actions/setApprovalForAll';
+import { isApprovedForAll } from '../../../../../plugins/erc721/src/actions/isApprovedForAll';
 import {
   createMockStarknetAgent,
   createMockInvalidStarknetAgent,

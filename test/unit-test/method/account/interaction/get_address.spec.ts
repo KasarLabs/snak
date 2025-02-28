@@ -1,4 +1,4 @@
-import { getAddress } from 'src/lib/agent/plugins/core/account/getAddress';
+import { getAddress } from '../../../../../server/agent/plugins/core/account/actions/getAddress';
 import {
   createMockInvalidStarknetAgent,
   createMockStarknetAgent,

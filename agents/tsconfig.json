@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@common/*": ["./common/*"],
+      "@src/*": ["./src/*"],
+    }
+
+  },
+  "include": [
+    "src/**/*",
+    "./common/**/*",
+    "./start.ts",
+    "./index.ts" 
+  ],
+  "exclude": ["node_modules", "dist"]
+}

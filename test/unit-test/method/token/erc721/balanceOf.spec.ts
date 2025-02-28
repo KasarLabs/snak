@@ -1,4 +1,4 @@
-import { getBalance } from 'src/lib/agent/plugins/erc721/actions/balanceOf';
+import { getBalance } from '../../../../../plugins/erc721/src/actions/balanceOf';
 import { createMockStarknetAgent } from 'test/jest/setEnvVars';
 
 const agent = createMockStarknetAgent();

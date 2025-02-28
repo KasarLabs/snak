@@ -68,7 +68,7 @@ DISCORD_CHANNEL_ID?="YOUR_DISCORD_CHANNEL_ID"
 Run the server:
 
 ```bash
-pnpm run local
+pnpm run start
 ```
 
 #### Available Modes:

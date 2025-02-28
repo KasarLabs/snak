@@ -16,15 +16,19 @@ interface EnvConfig {
 
 export const loadTestConfig = (): EnvConfig => {
   const config: EnvConfig = {
-    STARKNET_RPC_URL: '',
+    STARKNET_RPC_URL: 'http://127.0.0.1:5050',
     accounts: {
       account1: {
-        privateKey: '5',
-        publicAddress: '0x06ee3255e59055c0B8CFd',
+        privateKey:
+          '0x00000000000000000000000000000000b137668388dbe9acdfa3bc734cc2c469',
+        publicAddress:
+          '0x034ba56f92265f0868c57d3fe72ecab144fc96f97954bbbc4252cef8e8a979ba',
       },
       account2: {
-        privateKey: 'd2',
-        publicAddress: '0x023663b6DAFFb23F8132941ccb6EBdc45DE1Aa3cB3',
+        privateKey:
+          '0x00000000000000000000000000000000e8c2801d899646311100a661d32587aa',
+        publicAddress:
+          '0x02939f2dc3f80cc7d620e8a86f2e69c1e187b7ff44b74056647368b5c49dc370',
       },
       account3: {
         privateKey:

@@ -1,7 +1,7 @@
 import {
   createTroveManager,
   TroveManager,
-} from 'src/lib/agent/plugins/opus/utils/troveManager';
+} from '../../../../server/agent/plugins/opus/utils/troveManager';
 import { createMockStarknetAgent } from 'test/jest/setEnvVars';
 
 const agent = createMockStarknetAgent();
@@ -88,7 +88,7 @@ describe('TroveManager', () => {
     };
 
     // Mock the getShrineContract function
-    jest.mock('src/lib/agent/plugins/opus/utils/contracts', () => ({
+    jest.mock('@plugins/opus/utils/contracts', () => ({
       getShrineContract: jest.fn().mockReturnValue(mockShrine),
       getAbbotContract: jest.fn().mockReturnValue(mockAbbot),
       getSentinelContract: jest.fn().mockReturnValue(mockSentinel),
