@@ -1,4 +1,4 @@
-export const ERC721_ABI = [
+export const INTERACT_ERC721_ABI = [
   {
     name: 'SRC5Impl',
     type: 'impl',

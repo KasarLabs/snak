@@ -8,7 +8,7 @@ describe('Get Approved Address for Token', () => {
   describe('With perfect match inputs', () => {
     it('should return approved address for valid token', async () => {
       const params = {
-        tokenId: '40',
+        tokenId: '55',
         contractAddress: NFT_ADDRESS
       };
 

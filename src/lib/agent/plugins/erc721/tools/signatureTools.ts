@@ -1,4 +1,3 @@
-// tools_signature.ts
 import {
     transferFromSchema,
     approveSchema,

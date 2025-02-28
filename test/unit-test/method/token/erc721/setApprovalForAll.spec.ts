@@ -18,7 +18,6 @@ describe('Set Approval For All', () => {
       let result = await setApprovalForAll(agent, params);
       let parsed = JSON.parse(result);
 
-      console.log(parsed);
       expect(parsed).toMatchObject({
         status: 'success',
         operator: expect.any(String),
@@ -35,7 +34,6 @@ describe('Set Approval For All', () => {
       result = await isApprovedForAll(agent, params2);
       parsed = JSON.parse(result);
 
-      console.log(parsed);
       expect(parsed).toMatchObject({
         status: 'success',
         isApproved: true

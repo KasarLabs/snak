@@ -1,7 +1,5 @@
 import { safeTransferFrom } from 'src/lib/agent/plugins/erc721/actions/safeTransferFrom';
-import { getOwner } from 'src/lib/agent/plugins/erc721/actions/ownerOf';
 import { createMockStarknetAgent, createMockInvalidStarknetAgent } from 'test/jest/setEnvVars';
-import { validateAddress } from 'src/lib/agent/plugins/erc721/utils/nft';
 
 const agent = createMockStarknetAgent();
 const wrong_agent = createMockInvalidStarknetAgent();
@@ -13,7 +11,7 @@ describe('Safe Transfer From', () => {
       const params = {
         fromAddress: process.env.STARKNET_PUBLIC_ADDRESS as string,
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '14',
+        tokenId: '21',
         contractAddress: NFT_ADDRESS,
         data: ["0x0"]
       };
@@ -21,10 +19,9 @@ describe('Safe Transfer From', () => {
       const result = await safeTransferFrom(agent, params);
       const parsed = JSON.parse(result);
 
-      console.log(parsed);
       expect(parsed).toMatchObject({
         status: 'success',
-        tokenId: '14',
+        tokenId: '21',
         from: process.env.STARKNET_PUBLIC_ADDRESS as String,
         to: process.env.STARKNET_PUBLIC_ADDRESS_2 as String,
         transactionHash: expect.any(String)
@@ -35,17 +32,16 @@ describe('Safe Transfer From', () => {
       const params = {
         fromAddress: process.env.STARKNET_PUBLIC_ADDRESS as string,
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '15',
+        tokenId: '22',
         contractAddress: NFT_ADDRESS
       };
 
       const result = await safeTransferFrom(agent, params);
       const parsed = JSON.parse(result);
-      console.log(parsed);
 
       expect(parsed).toMatchObject({
         status: 'success',
-        tokenId: '15',
+        tokenId: '22',
         from: expect.any(String),
         to: expect.any(String),
         transactionHash: expect.any(String)
@@ -58,7 +54,7 @@ describe('Safe Transfer From', () => {
       const params = {
         fromAddress: 'invalid_address',
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '5',
+        tokenId: '23',
         contractAddress: NFT_ADDRESS
       };
 
@@ -75,7 +71,7 @@ describe('Safe Transfer From', () => {
       const params = {
         fromAddress: process.env.STARKNET_PUBLIC_ADDRESS as string,
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '5',
+        tokenId: '24',
         contractAddress: NFT_ADDRESS
       };
 

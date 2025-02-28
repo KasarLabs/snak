@@ -1,11 +1,18 @@
 import { Account, Contract, constants } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC721_ABI } from '../abis/erc721Abi';
-import { validateAddress, validateAndFormatTokenId, executeV3Transaction } from '../utils/nft';
+import { INTERACT_ERC721_ABI } from '../abis/interact';
+import { validateAndFormatTokenId, executeV3Transaction } from '../utils/utils';
+import { validateAndParseAddress } from 'starknet';
 import { z } from 'zod';
 import { transferFromSchema } from '../schemas/schema';
 import { TransactionResult } from '../types/types';
 
+/**
+* Transfers a token from one address to another.
+* @param {StarknetAgentInterface} agent - The Starknet agent interface
+* @param {z.infer<typeof transferFromSchema>} params - Transfer parameters
+* @returns {Promise<string>} JSON string with transaction result
+*/
 export const transferFrom = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof transferFromSchema>
@@ -15,13 +22,13 @@ export const transferFrom = async (
       throw new Error('From address, to address, token ID and contract address are required');
     }
 
-    const fromAddress = validateAddress(params.fromAddress);
-    const toAddress = validateAddress(params.toAddress);
-    const tokenId = validateAndFormatTokenId(params.tokenId);
-    const contractAddress = validateAddress(params.contractAddress);
-
-    const accountCredentials = agent.getAccountCredentials();
     const provider = agent.getProvider();
+    const accountCredentials = agent.getAccountCredentials();
+
+    const fromAddress = validateAndParseAddress(params.fromAddress);
+    const toAddress = validateAndParseAddress(params.toAddress);
+    const tokenId = validateAndFormatTokenId(params.tokenId);
+    const contractAddress = validateAndParseAddress(params.contractAddress);
 
     const account = new Account(
       provider,
@@ -31,7 +38,7 @@ export const transferFrom = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
     contract.connect(account);
 
     const calldata = contract.populate('transfer_from', [
@@ -64,18 +71,23 @@ export const transferFrom = async (
   }
 };
 
+/**
+ * Generate the call data for the transferFrom function.
+ * @param params The parameters for the transferFrom function.
+ * @returns A stringified JSON object with the transaction type and the call data.
+ */
 export const transferFromSignature = async (
     params: z.infer<typeof transferFromSchema>
-  ): Promise<any> => {
+  ): Promise<string> => {
     try {
       if (!params?.fromAddress || !params?.toAddress || !params?.tokenId || !params?.contractAddress) {
         throw new Error('From address, to address, token ID and contract address are required');
       }
   
-      const fromAddress = validateAddress(params.fromAddress);
-      const toAddress = validateAddress(params.toAddress);
+      const fromAddress = validateAndParseAddress(params.fromAddress);
+      const toAddress = validateAndParseAddress(params.toAddress);
       const tokenId = validateAndFormatTokenId(params.tokenId);
-      const contractAddress = validateAddress(params.contractAddress);
+      const contractAddress = validateAndParseAddress(params.contractAddress);
   
       const result = {
         status: 'success',
@@ -93,12 +105,12 @@ export const transferFromSignature = async (
   
       return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
     } catch (error) {
-      return {
+      return JSON.stringify({ 
         status: 'error',
         error: {
           code: 'TRANSFER_FROM_CALL_DATA_ERROR',
           message: error.message || 'Failed to generate transferFrom call data',
         },
-      };
+      });
     }
   };

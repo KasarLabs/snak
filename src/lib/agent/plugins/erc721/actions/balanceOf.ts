@@ -1,10 +1,16 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC721_ABI } from '../abis/erc721Abi';
-import { validateAddress } from '../utils/nft';
+import { INTERACT_ERC721_ABI } from '../abis/interact';
+import { validateAndParseAddress } from 'starknet';
 import { z } from 'zod';
 import { getBalanceSchema } from '../schemas/schema';
 
+/**
+ * Gets ERC721 token balance
+ * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {z.infer<typeof getBalanceSchema>} params - Balance check parameters
+ * @returns {Promise<string>} JSON string with balance result
+ */
 export const getBalance = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof getBalanceSchema>
@@ -14,22 +20,20 @@ export const getBalance = async (
       throw new Error('Both account address and contract address are required');
     }
 
-    const accountAddress = validateAddress(params.accountAddress);
-    const contractAddress = validateAddress(params.contractAddress);
-
     const provider = agent.getProvider();
-    const contract = new Contract(ERC721_ABI, contractAddress, provider);
 
-    console.log('accountAddress: ', accountAddress);
+    const accountAddress = validateAndParseAddress(params.accountAddress);
+    const contractAddress = validateAndParseAddress(params.contractAddress);
+
+    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
+
     const balanceResponse = await contract.balanceOf(accountAddress);
 
-    console.log('balanceResponse: ', balanceResponse);
     return JSON.stringify({
       status: 'success',
       balance: balanceResponse.toString(),
     });
   } catch (error) {
-    console.log('error: ', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

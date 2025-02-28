@@ -1,11 +1,17 @@
-import { Account, Contract, constants } from 'starknet';
+import { Account, Contract, constants, validateAndParseAddress } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC721_ABI } from '../abis/erc721Abi';
-import { validateAddress, validateAndFormatTokenId, executeV3Transaction } from '../utils/nft';
+import { INTERACT_ERC721_ABI } from '../abis/interact';
+import { validateAndFormatTokenId, executeV3Transaction } from '../utils/utils';
 import { z } from 'zod';
 import { approveSchema } from '../schemas/schema';
 import { TransactionResult } from '../types/types';
 
+/**
+ * Approves an address for NFT transfer
+ * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {z.infer<typeof approveSchema>} params - Approval parameters
+ * @returns {Promise<string>} JSON string with transaction result
+ */
 export const approve = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof approveSchema>
@@ -14,13 +20,12 @@ export const approve = async (
     if (!params?.approvedAddress || !params?.tokenId || !params?.contractAddress) {
       throw new Error('Approved address, token ID and contract address are required');
     }
-
-    const approvedAddress = validateAddress(params.approvedAddress);
-    const tokenId = validateAndFormatTokenId(params.tokenId);
-    const contractAddress = validateAddress(params.contractAddress);
-
-    const accountCredentials = agent.getAccountCredentials();
     const provider = agent.getProvider();
+    const accountCredentials = agent.getAccountCredentials();
+
+    const approvedAddress = validateAndParseAddress(params.approvedAddress);
+    const contractAddress = validateAndParseAddress(params.contractAddress);
+    const tokenId = validateAndFormatTokenId(params.tokenId);
 
     const account = new Account(
       provider,
@@ -31,7 +36,7 @@ export const approve = async (
     );
 
     const contract = new Contract(
-      ERC721_ABI, 
+      INTERACT_ERC721_ABI, 
       contractAddress, 
       provider
     );
@@ -66,6 +71,11 @@ export const approve = async (
   }
 };
 
+/**
+ * Generates approval signature for NFT
+ * @param {z.infer<typeof approveSchema>} params - Approval parameters
+ * @returns {Promise<any>} Transaction signature data
+ */
 export const approveSignature = async (
   params: z.infer<typeof approveSchema>
 ): Promise<any> => {
@@ -74,9 +84,9 @@ export const approveSignature = async (
       throw new Error('Approved address, token ID and contract address are required');
     }
 
-    const approvedAddress = validateAddress(params.approvedAddress);
+    const approvedAddress = validateAndParseAddress(params.approvedAddress);
     const tokenId = validateAndFormatTokenId(params.tokenId);
-    const contractAddress = validateAddress(params.contractAddress);
+    const contractAddress = validateAndParseAddress(params.contractAddress);
 
     const result = {
       status: 'success',

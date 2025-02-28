@@ -1,4 +1,3 @@
-// index.ts
 import { StarknetToolRegistry } from 'src/lib/agent/tools/tools';
 import {
   ownerOfSchema,
@@ -9,7 +8,7 @@ import {
   getApprovedSchema,
   safeTransferFromSchema,
   setApprovalForAllSchema,
-  declareDeployERC721Schema
+  deployERC721Schema
 } from '../schemas/schema';
 import { getOwner } from '../actions/ownerOf';
 import { transferFrom } from '../actions/transferFrom';
@@ -19,10 +18,9 @@ import { isApprovedForAll } from '../actions/isApprovedForAll';
 import { getApproved } from '../actions/getApproved';
 import { safeTransferFrom } from '../actions/safeTransferFrom';
 import { setApprovalForAll } from '../actions/setApprovalForAll';
-import { declareAndDeployERC721Contract } from '../actions/declareAndDeploy';
+import { deployERC721Contract } from '../actions/deployERC721';
 
 export const registerERC721Tools = () => {
-  // Read operations
   StarknetToolRegistry.registerTool({
     name: 'erc721_owner_of',
     plugins: 'erc721',
@@ -55,7 +53,6 @@ export const registerERC721Tools = () => {
     execute: getApproved,
   });
 
-  // Write operations
   StarknetToolRegistry.registerTool({
     name: 'erc721_transfer_from',
     plugins: 'erc721',
@@ -89,10 +86,10 @@ export const registerERC721Tools = () => {
   });
 
   StarknetToolRegistry.registerTool({
-    name: 'erc721_declare_and_deploy',
+    name: 'deploy_erc721',
     plugins: 'erc721',
-    description: 'Declare and deploy a new ERC721 contract, returns the address of the deployed contract',
-    schema: declareDeployERC721Schema,
-    execute: declareAndDeployERC721Contract
+    description: 'Create and deploy a new ERC721 contract, returns the address of the deployed contract',
+    schema: deployERC721Schema,
+    execute: deployERC721Contract
   });
 };

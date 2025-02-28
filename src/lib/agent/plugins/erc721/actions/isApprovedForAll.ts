@@ -1,10 +1,16 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC721_ABI } from '../abis/erc721Abi';
-import { validateAddress } from '../utils/nft';
+import { INTERACT_ERC721_ABI } from '../abis/interact';
+import { validateAndParseAddress } from 'starknet';
 import { z } from 'zod';
 import { isApprovedForAllSchema } from '../schemas/schema';
 
+/**
+ * Checks if an operator is approved to manage all tokens of an owner.
+ * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {z.infer<typeof isApprovedForAllSchema>} params - Approval check parameters
+ * @returns {Promise<string>} JSON string with approval status
+ */
 export const isApprovedForAll = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof isApprovedForAllSchema>
@@ -14,12 +20,13 @@ export const isApprovedForAll = async (
       throw new Error('Owner address, operator address and contract address are required');
     }
 
-    const ownerAddress = validateAddress(params.ownerAddress);
-    const operatorAddress = validateAddress(params.operatorAddress);
-    const contractAddress = validateAddress(params.contractAddress);
-
     const provider = agent.getProvider();
-    const contract = new Contract(ERC721_ABI, contractAddress, provider);
+
+    const ownerAddress = validateAndParseAddress(params.ownerAddress);
+    const operatorAddress = validateAndParseAddress(params.operatorAddress);
+    const contractAddress = validateAndParseAddress(params.contractAddress);
+
+    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
 
     const approvedResponse = await contract.isApprovedForAll(
       ownerAddress,

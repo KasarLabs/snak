@@ -1,10 +1,17 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC721_ABI } from '../abis/erc721Abi';
-import { validateAddress, validateAndFormatTokenId } from '../utils/nft';
+import { INTERACT_ERC721_ABI } from '../abis/interact';
+import { validateAndFormatTokenId } from '../utils/utils';
 import { z } from 'zod';
 import { getApprovedSchema } from '../schemas/schema';
+import { validateAndParseAddress } from 'starknet';
 
+/**
+* Get the address that has been approved to transfer the token.
+* @param agent The StarknetAgentInterface instance.
+* @param params The parameters for the getApproved function.
+* @returns A stringified JSON object with the status and the approved address.
+*/
 export const getApproved = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof getApprovedSchema>
@@ -14,11 +21,12 @@ export const getApproved = async (
       throw new Error('Both token ID and contract address are required');
     }
 
-    const contractAddress = validateAddress(params.contractAddress);
+    const provider = agent.getProvider();
+
+    const contractAddress = validateAndParseAddress(params.contractAddress);
     const tokenId = validateAndFormatTokenId(params.tokenId);
 
-    const provider = agent.getProvider();
-    const contract = new Contract(ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
 
     const approvedResponse = await contract.getApproved(tokenId);
 

@@ -1,6 +1,6 @@
 import { getOwner } from 'src/lib/agent/plugins/erc721/actions/ownerOf';
 import { createMockStarknetAgent } from 'test/jest/setEnvVars';
-import { validateAddress } from 'src/lib/agent/plugins/erc721/utils/nft';
+import { validateAndParseAddress } from 'starknet';
 
 const agent = createMockStarknetAgent();
 const NFT_ADDRESS = '0x00ab5ac5f575da7abb70657a3ce4ef8cc4064b365d7d998c09d1e007c1e12921';
@@ -8,6 +8,8 @@ const NFT_ADDRESS = '0x00ab5ac5f575da7abb70657a3ce4ef8cc4064b365d7d998c09d1e007c
 describe('Get Owner of Token', () => {
   describe('With perfect match inputs', () => {
     it('should return owner address for a valid token', async () => {
+      const owner = agent.getAccountCredentials().accountPublicKey;
+      
       const params = {
         tokenId: '40',
         contractAddress: NFT_ADDRESS
@@ -16,7 +18,6 @@ describe('Get Owner of Token', () => {
       const result = await getOwner(agent, params);
       const parsed = JSON.parse(result);
 
-      const owner = BigInt(validateAddress(agent.getAccountCredentials().accountPublicKey)).toString();
       expect(parsed).toMatchObject({
         status: 'success',
         owner: owner

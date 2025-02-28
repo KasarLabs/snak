@@ -1,15 +1,26 @@
-import { validateAndParseAddress, uint256, num, RPC } from 'starknet';
+import { uint256, num, RPC } from 'starknet';
 import { ExecuteV3Args } from '../types/types';
-import { get } from 'http';
 
-export const validateAddress = (address: string): string => {
-  try {
-    return validateAndParseAddress(address);
-  } catch (error) {
-    throw new Error(`Invalid address: ${error.message}`);
-  }
-};
+/**
+ * Converts a bigint address to a hex string
+ * @param {bigint} addressAsBigInt - Address as a bigint
+ * @returns {string} Address as a hex string
+ */
+export const bigintToHex = (addressAsBigInt: bigint): string => {
+  let hexString = addressAsBigInt.toString(16);
+  
+  hexString = hexString.padStart(64, '0'); 
+  hexString = '0x' + hexString;
 
+  return hexString;
+}
+
+/**
+ * Validates and formats a token ID
+ * @param {string} tokenId - Token ID as a string
+ * @returns {bigint} Token ID as a bigint
+ * @throws {Error} If token ID is invalid
+ */
 export const validateAndFormatTokenId = (tokenId: string) => {
   try {
     return uint256.bnToUint256(tokenId);
@@ -18,9 +29,13 @@ export const validateAndFormatTokenId = (tokenId: string) => {
   }
 };
 
+/**
+ * Creates a V3 transaction details payload with predefined gas parameters
+ * @returns {Object} V3 transaction details payload with gas parameters
+ */
 export const getV3DetailsPayload = () => {
   const maxL1Gas = 2000n;
-  const maxL1GasPrice = 600000n * 10n ** 9n;
+  const maxL1GasPrice = 100000n * 10n ** 9n;
   
   return {
     version: 3,

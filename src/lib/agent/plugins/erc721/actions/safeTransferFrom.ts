@@ -1,11 +1,18 @@
 import { Account, Contract, constants } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC721_ABI } from '../abis/erc721Abi';
-import { validateAddress, validateAndFormatTokenId, executeV3Transaction } from '../utils/nft';
+import { INTERACT_ERC721_ABI } from '../abis/interact';
+import { validateAndFormatTokenId, executeV3Transaction } from '../utils/utils';
 import { z } from 'zod';
 import { safeTransferFromSchema } from '../schemas/schema';
 import { TransactionResult } from '../types/types';
+import { validateAndParseAddress } from 'starknet';
 
+/**
+ * Safely transfers a token from one address to another.
+ * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {z.infer<typeof safeTransferFromSchema>} params - Safe transfer parameters
+ * @returns {Promise<string>} JSON string with transaction result
+ */
 export const safeTransferFrom = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof safeTransferFromSchema>
@@ -14,15 +21,15 @@ export const safeTransferFrom = async (
     if (!params?.fromAddress || !params?.toAddress || !params?.tokenId || !params?.contractAddress) {
       throw new Error('From address, to address, token ID and contract address are required');
     }
-
-    const fromAddress = validateAddress(params.fromAddress);
-    const toAddress = validateAddress(params.toAddress);
-    const tokenId = validateAndFormatTokenId(params.tokenId);
-    const contractAddress = validateAddress(params.contractAddress);
-    const data = params.data || ['0x0'];
-
-    const accountCredentials = agent.getAccountCredentials();
     const provider = agent.getProvider();
+    const accountCredentials = agent.getAccountCredentials();
+
+    const fromAddress = validateAndParseAddress(params.fromAddress);
+    const toAddress = validateAndParseAddress(params.toAddress);
+    const tokenId = validateAndFormatTokenId(params.tokenId);
+    const contractAddress = validateAndParseAddress(params.contractAddress);
+    const data = ['0x0'];
+
 
     const account = new Account(
       provider,
@@ -32,7 +39,7 @@ export const safeTransferFrom = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
     contract.connect(account);
 
     const calldata = contract.populate('safe_transfer_from', [
@@ -66,19 +73,24 @@ export const safeTransferFrom = async (
   }
 };
 
+/**
+ * Safely transfers a token from one address to another.
+ * @param {z.infer<typeof safeTransferFromSchema>} params - Safe transfer parameters
+ * @returns {Promise<string>} JSON object with transaction result
+ */
 export const safeTransferFromSignature = async (
   params: z.infer<typeof safeTransferFromSchema>
-): Promise<any> => {
+): Promise<string> => {
   try {
     if (!params?.fromAddress || !params?.toAddress || !params?.tokenId || !params?.contractAddress) {
       throw new Error('From address, to address, token ID and contract address are required');
     }
 
-    const fromAddress = validateAddress(params.fromAddress);
-    const toAddress = validateAddress(params.toAddress);
+    const fromAddress = validateAndParseAddress(params.fromAddress);
+    const toAddress = validateAndParseAddress(params.toAddress);
     const tokenId = validateAndFormatTokenId(params.tokenId);
-    const contractAddress = validateAddress(params.contractAddress);
-    const data = params.data || '0x0';
+    const contractAddress = validateAndParseAddress(params.contractAddress);
+    const data = '0x0';
 
     const result = {
       status: 'success',
@@ -97,12 +109,12 @@ export const safeTransferFromSignature = async (
 
     return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
   } catch (error) {
-    return {
+    return JSON.stringify({
       status: 'error',
       error: {
         code: 'SAFE_TRANSFER_FROM_CALL_DATA_ERROR',
         message: error.message || 'Failed to generate safeTransferFrom call data',
       },
-    };
+    });
   }
 };

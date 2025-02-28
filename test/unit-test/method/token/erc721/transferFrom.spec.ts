@@ -11,7 +11,7 @@ describe('Transfer From', () => {
       const params = {
         fromAddress: process.env.STARKNET_PUBLIC_ADDRESS as string,
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '16',
+        tokenId: '23',
         contractAddress: NFT_ADDRESS
       };
 
@@ -20,7 +20,7 @@ describe('Transfer From', () => {
 
       expect(parsed).toMatchObject({
         status: 'success',
-        tokenId: '16',
+        tokenId: '23',
         from: expect.any(String),
         to: expect.any(String),
         transactionHash: expect.any(String)
@@ -33,7 +33,7 @@ describe('Transfer From', () => {
       const params = {
         fromAddress: 'invalid_address',
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '17',
+        tokenId: '24',
         contractAddress: NFT_ADDRESS
       };
 
@@ -50,7 +50,7 @@ describe('Transfer From', () => {
       const params = {
         fromAddress: 'invalid_address',
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '18',
+        tokenId: '24',
         contractAddress: NFT_ADDRESS
       };
 
@@ -67,7 +67,7 @@ describe('Transfer From', () => {
       const params = {
         fromAddress: process.env.STARKNET_PUBLIC_ADDRESS as string,
         toAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        tokenId: '18',
+        tokenId: '24',
         contractAddress: NFT_ADDRESS
       };
 
