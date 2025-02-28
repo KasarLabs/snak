@@ -33,6 +33,8 @@
     "build": "lerna run build --scope \"@starknet-agent-kit/agents\" && lerna run build --scope \"@starknet-agent-kit/plugin-*\"",
     "start": "pnpm build && lerna run --scope @starknet-agent-kit/agents start --",
     "start:server": "pnpm run build:server && lerna run start --scope \"@starknet-agent-kit/server\" --scope \"@starknet-agent-kit/client\"",
+    "start:test" : "lerna run test",
+    "test" : "./scripts/run_all_test.sh",
     "dev": "lerna run --scope @starknet-agent-kit/agents start --",
     "dev:server": "lerna run dev --scope \"@starknet-agent-kit/server\" --scope \"@starknet-agent-kit/client\"",
     "lint": "lerna run lint",
