@@ -52,9 +52,7 @@ const transferFrom = async (agent, params) => {
 exports.transferFrom = transferFrom;
 const transfer = async (agent, params) => {
     try {
-        if (!params?.toAddress ||
-            !params?.tokenId ||
-            !params?.contractAddress) {
+        if (!params?.toAddress || !params?.tokenId || !params?.contractAddress) {
             throw new Error('To address, token ID and contract address are required');
         }
         const provider = agent.getProvider();

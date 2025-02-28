@@ -83,9 +83,9 @@ export const transferFrom = async (
 };
 
 /**
- * Transfers a token another.
+ * Transfers a NFT to another address.
  * @param {StarknetAgentInterface} agent - The Starknet agent interface
- * @param {z.infer<typeof transferFromSchema>} params - Transfer parameters
+ * @param {z.infer<typeof transferSchema>} params - Transfer parameters
  * @returns {Promise<string>} JSON string with transaction result
  */
 export const transfer = async (
@@ -158,7 +158,6 @@ export const transferFromSignature = async (
   params: z.infer<typeof transferFromSchema>
 ): Promise<string> => {
   try {
-    console.log('TRANSFER FROM SIG params', params);
     if (
       !params?.fromAddress ||
       !params?.toAddress ||

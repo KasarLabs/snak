@@ -23,7 +23,7 @@ class AccountManager {
                         max_amount: starknet_1.num.toHex(0n),
                         max_price_per_unit: starknet_1.num.toHex(0n),
                     },
-                }
+                },
             };
         };
     }
@@ -50,7 +50,7 @@ class AccountManager {
     }
     async deployAccount(accountClassHash, accountDetails) {
         try {
-            console.log("Account deploy AX");
+            console.log('Account deploy AX');
             const account = new starknet_1.Account(this.provider, accountDetails.contractAddress, accountDetails.privateKey);
             const axSigner = new starknet_1.CairoCustomEnum({
                 Starknet: { pubkey: accountDetails.publicKey },
@@ -74,7 +74,7 @@ class AccountManager {
             };
         }
         catch (error) {
-            console.log("Error : ", error);
+            console.log('Error : ', error);
             throw new Error(`Failed to create account: ${error.message}`);
         }
     }

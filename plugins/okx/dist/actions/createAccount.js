@@ -6,7 +6,7 @@ const contract_1 = require("../constant/contract");
 const AccountManager_1 = require("../utils/AccountManager");
 const CreateOKXAccount = async () => {
     try {
-        console.log("YOOOO");
+        console.log('YOOOO');
         const accountManager = new AccountManager_1.AccountManager(undefined);
         const accountDetails = await accountManager.createAccount(contract_1.OKX_CLASSHASH);
         return JSON.stringify({
