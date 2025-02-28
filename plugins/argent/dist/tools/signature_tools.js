@@ -6,13 +6,13 @@ const deployAccount_1 = require("../actions/deployAccount");
 const createAccount_1 = require("../actions/createAccount");
 const registerSignatureTools = (StarknetToolRegistry) => {
     StarknetToolRegistry.push({
-        name: 'create_argentx_account',
-        description: 'create ArgentX account return the privateKey/publicKey/contractAddress',
+        name: 'create_argent_account',
+        description: 'create argent account return the privateKey/publicKey/contractAddress',
         execute: createAccount_1.CreateArgentAccountSignature,
     }),
         StarknetToolRegistry.push({
-            name: 'deploy_argentx_account',
-            description: 'deploy ArgentX account return the privateKey/publicKey/contractAddress',
+            name: 'deploy_argent_account',
+            description: 'deploy argent account return the privateKey/publicKey/contractAddress',
             schema: schema_1.accountDetailsSchema,
             execute: deployAccount_1.DeployArgentAccountSignature,
         });

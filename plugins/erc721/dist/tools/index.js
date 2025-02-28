@@ -27,6 +27,13 @@ const registerTools = (StarknetToolRegistry) => {
         execute: balanceOf_1.getBalance,
     });
     StarknetToolRegistry.push({
+        name: 'erc721_get_own_balance',
+        plugins: 'erc721',
+        description: 'Get the balance of NFTs in your wallet',
+        schema: schema_1.getOwnBalanceSchema,
+        execute: balanceOf_1.getOwnBalance,
+    });
+    StarknetToolRegistry.push({
         name: 'erc721_is_approved_for_all',
         plugins: 'erc721',
         description: 'Check if an operator is approved for all NFTs of a given owner',
@@ -36,16 +43,23 @@ const registerTools = (StarknetToolRegistry) => {
     StarknetToolRegistry.push({
         name: 'erc721_get_approved',
         plugins: 'erc721',
-        description: 'Get the approved address for a specific NFT erc721',
+        description: 'Get the approved address for a specific NFT ERC721',
         schema: schema_1.getApprovedSchema,
         execute: getApproved_1.getApproved,
     });
     StarknetToolRegistry.push({
         name: 'erc721_transfer_from',
         plugins: 'erc721',
-        description: 'Transfer an NFT from one address to another',
+        description: 'Transfer a NFT from one address to another',
         schema: schema_1.transferFromSchema,
         execute: transferFrom_1.transferFrom,
+    });
+    StarknetToolRegistry.push({
+        name: 'erc721_transfer',
+        plugins: 'erc721',
+        description: 'Transfer a NFT to a specific address',
+        schema: schema_1.transferSchema,
+        execute: transferFrom_1.transfer,
     });
     StarknetToolRegistry.push({
         name: 'erc721_approve',

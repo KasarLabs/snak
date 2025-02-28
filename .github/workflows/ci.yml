@@ -49,8 +49,11 @@ jobs:
 
       - name: Check formatting with Prettier
         run: |
-          pnpm prettier --check "src/**/*.{ts,tsx}"
-          cd client && pnpm prettier --check "src/**/*.{ts,tsx}"
+          pnpm prettier --check "server/**/*.{ts,tsx}"
+          pnpm prettier --check "agents/**/*.{ts,tsx}"
+          pnpm prettier --check "client/src/**/*.{ts,tsx}"
+          pnpm prettier --check "plugins/**/*.{ts,tsx}"
+
 
       - name: Security audit
         run: pnpm audit || true
@@ -90,8 +93,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build backend
-        run: pnpm build:backend
+      - name: Build server
+        run: pnpm build:server
 
-      - name: Build frontend
-        run: pnpm build:frontend

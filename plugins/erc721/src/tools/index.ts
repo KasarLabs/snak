@@ -8,10 +8,12 @@ import {
   safeTransferFromSchema,
   setApprovalForAllSchema,
   deployERC721Schema,
+  getOwnBalanceSchema,
+  transferSchema,
 } from '../schemas/schema';
 import { getOwner } from '../actions/ownerOf';
-import { transferFrom } from '../actions/transferFrom';
-import { getBalance } from '../actions/balanceOf';
+import { transferFrom, transfer } from '../actions/transferFrom';
+import { getBalance, getOwnBalance } from '../actions/balanceOf';
 import { approve } from '../actions/approve';
 import { isApprovedForAll } from '../actions/isApprovedForAll';
 import { getApproved } from '../actions/getApproved';
@@ -38,6 +40,14 @@ export const registerTools = (StarknetToolRegistry : StarknetTool[]) => {
   });
 
   StarknetToolRegistry.push({
+    name: 'erc721_get_own_balance',
+    plugins: 'erc721',
+    description: 'Get the balance of NFTs in your wallet',
+    schema: getOwnBalanceSchema,
+    execute: getOwnBalance,
+  });
+
+  StarknetToolRegistry.push({
     name: 'erc721_is_approved_for_all',
     plugins: 'erc721',
     description:
@@ -49,7 +59,7 @@ export const registerTools = (StarknetToolRegistry : StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'erc721_get_approved',
     plugins: 'erc721',
-    description: 'Get the approved address for a specific NFT erc721',
+    description: 'Get the approved address for a specific NFT ERC721',
     schema: getApprovedSchema,
     execute: getApproved,
   });
@@ -57,9 +67,17 @@ export const registerTools = (StarknetToolRegistry : StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'erc721_transfer_from',
     plugins: 'erc721',
-    description: 'Transfer an NFT from one address to another',
+    description: 'Transfer a NFT from one address to another',
     schema: transferFromSchema,
     execute: transferFrom,
+  });
+
+  StarknetToolRegistry.push({
+    name: 'erc721_transfer',
+    plugins: 'erc721',
+    description: 'Transfer a NFT to a specific address',
+    schema: transferSchema,
+    execute: transfer,
   });
 
   StarknetToolRegistry.push({

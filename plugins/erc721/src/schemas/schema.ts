@@ -12,6 +12,16 @@ export const getBalanceSchema = z.object({
 });
 
 /**
+ * Schema for getting an NFT balance for a specific account
+ * @typedef {Object} GetBalanceParams
+ * @property {string} accountAddress - The address to check the balance for
+ * @property {string} contractAddress - The address of the NFT contract
+ */
+export const getOwnBalanceSchema = z.object({
+  contractAddress: z.string().describe('The address of the NFT contract'),
+});
+
+/**
  * Schema for getting the owner of an NFT
  * @typedef {Object} OwnerOfParams
  * @property {string} tokenId - The ID of the token
@@ -56,6 +66,19 @@ export const isApprovedForAllSchema = z.object({
  */
 export const transferFromSchema = z.object({
   fromAddress: z.string().describe('The current owner of the token'),
+  toAddress: z.string().describe('The address to receive the token'),
+  tokenId: z.string().describe('The ID of the token to transfer'),
+  contractAddress: z.string().describe('The address of the NFT contract'),
+});
+
+/**
+ * Schema for transferring an NFT to another address
+ * @typedef {Object} TransferFromParams
+ * @property {string} toAddress - The address to receive the token
+ * @property {string} tokenId - The ID of the token to transfer
+ * @property {string} contractAddress - The address of the NFT contract
+ */
+export const transferSchema = z.object({
   toAddress: z.string().describe('The address to receive the token'),
   tokenId: z.string().describe('The ID of the token to transfer'),
   contractAddress: z.string().describe('The address of the NFT contract'),

@@ -9,25 +9,32 @@ export declare const getBalanceSchema: z.ZodObject<{
     accountAddress: string;
     contractAddress: string;
 }>;
+export declare const getOwnBalanceSchema: z.ZodObject<{
+    contractAddress: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    contractAddress: string;
+}, {
+    contractAddress: string;
+}>;
 export declare const ownerOfSchema: z.ZodObject<{
     tokenId: z.ZodString;
     contractAddress: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
 }, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
 }>;
 export declare const getApprovedSchema: z.ZodObject<{
     tokenId: z.ZodString;
     contractAddress: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
 }, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
 }>;
 export declare const isApprovedForAllSchema: z.ZodObject<{
     ownerAddress: z.ZodString;
@@ -48,14 +55,27 @@ export declare const transferFromSchema: z.ZodObject<{
     tokenId: z.ZodString;
     contractAddress: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
     fromAddress: string;
     toAddress: string;
 }, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
     fromAddress: string;
+    toAddress: string;
+}>;
+export declare const transferSchema: z.ZodObject<{
+    toAddress: z.ZodString;
+    tokenId: z.ZodString;
+    contractAddress: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    contractAddress: string;
+    tokenId: string;
+    toAddress: string;
+}, {
+    contractAddress: string;
+    tokenId: string;
     toAddress: string;
 }>;
 export declare const safeTransferFromSchema: z.ZodObject<{
@@ -64,13 +84,13 @@ export declare const safeTransferFromSchema: z.ZodObject<{
     tokenId: z.ZodString;
     contractAddress: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
     fromAddress: string;
     toAddress: string;
 }, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
     fromAddress: string;
     toAddress: string;
 }>;
@@ -79,12 +99,12 @@ export declare const approveSchema: z.ZodObject<{
     tokenId: z.ZodString;
     contractAddress: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
     approvedAddress: string;
 }, {
-    tokenId: string;
     contractAddress: string;
+    tokenId: string;
     approvedAddress: string;
 }>;
 export declare const setApprovalForAllSchema: z.ZodObject<{
@@ -92,13 +112,13 @@ export declare const setApprovalForAllSchema: z.ZodObject<{
     approved: z.ZodBoolean;
     contractAddress: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    approved: boolean;
     contractAddress: string;
     operatorAddress: string;
+    approved: boolean;
 }, {
-    approved: boolean;
     contractAddress: string;
     operatorAddress: string;
+    approved: boolean;
 }>;
 export declare const deployERC721Schema: z.ZodObject<{
     name: z.ZodString;

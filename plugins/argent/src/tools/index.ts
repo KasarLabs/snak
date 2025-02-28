@@ -9,9 +9,9 @@ import {
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
-    name: 'create_new_argentx_account',
+    name: 'create_new_argent_account',
     description:
-      'Creates a new ArgentX account and return the privateKey/publicKey/contractAddress',
+      'Creates a new Argent account and return the privateKey/publicKey/contractAddress',
     plugins: 'argent',
     execute: async (agent: StarknetAgentInterface) => {
       const response = await CreateArgentAccount();
@@ -20,9 +20,9 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   });
 
   StarknetToolRegistry.push({
-    name: 'deploy_existing_argentx_account',
+    name: 'deploy_existing_argent_account',
     description:
-      'Deploy an existing ArgentX Account return the privateKey/publicKey/contractAddress',
+      'Deploy an existing Argent Account return the privateKey/publicKey/contractAddress',
     plugins: 'argent',
     schema: accountDetailsSchema,
     execute: DeployArgentAccount,

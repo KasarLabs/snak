@@ -7,8 +7,8 @@ const deployAccount_1 = require("../actions/deployAccount");
 const schema_1 = require("../schemas/schema");
 const registerTools = (StarknetToolRegistry) => {
     StarknetToolRegistry.push({
-        name: 'create_new_argentx_account',
-        description: 'Creates a new ArgentX account and return the privateKey/publicKey/contractAddress',
+        name: 'create_new_argent_account',
+        description: 'Creates a new Argent account and return the privateKey/publicKey/contractAddress',
         plugins: 'argent',
         execute: async (agent) => {
             const response = await (0, createAccount_1.CreateArgentAccount)();
@@ -16,8 +16,8 @@ const registerTools = (StarknetToolRegistry) => {
         },
     });
     StarknetToolRegistry.push({
-        name: 'deploy_existing_argentx_account',
-        description: 'Deploy an existing ArgentX Account return the privateKey/publicKey/contractAddress',
+        name: 'deploy_existing_argent_account',
+        description: 'Deploy an existing Argent Account return the privateKey/publicKey/contractAddress',
         plugins: 'argent',
         schema: schema_1.accountDetailsSchema,
         execute: deployAccount_1.DeployArgentAccount,
