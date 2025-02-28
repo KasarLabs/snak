@@ -40,12 +40,6 @@ export const deployERC20Contract = async (
       }
     );
 
-    const myTestContract = new Contract(
-      DEPLOY_ERC20_ABI,
-      response.contractAddress as string,
-      provider
-    );
-
     return JSON.stringify({
       status: 'success',
       transactionHash: response.transactionHash,
