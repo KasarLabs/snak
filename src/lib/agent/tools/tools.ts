@@ -19,7 +19,6 @@ import { register } from 'module';
 import { registerTelegramTools } from '../plugins/telegram/tools';
 import { TelegramInterface } from '../plugins/telegram/interfaces';
 
-
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
     accountPublicKey: string;

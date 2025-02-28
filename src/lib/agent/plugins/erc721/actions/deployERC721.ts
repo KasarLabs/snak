@@ -7,23 +7,23 @@ import { DEPLOY_ERC721_ABI } from '../abis/deploy';
 import { z } from 'zod';
 
 /**
-* Deploys an ERC721 contract.
-* @param agent - A StarknetAgentInterface instance.
-* @param params - An object containing the contract's name, symbol, base URI, and total supply.
-* @returns A stringified JSON object containing the status, transaction hash, and contract address.
-*/
+ * Deploys an ERC721 contract.
+ * @param agent - A StarknetAgentInterface instance.
+ * @param params - An object containing the contract's name, symbol, base URI, and total supply.
+ * @returns A stringified JSON object containing the status, transaction hash, and contract address.
+ */
 export const deployERC721Contract = async (
-    agent: StarknetAgentInterface,
-    params: z.infer<typeof deployERC721Schema>
+  agent: StarknetAgentInterface,
+  params: z.infer<typeof deployERC721Schema>
 ) => {
   try {
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
 
     const account = new Account(
-        provider, 
-        accountCredentials?.accountPublicKey,
-        accountCredentials?.accountPrivateKey
+      provider,
+      accountCredentials?.accountPublicKey,
+      accountCredentials?.accountPrivateKey
     );
 
     const contractManager = new ContractManager(account);
@@ -35,8 +35,8 @@ export const deployERC721Contract = async (
         name: params.name,
         symbol: params.symbol,
         base_uri: params.baseUri,
-        total_supply: params.totalSupply, 
-        recipient: accountCredentials?.accountPublicKey
+        total_supply: params.totalSupply,
+        recipient: accountCredentials?.accountPublicKey,
       }
     );
 
@@ -46,9 +46,9 @@ export const deployERC721Contract = async (
       contractAddress: response.contractAddress,
     });
   } catch (error) {
-      return JSON.stringify({
-        status: 'failure',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+    return JSON.stringify({
+      status: 'failure',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 };

@@ -16,8 +16,14 @@ export const isApprovedForAll = async (
   params: z.infer<typeof isApprovedForAllSchema>
 ): Promise<string> => {
   try {
-    if (!params?.ownerAddress || !params?.operatorAddress || !params?.contractAddress) {
-      throw new Error('Owner address, operator address and contract address are required');
+    if (
+      !params?.ownerAddress ||
+      !params?.operatorAddress ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'Owner address, operator address and contract address are required'
+      );
     }
 
     const provider = agent.getProvider();
@@ -26,7 +32,11 @@ export const isApprovedForAll = async (
     const operatorAddress = validateAndParseAddress(params.operatorAddress);
     const contractAddress = validateAndParseAddress(params.contractAddress);
 
-    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(
+      INTERACT_ERC721_ABI,
+      contractAddress,
+      provider
+    );
 
     const approvedResponse = await contract.isApprovedForAll(
       ownerAddress,

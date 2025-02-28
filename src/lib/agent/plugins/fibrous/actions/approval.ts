@@ -1,6 +1,6 @@
 import { Account, Call, Contract } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
-import { ERC20_ABI } from '../../../plugins/core/token/abis/erc20Abi';
+import { ERC20_ABI } from '../abis/erc20Abi';
 import { Router } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
 export class ApprovalService {

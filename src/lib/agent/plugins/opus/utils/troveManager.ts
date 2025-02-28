@@ -40,7 +40,7 @@ import {
   getSentinelContract,
   getShrineContract,
 } from './contracts';
-import { tokenAddresses } from '../../core/token/constants/erc20';
+import { tokenAddresses } from '../constants/index';
 
 const FORGE_FEE_PAID_EVENT_IDENTIFIER =
   'opus::core::shrine::shrine::ForgeFeePaid';

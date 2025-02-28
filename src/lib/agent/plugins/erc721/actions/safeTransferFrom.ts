@@ -18,8 +18,15 @@ export const safeTransferFrom = async (
   params: z.infer<typeof safeTransferFromSchema>
 ): Promise<string> => {
   try {
-    if (!params?.fromAddress || !params?.toAddress || !params?.tokenId || !params?.contractAddress) {
-      throw new Error('From address, to address, token ID and contract address are required');
+    if (
+      !params?.fromAddress ||
+      !params?.toAddress ||
+      !params?.tokenId ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'From address, to address, token ID and contract address are required'
+      );
     }
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
@@ -30,7 +37,6 @@ export const safeTransferFrom = async (
     const contractAddress = validateAndParseAddress(params.contractAddress);
     const data = ['0x0'];
 
-
     const account = new Account(
       provider,
       accountCredentials.accountPublicKey,
@@ -39,14 +45,18 @@ export const safeTransferFrom = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(
+      INTERACT_ERC721_ABI,
+      contractAddress,
+      provider
+    );
     contract.connect(account);
 
     const calldata = contract.populate('safe_transfer_from', [
       fromAddress,
       toAddress,
       tokenId,
-      data
+      data,
     ]);
 
     const txH = await executeV3Transaction({
@@ -82,8 +92,15 @@ export const safeTransferFromSignature = async (
   params: z.infer<typeof safeTransferFromSchema>
 ): Promise<string> => {
   try {
-    if (!params?.fromAddress || !params?.toAddress || !params?.tokenId || !params?.contractAddress) {
-      throw new Error('From address, to address, token ID and contract address are required');
+    if (
+      !params?.fromAddress ||
+      !params?.toAddress ||
+      !params?.tokenId ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'From address, to address, token ID and contract address are required'
+      );
     }
 
     const fromAddress = validateAndParseAddress(params.fromAddress);
@@ -97,13 +114,7 @@ export const safeTransferFromSignature = async (
       transactions: {
         contractAddress: contractAddress,
         entrypoint: 'safe_transfer_from',
-        calldata: [
-          fromAddress,
-          toAddress,
-          tokenId.low,
-          tokenId.high,
-          data
-        ],
+        calldata: [fromAddress, toAddress, tokenId.low, tokenId.high, data],
       },
     };
 
@@ -113,7 +124,8 @@ export const safeTransferFromSignature = async (
       status: 'error',
       error: {
         code: 'SAFE_TRANSFER_FROM_CALL_DATA_ERROR',
-        message: error.message || 'Failed to generate safeTransferFrom call data',
+        message:
+          error.message || 'Failed to generate safeTransferFrom call data',
       },
     });
   }

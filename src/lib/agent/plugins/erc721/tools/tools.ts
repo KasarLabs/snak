@@ -8,7 +8,7 @@ import {
   getApprovedSchema,
   safeTransferFromSchema,
   setApprovalForAllSchema,
-  deployERC721Schema
+  deployERC721Schema,
 } from '../schemas/schema';
 import { getOwner } from '../actions/ownerOf';
 import { transferFrom } from '../actions/transferFrom';
@@ -40,7 +40,8 @@ export const registerERC721Tools = () => {
   StarknetToolRegistry.registerTool({
     name: 'erc721_is_approved_for_all',
     plugins: 'erc721',
-    description: 'Check if an operator is approved for all NFTs of a given owner',
+    description:
+      'Check if an operator is approved for all NFTs of a given owner',
     schema: isApprovedForAllSchema,
     execute: isApprovedForAll,
   });
@@ -72,7 +73,8 @@ export const registerERC721Tools = () => {
   StarknetToolRegistry.registerTool({
     name: 'erc721_safe_transfer_from',
     plugins: 'erc721',
-    description: 'Safely transfer an NFT from one address to another with additional data',
+    description:
+      'Safely transfer an NFT from one address to another with additional data',
     schema: safeTransferFromSchema,
     execute: safeTransferFrom,
   });
@@ -80,7 +82,8 @@ export const registerERC721Tools = () => {
   StarknetToolRegistry.registerTool({
     name: 'erc721_set_approval_for_all',
     plugins: 'erc721',
-    description: 'Set or revoke approval for an operator to manage all NFTs of the caller',
+    description:
+      'Set or revoke approval for an operator to manage all NFTs of the caller',
     schema: setApprovalForAllSchema,
     execute: setApprovalForAll,
   });
@@ -88,8 +91,9 @@ export const registerERC721Tools = () => {
   StarknetToolRegistry.registerTool({
     name: 'deploy_erc721',
     plugins: 'erc721',
-    description: 'Create and deploy a new ERC721 contract, returns the address of the deployed contract',
+    description:
+      'Create and deploy a new ERC721 contract, returns the address of the deployed contract',
     schema: deployERC721Schema,
-    execute: deployERC721Contract
+    execute: deployERC721Contract,
   });
 };

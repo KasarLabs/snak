@@ -1,4 +1,4 @@
-import { RpcProvider, RPC, num } from 'starknet';
+import { RpcProvider } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
 import { ARGENTX_CLASSHASH } from '../constant/contract';
 import { AccountManager } from '../utils/AccountManager';

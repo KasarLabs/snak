@@ -19,16 +19,12 @@ export const loadTestConfig = (): EnvConfig => {
     STARKNET_RPC_URL: '',
     accounts: {
       account1: {
-        privateKey:
-          '5',
-        publicAddress:
-          '0x06ee3255e59055c0B8CFd',
+        privateKey: '5',
+        publicAddress: '0x06ee3255e59055c0B8CFd',
       },
       account2: {
-        privateKey:
-          'd2',
-        publicAddress:
-          '0x023663b6DAFFb23F8132941ccb6EBdc45DE1Aa3cB3',
+        privateKey: 'd2',
+        publicAddress: '0x023663b6DAFFb23F8132941ccb6EBdc45DE1Aa3cB3',
       },
       account3: {
         privateKey:

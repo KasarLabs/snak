@@ -8,18 +8,25 @@ import { transferFromSchema } from '../schemas/schema';
 import { TransactionResult } from '../types/types';
 
 /**
-* Transfers a token from one address to another.
-* @param {StarknetAgentInterface} agent - The Starknet agent interface
-* @param {z.infer<typeof transferFromSchema>} params - Transfer parameters
-* @returns {Promise<string>} JSON string with transaction result
-*/
+ * Transfers a token from one address to another.
+ * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {z.infer<typeof transferFromSchema>} params - Transfer parameters
+ * @returns {Promise<string>} JSON string with transaction result
+ */
 export const transferFrom = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof transferFromSchema>
 ): Promise<string> => {
   try {
-    if (!params?.fromAddress || !params?.toAddress || !params?.tokenId || !params?.contractAddress) {
-      throw new Error('From address, to address, token ID and contract address are required');
+    if (
+      !params?.fromAddress ||
+      !params?.toAddress ||
+      !params?.tokenId ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'From address, to address, token ID and contract address are required'
+      );
     }
 
     const provider = agent.getProvider();
@@ -38,13 +45,17 @@ export const transferFrom = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(
+      INTERACT_ERC721_ABI,
+      contractAddress,
+      provider
+    );
     contract.connect(account);
 
     const calldata = contract.populate('transfer_from', [
       fromAddress,
       toAddress,
-      tokenId
+      tokenId,
     ]);
 
     const txH = await executeV3Transaction({
@@ -57,7 +68,7 @@ export const transferFrom = async (
       tokenId: params.tokenId,
       from: fromAddress,
       to: toAddress,
-      transactionHash: txH
+      transactionHash: txH,
     };
 
     return JSON.stringify(result);
@@ -77,40 +88,42 @@ export const transferFrom = async (
  * @returns A stringified JSON object with the transaction type and the call data.
  */
 export const transferFromSignature = async (
-    params: z.infer<typeof transferFromSchema>
-  ): Promise<string> => {
-    try {
-      if (!params?.fromAddress || !params?.toAddress || !params?.tokenId || !params?.contractAddress) {
-        throw new Error('From address, to address, token ID and contract address are required');
-      }
-  
-      const fromAddress = validateAndParseAddress(params.fromAddress);
-      const toAddress = validateAndParseAddress(params.toAddress);
-      const tokenId = validateAndFormatTokenId(params.tokenId);
-      const contractAddress = validateAndParseAddress(params.contractAddress);
-  
-      const result = {
-        status: 'success',
-        transactions: {
-          contractAddress: contractAddress,
-          entrypoint: 'transfer_from',
-          calldata: [
-            fromAddress,
-            toAddress,
-            tokenId.low,
-            tokenId.high
-          ],
-        },
-      };
-  
-      return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
-    } catch (error) {
-      return JSON.stringify({ 
-        status: 'error',
-        error: {
-          code: 'TRANSFER_FROM_CALL_DATA_ERROR',
-          message: error.message || 'Failed to generate transferFrom call data',
-        },
-      });
+  params: z.infer<typeof transferFromSchema>
+): Promise<string> => {
+  try {
+    if (
+      !params?.fromAddress ||
+      !params?.toAddress ||
+      !params?.tokenId ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'From address, to address, token ID and contract address are required'
+      );
     }
-  };
+
+    const fromAddress = validateAndParseAddress(params.fromAddress);
+    const toAddress = validateAndParseAddress(params.toAddress);
+    const tokenId = validateAndFormatTokenId(params.tokenId);
+    const contractAddress = validateAndParseAddress(params.contractAddress);
+
+    const result = {
+      status: 'success',
+      transactions: {
+        contractAddress: contractAddress,
+        entrypoint: 'transfer_from',
+        calldata: [fromAddress, toAddress, tokenId.low, tokenId.high],
+      },
+    };
+
+    return JSON.stringify({ transaction_type: 'INVOKE', results: [result] });
+  } catch (error) {
+    return JSON.stringify({
+      status: 'error',
+      error: {
+        code: 'TRANSFER_FROM_CALL_DATA_ERROR',
+        message: error.message || 'Failed to generate transferFrom call data',
+      },
+    });
+  }
+};

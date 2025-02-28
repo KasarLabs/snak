@@ -68,7 +68,6 @@ export const transferFromSchema = z.object({
  * @property {string} toAddress - The address to receive the token
  * @property {string} tokenId - The ID of the token to transfer
  * @property {string} contractAddress - The address of the NFT contract
- * @property {string[]} data - Additional data with the transfer
  */
 export const safeTransferFromSchema = z.object({
   fromAddress: z.string().describe('The current owner of the token'),
@@ -85,7 +84,9 @@ export const safeTransferFromSchema = z.object({
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const approveSchema = z.object({
-  approvedAddress: z.string().describe('The address being approved for the token'),
+  approvedAddress: z
+    .string()
+    .describe('The address being approved for the token'),
   tokenId: z.string().describe('The ID of the token'),
   contractAddress: z.string().describe('The address of the NFT contract'),
 });
@@ -98,7 +99,9 @@ export const approveSchema = z.object({
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const setApprovalForAllSchema = z.object({
-  operatorAddress: z.string().describe('The operator address to set approval for'),
+  operatorAddress: z
+    .string()
+    .describe('The operator address to set approval for'),
   approved: z.boolean().describe('True to approve, false to revoke'),
   contractAddress: z.string().describe('The address of the NFT contract'),
 });
@@ -115,5 +118,7 @@ export const deployERC721Schema = z.object({
   name: z.string().describe('The name of the ERC721 token'),
   symbol: z.string().describe('The symbol of the ERC721 token'),
   baseUri: z.string().describe('The base URI for token metadata'),
-  totalSupply: z.string().describe('The total supply to mint at deployment time')
+  totalSupply: z
+    .string()
+    .describe('The total supply to mint at deployment time'),
 });

@@ -8,8 +8,6 @@ import {
   CairoOption,
   CairoOptionVariant,
   CairoCustomEnum,
-  RPC,
-  num
 } from 'starknet';
 import {
   AccountDetails,
@@ -98,7 +96,7 @@ export class AccountManager implements BaseUtilityClass {
           constructorCalldata: constructorCallData,
           contractAddress: accountDetails.contractAddress,
           addressSalt: accountDetails.publicKey,
-        }, getV3DetailsPayload());
+        });
 
       await this.provider.waitForTransaction(transaction_hash);
 
@@ -152,26 +150,3 @@ export class AccountManager implements BaseUtilityClass {
     }
   }
 }
-
-export const getV3DetailsPayload = () => {
-  const maxL1Gas = 2000n;
-  const maxL1GasPrice = 600000n * 10n ** 9n;
-  
-  return {
-    version: 3,
-    maxFee: 10n ** 16n,  
-    feeDataAvailabilityMode: RPC.EDataAvailabilityMode.L1,
-    tip: 10n ** 14n,
-    paymasterData: [],
-    resourceBounds: {
-      l1_gas: {
-        max_amount: num.toHex(maxL1Gas),
-        max_price_per_unit: num.toHex(maxL1GasPrice),
-      },
-      l2_gas: {
-        max_amount: num.toHex(0n),
-        max_price_per_unit: num.toHex(0n),
-      },
-    }
-  };
-};

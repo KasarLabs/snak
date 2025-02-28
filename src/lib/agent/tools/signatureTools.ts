@@ -3,7 +3,6 @@ import { registerSignatureToolsAccount } from '../plugins/core/account/tools/too
 import { registerSignatureToolsToken } from '../plugins/core/token/tools/tools_signature';
 import { registerSignatureToolsERC721 } from '../plugins/erc721/tools/signatureTools';
 
-
 interface SignatureTool<P = any> {
   name: string;
   categorie?: string;

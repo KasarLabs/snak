@@ -25,7 +25,11 @@ export const getBalance = async (
     const accountAddress = validateAndParseAddress(params.accountAddress);
     const contractAddress = validateAndParseAddress(params.contractAddress);
 
-    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(
+      INTERACT_ERC721_ABI,
+      contractAddress,
+      provider
+    );
 
     const balanceResponse = await contract.balanceOf(accountAddress);
 

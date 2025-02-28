@@ -1,4 +1,9 @@
-import { Account, Contract, constants, validateAndParseAddress } from 'starknet';
+import {
+  Account,
+  Contract,
+  constants,
+  validateAndParseAddress,
+} from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
 import { INTERACT_ERC721_ABI } from '../abis/interact';
 import { validateAndFormatTokenId, executeV3Transaction } from '../utils/utils';
@@ -17,8 +22,14 @@ export const approve = async (
   params: z.infer<typeof approveSchema>
 ): Promise<string> => {
   try {
-    if (!params?.approvedAddress || !params?.tokenId || !params?.contractAddress) {
-      throw new Error('Approved address, token ID and contract address are required');
+    if (
+      !params?.approvedAddress ||
+      !params?.tokenId ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'Approved address, token ID and contract address are required'
+      );
     }
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
@@ -36,22 +47,18 @@ export const approve = async (
     );
 
     const contract = new Contract(
-      INTERACT_ERC721_ABI, 
-      contractAddress, 
+      INTERACT_ERC721_ABI,
+      contractAddress,
       provider
     );
     contract.connect(account);
 
-    const calldata = contract.populate('approve', [
-      approvedAddress,
-      tokenId
-    ]);
+    const calldata = contract.populate('approve', [approvedAddress, tokenId]);
 
     const txH = await executeV3Transaction({
       call: calldata,
       account: account,
     });
-
 
     const result: TransactionResult = {
       status: 'success',
@@ -80,8 +87,14 @@ export const approveSignature = async (
   params: z.infer<typeof approveSchema>
 ): Promise<any> => {
   try {
-    if (!params?.approvedAddress || !params?.tokenId || !params?.contractAddress) {
-      throw new Error('Approved address, token ID and contract address are required');
+    if (
+      !params?.approvedAddress ||
+      !params?.tokenId ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'Approved address, token ID and contract address are required'
+      );
     }
 
     const approvedAddress = validateAndParseAddress(params.approvedAddress);
@@ -93,11 +106,7 @@ export const approveSignature = async (
       transactions: {
         contractAddress: contractAddress,
         entrypoint: 'approve',
-        calldata: [
-          approvedAddress,
-          tokenId.low,
-          tokenId.high
-        ],
+        calldata: [approvedAddress, tokenId.low, tokenId.high],
       },
     };
 

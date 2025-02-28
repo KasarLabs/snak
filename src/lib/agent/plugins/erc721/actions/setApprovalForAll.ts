@@ -1,7 +1,7 @@
 import { Account, Contract, constants } from 'starknet';
 import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
 import { INTERACT_ERC721_ABI } from '../abis/interact';
-import {  executeV3Transaction } from '../utils/utils';
+import { executeV3Transaction } from '../utils/utils';
 import { z } from 'zod';
 import { setApprovalForAllSchema } from '../schemas/schema';
 import { TransactionResult } from '../types/types';
@@ -18,8 +18,14 @@ export const setApprovalForAll = async (
   params: z.infer<typeof setApprovalForAllSchema>
 ): Promise<string> => {
   try {
-    if (!params?.operatorAddress || params?.approved === undefined || !params?.contractAddress) {
-      throw new Error('Operator address, approved status and contract address are required');
+    if (
+      !params?.operatorAddress ||
+      params?.approved === undefined ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'Operator address, approved status and contract address are required'
+      );
     }
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
@@ -35,12 +41,16 @@ export const setApprovalForAll = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(
+      INTERACT_ERC721_ABI,
+      contractAddress,
+      provider
+    );
     contract.connect(account);
 
     const calldata = contract.populate('set_approval_for_all', [
       operatorAddress,
-      params.approved ? true : false
+      params.approved ? true : false,
     ]);
 
     const txH = await executeV3Transaction({
@@ -75,8 +85,14 @@ export const setApprovalForAllSignature = async (
   params: z.infer<typeof setApprovalForAllSchema>
 ): Promise<string> => {
   try {
-    if (!params?.operatorAddress || params?.approved === undefined || !params?.contractAddress) {
-      throw new Error('Operator address, approved status and contract address are required');
+    if (
+      !params?.operatorAddress ||
+      params?.approved === undefined ||
+      !params?.contractAddress
+    ) {
+      throw new Error(
+        'Operator address, approved status and contract address are required'
+      );
     }
 
     const operatorAddress = validateAndParseAddress(params.operatorAddress);
@@ -87,10 +103,7 @@ export const setApprovalForAllSignature = async (
       transactions: {
         contractAddress: contractAddress,
         entrypoint: 'set_approval_for_all',
-        calldata: [
-          operatorAddress,
-          params.approved ? 1 : 0
-        ],
+        calldata: [operatorAddress, params.approved ? 1 : 0],
       },
     };
 
@@ -100,7 +113,8 @@ export const setApprovalForAllSignature = async (
       status: 'error',
       error: {
         code: 'SET_APPROVAL_FOR_ALL_CALL_DATA_ERROR',
-        message: error.message || 'Failed to generate setApprovalForAll call data',
+        message:
+          error.message || 'Failed to generate setApprovalForAll call data',
       },
     });
   }

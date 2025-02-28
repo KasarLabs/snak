@@ -8,12 +8,12 @@ import { ExecuteV3Args } from '../types/types';
  */
 export const bigintToHex = (addressAsBigInt: bigint): string => {
   let hexString = addressAsBigInt.toString(16);
-  
-  hexString = hexString.padStart(64, '0'); 
+
+  hexString = hexString.padStart(64, '0');
   hexString = '0x' + hexString;
 
   return hexString;
-}
+};
 
 /**
  * Validates and formats a token ID
@@ -36,10 +36,10 @@ export const validateAndFormatTokenId = (tokenId: string) => {
 export const getV3DetailsPayload = () => {
   const maxL1Gas = 2000n;
   const maxL1GasPrice = 100000n * 10n ** 9n;
-  
+
   return {
     version: 3,
-    maxFee: 10n ** 16n,  
+    maxFee: 10n ** 16n,
     feeDataAvailabilityMode: RPC.EDataAvailabilityMode.L1,
     tip: 10n ** 14n,
     paymasterData: [],
@@ -52,7 +52,7 @@ export const getV3DetailsPayload = () => {
         max_amount: num.toHex(0n),
         max_price_per_unit: num.toHex(0n),
       },
-    }
+    },
   };
 };
 
@@ -66,7 +66,10 @@ export const executeV3Transaction = async ({
   call,
   account,
 }: ExecuteV3Args): Promise<string> => {
-  const { transaction_hash } = await account.execute(call, getV3DetailsPayload());
+  const { transaction_hash } = await account.execute(
+    call,
+    getV3DetailsPayload()
+  );
 
   const receipt = await account.waitForTransaction(transaction_hash);
   if (!receipt.isSuccess()) {

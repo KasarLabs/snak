@@ -7,11 +7,11 @@ import { getApprovedSchema } from '../schemas/schema';
 import { validateAndParseAddress } from 'starknet';
 
 /**
-* Get the address that has been approved to transfer the token.
-* @param agent The StarknetAgentInterface instance.
-* @param params The parameters for the getApproved function.
-* @returns A stringified JSON object with the status and the approved address.
-*/
+ * Get the address that has been approved to transfer the token.
+ * @param agent The StarknetAgentInterface instance.
+ * @param params The parameters for the getApproved function.
+ * @returns A stringified JSON object with the status and the approved address.
+ */
 export const getApproved = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof getApprovedSchema>
@@ -26,7 +26,11 @@ export const getApproved = async (
     const contractAddress = validateAndParseAddress(params.contractAddress);
     const tokenId = validateAndFormatTokenId(params.tokenId);
 
-    const contract = new Contract(INTERACT_ERC721_ABI, contractAddress, provider);
+    const contract = new Contract(
+      INTERACT_ERC721_ABI,
+      contractAddress,
+      provider
+    );
 
     const approvedResponse = await contract.getApproved(tokenId);
 
