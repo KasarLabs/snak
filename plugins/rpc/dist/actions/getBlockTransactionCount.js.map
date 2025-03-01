@@ -1,1 +1,0 @@
-{"version":3,"file":"getBlockTransactionCount.js","sourceRoot":"","sources":["../../src/actions/getBlockTransactionCount.ts"],"names":[],"mappings":";;;AAGO,MAAM,wBAAwB,GAAG,KAAK,EAC3C,KAA6B,EAC7B,MAAqB,EACrB,EAAE;IACF,MAAM,QAAQ,GAAG,KAAK,CAAC,WAAW,EAAE,CAAC;IACrC,OAAO,MAAM,QAAQ,CAAC,wBAAwB,CAAC,MAAM,CAAC,OAAO,CAAC,CAAC;AACjE,CAAC,CAAC;AANW,QAAA,wBAAwB,4BAMnC"}
