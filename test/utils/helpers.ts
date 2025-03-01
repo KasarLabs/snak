@@ -16,23 +16,25 @@ interface EnvConfig {
 
 export const loadTestConfig = (): EnvConfig => {
   const config: EnvConfig = {
-    STARKNET_RPC_URL: '',
+    STARKNET_RPC_URL: 'http://127.0.0.1:5050',
     accounts: {
       account1: {
-        privateKey: '',
+        privateKey:
+          '0x00000000000000000000000000000000b137668388dbe9acdfa3bc734cc2c469',
         publicAddress:
-          '0x06889CE7127025749Ab8c2F63c4ba26f972b16530B9aCee3255e59055c0B8CFd',
+          '0x034ba56f92265f0868c57d3fe72ecab144fc96f97954bbbc4252cef8e8a979ba',
       },
       account2: {
-        privateKey: '',
+        privateKey:
+          '0x00000000000000000000000000000000e8c2801d899646311100a661d32587aa',
         publicAddress:
-          '0x023663bBA9C5Ff71586301a9fB8aB6DAFFb23F8132941ccb6EBdc45DE1Aa3cB3',
+          '0x02939f2dc3f80cc7d620e8a86f2e69c1e187b7ff44b74056647368b5c49dc370',
       },
       account3: {
         privateKey:
-          '0x00000000000000000000000000000000a20a02f0ac53692d144b20cb371a60d7',
+          '0x000000000000000000000000000000007b2e5d0e627be6ce12ddc6fd0f5ff2fb',
         publicAddress:
-          '0x049dfb8ce986e21d354ac93ea65e6a11f639c1934ea253e5ff14ca62eca0f38e',
+          '0x025a6c9f0c15ef30c139065096b4b8e563e6b86191fd600a4f0616df8f22fb77',
       },
     },
   };

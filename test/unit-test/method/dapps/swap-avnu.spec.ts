@@ -3,8 +3,8 @@ import {
   createMockInvalidStarknetAgent,
   createMockStarknetAgent,
 } from 'test/jest/setEnvVars';
-import { swapTokens } from 'src/lib/agent/plugins/avnu/actions/swap';
-import { SwapParams } from 'src/lib/agent/plugins/avnu/types';
+import { swapTokens } from '../../../../server/agent/plugins/avnu/actions/swap';
+import { SwapParams } from '../../../../server/agent/plugins/avnu/types';
 
 const agent = createMockStarknetAgent();
 const wrong_agent = createMockInvalidStarknetAgent();

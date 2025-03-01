@@ -1,4 +1,4 @@
-import { simulateDeclareTransaction } from 'src/lib/agent/plugins/core/transaction/simulateTransaction';
+import { simulateDeclareTransaction } from '../../../../server/agent/plugins/core/transaction/actions/simulateTransaction';
 import * as C from '../../../utils/constant';
 import {
   createMockInvalidStarknetAgent,
@@ -174,7 +174,7 @@ describe('Simulate Declare Transaction ', () => {
       // Arrange
       const paramsArray = [
         {
-          accountAddress: process.env.PUBLIC_ADDRESS_2 as string,
+          accountAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
           contract: {
             program: {
               builtins: ['range_check', 'pedersen', 'bitwise'],
@@ -299,6 +299,8 @@ describe('Simulate Declare Transaction ', () => {
         },
       };
 
+      const invalidAgent = createMockInvalidStarknetAgent();
+
       // Act
       const result = await simulateDeclareTransaction(wrong_agent, params);
       const parsed = JSON.parse(result);
@@ -309,6 +311,7 @@ describe('Simulate Declare Transaction ', () => {
 
     it('should fail reason : invalid contract values among valid ones', async () => {
       // Arrange
+
       const paramsArray = [
         {
           accountAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,

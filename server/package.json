@@ -1,0 +1,42 @@
+{
+  "name": "@starknet-agent-kit/server",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "pnpm clean:dist && nest build",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "dev": "nest start --watch",
+    "start": "node dist/main"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@fastify/multipart": "^9.0.3",
+    "@nestjs/common": "^11.0.7",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.7",
+    "@nestjs/platform-fastify": "^11.0.7",
+    "@nestjs/schedule": "^5.0.1",
+    "@nestjs/throttler": "^6.4.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "helmet": "^8.0.0",
+    "multipart@latest": "link:fastify/multipart@latest",
+    "@anthropic-ai/sdk": "^0.36.3",
+    "rxjs": "^7.8.1",
+    "fastify": "^5.2.1"
+
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@starknet-agent-kit/agents": "workspace:*"
+
+  }
+}
+
