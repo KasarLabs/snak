@@ -1,9 +1,15 @@
 import { Account, shortString } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { ContractManager } from '../utils/contractManager';
-import { ERC721_CLASSHASH_SEPOLIA, ERC721_CLASSHASH_MAINNET } from '../constant/constant';
+import {
+  ERC721_CLASSHASH_SEPOLIA,
+  ERC721_CLASSHASH_MAINNET,
+} from '../constant/constant';
 import { deployERC721Schema } from '../schemas/schema';
-import { DEPLOY_ERC721_ABI_SEPOLIA, DEPLOY_ERC721_ABI_MAINNET } from '../abis/deploy';
+import {
+  DEPLOY_ERC721_ABI_SEPOLIA,
+  DEPLOY_ERC721_ABI_MAINNET,
+} from '../abis/deploy';
 import { z } from 'zod';
 
 /**
@@ -29,8 +35,14 @@ export const deployERC721Contract = async (
     const contractManager = new ContractManager(account);
 
     const chainId = shortString.decodeShortString(await provider.getChainId());
-    const classhash = chainId === 'SN_MAIN' ? ERC721_CLASSHASH_MAINNET : ERC721_CLASSHASH_SEPOLIA;
-    const abi = chainId === 'SN_MAIN' ? DEPLOY_ERC721_ABI_MAINNET : DEPLOY_ERC721_ABI_SEPOLIA;
+    const classhash =
+      chainId === 'SN_MAIN'
+        ? ERC721_CLASSHASH_MAINNET
+        : ERC721_CLASSHASH_SEPOLIA;
+    const abi =
+      chainId === 'SN_MAIN'
+        ? DEPLOY_ERC721_ABI_MAINNET
+        : DEPLOY_ERC721_ABI_SEPOLIA;
 
     const response = await contractManager.deployContract(
       classhash as string,

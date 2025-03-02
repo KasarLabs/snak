@@ -124,7 +124,7 @@ export class ContractManager {
 
       const deployResponse = await this.account.deployContract(
         deployPayload,
-        getV3DetailsPayload(),
+        getV3DetailsPayload()
       );
       await this.account.waitForTransaction(deployResponse.transaction_hash);
 
