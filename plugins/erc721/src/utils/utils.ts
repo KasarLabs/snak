@@ -34,7 +34,7 @@ export const validateAndFormatTokenId = (tokenId: string) => {
  * @returns {Object} V3 transaction details payload with gas parameters
  */
 export const getV3DetailsPayload = () => {
-  const maxL1Gas = 5000n;
+  const maxL1Gas = 2000n;
   const maxL1GasPrice = 1000000n * 10n ** 9n;
 
   return {
