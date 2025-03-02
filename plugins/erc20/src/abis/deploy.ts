@@ -1,4 +1,4 @@
-export const DEPLOY_ERC20_ABI = [
+export const DEPLOY_ERC20_ABI_SEPOLIA = [
   {
     name: 'ERC20MixinImpl',
     type: 'impl',
@@ -346,4 +346,57 @@ export const DEPLOY_ERC20_ABI = [
       },
     ],
   },
+];
+
+
+export const DEPLOY_ERC20_ABI_MAINNET = [
+  {
+    type: 'impl',
+    name: 'ERC20MixinImpl',
+    interface_name: 'openzeppelin::token::erc20::interface::IERC20'
+  },
+  {
+    type: 'struct',
+    name: 'core::integer::u256',
+    members: [ [Object], [Object] ]
+  },
+  {
+    type: 'enum',
+    name: 'core::bool',
+    variants: [ [Object], [Object] ]
+  },
+  {
+    type: 'interface',
+    name: 'openzeppelin::token::erc20::interface::IERC20',
+    items: [ [Object], [Object], [Object], [Object], [Object], [Object] ]
+  },
+  {
+    type: 'constructor',
+    name: 'constructor',
+    inputs: [ [Object], [Object], [Object], [Object] ]
+  },
+  {
+    type: 'event',
+    name: 'openzeppelin::token::erc20::erc20::ERC20Component::Transfer',
+    kind: 'struct',
+    members: [ [Object], [Object], [Object] ]
+  },
+  {
+    type: 'event',
+    name: 'openzeppelin::token::erc20::erc20::ERC20Component::Approval',
+    kind: 'struct',
+    members: [ [Object], [Object], [Object] ]
+  },
+  {
+    type: 'event',
+    name: 'openzeppelin::token::erc20::erc20::ERC20Component::Event',
+    kind: 'enum',
+    variants: [ [Object], [Object] ]
+  },
+  {
+    type: 'event',
+    name: 'test::test::ERC20::Event',
+    kind: 'enum',
+    variants: [ [Object] ]
+  }
 ];

@@ -32,5 +32,6 @@ export const tokenAddresses: { [key: string]: string } = {
   xSTRK: '0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a',
 };
 
-export const ERC20_CLASSHASH =
+export const ERC20_CLASSHASH_SEPOLIA =
   '0x1932e98bfd12e65ca0d69cd98f04352674597f15477373dfa868863e9792144';
+export const ERC20_CLASSHASH_MAINNET = '0x5e97465d2e3740ecda2456957c4b6d5de78335b94b1e1db27b288428f2073e2';
