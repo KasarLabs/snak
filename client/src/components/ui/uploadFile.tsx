@@ -1,7 +1,7 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Button } from './button';
 import { Upload } from 'lucide-react';
-import { FileInfo } from '../../interfaces/fileInfo';
+import { FileInfo } from '../../interfaces/fileInfo.js';
 
 interface UplaodProps {
   fileInfo: FileInfo | null;
@@ -22,45 +22,57 @@ const UploadFile = ({
   setFileInfo,
   setSelectedFile,
 }: UplaodProps) => {
-  const allowedTypes = [
-    'application/json',
-    'application/zip',
-    'application/x-zip-compressed',
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-  ];
+  const allowedTypes = useMemo(
+    () => [
+      'application/json',
+      'application/zip',
+      'application/x-zip-compressed',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+    ],
+    []
+  );
 
-  const validateFile = (file: File): boolean => {
-    const extension = file.name.toLowerCase().split('.').pop();
-    const isValidExtension = ['zip', 'json', 'jpg', 'jpeg', 'png'].includes(
-      extension || ''
-    );
+  const validateFile = useCallback(
+    (file: File): boolean => {
+      const extension = file.name.toLowerCase().split('.').pop();
+      const isValidExtension = ['zip', 'json', 'jpg', 'jpeg', 'png'].includes(
+        extension || ''
+      );
 
-    const isValidType = allowedTypes.includes(file.type);
+      const isValidType = allowedTypes.includes(file.type);
 
-    return isValidExtension && isValidType;
-  };
+      return isValidExtension && isValidType;
+    },
+    [allowedTypes]
+  );
 
-  const onDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    handleFileSelection(file);
-  }, []);
+  const handleFileSelection = useCallback(
+    (file: File) => {
+      if (!validateFile(file)) {
+        alert('Only .zip, .json, jpg and png files are accepted');
+        return;
+      }
 
-  const handleFileSelection = (file: File) => {
-    if (!validateFile(file)) {
-      alert('Only .zip, .json, jpg and png files are accepted');
-      return;
-    }
+      setSelectedFile(file);
+      setFileInfo({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
+    },
+    [setSelectedFile, setFileInfo, validateFile]
+  );
 
-    setSelectedFile(file);
-    setFileInfo({
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    });
-  };
+  const onDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const file = event.dataTransfer.files[0];
+      handleFileSelection(file);
+    },
+    [handleFileSelection]
+  );
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

@@ -1,10 +1,7 @@
 // Declaration file for @starknet-io/get-starknet
 
 declare module '@starknet-io/get-starknet' {
-  import {
-    StarknetWindowObject,
-    ConnectedStarknetWindowObject,
-  } from 'starknet';
+  import { ConnectedStarknetWindowObject } from 'starknet';
 
   export interface ConnectOptions {
     modalOptions?: {
