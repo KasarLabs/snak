@@ -1,10 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigurationService } from '@/config/configuration.js';
-import {
-  AgentCredentialsError,
-  AgentExecutionError,
-  AgentValidationError,
-} from '@/common/errors/agent.errors.js';
+
 import {
   IAgentService,
   AgentExecutionResponse,
@@ -12,6 +7,11 @@ import {
 import { IAgent } from '../interfaces/agent.interface.js';
 import { AgentRequestDTO } from '../dto/agents.js';
 import { StarknetTransactionError } from '@/common/errors/starknet.errors.js';
+import {
+  AgentValidationError,
+  AgentCredentialsError,
+  AgentExecutionError,
+} from '@/common/errors/agent.errors.js';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -101,3 +101,5 @@ export class AgentService implements IAgentService {
     }
   }
 }
+import { from } from 'rxjs';
+import { ConfigurationService } from '@/config/configuration.js';

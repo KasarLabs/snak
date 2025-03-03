@@ -9,14 +9,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { StarknetAgent } from '@starknet-agent-kit/agents';
-import { ConfigurationService } from '../config/configuration';
-import { WalletService } from './services/wallet.service';
-import { AgentRequestDTO } from './dto/agents';
-import { FileTypeGuard } from './guard/file-validator.guard';
+import { WalletService } from './services/wallet.service.js';
+import { AgentRequestDTO } from './dto/agents.js';
+import { FileTypeGuard } from './guard/file-validator.guard.js';
 import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
-import { getFilename } from './utils';
-import { AgentFactory } from './agents.factory';
+import { getFilename } from './utils/index.js';
+import { AgentFactory } from './agents.factory.js';
 
 @Controller('wallet')
 export class WalletController implements OnModuleInit {

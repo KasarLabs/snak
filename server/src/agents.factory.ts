@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigurationService } from '../config/configuration';
+import { ConfigurationService } from '../config/configuration.js';
 import {
   StarknetAgent,
   JsonConfig,
@@ -12,7 +12,11 @@ export class AgentFactory {
   private agentInstances: Map<string, StarknetAgent> = new Map();
 
   constructor(private readonly config: ConfigurationService) {
-    const json_config = load_json_config('default.agent.json');
+    this.initialize();
+  }
+
+  private async initialize() {
+    const json_config = await load_json_config('default.agent.json');
     if (!json_config) {
       throw new Error('Failed to load agent configuration');
     }
