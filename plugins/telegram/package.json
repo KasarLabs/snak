@@ -14,7 +14,6 @@
   "dependencies": {
     "@types/node-telegram-bot-api": "^0.64.7",
     "node-telegram-bot-api": "^0.66.0"
-
   },
   "devDependencies": {
     "@starknet-agent-kit/agents": "workspace:*"
