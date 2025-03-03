@@ -61,6 +61,8 @@ DISCORD_BOT_TOKEN?="YOUR_DISCORD_BOT_TOKEN"
 DISCORD_CHANNEL_ID?="YOUR_DISCORD_CHANNEL_ID"
 ```
 
+For a list of accepted values for `AI_PROVIDER` and `AI_MODEL`, see [env.validation.ts](/src/config/env.validation.ts).
+
 ## Usage
 
 ### Server Mode
