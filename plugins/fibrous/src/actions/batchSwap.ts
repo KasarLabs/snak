@@ -1,4 +1,4 @@
-import { Account, Call } from 'starknet';
+import { Account, Call, constants } from 'starknet';
 
 import { ApprovalService } from './approval';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
@@ -7,6 +7,7 @@ import { Router as FibrousRouter } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
 import { BatchSwapParams } from '../types';
 import { SLIPPAGE_PERCENTAGE } from '../constants';
+import { getV3DetailsPayload } from '../utils/utils';
 
 export class BatchSwapService {
   private tokenService: TokenService;
@@ -59,8 +60,11 @@ export class BatchSwapService {
       const account = new Account(
         this.agent.contractInteractor.provider,
         this.walletAddress,
-        this.agent.getAccountCredentials().accountPrivateKey
+        this.agent.getAccountCredentials().accountPrivateKey,
+        undefined,
+        constants.TRANSACTION_VERSION.V3
       );
+
       const swapParams = this.extractBatchSwapParams(params);
       const route = await this.router.getBestRouteBatch(
         swapParams.sellAmounts as BigNumber[],
@@ -108,7 +112,11 @@ export class BatchSwapService {
           calldata = [swapCalls[i]];
         }
       }
-      const swapResult = await account.execute(calldata);
+
+      const swapResult = await account.execute(
+        calldata,
+        getV3DetailsPayload()
+      );
       const { receipt, events } = await this.monitorSwapStatus(
         swapResult.transaction_hash
       );

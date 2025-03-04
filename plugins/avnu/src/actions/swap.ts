@@ -1,5 +1,5 @@
 import { executeSwap, fetchQuotes, QuoteRequest, Quote } from '@avnu/avnu-sdk';
-import { Account } from 'starknet';
+import { Account, constants } from 'starknet';
 
 import { ApprovalService } from './approval';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
@@ -81,7 +81,9 @@ export class SwapService {
       const account = new Account(
         this.agent.contractInteractor.provider,
         this.walletAddress,
-        this.agent.getAccountCredentials().accountPrivateKey
+        this.agent.getAccountCredentials().accountPrivateKey,
+        undefined,
+        constants.TRANSACTION_VERSION.V3
       );
 
       const { sellToken, buyToken } = this.tokenService.validateTokenPair(

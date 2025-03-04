@@ -18,10 +18,7 @@ export class ApprovalService {
     try {
       const contract = new Contract(ERC20_ABI, tokenAddress, account);
 
-      const allowanceResult = await contract.call('allowance', [
-        account.address,
-        spenderAddress,
-      ]);
+      const allowanceResult = await contract.allowance(account.address, spenderAddress);
 
       let currentAllowance: bigint;
       if (Array.isArray(allowanceResult)) {
@@ -30,7 +27,7 @@ export class ApprovalService {
         typeof allowanceResult === 'object' &&
         allowanceResult !== null
       ) {
-        const value = Object.values(allowanceResult)[0];
+        const value: any = Object.values(allowanceResult)[0];
         currentAllowance = BigInt(value.toString());
       } else {
         currentAllowance = BigInt(allowanceResult.toString());

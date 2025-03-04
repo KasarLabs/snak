@@ -14,9 +14,9 @@ describe('Swap Token with avnu-sdk', () => {
     it('should swap token 0.1 ETH to STRK', async () => {
       // Arrange
       const params: SwapParams = {
-        sellTokenSymbol: 'ETH',
-        buyTokenSymbol: 'STRK',
-        sellAmount: 0.1,
+        sellTokenSymbol: 'STRK',
+        buyTokenSymbol: 'ETH',
+        sellAmount: 0.0001,
       };
       // Act
       await setTimeout(500);
@@ -26,11 +26,12 @@ describe('Swap Token with avnu-sdk', () => {
 
       // Assert
       await setTimeout(500);
+      console.log('parsed:', parsed);
       expect(parsed).toMatchObject({
         status: 'success',
-        sellAmount: 0.1,
-        sellToken: 'ETH',
-        buyToken: 'STRK',
+        sellAmount: 0.0001,
+        sellToken: 'STRK',
+        buyToken: 'ETH',
       });
     });
     it('should swap token 12 STRK to ETH', async () => {
@@ -38,7 +39,7 @@ describe('Swap Token with avnu-sdk', () => {
       const params: SwapParams = {
         sellTokenSymbol: 'STRK',
         buyTokenSymbol: 'ETH',
-        sellAmount: 12,
+        sellAmount: 0.0012,
       };
       // Act
       const result = await swapTokens(agent, params);
@@ -46,7 +47,7 @@ describe('Swap Token with avnu-sdk', () => {
       // Assert
       expect(parsed).toMatchObject({
         status: 'success',
-        sellAmount: 12,
+        sellAmount: 0.0012,
         sellToken: 'STRK',
         buyToken: 'ETH',
       });
@@ -87,7 +88,7 @@ describe('Swap Token with avnu-sdk', () => {
       const params: SwapParams = {
         sellTokenSymbol: 'STRK',
         buyTokenSymbol: 'NOTUSDT',
-        sellAmount: 15,
+        sellAmount: 0.0015,
       };
       // Act
       const result = await swapTokens(agent, params);

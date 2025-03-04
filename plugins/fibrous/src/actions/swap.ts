@@ -1,4 +1,4 @@
-import { Account, Call } from 'starknet';
+import { Account, Call, constants } from 'starknet';
 
 import { ApprovalService } from './approval';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
@@ -7,6 +7,8 @@ import { TokenService } from './fetchTokens';
 import { Router as FibrousRouter } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
 import { SwapResult, SwapParams } from '../types';
+import { getV3DetailsPayload } from '../utils/utils';
+
 export class SwapService {
   private tokenService: TokenService;
   private approvalService: ApprovalService;
@@ -32,7 +34,9 @@ export class SwapService {
       const account = new Account(
         this.agent.contractInteractor.provider,
         this.walletAddress,
-        this.agent.getAccountCredentials().accountPrivateKey
+        this.agent.getAccountCredentials().accountPrivateKey,
+        undefined,
+        constants.TRANSACTION_VERSION.V3
       );
 
       const { sellToken, buyToken } = this.tokenService.validateTokenPair(
@@ -97,7 +101,10 @@ export class SwapService {
         calldata = [swapCall];
       }
 
-      const swapResult = await account.execute(calldata);
+      const swapResult = await account.execute(
+        calldata,
+        getV3DetailsPayload()
+      );
 
       const { receipt, events } = await this.monitorSwapStatus(
         swapResult.transaction_hash

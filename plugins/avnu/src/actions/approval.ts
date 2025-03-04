@@ -1,6 +1,6 @@
 import { Account, uint256, CallData } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { ERC20_ABI } from '../../../token/src/abis/erc20Abi';
+import { ERC20_ABI } from '../abi/erc20Abi';
 
 /**
  * Service handling token approvals on Starknet
@@ -49,10 +49,7 @@ export class ApprovalService {
         account
       );
 
-      const allowanceResult = await contract.call('allowance', [
-        account.address,
-        spenderAddress,
-      ]);
+      const allowanceResult = await contract.allowance(account.address, spenderAddress);
 
       let currentAllowance: bigint;
       if (Array.isArray(allowanceResult)) {
@@ -61,8 +58,8 @@ export class ApprovalService {
         typeof allowanceResult === 'object' &&
         allowanceResult !== null
       ) {
-        const value = Object.values(allowanceResult)[0];
-        currentAllowance = BigInt(value.toString());
+        const value: any = Object.values(allowanceResult)[0];
+        currentAllowance = BigInt(value.toString()); // check here later
       } else {
         currentAllowance = BigInt(allowanceResult.toString());
       }
@@ -76,8 +73,9 @@ export class ApprovalService {
         });
 
         console.log('Calldata:', calldata);
-
-        const approveCall = await contract.invoke('approve', calldata);
+        
+        contract.connect(account)
+        const approveCall = await contract.approve(spenderAddress, uint256.bnToUint256(amount)); // optimize here too
 
         console.log(
           'Approve transaction sent:',
