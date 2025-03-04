@@ -81,8 +81,6 @@ export const getOwnBalance = async (
   agent: StarknetAgentInterface,
   params: GetOwnBalanceParams
 ): Promise<string> => {
-  console.log("starknet agent", agent);
-  console.log("params", params);
   try {
     if (!params?.symbol) {
       throw new Error('Symbol parameter is required');
