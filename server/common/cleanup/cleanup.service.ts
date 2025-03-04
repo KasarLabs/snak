@@ -18,19 +18,17 @@ export class CleanupService implements OnModuleInit, OnModuleDestroy {
   async handleHourlyCleanup() {
     try {
       this.logger.log('Starting hourly cleanup...');
-      if (!this.uploadDir) {
-        this.logger.log('No upload directory configured, cleanup skipped');
-        return;
-      }
+	  if (!this.uploadDir) {
+		this.logger.log('No upload directory configured, cleanup skipped');
+		return;
+	  }
 
-      try {
-        await fs.access(this.uploadDir);
-      } catch (error) {
-        this.logger.log(
-          `Upload directory does not exist: ${this.uploadDir}, cleanup skipped`
-        );
-        return;
-      }
+	  try {
+		await fs.access(this.uploadDir);
+	  } catch (error) {
+		this.logger.log(`Upload directory does not exist: ${this.uploadDir}, cleanup skipped`);
+		return;
+	  }
       const now = Date.now();
       const files = await fs.readdir(this.uploadDir);
 
@@ -58,16 +56,12 @@ export class CleanupService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     const path = process.env.PATH_UPLOAD_DIR || '';
-    this.uploadDir = path;
-    if (this.uploadDir) {
-      this.logger.log(
-        `Cleanup service initialized with upload directory: ${this.uploadDir}`
-      );
-    } else {
-      this.logger.log(
-        'Cleanup service initialized without upload directory (cleanup disabled)'
-      );
-    }
+	this.uploadDir = path
+	if (this.uploadDir) {
+		this.logger.log(`Cleanup service initialized with upload directory: ${this.uploadDir}`);
+	  } else {
+		this.logger.log('Cleanup service initialized without upload directory (cleanup disabled)');
+	  }
   }
 
   onModuleDestroy() {
