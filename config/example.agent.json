@@ -1,20 +1,23 @@
 {
   "name": "Your Agent name",
-  "bio" : "Your AI Agent Bio",
-  "lore" : [
-    "Some lore of your AI Agent 1",
-    "Some lore of your AI Agent 1"
-  ],
-  "objectives" : [
+  "bio": "Your AI Agent Bio",
+  "lore": ["Some lore of your AI Agent 1", "Some lore of your AI Agent 1"],
+  "objectives": [
     "first objective that your AI Agent need to follow",
     "second objective that your AI Agent need to follow"
   ],
-  "knowledge" : [
+  "knowledge": [
     "first knowledge of your AI Agent",
     "second knowledge of your AI Agent"
   ],
-  "interval":  "Your agent interval beetween each transaction of the Agent in ms,",
-  "chat_id" : "Your Agent Chat-id for isolating memory",
-  "internal_plugins" : ["Your first internal plugin", "Your second internal plugin"],
-  "external_plugins" : ["Your first external plugin", "Your second external plugin"]
+  "interval": "Your agent interval beetween each transaction of the Agent in ms,",
+  "chat_id": "Your Agent Chat-id for isolating memory",
+  "internal_plugins": [
+    "Your first internal plugin",
+    "Your second internal plugin"
+  ],
+  "external_plugins": [
+    "Your first external plugin",
+    "Your second external plugin"
+  ]
 }
