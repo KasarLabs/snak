@@ -65,4 +65,3 @@ export function getOpusContractAddress<K extends OpusContractsNames>({
   const contractAddresses = getOpusContractAddresses({ chainId });
   return contractAddresses[contractName];
 }
-

@@ -208,9 +208,8 @@ export async function validateToken(
       const contract = new Contract(abi, address, provider);
       
       let rawSymbol = await contract.symbol();
-      if (abi == OLD_ERC20_ABI) {
-        symbol = shortString.decodeShortString(rawSymbol);
-      }
+      symbol = (abi == OLD_ERC20_ABI ? shortString.decodeShortString(rawSymbol) : rawSymbol.toUpperCase());
+
       const decimalsBigInt = await contract
       .decimals()
       .catch(() => DECIMALS.DEFAULT);
