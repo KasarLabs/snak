@@ -6,6 +6,12 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { json } from 'stream/consumers';
+
+interface ResponseData {
+  status: string;
+  data: string;
+}
 
 @Injectable()
 export class AgentResponseInterceptor implements NestInterceptor {
@@ -26,31 +32,20 @@ export class AgentResponseInterceptor implements NestInterceptor {
         }
 
         try {
-          if (typeof data === 'string') {
-            const lastBraceIndex = data.lastIndexOf('}');
-            if (lastBraceIndex !== -1) {
-              responseText = data.substring(lastBraceIndex + 1).trim();
-            } else {
-              responseText = data;
-            }
-          } else if (data?.data) {
-            responseText =
-              typeof data.data === 'string'
-                ? data.data
-                : JSON.stringify(data.data);
-          } else {
-            responseText = JSON.stringify(data);
+          const json_response = data.output[0].text;
+          const json_parser = JSON.parse(json_response);
+          const typedJsonObject: ResponseData = json_parser;
+          if (!data.output[0].text) {
+            throw new Error('No text response');
           }
-
-          responseText = responseText.trim();
-
           return {
             input: request,
             output: [
               {
                 index: 0,
                 type: 'text',
-                text: responseText,
+                status: typedJsonObject.status,
+                text: typedJsonObject.data,
               },
             ],
           };

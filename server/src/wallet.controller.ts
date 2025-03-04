@@ -40,11 +40,6 @@ export class WalletController implements OnModuleInit {
     );
   }
 
-  @Post('output')
-  async HandleOutputIAParsing(@Body() userRequest: AgentRequestDTO) {
-    return await this.walletService.HandleOutputIAParsing(userRequest);
-  }
-
   @Post('upload_large_file')
   @UseGuards(new FileTypeGuard(['image/jpeg', 'image/png']))
   async uploadFile(@Req() req: FastifyRequest) {

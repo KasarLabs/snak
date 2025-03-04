@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import MarkdownIt from 'markdown-it';
 import { WalletAccount } from 'starknet';
 import { connectWallet } from '@/app/wallet/wallet';
 import { AiOutlineSignature, AiFillSignature } from 'react-icons/ai';
@@ -19,7 +18,6 @@ import { handleInvokeTransactions } from '@/transactions/InvokeTransactions';
 import { ACCOUNT } from '@/interfaces/accout';
 import { InvokeTransaction } from '@/types/starknetagents';
 import { handleDeployTransactions } from '@/transactions/DeployAccountTransactions';
-import { CreateOutputRequest } from '@/output/output';
 import {
   Select,
   SelectContent,
@@ -30,8 +28,6 @@ import {
 } from '@/components/ui/select';
 import { FileInfo } from '../interfaces/fileInfo';
 import UploadFile from './ui/uploadFile';
-
-const md = new MarkdownIt({ breaks: true });
 
 const StarknetAgent = () => {
   const [input, setInput] = useState('');
@@ -203,48 +199,14 @@ const StarknetAgent = () => {
   };
 
   /**
-   * Strip away known extraneous OpenAI formatting from the JSON response.
-   */
-  const formatResponse = (jsonString: string) => {
-    try {
-      const data = JSON.parse(jsonString);
-
-      // Extract the text content from the response
-      let extractedText = '';
-
-      // Handle the result structure from your backend
-      if (data.result?.output?.[0]?.text) {
-        extractedText = data.result.output[0].text;
-      }
-      // Handle direct output structure
-      else if (data.output?.[0]?.text) {
-        extractedText = data.output[0].text;
-      }
-      // Handle direct text
-      else if (typeof data === 'string') {
-        extractedText = data;
-      }
-
-      // Clean up extra newlines and whitespace
-      extractedText = extractedText.trim();
-
-      // Convert markdown to HTML
-      return md.render(extractedText);
-    } catch (error) {
-      console.error('Error formatting response:', error);
-      return jsonString;
-    }
-  };
-
-  /**
    * Simulate typing in the UI.
    */
   const getResponseText = async (text: string): Promise<string> => {
     if (selectedStyle === 'only-value') {
       return text;
     }
-    const output_text = await CreateOutputRequest(text);
-    return output_text;
+    const output = text.replace(/\\/g, '');
+    return output;
   };
 
   const typeResponse = async (response: AgentResponse) => {
@@ -482,9 +444,16 @@ const StarknetAgent = () => {
       if (!data || typeof data !== 'object') {
         throw new Error('Invalid response format from server');
       }
-
-      const formattedText = formatResponse(JSON.stringify(data));
-      typeResponse({ ...newResponse, text: formattedText });
+      let text_response = data.output[0].text;
+      if (!text_response) {
+        throw new Error('No text response');
+      }
+      if (data.output[0].status === 'failure') {
+        text_response = '❌ ' + text_response;
+      } else {
+        text_response = '✅ ' + text_response;
+      }
+      typeResponse({ ...newResponse, text: text_response });
 
       // If file is detected we send delete request to the server
       if (selectedFile) {
