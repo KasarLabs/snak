@@ -54,7 +54,10 @@ export class ContractManager {
       );
       await this.account.waitForTransaction(deployResponse.transaction_hash);
 
-      console.log("Contract deployed at address: ", deployResponse.contract_address);
+      console.log(
+        'Contract deployed at address: ',
+        deployResponse.contract_address
+      );
       return {
         transactionHash: deployResponse.transaction_hash,
         contractAddress: deployResponse.contract_address,

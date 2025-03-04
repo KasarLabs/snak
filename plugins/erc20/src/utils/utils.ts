@@ -206,13 +206,16 @@ export async function validateToken(
     try {
       const abi = await detectAbiType(address, provider);
       const contract = new Contract(abi, address, provider);
-      
+
       let rawSymbol = await contract.symbol();
-      symbol = (abi == OLD_ERC20_ABI ? shortString.decodeShortString(rawSymbol) : rawSymbol.toUpperCase());
+      symbol =
+        abi == OLD_ERC20_ABI
+          ? shortString.decodeShortString(rawSymbol)
+          : rawSymbol.toUpperCase();
 
       const decimalsBigInt = await contract
-      .decimals()
-      .catch(() => DECIMALS.DEFAULT);
+        .decimals()
+        .catch(() => DECIMALS.DEFAULT);
       decimals =
         typeof decimalsBigInt === 'bigint'
           ? Number(decimalsBigInt)
@@ -234,7 +237,7 @@ export async function validateToken(
  * @param {Provider} provider - The Starknet provider
  * @returns {Promise<string>} The ABI type
  */
-export async function detectAbiType(address : string, provider : Provider) {
+export async function detectAbiType(address: string, provider: Provider) {
   const contract = new Contract(OLD_ERC20_ABI, address, provider);
   const symbol = await contract.symbol();
   if (symbol == 0n) {

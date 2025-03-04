@@ -25,11 +25,7 @@ export const getTotalSupply = async (
     );
     const abi = await detectAbiType(token.address, provider);
 
-    const tokenContract = new Contract(
-      abi,
-      token.address,
-      provider
-    );
+    const tokenContract = new Contract(abi, token.address, provider);
     const totalSupply = await tokenContract.total_supply();
 
     const formattedSupply = formatBalance(totalSupply, token.decimals);

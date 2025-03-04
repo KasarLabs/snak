@@ -30,11 +30,7 @@ export const getAllowance = async (
     );
     const abi = await detectAbiType(token.address, provider);
 
-    const tokenContract = new Contract(
-      abi,
-      token.address,
-      provider
-    );
+    const tokenContract = new Contract(abi, token.address, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,
@@ -78,11 +74,7 @@ export const getMyGivenAllowance = async (
     );
     const abi = await detectAbiType(token.address, provider);
 
-    const tokenContract = new Contract(
-      abi,
-      token.address,
-      provider
-    );
+    const tokenContract = new Contract(abi, token.address, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       ownerAddress,
@@ -126,11 +118,7 @@ export const getAllowanceGivenToMe = async (
     );
     const abi = await detectAbiType(token.address, provider);
 
-    const tokenContract = new Contract(
-      abi,
-      token.address,
-      provider
-    );
+    const tokenContract = new Contract(abi, token.address, provider);
 
     const allowanceResponse = await tokenContract.allowance(
       params.ownerAddress,

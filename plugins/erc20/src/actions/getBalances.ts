@@ -34,11 +34,7 @@ export const getOwnBalance = async (
       throw new Error('Wallet address not configured');
     }
 
-    const tokenContract = new Contract(
-      abi,
-      token.address,
-      provider
-    );
+    const tokenContract = new Contract(abi, token.address, provider);
 
     const balanceResponse = await tokenContract.balance_of(accountAddress);
 
@@ -83,11 +79,7 @@ export const getBalance = async (
       params.assetAddress
     );
     const abi = await detectAbiType(token.address, provider);
-    const tokenContract = new Contract(
-      abi,
-      token.address,
-      provider
-    );
+    const tokenContract = new Contract(abi, token.address, provider);
 
     const balanceResponse = await tokenContract.balanceOf(
       params.accountAddress

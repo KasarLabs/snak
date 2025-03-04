@@ -6,10 +6,7 @@ import {
   ERC20_CLASSHASH_SEPOLIA,
   ERC20_CLASSHASH_MAINNET,
 } from '../constant/constant';
-import {
-  NEW_ERC20_ABI_SEPOLIA,
-  NEW_ERC20_ABI_MAINNET,
-} from '../abis/new';
+import { NEW_ERC20_ABI_SEPOLIA, NEW_ERC20_ABI_MAINNET } from '../abis/new';
 import { z } from 'zod';
 
 /**
@@ -39,9 +36,7 @@ export const deployERC20Contract = async (
     const classhash =
       chainId === 'SN_MAIN' ? ERC20_CLASSHASH_MAINNET : ERC20_CLASSHASH_SEPOLIA;
     const abi =
-      chainId === 'SN_MAIN'
-        ? NEW_ERC20_ABI_MAINNET
-        : NEW_ERC20_ABI_SEPOLIA;
+      chainId === 'SN_MAIN' ? NEW_ERC20_ABI_MAINNET : NEW_ERC20_ABI_SEPOLIA;
 
     const response = await contractManager.deployContract(
       classhash as string,

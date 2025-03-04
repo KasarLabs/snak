@@ -4,7 +4,7 @@ import {
   validateAndFormatParams,
   executeV3Transaction,
   validateToken,
-  detectAbiType
+  detectAbiType,
 } from '../utils/utils';
 import { z } from 'zod';
 import { approveSchema, approveSignatureSchema } from '../schemas/schema';
