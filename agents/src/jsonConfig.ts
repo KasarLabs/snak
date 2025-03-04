@@ -29,7 +29,7 @@ export interface JsonConfig {
   autonomous?: boolean;
 }
 
-const createContextFromJson = (json: any): string => {
+export const createContextFromJson = (json: any): string => {
   if (!json) {
     throw new Error(
       'Error while trying to parse your context from the youragent.json'
@@ -58,23 +58,23 @@ const createContextFromJson = (json: any): string => {
   }
 
   if (identityParts.length > 0) {
-    displayOutput += createBox('IDENTITY', formatSection(identityParts));
+    displayOutput += createBox('IDENTITY', identityParts);
   }
 
   if (Array.isArray(json.lore)) {
-    displayOutput += createBox('BACKGROUND', formatSection(json.lore));
+    displayOutput += createBox('BACKGROUND', json.lore);
     contextParts.push(`Your lore : [${json.lore.join(']\n[')}]`);
   }
 
   // Objectives Section
   if (Array.isArray(json.objectives)) {
-    displayOutput += createBox('OBJECTIVES', formatSection(json.objectives));
+    displayOutput += createBox('OBJECTIVES', json.objectives);
     contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
   }
 
   // Knowledge Section
   if (Array.isArray(json.knowledge)) {
-    displayOutput += createBox('KNOWLEDGE', formatSection(json.knowledge));
+    displayOutput += createBox('KNOWLEDGE', json.knowledge);
     contextParts.push(`Your knowledge : [${json.knowledge.join(']\n[')}]`);
   }
 
@@ -100,7 +100,7 @@ const createContextFromJson = (json: any): string => {
     }
 
     if (examplesParts.length > 0) {
-      displayOutput += createBox('EXAMPLES', formatSection(examplesParts));
+      displayOutput += createBox('EXAMPLES', examplesParts);
     }
   }
 
@@ -142,17 +142,30 @@ const checkParseJson = async (
   try {
     // Try multiple possible locations for the config file
     const possiblePaths = [
-      // From current directory
       path.join(process.cwd(), 'config', 'agents', agent_config_name),
-      
-      // From project root (parent directory)
+
       path.join(process.cwd(), '..', 'config', 'agents', agent_config_name),
-      
-      // From actual file location (two levels up from __dirname)
-      path.join(__dirname, '..', '..', '..', 'config', 'agents', agent_config_name),
-      
-      // For server context (one additional level up)
-      path.join(__dirname, '..', '..', '..', '..', 'config', 'agents', agent_config_name),
+
+      path.join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'config',
+        'agents',
+        agent_config_name
+      ),
+
+      path.join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        '..',
+        'config',
+        'agents',
+        agent_config_name
+      ),
     ];
 
     let configPath: string | null = null;
@@ -160,37 +173,31 @@ const checkParseJson = async (
 
     // Try each path until we find one that works
     for (const tryPath of possiblePaths) {
-      console.log('Trying config path:', tryPath);
       try {
         await fs.access(tryPath);
-        console.log('Found config at:', tryPath);
         configPath = tryPath;
         jsonData = await fs.readFile(tryPath, 'utf8');
         break;
-      } catch (e) {
-        console.log('Config not found at:', tryPath);
-      }
+      } catch {}
     }
 
     if (!configPath || !jsonData) {
-      throw new Error(`Could not find config file '${agent_config_name}' in any of the expected locations`);
+      throw new Error(
+        `Could not find config file '${agent_config_name}' in any of the expected locations`
+      );
     }
 
-    console.log('Successfully loaded config from:', configPath);
-    
-    // Parse JSON
     const json = JSON.parse(jsonData);
-    console.log('Parsed JSON with properties:', Object.keys(json));
-    
+
     if (!json) {
       throw new Error(`Can't parse config file: ${configPath}`);
     }
-    
+
     // Create system message
     const systemMessagefromjson = new SystemMessage(
       createContextFromJson(json)
     );
-    
+
     // Create config object
     let jsonconfig: JsonConfig = {
       prompt: systemMessagefromjson,
@@ -205,7 +212,7 @@ const checkParseJson = async (
         ? json.external_plugins
         : [],
     };
-    
+
     validateConfig(jsonconfig);
     return jsonconfig;
   } catch (error) {

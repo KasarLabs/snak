@@ -31,10 +31,8 @@ export class AgentsController implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      console.log('Initializing AgentsController...');
       this.agent = await this.agentFactory.createAgent('key', 'agent');
       await this.agent.createAgentReactExecutor();
-      console.log('AgentsController initialized successfully');
     } catch (error) {
       console.error('Failed to initialize AgentsController:', error);
       throw error;

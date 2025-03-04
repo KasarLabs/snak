@@ -45,13 +45,9 @@ export const RegisterSignatureTools = async (
           let imported_tool = null;
           for (const path of possiblePaths) {
             try {
-              console.log(`Trying to import from: ${path}`);
               imported_tool = await import(path);
-              console.log(`Successfully imported from: ${path}`);
               break;
-            } catch (e) {
-              console.log(`Import failed from path: ${path}`);
-            }
+            } catch {}
           }
 
           if (!imported_tool) {
@@ -60,14 +56,10 @@ export const RegisterSignatureTools = async (
           }
 
           if (typeof imported_tool.registerSignatureTools !== 'function') {
-            console.warn(
-              `Plugin ${tool} does not export registerSignatureTools function`
-            );
             return false;
           }
 
           imported_tool.registerSignatureTools(tools);
-          console.log(`Successfully registered tools from plugin: ${tool}`);
           return true;
         } catch (error) {
           console.warn(`Error processing plugin ${tool}: ${error.message}`);

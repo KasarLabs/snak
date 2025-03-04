@@ -14,17 +14,14 @@ export class AgentFactory {
   private initPromise: Promise<void>;
 
   constructor(private readonly config: ConfigurationService) {
-    // Start initialization but don't wait for it here
     this.initPromise = this.initialize();
   }
 
   private async initialize() {
     try {
-      console.log('Initializing agent factory...');
       const fs = await import('fs/promises');
       const path = await import('path');
 
-      // Get project root directory
       const projectRoot = path.resolve(process.cwd(), '..');
       const configPath = path.join(
         projectRoot,
@@ -32,32 +29,24 @@ export class AgentFactory {
         'agents',
         'default.agent.json'
       );
-      console.log('Loading config from:', configPath);
 
-      // Check if file exists
       try {
         await fs.access(configPath);
-        console.log('Config file exists');
       } catch (error) {
         console.error('Config file not found:', configPath);
         throw new Error(`Config file not found: ${configPath}`);
       }
 
-      // Read and parse file
       const jsonData = await fs.readFile(configPath, 'utf8');
-      console.log('Read config file successfully');
 
       const json = JSON.parse(jsonData);
-      console.log('Parsed JSON successfully with keys:', Object.keys(json));
 
       if (!json) {
         throw new Error('Empty JSON configuration');
       }
 
-      // Import needed classes
       const { SystemMessage } = await import('@langchain/core/messages');
 
-      // Create config object using json file content
       const systemMessage = new SystemMessage(json.name);
       this.json_config = {
         prompt: systemMessage,
@@ -73,10 +62,6 @@ export class AgentFactory {
           : [],
       };
 
-      console.log(
-        'Created config with properties:',
-        Object.keys(this.json_config)
-      );
       this.initialized = true;
     } catch (error) {
       console.error('Error in initialize:', error);
@@ -88,9 +73,7 @@ export class AgentFactory {
     signature: string,
     agentMode: string = 'agent'
   ): Promise<StarknetAgent> {
-    // Ensure initialization is complete before proceeding
     if (!this.initialized) {
-      console.log('Waiting for initialization to complete...');
       await this.initPromise;
     }
 
@@ -100,7 +83,6 @@ export class AgentFactory {
       );
     }
 
-    console.log('Creating agent with signature:', signature);
     try {
       if (this.agentInstances.has(signature)) {
         const agentSignature = this.agentInstances.get(signature);
@@ -112,7 +94,6 @@ export class AgentFactory {
         return agentSignature;
       }
 
-      // Create new agent instance
       const agent = new StarknetAgent({
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
@@ -127,7 +108,6 @@ export class AgentFactory {
 
       // Store for later reuse
       this.agentInstances.set(signature, agent);
-      console.log('Successfully created agent with signature:', signature);
 
       return agent;
     } catch (error) {
