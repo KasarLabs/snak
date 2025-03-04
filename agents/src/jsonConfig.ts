@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import fs from 'fs/promises';
 
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
@@ -139,33 +140,57 @@ const checkParseJson = async (
   agent_config_name: string
 ): Promise<JsonConfig | undefined> => {
   try {
-    const projectRoot = path.resolve(__dirname, '../../..');
-    const configPath = path.join(
-      projectRoot,
-      'config',
-      'agents',
-      agent_config_name
-    );
-    console.log('Loading config from:', configPath);
+    // Try multiple possible locations for the config file
+    const possiblePaths = [
+      // From current directory
+      path.join(process.cwd(), 'config', 'agents', agent_config_name),
+      
+      // From project root (parent directory)
+      path.join(process.cwd(), '..', 'config', 'agents', agent_config_name),
+      
+      // From actual file location (two levels up from __dirname)
+      path.join(__dirname, '..', '..', '..', 'config', 'agents', agent_config_name),
+      
+      // For server context (one additional level up)
+      path.join(__dirname, '..', '..', '..', '..', 'config', 'agents', agent_config_name),
+    ];
 
-    // Use fs instead of import
-    const fs = await import('fs/promises');
-    const jsonData = await fs.readFile(configPath, 'utf8');
-    console.log('Read config file successfully');
+    let configPath: string | null = null;
+    let jsonData: string | null = null;
 
+    // Try each path until we find one that works
+    for (const tryPath of possiblePaths) {
+      console.log('Trying config path:', tryPath);
+      try {
+        await fs.access(tryPath);
+        console.log('Found config at:', tryPath);
+        configPath = tryPath;
+        jsonData = await fs.readFile(tryPath, 'utf8');
+        break;
+      } catch (e) {
+        console.log('Config not found at:', tryPath);
+      }
+    }
+
+    if (!configPath || !jsonData) {
+      throw new Error(`Could not find config file '${agent_config_name}' in any of the expected locations`);
+    }
+
+    console.log('Successfully loaded config from:', configPath);
+    
     // Parse JSON
     const json = JSON.parse(jsonData);
     console.log('Parsed JSON with properties:', Object.keys(json));
-
+    
     if (!json) {
-      throw new Error(`Can't access to config file: ${configPath}`);
+      throw new Error(`Can't parse config file: ${configPath}`);
     }
-
+    
     // Create system message
     const systemMessagefromjson = new SystemMessage(
       createContextFromJson(json)
     );
-
+    
     // Create config object
     let jsonconfig: JsonConfig = {
       prompt: systemMessagefromjson,
@@ -180,12 +205,8 @@ const checkParseJson = async (
         ? json.external_plugins
         : [],
     };
-
-    // Log the created config
-    console.log('Created jsonconfig with properties:', Object.keys(jsonconfig));
-
+    
     validateConfig(jsonconfig);
-    console.log('Config validation passed');
     return jsonconfig;
   } catch (error) {
     console.error(
