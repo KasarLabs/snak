@@ -1,9 +1,15 @@
-import { Account, shortString } from 'starknet';
+import { Account, shortString, cairo } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { ContractManager } from '../utils/contractManager';
 import { deployERC20Schema } from '../schemas/schema';
-import { ERC20_CLASSHASH_SEPOLIA, ERC20_CLASSHASH_MAINNET } from '../constant/constant';
-import { DEPLOY_ERC20_ABI_SEPOLIA, DEPLOY_ERC20_ABI_MAINNET } from '../abis/deploy';
+import {
+  ERC20_CLASSHASH_SEPOLIA,
+  ERC20_CLASSHASH_MAINNET,
+} from '../constant/constant';
+import {
+  NEW_ERC20_ABI_SEPOLIA,
+  NEW_ERC20_ABI_MAINNET,
+} from '../abis/new';
 import { z } from 'zod';
 
 /**
@@ -28,20 +34,24 @@ export const deployERC20Contract = async (
     );
 
     const contractManager = new ContractManager(account);
-    
+
     const chainId = shortString.decodeShortString(await provider.getChainId());
-    const classhash = chainId === 'SN_MAIN' ? ERC20_CLASSHASH_MAINNET : ERC20_CLASSHASH_SEPOLIA;
-    const abi = chainId === 'SN_MAIN' ? DEPLOY_ERC20_ABI_MAINNET : DEPLOY_ERC20_ABI_SEPOLIA;
+    const classhash =
+      chainId === 'SN_MAIN' ? ERC20_CLASSHASH_MAINNET : ERC20_CLASSHASH_SEPOLIA;
+    const abi =
+      chainId === 'SN_MAIN'
+        ? NEW_ERC20_ABI_MAINNET
+        : NEW_ERC20_ABI_SEPOLIA;
 
     const response = await contractManager.deployContract(
       classhash as string,
       abi,
-      {
-        name: params.name,
-        symbol: params.symbol,
-        fixed_supply: params.totalSupply,
-        recipient: accountCredentials?.accountPublicKey,
-      }
+      [
+        params.name,
+        params.symbol,
+        cairo.uint256(params.totalSupply.toString()),
+        accountCredentials?.accountPublicKey,
+      ]
     );
 
     return JSON.stringify({

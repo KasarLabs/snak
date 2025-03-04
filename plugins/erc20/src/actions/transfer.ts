@@ -4,11 +4,11 @@ import {
   validateAndFormatParams,
   executeV3Transaction,
   validateToken,
+  detectAbiType,
 } from '../utils/utils';
 import { z } from 'zod';
 import { transferSchema, transferSignatureSchema } from '../schemas/schema';
 import { TransferResult } from '../types/types';
-import { INTERACT_ERC20_ABI } from '../abis/interact';
 import { validToken } from '../types/types';
 import { RpcProvider } from 'starknet';
 
@@ -32,6 +32,7 @@ export const transfer = async (
       params.assetSymbol,
       params.assetAddress
     );
+    const abi = await detectAbiType(token.address, provider);
     const { address, amount } = validateAndFormatParams(
       params.recipientAddress,
       params.amount,
@@ -48,7 +49,7 @@ export const transfer = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const contract = new Contract(abi, token.address, provider);
     contract.connect(account);
 
     const calldata = contract.populate('transfer', [

@@ -1,7 +1,6 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC20_ABI } from '../abis/interact';
-import { formatBalance, validateToken } from '../utils/utils';
+import { formatBalance, validateToken, detectAbiType } from '../utils/utils';
 import { validToken } from '../types/types';
 import { z } from 'zod';
 import {
@@ -24,14 +23,15 @@ export const getAllowance = async (
   try {
     const provider = agent.getProvider();
 
-    const token: validToken = await validateToken(
+    const token = await validateToken(
       provider,
       params.assetSymbol,
       params.assetAddress
     );
+    const abi = await detectAbiType(token.address, provider);
 
     const tokenContract = new Contract(
-      INTERACT_ERC20_ABI,
+      abi,
       token.address,
       provider
     );
@@ -71,14 +71,15 @@ export const getMyGivenAllowance = async (
     const provider = agent.getProvider();
     const ownerAddress = agent.getAccountCredentials().accountPublicKey;
 
-    const token: validToken = await validateToken(
+    const token = await validateToken(
       provider,
       params.assetSymbol,
       params.assetAddress
     );
+    const abi = await detectAbiType(token.address, provider);
 
     const tokenContract = new Contract(
-      INTERACT_ERC20_ABI,
+      abi,
       token.address,
       provider
     );
@@ -118,14 +119,15 @@ export const getAllowanceGivenToMe = async (
     const provider = agent.getProvider();
     const spenderAddress = agent.getAccountCredentials().accountPublicKey;
 
-    const token: validToken = await validateToken(
+    const token = await validateToken(
       provider,
       params.assetSymbol,
       params.assetAddress
     );
+    const abi = await detectAbiType(token.address, provider);
 
     const tokenContract = new Contract(
-      INTERACT_ERC20_ABI,
+      abi,
       token.address,
       provider
     );

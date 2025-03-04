@@ -9,7 +9,9 @@ import { transferSignature } from '../actions/transfer';
 import { approveSignature } from '../actions/approve';
 import { transferFromSignature } from '../actions/transferFrom';
 
-export const registerSignatureTools = (StarknetToolRegistry: SignatureTool[]) => {
+export const registerSignatureTools = (
+  StarknetToolRegistry: SignatureTool[]
+) => {
   StarknetToolRegistry.push({
     name: 'erc20_transfer_from_signature',
     description: 'Return transfer_from json transaction',

@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@starknet-agent-kit/agents": "workspace:*",
-    "@starknet-agent-kit/server" : "workspace:*"
+    "@starknet-agent-kit/server": "workspace:*"
   },
   "keywords": [],
   "author": "",

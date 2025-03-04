@@ -1,6 +1,8 @@
 import { Account, Contract, RpcProvider } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { OLD_ERC20_ABI } from '../abis/old';
+import { NEW_ERC20_ABI_MAINNET } from '../abis/new';
+import { detectAbiType } from '../utils/utils';
 import { formatBalance, validateToken } from '../utils/utils';
 import { validToken } from '../types/types';
 import { z } from 'zod';
@@ -21,26 +23,24 @@ export const getOwnBalance = async (
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
     const accountAddress = accountCredentials?.accountPublicKey;
-    const accountPrivateKey = accountCredentials?.accountPrivateKey;
 
     const token: validToken = await validateToken(
       provider,
       params.assetSymbol,
       params.assetAddress
     );
-
+    const abi = await detectAbiType(token.address, provider);
     if (!accountAddress) {
       throw new Error('Wallet address not configured');
     }
 
-    const account = new Account(provider, accountAddress, accountPrivateKey);
     const tokenContract = new Contract(
-      INTERACT_ERC20_ABI,
+      abi,
       token.address,
       provider
     );
 
-    const balanceResponse = await tokenContract.balanceOf(account.address);
+    const balanceResponse = await tokenContract.balance_of(accountAddress);
 
     if (balanceResponse === undefined || balanceResponse === null) {
       throw new Error('No balance value received from contract');
@@ -76,18 +76,19 @@ export const getBalance = async (
     if (!params?.accountAddress) {
       throw new Error('Account address are required');
     }
-    const token: validToken = await validateToken(
-      agent.getProvider(),
+    const provider = agent.getProvider();
+    const token = await validateToken(
+      provider,
       params.assetSymbol,
       params.assetAddress
     );
-
-    const provider = agent.getProvider();
+    const abi = await detectAbiType(token.address, provider);
     const tokenContract = new Contract(
-      INTERACT_ERC20_ABI,
+      abi,
       token.address,
       provider
     );
+
     const balanceResponse = await tokenContract.balanceOf(
       params.accountAddress
     );

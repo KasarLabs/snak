@@ -10,7 +10,8 @@ import { tokenAddresses } from '../constant/constant';
 import { uint256 } from 'starknet';
 import { ParamsValidationResult, ExecuteV3Args } from '../types/types';
 import { DECIMALS } from '../types/types';
-import { INTERACT_ERC20_ABI } from '../abis/interact';
+import { OLD_ERC20_ABI } from '../abis/old';
+import { NEW_ERC20_ABI_MAINNET } from '../abis/new';
 import { validToken } from '../types/types';
 
 /**
@@ -203,14 +204,16 @@ export async function validateToken(
   } else if (assetAddress) {
     address = validateAndParseAddress(assetAddress);
     try {
-      const contract = new Contract(INTERACT_ERC20_ABI, address, provider);
-
-      const rawSymbol = await contract.symbol();
+      const abi = await detectAbiType(address, provider);
+      const contract = new Contract(abi, address, provider);
+      
+      let rawSymbol = await contract.symbol();
+      if (abi == OLD_ERC20_ABI) {
+        symbol = shortString.decodeShortString(rawSymbol);
+      }
       const decimalsBigInt = await contract
-        .decimals()
-        .catch(() => DECIMALS.DEFAULT);
-
-      symbol = shortString.decodeShortString(rawSymbol);
+      .decimals()
+      .catch(() => DECIMALS.DEFAULT);
       decimals =
         typeof decimalsBigInt === 'bigint'
           ? Number(decimalsBigInt)
@@ -224,4 +227,19 @@ export async function validateToken(
     symbol,
     decimals,
   };
+}
+
+/**
+ * Detects the ABI type of a token contract
+ * @param {string} address - The ERC20 token contract address
+ * @param {Provider} provider - The Starknet provider
+ * @returns {Promise<string>} The ABI type
+ */
+export async function detectAbiType(address : string, provider : Provider) {
+  const contract = new Contract(OLD_ERC20_ABI, address, provider);
+  const symbol = await contract.symbol();
+  if (symbol == 0n) {
+    return NEW_ERC20_ABI_MAINNET;
+  }
+  return OLD_ERC20_ABI;
 }

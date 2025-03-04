@@ -358,11 +358,11 @@ const StarknetAgent = () => {
         const transaction_hash = await Wallet.execute(tx);
         typeResponse({
           ...newResponse,
-          text: JSON.stringify({ 
-            tx, 
+          text: JSON.stringify({
+            tx,
             transaction_hash,
-            additional_data: info ? info : undefined
-         }),
+            additional_data: info ? info : undefined,
+          }),
         });
       } else if (result.transaction_type === 'READ') {
         typeResponse({

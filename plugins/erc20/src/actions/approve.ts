@@ -1,10 +1,10 @@
 import { Account, Contract, RpcProvider, constants } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC20_ABI } from '../abis/interact';
 import {
   validateAndFormatParams,
   executeV3Transaction,
   validateToken,
+  detectAbiType
 } from '../utils/utils';
 import { z } from 'zod';
 import { approveSchema, approveSignatureSchema } from '../schemas/schema';
@@ -25,11 +25,12 @@ export const approve = async (
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
 
-    const token: validToken = await validateToken(
+    const token = await validateToken(
       provider,
       params.assetSymbol,
       params.assetAddress
     );
+    const abi = await detectAbiType(token.address, provider);
     const { address, amount } = validateAndFormatParams(
       params.spenderAddress,
       params.amount,
@@ -46,7 +47,7 @@ export const approve = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const contract = new Contract(abi, token.address, provider);
     contract.connect(account);
 
     const calldata = contract.populate('approve', [spenderAddress, amount]);

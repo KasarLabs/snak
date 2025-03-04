@@ -5,11 +5,11 @@ import {
   constants,
 } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC20_ABI } from '../abis/interact';
 import {
   validateAndFormatParams,
   executeV3Transaction,
   validateToken,
+  detectAbiType
 } from '../utils/utils';
 import { z } from 'zod';
 import {
@@ -35,11 +35,12 @@ export const transferFrom = async (
     const credentials = agent.getAccountCredentials();
     const provider = agent.getProvider();
 
-    const token: validToken = await validateToken(
+    const token = await validateToken(
       provider,
       params.assetSymbol,
       params.assetAddress
     );
+    const abi = await detectAbiType(token.address, provider);
     const { address, amount } = validateAndFormatParams(
       params.fromAddress,
       params.amount,
@@ -57,7 +58,7 @@ export const transferFrom = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    const contract = new Contract(INTERACT_ERC20_ABI, token.address, provider);
+    const contract = new Contract(abi, token.address, provider);
 
     contract.connect(account);
 

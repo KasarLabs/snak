@@ -101,10 +101,10 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   });
 
   StarknetToolRegistry.push({
-    name: 'erc20_deploy_erc20',
+    name: 'erc20_deploy_new_contract',
     plugins: 'erc20',
     description:
-      'Deploy a new ERC20 contract, returns the address of the deployed contract',
+      'Create and deploy a new ERC20 contract, returns the address of the deployed contract',
     schema: deployERC20Schema,
     execute: deployERC20Contract,
   });
