@@ -6,7 +6,11 @@
     "paths": {
       "@/*": ["./src/*"]
     }
+
   },
-  "include": ["./src/**/*", "./src/**/*.ts"],
+  "include": [
+    "./src/**/*",
+    "./src/**/*.ts", 
+  ],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }
