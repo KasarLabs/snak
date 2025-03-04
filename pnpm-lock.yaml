@@ -159,9 +159,12 @@ importers:
       '@starknet-agent-kit/plugin-avnu':
         specifier: workspace:*
         version: link:../plugins/avnu
+<<<<<<< HEAD
       '@starknet-agent-kit/plugin-erc20':
         specifier: workspace:*
         version: link:../plugins/erc20
+=======
+>>>>>>> main
       '@starknet-agent-kit/plugin-fibrous':
         specifier: workspace:*
         version: link:../plugins/fibrous
@@ -306,12 +309,15 @@ importers:
         specifier: workspace:*
         version: link:../../agents
 
+<<<<<<< HEAD
   plugins/erc20:
     devDependencies:
       '@starknet-agent-kit/agents':
         specifier: workspace:*
         version: link:../../agents
 
+=======
+>>>>>>> main
   plugins/fibrous:
     dependencies:
       fibrous-router-sdk:
@@ -11301,7 +11307,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+<<<<<<< HEAD
   eslint-module-utils@2.12.0(@typescript-eslint/parser@8.25.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.7.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3)(eslint@9.21.0(jiti@1.21.7)):
+=======
+  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.25.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.7.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3(eslint-plugin-import@2.31.0)(eslint@9.21.0(jiti@1.21.7)))(eslint@9.21.0(jiti@1.21.7)):
+>>>>>>> main
     dependencies:
       debug: 3.2.7
     optionalDependencies:
@@ -11323,7 +11333,11 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.21.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
+<<<<<<< HEAD
       eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.25.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.7.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3)(eslint@9.21.0(jiti@1.21.7))
+=======
+      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.25.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.7.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3(eslint-plugin-import@2.31.0)(eslint@9.21.0(jiti@1.21.7)))(eslint@9.21.0(jiti@1.21.7))
+>>>>>>> main
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
