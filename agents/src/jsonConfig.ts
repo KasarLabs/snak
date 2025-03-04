@@ -134,23 +134,39 @@ export const validateConfig = (config: JsonConfig) => {
   }
 };
 
+// log all this function
 const checkParseJson = async (
   agent_config_name: string
 ): Promise<JsonConfig | undefined> => {
   try {
-    const configPath = path.resolve(`../config/agents/${agent_config_name}`);
+    const projectRoot = path.resolve(__dirname, '../../..');
+    const configPath = path.join(
+      projectRoot,
+      'config',
+      'agents',
+      agent_config_name
+    );
+    console.log('Loading config from:', configPath);
 
-    const jsonModule = await import(configPath, { assert: { type: 'json' } });
-    const json = jsonModule.default;
+    // Use fs instead of import
+    const fs = await import('fs/promises');
+    const jsonData = await fs.readFile(configPath, 'utf8');
+    console.log('Read config file successfully');
+
+    // Parse JSON
+    const json = JSON.parse(jsonData);
+    console.log('Parsed JSON with properties:', Object.keys(json));
 
     if (!json) {
-      throw new Error(`Can't access to ./config/agents/config-agent.json`);
+      throw new Error(`Can't access to config file: ${configPath}`);
     }
 
+    // Create system message
     const systemMessagefromjson = new SystemMessage(
       createContextFromJson(json)
     );
 
+    // Create config object
     let jsonconfig: JsonConfig = {
       prompt: systemMessagefromjson,
       name: json.name,
@@ -165,7 +181,11 @@ const checkParseJson = async (
         : [],
     };
 
+    // Log the created config
+    console.log('Created jsonconfig with properties:', Object.keys(jsonconfig));
+
     validateConfig(jsonconfig);
+    console.log('Config validation passed');
     return jsonconfig;
   } catch (error) {
     console.error(
