@@ -11,7 +11,7 @@ import {
 setupTestEnvironment();
 
 export const createMockStarknetAgent = (): StarknetAgentInterface => {
-  const provider = new RpcProvider({ nodeUrl: 'https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_7/Xj-rCxxzGcBnS3HwqOnBqO8TMa8NRGky' });
+  const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const twitter_interface: TwitterInterface = {};
   const telegram_interface: TelegramInterface = {};
   const json_config = undefined;
@@ -20,9 +20,9 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
   return {
     getAccountCredentials: () => ({
       accountPublicKey:
-        '0x049D0c2F881f9c8A7eE2a02fa46d681f8aca944d7f77E7d8A56ED6416d0a391c',
+        '0x034ba56f92265f0868c57d3fe72ecab144fc96f97954bbbc4252cef8e8a979ba',
       accountPrivateKey:
-        '0x051db6daaa54875ed46acebacecb600f3374d4cc4dc154021a1facba6f4c9b90',
+        '0x00000000000000000000000000000000b137668388dbe9acdfa3bc734cc2c469',
     }),
     getModelCredentials: () => ({
       aiModel: '',
