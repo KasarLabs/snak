@@ -1,9 +1,9 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC721_ABI } from '../abis/interact';
-import { validateAndFormatTokenId } from '../utils/utils';
+import { INTERACT_ERC721_ABI } from '../abis/interact.js';
+import { validateAndFormatTokenId } from '../utils/utils.js';
 import { z } from 'zod';
-import { getApprovedSchema } from '../schemas/schema';
+import { getApprovedSchema } from '../schemas/schema.js';
 import { validateAndParseAddress } from 'starknet';
 
 /**

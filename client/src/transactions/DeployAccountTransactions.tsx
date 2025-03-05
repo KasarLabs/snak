@@ -1,4 +1,4 @@
-import { InvokeTransaction } from '@/types/starknetagents';
+import { InvokeTransaction } from '@/types/starknetAgents';
 import { WalletAccount } from 'starknet';
 
 export const handleDeployTransactions = async (

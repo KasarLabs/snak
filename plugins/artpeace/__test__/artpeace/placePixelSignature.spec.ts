@@ -1,4 +1,4 @@
-import { placePixelSignature } from '../../src/actions/placePixel';
+import { placePixelSignature } from '../../src/actions/placePixel.js';
 import { CallData } from 'starknet';
 
 describe('placePixelSignature', () => {

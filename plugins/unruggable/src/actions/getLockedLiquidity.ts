@@ -1,7 +1,7 @@
-import { ContractAddressParams } from '../schema';
+import { ContractAddressParams } from '../schema/index.js';
 import { Contract } from 'starknet';
-import { FACTORY_ABI } from '../abis/unruggableFactory';
-import { FACTORY_ADDRESS } from '../constants';
+import { FACTORY_ABI } from '../abis/unruggableFactory.js';
+import { FACTORY_ADDRESS } from '../constants/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 type LiquidityType =

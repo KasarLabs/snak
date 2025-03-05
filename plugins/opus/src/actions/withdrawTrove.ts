@@ -1,6 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { WithdrawTroveParams } from '../schemas';
-import { createTroveManager } from '../utils/troveManager';
+import { WithdrawTroveParams } from '../schemas/index.js';
+import { createTroveManager } from '../utils/troveManager.js';
 
 export const withdrawTrove = async (
   agent: StarknetAgentInterface,

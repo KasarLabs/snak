@@ -34,18 +34,41 @@ export const RegisterSignatureTools = async (
   try {
     await Promise.all(
       allowed_signature_tools.map(async (tool) => {
-        const imported_tool = await import(
-          `@starknet-agent-kit/plugin-${tool}`
-        );
-        if (typeof imported_tool.registerSignatureTools !== 'function') {
+        try {
+          const possiblePaths = [
+            `@starknet-agent-kit/plugin-${tool}/index.js`,
+            `@starknet-agent-kit/plugin-${tool}/dist/index.js`,
+            `../../plugins/${tool}/dist/index.js`,
+            `../../../plugins/${tool}/dist/index.js`,
+          ];
+
+          let imported_tool = null;
+          for (const path of possiblePaths) {
+            try {
+              imported_tool = await import(path);
+              break;
+            } catch {}
+          }
+
+          if (!imported_tool) {
+            console.warn(`Could not import plugin ${tool} from any known path`);
+            return false;
+          }
+
+          if (typeof imported_tool.registerSignatureTools !== 'function') {
+            return false;
+          }
+
+          imported_tool.registerSignatureTools(tools);
+          return true;
+        } catch (error) {
+          console.warn(`Error processing plugin ${tool}: ${error.message}`);
           return false;
         }
-        imported_tool.registerSignatureTools(tools);
-        return true;
       })
     );
   } catch (error) {
-    console.log(error);
+    console.error('Error in RegisterSignatureTools:', error);
   }
 };
 

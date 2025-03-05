@@ -51,7 +51,9 @@ export const getApprovedSchema = z.object({
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const isApprovedForAllSchema = z.object({
-  ownerAddress: z.string().describe('The address of the Non Fungible Token owner'),
+  ownerAddress: z
+    .string()
+    .describe('The address of the Non Fungible Token owner'),
   operatorAddress: z.string().describe('The address of the operator to check'),
   contractAddress: z.string().describe('The address of the NFT contract'),
 });
@@ -65,8 +67,12 @@ export const isApprovedForAllSchema = z.object({
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const transferFromSchema = z.object({
-  fromAddress: z.string().describe('The current owner of the Non Fungible Token'),
-  toAddress: z.string().describe('The address to receive the Non Fungible Token'),
+  fromAddress: z
+    .string()
+    .describe('The current owner of the Non Fungible Token'),
+  toAddress: z
+    .string()
+    .describe('The address to receive the Non Fungible Token'),
   tokenId: z.string().describe('The ID of the Non Fungible Token to transfer'),
   contractAddress: z.string().describe('The address of the NFT contract'),
 });
@@ -79,9 +85,13 @@ export const transferFromSchema = z.object({
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const transferSchema = z.object({
-  toAddress: z.string().describe('The address to receive the Non Fungible Token'),
+  toAddress: z
+    .string()
+    .describe('The address to receive the Non Fungible Token'),
   tokenId: z.string().describe('The ID of the Non Fungible Token to transfer'),
-  contractAddress: z.string().describe('The address of the Non Fungible Token contract'),
+  contractAddress: z
+    .string()
+    .describe('The address of the Non Fungible Token contract'),
 });
 
 /**
@@ -93,8 +103,12 @@ export const transferSchema = z.object({
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const safeTransferFromSchema = z.object({
-  fromAddress: z.string().describe('The current owner of the Non Fungible Token'),
-  toAddress: z.string().describe('The address to receive the Non Fungible Token'),
+  fromAddress: z
+    .string()
+    .describe('The current owner of the Non Fungible Token'),
+  toAddress: z
+    .string()
+    .describe('The address to receive the Non Fungible Token'),
   tokenId: z.string().describe('The ID of the Non Fungible Token to transfer'),
   contractAddress: z.string().describe('The address of the NFT contract'),
 });

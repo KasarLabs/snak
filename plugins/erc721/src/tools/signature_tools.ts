@@ -3,11 +3,11 @@ import {
   approveSchema,
   setApprovalForAllSchema,
   safeTransferFromSchema,
-} from '../schemas/schema';
-import { transferFromSignature } from '../actions/transferFrom';
-import { approveSignature } from '../actions/approve';
-import { setApprovalForAllSignature } from '../actions/setApprovalForAll';
-import { safeTransferFromSignature } from '../actions/safeTransferFrom';
+} from '../schemas/schema.js';
+import { transferFromSignature } from '../actions/transferFrom.js';
+import { approveSignature } from '../actions/approve.js';
+import { setApprovalForAllSignature } from '../actions/setApprovalForAll.js';
+import { safeTransferFromSignature } from '../actions/safeTransferFrom.js';
 import { SignatureTool } from '@starknet-agent-kit/agents';
 
 export const registerSignatureTools = (

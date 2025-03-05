@@ -1,11 +1,14 @@
 import { Account, Contract, constants } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC721_ABI } from '../abis/interact';
-import { validateAndFormatTokenId, executeV3Transaction } from '../utils/utils';
+import { INTERACT_ERC721_ABI } from '../abis/interact.js';
+import {
+  validateAndFormatTokenId,
+  executeV3Transaction,
+} from '../utils/utils.js';
 import { validateAndParseAddress } from 'starknet';
 import { z } from 'zod';
-import { transferFromSchema, transferSchema } from '../schemas/schema';
-import { TransactionResult } from '../types/types';
+import { transferFromSchema, transferSchema } from '../schemas/schema.js';
+import { TransactionResult } from '../types/types.js';
 
 /**
  * Transfers a token from one address to another.

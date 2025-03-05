@@ -10,16 +10,16 @@ import {
   deployERC721Schema,
   getOwnBalanceSchema,
   transferSchema,
-} from '../schemas/schema';
-import { getOwner } from '../actions/ownerOf';
-import { transferFrom, transfer } from '../actions/transferFrom';
-import { getBalance, getOwnBalance } from '../actions/balanceOf';
-import { approve } from '../actions/approve';
-import { isApprovedForAll } from '../actions/isApprovedForAll';
-import { getApproved } from '../actions/getApproved';
-import { safeTransferFrom } from '../actions/safeTransferFrom';
-import { setApprovalForAll } from '../actions/setApprovalForAll';
-import { deployERC721Contract } from '../actions/deployERC721';
+} from '../schemas/schema.js';
+import { getOwner } from '../actions/ownerOf.js';
+import { transferFrom, transfer } from '../actions/transferFrom.js';
+import { getBalance, getOwnBalance } from '../actions/balanceOf.js';
+import { approve } from '../actions/approve.js';
+import { isApprovedForAll } from '../actions/isApprovedForAll.js';
+import { getApproved } from '../actions/getApproved.js';
+import { safeTransferFrom } from '../actions/safeTransferFrom.js';
+import { setApprovalForAll } from '../actions/setApprovalForAll.js';
+import { deployERC721Contract } from '../actions/deployERC721.js';
 import { StarknetTool } from '@starknet-agent-kit/agents';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {

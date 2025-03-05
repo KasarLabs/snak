@@ -1,9 +1,9 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC721_ABI } from '../abis/interact';
+import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import { validateAndParseAddress } from 'starknet';
 import { z } from 'zod';
-import { getBalanceSchema, getOwnBalanceSchema } from '../schemas/schema';
+import { getBalanceSchema, getOwnBalanceSchema } from '../schemas/schema.js';
 
 /**
  * Gets ERC721 token balance

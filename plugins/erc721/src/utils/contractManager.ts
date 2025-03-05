@@ -11,9 +11,9 @@ import {
   ContractDeployResult,
   ContractDeclareResult,
   ContractDeclareAndDeployResult,
-} from '../types/types';
+} from '../types/types.js';
 import * as fs from 'fs';
-import { getV3DetailsPayload } from './utils';
+import { getV3DetailsPayload } from './utils.js';
 
 /**
  * Class for managing StarkNet contract operations

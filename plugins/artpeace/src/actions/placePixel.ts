@@ -1,10 +1,10 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { Account, constants, Contract } from 'starknet';
-import { artpeaceAbi } from '../abis/artpeaceAbi';
-import { artpeaceAddr } from '../constants/artpeace';
-import { ArtpeaceHelper } from '../utils/helper';
-import { placePixelParam } from '../schema';
-import { Checker } from '../utils/checker';
+import { artpeaceAbi } from '../abis/artpeaceAbi.js';
+import { artpeaceAddr } from '../constants/artpeace.js';
+import { ArtpeaceHelper } from '../utils/helper.js';
+import { placePixelParam } from '../schema/index.js';
+import { Checker } from '../utils/checker.js';
 
 /**
  * Places pixels on a Starknet canvas using the Artpeace contract

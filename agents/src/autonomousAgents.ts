@@ -1,13 +1,13 @@
 import { ChatAnthropic } from '@langchain/anthropic';
-import { createAllowedTools, createTools } from './tools/tools';
-import { AiConfig } from '../common';
+import { createAllowedTools } from './tools/tools.js';
+import { AiConfig } from '../common/index.js';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
-import { StarknetAgentInterface } from './tools/tools';
+import { StarknetAgentInterface } from './tools/tools.js';
 import { MemorySaver } from '@langchain/langgraph';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { createAllowedToollkits } from './tools/external_tools';
+import { createAllowedToollkits } from './tools/external_tools.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,

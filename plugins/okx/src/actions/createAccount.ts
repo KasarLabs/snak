@@ -1,6 +1,6 @@
 import { RpcProvider } from 'starknet';
-import { OKX_CLASSHASH } from '../constant/contract';
-import { AccountManager } from '../utils/AccountManager';
+import { OKX_CLASSHASH } from '../constant/contract.js';
+import { AccountManager } from '../utils/AccountManager.js';
 
 /**
  * Creates a new OKX account.
@@ -11,7 +11,6 @@ import { AccountManager } from '../utils/AccountManager';
  */
 export const CreateOKXAccount = async () => {
   try {
-    console.log('YOOOO');
     const accountManager = new AccountManager(undefined);
     const accountDetails = await accountManager.createAccount(OKX_CLASSHASH);
 

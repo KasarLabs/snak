@@ -1,15 +1,15 @@
 import { Account, shortString } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { ContractManager } from '../utils/contractManager';
+import { ContractManager } from '../utils/contractManager.js';
 import {
   ERC721_CLASSHASH_SEPOLIA,
   ERC721_CLASSHASH_MAINNET,
-} from '../constant/constant';
-import { deployERC721Schema } from '../schemas/schema';
+} from '../constant/constant.js';
+import { deployERC721Schema } from '../schemas/schema.js';
 import {
   DEPLOY_ERC721_ABI_SEPOLIA,
   DEPLOY_ERC721_ABI_MAINNET,
-} from '../abis/deploy';
+} from '../abis/deploy.js';
 import { z } from 'zod';
 
 /**

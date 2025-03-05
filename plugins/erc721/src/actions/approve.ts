@@ -5,11 +5,14 @@ import {
   validateAndParseAddress,
 } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { INTERACT_ERC721_ABI } from '../abis/interact';
-import { validateAndFormatTokenId, executeV3Transaction } from '../utils/utils';
+import { INTERACT_ERC721_ABI } from '../abis/interact.js';
+import {
+  validateAndFormatTokenId,
+  executeV3Transaction,
+} from '../utils/utils.js';
 import { z } from 'zod';
-import { approveSchema } from '../schemas/schema';
-import { TransactionResult } from '../types/types';
+import { approveSchema } from '../schemas/schema.js';
+import { TransactionResult } from '../types/types.js';
 
 /**
  * Approves an address for NFT transfer

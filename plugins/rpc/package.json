@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "test": "echo \"No test has been created for this plugins\" && exit 0",
     "build": "pnpm clean:dist && tsc",

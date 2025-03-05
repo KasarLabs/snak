@@ -1,5 +1,5 @@
 import { uint256, num, RPC } from 'starknet';
-import { ExecuteV3Args } from '../types/types';
+import { ExecuteV3Args } from '../types/types.js';
 
 /**
  * Converts a bigint address to a hex string

@@ -1,13 +1,34 @@
 // Main exports
-export * from './src/agent';
-export * from './src/starknetAgent';
-export * from './src/autonomousAgents';
+export * from './src/agent.js';
+export * from './src/starknetAgent.js';
+export * from './src/autonomousAgents.js';
 
-// Plugin exports
+// Tool-related exports
+export {
+  StarknetAgentInterface,
+  StarknetTool,
+  StarknetToolRegistry,
+} from './src/tools/tools.js';
+export {
+  SignatureTool,
+  StarknetSignatureToolRegistry,
+} from './src/tools/signatureTools.js';
 
-// Utilities
-export * from './common';
-export * from './src/tools/tools';
-export * from './src/tools/external_tools';
-export * from './src/tools/signatureTools';
-export * from './src/jsonConfig';
+// Config exports
+export { JsonConfig, load_json_config } from './src/jsonConfig.js';
+
+// Common exports
+export {
+  BaseUtilityClass,
+  TransactionMonitor,
+  ContractInteractor,
+  TwitterInterface,
+  TelegramInterface,
+  IAgent,
+  ContractDeployResult,
+  TransactionResult,
+  AiConfig,
+} from './common/index.js';
+
+// External tools
+export * from './src/tools/external_tools.js';

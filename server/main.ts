@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { AppModule } from './app.module.js';
 import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
 import {
   FastifyAdapter,
@@ -7,9 +7,9 @@ import {
 } from '@nestjs/platform-fastify';
 import { ValidationError as ClassValidatorError } from 'class-validator';
 import helmet from 'helmet';
-import { GlobalExceptionFilter } from './common/filters/exception.filter';
-import ErrorLoggingInterceptor from './common/interceptors/error-logging.interceptor';
-import { ConfigurationService } from './config/configuration';
+import { GlobalExceptionFilter } from './common/filters/exception.filter.js';
+import ErrorLoggingInterceptor from './common/interceptors/error-logging.interceptor.js';
+import { ConfigurationService } from './config/configuration.js';
 import { FastifyInstance } from 'fastify';
 import fastifyMultipart from '@fastify/multipart';
 

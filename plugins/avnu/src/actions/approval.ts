@@ -1,6 +1,6 @@
 import { Account, uint256, CallData } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { ERC20_ABI } from '../../../token/src/abis/erc20Abi';
+import { ERC20_ABI } from '../../../token/src/abis/erc20Abi.js';
 
 /**
  * Service handling token approvals on Starknet

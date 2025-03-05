@@ -1,6 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { DepositTroveParams } from '../schemas';
-import { createTroveManager } from '../utils/troveManager';
+import { DepositTroveParams } from '../schemas/index.js';
+import { createTroveManager } from '../utils/troveManager.js';
 
 export const depositTrove = async (
   agent: StarknetAgentInterface,

@@ -1,6 +1,6 @@
-import { CreateMemecoinParams } from '../schema/';
+import { CreateMemecoinParams } from '../schema/index.js';
 import { stark, uint256 } from 'starknet';
-import { execute, decimalsScale } from '../utils/helper';
+import { execute, decimalsScale } from '../utils/helper.js';
 import { Account } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
