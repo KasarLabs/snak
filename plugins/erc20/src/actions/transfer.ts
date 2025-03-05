@@ -5,11 +5,11 @@ import {
   executeV3Transaction,
   validateToken,
   detectAbiType,
-} from '../utils/utils';
+} from '../utils/utils.js';
 import { z } from 'zod';
-import { transferSchema, transferSignatureSchema } from '../schemas/schema';
-import { TransferResult } from '../types/types';
-import { validToken } from '../types/types';
+import { transferSchema, transferSignatureSchema } from '../schemas/schema.js';
+import { TransferResult } from '../types/types.js';
+import { validToken } from '../types/types.js';
 import { RpcProvider } from 'starknet';
 
 /**

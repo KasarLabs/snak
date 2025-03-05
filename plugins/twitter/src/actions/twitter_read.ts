@@ -5,9 +5,9 @@ import {
   getLastUserXTweetParams,
   getTwitterProfileFromUsernameParams,
   getTwitterUserIdFromUsernameParams,
-} from '../schema/index';
+} from '../schema/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { TweetType } from '../types/twitter_types';
+import { TweetType } from '../types/twitter_types.js';
 
 /**
  * Retrieves the latest tweet from a specified user

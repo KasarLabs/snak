@@ -1,12 +1,12 @@
 import { Account, Contract, RpcProvider } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { OLD_ERC20_ABI } from '../abis/old';
-import { NEW_ERC20_ABI_MAINNET } from '../abis/new';
-import { detectAbiType } from '../utils/utils';
-import { formatBalance, validateToken } from '../utils/utils';
-import { validToken } from '../types/types';
+import { OLD_ERC20_ABI } from '../abis/old.js';
+import { NEW_ERC20_ABI_MAINNET } from '../abis/new.js';
+import { detectAbiType } from '../utils/utils.js';
+import { formatBalance, validateToken } from '../utils/utils.js';
+import { validToken } from '../types/types.js';
 import { z } from 'zod';
-import { getBalanceSchema, getOwnBalanceSchema } from '../schemas/schema';
+import { getBalanceSchema, getOwnBalanceSchema } from '../schemas/schema.js';
 
 /**
  * Gets own token balance

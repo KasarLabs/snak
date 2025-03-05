@@ -1,6 +1,6 @@
-import { LaunchOnEkuboParams } from '../schema/';
-import { FACTORY_ABI } from '../abis/unruggableFactory';
-import { FACTORY_ADDRESS } from '../constants';
+import { LaunchOnEkuboParams } from '../schema/index.js';
+import { FACTORY_ABI } from '../abis/unruggableFactory.js';
+import { FACTORY_ADDRESS } from '../constants/index.js';
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 

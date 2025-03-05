@@ -1,7 +1,7 @@
 import { SignatureTool } from '@starknet-agent-kit/agents';
-import { accountDetailsSchema } from '../schemas/schema';
-import { DeployArgentAccountSignature } from '../actions/deployAccount';
-import { CreateArgentAccountSignature } from '../actions/createAccount';
+import { accountDetailsSchema } from '../schemas/schema.js';
+import { DeployArgentAccountSignature } from '../actions/deployAccount.js';
+import { CreateArgentAccountSignature } from '../actions/createAccount.js';
 
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]

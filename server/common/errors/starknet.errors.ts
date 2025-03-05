@@ -1,5 +1,5 @@
-import { BaseError } from './base.error';
-import { ErrorType, ErrorMetadata } from './error.types';
+import { BaseError } from './base.error.js';
+import { ErrorType, ErrorMetadata } from './error.types.js';
 
 export class StarknetTransactionError extends BaseError {
   constructor(message: string, metadata?: ErrorMetadata) {

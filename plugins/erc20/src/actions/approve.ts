@@ -5,10 +5,10 @@ import {
   executeV3Transaction,
   validateToken,
   detectAbiType,
-} from '../utils/utils';
+} from '../utils/utils.js';
 import { z } from 'zod';
-import { approveSchema, approveSignatureSchema } from '../schemas/schema';
-import { validToken } from '../types/types';
+import { approveSchema, approveSignatureSchema } from '../schemas/schema.js';
+import { validToken } from '../types/types.js';
 
 /**
  * Approves token spending

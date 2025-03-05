@@ -2,9 +2,9 @@ import {
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
-import { routeSchema, swapSchema } from '../schema';
-import { swapTokens } from '../actions/swap';
-import { getRoute } from '../actions/fetchRoute';
+import { routeSchema, swapSchema } from '../schema/index.js';
+import { swapTokens } from '../actions/swap.js';
+import { getRoute } from '../actions/fetchRoute.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({

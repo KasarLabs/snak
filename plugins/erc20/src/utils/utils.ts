@@ -6,13 +6,13 @@ import {
   Provider,
   shortString,
 } from 'starknet';
-import { tokenAddresses } from '../constant/constant';
+import { tokenAddresses } from '../constant/constant.js';
 import { uint256 } from 'starknet';
-import { ParamsValidationResult, ExecuteV3Args } from '../types/types';
-import { DECIMALS } from '../types/types';
-import { OLD_ERC20_ABI } from '../abis/old';
-import { NEW_ERC20_ABI_MAINNET } from '../abis/new';
-import { validToken } from '../types/types';
+import { ParamsValidationResult, ExecuteV3Args } from '../types/types.js';
+import { DECIMALS } from '../types/types.js';
+import { OLD_ERC20_ABI } from '../abis/old.js';
+import { NEW_ERC20_ABI_MAINNET } from '../abis/new.js';
+import { validToken } from '../types/types.js';
 
 /**
  * Returns the number of decimals for a token

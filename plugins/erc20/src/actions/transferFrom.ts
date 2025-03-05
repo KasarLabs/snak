@@ -10,13 +10,13 @@ import {
   executeV3Transaction,
   validateToken,
   detectAbiType,
-} from '../utils/utils';
+} from '../utils/utils.js';
 import { z } from 'zod';
 import {
   transferFromSchema,
   transferFromSignatureSchema,
-} from '../schemas/schema';
-import { validToken } from '../types/types';
+} from '../schemas/schema.js';
+import { validToken } from '../types/types.js';
 import { RpcProvider } from 'starknet';
 import { StringSelectMenuBuilder } from 'discord.js';
 

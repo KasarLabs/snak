@@ -1,13 +1,13 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { formatBalance, validateToken, detectAbiType } from '../utils/utils';
-import { validToken } from '../types/types';
+import { formatBalance, validateToken, detectAbiType } from '../utils/utils.js';
+import { validToken } from '../types/types.js';
 import { z } from 'zod';
 import {
   getAllowanceSchema,
   getMyGivenAllowanceSchema,
   getAllowanceGivenToMeSchema,
-} from '../schemas/schema';
+} from '../schemas/schema.js';
 
 /**
  * Gets the amount of tokens that a spender is allowed to spend on behalf of an owner.

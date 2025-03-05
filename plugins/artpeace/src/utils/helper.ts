@@ -1,5 +1,5 @@
-import { placePixelParam } from '../schema';
-import { Checker } from './checker';
+import { placePixelParam } from '../schema/index.js';
+import { Checker } from './checker.js';
 
 /**
  * Helper class for handling pixel placement and position validation in an art system

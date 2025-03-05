@@ -10,18 +10,18 @@ import {
   ITokenValue,
   poolParser,
   WithdrawResult,
-} from '../interfaces';
+} from '../interfaces/index.js';
 import {
   DEFAULT_DECIMALS,
   GENESIS_POOLID,
   VESU_API_URL,
-} from '../constants/index';
-import { Hex, toBN, toU256 } from '../utils/num';
+} from '../constants/index.js';
+import { Hex, toBN, toU256 } from '../utils/num.js';
 import {
   getErc20Contract,
   getExtensionContract,
   getVTokenContract,
-} from '../utils/contracts';
+} from '../utils/contracts.js';
 
 /**
  * Service for managing withdrawal operations from earning positions
@@ -130,7 +130,7 @@ export class WithdrawEarnService {
     );
     const pool = z
       .object({ data: poolParser })
-      .transform(({ data }) => data)
+      .transform(({ data }) => data as IPool)
       .parse(data);
     const assets = await this.getPoolAssetsPriceAndRiskMdx(
       pool.id,

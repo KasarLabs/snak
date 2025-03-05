@@ -1,9 +1,9 @@
 import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { validateToken, formatBalance, detectAbiType } from '../utils/utils';
-import { validToken } from '../types/types';
+import { validateToken, formatBalance, detectAbiType } from '../utils/utils.js';
+import { validToken } from '../types/types.js';
 import { z } from 'zod';
-import { getTotalSupplySchema } from '../schemas/schema';
+import { getTotalSupplySchema } from '../schemas/schema.js';
 
 /**
  * Gets the total supply of an ERC20 token.

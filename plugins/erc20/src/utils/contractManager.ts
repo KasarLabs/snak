@@ -7,9 +7,9 @@ import {
   CompiledSierraCasm,
   Abi,
 } from 'starknet';
-import { ContractDeployResult } from '../types/types';
+import { ContractDeployResult } from '../types/types.js';
 import * as fs from 'fs';
-import { getV3DetailsPayload } from './utils';
+import { getV3DetailsPayload } from './utils.js';
 
 /**
  * Class for managing StarkNet contract operations

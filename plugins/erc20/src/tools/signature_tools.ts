@@ -3,11 +3,11 @@ import {
   transferFromSignatureSchema,
   approveSignatureSchema,
   transferSignatureSchema,
-} from '../schemas/schema';
+} from '../schemas/schema.js';
 
-import { transferSignature } from '../actions/transfer';
-import { approveSignature } from '../actions/approve';
-import { transferFromSignature } from '../actions/transferFrom';
+import { transferSignature } from '../actions/transfer.js';
+import { approveSignature } from '../actions/approve.js';
+import { transferFromSignature } from '../actions/transferFrom.js';
 
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]

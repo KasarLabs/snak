@@ -1,6 +1,6 @@
 import { RpcProvider } from 'starknet';
-import { CreateArgentAccountSignature } from '../../src/actions/createAccount';
-import { DeployArgentAccountSignature } from '../../src/actions/deployAccount';
+import { CreateArgentAccountSignature } from '../../src/actions/createAccount.js';
+import { DeployArgentAccountSignature } from '../../src/actions/deployAccount.js';
 
 describe('AX Account Creation and Deployment', () => {
   let provider: RpcProvider;

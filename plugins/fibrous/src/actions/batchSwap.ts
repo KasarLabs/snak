@@ -1,12 +1,12 @@
 import { Account, Call } from 'starknet';
 
-import { ApprovalService } from './approval';
+import { ApprovalService } from './approval.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { TokenService } from './fetchTokens';
+import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
-import { BatchSwapParams } from '../types';
-import { SLIPPAGE_PERCENTAGE } from '../constants';
+import { BatchSwapParams } from '../types/index.js';
+import { SLIPPAGE_PERCENTAGE } from '../constants/index.js';
 
 export class BatchSwapService {
   private tokenService: TokenService;

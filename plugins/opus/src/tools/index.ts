@@ -9,17 +9,17 @@ import {
   getUserTrovesSchema,
   openTroveSchema,
   repayTroveSchema,
-} from '../schemas';
-import { openTrove } from '../actions/openTrove';
+} from '../schemas/index.js';
+import { openTrove } from '../actions/openTrove.js';
 import {
   getBorrowFee,
   getTroveHealth,
   getUserTroves,
-} from '../actions/getters';
-import { depositTrove } from '../actions/depositTrove';
-import { withdrawTrove } from '../actions/withdrawTrove';
-import { borrowTrove } from '../actions/borrowTrove';
-import { repayTrove } from '../actions/repayTrove';
+} from '../actions/getters.js';
+import { depositTrove } from '../actions/depositTrove.js';
+import { withdrawTrove } from '../actions/withdrawTrove.js';
+import { borrowTrove } from '../actions/borrowTrove.js';
+import { repayTrove } from '../actions/repayTrove.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({

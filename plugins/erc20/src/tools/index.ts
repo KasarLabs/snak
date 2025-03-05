@@ -11,17 +11,17 @@ import {
   getMyGivenAllowanceSchema,
   getAllowanceGivenToMeSchema,
   deployERC20Schema,
-} from '../schemas/schema';
+} from '../schemas/schema.js';
 
-import { getAllowance } from '../actions/getAllowance';
-import { getTotalSupply } from '../actions/getTotaSupply';
-import { transferFrom } from '../actions/transferFrom';
-import { getBalance, getOwnBalance } from '../actions/getBalances';
-import { approve } from '../actions/approve';
-import { transfer } from '../actions/transfer';
-import { getMyGivenAllowance } from '../actions/getAllowance';
-import { getAllowanceGivenToMe } from '../actions/getAllowance';
-import { deployERC20Contract } from '../actions/deployERC20';
+import { getAllowance } from '../actions/getAllowance.js';
+import { getTotalSupply } from '../actions/getTotaSupply.js';
+import { transferFrom } from '../actions/transferFrom.js';
+import { getBalance, getOwnBalance } from '../actions/getBalances.js';
+import { approve } from '../actions/approve.js';
+import { transfer } from '../actions/transfer.js';
+import { getMyGivenAllowance } from '../actions/getAllowance.js';
+import { getAllowanceGivenToMe } from '../actions/getAllowance.js';
+import { deployERC20Contract } from '../actions/deployERC20.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
