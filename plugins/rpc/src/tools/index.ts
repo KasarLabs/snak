@@ -1,16 +1,16 @@
 import { StarknetTool } from '@starknet-agent-kit/agents';
-import { getSpecVersion } from '../actions/getSpecVersion';
-import { getBlockWithTxHashes } from '../actions/getBlockWithTxHashes';
-import { getBlockWithReceipts } from '../actions/getBlockWithReceipts';
-import { getTransactionStatus } from '../actions/getTransactionStatus';
-import { getClass } from '../actions/getClass';
-import { getChainId } from '../actions/getChainId';
-import { getSyncingStats } from '../actions/getSyncingStats';
-import { getBlockNumber } from '../actions/getBlockNumber';
-import { getBlockTransactionCount } from '../actions/getBlockTransactionCount';
-import { getStorageAt } from '../actions/getStorageAt';
-import { getClassAt } from '../actions/getClassAt';
-import { getClassHashAt } from '../actions/getClassHash';
+import { getSpecVersion } from '../actions/getSpecVersion.js';
+import { getBlockWithTxHashes } from '../actions/getBlockWithTxHashes.js';
+import { getBlockWithReceipts } from '../actions/getBlockWithReceipts.js';
+import { getTransactionStatus } from '../actions/getTransactionStatus.js';
+import { getClass } from '../actions/getClass.js';
+import { getChainId } from '../actions/getChainId.js';
+import { getSyncingStats } from '../actions/getSyncingStats.js';
+import { getBlockNumber } from '../actions/getBlockNumber.js';
+import { getBlockTransactionCount } from '../actions/getBlockTransactionCount.js';
+import { getStorageAt } from '../actions/getStorageAt.js';
+import { getClassAt } from '../actions/getClassAt.js';
+import { getClassHashAt } from '../actions/getClassHash.js';
 import {
   getStorageAtSchema,
   blockIdSchema,
@@ -18,7 +18,7 @@ import {
   getClassAtSchema,
   getClassHashAtSchema,
   transactionHashSchema,
-} from '../schema';
+} from '../schema/index.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({

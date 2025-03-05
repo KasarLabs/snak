@@ -1,8 +1,8 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { TokenService } from './fetchTokens';
+import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter, RouteResponse } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
-import { RouteSchemaType } from '../schema';
+import { RouteSchemaType } from '../schema/index.js';
 
 interface RouteResult {
   status: 'success' | 'failure';

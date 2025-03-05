@@ -1,13 +1,13 @@
 import { executeSwap, fetchQuotes, QuoteRequest, Quote } from '@avnu/avnu-sdk';
 import { Account, constants } from 'starknet';
 
-import { ApprovalService } from './approval';
+import { ApprovalService } from './approval.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { SwapParams, SwapResult } from '../types';
-import { DEFAULT_QUOTE_SIZE, SLIPPAGE_PERCENTAGE } from '../constants';
-import { TokenService } from './fetchTokens';
-import { ContractInteractor } from '../utils/contractInteractor';
-import { TransactionMonitor } from '../utils/transactionMonitor';
+import { SwapParams, SwapResult } from '../types/index.js';
+import { DEFAULT_QUOTE_SIZE, SLIPPAGE_PERCENTAGE } from '../constants/index.js';
+import { TokenService } from './fetchTokens.js';
+import { ContractInteractor } from '../utils/contractInteractor.js';
+import { TransactionMonitor } from '../utils/transactionMonitor.js';
 
 /**
  * Service handling token swap operations using AVNU SDK
@@ -79,7 +79,7 @@ export class SwapService {
   ): Promise<SwapResult> {
     try {
       await this.initialize();
-      const provider = agent.getProvider();
+      const provider = this.agent.getProvider();
       const contractInteractor = new ContractInteractor(provider);
 
       const account = new Account(

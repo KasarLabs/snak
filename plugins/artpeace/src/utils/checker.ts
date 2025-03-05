@@ -1,5 +1,5 @@
-import { WorldType } from '../types/WorldType';
-import { ColorAnalyzer } from './colors';
+import { WorldType } from '../types/WorldType.js';
+import { ColorAnalyzer } from './colors.js';
 
 /**
  * Validates and processes parameters for placing pixels on ArtPeace canvas

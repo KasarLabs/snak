@@ -1,7 +1,7 @@
 import { StarknetTool } from '@starknet-agent-kit/agents';
-import { routeSchema, swapSchema } from '../schema';
-import { swapTokens } from '../actions/swap';
-import { getRoute } from '../actions/fetchRoute';
+import { routeSchema, swapSchema } from '../schema/index.js';
+import { swapTokens } from '../actions/swap.js';
+import { getRoute } from '../actions/fetchRoute.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
@@ -15,7 +15,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'avnu_get_route',
     plugins: 'avnu',
-    description: 'Get a specific route for swapping tokens',
+    description: 'Get a specific route',
     schema: routeSchema,
     execute: getRoute,
   });

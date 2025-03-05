@@ -1,6 +1,6 @@
 import { Account, uint256, CallData } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { ERC20_ABI } from '../abi/erc20Abi';
+import { ERC20_ABI } from '../abi/erc20Abi.js';
 import { ContractInteractor } from '../utils/contractInteractor.js';
 import { TransactionMonitor } from '../utils/transactionMonitor.js';
 

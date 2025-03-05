@@ -1,4 +1,4 @@
-import { BlockIdParams } from '../schema';
+import { BlockIdParams } from '../schema/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 export const getBlockStateUpdate = async (

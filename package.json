@@ -8,7 +8,7 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kasarlabs/starknet-agent-kit.git"
+    "url": "git+https://github.com/kasarlabs/snak.git"
   },
   "keywords": [
     "starknet",
@@ -27,6 +27,7 @@
     "clean:all": "lerna run clean:all && pnpm clean",
     "clean:dist": "lerna run clean:dist",
     "build:all": "lerna run build",
+    "build:ci": "lerna run build --scope \"@starknet-agent-kit/agents\" --scope \"@starknet-agent-kit/plugin-*\" --scope \"@starknet-agent-kit/server\"",
     "build:server": "pnpm build:all",
     "build:plugins": "lerna run build --scope \"@starknet-agent-kit/plugin-*\"",
     "build:only": "./scripts/build-only.sh",
@@ -87,10 +88,13 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.6",
     "ts-loader": "^9.5.2",
-    "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.3",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.25.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   },
   "pnpm": {
     "overrides": {

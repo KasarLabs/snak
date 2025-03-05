@@ -1,5 +1,5 @@
-import { Account, BigNumberish, uint256 } from 'starknet';
-import { tokenAddresses } from '../constants/erc20';
+import { Account, uint256 } from 'starknet';
+import { tokenAddresses } from '../constants/erc20.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 /**

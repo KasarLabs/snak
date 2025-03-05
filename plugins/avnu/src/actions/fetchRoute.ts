@@ -1,8 +1,9 @@
 import { fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { TokenService } from './fetchTokens';
-import { RouteSchemaType } from '../schema/index';
-import { RouteResult } from '../interfaces';
+import { TokenService } from './fetchTokens.js';
+import { RouteSchemaType } from '../schema/index.js';
+import { RouteResult } from '../interfaces/index.js';
+import { ContractInteractor } from '../utils/contractInteractor.js';
 
 /**
  * Service class for fetching trading routes
@@ -46,7 +47,15 @@ export class RouteFetchService {
         params.buyTokenSymbol
       );
 
-      const formattedAmount = BigInt(params.sellAmount.toString());
+      const provider = agent.getProvider();
+      const contractInteractor = new ContractInteractor(provider);
+      
+      const formattedAmountStr = contractInteractor.formatTokenAmount(
+        params.sellAmount.toString(),
+        sellToken.decimals
+      );
+      
+      const formattedAmount = BigInt(formattedAmountStr);
 
       const quoteParams: QuoteRequest = {
         sellTokenAddress: sellToken.address,
@@ -57,7 +66,6 @@ export class RouteFetchService {
       };
 
       const quotes = await fetchQuotes(quoteParams);
-
       if (!quotes?.length) {
         return {
           status: 'failure',

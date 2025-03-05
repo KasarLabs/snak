@@ -1,6 +1,6 @@
-import { VerifierParam } from '../../src/types/Atlantic';
-import { verifyProofService } from '../../src/actions/verifyProofService';
-import { createMockStarknetAgent } from '../jest/setEnvVars';
+import { VerifierParam } from '../../src/types/Atlantic.js';
+import { verifyProofService } from '../../src/actions/verifyProofService.js';
+import { createMockStarknetAgent } from '../jest/setEnvVars.js';
 
 const agent = createMockStarknetAgent();
 

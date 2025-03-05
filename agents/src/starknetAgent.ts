@@ -1,16 +1,16 @@
-import { AiConfig, IAgent } from '../common';
-import { createAgent } from './agent';
+import { AiConfig, IAgent } from '../common/index.js';
+import { createAgent } from './agent.js';
 import { RpcProvider } from 'starknet';
-import { createAutonomousAgent } from './autonomousAgents';
+import { createAutonomousAgent } from './autonomousAgents.js';
 import { Scraper } from 'agent-twitter-client';
 import { TwitterApi } from 'twitter-api-v2';
 import {
   TwitterInterface,
   TwitterApiConfig,
   TwitterScraperConfig,
-} from '../common';
-import { JsonConfig } from './jsonConfig';
-import { TelegramInterface } from '../common';
+} from '../common/index.js';
+import { JsonConfig } from './jsonConfig.js';
+import { TelegramInterface } from '../common/index.js';
 import TelegramBot from 'node-telegram-bot-api';
 
 export interface StarknetAgentConfig {
@@ -22,7 +22,7 @@ export interface StarknetAgentConfig {
   accountPrivateKey: string;
   signature: string;
   agentMode: string;
-  agentconfig?: JsonConfig;
+  agentconfig: JsonConfig;
 }
 
 export class StarknetAgent implements IAgent {
@@ -38,7 +38,7 @@ export class StarknetAgent implements IAgent {
 
   public readonly signature: string;
   public readonly agentMode: string;
-  public readonly agentconfig?: JsonConfig | undefined;
+  public readonly agentconfig: JsonConfig;
 
   constructor(private readonly config: StarknetAgentConfig) {
     this.validateConfig(config);
@@ -231,7 +231,7 @@ export class StarknetAgent implements IAgent {
     };
   }
 
-  getAgentConfig(): JsonConfig | undefined {
+  getAgentConfig(): JsonConfig {
     return this.agentconfig;
   }
 

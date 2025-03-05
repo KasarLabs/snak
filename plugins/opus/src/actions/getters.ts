@@ -1,6 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { GetTroveHealthParams, GetUserTrovesParams } from '../schemas';
-import { createTroveManager } from '../utils/troveManager';
+import { GetTroveHealthParams, GetUserTrovesParams } from '../schemas/index.js';
+import { createTroveManager } from '../utils/troveManager.js';
 
 export const getUserTroves = async (
   agent: StarknetAgentInterface,

@@ -1,16 +1,13 @@
-import {
-  StarknetAgentInterface,
-  StarknetTool,
-} from '@starknet-agent-kit/agents';
+import { StarknetTool } from '@starknet-agent-kit/agents';
 import {
   contractAddressSchema,
   launchOnEkuboSchema,
   createMemecoinSchema,
-} from '../schema';
-import { getLockedLiquidity } from '../actions/getLockedLiquidity';
-import { isMemecoin } from '../actions/isMemecoin';
-import { createMemecoin } from '../actions/createMemecoin';
-import { launchOnEkubo } from '../actions/launchOnEkubo';
+} from '../schema/index.js';
+import { getLockedLiquidity } from '../actions/getLockedLiquidity.js';
+import { isMemecoin } from '../actions/isMemecoin.js';
+import { createMemecoin } from '../actions/createMemecoin.js';
+import { launchOnEkubo } from '../actions/launchOnEkubo.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({

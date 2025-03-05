@@ -7,8 +7,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
-import { BaseError } from '../errors/base.error';
-import { ConfigurationService } from '../../config/configuration';
+import { BaseError } from '../errors/base.error.js';
+import { ConfigurationService } from '../../config/configuration.js';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {

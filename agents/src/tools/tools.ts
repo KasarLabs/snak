@@ -1,8 +1,8 @@
 import { tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
-import { TwitterInterface } from '../../common';
-import { JsonConfig } from '../jsonConfig';
-import { TelegramInterface } from '../../common';
+import { TwitterInterface } from '../../common/index.js';
+import { JsonConfig } from '../jsonConfig.js';
+import { TelegramInterface } from '../../common/index.js';
 
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
@@ -18,7 +18,7 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getTwitterAuthMode: () => 'API' | 'CREDENTIALS' | undefined;
-  getAgentConfig: () => JsonConfig | undefined;
+  getAgentConfig: () => JsonConfig;
   getTwitterManager: () => TwitterInterface;
   getTelegramManager: () => TelegramInterface;
 }
@@ -82,7 +82,7 @@ export const registerTools = async (
         index = index + 1;
 
         const imported_tool = await import(
-          `@starknet-agent-kit/plugin-${tool}`
+          `@starknet-agent-kit/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerTools !== 'function') {
           return false;

@@ -1,17 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigurationService } from '../../config/configuration';
-import {
-  AgentCredentialsError,
-  AgentExecutionError,
-  AgentValidationError,
-  StarknetTransactionError,
-} from '../../common/errors';
+
 import {
   IAgentService,
   AgentExecutionResponse,
-} from '../interfaces/agent-service.interface';
-import { IAgent } from '../interfaces/agent.interface';
-import { AgentRequestDTO } from '../dto/agents';
+} from '../interfaces/agent-service.interface.js';
+import { IAgent } from '../interfaces/agent.interface.js';
+import { AgentRequestDTO } from '../dto/agents.js';
+import {
+  AgentValidationError,
+  AgentCredentialsError,
+  AgentExecutionError,
+} from '../../common/errors/agent.errors.js';
+import { ConfigurationService } from '../../config/configuration.js';
+import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 
 @Injectable()
 export class AgentService implements IAgentService {

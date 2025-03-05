@@ -1,6 +1,6 @@
 import { RpcProvider } from 'starknet';
-import { CreateBraavosAccountSignature } from '../../../../../server/agent/plugins/braavos/actions/createAccount';
-import { DeployBraavosAccountSignature } from '../../../../../server/agent/plugins/braavos/actions/deployAccount';
+import { DeployBraavosAccountSignature } from '@plugins/braavos/src/actions/deployAccount.js';
+import { CreateBraavosAccountSignature } from '@plugins/braavos/src/actions/createAccount.js';
 
 describe('Braavos Account Creation and Deployment', () => {
   let provider: RpcProvider;
