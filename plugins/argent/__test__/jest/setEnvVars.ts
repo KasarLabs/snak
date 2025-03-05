@@ -2,8 +2,6 @@ import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
 import {
   StarknetAgentInterface,
-  TransactionMonitor,
-  ContractInteractor,
   TelegramInterface,
   TwitterInterface,
   JsonConfig,
@@ -43,8 +41,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
       signature: '',
     }),
     getProvider: () => provider,
-    transactionMonitor: new TransactionMonitor(provider),
-    contractInteractor: new ContractInteractor(provider),
     getTwitterAuthMode: () => twitter_auth_mode,
     getAgentConfig: () => json_config,
     getTwitterManager: () => twitter_interface,
@@ -81,8 +77,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
       signature: '',
     }),
     getProvider: () => provider,
-    transactionMonitor: new TransactionMonitor(provider),
-    contractInteractor: new ContractInteractor(provider),
     getTwitterAuthMode: () => twitter_auth_mode,
     getAgentConfig: () => json_config,
     getTwitterManager: () => twitter_interface,
