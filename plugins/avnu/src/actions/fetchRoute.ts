@@ -49,12 +49,12 @@ export class RouteFetchService {
 
       const provider = agent.getProvider();
       const contractInteractor = new ContractInteractor(provider);
-      
+
       const formattedAmountStr = contractInteractor.formatTokenAmount(
         params.sellAmount.toString(),
         sellToken.decimals
       );
-      
+
       const formattedAmount = BigInt(formattedAmountStr);
 
       const quoteParams: QuoteRequest = {
