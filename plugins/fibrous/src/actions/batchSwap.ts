@@ -8,6 +8,7 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { BatchSwapParams } from '../types';
 import { SLIPPAGE_PERCENTAGE } from '../constants';
 import { getV3DetailsPayload } from '../utils/utils';
+import { TransactionMonitor } from '../utils/transactionMonitor';
 
 export class BatchSwapService {
   private tokenService: TokenService;
@@ -57,8 +58,9 @@ export class BatchSwapService {
     try {
       await this.initialize();
 
+      const provider = this.agent.getProvider();
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        provider,
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey,
         undefined,
@@ -113,10 +115,7 @@ export class BatchSwapService {
         }
       }
 
-      const swapResult = await account.execute(
-        calldata,
-        getV3DetailsPayload()
-      );
+      const swapResult = await account.execute(calldata, getV3DetailsPayload());
       const { receipt, events } = await this.monitorSwapStatus(
         swapResult.transaction_hash
       );
@@ -131,12 +130,6 @@ export class BatchSwapService {
         events,
       };
     } catch (error) {
-      console.error('Detailed swap error:', error);
-      if (error instanceof Error) {
-        console.error('Error type:', error.constructor.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
       return {
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -145,13 +138,13 @@ export class BatchSwapService {
   }
 
   private async monitorSwapStatus(txHash: string) {
-    const receipt = await this.agent.transactionMonitor.waitForTransaction(
+    const transactionMonitor = new TransactionMonitor(this.agent.getProvider());
+    const receipt = await transactionMonitor.waitForTransaction(
       txHash,
       (status) => console.log('Swap status:', status)
     );
 
-    const events =
-      await this.agent.transactionMonitor.getTransactionEvents(txHash);
+    const events = await transactionMonitor.getTransactionEvents(txHash);
     return { receipt, events };
   }
 }
@@ -178,12 +171,6 @@ export const batchSwapTokens = async (
     const result = await swapService.executeSwapTransaction(params);
     return JSON.stringify(result);
   } catch (error) {
-    console.error('Detailed swap error:', error);
-    if (error instanceof Error) {
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

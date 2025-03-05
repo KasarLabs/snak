@@ -88,25 +88,24 @@ export interface BaseUtilityClass {
 }
 
 /**
-* Result of a contract deployment
-* @property {string} transactionHash - Hash of the deployment transaction
-* @property {string | string[]} contractAddress - Address(es) of the deployed contract(s)
-*/
+ * Result of a contract deployment
+ * @property {string} transactionHash - Hash of the deployment transaction
+ * @property {string | string[]} contractAddress - Address(es) of the deployed contract(s)
+ */
 export interface ContractDeployResult {
-transactionHash: string;
-contractAddress: string | string[];
+  transactionHash: string;
+  contractAddress: string | string[];
 }
 
 /**
-* Result of a transaction operation
-* @property {('success'|'failure')} status - Status of the transaction
-* @property {string} [transactionHash] - Hash of the executed transaction
-* @property {string} [error] - Error message if transaction failed
-*/
+ * Result of a transaction operation
+ * @property {('success'|'failure')} status - Status of the transaction
+ * @property {string} [transactionHash] - Hash of the executed transaction
+ * @property {string} [error] - Error message if transaction failed
+ */
 export interface TransactionResult {
-status: 'success' | 'failure';
-transactionHash?: string;
-contractAddress?: string;
-error?: string;
+  status: 'success' | 'failure';
+  transactionHash?: string;
+  contractAddress?: string;
+  error?: string;
 }
-

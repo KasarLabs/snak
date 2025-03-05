@@ -10,7 +10,6 @@ export const swapSchema = z.object({
   sellAmount: z.number().positive().describe('Amount of tokens to sell'),
 });
 
-
 export const routeSchema = z.object({
   sellTokenSymbol: z
     .string()

@@ -40,7 +40,6 @@ export class RouteFetchService {
 
     try {
       await this.initialize();
-      // console.log('initialized : ', this.tokenService);
 
       const { sellToken, buyToken } = this.tokenService.validateTokenPair(
         params.sellTokenSymbol,
@@ -104,7 +103,6 @@ export const getRoute = async (
     const routeService = new RouteFetchService();
     return routeService.fetchRoute(params, agent);
   } catch (error) {
-    console.error('Route fetching error:', error);
     return {
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

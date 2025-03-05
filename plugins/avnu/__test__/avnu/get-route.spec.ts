@@ -17,8 +17,8 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 10000000000000000,
       };
-      
-      await setTimeout(500); 
+
+      await setTimeout(500);
       const result = await getRoute(agent, params);
 
       console.log('result:', result);
@@ -33,10 +33,10 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'USDC',
         sellAmount: 10000000000000000,
       };
-      
+
       await setTimeout(500); // Prevent rate limiting
       const result = await getRoute(agent, params);
-      
+
       expect(result.status).toBe('success');
       expect(result.route).toBeDefined();
       expect(result.quote).toBeDefined();
@@ -48,10 +48,10 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 10000000000000000,
       };
-      
+
       await setTimeout(500); // Prevent rate limiting
       const result = await getRoute(agent, params);
-      
+
       expect(result.status).toBe('success');
       expect(result.route).toBeDefined();
       expect(result.quote).toBeDefined();
@@ -65,9 +65,9 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 10000000000000000,
       };
-      
+
       const result = await getRoute(agent, params);
-      
+
       expect(result.status).toBe('failure');
       expect(result.error).toContain('not supported');
     });
@@ -78,9 +78,9 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'NONEXISTENT',
         sellAmount: 10000000000000000,
       };
-      
+
       const result = await getRoute(agent, params);
-      
+
       expect(result.status).toBe('failure');
       expect(result.error).toContain('not supported');
     });
@@ -91,9 +91,9 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 0,
       };
-      
+
       const result = await getRoute(agent, params);
-      
+
       expect(result.status).toBe('failure');
     });
 
@@ -103,9 +103,9 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 10000000000000000,
       };
-      
+
       const result = await getRoute(wrong_agent, params);
-      
+
       expect(result.status).toBe('failure');
     });
 
@@ -115,9 +115,9 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 10000000000000000,
       };
-      
+
       const result = await getRoute(agent, params);
-      
+
       expect(result.status).toBe('failure');
       // The exact error might depend on how the API handles this edge case
     });
@@ -130,10 +130,10 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 100000000000,
       };
-      
+
       await setTimeout(500); // Prevent rate limiting
       const result = await getRoute(agent, params);
-      
+
       // May either succeed with a route or fail with a specific message
       if (result.status === 'success') {
         expect(result.route).toBeDefined();
@@ -149,10 +149,10 @@ describe('Get Route with avnu-sdk', () => {
         buyTokenSymbol: 'ETH',
         sellAmount: 1000000000000000000,
       };
-      
+
       await setTimeout(500); // Prevent rate limiting
       const result = await getRoute(agent, params);
-      
+
       // May either succeed with a route or fail with a specific message about liquidity
       if (result.status === 'success') {
         expect(result.route).toBeDefined();

@@ -6,6 +6,8 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { SwapParams, SwapResult } from '../types';
 import { DEFAULT_QUOTE_SIZE, SLIPPAGE_PERCENTAGE } from '../constants';
 import { TokenService } from './fetchTokens';
+import { ContractInteractor } from '../utils/contractInteractor';
+import { TransactionMonitor } from '../utils/transactionMonitor';
 
 /**
  * Service handling token swap operations using AVNU SDK
@@ -77,9 +79,11 @@ export class SwapService {
   ): Promise<SwapResult> {
     try {
       await this.initialize();
+      const provider = agent.getProvider();
+      const contractInteractor = new ContractInteractor(provider);
 
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        provider,
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey,
         undefined,
@@ -92,7 +96,7 @@ export class SwapService {
       );
 
       const formattedAmount = BigInt(
-        this.agent.contractInteractor.formatTokenAmount(
+        contractInteractor.formatTokenAmount(
           params.sellAmount.toString(),
           sellToken.decimals
         )
@@ -112,15 +116,6 @@ export class SwapService {
       }
 
       const quote = quotes[0];
-
-      // Log route information
-      if (quote.routes?.length > 0) {
-        console.log('Route information:', {
-          name: quote.routes[0].name,
-          address: quote.routes[0].address,
-          routeInfo: this.safeStringify(quote.routes[0].routeInfo),
-        });
-      }
 
       const spenderAddress = this.extractSpenderAddress(quote);
 
@@ -144,7 +139,7 @@ export class SwapService {
       const { receipt, events } = await this.monitorSwapStatus(
         swapResult.transactionHash
       );
-      console.log('Swap receipt:', receipt);
+
       return {
         status: 'success',
         message: `Successfully swapped ${params.sellAmount} ${params.sellTokenSymbol} for ${params.buyTokenSymbol}`,
@@ -156,12 +151,6 @@ export class SwapService {
         events,
       };
     } catch (error) {
-      console.error('Detailed swap error:', error);
-      if (error instanceof Error) {
-        console.error('Error type:', error.constructor.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
       return {
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -176,13 +165,13 @@ export class SwapService {
    * @returns {Promise<{receipt: any, events: any}>} Transaction receipt and events
    */
   private async monitorSwapStatus(txHash: string) {
-    const receipt = await this.agent.transactionMonitor.waitForTransaction(
+    const transactionMonitor = new TransactionMonitor(this.agent.getProvider());
+    const receipt = await transactionMonitor.waitForTransaction(
       txHash,
       (status) => console.log('Swap status:', status)
     );
 
-    const events =
-      await this.agent.transactionMonitor.getTransactionEvents(txHash);
+    const events = await transactionMonitor.getTransactionEvents(txHash);
     return { receipt, events };
   }
 }
@@ -216,12 +205,6 @@ export const swapTokens = async (
     const result = await swapService.executeSwapTransaction(params, agent);
     return JSON.stringify(result);
   } catch (error) {
-    // console.error('Detailed swap error:', error);
-    // if (error instanceof Error) {
-    //   console.error('Error type:', error.constructor.name);
-    //   console.error('Error message:', error.message);
-    //   console.error('Error stack:', error.stack);
-    // }
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

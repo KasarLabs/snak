@@ -1,8 +1,6 @@
 import { AiConfig, IAgent } from '../common';
 import { createAgent } from './agent';
 import { RpcProvider } from 'starknet';
-import { TransactionMonitor } from '../common';
-import { ContractInteractor } from '../common';
 import { createAutonomousAgent } from './autonomousAgents';
 import { Scraper } from 'agent-twitter-client';
 import { TwitterApi } from 'twitter-api-v2';
@@ -38,8 +36,6 @@ export class StarknetAgent implements IAgent {
   private twitterAccoutManager: TwitterInterface = {};
   private telegramAccountManager: TelegramInterface = {};
 
-  public readonly transactionMonitor: TransactionMonitor;
-  public readonly contractInteractor: ContractInteractor;
   public readonly signature: string;
   public readonly agentMode: string;
   public readonly agentconfig?: JsonConfig | undefined;
@@ -56,9 +52,6 @@ export class StarknetAgent implements IAgent {
     this.agentMode = config.agentMode;
     this.currentMode = config.agentMode;
     this.agentconfig = config.agentconfig;
-
-    this.transactionMonitor = new TransactionMonitor(this.provider);
-    this.contractInteractor = new ContractInteractor(this.provider);
   }
 
   public async createAgentReactExecutor() {

@@ -306,7 +306,7 @@ export class TroveManager {
     await this.initialize();
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );
@@ -388,7 +388,7 @@ export class TroveManager {
     await this.initialize();
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );
@@ -462,7 +462,7 @@ export class TroveManager {
     await this.initialize();
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );
@@ -534,7 +534,7 @@ export class TroveManager {
     await this.initialize();
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );
@@ -616,7 +616,7 @@ export class TroveManager {
     await this.initialize();
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );

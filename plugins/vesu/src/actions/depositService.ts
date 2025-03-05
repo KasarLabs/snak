@@ -176,7 +176,7 @@ export class DepositEarnService {
   ): Promise<DepositResult> {
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );

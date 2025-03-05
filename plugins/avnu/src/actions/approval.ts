@@ -1,6 +1,8 @@
 import { Account, uint256, CallData } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { ERC20_ABI } from '../abi/erc20Abi';
+import { ContractInteractor } from '../utils/contractInteractor.js';
+import { TransactionMonitor } from '../utils/transactionMonitor.js';
 
 /**
  * Service handling token approvals on Starknet
@@ -43,16 +45,23 @@ export class ApprovalService {
     amount: string
   ): Promise<void> {
     try {
-      const contract = this.agent.contractInteractor.createContract(
+      const contractInteractor = new ContractInteractor(
+        this.agent.getProvider()
+      );
+      const transactionMonitor = new TransactionMonitor(
+        this.agent.getProvider()
+      );
+
+      const contract = contractInteractor.createContract(
         ERC20_ABI,
         tokenAddress,
         account
       );
 
-      console.log('Checking current allowance...');
-      console.log('Account: ', account);
-      const allowanceResult = await contract.allowance(account.address, spenderAddress);
-      console.log("Allowance result: ", allowanceResult);
+      const allowanceResult = await contract.allowance(
+        account.address,
+        spenderAddress
+      );
 
       let currentAllowance: bigint;
       if (Array.isArray(allowanceResult)) {
@@ -62,7 +71,7 @@ export class ApprovalService {
         allowanceResult !== null
       ) {
         const value: any = Object.values(allowanceResult)[0];
-        currentAllowance = BigInt(value.toString()); // check here later
+        currentAllowance = BigInt(value.toString());
       } else {
         currentAllowance = BigInt(allowanceResult.toString());
       }
@@ -75,9 +84,11 @@ export class ApprovalService {
           amount: uint256.bnToUint256(amount),
         });
 
-        
-        contract.connect(account)
-        const approveCall = await contract.approve(spenderAddress, uint256.bnToUint256(amount)); // optimize here too
+        contract.connect(account);
+        const approveCall = await contract.approve(
+          spenderAddress,
+          uint256.bnToUint256(amount)
+        );
 
         console.log(
           'Approve transaction sent:',
@@ -88,23 +99,12 @@ export class ApprovalService {
           throw new Error('No transaction hash in approve result');
         }
 
-        console.log('Waiting for approve transaction...');
-        await this.agent.transactionMonitor.waitForTransaction(
+        await transactionMonitor.waitForTransaction(
           approveCall.transaction_hash,
           (status) => console.log('Approve status:', status)
         );
-
-        console.log('Approve transaction completed');
-      } else {
-        console.log('Sufficient allowance already exists');
       }
     } catch (error) {
-      console.error('Approval error details:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        type: error instanceof Error ? error.constructor.name : typeof error,
-      });
       throw new Error(
         `Failed to approve token: ${error instanceof Error ? error.message : 'Unknown error'}`
       );

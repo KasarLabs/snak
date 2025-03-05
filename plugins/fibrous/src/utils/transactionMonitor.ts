@@ -1,5 +1,5 @@
-import { TransactionReceipt, TransactionStatus } from 'starknet';
 import { BaseUtilityClass } from '../types/index.js';
+import { TransactionStatus, TransactionReceipt } from 'starknet';
 
 export class TransactionMonitor implements BaseUtilityClass {
   constructor(

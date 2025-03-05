@@ -330,7 +330,7 @@ const StarknetAgent = () => {
         result.transaction_type === 'CREATE_ACCOUNT' &&
         result.status === 'success'
       ) {
-        console.log("Create account, account details = ", result);
+        console.log('Create account, account details = ', result);
         const account_details = result as ACCOUNT;
         if (!account_details) {
           throw new Error('Account not set');

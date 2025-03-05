@@ -60,7 +60,6 @@ export class RouteFetchService {
         route,
       };
     } catch (error) {
-      console.error('Route fetching error:', error);
       return {
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -79,7 +78,6 @@ export const getRouteFibrous = async (
     const routeService = new RouteFetchService();
     return routeService.fetchRoute(params);
   } catch (error) {
-    console.error('Route fetching error:', error);
     return {
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

@@ -28,5 +28,16 @@
   "autonomous": true,
   "chat_id": "sak_guide",
   "external_plugins": [],
-  "internal_plugins": ["argent","fibrous","telegram", "okx", "braavos", "openzeppelin","rpc","transaction","token", "avnu"]
+  "internal_plugins": [
+    "argent",
+    "fibrous",
+    "telegram",
+    "okx",
+    "braavos",
+    "openzeppelin",
+    "rpc",
+    "transaction",
+    "token",
+    "avnu"
+  ]
 }
