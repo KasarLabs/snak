@@ -1,7 +1,7 @@
 import { fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { TokenService } from './fetchTokens';
-import { RouteSchemaType } from '../../../fibrous/src/schema';
+import { RouteSchemaType } from '../schema/index';
 import { RouteResult } from '../interfaces';
 
 /**
@@ -40,6 +40,7 @@ export class RouteFetchService {
 
     try {
       await this.initialize();
+      // console.log('initialized : ', this.tokenService);
 
       const { sellToken, buyToken } = this.tokenService.validateTokenPair(
         params.sellTokenSymbol,
@@ -81,7 +82,6 @@ export class RouteFetchService {
         quote,
       };
     } catch (error) {
-      console.error('Route fetching error:', error);
       return {
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -101,8 +101,6 @@ export const getRoute = async (
   params: RouteSchemaType
 ): Promise<RouteResult> => {
   try {
-    const tokenService = new TokenService();
-    await tokenService.initializeTokens();
     const routeService = new RouteFetchService();
     return routeService.fetchRoute(params, agent);
   } catch (error) {

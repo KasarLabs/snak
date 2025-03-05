@@ -49,7 +49,10 @@ export class ApprovalService {
         account
       );
 
+      console.log('Checking current allowance...');
+      console.log('Account: ', account);
       const allowanceResult = await contract.allowance(account.address, spenderAddress);
+      console.log("Allowance result: ", allowanceResult);
 
       let currentAllowance: bigint;
       if (Array.isArray(allowanceResult)) {
@@ -72,7 +75,6 @@ export class ApprovalService {
           amount: uint256.bnToUint256(amount),
         });
 
-        console.log('Calldata:', calldata);
         
         contract.connect(account)
         const approveCall = await contract.approve(spenderAddress, uint256.bnToUint256(amount)); // optimize here too

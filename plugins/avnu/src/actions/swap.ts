@@ -144,7 +144,7 @@ export class SwapService {
       const { receipt, events } = await this.monitorSwapStatus(
         swapResult.transactionHash
       );
-
+      console.log('Swap receipt:', receipt);
       return {
         status: 'success',
         message: `Successfully swapped ${params.sellAmount} ${params.sellTokenSymbol} for ${params.buyTokenSymbol}`,
@@ -216,12 +216,12 @@ export const swapTokens = async (
     const result = await swapService.executeSwapTransaction(params, agent);
     return JSON.stringify(result);
   } catch (error) {
-    console.error('Detailed swap error:', error);
-    if (error instanceof Error) {
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
+    // console.error('Detailed swap error:', error);
+    // if (error instanceof Error) {
+    //   console.error('Error type:', error.constructor.name);
+    //   console.error('Error message:', error.message);
+    //   console.error('Error stack:', error.stack);
+    // }
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
