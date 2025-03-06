@@ -149,7 +149,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -200,7 +200,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -265,7 +265,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -339,7 +339,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -381,7 +381,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -452,7 +452,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -516,7 +516,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -590,7 +590,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -655,7 +655,7 @@ export class PostgresAdaptater {
       } else {
         const queryResponse: QueryResponseInterface = {
           status: 'error',
-          code: '0000',
+          code: '-1',
           error_message: error,
         };
         return queryResponse;
@@ -663,6 +663,37 @@ export class PostgresAdaptater {
     }
   };
 
+  public query = async (query: string): Promise<QueryResponseInterface> => {
+    try {
+      if (this.pool === undefined) {
+        throw new Error('Error database not connected.');
+      }
+      const query_result = await this.pool.query(query);
+      const queryResponse: QueryResponseInterface = {
+        status: 'success',
+        code: '0000',
+        query: query_result,
+      };
+      return queryResponse;
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error) {
+        const error_message = getError(error.code);
+        const queryResponse: QueryResponseInterface = {
+          status: 'error',
+          code: error.code,
+          error_message: error_message,
+        };
+        return queryResponse;
+      } else {
+        const queryResponse: QueryResponseInterface = {
+          status: 'error',
+          code: '-1',
+          error_message: error,
+        };
+        return queryResponse;
+      }
+    }
+  };
   /**
    * Gets the name of the current database
    * @returns {string} The database name
