@@ -119,7 +119,6 @@ describe('Get Route with avnu-sdk', () => {
       const result = await getRoute(agent, params);
 
       expect(result.status).toBe('failure');
-      // The exact error might depend on how the API handles this edge case
     });
   });
 
