@@ -141,10 +141,9 @@ export interface dropTableOptionInterface {
   restrict?: boolean;
 }
 
-
 export interface QueryResponseInterface {
-    status: 'success' | 'error';
-    code : string;
-    error_message?: string;
-    query?: QueryResult;
+  status: 'success' | 'error';
+  code: string;
+  error_message?: string;
+  query?: QueryResult;
 }

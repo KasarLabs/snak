@@ -168,15 +168,15 @@ importers:
       '@starknet-agent-kit/plugin-avnu':
         specifier: workspace:*
         version: link:../plugins/avnu
+      '@starknet-agent-kit/plugin-chat-pool':
+        specifier: workspace:*
+        version: link:../plugins/chat-pool
       '@starknet-agent-kit/plugin-fibrous':
         specifier: workspace:*
         version: link:../plugins/fibrous
       '@starknet-agent-kit/plugin-opus':
         specifier: workspace:*
         version: link:../plugins/opus
-      '@starknet-agent-kit/plugin-postgres':
-        specifier: workspace:*
-        version: link:../plugins/postgres
       '@starknet-agent-kit/plugin-telegram':
         specifier: workspace:*
         version: link:../plugins/telegram
@@ -315,6 +315,12 @@ importers:
         specifier: workspace:*
         version: link:../../agents
 
+  plugins/chat-pool:
+    devDependencies:
+      '@starknet-agent-kit/agents':
+        specifier: workspace:*
+        version: link:../../agents
+
   plugins/fibrous:
     dependencies:
       fibrous-router-sdk:
@@ -338,12 +344,6 @@ importers:
         version: link:../../agents
 
   plugins/opus:
-    devDependencies:
-      '@starknet-agent-kit/agents':
-        specifier: workspace:*
-        version: link:../../agents
-
-  plugins/postgres:
     devDependencies:
       '@starknet-agent-kit/agents':
         specifier: workspace:*

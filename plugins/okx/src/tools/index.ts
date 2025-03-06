@@ -7,8 +7,10 @@ import {
 import { DeployOKXAccount } from '../actions/deployAccount';
 import { CreateOKXAccount } from '../actions/createAccount';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[], agent?: StarknetAgentInterface) => {
-
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent?: StarknetAgentInterface
+) => {
   StarknetToolRegistry.push({
     name: 'create_new_okx_account',
     description:

@@ -44,7 +44,7 @@ export class DatabaseController implements OnModuleInit {
     } catch (error) {
       console.log(error);
       return {
-        status: 'error'
+        status: 'error',
       };
     }
   }

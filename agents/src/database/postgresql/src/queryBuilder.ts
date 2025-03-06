@@ -1,4 +1,4 @@
-import { DEFAULT } from "./types/database";
+import { DEFAULT } from './types/database';
 
 export class QueryBuilder {
   private query: string[] = [];
@@ -15,7 +15,10 @@ export class QueryBuilder {
     return this;
   }
 
-  appendJoinedList(list?: Array<string | number | DEFAULT>, separator : string = ', '): QueryBuilder {
+  appendJoinedList(
+    list?: Array<string | number | DEFAULT>,
+    separator: string = ', '
+  ): QueryBuilder {
     if (list?.length) {
       this.query.push(list.join(separator));
     }

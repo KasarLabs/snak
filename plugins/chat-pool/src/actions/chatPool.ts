@@ -18,7 +18,7 @@ export const insertChatInstruction = async (
       ]),
     });
     if (result.status === 'error') {
-        console.log('Error : ', result.error_message);
+      console.log('Error : ', result.error_message);
       throw new Error(`Error : ${result.code} ${result.error_message}`);
     }
     console.log('Instruction inserted : ', result.query);
