@@ -49,6 +49,10 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     getAgentConfig: () => json_config,
     getTwitterManager: () => twitter_interface,
     getTelegramManager: () => telegram_interface,
+    getDatabase: () => [],
+    connectDatabase: async () => {},
+    createDatabase: async () => {},
+    getDatabaseByName: () => undefined,
   };
 };
 
@@ -87,5 +91,9 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     getAgentConfig: () => json_config,
     getTwitterManager: () => twitter_interface,
     getTelegramManager: () => telegram_interface,
+    getDatabase: () => [],
+    connectDatabase: async () => {},
+    createDatabase: async () => {},
+    getDatabaseByName: () => undefined,
   };
 };

@@ -12,8 +12,8 @@ import {
   updateOptionInterface,
 } from './interfaces/interfaces.js';
 import { getError } from './types/error.js';
-import type { Pool } from 'pg';
-/**
+import pg from 'pg';
+const { Pool } = pg; /**
  * PostgreSQL adapter for database operations
  * @property {string} host - Database server hostname
  * @property {string} user - Username for authentication
@@ -29,7 +29,7 @@ export class PostgresAdaptater {
   private password: string;
   private database: string;
   private port: number;
-  private pool: Pool;
+  private pool: pg.Pool;
   private tables: PostgresTables[] = [];
 
   /**
