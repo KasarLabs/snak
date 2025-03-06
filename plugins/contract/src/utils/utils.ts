@@ -1,12 +1,4 @@
-import {
-  validateAndParseAddress,
-  num,
-  RPC,
-  Contract,
-  Provider,
-  shortString,
-} from 'starknet';
-import { uint256 } from 'starknet';
+
 import { ExecuteV3Args } from '../types/types';
 
 
@@ -65,25 +57,9 @@ export const formatBalance = (
  * @returns {Object} V3 transaction details payload with gas parameters
  */
 export const getV3DetailsPayload = () => {
-  const maxL1Gas = 10000n;
-  const maxL1GasPrice = 100000n * 10n ** 9n;
-
   return {
     version: 3,
     maxFee: 10n ** 16n,
-    feeDataAvailabilityMode: RPC.EDataAvailabilityMode.L1,
-    tip: 10n ** 14n,
-    paymasterData: [],
-    resourceBounds: {
-      l1_gas: {
-        max_amount: num.toHex(maxL1Gas),
-        max_price_per_unit: num.toHex(maxL1GasPrice),
-      },
-      l2_gas: {
-        max_amount: num.toHex(0n),
-        max_price_per_unit: num.toHex(0n),
-      },
-    },
   };
 };
 

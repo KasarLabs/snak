@@ -123,8 +123,6 @@ export class ContractManager {
   ): Promise<any> {
     try {
       const contractCallData = new CallData(this.abi);
-
-      console.log("ARGS : ", constructorArgs);
       const constructorCalldata = contractCallData.compile(
         'constructor',
         constructorArgs

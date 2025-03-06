@@ -1,5 +1,5 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from 'src/lib/agent/tools/tools';
+import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager';
 import { declareContractSchema } from '../schemas/schema';
@@ -15,12 +15,10 @@ export const declareContract = async (
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {
-    // Validate required parameters
     if (!params?.sierraPath || !params?.casmPath) {
       throw new Error('Sierra and CASM file paths are required');
     }
-
-    // Set up provider and account
+    
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
     const account = new Account(
@@ -31,14 +29,12 @@ export const declareContract = async (
       constants.TRANSACTION_VERSION.V3
     );
 
-    // Initialize contract manager and load contract files
     const contractManager = new ContractManager(account);
     await contractManager.loadContractCompilationFiles(
       params.sierraPath,
       params.casmPath
     );
 
-    // Declare the contract
     const declareResponse = await contractManager.declareContract();
     
     console.log('Contract declaration result:', declareResponse);
