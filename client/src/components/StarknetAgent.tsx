@@ -16,7 +16,7 @@ import {
 } from '@/interfaces/starknetagents';
 import { handleInvokeTransactions } from '@/transactions/InvokeTransactions';
 import { ACCOUNT } from '@/interfaces/accout';
-import { InvokeTransaction } from '@/types/starknetagents';
+import { InvokeTransaction } from '@/types/starknetAgents';
 import { handleDeployTransactions } from '@/transactions/DeployAccountTransactions';
 import {
   Select,

@@ -1,11 +1,14 @@
 import {
-  StarknetAgentInterface,
   StarknetTool,
+  StarknetAgentInterface,
 } from '@starknet-agent-kit/agents';
-import { getBalanceSchema, Transferschema } from '../schema';
-import { transfer } from '../actions/transfer';
-import { getBalance, getOwnBalance } from '../actions/getBalances';
-import { getOwnBalanceSchema } from '../schema';
+import {
+  getBalanceSchema,
+  Transferschema,
+  getOwnBalanceSchema,
+} from '../schema/index.js';
+import { transfer } from '../actions/transfer.js';
+import { getBalance, getOwnBalance } from '../actions/getBalances.js';
 
 export const registerTools = (
   StarknetToolRegistry: StarknetTool[],
@@ -22,7 +25,8 @@ export const registerTools = (
   StarknetToolRegistry.push({
     name: 'get_own_balance',
     plugins: 'token',
-    description: 'Get the balance of an asset in your wallet',
+    description:
+      'Get the balance of a cryptocurrency in your wallet. Extract the token symbol (like ETH, USDC) from the user query. Always use a valid token symbol.',
     schema: getOwnBalanceSchema,
     execute: getOwnBalance,
   });

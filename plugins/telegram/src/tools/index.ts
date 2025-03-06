@@ -1,9 +1,9 @@
 import {
-  StarknetAgentInterface,
   StarknetTool,
+  StarknetAgentInterface,
 } from '@starknet-agent-kit/agents';
-import { telegram_get_messages_from_conversation } from '../actions/telegram';
-import { getTelegramMessageUpdateFromConversationSchema } from '../schema';
+import { telegram_get_messages_from_conversation } from '../actions/telegram.js';
+import { getTelegramMessageUpdateFromConversationSchema } from '../schema/index.js';
 
 export const registerTools = (
   StarknetToolRegistry: StarknetTool[],

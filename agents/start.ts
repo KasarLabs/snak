@@ -1,17 +1,21 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { createSpinner } from 'nanospinner';
-import { StarknetAgent } from './src/starknetAgent';
+import { StarknetAgent } from './src/starknetAgent.js';
 import { RpcProvider } from 'starknet';
 import { config } from 'dotenv';
-import { load_json_config } from './src/jsonConfig';
-import { createBox } from './src/formatting';
+import { load_json_config } from './src/jsonConfig.js';
+import { createBox } from './src/formatting.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as fs from 'fs';
 import path from 'path';
-import { log } from 'console';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
@@ -33,14 +37,17 @@ const clearScreen = () => {
   process.stdout.write('\x1Bc');
 };
 
+const createLink = (text: string, url: string): string =>
+  `\u001B]8;;${url}\u0007${text}\u001B]8;;\u0007`;
+
 const logo = `${chalk.cyan(`
-  ____  _             _               _        _                    _     _  ___ _
- / ___|| |_ __ _ _ __| | ___ __   ___| |_     / \\   __ _  ___ _ __ | |_  | |/ (_) |_
- \\___ \\| __/ _\` | '__| |/ / '_ \\ / _ \\ __|   / _ \\ / _\` |/ _ \\ '_ \\| __| | ' /| | __|
-  ___) | || (_| | |  |   <| | | |  __/ |_   / ___ \\ (_| |  __/ | | | |_  | . \\| | |_
- |____/ \\__\\__,_|_|  |_|\\_\\_| |_|\\___|\\__| /_/   \\_\\__, |\\___|_| |_|\\__| |_|\\_\\_|\\__|
-                                                   |___/
-`)}`;
+   _____             __  
+  / ___/____  ____ _/ /__
+  \\__ \\/ __ \\/ __ \`/ //_/
+ ___/ / / / / /_/ / ,<   
+/____/_/ /_/\\__,_/_/|_|  
+
+${chalk.dim('v0.0.11 by ')}${createLink('Kasar', 'https://kasar.io')}`)}`;
 
 const getTerminalWidth = (): number => {
   return Math.min(process.stdout.columns || 80, 100);
@@ -131,7 +138,7 @@ const LocalRun = async () => {
   console.log(logo);
   console.log(
     createBox(
-      'Welcome to Starknet-Agent-Kit',
+      'Welcome to Snak, an advanced Agent engine powered by Starknet.',
       'For more informations, visit our documentation at https://docs.starkagent.ai'
     )
   );
@@ -165,7 +172,7 @@ const LocalRun = async () => {
     spinner.stop();
     await validateEnvVars();
     spinner.success({ text: 'Agent initialized successfully' });
-    const agent_config = load_json_config(agent_config_name);
+    const agent_config = await load_json_config(agent_config_name);
 
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));

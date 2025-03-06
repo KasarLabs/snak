@@ -1,4 +1,4 @@
-import { DEFAULT } from './types/database';
+import { DEFAULT } from './types/database.js';
 
 export class QueryBuilder {
   private query: string[] = [];

@@ -10,15 +10,15 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { AgentRequestDTO } from './dto/agents';
+import { AgentRequestDTO } from './dto/agents.js';
 import { StarknetAgent } from '@starknet-agent-kit/agents';
-import { AgentService } from './services/agent.service';
-import { AgentResponseInterceptor } from './interceptors/response';
-import { FileTypeGuard } from './guard/file-validator.guard';
+import { AgentService } from './services/agent.service.js';
+import { AgentResponseInterceptor } from './interceptors/response.js';
+import { FileTypeGuard } from './guard/file-validator.guard.js';
 import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
-import { getFilename } from './utils';
-import { AgentFactory } from './agents.factory';
+import { getFilename } from './utils/index.js';
+import { AgentFactory } from './agents.factory.js';
 
 @Controller('key')
 @UseInterceptors(AgentResponseInterceptor)
@@ -30,8 +30,13 @@ export class AgentsController implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.agent = await this.agentFactory.createAgent('key', 'agent');
-    this.agent.createAgentReactExecutor();
+    try {
+      this.agent = await this.agentFactory.createAgent('key', 'agent');
+      await this.agent.createAgentReactExecutor();
+    } catch (error) {
+      console.error('Failed to initialize AgentsController:', error);
+      throw error;
+    }
   }
 
   @Post('request')

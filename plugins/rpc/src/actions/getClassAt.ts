@@ -1,6 +1,6 @@
 import { BlockNumber } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { GetClassAtParams } from '../schema';
+import { GetClassAtParams } from '../schema/index.js';
 
 export const getClassAt = async (
   agent: StarknetAgentInterface,

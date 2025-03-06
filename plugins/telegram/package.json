@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "test": "echo \"No test has been created for this plugins\" && exit 0",
     "build": "tsc",
@@ -14,7 +15,6 @@
   "dependencies": {
     "@types/node-telegram-bot-api": "^0.64.7",
     "node-telegram-bot-api": "^0.66.0"
-
   },
   "devDependencies": {
     "@starknet-agent-kit/agents": "workspace:*"

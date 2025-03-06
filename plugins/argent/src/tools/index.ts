@@ -1,7 +1,7 @@
-import { wrapAccountCreationResponse } from '../utils/AccountManager';
-import { CreateArgentAccount } from '../actions/createAccount';
-import { DeployArgentAccount } from '../actions/deployAccount';
-import { accountDetailsSchema } from '../schemas/schema';
+import { wrapAccountCreationResponse } from '../utils/AccountManager.js';
+import { CreateArgentAccount } from '../actions/createAccount.js';
+import { DeployArgentAccount } from '../actions/deployAccount.js';
+import { accountDetailsSchema } from '../schemas/schema.js';
 import {
   StarknetAgentInterface,
   StarknetTool,

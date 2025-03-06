@@ -1,6 +1,6 @@
 import {
-  StarknetAgentInterface,
   StarknetTool,
+  StarknetAgentInterface,
 } from '@starknet-agent-kit/agents';
 
 import {
@@ -14,14 +14,14 @@ import {
   getTwitterUserIdFromUsernameSchema,
   getLastTweetsFromUserSchema,
   getLastUserXTweetSchema,
-} from '../schema';
+} from '../schema/index.js';
 
 import {
   createTwitterpost,
   ReplyTweet,
   createAndPostTwitterThread,
   FollowXUserFromUsername,
-} from '../actions/twitter';
+} from '../actions/twitter.js';
 import {
   getLastUserTweet,
   getLastTweetsOptions,
@@ -30,7 +30,7 @@ import {
   getLastTweetsAndRepliesFromUser,
   getTwitterUserIdFromUsername,
   getTwitterProfileFromUsername,
-} from '../actions/twitter_read';
+} from '../actions/twitter_read.js';
 
 export const registerTools = (
   StarknetToolRegistry: StarknetTool[],

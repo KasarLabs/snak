@@ -1,5 +1,5 @@
-import { insertChatInstruction, readChatPool } from '../actions/chatPool';
-import { insertChatIntructionSchema } from '../schema';
+import { insertChatInstruction, readChatPool } from '../actions/chatPool.js';
+import { insertChatIntructionSchema } from '../schema/index.js';
 import {
   PostgresAdaptater,
   StarknetAgentInterface,

@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
-import { AgentService } from './services/agent.service';
-import { AgentsController } from './agents.controller';
-import { ConfigModule } from '../config/config.module';
-import { WalletController } from './wallet.controller';
-import { WalletService } from './services/wallet.service';
+import { AgentService } from './services/agent.service.js';
+import { AgentsController } from './agents.controller.js';
+import { ConfigModule } from '../config/config.module.js';
+import { WalletController } from './wallet.controller.js';
+import { WalletService } from './services/wallet.service.js';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { AgentFactory } from './agents.factory';
-import { DatabaseController } from './database.controller';
+import { AgentFactory } from './agents.factory.js';
+import { DatabaseController } from './database.controller.js';
 
 @Module({
   imports: [

@@ -1,5 +1,5 @@
 import { Pool, QueryResult } from 'pg';
-import { DEFAULT } from '../types/database';
+import { DEFAULT } from '../types/database.js';
 
 /**
  * Represents a PostgreSQL database connection.

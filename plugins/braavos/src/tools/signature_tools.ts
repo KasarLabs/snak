@@ -1,7 +1,7 @@
 import { SignatureTool } from '@starknet-agent-kit/agents';
-import { accountDetailsSchema } from '../schemas/schema';
-import { CreateBraavosAccountSignature } from '../actions/createAccount';
-import { DeployBraavosAccountSignature } from '../actions/deployAccount';
+import { accountDetailsSchema } from '../schemas/schema.js';
+import { CreateBraavosAccountSignature } from '../actions/createAccount.js';
+import { DeployBraavosAccountSignature } from '../actions/deployAccount.js';
 
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]

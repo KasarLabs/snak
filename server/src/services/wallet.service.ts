@@ -1,14 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigurationService } from '../../config/configuration';
+import { ConfigurationService } from '../../config/configuration.js';
 import {
   AgentCredentialsError,
   AgentValidationError,
-} from '../../common/errors';
-import { IAgent } from '../interfaces/agent.interface';
-import { AgentRequestDTO } from '../dto/agents';
-import { IWalletService } from '../interfaces/wallet-service.inferface';
+} from '../../common/errors/index.js';
+import { IAgent } from '../interfaces/agent.interface.js';
+import { AgentRequestDTO } from '../dto/agents.js';
+import { IWalletService } from '../interfaces/wallet-service.inferface.js';
 import Anthropic from '@anthropic-ai/sdk';
-import { Model } from '@anthropic-ai/sdk/resources';
 
 @Injectable()
 export class WalletService implements IWalletService {

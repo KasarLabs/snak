@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Hex, hexSchemaBase } from '../utils/num';
+import { Hex, hexSchemaBase } from '../utils/num.js';
 import { validateChecksumAddress } from 'starknet';
 
 export type Address = `0x${string}`;
@@ -7,7 +7,7 @@ export type Address = `0x${string}`;
 export const addressSchema = hexSchemaBase
   .min(50, 'Address must be at least 50 characters long')
   .max(66, 'Address must be at most 66 characters long')
-  .refine((value) => {
+  .refine((value: string) => {
     // if it contains uppercase letters, it must match the checksum
     if (/[A-F]/.test(value)) {
       return validateChecksumAddress(value);
@@ -15,7 +15,7 @@ export const addressSchema = hexSchemaBase
     // if it only contains lowercase letters, it's valid
     return true;
   }, 'Address is not a valid checksum address')
-  .transform<Address>((value) => {
+  .transform<Address>((value: string) => {
     // remove 0x prefix
     const withoutPrefix = value.startsWith('0x') ? value.slice(2) : value;
     // pad left until length is 64

@@ -1,6 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { BorrowTroveParams } from '../schemas';
-import { createTroveManager } from '../utils/troveManager';
+import { BorrowTroveParams } from '../schemas/index.js';
+import { createTroveManager } from '../utils/troveManager.js';
 
 export const borrowTrove = async (
   agent: StarknetAgentInterface,

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { formatValue } from '../utils/format';
+import { formatValue } from '../utils/format.js';
 
 // Wadray types
 

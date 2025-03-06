@@ -1,5 +1,4 @@
-import { Pool, QueryResult } from 'pg';
-import { QueryBuilder } from './queryBuilder';
+import { QueryBuilder } from './queryBuilder.js';
 import {
   deleteOptionInterface,
   dropSchemaOptionInterface,
@@ -11,9 +10,9 @@ import {
   QueryResponseInterface,
   selectOptionInterface,
   updateOptionInterface,
-} from './interfaces/interfaces';
-import { getError } from './types/error';
-
+} from './interfaces/interfaces.js';
+import { getError } from './types/error.js';
+import type { Pool } from 'pg';
 /**
  * PostgreSQL adapter for database operations
  * @property {string} host - Database server hostname

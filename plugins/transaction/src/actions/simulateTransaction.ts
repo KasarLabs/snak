@@ -8,10 +8,10 @@ import {
   Invocation_Deploy,
   SimulateDeclareTransactionAccountParams,
   Invocation_Declare,
-} from '../types/simulateTransactionTypes';
+} from '../types/simulateTransactionTypes.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { TransactionReponseFormat } from '../utils/outputSimulateTransaction';
-import { DEFAULT_NONCE } from '../constant';
+import { TransactionReponseFormat } from '../utils/outputSimulateTransaction.js';
+import { DEFAULT_NONCE } from '../constant/index.js';
 
 /**
  * Simulates invoke transaction

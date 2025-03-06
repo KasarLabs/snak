@@ -15,7 +15,7 @@ import {
   AccountResponse,
   BaseUtilityClass,
   TransactionResult,
-} from '../types/accounts';
+} from '../types/accounts.js';
 
 /**
  * Manages Braavos wallet operations using Starknet's proxy pattern.
