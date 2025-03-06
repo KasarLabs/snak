@@ -13,8 +13,7 @@ const initializeTools = async (
     await agent.createDatabase('chat_pool_db');
     const database = agent.getDatabaseByName('chat_pool_db');
     if (!database) {
-      console.log('Database not found');
-      return;
+      throw new Error('Database not found');
     }
 
     const result = await database.createTable({
@@ -42,7 +41,7 @@ const initializeTools = async (
     }
     return database;
   } catch (error) {
-    console.log(error);
+    console.error(error);
   }
 };
 
@@ -52,7 +51,7 @@ export const registerTools = async (
 ) => {
   const database_instance = await initializeTools(agent);
   if (!database_instance) {
-    console.log('Error while initializing database');
+    console.error('Error while initializing database');
     return;
   }
   StarknetToolRegistry.push({

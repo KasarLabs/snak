@@ -18,14 +18,11 @@ export const insertChatInstruction = async (
       ]),
     });
     if (result.status === 'error') {
-      console.log('Error : ', result.error_message);
-      throw new Error(`Error : ${result.code} ${result.error_message}`);
+      throw new Error(`Error[${result.code}] : ${result.error_message}`);
     }
-    console.log('Instruction inserted : ', result.query);
     return JSON.stringify({ status: 'success' });
   } catch (error) {
-    console.log(error);
-    return JSON.stringify({ status: 'error' });
+    return JSON.stringify({ status: 'error', error_message: error });
   }
 };
 
@@ -53,7 +50,6 @@ export const readChatPool = async (agent: StarknetAgentInterface) => {
     }
     return JSON.stringify({ status: 'success', instructions: instructions });
   } catch (error) {
-    console.log(error);
-    return JSON.stringify({ status: 'error' });
+    return JSON.stringify({ status: 'error', error_message: error });
   }
 };

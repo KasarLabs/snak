@@ -42,7 +42,6 @@ export class PostgresAdaptater {
     this.password = params.password;
     this.database = params.database;
     this.port = params.port;
-    console.log('Your PostgresAdaptater is ready.');
   }
 
   /**
@@ -59,9 +58,6 @@ export class PostgresAdaptater {
     });
 
     this.pool = pool;
-    console.log(
-      `CreateDatabe connection on database : ${this.database} is succesfull.`
-    );
     try {
       await pool.query('SELECT NOW()');
     } catch (error) {
@@ -85,20 +81,18 @@ export class PostgresAdaptater {
       throw new Error('Error database_name is undefined.');
     }
     try {
-      console.log(`CREATE DATABASE ${database_name};`);
+      // console.log(`CREATE DATABASE ${database_name};`);
       const create_db = await this.pool.query(
         `CREATE DATABASE ${database_name};`
       );
-      console.log('CreateDatabase : ', create_db);
       return true;
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          console.log('Database already exist. Skip creation.');
+          console.error('Database already exist. Skip creation.');
           return true;
         }
       }
-      console.log(error);
       return false;
     }
   };
@@ -113,7 +107,8 @@ export class PostgresAdaptater {
       }
       await this.pool.end();
     } catch (error) {
-      console.log(error);
+      console.error('Error closing database connection:', error);
+      throw error;
     }
   };
 
@@ -134,8 +129,8 @@ export class PostgresAdaptater {
         commandline = commandline + 'IF NOT EXISTS ';
       }
       commandline = commandline + schema.name + ';';
-      console.log('CreateSchemaFromPostgresDatabaseName : ', commandline);
       const schema_result = await this.pool.query(commandline);
+
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -179,15 +174,13 @@ export class PostgresAdaptater {
 
       const queryBuilder = new QueryBuilder();
       queryBuilder
-        .append('DROP SCHEMA ')
-        .appendIf(options.if_exists || false, 'IF EXISTS ')
+        .append('DROP SCHEMA')
+        .appendIf(options.if_exists || false, 'IF EXISTS')
         .append(options.schema_name)
-        .appendIf(options.cascade || false, ' CASCADE ')
-        .appendIf(options.restrict || false, 'RESTRICT ')
-        .append(options.schema_name);
+        .appendIf(options.cascade || false, 'CASCADE')
+        .appendIf(options.restrict || false, 'RESTRICT');
 
       const query = queryBuilder.build();
-      console.log(query);
       const drop_schema_result = await this.pool.query(query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
@@ -230,22 +223,29 @@ export class PostgresAdaptater {
       if (tables === undefined) {
         throw new Error('Error tables is undefined.');
       }
+      if (tables.fields.size === 0) {
+        throw new Error('Error fields is empty.');
+      }
+
+      const fullTableName = tables.schema
+        ? `${tables.schema}.${tables.table_name}`
+        : tables.table_name;
 
       const queryBuilder = new QueryBuilder();
-      queryBuilder.append('CREATE TABLE ');
+      queryBuilder.append('CREATE TABLE');
       if (tables.if_not_exist === true) {
         queryBuilder.append('IF NOT EXISTS');
       }
-      queryBuilder.append(tables.table_name);
+      queryBuilder.append(fullTableName);
       queryBuilder.append('(');
       const fields: Array<string> = [];
       tables.fields.forEach((value, key) => {
         fields.push(key + ' ' + value);
       });
-      queryBuilder.append(fields.join(','));
+      queryBuilder.append(fields.join(', '));
       queryBuilder.append(')');
       const query = queryBuilder.build();
-      console.log(query);
+      this.tables.push(tables);
       const result_create_table = await this.pool.query(query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
@@ -278,15 +278,18 @@ export class PostgresAdaptater {
    * @param {PostgresTables} table - Table configuration
    */
   public async addExistingTable(table: PostgresTables) {
-    if (this.pool === undefined) {
-      console.log('Error database not connected.');
-      return;
+    try {
+      if (this.pool === undefined) {
+        throw new Error('Error database not connected.');
+      }
+      if (this.tables.find((table) => table.table_name === table.table_name)) {
+        throw new Error('Error table already exists.');
+      }
+      this.tables.push(table);
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-    if (this.tables.find((table) => table.table_name === table.table_name)) {
-      console.log('Error table already exist.');
-      return;
-    }
-    this.tables.push(table);
   }
 
   /**
@@ -301,8 +304,8 @@ export class PostgresAdaptater {
       if (this.pool === undefined) {
         throw new Error('Error database not connected.');
       }
-      if (!options.schema_name) {
-        throw new Error('Error schema_name is undefined.');
+      if (!options.table_name) {
+        throw new Error('Error table_name is undefined');
       }
 
       const queryBuilder = new QueryBuilder();
@@ -310,14 +313,13 @@ export class PostgresAdaptater {
         ? `${options.schema_name}.${options.table_name}`
         : options.table_name;
       queryBuilder
-        .append('DROP TABLE ')
-        .appendIf(options.if_exists || false, 'IF EXISTS ')
+        .append('DROP TABLE')
+        .appendIf(options.if_exists || false, 'IF EXISTS')
         .append(fullTableName)
-        .appendIf(options.cascade || false, 'CASCADE ')
-        .appendIf(options.restrict || false, 'RESTRICT ');
+        .appendIf(options.cascade || false, 'CASCADE')
+        .appendIf(options.restrict || false, 'RESTRICT');
 
       const query = queryBuilder.build();
-      console.log(query);
       const drop_table_result = await this.pool.query(query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
@@ -402,6 +404,7 @@ export class PostgresAdaptater {
       if (options.table_name === undefined) {
         throw new Error('Error table_name is undefined.');
       }
+      console.log(this.tables);
       const table = this.tables.find(
         (table) => table.table_name === options.table_name
       );
@@ -426,11 +429,10 @@ export class PostgresAdaptater {
       queryBuilder
         .append('VALUES')
         .append('(')
-        .appendJoinedList(Array.from(options.fields.values()))
+        .appendJoinedListType(Array.from(options.fields.values()))
         .append(')');
 
       const query = queryBuilder.build();
-      console.log('Insert Database : ', query);
       const insert_result = await this.pool.query(query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
@@ -483,21 +485,19 @@ export class PostgresAdaptater {
         }
         return table.schema ? `${table.schema}.${table_name}` : table_name;
       });
-      console.log('SELECT tables name :' + full_table_names.join(','));
       const queryBuilder = new QueryBuilder();
-      queryBuilder.append('SELECT');
+      queryBuilder.append('SELECT ');
       queryBuilder.appendJoinedList(options.SELECT);
-      queryBuilder.append('FROM');
+      queryBuilder.append('FROM ');
       queryBuilder.appendJoinedList(full_table_names);
       if (options.ALIAS) {
         queryBuilder.append('AS ' + options.ALIAS);
       }
       if (options.WHERE) {
-        queryBuilder.append('WHERE').appendJoinedList(options.WHERE, ' AND ');
+        queryBuilder.append('WHERE ').appendJoinedList(options.WHERE, ' AND ');
       }
       const query = queryBuilder.build();
       const select_result = await this.pool.query(query);
-      console.log('SelectTable : ', query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -530,31 +530,30 @@ export class PostgresAdaptater {
    * @param {updateOptionInterface} options - Update options
    */
   public update = async (
-    table_name: string,
     options: updateOptionInterface
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
         throw new Error('Error database not connected.');
       }
-      if (table_name === undefined) {
+      if (options.table_name === undefined) {
         throw new Error('Error table_name is undefined.');
       }
       const table = this.tables.find(
-        (table) => table.table_name === table_name
+        (table) => table.table_name === options.table_name
       );
       if (table === undefined) {
         throw new Error('Error table not found.');
       }
       const queryBuilder = new QueryBuilder();
       const fullTableName = table.schema
-        ? `${table.schema}.${table_name}`
-        : table_name;
+        ? `${table.schema}.${options.table_name}`
+        : options.table_name;
 
       queryBuilder
         .append('UPDATE')
         .appendIf(options.ONLY, 'ONLY')
-        .append(fullTableName + (options.ONLY ? ' ' : ' * '));
+        .append(fullTableName);
 
       if (options.ALIAS) {
         queryBuilder.append('AS ' + options.ALIAS);
@@ -572,7 +571,6 @@ export class PostgresAdaptater {
       }
 
       const query = queryBuilder.build();
-      console.log('UpdateTable : ', query);
       const update_result = await this.pool.query(query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
@@ -627,7 +625,7 @@ export class PostgresAdaptater {
       queryBuilder
         .append('DELETE FROM')
         .appendIf(options.ONLY, 'ONLY')
-        .append(fullTableName + (options.ONLY ? ' ' : ' * '));
+        .append(fullTableName);
       if (options.ALIAS) {
         queryBuilder.append('AS ' + options.ALIAS);
       }
@@ -638,7 +636,6 @@ export class PostgresAdaptater {
         queryBuilder.append('WHERE').appendJoinedList(options.WHERE, ' AND ');
       }
       const query = queryBuilder.build();
-      console.log('DeleteTable : ', query);
       const delete_result = await this.pool.query(query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',

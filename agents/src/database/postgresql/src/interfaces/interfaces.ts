@@ -20,11 +20,12 @@ export interface PostgresDatabase {
 export interface insertOptionInterface {
   table_name: string;
   ALIAS?: string;
-  fields: Map<string, string | number | DEFAULT>;
+  fields: Map<string, string | number | boolean | null | Array<string>>;
 }
 
 /**
  * Options for updating data in a PostgreSQL table.
+ * @property {string} table_name - Name of the table to delete data from
  * @property {boolean} ONLY - Whether to update only the specified table (true) or also child tables (false)
  * @property {string} [ALIAS] - Optional alias for the table
  * @property {string[]} SET - Array of SET expressions defining values to update
@@ -32,6 +33,7 @@ export interface insertOptionInterface {
  * @property {string[]} [WHERE] - Optional WHERE conditions
  */
 export interface updateOptionInterface {
+  table_name: string;
   ONLY: boolean;
   ALIAS?: string;
   SET: string[];
