@@ -23,11 +23,8 @@ export const deployContractSchema = z.object({
     description: "Class hash of the declared contract to deploy",
   }),
   abiPath: z.string().optional().describe("Path to the contract ABI file"),
-  sierra: z.string().optional().describe("Path to Sierra file when not using separate ABI"),
-  casm: z.string().optional().describe("Path to CASM file when not using separate ABI"),
-  
-  // Accepter des arguments de constructeur sous forme de chaînes
-  // L'ordre doit correspondre à celui retourné par getConstructorParams
+  sierraPath: z.string().optional().describe("Path to Sierra file when not using separate ABI"),
+  casmPath: z.string().optional().describe("Path to CASM file when not using separate ABI"),
   constructorArgs: z.array(z.string()).optional().describe(
     "Arguments for the contract constructor in the order specified by getConstructorParams"
   ),
@@ -37,8 +34,14 @@ export const deployContractSchema = z.object({
  * Schema for getting constructor parameters
  */
 export const getConstructorParamsSchema = z.object({
-  classHash: z.string().optional().describe("Class hash of the declared contract"),
+  classHash: z.string({
+    required_error: "Class hash is required",
+    description: "Class hash of the declared contract to deploy",
+  }),
   abiPath: z.string().optional().describe("Path to the contract ABI file"),
-  sierraPath: z.string().optional().describe("Path to the Sierra file"),
-  casmPath: z.string().optional().describe("Path to the CASM file"),
+  sierraPath: z.string().optional().describe("Path to Sierra file when not using separate ABI"),
+  casmPath: z.string().optional().describe("Path to CASM file when not using separate ABI"),
+  constructorArgs: z.array(z.string()).optional().describe(
+    "Arguments for the contract constructor in the order specified by getConstructorParams"
+  ),
 });

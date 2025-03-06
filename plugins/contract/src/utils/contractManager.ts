@@ -33,6 +33,7 @@ export class ContractManager {
       this.compiledSierra = JSON.parse(
         fs.readFileSync(sierraPath).toString('ascii')
       );
+
       this.compiledCasm = JSON.parse(
         fs.readFileSync(casmPath).toString('ascii')
       );
@@ -94,6 +95,7 @@ export class ContractManager {
         casm: this.compiledCasm,
       };
 
+      // console.log('Declaring contract:', declarePayload);
       const declareResponse = await this.account.declare(
         declarePayload,
         getV3DetailsPayload()

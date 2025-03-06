@@ -3,6 +3,7 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager';
 import { deployContractSchema } from '../schemas/schema';
+import { resolveContractFilePath } from '../utils/utils';
 
 /**
  * Deploys a contract on StarkNet using an existing class hash
@@ -19,6 +20,7 @@ export const deployContract = async (
       throw new Error('Class hash is required for deployment');
     }
 
+    console.log('\n\nDEPLOYING...');
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
     const account = new Account(
@@ -30,18 +32,18 @@ export const deployContract = async (
     );
 
     const contractManager = new ContractManager(account);
-    
+    console.log("PARAMS = ", params);
     if (params.abiPath) {
-      await contractManager.loadAbiFile(params.abiPath);
+      await contractManager.loadAbiFile(resolveContractFilePath(params.abiPath));
     }
-    else if (params.sierra && params.casm) {
-      await contractManager.loadContractCompilationFiles(params.sierra, params.casm);
+    else if (params.sierraPath && params.casmPath) {
+      await contractManager.loadContractCompilationFiles(resolveContractFilePath(params.sierraPath), resolveContractFilePath(params.casmPath));
       await contractManager.loadAbiFile();
     }
     else {
       throw new Error('Either ABI path or Sierra and CASM paths are required');
     }
-    console.log('ABI loaded:', contractManager.abi);
+    console.log('\n\nABI loaded');
 
     const constructorParamDefs = contractManager.extractConstructorParams();
 

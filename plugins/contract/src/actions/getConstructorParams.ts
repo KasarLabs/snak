@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager';
 import { Account, constants } from 'starknet';
 import { getConstructorParamsSchema } from '../schemas/schema';
+import { resolveContractFilePath } from '../utils/utils';
 
 /**
  * Retrieves the constructor parameters for a contract
@@ -25,11 +26,12 @@ export const getConstructorParams = async (
     
     const contractManager = new ContractManager(account);
     
+    console.log('\n\nGETCONSTRUCTORPARAMS : Loading contract files:', params.abiPath, params.sierraPath, params.casmPath);
     if (params.abiPath) {
-      await contractManager.loadAbiFile(params.abiPath);
-    } 
+      await contractManager.loadAbiFile(resolveContractFilePath(params.abiPath));
+    }
     else if (params.sierraPath && params.casmPath) {
-      await contractManager.loadContractCompilationFiles(params.sierraPath, params.casmPath);
+      await contractManager.loadContractCompilationFiles(resolveContractFilePath(params.sierraPath), resolveContractFilePath(params.casmPath));
       await contractManager.loadAbiFile();
     }
     else {
@@ -40,7 +42,7 @@ export const getConstructorParams = async (
     
     return JSON.stringify({
       status: 'success',
-      constructorParamNames: constructorParams.map(param => param.name),
+      constructorParams: constructorParams.map(param => param.name),
       paramCount: constructorParams.length
     });
     

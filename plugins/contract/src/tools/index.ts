@@ -11,27 +11,27 @@ import { declareContract } from '../actions/declareContract';
 import { deployContract } from '../actions/deployContract';
 import { getConstructorParams } from '../actions/getConstructorParams';
 
-export const registerContractTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'declare_contract',
     plugins: 'contract',
-    description: 'Declare a contract on StarkNet using Sierra and CASM files',
+    description: 'Declare a contract on StarkNet using Sierra and CASM files. This is the first step in the deployment process if no classhash is provided.',
     schema: declareContractSchema,
     execute: declareContract,
   });
 
   StarknetToolRegistry.push({
-    name: 'deploy_contract',
+    name: 'step2_deploy_contract',
     plugins: 'contract',
-    description: 'Deploy a previously declared contract on StarkNet with constructor arguments',
+    description: 'ALWAYS use prepare_deploy FIRST, then deploy a contract on StarkNet using the class hash. This tool requires the class hash and MUST be called after prepare_deploy, even if you think you have all the arguments.',
     schema: deployContractSchema,
     execute: deployContract,
   });
 
   StarknetToolRegistry.push({
-    name: 'get_constructor_params',
+    name: 'step1_prepare_deploy',
     plugins: 'contract',
-    description: 'Get the constructor parameters for a contract to understand what arguments are needed for deployment',
+    description: 'Prepare the deployment. ALWAYS use this before deploying a contract to understand the required arguments and their correct order. This tool returns the exact parameter names required by the contract constructor',
     schema: getConstructorParamsSchema,
     execute: getConstructorParams,
   });

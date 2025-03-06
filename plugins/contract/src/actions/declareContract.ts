@@ -3,6 +3,7 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager';
 import { declareContractSchema } from '../schemas/schema';
+import { resolveContractFilePath } from '../utils/utils';
 
 /**
  * Declares a contract on StarkNet
@@ -19,6 +20,11 @@ export const declareContract = async (
       throw new Error('Sierra and CASM file paths are required');
     }
     
+    const sierraPath = resolveContractFilePath(params.sierraPath);
+    const casmPath = resolveContractFilePath(params.casmPath);
+
+    console.log('\n\nDeclaring contract with Sierra:', sierraPath, 'and CASM:', casmPath);
+
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
     const account = new Account(
@@ -31,18 +37,20 @@ export const declareContract = async (
 
     const contractManager = new ContractManager(account);
     await contractManager.loadContractCompilationFiles(
-      params.sierraPath,
-      params.casmPath
+      sierraPath,
+      casmPath
     );
 
     const declareResponse = await contractManager.declareContract();
     
-    console.log('Contract declaration result:', declareResponse);
+    // console.log('Contract declaration result:', declareResponse);
     
     return JSON.stringify({
       status: 'success',
       transactionHash: declareResponse.transactionHash,
       classHash: declareResponse.classHash,
+      sierraPath: sierraPath,
+      casmPath: casmPath
     });
   } catch (error) {
     console.error('Contract declaration failed:', error);

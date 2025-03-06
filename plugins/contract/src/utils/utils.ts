@@ -1,6 +1,6 @@
-
 import { ExecuteV3Args } from '../types/types';
-
+import path from 'path';
+import fs from 'fs';
 
 /**
  * Returns the number of decimals for a token
@@ -86,3 +86,35 @@ export const executeV3Transaction = async ({
   return transaction_hash;
 };
 
+
+/**
+ * Resolves file paths to locate contract files
+ * @param {string} filePath - Original file path provided
+ * @returns {string} Resolved file path
+ */
+export function resolveContractFilePath(filePath: string): string {
+  // Try multiple possible base directories
+  const possiblePaths = [
+    // 1. Use as-is (if absolute)
+    filePath,
+    // 2. Relative to current working directory
+    path.resolve(process.cwd(), filePath),
+    // 3. Relative to the project root (assuming agents is at root level)
+    path.resolve(process.cwd(), '..', filePath),
+    // 4. Specific to your project structure
+    path.resolve(process.cwd(), '..', 'plugins', 'contract', 'src', 'contract', path.basename(filePath))
+  ];
+
+  // Return the first path that exists
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      console.log(`Found file at: ${p}`);
+      return p;
+    }
+  }
+
+  // If no valid path found, return the original (will fail later with better error)
+  console.error(`Could not resolve path for: ${filePath}`);
+  console.error(`Tried the following paths: ${possiblePaths.join(', ')}`);
+  return filePath;
+}
