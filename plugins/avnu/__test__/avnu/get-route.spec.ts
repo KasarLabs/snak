@@ -2,9 +2,9 @@ import { setTimeout } from 'timers/promises';
 import {
   createMockInvalidStarknetAgent,
   createMockStarknetAgent,
-} from '../jest/setEnvVars';
-import { getRoute } from '../../src/actions/fetchRoute';
-import { RouteSchemaType } from '../../../fibrous/src/schema';
+} from '../jest/setEnvVars.js';
+import { getRoute } from '../../src/actions/fetchRoute.js';
+import { RouteSchemaType } from '../../src/schema/index.js';
 
 const agent = createMockStarknetAgent();
 const wrong_agent = createMockInvalidStarknetAgent();
@@ -15,7 +15,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'STRK',
         buyTokenSymbol: 'ETH',
-        sellAmount: 10000000000000000,
+        sellAmount: 0.01,
       };
 
       await setTimeout(500);
@@ -31,7 +31,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'ETH',
         buyTokenSymbol: 'USDC',
-        sellAmount: 10000000000000000,
+        sellAmount: 0.01,
       };
 
       await setTimeout(500); // Prevent rate limiting
@@ -46,7 +46,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'STRK',
         buyTokenSymbol: 'ETH',
-        sellAmount: 10000000000000000,
+        sellAmount: 0.01,
       };
 
       await setTimeout(500); // Prevent rate limiting
@@ -63,7 +63,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'NONEXISTENT',
         buyTokenSymbol: 'ETH',
-        sellAmount: 10000000000000000,
+        sellAmount: 0.01,
       };
 
       const result = await getRoute(agent, params);
@@ -76,7 +76,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'ETH',
         buyTokenSymbol: 'NONEXISTENT',
-        sellAmount: 10000000000000000,
+        sellAmount: 0.01,
       };
 
       const result = await getRoute(agent, params);
@@ -101,7 +101,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'STRK',
         buyTokenSymbol: 'ETH',
-        sellAmount: 10000000000000000,
+        sellAmount: 0.01,
       };
 
       const result = await getRoute(wrong_agent, params);
@@ -113,7 +113,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'ETH',
         buyTokenSymbol: 'ETH',
-        sellAmount: 10000000000000000,
+        sellAmount: 0.01,
       };
 
       const result = await getRoute(agent, params);
@@ -147,7 +147,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'STRK',
         buyTokenSymbol: 'ETH',
-        sellAmount: 1000000000000000000,
+        sellAmount: 0.0100,
       };
 
       await setTimeout(500); // Prevent rate limiting

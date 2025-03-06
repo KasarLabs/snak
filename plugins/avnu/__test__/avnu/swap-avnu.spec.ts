@@ -2,9 +2,9 @@ import { setTimeout } from 'timers/promises';
 import {
   createMockInvalidStarknetAgent,
   createMockStarknetAgent,
-} from '../jest/setEnvVars';
-import { swapTokens } from '../../src/actions/swap';
-import { SwapParams } from '../../src/types/index';
+} from '../jest/setEnvVars.js';
+import { swapTokens } from '../../src/actions/swap.js';
+import { SwapParams } from '../../src/types/index.js';
 
 const agent = createMockStarknetAgent();
 const wrong_agent = createMockInvalidStarknetAgent();
