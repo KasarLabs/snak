@@ -287,8 +287,6 @@ export class PostgresAdaptater {
       }
       this.tables.push(table);
     } catch (error) {
-      console.error(error);
-      throw error;
     }
   }
 

@@ -26,7 +26,6 @@ const initializeTools = async (
     });
     if (result.status === 'error') {
       if (result.code === '42P07') {
-        console.log(result.code + result.error_message);
         database.addExistingTable({
           table_name: 'sak_table_chat',
           if_not_exist: false,
@@ -35,6 +34,7 @@ const initializeTools = async (
             ['instruction', 'VARCHAR(255) NOT NULL'],
           ]),
         });
+        return database;
       } else {
         throw new Error(`Error ${result.code} : ${result.error_message}`);
       }
