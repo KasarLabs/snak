@@ -5,7 +5,8 @@ import {
 import { placePixel } from '../actions/placePixel';
 import { placePixelSchema } from '../schema';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[], agent?: StarknetAgentInterface) => {
+
   StarknetToolRegistry.push({
     name: 'place_pixel',
     plugins: 'art-peace',

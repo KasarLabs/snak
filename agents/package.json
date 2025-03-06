@@ -38,6 +38,8 @@
     "@starknet-agent-kit/plugin-telegram": "workspace:*",
     "@starknet-agent-kit/plugin-artpeace": "workspace:*",
     "@starknet-agent-kit/plugin-atlantic": "workspace:*",
+    "@starknet-agent-kit/plugin-chat-pool": "workspace:*",
     "@starknet-agent-kit/plugin-opus": "workspace:*"
+
   }
 }

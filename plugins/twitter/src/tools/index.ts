@@ -32,7 +32,8 @@ import {
   getTwitterProfileFromUsername,
 } from '../actions/twitter_read';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[], agent?: StarknetAgentInterface) => {
+
   // Twitter Tools
   StarknetToolRegistry.push({
     name: 'create_twitter_post',

@@ -2,7 +2,7 @@
 export * from './src/agent';
 export * from './src/starknetAgent';
 export * from './src/autonomousAgents';
-
+export * from './src/database/postgresql/src/database';
 // Plugin exports
 
 // Utilities

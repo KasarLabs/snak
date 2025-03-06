@@ -7,7 +7,8 @@ import {
 import { DeployBraavosAccount } from '../actions/deployAccount';
 import { CreateBraavosAccount } from '../actions/createAccount';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[], agent?: StarknetAgentInterface) => {
+
   StarknetToolRegistry.push({
     name: 'create_new_braavos_account',
     description:

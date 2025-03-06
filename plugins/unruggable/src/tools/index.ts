@@ -12,7 +12,8 @@ import { isMemecoin } from '../actions/isMemecoin';
 import { createMemecoin } from '../actions/createMemecoin';
 import { launchOnEkubo } from '../actions/launchOnEkubo';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[], agent?: StarknetAgentInterface) => {
+
   StarknetToolRegistry.push({
     name: 'is_memecoin',
     plugins: 'unruggable',

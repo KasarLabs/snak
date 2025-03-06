@@ -169,7 +169,6 @@ const LocalRun = async () => {
 
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
-
       const agent = new StarknetAgent({
         provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
         accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,

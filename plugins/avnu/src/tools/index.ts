@@ -6,7 +6,8 @@ import { routeSchema, swapSchema } from '../schema';
 import { swapTokens } from '../actions/swap';
 import { getRoute } from '../actions/fetchRoute';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[], agent?: StarknetAgentInterface) => {
+
   StarknetToolRegistry.push({
     name: 'swap_tokens',
     plugins: 'avnu',

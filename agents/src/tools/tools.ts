@@ -5,7 +5,7 @@ import { ContractInteractor } from '../../common';
 import { TwitterInterface } from '../../common';
 import { JsonConfig } from '../jsonConfig';
 import { TelegramInterface } from '../../common';
-
+import { PostgresAdaptater } from '../database/postgresql/src/database';
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
     accountPublicKey: string;
@@ -25,6 +25,10 @@ export interface StarknetAgentInterface {
   getAgentConfig: () => JsonConfig | undefined;
   getTwitterManager: () => TwitterInterface;
   getTelegramManager: () => TelegramInterface;
+  getDatabase: () => PostgresAdaptater[];
+  connectDatabase: (database_name: string) => Promise<void>;
+  createDatabase: (database_name: string) => Promise<void>;
+  getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 
 export interface StarknetTool<P = any> {
@@ -91,7 +95,7 @@ export const registerTools = async (
         if (typeof imported_tool.registerTools !== 'function') {
           return false;
         }
-        await imported_tool.registerTools(tools);
+        await imported_tool.registerTools(tools, agent);
         return true;
       })
     );
