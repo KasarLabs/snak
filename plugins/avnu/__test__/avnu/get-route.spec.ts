@@ -146,7 +146,7 @@ describe('Get Route with avnu-sdk', () => {
       const params: RouteSchemaType = {
         sellTokenSymbol: 'STRK',
         buyTokenSymbol: 'ETH',
-        sellAmount: 0.0100,
+        sellAmount: 0.01,
       };
 
       await setTimeout(500); // Prevent rate limiting
