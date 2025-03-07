@@ -1,4 +1,3 @@
-process.env.TAVILY_API_KEY = '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';
 
 import { ChatAnthropic } from '@langchain/anthropic';
 import { AiConfig } from '../common/index.js';
@@ -32,6 +31,8 @@ import {
 } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from "@langchain/langgraph";
 import { v4 as uuidv4 } from "uuid";
+
+
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
