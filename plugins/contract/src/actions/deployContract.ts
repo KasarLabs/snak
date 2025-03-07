@@ -33,16 +33,16 @@ export const deployContract = async (
     const contractManager = new ContractManager(account);
 
     if (params.abiPath) {
-      await contractManager.loadAbiFile(resolveContractFilePath(params.abiPath));
-    }
-    else if (params.sierraPath && params.casmPath) {
+      await contractManager.loadAbiFile(
+        resolveContractFilePath(params.abiPath)
+      );
+    } else if (params.sierraPath && params.casmPath) {
       await contractManager.loadContractCompilationFiles(
-        resolveContractFilePath(params.sierraPath), 
+        resolveContractFilePath(params.sierraPath),
         resolveContractFilePath(params.casmPath)
       );
       await contractManager.loadAbiFile();
-    }
-    else {
+    } else {
       throw new Error('Either ABI path or Sierra and CASM paths are required');
     }
 
@@ -56,7 +56,7 @@ export const deployContract = async (
       params.classHash,
       typedConstructorArgs
     );
-  
+
     return JSON.stringify({
       status: 'success',
       transactionHash: deployResponse.transactionHash,
@@ -66,7 +66,7 @@ export const deployContract = async (
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
-      step: 'contract deployment'
+      step: 'contract deployment',
     });
   }
 };

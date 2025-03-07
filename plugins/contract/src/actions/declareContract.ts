@@ -19,7 +19,7 @@ export const declareContract = async (
     if (!params?.sierraPath || !params?.casmPath) {
       throw new Error('Sierra and CASM file paths are required');
     }
-    
+
     const sierraPath = resolveContractFilePath(params.sierraPath);
     const casmPath = resolveContractFilePath(params.casmPath);
 
@@ -34,25 +34,22 @@ export const declareContract = async (
     );
 
     const contractManager = new ContractManager(account);
-    await contractManager.loadContractCompilationFiles(
-      sierraPath,
-      casmPath
-    );
+    await contractManager.loadContractCompilationFiles(sierraPath, casmPath);
 
     const declareResponse = await contractManager.declareContract();
-    
+
     return JSON.stringify({
       status: 'success',
       transactionHash: declareResponse.transactionHash,
       classHash: declareResponse.classHash,
       sierraPath: sierraPath,
-      casmPath: casmPath
+      casmPath: casmPath,
     });
   } catch (error) {
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
-      step: 'contract declaration'
+      step: 'contract declaration',
     });
   }
 };

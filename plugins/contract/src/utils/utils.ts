@@ -13,7 +13,6 @@ export const getTokenDecimals = (symbol: string): number => {
   return decimals;
 };
 
-
 /**
  * Creates a V3 transaction details payload with predefined gas parameters
  * @returns {Object} V3 transaction details payload with gas parameters
@@ -48,7 +47,6 @@ export const executeV3Transaction = async ({
   return transaction_hash;
 };
 
-
 /**
  * Resolves file paths to locate contract files
  * @param {string} filePath - Original file path provided
@@ -59,7 +57,15 @@ export function resolveContractFilePath(filePath: string): string {
     filePath,
     path.resolve(process.cwd(), filePath),
     path.resolve(process.cwd(), '..', filePath),
-    path.resolve(process.cwd(), '..', 'plugins', 'contract', 'src', 'compiled', path.basename(filePath))
+    path.resolve(
+      process.cwd(),
+      '..',
+      'plugins',
+      'contract',
+      'src',
+      'compiled',
+      path.basename(filePath)
+    ),
   ];
 
   for (const p of possiblePaths) {

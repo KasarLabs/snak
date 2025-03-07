@@ -21,35 +21,39 @@ export const getConstructorParams = async (
     const account = new Account(
       provider,
       accountCredentials.accountPublicKey,
-      accountCredentials.accountPrivateKey,
+      accountCredentials.accountPrivateKey
     );
-    
+
     const contractManager = new ContractManager(account);
-    
+
     if (params.abiPath) {
-      await contractManager.loadAbiFile(resolveContractFilePath(params.abiPath));
-    }
-    else if (params.sierraPath && params.casmPath) {
-      await contractManager.loadContractCompilationFiles(resolveContractFilePath(params.sierraPath), resolveContractFilePath(params.casmPath));
+      await contractManager.loadAbiFile(
+        resolveContractFilePath(params.abiPath)
+      );
+    } else if (params.sierraPath && params.casmPath) {
+      await contractManager.loadContractCompilationFiles(
+        resolveContractFilePath(params.sierraPath),
+        resolveContractFilePath(params.casmPath)
+      );
       await contractManager.loadAbiFile();
-    }
-    else {
-      throw new Error('Either ABI path or Sierra and CASM valid paths are required');
+    } else {
+      throw new Error(
+        'Either ABI path or Sierra and CASM valid paths are required'
+      );
     }
 
     const constructorParams = contractManager.extractConstructorParams();
-    
+
     return JSON.stringify({
       status: 'success',
-      constructorParams: constructorParams.map(param => param.name),
-      paramCount: constructorParams.length
+      constructorParams: constructorParams.map((param) => param.name),
+      paramCount: constructorParams.length,
     });
-    
   } catch (error) {
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
-      step: 'getting constructor parameters'
+      step: 'getting constructor parameters',
     });
   }
 };

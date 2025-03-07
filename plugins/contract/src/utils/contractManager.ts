@@ -50,8 +50,7 @@ export class ContractManager {
     try {
       if (abiPath)
         this.abi = JSON.parse(fs.readFileSync(abiPath).toString('ascii'));
-      else
-        this.abi = this.compiledSierra.abi;
+      else this.abi = this.compiledSierra.abi;
     } catch (error) {
       throw new Error(`Failed to load ABI file: ${error.message}`);
     }
@@ -99,7 +98,7 @@ export class ContractManager {
         getV3DetailsPayload()
       );
       await this.account.waitForTransaction(declareResponse.transaction_hash);
-      
+
       return {
         transactionHash: declareResponse.transaction_hash,
         classHash: declareResponse.class_hash,
@@ -153,9 +152,7 @@ export class ContractManager {
    * @returns {Promise<ContractDeclareAndDeployResult>} The combined result of declaration and deployment
    * @throws {Error} If the declaration or deployment fails
    */
-  async declareAndDeployContract(
-    constructorArgs: RawArgs = []
-  ): Promise<any> {
+  async declareAndDeployContract(constructorArgs: RawArgs = []): Promise<any> {
     try {
       const contractCallData = new CallData(this.compiledSierra.abi);
       const constructorCalldata = contractCallData.compile(
@@ -239,7 +236,7 @@ export class ContractManager {
     }
 
     const typedArgs: RawArgs = [];
-    
+
     for (let i = 0; i < paramDefs.length; i++) {
       const param = paramDefs[i];
       const argString = argsStrings[i];
@@ -259,12 +256,12 @@ export class ContractManager {
     if (value === undefined || value === null) {
       throw new Error(`Missing value for type ${type}`);
     }
-    
+
     const simpleType = type.includes('::') ? type.split('::').pop() : type;
-    
+
     switch (true) {
-      case simpleType === 'felt252' || 
-          /^u(8|16|32|64|128)$/.test(simpleType || ''):
+      case simpleType === 'felt252' ||
+        /^u(8|16|32|64|128)$/.test(simpleType || ''):
         return BigInt(value);
       case simpleType === 'u256':
         try {
@@ -275,7 +272,7 @@ export class ContractManager {
             if (parsed.low !== undefined && parsed.high !== undefined) {
               return {
                 low: BigInt(parsed.low),
-                high: BigInt(parsed.high)
+                high: BigInt(parsed.high),
               };
             }
             throw new Error(`Invalid u256 format: ${value}`);
@@ -285,13 +282,15 @@ export class ContractManager {
         }
       case simpleType === 'bool':
         return value.toLowerCase() === 'true' || value === '1';
-      case simpleType === 'ContractAddress' || simpleType === 'EthAddress' || simpleType === 'ClassHash':
+      case simpleType === 'ContractAddress' ||
+        simpleType === 'EthAddress' ||
+        simpleType === 'ClassHash':
         return value.startsWith('0x') ? value : `0x${value}`;
       case simpleType === 'ByteArray' || simpleType === 'bytearray':
         return value;
       case type.includes('Array'):
         if (value.includes(',')) {
-          const elements = value.split(',').map(item => item.trim());
+          const elements = value.split(',').map((item) => item.trim());
           return elements;
         }
         try {
@@ -299,7 +298,7 @@ export class ContractManager {
             return JSON.parse(value);
           }
         } catch {}
-        
+
         return value;
       default:
         return value;
