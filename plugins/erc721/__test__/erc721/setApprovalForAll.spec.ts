@@ -1,10 +1,14 @@
 import { setApprovalForAll } from '../../src/actions/setApprovalForAll.js';
 import { isApprovedForAll } from '../../src/actions/isApprovedForAll.js';
-import { createMockStarknetAgent, createMockInvalidStarknetAgent } from '../jest/setEnvVars.js';
+import {
+  createMockStarknetAgent,
+  createMockInvalidStarknetAgent,
+} from '../jest/setEnvVars.js';
 
 const agent = createMockStarknetAgent();
 const wrong_agent = createMockInvalidStarknetAgent();
-const NFT_ADDRESS = '0x00ab5ac5f575da7abb70657a3ce4ef8cc4064b365d7d998c09d1e007c1e12921';
+const NFT_ADDRESS =
+  '0x00ab5ac5f575da7abb70657a3ce4ef8cc4064b365d7d998c09d1e007c1e12921';
 
 describe('Set Approval For All', () => {
   describe('With perfect match inputs', () => {
@@ -12,7 +16,7 @@ describe('Set Approval For All', () => {
       let params = {
         operatorAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
         approved: true,
-        contractAddress: NFT_ADDRESS
+        contractAddress: NFT_ADDRESS,
       };
 
       let result = await setApprovalForAll(agent, params);
@@ -23,13 +27,13 @@ describe('Set Approval For All', () => {
         status: 'success',
         operator: expect.any(String),
         approved: true,
-        transactionHash: expect.any(String)
+        transactionHash: expect.any(String),
       });
 
       let params2 = {
         ownerAddress: process.env.STARKNET_PUBLIC_ADDRESS as string,
         operatorAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        contractAddress: NFT_ADDRESS
+        contractAddress: NFT_ADDRESS,
       };
 
       result = await isApprovedForAll(agent, params2);
@@ -38,7 +42,7 @@ describe('Set Approval For All', () => {
       console.log(parsed);
       expect(parsed).toMatchObject({
         status: 'success',
-        isApproved: true
+        isApproved: true,
       });
     });
 
@@ -46,7 +50,7 @@ describe('Set Approval For All', () => {
       const params = {
         operatorAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
         approved: false,
-        contractAddress: NFT_ADDRESS
+        contractAddress: NFT_ADDRESS,
       };
 
       let result = await setApprovalForAll(agent, params);
@@ -56,13 +60,13 @@ describe('Set Approval For All', () => {
         status: 'success',
         operator: expect.any(String),
         approved: false,
-        transactionHash: expect.any(String)
+        transactionHash: expect.any(String),
       });
 
       let params2 = {
         ownerAddress: process.env.STARKNET_PUBLIC_ADDRESS as string,
         operatorAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        contractAddress: NFT_ADDRESS
+        contractAddress: NFT_ADDRESS,
       };
 
       result = await isApprovedForAll(agent, params2);
@@ -70,7 +74,7 @@ describe('Set Approval For All', () => {
 
       expect(parsed).toMatchObject({
         status: 'success',
-        isApproved: false
+        isApproved: false,
       });
     });
   });
@@ -80,7 +84,7 @@ describe('Set Approval For All', () => {
       const params = {
         operatorAddress: 'invalid_address',
         approved: true,
-        contractAddress: NFT_ADDRESS
+        contractAddress: NFT_ADDRESS,
       };
 
       const result = await setApprovalForAll(agent, params);
@@ -88,7 +92,7 @@ describe('Set Approval For All', () => {
 
       expect(parsed).toMatchObject({
         status: 'failure',
-        error: expect.any(String)
+        error: expect.any(String),
       });
     });
 
@@ -96,21 +100,21 @@ describe('Set Approval For All', () => {
       const params = {
         operatorAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
         approved: true,
-        contractAddress: NFT_ADDRESS
+        contractAddress: NFT_ADDRESS,
       };
 
       const result = await setApprovalForAll(wrong_agent, params);
       const parsed = JSON.parse(result);
 
       expect(parsed).toMatchObject({
-        status: 'failure'
+        status: 'failure',
       });
     });
 
     it('should fail without approval status', async () => {
       const params = {
         operatorAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
-        contractAddress: NFT_ADDRESS
+        contractAddress: NFT_ADDRESS,
       } as any;
 
       const result = await setApprovalForAll(agent, params);
@@ -118,7 +122,7 @@ describe('Set Approval For All', () => {
 
       expect(parsed).toMatchObject({
         status: 'failure',
-        error: expect.any(String)
+        error: expect.any(String),
       });
     });
   });
