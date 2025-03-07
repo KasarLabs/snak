@@ -14,6 +14,7 @@ import {
 import { JsonConfig } from './jsonConfig';
 import { TelegramInterface } from '../common';
 import TelegramBot from 'node-telegram-bot-api';
+import { HumanMessage } from '@langchain/core/messages';
 
 export interface StarknetAgentConfig {
   aiProviderApiKey: string;
@@ -25,6 +26,7 @@ export interface StarknetAgentConfig {
   signature: string;
   agentMode: string;
   agentconfig?: JsonConfig;
+  embeddingKey: string;
 }
 
 export class StarknetAgent implements IAgent {
@@ -33,6 +35,8 @@ export class StarknetAgent implements IAgent {
   private readonly accountPublicKey: string;
   private readonly aiModel: string;
   private readonly aiProviderApiKey: string;
+  private readonly thread_id: string;
+  private readonly embeddingKey: string;
   private agentReactExecutor: any;
   private currentMode: string;
   private twitterAccoutManager: TwitterInterface = {};
@@ -56,6 +60,7 @@ export class StarknetAgent implements IAgent {
     this.agentMode = config.agentMode;
     this.currentMode = config.agentMode;
     this.agentconfig = config.agentconfig;
+    this.embeddingKey = config.embeddingKey;
 
     this.transactionMonitor = new TransactionMonitor(this.provider);
     this.contractInteractor = new ContractInteractor(this.provider);
@@ -66,6 +71,7 @@ export class StarknetAgent implements IAgent {
       aiModel: this.aiModel,
       aiProviderApiKey: this.aiProviderApiKey,
       aiProvider: this.config.aiProvider,
+      embeddingKey: this.config.embeddingKey,
     };
 
     if (this.currentMode === 'auto') {
@@ -283,9 +289,15 @@ export class StarknetAgent implements IAgent {
       throw new Error(`Can't use execute with agent_mode: ${this.currentMode}`);
     }
 
-    const result = await this.agentReactExecutor.invoke({
-      messages: input,
-    });
+    const result = await this.agentReactExecutor.invoke(
+      {
+        messages: [new HumanMessage(input)],
+      },
+      {
+        recursionLimit: 15,
+        configurable: { thread_id: this.agentconfig?.chat_id },
+      }
+    );
 
     return result.messages[result.messages.length - 1].content;
   }
