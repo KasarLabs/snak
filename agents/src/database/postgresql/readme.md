@@ -81,7 +81,7 @@ try {
       });
 
   const query_insert = await database.insert({
-      table_name = 'Kasar',
+      table_name : 'Kasar',
       fields: new Map<string, string>([
           ['id', `DEFAULT`],
           ['twitter', '@kasarLabs'],
