@@ -15,7 +15,7 @@ export interface PostgresDatabase {
  * Options for inserting data into a PostgreSQL table.
  * @property {string} table_name - Name of the table to insert data into
  * @property {string} [ALIAS] - Optional alias for the table
- * @property {Map<string, string | number | DEFAULT>} fields - Map of field names to their values
+ * @property {Map<string, string | number | boolean | null | Array<string>>} fields - Map of field names to their values
  */
 export interface insertOptionInterface {
   table_name: string;

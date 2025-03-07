@@ -17,6 +17,7 @@ export const insertChatInstruction = async (
         ['instruction', `${params.instruction}`],
       ]),
     });
+
     if (result.status === 'error') {
       throw new Error(`Error[${result.code}] : ${result.error_message}`);
     }
