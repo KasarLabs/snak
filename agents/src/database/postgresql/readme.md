@@ -75,16 +75,16 @@ try {
         table_name: 'Kasar',
         fields: new Map<string, string>([
           ['id', `SERIAL PRIMARY KEY`],
-          ['twitter', 'VARCHAR(100) UNIQUE']
+          ['twitter', 'VARCHAR(100) UNIQUE'],
           ['projects', 'VARCHAR(255)[]']
         ]),
       });
 
   const query_insert = await database.insert({
       table_name = 'Kasar',
-            fields: new Map<string, string>([
+      fields: new Map<string, string>([
           ['id', `DEFAULT`],
-          ['twitter', '@kasarLabs']
+          ['twitter', '@kasarLabs'],
           ['projects', ['Madara','Quaza','Snak']]
         ]),
   })
