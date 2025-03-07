@@ -68,9 +68,8 @@ export const createAutonomousAgent = async (
       json_config.internal_plugins
     );
 
-    const allowedToolsKits = json_config.external_plugins
-      ? createAllowedToollkits(json_config.external_plugins)
-      : null;
+    const allowedToolsKits = await createAllowedToollkits(json_config.external_plugins)
+
 
     tools = allowedToolsKits
       ? [...allowedTools, ...allowedToolsKits]
