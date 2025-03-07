@@ -36,6 +36,7 @@
     "openzeppelin",
     "rpc",
     "transaction",
-    "erc20"
+    "erc20",
+    "erc721"
   ]
 }

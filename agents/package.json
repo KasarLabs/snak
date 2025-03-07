@@ -38,6 +38,7 @@
     "@starknet-agent-kit/plugin-artpeace": "workspace:*",
     "@starknet-agent-kit/plugin-atlantic": "workspace:*",
     "@starknet-agent-kit/plugin-opus": "workspace:*",
-    "@starknet-agent-kit/plugin-erc20": "workspace:*"
+    "@starknet-agent-kit/plugin-erc20": "workspace:*",
+    "@starknet-agent-kit/plugin-erc721": "workspace:*"
   }
 }
