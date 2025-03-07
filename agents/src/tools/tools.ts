@@ -28,7 +28,9 @@ export interface StarknetAgentInterface {
   getTelegramManager: () => TelegramInterface;
   getDatabase: () => PostgresAdaptater[];
   connectDatabase: (database_name: string) => Promise<void>;
-  createDatabase: (database_name: string) => Promise<void>;
+  createDatabase: (
+    database_name: string
+  ) => Promise<PostgresAdaptater | undefined>;
   getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 

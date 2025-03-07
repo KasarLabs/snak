@@ -233,7 +233,9 @@ export class StarknetAgent implements IAgent {
       return;
     }
   }
-  public async createDatabase(database_name: string): Promise<void> {
+  public async createDatabase(
+    database_name: string
+  ): Promise<PostgresAdaptater | undefined> {
     try {
       const params: PostgresDatabasePoolInterface = {
         user: process.env.POSTGRES_USER as string,
@@ -264,9 +266,10 @@ export class StarknetAgent implements IAgent {
         throw new Error('Error when trying to connect to your database');
       }
       this.database.push(new_database_connection);
+      return new_database_connection;
     } catch (error) {
       console.log(error);
-      return;
+      return undefined;
     }
   }
 

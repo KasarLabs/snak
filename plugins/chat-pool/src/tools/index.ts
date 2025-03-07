@@ -10,8 +10,7 @@ const initializeTools = async (
   agent: StarknetAgentInterface
 ): Promise<PostgresAdaptater | undefined> => {
   try {
-    await agent.createDatabase('chat_pool_db');
-    const database = agent.getDatabaseByName('chat_pool_db');
+    const database = await agent.createDatabase('chat_pool_db');
     if (!database) {
       throw new Error('Database not found');
     }

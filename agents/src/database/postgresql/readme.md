@@ -34,7 +34,9 @@ bashCopysudo systemctl start postgresql
 ```
 
 ### Verifying Your Installation
+
 To verify that PostgreSQL is running correctly:
+
 ```bash
 # On macOS
 psql postgres
@@ -43,9 +45,10 @@ psql postgres
 sudo -u postgres psql
 ```
 
-
 ## Configuring Environment Variables
+
 Update your .env file with the following information:
+
 ```bash
 CopyPOSTGRES_USER=your_username
 POSTGRES_PASSWORD=your_password
@@ -55,34 +58,39 @@ POSTGRES_PORT=your_port
 ```
 
 ## Using the Database in Your Plugins
+
 To use PostgreSQL in your plugins, initialize the database with:
+
 ```js
 // Initialize the database in your plugin
 
-const dbName = 'Kasarlabs';
-await agent.createDatabase(dbName);
-const database = agent.getDatabaseByName(dbName);
+try {
+  const database = await agent.createDatabase('KasarLabs');
+  if (!database) {
+      throw new Error('Database not found');
+  }
 
 
-const query_create_table = await database.createTable({
-      table_name: 'Kasar',
-      fields: new Map<string, string>([
-        ['id', `SERIAL PRIMARY KEY`],
-        ['twitter', 'VARCHAR(100) UNIQUE']
-        ['projects', 'VARCHAR(255)[]']
-      ]),
-    });
+  const query_create_table = await database.createTable({
+        table_name: 'Kasar',
+        fields: new Map<string, string>([
+          ['id', `SERIAL PRIMARY KEY`],
+          ['twitter', 'VARCHAR(100) UNIQUE']
+          ['projects', 'VARCHAR(255)[]']
+        ]),
+      });
 
-const query_insert = await databse.insert({
-    table_name = 'Kasar',
-          fields: new Map<string, string>([
-        ['id', `DEFAULT`],
-        ['twitter', '@kasarLabs']
-        ['projects', ['Madara','Quaza','Snak']]
-      ]),
-})
-
+  const query_insert = await database.insert({
+      table_name = 'Kasar',
+            fields: new Map<string, string>([
+          ['id', `DEFAULT`],
+          ['twitter', '@kasarLabs']
+          ['projects', ['Madara','Quaza','Snak']]
+        ]),
+  })
 // Example usage with direct query
-const query = await db.query('SELECT * FROM your_table');
+const query = await database.query('SELECT * FROM your_table');
+} catch (error) {
+  console.error(error);
+}
 ```
-
