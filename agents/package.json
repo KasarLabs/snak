@@ -3,18 +3,19 @@
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "start": "ts-node -r tsconfig-paths/register ./start.ts --",
+    "start": "npx tsx -r tsconfig-paths/register ./start.ts --",
     "lint": "eslint \"src/**/*.ts\""
   },
   "keywords": [],
-  "author": "",
+  "author": "KasarLabs",
   "license": "ISC",
-  "description": "",
+  "description": "The Agent Kit engine of Snak",
   "dependencies": {
     "@langchain/anthropic": "^0.3.11",
     "@langchain/community": "^0.3.28",
@@ -37,6 +38,8 @@
     "@starknet-agent-kit/plugin-artpeace": "workspace:*",
     "@starknet-agent-kit/plugin-atlantic": "workspace:*",
     "@starknet-agent-kit/plugin-opus": "workspace:*",
-    "@starknet-agent-kit/plugin-contract": "workspace:*"
+    "@starknet-agent-kit/plugin-contract": "workspace:*",
+    "@starknet-agent-kit/plugin-erc20": "workspace:*",
+    "@starknet-agent-kit/plugin-erc721": "workspace:*"
   }
 }

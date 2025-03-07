@@ -1,17 +1,22 @@
 <div align="center">
-<img src="https://pbs.twimg.com/profile_images/1834202903189618688/N4J8emeY_400x400.png" width="50" alt="Starknet Agent Kit Logo">
-
-**starknet-agent-kit (alpha)**
+  <picture>
+    <!-- For users in dark mode, load a white logo -->
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-white-no-bg.png?raw=true">
+    <!-- Default image for light mode -->
+    <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-black-no-bg.png?raw=true" width="150" alt="Starknet Agent Kit Logo">
+  </picture>
+  
+  <h1>Snak (alpha)</h1>
 
 <p>
 <a href="https://www.npmjs.com/package/starknet-agent-kit">
 <img src="https://img.shields.io/npm/v/starknet-agent-kit.svg" alt="NPM Version" />
 </a>
-<a href="https://github.com/kasarlabs/starknet-agent-kit/blob/main/LICENSE">
+<a href="https://github.com/kasarlabs/snak/blob/main/LICENSE">
 <img src="https://img.shields.io/npm/l/starknet-agent-kit.svg" alt="License" />
 </a>
-<a href="https://github.com/kasarlabs/starknet-agent-kit/stargazers">
-<img src="https://img.shields.io/github/stars/kasarlabs/starknet-agent-kit.svg" alt="GitHub Stars" />
+<a href="https://github.com/kasarlabs/snak/stargazers">
+<img src="https://img.shields.io/github/stars/kasarlabs/snak.svg" alt="GitHub Stars" />
 </a>
 <a href="https://nodejs.org">
 <img src="https://img.shields.io/node/v/starknet-agent-kit.svg" alt="Node Version" />
@@ -32,8 +37,8 @@ A toolkit for creating AI agents that can interact with the Starknet blockchain.
 ### Installation
 
 ```bash
-git clone https://github.com/kasarlabs/starknet-agent-kit.git
-cd starknet-agent-kit
+git clone https://github.com/kasarlabs/snak.git
+cd snak
 pnpm install
 ```
 

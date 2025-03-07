@@ -31,12 +31,14 @@
   "internal_plugins": [
     "argent",
     "fibrous",
-    "telegram",
     "okx",
     "braavos",
     "openzeppelin",
     "rpc",
-    "token",
+    "transaction",
+    "avnu",
+    "erc20",
+    "erc721",
     "contract"
   ]
 }

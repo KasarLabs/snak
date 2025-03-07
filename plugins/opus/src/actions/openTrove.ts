@@ -1,6 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { OpenTroveParams } from '../schemas';
-import { createTroveManager } from '../utils/troveManager';
+import { OpenTroveParams } from '../schemas/index.js';
+import { createTroveManager } from '../utils/troveManager.js';
 
 export const openTrove = async (
   agent: StarknetAgentInterface,

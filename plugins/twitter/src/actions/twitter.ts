@@ -4,7 +4,7 @@ import {
   creatTwitterPostParams,
   FollowXUserFromUsernameParams,
   ReplyTweetParams,
-} from '../schema/index';
+} from '../schema/index.js';
 
 /**
  * Creates a new Twitter post using either credentials or API authentication

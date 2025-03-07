@@ -1,8 +1,8 @@
-import { placePixel } from '../../src/actions/placePixel';
+import { placePixel } from '../../src/actions/placePixel.js';
 import {
   createMockInvalidStarknetAgent,
   createMockStarknetAgent,
-} from '../jest/setEnvVars';
+} from '../jest/setEnvVars.js';
 
 const agent = createMockStarknetAgent();
 const wrongAgent = createMockInvalidStarknetAgent();

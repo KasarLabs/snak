@@ -1,7 +1,7 @@
 import { SignatureTool } from '@starknet-agent-kit/agents';
-import { transfer_signature } from '../actions/transfer';
-import { getBalanceSignature } from '../actions/getBalances';
-import { getBalanceSchema, transferSignatureschema } from '../schema';
+import { transfer_signature } from '../actions/transfer.js';
+import { getBalanceSignature } from '../actions/getBalances.js';
+import { getBalanceSchema, transferSignatureschema } from '../schema/index.js';
 
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]

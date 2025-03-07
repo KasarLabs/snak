@@ -1,9 +1,9 @@
 import { RpcProvider } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { OZ_CLASSHASH } from '../constant/contract';
-import { AccountManager } from '../utils/AccountManager';
+import { OZ_CLASSHASH } from '../constant/contract.js';
+import { AccountManager } from '../utils/AccountManager.js';
 import { z } from 'zod';
-import { accountDetailsSchema } from '../schemas/schema';
+import { accountDetailsSchema } from '../schemas/schema.js';
 
 /**
  * Deploys an OpenZeppelin account using Starknet agent.

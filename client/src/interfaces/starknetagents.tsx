@@ -35,4 +35,15 @@ export interface WalletApiResponse {
     /** Call data */
     calldata: string[];
   };
+  /** Additional data */
+  additional_data?: {
+    /** Asset symbol */
+    assetSymbol: string;
+    /** Asset amount */
+    amount: string;
+    /** Recipient address */
+    recipientAddress?: string;
+    /** Spender address */
+    spenderAddress?: string;
+  };
 }

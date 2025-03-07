@@ -3,8 +3,8 @@ import {
   BRAAVOS_INITIAL_CLASSHASH,
   BRAAVOS_PROXY_CLASSHASH,
   BRAAVOS_ACCOUNT_CLASSHASH,
-} from '../constant/contract';
-import { AccountManager } from '../utils/AccountManager';
+} from '../constant/contract.js';
+import { AccountManager } from '../utils/AccountManager.js';
 
 /**
  * Creates a new Braavos account with generated keys and address.

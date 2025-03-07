@@ -1,12 +1,16 @@
-import { Account, Call } from 'starknet';
+import { Account, Call, constants } from 'starknet';
 
-import { ApprovalService } from './approval';
+import { ApprovalService } from './approval.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { SLIPPAGE_PERCENTAGE } from '../constants';
-import { TokenService } from './fetchTokens';
+import { SLIPPAGE_PERCENTAGE } from '../constants/index.js';
+import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
-import { SwapResult, SwapParams } from '../types';
+import { SwapResult, SwapParams } from '../types/index.js';
+import { getV3DetailsPayload } from '../utils/utils.js';
+import { ContractInteractor } from '../utils/contractInteractor.js';
+import { TransactionMonitor } from '../utils/transactionMonitor.js';
+
 export class SwapService {
   private tokenService: TokenService;
   private approvalService: ApprovalService;
@@ -29,10 +33,14 @@ export class SwapService {
     try {
       await this.initialize();
 
+      const provider = this.agent.getProvider();
+      const contractInteractor = new ContractInteractor(provider);
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        provider,
         this.walletAddress,
-        this.agent.getAccountCredentials().accountPrivateKey
+        this.agent.getAccountCredentials().accountPrivateKey,
+        undefined,
+        constants.TRANSACTION_VERSION.V3
       );
 
       const { sellToken, buyToken } = this.tokenService.validateTokenPair(
@@ -41,7 +49,7 @@ export class SwapService {
       );
 
       const formattedAmount = BigNumber.from(
-        this.agent.contractInteractor.formatTokenAmount(
+        contractInteractor.formatTokenAmount(
           params.sellAmount.toString(),
           sellToken.decimals
         )
@@ -55,16 +63,6 @@ export class SwapService {
 
       if (!route?.success) {
         throw new Error('No routes available for this swap');
-      }
-
-      // Log route information
-      if (route?.success) {
-        console.log('Route information:', {
-          sellToken: route.inputToken.name,
-          buyToken: route.outputToken.name,
-          amount: route.inputAmount,
-          outputAmount: route.outputAmount,
-        });
       }
 
       const destinationAddress = account.address; // !!! Destination address is the address of the account that will receive the tokens might be the any address
@@ -97,7 +95,7 @@ export class SwapService {
         calldata = [swapCall];
       }
 
-      const swapResult = await account.execute(calldata);
+      const swapResult = await account.execute(calldata, getV3DetailsPayload());
 
       const { receipt, events } = await this.monitorSwapStatus(
         swapResult.transaction_hash
@@ -128,13 +126,13 @@ export class SwapService {
   }
 
   private async monitorSwapStatus(txHash: string) {
-    const receipt = await this.agent.transactionMonitor.waitForTransaction(
+    const transactionMonitor = new TransactionMonitor(this.agent.getProvider());
+    const receipt = await transactionMonitor.waitForTransaction(
       txHash,
       (status) => console.log('Swap status:', status)
     );
 
-    const events =
-      await this.agent.transactionMonitor.getTransactionEvents(txHash);
+    const events = await transactionMonitor.getTransactionEvents(txHash);
     return { receipt, events };
   }
 }
@@ -161,12 +159,6 @@ export const swapTokensFibrous = async (
     const result = await swapService.executeSwapTransaction(params);
     return JSON.stringify(result);
   } catch (error) {
-    console.error('Detailed swap error:', error);
-    if (error instanceof Error) {
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

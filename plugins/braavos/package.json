@@ -1,8 +1,9 @@
 {
-  "name": "@starknet-agent-kit/plugin-openzeppelin",
+  "name": "@starknet-agent-kit/plugin-braavos",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "test": "jest",
     "build": "pnpm clean:dist && tsc",

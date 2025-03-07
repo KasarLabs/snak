@@ -4,7 +4,7 @@ import {
   AccountResponse,
   BaseUtilityClass,
   TransactionResult,
-} from '../types/accounts';
+} from '../types/accounts.js';
 
 /**
  * Manages Starknet account operations including creation, deployment, and fee estimation.

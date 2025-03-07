@@ -11,18 +11,18 @@ import {
   IPoolAsset,
   ITokenValue,
   poolParser,
-} from '../interfaces';
+} from '../interfaces/index.js';
 import {
   DEFAULT_DECIMALS,
   GENESIS_POOLID,
   VESU_API_URL,
-} from '../constants/index';
-import { Hex, toBN, toU256 } from '../utils/num';
+} from '../constants/index.js';
+import { Hex, toBN, toU256 } from '../utils/num.js';
 import {
   getErc20Contract,
   getExtensionContract,
   getVTokenContract,
-} from '../utils/contracts';
+} from '../utils/contracts.js';
 
 /**
  * Service for managing deposit operations and earning positions
@@ -176,7 +176,7 @@ export class DepositEarnService {
   ): Promise<DepositResult> {
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );

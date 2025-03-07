@@ -41,8 +41,8 @@ The Starknet Agent Kit is organized with the following structure:
 1. Fork and clone the repository:
 
 ```bash
-git clone https://github.com/kasarlabs/starknet-agent-kit.git
-cd starknet-agent-kit
+git clone https://github.com/kasarlabs/snak.git
+cd snak
 ```
 
 2. Install dependencies:

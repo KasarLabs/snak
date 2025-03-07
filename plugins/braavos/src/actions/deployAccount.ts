@@ -1,13 +1,13 @@
 import { RpcProvider } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { AccountManager } from '../utils/AccountManager';
+import { AccountManager } from '../utils/AccountManager.js';
 import { z } from 'zod';
-import { accountDetailsSchema } from '../schemas/schema';
+import { accountDetailsSchema } from '../schemas/schema.js';
 import {
   BRAAVOS_ACCOUNT_CLASSHASH,
   BRAAVOS_INITIAL_CLASSHASH,
   BRAAVOS_PROXY_CLASSHASH,
-} from '../constant/contract';
+} from '../constant/contract.js';
 
 /**
  * Deploys a Braavos account using a Starknet agent.

@@ -16,7 +16,7 @@ import {
 } from '@/interfaces/starknetagents';
 import { handleInvokeTransactions } from '@/transactions/InvokeTransactions';
 import { ACCOUNT } from '@/interfaces/accout';
-import { InvokeTransaction } from '@/types/starknetagents';
+import { InvokeTransaction } from '@/types/starknetAgents';
 import { handleDeployTransactions } from '@/transactions/DeployAccountTransactions';
 import {
   Select,
@@ -310,6 +310,7 @@ const StarknetAgent = () => {
 
       let tx;
       if (result.transaction_type === 'INVOKE') {
+        const info = result.results[0].additional_data;
         tx = handleInvokeTransactions(result as TransactionResponse);
         if (!tx) {
           throw new Error(
@@ -319,7 +320,11 @@ const StarknetAgent = () => {
         const transaction_hash = await Wallet.execute(tx);
         typeResponse({
           ...newResponse,
-          text: JSON.stringify(JSON.stringify({ tx, transaction_hash })),
+          text: JSON.stringify({
+            tx,
+            transaction_hash,
+            additional_data: info ? info : undefined,
+          }),
         });
       } else if (result.transaction_type === 'READ') {
         typeResponse({

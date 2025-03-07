@@ -1,8 +1,8 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { TokenService } from './fetchTokens';
+import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter, RouteResponse } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
-import { RouteSchemaType } from '../schema';
+import { RouteSchemaType } from '../schema/index.js';
 
 interface RouteResult {
   status: 'success' | 'failure';
@@ -60,7 +60,6 @@ export class RouteFetchService {
         route,
       };
     } catch (error) {
-      console.error('Route fetching error:', error);
       return {
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -79,7 +78,6 @@ export const getRouteFibrous = async (
     const routeService = new RouteFetchService();
     return routeService.fetchRoute(params);
   } catch (error) {
-    console.error('Route fetching error:', error);
     return {
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
