@@ -82,7 +82,7 @@ try {
 
   const query_insert = await database.insert({
       table_name : 'Kasar',
-      fields: new Map<string, string>([
+      fields: new Map<string, string | string[]>([
           ['id', `DEFAULT`],
           ['twitter', '@kasarLabs'],
           ['projects', ['Madara','Quaza','Snak']]
