@@ -7,6 +7,7 @@ import { WalletService } from './services/wallet.service.js';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AgentFactory } from './agents.factory.js';
+import { DatabaseController } from './database.controller.js';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { AgentFactory } from './agents.factory.js';
       useClass: ThrottlerGuard,
     },
   ],
-  controllers: [AgentsController, WalletController],
+  controllers: [AgentsController, WalletController, DatabaseController],
   exports: [AgentService, WalletService, AgentFactory],
 })
 export class AgentsModule {}

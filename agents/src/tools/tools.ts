@@ -3,6 +3,7 @@ import { RpcProvider } from 'starknet';
 import { TwitterInterface } from '../../common/index.js';
 import { JsonConfig } from '../jsonConfig.js';
 import { TelegramInterface } from '../../common/index.js';
+import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
@@ -21,6 +22,12 @@ export interface StarknetAgentInterface {
   getAgentConfig: () => JsonConfig;
   getTwitterManager: () => TwitterInterface;
   getTelegramManager: () => TelegramInterface;
+  getDatabase: () => PostgresAdaptater[];
+  connectDatabase: (database_name: string) => Promise<void>;
+  createDatabase: (
+    database_name: string
+  ) => Promise<PostgresAdaptater | undefined>;
+  getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 
 export interface StarknetTool<P = any> {
@@ -87,7 +94,7 @@ export const registerTools = async (
         if (typeof imported_tool.registerTools !== 'function') {
           return false;
         }
-        await imported_tool.registerTools(tools);
+        await imported_tool.registerTools(tools, agent);
         return true;
       })
     );

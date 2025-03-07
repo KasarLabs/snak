@@ -51,7 +51,6 @@
     "prepublishOnly": "lerna run prepublishOnly"
   },
   "dependencies": {
-    "@types/pg": "^8.11.11",
     "add": "^2.0.6",
     "boxen": "^8.0.1",
     "chalk": "^4.1.2",
@@ -59,7 +58,7 @@
     "ethers": "^6.13.5",
     "express": "^4.21.2",
     "pg": "^8.13.3",
-    "pg-promise": "^11.10.2",
+    "@types/pg": "^8.11.11",
     "starknet": "^6.23.1",
     "util": "^0.12.5",
     "zod": "^3.24.2"

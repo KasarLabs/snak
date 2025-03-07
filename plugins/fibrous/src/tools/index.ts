@@ -8,7 +8,10 @@ import { batchSwapSchema, routeSchema } from '../schema/index.js';
 import { batchSwapTokens } from '../actions/batchSwap.js';
 import { getRouteFibrous } from '../actions/fetchRoute.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent?: StarknetAgentInterface
+) => {
   StarknetToolRegistry.push({
     name: 'fibrous_swap',
     plugins: 'fibrous',
