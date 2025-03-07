@@ -51,7 +51,7 @@ export const readChatPool = async (agent: StarknetAgentInterface) => {
     }
     return JSON.stringify({
       status: 'success',
-      instructions: instructions.join('instruction :'),
+      instructions: instructions,
     });
   } catch (error) {
     console.log(error);
