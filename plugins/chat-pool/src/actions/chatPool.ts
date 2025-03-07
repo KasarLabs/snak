@@ -38,7 +38,7 @@ export const readChatPool = async (agent: StarknetAgentInterface) => {
       FROM: ['sak_table_chat'],
       SELECT: ['*'],
     });
-    const instructions = [];
+    const instructions: string[] = [];
     if (result.status === 'error') {
       throw new Error(result.error_message);
     }
@@ -46,10 +46,15 @@ export const readChatPool = async (agent: StarknetAgentInterface) => {
       throw new Error('Error query response is empty.');
     }
     for (const row of result.query.rows) {
-      instructions.push(row.toString());
+      console.log(row);
+      instructions.push(JSON.stringify(row.instruction));
     }
-    return JSON.stringify({ status: 'success', instructions: instructions });
+    return JSON.stringify({
+      status: 'success',
+      instructions: instructions.join('instruction :'),
+    });
   } catch (error) {
+    console.log(error);
     return JSON.stringify({ status: 'error', error_message: error });
   }
 };

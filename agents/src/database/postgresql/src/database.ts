@@ -89,7 +89,7 @@ export class PostgresAdaptater {
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          console.error('Database already exist. Skip creation.');
+          console.warn('Database already exist. Skip creation.');
           return true;
         }
       }
@@ -401,7 +401,6 @@ export class PostgresAdaptater {
       if (options.table_name === undefined) {
         throw new Error('Error table_name is undefined.');
       }
-      console.log(this.tables);
       const table = this.tables.find(
         (table) => table.table_name === options.table_name
       );

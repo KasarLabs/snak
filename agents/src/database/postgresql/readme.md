@@ -57,18 +57,30 @@ POSTGRES_PORT=your_port
 ## Using the Database in Your Plugins
 To use PostgreSQL in your plugins, initialize the database with:
 ```js
-// Initialize a database for your plugin
-const db = await agent.createDatabase('name_of_your_db');
+// Initialize the database in your plugin
+const dbName = 'KasarLabs'
+const db = await agent.createDatabase('dbName');
+
+
+const query_create_table = await database.createTable({
+      table_name: 'Kasar',
+      fields: new Map<string, string>([
+        ['id', `SERIAL PRIMARY KEY`],
+        ['twitter', 'VARCHAR(100) UNIQUE']
+        ['projects', 'VARCHAR(255)[]']
+      ]),
+    });
+
+const query_insert = await databse.insert({
+    table_name = 'Kasar',
+          fields: new Map<string, string>([
+        ['id', `DEFAULT`],
+        ['twitter', '@kasarLabs']
+        ['projects', ['Madara','Quaza','Snak']]
+      ]),
+})
 
 // Example usage with direct query
 const query = await db.query('SELECT * FROM your_table');
-
-// Example usage CRUD(insert) agent function
-const query_insert = await database.insert({
-      table_name: 'sak_table_chat',
-      fields: new Map<string, string>([
-        ['instruction', `'${params.instruction}'`],
-      ]),
-    });
 ```
 
