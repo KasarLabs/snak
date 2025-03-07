@@ -22,7 +22,7 @@ export class DatabaseController implements OnModuleInit {
       user: process.env.POSTGRES_USER,
       password: process.env.POSTGRES_PASSWORD,
       database: 'chat_pool_db',
-      port: Number(process.env.PORT),
+      port: Number(process.env.POSTGRES_PORT),
     });
   }
 
