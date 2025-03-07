@@ -47,7 +47,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     getTelegramManager: () => telegram_interface,
     getDatabase: () => [],
     connectDatabase: async () => {},
-    createDatabase: async () => {},
+        createDatabase: async () => undefined,
     getDatabaseByName: () => undefined,
   };
 };
@@ -87,7 +87,7 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     getTelegramManager: () => telegram_interface,
     getDatabase: () => [],
     connectDatabase: async () => {},
-    createDatabase: async () => {},
+        createDatabase: async () => undefined,
     getDatabaseByName: () => undefined,
   };
 };
