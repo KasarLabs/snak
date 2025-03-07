@@ -2,7 +2,7 @@
 export * from './src/agent.js';
 export * from './src/starknetAgent.js';
 export * from './src/autonomousAgents.js';
-export { PostgresAdaptater } from './src/database/postgresql/src/database.js';
+export { PostgresAdaptater } from './src/databases/postgresql/src/database.js';
 
 // Tool-related exports
 export {

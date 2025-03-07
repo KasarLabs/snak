@@ -3,7 +3,7 @@ import { RpcProvider } from 'starknet';
 import { TwitterInterface } from '../../common/index.js';
 import { JsonConfig } from '../jsonConfig.js';
 import { TelegramInterface } from '../../common/index.js';
-import { PostgresAdaptater } from '../database/postgresql/src/database.js';
+import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {

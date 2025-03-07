@@ -12,8 +12,8 @@ import {
 import { JsonConfig } from './jsonConfig.js';
 import { TelegramInterface } from '../common/index.js';
 import TelegramBot from 'node-telegram-bot-api';
-import { PostgresAdaptater } from './database/postgresql/src/database.js';
-import { PostgresDatabasePoolInterface } from './database/postgresql/src/interfaces/interfaces.js';
+import { PostgresAdaptater } from './databases/postgresql/src/database.js';
+import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 
 export interface StarknetAgentConfig {
   aiProviderApiKey: string;
