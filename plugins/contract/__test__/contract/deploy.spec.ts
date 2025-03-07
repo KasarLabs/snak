@@ -34,97 +34,81 @@ describe('Deploy Contract', () => {
         });
       });
     
-  //   it('should handle errors when Sierra or CASM paths are invalid', async () => {
-  //     const params = {
-  //       classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-  //       sierra: 'invalid/path/to/sierra.json',
-  //       casm: 'invalid/path/to/casm.json',
-  //       constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
-  //     };
+    it('should handle errors when Sierra or CASM paths are invalid', async () => {
+      const params = {
+        classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        sierra: 'invalid/path/to/sierra.json',
+        casm: 'invalid/path/to/casm.json',
+        constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
+      };
       
-  //     const result = await deployContract(agent, params);
-  //     const parsed = JSON.parse(result);
+      const result = await deployContract(agent, params);
+      const parsed = JSON.parse(result);
       
-  //     expect(parsed).toMatchObject({
-  //       status: 'failure',
-  //       error: expect.any(String),
-  //       step: 'contract deployment'
-  //     });
-  //   });
+      expect(parsed).toMatchObject({
+        status: 'failure',
+        error: expect.any(String),
+        step: 'contract deployment'
+      });
+    });
   });
   
-  // describe('With valid agent and parameters using ABI path', () => {
-  //   it('should successfully deploy a contract using ABI path', async () => {
-  //     const params = {
-  //       classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-  //       abiPath: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.abi.json',
-  //       constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
-  //     };
+  describe('With valid agent and parameters using ABI path', () => {
+    it('should successfully deploy a contract using ABI path', async () => {
+      const params = {
+        classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        abiPath: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.abi.json',
+        constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
+      };
       
-  //     const result = await deployContract(agent, params);
-  //     const parsed = JSON.parse(result);
+      const result = await deployContract(agent, params);
+      const parsed = JSON.parse(result);
       
-  //     expect(parsed).toMatchObject({
-  //       status: 'success'
-  //       // Comment ces lignes car elles sont commentées dans le code d'origine
-  //       // transactionHash: expect.any(String),
-  //       // contractAddress: expect.any(String)
-  //     });
-  //   });
-  // });
+      expect(parsed).toMatchObject({
+        status: 'success'
+        // Comment ces lignes car elles sont commentées dans le code d'origine
+        // transactionHash: expect.any(String),
+        // contractAddress: expect.any(String)
+      });
+    });
+  });
   
-  // describe('With invalid parameters', () => {
-  //   it('should fail when class hash is missing', async () => {
-  //     const params = {
-  //       sierra: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.contract_class.json',
-  //       casm: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.compiled_contract_class.json',
-  //       constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
-  //     };
-      
-  //     const result = await deployContract(agent, params);
-  //     const parsed = JSON.parse(result);
-      
-  //     expect(parsed).toMatchObject({
-  //       status: 'failure',
-  //       error: 'Class hash is required for deployment',
-  //       step: 'contract deployment'
-  //     });
-  //   });
+  describe('With invalid parameters', () => {
     
-  //   it('should fail when neither ABI path nor Sierra and CASM are provided', async () => {
-  //     const params = {
-  //       classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-  //       constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
-  //     };
+    it('should fail when neither ABI path nor Sierra and CASM are provided', async () => {
+      const params = {
+        classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
+      };
       
-  //     const result = await deployContract(agent, params);
-  //     const parsed = JSON.parse(result);
+      const result = await deployContract(agent, params);
+      const parsed = JSON.parse(result);
       
-  //     expect(parsed).toMatchObject({
-  //       status: 'failure',
-  //       error: 'Either ABI path or Sierra and CASM paths are required',
-  //       step: 'contract deployment'
-  //     });
-  //   });
-  // });
+      expect(parsed).toMatchObject({
+        status: 'failure',
+        error: 'Either ABI path or Sierra and CASM paths are required',
+        step: 'contract deployment'
+      });
+    });
+  });
   
-  // describe('With invalid agent', () => {
-  //   it('should fail when agent is invalid', async () => {
-  //     const params = {
-  //       classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-  //       sierra: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.contract_class.json',
-  //       casm: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.compiled_contract_class.json',
-  //       constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
-  //     };
+  describe('With invalid agent', () => {
+    it('should fail when agent is invalid', async () => {
+      const params = {
+        classHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        sierra: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.contract_class.json',
+        casm: 'src/lib/agent/plugins/contract/contract/token_ERC20Token.compiled_contract_class.json',
+        constructorArgs: ['1000000', 'TestToken', 'TTK', '18']
+      };
       
-  //     const result = await deployContract(wrong_agent, params);
-  //     const parsed = JSON.parse(result);
+      const result = await deployContract(wrong_agent, params);
+      const parsed = JSON.parse(result);
       
-  //     expect(parsed).toMatchObject({
-  //       status: 'failure',
-  //       error: expect.any(String),
-  //       step: 'contract deployment'
-  //     });
-    // });
-  // });
+      expect(parsed).toMatchObject({
+        status: 'failure',
+        error: expect.any(String),
+        step: 'contract deployment'
+      });
+    });
+  });
 });

@@ -23,8 +23,6 @@ export const declareContract = async (
     const sierraPath = resolveContractFilePath(params.sierraPath);
     const casmPath = resolveContractFilePath(params.casmPath);
 
-    console.log('\n\nDeclaring contract with Sierra:', sierraPath, 'and CASM:', casmPath);
-
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
     const account = new Account(
@@ -42,8 +40,6 @@ export const declareContract = async (
     );
 
     const declareResponse = await contractManager.declareContract();
-    
-    // console.log('Contract declaration result:', declareResponse);
     
     return JSON.stringify({
       status: 'success',

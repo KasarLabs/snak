@@ -26,7 +26,6 @@ export const getConstructorParams = async (
     
     const contractManager = new ContractManager(account);
     
-    console.log('\n\nGETCONSTRUCTORPARAMS : Loading contract files:', params.abiPath, params.sierraPath, params.casmPath);
     if (params.abiPath) {
       await contractManager.loadAbiFile(resolveContractFilePath(params.abiPath));
     }

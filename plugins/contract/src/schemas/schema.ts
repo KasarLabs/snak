@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 /**
- * Schema for contract declaration parameters
+ * Schema pour les paramètres de déclaration de contrat
+ * 
+ * @typedef {Object} DeclareContractParams
+ * @property {string} sierraPath - Chemin vers le fichier Sierra compilé du contrat (.json)
+ * @property {string} casmPath - Chemin vers le fichier d'assemblage du contrat compilé (.json)
  */
 export const declareContractSchema = z.object({
   sierraPath: z.string({
@@ -14,8 +18,16 @@ export const declareContractSchema = z.object({
   }),
 });
 
+
 /**
- * Schema for contract deployment parameters
+ * Schema pour les paramètres de déploiement de contrat
+ * 
+ * @typedef {Object} DeployContractParams
+ * @property {string} classHash - Hash de classe du contrat déclaré à déployer
+ * @property {string} [abiPath] - Chemin vers le fichier ABI du contrat
+ * @property {string} [sierraPath] - Chemin vers le fichier Sierra quand on n'utilise pas d'ABI séparé
+ * @property {string} [casmPath] - Chemin vers le fichier CASM quand on n'utilise pas d'ABI séparé
+ * @property {string[]} [constructorArgs] - Arguments pour le constructeur du contrat
  */
 export const deployContractSchema = z.object({
   classHash: z.string({
@@ -30,8 +42,16 @@ export const deployContractSchema = z.object({
   ),
 });
 
+
 /**
- * Schema for getting constructor parameters
+ * Schema pour obtenir les paramètres du constructeur
+ * 
+ * @typedef {Object} GetConstructorParamsSchema
+ * @property {string} classHash - Hash de classe du contrat
+ * @property {string} [abiPath] - Chemin vers le fichier ABI du contrat
+ * @property {string} [sierraPath] - Chemin vers le fichier Sierra quand on n'utilise pas d'ABI séparé
+ * @property {string} [casmPath] - Chemin vers le fichier CASM quand on n'utilise pas d'ABI séparé
+ * @property {string[]} [constructorArgs] - Arguments pour le constructeur du contrat
  */
 export const getConstructorParamsSchema = z.object({
   classHash: z.string({

@@ -20,7 +20,6 @@ export const deployContract = async (
       throw new Error('Class hash is required for deployment');
     }
 
-    console.log('\n\nDEPLOYING...');
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
     const account = new Account(
@@ -32,35 +31,32 @@ export const deployContract = async (
     );
 
     const contractManager = new ContractManager(account);
-    console.log("PARAMS = ", params);
+
     if (params.abiPath) {
       await contractManager.loadAbiFile(resolveContractFilePath(params.abiPath));
     }
     else if (params.sierraPath && params.casmPath) {
-      await contractManager.loadContractCompilationFiles(resolveContractFilePath(params.sierraPath), resolveContractFilePath(params.casmPath));
+      await contractManager.loadContractCompilationFiles(
+        resolveContractFilePath(params.sierraPath), 
+        resolveContractFilePath(params.casmPath)
+      );
       await contractManager.loadAbiFile();
     }
     else {
       throw new Error('Either ABI path or Sierra and CASM paths are required');
     }
-    console.log('\n\nABI loaded');
 
     const constructorParamDefs = contractManager.extractConstructorParams();
-
     const typedConstructorArgs = contractManager.convertConstructorArgs(
       constructorParamDefs,
       params.constructorArgs as string[]
     );
 
-    console.log('Typed constructor arguments:', typedConstructorArgs);
-
     const deployResponse = await contractManager.deployContract(
       params.classHash,
       typedConstructorArgs
     );
-    
-    console.log('Contract deployment result:', deployResponse);
-    
+  
     return JSON.stringify({
       status: 'success',
       transactionHash: deployResponse.transactionHash,

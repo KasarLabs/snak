@@ -83,7 +83,6 @@ export class ContractManager {
     const { isDeclared, classHash } = await this.isContractDeclared();
 
     if (isDeclared && classHash) {
-      console.log('Contract already declared:', classHash);
       return {
         transactionHash: '',
         classHash: classHash,
@@ -95,14 +94,12 @@ export class ContractManager {
         casm: this.compiledCasm,
       };
 
-      // console.log('Declaring contract:', declarePayload);
       const declareResponse = await this.account.declare(
         declarePayload,
         getV3DetailsPayload()
       );
       await this.account.waitForTransaction(declareResponse.transaction_hash);
       
-      console.log('Contract declared:', declareResponse);
       return {
         transactionHash: declareResponse.transaction_hash,
         classHash: declareResponse.class_hash,
