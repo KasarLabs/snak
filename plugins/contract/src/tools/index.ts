@@ -1,7 +1,4 @@
-import {
-  StarknetAgentInterface,
-  StarknetTool,
-} from '@starknet-agent-kit/agents';
+import { StarknetTool } from '@starknet-agent-kit/agents';
 import { 
   declareContractSchema, 
   deployContractSchema, 

@@ -59,15 +59,13 @@ export function resolveContractFilePath(filePath: string): string {
     filePath,
     path.resolve(process.cwd(), filePath),
     path.resolve(process.cwd(), '..', filePath),
-    path.resolve(process.cwd(), '..', 'plugins', 'contract', 'src', 'contract', path.basename(filePath))
+    path.resolve(process.cwd(), '..', 'plugins', 'contract', 'src', 'compiled', path.basename(filePath))
   ];
 
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
-      console.log(`Found file at: ${p}`);
       return p;
     }
   }
-  console.error(`Could not resolve path for: ${filePath}`);
-  return filePath;
+  throw new Error(`Could not resolve path for: ${filePath}`);
 }

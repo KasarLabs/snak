@@ -20,9 +20,9 @@ export const loadTestConfig = (): EnvConfig => {
     accounts: {
       account1: {
         privateKey:
-          '0x00000000000000000000000000000000b137668388dbe9acdfa3bc734cc2c469',
+          '0x0000000000000000000000000000000071d7bb07b9a64f6f78ac4c816aff4da9',
         publicAddress:
-          '0x034ba56f92265f0868c57d3fe72ecab144fc96f97954bbbc4252cef8e8a979ba',
+          '0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691',
       },
       account2: {
         privateKey:

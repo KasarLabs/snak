@@ -244,7 +244,6 @@ export class ContractManager {
       const param = paramDefs[i];
       const argString = argsStrings[i];
       typedArgs.push(this.convertStringToType(argString, param.type));
-      console.log(`Converted argument '${param.name}' of type '${param.type}': ${argsStrings[i]} -> ${typedArgs[i]}`);
     }
 
     return typedArgs;

@@ -49,7 +49,6 @@ export const declareContract = async (
       casmPath: casmPath
     });
   } catch (error) {
-    console.error('Contract declaration failed:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

@@ -34,7 +34,7 @@ export const getConstructorParams = async (
       await contractManager.loadAbiFile();
     }
     else {
-      throw new Error('Either ABI path or Sierra and CASM paths are required');
+      throw new Error('Either ABI path or Sierra and CASM valid paths are required');
     }
 
     const constructorParams = contractManager.extractConstructorParams();
@@ -46,7 +46,6 @@ export const getConstructorParams = async (
     });
     
   } catch (error) {
-    console.error('Failed to get constructor parameters:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

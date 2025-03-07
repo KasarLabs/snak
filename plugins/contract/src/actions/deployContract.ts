@@ -63,7 +63,6 @@ export const deployContract = async (
       contractAddress: deployResponse.contractAddress,
     });
   } catch (error) {
-    console.error('Contract deployment failed:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
