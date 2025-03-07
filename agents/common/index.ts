@@ -8,6 +8,7 @@ export type AiConfig = {
   aiProviderApiKey: string;
   aiModel: string;
   aiProvider: string;
+  embeddingKey: string;
 };
 
 import {

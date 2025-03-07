@@ -13,8 +13,6 @@ import path from 'path';
 import { log } from 'console';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
-
 const load_command = async (): Promise<string> => {
   const argv = await yargs(hideBin(process.argv))
     .option('agent', {
@@ -180,6 +178,7 @@ const LocalRun = async () => {
         signature: 'key',
         agentMode: 'agent',
         agentconfig: agent_config,
+        embeddingKey: process.env.EMBEDDING_API_KEY as string,
       });
       await agent.createAgentReactExecutor();
       while (true) {
@@ -236,6 +235,7 @@ const LocalRun = async () => {
         signature: 'key',
         agentMode: 'auto',
         agentconfig: agent_config,
+        embeddingKey: process.env.EMBEDDING_API_KEY as string,
       });
 
       await agent.createAgentReactExecutor();
