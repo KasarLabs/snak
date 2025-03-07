@@ -58,8 +58,10 @@ POSTGRES_PORT=your_port
 To use PostgreSQL in your plugins, initialize the database with:
 ```js
 // Initialize the database in your plugin
-const dbName = 'KasarLabs'
-const db = await agent.createDatabase('dbName');
+
+const dbName = 'Kasarlabs';
+await agent.createDatabase(dbName);
+const database = agent.getDatabaseByName(dbName);
 
 
 const query_create_table = await database.createTable({
