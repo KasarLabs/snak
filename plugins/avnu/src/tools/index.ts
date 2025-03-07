@@ -1,4 +1,7 @@
-import { StarknetTool } from '@starknet-agent-kit/agents';
+import {
+  StarknetTool,
+  StarknetAgentInterface,
+} from '@starknet-agent-kit/agents';
 import { routeSchema, swapSchema } from '../schema/index.js';
 import { swapTokens } from '../actions/swap.js';
 import { getRoute } from '../actions/fetchRoute.js';
