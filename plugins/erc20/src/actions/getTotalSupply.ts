@@ -6,10 +6,10 @@ import { z } from 'zod';
 import { getTotalSupplySchema } from '../schemas/schema.js';
 
 /**
- * Gets the total supply of an ERC20 token.
+ * Gets the total supply of a token
  * @param {StarknetAgentInterface} agent - The Starknet agent interface
- * @param {string} symbol - The ERC20 token contract address
- * @returns {Promise<string>} JSON string with total supply
+ * @param {GetTotalSupplyParams} params - Total supply parameters
+ * @returns {Promise<string>} JSON string with total supply amount
  * @throws {Error} If operation fails
  */
 export const getTotalSupply = async (

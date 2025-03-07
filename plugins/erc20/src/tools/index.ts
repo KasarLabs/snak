@@ -14,9 +14,9 @@ import {
 } from '../schemas/schema.js';
 
 import { getAllowance } from '../actions/getAllowance.js';
-import { getTotalSupply } from '../actions/getTotaSupply.js';
+import { getTotalSupply } from '../actions/getTotalSupply.js';
 import { transferFrom } from '../actions/transferFrom.js';
-import { getBalance, getOwnBalance } from '../actions/getBalances.js';
+import { getBalance, getOwnBalance } from '../actions/getBalance.js';
 import { approve } from '../actions/approve.js';
 import { transfer } from '../actions/transfer.js';
 import { getMyGivenAllowance } from '../actions/getAllowance.js';
