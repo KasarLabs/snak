@@ -23,7 +23,7 @@ brew services start postgresql
 1. Install PostgreSQL:
 
 ```bash
-bashCopysudo apt update
+sudo apt update
 sudo apt install postgresql postgresql-contrib
 ```
 

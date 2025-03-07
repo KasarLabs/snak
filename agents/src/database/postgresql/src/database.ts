@@ -286,8 +286,7 @@ export class PostgresAdaptater {
         throw new Error('Error table already exists.');
       }
       this.tables.push(table);
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   /**

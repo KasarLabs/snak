@@ -1,27 +1,22 @@
-import {
-  Body,
-  Controller,
-  Logger,
-  NotFoundException,
-  OnModuleInit,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import { Pool } from 'pg';
+import { Body, Controller, OnModuleInit, Post } from '@nestjs/common';
+import path from 'path';
 import * as dotenv from 'dotenv';
-import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import pkg from 'pg';
+const { Pool } = pkg;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 @Controller('database')
 export class DatabaseController implements OnModuleInit {
-  private database: Pool;
+  private database: pkg.Pool;
 
   constructor() {}
 
   async onModuleInit() {
-    console.log('Connecting to database');
     this.database = await new Pool({
       host: process.env.POSTGRES_HOST,
       user: process.env.POSTGRES_USER,
