@@ -1,8 +1,6 @@
 import { AiConfig, IAgent } from '../common/index.js';
 import { createAgent } from './agent.js';
 import { RpcProvider } from 'starknet';
-import { TransactionMonitor } from '../common/index.js';
-import { ContractInteractor } from '../common/index.js';
 import { createAutonomousAgent } from './autonomousAgents.js';
 import { Scraper } from 'agent-twitter-client';
 import { TwitterApi } from 'twitter-api-v2';
@@ -40,8 +38,7 @@ export class StarknetAgent implements IAgent {
   private twitterAccoutManager: TwitterInterface = {};
   private telegramAccountManager: TelegramInterface = {};
   private database: PostgresAdaptater[] = [];
-  public readonly transactionMonitor: TransactionMonitor;
-  public readonly contractInteractor: ContractInteractor;
+
   public readonly signature: string;
   public readonly agentMode: string;
   public readonly agentconfig: JsonConfig;
