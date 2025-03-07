@@ -46,7 +46,6 @@ export const readChatPool = async (agent: StarknetAgentInterface) => {
       throw new Error('Error query response is empty.');
     }
     for (const row of result.query.rows) {
-      console.log(row);
       instructions.push(JSON.stringify(row.instruction));
     }
     return JSON.stringify({
