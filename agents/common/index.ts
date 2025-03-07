@@ -1,4 +1,7 @@
 import { RpcProvider } from 'starknet';
+import { TwitterApi } from 'twitter-api-v2';
+import { Scraper } from 'agent-twitter-client';
+import TelegramBot from 'node-telegram-bot-api';
 
 /**
  * AI service configuration
@@ -11,9 +14,6 @@ export type AiConfig = {
   aiModel: string;
   aiProvider: string;
 };
-
-import { TwitterApi } from 'twitter-api-v2';
-import { Scraper } from 'agent-twitter-client';
 
 /**
  * Configuration for Twitter API authentication and client setup
@@ -55,8 +55,6 @@ export interface TwitterInterface {
   twitter_scraper?: TwitterScraperConfig;
   twitter_api?: TwitterApiConfig;
 }
-
-import TelegramBot from 'node-telegram-bot-api';
 
 /**
  * Telegram Interface.
