@@ -11,7 +11,7 @@ describe('Get total supply', () => {
     it('should get total supply for ETH', async () => {
       const params = {
         assetSymbol: 'ETH',
-      }
+      };
 
       const result = await getTotalSupply(agent, params);
       const parsed = JSON.parse(result);
@@ -27,7 +27,7 @@ describe('Get total supply', () => {
     it('should fail with invalid token address', async () => {
       const params = {
         assetSymbol: 'invalidaddress',
-      }
+      };
 
       const result = await getTotalSupply(agent, params);
       const parsed = JSON.parse(result);

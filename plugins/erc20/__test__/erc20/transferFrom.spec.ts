@@ -5,7 +5,6 @@ import { createMockStarknetAgent } from '../jest/setEnvVars.js';
 import { setupTestEnvironment } from '../utils/helper.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
-
 describe('TransferFrom with prior approval', () => {
   const approvalAmount = '1.0';
   let agent: StarknetAgentInterface;
