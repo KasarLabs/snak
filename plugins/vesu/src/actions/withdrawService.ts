@@ -198,7 +198,7 @@ export class WithdrawEarnService {
   ): Promise<WithdrawResult> {
     try {
       const account = new Account(
-        this.agent.contractInteractor.provider,
+        this.agent.getProvider(),
         this.walletAddress,
         this.agent.getAccountCredentials().accountPrivateKey
       );

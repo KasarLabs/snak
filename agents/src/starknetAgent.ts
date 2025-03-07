@@ -58,9 +58,6 @@ export class StarknetAgent implements IAgent {
     this.agentMode = config.agentMode;
     this.currentMode = config.agentMode;
     this.agentconfig = config.agentconfig;
-
-    this.transactionMonitor = new TransactionMonitor(this.provider);
-    this.contractInteractor = new ContractInteractor(this.provider);
   }
 
   public async createAgentReactExecutor() {

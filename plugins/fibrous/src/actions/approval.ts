@@ -18,10 +18,10 @@ export class ApprovalService {
     try {
       const contract = new Contract(ERC20_ABI, tokenAddress, account);
 
-      const allowanceResult = await contract.call('allowance', [
+      const allowanceResult = await contract.allowance(
         account.address,
-        spenderAddress,
-      ]);
+        spenderAddress
+      );
 
       let currentAllowance: bigint;
       if (Array.isArray(allowanceResult)) {
@@ -30,7 +30,7 @@ export class ApprovalService {
         typeof allowanceResult === 'object' &&
         allowanceResult !== null
       ) {
-        const value = Object.values(allowanceResult)[0];
+        const value: any = Object.values(allowanceResult)[0];
         currentAllowance = BigInt(value.toString());
       } else {
         currentAllowance = BigInt(allowanceResult.toString());
@@ -46,16 +46,9 @@ export class ApprovalService {
 
         return calldata;
       } else {
-        console.log('Sufficient allowance already exists');
         return null;
       }
     } catch (error) {
-      console.error('Approval error details:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        type: error instanceof Error ? error.constructor.name : typeof error,
-      });
       throw new Error(
         `Failed to approve token: ${error instanceof Error ? error.message : 'Unknown error'}`
       );

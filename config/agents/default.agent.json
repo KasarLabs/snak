@@ -36,7 +36,8 @@
     "openzeppelin",
     "rpc",
     "transaction",
-    "token",
+    "avnu",
+    "erc20",
     "erc721"
   ]
 }
