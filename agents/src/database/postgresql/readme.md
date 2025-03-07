@@ -50,12 +50,13 @@ sudo -u postgres psql
 Update your .env file with the following information:
 
 ```bash
-CopyPOSTGRES_USER=your_username
+POSTGRES_USER=your_username
 POSTGRES_PASSWORD=your_password
 POSTGRES_ROOT_DB=your_database
 POSTGRES_HOST=your_host
-POSTGRES_PORT=your_port
+POSTGRES_PORT=your_port #Default Postgres Port : 5432
 ```
+There's one field that isn't always present by default: the root DB. We recommend setting this to "postgres" which is a database created by default in PostgreSQL installations. The purpose of the root DB is to have a database where you can execute instructions that might not be executable in any other database.
 
 ## Using the Database in Your Plugins
 
