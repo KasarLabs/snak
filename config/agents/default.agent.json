@@ -31,7 +31,6 @@
   "internal_plugins": [
     "argent",
     "fibrous",
-    "telegram",
     "okx",
     "braavos",
     "openzeppelin",
