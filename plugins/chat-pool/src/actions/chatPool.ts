@@ -14,7 +14,7 @@ export const insertChatInstruction = async (
     const result = await database.insert({
       table_name: 'sak_table_chat',
       fields: new Map<string, string>([
-        ['instruction', `'${params.instruction}'`],
+        ['instruction', `${params.instruction}`],
       ]),
     });
     if (result.status === 'error') {
