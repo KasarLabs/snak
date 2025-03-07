@@ -1,7 +1,15 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { createBox, formatSection } from './formatting';
+import { createBox, formatSection } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+import fs from 'fs/promises';
+
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export interface Token {
   symbol: string;
   amount: number;
@@ -21,7 +29,7 @@ export interface JsonConfig {
   autonomous?: boolean;
 }
 
-const createContextFromJson = (json: any): string => {
+export const createContextFromJson = (json: any): string => {
   if (!json) {
     throw new Error(
       'Error while trying to parse your context from the youragent.json'
@@ -50,23 +58,23 @@ const createContextFromJson = (json: any): string => {
   }
 
   if (identityParts.length > 0) {
-    displayOutput += createBox('IDENTITY', formatSection(identityParts));
+    displayOutput += createBox('IDENTITY', identityParts);
   }
 
   if (Array.isArray(json.lore)) {
-    displayOutput += createBox('BACKGROUND', formatSection(json.lore));
+    displayOutput += createBox('BACKGROUND', json.lore);
     contextParts.push(`Your lore : [${json.lore.join(']\n[')}]`);
   }
 
   // Objectives Section
   if (Array.isArray(json.objectives)) {
-    displayOutput += createBox('OBJECTIVES', formatSection(json.objectives));
+    displayOutput += createBox('OBJECTIVES', json.objectives);
     contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
   }
 
   // Knowledge Section
   if (Array.isArray(json.knowledge)) {
-    displayOutput += createBox('KNOWLEDGE', formatSection(json.knowledge));
+    displayOutput += createBox('KNOWLEDGE', json.knowledge);
     contextParts.push(`Your knowledge : [${json.knowledge.join(']\n[')}]`);
   }
 
@@ -92,7 +100,7 @@ const createContextFromJson = (json: any): string => {
     }
 
     if (examplesParts.length > 0) {
-      displayOutput += createBox('EXAMPLES', formatSection(examplesParts));
+      displayOutput += createBox('EXAMPLES', examplesParts);
     }
   }
 
@@ -127,17 +135,70 @@ export const validateConfig = (config: JsonConfig) => {
   }
 };
 
-const checkParseJson = (agent_config_name: string): JsonConfig | undefined => {
+// log all this function
+const checkParseJson = async (
+  agent_config_name: string
+): Promise<JsonConfig | undefined> => {
   try {
-    const json = require(path.resolve(`../config/agents/${agent_config_name}`));
-    if (!json) {
-      throw new Error(`Can't access to ./config/agents/config-agent.json`);
+    // Try multiple possible locations for the config file
+    const possiblePaths = [
+      path.join(process.cwd(), 'config', 'agents', agent_config_name),
+
+      path.join(process.cwd(), '..', 'config', 'agents', agent_config_name),
+
+      path.join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'config',
+        'agents',
+        agent_config_name
+      ),
+
+      path.join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        '..',
+        'config',
+        'agents',
+        agent_config_name
+      ),
+    ];
+
+    let configPath: string | null = null;
+    let jsonData: string | null = null;
+
+    // Try each path until we find one that works
+    for (const tryPath of possiblePaths) {
+      try {
+        await fs.access(tryPath);
+        configPath = tryPath;
+        jsonData = await fs.readFile(tryPath, 'utf8');
+        break;
+      } catch {}
     }
 
+    if (!configPath || !jsonData) {
+      throw new Error(
+        `Could not find config file '${agent_config_name}' in any of the expected locations`
+      );
+    }
+
+    const json = JSON.parse(jsonData);
+
+    if (!json) {
+      throw new Error(`Can't parse config file: ${configPath}`);
+    }
+
+    // Create system message
     const systemMessagefromjson = new SystemMessage(
       createContextFromJson(json)
     );
 
+    // Create config object
     let jsonconfig: JsonConfig = {
       prompt: systemMessagefromjson,
       name: json.name,
@@ -165,12 +226,12 @@ const checkParseJson = (agent_config_name: string): JsonConfig | undefined => {
   }
 };
 
-export const load_json_config = (
+export const load_json_config = async (
   agent_config_name: string
-): JsonConfig | undefined => {
-  const json = checkParseJson(agent_config_name);
+): Promise<JsonConfig> => {
+  const json = await checkParseJson(agent_config_name);
   if (!json) {
-    return undefined;
+    throw new Error('Failed to load JSON config');
   }
   return json;
 };

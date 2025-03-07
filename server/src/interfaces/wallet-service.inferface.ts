@@ -1,5 +1,5 @@
-import { AgentRequestDTO } from '../dto/agents';
-import { IAgent } from './agent.interface';
+import { AgentRequestDTO } from '../dto/agents.js';
+import { IAgent } from './agent.interface.js';
 
 export interface AgentExecutionResponse {
   status: 'success' | 'failure';

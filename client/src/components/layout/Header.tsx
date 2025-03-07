@@ -44,7 +44,7 @@ const Header = () => {
               Docs
             </Link>
             <a
-              href="https://github.com/kasarlabs/starknet-agent-kit"
+              href="https://github.com/kasarlabs/snak"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-300 hover:text-white font-medium text-lg hover:scale-105 transition-all"
@@ -79,7 +79,7 @@ const Header = () => {
               Docs
             </Link>
             <a
-              href="https://github.com/kasarlabs/starknet-agent-kit"
+              href="https://github.com/kasarlabs/snak"
               target="_blank"
               rel="noopener noreferrer"
               className="block text-gray-300 hover:text-white font-medium text-lg hover:bg-neutral-800 py-2 px-4 rounded-lg transition-all"

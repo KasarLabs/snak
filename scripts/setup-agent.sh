@@ -71,7 +71,7 @@ main () {
 		mkdir -p "$INSTALL_DIR"
 
 		info "Cloning repository..."
-		if ! git clone https://github.com/kasarlabs/starknet-agent-kit.git "$INSTALL_DIR"; then
+		if ! git clone https://github.com/kasarlabs/snak.git "$INSTALL_DIR"; then
 			error "Failed to clone repository."
 		fi
 		success "Repository has been successfully cloned to $INSTALL_DIR"

@@ -1,16 +1,16 @@
 process.env.TAVILY_API_KEY = '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';
 
 import { ChatAnthropic } from '@langchain/anthropic';
-import { AiConfig } from '../common';
+import { AiConfig } from '../common/index.js';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
 import { ChatDeepSeek } from '@langchain/deepseek';
-import { StarknetAgentInterface } from './tools/tools';
-import { createSignatureTools } from './tools/signatureTools';
+import { StarknetAgentInterface } from './tools/tools.js';
+import { createSignatureTools } from './tools/signatureTools.js';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { createAllowedToollkits } from './tools/external_tools';
-import { createAllowedTools } from './tools/tools';
+import { createAllowedToollkits } from './tools/external_tools.js';
+import { createAllowedTools } from './tools/tools.js';
 import {
   Annotation,
   InMemoryStore,

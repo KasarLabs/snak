@@ -1,11 +1,11 @@
-import { wrapAccountCreationResponse } from '../utils/AccountManager';
-import { accountDetailsSchema } from '../schemas/schema';
+import { wrapAccountCreationResponse } from '../utils/AccountManager.js';
+import { accountDetailsSchema } from '../schemas/schema.js';
 import {
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
-import { DeployOKXAccount } from '../actions/deployAccount';
-import { CreateOKXAccount } from '../actions/createAccount';
+import { DeployOKXAccount } from '../actions/deployAccount.js';
+import { CreateOKXAccount } from '../actions/createAccount.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({

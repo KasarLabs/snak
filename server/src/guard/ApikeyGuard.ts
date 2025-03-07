@@ -1,8 +1,8 @@
 import { FastifyRequest } from 'fastify';
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { ConfigurationService } from '../../config/configuration';
-import { UnauthorizedError } from '../../common/errors';
+import { ConfigurationService } from '../../config/configuration.js';
+import { UnauthorizedError } from '../../common/errors/index.js';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {

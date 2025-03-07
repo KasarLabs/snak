@@ -31,6 +31,7 @@ export const formatJsonContent = (content: unknown): string[] => {
   }
 };
 
+// Box drawing implementation using manually created strings
 export const createBox = (
   title: string,
   content: string | string[] | unknown,
@@ -40,17 +41,34 @@ export const createBox = (
   const color = isError ? chalk.red : chalk.cyan;
   const terminalWidth = getTerminalWidth();
   const contentWidth = terminalWidth - 6;
-  const horizontalLine = '─'.repeat(terminalWidth - 2);
 
+  // The Unicode character for the horizontal box line is '─' (U+2500)
+  // We found character code 65533 in the corrupted areas, which is the replacement character �
+  // So we'll use JavaScript to manually create our horizontal lines instead of copy/pasting them
+
+  // Create a clean horizontal line of the exact length we need
+  const makeHorizontalLine = (length: number): string => {
+    return Array(length).fill('─').join('');
+  };
+
+  const horizontalLine = makeHorizontalLine(terminalWidth - 2);
+
+  // Build the box with precise control over every character
   let result = '\n';
-  result += color(`╭${horizontalLine}╮\n`);
 
+  // Top border
+  result += color('┌' + horizontalLine + '┐\n');
+
+  // Title section
   result +=
     color('│') +
-    chalk.yellow(` ${title}`.padEnd(terminalWidth - 2)) +
+    chalk.yellow(' ' + title.padEnd(terminalWidth - 3)) +
     color('│\n');
-  result += color(`├${horizontalLine}┤\n`);
 
+  // Title separator
+  result += color('├' + horizontalLine + '┤\n');
+
+  // Content section
   let lines: string[];
   if (Array.isArray(content)) {
     lines = content;
@@ -63,15 +81,17 @@ export const createBox = (
     wrappedLines.forEach((wrappedLine) => {
       result +=
         color('│') +
-        chalk.white(` ${wrappedLine}`.padEnd(terminalWidth - 2)) +
+        chalk.white(' ' + wrappedLine.padEnd(terminalWidth - 3)) +
         color('│\n');
     });
   });
 
-  result += color(`╰${horizontalLine}╯\n`);
+  // Bottom border
+  result += color('└' + horizontalLine + '┘\n');
+
   return result;
 };
 
 export const formatSection = (items: string[]): string[] => {
-  return items.map((item) => `  • ${item.trim()}`);
+  return items.map((item) => item.trim());
 };

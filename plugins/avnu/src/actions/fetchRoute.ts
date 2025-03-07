@@ -1,8 +1,8 @@
 import { fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { TokenService } from './fetchTokens';
-import { RouteSchemaType } from '../../../fibrous/src/schema';
-import { RouteResult } from '../interfaces';
+import { TokenService } from './fetchTokens.js';
+import { RouteSchemaType } from '../../../fibrous/src/schema/index.js';
+import { RouteResult } from '../interfaces/index.js';
 
 /**
  * Service class for fetching trading routes

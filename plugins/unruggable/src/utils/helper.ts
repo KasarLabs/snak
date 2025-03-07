@@ -1,5 +1,5 @@
 import { Account, CallData, RawArgs, Uint256 } from 'starknet';
-import { FACTORY_ADDRESS } from '../constants';
+import { FACTORY_ADDRESS } from '../constants/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { RpcProvider } from 'starknet';
 

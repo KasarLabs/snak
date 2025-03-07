@@ -1,30 +1,31 @@
 import {
   StarknetAgentInterface,
   StarknetTool,
+  StarknetToolRegistry,
 } from '@starknet-agent-kit/agents';
-import { getSpecVersion } from '../actions/getSpecVersion';
-import { getBlockWithTxHashes } from '../actions/getBlockWithTxHashes';
-import { getBlockWithReceipts } from '../actions/getBlockWithReceipts';
-import { getTransactionStatus } from '../actions/getTransactionStatus';
-import { getClass } from '../actions/getClass';
-import { getChainId } from '../actions/getChainId';
-import { getSyncingStats } from '../actions/getSyncingStats';
-import { getBlockNumber } from '../actions/getBlockNumber';
-import { getBlockTransactionCount } from '../actions/getBlockTransactionCount';
-import { getStorageAt } from '../actions/getStorageAt';
-import { getClassAt } from '../actions/getClassAt';
-import { getClassHashAt } from '../actions/getClassHash';
+import { getSpecVersion } from '../src/actions/getSpecVersion.js';
+import { getBlockWithTxHashes } from '../src/actions/getBlockWithTxHashes.js';
+import { getBlockWithReceipts } from '../src/actions/getBlockWithReceipts.js';
+import { getTransactionStatus } from '../src/actions/getTransactionStatus.js';
+import { getClass } from '../src/actions/getClass.js';
+import { getChainId } from '../src/actions/getChainId.js';
+import { getSyncingStats } from '../src/actions/getSyncingStats.js';
+import { getBlockNumber } from '../src/actions/getBlockNumber.js';
+import { getBlockTransactionCount } from '../src/actions/getBlockTransactionCount.js';
+import { getStorageAt } from '../src/actions/getStorageAt.js';
+import { getClassAt } from '../src/actions/getClassAt.js';
+import { getClassHashAt } from '../src/actions/getClassHash.js';
 import {
-  getStorageAtSchema,
-  blockIdSchema,
   blockIdAndContractAddressSchema,
+  blockIdSchema,
   getClassAtSchema,
   getClassHashAtSchema,
+  getStorageAtSchema,
   transactionHashSchema,
-} from '../schema';
+} from '../src/schema/index.js';
 
 export const registerRPCTools = () => {
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_chain_id',
     plugins: 'rpc',
     description:
@@ -32,7 +33,7 @@ export const registerRPCTools = () => {
     execute: getChainId,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_syncing_status',
     plugins: 'rpc',
     description: 'Retrieve the syncing status of the Starknet node',
@@ -40,7 +41,7 @@ export const registerRPCTools = () => {
   });
 
   // Add remaining tools from createTools2
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_class_hash',
     plugins: 'rpc',
     description:
@@ -49,14 +50,14 @@ export const registerRPCTools = () => {
     execute: getClassHashAt,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_spec_version',
     plugins: 'rpc',
     description: 'Get the current spec version from the Starknet RPC provider',
     execute: getSpecVersion,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_block_with_tx_hashes',
     plugins: 'rpc',
     description:
@@ -65,7 +66,7 @@ export const registerRPCTools = () => {
     execute: getBlockWithTxHashes,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_block_with_receipts',
     plugins: 'rpc',
     description: 'Fetch block details with transaction receipts',
@@ -73,7 +74,7 @@ export const registerRPCTools = () => {
     execute: getBlockWithReceipts,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_transaction_status',
     plugins: 'rpc',
     description: 'Fetch transaction status by hash',
@@ -82,14 +83,14 @@ export const registerRPCTools = () => {
   });
 
   // Register blockchain query tools
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_block_number',
     plugins: 'rpc',
     description: 'Get the current block number from the Starknet network',
     execute: getBlockNumber,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_block_transaction_count',
     plugins: 'rpc',
     description: 'Get the number of transactions in a specific block',
@@ -97,7 +98,7 @@ export const registerRPCTools = () => {
     execute: getBlockTransactionCount,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_storage_at',
     plugins: 'rpc',
     description: 'Get the storage value at a specific slot for a contract',
@@ -106,7 +107,7 @@ export const registerRPCTools = () => {
   });
 
   // Register contract-related tools
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_class',
     plugins: 'rpc',
     description:
@@ -115,7 +116,7 @@ export const registerRPCTools = () => {
     execute: getClass,
   });
 
-  StarknetToolRegistry.push({
+  StarknetToolRegistry.registerTool({
     name: 'get_class_at',
     plugins: 'rpc',
     description:

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
-import { envSchema, type EnvConfig } from './env.validation'; // Add this import
+import { envSchema, type EnvConfig } from './env.validation.js';
 
 @Injectable()
 export class ConfigurationService {

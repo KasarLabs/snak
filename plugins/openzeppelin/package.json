@@ -1,10 +1,11 @@
 {
-  "name": "@starknet-agent-kit/plugin-braavos",
+  "name": "@starknet-agent-kit/plugin-openzeppelin",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "build": "pnpm clean:dist && tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",

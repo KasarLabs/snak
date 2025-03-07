@@ -1,6 +1,6 @@
 import { SignatureTool } from '@starknet-agent-kit/agents';
-import { placePixelSchema } from '../schema';
-import { placePixelSignature } from '../actions/placePixel';
+import { placePixelSchema } from '../schema/index.js';
+import { placePixelSignature } from '../actions/placePixel.js';
 
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]

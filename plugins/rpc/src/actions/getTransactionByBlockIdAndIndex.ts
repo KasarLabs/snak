@@ -1,4 +1,4 @@
-import { GetTransactionByBlockIdAndIndexParams } from '../schema';
+import { GetTransactionByBlockIdAndIndexParams } from '../schema/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 export const getTransactionByBlockIdAndIndex = async (

@@ -8,7 +8,7 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kasarlabs/starknet-agent-kit.git"
+    "url": "git+https://github.com/kasarlabs/snak.git"
   },
   "keywords": [
     "starknet",
@@ -26,13 +26,16 @@
     "clean": "rm -rf dist node_modules client/node_modules client/.next client/dist",
     "clean:all": "lerna run clean:all && pnpm clean",
     "clean:dist": "lerna run clean:dist",
-    "build:all" : "lerna run build",
+    "build:all": "lerna run build",
+    "build:ci": "lerna run build --scope \"@starknet-agent-kit/agents\" --scope \"@starknet-agent-kit/plugin-*\" --scope \"@starknet-agent-kit/server\"",
     "build:server": "pnpm build:all",
     "build:plugins": "lerna run build --scope \"@starknet-agent-kit/plugin-*\"",
     "build:only": "./scripts/build-only.sh",
     "build": "lerna run build --scope \"@starknet-agent-kit/agents\" && lerna run build --scope \"@starknet-agent-kit/plugin-*\"",
     "start": "pnpm build && lerna run --scope @starknet-agent-kit/agents start --",
     "start:server": "pnpm run build:server && lerna run start --scope \"@starknet-agent-kit/server\" --scope \"@starknet-agent-kit/client\"",
+    "start:test": "lerna run test",
+    "test": "./scripts/run_all_test.sh",
     "dev": "lerna run --scope @starknet-agent-kit/agents start --",
     "dev:server": "lerna run dev --scope \"@starknet-agent-kit/server\" --scope \"@starknet-agent-kit/client\"",
     "lint": "lerna run lint",
@@ -40,20 +43,23 @@
     "lint:server": "lerna run lint --scope \"@starknet-agent-kit/server\"",
     "lint:plugins": "lerna run lint --scope \"@starknet-agent-kit/plugins-*\"",
     "lint:agents": "lerna run lint --scope \"@starknet-agent-kit/agents\"",
-    "prettier:server" : "prettier --check \"server/**/*.{ts,tsx}\" --write",
-    "prettier:agents" : "prettier --check \"agents/**/*.{ts,tsx}\" --write",
-    "prettier:plugins" : "prettier --check \"plugins/**/*.{ts,tsx}\" --write",
-    "prettier:client" : "prettier --check \"client/**/*.{ts,tsx}\" --write",
-    "prettier:all" : "pnpm prettier:server && pnpm prettier:agents && pnpm prettier:plugins && pnpm prettier:client",
+    "prettier:server": "prettier --check \"server/**/*.{ts,tsx}\" --write",
+    "prettier:agents": "prettier --check \"agents/**/*.{ts,tsx}\" --write",
+    "prettier:plugins": "prettier --check \"plugins/**/*.{ts,tsx}\" --write",
+    "prettier:client": "prettier --check \"client/**/*.{ts,tsx}\" --write",
+    "prettier:all": "pnpm prettier:server && pnpm prettier:agents && pnpm prettier:plugins && pnpm prettier:client",
     "prepublishOnly": "lerna run prepublishOnly"
   },
   "dependencies": {
+    "@types/pg": "^8.11.11",
     "add": "^2.0.6",
     "boxen": "^8.0.1",
     "chalk": "^4.1.2",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
     "express": "^4.21.2",
+    "pg": "^8.13.3",
+    "pg-promise": "^11.10.2",
     "starknet": "^6.23.1",
     "util": "^0.12.5",
     "zod": "^3.24.2"
@@ -82,10 +88,13 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.6",
     "ts-loader": "^9.5.2",
-    "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.3",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.25.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   },
   "pnpm": {
     "overrides": {

@@ -4,13 +4,13 @@ import {
   simulateDeployAccountTransactionSchema,
   simulateDeployTransactionSchema,
   simulateDeclareTransactionSchema,
-} from '../schema';
+} from '../schema/index.js';
 import {
   simulateDeployAccountTransaction,
   simulateInvokeTransaction,
   simulateDeployTransaction,
   simulateDeclareTransaction,
-} from '../actions/simulateTransaction';
+} from '../actions/simulateTransaction.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   // Simulate transactions

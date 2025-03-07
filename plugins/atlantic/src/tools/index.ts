@@ -2,9 +2,12 @@ import {
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
-import { getProofService } from '../actions/getProofService';
-import { GetProofServiceSchema, VerifyProofServiceSchema } from '../schema';
-import { verifyProofService } from '../actions/verifyProofService';
+import { getProofService } from '../actions/getProofService.js';
+import {
+  GetProofServiceSchema,
+  VerifyProofServiceSchema,
+} from '../schema/index.js';
+import { verifyProofService } from '../actions/verifyProofService.js';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
