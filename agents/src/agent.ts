@@ -22,7 +22,6 @@ import {
   HumanMessage,
   SystemMessage,
 } from '@langchain/core/messages';
-import { MongoClient } from 'mongodb';
 import { DynamicStructuredTool, Tool, tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import {
@@ -37,7 +36,7 @@ import { v4 as uuidv4 } from "uuid";
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig,
-  client?: MongoClient
+  client?: string
 ) => {
   const isSignature = starknetAgent.getSignature().signature === 'wallet';
   const model = () => {
@@ -62,6 +61,12 @@ export const createAgent = async (
           modelName: aiConfig.aiModel,
           apiKey: aiConfig.aiProviderApiKey,
           temperature: 0,
+          configuration: {
+            baseURL: "https://oai.helicone.ai/v1",
+            defaultHeaders: {
+              "Helicone-Auth": "Bearer sk-helicone-eu-6uj5vqq-4t7umxi-vyuym4a-6ntehki"
+            }
+          }
         });
       case 'gemini':
         if (!aiConfig.aiProviderApiKey) {
