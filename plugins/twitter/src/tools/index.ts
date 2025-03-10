@@ -1,4 +1,7 @@
-import { StarknetTool } from '@starknet-agent-kit/agents';
+import {
+  StarknetTool,
+  StarknetAgentInterface,
+} from '@starknet-agent-kit/agents';
 
 import {
   createTwitterpostSchema,
@@ -29,7 +32,10 @@ import {
   getTwitterProfileFromUsername,
 } from '../actions/twitter_read.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent?: StarknetAgentInterface
+) => {
   // Twitter Tools
   StarknetToolRegistry.push({
     name: 'create_twitter_post',

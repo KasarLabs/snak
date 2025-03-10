@@ -21,7 +21,10 @@ import { withdrawTrove } from '../actions/withdrawTrove.js';
 import { borrowTrove } from '../actions/borrowTrove.js';
 import { repayTrove } from '../actions/repayTrove.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent?: StarknetAgentInterface
+) => {
   StarknetToolRegistry.push({
     name: 'open_trove',
     plugins: 'opus',

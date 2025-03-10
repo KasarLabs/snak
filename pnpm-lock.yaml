@@ -35,9 +35,6 @@ importers:
       pg:
         specifier: ^8.13.3
         version: 8.13.3
-      pg-promise:
-        specifier: ^11.10.2
-        version: 11.10.2(pg-query-stream@4.7.1(pg@8.13.3))
       starknet:
         specifier: ^6.23.1
         version: 6.23.1(encoding@0.1.13)
@@ -168,6 +165,9 @@ importers:
       '@starknet-agent-kit/plugin-avnu':
         specifier: workspace:*
         version: link:../plugins/avnu
+      '@starknet-agent-kit/plugin-chat-pool':
+        specifier: workspace:*
+        version: link:../plugins/chat-pool
       '@starknet-agent-kit/plugin-contract':
         specifier: workspace:*
         version: link:../plugins/contract
@@ -316,6 +316,12 @@ importers:
         version: link:../../agents
 
   plugins/braavos:
+    devDependencies:
+      '@starknet-agent-kit/agents':
+        specifier: workspace:*
+        version: link:../../agents
+
+  plugins/chat-pool:
     devDependencies:
       '@starknet-agent-kit/agents':
         specifier: workspace:*
@@ -3104,10 +3110,6 @@ packages:
 
   asn1@0.2.6:
     resolution: {integrity: sha512-ix/FxPn0MDjeyJ7i/yoHGFt/EX6LyNbxSEhPPXODPL+KB0VPk86UYfL0lMdy+KCnv+fmvIzySwaK5COwqVbWTQ==}
-
-  assert-options@0.8.2:
-    resolution: {integrity: sha512-XaXoMxY0zuwAb0YuZjxIm8FeWvNq0aWNIbrzHhFjme8Smxw4JlPoyrAKQ6808k5UvQdhvnWqHZCphq5mXd4TDA==}
-    engines: {node: '>=10.0.0'}
 
   assert-plus@1.0.0:
     resolution: {integrity: sha512-NfJ4UzBCcQGLDlQq7nHxH+tv3kyZ0hHQqF5BO6J7tNJeP5do1llPr8dZ8zHonfhAu0PHAdMkSo+8o0wxg9lZWw==}
@@ -6229,18 +6231,9 @@ packages:
   pg-connection-string@2.7.0:
     resolution: {integrity: sha512-PI2W9mv53rXJQEOb8xNR8lH7Hr+EKa6oJa38zsK0S/ky2er16ios1wLKhZyxzD7jUReiWokc9WK5nxSnC7W1TA==}
 
-  pg-cursor@2.12.3:
-    resolution: {integrity: sha512-2koS4+f+oCJnJ6pTdUlp3TkwOCjlPr9lmwcTDPeXZv3eiXDCxZeBC7T0+LldA9+mhqdcO8WDqbuFfdFEJm9YLw==}
-    peerDependencies:
-      pg: ^8
-
   pg-int8@1.0.1:
     resolution: {integrity: sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==}
     engines: {node: '>=4.0.0'}
-
-  pg-minify@1.6.5:
-    resolution: {integrity: sha512-u0UE8veaCnMfJmoklqneeBBopOAPG3/6DHqGVHYAhz8DkJXh9dnjPlz25fRxn4e+6XVzdOp7kau63Rp52fZ3WQ==}
-    engines: {node: '>=14.0.0'}
 
   pg-numeric@1.0.2:
     resolution: {integrity: sha512-BM/Thnrw5jm2kKLE5uJkXqqExRUY/toLHda65XgFTBTFYZyopbKjBe29Ii3RbkvlsMoFwD+tHeGaCjjv0gHlyw==}
@@ -6251,19 +6244,8 @@ packages:
     peerDependencies:
       pg: '>=8.0'
 
-  pg-promise@11.10.2:
-    resolution: {integrity: sha512-wK4yjxZdfxBmAMcs40q6IsC1SOzdLilc1yNvJqlbOjtm2syayqLDCt1JQ9lhS6yNSgVlGOQZT88yb/SADJmEBw==}
-    engines: {node: '>=14.0'}
-    peerDependencies:
-      pg-query-stream: 4.7.1
-
   pg-protocol@1.7.1:
     resolution: {integrity: sha512-gjTHWGYWsEgy9MsY0Gp6ZJxV24IjDqdpTW7Eh0x+WfJLFsm/TJx1MzL6T0D88mBvkpxotCQ6TwW6N+Kko7lhgQ==}
-
-  pg-query-stream@4.7.1:
-    resolution: {integrity: sha512-UMgsgn/pOIYsIifRySp59vwlpTpLADMK9HWJtq5ff0Z3MxBnPMGnCQeaQl5VuL+7ov4F96mSzIRIcz+Duo6OiQ==}
-    peerDependencies:
-      pg: ^8
 
   pg-types@2.2.0:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
@@ -6272,15 +6254,6 @@ packages:
   pg-types@4.0.2:
     resolution: {integrity: sha512-cRL3JpS3lKMGsKaWndugWQoLOCoP+Cic8oseVcbr0qhPzYD5DWXK+RZ9LY9wxRf7RQia4SCwQlXk0q6FCPrVng==}
     engines: {node: '>=10'}
-
-  pg@8.13.1:
-    resolution: {integrity: sha512-OUir1A0rPNZlX//c7ksiu7crsGZTKSOXJPgtNiHGIlC9H0lO+NC6ZDYksSgBYY/thSWhnSRBv8w1lieNNGATNQ==}
-    engines: {node: '>= 8.0.0'}
-    peerDependencies:
-      pg-native: '>=3.0.1'
-    peerDependenciesMeta:
-      pg-native:
-        optional: true
 
   pg@8.13.3:
     resolution: {integrity: sha512-P6tPt9jXbL9HVu/SSRERNYaYG++MjnscnegFh9pPHihfoBSujsrka0hyuymMzeJKFWrcG8wvCKy8rCe8e5nDUQ==}
@@ -7009,10 +6982,6 @@ packages:
 
   spdx-license-ids@3.0.21:
     resolution: {integrity: sha512-Bvg/8F5XephndSK3JffaRqdT+gyhfqIPwDHpX80tJrF8QQRYMo8sNMeaZ2Dp5+jhwKnUmIOyFFQfHRkjJm5nXg==}
-
-  spex@3.4.0:
-    resolution: {integrity: sha512-8JeZJ7QlEBnSj1W1fKXgbB2KUPA8k4BxFMf6lZX/c1ZagU/1b9uZWZK0yD6yjfzqAIuTNG4YlRmtMpQiXuohsg==}
-    engines: {node: '>=14.0.0'}
 
   split2@3.2.2:
     resolution: {integrity: sha512-9NThjpgZnifTkJpzTZ7Eue85S49QwpNhZTq6GRJwObb6jnLFNGB7Qm73V5HewTROPyxD0C29xqmaI68bQtV+hg==}
@@ -10611,8 +10580,6 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  assert-options@0.8.2: {}
-
   assert-plus@1.0.0: {}
 
   ast-types-flow@0.0.8: {}
@@ -10647,7 +10614,7 @@ snapshots:
   axios@1.7.9(debug@4.4.0):
     dependencies:
       follow-redirects: 1.15.9(debug@4.4.0)
-      form-data: 4.0.0
+      form-data: 4.0.2
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
@@ -11607,7 +11574,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.26.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3)(eslint@9.21.0(jiti@1.21.7)):
+  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.26.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3(eslint-plugin-import@2.31.0)(eslint@9.21.0(jiti@1.21.7)))(eslint@9.21.0(jiti@1.21.7)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
@@ -11629,7 +11596,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.21.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.26.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3)(eslint@9.21.0(jiti@1.21.7))
+      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.26.0(eslint@9.21.0(jiti@1.21.7))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.8.3(eslint-plugin-import@2.31.0)(eslint@9.21.0(jiti@1.21.7)))(eslint@9.21.0(jiti@1.21.7))
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -14596,40 +14563,15 @@ snapshots:
 
   pg-connection-string@2.7.0: {}
 
-  pg-cursor@2.12.3(pg@8.13.3):
-    dependencies:
-      pg: 8.13.3
-
   pg-int8@1.0.1: {}
 
-  pg-minify@1.6.5: {}
-
   pg-numeric@1.0.2: {}
-
-  pg-pool@3.7.1(pg@8.13.1):
-    dependencies:
-      pg: 8.13.1
 
   pg-pool@3.7.1(pg@8.13.3):
     dependencies:
       pg: 8.13.3
 
-  pg-promise@11.10.2(pg-query-stream@4.7.1(pg@8.13.3)):
-    dependencies:
-      assert-options: 0.8.2
-      pg: 8.13.1
-      pg-minify: 1.6.5
-      pg-query-stream: 4.7.1(pg@8.13.3)
-      spex: 3.4.0
-    transitivePeerDependencies:
-      - pg-native
-
   pg-protocol@1.7.1: {}
-
-  pg-query-stream@4.7.1(pg@8.13.3):
-    dependencies:
-      pg: 8.13.3
-      pg-cursor: 2.12.3(pg@8.13.3)
 
   pg-types@2.2.0:
     dependencies:
@@ -14648,16 +14590,6 @@ snapshots:
       postgres-date: 2.1.0
       postgres-interval: 3.0.0
       postgres-range: 1.1.4
-
-  pg@8.13.1:
-    dependencies:
-      pg-connection-string: 2.7.0
-      pg-pool: 3.7.1(pg@8.13.1)
-      pg-protocol: 1.7.1
-      pg-types: 2.2.0
-      pgpass: 1.0.5
-    optionalDependencies:
-      pg-cloudflare: 1.1.1
 
   pg@8.13.3:
     dependencies:
@@ -15441,8 +15373,6 @@ snapshots:
       spdx-license-ids: 3.0.21
 
   spdx-license-ids@3.0.21: {}
-
-  spex@3.4.0: {}
 
   split2@3.2.2:
     dependencies:

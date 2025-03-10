@@ -12,6 +12,8 @@ import {
 import { JsonConfig } from './jsonConfig.js';
 import { TelegramInterface } from '../common/index.js';
 import TelegramBot from 'node-telegram-bot-api';
+import { PostgresAdaptater } from './databases/postgresql/src/database.js';
+import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 
 export interface StarknetAgentConfig {
   aiProviderApiKey: string;
@@ -35,6 +37,7 @@ export class StarknetAgent implements IAgent {
   private currentMode: string;
   private twitterAccoutManager: TwitterInterface = {};
   private telegramAccountManager: TelegramInterface = {};
+  private database: PostgresAdaptater[] = [];
 
   public readonly signature: string;
   public readonly agentMode: string;
@@ -205,6 +208,95 @@ export class StarknetAgent implements IAgent {
     }
   }
 
+  public async connectDatabase(database_name: string): Promise<void> {
+    try {
+      const params: PostgresDatabasePoolInterface = {
+        user: process.env.POSTGRES_USER as string,
+        password: process.env.POSTGRES_PASSWORD as string,
+        database: database_name,
+        host: process.env.POSTGRES_HOST as string,
+        port: parseInt(process.env.POSTGRES_PORT as string, 10),
+      };
+      const database = await new PostgresAdaptater(params).connectDatabase();
+      if (!database) {
+        throw new Error('Error when trying to initialize your database');
+      }
+      this.database.push(database);
+    } catch (error) {
+      console.log(error);
+      return;
+    }
+  }
+  public async createDatabase(
+    database_name: string
+  ): Promise<PostgresAdaptater | undefined> {
+    try {
+      const params: PostgresDatabasePoolInterface = {
+        user: process.env.POSTGRES_USER as string,
+        password: process.env.POSTGRES_PASSWORD as string,
+        database: process.env.POSTGRES_ROOT_DB as string,
+        host: process.env.POSTGRES_HOST as string,
+        port: parseInt(process.env.POSTGRES_PORT as string, 10),
+      };
+      const database = await new PostgresAdaptater(params).connectDatabase();
+      if (!database) {
+        throw new Error('Error when trying to initialize your database');
+      }
+      const new_database = await database.createDatabase(database_name);
+      if (!new_database) {
+        throw new Error('Error when trying to create your database');
+      }
+      const new_params: PostgresDatabasePoolInterface = {
+        user: process.env.POSTGRES_USER as string,
+        password: process.env.POSTGRES_PASSWORD as string,
+        database: database_name,
+        host: process.env.POSTGRES_HOST as string,
+        port: parseInt(process.env.POSTGRES_PORT as string, 10),
+      };
+      const new_database_connection = await new PostgresAdaptater(
+        new_params
+      ).connectDatabase();
+      if (!new_database_connection) {
+        throw new Error('Error when trying to connect to your database');
+      }
+      this.database.push(new_database_connection);
+      return new_database_connection;
+    } catch (error) {
+      console.log(error);
+      return undefined;
+    }
+  }
+
+  public async deleteDatabase(database_name: string): Promise<void> {
+    try {
+      const database = this.getDatabaseByName(database_name);
+      if (!database) {
+        throw new Error('Database not found');
+      }
+      await database.closeDatabase();
+      this.deleteDatabaseByName(database_name);
+    } catch (error) {
+      console.log(error);
+      return;
+    }
+  }
+  getDatabase(): PostgresAdaptater[] {
+    return this.database;
+  }
+
+  getDatabaseByName(name: string): PostgresAdaptater | undefined {
+    return this.database.find((db) => db.getDatabaseName() === name);
+  }
+
+  deleteDatabaseByName(name: string): void {
+    if (!this.database) {
+      return;
+    }
+    const database = this.database.filter(
+      (db) => db.getDatabaseName() !== name
+    );
+    this.database = database;
+  }
   getAccountCredentials() {
     return {
       accountPrivateKey: this.accountPrivateKey,
@@ -264,7 +356,6 @@ export class StarknetAgent implements IAgent {
   async validateRequest(request: string): Promise<boolean> {
     return Boolean(request && typeof request === 'string');
   }
-
   async execute(input: string): Promise<unknown> {
     if (input.toLowerCase().includes('switch to autonomous')) {
       return this.switchMode('auto');
