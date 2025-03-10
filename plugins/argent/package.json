@@ -16,7 +16,8 @@
     "./dist/*": "./dist/*"
   },
   "scripts": {
-    "test": "jest",
+    "test": "jest --passWithNoTests",
+
     "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",

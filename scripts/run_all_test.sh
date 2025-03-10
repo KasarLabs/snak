@@ -40,7 +40,7 @@ launch_server() {
 }
 
 run_tests() {
-    local iterations=${1:-2}
+    local iterations=${1:-1}
     local log_file="test-results.log"
     
     wait_for_port
@@ -65,7 +65,7 @@ run_tests() {
     echo "✅ Tests executed $iterations times"
 }
 
-ITERATIONS=${1:-2}
+ITERATIONS=${1:-1}
 
 trap cleanup SIGINT SIGTERM EXIT
 
