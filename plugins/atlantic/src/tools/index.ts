@@ -9,7 +9,10 @@ import {
 } from '../schema/index.js';
 import { verifyProofService } from '../actions/verifyProofService.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent?: StarknetAgentInterface
+) => {
   StarknetToolRegistry.push({
     name: 'get_proof_service',
     plugins: 'atlantic',

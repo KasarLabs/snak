@@ -1,5 +1,5 @@
 import { TransactionReceipt, TransactionStatus } from 'starknet';
-import { BaseUtilityClass } from '@starknet-agent-kit/agents';
+import { BaseUtilityClass } from '../types/index.js';
 
 export class TransactionMonitor implements BaseUtilityClass {
   constructor(

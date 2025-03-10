@@ -7,7 +7,10 @@ import {
 import { DeployOZAccount } from '../actions/deployAccount.js';
 import { CreateOZAccount } from '../actions/createAccount.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent?: StarknetAgentInterface
+) => {
   StarknetToolRegistry.push({
     name: 'create_new_openzeppelin_account',
     description:

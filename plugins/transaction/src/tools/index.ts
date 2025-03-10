@@ -1,4 +1,7 @@
-import { StarknetTool } from '@starknet-agent-kit/agents';
+import {
+  StarknetTool,
+  StarknetAgentInterface,
+} from '@starknet-agent-kit/agents';
 import {
   simulateInvokeTransactionSchema,
   simulateDeployAccountTransactionSchema,
@@ -12,7 +15,10 @@ import {
   simulateDeclareTransaction,
 } from '../actions/simulateTransaction.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent?: StarknetAgentInterface
+) => {
   // Simulate transactions
   StarknetToolRegistry.push({
     name: 'simulate_transaction',

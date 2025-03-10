@@ -1,4 +1,7 @@
-import { StarknetTool } from '@starknet-agent-kit/agents';
+import {
+  StarknetTool,
+  StarknetAgentInterface,
+} from '@starknet-agent-kit/agents';
 import {
   getBalanceSchema,
   Transferschema,
@@ -7,7 +10,10 @@ import {
 import { transfer } from '../actions/transfer.js';
 import { getBalance, getOwnBalance } from '../actions/getBalances.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (
+  StarknetToolRegistry: StarknetTool[],
+  agent: StarknetAgentInterface
+) => {
   StarknetToolRegistry.push({
     name: 'transfer',
     plugins: 'token',

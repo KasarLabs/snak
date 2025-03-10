@@ -2,8 +2,6 @@ import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
 import {
   StarknetAgentInterface,
-  TransactionMonitor,
-  ContractInteractor,
   TelegramInterface,
   TwitterInterface,
   JsonConfig,
@@ -25,6 +23,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     internal_plugins: [],
   };
+
   const twitter_auth_mode = undefined;
 
   return {
@@ -42,12 +41,14 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
       signature: '',
     }),
     getProvider: () => provider,
-    transactionMonitor: new TransactionMonitor(provider),
-    contractInteractor: new ContractInteractor(provider),
     getTwitterAuthMode: () => twitter_auth_mode,
     getAgentConfig: () => json_config,
     getTwitterManager: () => twitter_interface,
     getTelegramManager: () => telegram_interface,
+    getDatabase: () => [],
+    connectDatabase: async () => {},
+    createDatabase: async () => undefined,
+    getDatabaseByName: () => undefined,
   };
 };
 
@@ -80,11 +81,13 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
       signature: '',
     }),
     getProvider: () => provider,
-    transactionMonitor: new TransactionMonitor(provider),
-    contractInteractor: new ContractInteractor(provider),
     getTwitterAuthMode: () => twitter_auth_mode,
     getAgentConfig: () => json_config,
     getTwitterManager: () => twitter_interface,
     getTelegramManager: () => telegram_interface,
+    getDatabase: () => [],
+    connectDatabase: async () => {},
+    createDatabase: async () => undefined,
+    getDatabaseByName: () => undefined,
   };
 };

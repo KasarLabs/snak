@@ -135,7 +135,7 @@ pnpm dev
 Example:
 
 ```typescript
-StarknetToolRegistry.registerTool({
+StarknetToolRegistry.push({
   name: 'your_action_name',
   description: 'Description of what your action does',
   schema: yourActionSchema,

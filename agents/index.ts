@@ -2,6 +2,7 @@
 export * from './src/agent.js';
 export * from './src/starknetAgent.js';
 export * from './src/autonomousAgents.js';
+export { PostgresAdaptater } from './src/databases/postgresql/src/database.js';
 
 // Tool-related exports
 export {
@@ -19,14 +20,9 @@ export { JsonConfig, load_json_config } from './src/jsonConfig.js';
 
 // Common exports
 export {
-  BaseUtilityClass,
-  TransactionMonitor,
-  ContractInteractor,
   TwitterInterface,
   TelegramInterface,
   IAgent,
-  ContractDeployResult,
-  TransactionResult,
   AiConfig,
 } from './common/index.js';
 
