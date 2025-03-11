@@ -22,10 +22,13 @@ export const installScarb = async (
     }
 
     // Install Scarb
-    const { stdout, stderr } = await execAsync('curl --proto \'=https\' --tlsv1.2 -sSf https://sh.starkup.dev | sh');
-    
+    console.log('Installing Scarb...');
+    const { stdout, stderr } = await execAsync("curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh -s -- -v 2.10.0");
+    console.log('Scarb installation output:', stdout);
+    console.log('Scarb installation errors:', stderr);
     // Verify installation was successful
     const installSuccess = await checkScarbInstalled();
+    console.log('Scarb installation success:', installSuccess);
     if (!installSuccess) {
       return JSON.stringify({
         status: 'failure',
@@ -45,6 +48,7 @@ export const installScarb = async (
       errors: stderr || undefined,
     });
   } catch (error) {
+    console.error('Error installing Scarb:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

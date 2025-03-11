@@ -24,29 +24,6 @@ import {
     StarknetToolRegistry: StarknetTool[],
     agent?: StarknetAgentInterface
   ) => {
-    StarknetToolRegistry.push({
-      name: 'scarb_init_project',
-      description: 'Initialize a new Scarb project',
-      plugins: 'scarb',
-      schema: initProjectSchema,
-      execute: initProject,
-    });
-  
-    StarknetToolRegistry.push({
-      name: 'scarb_build_project',
-      description: 'Build a Scarb project',
-      plugins: 'scarb',
-      schema: buildProjectSchema,
-      execute: buildProject,
-    });
-  
-    StarknetToolRegistry.push({
-      name: 'scarb_add_dependency',
-      description: 'Add a dependency to a Scarb project',
-      plugins: 'scarb',
-      schema: addDependencySchema,
-      execute: addDependency,
-    });
   
     StarknetToolRegistry.push({
       name: 'scarb_install',
@@ -57,8 +34,8 @@ import {
     });
   
     StarknetToolRegistry.push({
-      name: 'scarb_configure_sierra_casm',
-      description: 'Configure Scarb.toml to include Sierra and CASM compilation settings',
+      name: 'scarb_compile_contract',
+      description: 'Compile a StarkNet contract using Scarb',
       plugins: 'scarb',
       schema: configureSierraAndCasmSchema,
       execute: configureSierraAndCasm,
