@@ -35,7 +35,6 @@ export class StarknetAgent implements IAgent {
   private readonly accountPublicKey: string;
   private readonly aiModel: string;
   private readonly aiProviderApiKey: string;
-  private readonly embeddingKey: string;
   private agentReactExecutor: any;
   private currentMode: string;
   private twitterAccoutManager: TwitterInterface = {};
@@ -61,6 +60,9 @@ export class StarknetAgent implements IAgent {
   }
 
   public async createAgentReactExecutor() {
+	if (!this.config.embeddingKey) {
+		throw new Error("Embedding key not found")
+	}
     const config: AiConfig = {
       aiModel: this.aiModel,
       aiProviderApiKey: this.aiProviderApiKey,
