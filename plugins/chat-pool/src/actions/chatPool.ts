@@ -21,6 +21,8 @@ export const insertChatInstruction = async (
     if (result.status === 'error') {
       throw new Error(`Error[${result.code}] : ${result.error_message}`);
     }
+
+    console.log('Instruction inserted successfully');
     return JSON.stringify({ status: 'success' });
   } catch (error) {
     return JSON.stringify({ status: 'error', error_message: error });

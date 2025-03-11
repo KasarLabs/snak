@@ -29,18 +29,7 @@
     "langchain": "^0.3.10",
     "discord.js": "^14.17.3",
     "nanospinner": "^1.2.2",
-    "inquirer": "^12.4.1",
-    "@starknet-agent-kit/plugin-argent": "workspace:*",
-    "@starknet-agent-kit/plugin-fibrous": "workspace:*",
-    "@starknet-agent-kit/plugin-avnu": "workspace:*",
-    "@starknet-agent-kit/plugin-vesu": "workspace:*",
-    "@starknet-agent-kit/plugin-twitter": "workspace:*",
-    "@starknet-agent-kit/plugin-telegram": "workspace:*",
-    "@starknet-agent-kit/plugin-artpeace": "workspace:*",
-    "@starknet-agent-kit/plugin-atlantic": "workspace:*",
-    "@starknet-agent-kit/plugin-chat-pool": "workspace:*",
-    "@starknet-agent-kit/plugin-opus": "workspace:*",
-    "@starknet-agent-kit/plugin-erc20": "workspace:*",
-    "@starknet-agent-kit/plugin-erc721": "workspace:*"
+    "inquirer": "^12.4.1"
+
   }
 }
