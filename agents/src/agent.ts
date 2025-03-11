@@ -1,4 +1,3 @@
-
 import { ChatAnthropic } from '@langchain/anthropic';
 import { AiConfig } from '../common/index.js';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
@@ -16,27 +15,19 @@ import {
   MessagesAnnotation,
   StateGraph,
 } from '@langchain/langgraph';
-import {
-  AIMessage,
-  BaseMessage,
-  HumanMessage,
-  SystemMessage,
-} from '@langchain/core/messages';
+import { AIMessage, BaseMessage } from '@langchain/core/messages';
 import { DynamicStructuredTool, Tool, tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
-import { LangGraphRunnableConfig } from "@langchain/langgraph";
-import { v4 as uuidv4 } from "uuid";
-
-
+import { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { v4 as uuidv4 } from 'uuid';
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig,
-  client?: string
+  aiConfig: AiConfig
 ) => {
   const isSignature = starknetAgent.getSignature().signature === 'wallet';
   const model = () => {
@@ -62,11 +53,12 @@ export const createAgent = async (
           apiKey: aiConfig.aiProviderApiKey,
           temperature: 0,
           configuration: {
-            baseURL: "https://oai.helicone.ai/v1",
+            baseURL: 'https://oai.helicone.ai/v1',
             defaultHeaders: {
-              "Helicone-Auth": "Bearer sk-helicone-eu-6uj5vqq-4t7umxi-vyuym4a-6ntehki"
-            }
-          }
+              'Helicone-Auth':
+                'Bearer sk-helicone-eu-6uj5vqq-4t7umxi-vyuym4a-6ntehki',
+            },
+          },
         });
       case 'gemini':
         if (!aiConfig.aiProviderApiKey) {
@@ -100,7 +92,7 @@ export const createAgent = async (
 
   try {
     const embeddings = new OpenAIEmbeddings({
-      model: "text-embedding-3-small",
+      model: 'text-embedding-3-small',
       apiKey: aiConfig.aiProviderApiKey,
     });
 
@@ -108,14 +100,14 @@ export const createAgent = async (
       index: {
         embeddings,
         dims: 1536,
-      }
+      },
     });
 
     const json_config = starknetAgent.getAgentConfig();
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
-    let toolsList : (Tool | DynamicStructuredTool<any>)[];
+    let toolsList: (Tool | DynamicStructuredTool<any>)[];
 
     if (isSignature === true) {
       toolsList = await createSignatureTools(json_config.internal_plugins);
@@ -125,7 +117,9 @@ export const createAgent = async (
         json_config.internal_plugins
       );
 
-      const allowedToolsKits = await createAllowedToollkits(json_config.external_plugins)
+      const allowedToolsKits = await createAllowedToollkits(
+        json_config.external_plugins
+      );
 
       toolsList = allowedToolsKits
         ? [...allowedTools, ...allowedToolsKits]
@@ -136,30 +130,26 @@ export const createAgent = async (
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
       }),
-      memories: Annotation<String>
+      memories: Annotation<string>,
     });
 
-    const upsertMemoryTool = tool(async (
-      { content },
-      config: LangGraphRunnableConfig
-    ): Promise<string> => {
-      const store = config.store as InMemoryStore;
-      if (!store) {
-        throw new Error("No store provided to tool.");
+    const upsertMemoryTool = tool(
+      async ({ content }, config: LangGraphRunnableConfig): Promise<string> => {
+        const store = config.store as InMemoryStore;
+        if (!store) {
+          throw new Error('No store provided to tool.');
+        }
+        await store.put(['user', 'memories'], uuidv4(), { text: content });
+        return 'Stored memory.';
+      },
+      {
+        name: 'upsert_memory',
+        schema: z.object({
+          content: z.string().describe('The content of the memory to store.'),
+        }),
+        description: 'Upsert long-term memories.',
       }
-      await store.put(
-        ["user", "memories"],
-        uuidv4(),
-        { text: content }
-      );
-      return "Stored memory.";
-    }, {
-      name: "upsert_memory",
-      schema: z.object({
-        content: z.string().describe("The content of the memory to store."),
-      }),
-      description: "Upsert long-term memories.",
-    });
+    );
 
     const addMemories = async (
       state: typeof MessagesAnnotation.State,
@@ -168,30 +158,27 @@ export const createAgent = async (
       const store = config.store as InMemoryStore;
 
       if (!store) {
-        throw new Error("No store provided to state modifier.");
+        throw new Error('No store provided to state modifier.');
       }
 
-      const items = await store.search(
-        ["user", "memories"],
-        {
-          // Assume it's not a complex message
-          query: state.messages[state.messages.length - 1].content as string,
-          limit: 4
-        }
-      );
+      const items = await store.search(['user', 'memories'], {
+        // Assume it's not a complex message
+        query: state.messages[state.messages.length - 1].content as string,
+        limit: 4,
+      });
 
       const memories = items.length
-        ? `## Memories of user\n${
-          items.map(item => `${item.value.text} (similarity: ${item.score})`).join("\n")
-        }`
-        : "";
+        ? `## Memories of user\n${items
+            .map((item) => `${item.value.text} (similarity: ${item.score})`)
+            .join('\n')}`
+        : '';
 
       return {
-        memories: memories
+        memories: memories,
       };
     };
 
-    toolsList.push(upsertMemoryTool)
+    toolsList.push(upsertMemoryTool);
     const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
     const modelSelected = model().bindTools(toolsList);
 
@@ -199,7 +186,7 @@ export const createAgent = async (
 
     async function callModel(
       state: typeof GraphState.State
-    ): Promise<{messages: BaseMessage[]}> {
+    ): Promise<{ messages: BaseMessage[] }> {
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
@@ -217,7 +204,7 @@ export const createAgent = async (
         system_message: 'You are a helpful Chatbot Agent. ',
         tool_names: toolsList.map((tool) => tool.name).join(', '),
         messages: state.messages,
-        memories: state.memories || ''
+        memories: state.memories || '',
       });
 
       const result = await modelSelected.invoke(formattedPrompt);
@@ -244,10 +231,10 @@ export const createAgent = async (
       .addEdge('__start__', 'memory')
       .addEdge('memory', 'agent')
       .addConditionalEdges('agent', shouldContinue)
-      .addEdge('tools', 'agent')
+      .addEdge('tools', 'agent');
 
     const app = workflow.compile({
-      store: store
+      store: store,
     });
 
     return app;

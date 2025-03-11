@@ -5,7 +5,7 @@ import {
   DiscordGetTextChannelsTool,
   DiscordSendMessagesTool,
 } from '@langchain/community/tools/discord';
-import { DynamicStructuredTool, Tool } from '@langchain/core/tools';
+import { Tool } from '@langchain/core/tools';
 
 const DiscordToolKits = (): Tool[] => {
   return [
@@ -18,7 +18,7 @@ const DiscordToolKits = (): Tool[] => {
 };
 
 export const createAllowedToollkits = async (
-  Toolkits?: string[],
+  Toolkits?: string[]
 ): Promise<Tool[]> => {
   let allowedToolsKits: Tool[] = [];
   if (!Array.isArray(Toolkits)) {
@@ -26,7 +26,7 @@ export const createAllowedToollkits = async (
   }
   Toolkits.forEach((tools_kit) => {
     if (tools_kit === 'discord') {
-      const discord_tools = DiscordToolKits()
+      const discord_tools = DiscordToolKits();
       discord_tools.forEach((tool) => {
         allowedToolsKits.push(tool);
       });

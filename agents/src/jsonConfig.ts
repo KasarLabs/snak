@@ -1,12 +1,11 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { createBox, formatSection } from './formatting.js';
+import { createBox } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import fs from 'fs/promises';
 
-const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
