@@ -149,7 +149,7 @@ export const createAgent = async (
       }
       await store.put(
         ["user", "memories"],
-        uuidv4(), // give each memory its own unique ID
+        uuidv4(),
         { text: content }
       );
       return "Stored memory.";
@@ -171,7 +171,6 @@ export const createAgent = async (
         throw new Error("No store provided to state modifier.");
       }
 
-      // Search based on user's last message
       const items = await store.search(
         ["user", "memories"],
         {
@@ -187,7 +186,6 @@ export const createAgent = async (
         }`
         : "";
 
-      // Add retrieved memories to system message
       return {
         memories: memories
       };
@@ -233,18 +231,9 @@ export const createAgent = async (
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
 
-      // const SUMMARIZE_THRESHOLD = 4;
-
-      // if (messages.length >= SUMMARIZE_THRESHOLD && !lastMessage.tool_calls?.length) {
-      //   console.log("Messages length :", messages.length, "\n")
-      //   console.log(messages)
-      //   return 'summarize';
-      // }
-
       if (lastMessage.tool_calls?.length) {
         return 'tools';
       }
-
       return '__end__';
     }
 
