@@ -60,9 +60,9 @@ export class StarknetAgent implements IAgent {
   }
 
   public async createAgentReactExecutor() {
-	if (!this.config.embeddingKey) {
-		throw new Error("Embedding key not found")
-	}
+    if (!this.config.embeddingKey) {
+      throw new Error('Embedding key not found');
+    }
     const config: AiConfig = {
       aiModel: this.aiModel,
       aiProviderApiKey: this.aiProviderApiKey,
