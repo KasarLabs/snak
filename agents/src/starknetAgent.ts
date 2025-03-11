@@ -26,7 +26,7 @@ export interface StarknetAgentConfig {
   signature: string;
   agentMode: string;
   agentconfig: JsonConfig;
-  embeddingKey: string;
+  embeddingKey?: string;
 }
 
 export class StarknetAgent implements IAgent {
@@ -35,7 +35,6 @@ export class StarknetAgent implements IAgent {
   private readonly accountPublicKey: string;
   private readonly aiModel: string;
   private readonly aiProviderApiKey: string;
-  private readonly thread_id: string;
   private readonly embeddingKey: string;
   private agentReactExecutor: any;
   private currentMode: string;
