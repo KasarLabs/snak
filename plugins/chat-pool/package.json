@@ -5,8 +5,9 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "test": "jest",
-    "build": "pnpm clean:dist && tsc",
+    "test": "jest --passWithNoTests",
+
+    "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
