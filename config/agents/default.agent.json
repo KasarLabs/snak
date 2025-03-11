@@ -37,6 +37,7 @@
     "rpc",
     "avnu",
     "erc20",
-    "erc721"
+    "erc721",
+    "contract"
   ]
 }

@@ -168,6 +168,9 @@ importers:
       '@starknet-agent-kit/plugin-chat-pool':
         specifier: workspace:*
         version: link:../plugins/chat-pool
+      '@starknet-agent-kit/plugin-contract':
+        specifier: workspace:*
+        version: link:../plugins/contract
       '@starknet-agent-kit/plugin-erc20':
         specifier: workspace:*
         version: link:../plugins/erc20
@@ -337,6 +340,12 @@ importers:
         version: link:../../agents
 
   plugins/erc721:
+    devDependencies:
+      '@starknet-agent-kit/agents':
+        specifier: workspace:*
+        version: link:../../agents
+
+  plugins/contract:
     devDependencies:
       '@starknet-agent-kit/agents':
         specifier: workspace:*
@@ -12505,7 +12514,7 @@ snapshots:
       isstream: 0.1.2
       jsonwebtoken: 9.0.2
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.8.2(debug@4.4.0))
+      retry-axios: 2.6.0(axios@1.7.9)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -15078,7 +15087,7 @@ snapshots:
 
   ret@0.5.0: {}
 
-  retry-axios@2.6.0(axios@1.8.2(debug@4.4.0)):
+  retry-axios@2.6.0(axios@1.7.9):
     dependencies:
       axios: 1.8.2(debug@4.4.0)
 
