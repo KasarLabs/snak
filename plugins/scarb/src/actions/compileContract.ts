@@ -2,7 +2,8 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { initProject, buildProject, configureSierraAndCasm, isProjectInitialized, cleanProject } from '../utils/project.js';
-import { addSeveralDependancies, importContract, cleanLibCairo, resolveContractFilePath, checkWorkspaceLimit } from '../utils/index.js';
+import { addSeveralDependancies, importContract, cleanLibCairo, checkWorkspaceLimit, getGeneratedContractFiles } from '../utils/index.js';
+import { getWorkspacePath, resolveContractPath } from '../utils/path.js';
 
 export interface Dependency {
   name: string;
@@ -22,10 +23,10 @@ export const compileContract = async (
   params: CompileContractParams
 ) => {
   try {
-    const workspaceDir = './src/workspace';
+    const workspaceDir = getWorkspacePath();
     const projectDir = path.join(workspaceDir, params.projectName);
     const contractPaths = params.contractPaths.map(contractPath => 
-      resolveContractFilePath(contractPath)
+      resolveContractPath(contractPath)
     );
 
     try {
@@ -48,20 +49,15 @@ export const compileContract = async (
     const buildResult = await buildProject(agent, { path: projectDir });
     const parsedBuildResult = JSON.parse(buildResult);
     
-    let generatedFiles : any[] = [];
-    try {
-      const targetDir = path.join(projectDir, 'target');
-      generatedFiles = await fs.readdir(targetDir, { recursive: true });
-    } catch (error) {
-      console.warn(`Could not list generated files: ${error.message}`);
-    }
+    const contractFiles = await getGeneratedContractFiles(projectDir);
     
     return JSON.stringify({
       status: 'success',
       message: `Contract compiled successfully`,
       output: parsedBuildResult.output,
       warnings: parsedBuildResult.errors,
-      generatedFiles: generatedFiles,
+      sierraFiles: contractFiles.sierraFiles,
+      casmFiles: contractFiles.casmFiles,
       projectDir: projectDir
     });
     

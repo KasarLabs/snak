@@ -44,7 +44,8 @@ describe('Tests de la fonction compileContract', () => {
     expect(projectExists).toBe(true);
     
     // Vérifier que des fichiers ont été générés dans le répertoire target
-    expect(parsedResult.generatedFiles.length).toBeGreaterThan(0);
+    expect(parsedResult.casmFiles.length).toBeGreaterThan(0);
+    expect(parsedResult.sierraFiles.length).toBeGreaterThan(0);
     
   }, 180000); // 3 minutes de timeout pour la compilation
 });

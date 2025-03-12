@@ -177,22 +177,39 @@ export async function checkWorkspaceLimit(
   }
 }
 
-// utils/paths.ts
-import { findUpSync } from 'find-up';
-
-function getRepoRoot() {
-  // Recherche le fichier package.json principal ou un autre fichier spécifique
-  const rootPackageJsonPath = findUpSync('lerna.json');
-  if (!rootPackageJsonPath) {
-    throw new Error('Impossible de trouver la racine du repository');
+/**
+ * Gets the paths to the generated Sierra and CASM files for each contract
+ * @param projectDir Path to the project directory
+ * @returns Object containing paths to Sierra and CASM files for each contract
+ */
+export async function getGeneratedContractFiles(projectDir: string): Promise<{
+  sierraFiles: string[];
+  casmFiles: string[];
+}> {
+  const result = {
+    sierraFiles: [] as string[],
+    casmFiles: [] as string[]
+  };
+  
+  try {
+    const targetDir = path.join(projectDir, 'target/dev');
+    const files = (await fs.readdir(targetDir, { recursive: true })) as string[];
+    
+    // Filter files to find Sierra files (contract_class.json)
+    result.sierraFiles = files
+      .filter(file => typeof file === 'string' && file.endsWith('.contract_class.json'))
+      .map(file => path.join(targetDir, file));
+    
+    // Filter files to find CASM files (compiled_contract_class.json)
+    result.casmFiles = files
+      .filter(file => typeof file === 'string' && file.endsWith('.compiled_contract_class.json'))
+      .map(file => path.join(targetDir, file));
+    
+      console.log("getGeneratedContractFiles");
+      console.log("result : ", result);
+  } catch (error) {
+    console.warn(`Could not list generated files: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-  return path.dirname(rootPackageJsonPath);
-}
-
-export function getPluginRoot() {
-  return path.join(getRepoRoot(), 'plugins', 'scarb');
-}
-
-export function getWorkspacePath() {
-  return path.join(getPluginRoot(), 'src', 'workspace');
+  
+  return result;
 }
