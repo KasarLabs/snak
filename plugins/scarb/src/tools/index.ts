@@ -7,10 +7,24 @@ import {
   } from '../actions/installScarb.js';
   import { 
     compileContract 
-  } from '../actions/compileContract.js';
+  } from '../actions/buildContract.js';
   import { 
     installScarbSchema,
     compileContractSchema
+  } from '../schema/schema.js';
+  import { 
+    executeContract 
+  } from '../actions/executeProgram.js';
+  import { 
+    proveContract 
+  } from '../actions/proveContract.js';
+  import { 
+    verifyContract 
+  } from '../actions/verifyContract.js';
+  import { 
+    executeContractSchema,
+    proveContractSchema,
+    verifyContractSchema
   } from '../schema/schema.js';
   
   export const registerTools = (
@@ -32,5 +46,29 @@ import {
       plugins: 'scarb',
       schema: compileContractSchema,
       execute: compileContract,
+    });
+
+    StarknetToolRegistry.push({
+      name: 'scarb_execute_contract',
+      description: 'Execute a StarkNet contract function using Scarb',
+      plugins: 'scarb',
+      schema: executeContractSchema,
+      execute: executeContract,
+    });
+  
+    StarknetToolRegistry.push({
+      name: 'scarb_prove_contract',
+      description: 'Generate a proof for a contract execution using Scarb',
+      plugins: 'scarb',
+      schema: proveContractSchema,
+      execute: proveContract,
+    });
+  
+    StarknetToolRegistry.push({
+      name: 'scarb_verify_contract',
+      description: 'Verify a proof for a contract execution using Scarb',
+      plugins: 'scarb',
+      schema: verifyContractSchema,
+      execute: verifyContract,
     });
   };

@@ -22,6 +22,5 @@ export async function getScarbVersion(): Promise<string> {
 }
 
 export async function getScarbInstallInstructions(): Promise<string> {
-  return `Scarb is not installed. Please install it with the following command:
-curl --proto '=https' --tlsv1.2 -sSf https://sh.starkup.dev | sh`;
+  return `Scarb is not installed. Please install it`;
 }

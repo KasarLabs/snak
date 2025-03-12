@@ -4,6 +4,8 @@ import * as path from 'path';
 import { initProject, buildProject, configureSierraAndCasm, isProjectInitialized, cleanProject } from '../utils/project.js';
 import { addSeveralDependancies, importContract, cleanLibCairo, checkWorkspaceLimit, getGeneratedContractFiles } from '../utils/index.js';
 import { getWorkspacePath, resolveContractPath } from '../utils/path.js';
+import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/environment.js';
+import { addTomlSection } from '../utils/toml-utils.js';
 
 export interface Dependency {
   name: string;
@@ -23,22 +25,37 @@ export const compileContract = async (
   params: CompileContractParams
 ) => {
   try {
+    const isScarbInstalled = await checkScarbInstalled();
+    if (!isScarbInstalled) {
+      return JSON.stringify({
+        status: 'failure',
+        error: await getScarbInstallInstructions(),
+      });
+    }
+  
     const workspaceDir = getWorkspacePath();
+    try {
+      await fs.mkdir(workspaceDir, { recursive: true });
+    } catch (error) {}
+    
     const projectDir = path.join(workspaceDir, params.projectName);
     const contractPaths = params.contractPaths.map(contractPath => 
       resolveContractPath(contractPath)
     );
 
-    try {
-      await fs.mkdir(workspaceDir, { recursive: true });
-    } catch (error) {}
-    
     await checkWorkspaceLimit(workspaceDir, params.projectName);
     const isInitialized = await isProjectInitialized(projectDir);
     if (!isInitialized) {
       await initProject(agent, { name: params.projectName, projectDir });
-      await configureSierraAndCasm(agent, { path: projectDir });
     }
+    await addTomlSection({
+      workingDir: projectDir,
+      sectionTitle: 'target.starknet-contract',
+      valuesObject: {
+        'sierra' : true,
+        'casm' : true
+      }
+    });
     await addSeveralDependancies(params.dependencies || [], projectDir);
     await cleanLibCairo(projectDir);
     for (const contractPath of contractPaths) {

@@ -2,7 +2,7 @@ import { exec } from 'child_process';
 import fs from 'fs-extra';
 import { promisify } from 'util';
 import path from 'path';
-import { Dependency } from '../actions/compileContract.js';
+import { Dependency } from '../actions/buildContract.js';
 import { addDependency } from './project.js';
 
 /**

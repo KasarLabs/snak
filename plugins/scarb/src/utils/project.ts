@@ -15,11 +15,6 @@ export const initProject = async (
   }
 ) => {
   try {
-    const isScarbInstalled = await checkScarbInstalled();
-    if (!isScarbInstalled) {
-      throw new Error(await getScarbInstallInstructions());
-    }
-
     try {
       await fs.mkdir(params.projectDir, { recursive: true });
     } catch (error) {}
@@ -44,14 +39,6 @@ export const buildProject = async (
   params: { path: string }
 ) => {
   try {
-    const isScarbInstalled = await checkScarbInstalled();
-    if (!isScarbInstalled) {
-      return JSON.stringify({
-        status: 'failure',
-        error: await getScarbInstallInstructions(),
-      });
-    }
-
     const workingDir = params.path;
     console.log(`Building project in ${workingDir}`);
     const { stdout, stderr } = await execAsync('scarb build', { cwd: workingDir });
@@ -78,14 +65,6 @@ export const addDependency = async (
   }
 ) => {
   try {
-    const isScarbInstalled = await checkScarbInstalled();
-    if (!isScarbInstalled) {
-      return JSON.stringify({
-        status: 'failure',
-        error: await getScarbInstallInstructions(),
-      });
-    }
-
     const workingDir = params.path || process.cwd();
     let command = `scarb add ${params.package}`;
     
@@ -101,7 +80,7 @@ export const addDependency = async (
     
     const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
     
-    console.log(`Sierra and CASM configured: Dependency ${params.package} added successfully`);
+    console.log(`Dependency ${params.package} added successfully`);
     return JSON.stringify({
       status: 'success',
       message: `Dependency ${params.package} added successfully`,
@@ -224,3 +203,103 @@ export const configureSierraAndCasm = async (
       throw new Error(`Failed to clean project at ${params.path}: ${error.message}`);
     }
   };
+
+
+export interface ExecuteContractParams {
+  projectDir: string;
+  formattedExecutable: string;
+  arguments?: string;
+}
+
+export const executeProject = async (
+  params: ExecuteContractParams
+) => {
+  try {
+    const projectDir = params.projectDir;
+
+    let command = `scarb execute --print-program-output --print-resource-usage --target standalone --executable-function ${params.formattedExecutable}`;
+    if (params.arguments) command += ` --arguments "${params.arguments}"`;
+
+    console.log(`Executing program in ${projectDir} with command: ${command}`);
+    const { stdout, stderr } = await execAsync(command, { cwd: projectDir });
+    
+    const executionId = getExecutionNumber(stdout);
+    
+    console.log(`Program executed successfully`);
+    console.log(`Execution ID: ${executionId}`);
+    console.log("stout : ", stdout);
+    console.log("stderr : ", stderr);
+
+    return JSON.stringify({
+      status: 'success',
+      message: 'Program executed successfully',
+      executionId: executionId,
+      output: stdout,
+      errors: stderr || undefined,
+    });
+  } catch (error) {
+    console.error("Error executing program:", error);
+    throw new Error(`Error executing program: ${error.message}`);
+  }
+};
+
+/**
+ * Extracts execution number from the "Saving output to:" line in Scarb output
+ * @param {string} output - The stdout from scarb execute command
+ * @returns {string|null} Just the execution number or null if not found
+ */
+export function getExecutionNumber(output : string) {
+  // Look specifically for the "Saving output to:" line pattern
+  const match = output.match(/Saving output to:.*\/execution(\d+)/);
+  
+  // Return just the number if found, otherwise null
+  return match ? match[1] : null;
+}
+
+export interface ProveContractParams {
+  projectDir: string;
+  executionId: string;
+}
+
+export const proveProgram = async (
+  params: ProveContractParams
+) => {
+  try {
+    const projectDir = params.projectDir;
+
+    let command = `scarb prove --execution-id ${params.executionId}`;
+
+    console.log(`Proving execution of the id ${params.executionId} in ${projectDir} with command: ${command}`);
+    const { stdout, stderr } = await execAsync(command, { cwd: projectDir });
+    
+    const executionDir = path.join(projectDir, 'target', 'execute', `execution${params.executionId}`);
+    let proofPath = null;
+    try {
+      const proofFilePath = path.join(executionDir, 'proof.json');
+      await fs.access(proofFilePath);
+      proofPath = proofFilePath;
+    } catch (error) {
+      console.warn("Could not locate proof.json file:", error);
+      throw new Error(`Could not locate proof.json file: ${error.message}`);
+    }
+    
+    console.log(`Contract execution proved successfully`);
+    console.log("stout : ", stdout);
+    console.log("stderr : ", stderr);
+    console.log("proofPath : ", proofPath);
+
+    return JSON.stringify({
+      status: 'success',
+      message: 'Contract execution proved successfully',
+      proofPath: proofPath,
+      output: stdout,
+      errors: stderr || undefined,
+    });
+  } catch (error) {
+    console.error("Error proving contract execution:", error);
+    return JSON.stringify({
+      status: 'failure',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
