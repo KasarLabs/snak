@@ -24,7 +24,7 @@ export const initProject = async (
       await fs.mkdir(params.projectDir, { recursive: true });
     } catch (error) {}
 
-    const { stdout, stderr } = await execAsync(`scarb init --name ${params.name} --test-runner cairo-test`, { cwd: params.projectDir });
+    const { stdout, stderr } = await execAsync(`scarb init --test-runner cairo-test`, { cwd: params.projectDir });
     
     console.log(`Project initialized: Project ${params.name} initialized successfully`);
     return JSON.stringify({
@@ -192,3 +192,35 @@ export const configureSierraAndCasm = async (
       return false;
     }
   }
+
+
+  export const cleanProject = async (
+    agent: StarknetAgentInterface,
+    params: { path: string }
+  ) => {
+    try {
+      const isScarbInstalled = await checkScarbInstalled();
+      if (!isScarbInstalled) {
+        return JSON.stringify({
+          status: 'failure',
+          error: await getScarbInstallInstructions(),
+        });
+      }
+  
+      const workingDir = params.path;
+      console.log(`Cleaning project in ${workingDir}`);
+      
+      const { stdout, stderr } = await execAsync('scarb clean', { cwd: workingDir });
+      
+      console.log(`Project cleaned successfully`);
+      return JSON.stringify({
+        status: 'success',
+        message: 'Project cleaned successfully',
+        output: stdout,
+        errors: stderr || undefined,
+      });
+    } catch (error) {
+      console.log("error = ", error);
+      throw new Error(`Failed to clean project at ${params.path}: ${error.message}`);
+    }
+  };

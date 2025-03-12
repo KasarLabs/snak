@@ -41,6 +41,7 @@
     "@starknet-agent-kit/plugin-chat-pool": "workspace:*",
     "@starknet-agent-kit/plugin-opus": "workspace:*",
     "@starknet-agent-kit/plugin-erc20": "workspace:*",
-    "@starknet-agent-kit/plugin-erc721": "workspace:*"
+    "@starknet-agent-kit/plugin-erc721": "workspace:*",
+    "@starknet-agent-kit/plugin-scarb": "workspace:*"
   }
 }

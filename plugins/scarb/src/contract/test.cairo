@@ -1,7 +1,7 @@
 #[starknet::interface]
 trait ISimpleStorage<TContractState> {
-    fn set(ref self: TContractState, x: u128);
-    fn get(self: @TContractState) -> u128;
+    fn set(ref self: TContractState, str: felt252);
+    fn get(self: @TContractState) -> felt252;
 }
 
 #[starknet::contract]
@@ -10,17 +10,17 @@ mod SimpleStorage {
 
     #[storage]
     struct Storage {
-        stored_data: u128,
+        stored_str: felt252,
     }
 
     #[abi(embed_v0)]
     impl SimpleStorage of super::ISimpleStorage<ContractState> {
-        fn set(ref self: ContractState, x: u128) {
-            self.stored_data.write(x);
+        fn set(ref self: ContractState, str: felt252) {
+            self.stored_str.write(str);
         }
 
-        fn get(self: @ContractState) -> u128 {
-            self.stored_data.read()
+        fn get(self: @ContractState) -> felt252 {
+            self.stored_str.read()
         }
     }
 }

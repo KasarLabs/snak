@@ -1,23 +1,16 @@
-// plugins/scarb/src/tools/index.ts
 import {
     StarknetAgentInterface,
     StarknetTool,
   } from '@starknet-agent-kit/agents';
-  import { 
-    initProject, 
-    buildProject, 
-    addDependency, 
-  } from '../utils/project.js';
   import {
-    installScarb,
-    configureSierraAndCasm
-  } from '../utils/install.js';
+    installScarb
+  } from '../actions/installScarb.js';
   import { 
-    initProjectSchema, 
-    buildProjectSchema, 
-    addDependencySchema, 
+    compileContract 
+  } from '../actions/compileContract.js';
+  import { 
     installScarbSchema,
-    configureSierraAndCasmSchema
+    compileContractSchema
   } from '../schema/schema.js';
   
   export const registerTools = (
@@ -35,9 +28,9 @@ import {
   
     StarknetToolRegistry.push({
       name: 'scarb_compile_contract',
-      description: 'Compile a StarkNet contract using Scarb',
+      description: 'Compile StarkNet contracts using Scarb',
       plugins: 'scarb',
-      schema: configureSierraAndCasmSchema,
-      execute: configureSierraAndCasm,
+      schema: compileContractSchema,
+      execute: compileContract,
     });
   };

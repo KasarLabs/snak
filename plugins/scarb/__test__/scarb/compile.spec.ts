@@ -11,19 +11,22 @@ describe('Tests de la fonction compileContract', () => {
 
   it('devrait compiler un contrat Cairo simple', async () => {
     // Définir les paramètres
-    const projectName = 'test_project';
-    const contractPath = 'src/contract/test.cairo';
-    const dependencies = [
+    const projectName = 'project_5';
+    const contractPaths = [
+      'src/contract/test2.cairo',
+      'src/contract/test.cairo'
+    ];
+    const dependencies : any[] = [
       {
         name: 'openzeppelin',
         version: '1.0.0'
-      }
+      },
     ];
     
     // Appeler la fonction de compilation
     const result = await compileContract(agent, {
       projectName,
-      contractPath,
+      contractPaths,
       dependencies
     });
     
@@ -36,7 +39,7 @@ describe('Tests de la fonction compileContract', () => {
     expect(parsedResult.message).toBe('Contract compiled successfully');
     
     // Vérifier que le projet a été créé
-    const projectDir = path.join('./workspace', projectName);
+    const projectDir = path.join('./src/workspace', projectName);
     const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
     expect(projectExists).toBe(true);
     

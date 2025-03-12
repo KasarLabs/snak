@@ -17,6 +17,8 @@ import { addDependency } from './project.js';
 export async function importContract(contractPath : string, projectDir : string) {
   const contractFileName = path.basename(contractPath);
   const srcDir = path.join(projectDir, 'src');
+  console.log("srcDir : ", srcDir);
+  console.log("contractFileName : ", contractFileName);
   const destContractPath = path.join(srcDir, contractFileName);
   
   try {
@@ -121,4 +123,76 @@ export function resolveContractFilePath(filePath: string): string {
     }
   }
   throw new Error(`Could not resolve path for: ${filePath}`);
+}
+
+/**
+ * Checks if the workspace project limit has been reached
+ * @param workspaceDir Path to the workspace directory
+ * @param projectName Name of the project to check/create
+ * @param maxProjects Maximum number of projects allowed (default 5)
+ * @returns Promise<void>
+ * @throws Error if the project limit is reached
+ */
+export async function checkWorkspaceLimit(
+  workspaceDir: string, 
+  projectName: string,
+  maxProjects: number = 5
+): Promise<void> {
+  try {
+    // Ensure the workspace directory exists
+    await fs.mkdir(workspaceDir, { recursive: true });
+    
+    // List all projects in the workspace
+    const entries = await fs.readdir(workspaceDir, { withFileTypes: true });
+    
+    // Filter to keep only directories
+    const projects = entries
+      .filter(entry => entry.isDirectory())
+      .map(dir => dir.name);
+    
+    // Check if the project already exists
+    const projectExists = projects.includes(projectName);
+    
+    // If the project already exists, there is no limit issue
+    if (projectExists) {
+      return;
+    }
+    
+    // If we reach the limit and try to create a new project
+    if (projects.length >= maxProjects) {
+      throw new Error(`Workspace project limit of ${maxProjects} reached. Please delete old projects before creating new ones.`);
+    }
+    
+    // If we're here, the limit hasn't been reached
+    console.log(`Workspace limit check: ${projects.length}/${maxProjects} projects used.`);
+    
+  } catch (error) {
+    // Don't catch the limit error, let it bubble up
+    if (error.message.includes('Workspace project limit')) {
+      throw error;
+    }
+    
+    console.error("Error checking workspace limit:", error);
+    throw new Error(`Failed to check workspace limit: ${error.message}`);
+  }
+}
+
+// utils/paths.ts
+import { findUpSync } from 'find-up';
+
+function getRepoRoot() {
+  // Recherche le fichier package.json principal ou un autre fichier spécifique
+  const rootPackageJsonPath = findUpSync('lerna.json');
+  if (!rootPackageJsonPath) {
+    throw new Error('Impossible de trouver la racine du repository');
+  }
+  return path.dirname(rootPackageJsonPath);
+}
+
+export function getPluginRoot() {
+  return path.join(getRepoRoot(), 'plugins', 'scarb');
+}
+
+export function getWorkspacePath() {
+  return path.join(getPluginRoot(), 'src', 'workspace');
 }

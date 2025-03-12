@@ -1,8 +1,8 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { initProject, buildProject, configureSierraAndCasm, isProjectInitialized } from '../utils/project.js';
-import { addSeveralDependancies, importContract, cleanLibCairo, resolveContractFilePath } from '../utils/index.js';
+import { initProject, buildProject, configureSierraAndCasm, isProjectInitialized, cleanProject } from '../utils/project.js';
+import { addSeveralDependancies, importContract, cleanLibCairo, resolveContractFilePath, checkWorkspaceLimit } from '../utils/index.js';
 
 export interface Dependency {
   name: string;
@@ -12,7 +12,7 @@ export interface Dependency {
 
 export interface CompileContractParams {
   projectName: string;
-  contractPath: string;
+  contractPaths: string[];
   targetDir?: string;
   dependencies?: Dependency[];
 }
@@ -24,12 +24,15 @@ export const compileContract = async (
   try {
     const workspaceDir = './src/workspace';
     const projectDir = path.join(workspaceDir, params.projectName);
-    const contractPath = resolveContractFilePath(params.contractPath);
+    const contractPaths = params.contractPaths.map(contractPath => 
+      resolveContractFilePath(contractPath)
+    );
 
     try {
       await fs.mkdir(workspaceDir, { recursive: true });
     } catch (error) {}
     
+    await checkWorkspaceLimit(workspaceDir, params.projectName);
     const isInitialized = await isProjectInitialized(projectDir);
     if (!isInitialized) {
       await initProject(agent, { name: params.projectName, projectDir });
@@ -37,8 +40,11 @@ export const compileContract = async (
     }
     await addSeveralDependancies(params.dependencies || [], projectDir);
     await cleanLibCairo(projectDir);
-    await importContract(contractPath, projectDir);
+    for (const contractPath of contractPaths) {
+      await importContract(contractPath, projectDir);
+    }
 
+    await cleanProject(agent, { path: projectDir });
     const buildResult = await buildProject(agent, { path: projectDir });
     const parsedBuildResult = JSON.parse(buildResult);
     
