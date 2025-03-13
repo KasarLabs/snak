@@ -13,7 +13,7 @@ import {
     compileContractSchema
   } from '../schema/schema.js';
   import { 
-    executeContract 
+    executeProgram 
   } from '../actions/executeProgram.js';
   import { 
     proveContract 
@@ -49,24 +49,24 @@ import {
     });
 
     StarknetToolRegistry.push({
-      name: 'scarb_execute_contract',
-      description: 'Execute a StarkNet contract function using Scarb',
+      name: 'scarb_execute_program',
+      description: 'Execute a Cairo program function using Scarb',
       plugins: 'scarb',
       schema: executeContractSchema,
-      execute: executeContract,
+      execute: executeProgram,
     });
   
     StarknetToolRegistry.push({
-      name: 'scarb_prove_contract',
-      description: 'Generate a proof for a contract execution using Scarb',
+      name: 'scarb_prove_program',
+      description: 'Generate a proof for a Cairo program execution using Scarb, only if the program was executed in another mode than bootloader',
       plugins: 'scarb',
       schema: proveContractSchema,
       execute: proveContract,
     });
   
     StarknetToolRegistry.push({
-      name: 'scarb_verify_contract',
-      description: 'Verify a proof for a contract execution using Scarb',
+      name: 'scarb_verify_program',
+      description: 'Only in standalone mode : verify a proof for a Cairo program execution using Scarb, only if the program was executed in another mode than bootloader',
       plugins: 'scarb',
       schema: verifyContractSchema,
       execute: verifyContract,

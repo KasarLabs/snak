@@ -10,14 +10,6 @@ import { z } from 'zod';
 import { executeContractSchema } from '@/schema/schema.js';
 import { executeProject } from '../utils/project.js';
 
-
-export interface ExecuteContractParams {
-  projectName: string;
-  executableName?: string;
-  executableFunction?: string;
-  arguments?: string;
-}
-
 /**
   * Execute a StarkNet contract
   *
@@ -90,7 +82,8 @@ export const executeProgram = async (
       const execResult = await executeProject({
         projectDir: projectDir,
         formattedExecutable: formattedExecutable,
-        arguments: params.arguments
+        arguments: params.arguments,
+        target: params.mode || 'standalone' 
       });
       const parsedExecResult = JSON.parse(execResult);
       
@@ -98,11 +91,13 @@ export const executeProgram = async (
         status: 'success',
         message: 'Contract executed successfully',
         executionId: parsedExecResult.executionId,
-        output: parsedExecResult.stdout,
-        errors: parsedExecResult.stderr || undefined,
+        tracePath: parsedExecResult.tracePath,
+        output: parsedExecResult.output,
+        errors: parsedExecResult.errors
       });
       
     } catch (error) {
+      console.log("Error executing contract:", error);
       return JSON.stringify({
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',

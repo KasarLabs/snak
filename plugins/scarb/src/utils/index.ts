@@ -17,15 +17,15 @@ import { addDependency } from './project.js';
 export async function importContract(contractPath : string, projectDir : string) {
   const contractFileName = path.basename(contractPath);
   const srcDir = path.join(projectDir, 'src');
-  console.log("srcDir : ", srcDir);
-  console.log("contractFileName : ", contractFileName);
+  // console.log("srcDir : ", srcDir);
+  // console.log("contractFileName : ", contractFileName);
   const destContractPath = path.join(srcDir, contractFileName);
   
   try {
 
     const contractContent = await fs.readFile(contractPath, 'utf-8');
     await fs.writeFile(destContractPath, contractContent);
-    console.log(`Contract copied to ${destContractPath}`);
+    // console.log(`Contract copied to ${destContractPath}`);
     
     const libFilePath = path.join(srcDir, 'lib.cairo');
     let libContent = await fs.readFile(libFilePath, 'utf-8');
@@ -36,7 +36,7 @@ export async function importContract(contractPath : string, projectDir : string)
     }
     
     await fs.writeFile(libFilePath, libContent);
-    console.log(`Updated lib.cairo to include the contract module`);
+    // console.log(`Updated lib.cairo to include the contract module`);
     
     return {
       success: true
@@ -57,10 +57,10 @@ export async function addSeveralDependancies(dependencies: Dependency[], project
                 path: projectDir
             });
     
-            console.log(`Dependency added: ${JSON.parse(addDepResult).message}`);
+            // console.log(`Dependency added: ${JSON.parse(addDepResult).message}`);
           }
         }
-        console.log("addSeveralDependancies");
+        // console.log("addSeveralDependancies");
       } catch (error) {
         console.log("eror : ", error);
         throw new Error(`Failed to add several dependencie: ${error.message}`);
@@ -83,7 +83,7 @@ export async function cleanLibCairo(projectDir: string) {
     
     // Réinitialiser le fichier lib.cairo
     await fs.writeFile(libFilePath, defaultLibContent, 'utf-8');
-    console.log(`Cleaned lib.cairo file at ${libFilePath}`);
+    // console.log(`Cleaned lib.cairo file at ${libFilePath}`);
     
     return {
       success: true,
@@ -118,7 +118,7 @@ export function resolveContractFilePath(filePath: string): string {
 
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
-      console.log(`Resolved path for ${filePath}: ${p}`);
+      // console.log(`Resolved path for ${filePath}: ${p}`);
       return p;
     }
   }
@@ -136,7 +136,7 @@ export function resolveContractFilePath(filePath: string): string {
 export async function checkWorkspaceLimit(
   workspaceDir: string, 
   projectName: string,
-  maxProjects: number = 5
+  maxProjects: number = 10
 ): Promise<void> {
   try {
     // Ensure the workspace directory exists
@@ -164,7 +164,7 @@ export async function checkWorkspaceLimit(
     }
     
     // If we're here, the limit hasn't been reached
-    console.log(`Workspace limit check: ${projects.length}/${maxProjects} projects used.`);
+    // console.log(`Workspace limit check: ${projects.length}/${maxProjects} projects used.`);
     
   } catch (error) {
     // Don't catch the limit error, let it bubble up
@@ -205,8 +205,8 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
       .filter(file => typeof file === 'string' && file.endsWith('.compiled_contract_class.json'))
       .map(file => path.join(targetDir, file));
     
-      console.log("getGeneratedContractFiles");
-      console.log("result : ", result);
+      // console.log("getGeneratedContractFiles");
+      // console.log("result : ", result);
   } catch (error) {
     console.warn(`Could not list generated files: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

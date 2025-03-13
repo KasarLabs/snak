@@ -39,8 +39,8 @@ export const proveContract = async (
       status: 'success',
       message: 'Contract execution proved successfully',
       proofPath: parsedResult.proofPath,
-      output: parsedResult.stdout,
-      errors: parsedResult.stderr || undefined,
+      output: parsedResult.output,
+      error: parsedResult.errors
     });
   } catch (error) {
     console.error("Error proving contract execution:", error);

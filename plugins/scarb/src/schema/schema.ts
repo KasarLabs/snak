@@ -30,6 +30,7 @@ export const executeContractSchema = z.object({
   executableName: z.string().optional().describe('The name of the executable to run'),
   executableFunction: z.string().optional().describe('The name of the function to run'),
   arguments: z.string().optional().describe('Comma-separated list of integers corresponding to the function arguments'),
+  mode: z.enum(['standalone', 'bootloader']).optional().describe('The target to compile for')
 });
 
 export const proveContractSchema = z.object({

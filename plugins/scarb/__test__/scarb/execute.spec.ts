@@ -145,4 +145,99 @@ describe('Execute Program Tests', () => {
     // The error might vary, but it should be a failure
     expect(parsedResult.status).toBe('failure');
   }, 180000);
+
+  it('should execute a program with standalone target (default)', async () => {
+    const projectName = 'execute_test_standalone';
+    const contractPaths = ['src/contract/program.cairo'];
+    
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: []
+      // Target not specified, should default to standalone
+    });
+    
+    const parsedResult = JSON.parse(result);
+    console.log('Standalone execution result:', parsedResult);
+    
+    expect(parsedResult.status).toBe('success');
+    expect(parsedResult.message).toBe('Contract executed successfully');
+    expect(parsedResult.executionId).toBeTruthy(); // Should have execution ID
+    expect(parsedResult.tracePath).toBeUndefined(); // Should not have trace path
+  }, 180000);
+  
+  it('should execute a program with bootloader target', async () => {
+    const projectName = 'execute_test_bootloader';
+    const contractPaths = ['src/contract/program.cairo'];
+    
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: [],
+      target: 'bootloader' // Explicitly request bootloader target
+    });
+    
+    const parsedResult = JSON.parse(result);
+    console.log('Bootloader execution result:', parsedResult);
+    
+    expect(parsedResult.status).toBe('success');
+    expect(parsedResult.message).toBe('Contract executed successfully');
+    expect(parsedResult.executionId).toBeUndefined(); // Should not have execution ID
+    expect(parsedResult.tracePath).toBeTruthy(); // Should have trace path
+    expect(parsedResult.tracePath).toContain('cairo_pie.zip'); // Should point to cairo_pie.zip
+  }, 180000);
+  
+  it('should execute a program with arguments in bootloader mode', async () => {
+    const projectName = 'execute_test_bootloader_args';
+    const contractPaths = ['src/contract/program2.cairo'];
+    
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: [],
+      executableFunction: 'fib',
+      arguments: '10',
+      target: 'bootloader'
+    });
+    
+    const parsedResult = JSON.parse(result);
+    console.log('Bootloader execution with arguments result:', parsedResult);
+    
+    expect(parsedResult.status).toBe('success');
+    expect(parsedResult.tracePath).toBeTruthy();
+    expect(parsedResult.output).toContain('55'); // Expected output of fib(10)
+  }, 180000);
+  
+  it('should validate both execution modes with the same program', async () => {
+    const projectName = 'execute_test_both_modes';
+    const contractPaths = ['src/contract/program.cairo'];
+    
+    // First execute in standalone mode
+    const standaloneResult = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: [],
+      target: 'standalone'
+    });
+    
+    const parsedStandaloneResult = JSON.parse(standaloneResult);
+    expect(parsedStandaloneResult.status).toBe('success');
+    expect(parsedStandaloneResult.executionId).toBeTruthy();
+    
+    // Then execute the same program in bootloader mode
+    const bootloaderResult = await executeProgram(agent, {
+      projectName: `${projectName}_bl`, // Use different project name to avoid conflicts
+      programPaths: contractPaths,
+      dependencies: [],
+      target: 'bootloader'
+    });
+    
+    const parsedBootloaderResult = JSON.parse(bootloaderResult);
+    expect(parsedBootloaderResult.status).toBe('success');
+    expect(parsedBootloaderResult.tracePath).toBeTruthy();
+    
+    // The actual program output should be the same in both modes
+    expect(parsedStandaloneResult.output).toContain('987'); // Expected output of fib(16)
+    expect(parsedBootloaderResult.output).toContain('987'); // Expected output of fib(16)
+  }, 180000);
 });

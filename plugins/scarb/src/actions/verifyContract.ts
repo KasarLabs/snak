@@ -7,11 +7,6 @@ import { z } from 'zod';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-export interface VerifyContractParams {
-    projectName: string;
-    proofPath: string;
-}
-
 export const verifyContract = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof verifyContractSchema>
@@ -40,8 +35,8 @@ export const verifyContract = async (
     return JSON.stringify({
       status: parsedResult.status,
       message: parsedResult.message,
-      output: parsedResult.stdout,
-      errors: parsedResult.stderr
+      output: parsedResult.output,
+      errors: parsedResult.errors
     });
   } catch (error) {
     console.error("Error verifying proof:", error);

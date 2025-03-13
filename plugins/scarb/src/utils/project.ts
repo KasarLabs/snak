@@ -1,10 +1,10 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { checkScarbInstalled, getScarbInstallInstructions } from './environment.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { exec } from 'child_process';
+import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 export const initProject = async (
@@ -21,7 +21,7 @@ export const initProject = async (
 
     const { stdout, stderr } = await execAsync(`scarb init --test-runner cairo-test`, { cwd: params.projectDir });
     
-    console.log(`Project initialized: Project ${params.name} initialized successfully`);
+    // console.log(`Project initialized: Project ${params.name} initialized successfully`);
     return JSON.stringify({
       status: 'success',
       message: `Project ${params.name} initialized successfully`,
@@ -40,10 +40,10 @@ export const buildProject = async (
 ) => {
   try {
     const workingDir = params.path;
-    console.log(`Building project in ${workingDir}`);
+    // console.log(`Building project in ${workingDir}`);
     const { stdout, stderr } = await execAsync('scarb build', { cwd: workingDir });
     
-    console.log(`Project built successfully`);
+    // console.log(`Project built successfully`);
     return JSON.stringify({
       status: 'success',
       message: 'Project built successfully',
@@ -80,7 +80,7 @@ export const addDependency = async (
     
     const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
     
-    console.log(`Dependency ${params.package} added successfully`);
+    // console.log(`Dependency ${params.package} added successfully`);
     return JSON.stringify({
       status: 'success',
       message: `Dependency ${params.package} added successfully`,
@@ -163,11 +163,11 @@ export const configureSierraAndCasm = async (
     try {
       const scarbTomlPath = path.join(projectDir, 'Scarb.toml');
       await fs.access(scarbTomlPath);
-      console.log(`Project already initialized ${projectDir}`);
+      // console.log(`Project already initialized ${projectDir}`);
       return true;
     } catch (error) {
       // Le fichier n'existe pas, le projet n'est pas initialisé
-      console.log(`Aucun projet existant dans ${projectDir}`);
+      // console.log(`Aucun projet existant dans ${projectDir}`);
       return false;
     }
   }
@@ -187,11 +187,11 @@ export const configureSierraAndCasm = async (
       }
   
       const workingDir = params.path;
-      console.log(`Cleaning project in ${workingDir}`);
+      // console.log(`Cleaning project in ${workingDir}`);
       
       const { stdout, stderr } = await execAsync('scarb clean', { cwd: workingDir });
       
-      console.log(`Project cleaned successfully`);
+      // console.log(`Project cleaned successfully`);
       return JSON.stringify({
         status: 'success',
         message: 'Project cleaned successfully',
@@ -209,6 +209,7 @@ export interface ExecuteContractParams {
   projectDir: string;
   formattedExecutable: string;
   arguments?: string;
+  target: string;
 }
 
 export const executeProject = async (
@@ -217,16 +218,18 @@ export const executeProject = async (
   try {
     const projectDir = params.projectDir;
 
-    let command = `scarb execute --print-program-output --print-resource-usage --target standalone --executable-function ${params.formattedExecutable}`;
+    let command = `scarb execute --print-program-output --print-resource-usage --target ${params.target} --executable-function ${params.formattedExecutable}`;
     if (params.arguments) command += ` --arguments "${params.arguments}"`;
 
     console.log(`Executing program in ${projectDir} with command: ${command}`);
     const { stdout, stderr } = await execAsync(command, { cwd: projectDir });
     
-    const executionId = getExecutionNumber(stdout);
+    const executionId = params.target === 'standalone' ? getExecutionNumber(stdout) : undefined;
+    const tracePath = params.target === 'bootloader' ? getBootloaderTracePath(stdout) : undefined;
     
-    console.log(`Program executed successfully`);
-    console.log(`Execution ID: ${executionId}`);
+    console.log(`Program executed successfully with target: ${params.target}`);
+    if (executionId) console.log(`Execution ID: ${executionId}`);
+    if (tracePath) console.log(`Trace path: ${tracePath}`);
     console.log("stout : ", stdout);
     console.log("stderr : ", stderr);
 
@@ -234,14 +237,21 @@ export const executeProject = async (
       status: 'success',
       message: 'Program executed successfully',
       executionId: executionId,
+      tracePath: tracePath,
       output: stdout,
-      errors: stderr || undefined,
+      error: stderr || undefined,
     });
   } catch (error) {
     console.error("Error executing program:", error);
     throw new Error(`Error executing program: ${error.message}`);
   }
 };
+
+function getBootloaderTracePath(stdout: string): string | undefined {
+  // Recherche une ligne comme "Saving output to: target/execute/test2/execution11/cairo_pie.zip"
+  const match = stdout.match(/Saving output to: (.+\.zip)/);
+  return match ? match[1] : undefined;
+}
 
 /**
  * Extracts execution number from the "Saving output to:" line in Scarb output
@@ -278,12 +288,6 @@ export const proveProgram = async (
       throw new Error("Could not locate proof.json file path in command output");
     }
     
-    // try {
-    //   await fs.access(proofPath);
-    // } catch (error) {
-    //   throw new Error(`Proof file found in output but cannot be accessed: ${error.message}`);
-    // }
-    
     console.log(`Contract execution proved successfully`);
     console.log("stout : ", stdout);
     console.log("stderr : ", stderr);
@@ -294,14 +298,10 @@ export const proveProgram = async (
       message: 'Contract execution proved successfully',
       proofPath: proofPath,
       output: stdout,
-      errors: stderr || undefined,
+      error: stderr || undefined,
     });
   } catch (error) {
-    console.error("Error proving contract execution:", error);
-    return JSON.stringify({
-      status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    throw new Error(`Error proving program: ${error.message}`);
   }
 };
 
@@ -328,10 +328,9 @@ export const verifyProgram = async (
       status: 'success',
       message: 'Proof verified successfully',
       output: stdout,
-      errors: stderr || undefined,
+      error: stderr || undefined,
     });
   } catch (error) {
-    console.error("Error verifying proof:", error);
     throw new Error(`Error verifying proof: ${error.message}`);
   }
 };

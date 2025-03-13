@@ -66,7 +66,7 @@ export function getWorkspacePath() {
   if (!fs.existsSync(workspacePath)) {
     try {
       fs.mkdirSync(workspacePath, { recursive: true });
-      console.log(`Répertoire workspace créé: ${workspacePath}`);
+      // console.log(`Répertoire workspace créé: ${workspacePath}`);
     } catch (error) {
       console.error(`Erreur lors de la création du répertoire workspace: ${error.message}`);
     }
@@ -100,7 +100,7 @@ export function resolveContractPath(contractPath: string): string {
   
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
-      console.log(`Chemin de contrat résolu: ${p}`);
+      // console.log(`Chemin de contrat résolu: ${p}`);
       return p;
     }
   }
