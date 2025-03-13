@@ -34,7 +34,7 @@ export class QueryBuilder {
       if (item === 'DEFAULT') {
         query.push('DEFAULT');
       } else if (typeof item === 'string') {
-        query.push(`'${item}'`);
+        query.push(`'${item.replace("'", "''")}'`);
       } else if (typeof item === 'number') {
         query.push(item.toString());
       } else if (typeof item === 'boolean') {
