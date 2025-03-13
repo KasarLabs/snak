@@ -43,6 +43,7 @@ export const buildProject = async (
     // console.log(`Building project in ${workingDir}`);
     const { stdout, stderr } = await execAsync('scarb build', { cwd: workingDir });
     
+    console.log("Successful compilation");
     // console.log(`Project built successfully`);
     return JSON.stringify({
       status: 'success',
@@ -77,7 +78,6 @@ export const addDependency = async (
       else 
         command += `@${params.version}`;
     }
-    
     const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
     
     // console.log(`Dependency ${params.package} added successfully`);
@@ -91,68 +91,6 @@ export const addDependency = async (
     throw new Error(`Failed to add dependancie to scarb project: ${error.message}`);
   }
 };
-
-export const configureSierraAndCasm = async (
-    agent: StarknetAgentInterface,
-    params: {
-      path?: string
-    }
-  ) => {
-    try {
-      const workingDir = params.path || process.cwd();
-      const scarbTomlPath = path.join(workingDir, 'Scarb.toml');
-      
-      try {
-        await fs.access(scarbTomlPath);
-      } catch (error) {
-        return JSON.stringify({
-          status: 'failure',
-          error: 'Scarb.toml not found. Initialize a project first.',
-        });
-      }
-      
-      let tomlContent = await fs.readFile(scarbTomlPath, 'utf8');
-      if (!tomlContent.includes('[[target.starknet-contract]]')) {
-        tomlContent += `\n\n[[target.starknet-contract]]\nsierra = true\ncasm = true`;
-      } else {
-        const targetRegex = /\[\[target\.starknet-contract\]\]([\s\S]*?)(\n\n|\n\[|$)/;
-        const targetMatch = tomlContent.match(targetRegex);
-        
-        if (targetMatch) {
-          let targetSection = targetMatch[1];
-          let updatedSection = targetMatch[1];
-          
-          if (!targetSection.includes('sierra')) {
-            updatedSection += '\nsierra = true';
-          } else if (!targetSection.includes('sierra = true')) {
-            updatedSection = updatedSection.replace(/sierra\s*=\s*false/, 'sierra = true');
-          }
-          
-          if (!targetSection.includes('casm')) {
-            updatedSection += '\ncasm = true';
-          } else if (!targetSection.includes('casm = true')) {
-            updatedSection = updatedSection.replace(/casm\s*=\s*false/, 'casm = true');
-          }
-          
-          tomlContent = tomlContent.replace(
-            targetRegex, 
-            `[[target.starknet-contract]]${updatedSection}${targetMatch[2]}`
-          );
-        }
-      }
-      
-      await fs.writeFile(scarbTomlPath, tomlContent, 'utf8');
-      
-      return JSON.stringify({
-        status: 'success',
-        message: 'Scarb.toml updated with starknet-contract target configuration',
-        newConfig: tomlContent,
-      });
-    } catch (error) {
-      throw new Error(`Failed to configure sierra and casm for scarb project: ${error.message}`);
-    }
-  };
-
   
   /**
    * Vérifie si un projet Scarb a déjà été initialisé dans le répertoire spécifié
@@ -227,11 +165,11 @@ export const executeProject = async (
     const executionId = params.target === 'standalone' ? getExecutionNumber(stdout) : undefined;
     const tracePath = params.target === 'bootloader' ? getBootloaderTracePath(stdout) : undefined;
     
-    console.log(`Program executed successfully with target: ${params.target}`);
+    // console.log(`Program executed successfully with target: ${params.target}`);
     if (executionId) console.log(`Execution ID: ${executionId}`);
     if (tracePath) console.log(`Trace path: ${tracePath}`);
-    console.log("stout : ", stdout);
-    console.log("stderr : ", stderr);
+    // console.log("stout : ", stdout);
+    // console.log("stderr : ", stderr);
 
     return JSON.stringify({
       status: 'success',
@@ -289,8 +227,8 @@ export const proveProgram = async (
     }
     
     console.log(`Contract execution proved successfully`);
-    console.log("stout : ", stdout);
-    console.log("stderr : ", stderr);
+    // console.log("stout : ", stdout);
+    // console.log("stderr : ", stderr);
     console.log("proofPath : ", proofPath);
 
     return JSON.stringify({

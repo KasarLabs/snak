@@ -213,3 +213,77 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
   
   return result;
 }
+
+/**
+ * Adds the #[executable] attribute to a target function in a Cairo file
+ *
+ * @param filePath Path to the Cairo file to modify
+ * @param targetFunction Name of the function to mark as executable
+ * @returns Promise<boolean> True if the file was modified, false if no modification was needed
+ * @throws Error if the target function cannot be found in the file
+ */
+export async function addExecutableTag(filePath: string, targetFunction: string): Promise<boolean> {
+  try {
+    // Read the file content
+    const content = await fs.readFile(filePath, 'utf-8');
+    
+    // Check if the target function exists
+    const functionRegex = new RegExp(`(^|\\n)fn\\s+${targetFunction}\\s*\\(`, 'm');
+    if (!functionRegex.test(content)) {
+      throw new Error(`Target function '${targetFunction}' not found in ${filePath}`);
+    }
+    
+    // Check if the function already has the #[executable] tag
+    const executableRegex = new RegExp(`(^|\\n)#\\[executable\\]\\s*\\n\\s*fn\\s+${targetFunction}\\s*\\(`, 'm');
+    if (executableRegex.test(content)) {
+      // Function already has the tag, no modification needed
+      return false;
+    }
+    
+    // Add the #[executable] attribute to the target function
+    const modifiedContent = content.replace(
+      functionRegex,
+      `\n#[executable]\nfn ${targetFunction}(`
+    );
+    
+    // Write the modified content back to the file
+    await fs.writeFile(filePath, modifiedContent);
+    
+    return true;
+  } catch (error) {
+    // Re-throw original error if it's already our custom error
+    if (error instanceof Error && error.message.includes('not found')) {
+      throw error;
+    }
+    // Otherwise wrap in a more descriptive error
+    console.error(`Error adding executable tag to function ${targetFunction} in ${filePath}:`, error);
+    throw new Error(`Failed to add executable tag: ${error.message}`);
+  }
+}
+
+/**
+ * Process a Cairo file for execution - imports it and adds the executable tag to the target function
+ * 
+ * @param contractPath Path to the source Cairo file
+ * @param projectDir Scarb project directory
+ * @param targetFunction Name of the function to mark as executable
+ * @returns Promise<void>
+ */
+export async function processContractForExecution(
+  contractPath: string,
+  projectDir: string,
+  targetFunction: string
+): Promise<void> {
+  try {
+    await importContract(contractPath, projectDir);
+    
+    const contractFileName = path.basename(contractPath);
+    const srcDir = path.join(projectDir, 'src');
+    const destContractPath = path.join(srcDir, contractFileName);
+    
+    const wasModified = await addExecutableTag(destContractPath, targetFunction);
+  } catch (error) {
+    console.error(`Error processing contract for execution:`, error);
+    throw new Error(`Failed to process contract: ${error.message}`);
+  }
+}

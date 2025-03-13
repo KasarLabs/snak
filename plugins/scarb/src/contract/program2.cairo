@@ -2,7 +2,6 @@ fn main() -> u32 {
     fib(16)
 }
 
-#[executable]
 fn fib(mut n: u32) -> u32 {
     let mut a: u32 = 0;
     let mut b: u32 = 1;

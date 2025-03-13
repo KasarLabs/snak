@@ -39,6 +39,7 @@
     "avnu",
     "erc20",
     "erc721",
-    "scarb"
+    "scarb",
+    "contract"
   ]
 }

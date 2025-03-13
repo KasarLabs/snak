@@ -2,14 +2,14 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as path from 'path';
 import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/environment.js';
 import * as fs from 'fs/promises';
-import { initProject, buildProject, configureSierraAndCasm, isProjectInitialized, cleanProject, addDependency } from '../utils/project.js';
+import { initProject, buildProject,  isProjectInitialized, cleanProject, addDependency } from '../utils/project.js';
 import { addSeveralDependancies, importContract, cleanLibCairo, checkWorkspaceLimit, getGeneratedContractFiles } from '../utils/index.js';
 import { addTomlSection } from '../utils/toml-utils.js';
 import { getWorkspacePath, resolveContractPath } from '../utils/path.js';
 import { z } from 'zod';
 import { executeContractSchema } from '@/schema/schema.js';
 import { executeProject } from '../utils/project.js';
-
+import { processContractForExecution } from '../utils/index.js';
 /**
   * Execute a StarkNet contract
   *
@@ -78,6 +78,19 @@ export const executeProgram = async (
         await importContract(programPath, projectDir);
       }
       
+      for (const programPath of programPaths) {
+        // Extract the executable function name from formattedExecutable
+        const parts = formattedExecutable.split('::');
+        const executableFunctionName = parts[2] || 'main';
+        
+        // Process the contract for execution
+        await processContractForExecution(
+          programPath, 
+          projectDir,
+          executableFunctionName
+        );
+      }
+    
       // await cleanProject(agent, { path: projectDir });
       const execResult = await executeProject({
         projectDir: projectDir,

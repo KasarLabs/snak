@@ -6,6 +6,7 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getWorkspacePath } from '../../src/utils/path.js';
+import { resolveContractPath } from '../../src/utils/path.js';
 
 const execAsync = promisify(exec);
 
@@ -30,7 +31,7 @@ describe('Execute Program Tests', () => {
     const result = await executeProgram(agent, {
       projectName,
       programPaths: contractPaths,
-      dependencies: []
+      dependencies: [],
     });
     
     const parsedResult = JSON.parse(result);
@@ -146,7 +147,7 @@ describe('Execute Program Tests', () => {
     expect(parsedResult.status).toBe('failure');
   }, 180000);
 
-  it('should execute a program with standalone target (default)', async () => {
+  it('should execute a program with standalone mode (default)', async () => {
     const projectName = 'execute_test_standalone';
     const contractPaths = ['src/contract/program.cairo'];
     
@@ -154,7 +155,7 @@ describe('Execute Program Tests', () => {
       projectName,
       programPaths: contractPaths,
       dependencies: []
-      // Target not specified, should default to standalone
+      // mode not specified, should default to standalone
     });
     
     const parsedResult = JSON.parse(result);
@@ -166,7 +167,7 @@ describe('Execute Program Tests', () => {
     expect(parsedResult.tracePath).toBeUndefined(); // Should not have trace path
   }, 180000);
   
-  it('should execute a program with bootloader target', async () => {
+  it('should execute a program with bootloader mode', async () => {
     const projectName = 'execute_test_bootloader';
     const contractPaths = ['src/contract/program.cairo'];
     
@@ -174,7 +175,7 @@ describe('Execute Program Tests', () => {
       projectName,
       programPaths: contractPaths,
       dependencies: [],
-      target: 'bootloader' // Explicitly request bootloader target
+      mode: 'bootloader' // Explicitly request bootloader mode
     });
     
     const parsedResult = JSON.parse(result);
@@ -197,7 +198,7 @@ describe('Execute Program Tests', () => {
       dependencies: [],
       executableFunction: 'fib',
       arguments: '10',
-      target: 'bootloader'
+      mode: 'bootloader'
     });
     
     const parsedResult = JSON.parse(result);
@@ -217,7 +218,7 @@ describe('Execute Program Tests', () => {
       projectName,
       programPaths: contractPaths,
       dependencies: [],
-      target: 'standalone'
+      mode: 'standalone'
     });
     
     const parsedStandaloneResult = JSON.parse(standaloneResult);
@@ -229,7 +230,7 @@ describe('Execute Program Tests', () => {
       projectName: `${projectName}_bl`, // Use different project name to avoid conflicts
       programPaths: contractPaths,
       dependencies: [],
-      target: 'bootloader'
+      mode: 'bootloader'
     });
     
     const parsedBootloaderResult = JSON.parse(bootloaderResult);
@@ -239,5 +240,25 @@ describe('Execute Program Tests', () => {
     // The actual program output should be the same in both modes
     expect(parsedStandaloneResult.output).toContain('987'); // Expected output of fib(16)
     expect(parsedBootloaderResult.output).toContain('987'); // Expected output of fib(16)
+  }, 180000);
+
+  it('should throw an error when target function is not found', async () => {
+    const projectName = 'execute_test_missing_function';
+    const contractPaths = ['src/contract/program3.cairo']; // This contains only fib function
+    
+    // Try to execute with a non-existent function
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: [],
+      executableFunction: 'non_existent_function' // This function doesn't exist
+    });
+    
+    const parsedResult = JSON.parse(result);
+    console.log('Result with non-existent function in program3:', parsedResult);
+    
+    // Check that execution failed with the expected error
+    expect(parsedResult.status).toBe('failure');
+    expect(parsedResult.error).toContain('not found'); // Error message should indicate function wasn't found
   }, 180000);
 });

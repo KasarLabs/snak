@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"No test has been created for this plugins\" && exit 0",
-    "build": "pnpm clean:dist && tsc",
+    "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",

@@ -1,4 +1,3 @@
-#[executable]
 fn main() -> u32 {
     fib(16)
 }

@@ -1,7 +1,7 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { initProject, buildProject, configureSierraAndCasm, isProjectInitialized, cleanProject } from '../utils/project.js';
+import { initProject, buildProject,  isProjectInitialized, cleanProject } from '../utils/project.js';
 import { addSeveralDependancies, importContract, cleanLibCairo, checkWorkspaceLimit, getGeneratedContractFiles } from '../utils/index.js';
 import { getWorkspacePath, resolveContractPath } from '../utils/path.js';
 import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/environment.js';
@@ -32,12 +32,12 @@ export const compileContract = async (
         error: await getScarbInstallInstructions(),
       });
     }
-  
+    
     const workspaceDir = getWorkspacePath();
     try {
       await fs.mkdir(workspaceDir, { recursive: true });
     } catch (error) {}
-    
+
     const projectDir = path.join(workspaceDir, params.projectName);
     const contractPaths = params.contractPaths.map(contractPath => 
       resolveContractPath(contractPath)
@@ -48,6 +48,7 @@ export const compileContract = async (
     if (!isInitialized) {
       await initProject(agent, { name: params.projectName, projectDir });
     }
+
     await addTomlSection({
       workingDir: projectDir,
       sectionTitle: 'target.starknet-contract',
@@ -56,18 +57,20 @@ export const compileContract = async (
         'casm' : true
       }
     });
+
     await addSeveralDependancies(params.dependencies || [], projectDir);
     await cleanLibCairo(projectDir);
     for (const contractPath of contractPaths) {
       await importContract(contractPath, projectDir);
     }
 
-    await cleanProject(agent, { path: projectDir });
+    // await cleanProject(agent, { path: projectDir });
     const buildResult = await buildProject(agent, { path: projectDir });
     const parsedBuildResult = JSON.parse(buildResult);
-    
+
     const contractFiles = await getGeneratedContractFiles(projectDir);
     
+    console.log(`Contract compiled successfully`);
     return JSON.stringify({
       status: 'success',
       message: `Contract compiled successfully`,
