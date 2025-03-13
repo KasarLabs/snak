@@ -272,16 +272,17 @@ export const proveProgram = async (
     console.log(`Proving execution of the id ${params.executionId} in ${projectDir} with command: ${command}`);
     const { stdout, stderr } = await execAsync(command, { cwd: projectDir });
     
-    const executionDir = path.join(projectDir, 'target', 'execute', `execution${params.executionId}`);
-    let proofPath = null;
-    try {
-      const proofFilePath = path.join(executionDir, 'proof.json');
-      await fs.access(proofFilePath);
-      proofPath = proofFilePath;
-    } catch (error) {
-      console.warn("Could not locate proof.json file:", error);
-      throw new Error(`Could not locate proof.json file: ${error.message}`);
+    const proofPath = extractProofJsonPath(stdout);
+    
+    if (!proofPath) {
+      throw new Error("Could not locate proof.json file path in command output");
     }
+    
+    // try {
+    //   await fs.access(proofPath);
+    // } catch (error) {
+    //   throw new Error(`Proof file found in output but cannot be accessed: ${error.message}`);
+    // }
     
     console.log(`Contract execution proved successfully`);
     console.log("stout : ", stdout);
@@ -303,3 +304,46 @@ export const proveProgram = async (
     });
   }
 };
+
+
+export interface VerifyContractParams {
+  projectDir: string;
+  proofPath: string;
+}
+
+export const verifyProgram = async (
+  params: VerifyContractParams
+) => {
+  try {
+    const command = `scarb verify --proof-file ${params.proofPath}`;
+    console.log(`Verifying proof with command: ${command}`);
+    const { stdout, stderr } = await execAsync(command, { cwd: params.projectDir });
+    
+    const isVerified = stdout.includes('successfully');
+    if (!isVerified) {
+      throw new Error(`Proof verification failed: ${stderr}`);
+    }
+
+    return JSON.stringify({
+      status: 'success',
+      message: 'Proof verified successfully',
+      output: stdout,
+      errors: stderr || undefined,
+    });
+  } catch (error) {
+    console.error("Error verifying proof:", error);
+    throw new Error(`Error verifying proof: ${error.message}`);
+  }
+};
+
+/**
+ * Extracts the path to the proof.json file from scarb prove command output
+ * @param {string} output - The stdout from scarb prove command
+ * @returns {string|null} - The full path to the proof.json file or null if not found
+ */
+export function extractProofJsonPath(output : string) {
+  // Look for the "Saving proof to:" line pattern
+  const match = output.match(/Saving proof to:\s*(.*proof\.json)/);
+  // Return the full path if found, otherwise null
+  return match ? match[1].trim() : null;
+}

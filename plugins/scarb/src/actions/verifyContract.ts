@@ -1,59 +1,53 @@
-// import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-// import { exec } from 'child_process';
-// import { promisify } from 'util';
-// import * as path from 'path';
-// import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/environment.js';
-// import * as fs from 'fs/promises';
+import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { verifyProgram } from '../utils/project.js';
+import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/environment.js';
+import { getWorkspacePath } from '../utils/path.js';
+import { verifyContractSchema } from '../schema/schema.js';
+import { z } from 'zod';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
-// const execAsync = promisify(exec);
+export interface VerifyContractParams {
+    projectName: string;
+    proofPath: string;
+}
 
-// export interface VerifyContractParams {
-//   proofPath: string;
-// }
+export const verifyContract = async (
+  agent: StarknetAgentInterface,
+  params: z.infer<typeof verifyContractSchema>
+) => {
+  try {
+    const isScarbInstalled = await checkScarbInstalled();
+    if (!isScarbInstalled) {
+        return JSON.stringify({
+        status: 'failure',
+        error: await getScarbInstallInstructions(),
+        });
+    }
 
-// export const verifyContract = async (
-//   agent: StarknetAgentInterface,
-//   params: VerifyContractParams
-// ) => {
-//   try {
-//     const isScarbInstalled = await checkScarbInstalled();
-//     if (!isScarbInstalled) {
-//       return JSON.stringify({
-//         status: 'failure',
-//         error: await getScarbInstallInstructions(),
-//       });
-//     }
-
-//     // Check if the proof file exists
-//     try {
-//       await fs.access(params.proofPath);
-//     } catch (error) {
-//       return JSON.stringify({
-//         status: 'failure',
-//         error: `Proof file not found at path: ${params.proofPath}`,
-//       });
-//     }
-
-//     const command = `scarb verify ${params.proofPath}`;
+    const workspaceDir = getWorkspacePath();
+    try {
+        await fs.mkdir(workspaceDir, { recursive: true });
+    } catch (error) {}
     
-//     console.log(`Verifying proof with command: ${command}`);
-//     const { stdout, stderr } = await execAsync(command);
+    const projectDir = path.join(workspaceDir, params.projectName);
+    const result = await verifyProgram({
+        projectDir: projectDir,
+        proofPath: params.proofPath,
+    });
+    const parsedResult = JSON.parse(result);
     
-//     // Check if verification was successful based on output
-//     const isVerified = stdout.includes('Verification successful') || 
-//                        !stderr.includes('Verification failed');
-    
-//     return JSON.stringify({
-//       status: isVerified ? 'success' : 'failure',
-//       message: isVerified ? 'Proof verified successfully' : 'Proof verification failed',
-//       output: stdout,
-//       errors: stderr || undefined,
-//     });
-//   } catch (error) {
-//     console.error("Error verifying proof:", error);
-//     return JSON.stringify({
-//       status: 'failure',
-//       error: error instanceof Error ? error.message : 'Unknown error',
-//     });
-//   }
-// };
+    return JSON.stringify({
+      status: parsedResult.status,
+      message: parsedResult.message,
+      output: parsedResult.stdout,
+      errors: parsedResult.stderr
+    });
+  } catch (error) {
+    console.error("Error verifying proof:", error);
+    return JSON.stringify({
+      status: 'failure',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
