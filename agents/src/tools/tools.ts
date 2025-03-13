@@ -1,4 +1,4 @@
-import { tool } from '@langchain/core/tools';
+import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { TwitterInterface } from '../../common/index.js';
 import { JsonConfig } from '../jsonConfig.js';
@@ -109,7 +109,7 @@ export const createTools = (agent: StarknetAgentInterface) => {
 export const createAllowedTools = async (
   agent: StarknetAgentInterface,
   allowed_tools: string[]
-) => {
+): Promise<DynamicStructuredTool<any>[]> => {
   return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
 };
 
