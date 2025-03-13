@@ -10,7 +10,6 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
 import { MCP_CONTROLLER } from './mcp/mcp.js';
-import { MultiServerMCPClient } from 'snak-mcps';
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -73,17 +72,6 @@ export const createAgent = async (
     const modelSelected = model();
     const json_config = starknetAgent.getAgentConfig();
 
-    // const client = new MultiServerMCPClient({
-    //   'brave-search': {
-    //     transport: 'stdio',
-    //     command: 'npx',
-    //     args: ['-y', '@modelcontextprotocol/server-brave-search'],
-    //     env: { BRAVE_API_KEY: 'BSAgWXjaOOpxLi7o-_2jw3oDJSrVw5K' },
-    //   },
-    // });
-
-    // client.initializeConnections();
-    // client.getTools();
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
