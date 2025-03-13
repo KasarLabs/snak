@@ -26,6 +26,7 @@ export interface JsonConfig {
   chat_id: string;
   internal_plugins: string[];
   external_plugins?: string[];
+  mcp?: boolean;
   autonomous?: boolean;
 }
 
@@ -211,6 +212,7 @@ const checkParseJson = async (
       external_plugins: Array.isArray(json.external_plugins)
         ? json.external_plugins
         : [],
+      mcp: json.mcp || false,
     };
 
     validateConfig(jsonconfig);

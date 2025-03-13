@@ -9,6 +9,6 @@
       "@src/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "./common/**/*", "./start.ts", "./index.ts"],
+  "include": ["src/**/*", "./common/**/*", "./start.ts", "./index.ts", "../mcp_server/weather"],
   "exclude": ["node_modules", "dist"]
 }
