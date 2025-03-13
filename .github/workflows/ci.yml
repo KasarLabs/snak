@@ -93,4 +93,4 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Build server
-        run: pnpm build:ci
+        run: pnpm build
