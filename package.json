@@ -55,7 +55,9 @@
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
     "express": "^4.21.2",
+    "langchainjs-mcp-adapters": "^0.1.8",
     "pg": "^8.13.3",
+    "snak-mcps": "^0.1.1",
     "starknet": "^6.23.1",
     "util": "^0.12.5",
     "zod": "^3.24.2"
