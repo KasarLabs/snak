@@ -1,67 +1,148 @@
-// __test__/scarb/compile.spec.ts
+// __test__/scarb/execute.spec.ts
 import { executeProgram } from '../../src/actions/executeProgram.js';
 import { createMockStarknetAgent } from '../jest/setEnvVars.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { getWorkspacePath } from '../../src/utils/path.js';
 
-describe('Tests de la fonction compileContract', () => {
+const execAsync = promisify(exec);
+
+describe('Execute Program Tests', () => {
   const agent = createMockStarknetAgent();
+  
+  afterAll(async () => {
+    try {
+      const workspacePath = getWorkspacePath();
+      // Utilise la commande rm -rf pour nettoyer tous les projets dans le workspace
+      await execAsync(`rm -rf ${workspacePath}/execute_test_*`);
+      console.log('Projets de test nettoyés avec succès');
+    } catch (error) {
+      console.error('Erreur lors du nettoyage des projets:', error);
+    }
+  }, 10000);
 
-  it('devrait compiler un contrat Cairo simple', async () => {
-    // Définir les paramètres
-    const projectName = 'project_0';
-    const contractPaths = [
-      'src/contract/program.cairo',
-    ];
-    const dependencies : any[] = [];
+  it('should successfully execute a simple Cairo program', async () => {
+    const projectName = 'execute_test_1';
+    const contractPaths = ['src/contract/program.cairo'];
     
-    // Appeler la fonction de compilation
     const result = await executeProgram(agent, {
       projectName,
       programPaths: contractPaths,
-      dependencies
+      dependencies: []
     });
     
-    // Analyser le résultat
     const parsedResult = JSON.parse(result);
-    console.log('Résultat de l\'execution:', parsedResult);
+    console.log('Execution result:', parsedResult);
     
     expect(parsedResult.status).toBe('success');
+    expect(parsedResult.message).toBe('Contract executed successfully');
+    expect(parsedResult.executionId).toBeTruthy();
+    expect(parsedResult.output).toContain('987'); // Expected output of fib(16)
     
     const projectDir = path.join('./src/workspace', projectName);
     const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
     expect(projectExists).toBe(true);
-    
   }, 180000);
 
-  it('devrait compiler un contrat Cairo simple avec des arguments et une fonction precise', async () => {
-    // Définir les paramètres
-    const projectName = 'project_2';
-    const contractPaths = [
-      'src/contract/program2.cairo',
-      'src/contract/program.cairo'
-    ];
-    const dependencies : any[] = [];
+  it('should execute a Cairo program with custom function and arguments', async () => {
+    const projectName = 'execute_test_2';
+    const contractPaths = ['src/contract/program2.cairo'];
     
-    // Appeler la fonction de compilation
     const result = await executeProgram(agent, {
       projectName,
       programPaths: contractPaths,
-      dependencies,
+      dependencies: [],
       executableFunction: 'fib',
-      arguments: '1',
-      executableName: 'program2'
+      arguments: '8',
     });
     
-    // Analyser le résultat
     const parsedResult = JSON.parse(result);
-    console.log('Résultat de l\'execution:', parsedResult);
+    console.log('Execution result with custom function:', parsedResult);
     
     expect(parsedResult.status).toBe('success');
+    expect(parsedResult.executionId).toBeDefined();
+    expect(parsedResult.output).toContain('21'); // Expected output of fib(8)
+  }, 180000);
+
+  it('should handle multiple program files and specify executable', async () => {
+    const projectName = 'execute_test_3';
+    const contractPaths = [
+      'src/contract/program.cairo',
+      'src/contract/program2.cairo'
+    ];
     
-    const projectDir = path.join('./src/workspace', projectName);
-    const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
-    expect(projectExists).toBe(true);
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: [],
+      executableName: 'program2',
+      executableFunction: 'fib',
+      arguments: '5'
+    });
     
+    const parsedResult = JSON.parse(result);
+    console.log('Execution with multiple files:', parsedResult);
+    
+    expect(parsedResult.status).toBe('success');
+    expect(parsedResult.output).toContain('5'); // Expected output of fib(5)
+  }, 180000);
+
+  it('should fail with multiple programs and no executable name', async () => {
+    const projectName = 'execute_test_5';
+    const contractPaths = [
+      'src/contract/program.cairo',
+      'src/contract/program2.cairo'
+    ];
+    
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: []
+      // Missing executable name with multiple programs
+    });
+    
+    const parsedResult = JSON.parse(result);
+    console.log('Result with missing executable name:', parsedResult);
+    
+    expect(parsedResult.status).toBe('failure');
+    expect(parsedResult.error).toContain('Multiple contracts require an executable name');
+  });
+
+  it('should fail when referencing non-existent file', async () => {
+    const projectName = 'execute_test_6';
+    const contractPaths = ['src/contract/non_existent_file.cairo'];
+    
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: []
+    });
+    
+    const parsedResult = JSON.parse(result);
+    console.log('Result with non-existent file:', parsedResult);
+    
+    expect(parsedResult.status).toBe('failure');
+    expect(parsedResult.error).toContain('Impossible de résoudre le chemin du contrat');
+  });
+
+  it('should fail when calling non-existent function', async () => {
+    const projectName = 'execute_test_7';
+    const contractPaths = ['src/contract/program.cairo'];
+    
+    const result = await executeProgram(agent, {
+      projectName,
+      programPaths: contractPaths,
+      dependencies: [],
+      executableFunction: 'non_existent_function'
+    });
+    
+    const parsedResult = JSON.parse(result);
+    console.log('Result with non-existent function:', parsedResult);
+    
+    expect(parsedResult.status).toBe('failure');
+    // The error might vary, but it should be a failure
+    expect(parsedResult.status).toBe('failure');
   }, 180000);
 });
