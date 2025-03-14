@@ -12,122 +12,122 @@ const execAsync = promisify(exec);
 describe('Tests de la fonction compileContract', () => {
   const agent = createMockStarknetAgent();
 
-    // afterAll(async () => {
-    //   try {
-    //     const workspacePath = getWorkspacePath();
-    //     // Utilise la commande rm -rf pour nettoyer tous les projets dans le workspace
-    //     await execAsync(`rm -rf ${workspacePath}/project_*`);
-    //     console.log('Projets de test nettoyés avec succès');
-    //   } catch (error) {
-    //     console.error('Erreur lors du nettoyage des projets:', error);
-    //   }
-    // }, 10000);
+    afterAll(async () => {
+      try {
+        const workspacePath = getWorkspacePath();
+        // Utilise la commande rm -rf pour nettoyer tous les projets dans le workspace
+        await execAsync(`rm -rf ${workspacePath}/project_*`);
+        console.log('Projets de test nettoyés avec succès');
+      } catch (error) {
+        console.error('Erreur lors du nettoyage des projets:', error);
+      }
+    }, 10000);
 
-  // it('devrait compiler un contrat Cairo simple', async () => {
-  //   // Définir les paramètres
-  //   const projectName = 'project_5';
-  //   const contractPaths = [
-  //     'src/contract/test2.cairo',
-  //     'src/contract/test.cairo'
-  //   ];
-  //   const dependencies : any[] = [
-  //     {
-  //       name: 'openzeppelin',
-  //       version: '1.0.0'
-  //     },
-  //   ];
+  it('devrait compiler un contrat Cairo simple', async () => {
+    // Définir les paramètres
+    const projectName = 'project_5';
+    const contractPaths = [
+      'src/contract/test2.cairo',
+      'src/contract/test.cairo'
+    ];
+    const dependencies : any[] = [
+      {
+        name: 'openzeppelin',
+        version: '1.0.0'
+      },
+    ];
     
-  //   // Appeler la fonction de compilation
-  //   const result = await compileContract(agent, {
-  //     projectName,
-  //     contractPaths,
-  //     dependencies
-  //   });
+    // Appeler la fonction de compilation
+    const result = await compileContract(agent, {
+      projectName,
+      contractPaths,
+      dependencies
+    });
     
-  //   // Analyser le résultat
-  //   const parsedResult = JSON.parse(result);
-  //   console.log('Résultat de la compilation:', parsedResult);
+    // Analyser le résultat
+    const parsedResult = JSON.parse(result);
+    console.log('Résultat de la compilation:', parsedResult);
     
-  //   // Vérifier que la compilation a réussi
-  //   expect(parsedResult.status).toBe('success');
-  //   expect(parsedResult.message).toBe('Contract compiled successfully');
+    // Vérifier que la compilation a réussi
+    expect(parsedResult.status).toBe('success');
+    expect(parsedResult.message).toBe('Contract compiled successfully');
     
-  //   // Vérifier que le projet a été créé
-  //   const projectDir = path.join('./src/workspace', projectName);
-  //   const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
-  //   expect(projectExists).toBe(true);
+    // Vérifier que le projet a été créé
+    const projectDir = path.join('./src/workspace', projectName);
+    const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
+    expect(projectExists).toBe(true);
     
-  //   // Vérifier que des fichiers ont été générés dans le répertoire target
-  //   expect(parsedResult.casmFiles.length).toBeGreaterThan(0);
-  //   expect(parsedResult.sierraFiles.length).toBeGreaterThan(0);
+    // Vérifier que des fichiers ont été générés dans le répertoire target
+    expect(parsedResult.casmFiles.length).toBeGreaterThan(0);
+    expect(parsedResult.sierraFiles.length).toBeGreaterThan(0);
     
-  // }, 180000); // 3 minutes de timeout pour la compilation
+  }, 180000); // 3 minutes de timeout pour la compilation
 
-  // it('should handle missing scarb installation', async () => {
-  //   // Mock checkScarbInstalled to return false for this test
-  //   jest.spyOn(require('../../src/utils/environment.js'), 'checkScarbInstalled')
-  //     .mockResolvedValueOnce(false);
+  it('should handle missing scarb installation', async () => {
+    // Mock checkScarbInstalled to return false for this test
+    jest.spyOn(require('../../src/utils/environment.js'), 'checkScarbInstalled')
+      .mockResolvedValueOnce(false);
     
-  //   const projectName = 'project_no_scarb';
-  //   const contractPaths = ['src/contract/test.cairo'];
+    const projectName = 'project_no_scarb';
+    const contractPaths = ['src/contract/test.cairo'];
     
-  //   const result = await compileContract(agent, {
-  //     projectName,
-  //     contractPaths
-  //   });
+    const result = await compileContract(agent, {
+      projectName,
+      contractPaths
+    });
     
-  //   const parsedResult = JSON.parse(result);
-  //   expect(parsedResult.status).toBe('failure');
-  //   expect(parsedResult.error).toBeTruthy();
-  // }, 10000);
+    const parsedResult = JSON.parse(result);
+    expect(parsedResult.status).toBe('failure');
+    expect(parsedResult.error).toBeTruthy();
+  }, 10000);
   
-  // it('should handle compilation with no dependencies', async () => {
-  //   const projectName = 'project_no_deps';
-  //   const contractPaths = ['src/contract/program3.cairo'];
+  it('should handle compilation with no dependencies', async () => {
+    const projectName = 'project_no_deps';
+    const contractPaths = ['src/contract/program3.cairo'];
     
-  //   const result = await compileContract(agent, {
-  //     projectName,
-  //     contractPaths
-  //     // No dependencies provided
-  //   });
+    const result = await compileContract(agent, {
+      projectName,
+      contractPaths
+      // No dependencies provided
+    });
     
-  //   const parsedResult = JSON.parse(result);
-  //   expect(parsedResult.status).toBe('success');
-  //   expect(parsedResult.message).toBe('Contract compiled successfully');
+    const parsedResult = JSON.parse(result);
+    expect(parsedResult.status).toBe('success');
+    expect(parsedResult.message).toBe('Contract compiled successfully');
     
-  //   // Verify project setup and file generation
-  //   const projectDir = path.join('./src/workspace', projectName);
-  //   const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
-  //   expect(projectExists).toBe(true);
-  // }, 180000);
+    // Verify project setup and file generation
+    const projectDir = path.join('./src/workspace', projectName);
+    const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
+    expect(projectExists).toBe(true);
+  }, 180000);
   
-  // it('should reuse existing project when available', async () => {
-  //   // First create a project
-  //   const projectName = 'project_reuse';
-  //   const initialPaths = ['src/contract/program.cairo'];
+  it('should reuse existing project when available', async () => {
+    // First create a project
+    const projectName = 'project_reuse';
+    const initialPaths = ['src/contract/program.cairo'];
     
-  //   await compileContract(agent, {
-  //     projectName,
-  //     contractPaths: initialPaths
-  //   });
+    await compileContract(agent, {
+      projectName,
+      contractPaths: initialPaths
+    });
     
-  //   // Spy on initProject to verify it's not called again
-  //   const initProjectSpy = jest.spyOn(require('../../src/utils/project.js'), 'initProject');
+    // Spy on initProject to verify it's not called again
+    const initProjectSpy = jest.spyOn(require('../../src/utils/project.js'), 'initProject');
     
-  //   // Compile again with the same project name but different contracts
-  //   const result = await compileContract(agent, {
-  //     projectName,
-  //     contractPaths: ['src/contract/program2.cairo']
-  //   });
+    // Compile again with the same project name but different contracts
+    const result = await compileContract(agent, {
+      projectName,
+      contractPaths: ['src/contract/program2.cairo']
+    });
     
-  //   const parsedResult = JSON.parse(result);
+    const parsedResult = JSON.parse(result);
     
-  //   // Verify compilation success
-  //   expect(parsedResult.status).toBe('success');
+    // Verify compilation success
+    expect(parsedResult.status).toBe('success');
     
-  //   // Verify that initProject wasn't called
-  //   expect(initProjectSpy).not.toHaveBeenCalled();
-  // }, 240000);
+    // Verify that initProject wasn't called
+    expect(initProjectSpy).not.toHaveBeenCalled();
+  }, 240000);
   
   it('should handle git dependencies', async () => {
     const projectName = 'project_git_deps';
@@ -151,43 +151,43 @@ describe('Tests de la fonction compileContract', () => {
     expect(parsedResult.message).toBe('Contract compiled successfully');
   }, 180000);
   
-  // it('should handle non-existent contract path', async () => {
-  //   const projectName = 'project_missing_contract';
-  //   const contractPaths = ['src/contract/non_existent.cairo'];
+  it('should handle non-existent contract path', async () => {
+    const projectName = 'project_missing_contract';
+    const contractPaths = ['src/contract/non_existent.cairo'];
     
-  //   // Mock resolveContractPath to throw an error
-  //   jest.spyOn(require('../../src/utils/path.js'), 'resolveContractPath')
-  //     .mockImplementationOnce(() => {
-  //       throw new Error('Impossible de résoudre le chemin du contrat');
-  //     });
+    // Mock resolveContractPath to throw an error
+    jest.spyOn(require('../../src/utils/path.js'), 'resolveContractPath')
+      .mockImplementationOnce(() => {
+        throw new Error('Impossible de résoudre le chemin du contrat');
+      });
     
-  //   const result = await compileContract(agent, {
-  //     projectName,
-  //     contractPaths
-  //   });
+    const result = await compileContract(agent, {
+      projectName,
+      contractPaths
+    });
     
-  //   const parsedResult = JSON.parse(result);
-  //   expect(parsedResult.status).toBe('failure');
-  //   expect(parsedResult.error).toContain('Impossible de résoudre le chemin du contrat');
-  // }, 10000);
+    const parsedResult = JSON.parse(result);
+    expect(parsedResult.status).toBe('failure');
+    expect(parsedResult.error).toContain('Impossible de résoudre le chemin du contrat');
+  }, 10000);
   
-  // it('should handle workspace limit exceeded', async () => {
-  //   const projectName = 'project_limit_exceeded';
-  //   const contractPaths = ['src/contract/test.cairo'];
+  it('should handle workspace limit exceeded', async () => {
+    const projectName = 'project_limit_exceeded';
+    const contractPaths = ['src/contract/test.cairo'];
     
-  //   // Mock checkWorkspaceLimit to throw an error
-  //   jest.spyOn(require('../../src/utils/index.js'), 'checkWorkspaceLimit')
-  //     .mockImplementationOnce(async () => {
-  //       throw new Error('Workspace project limit reached');
-  //     });
+    // Mock checkWorkspaceLimit to throw an error
+    jest.spyOn(require('../../src/utils/index.js'), 'checkWorkspaceLimit')
+      .mockImplementationOnce(async () => {
+        throw new Error('Workspace project limit reached');
+      });
     
-  //   const result = await compileContract(agent, {
-  //     projectName,
-  //     contractPaths
-  //   });
+    const result = await compileContract(agent, {
+      projectName,
+      contractPaths
+    });
     
-  //   const parsedResult = JSON.parse(result);
-  //   expect(parsedResult.status).toBe('failure');
-  //   expect(parsedResult.error).toContain('Workspace project limit reached');
-  // }, 10000);
+    const parsedResult = JSON.parse(result);
+    expect(parsedResult.status).toBe('failure');
+    expect(parsedResult.error).toContain('Workspace project limit reached');
+  }, 10000);
 });
