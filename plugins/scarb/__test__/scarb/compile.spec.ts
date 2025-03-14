@@ -65,7 +65,7 @@ describe('Tests de la fonction compileContract', () => {
 
   it('should handle missing scarb installation', async () => {
     // Mock checkScarbInstalled to return false for this test
-    jest.spyOn(require('../../src/utils/environment.js'), 'checkScarbInstalled')
+    jest.spyOn(require('../../src/utils/install.js'), 'checkScarbInstalled')
       .mockResolvedValueOnce(false);
     
     const projectName = 'project_no_scarb';
@@ -112,7 +112,7 @@ describe('Tests de la fonction compileContract', () => {
     });
     
     // Spy on initProject to verify it's not called again
-    const initProjectSpy = jest.spyOn(require('../../src/utils/project.js'), 'initProject');
+    const initProjectSpy = jest.spyOn(require('../../src/utils/command.js'), 'initProject');
     
     // Compile again with the same project name but different contracts
     const result = await compileContract(agent, {
@@ -176,7 +176,7 @@ describe('Tests de la fonction compileContract', () => {
     const contractPaths = ['src/contract/test.cairo'];
     
     // Mock checkWorkspaceLimit to throw an error
-    jest.spyOn(require('../../src/utils/index.js'), 'checkWorkspaceLimit')
+    jest.spyOn(require('../../src/utils/preparation.js'), 'checkWorkspaceLimit')
       .mockImplementationOnce(async () => {
         throw new Error('Workspace project limit reached');
       });
