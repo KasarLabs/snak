@@ -1,0 +1,31 @@
+{
+  "name": "@starknet-agent-kit/plugin-scarb",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "build": "pnpm clean:dist && tsc",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "devDependencies": {
+    "@starknet-agent-kit/agents": "workspace:*",
+    "@types/fs-extra": "^11.0.4",
+    "@types/tmp": "^0.2.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "find-up": "^5.0.0",
+    "fs-extra": "^11.3.0",
+    "tmp": "^0.2.3"
+  }
+}
