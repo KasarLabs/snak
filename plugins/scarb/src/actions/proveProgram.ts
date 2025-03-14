@@ -1,45 +1,47 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { verifyProgram } from '../utils/project.js';
-import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/environment.js';
+import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/install.js';
 import { getWorkspacePath } from '../utils/path.js';
-import { verifyContractSchema } from '../schema/schema.js';
-import { z } from 'zod';
-import * as fs from 'fs/promises';
+import { proveProject } from '../utils/command.js';
+import { proveProgramSchema } from '../schema/schema.js';
 import * as path from 'path';
+import * as fs from 'fs/promises';
+import { z } from 'zod';
 
-export const verifyContract = async (
+export const proveProgram = async (
   agent: StarknetAgentInterface,
-  params: z.infer<typeof verifyContractSchema>
+  params: z.infer<typeof proveProgramSchema>
 ) => {
   try {
     const isScarbInstalled = await checkScarbInstalled();
     if (!isScarbInstalled) {
-        return JSON.stringify({
+      return JSON.stringify({
         status: 'failure',
         error: await getScarbInstallInstructions(),
-        });
+      });
     }
-
+  
     const workspaceDir = getWorkspacePath();
     try {
-        await fs.mkdir(workspaceDir, { recursive: true });
+      await fs.mkdir(workspaceDir, { recursive: true });
     } catch (error) {}
     
     const projectDir = path.join(workspaceDir, params.projectName);
-    const result = await verifyProgram({
-        projectDir: projectDir,
-        proofPath: params.proofPath,
+
+    const result = await proveProject({
+      projectDir: projectDir,
+      executionId: params.executionId,
     });
     const parsedResult = JSON.parse(result);
     
     return JSON.stringify({
-      status: parsedResult.status,
-      message: parsedResult.message,
+      status: 'success',
+      message: 'Contract execution proved successfully',
+      proofPath: parsedResult.proofPath,
       output: parsedResult.output,
-      errors: parsedResult.errors
+      error: parsedResult.errors
     });
   } catch (error) {
-    console.error("Error verifying proof:", error);
+    console.error("Error proving contract execution:", error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

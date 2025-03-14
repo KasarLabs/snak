@@ -16,15 +16,15 @@ import {
     executeProgram 
   } from '../actions/executeProgram.js';
   import { 
-    proveContract 
-  } from '../actions/proveContract.js';
+    proveProgram 
+  } from '../actions/proveProgram.js';
   import { 
-    verifyContract 
-  } from '../actions/verifyContract.js';
+    verifyProgram 
+  } from '../actions/verifyProgram.js';
   import { 
-    executeContractSchema,
-    proveContractSchema,
-    verifyContractSchema
+    executeProgramSchema,
+    proveProgramSchema,
+    verifyProgramSchema
   } from '../schema/schema.js';
   
   export const registerTools = (
@@ -52,7 +52,7 @@ import {
       name: 'scarb_execute_program',
       description: 'Execute a Cairo program function using Scarb',
       plugins: 'scarb',
-      schema: executeContractSchema,
+      schema: executeProgramSchema,
       execute: executeProgram,
     });
   
@@ -60,15 +60,15 @@ import {
       name: 'scarb_prove_program',
       description: 'Generate a proof for a Cairo program execution using Scarb, only if the program was executed in another mode than bootloader',
       plugins: 'scarb',
-      schema: proveContractSchema,
-      execute: proveContract,
+      schema: proveProgramSchema,
+      execute: proveProgram,
     });
   
     StarknetToolRegistry.push({
       name: 'scarb_verify_program',
       description: 'Only in standalone mode : verify a proof for a Cairo program execution using Scarb, only if the program was executed in another mode than bootloader',
       plugins: 'scarb',
-      schema: verifyContractSchema,
-      execute: verifyContract,
+      schema: verifyProgramSchema,
+      execute: verifyProgram,
     });
   };

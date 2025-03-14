@@ -17,9 +17,9 @@ export const compileContractSchema = z.object({
   ).optional().describe('List of project dependencies')
 });
 
-export const executeContractSchema = z.object({
+export const executeProgramSchema = z.object({
   projectName: z.string().describe('The name of the project to create or use'),
-  programPaths: z.array(z.string()).describe('Array of paths to Cairo contract files'),
+  programPaths: z.array(z.string()).describe('Array of paths to Cairo Program files'),
   dependencies: z.array(
     z.object({
       name: z.string().describe('Dependency name'),
@@ -33,12 +33,12 @@ export const executeContractSchema = z.object({
   mode: z.enum(['standalone', 'bootloader']).optional().describe('The target to compile for')
 });
 
-export const proveContractSchema = z.object({
+export const proveProgramSchema = z.object({
   projectName: z.string().describe('The name of the project to prove'),
   executionId: z.string().describe('The ID of the execution to prove'),
 });
 
-export const verifyContractSchema = z.object({
+export const verifyProgramSchema = z.object({
   projectName: z.string().describe('The name of the project to prove'),
   proofPath: z.string().describe('Path to the proof JSON file to verify')
 });

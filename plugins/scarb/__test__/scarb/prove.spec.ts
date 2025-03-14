@@ -1,16 +1,14 @@
 // __test__/scarb/prove.spec.ts
-import { proveContract } from '../../src/actions/proveContract.js';
+import { proveProgram } from '../../src/actions/proveProgram.js';
 import { executeProgram } from '../../src/actions/executeProgram.js';
 import { createMockStarknetAgent } from '../jest/setEnvVars.js';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getWorkspacePath } from '../../src/utils/path.js';
 
 const execAsync = promisify(exec);
 
-describe('Prove Contract Tests', () => {
+describe('Prove Program Tests', () => {
   const agent = createMockStarknetAgent();
   const baseProjectName = 'prove_test';
   let testCounter = 1;
@@ -45,7 +43,7 @@ describe('Prove Contract Tests', () => {
     expect(parsedExecResult.executionId).toBeTruthy();
     
     // Prouver l'exécution
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: parsedExecResult.executionId
     });
@@ -74,7 +72,7 @@ describe('Prove Contract Tests', () => {
     expect(parsedExecResult.status).toBe('success');
     
     // Prouver l'exécution
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: parsedExecResult.executionId
     });
@@ -99,7 +97,7 @@ describe('Prove Contract Tests', () => {
     expect(parsedExecResult.status).toBe('success');
     
     // Essayer de prouver avec un ID d'exécution invalide
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: 'invalid_execution_id'
     });
@@ -112,7 +110,7 @@ describe('Prove Contract Tests', () => {
 
   it('should fail with non-existent project', async () => {
     // Essayer de prouver un projet qui n'existe pas
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: 'non_existent_project',
       executionId: '12345'
     });
@@ -142,7 +140,7 @@ describe('Prove Contract Tests', () => {
     expect(parsedExecResult.status).toBe('success');
     
     // Prouver l'exécution
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: parsedExecResult.executionId
     });

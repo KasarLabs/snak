@@ -1,15 +1,18 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { executeProject } from '../utils/command.js';
+import { 
+  addSeveralDependancies, 
+  importContract, 
+  cleanLibCairo, 
+  addTomlSection, 
+  processContractForExecution, 
+  addDependency
+} from '../utils/preparation.js';
+import { setupScarbProject } from '../utils/common.js';
+import { executeProgramSchema } from '../schema/schema.js';
 import * as path from 'path';
-import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/environment.js';
-import * as fs from 'fs/promises';
-import { initProject, buildProject,  isProjectInitialized, cleanProject, addDependency } from '../utils/project.js';
-import { addSeveralDependancies, importContract, cleanLibCairo, checkWorkspaceLimit, getGeneratedContractFiles } from '../utils/index.js';
-import { addTomlSection } from '../utils/toml-utils.js';
-import { getWorkspacePath, resolveContractPath } from '../utils/path.js';
 import { z } from 'zod';
-import { executeContractSchema } from '@/schema/schema.js';
-import { executeProject } from '../utils/project.js';
-import { processContractForExecution } from '../utils/index.js';
+
 /**
   * Execute a StarkNet contract
   *
@@ -19,39 +22,23 @@ import { processContractForExecution } from '../utils/index.js';
  */
 export const executeProgram = async (
   agent: StarknetAgentInterface,
-  params: z.infer<typeof executeContractSchema>
+  params: z.infer<typeof executeProgramSchema>
 ) => {
   try {
-      const isScarbInstalled = await checkScarbInstalled();
-      if (!isScarbInstalled) {
-        return JSON.stringify({
-          status: 'failure',
-          error: await getScarbInstallInstructions(),
-        });
-      }
-    
-      const workspaceDir = getWorkspacePath();
-      try {
-        await fs.mkdir(workspaceDir, { recursive: true });
-      } catch (error) {}
+      const { projectDir, resolvedPaths } = await setupScarbProject({
+        projectName: params.projectName,
+        filePaths: params.programPaths,
+        dependencies: params.dependencies
+      });
       
-      const projectDir = path.join(workspaceDir, params.projectName);
-      const programPaths = params.programPaths.map(programPath => 
-        resolveContractPath(programPath)
-      );
-      if (programPaths.length > 1) {
+      if (resolvedPaths.length > 1) {
         if (params.executableName === undefined)
           throw new Error('Multiple contracts require an executable name');
       }
-      const executableName = params.executableName ? params.executableName : path.parse(path.basename(programPaths[0])).name;
-  
-      await checkWorkspaceLimit(workspaceDir, params.projectName);
-      const isInitialized = await isProjectInitialized(projectDir);
-      if (!isInitialized) {
-        await initProject(agent, { name: params.projectName, projectDir });
-      }
 
+      const executableName = params.executableName ? params.executableName : path.parse(path.basename(resolvedPaths[0])).name;
       const formattedExecutable = `${params.projectName}::${executableName}::${params.executableFunction ? params.executableFunction : 'main'}`;
+      
       await addTomlSection({
         workingDir: projectDir,
         sectionTitle: 'executable',
@@ -74,16 +61,9 @@ export const executeProgram = async (
 
       await addSeveralDependancies(params.dependencies || [], projectDir);
       await cleanLibCairo(projectDir);
-      for (const programPath of programPaths) {
-        await importContract(programPath, projectDir);
-      }
-      
-      for (const programPath of programPaths) {
-        // Extract the executable function name from formattedExecutable
+      for (const programPath of resolvedPaths) {
         const parts = formattedExecutable.split('::');
         const executableFunctionName = parts[2] || 'main';
-        
-        // Process the contract for execution
         await processContractForExecution(
           programPath, 
           projectDir,

@@ -1,17 +1,15 @@
 // __test__/scarb/verify.spec.ts
-import { proveContract } from '../../src/actions/proveContract.js';
+import { proveProgram } from '../../src/actions/proveProgram.js';
 import { executeProgram } from '../../src/actions/executeProgram.js';
-import { verifyContract } from '../../src/actions/verifyContract.js';
+import { verifyProgram } from '../../src/actions/verifyProgram.js';
 import { createMockStarknetAgent } from '../jest/setEnvVars.js';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getWorkspacePath } from '../../src/utils/path.js';
 
 const execAsync = promisify(exec);
 
-describe('Verify Contract Tests', () => {
+describe('Verify Program Tests', () => {
   const agent = createMockStarknetAgent();
   const baseProjectName = 'verify_test';
   let testCounter = 1;
@@ -37,7 +35,7 @@ describe('Verify Contract Tests', () => {
     // 1. Exécuter le programme
     const execResult = await executeProgram(agent, {
       projectName: projectName, 
-      programPaths: ['src/contract/program.cairo'],
+      programPaths: ['src/Program/program.cairo'],
       dependencies: []
     });
     
@@ -45,7 +43,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedExecResult.status).toBe('success');
     
     // 2. Générer une preuve
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: parsedExecResult.executionId
     });
@@ -55,7 +53,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedProveResult.proofPath).toBeTruthy();
     
     // 3. Vérifier la preuve
-    const verifyResult = await verifyContract(agent, {
+    const verifyResult = await verifyProgram(agent, {
       projectName: projectName,
       proofPath: parsedProveResult.proofPath
     });
@@ -73,7 +71,7 @@ describe('Verify Contract Tests', () => {
     // 1. Exécuter le programme avec des arguments
     const execResult = await executeProgram(agent, {
       projectName: projectName, 
-      programPaths: ['src/contract/program2.cairo'],
+      programPaths: ['src/Program/program2.cairo'],
       dependencies: [],
       executableFunction: 'fib',
       arguments: '10'
@@ -83,7 +81,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedExecResult.status).toBe('success');
     
     // 2. Générer une preuve
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: parsedExecResult.executionId
     });
@@ -92,7 +90,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedProveResult.status).toBe('success');
     
     // 3. Vérifier la preuve
-    const verifyResult = await verifyContract(agent, {
+    const verifyResult = await verifyProgram(agent, {
       projectName: projectName,
       proofPath: parsedProveResult.proofPath
     });
@@ -108,12 +106,12 @@ describe('Verify Contract Tests', () => {
     // Initialiser d'abord un projet pour que le répertoire existe
     const execResult = await executeProgram(agent, {
       projectName: projectName, 
-      programPaths: ['src/contract/program.cairo'],
+      programPaths: ['src/Program/program.cairo'],
       dependencies: []
     });
     
     // Tenter de vérifier avec un chemin de preuve invalide
-    const verifyResult = await verifyContract(agent, {
+    const verifyResult = await verifyProgram(agent, {
       projectName: projectName,
       proofPath: '/invalid/path/to/proof.json'
     });
@@ -126,7 +124,7 @@ describe('Verify Contract Tests', () => {
 
   it('should fail verification with non-existent project', async () => {
     // Tenter de vérifier dans un projet inexistant
-    const verifyResult = await verifyContract(agent, {
+    const verifyResult = await verifyProgram(agent, {
       projectName: 'non_existent_project',
       proofPath: '/path/to/proof.json'
     });
@@ -142,7 +140,7 @@ describe('Verify Contract Tests', () => {
     // 1. Exécuter le programme avec un cas plus complexe
     const execResult = await executeProgram(agent, {
       projectName: projectName, 
-      programPaths: ['src/contract/program2.cairo'],
+      programPaths: ['src/Program/program2.cairo'],
       dependencies: [],
       executableFunction: 'fib',
       arguments: '20'  // Calcul plus complexe
@@ -152,7 +150,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedExecResult.status).toBe('success');
     
     // 2. Générer une preuve
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: parsedExecResult.executionId
     });
@@ -161,7 +159,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedProveResult.status).toBe('success');
     
     // 3. Vérifier la preuve
-    const verifyResult = await verifyContract(agent, {
+    const verifyResult = await verifyProgram(agent, {
       projectName: projectName,
       proofPath: parsedProveResult.proofPath
     });
@@ -178,8 +176,8 @@ describe('Verify Contract Tests', () => {
     const execResult = await executeProgram(agent, {
       projectName: projectName, 
       programPaths: [
-        'src/contract/program.cairo',
-        'src/contract/program2.cairo'
+        'src/Program/program.cairo',
+        'src/Program/program2.cairo'
       ],
       dependencies: [],
       executableName: 'program2',
@@ -191,7 +189,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedExecResult.status).toBe('success');
     
     // 2. Générer une preuve
-    const proveResult = await proveContract(agent, {
+    const proveResult = await proveProgram(agent, {
       projectName: projectName,
       executionId: parsedExecResult.executionId
     });
@@ -200,7 +198,7 @@ describe('Verify Contract Tests', () => {
     expect(parsedProveResult.status).toBe('success');
     
     // 3. Vérifier la preuve
-    const verifyResult = await verifyContract(agent, {
+    const verifyResult = await verifyProgram(agent, {
       projectName: projectName,
       proofPath: parsedProveResult.proofPath
     });
