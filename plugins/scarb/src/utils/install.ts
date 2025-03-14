@@ -8,7 +8,7 @@ export async function checkScarbInstalled(): Promise<boolean> {
     await execAsync('scarb --version');
     return true;
   } catch (error) {
-    return false;
+    throw new Error('Scarb is not installed. Please install it');
   }
 }
 
@@ -19,8 +19,4 @@ export async function getScarbVersion(): Promise<string> {
   } catch (error) {
     return 'unknown';
   }
-}
-
-export async function getScarbInstallInstructions(): Promise<string> {
-  return `Scarb is not installed. Please install it`;
 }

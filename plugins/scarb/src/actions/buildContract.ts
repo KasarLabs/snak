@@ -1,11 +1,7 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { buildProject } from '../utils/command.js';
-import { setupScarbProject } from '../utils/common.js';
+import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { 
-  addSeveralDependancies, 
-  importContract, 
-  cleanLibCairo,  
-  addTomlSection, 
   getGeneratedContractFiles
 } from '../utils/preparation.js';
 
@@ -30,23 +26,19 @@ export const compileContract = async (
     const { projectDir, resolvedPaths } = await setupScarbProject({
       projectName: params.projectName,
       filePaths: params.contractPaths,
-      dependencies: params.dependencies
     });
     
-    await addTomlSection({
+    const tomlSections = [{
       workingDir: projectDir,
       sectionTitle: 'target.starknet-contract',
       valuesObject: {
         'sierra' : true,
         'casm' : true
       }
-    });
+    }];
 
-    await addSeveralDependancies(params.dependencies || [], projectDir);
-    await cleanLibCairo(projectDir);
-    for (const contractPath of resolvedPaths) {
-      await importContract(contractPath, projectDir);
-    }
+    await setupToml(projectDir, tomlSections, params.dependencies);
+    await setupSrc(projectDir, resolvedPaths);
 
     // await cleanProject(agent, { path: projectDir });
     const buildResult = await buildProject({ path: projectDir });

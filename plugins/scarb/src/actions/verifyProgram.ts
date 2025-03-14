@@ -1,31 +1,19 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { verifyProject } from '../utils/command.js';
-import { checkScarbInstalled, getScarbInstallInstructions } from '../utils/install.js';
-import { getWorkspacePath } from '../utils/path.js';
+import { checkScarbInstalled } from '../utils/install.js';
+import { getProjectDir } from '../utils/preparation.js';
 import { verifyProgramSchema } from '../schema/schema.js';
 import { z } from 'zod';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
 export const verifyProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof verifyProgramSchema>
 ) => {
   try {
-    const isScarbInstalled = await checkScarbInstalled();
-    if (!isScarbInstalled) {
-        return JSON.stringify({
-        status: 'failure',
-        error: await getScarbInstallInstructions(),
-        });
-    }
+    await checkScarbInstalled();
 
-    const workspaceDir = getWorkspacePath();
-    try {
-        await fs.mkdir(workspaceDir, { recursive: true });
-    } catch (error) {}
-    
-    const projectDir = path.join(workspaceDir, params.projectName);
+    const projectDir = await getProjectDir(params.projectName);
+
     const result = await verifyProject({
         projectDir: projectDir,
         proofPath: params.proofPath,

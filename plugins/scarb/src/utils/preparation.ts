@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import { promisify } from 'util';
 import path from 'path';
 import { Dependency } from '../actions/buildContract.js';
+import { getWorkspacePath } from './path.js';
 
 const execAsync = promisify(exec);
 
@@ -253,132 +254,142 @@ export async function checkWorkspaceLimit(
  * @returns {Promise<string>} JSON string with operation status and details
  */
 export const addTomlSection = async (params : any) => {
-    try {
-      const workingDir = params.workingDir;
-      const sectionTitle = params.sectionTitle;
-      const valuesObject = params.valuesObject;
- 
-      const tomlPath = path.join(workingDir, 'Scarb.toml');
-      try {
-        await fs.access(tomlPath);
-      } catch (error) {
-        throw new Error(`TOML file not found at ${tomlPath}`);
-      }
-      
-      let tomlContent = await fs.readFile(tomlPath, 'utf8');
-      
-      const isSingleSection = !sectionTitle.includes('.');
-      const formattedTitle = isSingleSection 
-        ? `[${sectionTitle}]` 
-        : `[[${sectionTitle}]]`;
-      
-      const formatValue = (value: any) => {
-        if (typeof value === 'string') return `"${value}"`;
-        else if (typeof value === 'boolean' || typeof value === 'number') return value;
-        else if (Array.isArray(value)) return `[${value.map(v => typeof v === 'string' ? `"${v}"` : v).join(', ')}]`;
-        else if (value === null) return 'null';
-        else return JSON.stringify(value);
-      };
-      
-      const sectionContent = Object.entries(valuesObject)
-        .map(([key, value]) => `${key} = ${formatValue(value)}`)
-        .join('\n');
+  try {
+    const workingDir = params.workingDir;
+    const sectionTitle = params.sectionTitle;
+    const valuesObject = params.valuesObject;
 
-      const sectionRegex = new RegExp(
-        `${formattedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\s\\S]*?)(\\n\\n|\\n\\[|$)`,
-        'g'
-      );
-      
-      const sectionMatch = sectionRegex.exec(tomlContent);
-      
-      if (sectionMatch) {
-        const existingContent = sectionMatch[1];
-        const existingLines = existingContent.trim().split('\n');
-        const existingKeys = existingLines.map(line => {
-          const parts = line.trim().split('=');
-          return parts[0]?.trim();
-        });
+    const tomlPath = path.join(workingDir, 'Scarb.toml');
+    try {
+      await fs.access(tomlPath);
+    } catch (error) {
+      throw new Error(`TOML file not found at ${tomlPath}`);
+    }
     
-        let updatedContent = existingContent;
+    let tomlContent = await fs.readFile(tomlPath, 'utf8');
+    
+    const isSingleSection = !sectionTitle.includes('.');
+    const formattedTitle = isSingleSection 
+      ? `[${sectionTitle}]` 
+      : `[[${sectionTitle}]]`;
+    
+    const formatValue = (value: any) => {
+      if (typeof value === 'string') return `"${value}"`;
+      else if (typeof value === 'boolean' || typeof value === 'number') return value;
+      else if (Array.isArray(value)) return `[${value.map(v => typeof v === 'string' ? `"${v}"` : v).join(', ')}]`;
+      else if (value === null) return 'null';
+      else return JSON.stringify(value);
+    };
+    
+    const sectionContent = Object.entries(valuesObject)
+      .map(([key, value]) => `${key} = ${formatValue(value)}`)
+      .join('\n');
+
+    const sectionRegex = new RegExp(
+      `${formattedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\s\\S]*?)(\\n\\n|\\n\\[|$)`,
+      'g'
+    );
+    
+    const sectionMatch = sectionRegex.exec(tomlContent);
+    
+    if (sectionMatch) {
+      const existingContent = sectionMatch[1];
+      const existingLines = existingContent.trim().split('\n');
+      const existingKeys = existingLines.map(line => {
+        const parts = line.trim().split('=');
+        return parts[0]?.trim();
+      });
+  
+      let updatedContent = existingContent;
+      
+      for (const [key, value] of Object.entries(valuesObject)) {
+        const formattedKeyValue = `${key} = ${formatValue(value)}`;
         
-        for (const [key, value] of Object.entries(valuesObject)) {
-          const formattedKeyValue = `${key} = ${formatValue(value)}`;
-          
-          if (existingKeys.includes(key)) {
-            const keyRegex = new RegExp(`${key}\\s*=.*`, 'g');
-            updatedContent = updatedContent.replace(keyRegex, formattedKeyValue);
-          } else {
-            updatedContent += updatedContent.endsWith('\n') ? '' : '\n';
-            updatedContent += formattedKeyValue + '\n';
-          }
+        if (existingKeys.includes(key)) {
+          const keyRegex = new RegExp(`${key}\\s*=.*`, 'g');
+          updatedContent = updatedContent.replace(keyRegex, formattedKeyValue);
+        } else {
+          updatedContent += updatedContent.endsWith('\n') ? '' : '\n';
+          updatedContent += formattedKeyValue + '\n';
         }
-        
-        tomlContent = tomlContent.replace(
-          sectionRegex,
-          `${formattedTitle}${updatedContent}${sectionMatch[2]}`
-        );
-      } else {
-        tomlContent += `\n\n${formattedTitle}\n${sectionContent}`;
       }
       
-      await fs.writeFile(tomlPath, tomlContent, 'utf8');
-      
-      return JSON.stringify({
-        status: 'success',
-        message: `Scarb.toml updated with ${sectionTitle} section`,
-        newConfig: tomlContent,
-      });
-    } catch (error) {
-        throw new Error(`Error updating Scarb.toml: ${error.message}`);
+      tomlContent = tomlContent.replace(
+        sectionRegex,
+        `${formattedTitle}${updatedContent}${sectionMatch[2]}`
+      );
+    } else {
+      tomlContent += `\n\n${formattedTitle}\n${sectionContent}`;
     }
-  };
-
-  export const addDependency = async (
-    params: { 
-      package: string;
-      version?: string;
-      git?: string;
-      path?: string;
-    }
-  ) => {
-    try {
-      const workingDir = params.path || process.cwd();
-      let command = `scarb add ${params.package}`;
-      
-      if (params.git) {
-        command += ` --git ${params.git}`;
-      }
-      if (params.version) {
-        if (params.git) 
-          command += ` --tag ${params.version}`;
-        else 
-          command += `@${params.version}`;
-      }
-      const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
-      
-      return JSON.stringify({
-        status: 'success',
-        message: `Dependency ${params.package} added successfully`,
-        output: stdout,
-        errors: stderr || undefined,
-      });
-    } catch (error) {
-      throw new Error(`Failed to add dependancie to scarb project: ${error.message}`);
-    }
-  };
     
-    /**
-     * Vérifie si un projet Scarb a déjà été initialisé dans le répertoire spécifié
-     * @param projectDir Chemin vers le répertoire du projet
-     * @returns Un booléen indiquant si le projet est déjà initialisé
-     */
-    export async function isProjectInitialized(projectDir: string): Promise<boolean> {
-      try {
-        const scarbTomlPath = path.join(projectDir, 'Scarb.toml');
-        await fs.access(scarbTomlPath);
+    await fs.writeFile(tomlPath, tomlContent, 'utf8');
+    
+    return JSON.stringify({
+      status: 'success',
+      message: `Scarb.toml updated with ${sectionTitle} section`,
+      newConfig: tomlContent,
+    });
+  } catch (error) {
+      throw new Error(`Error updating Scarb.toml: ${error.message}`);
+  }
+};
 
-        return true;
-      } catch (error) {
-        return false;
-      }
+export const addDependency = async (
+  params: { 
+    package: string;
+    version?: string;
+    git?: string;
+    path?: string;
+  }
+) => {
+  try {
+    const workingDir = params.path || process.cwd();
+    let command = `scarb add ${params.package}`;
+    
+    if (params.git) {
+      command += ` --git ${params.git}`;
     }
+    if (params.version) {
+      if (params.git) 
+        command += ` --tag ${params.version}`;
+      else 
+        command += `@${params.version}`;
+    }
+    const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
+    
+    return JSON.stringify({
+      status: 'success',
+      message: `Dependency ${params.package} added successfully`,
+      output: stdout,
+      errors: stderr || undefined,
+    });
+  } catch (error) {
+    throw new Error(`Failed to add dependancie to scarb project: ${error.message}`);
+  }
+};
+  
+/**
+ * Vérifie si un projet Scarb a déjà été initialisé dans le répertoire spécifié
+ * @param projectDir Chemin vers le répertoire du projet
+ * @returns Un booléen indiquant si le projet est déjà initialisé
+ */
+export async function isProjectInitialized(projectDir: string): Promise<boolean> {
+  try {
+    const scarbTomlPath = path.join(projectDir, 'Scarb.toml');
+    await fs.access(scarbTomlPath);
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export async function getProjectDir(projectName : string) {
+  const workspaceDir = getWorkspacePath();
+  try {
+    await fs.mkdir(workspaceDir, { recursive: true });
+  } catch (error) {}
+  
+  await checkWorkspaceLimit(workspaceDir, projectName);
+  return path.join(workspaceDir, projectName);
+}

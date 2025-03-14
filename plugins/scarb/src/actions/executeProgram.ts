@@ -1,14 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { executeProject } from '../utils/command.js';
-import { 
-  addSeveralDependancies, 
-  importContract, 
-  cleanLibCairo, 
-  addTomlSection, 
-  processContractForExecution, 
-  addDependency
-} from '../utils/preparation.js';
-import { setupScarbProject } from '../utils/common.js';
+import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { executeProgramSchema } from '../schema/schema.js';
 import * as path from 'path';
 import { z } from 'zod';
@@ -28,7 +20,6 @@ export const executeProgram = async (
       const { projectDir, resolvedPaths } = await setupScarbProject({
         projectName: params.projectName,
         filePaths: params.programPaths,
-        dependencies: params.dependencies
       });
       
       if (resolvedPaths.length > 1) {
@@ -38,46 +29,39 @@ export const executeProgram = async (
 
       const executableName = params.executableName ? params.executableName : path.parse(path.basename(resolvedPaths[0])).name;
       const formattedExecutable = `${params.projectName}::${executableName}::${params.executableFunction ? params.executableFunction : 'main'}`;
-      
-      await addTomlSection({
+
+      const tomlSections = [
+      {
         workingDir: projectDir,
         sectionTitle: 'executable',
         valuesObject: {
           'function' : formattedExecutable,
         }
-      });
-      await addTomlSection({
+      },
+      {
         workingDir: projectDir,
         sectionTitle: 'cairo',
         valuesObject: {
           'enable-gas' : false
         }
-      });
-      await addDependency({
-        package: 'cairo_execute',
-        version: '2.10.0',
-        path: projectDir
-      });
+      }];
 
-      await addSeveralDependancies(params.dependencies || [], projectDir);
-      await cleanLibCairo(projectDir);
-      for (const programPath of resolvedPaths) {
-        const parts = formattedExecutable.split('::');
-        const executableFunctionName = parts[2] || 'main';
-        await processContractForExecution(
-          programPath, 
-          projectDir,
-          executableFunctionName
-        );
-      }
-    
-      // await cleanProject(agent, { path: projectDir });
+      const requiredDependencies = [
+      {
+        name: 'cairo_execute',
+        version: '2.10.0'
+      }];
+
+      await setupToml(projectDir, tomlSections, params.dependencies, requiredDependencies);
+      await setupSrc(projectDir, resolvedPaths, formattedExecutable);
+
       const execResult = await executeProject({
         projectDir: projectDir,
         formattedExecutable: formattedExecutable,
         arguments: params.arguments,
         target: params.mode || 'standalone' 
       });
+
       const parsedExecResult = JSON.parse(execResult);
       
       return JSON.stringify({
