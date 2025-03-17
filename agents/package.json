@@ -30,6 +30,5 @@
     "discord.js": "^14.17.3",
     "nanospinner": "^1.2.2",
     "inquirer": "^12.4.1"
-
   }
 }
