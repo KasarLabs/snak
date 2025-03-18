@@ -85,7 +85,6 @@ export const createAgent = async (
 
   try {
     const json_config = starknetAgent.getAgentConfig();
-    json_config.memory = false;
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
