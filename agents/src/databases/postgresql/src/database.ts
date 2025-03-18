@@ -89,7 +89,7 @@ export class PostgresAdaptater {
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          console.warn('Database already exist. Skip creation.');
+          console.warn('Database already exists.');
           return true;
         }
       }
