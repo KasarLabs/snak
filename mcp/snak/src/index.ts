@@ -71,7 +71,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await RegisterToolInServer(process.argv.slice(2));
   await server.connect(transport);
-  console.error('Starknet MCP Server running on stdio');
+  console.error('S.N.A.K MCP Server running on stdio');
 }
 main().catch((error) => {
   console.error('Fatal error in main():', error);
