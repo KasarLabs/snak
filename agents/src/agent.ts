@@ -89,7 +89,6 @@ export const createAgent = async (
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
-    // Create and connect to the database using your agent's interface
     let databaseConnection = null;
     if (json_config.memory) {
       const databaseName = json_config.chat_id;
@@ -197,9 +196,7 @@ export const createAgent = async (
           return {
             memories: '',
           };
-        // Extract user ID from config or use a default
         const userId = config.configurable?.userId || 'default_user';
-
         const lastMessage = state.messages[state.messages.length - 1]
           .content as string;
 
