@@ -85,14 +85,13 @@ export const createAgent = async (
 
   try {
     const json_config = starknetAgent.getAgentConfig();
-    json_config.memory = false
+    json_config.memory = false;
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
     // Create and connect to the database using your agent's interface
     let databaseConnection = null;
-    if (json_config.memory)
-    {
+    if (json_config.memory) {
       const databaseName = json_config.chat_id;
       databaseConnection = await starknetAgent.createDatabase(databaseName);
       if (!databaseConnection) {
@@ -110,10 +109,9 @@ export const createAgent = async (
             ['metadata', 'TEXT'],
           ]),
         });
-        if (dbCreation.code == "42P07")
+        if (dbCreation.code == '42P07')
           console.log('Agent memory table already exists');
-        else
-          console.log('Agent memory table successfully created')
+        else console.log('Agent memory table successfully created');
       } catch (error) {
         console.error('Error creating memories table:', error);
         throw error;
@@ -161,8 +159,7 @@ export const createAgent = async (
           });
 
           //console.log('\nInserting inside the table : ', content);
-          if (databaseConnection)
-          {
+          if (databaseConnection) {
             await databaseConnection.insert({
               table_name: 'agent_memories',
               fields: new Map<string, string | string[]>([
@@ -246,16 +243,17 @@ export const createAgent = async (
       }
     };
 
-    if (json_config.memory)
-      toolsList.push(upsertMemoryToolDB);
+    if (json_config.memory) toolsList.push(upsertMemoryToolDB);
     const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
     const modelSelected = model().bindTools(toolsList);
 
     const configPrompt = json_config.prompt.content;
 
-    const baseSystemtPrompt = `${configPrompt}`
-    const memoryPrompt = `Use your upsert_memory tool in order to save the conversation as it goes on.\nThe most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;`
-    const finalPrompt = json_config.memory ? `${baseSystemtPrompt}\n${memoryPrompt}` : `${baseSystemtPrompt}`
+    const baseSystemtPrompt = `${configPrompt}`;
+    const memoryPrompt = `Use your upsert_memory tool in order to save the conversation as it goes on.\nThe most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;`;
+    const finalPrompt = json_config.memory
+      ? `${baseSystemtPrompt}\n${memoryPrompt}`
+      : `${baseSystemtPrompt}`;
 
     async function callModel(
       state: typeof GraphState.State
@@ -311,7 +309,7 @@ export const createAgent = async (
 
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
-      ...(json_config.memory ? {checkpointer: checkpointer} : {})
+      ...(json_config.memory ? { checkpointer: checkpointer } : {}),
     });
 
     return app;

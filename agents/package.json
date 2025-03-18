@@ -10,7 +10,7 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-	"pgvector": "./pgvector.sh",
+    "pgvector": "./pgvector.sh",
     "start": "pnpm pgvector && npx tsx -r tsconfig-paths/register ./start.ts ",
     "lint": "eslint \"src/**/*.ts\""
   },
@@ -31,6 +31,5 @@
     "discord.js": "^14.17.3",
     "nanospinner": "^1.2.2",
     "inquirer": "^12.4.1"
-
   }
 }

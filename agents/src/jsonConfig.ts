@@ -211,7 +211,7 @@ const checkParseJson = async (
       external_plugins: Array.isArray(json.external_plugins)
         ? json.external_plugins
         : [],
-		  memory: json.memory || false,
+      memory: json.memory || false,
     };
 
     validateConfig(jsonconfig);
