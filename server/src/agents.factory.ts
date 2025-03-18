@@ -60,6 +60,7 @@ export class AgentFactory {
         external_plugins: Array.isArray(json.external_plugins)
           ? json.external_plugins
           : [],
+		  memory : json.memory || false,
       };
 
       this.initialized = true;
