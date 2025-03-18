@@ -30,7 +30,7 @@ sudo apt install postgresql postgresql-contrib
 2. Start PostgreSQL:
 
 ```bash
-bashCopysudo systemctl start postgresql
+sudo systemctl start postgresql
 ```
 
 ### Verifying Your Installation
