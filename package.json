@@ -45,7 +45,8 @@
     "prettier:plugins": "prettier --check \"plugins/**/*.{ts,tsx}\" --write",
     "prettier:client": "prettier --check \"client/**/*.{ts,tsx}\" --write",
     "prettier:all": "pnpm prettier:server && pnpm prettier:agents && pnpm prettier:plugins && pnpm prettier:client",
-    "prepublishOnly": "lerna run prepublishOnly"
+    "prepublishOnly": "lerna run prepublishOnly",
+    "node:server" : "node ./mcp/starknet/dist/index.js"
   },
   "dependencies": {
     "@types/pg": "^8.11.11",
@@ -55,9 +56,7 @@
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
     "express": "^4.21.2",
-    "langchainjs-mcp-adapters": "^0.1.8",
     "pg": "^8.13.3",
-    "snak-mcps": "^0.1.1",
     "starknet": "^6.23.1",
     "util": "^0.12.5",
     "zod": "^3.24.2"
@@ -67,6 +66,7 @@
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^11.0.10",
     "@types/express": "^5.0.0",
+    "snak-mcps": "^0.1.2",
     "@types/gradient-string": "^1.1.6",
     "@types/jest": "^29.5.14",
     "@types/multer": "^1.4.12",

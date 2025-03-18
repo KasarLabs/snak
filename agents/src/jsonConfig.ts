@@ -21,7 +21,7 @@ export interface Transfer_limit {
 
 export interface JsonConfig {
   name: string;
-  prompt: SystemMessage;
+  prompt?: SystemMessage;
   interval: number;
   chat_id: string;
   internal_plugins: string[];

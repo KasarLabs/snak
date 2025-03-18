@@ -1,8 +1,8 @@
 import { tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
-import { TwitterInterface } from '../../common/index.js';
+import { TwitterInterface } from '@starknet-agent-kit/agents/common/index.js';
 import { JsonConfig } from '../jsonConfig.js';
-import { TelegramInterface } from '../../common/index.js';
+import { TelegramInterface } from '@starknet-agent-kit/agents/common/index.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 
 export interface StarknetAgentInterface {
@@ -34,7 +34,7 @@ export interface StarknetTool<P = any> {
   name: string;
   plugins: string;
   description: string;
-  schema?: object;
+  schema?: Zod.AnyZodObject;
   responseFormat?: string;
   execute: (
     agent: StarknetAgentInterface,

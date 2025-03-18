@@ -1,13 +1,5 @@
 {
   "servers": {
-    "weather": {
-      "command": "node",
-      "args": ["../mcp_server/weather/build/index.js"]
-    },
-    "not_weather": {
-        "command": "node",
-        "args": ["../mcp_server/not_weather/build/index.js"]
-    },
     "brave-search": {
         "command": "npx",
         "args": [
