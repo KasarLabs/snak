@@ -1,4 +1,4 @@
-import { AiConfig, IAgent } from '@starknet-agent-kit/agents/common/index.js';
+import { AiConfig, IAgent } from '../common/index.js';
 import { createAgent } from './agent.js';
 import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from './autonomousAgents.js';
@@ -8,9 +8,9 @@ import {
   TwitterInterface,
   TwitterApiConfig,
   TwitterScraperConfig,
-} from '@starknet-agent-kit/agents/common/index.js';
+} from '../common/index.js';
 import { JsonConfig } from './jsonConfig.js';
-import { TelegramInterface } from '@starknet-agent-kit/agents/common/index.js';
+import { TelegramInterface } from '../common/index.js';
 import TelegramBot from 'node-telegram-bot-api';
 import { PostgresAdaptater } from './databases/postgresql/src/database.js';
 import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
