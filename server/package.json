@@ -27,7 +27,6 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "helmet": "^8.0.0",
-    "multipart@latest": "link:fastify/multipart@latest",
     "@anthropic-ai/sdk": "^0.36.3",
     "rxjs": "^7.8.1",
     "fastify": "^5.2.1"
