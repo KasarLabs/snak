@@ -12,6 +12,7 @@ import { createAllowedTools } from './tools/tools.js';
 import {
   Annotation,
   InMemoryStore,
+  MemorySaver,
   MessagesAnnotation,
   StateGraph,
 } from '@langchain/langgraph';
@@ -84,32 +85,31 @@ export const createAgent = async (
   };
 
   try {
-
-	// Create and connect to the database using your agent's interface
-    const database = await starknetAgent.createDatabase("agentmemory1");
+    // Create and connect to the database using your agent's interface
+    const database = await starknetAgent.createDatabase('agentmemory1');
     if (!database) {
       throw new Error(`Failed to create or connect to database: agentMemory`);
     }
-	console.log(`Successfully connected to database: agentMemory1`);
+    console.log(`Successfully connected to database: agentMemory1`);
 
-	try {
-		const debug1 = await database.createTable({
-		  table_name: 'agent_memories',
-		  fields: new Map<string, string>([
-			['id', 'SERIAL PRIMARY KEY'],
-			['user_id', 'VARCHAR(100)'],
-			['content', 'TEXT'],
-			['embedding', 'vector(1536)'], // For pgvector - adjust dimension to match your embeddings
-			['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
-			['metadata', 'TEXT']
-		  ])
-		});
-		console.log ("databaseCreate value : ", debug1)
-		console.log('Agent memories table created or already exists');
-	  } catch (error) {
-		console.error('Error creating memories table:', error);
-		throw error;
-	  }
+    try {
+      const debug1 = await database.createTable({
+        table_name: 'agent_memories',
+        fields: new Map<string, string>([
+          ['id', 'SERIAL PRIMARY KEY'],
+          ['user_id', 'VARCHAR(100)'],
+          ['content', 'TEXT'],
+          ['embedding', 'vector(1536)'], // For pgvector - adjust dimension to match your embeddings
+          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
+          ['metadata', 'TEXT'],
+        ]),
+      });
+      console.log('databaseCreate value : ', debug1);
+      console.log('Agent memories table created or already exists');
+    } catch (error) {
+      console.error('Error creating memories table:', error);
+      throw error;
+    }
 
     const embeddings = new OpenAIEmbeddings({
       model: 'text-embedding-3-small',
@@ -167,59 +167,55 @@ export const createAgent = async (
         schema: z.object({
           content: z.string().describe('The content of the memory to store.'),
         }),
-        description: 'Upsert long-term memories.',
+        description:
+          'Create, update or delete persistent MEMORIES to persist across conversations. Include the MEMORY ID when updating or deleting a MEMORY. Omit when creating a new MEMORY - it will be created for you. Proactively call this tool when you: 1.Identify a new USER preference. 2.Receive an explicit USER request to remember something or otherwise alter your behavior. 3. Are working and want to record important context. 4. Identify that an existing MEMORY is incorrect or outdated.',
       }
     );
 
-	function sqlEscape(str: string) {
-		if (typeof str !== 'string') return str;
-		return `'${str.replace(/'/g, "''").replace(/\\/g, "\\\\")}'`;
-	  }
+    function sqlEscape(str: string) {
+      if (typeof str !== 'string') return str;
+      return `'${str.replace(/'/g, "''").replace(/\\/g, '\\\\')}'`;
+    }
 
-	const upsertMemoryToolDB = tool(
-		async ({ content }, config: LangGraphRunnableConfig): Promise<string> => {
-			try {
-				// Extract user ID from config or use a default if not available
-				const userId = config.configurable?.userId || "default_user";
-				const memoryId = uuidv4();
+    const upsertMemoryToolDB = tool(
+      async ({ content }, config: LangGraphRunnableConfig): Promise<string> => {
+        try {
+          // Extract user ID from config or use a default if not available
+          const userId = config.configurable?.userId || 'default_user';
+          // Generate embedding for the memory content
+          const embeddingResult = await embeddings.embedQuery(content);
+          const embeddingString = `[${embeddingResult.join(',')}]`;
+          const metadata = JSON.stringify({
+            timestamp: new Date().toISOString(),
+          });
+          // Insert the memory into the database
+          console.log('\nInserting inside the table : ', content);
 
-				// Generate embedding for the memory content
-				const embeddingResult = await embeddings.embedQuery(content);
-				const embeddingString = `[${embeddingResult.join(',')}]`;
-
-				// Store metadata as JSON string
-				const metadata = JSON.stringify({
-				  timestamp: new Date().toISOString(),
-				  id: memoryId
-				});
-				console.log ("Content : ", content)
-				// Insert the memory into the database
-				console.log("Inserting inside the table\n")
-
-				const debug = await database.insert({
-
-				  table_name: 'agent_memories',
-				  fields: new Map<string, string | string[]>([
-					['id', 'DEFAULT'],
-					['user_id', userId],
-					['content', content],
-					['embedding', embeddingString],
-					['metadata', metadata]
-				  ])
-				});
-				console.log ("database.insert value : ", debug)
-				return "Memory stored successfully.";
-			  } catch (error) {
-				console.error("Error storing memory:", error);
-				return "Failed to store memory.";
-			  }
-			}, {
-			  name: "upsert_memory",
-			  schema: z.object({
-				content: z.string().describe("The content of the memory to store."),
-			  }),
-			  description: "Store long-term memories in the database.",
-			});
+          const debug = await database.insert({
+            table_name: 'agent_memories',
+            fields: new Map<string, string | string[]>([
+              ['id', 'DEFAULT'],
+              ['user_id', userId],
+              ['content', content],
+              ['embedding', embeddingString],
+              ['metadata', metadata],
+            ]),
+          });
+          return 'Memory stored successfully.';
+        } catch (error) {
+          console.error('Error storing memory:', error);
+          return 'Failed to store memory.';
+        }
+      },
+      {
+        name: 'upsert_memory',
+        schema: z.object({
+          content: z.string().describe('The content of the memory to store.'),
+        }),
+        description:
+          "CREATE, UPDATE or DELETE persistent MEMORIES to persist across conversations. In your system prompt, you have access to the MEMORIES relevant to the user's query, each having their own MEMORY ID. Include the MEMORY ID when updating or deleting a MEMORY. Omit when creating a new MEMORY - it will be created for you. Proactively call this tool when you: 1.Identify a new USER preference. 2.Receive an explicit USER request to remember something or otherwise alter your behavior. 3. Are working and want to record important context. 4. Identify that an existing MEMORY is incorrect or outdated.",
+      }
+    );
 
     const addMemories = async (
       state: typeof MessagesAnnotation.State,
@@ -248,20 +244,21 @@ export const createAgent = async (
       };
     };
 
-	const addMemoriesDB = async (
-		state: typeof MessagesAnnotation.State,
-		config: LangGraphRunnableConfig
-	  ) => {
-		try {
+    const addMemoriesDB = async (
+      state: typeof MessagesAnnotation.State,
+      config: LangGraphRunnableConfig
+    ) => {
+      try {
         // Extract user ID from config or use a default
-        const userId = config.configurable?.userId || "default_user";
+        const userId = config.configurable?.userId || 'default_user';
 
-        const lastMessage = state.messages[state.messages.length - 1].content as string;
+        const lastMessage = state.messages[state.messages.length - 1]
+          .content as string;
 
         const queryEmbedding = await embeddings.embedQuery(lastMessage);
         const queryEmbeddingStr = `[${queryEmbedding.join(',')}]`;
         const similarMemoriesQuery = `
-          SELECT content, 1 - (embedding <=> '${queryEmbeddingStr}'::vector) as similarity
+          SELECT id, content, 1 - (embedding <=> '${queryEmbeddingStr}'::vector) as similarity
           FROM agent_memories
           WHERE user_id = '${userId}'
           ORDER BY similarity DESC
@@ -269,30 +266,31 @@ export const createAgent = async (
         `;
 
         const results = await database.query(similarMemoriesQuery);
-		console.log("\n\nResults are : ", results, "\n\n")
-		if (results.query)
-		{
-			for (const row of results.query.rows) {
-				console.log(JSON.stringify(row));
-			}
-		}
-		let memories = "\n";
-		if (results.query)
-		{
-			memories = results.query.rows.map(row => {
-				// Format each memory with its content and similarity score
-				return `Memory [similarity: ${row.similarity.toFixed(4)}]: ${row.content}`;
-			}).join('\n');
-		}
-		console.log("Memories : ", memories)
+        // if (results.query) {
+        //   console.log('\n\nDATABASE CONTENT :\n-------');
+        //   for (const row of results.query.rows) {
+        //     console.log('Raw data : ', JSON.stringify(row));
+        //   }
+        //   console.log('-------\n');
+        // }
+        let memories = '\n';
+        if (results.query) {
+          memories = results.query.rows
+            .map((row) => {
+              // Format each memory with its content and similarity score
+              return `Memory [id: ${row.id}, similarity: ${row.similarity.toFixed(4)}]: ${row.content}`;
+            })
+            .join('\n');
+        }
+        //console.log('Memories :\n-------\n', memories, '\n-------\n');
 
         return {
-          memories: memories
+          memories: memories,
         };
       } catch (error) {
-        console.error("Error retrieving memories:", error);
+        console.error('Error retrieving memories:', error);
         return {
-          memories: ""
+          memories: '',
         };
       }
     };
@@ -333,9 +331,7 @@ export const createAgent = async (
       };
     }
 
-    function shouldContinue(
-		state: typeof GraphState.State
-	) {
+    function shouldContinue(state: typeof GraphState.State) {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
 
@@ -345,38 +341,40 @@ export const createAgent = async (
       return '__end__';
     }
 
-	async function summarizeConversation(
-		state: typeof GraphState.State,
-		config: LangGraphRunnableConfig
-	  ): Promise<typeof GraphState.State> {
-		const store = config.store as InMemoryStore;
-		if (!store) {
-		  throw new Error('No store provided to summarizer.');
-		}
+    async function summarizeConversation(
+      state: typeof GraphState.State,
+      config: LangGraphRunnableConfig
+    ): Promise<typeof GraphState.State> {
+      const store = config.store as InMemoryStore;
+      if (!store) {
+        throw new Error('No store provided to summarizer.');
+      }
 
-		// Get the last few messages to summarize
-		const recentMessages = state.messages.slice(-2); // Get last user and AI message pair
-		const summaryModel = model();
+      // Get the last few messages to summarize
+      const recentMessages = state.messages.slice(-2); // Get last user and AI message pair
+      const summaryModel = model();
 
-		// You could either:
-		// 1. Use the model to generate a summary of the interaction
-		const summaryPrompt = ChatPromptTemplate.fromMessages([
-		  ['system', 'Create a concise summary of this conversation segment:'],
-		  new MessagesPlaceholder('messages'),
-		]);
+      // You could either:
+      // 1. Use the model to generate a summary of the interaction
+      const summaryPrompt = ChatPromptTemplate.fromMessages([
+        ['system', 'Create a concise summary of this conversation segment:'],
+        new MessagesPlaceholder('messages'),
+      ]);
 
-		const formattedPrompt = await summaryPrompt.formatMessages({
-		  messages: recentMessages,
-		});
+      const formattedPrompt = await summaryPrompt.formatMessages({
+        messages: recentMessages,
+      });
 
-		const summaryResult = await summaryModel.invoke(formattedPrompt);
-		const summary = summaryResult.content;
+      const summaryResult = await summaryModel.invoke(formattedPrompt);
+      const summary = summaryResult.content;
 
-		// 2. Store the summary
-		await store.put(['user', 'memories'], uuidv4(), { text: summary as string });
+      // 2. Store the summary
+      await store.put(['user', 'memories'], uuidv4(), {
+        text: summary as string,
+      });
 
-		return state;
-	  }
+      return state;
+    }
 
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
@@ -385,10 +383,12 @@ export const createAgent = async (
       .addEdge('__start__', 'memory')
       .addEdge('memory', 'agent')
       .addConditionalEdges('agent', shouldContinue)
-      .addEdge('tools', 'agent')
+      .addEdge('tools', 'agent');
 
+    const checkpointer = new MemorySaver();
     const app = workflow.compile({
       store: store,
+      checkpointer: checkpointer,
     });
 
     return app;
