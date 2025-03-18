@@ -26,6 +26,7 @@ export interface JsonConfig {
   internal_plugins: string[];
   external_plugins?: string[];
   autonomous?: boolean;
+  memory: boolean;
 }
 
 export const createContextFromJson = (json: any): string => {
@@ -210,6 +211,7 @@ const checkParseJson = async (
       external_plugins: Array.isArray(json.external_plugins)
         ? json.external_plugins
         : [],
+		  memory: json.memory || false,
     };
 
     validateConfig(jsonconfig);
