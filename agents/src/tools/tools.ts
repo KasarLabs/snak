@@ -30,7 +30,7 @@ export interface StarknetAgentInterface {
   getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 
-export interface StarknetTool<P = any> {
+export interface StarknetTool<P = unknown> {
   name: string;
   plugins: string;
   description: string;
@@ -74,8 +74,6 @@ export class StarknetToolRegistry {
     );
   }
 }
-
-export const initializeTools = (agent: StarknetAgentInterface) => {};
 
 export const registerTools = async (
   agent: StarknetAgentInterface,

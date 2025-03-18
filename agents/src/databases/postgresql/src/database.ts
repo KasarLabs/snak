@@ -82,7 +82,7 @@ export class PostgresAdaptater {
     }
     try {
       // console.log(`CREATE DATABASE ${database_name};`);
-      const create_db = await this.pool.query(
+      await this.pool.query(
         `CREATE DATABASE ${database_name};`
       );
       return true;
@@ -286,7 +286,9 @@ export class PostgresAdaptater {
         throw new Error('Error table already exists.');
       }
       this.tables.push(table);
-    } catch (error) {}
+    } catch (error) {
+		console.error('Failed to add table:', error.message);
+	}
   }
 
   /**

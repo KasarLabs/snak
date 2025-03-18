@@ -3,7 +3,6 @@ import { createBox } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import fs from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -199,7 +198,7 @@ const checkParseJson = async (
     );
 
     // Create config object
-    let jsonconfig: JsonConfig = {
+    const jsonconfig: JsonConfig = {
       prompt: systemMessagefromjson,
       name: json.name,
       interval: json.interval,

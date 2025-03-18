@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { PostgresAdaptater } from '../src/database.js';
 import {
   PostgresDatabasePoolInterface,
-  updateOptionInterface,
   deleteOptionInterface,
   PostgresTables,
 } from '../src/interfaces/interfaces.js';
@@ -308,7 +307,7 @@ describe('PostgresAdaptater - update and delete operations', () => {
       };
 
       // Simulate disconnected database
-      // @ts-ignore - Accessing a private property for testing
+      // @ts-expect-error - Accessing a private property for testing
       adapter.pool = undefined;
 
       // Act

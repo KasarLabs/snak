@@ -20,7 +20,7 @@ const DiscordToolKits = (): Tool[] => {
 export const createAllowedToollkits = async (
   Toolkits?: string[]
 ): Promise<Tool[]> => {
-  let allowedToolsKits: Tool[] = [];
+  const allowedToolsKits: Tool[] = [];
   if (!Array.isArray(Toolkits)) {
     return allowedToolsKits;
   }
