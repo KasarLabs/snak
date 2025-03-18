@@ -7,7 +7,7 @@ import {
   StarknetAgent,
   registerTools,
   StarknetTool,
-} from '@starknet-agent-kit/agents'
+} from '@starknet-agent-kit/agents';
 import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -21,6 +21,17 @@ dotenv.config({ path: path.join(__dirname, '../../../.env') });
 const server = new McpServer({
   name: 'snak',
   version: '1.0.0',
+});
+
+server.tool('ping', 'Check if the server is running', async () => {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: 'pong',
+      },
+    ],
+  };
 });
 
 export const RegisterToolInServer = async (allowed_tools: string[]) => {
@@ -46,12 +57,23 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
   await registerTools(agent, allowed_tools, tools);
   for (const tool of tools) {
     if (!tool.schema) {
+      server.tool(tool.name, tool.description, async () => {
+        const result = await tool.execute(agent, {});
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result),
+            },
+          ],
+        };
+      });
     } else {
       server.tool(
         tool.name,
         tool.description,
         tool.schema.shape,
-        async (params: any, extra : any) => {
+        async (params: any, extra: any) => {
           const result = await tool.execute(agent, params);
           return {
             content: [
