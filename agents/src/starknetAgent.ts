@@ -268,7 +268,6 @@ export class StarknetAgent implements IAgent {
 	  try {
 		// Assuming there's a public method like query() or execute() in PostgresAdaptater
 		await new_database_connection.query('CREATE EXTENSION IF NOT EXISTS vector;');
-		console.log(`Vector extension created or already exists in database: ${database_name}`);
 	  } catch (extError) {
 		console.error(`Failed to create vector extension in database ${database_name}:`, extError);
 		console.warn('Vector functionality may not work properly. Make sure pgvector is installed.');
