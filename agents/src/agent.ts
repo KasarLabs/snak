@@ -282,6 +282,18 @@ export const createAgent = async (
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
 
+      if (lastMessage.additional_kwargs?.tool_responses) {
+        const toolResponses = lastMessage.additional_kwargs.tool_responses;
+        if (Array.isArray(toolResponses) && toolResponses.length > 0) {
+          const wasMemoryTool = toolResponses.some(
+            resp => resp.tool_call_id && resp.tool_call_id.includes('upsert_memory')
+          );
+          if (wasMemoryTool) {
+            return 'agent';
+          }
+        }
+      }
+
       if (lastMessage.tool_calls?.length) {
         return 'tools';
       }
