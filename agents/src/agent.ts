@@ -117,7 +117,7 @@ export const createAgent = async (
     }
     const embeddings = new OpenAIEmbeddings({
       model: 'text-embedding-3-small',
-      apiKey: aiConfig.aiProviderApiKey,
+      apiKey: aiConfig.embeddingKey,
     });
 
     let toolsList: (Tool | DynamicStructuredTool<any>)[];
