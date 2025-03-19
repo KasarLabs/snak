@@ -39,5 +39,6 @@
     "erc20",
     "erc721",
     "contract"
-  ]
+  ],
+  "memory" : false
 }
