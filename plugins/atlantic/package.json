@@ -7,15 +7,14 @@
   "scripts": {
     "test": "jest --passWithNoTests",
 
-    "build": "pnpm clean:dist && tsc",
+    "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*",
-    "@starknet-agent-kit/server": "workspace:*"
+    "@starknet-agent-kit/agents": "workspace:*"
   },
   "keywords": [],
   "author": "",
