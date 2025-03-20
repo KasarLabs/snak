@@ -27,7 +27,6 @@ export class MCP_CONTROLLER {
       const raw_tools = this.client.getTools();
       if (!raw_tools) {
         throw new Error('No tools found');
-        
       }
       const tools_array = Array.from(raw_tools.values());
       for (const tools of tools_array) {
