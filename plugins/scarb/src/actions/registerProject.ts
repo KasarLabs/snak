@@ -2,7 +2,7 @@
 
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
-import { initializeProjectData, projectAlreadyExists, retrieveProjectData } from '../utils/db.js';
+import { initializeProjectData, projectAlreadyExists, retrieveProjectData } from '../utils/db_init.js';
 import { registerProjectSchema } from '../schema/schema.js';
 
 /**
@@ -31,6 +31,7 @@ export const registerProject = async (
 
     const projectData = await retrieveProjectData(agent, params.projectName);
     console.log(`Project ${params.projectName}: ${alreadyRegistered ? 'updated' : 'created'}`);
+
     return JSON.stringify({
       status: 'success',
       message: alreadyRegistered 

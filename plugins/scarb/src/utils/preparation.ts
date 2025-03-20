@@ -117,18 +117,21 @@ export async function cleanLibCairo(projectDir: string) {
 // }
 
 
+
 /**
- * Gets the paths to the generated Sierra and CASM files for each contract
+ * Gets the paths to the generated Sierra and CASM files for each contract and associates them with artifacts file
  * @param projectDir Path to the project directory
- * @returns Object containing paths to Sierra and CASM files for each contract
+ * @returns Object containing paths to Sierra, CASM files and the starknet_artifacts file
  */
 export async function getGeneratedContractFiles(projectDir: string): Promise<{
   sierraFiles: string[];
   casmFiles: string[];
+  artifactFile: string;
 }> {
   const result = {
     sierraFiles: [] as string[],
-    casmFiles: [] as string[]
+    casmFiles: [] as string[],
+    artifactFile: path.join(projectDir, 'target/dev', path.basename(projectDir) + '.starknet_artifacts.json')
   };
   
   try {
@@ -138,11 +141,10 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
     result.sierraFiles = files
       .filter(file => typeof file === 'string' && file.endsWith('.contract_class.json'))
       .map(file => path.join(targetDir, file));
-
+      
     result.casmFiles = files
       .filter(file => typeof file === 'string' && file.endsWith('.compiled_contract_class.json'))
       .map(file => path.join(targetDir, file));
-
   } catch (error) {
     console.warn(`Could not list generated files: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

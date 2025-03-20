@@ -31,7 +31,7 @@
     StarknetAgentInterface,
     StarknetTool,
   } from '@starknet-agent-kit/agents';
-import { initializeDatabase } from '../utils/db.js';
+import { initializeDatabase } from '../utils/db_init.js';
   
   export const initializeTools = async (
     agent: StarknetAgentInterface

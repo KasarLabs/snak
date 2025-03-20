@@ -1,9 +1,9 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { executeProject } from '../utils/command.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
-import { retrieveProjectData, Dependency } from '../utils/db.js';
+import { retrieveProjectData, Dependency } from '../utils/db_init.js';
 import { executeProgramSchema } from '../schema/schema.js';
-import { initializeProjectData } from '../utils/db.js';
+import { initializeProjectData } from '../utils/db_init.js';
 import * as path from 'path';
 import { z } from 'zod';
 
@@ -27,7 +27,7 @@ export const executeProgram = async (
       
       if (projectData.type !== 'cairo_program')
         throw new Error('Only Cairo programs can be executed');
-      
+
       if (projectData.programs.length > 1) {
         if (params.executableName === undefined)
           throw new Error('Multiple contracts require an executable name');

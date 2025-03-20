@@ -61,8 +61,9 @@ export const initializeDatabase = async (
           ['id', 'SERIAL PRIMARY KEY'],
           ['name', 'VARCHAR(100) UNIQUE'],
           ['type', `VARCHAR(50) CHECK (type IN ('contract', 'cairo_program'))`],
-          ['execution_trace', 'TEXT'],
-          // ['proof_id', 'INTEGER REFERENCES proof(id)']
+          ['trace', 'BYTEA'],
+          ['proof', 'JSONB'],
+          ['verified', 'BOOLEAN DEFAULT FALSE'],
         ]),
       },
       {
@@ -71,7 +72,9 @@ export const initializeDatabase = async (
           ['id', 'SERIAL PRIMARY KEY'],
           ['project_id', 'INTEGER REFERENCES project(id) ON DELETE CASCADE'],
           ['name', 'VARCHAR(255) NOT NULL'],
-          ['source_code', 'TEXT']
+          ['source_code', 'TEXT'],
+          ['sierra', 'JSONB'],
+          ['casm', 'JSONB']
         ]),
       },
       {
@@ -91,32 +94,35 @@ export const initializeDatabase = async (
           ['project_id', 'INTEGER REFERENCES project(id)'],
           ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
           ['logs', 'TEXT'],
-          ['sierra', 'TEXT'],
-          ['casm', 'TEXT'],
         ]),
       },
-      // {
-      //   table_name: 'execution',
-      //   fields: new Map<string, string>([
-      //     ['id', 'SERIAL PRIMARY KEY'],
-      //     ['project_id', 'INTEGER REFERENCES project(id)'],
-      //     ['mode', `VARCHAR(50) CHECK (mode IN ('standalone', 'bootloader'))`],
-      //     ['execution_id', 'TEXT'],
-      //     ['trace_path', 'TEXT'],
-      //     ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-      //     ['logs', 'TEXT']
-      //   ]),
-      // },
-      // {
-      //   table_name: 'proof',
-      //   fields: new Map<string, string>([
-      //     ['id', 'SERIAL PRIMARY KEY'],
-      //     ['project_id', 'INTEGER REFERENCES project(id)'],
-      //     ['proof', 'JSONB'],
-      //     ['verified', 'BOOLEAN'],
-      //     ['verification_logs', 'TEXT']
-      //   ]),
-      // }
+      {
+        table_name: 'execution',
+        fields: new Map<string, string>([
+          ['id', 'SERIAL PRIMARY KEY'],
+          ['project_id', 'INTEGER REFERENCES project(id)'],
+          ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
+          ['logs', 'TEXT']
+        ]),
+      },
+      {
+        table_name: 'proof',
+        fields: new Map<string, string>([
+          ['id', 'SERIAL PRIMARY KEY'],
+          ['project_id', 'INTEGER REFERENCES project(id)'],
+          ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
+          ['logs', 'TEXT']
+        ]),
+      },
+      {
+        table_name: 'verification',
+        fields: new Map<string, string>([
+          ['id', 'SERIAL PRIMARY KEY'],
+          ['project_id', 'INTEGER REFERENCES project(id)'],
+          ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
+          ['logs', 'TEXT']
+        ])
+      }
     ];
     
     // Création des tables avec gestion des erreurs

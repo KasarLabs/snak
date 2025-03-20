@@ -4,8 +4,9 @@ import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { 
   getGeneratedContractFiles
 } from '../utils/preparation.js';
-import { retrieveProjectData, Dependency } from '../utils/db.js';
-import { initializeProjectData } from '../utils/db.js';
+import { retrieveProjectData, Dependency } from '../utils/db_init.js';
+import { saveCompilationResults } from '../utils/db_save.js';
+import { retrieveCompilationFilesByName } from '../utils/db_retrieve.js';
 
 
 export interface CompileContractParams {
@@ -39,13 +40,29 @@ export const compileContract = async (
     await setupToml(projectDir, tomlSections, projectData.dependencies);
     await setupSrc(projectDir, projectData.programs);
 
-    // await cleanProject(agent, { path: projectDir });
     const buildResult = await buildProject({ path: projectDir });
     const parsedBuildResult = JSON.parse(buildResult);
-
+    
     const contractFiles = await getGeneratedContractFiles(projectDir);
     
-    console.log(`Contract compiled successfully`);
+    
+    console.log(`Saving compilation results`);
+    await saveCompilationResults(
+      agent,
+      projectData.id,
+      'success',
+      JSON.stringify(parsedBuildResult),
+      contractFiles.sierraFiles,
+      contractFiles.casmFiles,
+      contractFiles.artifactFile
+    );
+
+    // await cleanProject(agent, { path: projectDir });
+
+    const files = await retrieveCompilationFilesByName(agent, params.projectName, projectData.programs[0].name);
+    console.log(`Sierra and CASM retrieved successfully`);
+    
+
     return JSON.stringify({
       status: 'success',
       message: `Contract compiled successfully`,
