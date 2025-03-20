@@ -24,6 +24,9 @@ import {
 } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 
+import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
+
+
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
@@ -83,8 +86,20 @@ export const createAgent = async (
   };
 
   try {
+
     const json_config = starknetAgent.getAgentConfig();
     json_config.memory = true;
+    const embeddings = new CustomHuggingFaceEmbeddings({
+      model: "Xenova/all-MiniLM-L6-v2",
+      dtype: "fp32"
+
+    });
+
+    // const embeddings = new OpenAIEmbeddings({
+    //   model: 'text-embedding-3-small',
+    //   apiKey: aiConfig.embeddingKey,
+    // });
+    const embeddingDimensions = 384; //1536 for OpenAI, 512 for TensorFlow, 384 for HugginFace
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
@@ -102,7 +117,7 @@ export const createAgent = async (
             ['id', 'SERIAL PRIMARY KEY'],
             ['user_id', 'VARCHAR(100)'],
             ['content', 'TEXT'],
-            ['embedding', 'vector(1536)'],
+            ['embedding', `vector(${embeddingDimensions})`],
             ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
             ['metadata', 'TEXT'],
           ]),
@@ -115,10 +130,8 @@ export const createAgent = async (
         throw error;
       }
     }
-    const embeddings = new OpenAIEmbeddings({
-      model: 'text-embedding-3-small',
-      apiKey: aiConfig.embeddingKey,
-    });
+
+
 
     let toolsList: (Tool | DynamicStructuredTool<any>)[];
 
