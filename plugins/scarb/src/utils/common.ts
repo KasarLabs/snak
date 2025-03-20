@@ -22,7 +22,6 @@ export async function setupScarbProject(
   params: ScarbBaseParams
 ): Promise<{ 
   projectDir: string; 
-  resolvedPaths: string[];
   status: 'success' | 'failure';
   error?: string;
 }> {
@@ -30,19 +29,15 @@ export async function setupScarbProject(
     await checkScarbInstalled();
 
     const projectDir = await getProjectDir(params.projectName);
+
     const isInitialized = await isProjectInitialized(projectDir);
     if (!isInitialized) {
       await initProject({ name: params.projectName, projectDir });
     }
     
-    const resolvedPaths = params.filePaths ? params.filePaths.map(filePath => 
-      resolveContractPath(filePath)
-    ) : [];
-    
     return {
       status: 'success',
-      projectDir,
-      resolvedPaths
+      projectDir
     };
   } catch (error) {
       throw new Error('Error setting up Scarb project: ' + error.message);
@@ -86,27 +81,37 @@ export interface Dependency {
     await addSeveralDependancies(dependencies || [], projectDir);
   }
 
+  export interface cairoProgram {
+    name: string;
+    source_code: string; 
+  } 
+
   export async function setupSrc(
     projectDir: string,
-    resolvedPaths: string[],
+    programs: cairoProgram[],
     formattedExecutable?: string
   ): Promise<void> {
     await cleanLibCairo(projectDir);
     
     if (formattedExecutable) {
-        for (const programPath of resolvedPaths) {
-            const parts = formattedExecutable.split('::');
-            const executableFunctionName = parts[2] || 'main';
-            await processContractForExecution(
-                programPath, 
-                projectDir,
-                executableFunctionName
-            );
-        }
-    }
-    else {
-        for (const contractPath of resolvedPaths) {
-            await importContract(contractPath, projectDir);
-        }
+      const parts = formattedExecutable.split('::');
+      const executableFunctionName = parts[2] || 'main';
+
+      for (const program of programs) {
+        await processContractForExecution(
+          program.source_code,
+          program.name,
+          projectDir,
+          executableFunctionName
+        );
+      }
+    } else {
+      for (const program of programs) {
+        await importContract(
+          program.source_code,
+          program.name,
+          projectDir
+        );
+      }
     }
   }

@@ -1,17 +1,10 @@
-import {
-    StarknetAgentInterface,
-    StarknetTool,
-  } from '@starknet-agent-kit/agents';
+
   import {
     installScarb
   } from '../actions/installScarb.js';
   import { 
     compileContract 
-  } from '../actions/buildContract.js';
-  import { 
-    installScarbSchema,
-    compileContractSchema
-  } from '../schema/schema.js';
+  } from '../actions/buildProgram.js';
   import { 
     executeProgram 
   } from '../actions/executeProgram.js';
@@ -22,16 +15,45 @@ import {
     verifyProgram 
   } from '../actions/verifyProgram.js';
   import { 
+    registerProject 
+  } from '../actions/registerProject.js';
+  import { 
     executeProgramSchema,
     proveProgramSchema,
-    verifyProgramSchema
+    verifyProgramSchema,    
+    installScarbSchema,
+    compileContractSchema,
+    registerProjectSchema
   } from '../schema/schema.js';
   
-  export const registerTools = (
-    StarknetToolRegistry: StarknetTool[],
-    agent?: StarknetAgentInterface
-  ) => {
+  import {
+    PostgresAdaptater,
+    StarknetAgentInterface,
+    StarknetTool,
+  } from '@starknet-agent-kit/agents';
+import { initializeDatabase } from '../utils/db.js';
   
+  export const initializeTools = async (
+    agent: StarknetAgentInterface
+  ): Promise<PostgresAdaptater | undefined> => {
+    try {
+      const res = await initializeDatabase(agent);
+      return res;
+    } catch (error) {
+      console.error('Error initializing database:', error);
+    }
+  };
+  
+  
+export const registerTools = async (
+    StarknetToolRegistry: StarknetTool[],
+    agent: StarknetAgentInterface
+  ) => {
+    const database_instance = await initializeTools(agent);
+    if (!database_instance) {
+      console.error('Error while initializing database');
+      return;
+    }
     StarknetToolRegistry.push({
       name: 'scarb_install',
       description: 'Install the latest version of Scarb if not already installed',
@@ -58,7 +80,7 @@ import {
   
     StarknetToolRegistry.push({
       name: 'scarb_prove_program',
-      description: 'Generate a proof for a Cairo program execution using Scarb, only if the program was executed in another mode than bootloader',
+      description: 'Generate a proof for a Cairo program execution using Scarb',
       plugins: 'scarb',
       schema: proveProgramSchema,
       execute: proveProgram,
@@ -66,9 +88,17 @@ import {
   
     StarknetToolRegistry.push({
       name: 'scarb_verify_program',
-      description: 'Only in standalone mode : verify a proof for a Cairo program execution using Scarb, only if the program was executed in another mode than bootloader',
+      description: 'Verify a proof for a Cairo program execution using Scarb',
       plugins: 'scarb',
       schema: verifyProgramSchema,
       execute: verifyProgram,
+    });
+
+    StarknetToolRegistry.push({
+      name: 'scarb_register_project',
+      description: 'Register or update a Cairo project in the database',
+      plugins: 'scarb',
+      schema: registerProjectSchema,
+      execute: registerProject,
     });
   };

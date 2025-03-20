@@ -170,24 +170,4 @@ describe('Tests de la fonction compileContract', () => {
     expect(parsedResult.status).toBe('failure');
     expect(parsedResult.error).toContain('Impossible de résoudre le chemin du contrat');
   }, 10000);
-  
-  it('should handle workspace limit exceeded', async () => {
-    const projectName = 'project_limit_exceeded';
-    const contractPaths = ['src/contract/test.cairo'];
-    
-    // Mock checkWorkspaceLimit to throw an error
-    jest.spyOn(require('../../src/utils/preparation.js'), 'checkWorkspaceLimit')
-      .mockImplementationOnce(async () => {
-        throw new Error('Workspace project limit reached');
-      });
-    
-    const result = await compileContract(agent, {
-      projectName,
-      contractPaths
-    });
-    
-    const parsedResult = JSON.parse(result);
-    expect(parsedResult.status).toBe('failure');
-    expect(parsedResult.error).toContain('Workspace project limit reached');
-  }, 10000);
 });

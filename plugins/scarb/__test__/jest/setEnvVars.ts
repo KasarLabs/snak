@@ -5,10 +5,12 @@ import {
   TelegramInterface,
   TwitterInterface,
   JsonConfig,
+  PostgresAdaptater,
 } from '@starknet-agent-kit/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
+
 
 export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });

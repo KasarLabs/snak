@@ -1,7 +1,9 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { executeProject } from '../utils/command.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
+import { retrieveProjectData, Dependency } from '../utils/db.js';
 import { executeProgramSchema } from '../schema/schema.js';
+import { initializeProjectData } from '../utils/db.js';
 import * as path from 'path';
 import { z } from 'zod';
 
@@ -17,17 +19,21 @@ export const executeProgram = async (
   params: z.infer<typeof executeProgramSchema>
 ) => {
   try {
-      const { projectDir, resolvedPaths } = await setupScarbProject({
+      const projectData = await retrieveProjectData(agent, params.projectName);
+
+      const { projectDir } = await setupScarbProject({
         projectName: params.projectName,
-        filePaths: params.programPaths,
       });
       
-      if (resolvedPaths.length > 1) {
+      if (projectData.type !== 'cairo_program')
+        throw new Error('Only Cairo programs can be executed');
+      
+      if (projectData.programs.length > 1) {
         if (params.executableName === undefined)
           throw new Error('Multiple contracts require an executable name');
       }
 
-      const executableName = params.executableName ? params.executableName : path.parse(path.basename(resolvedPaths[0])).name;
+      const executableName = params.executableName ? params.executableName : projectData.programs[0].name.replace('.cairo', '');
       const formattedExecutable = `${params.projectName}::${executableName}::${params.executableFunction ? params.executableFunction : 'main'}`;
 
       const tomlSections = [
@@ -52,14 +58,14 @@ export const executeProgram = async (
         version: '2.10.0'
       }];
 
-      await setupToml(projectDir, tomlSections, params.dependencies, requiredDependencies);
-      await setupSrc(projectDir, resolvedPaths, formattedExecutable);
+      await setupToml(projectDir, tomlSections, projectData.dependencies, requiredDependencies);
+      await setupSrc(projectDir, projectData.programs, formattedExecutable);
 
       const execResult = await executeProject({
         projectDir: projectDir,
         formattedExecutable: formattedExecutable,
         arguments: params.arguments,
-        target: params.mode || 'standalone' 
+        target: params.mode || 'bootloader' 
       });
 
       const parsedExecResult = JSON.parse(execResult);

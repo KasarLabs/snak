@@ -4,12 +4,9 @@ import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { 
   getGeneratedContractFiles
 } from '../utils/preparation.js';
+import { retrieveProjectData, Dependency } from '../utils/db.js';
+import { initializeProjectData } from '../utils/db.js';
 
-export interface Dependency {
-  name: string;
-  version?: string;
-  git?: string;
-}
 
 export interface CompileContractParams {
   projectName: string;
@@ -23,12 +20,14 @@ export const compileContract = async (
   params: CompileContractParams
 ) => {
   try {
-    const { projectDir, resolvedPaths } = await setupScarbProject({
+    const projectData = await retrieveProjectData(agent, params.projectName);
+
+    const { projectDir } = await setupScarbProject({
       projectName: params.projectName,
-      filePaths: params.contractPaths,
     });
     
-    const tomlSections = [{
+
+    const tomlSections = projectData.type === 'cairo_program' ? [] : [{
       workingDir: projectDir,
       sectionTitle: 'target.starknet-contract',
       valuesObject: {
@@ -37,8 +36,8 @@ export const compileContract = async (
       }
     }];
 
-    await setupToml(projectDir, tomlSections, params.dependencies);
-    await setupSrc(projectDir, resolvedPaths);
+    await setupToml(projectDir, tomlSections, projectData.dependencies);
+    await setupSrc(projectDir, projectData.programs);
 
     // await cleanProject(agent, { path: projectDir });
     const buildResult = await buildProject({ path: projectDir });
@@ -52,8 +51,8 @@ export const compileContract = async (
       message: `Contract compiled successfully`,
       output: parsedBuildResult.output,
       warnings: parsedBuildResult.errors,
-      sierraFiles: contractFiles.sierraFiles,
-      casmFiles: contractFiles.casmFiles,
+      // sierraFiles: contractFiles.sierraFiles,
+      // casmFiles: contractFiles.casmFiles,
       projectDir: projectDir
     });
   } catch (error) {

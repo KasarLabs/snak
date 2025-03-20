@@ -3,6 +3,7 @@ import { checkScarbInstalled } from '../utils/install.js';
 import { getProjectDir } from '../utils/preparation.js';
 import { proveProject } from '../utils/command.js';
 import { proveProgramSchema } from '../schema/schema.js';
+import { executeProgram } from './executeProgram.js';
 import { z } from 'zod';
 
 export const proveProgram = async (
@@ -11,12 +12,20 @@ export const proveProgram = async (
 ) => {
   try {
     await checkScarbInstalled();
+    
+    const execResult = await executeProgram(agent, { ...params, mode: 'standalone' });
+    const parsedExecResult = JSON.parse(execResult);
+    
+    if (parsedExecResult.status !== 'success' || !parsedExecResult.executionId) {
+      throw new Error(`Failed to execute program: ${parsedExecResult.error || 'Unknown error'}`);
+    }
+    console.log(`Program executed successfully with execution ID: ${parsedExecResult.executionId}`); 
 
     const projectDir = await getProjectDir(params.projectName);
 
     const result = await proveProject({
       projectDir: projectDir,
-      executionId: params.executionId,
+      executionId: parsedExecResult.executionId,
     });
 
     const parsedResult = JSON.parse(result);

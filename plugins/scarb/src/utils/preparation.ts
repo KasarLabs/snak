@@ -2,8 +2,13 @@ import { exec } from 'child_process';
 import fs from 'fs-extra';
 import { promisify } from 'util';
 import path from 'path';
-import { Dependency } from '../actions/buildContract.js';
 import { getWorkspacePath } from './path.js';
+
+interface Dependency {
+  name: string;
+  version?: string;
+  git?: string;
+}
 
 const execAsync = promisify(exec);
 
@@ -16,13 +21,11 @@ const execAsync = promisify(exec);
  * @param projectDir Répertoire du projet Scarb
  * @returns Un objet avec le statut de l'opération
  */
-export async function importContract(contractPath : string, projectDir : string) {
-  const contractFileName = path.basename(contractPath);
+export async function importContract(contractContent : string, contractFileName : string, projectDir : string) {
   const srcDir = path.join(projectDir, 'src');
   const destContractPath = path.join(srcDir, contractFileName);
   
   try {
-    const contractContent = await fs.readFile(contractPath, 'utf-8');
     await fs.writeFile(destContractPath, contractContent);
     
     const libFilePath = path.join(srcDir, 'lib.cairo');
@@ -36,7 +39,8 @@ export async function importContract(contractPath : string, projectDir : string)
     await fs.writeFile(libFilePath, libContent);
     
     return {
-      success: true
+      success: true,
+      filePath: destContractPath
     };
   } catch (error) {
     throw new Error(`Failed to prepare contract: ${error.message}`);
@@ -181,25 +185,26 @@ export async function addExecutableTag(filePath: string, targetFunction: string)
 }
 
 /**
- * Process a Cairo file for execution - imports it and adds the executable tag to the target function
- * 
- * @param contractPath Path to the source Cairo file
- * @param projectDir Scarb project directory
- * @param targetFunction Name of the function to mark as executable
+ * Traite un fichier Cairo pour exécution - importe le contenu et ajoute la balise executable à la fonction cible
+ *
+ * @param contractContent Contenu du fichier Cairo
+ * @param contractFileName Nom du fichier Cairo (ex: "program.cairo")
+ * @param projectDir Répertoire du projet Scarb
+ * @param targetFunction Nom de la fonction à marquer comme exécutable
  * @returns Promise<void>
  */
 export async function processContractForExecution(
-  contractPath: string,
+  contractContent: string,
+  contractFileName: string,
   projectDir: string,
   targetFunction: string
 ): Promise<void> {
   try {
-    await importContract(contractPath, projectDir);
+    // Importer le contrat avec le nouveau format
+    const result = await importContract(contractContent, contractFileName, projectDir);
     
-    const contractFileName = path.basename(contractPath);
-    const srcDir = path.join(projectDir, 'src');
-    const destContractPath = path.join(srcDir, contractFileName);
-    
+    // Ajouter la balise executable à la fonction cible dans le fichier importé
+    const destContractPath = result.filePath;
     await addExecutableTag(destContractPath, targetFunction);
   } catch (error) {
     console.error(`Error processing contract for execution:`, error);
@@ -218,7 +223,7 @@ export async function processContractForExecution(
 export async function checkWorkspaceLimit(
   workspaceDir: string, 
   projectName: string,
-  maxProjects: number = 15
+  maxProjects: number = 10
 ): Promise<void> {
   try {
     await fs.mkdir(workspaceDir, { recursive: true });
@@ -232,15 +237,11 @@ export async function checkWorkspaceLimit(
     if (projectExists) {
       return;
     }
+    console.log(`Projects in workspace:`, projects.length);
     if (projects.length >= maxProjects) {
       throw new Error(`Workspace project limit of ${maxProjects} reached. Please delete old projects before creating new ones.`);
     }
   } catch (error) {
-    if (error.message.includes('Workspace project limit')) {
-      throw error;
-    }
-    
-    console.error("Error checking workspace limit:", error);
     throw new Error(`Failed to check workspace limit: ${error.message}`);
   }
 }

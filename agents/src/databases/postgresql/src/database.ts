@@ -429,6 +429,7 @@ export class PostgresAdaptater {
         .append(')');
 
       const query = queryBuilder.build();
+      console.log("query:", query);
       const insert_result = await this.pool.query(query);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
