@@ -26,7 +26,6 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 
-
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
@@ -86,13 +85,11 @@ export const createAgent = async (
   };
 
   try {
-
     const json_config = starknetAgent.getAgentConfig();
     json_config.memory = true;
     const embeddings = new CustomHuggingFaceEmbeddings({
-      model: "Xenova/all-MiniLM-L6-v2",
-      dtype: "fp32"
-
+      model: 'Xenova/all-MiniLM-L6-v2',
+      dtype: 'fp32',
     });
 
     // const embeddings = new OpenAIEmbeddings({
@@ -130,8 +127,6 @@ export const createAgent = async (
         throw error;
       }
     }
-
-
 
     let toolsList: (Tool | DynamicStructuredTool<any>)[];
 
