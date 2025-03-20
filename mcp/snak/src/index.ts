@@ -12,6 +12,7 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { tool } from '@langchain/core/tools';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -53,6 +54,13 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     agentMode: 'agent',
     agentconfig: JsonConfig,
   });
+  if (allowed_tools.find((tool) => tool === 'twitter')) {
+    await agent.initializeTwitterManager();
+  }
+
+  if (allowed_tools.find((tool) => tool === 'telegram')) {
+    await agent.initializeTelegramManager();
+  }
   const tools: StarknetTool[] = [];
   await registerTools(agent, allowed_tools, tools);
   for (const tool of tools) {
