@@ -556,7 +556,7 @@ export class PostgresAdaptater {
       }
 
       queryBuilder.append('SET');
-      queryBuilder.appendJoinedList(options.SET);
+      queryBuilder.appendJoinedListType(options.SET);
 
       if (options.FROM) {
         queryBuilder.append('FROM').appendJoinedList(options.FROM);
