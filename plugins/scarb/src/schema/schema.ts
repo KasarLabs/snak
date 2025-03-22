@@ -37,6 +37,5 @@ export const proveProgramSchema = z.object({
 });
 
 export const verifyProgramSchema = z.object({
-  projectName: z.string().describe('The name of the project to prove'),
-  proofPath: z.string().describe('Path to the proof JSON file to verify')
+  projectName: z.string().describe('The name of the project to prove')
 });

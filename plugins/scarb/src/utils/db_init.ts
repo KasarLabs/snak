@@ -22,6 +22,8 @@ export interface ProjectData {
   type: 'contract' | 'cairo_program';
   programs: CairoProgram[];
   dependencies: Dependency[];
+  proof?: string;
+  verified?: boolean;
 }
 
 /**
@@ -61,7 +63,7 @@ export const initializeDatabase = async (
           ['id', 'SERIAL PRIMARY KEY'],
           ['name', 'VARCHAR(100) UNIQUE'],
           ['type', `VARCHAR(50) CHECK (type IN ('contract', 'cairo_program'))`],
-          ['trace', 'BYTEA'],
+          ['execution_trace', 'BYTEA'],
           ['proof', 'JSONB'],
           ['verified', 'BOOLEAN DEFAULT FALSE'],
         ]),
@@ -94,6 +96,7 @@ export const initializeDatabase = async (
           ['project_id', 'INTEGER REFERENCES project(id)'],
           ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
           ['logs', 'TEXT'],
+          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
         ]),
       },
       {
@@ -102,7 +105,8 @@ export const initializeDatabase = async (
           ['id', 'SERIAL PRIMARY KEY'],
           ['project_id', 'INTEGER REFERENCES project(id)'],
           ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-          ['logs', 'TEXT']
+          ['logs', 'TEXT'],
+          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
         ]),
       },
       {
@@ -111,7 +115,8 @@ export const initializeDatabase = async (
           ['id', 'SERIAL PRIMARY KEY'],
           ['project_id', 'INTEGER REFERENCES project(id)'],
           ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-          ['logs', 'TEXT']
+          ['logs', 'TEXT'],
+          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
         ]),
       },
       {
@@ -120,7 +125,8 @@ export const initializeDatabase = async (
           ['id', 'SERIAL PRIMARY KEY'],
           ['project_id', 'INTEGER REFERENCES project(id)'],
           ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-          ['logs', 'TEXT']
+          ['logs', 'TEXT'],
+          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
         ])
       }
     ];
@@ -357,7 +363,7 @@ export const retrieveProjectData = async (
 
     // Get project info using select method
     const projectResult = await database.select({
-      SELECT: ['id', 'name', 'type'],
+      SELECT: ['id', 'name', 'type', 'execution_trace', 'proof', 'verified'],
       FROM: ['project'],
       WHERE: [`name = '${projectName}'`]
     });

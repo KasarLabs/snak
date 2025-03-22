@@ -26,7 +26,6 @@ export const compileContract = async (
     const { projectDir } = await setupScarbProject({
       projectName: params.projectName,
     });
-    
 
     const tomlSections = projectData.type === 'cairo_program' ? [] : [{
       workingDir: projectDir,
@@ -45,8 +44,6 @@ export const compileContract = async (
     
     const contractFiles = await getGeneratedContractFiles(projectDir);
     
-    
-    console.log(`Saving compilation results`);
     await saveCompilationResults(
       agent,
       projectData.id,
@@ -59,17 +56,14 @@ export const compileContract = async (
 
     // await cleanProject(agent, { path: projectDir });
 
-    const files = await retrieveCompilationFilesByName(agent, params.projectName, projectData.programs[0].name);
-    console.log(`Sierra and CASM retrieved successfully`);
-    
+    // const files = await retrieveCompilationFilesByName(agent, params.projectName, projectData.programs[0].name);
+    // console.log(`Sierra and CASM retrieved successfully`);
 
     return JSON.stringify({
       status: 'success',
       message: `Contract compiled successfully`,
       output: parsedBuildResult.output,
       warnings: parsedBuildResult.errors,
-      // sierraFiles: contractFiles.sierraFiles,
-      // casmFiles: contractFiles.casmFiles,
       projectDir: projectDir
     });
   } catch (error) {

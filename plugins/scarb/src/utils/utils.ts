@@ -37,7 +37,7 @@ export function extractModuleName(modulePath: string): string {
   return parts[parts.length - 2];
 }
 
-import * as fs from 'fs/promises';
+import * as fsp from 'fs/promises';
 /**
  * Extrait le nom du module depuis un objet d'artifact
  * @param artifactContent String JSON ou objet artifact
@@ -45,7 +45,7 @@ import * as fs from 'fs/promises';
  */
 export async function extractModuleFromArtifact(artifactFile: string | any, contract_index : number = 0): Promise<string> {
   try {
-    const content = await fs.readFile(artifactFile, 'utf-8');
+    const content = await fsp.readFile(artifactFile, 'utf-8');
     const artifact = JSON.parse(content);
     console.log('artifact:', artifact);
 
@@ -60,3 +60,35 @@ export async function extractModuleFromArtifact(artifactFile: string | any, cont
     throw new Error('Erreur lors de l\'extraction du module');
   }
 }
+
+
+import * as fs from 'fs';
+import * as path from 'path';
+/**
+ * Écrit des données JSON dans un fichier et renvoie le chemin du fichier
+ * @param data Les données JSON à écrire (string ou objet)
+ * @param outputDir Le répertoire où écrire le fichier
+ * @param fileName Nom du fichier (sans extension)
+ * @returns Le chemin complet vers le fichier créé
+ */
+export const writeJsonToFile = (
+  data: any, 
+  outputDir: string, 
+  fileName: string = 'data'
+): string => {
+  try {
+    const filePath = path.join(outputDir, fileName);
+    const proofContent = typeof data === 'string' 
+      ? data
+      : JSON.stringify(data, null, 2);
+    
+    fs.writeFileSync(filePath, proofContent);
+    
+    console.log(`JSON data written to: ${filePath}`);
+    
+    return filePath;
+  } catch (error) {
+    console.error(`Error writing JSON to file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to write JSON to file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};

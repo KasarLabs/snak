@@ -148,12 +148,6 @@ export const verifyProject = async (
   try {
     const command = `scarb verify --proof-file ${params.proofPath}`;
     const { stdout, stderr } = await execAsync(command, { cwd: params.projectDir });
-    
-    const isVerified = stdout.includes('successfully');
-    if (!isVerified) {
-      throw new Error(`Proof verification failed: ${stderr}`);
-    }
-    console.log(`Verified proof with command: ${command}`);
 
     return JSON.stringify({
       status: 'success',

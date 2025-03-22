@@ -3,9 +3,12 @@ import { executeProject } from '../utils/command.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { retrieveProjectData, Dependency } from '../utils/db_init.js';
 import { executeProgramSchema } from '../schema/schema.js';
-import { initializeProjectData } from '../utils/db_init.js';
-import * as path from 'path';
 import { z } from 'zod';
+import { saveExecutionResults } from '../utils/db_save.js';
+import { retrieveTrace } from '../utils/db_retrieve.js';
+import { compareFiles } from '../utils/db_utils.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
   * Execute a StarkNet contract
@@ -35,6 +38,7 @@ export const executeProgram = async (
 
       const executableName = params.executableName ? params.executableName : projectData.programs[0].name.replace('.cairo', '');
       const formattedExecutable = `${params.projectName}::${executableName}::${params.executableFunction ? params.executableFunction : 'main'}`;
+      const mode = params.mode || 'bootloader';
 
       const tomlSections = [
       {
@@ -65,11 +69,25 @@ export const executeProgram = async (
         projectDir: projectDir,
         formattedExecutable: formattedExecutable,
         arguments: params.arguments,
-        target: params.mode || 'bootloader' 
+        target: mode
       });
 
       const parsedExecResult = JSON.parse(execResult);
       
+      await saveExecutionResults(
+        agent,
+        projectDir,
+        projectData.id,
+        'success',
+        JSON.stringify(parsedExecResult.output),
+        parsedExecResult.tracePath
+      )
+
+      // await cleanProject(agent, { path: projectDir });
+      // const retrievedTracePath = 'cairo_trace.zip'
+      // const files = await retrieveTrace(agent, projectData.name, retrievedTracePath);
+      // console.log(`Trace retrieved successfully`);
+
       return JSON.stringify({
         status: 'success',
         message: 'Contract executed successfully',
