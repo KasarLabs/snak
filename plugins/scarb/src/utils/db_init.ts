@@ -89,46 +89,6 @@ export const initializeDatabase = async (
           // ['git', 'TEXT'] // Optionnel pour stocker l'URL du repo
         ]),
       },
-      {
-        table_name: 'compilation',
-        fields: new Map<string, string>([
-          ['id', 'SERIAL PRIMARY KEY'],
-          ['project_id', 'INTEGER REFERENCES project(id)'],
-          ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-          ['logs', 'TEXT'],
-          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
-        ]),
-      },
-      {
-        table_name: 'execution',
-        fields: new Map<string, string>([
-          ['id', 'SERIAL PRIMARY KEY'],
-          ['project_id', 'INTEGER REFERENCES project(id)'],
-          ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-          ['logs', 'TEXT'],
-          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
-        ]),
-      },
-      {
-        table_name: 'proof',
-        fields: new Map<string, string>([
-          ['id', 'SERIAL PRIMARY KEY'],
-          ['project_id', 'INTEGER REFERENCES project(id)'],
-          ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-          ['logs', 'TEXT'],
-          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
-        ]),
-      },
-      {
-        table_name: 'verification',
-        fields: new Map<string, string>([
-          ['id', 'SERIAL PRIMARY KEY'],
-          ['project_id', 'INTEGER REFERENCES project(id)'],
-          ['status', `VARCHAR(50) CHECK (status IN ('success', 'failed'))`],
-          ['logs', 'TEXT'],
-          ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
-        ])
-      }
     ];
     
     // Création des tables avec gestion des erreurs

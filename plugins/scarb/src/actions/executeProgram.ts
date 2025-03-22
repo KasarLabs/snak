@@ -78,8 +78,6 @@ export const executeProgram = async (
         agent,
         projectDir,
         projectData.id,
-        'success',
-        JSON.stringify(parsedExecResult.output),
         parsedExecResult.tracePath
       )
 

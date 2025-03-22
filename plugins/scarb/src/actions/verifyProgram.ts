@@ -39,8 +39,8 @@ export const verifyProgram = async (
       parsedResult.status === 'success' ? true : false,
     )
 
-    const verif = await retrieveVerification(agent, projectData.name);
-    console.log(`Verification retrieved successfully : ${verif}`);
+    // const verif = await retrieveVerification(agent, projectData.name);
+    // console.log(`Verification retrieved successfully : ${verif}`);
     // await cleanProject(agent, { path: projectDir });
     
     return JSON.stringify({

@@ -49,26 +49,6 @@ export const proveProgram = async (
       parsedResult.proofPath
     );
 
-    // Récupération de la preuve depuis la base de données
-    // const proof = await retrieveProof(agent, projectData.name);
-    // console.log(`Proof retrieved successfully`);
-    
-    // // Création d'un fichier temporaire pour la preuve récupérée
-    // const retrievedProofPath = path.join(projectDir, 'proof.json');
-    // const proofContent = typeof proof === 'string' 
-    //   ? proof
-    //   : JSON.stringify(proof, null, 2);
-    
-    // fs.writeFileSync(retrievedProofPath, proofContent);
-    // console.log(`Retrieved proof written to: ${retrievedProofPath}`);
-    
-    // Comparaison des deux fichiers
-    // const areIdentical = compareFiles(originalProofPath, retrievedProofPath);
-    // console.log(`Proof files are identical: ${areIdentical}`);
-    
-    // Nettoyage du fichier temporaire
-    // fs.unlinkSync(retrievedProofPath);
-
     return JSON.stringify({
       status: 'success',
       message: 'Contract execution proved successfully',
