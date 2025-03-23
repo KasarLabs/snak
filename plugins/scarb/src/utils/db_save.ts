@@ -28,8 +28,6 @@ export interface ProjectData {
 export const saveCompilationResults = async (
   agent: StarknetAgentInterface,
   projectId: number,
-  status: 'success' | 'failed',
-  logs: string,
   sierraFiles: string[],
   casmFiles: string[],
   artifactFile : string
@@ -38,23 +36,6 @@ export const saveCompilationResults = async (
     const database = agent.getDatabaseByName('scarb_db');
     if (!database) {
       throw new Error('Database not found');
-    }
-
-    console.log(`Sierra files count: ${sierraFiles.length}, CASM files count: ${casmFiles.length}`);
-    
-    // Créer un enregistrement principal pour cette compilation
-    const compilationResult = await database.insert({
-      table_name: 'compilation',
-      fields: new Map<string, any>([
-        ['id', 'DEFAULT'],
-        ['project_id', projectId],
-        ['status', status],
-        ['logs', logs]
-      ])
-    });
-    
-    if (compilationResult.status !== 'success') {
-      throw new Error(`Failed to create compilation record: ${compilationResult.error_message}`);
     }
 
     for (let i = 0 ; i < sierraFiles.length ; i++) {
@@ -69,12 +50,15 @@ export const saveCompilationResults = async (
         AND name = '${nameContract + '.cairo'}'
       `);
 
+      if (program_id.status !== 'success') {
+        throw new Error(`Failed to get program id: ${program_id.error_message}`);
+      }
+
       await storeJsonFromFile(agent, 'program', program_id.query?.rows[0].id, 'sierra', sierraFile);
       await storeJsonFromFile(agent, 'program', program_id.query?.rows[0].id, 'casm', casmFile);
     }
 
   } catch (error) {
-    console.error("Error saving compilation results:", error);
     throw error;
   }
 };
@@ -109,10 +93,13 @@ export const saveExecutionResults = async (
       SET execution_trace = E'\\\\x${traceData.toString('hex')}'
       WHERE id = ${projectId}
     `);
+
+    if (updateResult.status !== 'success') {
+      throw new Error(`Failed to save trace: ${updateResult.error_message}`);
+    }
     
     return updateResult;
   } catch (error) {
-    console.error("Error saving execution results:", error);
     throw error;
   }
 };
@@ -128,7 +115,6 @@ export const saveProof = async (
     const fullPath = path.join(projectDir, proofPath);
     await storeJsonFromFile(agent, 'project', projectId, 'proof', fullPath);
   } catch (error) {
-    console.error("Error saving execution results:", error);
     throw error;
   }
 };
@@ -136,7 +122,6 @@ export const saveProof = async (
 
 export const saveVerification = async (
   agent: StarknetAgentInterface,
-  projectDir: string,
   projectId: number,
   verified: boolean
 ) => {
@@ -153,12 +138,9 @@ export const saveVerification = async (
     `);
 
     if (updateResult.status !== 'success') {
-      console.warn(`Warning: Failed to update verification data: ${updateResult.error_message}`);
-    } else {
-      console.log(`Updated trace data for project ${projectId}`);
+      throw new Error(`Failed to save verification status: ${updateResult.error_message}`);
     }
   } catch (error) {
-    console.error("Error saving execution results:", error);
     throw error;
   }
 };

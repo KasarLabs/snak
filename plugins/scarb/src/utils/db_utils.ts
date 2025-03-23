@@ -16,7 +16,7 @@ export async function storeJsonFromFile(
     recordId: number,
     columnName: string,
     jsonFilePath: string
-  ): Promise<boolean> {
+  ){
     try {
       // Obtenir la connexion à la base de données
       const database = agent.getDatabaseByName('scarb_db');
@@ -24,19 +24,16 @@ export async function storeJsonFromFile(
         throw new Error('Database not found');
       }
   
-      // Lire le fichier JSON
       const jsonContent = await fspromises.readFile(jsonFilePath, 'utf-8');
   
-      // Mettre à jour l'enregistrement dans la base de données
       const query = `UPDATE ${tableName} SET ${columnName} = $1 WHERE id = $2`;
-      const params = [jsonContent, recordId];
-      
       const updateResult = await database.query(query, [JSON.stringify(jsonContent), recordId]);
-  
-      return updateResult.status === 'success';
+
+      if (updateResult.status !== 'success') {
+        throw new Error(`Failed to store JSON file: ${updateResult.error_message}`);
+      }
     } catch (error) {
-      console.error(`Error storing JSON file: ${error.message}`);
-      throw new Error('Error storing JSON file');
+      throw error;
     }
   }
 

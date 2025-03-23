@@ -5,10 +5,7 @@ import { retrieveProjectData, Dependency } from '../utils/db_init.js';
 import { executeProgramSchema } from '../schema/schema.js';
 import { z } from 'zod';
 import { saveExecutionResults } from '../utils/db_save.js';
-import { retrieveTrace } from '../utils/db_retrieve.js';
-import { compareFiles } from '../utils/db_utils.js';
-import * as fs from 'fs';
-import * as path from 'path';
+import { cleanProject } from '../utils/command.js';
 
 /**
   * Execute a StarkNet contract
@@ -81,7 +78,7 @@ export const executeProgram = async (
         parsedExecResult.tracePath
       )
 
-      // await cleanProject(agent, { path: projectDir });
+      await cleanProject({ path: projectDir });
       // const retrievedTracePath = 'cairo_trace.zip'
       // const files = await retrieveTrace(agent, projectData.name, retrievedTracePath);
       // console.log(`Trace retrieved successfully`);

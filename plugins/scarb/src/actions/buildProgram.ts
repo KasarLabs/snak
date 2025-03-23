@@ -6,6 +6,7 @@ import {
 } from '../utils/preparation.js';
 import { retrieveProjectData, Dependency } from '../utils/db_init.js';
 import { saveCompilationResults } from '../utils/db_save.js';
+import { cleanProject } from '../utils/command.js';
 import { retrieveCompilationFilesByName } from '../utils/db_retrieve.js';
 
 
@@ -47,14 +48,12 @@ export const compileContract = async (
     await saveCompilationResults(
       agent,
       projectData.id,
-      'success',
-      JSON.stringify(parsedBuildResult),
       contractFiles.sierraFiles,
       contractFiles.casmFiles,
       contractFiles.artifactFile
     );
 
-    // await cleanProject(agent, { path: projectDir });
+    await cleanProject({ path: projectDir });
 
     // const files = await retrieveCompilationFilesByName(agent, params.projectName, projectData.programs[0].name);
     // console.log(`Sierra and CASM retrieved successfully`);

@@ -39,3 +39,18 @@ export const proveProgramSchema = z.object({
 export const verifyProgramSchema = z.object({
   projectName: z.string().describe('The name of the project to prove')
 });
+
+// Define schemas for validation
+export const deleteProgramSchema = z.object({
+  projectName: z.string().min(1),
+  programName: z.string().min(1)
+});
+
+export const deleteDependencySchema = z.object({
+  projectName: z.string().min(1),
+  dependencyName: z.string().min(1)
+});
+
+export const deleteProjectSchema = z.object({
+  projectName: z.string().min(1)
+});

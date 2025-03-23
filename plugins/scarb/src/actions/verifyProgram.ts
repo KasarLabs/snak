@@ -12,6 +12,7 @@ import { setupScarbProject } from '../utils/common.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { writeJsonToFile } from '../utils/utils.js';
+import { cleanProject } from '../utils/command.js';
 
 export const verifyProgram = async (
   agent: StarknetAgentInterface,
@@ -34,14 +35,12 @@ export const verifyProgram = async (
 
     await saveVerification(
       agent,
-      projectDir,
       projectData.id,
       parsedResult.status === 'success' ? true : false,
     )
 
+    await cleanProject({ path: projectDir });
     // const verif = await retrieveVerification(agent, projectData.name);
-    // console.log(`Verification retrieved successfully : ${verif}`);
-    // await cleanProject(agent, { path: projectDir });
     
     return JSON.stringify({
       status: parsedResult.status,
