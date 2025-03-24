@@ -1,11 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import {
-  StarknetAgentInterface,
-  TelegramInterface,
-  TwitterInterface,
-  JsonConfig,
-} from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface, JsonConfig } from '@starknet-agent-kit/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -21,8 +16,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     internal_plugins: [],
   };
-
-  const twitter_auth_mode = undefined;
 
   return {
     getAccountCredentials: () => ({
@@ -58,8 +51,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     internal_plugins: [],
   };
-
-  const twitter_auth_mode = undefined;
 
   return {
     getAccountCredentials: () => ({

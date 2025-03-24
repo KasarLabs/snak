@@ -1,19 +1,12 @@
 import { setupTestEnvironment } from '../utils/helper';
 import { RpcProvider } from 'starknet';
-import {
-  StarknetAgentInterface,
-  TelegramInterface,
-  TwitterInterface,
-  JsonConfig,
-} from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface, JsonConfig } from '@starknet-agent-kit/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
 
 export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
-  const twitter_interface: TwitterInterface = {};
-  const telegram_interface: TelegramInterface = {};
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
   const json_config: JsonConfig = {
