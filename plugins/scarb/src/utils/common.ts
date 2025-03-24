@@ -20,11 +20,7 @@ export interface ScarbBaseParams {
  */
 export async function setupScarbProject(
   params: ScarbBaseParams
-): Promise<{ 
-  projectDir: string; 
-  status: 'success' | 'failure';
-  error?: string;
-}> {
+): Promise<string> {
   try {
     await checkScarbInstalled();
 
@@ -35,10 +31,7 @@ export async function setupScarbProject(
       await initProject({ name: params.projectName, projectDir });
     }
     
-    return {
-      status: 'success',
-      projectDir
-    };
+    return projectDir;
   } catch (error) {
       throw new Error('Error setting up Scarb project: ' + error.message);
   }

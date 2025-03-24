@@ -7,7 +7,6 @@ import {
 import { retrieveProjectData, Dependency } from '../utils/db_init.js';
 import { saveCompilationResults } from '../utils/db_save.js';
 import { cleanProject } from '../utils/command.js';
-import { retrieveCompilationFilesByName } from '../utils/db_retrieve.js';
 
 
 export interface CompileContractParams {
@@ -21,10 +20,11 @@ export const compileContract = async (
   agent: StarknetAgentInterface,
   params: CompileContractParams
 ) => {
+  let projectDir = "";
   try {
     const projectData = await retrieveProjectData(agent, params.projectName);
 
-    const { projectDir } = await setupScarbProject({
+    projectDir = await setupScarbProject({
       projectName: params.projectName,
     });
 
@@ -53,8 +53,6 @@ export const compileContract = async (
       contractFiles.artifactFile
     );
 
-    await cleanProject({ path: projectDir });
-
     // const files = await retrieveCompilationFilesByName(agent, params.projectName, projectData.programs[0].name);
     // console.log(`Sierra and CASM retrieved successfully`);
 
@@ -71,5 +69,7 @@ export const compileContract = async (
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+  } finally {
+    await cleanProject({ path: projectDir, removeDirectory: true });
   }
 };

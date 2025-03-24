@@ -7,11 +7,14 @@ import { saveProof } from '../utils/db_save.js';
 import { retrieveProjectData } from '../utils/db_init.js';
 import { cleanProject } from '../utils/command.js';
 import { setupScarbProject } from '../utils/common.js';
+import { getProjectDir } from '../utils/preparation.js';
+import { get } from 'http';
 
 export const proveProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof proveProgramSchema>
 ) => {
+  let projectDir = "";
   try {
     const execResult = await executeProgram(agent, { ...params, mode: 'standalone' });
     const parsedExecResult = JSON.parse(execResult);
@@ -21,9 +24,8 @@ export const proveProgram = async (
     }
 
     const projectData = await retrieveProjectData(agent, params.projectName);
-    const { projectDir } = await setupScarbProject({
-      projectName: params.projectName,
-    });
+
+    projectDir = await getProjectDir(projectData.name);
     
     const result = await proveProject({
       projectDir: projectDir,
@@ -39,8 +41,6 @@ export const proveProgram = async (
       parsedResult.proofPath
     );
 
-    await cleanProject({ path: projectDir });
-
     return JSON.stringify({
       status: 'success',
       message: 'Contract execution proved successfully',
@@ -53,5 +53,7 @@ export const proveProgram = async (
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+  } finally {
+    await cleanProject({ path: projectDir, removeDirectory: true });
   }
 };

@@ -102,23 +102,21 @@ export const deleteProject = async (
           throw new Error('Database not found');
         }
       
-      // Enfin, supprimer le projet lui-même
-      const projectResult = await database.delete({
-        table_name: 'project',
-        ONLY: false,
-        WHERE: [`name = ${projectName}`] // Utilisez id et non project_id
-      });
-      
-      console.log("Project deletion result:", projectResult);
-      
-      if (projectResult.status !== 'success') {
-        throw new Error(`Failed to delete project "${projectName}"`);
+        const projectResult = await database.delete({
+          table_name: 'project',
+          ONLY: false,
+          WHERE: [`name = '${projectName}'`]
+        });
+        
+        
+        if (projectResult.status !== 'success') {
+          throw new Error(`Failed to delete project "${projectName}"`);
+        }
+        
+        console.log(`Project ${projectName} deleted successfully`);
+        return true;
+      } catch (error) {
+        console.error(`Error deleting project ${projectName}:`, error);
+        throw error;
       }
-      
-      console.log(`Project ${projectName} deleted successfully`);
-      return true;
-    } catch (error) {
-      console.error(`Error deleting project ${projectName}:`, error);
-      throw error;
-    }
   };

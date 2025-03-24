@@ -18,10 +18,12 @@ export const executeProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof executeProgramSchema>
 ) => {
+  let projectDir = "";
+  let mode = "";
   try {
       const projectData = await retrieveProjectData(agent, params.projectName);
 
-      const { projectDir } = await setupScarbProject({
+      projectDir = await setupScarbProject({
         projectName: params.projectName,
       });
       
@@ -35,7 +37,7 @@ export const executeProgram = async (
 
       const executableName = params.executableName ? params.executableName : projectData.programs[0].name.replace('.cairo', '');
       const formattedExecutable = `${params.projectName}::${executableName}::${params.executableFunction ? params.executableFunction : 'main'}`;
-      const mode = params.mode || 'bootloader';
+      mode = params.mode || 'bootloader';
 
       const tomlSections = [
       {
@@ -71,14 +73,15 @@ export const executeProgram = async (
 
       const parsedExecResult = JSON.parse(execResult);
       
-      await saveExecutionResults(
-        agent,
-        projectDir,
-        projectData.id,
-        parsedExecResult.tracePath
-      )
+      if (mode !== 'standalone') {
+        await saveExecutionResults(
+          agent,
+          projectDir,
+          projectData.id,
+          parsedExecResult.tracePath
+        )
+      }
 
-      await cleanProject({ path: projectDir });
       // const retrievedTracePath = 'cairo_trace.zip'
       // const files = await retrieveTrace(agent, projectData.name, retrievedTracePath);
       // console.log(`Trace retrieved successfully`);
@@ -98,5 +101,8 @@ export const executeProgram = async (
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',
       });
+    } finally {
+      if (mode !== 'standalone')
+        await cleanProject({ path: projectDir, removeDirectory: true });
     }
 }

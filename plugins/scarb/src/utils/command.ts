@@ -48,22 +48,32 @@ export const buildProject = async (
 };
 
 
-  export const cleanProject = async (
-    params: { path: string }
-  ) => {
-    try {
-      const { stdout, stderr } = await execAsync('scarb clean', { cwd: params.path });
-      
-      return JSON.stringify({
-        status: 'success',
-        message: 'Project cleaned successfully',
-        output: stdout,
-        errors: stderr || undefined,
-      });
-    } catch (error) {
-      throw new Error(`Failed to clean project at ${params.path}: ${error.message}`);
+export const cleanProject = async (
+  params: { path: string, removeDirectory?: boolean }
+) => {
+  try {
+    const { stdout, stderr } = await execAsync('scarb clean', { cwd: params.path });
+    if (params.removeDirectory) {
+      try {
+        await fs.rm(params.path, { recursive: true, force: true });
+        console.log(`Removed project directory: ${params.path}`);
+      } catch (deleteError) {
+        console.error(`Failed to remove directory ${params.path}: ${deleteError.message}`);
+      }
     }
-  };
+    
+    return JSON.stringify({
+      status: 'success',
+      message: params.removeDirectory 
+        ? 'Project cleaned and directory removed successfully' 
+        : 'Project cleaned successfully',
+      output: stdout,
+      errors: stderr || undefined,
+    });
+  } catch (error) {
+    throw new Error(`Failed to clean project at ${params.path}: ${error.message}`);
+  }
+};
 
 
 export interface ExecuteContractParams {
