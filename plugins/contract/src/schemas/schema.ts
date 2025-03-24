@@ -9,7 +9,9 @@ import { z } from 'zod';
  */
 export const declareContractSchema = z.object({
   projectName: z.string().describe('The name of the project to deploy'),
-  contractName: z.string().describe('The name of the contract to deploy (.cairo)'),
+  contractName: z
+    .string()
+    .describe('The name of the contract to deploy (.cairo)'),
 });
 
 /**
@@ -23,7 +25,9 @@ export const declareContractSchema = z.object({
  */
 export const deployContractSchema = z.object({
   projectName: z.string().describe('The name of the project to deploy'),
-  contractName: z.string().describe('The name of the contract to deploy (.cairo)'),
+  contractName: z
+    .string()
+    .describe('The name of the contract to deploy (.cairo)'),
   classHash: z.string({
     required_error: 'Class hash is required',
     description: 'Class hash of the declared contract to deploy',
@@ -47,7 +51,9 @@ export const deployContractSchema = z.object({
  */
 export const getConstructorParamsSchema = z.object({
   projectName: z.string().describe('The name of the project to deploy'),
-  contractName: z.string().describe('The name of the contract to deploy (.cairo)'),
+  contractName: z
+    .string()
+    .describe('The name of the contract to deploy (.cairo)'),
   classHash: z.string({
     required_error: 'Class hash is required',
     description: 'Class hash of the declared contract to deploy',

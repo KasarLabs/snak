@@ -17,7 +17,7 @@ export const saveCompilationResults = async (
   projectId: number,
   sierraFiles: string[],
   casmFiles: string[],
-  artifactFile : string
+  artifactFile: string
 ) => {
   try {
     const database = agent.getDatabaseByName('scarb_db');
@@ -25,10 +25,10 @@ export const saveCompilationResults = async (
       throw new Error('Database not found');
     }
 
-    for (let i = 0 ; i < sierraFiles.length ; i++) {
+    for (let i = 0; i < sierraFiles.length; i++) {
       const sierraFile = sierraFiles[i];
       const casmFile = casmFiles[i];
-      
+
       const nameContract = await extractModuleFromArtifact(artifactFile, i);
       const program_id = await database.query(`
         SELECT id 
@@ -38,13 +38,26 @@ export const saveCompilationResults = async (
       `);
 
       if (program_id.status !== 'success') {
-        throw new Error(`Failed to get program id: ${program_id.error_message}`);
+        throw new Error(
+          `Failed to get program id: ${program_id.error_message}`
+        );
       }
 
-      await storeJsonFromFile(agent, 'program', program_id.query?.rows[0].id, 'sierra', sierraFile);
-      await storeJsonFromFile(agent, 'program', program_id.query?.rows[0].id, 'casm', casmFile);
+      await storeJsonFromFile(
+        agent,
+        'program',
+        program_id.query?.rows[0].id,
+        'sierra',
+        sierraFile
+      );
+      await storeJsonFromFile(
+        agent,
+        'program',
+        program_id.query?.rows[0].id,
+        'casm',
+        casmFile
+      );
     }
-
   } catch (error) {
     console.error('Error saving compilation results:', error);
     throw error;
@@ -69,10 +82,10 @@ export const saveExecutionResults = async (
     if (!database) {
       throw new Error('Database not found');
     }
-    
+
     const fullTracePath = path.join(projectDir, tracePath);
     const traceData = fs.readFileSync(fullTracePath);
-    
+
     const updateResult = await database.query(`
       UPDATE project
       SET execution_trace = E'\\\\x${traceData.toString('hex')}'
@@ -82,14 +95,13 @@ export const saveExecutionResults = async (
     if (updateResult.status !== 'success') {
       throw new Error(`Failed to save trace: ${updateResult.error_message}`);
     }
-    
+
     return updateResult;
   } catch (error) {
     console.error('Error saving execution results:', error);
     throw error;
   }
 };
-
 
 /**
  * Save the proof in the database
@@ -113,7 +125,6 @@ export const saveProof = async (
   }
 };
 
-
 /**
  * Save the verification status in the database
  * @param agent The StarkNet agent to access the database
@@ -130,7 +141,7 @@ export const saveVerification = async (
     if (!database) {
       throw new Error('Database not found');
     }
-    
+
     const updateResult = await database.query(`
       UPDATE project
       SET verified = ${verified}
@@ -138,7 +149,9 @@ export const saveVerification = async (
     `);
 
     if (updateResult.status !== 'success') {
-      throw new Error(`Failed to save verification status: ${updateResult.error_message}`);
+      throw new Error(
+        `Failed to save verification status: ${updateResult.error_message}`
+      );
     }
   } catch (error) {
     console.error('Error saving verification status:', error);

@@ -18,32 +18,35 @@ export const proveProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof proveProgramSchema>
 ) => {
-  let projectDir = "";
+  let projectDir = '';
   try {
-    const execResult = await executeProgram(agent, { ...params, mode: 'standalone' });
+    const execResult = await executeProgram(agent, {
+      ...params,
+      mode: 'standalone',
+    });
     const parsedExecResult = JSON.parse(execResult);
 
-    if (parsedExecResult.status !== 'success' || !parsedExecResult.executionId) {
-      throw new Error(`Failed to execute program: ${parsedExecResult.error || 'Unknown error'}`);
+    if (
+      parsedExecResult.status !== 'success' ||
+      !parsedExecResult.executionId
+    ) {
+      throw new Error(
+        `Failed to execute program: ${parsedExecResult.error || 'Unknown error'}`
+      );
     }
 
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await getProjectDir(projectData.name);
-    
+
     const result = await proveProject({
       projectDir: projectDir,
       executionId: parsedExecResult.executionId,
     });
 
     const parsedResult = JSON.parse(result);
-    
-    await saveProof(
-      agent,
-      projectData.id,
-      projectDir,
-      parsedResult.proofPath
-    );
+
+    await saveProof(agent, projectData.id, projectDir, parsedResult.proofPath);
 
     return JSON.stringify({
       status: 'success',
@@ -52,7 +55,7 @@ export const proveProgram = async (
       errors: parsedResult.errors,
     });
   } catch (error) {
-    console.error("Error proving contract execution:", error);
+    console.error('Error proving contract execution:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

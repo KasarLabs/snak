@@ -16,7 +16,11 @@ export const declareContract = async (
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {
-    const { sierraPath, casmPath } = await getSierraCasmFromDB(agent, params.projectName, params.contractName);
+    const { sierraPath, casmPath } = await getSierraCasmFromDB(
+      agent,
+      params.projectName,
+      params.contractName
+    );
 
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();

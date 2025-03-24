@@ -1,9 +1,7 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { buildProject } from '../utils/command.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
-import { 
-  getGeneratedContractFiles
-} from '../utils/preparation.js';
+import { getGeneratedContractFiles } from '../utils/preparation.js';
 import { retrieveProjectData } from '../utils/db_init.js';
 import { saveCompilationResults } from '../utils/db_save.js';
 import { cleanProject } from '../utils/command.js';
@@ -20,7 +18,7 @@ export const compileContract = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof compileContractSchema>
 ) => {
-  let projectDir = "";
+  let projectDir = '';
   try {
     const projectData = await retrieveProjectData(agent, params.projectName);
 
@@ -28,24 +26,28 @@ export const compileContract = async (
       projectName: params.projectName,
     });
 
-    const tomlSections = projectData.type === 'cairo_program' ? [] : [{
-      workingDir: projectDir,
-      sectionTitle: 'target.starknet-contract',
-      valuesObject: {
-        'sierra' : true,
-        'casm' : true
-      }
-    }];
+    const tomlSections =
+      projectData.type === 'cairo_program'
+        ? []
+        : [
+            {
+              workingDir: projectDir,
+              sectionTitle: 'target.starknet-contract',
+              valuesObject: {
+                sierra: true,
+                casm: true,
+              },
+            },
+          ];
 
     await setupToml(projectDir, tomlSections, projectData.dependencies);
     await setupSrc(projectDir, projectData.programs);
 
     const buildResult = await buildProject({ path: projectDir });
     const parsedBuildResult = JSON.parse(buildResult);
-    
+
     const contractFiles = await getGeneratedContractFiles(projectDir);
-    
-    
+
     await saveCompilationResults(
       agent,
       projectData.id,
@@ -59,10 +61,10 @@ export const compileContract = async (
       message: `Contract compiled successfully`,
       output: parsedBuildResult.output,
       warnings: parsedBuildResult.errors,
-      projectDir: projectDir
+      projectDir: projectDir,
     });
   } catch (error) {
-    console.error("Error compiling contract:", error);
+    console.error('Error compiling contract:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

@@ -11,11 +11,11 @@ describe('Prove Program Tests', () => {
   const agent = createMockStarknetAgent();
   const baseProjectName = 'prove_test';
   let testCounter = 1;
-  
+
   function getUniqueProjectName() {
     return `${baseProjectName}_${testCounter++}`;
   }
-  
+
   afterAll(async () => {
     try {
       const workspacePath = getWorkspacePath();
@@ -29,37 +29,39 @@ describe('Prove Program Tests', () => {
 
   it('should successfully prove a simple Cairo program execution', async () => {
     const projectName = getUniqueProjectName();
-    
+
     // Exécuter et prouver le programme en une seule étape
     const proveResult = await proveProgram(agent, {
-      projectName: projectName, 
+      projectName: projectName,
       programPaths: ['src/contract/program.cairo'],
-      dependencies: []
+      dependencies: [],
     });
-    
+
     const parsedProveResult = JSON.parse(proveResult);
     console.log('Prove result:', parsedProveResult);
-    
+
     expect(parsedProveResult.status).toBe('success');
-    expect(parsedProveResult.message).toBe('Program executed and proved successfully');
+    expect(parsedProveResult.message).toBe(
+      'Program executed and proved successfully'
+    );
     expect(parsedProveResult.executionId).toBeTruthy();
     expect(parsedProveResult.proofPath).toBeTruthy();
   }, 180000);
 
   it('should handle program with more complex computation', async () => {
     const projectName = getUniqueProjectName();
-    
+
     // Exécuter et prouver un programme avec un calcul plus complexe
     const proveResult = await proveProgram(agent, {
-      projectName: projectName, 
+      projectName: projectName,
       programPaths: ['src/contract/program2.cairo'],
       dependencies: [],
       executableFunction: 'fib',
-      arguments: '25' // Calcul plus complexe
+      arguments: '25', // Calcul plus complexe
     });
-    
+
     const parsedProveResult = JSON.parse(proveResult);
-    
+
     expect(parsedProveResult.status).toBe('success');
     expect(parsedProveResult.executionId).toBeTruthy();
     expect(parsedProveResult.proofPath).toBeTruthy();
@@ -67,21 +69,21 @@ describe('Prove Program Tests', () => {
 
   it('should handle multiple programs in the project', async () => {
     const projectName = getUniqueProjectName();
-    
+
     // Exécuter et prouver avec plusieurs programmes dans le projet
     const proveResult = await proveProgram(agent, {
-      projectName: projectName, 
+      projectName: projectName,
       programPaths: [
         'src/contract/program.cairo',
-        'src/contract/program2.cairo'
+        'src/contract/program2.cairo',
       ],
       dependencies: [],
       executableName: 'program',
-      executableFunction: 'main'
+      executableFunction: 'main',
     });
-    
+
     const parsedProveResult = JSON.parse(proveResult);
-    
+
     expect(parsedProveResult.status).toBe('success');
     expect(parsedProveResult.executionId).toBeTruthy();
     expect(parsedProveResult.proofPath).toBeTruthy();
@@ -89,34 +91,34 @@ describe('Prove Program Tests', () => {
 
   it('should properly handle execution errors', async () => {
     const projectName = getUniqueProjectName();
-    
+
     // Tenter d'exécuter et prouver avec des arguments invalides
     const proveResult = await proveProgram(agent, {
-      projectName: projectName, 
+      projectName: projectName,
       programPaths: ['src/contract/program.cairo'],
       dependencies: [],
-      arguments: 'invalid_argument_type' // Argument invalide qui devrait causer une erreur
+      arguments: 'invalid_argument_type', // Argument invalide qui devrait causer une erreur
     });
-    
+
     const parsedProveResult = JSON.parse(proveResult);
-    
+
     expect(parsedProveResult.status).toBe('failure');
     expect(parsedProveResult.error).toBeTruthy();
   }, 180000);
 
   it('should fail with invalid executable function name', async () => {
     const projectName = getUniqueProjectName();
-    
+
     // Tenter d'exécuter et prouver avec un nom de fonction inexistant
     const proveResult = await proveProgram(agent, {
-      projectName: projectName, 
+      projectName: projectName,
       programPaths: ['src/contract/program.cairo'],
       dependencies: [],
-      executableFunction: 'non_existent_function'
+      executableFunction: 'non_existent_function',
     });
-    
+
     const parsedProveResult = JSON.parse(proveResult);
-    
+
     expect(parsedProveResult.status).toBe('failure');
     expect(parsedProveResult.error).toBeTruthy();
   }, 180000);

@@ -19,37 +19,37 @@ export const verifyProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof verifyProgramSchema>
 ) => {
-  let projectDir = "";
+  let projectDir = '';
   try {
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
       projectName: params.projectName,
     });
-    
+
     const proof = await retrieveProof(agent, projectData.name);
     writeJsonToFile(proof, projectDir, 'proof.json');
 
     const result = await verifyProject({
-        projectDir: projectDir,
-        proofPath: 'proof.json',
+      projectDir: projectDir,
+      proofPath: 'proof.json',
     });
     const parsedResult = JSON.parse(result);
 
     await saveVerification(
       agent,
       projectData.id,
-      parsedResult.status === 'success' ? true : false,
-    )
-    
+      parsedResult.status === 'success' ? true : false
+    );
+
     return JSON.stringify({
       status: parsedResult.status,
       message: parsedResult.message,
       output: parsedResult.output,
-      errors: parsedResult.errors
+      errors: parsedResult.errors,
     });
   } catch (error) {
-    console.error("Error verifying proof:", error);
+    console.error('Error verifying proof:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

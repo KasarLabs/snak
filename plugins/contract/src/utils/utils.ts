@@ -47,28 +47,30 @@ export const executeV3Transaction = async ({
   return transaction_hash;
 };
 
-
 /**
  * Searches for a file by traversing up the directory tree
  * @param filename The filename to search for
  * @param startDir The starting directory (default: current working directory)
  * @returns The full path if found, null otherwise
  */
-function findUp(filename: string, startDir: string = process.cwd()): string | null {
+function findUp(
+  filename: string,
+  startDir: string = process.cwd()
+): string | null {
   let currentDir = path.resolve(startDir);
   const { root } = path.parse(currentDir);
-  
+
   while (true) {
     const filePath = path.join(currentDir, filename);
     if (fs.existsSync(filePath)) {
       return filePath;
     }
-    
+
     // Stop if we reach the filesystem root
     if (currentDir === root) {
       return null;
     }
-    
+
     // Move up one level
     currentDir = path.dirname(currentDir);
   }
@@ -102,17 +104,17 @@ export function resolveContractFilePath(filePath: string): string {
       console.warn(`Absolute path provided but does not exist: ${filePath}`);
     }
   }
-  
+
   // Get the repository root
   const repoRoot = getRepoRoot();
-  
+
   // Join the repo root with the provided path
   const resolvedPath = path.join(repoRoot, filePath);
-  
+
   // Check if the path exists
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`Path does not exist: ${resolvedPath}`);
   }
-  
+
   return resolvedPath;
 }

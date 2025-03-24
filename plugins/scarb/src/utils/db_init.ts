@@ -4,7 +4,6 @@ import * as path from 'path';
 import { resolveContractPath } from './path.js';
 import { ProjectData, Dependency, CairoProgram } from '../types/index.js';
 
-
 /**
  * Encodes Cairo source code for database storage
  * @param code The source code to encode
@@ -34,13 +33,13 @@ export const initializeDatabase = async (
   try {
     let database = await agent.createDatabase('scarb_db');
 
-    if (!database) { 
+    if (!database) {
       database = agent.getDatabaseByName('scarb_db');
       if (!database) {
         throw new Error('Database not found');
       }
     }
-    
+
     const tables = [
       {
         table_name: 'project',
@@ -61,7 +60,7 @@ export const initializeDatabase = async (
           ['name', 'VARCHAR(255) NOT NULL'],
           ['source_code', 'TEXT'],
           ['sierra', 'JSONB'],
-          ['casm', 'JSONB']
+          ['casm', 'JSONB'],
         ]),
       },
       {
@@ -74,14 +73,14 @@ export const initializeDatabase = async (
         ]),
       },
     ];
-    
+
     for (const table of tables) {
       const result = await database.createTable({
         table_name: table.table_name,
         if_not_exist: false,
         fields: table.fields,
       });
-      
+
       if (result.status === 'error') {
         if (result.code === '42P07') {
           console.warn(`Table ${table.table_name} already exists. Adding it.`);
@@ -101,7 +100,6 @@ export const initializeDatabase = async (
     return undefined;
   }
 };
-
 
 /**
  * Creates a new project in the database
@@ -124,7 +122,7 @@ export const createProject = async (
     const existingProject = await database.select({
       SELECT: ['id'],
       FROM: ['project'],
-      WHERE: [`name = '${projectName}'`]
+      WHERE: [`name = '${projectName}'`],
     });
 
     if (existingProject.query && existingProject.query.rows.length > 0) {
@@ -136,23 +134,23 @@ export const createProject = async (
       fields: new Map<string, string>([
         ['id', 'DEFAULT'],
         ['name', projectName],
-        ['type', projectType]
-      ])
+        ['type', projectType],
+      ]),
     });
 
     const newProject = await database.select({
       SELECT: ['id'],
       FROM: ['project'],
-      WHERE: [`name = '${projectName}'`]
+      WHERE: [`name = '${projectName}'`],
     });
-    
+
     if (!newProject.query?.rows.length) {
       throw new Error('Failed to create project');
     }
 
     return newProject.query.rows[0].id;
   } catch (error) {
-    console.error("Error creating project:", error);
+    console.error('Error creating project:', error);
     throw error;
   }
 };
@@ -179,11 +177,11 @@ export const addProgram = async (
     const resolvedPath = resolveContractPath(sourcePath);
     const sourceCode = await fs.readFile(resolvedPath, 'utf-8');
     const encodedCode = encodeSourceCode(sourceCode);
-    
+
     const existingProgram = await database.select({
       SELECT: ['id'],
       FROM: ['program'],
-      WHERE: [`project_id = ${projectId}`, `name = '${name}'`]
+      WHERE: [`project_id = ${projectId}`, `name = '${name}'`],
     });
 
     if (existingProgram.query && existingProgram.query.rows.length > 0) {
@@ -191,7 +189,7 @@ export const addProgram = async (
         table_name: 'program',
         ONLY: false,
         SET: [`source_code = ${encodedCode}`],
-        WHERE: [`id = ${existingProgram.query.rows[0].id}`]
+        WHERE: [`id = ${existingProgram.query.rows[0].id}`],
       });
     } else {
       await database.insert({
@@ -200,8 +198,8 @@ export const addProgram = async (
           ['id', 'DEFAULT'],
           ['project_id', projectId],
           ['name', name],
-          ['source_code', encodedCode]
-        ])
+          ['source_code', encodedCode],
+        ]),
       });
     }
   } catch (error) {
@@ -209,7 +207,6 @@ export const addProgram = async (
     throw error;
   }
 };
-
 
 /**
  * Adds a dependency to the database
@@ -231,16 +228,16 @@ export const addDependency = async (
     const existingDep = await database.select({
       SELECT: ['id'],
       FROM: ['dependency'],
-      WHERE: [`project_id = ${projectId}`, `name = '${dependency.name}'`]
+      WHERE: [`project_id = ${projectId}`, `name = '${dependency.name}'`],
     });
 
     if (existingDep.query && existingDep.query.rows.length > 0) {
-      const correctVersion = (dependency.version || '');
+      const correctVersion = dependency.version || '';
       await database.update({
         table_name: 'dependency',
         ONLY: false,
         SET: [`version = '${correctVersion}'`],
-        WHERE: [`id = ${existingDep.query.rows[0].id}`]
+        WHERE: [`id = ${existingDep.query.rows[0].id}`],
       });
     } else {
       await database.insert({
@@ -249,11 +246,10 @@ export const addDependency = async (
           ['id', 'DEFAULT'],
           ['project_id', projectId],
           ['name', dependency.name],
-          ['version', dependency.version || '']
-        ])
+          ['version', dependency.version || ''],
+        ]),
       });
     }
-
   } catch (error) {
     console.error(`Error adding dependency ${dependency.name}:`, error);
     throw error;
@@ -277,7 +273,7 @@ export const initializeProjectData = async (
 ) => {
   try {
     await initializeDatabase(agent);
-    
+
     const projectId = await createProject(agent, projectName, projectType);
 
     for (const contractPath of contractPaths) {
@@ -289,7 +285,7 @@ export const initializeProjectData = async (
       await addDependency(agent, projectId, dependency);
     }
   } catch (error) {
-    console.error("Error initializing project data:", error);
+    console.error('Error initializing project data:', error);
     throw error;
   }
 };
@@ -313,7 +309,7 @@ export const retrieveProjectData = async (
     const projectResult = await database.select({
       SELECT: ['id', 'name', 'type', 'execution_trace', 'proof', 'verified'],
       FROM: ['project'],
-      WHERE: [`name = '${projectName}'`]
+      WHERE: [`name = '${projectName}'`],
     });
 
     if (!projectResult.query?.rows.length) {
@@ -326,29 +322,31 @@ export const retrieveProjectData = async (
     const programsResult = await database.select({
       SELECT: ['name', 'source_code'],
       FROM: ['program'],
-      WHERE: [`project_id = ${projectId}`]
+      WHERE: [`project_id = ${projectId}`],
     });
 
     const dependenciesResult = await database.select({
       SELECT: ['name', 'version'],
       FROM: ['dependency'],
-      WHERE: [`project_id = ${projectId}`]
+      WHERE: [`project_id = ${projectId}`],
     });
 
-    const programs: CairoProgram[] = (programsResult.query?.rows || []).map(row => ({
-      name: row.name,
-      source_code: decodeSourceCode(row.source_code)
-    }));
+    const programs: CairoProgram[] = (programsResult.query?.rows || []).map(
+      (row) => ({
+        name: row.name,
+        source_code: decodeSourceCode(row.source_code),
+      })
+    );
 
     return {
       id: projectId,
       name: projectName,
-      type: projectType, 
+      type: projectType,
       programs: programs,
-      dependencies: dependenciesResult.query?.rows || []
+      dependencies: dependenciesResult.query?.rows || [],
     };
   } catch (error) {
-    console.error('Error in retrieving data : ', error.message)
+    console.error('Error in retrieving data : ', error.message);
     throw error;
   }
 };
@@ -362,10 +360,10 @@ export const retrieveProjectData = async (
 export const projectAlreadyExists = async (
   agent: StarknetAgentInterface,
   projectName: string
-): Promise<ProjectData | undefined > => {
-    try {
-      return await retrieveProjectData(agent, projectName);
-    } catch (error) {
-      return undefined;
-    }
-}
+): Promise<ProjectData | undefined> => {
+  try {
+    return await retrieveProjectData(agent, projectName);
+  } catch (error) {
+    return undefined;
+  }
+};

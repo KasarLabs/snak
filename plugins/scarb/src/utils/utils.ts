@@ -17,7 +17,7 @@ export function getBootloaderTracePath(stdout: string): string | undefined {
  * @param {string} output - The stdout from scarb execute command
  * @returns {string|null} Just the execution number or null if not found
  */
-export function getExecutionNumber(output : string) {
+export function getExecutionNumber(output: string) {
   const match = output.match(/Saving output to:.*\/execution(\d+)/);
   return match ? match[1] : null;
 }
@@ -27,7 +27,7 @@ export function getExecutionNumber(output : string) {
  * @param {string} output - The stdout from scarb prove command
  * @returns {string|null} - The full path to the proof.json file or null if not found
  */
-export function extractProofJsonPath(output : string) {
+export function extractProofJsonPath(output: string) {
   const match = output.match(/Saving proof to:\s*(.*proof\.json)/);
   return match ? match[1].trim() : null;
 }
@@ -49,7 +49,10 @@ export function extractModuleName(modulePath: string): string {
  * @param contract_index The index of the contract in the artifact file
  * @returns The module name
  */
-export async function extractModuleFromArtifact(artifactFile: string | any, contract_index : number = 0): Promise<string> {
+export async function extractModuleFromArtifact(
+  artifactFile: string | any,
+  contract_index: number = 0
+): Promise<string> {
   try {
     const content = await fsp.readFile(artifactFile, 'utf-8');
     const artifact = JSON.parse(content);
@@ -58,10 +61,12 @@ export async function extractModuleFromArtifact(artifactFile: string | any, cont
       const modulePath = artifact.contracts[contract_index].module_path;
       return extractModuleName(modulePath);
     }
-    
+
     return '';
   } catch (error) {
-    throw new Error(`Failed to extract module from artifact: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to extract module from artifact: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
 
@@ -73,20 +78,21 @@ export async function extractModuleFromArtifact(artifactFile: string | any, cont
  * @returns The path to the file
  */
 export const writeJsonToFile = (
-  data: any, 
-  outputDir: string, 
+  data: any,
+  outputDir: string,
   fileName: string = 'data'
 ): string => {
   try {
     const filePath = path.join(outputDir, fileName);
-    const proofContent = typeof data === 'string' 
-      ? data
-      : JSON.stringify(data, null, 2);
-    
+    const proofContent =
+      typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+
     fs.writeFileSync(filePath, proofContent);
-    
+
     return filePath;
   } catch (error) {
-    throw new Error(`Failed to write JSON to file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to write JSON to file: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 };

@@ -14,13 +14,17 @@ const execAsync = promisify(exec);
  * @param projectDir The Scarb project directory
  * @returns The import results
  */
-export async function importContract(contractContent : string, contractFileName : string, projectDir : string) {
+export async function importContract(
+  contractContent: string,
+  contractFileName: string,
+  projectDir: string
+) {
   const srcDir = path.join(projectDir, 'src');
   const destContractPath = path.join(srcDir, contractFileName);
-  
+
   try {
     await fs.writeFile(destContractPath, contractContent);
-    
+
     const libFilePath = path.join(srcDir, 'lib.cairo');
     let libContent = await fs.readFile(libFilePath, 'utf-8');
 
@@ -28,24 +32,27 @@ export async function importContract(contractContent : string, contractFileName 
     if (!libContent.includes(`mod ${moduleName};`)) {
       libContent += `\nmod ${moduleName};\n`;
     }
-    
+
     await fs.writeFile(libFilePath, libContent);
-    
+
     return {
       success: true,
-      filePath: destContractPath
+      filePath: destContractPath,
     };
   } catch (error) {
     throw new Error(`Failed to prepare contract: ${error.message}`);
   }
 }
 
-/** 
+/**
  * Add several dependencies to a Scarb project
  * @param dependencies The dependencies to add
  * @param projectDir The Scarb project directory
  */
-export async function addSeveralDependancies(dependencies: Dependency[], projectDir: string) {
+export async function addSeveralDependancies(
+  dependencies: Dependency[],
+  projectDir: string
+) {
   try {
     if (dependencies && dependencies.length > 0) {
       for (const dependency of dependencies) {
@@ -53,7 +60,7 @@ export async function addSeveralDependancies(dependencies: Dependency[], project
           package: dependency.name,
           version: dependency.version,
           git: dependency.git,
-          path: projectDir
+          path: projectDir,
         });
       }
     }
@@ -74,16 +81,15 @@ export async function cleanLibCairo(projectDir: string) {
     const defaultLibContent = `// lib.cairo - Module exports for the project`;
 
     await fs.writeFile(libFilePath, defaultLibContent, 'utf-8');
-    
+
     return {
       success: true,
-      message: 'lib.cairo file cleaned successfully'
+      message: 'lib.cairo file cleaned successfully',
     };
   } catch (error) {
     throw new Error(`Failed to clean lib.cairo: ${error.message}`);
   }
 }
-
 
 /**
  * Gets the paths to the generated Sierra and CASM files for each contract and associates them with artifacts file
@@ -98,24 +104,37 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
   const result = {
     sierraFiles: [] as string[],
     casmFiles: [] as string[],
-    artifactFile: path.join(projectDir, 'target/dev', path.basename(projectDir) + '.starknet_artifacts.json')
+    artifactFile: path.join(
+      projectDir,
+      'target/dev',
+      path.basename(projectDir) + '.starknet_artifacts.json'
+    ),
   };
-  
+
   try {
     const targetDir = path.join(projectDir, 'target/dev');
-    const files = (await fs.readdir(targetDir, { recursive: true })) as string[];
-    
+    const files = (await fs.readdir(targetDir, {
+      recursive: true,
+    })) as string[];
+
     result.sierraFiles = files
-      .filter(file => typeof file === 'string' && file.endsWith('.contract_class.json'))
-      .map(file => path.join(targetDir, file));
-      
+      .filter(
+        (file) =>
+          typeof file === 'string' && file.endsWith('.contract_class.json')
+      )
+      .map((file) => path.join(targetDir, file));
+
     result.casmFiles = files
-      .filter(file => typeof file === 'string' && file.endsWith('.compiled_contract_class.json'))
-      .map(file => path.join(targetDir, file));
+      .filter(
+        (file) =>
+          typeof file === 'string' &&
+          file.endsWith('.compiled_contract_class.json')
+      )
+      .map((file) => path.join(targetDir, file));
   } catch (error) {
     throw new Error(`Failed to get generated contract files: ${error.message}`);
   }
-  
+
   return result;
 }
 
@@ -127,26 +146,37 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
  * @returns Promise<boolean> True if the file was modified, false if no modification was needed
  * @throws Error if the target function cannot be found in the file
  */
-export async function addExecutableTag(filePath: string, targetFunction: string): Promise<boolean> {
+export async function addExecutableTag(
+  filePath: string,
+  targetFunction: string
+): Promise<boolean> {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
-    const functionRegex = new RegExp(`(^|\\n)fn\\s+${targetFunction}\\s*\\(`, 'm');
+    const functionRegex = new RegExp(
+      `(^|\\n)fn\\s+${targetFunction}\\s*\\(`,
+      'm'
+    );
     if (!functionRegex.test(content)) {
-      throw new Error(`Target function '${targetFunction}' not found in ${filePath}`);
+      throw new Error(
+        `Target function '${targetFunction}' not found in ${filePath}`
+      );
     }
-    
-    const executableRegex = new RegExp(`(^|\\n)#\\[executable\\]\\s*\\n\\s*fn\\s+${targetFunction}\\s*\\(`, 'm');
+
+    const executableRegex = new RegExp(
+      `(^|\\n)#\\[executable\\]\\s*\\n\\s*fn\\s+${targetFunction}\\s*\\(`,
+      'm'
+    );
     if (executableRegex.test(content)) {
       return false;
     }
-    
+
     const modifiedContent = content.replace(
       functionRegex,
       `\n#[executable]\nfn ${targetFunction}(`
     );
 
     await fs.writeFile(filePath, modifiedContent);
-    
+
     return true;
   } catch (error) {
     throw new Error(`Failed to add executable tag: ${error.message}`);
@@ -167,7 +197,11 @@ export async function processContractForExecution(
   targetFunction: string
 ): Promise<void> {
   try {
-    const result = await importContract(contractContent, contractFileName, projectDir);
+    const result = await importContract(
+      contractContent,
+      contractFileName,
+      projectDir
+    );
     const destContractPath = result.filePath;
     await addExecutableTag(destContractPath, targetFunction);
   } catch (error) {
@@ -184,7 +218,7 @@ export async function processContractForExecution(
  * @throws Error if the project limit is reached
  */
 export async function checkWorkspaceLimit(
-  workspaceDir: string, 
+  workspaceDir: string,
   projectName: string,
   maxProjects: number = 10
 ): Promise<void> {
@@ -193,15 +227,17 @@ export async function checkWorkspaceLimit(
 
     const entries = await fs.readdir(workspaceDir, { withFileTypes: true });
     const projects = entries
-      .filter(entry => entry.isDirectory())
-      .map(dir => dir.name);
-    
+      .filter((entry) => entry.isDirectory())
+      .map((dir) => dir.name);
+
     const projectExists = projects.includes(projectName);
     if (projectExists) {
       return;
     }
     if (projects.length >= maxProjects) {
-      throw new Error(`Workspace project limit of ${maxProjects} reached. Please delete old projects before creating new ones.`);
+      throw new Error(
+        `Workspace project limit of ${maxProjects} reached. Please delete old projects before creating new ones.`
+      );
     }
   } catch (error) {
     throw new Error(`Failed to check workspace limit: ${error.message}`);
@@ -216,7 +252,7 @@ export async function checkWorkspaceLimit(
  * @param {Object} params.values - Object with key-value pairs to add to the section
  * @returns {Promise<string>} JSON string with operation status and details
  */
-export const addTomlSection = async (params : any) => {
+export const addTomlSection = async (params: any) => {
   try {
     const workingDir = params.workingDir;
     const sectionTitle = params.sectionTitle;
@@ -228,22 +264,24 @@ export const addTomlSection = async (params : any) => {
     } catch (error) {
       throw new Error(`TOML file not found at ${tomlPath}`);
     }
-    
+
     let tomlContent = await fs.readFile(tomlPath, 'utf8');
-    
+
     const isSingleSection = !sectionTitle.includes('.');
-    const formattedTitle = isSingleSection 
-      ? `[${sectionTitle}]` 
+    const formattedTitle = isSingleSection
+      ? `[${sectionTitle}]`
       : `[[${sectionTitle}]]`;
-    
+
     const formatValue = (value: any) => {
       if (typeof value === 'string') return `"${value}"`;
-      else if (typeof value === 'boolean' || typeof value === 'number') return value;
-      else if (Array.isArray(value)) return `[${value.map(v => typeof v === 'string' ? `"${v}"` : v).join(', ')}]`;
+      else if (typeof value === 'boolean' || typeof value === 'number')
+        return value;
+      else if (Array.isArray(value))
+        return `[${value.map((v) => (typeof v === 'string' ? `"${v}"` : v)).join(', ')}]`;
       else if (value === null) return 'null';
       else return JSON.stringify(value);
     };
-    
+
     const sectionContent = Object.entries(valuesObject)
       .map(([key, value]) => `${key} = ${formatValue(value)}`)
       .join('\n');
@@ -252,22 +290,22 @@ export const addTomlSection = async (params : any) => {
       `${formattedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\s\\S]*?)(\\n\\n|\\n\\[|$)`,
       'g'
     );
-    
+
     const sectionMatch = sectionRegex.exec(tomlContent);
-    
+
     if (sectionMatch) {
       const existingContent = sectionMatch[1];
       const existingLines = existingContent.trim().split('\n');
-      const existingKeys = existingLines.map(line => {
+      const existingKeys = existingLines.map((line) => {
         const parts = line.trim().split('=');
         return parts[0]?.trim();
       });
-  
+
       let updatedContent = existingContent;
-      
+
       for (const [key, value] of Object.entries(valuesObject)) {
         const formattedKeyValue = `${key} = ${formatValue(value)}`;
-        
+
         if (existingKeys.includes(key)) {
           const keyRegex = new RegExp(`${key}\\s*=.*`, 'g');
           updatedContent = updatedContent.replace(keyRegex, formattedKeyValue);
@@ -276,7 +314,7 @@ export const addTomlSection = async (params : any) => {
           updatedContent += formattedKeyValue + '\n';
         }
       }
-      
+
       tomlContent = tomlContent.replace(
         sectionRegex,
         `${formattedTitle}${updatedContent}${sectionMatch[2]}`
@@ -284,48 +322,43 @@ export const addTomlSection = async (params : any) => {
     } else {
       tomlContent += `\n\n${formattedTitle}\n${sectionContent}`;
     }
-    
+
     await fs.writeFile(tomlPath, tomlContent, 'utf8');
-    
+
     return JSON.stringify({
       status: 'success',
       message: `Scarb.toml updated with ${sectionTitle} section`,
       newConfig: tomlContent,
     });
   } catch (error) {
-      throw new Error(`Error updating Scarb.toml: ${error.message}`);
+    throw new Error(`Error updating Scarb.toml: ${error.message}`);
   }
 };
-
 
 /**
  * Adds a dependency to a Scarb project
  * @param params The dependency parameters
  * @returns The dependency addition results
  */
-export const addDependency = async (
-  params: { 
-    package: string;
-    version?: string;
-    git?: string;
-    path?: string;
-  }
-) => {
+export const addDependency = async (params: {
+  package: string;
+  version?: string;
+  git?: string;
+  path?: string;
+}) => {
   try {
     const workingDir = params.path || process.cwd();
     let command = `scarb add ${params.package}`;
-    
+
     if (params.git) {
       command += ` --git ${params.git}`;
     }
     if (params.version) {
-      if (params.git) 
-        command += ` --tag ${params.version}`;
-      else 
-        command += `@${params.version}`;
+      if (params.git) command += ` --tag ${params.version}`;
+      else command += `@${params.version}`;
     }
     const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
-    
+
     return JSON.stringify({
       status: 'success',
       message: `Dependency ${params.package} added successfully`,
@@ -333,17 +366,20 @@ export const addDependency = async (
       errors: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to add dependancie to scarb project: ${error.message}`);
+    throw new Error(
+      `Failed to add dependancie to scarb project: ${error.message}`
+    );
   }
 };
-  
 
 /**
  * Checks if a Scarb project has been initialized
  * @param projectDir The Scarb project directory
  * @returns True if the project has been initialized, false otherwise
  */
-export async function isProjectInitialized(projectDir: string): Promise<boolean> {
+export async function isProjectInitialized(
+  projectDir: string
+): Promise<boolean> {
   try {
     const scarbTomlPath = path.join(projectDir, 'Scarb.toml');
     await fs.access(scarbTomlPath);
@@ -359,12 +395,12 @@ export async function isProjectInitialized(projectDir: string): Promise<boolean>
  * @param projectName The project name
  * @returns The project directory
  */
-export async function getProjectDir(projectName : string) {
+export async function getProjectDir(projectName: string) {
   const workspaceDir = getWorkspacePath();
   try {
     await fs.mkdir(workspaceDir, { recursive: true });
   } catch (error) {}
-  
+
   await checkWorkspaceLimit(workspaceDir, projectName);
   return path.join(workspaceDir, projectName);
 }

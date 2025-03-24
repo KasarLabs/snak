@@ -11,7 +11,6 @@ import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
 
-
 export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const twitter_interface: TwitterInterface = {};

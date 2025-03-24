@@ -4,10 +4,10 @@ import { executeProgram } from '../actions/executeProgram.js';
 import { proveProgram } from '../actions/proveProgram.js';
 import { verifyProgram } from '../actions/verifyProgram.js';
 import { registerProject } from '../actions/registerProject.js';
-import { 
-  deleteProgramAction, 
-  deleteDependencyAction, 
-  deleteProjectAction 
+import {
+  deleteProgramAction,
+  deleteDependencyAction,
+  deleteProjectAction,
 } from '../actions/deleteItemProject.js';
 import {
   executeProgramSchema,
@@ -18,7 +18,7 @@ import {
   registerProjectSchema,
   deleteProgramSchema,
   deleteDependencySchema,
-  deleteProjectSchema
+  deleteProjectSchema,
 } from '../schema/schema.js';
 import {
   PostgresAdaptater,
@@ -114,7 +114,8 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_delete_project',
-    description: 'Delete an entire Cairo project and all its data from the database',
+    description:
+      'Delete an entire Cairo project and all its data from the database',
     plugins: 'scarb',
     schema: deleteProjectSchema,
     execute: deleteProjectAction,

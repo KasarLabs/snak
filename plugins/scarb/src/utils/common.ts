@@ -1,6 +1,11 @@
 import { checkScarbInstalled } from './install.js';
 import { initProject } from './command.js';
-import { ScarbBaseParams, TomlSection, Dependency, CairoProgram } from '../types/index.js';
+import {
+  ScarbBaseParams,
+  TomlSection,
+  Dependency,
+  CairoProgram,
+} from '../types/index.js';
 import {
   addSeveralDependancies,
   isProjectInitialized,
@@ -8,9 +13,8 @@ import {
   getProjectDir,
   cleanLibCairo,
   processContractForExecution,
-  importContract
+  importContract,
 } from './preparation.js';
-
 
 // write all the jsdoc in english please
 
@@ -31,14 +35,13 @@ export async function setupScarbProject(
     if (!isInitialized) {
       await initProject({ name: params.projectName, projectDir });
     }
-    
+
     return projectDir;
   } catch (error) {
     console.error('Error setting up Scarb project:', error);
     throw error;
   }
 }
-
 
 /**
  * Set up a Scarb project with TOML sections
@@ -48,48 +51,44 @@ export async function setupScarbProject(
  * @param requiredDependencies The required dependencies
  */
 export async function setupToml(
-    projectDir: string,
-    sections: TomlSection[],
-    dependencies?: Dependency[],
-    requiredDependencies?: Dependency[]
-  ): Promise<void> {
-    for (const section of sections) {
-      await addTomlSection({
-        workingDir: projectDir,
-        sectionTitle: section.sectionTitle,
-        valuesObject: section.valuesObject
-      });
-    }
-    await addSeveralDependancies(requiredDependencies || [], projectDir);
-    await addSeveralDependancies(dependencies || [], projectDir);
+  projectDir: string,
+  sections: TomlSection[],
+  dependencies?: Dependency[],
+  requiredDependencies?: Dependency[]
+): Promise<void> {
+  for (const section of sections) {
+    await addTomlSection({
+      workingDir: projectDir,
+      sectionTitle: section.sectionTitle,
+      valuesObject: section.valuesObject,
+    });
   }
+  await addSeveralDependancies(requiredDependencies || [], projectDir);
+  await addSeveralDependancies(dependencies || [], projectDir);
+}
 
-  export async function setupSrc(
-    projectDir: string,
-    programs: CairoProgram[],
-    formattedExecutable?: string
-  ): Promise<void> {
-    await cleanLibCairo(projectDir);
-    
-    if (formattedExecutable) {
-      const parts = formattedExecutable.split('::');
-      const executableFunctionName = parts[2] || 'main';
+export async function setupSrc(
+  projectDir: string,
+  programs: CairoProgram[],
+  formattedExecutable?: string
+): Promise<void> {
+  await cleanLibCairo(projectDir);
 
-      for (const program of programs) {
-        await processContractForExecution(
-          program.source_code,
-          program.name,
-          projectDir,
-          executableFunctionName
-        );
-      }
-    } else {
-      for (const program of programs) {
-        await importContract(
-          program.source_code,
-          program.name,
-          projectDir
-        );
-      }
+  if (formattedExecutable) {
+    const parts = formattedExecutable.split('::');
+    const executableFunctionName = parts[2] || 'main';
+
+    for (const program of programs) {
+      await processContractForExecution(
+        program.source_code,
+        program.name,
+        projectDir,
+        executableFunctionName
+      );
+    }
+  } else {
+    for (const program of programs) {
+      await importContract(program.source_code, program.name, projectDir);
     }
   }
+}

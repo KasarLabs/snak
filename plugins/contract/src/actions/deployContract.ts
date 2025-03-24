@@ -32,7 +32,11 @@ export const deployContract = async (
 
     const contractManager = new ContractManager(account);
 
-    const { sierraPath, casmPath } = await getSierraCasmFromDB(agent, params.projectName, params.contractName);
+    const { sierraPath, casmPath } = await getSierraCasmFromDB(
+      agent,
+      params.projectName,
+      params.contractName
+    );
     await contractManager.loadContractCompilationFiles(sierraPath, casmPath);
     await contractManager.loadAbiFile();
 

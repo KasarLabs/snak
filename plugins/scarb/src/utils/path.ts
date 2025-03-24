@@ -7,20 +7,23 @@ import * as path from 'path';
  * @param startDir The directory to start the search from
  * @returns The absolute path to the file
  */
-function findUp(filename: string, startDir: string = process.cwd()): string | null {
+function findUp(
+  filename: string,
+  startDir: string = process.cwd()
+): string | null {
   let currentDir = path.resolve(startDir);
   const { root } = path.parse(currentDir);
-  
+
   while (true) {
     const filePath = path.join(currentDir, filename);
     if (fs.existsSync(filePath)) {
       return filePath;
     }
-    
+
     if (currentDir === root) {
       return null;
     }
-    
+
     currentDir = path.dirname(currentDir);
   }
 }
@@ -44,11 +47,11 @@ function getRepoRoot() {
 export function getPluginRoot() {
   const repoRoot = getRepoRoot();
   const pluginPath = path.join(repoRoot, 'plugins', 'scarb');
-  
+
   if (!fs.existsSync(pluginPath)) {
     throw new Error(`Plugin Scarb not found: ${pluginPath}`);
   }
-  
+
   return pluginPath;
 }
 
@@ -58,7 +61,7 @@ export function getPluginRoot() {
  */
 export function getWorkspacePath() {
   const workspacePath = path.join(getPluginRoot(), 'src', 'workspace');
-  
+
   if (!fs.existsSync(workspacePath)) {
     try {
       fs.mkdirSync(workspacePath, { recursive: true });
@@ -66,7 +69,7 @@ export function getWorkspacePath() {
       throw new Error(`Failed to create workspace directory: ${workspacePath}`);
     }
   }
-  
+
   return workspacePath;
 }
 
@@ -90,14 +93,14 @@ export function resolveContractPath(contractPath: string): string {
     contractPath,
     path.resolve(process.cwd(), contractPath),
     resolvePluginPath('src', 'contract', path.basename(contractPath)),
-    path.join(getWorkspacePath(), path.basename(contractPath))
+    path.join(getWorkspacePath(), path.basename(contractPath)),
   ];
-  
+
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
       return p;
     }
   }
-  
+
   throw new Error(`Contract file not found: ${contractPath}`);
 }

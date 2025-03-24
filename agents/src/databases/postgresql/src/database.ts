@@ -386,12 +386,12 @@ export class PostgresAdaptater {
     }
   };
 
-   /**
+  /**
    * Inserts data into a table
    * @param {insertOptionInterface} options - Insert options
    * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
    */
-   public insert = async (
+  public insert = async (
     options: insertOptionInterface,
     values?: Array<any>
   ): Promise<QueryResponseInterface> => {
