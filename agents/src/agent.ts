@@ -96,7 +96,6 @@ export const createAgent = async (
     if (json_config.mcp === true) {
       const mcp = new MCP_CONTROLLER();
       await mcp.initializeConnections();
-      console.log(mcp.getTools());
       tools = [...tools, ...mcp.getTools()];
     }
 

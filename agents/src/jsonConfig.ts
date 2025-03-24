@@ -14,7 +14,6 @@ export interface Token {
   amount: number;
 }
 
-
 export interface JsonConfig {
   name: string;
   prompt?: SystemMessage;
@@ -230,7 +229,6 @@ const checkParseJson = async (
 export const load_json_config = async (
   agent_config_name: string
 ): Promise<JsonConfig | undefined> => {
-
   try {
     const json = await checkParseJson(agent_config_name);
     if (!json) {

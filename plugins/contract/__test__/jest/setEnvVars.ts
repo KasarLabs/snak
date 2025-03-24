@@ -24,7 +24,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     internal_plugins: [],
   };
 
-
   return {
     getAccountCredentials: () => ({
       accountPublicKey:
@@ -59,7 +58,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     internal_plugins: [],
   };
-
 
   return {
     getAccountCredentials: () => ({

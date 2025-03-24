@@ -2,7 +2,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { RpcProvider } from 'starknet';
 import {
-  StarknetAgentInterface,
   JsonConfig,
   StarknetAgent,
   registerTools,
@@ -54,13 +53,6 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     agentMode: 'agent',
     agentconfig: JsonConfig,
   });
-  if (allowed_tools.find((tool) => tool === 'twitter')) {
-    await agent.initializeTwitterManager();
-  }
-
-  if (allowed_tools.find((tool) => tool === 'telegram')) {
-    await agent.initializeTelegramManager();
-  }
   const tools: StarknetTool[] = [];
   await registerTools(agent, allowed_tools, tools);
   for (const tool of tools) {

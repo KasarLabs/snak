@@ -2,6 +2,7 @@ import { StructuredTool } from '@langchain/core/tools';
 import { MultiServerMCPClient } from 'snak-mcps';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from '@/src/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,9 +19,9 @@ export class MCP_CONTROLLER {
       'mcp',
       'mcp.config.json'
     );
-    console.log(`MCP config path: ${mcp_config_path}`);
+    logger.info(`MCP config path: ${mcp_config_path}`);
     this.client = MultiServerMCPClient.fromConfigFile(mcp_config_path);
-    console.log('MCP_CONTROLLER initialized');
+    logger.info('MCP_CONTROLLER initialized');
   }
   private parseTools = () => {
     try {
