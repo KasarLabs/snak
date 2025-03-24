@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { PostgresAdaptater } from '../src/database.js';
 import {
   PostgresDatabasePoolInterface,
-  updateOptionInterface,
   deleteOptionInterface,
   PostgresTables,
 } from '../src/interfaces/interfaces.js';

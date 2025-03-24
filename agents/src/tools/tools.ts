@@ -30,7 +30,7 @@ export interface StarknetTool<P = any> {
   name: string;
   plugins: string;
   description: string;
-  schema?: object;
+  schema?: Zod.AnyZodObject;
   responseFormat?: string;
   execute: (
     agent: StarknetAgentInterface,
