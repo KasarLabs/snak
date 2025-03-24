@@ -2,10 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Recherche un fichier en remontant dans les répertoires parents
- * @param filename Le nom du fichier à rechercher
- * @param startDir Le répertoire de départ (par défaut: répertoire courant)
- * @returns Le chemin complet si trouvé, null sinon
+ * Search for a file in the parent directories
+ * @param filename The name of the file to search for
+ * @param startDir The directory to start the search from
+ * @returns The absolute path to the file
  */
 function findUp(filename: string, startDir: string = process.cwd()): string | null {
   let currentDir = path.resolve(startDir);
@@ -17,58 +17,53 @@ function findUp(filename: string, startDir: string = process.cwd()): string | nu
       return filePath;
     }
     
-    // Stop si nous atteignons la racine du système de fichiers
     if (currentDir === root) {
       return null;
     }
     
-    // Remonter d'un niveau
     currentDir = path.dirname(currentDir);
   }
 }
 
 /**
- * Détecte la racine du repository en cherchant un package.json parent
- * @returns Chemin absolu vers la racine du repository
+ * Get the root path of the repository
+ * @returns The absolute path to the repository root
  */
 function getRepoRoot() {
   const rootPackageJsonPath = findUp('lerna.json');
   if (!rootPackageJsonPath) {
-    throw new Error('Impossible de trouver la racine du repository');
+    throw new Error('File lerna.json not found');
   }
   return path.dirname(rootPackageJsonPath);
 }
 
 /**
- * Obtient le chemin racine du plugin Scarb
- * @returns Chemin absolu vers le répertoire du plugin Scarb
+ * Get the path to the Scarb plugin directory
+ * @returns The absolute path to the plugin directory
  */
 export function getPluginRoot() {
   const repoRoot = getRepoRoot();
   const pluginPath = path.join(repoRoot, 'plugins', 'scarb');
   
-  // Vérification que le chemin existe
   if (!fs.existsSync(pluginPath)) {
-    throw new Error(`Chemin du plugin non trouvé: ${pluginPath}`);
+    throw new Error(`Plugin Scarb not found: ${pluginPath}`);
   }
   
   return pluginPath;
 }
 
 /**
- * Obtient le chemin vers le répertoire workspace du plugin Scarb
- * @returns Chemin absolu vers le répertoire workspace
+ * Get the path to the workspace directory
+ * @returns The absolute path to the workspace directory
  */
 export function getWorkspacePath() {
   const workspacePath = path.join(getPluginRoot(), 'src', 'workspace');
   
-  // Création du répertoire s'il n'existe pas
   if (!fs.existsSync(workspacePath)) {
     try {
       fs.mkdirSync(workspacePath, { recursive: true });
-      // console.log(`Répertoire workspace créé: ${workspacePath}`);
     } catch (error) {
-      console.error(`Erreur lors de la création du répertoire workspace: ${error.message}`);
+      throw new Error(`Failed to create workspace directory: ${workspacePath}`);
     }
   }
   
@@ -92,18 +87,17 @@ export function resolvePluginPath(...paths: string[]) {
  */
 export function resolveContractPath(contractPath: string): string {
   const possiblePaths = [
-    contractPath, // Chemin absolu fourni
-    path.resolve(process.cwd(), contractPath), // Relatif au CWD
-    resolvePluginPath('src', 'contract', path.basename(contractPath)), // Dans le dossier contract du plugin
-    path.join(getWorkspacePath(), path.basename(contractPath)) // Dans le workspace
+    contractPath,
+    path.resolve(process.cwd(), contractPath),
+    resolvePluginPath('src', 'contract', path.basename(contractPath)),
+    path.join(getWorkspacePath(), path.basename(contractPath))
   ];
   
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
-      // console.log(`Chemin de contrat résolu: ${p}`);
       return p;
     }
   }
   
-  throw new Error(`Impossible de résoudre le chemin du contrat: ${contractPath}`);
+  throw new Error(`Contract file not found: ${contractPath}`);
 }

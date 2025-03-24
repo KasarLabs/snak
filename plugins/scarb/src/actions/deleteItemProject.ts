@@ -1,4 +1,3 @@
-// src/actions/deleteProjectElements.ts
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { deleteProgram, deleteDependency, deleteProject } from '../utils/db_delete.js';

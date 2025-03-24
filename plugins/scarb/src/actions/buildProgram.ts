@@ -4,21 +4,21 @@ import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { 
   getGeneratedContractFiles
 } from '../utils/preparation.js';
-import { retrieveProjectData, Dependency } from '../utils/db_init.js';
+import { retrieveProjectData } from '../utils/db_init.js';
 import { saveCompilationResults } from '../utils/db_save.js';
 import { cleanProject } from '../utils/command.js';
+import { compileContractSchema } from '../schema/schema.js';
+import { z } from 'zod';
 
-
-export interface CompileContractParams {
-  projectName: string;
-  contractPaths: string[];
-  targetDir?: string;
-  dependencies?: Dependency[];
-}
-
+/**
+ * Compile a contract
+ * @param agent The Starknet agent
+ * @param params The parameters of the compilation
+ * @returns The compilation results
+ */
 export const compileContract = async (
   agent: StarknetAgentInterface,
-  params: CompileContractParams
+  params: z.infer<typeof compileContractSchema>
 ) => {
   let projectDir = "";
   try {
@@ -53,9 +53,6 @@ export const compileContract = async (
       contractFiles.artifactFile
     );
 
-    // const files = await retrieveCompilationFilesByName(agent, params.projectName, projectData.programs[0].name);
-    // console.log(`Sierra and CASM retrieved successfully`);
-
     return JSON.stringify({
       status: 'success',
       message: `Contract compiled successfully`,
@@ -64,7 +61,7 @@ export const compileContract = async (
       projectDir: projectDir
     });
   } catch (error) {
-    console.log("Error compiling contract:", error);
+    console.error("Error compiling contract:", error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

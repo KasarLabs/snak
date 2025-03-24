@@ -1,18 +1,17 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { executeProject } from '../utils/command.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
-import { retrieveProjectData, Dependency } from '../utils/db_init.js';
+import { retrieveProjectData } from '../utils/db_init.js';
 import { executeProgramSchema } from '../schema/schema.js';
 import { z } from 'zod';
 import { saveExecutionResults } from '../utils/db_save.js';
 import { cleanProject } from '../utils/command.js';
 
 /**
-  * Execute a StarkNet contract
-  *
-  * @param agent The StarkNet agent
-  * @param params The contract execution parameters
-  * @returns The contract execution result
+ * Execute a program
+ * @param agent The Starknet agent
+ * @param params The parameters of the execution
+ * @returns The execution results
  */
 export const executeProgram = async (
   agent: StarknetAgentInterface,
@@ -81,10 +80,6 @@ export const executeProgram = async (
           parsedExecResult.tracePath
         )
       }
-
-      // const retrievedTracePath = 'cairo_trace.zip'
-      // const files = await retrieveTrace(agent, projectData.name, retrievedTracePath);
-      // console.log(`Trace retrieved successfully`);
 
       return JSON.stringify({
         status: 'success',

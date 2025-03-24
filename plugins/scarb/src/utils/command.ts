@@ -1,10 +1,16 @@
 import { extractProofJsonPath, getExecutionNumber, getBootloaderTracePath } from './utils.js';
+import { ExecuteContractParams, ProveProjectParams, VerifyProjectParams } from '../types/index.js';
 import * as fs from 'fs/promises';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+/**
+ * Initialize a new Scarb project
+ * @param params The project name and directory
+ * @returns The initialization results
+ */
 export const initProject = async (
   params: { 
     name: string,
@@ -25,11 +31,17 @@ export const initProject = async (
       errors: stderr || undefined,
     });
   } catch (error) {
-    console.log(`error = ${error}`);
-    throw new Error(`Failed to initialize scarb project: ${error.message}`);
+    console.error(`Failed to initialize scarb project: ${error.message}`);
+    throw error;
   }
 };
 
+
+/**
+ * Build a Scarb project
+ * @param params The project directory
+ * @returns The build results
+ */
 export const buildProject = async (
   params: { path: string }
 ) => {
@@ -43,23 +55,24 @@ export const buildProject = async (
       errors: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to compile project at ${params.path}: ${error.message}`);
+    console.error(`Failed to build project at ${params.path}: ${error.message}`);
+    throw error;
   }
 };
 
 
+/**
+ * Clean a Scarb project
+ * @param params The project directory
+ * @returns The clean results
+ */
 export const cleanProject = async (
   params: { path: string, removeDirectory?: boolean }
 ) => {
   try {
     const { stdout, stderr } = await execAsync('scarb clean', { cwd: params.path });
     if (params.removeDirectory) {
-      try {
         await fs.rm(params.path, { recursive: true, force: true });
-        console.log(`Removed project directory: ${params.path}`);
-      } catch (deleteError) {
-        console.error(`Failed to remove directory ${params.path}: ${deleteError.message}`);
-      }
     }
     
     return JSON.stringify({
@@ -71,18 +84,17 @@ export const cleanProject = async (
       errors: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to clean project at ${params.path}: ${error.message}`);
+    console.error(`Failed to clean project at ${params.path}: ${error.message}`);
+    throw error;
   }
 };
 
 
-export interface ExecuteContractParams {
-  projectDir: string;
-  formattedExecutable: string;
-  arguments?: string;
-  target: string;
-}
-
+/**
+ * Execute a Scarb project
+ * @param params The project directory, target, executable function, and arguments
+ * @returns The execution results
+ */
 export const executeProject = async (
   params: ExecuteContractParams
 ) => {
@@ -95,10 +107,6 @@ export const executeProject = async (
     
     const executionId = params.target === 'standalone' ? getExecutionNumber(stdout) : undefined;
     const tracePath = params.target === 'bootloader' ? getBootloaderTracePath(stdout) : undefined;
-    
-    console.log(`Executed program in ${projectDir} with command: ${command}`);
-    if (executionId) console.log(`Execution ID: ${executionId}`);
-    if (tracePath) console.log(`Trace path: ${tracePath}`);
 
     return JSON.stringify({
       status: 'success',
@@ -109,16 +117,17 @@ export const executeProject = async (
       error: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Error executing program: ${error.message}`);
+    console.error(`Failed to execute program: ${error.message}`);
+    throw error;
   }
 };
 
 
-export interface ProveProjectParams {
-  projectDir: string;
-  executionId: string;
-}
-
+/**
+ * Prove a Scarb project execution
+ * @param params The project directory and execution ID
+ * @returns The proof results
+ */
 export const proveProject = async (
   params: ProveProjectParams
 ) => {
@@ -130,9 +139,6 @@ export const proveProject = async (
     if (!proofPath) {
       throw new Error("Could not locate proof.json file path in command output");
     }
-    
-    console.log(`Proved execution of the id ${params.executionId} in ${params.projectDir} with command: ${command}`);
-    console.log("proofPath : ", proofPath);
 
     return JSON.stringify({
       status: 'success',
@@ -142,16 +148,17 @@ export const proveProject = async (
       error: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Error proving program: ${error.message}`);
+    console.error(`Failed to prove program: ${error.message}`);
+    throw error;
   }
 };
 
 
-export interface VerifyProjectParams {
-  projectDir: string;
-  proofPath: string;
-}
-
+/**
+ * Verify a Scarb project proof
+ * @param params The project directory and proof path
+ * @returns The verification results
+ */
 export const verifyProject = async (
   params: VerifyProjectParams
 ) => {
@@ -166,6 +173,7 @@ export const verifyProject = async (
       error: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Error verifying proof: ${error.message}`);
+    console.error(`Failed to verify proof: ${error.message}`);
+    throw error;
   }
 };

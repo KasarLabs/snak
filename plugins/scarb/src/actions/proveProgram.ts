@@ -6,10 +6,14 @@ import { z } from 'zod';
 import { saveProof } from '../utils/db_save.js';
 import { retrieveProjectData } from '../utils/db_init.js';
 import { cleanProject } from '../utils/command.js';
-import { setupScarbProject } from '../utils/common.js';
 import { getProjectDir } from '../utils/preparation.js';
-import { get } from 'http';
 
+/**
+ * Prove a program execution
+ * @param agent The Starknet agent
+ * @param params The parameters of the proof
+ * @returns The proof results
+ */
 export const proveProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof proveProgramSchema>

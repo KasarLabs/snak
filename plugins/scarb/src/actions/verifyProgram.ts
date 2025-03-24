@@ -9,6 +9,12 @@ import { setupScarbProject } from '../utils/common.js';
 import { writeJsonToFile } from '../utils/utils.js';
 import { cleanProject } from '../utils/command.js';
 
+/**
+ * Verify a program
+ * @param agent The Starknet agent
+ * @param params The parameters of the verification
+ * @returns The verification results
+ */
 export const verifyProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof verifyProgramSchema>

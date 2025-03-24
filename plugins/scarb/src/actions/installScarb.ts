@@ -1,14 +1,15 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { checkScarbInstalled, getScarbVersion } from '../utils/install.js';
 
 const execAsync = promisify(exec);
 
-export const installScarb = async (
-  agent: StarknetAgentInterface,
-  params: { path?: string }
-) => {
+/**
+ * Install Scarb
+ * @returns The installation results
+ */
+export const installScarb = async ( 
+): Promise<string> => {
   try {
     let version =  await getScarbVersion();
     if (version !== 'unknown') {
@@ -29,7 +30,7 @@ export const installScarb = async (
       errors: stderr || undefined,
     });
   } catch (error) {
-
+    console.error("Error installing Scarb:", error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

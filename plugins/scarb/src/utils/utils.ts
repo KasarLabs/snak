@@ -1,3 +1,12 @@
+import * as fsp from 'fs/promises';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Get the trace path from the stdout of the bootloader command
+ * @param stdout The stdout from the bootloader command
+ * @returns The path to the trace file or undefined if not found
+ */
 export function getBootloaderTracePath(stdout: string): string | undefined {
   const match = stdout.match(/Saving output to: (.+\.zip)/);
   return match ? match[1] : undefined;
@@ -24,30 +33,26 @@ export function extractProofJsonPath(output : string) {
 }
 
 /**
- * Extrait le nom du module depuis le module_path d'un contrat
- * @param modulePath Format: "relou::test::SimpleStorage"
- * @returns Le nom du module (ex: "test")
+ * Extracts the module name from a module path
+ * @param modulePath The module path
+ * @returns The module name
  */
 export function extractModuleName(modulePath: string): string {
   if (!modulePath) return '';
-  console.log('modulePath:', modulePath);
   const parts = modulePath.split('::');
-  console.log('parts:', parts);
-  // Le module est l'avant-dernier élément du chemin
   return parts[parts.length - 2];
 }
 
-import * as fsp from 'fs/promises';
 /**
- * Extrait le nom du module depuis un objet d'artifact
- * @param artifactContent String JSON ou objet artifact
- * @returns Le nom du module
+ * Extracts the module name from a StarkNet artifact file
+ * @param artifactFile The path to the artifact file
+ * @param contract_index The index of the contract in the artifact file
+ * @returns The module name
  */
 export async function extractModuleFromArtifact(artifactFile: string | any, contract_index : number = 0): Promise<string> {
   try {
     const content = await fsp.readFile(artifactFile, 'utf-8');
     const artifact = JSON.parse(content);
-    console.log('artifact:', artifact);
 
     if (artifact.contracts && artifact.contracts.length > 0) {
       const modulePath = artifact.contracts[contract_index].module_path;
@@ -56,20 +61,16 @@ export async function extractModuleFromArtifact(artifactFile: string | any, cont
     
     return '';
   } catch (error) {
-    console.error('Erreur lors de l\'extraction du module:', error);
-    throw new Error('Erreur lors de l\'extraction du module');
+    throw new Error(`Failed to extract module from artifact: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
-
-import * as fs from 'fs';
-import * as path from 'path';
 /**
- * Écrit des données JSON dans un fichier et renvoie le chemin du fichier
- * @param data Les données JSON à écrire (string ou objet)
- * @param outputDir Le répertoire où écrire le fichier
- * @param fileName Nom du fichier (sans extension)
- * @returns Le chemin complet vers le fichier créé
+ * Write JSON data to a file
+ * @param data The JSON data
+ * @param outputDir The output directory
+ * @param fileName The file name
+ * @returns The path to the file
  */
 export const writeJsonToFile = (
   data: any, 
@@ -84,11 +85,8 @@ export const writeJsonToFile = (
     
     fs.writeFileSync(filePath, proofContent);
     
-    console.log(`JSON data written to: ${filePath}`);
-    
     return filePath;
   } catch (error) {
-    console.error(`Error writing JSON to file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw new Error(`Failed to write JSON to file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };

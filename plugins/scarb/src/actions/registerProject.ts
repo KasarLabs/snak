@@ -1,5 +1,3 @@
-// src/actions/registerProject.ts
-
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { initializeProjectData, projectAlreadyExists, retrieveProjectData } from '../utils/db_init.js';
@@ -20,13 +18,14 @@ export const registerProject = async (
     if (params.projectName.includes('-')) throw new Error("Project name cannot contain hyphens ('-'). Please use underscores ('_') instead.");
 
     const alreadyRegistered = await projectAlreadyExists(agent, params.projectName);
+    const projectType = params.projectType ? params.projectType : alreadyRegistered ? alreadyRegistered.type : 'cairo_program';
 
     await initializeProjectData(
       agent,
       params.projectName,
       params.programPaths || [],
       params.dependencies || [],
-      params.projectType || 'cairo_program'
+      projectType
     );
 
     const projectData = await retrieveProjectData(agent, params.projectName);

@@ -3,12 +3,12 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as fspromises from 'fs/promises';
 
 /**
- * Stocke un fichier JSON dans la base de données
- * @param agent L'agent Starknet pour accéder à la base de données
- * @param tableName Nom de la table où stocker le JSON
- * @param recordId ID de l'enregistrement à mettre à jour
- * @param columnName Nom de la colonne où stocker le JSON
- * @param jsonFilePath Chemin vers le fichier JSON à stocker
+ * Store a JSON file in the database
+ * @param agent The StarkNet agent
+ * @param tableName The name of the table
+ * @param recordId The record ID
+ * @param columnName The column name
+ * @param jsonFilePath The path to the JSON file
  */
 export async function storeJsonFromFile(
     agent: StarknetAgentInterface,
@@ -18,7 +18,6 @@ export async function storeJsonFromFile(
     jsonFilePath: string
   ){
     try {
-      // Obtenir la connexion à la base de données
       const database = agent.getDatabaseByName('scarb_db');
       if (!database) {
         throw new Error('Database not found');
@@ -33,22 +32,20 @@ export async function storeJsonFromFile(
         throw new Error(`Failed to store JSON file: ${updateResult.error_message}`);
       }
     } catch (error) {
+      console.error('Error storing JSON file:', error);
       throw error;
     }
   }
 
-
-
-/**
- * Compare deux fichiers pour vérifier s'ils sont identiques
- * @param file1 Chemin du premier fichier
- * @param file2 Chemin du second fichier
- * @returns true si les fichiers sont identiques, false sinon
+/** 
+ * Compare two JSON files
+ * @param file1 The path to the first file
+ * @param file2 The path to the second file
+ * @returns True if the files are equal, false otherwise
  */
 export function compareFiles(file1: string, file2: string): boolean {
   const content1 = JSON.parse(fs.readFileSync(file1, 'utf-8'));
   const content2 = JSON.parse(fs.readFileSync(file2, 'utf-8'));
   
-  // Comparer les objets JSON structurellement
   return JSON.stringify(content1) === JSON.stringify(content2);
 }

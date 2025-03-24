@@ -1,30 +1,12 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as fs from 'fs/promises';
-import * as path from 'path';
-import { resolveContractPath } from './path.js';
-
-export interface CairoProgram {
-  name: string;
-  source_code: string;
-}
-
-export interface Dependency {
-  name: string;
-  version?: string;
-  git?: string;
-}
-
-export interface ProjectData {
-  id: number;
-  name: string;
-  type: 'contract' | 'cairo_program';
-  programs: CairoProgram[];
-  dependencies: Dependency[];
-}
-
 
 /**
- * Récupère les fichiers Sierra et CASM pour une compilation en fonction du nom du projet et du nom du contrat
+ * Retrieve the compilation files for a contract in a project
+ * @param agent The Starknet agent
+ * @param projectName The name of the project
+ * @param contractName The name of the contract
+ * @returns The compilation files
  */
 export const retrieveCompilationFilesByName = async (
   agent: StarknetAgentInterface,
@@ -71,10 +53,11 @@ export const retrieveCompilationFilesByName = async (
 };
 
 /**
- * Récupère les derniers résultats d'exécution pour un projet
- * @param agent L'agent Starknet pour accéder à la base de données
- * @param projectId ID du projet
- * @returns Les résultats d'exécution
+ * Retrieve the of a project
+ * @param agent The Starknet agent
+ * @param projectName The name of the project
+ * @param outputPath The path to save the trace data
+ * @returns The trace data
  */
 export const retrieveTrace = async (
   agent: StarknetAgentInterface,
@@ -124,8 +107,12 @@ export const retrieveTrace = async (
   }
 };
 
-
-
+/** 
+ * Retrieve the proof of a project
+ * @param agent The Starknet agent
+ * @param projectName The name of the project
+ * @returns The proof data
+ */
 export const retrieveProof = async (
   agent: StarknetAgentInterface,
   projectName: string,
@@ -147,8 +134,6 @@ export const retrieveProof = async (
     }
     
     const projectProof = projectResult.query.rows[0].proof;
-    console.log(`Retrieved proof for project "${projectName}"`);
-    
     return projectProof;
   } catch (error) {
     console.error("Error retrieving compilation files:", error);
@@ -156,6 +141,12 @@ export const retrieveProof = async (
   }
 };
 
+/** 
+ * Retrieve the verification of a project
+ * @param agent The Starknet agent
+ * @param projectName The name of the project
+ * @returns The verification data
+ */
 export const retrieveVerification = async (
   agent: StarknetAgentInterface,
   projectName: string,
@@ -177,8 +168,6 @@ export const retrieveVerification = async (
     }
     
     const projectVerification = projectResult.query.rows[0].verified;
-    console.log(`Retrieved proof for project "${projectName}"`);
-    
     return projectVerification;
   } catch (error) {
     console.error("Error retrieving compilation files:", error);

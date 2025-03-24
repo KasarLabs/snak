@@ -1,6 +1,6 @@
 import { checkScarbInstalled } from './install.js';
-import { resolveContractPath } from './path.js';
 import { initProject } from './command.js';
+import { ScarbBaseParams, TomlSection, Dependency, CairoProgram } from '../types/index.js';
 import {
   addSeveralDependancies,
   isProjectInitialized,
@@ -10,13 +10,14 @@ import {
   processContractForExecution,
   importContract
 } from './preparation.js';
-export interface ScarbBaseParams {
-  projectName: string;
-  filePaths?: string[];
-}
+
+
+// write all the jsdoc in english please
 
 /**
- * Setup a base Scarb project and handle common initialization steps
+ * Set up a Scarb project
+ * @param params The project name and file paths
+ * @returns The project directory
  */
 export async function setupScarbProject(
   params: ScarbBaseParams
@@ -33,31 +34,20 @@ export async function setupScarbProject(
     
     return projectDir;
   } catch (error) {
-      throw new Error('Error setting up Scarb project: ' + error.message);
+    console.error('Error setting up Scarb project:', error);
+    throw error;
   }
 }
 
 
-export interface Dependency {
-    name: string;
-    version?: string;
-    git?: string;
-  }
-  
-  export interface TomlSection {
-    sectionTitle: string;
-    valuesObject: Record<string, any>;
-  }
-  
-  /**
-   * Configure le fichier TOML avec plusieurs sections et dépendances
-   * 
-   * @param projectDir Répertoire du projet
-   * @param sections Sections TOML à ajouter
-   * @param dependencies Dépendances à ajouter
-   * @param requiredDependencies Dépendances obligatoires spécifiques à l'action
-   */
-  export async function setupToml(
+/**
+ * Set up a Scarb project with TOML sections
+ * @param projectDir The project directory
+ * @param sections The TOML sections
+ * @param dependencies The dependencies
+ * @param requiredDependencies The required dependencies
+ */
+export async function setupToml(
     projectDir: string,
     sections: TomlSection[],
     dependencies?: Dependency[],
@@ -74,14 +64,9 @@ export interface Dependency {
     await addSeveralDependancies(dependencies || [], projectDir);
   }
 
-  export interface cairoProgram {
-    name: string;
-    source_code: string; 
-  } 
-
   export async function setupSrc(
     projectDir: string,
-    programs: cairoProgram[],
+    programs: CairoProgram[],
     formattedExecutable?: string
   ): Promise<void> {
     await cleanLibCairo(projectDir);

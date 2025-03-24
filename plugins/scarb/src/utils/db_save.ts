@@ -1,29 +1,16 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import * as fs from 'fs';
 import * as path from 'path';
+import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { storeJsonFromFile } from './db_utils.js';
 import { extractModuleFromArtifact } from './utils.js';
 
-export interface CairoProgram {
-  name: string;
-  source_code: string;
-}
-
-export interface Dependency {
-  name: string;
-  version?: string;
-  git?: string;
-}
-
-export interface ProjectData {
-  id: number;
-  name: string;
-  type: 'contract' | 'cairo_program';
-  programs: CairoProgram[];
-  dependencies: Dependency[];
-}
-
 /**
- * Sauvegarde les résultats de compilation (fichiers Sierra et CASM) dans la base de données
+ * Save the compilation results in the database
+ * @param agent The StarkNet agent to access the database
+ * @param projectId The project ID
+ * @param sierraFiles The Sierra files
+ * @param casmFiles The Casm files
+ * @param artifactFile The artifact file
  */
 export const saveCompilationResults = async (
   agent: StarknetAgentInterface,
@@ -59,19 +46,17 @@ export const saveCompilationResults = async (
     }
 
   } catch (error) {
+    console.error('Error saving compilation results:', error);
     throw error;
   }
 };
 
-import * as fs from 'fs';
 /**
- * Sauvegarde les résultats d'exécution dans la base de données
- * @param agent L'agent Starknet pour accéder à la base de données
- * @param projectDir Chemin du projet
- * @param projectId ID du projet
- * @param status Statut de l'exécution ('success' ou 'failed')
- * @param logs Logs de l'exécution
- * @param tracePath Chemin vers le fichier de trace (optionnel)
+ * Save the execution results in the database
+ * @param agent The StarkNet agent to access the database
+ * @param projectDir The project directory
+ * @param projectId The project ID
+ * @param tracePath The path to the trace data
  */
 export const saveExecutionResults = async (
   agent: StarknetAgentInterface,
@@ -100,11 +85,19 @@ export const saveExecutionResults = async (
     
     return updateResult;
   } catch (error) {
+    console.error('Error saving execution results:', error);
     throw error;
   }
 };
 
 
+/**
+ * Save the proof in the database
+ * @param agent The StarkNet agent to access the database
+ * @param projectId The project ID
+ * @param projectDir The project directory
+ * @param proofPath The path to the proof data
+ */
 export const saveProof = async (
   agent: StarknetAgentInterface,
   projectId: number,
@@ -115,11 +108,18 @@ export const saveProof = async (
     const fullPath = path.join(projectDir, proofPath);
     await storeJsonFromFile(agent, 'project', projectId, 'proof', fullPath);
   } catch (error) {
+    console.error('Error saving proof:', error);
     throw error;
   }
 };
 
 
+/**
+ * Save the verification status in the database
+ * @param agent The StarkNet agent to access the database
+ * @param projectId The project ID
+ * @param verified The verification status
+ */
 export const saveVerification = async (
   agent: StarknetAgentInterface,
   projectId: number,
@@ -141,6 +141,7 @@ export const saveVerification = async (
       throw new Error(`Failed to save verification status: ${updateResult.error_message}`);
     }
   } catch (error) {
+    console.error('Error saving verification status:', error);
     throw error;
   }
 };

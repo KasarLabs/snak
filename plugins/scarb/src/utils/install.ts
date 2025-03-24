@@ -3,6 +3,10 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+/**
+ * Install Scarb
+ * @returns The installation results
+ */
 export async function checkScarbInstalled(): Promise<boolean> {
   try {
     await execAsync('scarb --version');
@@ -12,6 +16,10 @@ export async function checkScarbInstalled(): Promise<boolean> {
   }
 }
 
+/**
+ * Get the Scarb version
+ * @returns The Scarb version
+ */
 export async function getScarbVersion(): Promise<string> {
   try {
     const { stdout } = await execAsync('scarb --version');

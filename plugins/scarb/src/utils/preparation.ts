@@ -3,23 +3,16 @@ import fs from 'fs-extra';
 import { promisify } from 'util';
 import path from 'path';
 import { getWorkspacePath } from './path.js';
-
-interface Dependency {
-  name: string;
-  version?: string;
-  git?: string;
-}
+import { Dependency } from '../types/index.js';
 
 const execAsync = promisify(exec);
 
 /**
- * Prépare le contrat dans le projet Scarb
- * - Copie le fichier de contrat source dans le répertoire src du projet
- * - Met à jour le fichier lib.cairo pour exposer le module du contrat
- * 
- * @param contractPath Chemin vers le fichier de contrat source
- * @param projectDir Répertoire du projet Scarb
- * @returns Un objet avec le statut de l'opération
+ * Import a contract into a Scarb project
+ * @param contractContent The contract content
+ * @param contractFileName The contract file name
+ * @param projectDir The Scarb project directory
+ * @returns The import results
  */
 export async function importContract(contractContent : string, contractFileName : string, projectDir : string) {
   const srcDir = path.join(projectDir, 'src');
@@ -47,15 +40,20 @@ export async function importContract(contractContent : string, contractFileName 
   }
 }
 
+/** 
+ * Add several dependencies to a Scarb project
+ * @param dependencies The dependencies to add
+ * @param projectDir The Scarb project directory
+ */
 export async function addSeveralDependancies(dependencies: Dependency[], projectDir: string) {
   try {
     if (dependencies && dependencies.length > 0) {
       for (const dependency of dependencies) {
-        const addDepResult = await addDependency({
-            package: dependency.name,
-            version: dependency.version,
-            git: dependency.git,
-            path: projectDir
+        await addDependency({
+          package: dependency.name,
+          version: dependency.version,
+          git: dependency.git,
+          path: projectDir
         });
       }
     }
@@ -65,9 +63,9 @@ export async function addSeveralDependancies(dependencies: Dependency[], project
 }
 
 /**
- * Nettoie le fichier lib.cairo en le réinitialisant à un état vierge
- * @param projectDir Répertoire du projet Scarb
- * @returns Un objet avec le statut de l'opération
+ * Clean the lib.cairo file in a Scarb project
+ * @param projectDir The Scarb project directory
+ * @returns The cleaning results
  */
 export async function cleanLibCairo(projectDir: string) {
   try {
@@ -85,37 +83,6 @@ export async function cleanLibCairo(projectDir: string) {
     throw new Error(`Failed to clean lib.cairo: ${error.message}`);
   }
 }
-
-// /**
-//  * Resolves file paths to locate contract files
-//  * @param {string} filePath - Original file path provided
-//  * @returns {string} Resolved file path
-//  */
-// export function resolveContractFilePath(filePath: string): string {
-//   console.log("pwd : ", process.cwd());
-//   const possiblePaths = [
-//     filePath,
-//     path.resolve(process.cwd(), filePath),
-//     path.resolve(process.cwd(), '..', filePath),
-//     path.resolve(
-//       process.cwd(),
-//       '..',
-//       'plugins',
-//       'scarb',
-//       'src',
-//       'contract',
-//       path.basename(filePath)
-//     ),
-//   ];
-
-//   for (const p of possiblePaths) {
-//     if (fs.existsSync(p)) {
-//       return p;
-//     }
-//   }
-//   throw new Error(`Could not resolve path for: ${filePath}`);
-// }
-
 
 
 /**
@@ -146,7 +113,7 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
       .filter(file => typeof file === 'string' && file.endsWith('.compiled_contract_class.json'))
       .map(file => path.join(targetDir, file));
   } catch (error) {
-    console.warn(`Could not list generated files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to get generated contract files: ${error.message}`);
   }
   
   return result;
@@ -187,13 +154,11 @@ export async function addExecutableTag(filePath: string, targetFunction: string)
 }
 
 /**
- * Traite un fichier Cairo pour exécution - importe le contenu et ajoute la balise executable à la fonction cible
- *
- * @param contractContent Contenu du fichier Cairo
- * @param contractFileName Nom du fichier Cairo (ex: "program.cairo")
- * @param projectDir Répertoire du projet Scarb
- * @param targetFunction Nom de la fonction à marquer comme exécutable
- * @returns Promise<void>
+ * Processes a contract for execution by importing it into a Scarb project and marking a target function as executable
+ * @param contractContent The contract content
+ * @param contractFileName The contract file name
+ * @param projectDir The Scarb project directory
+ * @param targetFunction The name of the function to mark as executable
  */
 export async function processContractForExecution(
   contractContent: string,
@@ -202,14 +167,10 @@ export async function processContractForExecution(
   targetFunction: string
 ): Promise<void> {
   try {
-    // Importer le contrat avec le nouveau format
     const result = await importContract(contractContent, contractFileName, projectDir);
-    
-    // Ajouter la balise executable à la fonction cible dans le fichier importé
     const destContractPath = result.filePath;
     await addExecutableTag(destContractPath, targetFunction);
   } catch (error) {
-    console.error(`Error processing contract for execution:`, error);
     throw new Error(`Failed to process contract: ${error.message}`);
   }
 }
@@ -239,7 +200,6 @@ export async function checkWorkspaceLimit(
     if (projectExists) {
       return;
     }
-    console.log(`Projects in workspace:`, projects.length);
     if (projects.length >= maxProjects) {
       throw new Error(`Workspace project limit of ${maxProjects} reached. Please delete old projects before creating new ones.`);
     }
@@ -337,6 +297,12 @@ export const addTomlSection = async (params : any) => {
   }
 };
 
+
+/**
+ * Adds a dependency to a Scarb project
+ * @param params The dependency parameters
+ * @returns The dependency addition results
+ */
 export const addDependency = async (
   params: { 
     package: string;
@@ -371,10 +337,11 @@ export const addDependency = async (
   }
 };
   
+
 /**
- * Vérifie si un projet Scarb a déjà été initialisé dans le répertoire spécifié
- * @param projectDir Chemin vers le répertoire du projet
- * @returns Un booléen indiquant si le projet est déjà initialisé
+ * Checks if a Scarb project has been initialized
+ * @param projectDir The Scarb project directory
+ * @returns True if the project has been initialized, false otherwise
  */
 export async function isProjectInitialized(projectDir: string): Promise<boolean> {
   try {
@@ -387,6 +354,11 @@ export async function isProjectInitialized(projectDir: string): Promise<boolean>
   }
 }
 
+/**
+ * Get a Scarb project directory
+ * @param projectName The project name
+ * @returns The project directory
+ */
 export async function getProjectDir(projectName : string) {
   const workspaceDir = getWorkspacePath();
   try {
