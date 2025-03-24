@@ -31,6 +31,7 @@
     "discord.js": "^14.17.3",
     "inquirer": "^12.4.1",
     "langchain": "^0.3.10",
+    "mem0ai": "^2.1.9",
     "nanospinner": "^1.2.2"
   }
 }

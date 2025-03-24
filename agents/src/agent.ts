@@ -11,11 +11,19 @@ import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
 import {
   Annotation,
+  CompiledStateGraph,
   MemorySaver,
   MessagesAnnotation,
   StateGraph,
 } from '@langchain/langgraph';
-import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  BaseMessage,
+  HumanMessage,
+  isSystemMessage,
+  isToolMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import { DynamicStructuredTool, Tool, tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import {
@@ -25,6 +33,8 @@ import {
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
+
+import { Memory } from "mem0ai/oss"
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -85,6 +95,9 @@ export const createAgent = async (
   };
 
   try {
+	const mem0 = new Memory({
+	});
+	mem0.deleteAll({userId : "default_user"})
     const json_config = starknetAgent.getAgentConfig();
     json_config.memory = true;
     const embeddings = new CustomHuggingFaceEmbeddings({
@@ -96,7 +109,8 @@ export const createAgent = async (
     //   model: 'text-embedding-3-small',
     //   apiKey: aiConfig.embeddingKey,
     // });
-    const embeddingDimensions = 384; //1536 for OpenAI, 512 for TensorFlow, 384 for HugginFace
+
+    const embeddingDimensions = 384; //1536 for OpenAI, 512 for TensorFlow, 384 for HuggingFace
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
@@ -247,7 +261,7 @@ export const createAgent = async (
       }
     };
 
-    if (json_config.memory) toolsList.push(upsertMemoryToolDB);
+    //if (json_config.memory) toolsList.push(upsertMemoryToolDB);
     const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
     const modelSelected = model().bindTools(toolsList);
 
@@ -272,6 +286,13 @@ export const createAgent = async (
         new MessagesPlaceholder('messages'),
       ]);
 
+	  const relevantMemories = await mem0.search(state.messages[state.messages.length - 1].content as string, { userId: "default_user" });
+
+  		const memoriesStr = relevantMemories.results
+    	.map(entry => `- ${entry.memory}`)
+    	.join('\n');
+	  	console.log("MEMORIES: ", memoriesStr,"\n")
+
       const formattedPrompt = await prompt.formatMessages({
         system_message: '',
         tool_names: toolsList.map((tool) => tool.name).join(', '),
@@ -286,32 +307,99 @@ export const createAgent = async (
       };
     }
 
+	async function addMessagesToMem0(messages: BaseMessage[], userId: string = "default_user") {
+		const mem0Messages = messages.map(msg => {
+		  // Determine the role based on the message type
+		  let role: string;
+		  if (msg instanceof AIMessage) {
+			role = "assistant";
+		  } else if (msg instanceof HumanMessage) {
+			role = "user";
+		  } else if (msg instanceof SystemMessage) {
+			role = "system";
+		  } else {
+			// Default fallback
+			role = "user";
+		  }
+
+		  // Extract the content from the BaseMessage
+		  const content = typeof msg.content === 'string'
+			? msg.content
+			: JSON.stringify(msg.content);
+
+		  return {
+			role,
+			content
+		  };
+		});
+
+		// Add the converted messages to mem0
+		await mem0.add(mem0Messages, { userId });
+	  }
+
     function shouldContinue(state: typeof GraphState.State) {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
-
-      if (lastMessage.additional_kwargs?.tool_responses) {
-        const toolResponses = lastMessage.additional_kwargs.tool_responses;
-        if (Array.isArray(toolResponses) && toolResponses.length > 0) {
-          const wasMemoryTool = toolResponses.some(
-            (resp) =>
-              resp.tool_call_id && resp.tool_call_id.includes('upsert_memory')
-          );
-          if (wasMemoryTool) {
-            return 'agent';
-          }
-        }
-      }
+		addMessagesToMem0(messages)
 
       if (lastMessage.tool_calls?.length) {
         return 'tools';
       }
-      return '__end__';
+      return 'end';
     }
+
+    const saveMemoryToDB = async (
+      state: typeof GraphState.State,
+      config: LangGraphRunnableConfig
+    ) => {
+      try {
+        if (!databaseConnection) return {};
+
+        const userId = config.configurable?.userId || 'default_user';
+
+        const filteredMessages = state.messages.filter(
+          (msg: BaseMessage) => !isSystemMessage(msg) && !isToolMessage(msg)
+        ) as BaseMessage[];
+
+        const messages = [
+          ...state.messages,
+          new HumanMessage({ content: "Create a summary of the conversation above" }),
+        ];
+
+        const response = await modelSelected.invoke(messages)
+
+        const lastMessages = response.content as string;
+
+        // Generate embeddings for the extracted conversation
+        const embeddingResult = await embeddings.embedQuery(lastMessages);
+        const embeddingString = `[${embeddingResult.join(',')}]`;
+        const metadata = JSON.stringify({
+          timestamp: new Date().toISOString(),
+        });
+
+        // Insert memory into the database
+        await databaseConnection.insert({
+          table_name: 'agent_memories',
+          fields: new Map<string, string | string[]>([
+            ['id', 'DEFAULT'],
+            ['user_id', userId],
+            ['content', lastMessages],
+            ['embedding', embeddingString],
+            ['metadata', metadata],
+          ]),
+        });
+
+        return {};
+      } catch (error) {
+        console.error('Error saving memory:', error);
+        return {};
+      }
+    };
 
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
-      .addNode('tools', toolNode);
+      .addNode('tools', toolNode)
+      .addNode('save_memory', saveMemoryToDB);
     if (json_config.memory) {
       workflow
         .addNode('memory', addMemoriesFromDB)
@@ -322,7 +410,8 @@ export const createAgent = async (
     }
     workflow
       .addConditionalEdges('agent', shouldContinue)
-      .addEdge('tools', 'agent');
+      .addEdge('tools', 'agent')
+      .addEdge('save_memory', '__end__');
 
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
