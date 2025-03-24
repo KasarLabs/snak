@@ -1,12 +1,11 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { createBox, formatSection } from './formatting.js';
+import { createBox } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import fs from 'fs/promises';
+import logger from './logger.js';
 
-const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -15,9 +14,6 @@ export interface Token {
   amount: number;
 }
 
-export interface Transfer_limit {
-  token: Token[];
-}
 
 export interface JsonConfig {
   name: string;
@@ -32,7 +28,7 @@ export interface JsonConfig {
 export const createContextFromJson = (json: any): string => {
   if (!json) {
     throw new Error(
-      'Error while trying to parse your context from the youragent.json'
+      'Error while trying to parse your context from the config file.'
     );
   }
 
@@ -190,7 +186,7 @@ const checkParseJson = async (
     const json = JSON.parse(jsonData);
 
     if (!json) {
-      throw new Error(`Can't parse config file: ${configPath}`);
+      throw new Error(`Failed to parse JSON from ${configPath}`);
     }
 
     // Create system message
@@ -213,25 +209,34 @@ const checkParseJson = async (
         : [],
     };
 
+    if (jsonconfig.internal_plugins.length === 0) {
+      logger.warn("No internal plugins specified in agent's config");
+    }
     validateConfig(jsonconfig);
     return jsonconfig;
   } catch (error) {
-    console.error(
+    logger.error(
       chalk.red(
         `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`
       )
     );
-    console.error(chalk.red('Failed to parse config:'), error);
+    logger.error('Failed to parse config:');
     return undefined;
   }
 };
 
 export const load_json_config = async (
   agent_config_name: string
-): Promise<JsonConfig> => {
-  const json = await checkParseJson(agent_config_name);
-  if (!json) {
-    throw new Error('Failed to load JSON config');
+): Promise<JsonConfig | undefined> => {
+
+  try {
+    const json = await checkParseJson(agent_config_name);
+    if (!json) {
+      throw new Error('Failed to load JSON config');
+    }
+    return json;
+  } catch (error) {
+    logger.error(error);
+    return undefined;
   }
-  return json;
 };

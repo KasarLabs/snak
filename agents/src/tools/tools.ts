@@ -1,9 +1,8 @@
 import { tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
-import { TwitterInterface } from '../../common/index.js';
 import { JsonConfig } from '../jsonConfig.js';
-import { TelegramInterface } from '../../common/index.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
+import logger from '../logger.js';
 
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
@@ -18,10 +17,7 @@ export interface StarknetAgentInterface {
     signature: string;
   };
   getProvider: () => RpcProvider;
-  getTwitterAuthMode: () => 'API' | 'CREDENTIALS' | undefined;
   getAgentConfig: () => JsonConfig;
-  getTwitterManager: () => TwitterInterface;
-  getTelegramManager: () => TelegramInterface;
   getDatabase: () => PostgresAdaptater[];
   connectDatabase: (database_name: string) => Promise<void>;
   createDatabase: (
@@ -50,16 +46,6 @@ export class StarknetToolRegistry {
     this.tools.push(tool);
   }
 
-  static createTools(agent: StarknetAgentInterface) {
-    return this.tools.map(({ name, description, schema, execute }) =>
-      tool(async (params: any) => execute(agent, params), {
-        name,
-        description,
-        ...(schema && { schema }),
-      })
-    );
-  }
-
   static async createAllowedTools(
     agent: StarknetAgentInterface,
     allowed_tools: string[]
@@ -74,8 +60,6 @@ export class StarknetToolRegistry {
     );
   }
 }
-
-export const initializeTools = (agent: StarknetAgentInterface) => {};
 
 export const registerTools = async (
   agent: StarknetAgentInterface,
@@ -98,18 +82,21 @@ export const registerTools = async (
         return true;
       })
     );
+    if (tools.length === 0) {
+      logger.warn('No tools registered');
+    }
   } catch (error) {
-    console.log(error);
+    logger.error(error);
   }
 };
 
-export const createTools = (agent: StarknetAgentInterface) => {
-  return StarknetToolRegistry.createTools(agent);
-};
 export const createAllowedTools = async (
   agent: StarknetAgentInterface,
   allowed_tools: string[]
 ) => {
+  if (allowed_tools.length === 0) {
+    logger.warn('No tools allowed');
+  }
   return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
 };
 

@@ -9,6 +9,7 @@ import { createSignatureTools } from './tools/signatureTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
+import logger from './logger.js';
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -101,10 +102,7 @@ export const createAgent = async (
 
     return agent;
   } catch (error) {
-    console.error(
-      `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`
-    );
-    console.error('Failed to load or parse JSON config:', error);
+    logger.error('Failed to create an agent : ', error);
     throw error;
   }
 };

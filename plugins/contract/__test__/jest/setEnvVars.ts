@@ -24,7 +24,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     internal_plugins: [],
   };
 
-  const twitter_auth_mode = undefined;
 
   return {
     getAccountCredentials: () => ({
@@ -41,10 +40,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
       signature: '',
     }),
     getProvider: () => provider,
-    getTwitterAuthMode: () => twitter_auth_mode,
     getAgentConfig: () => json_config,
-    getTwitterManager: () => twitter_interface,
-    getTelegramManager: () => telegram_interface,
     getDatabase: () => [],
     connectDatabase: async () => {},
     createDatabase: async () => undefined,
@@ -54,8 +50,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
 
 export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
-  const twitter_interface: TwitterInterface = {};
-  const telegram_interface: TelegramInterface = {};
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
   const json_config: JsonConfig = {
@@ -66,7 +60,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     internal_plugins: [],
   };
 
-  const twitter_auth_mode = undefined;
 
   return {
     getAccountCredentials: () => ({
@@ -81,10 +74,7 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
       signature: '',
     }),
     getProvider: () => provider,
-    getTwitterAuthMode: () => twitter_auth_mode,
     getAgentConfig: () => json_config,
-    getTwitterManager: () => twitter_interface,
-    getTelegramManager: () => telegram_interface,
     getDatabase: () => [],
     connectDatabase: async () => {},
     createDatabase: async () => undefined,

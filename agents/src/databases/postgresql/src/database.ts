@@ -13,6 +13,7 @@ import {
 } from './interfaces/interfaces.js';
 import { getError } from './types/error.js';
 import pg from 'pg';
+import logger from '../../../logger.js';
 const { Pool } = pg; /**
  * PostgreSQL adapter for database operations
  * @property {string} host - Database server hostname
@@ -61,7 +62,7 @@ export class PostgresAdaptater {
     try {
       await pool.query('SELECT NOW()');
     } catch (error) {
-      console.log(error);
+      logger.log(error);
       return undefined;
     }
     return this;
@@ -89,7 +90,7 @@ export class PostgresAdaptater {
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          console.warn('Database already exist. Skip creation.');
+          logger.warn('Database already exist. Skip creation.');
           return true;
         }
       }
@@ -107,7 +108,7 @@ export class PostgresAdaptater {
       }
       await this.pool.end();
     } catch (error) {
-      console.error('Error closing database connection:', error);
+      logger.error('Error closing database connection:', error);
       throw error;
     }
   };
@@ -393,7 +394,7 @@ export class PostgresAdaptater {
    */
   public insert = async (
     options: insertOptionInterface,
-    values: Array<any>
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {

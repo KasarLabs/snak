@@ -1,5 +1,5 @@
 import { Account, Call } from 'starknet';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { parseUnits } from 'ethers';
 import {
@@ -59,7 +59,7 @@ export class DepositEarnService {
         ? { value: toBN(res.value), decimals: DEFAULT_DECIMALS }
         : undefined;
     } catch (err) {
-      console.log('error', err);
+      logger.error('error', err);
       return undefined;
     }
   }
@@ -191,7 +191,7 @@ export class DepositEarnService {
       if (!collateralPoolAsset) {
         throw new Error('Collateral asset not found in pool');
       }
-      console.log('params.depositAmount:', params.depositAmount);
+      logger.info('params.depositAmount:', params.depositAmount);
       const collateralAmount = parseUnits(
         params.depositAmount,
         // 0
@@ -236,7 +236,7 @@ export class DepositEarnService {
         },
       ]);
 
-      console.log('approval initiated. Transaction hash:', tx.transaction_hash);
+      logger.info('approval initiated. Transaction hash:', tx.transaction_hash);
       await provider.waitForTransaction(tx.transaction_hash);
 
       const transferResult: DepositResult = {

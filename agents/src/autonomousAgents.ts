@@ -8,6 +8,7 @@ import { StarknetAgentInterface } from './tools/tools.js';
 import { MemorySaver } from '@langchain/langgraph';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createAllowedToollkits } from './tools/external_tools.js';
+import logger from './logger.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -57,7 +58,6 @@ export const createAutonomousAgent = async (
 
   try {
     const json_config = starknetAgent.getAgentConfig();
-
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
@@ -92,10 +92,8 @@ export const createAutonomousAgent = async (
       json_config,
     };
   } catch (error) {
-    console.error(
-      `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`
-    );
-    console.error('Failed to load or parse JSON config:', error);
+    logger.error('Failed to create autonomous agent : ', error);
     throw error;
   }
 };
+
