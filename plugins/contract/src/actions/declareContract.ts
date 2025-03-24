@@ -3,7 +3,7 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager';
 import { declareContractSchema } from '../schemas/schema';
-import { resolveContractFilePath } from '../utils/utils';
+import { getSierraCasmFromDB } from '../utils/db';
 
 /**
  * Declares a contract on StarkNet
@@ -16,12 +16,7 @@ export const declareContract = async (
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {
-    if (!params?.sierraPath || !params?.casmPath) {
-      throw new Error('Sierra and CASM file paths are required');
-    }
-
-    const sierraPath = resolveContractFilePath(params.sierraPath);
-    const casmPath = resolveContractFilePath(params.casmPath);
+    const { sierraPath, casmPath } = await getSierraCasmFromDB(agent, params.projectName, params.contractName);
 
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();

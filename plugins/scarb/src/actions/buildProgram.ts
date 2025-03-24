@@ -45,6 +45,7 @@ export const compileContract = async (
     
     const contractFiles = await getGeneratedContractFiles(projectDir);
     
+    
     await saveCompilationResults(
       agent,
       projectData.id,

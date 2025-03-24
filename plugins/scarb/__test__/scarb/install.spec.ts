@@ -57,7 +57,7 @@ describe('Scarb Installation Tests', () => {
     jest.spyOn(environmentModule, 'checkScarbInstalled').mockResolvedValue(true);
     jest.spyOn(environmentModule, 'getScarbVersion').mockResolvedValue('2.10.0');
     
-    const result = await installScarb(agent, {});
+    const result = await installScarb();
     const parsedResult = JSON.parse(result);
     
     expect(parsedResult.status).toBe('success');
@@ -85,7 +85,7 @@ describe('Scarb Installation Tests', () => {
       stderr: ''
     });
     
-    const result = await installScarb(agent, {});
+    const result = await installScarb();
     const parsedResult = JSON.parse(result);
     
     expect(parsedResult.status).toBe('success');
@@ -111,7 +111,7 @@ describe('Scarb Installation Tests', () => {
       stderr: 'Installation failed: command not found'
     });
     
-    const result = await installScarb(agent, {});
+    const result = await installScarb();
     const parsedResult = JSON.parse(result);
     
     expect(parsedResult.status).toBe('failure');
@@ -130,7 +130,7 @@ describe('Scarb Installation Tests', () => {
     const execError = new Error('Command failed');
     mockExec.mockRejectedValue(execError);
     
-    const result = await installScarb(agent, {});
+    const result = await installScarb();
     const parsedResult = JSON.parse(result);
     
     expect(parsedResult.status).toBe('failure');
@@ -147,7 +147,7 @@ describe('Scarb Installation Tests', () => {
     jest.spyOn(environmentModule, 'getScarbVersion').mockResolvedValue('2.10.0');
     
     const customPath = '/custom/path/to/scarb';
-    const result = await installScarb(agent, { path: customPath });
+    const result = await installScarb();
     const parsedResult = JSON.parse(result);
     
     expect(parsedResult.status).toBe('success');
