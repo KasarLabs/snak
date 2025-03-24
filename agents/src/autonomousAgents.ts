@@ -8,6 +8,7 @@ import { StarknetAgentInterface } from './tools/tools.js';
 import { MemorySaver } from '@langchain/langgraph';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createAllowedToollkits } from './tools/external_tools.js';
+import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -77,6 +78,12 @@ export const createAutonomousAgent = async (
       : allowedTools;
     const memory = new MemorySaver();
 
+    if (json_config.mcp === true) {
+      const mcp = new MCP_CONTROLLER();
+      await mcp.initializeConnections();
+      console.log(mcp.getTools());
+      tools = [...tools, ...mcp.getTools()];
+    }
     const agent = createReactAgent({
       llm: model,
       tools: tools,
