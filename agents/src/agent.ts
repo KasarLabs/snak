@@ -25,7 +25,12 @@ import {
   SystemMessage,
   ToolMessage,
 } from '@langchain/core/messages';
-import { DynamicStructuredTool, StructuredTool, Tool, tool } from '@langchain/core/tools';
+import {
+  DynamicStructuredTool,
+  StructuredTool,
+  Tool,
+  tool,
+} from '@langchain/core/tools';
 import { z } from 'zod';
 import {
   ChatPromptTemplate,
@@ -35,7 +40,7 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 
-import { Memory } from "mem0ai/oss"
+import { Memory } from 'mem0ai/oss';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 
 export const createAgent = async (
@@ -97,23 +102,23 @@ export const createAgent = async (
   };
 
   try {
-	const mem0 = new Memory({
-		llm: {
-			provider: aiConfig.aiProvider,
-			config: {
-				apiKey: aiConfig.aiProviderApiKey,
-        model: aiConfig.aiModel,
-			},
-		},
-    embedder : {
-      provider : aiConfig.aiProvider,
-      config : {
-        apiKey : aiConfig.aiProviderApiKey,
-        model: "text-embedding-3-small"
-      }
-    }
-	});
-	  //mem0.deleteAll({userId : "default_user"})
+    const mem0 = new Memory({
+      llm: {
+        provider: aiConfig.aiProvider,
+        config: {
+          apiKey: aiConfig.aiProviderApiKey,
+          model: aiConfig.aiModel,
+        },
+      },
+      embedder: {
+        provider: aiConfig.aiProvider,
+        config: {
+          apiKey: aiConfig.aiProviderApiKey,
+          model: 'text-embedding-3-small',
+        },
+      },
+    });
+    //mem0.deleteAll({userId : "default_user"})
     const json_config = starknetAgent.getAgentConfig();
     json_config.memory = true;
     const embeddings = new CustomHuggingFaceEmbeddings({
@@ -307,14 +312,18 @@ export const createAgent = async (
         ],
         new MessagesPlaceholder('messages'),
       ]);
-	  const userMessage = state.messages[state.messages.length - 1].content as string
-	  console.log("USER MESSAGE: ", userMessage)
-	  const relevantMemories = await mem0.search(state.messages[state.messages.length - 1].content as string, { userId: "default_user" , limit : 1});
+      const userMessage = state.messages[state.messages.length - 1]
+        .content as string;
+      console.log('USER MESSAGE: ', userMessage);
+      const relevantMemories = await mem0.search(
+        state.messages[state.messages.length - 1].content as string,
+        { userId: 'default_user', limit: 1 }
+      );
 
-	  const memoriesStr = relevantMemories.results
-	  .map(entry => `- ${entry.memory} (Score: ${entry.score || 'N/A'})`)
-	  .join('\n');
-	console.log("Relevant memories : ", memoriesStr, "\n")
+      const memoriesStr = relevantMemories.results
+        .map((entry) => `- ${entry.memory} (Score: ${entry.score || 'N/A'})`)
+        .join('\n');
+      console.log('Relevant memories : ', memoriesStr, '\n');
 
       const formattedPrompt = await prompt.formatMessages({
         system_message: '',
@@ -330,45 +339,49 @@ export const createAgent = async (
       };
     }
 
-	async function addMessagesToMem0(messages: BaseMessage[], userId: string = "default_user") {
-		console.log("CALLING ADDMESSAGESTOMEM0")
-		const mem0Messages = messages.map(msg => {
-		  // Determine the role based on the message type
-		  let role: string;
-		  if (msg instanceof AIMessage) {
-			role = "assistant";
-		  } else if (msg instanceof HumanMessage) {
-			role = "user";
-		  } else if (msg instanceof SystemMessage) {
-			role = "system";
-		  } else if (msg instanceof ToolMessage) {
-			role = "tool";
-		  } else {
-			// Default fallback
-			role = "user";
-		  }
+    async function addMessagesToMem0(
+      messages: BaseMessage[],
+      userId: string = 'default_user'
+    ) {
+      console.log('CALLING ADDMESSAGESTOMEM0');
+      const mem0Messages = messages.map((msg) => {
+        // Determine the role based on the message type
+        let role: string;
+        if (msg instanceof AIMessage) {
+          role = 'assistant';
+        } else if (msg instanceof HumanMessage) {
+          role = 'user';
+        } else if (msg instanceof SystemMessage) {
+          role = 'system';
+        } else if (msg instanceof ToolMessage) {
+          role = 'tool';
+        } else {
+          // Default fallback
+          role = 'user';
+        }
 
-		  // Extract the content from the BaseMessage
-		  const content = typeof msg.content === 'string'
-			? msg.content
-			: JSON.stringify(msg.content);
+        // Extract the content from the BaseMessage
+        const content =
+          typeof msg.content === 'string'
+            ? msg.content
+            : JSON.stringify(msg.content);
 
-		  return {
-			role,
-			content
-		  };
-		});
+        return {
+          role,
+          content,
+        };
+      });
 
-		console.log("MEM0 MESSAGES : ", mem0Messages, "\n")
+      console.log('MEM0 MESSAGES : ', mem0Messages, '\n');
 
-		// Add the converted messages to mem0
-		await mem0.add(mem0Messages, { userId });
-	  }
+      // Add the converted messages to mem0
+      await mem0.add(mem0Messages, { userId });
+    }
 
     function shouldContinue(state: typeof GraphState.State) {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
-		addMessagesToMem0(messages)
+      addMessagesToMem0(messages);
 
       if (lastMessage.tool_calls?.length) {
         return 'tools';
@@ -391,10 +404,12 @@ export const createAgent = async (
 
         const messages = [
           ...state.messages,
-          new HumanMessage({ content: "Create a summary of the conversation above" }),
+          new HumanMessage({
+            content: 'Create a summary of the conversation above',
+          }),
         ];
 
-        const response = await modelSelected.invoke(messages)
+        const response = await modelSelected.invoke(messages);
 
         const lastMessages = response.content as string;
 
