@@ -1,6 +1,6 @@
 import { ChatAnthropic } from '@langchain/anthropic';
 import { AiConfig } from '../common/index.js';
-import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
+import { ChatOpenAI } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
 import { ChatDeepSeek } from '@langchain/deepseek';
@@ -11,7 +11,6 @@ import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
 import {
   Annotation,
-  CompiledStateGraph,
   MemorySaver,
   MessagesAnnotation,
   StateGraph,
@@ -20,8 +19,6 @@ import {
   AIMessage,
   BaseMessage,
   HumanMessage,
-  isSystemMessage,
-  isToolMessage,
   SystemMessage,
   ToolMessage,
 } from '@langchain/core/messages';
@@ -118,18 +115,12 @@ export const createAgent = async (
         },
       },
     });
-    //mem0.deleteAll({userId : "default_user"})
     const json_config = starknetAgent.getAgentConfig();
     json_config.memory = true;
     const embeddings = new CustomHuggingFaceEmbeddings({
       model: 'Xenova/all-MiniLM-L6-v2',
       dtype: 'fp32',
     });
-
-    // const embeddings = new OpenAIEmbeddings({
-    //   model: 'text-embedding-3-small',
-    //   apiKey: aiConfig.embeddingKey,
-    // });
 
     const embeddingDimensions = 384; //1536 for OpenAI, 512 for TensorFlow, 384 for HuggingFace
     if (!json_config) {
@@ -258,6 +249,19 @@ export const createAgent = async (
           LIMIT 4
         `;
 
+        const relevantMemories = await mem0.search(
+          state.messages[state.messages.length - 1].content as string,
+          {
+            userId: userId,
+            agentId: json_config.chat_id,
+            limit: 4,
+          }
+        );
+
+        const memoriesStr = relevantMemories.results
+          .map((entry) => `- ${entry.memory} (Score: ${entry.score || 'N/A'})`)
+          .join('\n');
+
         const results = await databaseConnection.query(similarMemoriesQuery);
         // if (results.query) {
         //   console.log('\n\nDATABASE CONTENT :\n-------');
@@ -278,7 +282,7 @@ export const createAgent = async (
         //console.log('Memories :\n-------\n', memories, '\n-------\n');
 
         return {
-          memories: memories,
+          memories: memoriesStr,
         };
       } catch (error) {
         console.error('Error retrieving memories:', error);
@@ -295,7 +299,7 @@ export const createAgent = async (
     const configPrompt = json_config.prompt?.content;
 
     const baseSystemtPrompt = `${configPrompt}`;
-    const memoryPrompt = `Use your upsert_memory tool in order to save the conversation as it goes on.\nThe most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;`;
+    const memoryPrompt = `The most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;`;
     const finalPrompt = json_config.memory
       ? `${baseSystemtPrompt}\n${memoryPrompt}`
       : `${baseSystemtPrompt}`;
@@ -312,18 +316,6 @@ export const createAgent = async (
         ],
         new MessagesPlaceholder('messages'),
       ]);
-      const userMessage = state.messages[state.messages.length - 1]
-        .content as string;
-      console.log('USER MESSAGE: ', userMessage);
-      const relevantMemories = await mem0.search(
-        state.messages[state.messages.length - 1].content as string,
-        { userId: 'default_user', limit: 1 }
-      );
-
-      const memoriesStr = relevantMemories.results
-        .map((entry) => `- ${entry.memory} (Score: ${entry.score || 'N/A'})`)
-        .join('\n');
-      console.log('Relevant memories : ', memoriesStr, '\n');
 
       const formattedPrompt = await prompt.formatMessages({
         system_message: '',
@@ -343,45 +335,46 @@ export const createAgent = async (
       messages: BaseMessage[],
       userId: string = 'default_user'
     ) {
-      console.log('CALLING ADDMESSAGESTOMEM0');
-      const mem0Messages = messages.map((msg) => {
-        // Determine the role based on the message type
-        let role: string;
-        if (msg instanceof AIMessage) {
-          role = 'assistant';
-        } else if (msg instanceof HumanMessage) {
-          role = 'user';
-        } else if (msg instanceof SystemMessage) {
-          role = 'system';
-        } else if (msg instanceof ToolMessage) {
-          role = 'tool';
-        } else {
-          // Default fallback
-          role = 'user';
-        }
+      const mem0Messages = messages
+        .filter((msg) => !(msg instanceof ToolMessage))
+        .map((msg) => {
+          let role: string;
+          if (msg instanceof AIMessage) {
+            role = 'assistant';
+          } else if (msg instanceof HumanMessage) {
+            role = 'user';
+          } else if (msg instanceof SystemMessage) {
+            role = 'system';
+          } else if (msg instanceof ToolMessage) {
+            role = 'tool';
+          } else {
+            // Default fallback
+            role = 'user';
+          }
 
-        // Extract the content from the BaseMessage
-        const content =
-          typeof msg.content === 'string'
-            ? msg.content
-            : JSON.stringify(msg.content);
+          // Extract the content from the BaseMessage
+          const content =
+            typeof msg.content === 'string'
+              ? msg.content
+              : JSON.stringify(msg.content);
 
-        return {
-          role,
-          content,
-        };
+          return {
+            role,
+            content,
+          };
+        });
+
+      await mem0.add(mem0Messages, {
+        userId,
+        agentId: json_config.chat_id,
+        prompt: "Store the whole message you're being given in the database.",
       });
-
-      console.log('MEM0 MESSAGES : ', mem0Messages, '\n');
-
-      // Add the converted messages to mem0
-      await mem0.add(mem0Messages, { userId });
     }
 
     function shouldContinue(state: typeof GraphState.State) {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
-      addMessagesToMem0(messages);
+      //addMessagesToMem0(messages);
 
       if (lastMessage.tool_calls?.length) {
         return 'tools';
@@ -389,60 +382,9 @@ export const createAgent = async (
       return 'end';
     }
 
-    const saveMemoryToDB = async (
-      state: typeof GraphState.State,
-      config: LangGraphRunnableConfig
-    ) => {
-      try {
-        if (!databaseConnection) return {};
-
-        const userId = config.configurable?.userId || 'default_user';
-
-        const filteredMessages = state.messages.filter(
-          (msg: BaseMessage) => !isSystemMessage(msg) && !isToolMessage(msg)
-        ) as BaseMessage[];
-
-        const messages = [
-          ...state.messages,
-          new HumanMessage({
-            content: 'Create a summary of the conversation above',
-          }),
-        ];
-
-        const response = await modelSelected.invoke(messages);
-
-        const lastMessages = response.content as string;
-
-        // Generate embeddings for the extracted conversation
-        const embeddingResult = await embeddings.embedQuery(lastMessages);
-        const embeddingString = `[${embeddingResult.join(',')}]`;
-        const metadata = JSON.stringify({
-          timestamp: new Date().toISOString(),
-        });
-
-        // Insert memory into the database
-        await databaseConnection.insert({
-          table_name: 'agent_memories',
-          fields: new Map<string, string | string[]>([
-            ['id', 'DEFAULT'],
-            ['user_id', userId],
-            ['content', lastMessages],
-            ['embedding', embeddingString],
-            ['metadata', metadata],
-          ]),
-        });
-
-        return {};
-      } catch (error) {
-        console.error('Error saving memory:', error);
-        return {};
-      }
-    };
-
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
-      .addNode('tools', toolNode)
-      .addNode('save_memory', saveMemoryToDB);
+      .addNode('tools', toolNode);
     if (json_config.memory) {
       workflow
         .addNode('memory', addMemoriesFromDB)
@@ -453,8 +395,7 @@ export const createAgent = async (
     }
     workflow
       .addConditionalEdges('agent', shouldContinue)
-      .addEdge('tools', 'agent')
-      .addEdge('save_memory', '__end__');
+      .addEdge('tools', 'agent');
 
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
