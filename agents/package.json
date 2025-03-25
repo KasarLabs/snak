@@ -1,5 +1,5 @@
 {
-  "name": "@starknet-agent-kit/agents",
+  "name": "@hijox-agent-kit/agents",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,9 +14,9 @@
     "lint": "eslint \"src/**/*.ts\""
   },
   "keywords": [],
-  "author": "KasarLabs",
+  "author": "Hijo",
   "license": "ISC",
-  "description": "The Agent Kit engine of Snak",
+  "description": "The Agent Kit engine of Hijo",
   "dependencies": {
     "@langchain/anthropic": "^0.3.11",
     "@langchain/community": "^0.3.28",
