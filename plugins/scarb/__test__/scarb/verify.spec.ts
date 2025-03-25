@@ -50,7 +50,7 @@ describe('Verify Program Tests', () => {
     expect(parsedProveResult.proofPath).toBeTruthy();
 
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName
+      projectName: projectName,
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);
@@ -82,7 +82,7 @@ describe('Verify Program Tests', () => {
     expect(parsedProveResult.status).toBe('success');
 
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName
+      projectName: projectName,
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);
@@ -111,7 +111,6 @@ describe('Verify Program Tests', () => {
   }, 180000);
 
   it('should fail verification with non-existent project', async () => {
-
     const verifyResult = await verifyProgram(agent, {
       projectName: 'non_existent_project',
       proofPath: '/path/to/proof.json',
@@ -144,13 +143,13 @@ describe('Verify Program Tests', () => {
     expect(parsedProveResult.status).toBe('success');
 
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName
+      projectName: projectName,
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);
 
     expect(parsedVerifyResult.status).toBe('success');
-  }, 300000); 
+  }, 300000);
 
   it('should verify proof for multiple files in the project', async () => {
     const projectName = getUniqueProjectName();
@@ -175,7 +174,7 @@ describe('Verify Program Tests', () => {
     expect(parsedProveResult.status).toBe('success');
 
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName
+      projectName: projectName,
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);

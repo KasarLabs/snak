@@ -86,7 +86,7 @@ describe('Simple initializeProjectData Test', () => {
       contractPaths,
       dependencies
     );
-    console.log("Initialization result:", result);
+    console.log('Initialization result:', result);
 
     expect(result).toBeDefined();
     expect(result.name).toBe(projectName);
@@ -147,7 +147,7 @@ describe('Simple initializeProjectData Test', () => {
     const result = await retrieveProjectData(agent, projectName);
 
     expect(result).toEqual(expectedProject);
-    expect(mockDb.select).toHaveBeenCalledTimes(3); 
+    expect(mockDb.select).toHaveBeenCalledTimes(3);
     expect(agent.createDatabase).toHaveBeenCalledWith('scarb_db');
   });
 });

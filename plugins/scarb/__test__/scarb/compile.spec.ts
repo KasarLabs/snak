@@ -24,7 +24,6 @@ describe('Tests de la fonction compileContract', () => {
   }, 10000);
 
   it('devrait compiler un contrat Cairo simple', async () => {
-
     const projectName = 'project_5';
     const contractPaths = [
       'src/contract/test2.cairo',
@@ -36,7 +35,6 @@ describe('Tests de la fonction compileContract', () => {
         version: '1.0.0',
       },
     ];
-
 
     const result = await compileContract(agent, {
       projectName,
@@ -59,7 +57,7 @@ describe('Tests de la fonction compileContract', () => {
 
     expect(parsedResult.casmFiles.length).toBeGreaterThan(0);
     expect(parsedResult.sierraFiles.length).toBeGreaterThan(0);
-  }, 180000); 
+  }, 180000);
   it('should handle missing scarb installation', async () => {
     // Mock checkScarbInstalled to return false for this test
     jest
