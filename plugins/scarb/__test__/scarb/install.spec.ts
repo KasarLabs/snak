@@ -3,8 +3,6 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { installScarb } from '../../src/actions/installScarb.js';
 import { createMockStarknetAgent } from '../jest/setEnvVars.js';
 import * as environmentModule from '../../src/utils/install.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
 // Mock child_process module
 jest.mock('child_process', () => {

@@ -92,12 +92,11 @@ describe('Prove Program Tests', () => {
   it('should properly handle execution errors', async () => {
     const projectName = getUniqueProjectName();
 
-    // Tenter d'exécuter et prouver avec des arguments invalides
     const proveResult = await proveProgram(agent, {
       projectName: projectName,
       programPaths: ['src/contract/program.cairo'],
       dependencies: [],
-      arguments: 'invalid_argument_type', // Argument invalide qui devrait causer une erreur
+      arguments: 'invalid_argument_type',
     });
 
     const parsedProveResult = JSON.parse(proveResult);
@@ -109,7 +108,6 @@ describe('Prove Program Tests', () => {
   it('should fail with invalid executable function name', async () => {
     const projectName = getUniqueProjectName();
 
-    // Tenter d'exécuter et prouver avec un nom de fonction inexistant
     const proveResult = await proveProgram(agent, {
       projectName: projectName,
       programPaths: ['src/contract/program.cairo'],

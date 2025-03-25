@@ -272,8 +272,6 @@ export const initializeProjectData = async (
   projectType: 'contract' | 'cairo_program'
 ) => {
   try {
-    await initializeDatabase(agent);
-
     const projectId = await createProject(agent, projectName, projectType);
 
     for (const contractPath of contractPaths) {

@@ -21,7 +21,7 @@ describe('Verify Program Tests', () => {
   afterAll(async () => {
     try {
       const workspacePath = getWorkspacePath();
-      // Nettoyer tous les projets de test créés
+
       await execAsync(`rm -rf ${workspacePath}/${baseProjectName}_*`);
       console.log('Projets de test nettoyés avec succès');
     } catch (error) {
@@ -32,7 +32,6 @@ describe('Verify Program Tests', () => {
   it('should successfully verify a valid proof', async () => {
     const projectName = getUniqueProjectName();
 
-    // 1. Exécuter le programme
     const execResult = await executeProgram(agent, {
       projectName: projectName,
       programPaths: ['src/Program/program.cairo'],
@@ -42,20 +41,16 @@ describe('Verify Program Tests', () => {
     const parsedExecResult = JSON.parse(execResult);
     expect(parsedExecResult.status).toBe('success');
 
-    // 2. Générer une preuve
     const proveResult = await proveProgram(agent, {
       projectName: projectName,
-      executionId: parsedExecResult.executionId,
     });
 
     const parsedProveResult = JSON.parse(proveResult);
     expect(parsedProveResult.status).toBe('success');
     expect(parsedProveResult.proofPath).toBeTruthy();
 
-    // 3. Vérifier la preuve
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName,
-      proofPath: parsedProveResult.proofPath,
+      projectName: projectName
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);
@@ -68,7 +63,6 @@ describe('Verify Program Tests', () => {
   it('should verify proof for a program with arguments', async () => {
     const projectName = getUniqueProjectName();
 
-    // 1. Exécuter le programme avec des arguments
     const execResult = await executeProgram(agent, {
       projectName: projectName,
       programPaths: ['src/Program/program2.cairo'],
@@ -80,19 +74,15 @@ describe('Verify Program Tests', () => {
     const parsedExecResult = JSON.parse(execResult);
     expect(parsedExecResult.status).toBe('success');
 
-    // 2. Générer une preuve
     const proveResult = await proveProgram(agent, {
       projectName: projectName,
-      executionId: parsedExecResult.executionId,
     });
 
     const parsedProveResult = JSON.parse(proveResult);
     expect(parsedProveResult.status).toBe('success');
 
-    // 3. Vérifier la preuve
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName,
-      proofPath: parsedProveResult.proofPath,
+      projectName: projectName
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);
@@ -103,14 +93,12 @@ describe('Verify Program Tests', () => {
   it('should fail verification with invalid proof path', async () => {
     const projectName = getUniqueProjectName();
 
-    // Initialiser d'abord un projet pour que le répertoire existe
     const execResult = await executeProgram(agent, {
       projectName: projectName,
       programPaths: ['src/Program/program.cairo'],
       dependencies: [],
     });
 
-    // Tenter de vérifier avec un chemin de preuve invalide
     const verifyResult = await verifyProgram(agent, {
       projectName: projectName,
       proofPath: '/invalid/path/to/proof.json',
@@ -123,7 +111,7 @@ describe('Verify Program Tests', () => {
   }, 180000);
 
   it('should fail verification with non-existent project', async () => {
-    // Tenter de vérifier dans un projet inexistant
+
     const verifyResult = await verifyProgram(agent, {
       projectName: 'non_existent_project',
       proofPath: '/path/to/proof.json',
@@ -137,42 +125,36 @@ describe('Verify Program Tests', () => {
   it('should verify proof for a complex program', async () => {
     const projectName = getUniqueProjectName();
 
-    // 1. Exécuter le programme avec un cas plus complexe
     const execResult = await executeProgram(agent, {
       projectName: projectName,
       programPaths: ['src/Program/program2.cairo'],
       dependencies: [],
       executableFunction: 'fib',
-      arguments: '20', // Calcul plus complexe
+      arguments: '20',
     });
 
     const parsedExecResult = JSON.parse(execResult);
     expect(parsedExecResult.status).toBe('success');
 
-    // 2. Générer une preuve
     const proveResult = await proveProgram(agent, {
       projectName: projectName,
-      executionId: parsedExecResult.executionId,
     });
 
     const parsedProveResult = JSON.parse(proveResult);
     expect(parsedProveResult.status).toBe('success');
 
-    // 3. Vérifier la preuve
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName,
-      proofPath: parsedProveResult.proofPath,
+      projectName: projectName
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);
 
     expect(parsedVerifyResult.status).toBe('success');
-  }, 300000); // Plus de temps pour un calcul plus complexe
+  }, 300000); 
 
   it('should verify proof for multiple files in the project', async () => {
     const projectName = getUniqueProjectName();
 
-    // 1. Exécuter avec plusieurs fichiers dans le projet
     const execResult = await executeProgram(agent, {
       projectName: projectName,
       programPaths: ['src/Program/program.cairo', 'src/Program/program2.cairo'],
@@ -185,19 +167,15 @@ describe('Verify Program Tests', () => {
     const parsedExecResult = JSON.parse(execResult);
     expect(parsedExecResult.status).toBe('success');
 
-    // 2. Générer une preuve
     const proveResult = await proveProgram(agent, {
       projectName: projectName,
-      executionId: parsedExecResult.executionId,
     });
 
     const parsedProveResult = JSON.parse(proveResult);
     expect(parsedProveResult.status).toBe('success');
 
-    // 3. Vérifier la preuve
     const verifyResult = await verifyProgram(agent, {
-      projectName: projectName,
-      proofPath: parsedProveResult.proofPath,
+      projectName: projectName
     });
 
     const parsedVerifyResult = JSON.parse(verifyResult);

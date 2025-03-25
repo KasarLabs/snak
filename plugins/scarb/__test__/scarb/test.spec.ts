@@ -5,7 +5,7 @@ import { createMockStarknetAgent } from '../jest/setEnvVars.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { PostgresAdaptater } from '@starknet-agent-kit/agents';
 
-// Définir un type pour nos mocks qui correspond à la structure attendue
+// Define a type for our mocks that matches the expected structure
 type MockDB = {
   select: jest.Mock;
   insert: jest.Mock;
@@ -15,18 +15,18 @@ type MockDB = {
 };
 
 describe('Simple initializeProjectData Test', () => {
-  // Créer l'agent et les mocks
+  // Create the agent and mocks
   let agent: StarknetAgentInterface;
   let mockDb: MockDB;
 
   beforeEach(() => {
-    // Réinitialiser les mocks
+    // Reset the mocks
     jest.clearAllMocks();
 
-    // Créer l'agent
+    // Create the agent
     agent = createMockStarknetAgent();
 
-    // Créer les mocks pour l'adaptateur Postgres
+    // Create mocks for the Postgres adapter
     mockDb = {
       select: jest.fn(),
       insert: jest.fn(),
@@ -35,16 +35,16 @@ describe('Simple initializeProjectData Test', () => {
       update: jest.fn(),
     };
 
-    // Configuration des réponses
+    // Configure responses
     mockDb.select.mockImplementation(
       (params: { FROM: string[]; SELECT: string[] }) => {
-        // Déterminer quelle requête est en cours d'exécution
+        // Determine which query is being executed
         if (params.FROM[0] === 'project') {
           if (params.SELECT[0] === 'id') {
-            // Vérification si le projet existe ou récupération ID
+            // Check if the project exists or retrieve ID
             return { query: { rows: [{ id: 1 }] } };
           } else {
-            // retrieveProjectData - info projet
+            // retrieveProjectData - project info
             return {
               query: {
                 rows: [{ id: 1, name: 'test_project', type: 'contract' }],
@@ -52,10 +52,10 @@ describe('Simple initializeProjectData Test', () => {
             };
           }
         } else if (params.FROM[0] === 'program') {
-          // Récupération des programmes
+          // Retrieve programs
           return { query: { rows: [] } };
         } else if (params.FROM[0] === 'dependency') {
-          // Récupération des dépendances
+          // Retrieve dependencies
           return { query: { rows: [] } };
         }
 
@@ -66,41 +66,38 @@ describe('Simple initializeProjectData Test', () => {
     mockDb.insert.mockReturnValue({ status: 'success' });
     mockDb.createTable.mockReturnValue({ status: 'success' });
 
-    // Remplacer la méthode createDatabase - utiliser la technique appropriée pour le mock
+    // Replace the createDatabase method - use the appropriate technique for mocking
     const origCreateDatabase = agent.createDatabase;
     agent.createDatabase = jest.fn(async (dbName: string) => {
       return mockDb as unknown as PostgresAdaptater;
     });
   });
 
-  it('initialise correctement un nouveau projet', async () => {
-    // Paramètres du test
+  it('correctly initializes a new project', async () => {
+    // Test parameters
     const projectName = 'test_project';
     const contractPaths = ['src/contract/test.cairo'];
     const dependencies = [{ name: 'openzeppelin', version: '1.0.0' }];
 
-    // Appeler la fonction à tester
+    // Call the function to test
     const result = await initializeProjectData(
       agent,
       projectName,
       contractPaths,
       dependencies
     );
-    console.log("Résultat de l'initialisation:", result);
-    // Vérifier les résultats de base
+    console.log("Initialization result:", result);
+
     expect(result).toBeDefined();
     expect(result.name).toBe(projectName);
     expect(result.id).toBe(1);
 
-    // Vérifier que createDatabase a été appelé
     expect(agent.createDatabase).toHaveBeenCalledWith('scarb_db');
 
-    // Vérifier qu'un projet a été inséré
     expect(mockDb.insert).toHaveBeenCalled();
   });
 
-  it('retrieveProjectData récupère correctement les données du projet', async () => {
-    // Configuration des données attendues
+  it('retrieveProjectData correctly retrieves project data', async () => {
     const projectName = 'test_project';
     const expectedProject = {
       id: 1,
@@ -116,7 +113,6 @@ describe('Simple initializeProjectData Test', () => {
       ],
     };
 
-    // Configurer le mock pour retourner les données correctes
     mockDb.select.mockImplementation(
       (params: { FROM: string[]; SELECT: string[] }) => {
         if (params.FROM[0] === 'project') {
@@ -146,15 +142,12 @@ describe('Simple initializeProjectData Test', () => {
       }
     );
 
-    // Importer directement la fonction à tester
     const { retrieveProjectData } = require('../../src/utils/db.js');
 
-    // Appeler la fonction
     const result = await retrieveProjectData(agent, projectName);
 
-    // Vérifier le résultat
     expect(result).toEqual(expectedProject);
-    expect(mockDb.select).toHaveBeenCalledTimes(3); // Devrait appeler select 3 fois
+    expect(mockDb.select).toHaveBeenCalledTimes(3); 
     expect(agent.createDatabase).toHaveBeenCalledWith('scarb_db');
   });
 });

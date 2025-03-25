@@ -15,7 +15,7 @@ describe('Tests de la fonction compileContract', () => {
   afterAll(async () => {
     try {
       const workspacePath = getWorkspacePath();
-      // Utilise la commande rm -rf pour nettoyer tous les projets dans le workspace
+
       await execAsync(`rm -rf ${workspacePath}/project_*`);
       console.log('Projets de test nettoyés avec succès');
     } catch (error) {
@@ -24,7 +24,7 @@ describe('Tests de la fonction compileContract', () => {
   }, 10000);
 
   it('devrait compiler un contrat Cairo simple', async () => {
-    // Définir les paramètres
+
     const projectName = 'project_5';
     const contractPaths = [
       'src/contract/test2.cairo',
@@ -37,22 +37,19 @@ describe('Tests de la fonction compileContract', () => {
       },
     ];
 
-    // Appeler la fonction de compilation
+
     const result = await compileContract(agent, {
       projectName,
       contractPaths,
       dependencies,
     });
 
-    // Analyser le résultat
     const parsedResult = JSON.parse(result);
     console.log('Résultat de la compilation:', parsedResult);
 
-    // Vérifier que la compilation a réussi
     expect(parsedResult.status).toBe('success');
     expect(parsedResult.message).toBe('Contract compiled successfully');
 
-    // Vérifier que le projet a été créé
     const projectDir = path.join('./src/workspace', projectName);
     const projectExists = await fs
       .access(projectDir)
@@ -60,11 +57,9 @@ describe('Tests de la fonction compileContract', () => {
       .catch(() => false);
     expect(projectExists).toBe(true);
 
-    // Vérifier que des fichiers ont été générés dans le répertoire target
     expect(parsedResult.casmFiles.length).toBeGreaterThan(0);
     expect(parsedResult.sierraFiles.length).toBeGreaterThan(0);
-  }, 180000); // 3 minutes de timeout pour la compilation
-
+  }, 180000); 
   it('should handle missing scarb installation', async () => {
     // Mock checkScarbInstalled to return false for this test
     jest

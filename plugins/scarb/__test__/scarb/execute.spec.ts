@@ -16,7 +16,7 @@ describe('Execute Program Tests', () => {
   afterAll(async () => {
     try {
       const workspacePath = getWorkspacePath();
-      // Utilise la commande rm -rf pour nettoyer tous les projets dans le workspace
+
       await execAsync(`rm -rf ${workspacePath}/execute_test_*`);
       console.log('Projets de test nettoyés avec succès');
     } catch (error) {
