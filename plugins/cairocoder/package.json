@@ -1,0 +1,23 @@
+{
+  "name": "@starknet-agent-kit/plugin-cairocoder",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "build": "pnpm clean:dist && tsc",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "starknet": "^5.25.0",
+    "zod": "^3.22.4",
+    "axios": "^1.6.7",
+    "@starknet-agent-kit/agents": "workspace:*"
+  },
+  "devDependencies": {
+  }
+} 

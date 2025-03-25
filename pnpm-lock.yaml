@@ -207,7 +207,7 @@ importers:
         version: 14.1.0
       next:
         specifier: 15.1.4
-        version: 15.1.4(@babel/core@7.26.9)(@playwright/test@1.51.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+        version: 15.1.4(@babel/core@7.26.10)(@playwright/test@1.51.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react:
         specifier: ^19.0.0
         version: 19.1.0
@@ -316,6 +316,22 @@ importers:
       '@starknet-agent-kit/agents':
         specifier: workspace:*
         version: link:../../agents
+
+  plugins/cairocoder:
+    dependencies:
+      axios:
+        specifier: ^1.6.7
+        version: 1.8.4(debug@4.4.0)
+      starknet:
+        specifier: ^5.25.0
+        version: 5.29.0(encoding@0.1.13)
+      zod:
+        specifier: ^3.22.4
+        version: 3.24.2
+      '@starknet-agent-kit/agents':
+        specifier: workspace:*
+        version: link:../../agents
+    devDependencies:
 
   plugins/chat-pool:
     devDependencies:
@@ -5718,6 +5734,9 @@ packages:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
     hasBin: true
 
+  lossless-json@2.0.11:
+    resolution: {integrity: sha512-BP0vn+NGYvzDielvBZaFain/wgeJ1hTvURCqtKvhr1SCPePdaaTanmmcplrHfEJSJOUql7hk4FHwToNJjWRY3g==}
+
   lossless-json@4.0.2:
     resolution: {integrity: sha512-+z0EaLi2UcWi8MZRxA5iTb6m4Ys4E80uftGY+yG5KNFJb5EceQXOhdW/pWJZ8m97s26u7yZZAYMcKWNztSZssA==}
 
@@ -7121,6 +7140,9 @@ packages:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
 
+  rspack-resolver@1.2.2:
+    resolution: {integrity: sha512-Fwc19jMBA3g+fxDJH2B4WxwZjE0VaaOL7OX/A4Wn5Zv7bOD/vyPZhzXfaO73Xc2GAlfi96g5fGUa378WbIGfFw==}
+
   run-async@2.4.1:
     resolution: {integrity: sha512-tvVnVv01b8c1RrA6Ep7JkStj85Guv/YrMcwqYQnwjsAS2cTmmPGBBjAjpCW7RrSodNSoE2/qg9O4bceNvUuDgQ==}
     engines: {node: '>=0.12.0'}
@@ -7877,6 +7899,11 @@ packages:
       eslint: ^8.57.0 || ^9.0.0
       typescript: '>=4.8.4 <5.9.0'
 
+  typescript@4.9.5:
+    resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
+    engines: {node: '>=4.2.0'}
+    hasBin: true
+
   typescript@5.7.2:
     resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
     engines: {node: '>=14.17'}
@@ -8582,12 +8609,6 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
-
-  '@dabh/diagnostics@2.0.3':
-    dependencies:
-      colorspace: 1.1.4
-      enabled: 2.0.0
-      kuler: 2.0.0
 
   '@discordjs/builders@1.10.1':
     dependencies:
@@ -9722,11 +9743,17 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.3.2
 
+  '@noble/curves@1.3.0':
+    dependencies:
+      '@noble/hashes': 1.3.3
+
   '@noble/curves@1.7.0':
     dependencies:
       '@noble/hashes': 1.6.0
 
   '@noble/hashes@1.3.2': {}
+
+  '@noble/hashes@1.3.3': {}
 
   '@noble/hashes@1.6.0': {}
 
@@ -10287,7 +10314,14 @@ snapshots:
 
   '@sapphire/snowflake@3.5.3': {}
 
+  '@scure/base@1.1.9': {}
+
   '@scure/base@1.2.1': {}
+
+  '@scure/starknet@1.0.0':
+    dependencies:
+      '@noble/curves': 1.3.0
+      '@noble/hashes': 1.3.3
 
   '@scure/starknet@1.1.0':
     dependencies:
@@ -10639,8 +10673,6 @@ snapshots:
 
   '@types/tough-cookie@4.0.5': {}
 
-  '@types/triple-beam@1.3.5': {}
-
   '@types/unist@2.0.11': {}
 
   '@types/unist@3.0.3': {}
@@ -10887,6 +10919,13 @@ snapshots:
     optional: true
 
   abbrev@2.0.0: {}
+
+  abi-wan-kanabi@1.0.3:
+    dependencies:
+      fs-extra: 10.1.0
+      rome: 12.1.3
+      typescript: 4.9.5
+      yargs: 17.7.2
 
   abi-wan-kanabi@2.2.4:
     dependencies:
@@ -14191,6 +14230,8 @@ snapshots:
     dependencies:
       js-tokens: 4.0.0
 
+  lossless-json@2.0.11: {}
+
   lossless-json@4.0.2: {}
 
   lru-cache@10.4.3: {}
@@ -14743,7 +14784,7 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  next@15.1.4(@babel/core@7.26.9)(@playwright/test@1.51.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+  next@15.1.4(@babel/core@7.26.10)(@playwright/test@1.51.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
       '@next/env': 15.1.4
       '@swc/counter': 0.1.3
@@ -14763,7 +14804,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 15.1.4
       '@next/swc-win32-arm64-msvc': 15.1.4
       '@next/swc-win32-x64-msvc': 15.1.4
-      '@playwright/test': 1.51.0
+      '@playwright/test': 1.51.1
       sharp: 0.33.5
     transitivePeerDependencies:
       - '@babel/core'
@@ -16827,6 +16868,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  typescript@4.9.5: {}
+
   typescript@5.7.2: {}
 
   typescript@5.8.2: {}
@@ -16947,6 +16990,8 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
+
+  url-join@4.0.1: {}
 
   url-parse@1.5.10:
     dependencies:
