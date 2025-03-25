@@ -97,8 +97,22 @@ export const createAgent = async (
 
   try {
 	const mem0 = new Memory({
+		llm: {
+			provider: aiConfig.aiProvider,
+			config: {
+				apiKey: aiConfig.aiProviderApiKey,
+        model: aiConfig.aiModel,
+			},
+		},
+    embedder : {
+      provider : aiConfig.aiProvider,
+      config : {
+        apiKey : aiConfig.aiProviderApiKey,
+        model: "text-embedding-3-small"
+      }
+    }
 	});
-	mem0.deleteAll({userId : "default_user"})
+	  //mem0.deleteAll({userId : "default_user"})
     const json_config = starknetAgent.getAgentConfig();
     json_config.memory = true;
     const embeddings = new CustomHuggingFaceEmbeddings({
