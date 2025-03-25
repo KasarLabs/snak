@@ -17,21 +17,16 @@ const DiscordToolKits = (): Tool[] => {
   ];
 };
 
-export const createAllowedToollkits = (
-  Toolkits: string[],
-  allowed_external_tool?: string[]
-): Tool[] => {
-  let allowedToolsKits: Tool[] = [];
+export const createAllowedToollkits = async (
+  Toolkits?: string[]
+): Promise<Tool[]> => {
+  const allowedToolsKits: Tool[] = [];
   if (!Array.isArray(Toolkits)) {
     return allowedToolsKits;
   }
   Toolkits.forEach((tools_kit) => {
     if (tools_kit === 'discord') {
-      const discord_tools = !Array.isArray(allowed_external_tool)
-        ? DiscordToolKits()
-        : DiscordToolKits().filter((tool) =>
-            allowed_external_tool.includes(tool.name)
-          );
+      const discord_tools = DiscordToolKits();
       discord_tools.forEach((tool) => {
         allowedToolsKits.push(tool);
       });

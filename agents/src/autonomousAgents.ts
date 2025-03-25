@@ -63,15 +63,15 @@ export const createAutonomousAgent = async (
       throw new Error('Agent configuration is required');
     }
 
-    let tools;
     const allowedTools = await createAllowedTools(
       starknetAgent,
       json_config.internal_plugins
     );
 
-    const allowedToolsKits = json_config.external_plugins
-      ? createAllowedToollkits(json_config.external_plugins)
-      : null;
+    const allowedToolsKits = await createAllowedToollkits(
+      json_config.external_plugins
+    );
+    let tools;
 
     tools = allowedToolsKits
       ? [...allowedTools, ...allowedToolsKits]

@@ -201,7 +201,7 @@ describe('PostgresAdaptater - createTable', () => {
       };
 
       // Simulate disconnected database
-      // @ts-ignore - Accessing a private property for testing
+      // @ts-expect-error - Accessing a private property for testing
       adapter.pool = undefined;
 
       // Act

@@ -6,9 +6,38 @@ import { ChatOllama } from '@langchain/ollama';
 import { ChatDeepSeek } from '@langchain/deepseek';
 import { StarknetAgentInterface } from './tools/tools.js';
 import { createSignatureTools } from './tools/signatureTools.js';
-import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
+import {
+  Annotation,
+  MemorySaver,
+  MessagesAnnotation,
+  StateGraph,
+} from '@langchain/langgraph';
+import {
+  AIMessage,
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
+import {
+  DynamicStructuredTool,
+  StructuredTool,
+  Tool,
+  tool,
+} from '@langchain/core/tools';
+import { z } from 'zod';
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from '@langchain/core/prompts';
+import { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
+
+import { Memory } from 'mem0ai/oss';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 
 export const createAgent = async (
@@ -37,6 +66,7 @@ export const createAgent = async (
         return new ChatOpenAI({
           modelName: aiConfig.aiModel,
           apiKey: aiConfig.aiProviderApiKey,
+          temperature: 0,
         });
       case 'gemini':
         if (!aiConfig.aiProviderApiKey) {
@@ -69,26 +99,76 @@ export const createAgent = async (
   };
 
   try {
-    const modelSelected = model();
+    /*const mem0 = new Memory({
+      llm: {
+        provider: aiConfig.aiProvider,
+        config: {
+          apiKey: aiConfig.aiProviderApiKey,
+          model: aiConfig.aiModel,
+        },
+      },
+      embedder: {
+        provider: aiConfig.aiProvider,
+        config: {
+          apiKey: aiConfig.aiProviderApiKey,
+          model: 'text-embedding-3-small',
+        },
+      },
+    });*/
     const json_config = starknetAgent.getAgentConfig();
+    json_config.memory = true;
+    const embeddings = new CustomHuggingFaceEmbeddings({
+      model: 'Xenova/all-MiniLM-L6-v2',
+      dtype: 'fp32',
+    });
 
+    const embeddingDimensions = 384; //1536 for OpenAI, 512 for TensorFlow, 384 for HuggingFace
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
-    let tools;
+    let databaseConnection = null;
+    if (json_config.memory) {
+      const databaseName = json_config.chat_id;
+      databaseConnection = await starknetAgent.createDatabase(databaseName);
+      if (!databaseConnection) {
+        throw new Error(`Failed to create or connect to database: `);
+      }
+      try {
+        const dbCreation = await databaseConnection.createTable({
+          table_name: 'agent_memories',
+          fields: new Map<string, string>([
+            ['id', 'SERIAL PRIMARY KEY'],
+            ['user_id', 'VARCHAR(100)'],
+            ['content', 'TEXT'],
+            ['embedding', `vector(${embeddingDimensions})`],
+            ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
+            ['metadata', 'TEXT'],
+          ]),
+        });
+        if (dbCreation.code == '42P07')
+          console.log('Agent memory table already exists');
+        else console.log('Agent memory table successfully created');
+      } catch (error) {
+        console.error('Error creating memories table:', error);
+        throw error;
+      }
+    }
+
+    let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[];
+
     if (isSignature === true) {
-      tools = await createSignatureTools(json_config.internal_plugins);
+      toolsList = await createSignatureTools(json_config.internal_plugins);
     } else {
       const allowedTools = await createAllowedTools(
         starknetAgent,
         json_config.internal_plugins
       );
 
-      const allowedToolsKits = json_config.external_plugins
-        ? createAllowedToollkits(json_config.external_plugins)
-        : null;
+      const allowedToolsKits = await createAllowedToollkits(
+        json_config.external_plugins
+      );
 
-      tools = allowedToolsKits
+      toolsList = allowedToolsKits
         ? [...allowedTools, ...allowedToolsKits]
         : [...allowedTools];
     }
@@ -96,16 +176,233 @@ export const createAgent = async (
       const mcp = new MCP_CONTROLLER();
       await mcp.initializeConnections();
       console.log(mcp.getTools());
-      tools = [...tools, ...mcp.getTools()];
+      toolsList = [...toolsList, ...mcp.getTools()];
     }
 
-    const agent = createReactAgent({
-      llm: modelSelected,
-      tools,
-      messageModifier: json_config.prompt,
+    const GraphState = Annotation.Root({
+      messages: Annotation<BaseMessage[]>({
+        reducer: (x, y) => x.concat(y),
+      }),
+      memories: Annotation<string>,
     });
 
-    return agent;
+    const upsertMemoryToolDB = tool(
+      async ({ content }, config: LangGraphRunnableConfig): Promise<string> => {
+        try {
+          const userId = config.configurable?.userId || 'default_user';
+          const embeddingResult = await embeddings.embedQuery(content);
+          const embeddingString = `[${embeddingResult.join(',')}]`;
+          const metadata = JSON.stringify({
+            timestamp: new Date().toISOString(),
+          });
+
+          //console.log('\nInserting inside the table : ', content);
+          if (databaseConnection) {
+            await databaseConnection.insert({
+              table_name: 'agent_memories',
+              fields: new Map<string, string | string[]>([
+                ['id', 'DEFAULT'],
+                ['user_id', userId],
+                ['content', content],
+                ['embedding', embeddingString],
+                ['metadata', metadata],
+              ]),
+            });
+          }
+
+          return 'Memory stored successfully.';
+        } catch (error) {
+          console.error('Error storing memory:', error);
+          return 'Failed to store memory.';
+        }
+      },
+      {
+        name: 'upsert_memory',
+        schema: z.object({
+          content: z.string().describe('The content of the memory to store.'),
+        }),
+        description:
+          "CREATE, UPDATE or DELETE persistent MEMORIES to persist across conversations. In your system prompt, you have access to the MEMORIES relevant to the user's query, each having their own MEMORY ID. Include the MEMORY ID when updating or deleting a MEMORY. Omit when creating a new MEMORY - it will be created for you. Proactively call this tool when you: 1.Identify a new USER preference. 2.Receive an explicit USER request to remember something or otherwise alter your behavior. 3. Are working and want to record important context. 4. Identify that an existing MEMORY is incorrect or outdated.",
+      }
+    );
+
+    const addMemoriesFromDB = async (
+      state: typeof MessagesAnnotation.State,
+      config: LangGraphRunnableConfig
+    ) => {
+      try {
+        if (!databaseConnection)
+          return {
+            memories: '',
+          };
+        const userId = config.configurable?.userId || 'default_user';
+        const lastMessage = state.messages[state.messages.length - 1]
+          .content as string;
+
+        const queryEmbedding = await embeddings.embedQuery(lastMessage);
+        const queryEmbeddingStr = `[${queryEmbedding.join(',')}]`;
+        const similarMemoriesQuery = `
+          SELECT id, content, 1 - (embedding <=> '${queryEmbeddingStr}'::vector) as similarity
+          FROM agent_memories
+          WHERE user_id = '${userId}'
+          ORDER BY similarity DESC
+          LIMIT 4
+        `;
+
+        /*const relevantMemories = await mem0.search(
+          state.messages[state.messages.length - 1].content as string,
+          {
+            userId: userId,
+            agentId: json_config.chat_id,
+            limit: 4,
+          }
+        );
+
+        const memoriesStr = relevantMemories.results
+          .map((entry) => `- ${entry.memory} (Score: ${entry.score || 'N/A'})`)
+          .join('\n');
+          */
+        const results = await databaseConnection.query(similarMemoriesQuery);
+        // if (results.query) {
+        //   console.log('\n\nDATABASE CONTENT :\n-------');
+        //   for (const row of results.query.rows) {
+        //     console.log('Raw data : ', JSON.stringify(row));
+        //   }
+        //   console.log('-------\n');
+        // }
+        let memories = '\n';
+        if (results.query) {
+          memories = results.query.rows
+            .map((row) => {
+              // Format each memory with its content and similarity score
+              return `Memory [id: ${row.id}, similarity: ${row.similarity.toFixed(4)}]: ${row.content}`;
+            })
+            .join('\n');
+        }
+        //console.log('Memories :\n-------\n', memories, '\n-------\n');
+
+        return {
+          memories: memories,
+        };
+      } catch (error) {
+        console.error('Error retrieving memories:', error);
+        return {
+          memories: '',
+        };
+      }
+    };
+
+    //if (json_config.memory) toolsList.push(upsertMemoryToolDB);
+    const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
+    const modelSelected = model().bindTools(toolsList);
+
+    const configPrompt = json_config.prompt?.content;
+
+    const baseSystemtPrompt = `${configPrompt}`;
+    const memoryPrompt = `The most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;`;
+    const finalPrompt = json_config.memory
+      ? `${baseSystemtPrompt}\n${memoryPrompt}`
+      : `${baseSystemtPrompt}`;
+
+    async function callModel(
+      state: typeof GraphState.State
+    ): Promise<{ messages: BaseMessage[] }> {
+      const prompt = ChatPromptTemplate.fromMessages([
+        [
+          'system',
+          `${finalPrompt}
+
+          {system_message}`,
+        ],
+        new MessagesPlaceholder('messages'),
+      ]);
+
+      const formattedPrompt = await prompt.formatMessages({
+        system_message: '',
+        tool_names: toolsList.map((tool) => tool.name).join(', '),
+        messages: state.messages,
+        memories: state.memories || '',
+      });
+
+      const result = await modelSelected.invoke(formattedPrompt);
+
+      return {
+        messages: [result],
+      };
+    }
+
+    async function addMessagesToMem0(
+      messages: BaseMessage[],
+      userId: string = 'default_user'
+    ) {
+      const mem0Messages = messages
+        .filter((msg) => !(msg instanceof ToolMessage))
+        .map((msg) => {
+          let role: string;
+          if (msg instanceof AIMessage) {
+            role = 'assistant';
+          } else if (msg instanceof HumanMessage) {
+            role = 'user';
+          } else if (msg instanceof SystemMessage) {
+            role = 'system';
+          } else if (msg instanceof ToolMessage) {
+            role = 'tool';
+          } else {
+            // Default fallback
+            role = 'user';
+          }
+
+          // Extract the content from the BaseMessage
+          const content =
+            typeof msg.content === 'string'
+              ? msg.content
+              : JSON.stringify(msg.content);
+
+          return {
+            role,
+            content,
+          };
+        });
+
+      /*await mem0.add(mem0Messages, {
+        userId,
+        agentId: json_config.chat_id,
+        prompt: "Store the whole message you're being given in the database.",
+      });*/
+    }
+
+    function shouldContinue(state: typeof GraphState.State) {
+      const messages = state.messages;
+      const lastMessage = messages[messages.length - 1] as AIMessage;
+      //addMessagesToMem0(messages);
+
+      if (lastMessage.tool_calls?.length) {
+        return 'tools';
+      }
+      return 'end';
+    }
+
+    const workflow = new StateGraph(GraphState)
+      .addNode('agent', callModel)
+      .addNode('tools', toolNode);
+    if (json_config.memory) {
+      workflow
+        .addNode('memory', addMemoriesFromDB)
+        .addEdge('__start__', 'memory')
+        .addEdge('memory', 'agent');
+    } else {
+      workflow.addEdge('__start__', 'agent');
+    }
+    workflow
+      .addConditionalEdges('agent', shouldContinue)
+      .addEdge('tools', 'agent');
+
+    const checkpointer = new MemorySaver();
+    const app = workflow.compile({
+      ...(json_config.memory ? { checkpointer: checkpointer } : {}),
+    });
+
+    return app;
   } catch (error) {
     console.error(
       `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`

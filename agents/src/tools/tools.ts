@@ -1,4 +1,4 @@
-import { tool } from '@langchain/core/tools';
+import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { TwitterInterface } from '../../common/index.js';
 import { JsonConfig } from '../jsonConfig.js';
@@ -30,7 +30,7 @@ export interface StarknetAgentInterface {
   getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 
-export interface StarknetTool<P = any> {
+export interface StarknetTool<P = unknown> {
   name: string;
   plugins: string;
   description: string;
@@ -75,8 +75,6 @@ export class StarknetToolRegistry {
   }
 }
 
-export const initializeTools = (agent: StarknetAgentInterface) => {};
-
 export const registerTools = async (
   agent: StarknetAgentInterface,
   allowed_tools: string[],
@@ -109,7 +107,7 @@ export const createTools = (agent: StarknetAgentInterface) => {
 export const createAllowedTools = async (
   agent: StarknetAgentInterface,
   allowed_tools: string[]
-) => {
+): Promise<DynamicStructuredTool<any>[]> => {
   return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
 };
 

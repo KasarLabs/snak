@@ -82,14 +82,12 @@ export class PostgresAdaptater {
     }
     try {
       // console.log(`CREATE DATABASE ${database_name};`);
-      const create_db = await this.pool.query(
-        `CREATE DATABASE ${database_name};`
-      );
+      await this.pool.query(`CREATE DATABASE ${database_name};`);
       return true;
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          console.warn('Database already exist. Skip creation.');
+          console.warn('Database already exists.');
           return true;
         }
       }
@@ -286,7 +284,9 @@ export class PostgresAdaptater {
         throw new Error('Error table already exists.');
       }
       this.tables.push(table);
-    } catch (error) {}
+    } catch (error) {
+      console.error('Failed to add table:', error.message);
+    }
   }
 
   /**

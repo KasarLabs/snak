@@ -12,6 +12,7 @@ import {
 import { JsonConfig } from './jsonConfig.js';
 import { TelegramInterface } from '../common/index.js';
 import TelegramBot from 'node-telegram-bot-api';
+import { HumanMessage } from '@langchain/core/messages';
 import { PostgresAdaptater } from './databases/postgresql/src/database.js';
 import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 
@@ -25,6 +26,7 @@ export interface StarknetAgentConfig {
   signature: string;
   agentMode: string;
   agentconfig: JsonConfig;
+  embeddingKey?: string;
 }
 
 export class StarknetAgent implements IAgent {
@@ -58,10 +60,14 @@ export class StarknetAgent implements IAgent {
   }
 
   public async createAgentReactExecutor() {
+    if (!this.config.embeddingKey) {
+      throw new Error('Embedding key not found');
+    }
     const config: AiConfig = {
       aiModel: this.aiModel,
       aiProviderApiKey: this.aiProviderApiKey,
       aiProvider: this.config.aiProvider,
+      embeddingKey: this.config.embeddingKey,
     };
 
     if (this.currentMode === 'auto') {
@@ -259,6 +265,20 @@ export class StarknetAgent implements IAgent {
       if (!new_database_connection) {
         throw new Error('Error when trying to connect to your database');
       }
+      try {
+        // Assuming there's a public method like query() or execute() in PostgresAdaptater
+        await new_database_connection.query(
+          'CREATE EXTENSION IF NOT EXISTS vector;'
+        );
+      } catch (extError) {
+        console.error(
+          `Failed to create vector extension in database ${database_name}:`,
+          extError
+        );
+        console.warn(
+          'Vector functionality may not work properly. Make sure pgvector is installed.'
+        );
+      }
       this.database.push(new_database_connection);
       return new_database_connection;
     } catch (error) {
@@ -367,9 +387,15 @@ export class StarknetAgent implements IAgent {
       throw new Error(`Can't use execute with agent_mode: ${this.currentMode}`);
     }
 
-    const result = await this.agentReactExecutor.invoke({
-      messages: input,
-    });
+    const result = await this.agentReactExecutor.invoke(
+      {
+        messages: [new HumanMessage(input)],
+      },
+      {
+        recursionLimit: 15,
+        configurable: { thread_id: this.agentconfig.chat_id },
+      }
+    );
 
     return result.messages[result.messages.length - 1].content;
   }

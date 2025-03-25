@@ -1,26 +1,10 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  jest,
-  beforeAll,
-  afterAll,
-} from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { PostgresAdaptater } from '../src/database.js';
 import {
   PostgresDatabasePoolInterface,
   PostgresSchema,
-  PostgresTables,
-  dropSchemaOptionInterface,
-  dropTableOptionInterface,
-  insertOptionInterface,
-  selectOptionInterface,
-  updateOptionInterface,
-  deleteOptionInterface,
 } from '../src/interfaces/interfaces.js';
-import pg, { QueryResult } from 'pg';
+import pg from 'pg';
 
 // Mock complet de pg
 jest.mock('pg', () => {
@@ -161,7 +145,7 @@ describe('PostgresAdaptater', () => {
         name: 'test_schema',
       };
 
-      // @ts-ignore
+      // @ts-expect-error Accessing a private property for testing
       adapter.pool = undefined;
 
       // Act

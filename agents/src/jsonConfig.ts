@@ -1,12 +1,10 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { createBox, formatSection } from './formatting.js';
+import { createBox } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import fs from 'fs/promises';
 
-const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -28,6 +26,7 @@ export interface JsonConfig {
   external_plugins?: string[];
   mcp?: boolean;
   autonomous?: boolean;
+  memory: boolean;
 }
 
 export const createContextFromJson = (json: any): string => {
@@ -200,7 +199,7 @@ const checkParseJson = async (
     );
 
     // Create config object
-    let jsonconfig: JsonConfig = {
+    const jsonconfig: JsonConfig = {
       prompt: systemMessagefromjson,
       name: json.name,
       interval: json.interval,
@@ -212,6 +211,7 @@ const checkParseJson = async (
       external_plugins: Array.isArray(json.external_plugins)
         ? json.external_plugins
         : [],
+      memory: json.memory || false,
       mcp: json.mcp || false,
     };
 

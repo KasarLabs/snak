@@ -83,7 +83,7 @@ export class BatchSwapService {
           sellToken: params.sellTokenSymbols[i],
           buyToken: params.buyTokenSymbols[i],
           sellAmount: params.sellAmounts[i],
-          // @ts-expect-error
+          // @ts-expect-error Accessing a private property for testing
           buyAmount: route[i]?.outputAmount,
         });
       }

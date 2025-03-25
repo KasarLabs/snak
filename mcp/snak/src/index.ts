@@ -41,6 +41,7 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     interval: 1000,
     chat_id: 'mock_value',
     internal_plugins: allowed_tools,
+	memory: false,
     mcp: false,
   };
   const agent = new StarknetAgent({
