@@ -99,7 +99,7 @@ export const createAgent = async (
   };
 
   try {
-    const mem0 = new Memory({
+    /*const mem0 = new Memory({
       llm: {
         provider: aiConfig.aiProvider,
         config: {
@@ -114,7 +114,7 @@ export const createAgent = async (
           model: 'text-embedding-3-small',
         },
       },
-    });
+    });*/
     const json_config = starknetAgent.getAgentConfig();
     json_config.memory = true;
     const embeddings = new CustomHuggingFaceEmbeddings({
@@ -249,7 +249,7 @@ export const createAgent = async (
           LIMIT 4
         `;
 
-        const relevantMemories = await mem0.search(
+        /*const relevantMemories = await mem0.search(
           state.messages[state.messages.length - 1].content as string,
           {
             userId: userId,
@@ -261,7 +261,7 @@ export const createAgent = async (
         const memoriesStr = relevantMemories.results
           .map((entry) => `- ${entry.memory} (Score: ${entry.score || 'N/A'})`)
           .join('\n');
-
+          */
         const results = await databaseConnection.query(similarMemoriesQuery);
         // if (results.query) {
         //   console.log('\n\nDATABASE CONTENT :\n-------');
@@ -282,7 +282,7 @@ export const createAgent = async (
         //console.log('Memories :\n-------\n', memories, '\n-------\n');
 
         return {
-          memories: memoriesStr,
+          memories: memories,
         };
       } catch (error) {
         console.error('Error retrieving memories:', error);
@@ -364,11 +364,11 @@ export const createAgent = async (
           };
         });
 
-      await mem0.add(mem0Messages, {
+      /*await mem0.add(mem0Messages, {
         userId,
         agentId: json_config.chat_id,
         prompt: "Store the whole message you're being given in the database.",
-      });
+      });*/
     }
 
     function shouldContinue(state: typeof GraphState.State) {
