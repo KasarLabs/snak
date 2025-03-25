@@ -177,7 +177,6 @@ const LocalRun = async () => {
     if (agent_config === undefined) {
       throw new Error('Failed to load agent configuration');
     }
-    logger.info('Hello from logger');
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       const agent = new StarknetAgent({
