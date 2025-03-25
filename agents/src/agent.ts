@@ -25,7 +25,7 @@ import {
   SystemMessage,
   ToolMessage,
 } from '@langchain/core/messages';
-import { DynamicStructuredTool, Tool, tool } from '@langchain/core/tools';
+import { DynamicStructuredTool, StructuredTool, Tool, tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import {
   ChatPromptTemplate,
@@ -36,6 +36,7 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 
 import { Memory } from "mem0ai/oss"
+import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -157,7 +158,7 @@ export const createAgent = async (
       }
     }
 
-    let toolsList: (Tool | DynamicStructuredTool<any>)[];
+    let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[];
 
     if (isSignature === true) {
       toolsList = await createSignatureTools(json_config.internal_plugins);
@@ -173,7 +174,13 @@ export const createAgent = async (
 
       toolsList = allowedToolsKits
         ? [...allowedTools, ...allowedToolsKits]
-        : allowedTools;
+        : [...allowedTools];
+    }
+    if (json_config.mcp === true) {
+      const mcp = new MCP_CONTROLLER();
+      await mcp.initializeConnections();
+      console.log(mcp.getTools());
+      toolsList = [...toolsList, ...mcp.getTools()];
     }
 
     const GraphState = Annotation.Root({
@@ -280,7 +287,7 @@ export const createAgent = async (
     const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
     const modelSelected = model().bindTools(toolsList);
 
-    const configPrompt = json_config.prompt.content;
+    const configPrompt = json_config.prompt?.content;
 
     const baseSystemtPrompt = `${configPrompt}`;
     const memoryPrompt = `Use your upsert_memory tool in order to save the conversation as it goes on.\nThe most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;`;
