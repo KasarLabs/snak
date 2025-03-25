@@ -23,6 +23,7 @@ import {
   isSystemMessage,
   isToolMessage,
   SystemMessage,
+  ToolMessage,
 } from '@langchain/core/messages';
 import { DynamicStructuredTool, Tool, tool } from '@langchain/core/tools';
 import { z } from 'zod';
@@ -285,13 +286,14 @@ export const createAgent = async (
         ],
         new MessagesPlaceholder('messages'),
       ]);
+	  const userMessage = state.messages[state.messages.length - 1].content as string
+	  console.log("USER MESSAGE: ", userMessage)
+	  const relevantMemories = await mem0.search(state.messages[state.messages.length - 1].content as string, { userId: "default_user" , limit : 1});
 
-	  const relevantMemories = await mem0.search(state.messages[state.messages.length - 1].content as string, { userId: "default_user" });
-
-  		const memoriesStr = relevantMemories.results
-    	.map(entry => `- ${entry.memory}`)
-    	.join('\n');
-	  	console.log("MEMORIES: ", memoriesStr,"\n")
+	  const memoriesStr = relevantMemories.results
+	  .map(entry => `- ${entry.memory} (Score: ${entry.score || 'N/A'})`)
+	  .join('\n');
+	console.log("Relevant memories : ", memoriesStr, "\n")
 
       const formattedPrompt = await prompt.formatMessages({
         system_message: '',
@@ -308,6 +310,7 @@ export const createAgent = async (
     }
 
 	async function addMessagesToMem0(messages: BaseMessage[], userId: string = "default_user") {
+		console.log("CALLING ADDMESSAGESTOMEM0")
 		const mem0Messages = messages.map(msg => {
 		  // Determine the role based on the message type
 		  let role: string;
@@ -317,6 +320,8 @@ export const createAgent = async (
 			role = "user";
 		  } else if (msg instanceof SystemMessage) {
 			role = "system";
+		  } else if (msg instanceof ToolMessage) {
+			role = "tool";
 		  } else {
 			// Default fallback
 			role = "user";
@@ -332,6 +337,8 @@ export const createAgent = async (
 			content
 		  };
 		});
+
+		console.log("MEM0 MESSAGES : ", mem0Messages, "\n")
 
 		// Add the converted messages to mem0
 		await mem0.add(mem0Messages, { userId });
