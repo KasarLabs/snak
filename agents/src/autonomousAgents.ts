@@ -10,6 +10,12 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createAllowedToollkits } from './tools/external_tools.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import logger from './logger.js';
+import {
+  DynamicStructuredTool,
+  StructuredTool,
+  Tool,
+} from '@langchain/core/tools';
+import { AnyZodObject } from 'zod';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -63,7 +69,7 @@ export const createAutonomousAgent = async (
       throw new Error('Agent configuration is required');
     }
 
-    let tools;
+    let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[];
     const allowedTools = await createAllowedTools(
       starknetAgent,
       json_config.internal_plugins

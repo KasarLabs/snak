@@ -2,7 +2,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { RpcProvider } from 'starknet';
 import {
-  JsonConfig,
   StarknetAgent,
   registerTools,
   StarknetTool,
@@ -11,7 +10,6 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { tool } from '@langchain/core/tools';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -35,13 +33,6 @@ server.tool('ping', 'Check if the server is running', async () => {
 });
 
 export const RegisterToolInServer = async (allowed_tools: string[]) => {
-  const JsonConfig: JsonConfig = {
-    name: 'snak',
-    interval: 1000,
-    chat_id: 'mock_value',
-    internal_plugins: allowed_tools,
-    mcp: false,
-  };
   const agent = new StarknetAgent({
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
@@ -51,7 +42,7 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
     signature: 'key',
     agentMode: 'agent',
-    agentconfig: JsonConfig,
+    agentconfig: undefined,
   });
   const tools: StarknetTool[] = [];
   await registerTools(agent, allowed_tools, tools);

@@ -264,14 +264,14 @@ const LocalRun = async () => {
     }
   } catch (error) {
     spinner.error({ text: 'Failed to initialize agent' });
-    logger.error(
+    console.error(
       createBox(error.message, { title: 'Fatal Error', isError: true })
     );
   }
 };
 
 LocalRun().catch((error) => {
-  logger.error(
+  console.error(
     createBox(error.message, { title: 'Fatal Error', isError: true })
   );
   process.exit(1);

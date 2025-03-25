@@ -7,6 +7,19 @@ import { PostgresAdaptater } from './databases/postgresql/src/database.js';
 import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 import logger from './logger.js';
 
+/**
+ * @interface StarknetAgentConfig
+ * @description Configuration for the StarknetAgent
+ * @property {string} aiProviderApiKey - API key for the AI provider
+ * @property {string} aiModel - AI model to use
+ * @property {string} aiProvider - AI provider name
+ * @property {RpcProvider} provider - Starknet RPC provider
+ * @property {string} accountPublicKey - Public key for the Starknet account
+ * @property {string} accountPrivateKey - Private key for the Starknet account
+ * @property {string} signature - Signature for the agent
+ * @property {string} agentMode - Mode of the agent ('auto' or 'agent')
+ * @property {JsonConfig} agentconfig - JSON configuration for the agent
+ */
 export interface StarknetAgentConfig {
   aiProviderApiKey: string;
   aiModel: string;
@@ -16,9 +29,14 @@ export interface StarknetAgentConfig {
   accountPrivateKey: string;
   signature: string;
   agentMode: string;
-  agentconfig: JsonConfig;
+  agentconfig: JsonConfig | undefined;
 }
 
+/**
+ * @class StarknetAgent
+ * @implements {IAgent}
+ * @description Agent for interacting with Starknet blockchain with AI capabilities
+ */
 export class StarknetAgent implements IAgent {
   private readonly provider: RpcProvider;
   private readonly accountPrivateKey: string;
@@ -31,8 +49,13 @@ export class StarknetAgent implements IAgent {
 
   public readonly signature: string;
   public readonly agentMode: string;
-  public readonly agentconfig: JsonConfig;
+  public readonly agentconfig: JsonConfig | undefined;
 
+  /**
+   * @constructor
+   * @param {StarknetAgentConfig} config - Configuration for the StarknetAgent
+   * @throws {Error} Throws an error if required configuration is missing
+   */
   constructor(private readonly config: StarknetAgentConfig) {
     this.validateConfig(config);
 
@@ -47,6 +70,12 @@ export class StarknetAgent implements IAgent {
     this.agentconfig = config.agentconfig;
   }
 
+  /**
+   * @function createAgentReactExecutor
+   * @async
+   * @description Creates an agent executor based on the current mode
+   * @returns {Promise<void>}
+   */
   public async createAgentReactExecutor() {
     const config: AiConfig = {
       aiModel: this.aiModel,
@@ -60,17 +89,31 @@ export class StarknetAgent implements IAgent {
       this.agentReactExecutor = await createAgent(this, config);
     }
   }
+
+  /**
+   * @function validateConfig
+   * @private
+   * @description Validates the configuration provided
+   * @param {StarknetAgentConfig} config - Configuration to validate
+   * @throws {Error} Throws an error if required configuration is missing
+   */
   private validateConfig(config: StarknetAgentConfig) {
     if (!config.accountPrivateKey) {
-      throw new Error(
-        'Starknet wallet private key is required https://www.argent.xyz/argent-x'
-      );
+      throw new Error('STARKNET_PRIVATE_KEY is required');
     }
     if (config.aiModel !== 'ollama' && !config.aiProviderApiKey) {
-      throw new Error('AI Provider API key is required');
+      throw new Error('AAI_PROVIDER_API_KEY is required');
     }
   }
 
+  /**
+   * @function switchMode
+   * @private
+   * @async
+   * @description Switches the agent mode between 'auto' and 'agent'
+   * @param {string} newMode - New mode to switch to
+   * @returns {Promise<string>} Result message
+   */
   private async switchMode(newMode: string): Promise<string> {
     if (newMode === 'auto' && !this.agentconfig?.autonomous) {
       return 'Cannot switch to autonomous mode - not enabled in configuration';
@@ -85,6 +128,13 @@ export class StarknetAgent implements IAgent {
     return `Switched to ${newMode} mode`;
   }
 
+  /**
+   * @function connectDatabase
+   * @async
+   * @description Connects to an existing PostgreSQL database
+   * @param {string} database_name - Name of the database to connect to
+   * @returns {Promise<void>}
+   */
   public async connectDatabase(database_name: string): Promise<void> {
     try {
       const params: PostgresDatabasePoolInterface = {
@@ -96,7 +146,9 @@ export class StarknetAgent implements IAgent {
       };
       const database = await new PostgresAdaptater(params).connectDatabase();
       if (!database) {
-        throw new Error('Error when trying to initialize your database');
+        throw new Error(
+          'Error when trying to initialize your Postgres database'
+        );
       }
       this.database.push(database);
     } catch (error) {
@@ -106,6 +158,14 @@ export class StarknetAgent implements IAgent {
       return;
     }
   }
+
+  /**
+   * @function createDatabase
+   * @async
+   * @description Creates a new PostgreSQL database and connects to it
+   * @param {string} database_name - Name of the database to create
+   * @returns {Promise<PostgresAdaptater | undefined>} The connected database or undefined if failed
+   */
   public async createDatabase(
     database_name: string
   ): Promise<PostgresAdaptater | undefined> {
@@ -119,11 +179,13 @@ export class StarknetAgent implements IAgent {
       };
       const database = await new PostgresAdaptater(params).connectDatabase();
       if (!database) {
-        throw new Error('Error when trying to initialize your database');
+        throw new Error(
+          'Error when trying to initialize your Postgres database'
+        );
       }
       const new_database = await database.createDatabase(database_name);
       if (!new_database) {
-        throw new Error('Error when trying to create your database');
+        throw new Error('Error when trying to create your Postgres database');
       }
       const new_params: PostgresDatabasePoolInterface = {
         user: process.env.POSTGRES_USER as string,
@@ -136,7 +198,9 @@ export class StarknetAgent implements IAgent {
         new_params
       ).connectDatabase();
       if (!new_database_connection) {
-        throw new Error('Error when trying to connect to your database');
+        throw new Error(
+          'Error when trying to connect to your Postgres database'
+        );
       }
       this.database.push(new_database_connection);
       return new_database_connection;
@@ -148,27 +212,52 @@ export class StarknetAgent implements IAgent {
     }
   }
 
+  /**
+   * @function deleteDatabase
+   * @async
+   * @description Deletes a database connection
+   * @param {string} database_name - Name of the database to delete
+   * @returns {Promise<void>}
+   */
   public async deleteDatabase(database_name: string): Promise<void> {
     try {
       const database = this.getDatabaseByName(database_name);
       if (!database) {
-        throw new Error('Database not found');
+        throw new Error(`Postgres Database : ${database_name} not found`);
       }
       await database.closeDatabase();
       this.deleteDatabaseByName(database_name);
     } catch (error) {
-      console.log(error);
+      logger.log(error);
       return;
     }
   }
+
+  /**
+   * @function getDatabase
+   * @description Gets the array of database adapters instance
+   * @returns {PostgresAdaptater[]} Array of database adapters
+   */
   getDatabase(): PostgresAdaptater[] {
     return this.database;
   }
 
+  /**
+   * @function getDatabaseByName
+   * @description Gets a database adapters instance by name
+   * @param {string} name - Name of the database to get
+   * @returns {PostgresAdaptater|undefined} Database adapter or undefined if not found
+   */
   getDatabaseByName(name: string): PostgresAdaptater | undefined {
     return this.database.find((db) => db.getDatabaseName() === name);
   }
 
+  /**
+   * @function deleteDatabaseByName
+   * @description Removes a database from the array of database adapters
+   * @param {string} name - Name of the database to remove
+   * @returns {void}
+   */
   deleteDatabaseByName(name: string): void {
     if (!this.database) {
       return;
@@ -178,6 +267,12 @@ export class StarknetAgent implements IAgent {
     );
     this.database = database;
   }
+
+  /**
+   * @function getAccountCredentials
+   * @description Gets the Starknet account credentials
+   * @returns {{accountPrivateKey: string, accountPublicKey: string}} Account credentials
+   */
   getAccountCredentials() {
     return {
       accountPrivateKey: this.accountPrivateKey,
@@ -185,6 +280,11 @@ export class StarknetAgent implements IAgent {
     };
   }
 
+  /**
+   * @function getModelCredentials
+   * @description Gets the AI model credentials
+   * @returns {{aiModel: string, aiProviderApiKey: string}} AI model credentials
+   */
   getModelCredentials() {
     return {
       aiModel: this.aiModel,
@@ -192,32 +292,68 @@ export class StarknetAgent implements IAgent {
     };
   }
 
+  /**
+   * @function getSignature
+   * @description Gets the agent signature
+   * @returns {{signature: string}} Agent signature
+   */
   getSignature() {
     return {
       signature: this.signature,
     };
   }
 
+  /**
+   * @function getAgent
+   * @description Gets the agent mode
+   * @returns {{agentMode: string}} Agent mode
+   */
   getAgent() {
     return {
       agentMode: this.currentMode,
     };
   }
 
-  getAgentConfig(): JsonConfig {
+  /**
+   * @function getAgentConfig
+   * @description Gets the agent configuration
+   * @returns {JsonConfig} Agent configuration
+   */
+  getAgentConfig(): JsonConfig | undefined {
     return this.agentconfig;
   }
 
+  /**
+   * @function getProvider
+   * @description Gets the Starknet RPC provider
+   * @returns {RpcProvider} RPC provider
+   */
   getProvider(): RpcProvider {
     return this.provider;
   }
 
+  /**
+   * @function validateRequest
+   * @async
+   * @description Validates an input request
+   * @param {string} request - Request to validate
+   * @returns {Promise<boolean>} True if valid, false otherwise
+   */
   async validateRequest(request: string): Promise<boolean> {
     return Boolean(request && typeof request === 'string');
   }
+
+  /**
+   * @function execute
+   * @async
+   * @description Executes a request in agent mode
+   * @param {string} input - Input to execute
+   * @returns {Promise<unknown>} Result of the execution
+   * @throws {Error} Throws an error if not in agent mode
+   */
   async execute(input: string): Promise<unknown> {
     if (this.currentMode !== 'agent') {
-      throw new Error(`Can't use execute with agent_mode: ${this.currentMode}`);
+      throw new Error(`Need to be in agent mode to execute`);
     }
 
     const result = await this.agentReactExecutor.invoke({
@@ -227,12 +363,17 @@ export class StarknetAgent implements IAgent {
     return result.messages[result.messages.length - 1].content;
   }
 
+  /**
+   * @function execute_autonomous
+   * @async
+   * @description Executes in autonomous mode continuously
+   * @returns {Promise<unknown>} Result if execution fails
+   * @throws {Error} Throws an error if not in auto mode
+   */
   async execute_autonomous(): Promise<unknown> {
     try {
       if (this.currentMode !== 'auto') {
-        throw new Error(
-          `Can't use execute_autonomous with agent_mode: ${this.currentMode}`
-        );
+        throw new Error(`Need to be in autonomous mode to execute_autonomous`);
       }
 
       while (true) {
@@ -257,12 +398,18 @@ export class StarknetAgent implements IAgent {
     }
   }
 
+  /**
+   * @function execute_call_data
+   * @async
+   * @description Executes a call data (signature mode) request in agent mode
+   * @param {string} input - Input to execute
+   * @returns {Promise<unknown>} Parsed result or error
+   * @throws {Error} Throws an error if not in agent mode
+   */
   async execute_call_data(input: string): Promise<unknown> {
     try {
       if (this.currentMode !== 'agent') {
-        throw new Error(
-          `Can't use execute call data with agent_mode: ${this.currentMode}`
-        );
+        throw new Error(`Need to be in agent mode to execute_call_data`);
       }
       const aiMessage = await this.agentReactExecutor.invoke({
         messages: input,

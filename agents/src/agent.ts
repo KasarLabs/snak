@@ -11,6 +11,12 @@ import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
 import logger from './logger.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
+import {
+  DynamicStructuredTool,
+  StructuredTool,
+  Tool,
+} from '@langchain/core/tools';
+import { AnyZodObject } from 'zod';
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -76,7 +82,8 @@ export const createAgent = async (
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
-    let tools;
+    let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[];
+
     if (isSignature === true) {
       tools = await createSignatureTools(json_config.internal_plugins);
     } else {

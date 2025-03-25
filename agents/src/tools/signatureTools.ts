@@ -1,6 +1,15 @@
 import { tool } from '@langchain/core/tools';
 import logger from '../logger.js';
 
+/**
+ * @interface SignatureTool
+ * @description Interface for the signature tool
+ * @property {string} name - The name of the tool
+ * @property {string} categorie - The categorie of the tool
+ * @property {string} description - The description of the tool
+ * @property {object} schema - The schema for the tool
+ * @property {(params: any) => Promise<unknown>} execute - Function to execute the tool
+ */
 export interface SignatureTool<P = any> {
   name: string;
   categorie?: string;
@@ -9,6 +18,11 @@ export interface SignatureTool<P = any> {
   execute: (params: P) => Promise<unknown>;
 }
 
+/**
+ * @class StarknetSignatureToolRegistry
+ * @property {SignatureTool[]} tools - Array of signature tools
+ * @description Registry for the Starknet signature tools
+ */
 export class StarknetSignatureToolRegistry {
   private static tools: SignatureTool[] = [];
 
@@ -16,6 +30,14 @@ export class StarknetSignatureToolRegistry {
     this.tools.push(tool);
   }
 
+  /**
+   * @static
+   * @async
+   * @function createSignatureTools
+   * @description Creates signature tools
+   * @param {string[]} allowed_tools - The allowed tools
+   * @returns {Promise<SignatureTool[]>} The signature tools
+   */
   static async createSignatureTools(allowed_tools: string[]) {
     await RegisterSignatureTools(allowed_tools, this.tools);
     return this.tools.map(({ name, description, schema, execute }) =>
@@ -28,6 +50,14 @@ export class StarknetSignatureToolRegistry {
   }
 }
 
+/**
+ * @async
+ * @function RegisterSignatureTools
+ * @description Registers signature tools
+ * @param {string[]} allowed_tools - The allowed tools
+ * @param {SignatureTool[]} tools - The signature tools
+ * @throws {Error} Throws an error if tools cannot be registered
+ */
 export const RegisterSignatureTools = async (
   allowed_tools: string[],
   tools: SignatureTool[]
@@ -55,6 +85,13 @@ export const RegisterSignatureTools = async (
   }
 };
 
+/**
+ * @async
+ * @function createSignatureTools
+ * @description Creates signature tools
+ * @param {string[]} allowed_tools - The allowed tools
+ * @returns {Promise<SignatureTool[]>} The signature tools
+ */
 export const createSignatureTools = async (allowed_tools: string[]) => {
   return StarknetSignatureToolRegistry.createSignatureTools(allowed_tools);
 };

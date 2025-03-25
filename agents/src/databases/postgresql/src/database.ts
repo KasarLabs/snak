@@ -14,7 +14,9 @@ import {
 import { getError } from './types/error.js';
 import pg from 'pg';
 import logger from '../../../logger.js';
-const { Pool } = pg; /**
+const { Pool } = pg;
+
+/**
  * PostgreSQL adapter for database operations
  * @property {string} host - Database server hostname
  * @property {string} user - Username for authentication
@@ -46,7 +48,7 @@ export class PostgresAdaptater {
   }
 
   /**
-   * Establishes a connection to the database
+   * Establishes a connection to the Postgres database
    * @returns {Promise<PostgresAdaptater | undefined>} The adapter instance or undefined if connection fails
    */
   public connectDatabase = async (): Promise<PostgresAdaptater | undefined> => {
@@ -69,7 +71,7 @@ export class PostgresAdaptater {
   };
 
   /**
-   * Creates a new database
+   * Creates a new Postgres database
    * @param {string} database_name - Name of the database to create
    * @returns {Promise<boolean>} True if database was created successfully, false otherwise
    */
@@ -82,7 +84,6 @@ export class PostgresAdaptater {
       throw new Error('Error database_name is undefined.');
     }
     try {
-      // console.log(`CREATE DATABASE ${database_name};`);
       const create_db = await this.pool.query(
         `CREATE DATABASE ${database_name};`
       );
@@ -114,9 +115,9 @@ export class PostgresAdaptater {
   };
 
   /**
-   * Creates a new schema in the database
-   * @param {PostgresSchema} schema - Schema configuration
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * Creates a new schema in the Postgres database
+   * @param {PostgresSchema} schema - Postgres Schema
+   * @returns {Promise<QueryResponseInterface>}
    */
   public createSchema = async (
     schema: PostgresSchema
@@ -159,10 +160,11 @@ export class PostgresAdaptater {
   };
 
   /**
-   * Drops a schema from the database
+   * Drops a schema from the Postgres database
    * @param {dropSchemaOptionInterface} options - Schema drop options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
-   */ public dropSchema = async (
+   * @returns {Promise<QueryResponseInterface>}
+   */
+  public dropSchema = async (
     options: dropSchemaOptionInterface
   ): Promise<QueryResponseInterface> => {
     try {
@@ -210,9 +212,9 @@ export class PostgresAdaptater {
   };
 
   /**
-   * Creates a new table in the database
+   * Creates a new table in the Postgres database
    * @param {PostgresTables} tables - Table configuration
-   * @returns {Promise<QueryResult | string | undefined>} Query result, message, or undefined if operation fails
+   * @returns {Promise<QueryResponseInterface>}
    */
   public createTable = async (
     tables: PostgresTables
@@ -291,9 +293,9 @@ export class PostgresAdaptater {
   }
 
   /**
-   * Drops a table from the database
+   * Drops a table from the Potgres database
    * @param {dropTableOptionInterface} options - Table drop options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * @returns {Promise<QueryResponseInterface>}
    */
   public dropTable = async (
     options: dropTableOptionInterface
@@ -390,7 +392,8 @@ export class PostgresAdaptater {
   /**
    * Inserts data into a table
    * @param {insertOptionInterface} options - Insert options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * @param {Array<any>} [values] - Values to insert optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public insert = async (
     options: insertOptionInterface,
@@ -467,7 +470,8 @@ export class PostgresAdaptater {
   /**
    * Selects data from a table
    * @param {selectOptionInterface} options - Select options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * @param {Array<any>} [values] - Values to select optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public select = async (
     options: selectOptionInterface,
@@ -538,8 +542,9 @@ export class PostgresAdaptater {
 
   /**
    * Updates data in a table
-   * @param {string} table_name - Name of the table to update
-   * @param {updateOptionInterface} options - Update options
+   * @param {updateOptionInterface} options - Name of the table to update
+   * @param {Array<any>} [values] - Values to update optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public update = async (
     options: updateOptionInterface,
@@ -619,6 +624,8 @@ export class PostgresAdaptater {
   /**
    * Deletes data from a table
    * @param {deleteOptionInterface} options - Delete options
+   * @param {Array<any>} [values] - Values to delete optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public delete = async (
     options: deleteOptionInterface,

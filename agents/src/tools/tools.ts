@@ -4,6 +4,19 @@ import { JsonConfig } from '../jsonConfig.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 import logger from '../logger.js';
 
+/**
+ * @interface StarknetAgentInterface
+ * @description Interface for the Starknet agent
+ * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
+ * @property {() => { aiModel: string; aiProviderApiKey: string; }} getModelCredentials - Function to get the model credentials
+ * @property {() => { signature: string; }} getSignature - Function to get the signature
+ * @property {() => RpcProvider} getProvider - Function to get the provider
+ * @property {() => JsonConfig} getAgentConfig - Function to get the agent configuration
+ * @property {() => PostgresAdaptater[]} getDatabase - Function to get the database
+ * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
+ * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
+ * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
+ */
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
     accountPublicKey: string;
@@ -17,7 +30,7 @@ export interface StarknetAgentInterface {
     signature: string;
   };
   getProvider: () => RpcProvider;
-  getAgentConfig: () => JsonConfig;
+  getAgentConfig: () => JsonConfig | undefined;
   getDatabase: () => PostgresAdaptater[];
   connectDatabase: (database_name: string) => Promise<void>;
   createDatabase: (
@@ -26,6 +39,16 @@ export interface StarknetAgentInterface {
   getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 
+/**
+ * @interface StarknetTool
+ * @description Interface for the Starknet tool
+ * @property {string} name - The name of the tool
+ * @property {string} plugins - The plugins for the tool
+ * @property {string} description - The description of the tool
+ * @property {Zod.AnyZodObject} schema - The schema for the tool
+ * @property {string} responseFormat - The response format for the tool
+ * @property {(agent: StarknetAgentInterface, params: any, plugins_manager?: any) => Promise<unknown>} execute - Function to execute the tool
+ */
 export interface StarknetTool<P = any> {
   name: string;
   plugins: string;
@@ -39,6 +62,14 @@ export interface StarknetTool<P = any> {
   ) => Promise<unknown>;
 }
 
+/**
+ * @class StarknetToolRegistry
+ * @description Class for the Starknet tool registry
+ * @property {StarknetTool[]} tools - The tools
+ * @method {void} registerTool - Method to register a tool
+ * @method {Promise<StarknetTool[]>} createAllowedTools - Method to create allowed tools
+ *
+ */
 export class StarknetToolRegistry {
   private static tools: StarknetTool[] = [];
 
@@ -46,6 +77,15 @@ export class StarknetToolRegistry {
     this.tools.push(tool);
   }
 
+  /**
+   * @static
+   * @async
+   * @function createAllowedTools
+   * @description Creates allowed tools
+   * @param {StarknetAgentInterface} agent - The Starknet agent
+   * @param {string[]} allowed_tools - The allowed tools
+   * @returns {Promise<StarknetTool[]>} The allowed tools
+   */
   static async createAllowedTools(
     agent: StarknetAgentInterface,
     allowed_tools: string[]
@@ -61,6 +101,16 @@ export class StarknetToolRegistry {
   }
 }
 
+/**
+ * @async
+ * @function registerTools
+ * @description Registers tools
+ * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {string[]} allowed_tools - The allowed tools
+ * @param {StarknetTool[]} tools - The tools
+ * @returns {Promise<void>}
+ * @throws {Error} Throws an error if the tools cannot be registered
+ */
 export const registerTools = async (
   agent: StarknetAgentInterface,
   allowed_tools: string[],
@@ -90,6 +140,14 @@ export const registerTools = async (
   }
 };
 
+/**
+ * @async
+ * @function createAllowedTools
+ * @description Creates allowed tools
+ * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {string[]} allowed_tools - The allowed tools
+ * @throws {Error} Throws an error if the allowed tools cannot be created
+ */
 export const createAllowedTools = async (
   agent: StarknetAgentInterface,
   allowed_tools: string[]
