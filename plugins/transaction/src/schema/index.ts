@@ -12,7 +12,7 @@ export const declareContractSchema = z.object({
 /* For simulate Invoke Transaction */
 
 const callSchema = z.object({
-  contractAddress: z.string().describe('The contract Address'),
+  contractAddress: z.string().describe('The contract address'),
   entrypoint: z.string().describe('The entrypoint'),
   calldata: z.array(z.string()).or(z.record(z.any())).optional(),
 });
