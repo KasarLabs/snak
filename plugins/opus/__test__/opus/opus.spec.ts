@@ -1,5 +1,8 @@
-import { createTroveManager, TroveManager } from '../../src/utils/troveManager';
-import { createMockStarknetAgent } from '../jest/setEnvVars';
+import {
+  createTroveManager,
+  TroveManager,
+} from '../../src/utils/troveManager.js';
+import { createMockStarknetAgent } from '../jest/setEnvVars.js';
 
 const agent = createMockStarknetAgent();
 

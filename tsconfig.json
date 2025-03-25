@@ -25,7 +25,8 @@
       "@plugins/*": ["plugins/*"],
       "@server/*": ["server/*"],
       "@client/*": ["client/*"],
-      "@agents/*": ["agents/*"]
+      "@agents/*": ["agents/*"],
+      "@mcp/*": ["mcp/*"]
     }
   }
 }

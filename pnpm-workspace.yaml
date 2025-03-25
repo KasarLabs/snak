@@ -3,3 +3,4 @@ packages:
   - 'server'
   - 'agents'
   - 'plugins/*'
+  - 'mcp/*'

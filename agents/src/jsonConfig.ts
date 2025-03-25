@@ -19,11 +19,12 @@ export interface Transfer_limit {
 
 export interface JsonConfig {
   name: string;
-  prompt: SystemMessage;
+  prompt?: SystemMessage;
   interval: number;
   chat_id: string;
   internal_plugins: string[];
   external_plugins?: string[];
+  mcp?: boolean;
   autonomous?: boolean;
   memory: boolean;
 }
@@ -210,6 +211,7 @@ const checkParseJson = async (
       external_plugins: Array.isArray(json.external_plugins)
         ? json.external_plugins
         : [],
+      mcp: json.mcp || false,
       memory: json.memory || false,
     };
 
