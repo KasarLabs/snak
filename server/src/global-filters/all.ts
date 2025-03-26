@@ -24,7 +24,7 @@ export class allLeftOverExceptionFilter implements ExceptionFilter {
     this.logger.log({ exception });
     const message =
       exception instanceof Error ? exception?.message : INTERNAL_SERVER_ERROR;
-    console.log({ message });
+    this.logger.log({ message });
 
     response.status(status).send({
       status,

@@ -13,7 +13,10 @@ import {
 } from './interfaces/interfaces.js';
 import { getError } from './types/error.js';
 import pg from 'pg';
-const { Pool } = pg; /**
+import logger from '../../../logger.js';
+const { Pool } = pg;
+
+/**
  * PostgreSQL adapter for database operations
  * @property {string} host - Database server hostname
  * @property {string} user - Username for authentication
@@ -45,7 +48,7 @@ export class PostgresAdaptater {
   }
 
   /**
-   * Establishes a connection to the database
+   * Establishes a connection to the Postgres database
    * @returns {Promise<PostgresAdaptater | undefined>} The adapter instance or undefined if connection fails
    */
   public connectDatabase = async (): Promise<PostgresAdaptater | undefined> => {
@@ -61,14 +64,14 @@ export class PostgresAdaptater {
     try {
       await pool.query('SELECT NOW()');
     } catch (error) {
-      console.log(error);
+      logger.log(error);
       return undefined;
     }
     return this;
   };
 
   /**
-   * Creates a new database
+   * Creates a new Postgres database
    * @param {string} database_name - Name of the database to create
    * @returns {Promise<boolean>} True if database was created successfully, false otherwise
    */
@@ -81,7 +84,6 @@ export class PostgresAdaptater {
       throw new Error('Error database_name is undefined.');
     }
     try {
-      // console.log(`CREATE DATABASE ${database_name};`);
       const create_db = await this.pool.query(
         `CREATE DATABASE ${database_name};`
       );
@@ -89,7 +91,7 @@ export class PostgresAdaptater {
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          console.warn('Database already exist. Skip creation.');
+          logger.warn('Database already exist. Skip creation.');
           return true;
         }
       }
@@ -107,15 +109,15 @@ export class PostgresAdaptater {
       }
       await this.pool.end();
     } catch (error) {
-      console.error('Error closing database connection:', error);
+      logger.error('Error closing database connection:', error);
       throw error;
     }
   };
 
   /**
-   * Creates a new schema in the database
-   * @param {PostgresSchema} schema - Schema configuration
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * Creates a new schema in the Postgres database
+   * @param {PostgresSchema} schema - Postgres Schema
+   * @returns {Promise<QueryResponseInterface>}
    */
   public createSchema = async (
     schema: PostgresSchema
@@ -158,10 +160,11 @@ export class PostgresAdaptater {
   };
 
   /**
-   * Drops a schema from the database
+   * Drops a schema from the Postgres database
    * @param {dropSchemaOptionInterface} options - Schema drop options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
-   */ public dropSchema = async (
+   * @returns {Promise<QueryResponseInterface>}
+   */
+  public dropSchema = async (
     options: dropSchemaOptionInterface
   ): Promise<QueryResponseInterface> => {
     try {
@@ -209,9 +212,9 @@ export class PostgresAdaptater {
   };
 
   /**
-   * Creates a new table in the database
+   * Creates a new table in the Postgres database
    * @param {PostgresTables} tables - Table configuration
-   * @returns {Promise<QueryResult | string | undefined>} Query result, message, or undefined if operation fails
+   * @returns {Promise<QueryResponseInterface>}
    */
   public createTable = async (
     tables: PostgresTables
@@ -290,9 +293,9 @@ export class PostgresAdaptater {
   }
 
   /**
-   * Drops a table from the database
+   * Drops a table from the Potgres database
    * @param {dropTableOptionInterface} options - Table drop options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * @returns {Promise<QueryResponseInterface>}
    */
   public dropTable = async (
     options: dropTableOptionInterface
@@ -389,10 +392,12 @@ export class PostgresAdaptater {
   /**
    * Inserts data into a table
    * @param {insertOptionInterface} options - Insert options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * @param {Array<any>} [values] - Values to insert optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public insert = async (
-    options: insertOptionInterface
+    options: insertOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -429,7 +434,13 @@ export class PostgresAdaptater {
         .append(')');
 
       const query = queryBuilder.build();
-      const insert_result = await this.pool.query(query);
+
+      let insert_result;
+      if (!values) {
+        insert_result = await this.pool.query(query);
+      } else {
+        insert_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -459,10 +470,12 @@ export class PostgresAdaptater {
   /**
    * Selects data from a table
    * @param {selectOptionInterface} options - Select options
-   * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
+   * @param {Array<any>} [values] - Values to select optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public select = async (
-    options: selectOptionInterface
+    options: selectOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -492,8 +505,15 @@ export class PostgresAdaptater {
       if (options.WHERE) {
         queryBuilder.append('WHERE ').appendJoinedList(options.WHERE, ' AND ');
       }
+
       const query = queryBuilder.build();
-      const select_result = await this.pool.query(query);
+      let select_result;
+
+      if (!values) {
+        select_result = await this.pool.query(query);
+      } else {
+        select_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -522,11 +542,13 @@ export class PostgresAdaptater {
 
   /**
    * Updates data in a table
-   * @param {string} table_name - Name of the table to update
-   * @param {updateOptionInterface} options - Update options
+   * @param {updateOptionInterface} options - Name of the table to update
+   * @param {Array<any>} [values] - Values to update optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public update = async (
-    options: updateOptionInterface
+    options: updateOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -556,7 +578,7 @@ export class PostgresAdaptater {
       }
 
       queryBuilder.append('SET');
-      queryBuilder.appendJoinedList(options.SET);
+      queryBuilder.appendJoinedListType(options.SET);
 
       if (options.FROM) {
         queryBuilder.append('FROM').appendJoinedList(options.FROM);
@@ -567,7 +589,12 @@ export class PostgresAdaptater {
       }
 
       const query = queryBuilder.build();
-      const update_result = await this.pool.query(query);
+      let update_result;
+      if (!values) {
+        update_result = await this.pool.query(query);
+      } else {
+        update_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -597,9 +624,12 @@ export class PostgresAdaptater {
   /**
    * Deletes data from a table
    * @param {deleteOptionInterface} options - Delete options
+   * @param {Array<any>} [values] - Values to delete optional
+   * @returns {Promise<QueryResponseInterface>}
    */
   public delete = async (
-    options: deleteOptionInterface
+    options: deleteOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -632,7 +662,12 @@ export class PostgresAdaptater {
         queryBuilder.append('WHERE').appendJoinedList(options.WHERE, ' AND ');
       }
       const query = queryBuilder.build();
-      const delete_result = await this.pool.query(query);
+      let delete_result;
+      if (!values) {
+        delete_result = await this.pool.query(query);
+      } else {
+        delete_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -659,12 +694,21 @@ export class PostgresAdaptater {
     }
   };
 
-  public query = async (query: string): Promise<QueryResponseInterface> => {
+  public query = async (
+    query: string,
+    values?: Array<any>
+  ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
         throw new Error('Error database not connected.');
       }
-      const query_result = await this.pool.query(query);
+
+      let query_result;
+      if (!values) {
+        query_result = await this.pool.query(query);
+      } else {
+        query_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',

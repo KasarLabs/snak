@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 export const Transferschema = z.object({
-  recipient_address: z.string().describe('The recipient public address'),
+  recipient_address: z
+    .string()
+    .describe('The recipient starknet public address'),
   amount: z.string().describe('The amount of erc20 token that will be send'),
   symbol: z.string().describe('The symbol of the erc20 token'),
 });

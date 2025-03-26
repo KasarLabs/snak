@@ -7,8 +7,12 @@ import { z } from 'zod';
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const getBalanceSchema = z.object({
-  accountAddress: z.string().describe('The address to check the balance for'),
-  contractAddress: z.string().describe('The address of the NFT contract'),
+  accountAddress: z
+    .string()
+    .describe('The starknet address to check the balance for'),
+  contractAddress: z
+    .string()
+    .describe('The starknet address of the NFT contract'),
 });
 
 /**
@@ -18,7 +22,9 @@ export const getBalanceSchema = z.object({
  * @property {string} contractAddress - The address of the NFT contract
  */
 export const getOwnBalanceSchema = z.object({
-  contractAddress: z.string().describe('The address of the NFT contract'),
+  contractAddress: z
+    .string()
+    .describe('The starknet address of the NFT contract'),
 });
 
 /**
@@ -29,7 +35,9 @@ export const getOwnBalanceSchema = z.object({
  */
 export const ownerOfSchema = z.object({
   tokenId: z.string().describe('The ID of the Non Fungible Token'),
-  contractAddress: z.string().describe('The address of the NFT contract'),
+  contractAddress: z
+    .string()
+    .describe('The starknet address of the NFT contract'),
 });
 
 /**
@@ -40,7 +48,9 @@ export const ownerOfSchema = z.object({
  */
 export const getApprovedSchema = z.object({
   tokenId: z.string().describe('The ID of the Non Fungible Token'),
-  contractAddress: z.string().describe('The address of the NFT contract'),
+  contractAddress: z
+    .string()
+    .describe('The starknet address of the NFT contract'),
 });
 
 /**
@@ -53,9 +63,13 @@ export const getApprovedSchema = z.object({
 export const isApprovedForAllSchema = z.object({
   ownerAddress: z
     .string()
-    .describe('The address of the Non Fungible Token owner'),
-  operatorAddress: z.string().describe('The address of the operator to check'),
-  contractAddress: z.string().describe('The address of the NFT contract'),
+    .describe('The starknet address of the Non Fungible Token owner'),
+  operatorAddress: z
+    .string()
+    .describe('The starknet address of the operator to check'),
+  contractAddress: z
+    .string()
+    .describe('The starknet address of the NFT contract'),
 });
 
 /**
@@ -72,9 +86,11 @@ export const transferFromSchema = z.object({
     .describe('The current owner of the Non Fungible Token'),
   toAddress: z
     .string()
-    .describe('The address to receive the Non Fungible Token'),
+    .describe('The starknet address to receive the Non Fungible Token'),
   tokenId: z.string().describe('The ID of the Non Fungible Token to transfer'),
-  contractAddress: z.string().describe('The address of the NFT contract'),
+  contractAddress: z
+    .string()
+    .describe('The starknet address of the NFT contract'),
 });
 
 /**
@@ -87,11 +103,11 @@ export const transferFromSchema = z.object({
 export const transferSchema = z.object({
   toAddress: z
     .string()
-    .describe('The address to receive the Non Fungible Token'),
+    .describe('The starknet address to receive the Non Fungible Token'),
   tokenId: z.string().describe('The ID of the Non Fungible Token to transfer'),
   contractAddress: z
     .string()
-    .describe('The address of the Non Fungible Token contract'),
+    .describe('The starknet address of the Non Fungible Token contract'),
 });
 
 /**
@@ -108,9 +124,11 @@ export const safeTransferFromSchema = z.object({
     .describe('The current owner of the Non Fungible Token'),
   toAddress: z
     .string()
-    .describe('The address to receive the Non Fungible Token'),
+    .describe('The starknet address to receive the Non Fungible Token'),
   tokenId: z.string().describe('The ID of the Non Fungible Token to transfer'),
-  contractAddress: z.string().describe('The address of the NFT contract'),
+  contractAddress: z
+    .string()
+    .describe('The starknet address of the NFT contract'),
 });
 
 /**

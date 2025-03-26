@@ -24,12 +24,9 @@ export {
 export { JsonConfig, load_json_config } from './src/jsonConfig.js';
 
 // Common exports
-export {
-  TwitterInterface,
-  TelegramInterface,
-  IAgent,
-  AiConfig,
-} from './common/index.js';
+export { IAgent, AiConfig } from './common/index.js';
 
+// Logger
+export { default as logger } from './src/logger.js';
 // External tools
 export * from './src/tools/external_tools.js';

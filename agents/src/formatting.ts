@@ -31,7 +31,6 @@ export const formatJsonContent = (content: unknown): string[] => {
   }
 };
 
-// Box drawing implementation using manually created strings
 export const createBox = (
   title: string,
   content: string | string[] | unknown,
@@ -42,18 +41,12 @@ export const createBox = (
   const terminalWidth = getTerminalWidth();
   const contentWidth = terminalWidth - 6;
 
-  // The Unicode character for the horizontal box line is '─' (U+2500)
-  // We found character code 65533 in the corrupted areas, which is the replacement character �
-  // So we'll use JavaScript to manually create our horizontal lines instead of copy/pasting them
-
-  // Create a clean horizontal line of the exact length we need
   const makeHorizontalLine = (length: number): string => {
     return Array(length).fill('─').join('');
   };
 
   const horizontalLine = makeHorizontalLine(terminalWidth - 2);
 
-  // Build the box with precise control over every character
   let result = '\n';
 
   // Top border

@@ -44,7 +44,7 @@ pnpm install
 
 ### Configuration
 
-Create a `.env` file:
+1. Create a `.env` file:
 
 ```env
 # Starknet configuration (mandatory)
@@ -61,44 +61,93 @@ AI_PROVIDER="YOUR_AI_PROVIDER"
 SERVER_API_KEY="YOUR_SERVER_API_KEY"
 SERVER_PORT="YOUR_SERVER_PORT"
 
+#Node Configuration # optional by default : production 
+NODE_ENV="YOUR_NODE_ENV"
 # Agent additional configuration
-DISCORD_BOT_TOKEN?="YOUR_DISCORD_BOT_TOKEN"
-DISCORD_CHANNEL_ID?="YOUR_DISCORD_CHANNEL_ID"
+
+POSTGRES_USER="YOUR_POSTGRES_USER"
+POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD"
+POSTGRES_ROOT_DB="YOUR_POSTGRES_ROOT_DB"
+POSTGRES_HOST="YOUR_POSTGRES_HOST"
+POSTGRES_PORT="YOUR_POSTGRES_PORT"
 ```
+
+2. Create your agent.config.json
+```json
+{
+  "name": "Your Agent name",
+  "bio": "Your AI Agent Bio",
+  "lore": ["Some lore of your AI Agent 1", "Some lore of your AI Agent 1"],
+  "objectives": [
+    "first objective that your AI Agent need to follow",
+    "second objective that your AI Agent need to follow"
+  ],
+  "knowledge": [
+    "first knowledge of your AI Agent",
+    "second knowledge of your AI Agent"
+  ],
+  "interval": "Your agent interval beetween each transaction of the Agent in ms,",
+  "chat_id": "Your Agent Chat-id for isolating memory",  
+  "autonomous" : "Your agent is autonomous or not",
+  "mcp": "Your agent can use mcp or not",
+  "internal_plugins": [
+    "Your first internal plugin",
+    "Your second internal plugin"
+  ],
+  "external_plugins": [
+    "Your first external plugin",
+    "Your second external plugin"
+  ]
+}
+```
+You can simply create your own agent configuration using our tool on  [starkagent](https://www.starkagent.ai/create-agent)
 
 ## Usage
 
-### Server Mode
+### Prompt Mode
 
-Run the server:
+Run the promt:
 
 ```bash
+# start with the default.agent.json
 pnpm run start
+
+# start with your custom configuration
+pnpm run start --agent="name_of_your_config.json"
 ```
 
-#### Available Modes:
+### Server Mode
 
-1. **Chat Mode**: Have conversations with the agent
+Run the server : 
+```bash
+# start with the default.agent.json
+pnpm run start:server
 
-   - Check balances
-   - Execute transfers
-   - Manage accounts
+# start with your custom configuration
+pnpm run start:server --agent="name_of_your_config.json"
+```
 
-2. **Autonomous Mode**: Configure automated monitoring
-   Set up in `config/agents/config-agent.json`:
-   ```json
-   {
-     "name": "MyAgent",
-     "context": "You are a Starknet monitoring agent...",
-     "interval": 60000,
-     "chat_id": "your_discord_channel_id",
-     "allowed_actions": ["get_balance", "get_block_number"],
-     "prompt": "Monitor ETH balance and alert if it drops below 1 ETH..."
-   }
-   ```
+#### Available Modes
 
-### Library Mode
+|          | Interactive Mode | Autonomous Mode |
+|----------|----------|----------|
+| Prompt Mode | ✅  | ✅  |
+| Server Mode  | ✅ | ❌  |
 
+
+### Implement Snak in your project
+
+1. Install snak package
+
+```bash
+#using npm
+npm install @starknet-agent-kit
+
+# using pnpm 
+pnpm add @starknet-agent-kit
+```
+
+2. Create your agent instance
 ```typescript
 import { StarknetAgent } from 'starknet-agent-kit';
 
@@ -110,6 +159,8 @@ const agent = new StarknetAgent({
   aiProvider: process.env.AI_PROVIDER,
   aiProviderApiKey: process.env.AI_PROVIDER_API_KEY,
   signature: 'key',
+  agentMode: 'auto',
+  agentconfig: y,
 });
 
 const response = await agent.execute("What's my ETH balance?");
