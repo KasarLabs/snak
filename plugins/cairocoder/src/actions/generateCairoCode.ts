@@ -28,14 +28,9 @@ export const generateCairoCode = async (
       throw new Error('Prompt is required for generating Cairo code');
     }
 
-    if (!params?.contractName) {
-      throw new Error('Contract name is required');
+    if (!params?.contractName || !params.contractName.endsWith('.cairo')) {
+      throw new Error('Contract name is required and must end with .cairo');
     }
-
-    // Make sure the contractName ends with .cairo
-    const contractFileName = params.contractName.endsWith('.cairo') 
-      ? params.contractName 
-      : `${params.contractName}.cairo`;
 
     // Make request to the Cairo code generation API
     const response = await axios.post<CairoCodeGenerationResponse>(
@@ -67,21 +62,14 @@ export const generateCairoCode = async (
     }
 
     // Extract content from the response
-    const responseData = response.data;
-    
-    // Get the generated code from the response
-    const generatedContent = responseData.choices?.[0]?.message?.content;
-    console.log("\nGenerated content = ", generatedContent);
-    
+    const generatedContent = response.data.choices?.[0]?.message?.content;
     if (!generatedContent) {
       throw new Error('No content was generated from the API');
     }
 
-    // Extract Cairo code block if it's wrapped in markdown code blocks
     let cairoCode: string;
     const cairoCodePattern = /```cairo\s*([\s\S]*?)```/;
     const match = generatedContent.match(cairoCodePattern);
-    
     if (match && match[1]) {
       // If the content contains a Cairo code block, extract it
       cairoCode = match[1].trim();
@@ -91,40 +79,21 @@ export const generateCairoCode = async (
     }
     console.log("\nCairo code = ", cairoCode);
 
-    // Save to file for debugging purposes
-    // Use a path relative to the current file, not to the working directory
-    const debugDir = path.join(__dirname, '../../contract');
-    
-    // Create directory if it doesn't exist
+
+    const debugDir = path.join(__dirname, './contract');
     if (!fs.existsSync(debugDir)) {
       fs.mkdirSync(debugDir, { recursive: true });
     }
-    
-    const debugFile = path.join(debugDir, 'test.cairo');
-    console.log("\nDebug file = ", debugFile);
+    const debugFile = path.join(debugDir, params.contractName);
     fs.writeFileSync(debugFile, cairoCode);
     console.log("\nCairo code written to debug file");
 
-    // Add to database
-    try {
-      // Add or update program in rawProgram table with empty dependencies
-      await addOrUpdateRawProgram(agent, contractFileName, cairoCode);
-      
-      console.log(`Cairo code saved to database as ${contractFileName}`);
-    } catch (dbError) {
-      console.error('Error saving to database:', dbError);
-      return JSON.stringify({
-        status: 'partial_success',
-        message: 'Cairo code generated but could not be saved to the database',
-        error: dbError instanceof Error ? dbError.message : 'Unknown database error',
-        code: cairoCode
-      });
-    }
+    await addOrUpdateRawProgram(agent, params.contractName, cairoCode);
 
     return JSON.stringify({
       status: 'success',
-      message: `Cairo code generated and saved to database as ${contractFileName}`,
-      contractName: contractFileName,
+      message: `Cairo code generated and saved to database as ${params.contractName}`,
+      contractName: params.contractName,
       debugFile: debugFile,
       code: cairoCode
     });

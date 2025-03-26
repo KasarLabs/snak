@@ -12,5 +12,5 @@ export const generateCairoCodeSchema = z.object({
     .describe('The prompt describing what Cairo code to generate'),
   contractName: z
     .string()
-    .describe('The name of the contract file to be created (without .cairo extension)')
+    .describe('The name of the contract file to be created (with .cairo extension)')
 }); 
