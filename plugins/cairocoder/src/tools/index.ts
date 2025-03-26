@@ -11,8 +11,6 @@ export const initializeTools = async (
   agent: StarknetAgentInterface
 ): Promise<any | undefined> => {
   try {
-    console.log('Initializing CairoCoder plugin...');
-    // Initialize our own database with rawProgram table
     const dbInstance = await initializeDatabase(agent);
     console.log('CairoCoder plugin initialized successfully');
     return dbInstance;
@@ -29,7 +27,8 @@ export const registerTools = async (
   // Try to initialize database connection
   const dbInstance = await initializeTools(agent);
   if (!dbInstance) {
-    console.warn('Warning: CairoCoder will have limited functionality because database initialization failed');
+    console.error('Error while initializing database');
+    return;
   }
 
   StarknetToolRegistry.push({
