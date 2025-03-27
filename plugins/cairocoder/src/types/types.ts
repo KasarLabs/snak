@@ -26,3 +26,10 @@ export interface CairoCodeGenerationResponse {
     code?: string;
   };
 } 
+
+export interface RawProgram {
+  id: number;
+  name: string;
+  source_code: string;
+  created_at: string;
+}

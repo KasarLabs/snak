@@ -1,6 +1,6 @@
 import { StarknetAgentInterface } from "@starknet-agent-kit/agents";
-import { addProgram, checkProgramExists } from "./db_utils.js";
-import { CairoCodeGenerationResponse } from "../types/types.js";
+import { addProgram, checkProgramExists, getAllRawPrograms } from "./db_utils.js";
+import { CairoCodeGenerationResponse, RawProgram } from "../types/types.js";
 import { generateCairoCodeSchema } from "../schema/schema.js";
 import axios from "axios";
 import fs from "fs";
@@ -118,16 +118,28 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     cairoCode: string
   ): Promise<void> {
     try {
-        // const { exists, programId } = await checkProgramExists(agent, contractName);
-
-        // if (exists && programId !== undefined) {
-        //         await updateExistingProgram(agent, programId, contractName, cairoCode);
-        // } else {
-        //     await addNewProgram(agent, contractName, cairoCode);
-        // }
         await addProgram(agent, contractName, cairoCode);
         console.log(`Cairo code saved to database as ${contractName}`);
     } catch (error) {
         throw new Error(`Database error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  /**
+ * Get a raw program from the database by name
+ * @param agent The StarkNet agent
+ * @param programName The name of the program to get
+ * @returns The raw program if found, undefined otherwise
+ */
+export async function getRawProgramByName(
+  agent: StarknetAgentInterface,
+  programName: string
+): Promise<RawProgram | undefined> {
+  try {
+    const allPrograms = await getAllRawPrograms(agent);
+    return allPrograms.find(program => program.name === programName);
+  } catch (error) {
+    console.error('Error retrieving program:', error);
+    throw new Error(`Failed to retrieve program ${programName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
