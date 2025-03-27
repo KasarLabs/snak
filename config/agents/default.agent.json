@@ -42,6 +42,7 @@
     "erc721",
     "scarb",
     "contract",
+    "cairocoder",
     "atlantic"
   ]
 }
