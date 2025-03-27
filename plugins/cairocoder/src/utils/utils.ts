@@ -1,5 +1,5 @@
 import { StarknetAgentInterface } from "@starknet-agent-kit/agents";
-import { addNewProgram, checkProgramExists, updateExistingProgram } from "./db_utils.js";
+import { addProgram, checkProgramExists } from "./db_utils.js";
 import { CairoCodeGenerationResponse } from "../types/types.js";
 import { generateCairoCodeSchema } from "../schema/schema.js";
 import axios from "axios";
@@ -23,8 +23,8 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
       throw new Error('Prompt is required for generating Cairo code');
     }
   
-    if (!params?.contractName || !params.contractName.endsWith('.cairo')) {
-      throw new Error('Contract name is required and must end with .cairo');
+    if (!params?.programName || !params.programName.endsWith('.cairo')) {
+      throw new Error('Program name is required and must end with .cairo');
     }
   }
   
@@ -118,13 +118,14 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     cairoCode: string
   ): Promise<void> {
     try {
-        const { exists, programId } = await checkProgramExists(agent, contractName);
+        // const { exists, programId } = await checkProgramExists(agent, contractName);
 
-        if (exists && programId !== undefined) {
-            await updateExistingProgram(agent, programId, contractName, cairoCode);
-        } else {
-            await addNewProgram(agent, contractName, cairoCode);
-        }
+        // if (exists && programId !== undefined) {
+        //         await updateExistingProgram(agent, programId, contractName, cairoCode);
+        // } else {
+        //     await addNewProgram(agent, contractName, cairoCode);
+        // }
+        await addProgram(agent, contractName, cairoCode);
         console.log(`Cairo code saved to database as ${contractName}`);
     } catch (error) {
         throw new Error(`Database error: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -1,6 +1,7 @@
 import { StarknetTool, StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { generateCairoCodeSchema } from '../schema/schema.js';
+import { generateCairoCodeSchema, fixCairoCodeSchema } from '../schema/schema.js';
 import { generateCairoCode } from '../actions/generateCairoCode.js';
+import { fixCairoCode } from '../actions/fixCairoCode.js';
 import { initializeDatabase } from '../utils/db_utils.js';
 
 /**
@@ -34,8 +35,17 @@ export const registerTools = async (
   StarknetToolRegistry.push({
     name: 'cairocoder_generate_code',
     plugins: 'cairocoder',
-    description: 'Generate Cairo code using AI and save it to the database. Requires a prompt describing the code to be generated and a contract name.',
+    description: 'Generate Cairo code using AI and save it to the database. Requires a prompt describing the code to be generated and a program name.',
     schema: generateCairoCodeSchema,
     execute: generateCairoCode,
+  });
+  
+  // Add the new fixCairo tool
+  StarknetToolRegistry.push({
+    name: 'cairocoder_fix_code',
+    plugins: 'cairocoder',
+    description: 'Fix Cairo code using AI and update it in the database. Requires the name of an existing program and an error description.',
+    schema: fixCairoCodeSchema,
+    execute: fixCairoCode,
   });
 }; 
