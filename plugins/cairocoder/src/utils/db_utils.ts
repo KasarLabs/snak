@@ -122,92 +122,156 @@ export const checkProgramExists = async (
   }
 };
 
-/**
- * Add a new program to the database
- * @param agent The StarkNet agent
- * @param programName The name of the program to add
- * @param sourceCode The source code of the program
- * @throws DatabaseError if the operation fails
- */
-export const addNewProgram = async (
-  agent: StarknetAgentInterface,
-  programName: string,
-  sourceCode: string
-): Promise<void> => {
-  try {
-    const database = getDatabase(agent);
+// /**
+//  * Add a new program to the database
+//  * @param agent The StarkNet agent
+//  * @param programName The name of the program to add
+//  * @param sourceCode The source code of the program
+//  * @throws DatabaseError if the operation fails
+//  */
+// export const addNewProgram = async (
+//   agent: StarknetAgentInterface,
+//   programName: string,
+//   sourceCode: string
+// ): Promise<void> => {
+//   try {
+//     const database = getDatabase(agent);
     
-    // Escape single quotes in the source code to prevent SQL injection
-    const escapedSourceCode = sourceCode.replace(/'/g, "''");
+//     const res = await database.insert({
+//       table_name: 'rawProgram',
+//       fields: new Map<string, string | number>([
+//         ['id', 'DEFAULT'],
+//         ['name', programName],
+//         ['source_code', sourceCode],
+//       ]),
+//     });
     
-    const res = await database.insert({
-      table_name: 'rawProgram',
-      fields: new Map<string, string | number>([
-        ['id', 'DEFAULT'],
-        ['name', programName],
-        ['source_code', escapedSourceCode],
-      ]),
-    });
+//     if (res.status === 'error') {
+//       throw new DatabaseError(
+//         `Error adding new Cairo program: ${res.error_message}`,
+//         res.code
+//       );
+//     }
     
-    if (res.status === 'error') {
-      throw new DatabaseError(
-        `Error adding new Cairo program: ${res.error_message}`,
-        res.code
-      );
-    }
+//     console.log(`Added new Cairo program: ${programName}`);
+//   } catch (error) {
+//     if (error instanceof DatabaseError) {
+//       throw error;
+//     }
+//     throw new DatabaseError(`Error adding program: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//   }
+// };
+
+// /**
+//  * Encodes Cairo source code for database storage
+//  * @param code The source code to encode
+//  * @returns The encoded source code
+//  */
+// export function encodeCode(code: string): string {
+//   return code.replace(/\0/g, '');
+// }
+
+// /**
+//  * Update an existing program in the database
+//  * @param agent The StarkNet agent
+//  * @param programId The ID of the program to update
+//  * @param programName The name of the program (for logging)
+//  * @param sourceCode The updated source code
+//  * @throws DatabaseError if the operation fails
+//  */
+// export const updateExistingProgram = async (
+//   agent: StarknetAgentInterface,
+//   programId: number,
+//   programName: string,
+//   sourceCode: string
+// ): Promise<void> => {
+//   try {
+//     sourceCode = 'test';
+//     const database = getDatabase(agent);
+//     const res = await database.update({
+//         table_name: 'rawProgram',
+//         ONLY: false,
+//         SET: [
+//           `source_code = ${encodeCode(sourceCode)}`,
+//         ],
+//         WHERE: [`name = '${programName}'`],
+//       });
     
-    console.log(`Added new Cairo program: ${programName}`);
-  } catch (error) {
-    if (error instanceof DatabaseError) {
-      throw error;
-    }
-    throw new DatabaseError(`Error adding program: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-};
+//     if (res.status === 'error') {
+//       console.error(res);
+//       throw new DatabaseError(
+//         `Error updating existing Cairo program: ${res.error_message}`,
+//         res.code
+//       );
+//     }
+    
+//     console.log(`Updated existing Cairo program: ${programName}`);
+//   } catch (error) {
+//     if (error instanceof DatabaseError) {
+//       throw error;
+//     }
+//     throw new DatabaseError(`Error updating program: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//   }
+// };
 
 /**
- * Update an existing program in the database
- * @param agent The StarkNet agent
- * @param programId The ID of the program to update
- * @param programName The name of the program (for logging)
- * @param sourceCode The updated source code
- * @throws DatabaseError if the operation fails
+ * Encodes Cairo source code for database storage
+ * @param code The source code to encode
+ * @returns The encoded source code
  */
-export const updateExistingProgram = async (
-  agent: StarknetAgentInterface,
-  programId: number,
-  programName: string,
-  sourceCode: string
-): Promise<void> => {
+export function encodeCode(code: string): string {
+  return code.replace(/\0/g, '');
+}
+
+/**
+ * Adds a program to the database
+ * @param agent The StarkNet agent
+ * @param projectId The project ID
+ * @param name The name of the program
+ * @param sourcePath The path to the source code file
+ */
+export const addProgram = async (
+    agent: StarknetAgentInterface,
+    programName: string,
+    sourceCode: string
+) => {
   try {
-    const database = getDatabase(agent);
-    
-    // Escape single quotes in the source code to prevent SQL injection
-    const escapedSourceCode = sourceCode.replace(/'/g, "''");
-    
-    const res = await database.update({
-      table_name: 'rawProgram',
-      ONLY: false,
-      SET: [
-        `source_code = '${escapedSourceCode}'`,
-        `created_at = CURRENT_TIMESTAMP`
-      ],
-      WHERE: [`id = ${programId}`],
+    const database = agent.getDatabaseByName('cairocoder_db');
+    if (!database) {
+      throw new Error('Database not found');
+    }
+      
+    const encodedCode = encodeCode(sourceCode);
+
+    const existingProgram = await database.select({
+      SELECT: ['id'],
+      FROM: ['rawProgram'],
+      WHERE: [`name = '${programName}'`],
     });
-    
-    if (res.status === 'error') {
-      throw new DatabaseError(
-        `Error updating existing Cairo program: ${res.error_message}`,
-        res.code
+
+    if (existingProgram.query && existingProgram.query.rows.length > 0) {
+      console.log(`Updating existing program ${programName}`);
+      const res = await database.query(
+        `UPDATE rawProgram SET source_code = $1 WHERE name = $2`,
+        [encodeCode(sourceCode), programName]
       );
+      console.log(res);
+    } else {
+      console.log(`Adding new program ${programName}`);
+      const res = await database.insert({
+        table_name: 'rawProgram',
+        fields: new Map<string, string | number>([
+          ['id', 'DEFAULT'],
+          ['name', programName],
+          ['source_code', encodedCode],
+        ]),
+      });
+      console.log(res);
     }
-    
-    console.log(`Updated existing Cairo program: ${programName}`);
+    console.log(`Program ${programName} added to database`);
   } catch (error) {
-    if (error instanceof DatabaseError) {
-      throw error;
-    }
-    throw new DatabaseError(`Error updating program: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(`Error adding program ${programName}:`, error);
+    throw error;
   }
 };
 

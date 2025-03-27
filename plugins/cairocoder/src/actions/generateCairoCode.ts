@@ -20,14 +20,14 @@ export const generateCairoCode = async (
     const cairoCode = extractCairoCode(generatedContent);
     console.log("\nCairo code = ", cairoCode);
     
-    const debugFile = saveToDebugFile(params.contractName, cairoCode);
+    const debugFile = saveToDebugFile(params.programName, cairoCode);
     
-    await saveToDB(agent, params.contractName, cairoCode);
+    await saveToDB(agent, params.programName, cairoCode);
     
     return JSON.stringify({
       status: 'success',
-      message: `Cairo code generated and saved to database as ${params.contractName}`,
-      contractName: params.contractName,
+      message: `Cairo code generated and saved to database as ${params.programName}`,
+      programName: params.programName,
       debugFile: debugFile,
       code: cairoCode
     });
