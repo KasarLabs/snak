@@ -393,7 +393,7 @@ export class PostgresAdaptater {
    */
   public insert = async (
     options: insertOptionInterface,
-    values: Array<any>
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -726,6 +726,7 @@ export class PostgresAdaptater {
       }
     }
   };
+
   /**
    * Gets the name of the current database
    * @returns {string} The database name

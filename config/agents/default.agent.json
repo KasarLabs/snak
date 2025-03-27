@@ -27,6 +27,7 @@
   "interval": 30000,
   "autonomous": true,
   "chat_id": "sak_guide",
+  "mcp": true,
   "external_plugins": [],
   "internal_plugins": [
     "argent",
@@ -39,6 +40,8 @@
     "avnu",
     "erc20",
     "erc721",
-    "contract"
+    "scarb",
+    "contract",
+    "atlantic"
   ]
 }

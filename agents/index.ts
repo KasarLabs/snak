@@ -9,7 +9,12 @@ export {
   StarknetAgentInterface,
   StarknetTool,
   StarknetToolRegistry,
+  createAllowedTools,
+  registerTools,
 } from './src/tools/tools.js';
+
+export { StarknetAgent } from './src/starknetAgent.js';
+
 export {
   SignatureTool,
   StarknetSignatureToolRegistry,
