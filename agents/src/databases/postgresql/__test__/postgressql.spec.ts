@@ -3,24 +3,14 @@ import {
   it,
   expect,
   beforeEach,
-  afterEach,
   jest,
-  beforeAll,
-  afterAll,
 } from '@jest/globals';
 import { PostgresAdaptater } from '../src/database.js';
 import {
   PostgresDatabasePoolInterface,
   PostgresSchema,
-  PostgresTables,
-  dropSchemaOptionInterface,
-  dropTableOptionInterface,
-  insertOptionInterface,
-  selectOptionInterface,
-  updateOptionInterface,
-  deleteOptionInterface,
 } from '../src/interfaces/interfaces.js';
-import pg, { QueryResult } from 'pg';
+import pg from 'pg';
 
 // Mock complet de pg
 jest.mock('pg', () => {
