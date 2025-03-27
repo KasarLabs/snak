@@ -40,7 +40,9 @@
     "avnu",
     "erc20",
     "erc721",
+    "scarb",
     "contract",
-    "cairocoder"
+    "cairocoder",
+    "atlantic"
   ]
 }
