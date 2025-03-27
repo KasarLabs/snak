@@ -500,7 +500,9 @@ export class PostgresAdaptater {
       if (options.WHERE) {
         queryBuilder.append('WHERE ').appendJoinedList(options.WHERE, ' AND ');
       }
-
+      if (options.LIMIT) {
+        queryBuilder.append('LIMIT ' + options.LIMIT.toString());
+      }
       const query = queryBuilder.build();
       let select_result;
 
