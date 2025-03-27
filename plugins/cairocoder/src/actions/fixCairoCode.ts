@@ -1,37 +1,8 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { fixCairoCodeSchema } from '../schema/schema.js';
-import { callCairoGenerationAPI, extractCairoCode, saveToDebugFile, saveToDB } from '../utils/utils.js';
-import { getAllRawPrograms } from '../utils/db_utils.js';
+import { callCairoGenerationAPI, extractCairoCode, saveToDebugFile, saveToDB, getRawProgramByName } from '../utils/utils.js';
 
-/**
- * Interface for the result of getRawProgramByName function
- */
-interface RawProgram {
-  id: number;
-  name: string;
-  source_code: string;
-  created_at: string;
-}
-
-/**
- * Get a raw program from the database by name
- * @param agent The StarkNet agent
- * @param programName The name of the program to get
- * @returns The raw program if found, undefined otherwise
- */
-async function getRawProgramByName(
-  agent: StarknetAgentInterface,
-  programName: string
-): Promise<RawProgram | undefined> {
-  try {
-    const allPrograms = await getAllRawPrograms(agent);
-    return allPrograms.find(program => program.name === programName);
-  } catch (error) {
-    console.error('Error retrieving program:', error);
-    throw new Error(`Failed to retrieve program ${programName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
 
 /**
  * Fix Cairo code using AI via API and update it in the database
