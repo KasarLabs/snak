@@ -40,6 +40,8 @@
     "avnu",
     "erc20",
     "erc721",
-    "contract"
+    "scarb",
+    "contract",
+    "atlantic"
   ]
 }

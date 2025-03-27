@@ -392,7 +392,8 @@ export class PostgresAdaptater {
    * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
    */
   public insert = async (
-    options: insertOptionInterface
+    options: insertOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -429,7 +430,13 @@ export class PostgresAdaptater {
         .append(')');
 
       const query = queryBuilder.build();
-      const insert_result = await this.pool.query(query);
+
+      let insert_result;
+      if (!values) {
+        insert_result = await this.pool.query(query);
+      } else {
+        insert_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -462,7 +469,8 @@ export class PostgresAdaptater {
    * @returns {Promise<QueryResult | undefined>} Query result or undefined if operation fails
    */
   public select = async (
-    options: selectOptionInterface
+    options: selectOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -492,8 +500,15 @@ export class PostgresAdaptater {
       if (options.WHERE) {
         queryBuilder.append('WHERE ').appendJoinedList(options.WHERE, ' AND ');
       }
+
       const query = queryBuilder.build();
-      const select_result = await this.pool.query(query);
+      let select_result;
+
+      if (!values) {
+        select_result = await this.pool.query(query);
+      } else {
+        select_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -526,7 +541,8 @@ export class PostgresAdaptater {
    * @param {updateOptionInterface} options - Update options
    */
   public update = async (
-    options: updateOptionInterface
+    options: updateOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -556,7 +572,7 @@ export class PostgresAdaptater {
       }
 
       queryBuilder.append('SET');
-      queryBuilder.appendJoinedList(options.SET);
+      queryBuilder.appendJoinedListType(options.SET);
 
       if (options.FROM) {
         queryBuilder.append('FROM').appendJoinedList(options.FROM);
@@ -567,7 +583,12 @@ export class PostgresAdaptater {
       }
 
       const query = queryBuilder.build();
-      const update_result = await this.pool.query(query);
+      let update_result;
+      if (!values) {
+        update_result = await this.pool.query(query);
+      } else {
+        update_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -599,7 +620,8 @@ export class PostgresAdaptater {
    * @param {deleteOptionInterface} options - Delete options
    */
   public delete = async (
-    options: deleteOptionInterface
+    options: deleteOptionInterface,
+    values?: Array<any>
   ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
@@ -632,7 +654,12 @@ export class PostgresAdaptater {
         queryBuilder.append('WHERE').appendJoinedList(options.WHERE, ' AND ');
       }
       const query = queryBuilder.build();
-      const delete_result = await this.pool.query(query);
+      let delete_result;
+      if (!values) {
+        delete_result = await this.pool.query(query);
+      } else {
+        delete_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -659,12 +686,21 @@ export class PostgresAdaptater {
     }
   };
 
-  public query = async (query: string): Promise<QueryResponseInterface> => {
+  public query = async (
+    query: string,
+    values?: Array<any>
+  ): Promise<QueryResponseInterface> => {
     try {
       if (this.pool === undefined) {
         throw new Error('Error database not connected.');
       }
-      const query_result = await this.pool.query(query);
+
+      let query_result;
+      if (!values) {
+        query_result = await this.pool.query(query);
+      } else {
+        query_result = await this.pool.query(query, values);
+      }
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -690,6 +726,7 @@ export class PostgresAdaptater {
       }
     }
   };
+
   /**
    * Gets the name of the current database
    * @returns {string} The database name
