@@ -341,6 +341,12 @@ importers:
         specifier: workspace:*
         version: link:../../agents
 
+  plugins/layerswap:
+    devDependencies:
+      '@starknet-agent-kit/agents':
+        specifier: workspace:*
+        version: link:../../agents
+
   plugins/okx:
     devDependencies:
       '@starknet-agent-kit/agents':

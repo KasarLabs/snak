@@ -1,0 +1,24 @@
+{
+  "name": "@starknet-agent-kit/plugin-layerswap",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"No test has been created for this plugins\" && exit 0",
+    "build": "tsc",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@starknet-agent-kit/agents": "workspace:*"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
