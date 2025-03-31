@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AgentService } from './services/agent.service.js';
 import { AgentsController } from './agents.controller.js';
 import { ConfigModule } from '../config/config.module.js';
+import { MetricsController } from './metrics.controller.js';
 import { WalletController } from './wallet.controller.js';
 import { WalletService } from './services/wallet.service.js';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -28,7 +29,7 @@ import { DatabaseController } from './database.controller.js';
       useClass: ThrottlerGuard,
     },
   ],
-  controllers: [AgentsController, WalletController, DatabaseController],
+  controllers: [AgentsController, WalletController, DatabaseController, MetricsController],
   exports: [AgentService, WalletService, AgentFactory],
 })
-export class AgentsModule {}
+export class AgentsModule { }
