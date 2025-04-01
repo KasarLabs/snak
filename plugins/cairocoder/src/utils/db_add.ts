@@ -1,9 +1,10 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { Dependency } from '../types/index.js';
-import fs from 'fs/promises';
+import fs from 'fs';
+import fsPromises from 'fs/promises'; 
 import path from 'path';
 import crypto from 'crypto';
-
+import { getRepoRoot } from './path.js';
 /**
  * Crée un hash à partir d'une chaîne
  * @param input Chaîne à hasher
@@ -20,22 +21,22 @@ async function createHash(input: string): Promise<string> {
  * @returns Chemin complet du fichier
  */
 export async function resolveContractPath(fileName: string): Promise<string> {
-  let uploadDir = process.env.UPLOAD_DIR || 'uploads';
-  if (!uploadDir.endsWith('/')) {
-    uploadDir += '/';
+  let uploadDir = process.env.UPLOAD_DIR;
+  if (!uploadDir) {
+    throw new Error('UPLOAD_DIR is not defined');
   }
-  
-  // Construire le chemin complet
-  const fullPath = path.resolve(process.cwd(), uploadDir + fileName);
-  // console.log(fullPath);
-  // Vérifier si le fichier existe
+
+  let repoRoot = getRepoRoot();
+
+  const filePath = path.join(repoRoot, uploadDir, fileName);
+
   try {
-    await fs.access(fullPath);
+    await fsPromises.access(filePath);
   } catch (error) {
-    throw new Error(`File not found: ${fullPath}. Make sure the file exists in the ${uploadDir} directory.`);
+    throw new Error(`File not found: ${filePath}. Make sure the file exists in the ${uploadDir} directory.`);
   }
-  
-  return fullPath;
+
+  return filePath;
 }
 
 /**
@@ -59,9 +60,9 @@ export function encodeSourceCode(code: string): string {
   /**
    * Modifie la fonction extractFile pour utiliser la nouvelle version asynchrone de resolveContractPath
    */
-  export async function extractFile(sourcePath: string): Promise<string> {
+  export async function  extractFile(sourcePath: string): Promise<string> {
     const resolvedPath = await resolveContractPath(sourcePath);
-    const sourceCode = await fs.readFile(resolvedPath, 'utf-8');
+    const sourceCode = await fsPromises.readFile(resolvedPath, 'utf-8');
     return sourceCode;
   }
   
