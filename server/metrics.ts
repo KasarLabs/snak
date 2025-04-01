@@ -1,3 +1,24 @@
+/**
+ * Registers and updates [prometheus] metrics with [prom-client].
+ *
+ * Metrics are exposed under {@see ./src/metrics.controller.ts} as
+ * `api/metrics`. To access metrics, you can use:
+ *
+ * ```bash
+ * curl -H "x-api-key:test" -GET localhost:3000/api/metrics
+ * ```
+ *
+ * > [!TIP]
+ * > You might need to update the above command to reflect the configuration
+ * > options you set in your `.env`.
+ *
+ * [prometheus]: (https://prometheus.io/docs/introduction/overview/)
+ * [prom-client]: (https://github.com/siimon/prom-client)
+ *
+ * @module metrics
+ * @packageDocumentation
+ */
+
 import client from 'prom-client';
 
 const register = new client.Registry();
@@ -5,6 +26,11 @@ export const contentType = register.contentType;
 
 client.collectDefaultMetrics({ prefix: 'sank_', register });
 
+/**
+ * Get the latest app metrics.
+ *
+ * @returns Plaintext prometheus metrics.
+ */
 export async function metrics(): Promise<string> {
   return await register.metrics();
 }
@@ -37,27 +63,70 @@ register.registerMetric(agentResponseTime);
 
 const agentToolUseCounter = new Map<string, client.Counter>();
 
+/**
+ * Measures the time it takes an agent to perform an action and adds it to the
+ * global metrics.
+ *
+ * @template T - Return type of the timed promise.
+ * @param agent - Agent being monitored.
+ * @param mode - Agent mode, `agent` or `auto`.
+ * @param route - Api route we are timing.
+ * @param f - Future to time.
+ * @returns - Result of `await f`;
+ * @see metrics
+ */
 export async function metricsAgentResponseTime<T>(
   agent: string,
+  mode: string,
   route: string,
   f: Promise<T>
 ): Promise<T> {
   const end = agentResponseTime.startTimer();
   const res = await f;
-  end({ agent, route });
+  end({ agent, mode, route });
   return res;
 }
 
+/**
+ * Keeps track of the total number of active agents
+ *
+ * @param agent - Agent being monitored.
+ * @param mode - Agent mode, `agent` or `auto`.
+ * @see metrics
+ * @see metricsAgentCountActiveDisconnet
+ */
 export function metricsAgentCountActiveConnect(agent: string, mode: string) {
   agentCountActive.labels({ agent, mode }).inc();
   agentCountTotal.labels({ agent, mode }).inc();
 }
 
 // TODO: need graceful shutdown
+/**
+ * Marks an agent as having shut down.
+ *
+ * @param agent - Agent being monitored.
+ * @param mode - Agent mode, `agent` or `auto`.
+ * @see metrics
+ * @see metricsAgentCountActiveConnect
+ */
 export function metricsAgentCountActiveDisconnet(agent: string, mode: string) {
   agentCountActive.labels({ agent, mode }).dec();
 }
 
+/**
+ * Keeps track of how many times a tool is added to an agent.
+ *
+ * > [!NOTE]
+ * > Counters for new tools are created lazily as they are added, so a tool will
+ * > never have a counter of 0, it will just have no counter. If you do not see
+ * > a tool appear in the metrics, that means it has not been added to an agent
+ * > yet.
+ *
+ * @param agent - Agent being monitored.
+ * @param mode - Agent mode, `agent` or `auto`.
+ * @param tool - Tool being monitored.
+ * @see metrics
+ */
 export function metricsAgentToolUseCount(
   agent: string,
   mode: string,
