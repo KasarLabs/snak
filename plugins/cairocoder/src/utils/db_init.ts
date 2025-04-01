@@ -68,7 +68,7 @@ export const initializeDatabase = async (
 
       if (result.status === 'error') {
         if (result.code === '42P07') {
-          console.warn(`Table ${table.table_name} already exists. Adding it.`);
+          // console.warn(`Table ${table.table_name} already exists. Adding it.`);
           database.addExistingTable({
             table_name: table.table_name,
             if_not_exist: false,
@@ -135,7 +135,7 @@ export const createProject = async (
 
     return newProject.query.rows[0].id;
   } catch (error) {
-    console.error('Error creating project:', error);
+    // console.error('Error creating project:', error);
     throw error;
   }
 };
@@ -168,7 +168,7 @@ export const initializeProjectData = async (
       await addDependency(agent, projectId, dependency);
     }
   } catch (error) {
-    console.error('Error initializing project data:', error);
+    // console.error('Error initializing project data:', error);
     throw error;
   }
 };

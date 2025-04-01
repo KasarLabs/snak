@@ -16,8 +16,9 @@ export const generateCairoCode = async (
   params: z.infer<typeof generateCairoCodeSchema>
 ): Promise<string> => {
   try {
-    console.log('generating cairo code');
-    console.log(params);
+    console.log("\n➜ Generating Cairo code");
+    console.log(JSON.stringify(params, null, 2));
+    console.log("\n");
     validateParams(params);
     
     const generatedContent = await callCairoGenerationAPI(params.prompt);
@@ -37,7 +38,7 @@ export const generateCairoCode = async (
       code: cairoCode
     });
   } catch (error) {
-    console.error('Error generating Cairo code:', error);
+    // console.error('Error generating Cairo code:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error'

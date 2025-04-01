@@ -19,8 +19,9 @@ export const registerProject = async (
   params: z.infer<typeof registerProjectSchema>
 ) => {
   try {
-    console.log('registering project');
-    console.log(params);
+    console.log("\n➜ Registering Cairo project");
+    console.log(JSON.stringify(params, null, 2));
+    console.log("\n");
     if (params.projectName.includes('-'))
       throw new Error(
         "Project name cannot contain hyphens ('-'). Please use underscores ('_') instead."
@@ -62,7 +63,7 @@ export const registerProject = async (
       dependenciesCount: projectData.dependencies.length,
     });
   } catch (error) {
-    console.error('Error registering project:', error);
+    // console.error('Error registering project:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

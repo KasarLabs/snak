@@ -27,12 +27,12 @@ export const generateCairoCodeSchema = z.object({
  * @property {string} projectName - Optional - The name of the project to associate the fixed program with
  */
 export const fixCairoCodeSchema = z.object({
+  error: z
+  .string()
+  .describe('The error message or issue description that needs to be fixed'),
   programName: z
     .string()
     .describe('The name of the Cairo program to fix (with .cairo extension)'),
-  error: z
-    .string()
-    .describe('The error message or issue description that needs to be fixed'),
   projectName: z
     .string()
     .describe('The name of the existing project to associate the fixed program with')

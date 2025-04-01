@@ -20,6 +20,10 @@ export const proveProgram = async (
 ) => {
   let projectDir = '';
   try {
+    console.log("\n➜ Generating proof for Cairo program");
+    // console.log(JSON.stringify(params, null, 2));
+    console.log("\n");
+    
     const execResult = await executeProgram(agent, {
       ...params,
       mode: 'standalone',
@@ -56,7 +60,7 @@ export const proveProgram = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    console.log('Error proving contract execution:', errors);
+    // console.log('Error proving contract execution:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,

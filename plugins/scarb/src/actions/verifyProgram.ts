@@ -21,6 +21,10 @@ export const verifyProgram = async (
 ) => {
   let projectDir = '';
   try {
+    console.log("\n➜ Verifying Cairo program proof");
+    // console.log(JSON.stringify(params, null, 2));
+    console.log("\n");
+    
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -49,7 +53,7 @@ export const verifyProgram = async (
       errors: parsedResult.errors,
     });
   } catch (error) {
-    console.error('Error verifying proof:', error);
+    // console.error('Error verifying proof:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

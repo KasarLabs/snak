@@ -63,9 +63,9 @@ export const buildProject = async (params: { path: string }) => {
       errors: stderr || undefined,
     });
   } catch (error) {
-    console.error(
-      `Failed to build project at ${params.path}: ${error.message}`
-    );
+    // console.error(
+    //   `Failed to build project at ${params.path}: ${error.message}`
+    // );
     throw error;
   }
 };
@@ -132,7 +132,7 @@ export const executeProject = async (params: ExecuteContractParams) => {
       error: stderr || undefined,
     });
   } catch (error) {
-    console.error(`Failed to execute program: ${error.message}`);
+    // console.error(`Failed to execute program: ${error.message}`);
     throw error;
   }
 };
@@ -164,7 +164,7 @@ export const proveProject = async (params: ProveProjectParams) => {
       error: stderr || undefined,
     });
   } catch (error) {
-    console.error(`Failed to prove program: ${error.message}`);
+    // console.error(`Failed to prove program: ${error.message}`);
     throw error;
   }
 };
@@ -188,7 +188,7 @@ export const verifyProject = async (params: VerifyProjectParams) => {
       error: stderr || undefined,
     });
   } catch (error) {
-    console.error(`Failed to verify proof: ${error.message}`);
+    // console.error(`Failed to verify proof: ${error.message}`);
     throw error;
   }
 };

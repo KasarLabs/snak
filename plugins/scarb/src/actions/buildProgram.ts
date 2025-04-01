@@ -21,6 +21,10 @@ export const compileContract = async (
 ) => {
   let projectDir = '';
   try {
+    console.log("\n➜ Compiling Cairo project");
+    // console.log(JSON.stringify(params, null, 2));
+    console.log("\n");
+    
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -66,7 +70,7 @@ export const compileContract = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    console.log('Error compiling contract:', errors);
+    // console.log('Error compiling contract:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,

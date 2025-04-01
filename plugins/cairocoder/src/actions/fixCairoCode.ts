@@ -24,8 +24,9 @@ export const fixCairoCode = async (
     if (!params?.error) {
       throw new Error('Error description is required for fixing Cairo code');
     }
-    console.log("\nFixing Cairo code ");
-    console.log(params);
+    console.log("\n➜ Fixing Cairo code ");
+    console.log(JSON.stringify(params, null, 2));
+    console.log("\n");
     // Retrieve the program from the database
     const projectData = await retrieveProjectData(agent, params.projectName);
     const program = projectData.programs.find(p => p.name === params.programName);

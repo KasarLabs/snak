@@ -20,6 +20,12 @@ export const executeProgram = async (
   let projectDir = '';
   let mode = '';
   try {
+    // if (params.mode === 'bootloader'){
+      console.log("\n➜ Executing Cairo program");
+      // console.log(JSON.stringify(params, null, 2));
+      console.log("\n");
+  // }
+    
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -100,7 +106,7 @@ export const executeProgram = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    console.log('Error executing contract:', errors);
+    // console.log('Error executing contract:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,
