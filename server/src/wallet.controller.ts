@@ -16,6 +16,8 @@ import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
 import { AgentFactory } from './agents.factory.js';
+import { Reflector } from '@nestjs/core';
+import * as metrics from '../metrics.js';
 
 @Controller('wallet')
 export class WalletController implements OnModuleInit {
@@ -23,8 +25,9 @@ export class WalletController implements OnModuleInit {
 
   constructor(
     private readonly walletService: WalletService,
-    private readonly agentFactory: AgentFactory
-  ) {}
+    private readonly agentFactory: AgentFactory,
+    private readonly reflector: Reflector,
+  ) { }
 
   async onModuleInit() {
     try {
@@ -38,10 +41,10 @@ export class WalletController implements OnModuleInit {
 
   @Post('request')
   async handleUserCalldataRequest(@Body() userRequest: AgentRequestDTO) {
-    return await this.walletService.handleUserCalldataRequest(
-      this.agent,
-      userRequest
-    );
+    const agent = this.agent.getAgentConfig().name;
+    const route = this.reflector.get('path', this.handleUserCalldataRequest);
+    const action = this.walletService.handleUserCalldataRequest(this.agent, userRequest);
+    return await metrics.metricsAgentResponseTime(agent, route, action);
   }
 
   @Post('upload_large_file')

@@ -128,7 +128,15 @@ export const registerTools = async (
         if (typeof imported_tool.registerTools !== 'function') {
           return false;
         }
-        await imported_tool.registerTools(tools, agent);
+        const tools_new = new Array<StarknetTool>();
+        await imported_tool.registerTools(tools_new, agent);
+
+        for (const tool of tools_new) {
+          metrics.metricsAgentToolUseCount(agent.getAgentConfig.name, agent.getAgentMode(), tool.name);
+        }
+
+        tools.concat(tools_new);
+
         return true;
       })
     );
