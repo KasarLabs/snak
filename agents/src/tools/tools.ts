@@ -2,8 +2,12 @@ import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
+<<<<<<< HEAD
 import { metrics } from '@starknet-agent-kit/server';
 import logger from '../logger.js';
+=======
+import { metrics } from '@starknet-agent-kit/agents';
+>>>>>>> b71b698 (fix(build): cyclic deps)
 
 /**
  * @interface StarknetAgentInterface

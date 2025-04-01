@@ -17,7 +17,7 @@ import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
 import { AgentFactory } from './agents.factory.js';
 import { Reflector } from '@nestjs/core';
-import * as metrics from '../metrics.js';
+import { metrics } from '@starknet-agent-kit/agents';
 
 @Controller('wallet')
 export class WalletController implements OnModuleInit {

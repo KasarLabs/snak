@@ -1,6 +1,6 @@
 import { Controller, OnModuleInit, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { metrics, contentType } from '../metrics.js';
+import { metrics, contentType } from '@starknet-agent-kit/agents/metrics.js';
 
 @Controller('metrics')
 export class MetricsController implements OnModuleInit {

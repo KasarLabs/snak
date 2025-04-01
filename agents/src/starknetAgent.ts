@@ -6,8 +6,7 @@ import { JsonConfig } from './jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { PostgresAdaptater } from './databases/postgresql/src/database.js';
 import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
-import logger from './logger.js';
-import { metrics } from '@starknet-agent-kit/server';
+import * as metrics from '../metrics.js';
 
 /**
  * @interface StarknetAgentConfig
