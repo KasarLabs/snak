@@ -1,5 +1,5 @@
 import { StarknetTool, StarknetAgentInterface, PostgresAdaptater } from '@starknet-agent-kit/agents';
-import { generateCairoCodeSchema, fixCairoCodeSchema, registerProjectSchema, deleteProgramSchema, deleteDependencySchema, deleteProjectSchema, addDependencySchema, addProgramSchema } from '../schema/schema.js';
+import { generateCairoCodeSchema, fixCairoCodeSchema, registerProjectSchema, deleteProgramSchema, deleteDependencySchema, deleteProjectSchema, addDependencySchema, addProgramSchema, listProjectsSchema } from '../schema/schema.js';
 import { generateCairoCode } from '../actions/generateCairoCode.js';
 import { fixCairoCode } from '../actions/fixCairoCode.js';
 import { initializeDatabase } from '../utils/db_init.js';
@@ -9,6 +9,8 @@ import { deleteDependencyAction } from '../actions/deleteItemProject.js';
 import { deleteProjectAction } from '../actions/deleteItemProject.js';
 import { addDependencyAction } from '../actions/addItem.js';
 import { addProgramAction } from '../actions/addItem.js';
+import { listProjects } from '../actions/listProjects.js';
+
 export const initializeTools = async (
   agent: StarknetAgentInterface
 ): Promise<PostgresAdaptater | undefined> => {
@@ -93,6 +95,14 @@ export const registerTools = async (
     plugins: 'cairocoder',
     schema: addProgramSchema,
     execute: addProgramAction,
+  });
+  
+  StarknetToolRegistry.push({
+    name: 'cairocoder_list_projects',
+    description: 'List all Cairo projects stored in the database with their names.',
+    plugins: 'cairocoder',
+    schema: listProjectsSchema,
+    execute: listProjects,
   });
   
 }; 

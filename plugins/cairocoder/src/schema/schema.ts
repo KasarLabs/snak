@@ -129,3 +129,10 @@ export const addDependencySchema = z.object({
     )
     .describe('List of project dependencies'),
 });
+
+/**
+ * Schema for listing all projects
+ * 
+ * Empty schema as no parameters are required
+ */
+export const listProjectsSchema = z.object({});
