@@ -1,8 +1,9 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { fixCairoCodeSchema } from '../schema/schema.js';
-import { callCairoGenerationAPI, extractCairoCode, saveToDebugFile, saveToDB, getRawProgramByName } from '../utils/utils.js';
-
+import { callCairoGenerationAPI, extractCairoCode, saveToDebugFile } from '../utils/utils.js';
+import { addProgram } from '../utils/db_add.js';
+import { retrieveProjectData } from '../utils/db_init.js';  
 
 /**
  * Fix Cairo code using AI via API and update it in the database
@@ -15,6 +16,8 @@ export const fixCairoCode = async (
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {
+    console.log('fixing cairo code');
+    console.log(params);
     // Validate parameters
     if (!params?.programName || !params.programName.endsWith('.cairo')) {
       throw new Error('Program name is required and must end with .cairo');
@@ -25,7 +28,8 @@ export const fixCairoCode = async (
     }
     
     // Retrieve the program from the database
-    const program = await getRawProgramByName(agent, params.programName);
+    const projectData = await retrieveProjectData(agent, params.projectName);
+    const program = projectData.programs.find(p => p.name === params.programName);
     
     if (!program) {
       throw new Error(`Program ${params.programName} not found in the database`);
@@ -50,8 +54,7 @@ Please fix the code. Your response should only include the complete, corrected C
     // Save to debug file
     const debugFile = saveToDebugFile(params.programName, fixedCairoCode);
     
-    // Save to database
-    await saveToDB(agent, params.programName, fixedCairoCode);
+    await addProgram(agent, projectData.id, params.programName, fixedCairoCode);
     
     // Return success response
     return JSON.stringify({

@@ -1,0 +1,2 @@
+I apologize, but I couldn't find any specific information to fix your compiler issue. It's possible that I don't have access to the relevant data, or the question might be outside my current knowledge base.
+Perhaps you could add more context, or try to rephrase your question to something like: "How to fix my compilation issue on this usage of a storage map?"

@@ -1,7 +1,9 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { generateCairoCodeSchema } from '../schema/schema.js';
-import { validateParams, callCairoGenerationAPI, extractCairoCode, saveToDebugFile, saveToDB } from '../utils/utils.js';
+import { validateParams, callCairoGenerationAPI, extractCairoCode, saveToDebugFile } from '../utils/utils.js';
+import { addProgram } from '../utils/db_add.js';
+import { retrieveProjectData } from '../utils/db_init.js';
 
 /**
  * Generate Cairo code using AI via API and store it in the database
@@ -14,6 +16,8 @@ export const generateCairoCode = async (
   params: z.infer<typeof generateCairoCodeSchema>
 ): Promise<string> => {
   try {
+    console.log('generating cairo code');
+    console.log(params);
     validateParams(params);
     
     const generatedContent = await callCairoGenerationAPI(params.prompt);
@@ -22,7 +26,8 @@ export const generateCairoCode = async (
     
     const debugFile = saveToDebugFile(params.programName, cairoCode);
     
-    await saveToDB(agent, params.programName, cairoCode);
+    const projectData = await retrieveProjectData(agent, params.projectName);
+    await addProgram(agent, projectData.id, params.programName, cairoCode);
     
     return JSON.stringify({
       status: 'success',

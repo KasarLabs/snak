@@ -3,50 +3,50 @@ import { compileContract } from '../actions/buildProgram.js';
 import { executeProgram } from '../actions/executeProgram.js';
 import { proveProgram } from '../actions/proveProgram.js';
 import { verifyProgram } from '../actions/verifyProgram.js';
-import { registerProject } from '../actions/registerProject.js';
-import {
-  deleteProgramAction,
-  deleteDependencyAction,
-  deleteProjectAction,
-} from '../actions/deleteItemProject.js';
+// import { registerProject } from '../actions/registerProject.js';
+// import {
+//   deleteProgramAction,
+//   deleteDependencyAction,
+//   deleteProjectAction,
+// } from '../actions/deleteItemProject.js';
 import {
   executeProgramSchema,
   proveProgramSchema,
   verifyProgramSchema,
   installScarbSchema,
   compileContractSchema,
-  registerProjectSchema,
-  deleteProgramSchema,
-  deleteDependencySchema,
-  deleteProjectSchema,
+  // registerProjectSchema,
+  // deleteProgramSchema,
+  // deleteDependencySchema,
+  // deleteProjectSchema,
 } from '../schema/schema.js';
 import {
   PostgresAdaptater,
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
-import { initializeDatabase } from '../utils/db_init.js';
+// import { initializeDatabase } from '../utils/db_init.js';
 
 export const initializeTools = async (
   agent: StarknetAgentInterface
-): Promise<PostgresAdaptater | undefined> => {
-  try {
-    const res = await initializeDatabase(agent);
-    return res;
-  } catch (error) {
-    console.error('Error initializing database:', error);
-  }
+) => {
+  // try {
+  //   const res = await initializeDatabase(agent);
+  //   return res;
+  // } catch (error) {
+  //   console.error('Error initializing database:', error);
+  // }
 };
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
   agent: StarknetAgentInterface
 ) => {
-  const database_instance = await initializeTools(agent);
-  if (!database_instance) {
-    console.error('Error while initializing database');
-    return;
-  }
+  // const database_instance = await initializeTools(agent);
+  // if (!database_instance) {
+  //   console.error('Error while initializing database');
+  //   return;
+  // }
 
   StarknetToolRegistry.push({
     name: 'scarb_install',
@@ -58,7 +58,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_compile_contract',
-    description: 'Compile StarkNet contracts using Scarb',
+    description: 'Compile contracts or program of an existing project using Scarb',
     plugins: 'scarb',
     schema: compileContractSchema,
     execute: compileContract,
@@ -66,7 +66,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_execute_program',
-    description: 'Execute a Cairo program function using Scarb',
+    description: 'Execute a Cairo program function of an existing project using Scarb',
     plugins: 'scarb',
     schema: executeProgramSchema,
     execute: executeProgram,
@@ -74,7 +74,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_prove_program',
-    description: 'Generate a proof for a Cairo program execution using Scarb',
+    description: 'Generate a proof for a Cairo program execution of an existing project using Scarb',
     plugins: 'scarb',
     schema: proveProgramSchema,
     execute: proveProgram,
@@ -82,42 +82,42 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_verify_program',
-    description: 'Verify a proof for a Cairo program execution using Scarb',
+    description: 'Verify a proof for a Cairo program execution of a project using Scarb',
     plugins: 'scarb',
     schema: verifyProgramSchema,
     execute: verifyProgram,
   });
 
-  StarknetToolRegistry.push({
-    name: 'scarb_register_project',
-    description: 'Register or update a Cairo project in the database',
-    plugins: 'scarb',
-    schema: registerProjectSchema,
-    execute: registerProject,
-  });
+  // StarknetToolRegistry.push({
+  //   name: 'scarb_register_project',
+  //   description: 'Register or update a Cairo project in the database',
+  //   plugins: 'scarb',
+  //   schema: registerProjectSchema,
+  //   execute: registerProject,
+  // });
 
-  StarknetToolRegistry.push({
-    name: 'scarb_delete_program',
-    description: 'Delete a program from a Cairo project in the database',
-    plugins: 'scarb',
-    schema: deleteProgramSchema,
-    execute: deleteProgramAction,
-  });
+  // StarknetToolRegistry.push({
+  //   name: 'scarb_delete_program',
+  //   description: 'Delete a program from a Cairo project in the database',
+  //   plugins: 'scarb',
+  //   schema: deleteProgramSchema,
+  //   execute: deleteProgramAction,
+  // });
 
-  StarknetToolRegistry.push({
-    name: 'scarb_delete_dependency',
-    description: 'Delete a dependency from a Cairo project in the database',
-    plugins: 'scarb',
-    schema: deleteDependencySchema,
-    execute: deleteDependencyAction,
-  });
+  // StarknetToolRegistry.push({
+  //   name: 'scarb_delete_dependency',
+  //   description: 'Delete a dependency from a Cairo project in the database',
+  //   plugins: 'scarb',
+  //   schema: deleteDependencySchema,
+  //   execute: deleteDependencyAction,
+  // });
 
-  StarknetToolRegistry.push({
-    name: 'scarb_delete_project',
-    description:
-      'Delete an entire Cairo project and all its data from the database',
-    plugins: 'scarb',
-    schema: deleteProjectSchema,
-    execute: deleteProjectAction,
-  });
+  // StarknetToolRegistry.push({
+  //   name: 'scarb_delete_project',
+  //   description:
+  //     'Delete an entire Cairo project and all its data from the database',
+  //   plugins: 'scarb',
+  //   schema: deleteProjectSchema,
+  //   execute: deleteProjectAction,
+  // });
 };

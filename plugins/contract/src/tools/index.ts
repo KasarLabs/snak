@@ -13,7 +13,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     name: 'declare_contract',
     plugins: 'contract',
     description:
-      'Declare a contract on StarkNet using Sierra and CASM files. This is the first step in the deployment process if no classhash is provided.',
+      'Declare a cairo project\'s contract on Starknet. This is the first step in the deployment process if no classhash is provided.',
     schema: declareContractSchema,
     execute: declareContract,
   });
@@ -31,7 +31,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     name: 'step1_prepare_deploy',
     plugins: 'contract',
     description:
-      'Prepare the deployment. ALWAYS use this before deploying a contract to understand the required arguments and their correct order. This tool returns the exact parameter names required by the contract constructor',
+      'Prepare the deployment. ALWAYS use this before deploying a cairo project\'s contract to understand the required arguments and their correct order. This tool returns the exact parameter names required by the contract constructor',
     schema: getConstructorParamsSchema,
     execute: getConstructorParams,
   });

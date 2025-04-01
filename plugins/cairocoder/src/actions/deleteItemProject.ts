@@ -5,12 +5,12 @@ import {
   deleteDependency,
   deleteProject,
 } from '../utils/db_delete.js';
-import { retrieveProjectData } from '../utils/db_init.js';
 import {
   deleteProgramSchema,
   deleteDependencySchema,
   deleteProjectSchema,
 } from '../schema/schema.js';
+import { retrieveProjectData } from '../utils/db_init.js';
 
 /**
  * Delete a program from a project

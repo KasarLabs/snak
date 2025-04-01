@@ -27,9 +27,23 @@ export interface CairoCodeGenerationResponse {
   };
 } 
 
-export interface RawProgram {
-  id: number;
+export interface CairoProgram {
   name: string;
   source_code: string;
-  created_at: string;
+}
+
+export interface Dependency {
+  name: string;
+  version?: string;
+  git?: string;
+}
+
+export interface ProjectData {
+  id: number;
+  name: string;
+  type: 'contract' | 'cairo_program';
+  programs: CairoProgram[];
+  dependencies: Dependency[];
+  proof?: string;
+  verified?: boolean;
 }

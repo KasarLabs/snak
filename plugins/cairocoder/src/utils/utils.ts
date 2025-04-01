@@ -1,6 +1,5 @@
-import { StarknetAgentInterface } from "@starknet-agent-kit/agents";
-import { addProgram, checkProgramExists, getAllRawPrograms } from "./db_utils.js";
-import { CairoCodeGenerationResponse, RawProgram } from "../types/types.js";
+
+import { CairoCodeGenerationResponse } from "../types/index.js";
 import { generateCairoCodeSchema } from "../schema/schema.js";
 import axios from "axios";
 import fs from "fs";
@@ -36,7 +35,7 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
    */
   export async function callCairoGenerationAPI(prompt: string): Promise<string> {
     const response = await axios.post<CairoCodeGenerationResponse>(
-      'https://backend.agent.starknet.id/v1/chat/completions',
+      'https://backend.agent.starknet.id/v1/chat/completions', // TODO: Hide this
       {
         model: 'gemini-2.0-flash',
         messages: [
@@ -106,40 +105,40 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     return debugFile;
   }
   
-  /**
-   * Saves Cairo code to the database
-   * @param agent The Starknet agent
-   * @param contractName The name of the contract
-   * @param cairoCode The Cairo code to save
-   */
-  export async function saveToDB(
-    agent: StarknetAgentInterface,
-    contractName: string,
-    cairoCode: string
-  ): Promise<void> {
-    try {
-        await addProgram(agent, contractName, cairoCode);
-        console.log(`Cairo code saved to database as ${contractName}`);
-    } catch (error) {
-        throw new Error(`Database error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
+//   /**
+//    * Saves Cairo code to the database
+//    * @param agent The Starknet agent
+//    * @param contractName The name of the contract
+//    * @param cairoCode The Cairo code to save
+//    */
+//   export async function saveToDB(
+//     agent: StarknetAgentInterface,
+//     contractName: string,
+//     cairoCode: string
+//   ): Promise<void> {
+//     try {
+//         await addProgram(agent, contractName, cairoCode);
+//         console.log(`Cairo code saved to database as ${contractName}`);
+//     } catch (error) {
+//         throw new Error(`Database error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//     }
+//   }
 
-  /**
- * Get a raw program from the database by name
- * @param agent The StarkNet agent
- * @param programName The name of the program to get
- * @returns The raw program if found, undefined otherwise
- */
-export async function getRawProgramByName(
-  agent: StarknetAgentInterface,
-  programName: string
-): Promise<RawProgram | undefined> {
-  try {
-    const allPrograms = await getAllRawPrograms(agent);
-    return allPrograms.find(program => program.name === programName);
-  } catch (error) {
-    console.error('Error retrieving program:', error);
-    throw new Error(`Failed to retrieve program ${programName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
+//   /**
+//  * Get a raw program from the database by name
+//  * @param agent The StarkNet agent
+//  * @param programName The name of the program to get
+//  * @returns The raw program if found, undefined otherwise
+//  */
+// export async function getRawProgramByName(
+//   agent: StarknetAgentInterface,
+//   programName: string
+// ): Promise<RawProgram | undefined> {
+//   try {
+//     const allPrograms = await getAllRawPrograms(agent);
+//     return allPrograms.find(program => program.name === programName);
+//   } catch (error) {
+//     console.error('Error retrieving program:', error);
+//     throw new Error(`Failed to retrieve program ${programName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//   }
+// }
