@@ -132,7 +132,11 @@ export const registerTools = async (
         await imported_tool.registerTools(tools_new, agent);
 
         for (const tool of tools_new) {
-          metrics.metricsAgentToolUseCount(agent.getAgentConfig.name, agent.getAgentMode(), tool.name);
+          metrics.metricsAgentToolUseCount(
+            agent.getAgentConfig.name,
+            agent.getAgentMode(),
+            tool.name
+          );
         }
 
         tools.concat(tools_new);

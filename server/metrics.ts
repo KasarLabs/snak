@@ -16,14 +16,14 @@ export async function metrics(): Promise<string> {
 const agentCountActive = new client.Gauge({
   name: 'agent_count_active',
   help: 'Number of currently active agents',
-  labelNames: ['agent', 'mode'] as const
+  labelNames: ['agent', 'mode'] as const,
 });
 register.registerMetric(agentCountActive);
 
 const agentCountTotal = new client.Counter({
   name: 'agent_count_total',
   help: 'Number of agents created since server start',
-  labelNames: ['agent', 'mode'] as const
+  labelNames: ['agent', 'mode'] as const,
 });
 register.registerMetric(agentCountTotal);
 
@@ -37,7 +37,11 @@ register.registerMetric(agentResponseTime);
 
 const agentToolUseCounter = new Map<string, client.Counter>();
 
-export async function metricsAgentResponseTime<T>(agent: string, route: string, f: Promise<T>): Promise<T> {
+export async function metricsAgentResponseTime<T>(
+  agent: string,
+  route: string,
+  f: Promise<T>
+): Promise<T> {
   const end = agentResponseTime.startTimer();
   const res = await f;
   end({ agent, route });
@@ -54,19 +58,25 @@ export function metricsAgentCountActiveDisconnet(agent: string, mode: string) {
   agentCountActive.labels({ agent, mode }).dec();
 }
 
-export function metricsAgentToolUseCount(agent: string, mode: string, tool: string) {
-  const counter = agentToolUseCounter.get(tool) || (() => {
-    const counterNew = new client.Counter({
-      name: `tool_${tool}_use_counter`,
-      help: 'Number of times an agent uses this tool',
-      labelNames: ['agent', 'mode'] as const
-    });
+export function metricsAgentToolUseCount(
+  agent: string,
+  mode: string,
+  tool: string
+) {
+  const counter =
+    agentToolUseCounter.get(tool) ||
+    (() => {
+      const counterNew = new client.Counter({
+        name: `tool_${tool}_use_counter`,
+        help: 'Number of times an agent uses this tool',
+        labelNames: ['agent', 'mode'] as const,
+      });
 
-    register.registerMetric(counterNew);
-    agentToolUseCounter.set(tool, counterNew);
+      register.registerMetric(counterNew);
+      agentToolUseCounter.set(tool, counterNew);
 
-    return counterNew;
-  })();
+      return counterNew;
+    })();
 
   counter.labels({ agent, mode }).inc();
 }
@@ -80,7 +90,7 @@ const DbQueryTime = new client.Histogram({
   name: 'db_response_time_seconds',
   help: 'Time the database takes to respond to queries, in seconds',
   labelNames: ['query'] as const,
-  buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120]
+  buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
 });
 register.registerMetric(DbQueryTime);
 
@@ -97,9 +107,12 @@ const DbCountConnections = new client.Counter({
 });
 register.registerMetric(DbCountConnections);
 
-export async function metricsDbResponseTime<T>(query: string, f: () => Promise<T>) {
+export async function metricsDbResponseTime<T>(
+  query: string,
+  f: () => Promise<T>
+) {
   const end = DbQueryTime.startTimer();
   const res = await f();
   end({ query });
-  res
+  res;
 }

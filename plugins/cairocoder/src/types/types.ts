@@ -25,7 +25,7 @@ export interface CairoCodeGenerationResponse {
     type?: string;
     code?: string;
   };
-} 
+}
 
 export interface RawProgram {
   id: number;

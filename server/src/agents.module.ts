@@ -29,7 +29,12 @@ import { DatabaseController } from './database.controller.js';
       useClass: ThrottlerGuard,
     },
   ],
-  controllers: [AgentsController, WalletController, DatabaseController, MetricsController],
+  controllers: [
+    AgentsController,
+    WalletController,
+    DatabaseController,
+    MetricsController,
+  ],
   exports: [AgentService, WalletService, AgentFactory],
 })
-export class AgentsModule { }
+export class AgentsModule {}

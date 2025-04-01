@@ -71,7 +71,10 @@ export class StarknetAgent implements IAgent {
     this.currentMode = config.agentMode;
     this.agentconfig = config.agentconfig;
 
-    metrics.metricsAgentCountActiveConnect(config.agentconfig.name, config.agentMode);
+    metrics.metricsAgentCountActiveConnect(
+      config.agentconfig.name,
+      config.agentMode
+    );
   }
 
   /**

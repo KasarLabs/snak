@@ -4,7 +4,10 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
  * Custom database error class for better error handling
  */
 export class DatabaseError extends Error {
-  constructor(message: string, public readonly code?: string) {
+  constructor(
+    message: string,
+    public readonly code?: string
+  ) {
     super(message);
     this.name = 'DatabaseError';
   }
@@ -36,7 +39,7 @@ export const initializeDatabase = async (
         ['id', 'SERIAL PRIMARY KEY'],
         ['name', 'VARCHAR(255) NOT NULL'],
         ['source_code', 'TEXT NOT NULL'],
-        ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP']
+        ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
       ]),
     };
 
@@ -94,7 +97,7 @@ export const checkProgramExists = async (
 ): Promise<{ exists: boolean; programId?: number }> => {
   try {
     const database = getDatabase(agent);
-    
+
     // Check if the program already exists
     const programResult = await database.select({
       SELECT: ['id'],
@@ -112,16 +115,17 @@ export const checkProgramExists = async (
     if (programResult.query && programResult.query.rows.length > 0) {
       return { exists: true, programId: programResult.query.rows[0].id };
     }
-    
+
     return { exists: false };
   } catch (error) {
     if (error instanceof DatabaseError) {
       throw error;
     }
-    throw new DatabaseError(`Error checking if program exists: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new DatabaseError(
+      `Error checking if program exists: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 };
-
 
 /**
  * Encodes Cairo source code for database storage
@@ -140,16 +144,16 @@ export function encodeCode(code: string): string {
  * @param sourcePath The path to the source code file
  */
 export const addProgram = async (
-    agent: StarknetAgentInterface,
-    programName: string,
-    sourceCode: string
+  agent: StarknetAgentInterface,
+  programName: string,
+  sourceCode: string
 ) => {
   try {
     const database = agent.getDatabaseByName('cairocoder_db');
     if (!database) {
       throw new Error('Database not found');
     }
-      
+
     const encodedCode = encodeCode(sourceCode);
 
     const existingProgram = await database.select({
@@ -184,7 +188,6 @@ export const addProgram = async (
   }
 };
 
-
 /**
  * Gets all raw programs from the database
  * @param agent The StarkNet agent
@@ -195,7 +198,7 @@ export const getAllRawPrograms = async (
 ): Promise<any[]> => {
   try {
     const database = getDatabase(agent);
-    
+
     const result = await database.select({
       SELECT: ['id', 'name', 'source_code', 'created_at'],
       FROM: ['rawProgram'],
@@ -211,12 +214,14 @@ export const getAllRawPrograms = async (
     if (result.query && result.query.rows) {
       return result.query.rows;
     }
-    
+
     return [];
   } catch (error) {
     if (error instanceof DatabaseError) {
       throw error;
     }
-    throw new DatabaseError(`Error getting programs: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new DatabaseError(
+      `Error getting programs: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
-}; 
+};

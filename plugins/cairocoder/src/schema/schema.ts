@@ -12,7 +12,9 @@ export const generateCairoCodeSchema = z.object({
     .describe('The prompt describing what Cairo code to generate'),
   programName: z
     .string()
-    .describe('The name of the Cairo program/contract file to be created (with .cairo extension)')
+    .describe(
+      'The name of the Cairo program/contract file to be created (with .cairo extension)'
+    ),
 });
 
 /**
@@ -27,5 +29,5 @@ export const fixCairoCodeSchema = z.object({
     .describe('The name of the Cairo program to fix (with .cairo extension)'),
   error: z
     .string()
-    .describe('The error message or issue description that needs to be fixed')
-}); 
+    .describe('The error message or issue description that needs to be fixed'),
+});

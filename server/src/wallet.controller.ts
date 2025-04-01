@@ -26,8 +26,8 @@ export class WalletController implements OnModuleInit {
   constructor(
     private readonly walletService: WalletService,
     private readonly agentFactory: AgentFactory,
-    private readonly reflector: Reflector,
-  ) { }
+    private readonly reflector: Reflector
+  ) {}
 
   async onModuleInit() {
     try {
@@ -43,7 +43,10 @@ export class WalletController implements OnModuleInit {
   async handleUserCalldataRequest(@Body() userRequest: AgentRequestDTO) {
     const agent = this.agent.getAgentConfig().name;
     const route = this.reflector.get('path', this.handleUserCalldataRequest);
-    const action = this.walletService.handleUserCalldataRequest(this.agent, userRequest);
+    const action = this.walletService.handleUserCalldataRequest(
+      this.agent,
+      userRequest
+    );
     return await metrics.metricsAgentResponseTime(agent, route, action);
   }
 

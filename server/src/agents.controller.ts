@@ -29,8 +29,8 @@ export class AgentsController implements OnModuleInit {
   constructor(
     private readonly agentService: AgentService,
     private readonly agentFactory: AgentFactory,
-    private readonly reflector: Reflector,
-  ) { }
+    private readonly reflector: Reflector
+  ) {}
 
   async onModuleInit() {
     try {
