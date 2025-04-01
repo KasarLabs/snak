@@ -31,5 +31,8 @@ export {
   AiConfig,
 } from './common/index.js';
 
+export {
+  LocalRun
+} from './start.js'
 // External tools
 export * from './src/tools/external_tools.js';
