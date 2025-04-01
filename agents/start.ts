@@ -133,7 +133,7 @@ const validateEnvVars = async () => {
   }
 };
 
-const LocalRun = async () => {
+export const LocalRun = async () => {
   clearScreen();
   console.log(logo);
   console.log(
@@ -266,9 +266,9 @@ const LocalRun = async () => {
   }
 };
 
-LocalRun().catch((error) => {
-  console.error(
-    createBox(error.message, { title: 'Fatal Error', isError: true })
-  );
-  process.exit(1);
-});
+// LocalRun().catch((error) => {
+//   console.error(
+//     createBox(error.message, { title: 'Fatal Error', isError: true })
+//   );
+//   process.exit(1);
+// });

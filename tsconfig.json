@@ -20,6 +20,7 @@
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
+    "jsx": "react-jsx",
     "paths": {
       "@config/*": ["config/*"],
       "@plugins/*": ["plugins/*"],
@@ -27,6 +28,14 @@
       "@client/*": ["client/*"],
       "@agents/*": ["agents/*"],
       "@mcp/*": ["mcp/*"]
-    }
-  }
+    },
+  },
+  "include": ["*.ts","*.tsx"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.e2e-spec.ts"
+  ]
 }

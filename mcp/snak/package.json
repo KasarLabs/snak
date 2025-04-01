@@ -8,6 +8,8 @@
     "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
+    "clean:turbo": "rm -rf .turbo",
+
     "clean:all": "pnpm clean && pnpm clean:dist",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },

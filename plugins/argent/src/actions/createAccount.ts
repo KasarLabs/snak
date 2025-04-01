@@ -15,6 +15,7 @@ export const CreateArgentAccount = async () => {
     const accountDetails =
       await accountManager.createAccount(ARGENT_CLASS_HASH);
 
+      
     return JSON.stringify({
       status: 'success',
       wallet: 'AX',

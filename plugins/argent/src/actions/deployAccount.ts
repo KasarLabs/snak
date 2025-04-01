@@ -21,6 +21,11 @@ export const DeployArgentAccount = async (
   try {
     const provider = agent.getProvider();
 
+
+
+
+    
+
     const accountManager = new AccountManager(provider);
     const tx = await accountManager.deployAccount(ARGENT_CLASS_HASH, params);
 
