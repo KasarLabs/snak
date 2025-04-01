@@ -1,4 +1,3 @@
-
 import { CairoCodeGenerationResponse } from "../types/index.js";
 import { generateCairoCodeSchema } from "../schema/schema.js";
 import axios from "axios";
@@ -34,8 +33,13 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
    * @throws Error if API call fails or returns an error
    */
   export async function callCairoGenerationAPI(prompt: string): Promise<string> {
+    const apiUrl = process.env.CAIRO_GENERATION_API_URL as string;
+    if (!apiUrl) {
+      throw new Error('CAIRO_GENERATION_API_URL is not set');
+    }
+    
     const response = await axios.post<CairoCodeGenerationResponse>(
-      'https://backend.agent.starknet.id/v1/chat/completions', // TODO: Hide this
+      apiUrl,
       {
         model: 'gemini-2.0-flash',
         messages: [

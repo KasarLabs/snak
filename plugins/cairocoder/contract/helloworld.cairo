@@ -1,19 +1,22 @@
 use core::starknet::ContractAddress;
 
 #[starknet::interface]
-pub trait IHelloKasar<TContractState> {
-    fn print(self: @TContractState) -> felt252;
+trait IHelloWorld<TContractState> {
+    fn print_hello(self: @TContractState);
 }
 
 #[starknet::contract]
-pub mod HelloKasar {
+mod HelloWorld {
+    use core::starknet::get_caller_address;
+
     #[storage]
     struct Storage {}
 
     #[abi(embed_v0)]
-    impl HelloKasarImpl of super::IHelloKasar<ContractState> {
-        fn print(self: @ContractState) -> felt252 {
-            'Hello, World'
+    impl HelloWorldImpl of super::IHelloWorld<ContractState> {
+        fn print_hello(self: @ContractState) {
+            let caller = get_caller_address();
+            println!("Hello, World! from contract {}", caller);
         }
     }
 }
