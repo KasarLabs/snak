@@ -2,6 +2,7 @@ import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
+import { metrics } from '@starknet-agent-kit/server';
 import logger from '../logger.js';
 
 /**
@@ -134,7 +135,7 @@ export const registerTools = async (
         for (const tool of tools_new) {
           metrics.metricsAgentToolUseCount(
             agent.getAgentConfig.name,
-            agent.getAgentMode(),
+            'tools', // TODO: refactored agent interface to allow this
             tool.name
           );
         }
