@@ -48,9 +48,9 @@ export const registerProject = async (
 
     
     const projectData = await retrieveProjectData(agent, params.projectName);
-    console.log(
-      `Project ${params.projectName}: ${alreadyRegistered ? 'updated' : 'created'}`
-    );
+    // console.log(
+    //   `Project ${params.projectName}: ${alreadyRegistered ? 'updated' : 'created'}`
+    // );
 
     return JSON.stringify({
       status: 'success',

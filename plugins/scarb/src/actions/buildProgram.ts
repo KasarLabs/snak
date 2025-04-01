@@ -7,6 +7,7 @@ import { saveCompilationResults } from '../utils/db_save.js';
 import { cleanProject } from '../utils/command.js';
 import { compileContractSchema } from '../schema/schema.js';
 import { z } from 'zod';
+import { formatCompilationError } from '../utils/errorHandler.js';
 
 /**
  * Compile a contract
@@ -64,10 +65,16 @@ export const compileContract = async (
       projectDir: projectDir,
     });
   } catch (error) {
-    console.error('Error compiling contract:', error);
+    const errors = formatCompilationError(error);
+    console.log('Error compiling contract:', errors);
     return JSON.stringify({
       status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      errors: errors,
+      metadata: {
+        error_type: 'raw_cairo_error',
+        needs_exact_forwarding: true
+      },
+      projectDir: projectDir,
     });
   } finally {
     await cleanProject({ path: projectDir, removeDirectory: true });

@@ -27,7 +27,7 @@ export async function resolveContractPath(fileName: string): Promise<string> {
   
   // Construire le chemin complet
   const fullPath = path.resolve(process.cwd(), uploadDir + fileName);
-  console.log(fullPath);
+  // console.log(fullPath);
   // Vérifier si le fichier existe
   try {
     await fs.access(fullPath);
@@ -146,14 +146,14 @@ export function encodeSourceCode(code: string): string {
         });
 
       if (existingProgram.query && existingProgram.query.rows.length > 0) {
-        console.log(`Updating existing program ${name}`);
+        // console.log(`Updating existing program ${name}`);
         const res = await database.query(
           `UPDATE program SET source_code = $1 WHERE id = $2`,
           [encodedCode, existingProgram.query.rows[0].id]
         );
-        console.log(res);
+        // console.log(res);
       } else {
-        console.log(`Adding new program ${name}`);
+        // console.log(`Adding new program ${name}`);
         const res = await database.insert({
           table_name: 'program',
           fields: new Map<string, string | number>([
@@ -163,9 +163,9 @@ export function encodeSourceCode(code: string): string {
             ['source_code', encodedCode],
           ]),
         });
-        console.log(res);
+        // console.log(res);
       }
-      console.log(`Program ${name} added to database`);
+      // console.log(`Program ${name} added to database`);
     } catch (error) {
       console.error(`Error adding program ${name}:`, error);
       throw error;

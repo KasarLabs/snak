@@ -22,7 +22,7 @@ export const generateCairoCode = async (
     
     const generatedContent = await callCairoGenerationAPI(params.prompt);
     const cairoCode = extractCairoCode(generatedContent);
-    console.log("\nCairo code = ", cairoCode);
+    // console.log("\nCairo code = ", cairoCode);
     
     const debugFile = saveToDebugFile(params.programName, cairoCode);
     

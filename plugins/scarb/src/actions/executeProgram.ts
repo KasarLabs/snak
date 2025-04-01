@@ -6,7 +6,7 @@ import { executeProgramSchema } from '../schema/schema.js';
 import { z } from 'zod';
 import { saveExecutionResults } from '../utils/db_save.js';
 import { cleanProject } from '../utils/command.js';
-
+import { formatCompilationError } from '../utils/errorHandler.js';
 /**
  * Execute a program
  * @param agent The Starknet agent
@@ -99,10 +99,12 @@ export const executeProgram = async (
       errors: parsedExecResult.errors,
     });
   } catch (error) {
-    console.log('Error executing contract:', error);
+    const errors = formatCompilationError(error);
+    console.log('Error executing contract:', errors);
     return JSON.stringify({
       status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      errors: errors,
+      projectDir: projectDir,
     });
   } finally {
     if (mode !== 'standalone')

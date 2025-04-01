@@ -37,7 +37,7 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     if (!apiUrl) {
       throw new Error('CAIRO_GENERATION_API_URL is not set');
     }
-    
+    // console.log(prompt);
     const response = await axios.post<CairoCodeGenerationResponse>(
       apiUrl,
       {
@@ -49,7 +49,9 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
           },
           {
             role: 'user',
-            content: prompt
+            content: `${prompt}
+            Avoid using the println! function.
+            `
           }
         ],
         temperature: 0.7
@@ -69,7 +71,7 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     if (!generatedContent) {
       throw new Error('No content was generated from the API');
     }
-  
+    // console.log("\nGenerated content = ", generatedContent);
     return generatedContent;
   }
   
@@ -85,7 +87,7 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     if (match && match[1]) {
       return match[1].trim();
     } else {
-      return generatedContent.trim();
+      throw new Error("API did not return Cairo code: " + generatedContent.substring(0, 100) + "...");
     }
   }
   
@@ -104,7 +106,7 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     
     const debugFile = path.join(debugDir, contractName);
     fs.writeFileSync(debugFile, cairoCode);
-    console.log("\nCairo code written to debug file:", debugFile);
+    //  console.log("\nCairo code written to debug file:", debugFile);
     
     return debugFile;
   }

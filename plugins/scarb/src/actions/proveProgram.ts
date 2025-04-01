@@ -7,7 +7,7 @@ import { saveProof } from '../utils/db_save.js';
 import { retrieveProjectData } from '../utils/db_init.js';
 import { cleanProject } from '../utils/command.js';
 import { getProjectDir } from '../utils/preparation.js';
-
+import { formatCompilationError } from '../utils/errorHandler.js';
 /**
  * Prove a program execution
  * @param agent The Starknet agent
@@ -55,10 +55,12 @@ export const proveProgram = async (
       errors: parsedResult.errors,
     });
   } catch (error) {
-    console.error('Error proving contract execution:', error);
+    const errors = formatCompilationError(error);
+    console.log('Error proving contract execution:', errors);
     return JSON.stringify({
       status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      errors: errors,
+      projectDir: projectDir,
     });
   } finally {
     await cleanProject({ path: projectDir, removeDirectory: true });

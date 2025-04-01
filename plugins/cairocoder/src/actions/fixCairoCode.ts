@@ -16,8 +16,6 @@ export const fixCairoCode = async (
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {
-    console.log('fixing cairo code');
-    console.log(params);
     // Validate parameters
     if (!params?.programName || !params.programName.endsWith('.cairo')) {
       throw new Error('Program name is required and must end with .cairo');
@@ -26,7 +24,8 @@ export const fixCairoCode = async (
     if (!params?.error) {
       throw new Error('Error description is required for fixing Cairo code');
     }
-    
+    console.log("\nFixing Cairo code ");
+    console.log(params);
     // Retrieve the program from the database
     const projectData = await retrieveProjectData(agent, params.projectName);
     const program = projectData.programs.find(p => p.name === params.programName);
@@ -35,21 +34,27 @@ export const fixCairoCode = async (
       throw new Error(`Program ${params.programName} not found in the database`);
     }
     
+    // Extraire l'erreur exacte
+    let errorText = params.error;
+    if (errorText.includes('[EXACT_ERROR_BEGIN]') && errorText.includes('[EXACT_ERROR_END]')) {
+      errorText = errorText.split('[EXACT_ERROR_BEGIN]')[1].split('[EXACT_ERROR_END]')[0].trim();
+    }
+    
     // Create a prompt for fixing the code
     const fixPrompt = `I have the following Cairo code that has an error:
 \`\`\`cairo
 ${program.source_code}
 \`\`\`
 
-The error is: ${params.error}
+The error is: ${errorText}
 
-Please fix the code. Your response should only include the complete, corrected Cairo code in a code block.`;
+Can you fix the compilation errors?`;
     
     // Generate fixed code
     const generatedContent = await callCairoGenerationAPI(fixPrompt);
     const fixedCairoCode = extractCairoCode(generatedContent);
     
-    console.log("\nFixed Cairo code = ", fixedCairoCode);
+    // console.log("\nFixed Cairo code = ", fixedCairoCode);
     
     // Save to debug file
     const debugFile = saveToDebugFile(params.programName, fixedCairoCode);
