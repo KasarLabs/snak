@@ -358,7 +358,7 @@ export const createAgent = async (
       }
     };
 
-    if (json_config.memory) toolsList.push(upsertMemoryToolDB);
+    //if (json_config.memory) toolsList.push(upsertMemoryToolDB);
     const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
@@ -407,7 +407,7 @@ export const createAgent = async (
    - Only update memory when there's a meaningful change or correction
 
    - Avoid redundant memory storage for information that's already well-documented in memory`;
-    const memoryPrompt = `${refinedPrompt1}`;
+    const memoryPrompt = ``;
     const finalPrompt = json_config.memory
       ? `${configPrompt}\n${memoryPrompt}`
       : `${configPrompt}`;
