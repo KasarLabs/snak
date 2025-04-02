@@ -19,12 +19,19 @@ export const registerProject = async (
   params: z.infer<typeof registerProjectSchema>
 ) => {
   try {
-    console.log('registering project');
-    console.log(params);
+    console.log('\n➜ Registering project');
+    console.log(JSON.stringify(params, null, 2));
+    
     if (params.projectName.includes('-'))
       throw new Error(
         "Project name cannot contain hyphens ('-'). Please use underscores ('_') instead."
       );
+
+    if (/[A-Z]/.test(params.projectName)) {
+      throw new Error(
+        "Project name cannot contain uppercase letters. Please use snake_case (lowercase letters and underscores) for the project name."
+      );
+    }
 
     const alreadyRegistered = await doesProjectExist(
       agent,

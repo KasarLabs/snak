@@ -11,8 +11,8 @@ export const addProgramAction = async (
     params: z.infer<typeof addProgramSchema>
   ) => {
     try {
-      console.log('adding program');
-      console.log(params);
+      console.log('\n➜ Adding program');
+
       const projectData = await retrieveProjectData(agent, params.projectName);
         
       for (const contractPath of params.programPaths) {

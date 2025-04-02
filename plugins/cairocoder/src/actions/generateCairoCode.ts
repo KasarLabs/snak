@@ -16,8 +16,9 @@ export const generateCairoCode = async (
   params: z.infer<typeof generateCairoCodeSchema>
 ): Promise<string> => {
   try {
-    console.log('generating cairo code');
-    console.log(params);
+    console.log('\n➜ Generating Cairo code');
+    console.log(JSON.stringify(params, null, 2));
+    
     validateParams(params);
     
     const generatedContent = await callCairoGenerationAPI(params.prompt);

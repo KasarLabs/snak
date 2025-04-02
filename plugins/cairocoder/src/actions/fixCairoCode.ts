@@ -16,6 +16,9 @@ export const fixCairoCode = async (
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {
+    console.log('\n➜ Fixing Cairo code');
+    console.log(JSON.stringify(params, null, 2));
+
     // Validate parameters
     if (!params?.programName || !params.programName.endsWith('.cairo')) {
       throw new Error('Program name is required and must end with .cairo');
@@ -24,8 +27,7 @@ export const fixCairoCode = async (
     if (!params?.error) {
       throw new Error('Error description is required for fixing Cairo code');
     }
-    console.log("\nFixing Cairo code ");
-    console.log(params);
+
     // Retrieve the program from the database
     const projectData = await retrieveProjectData(agent, params.projectName);
     const program = projectData.programs.find(p => p.name === params.programName);

@@ -56,6 +56,7 @@ export const registerProjectSchema = z.object({
     .describe('Array of paths to Cairo files'),
   projectType: z
     .enum(['contract', 'cairo_program'])
+    .optional()
     .describe('Type of project (contract or cairo_program)'),
   dependencies: z
     .array(
