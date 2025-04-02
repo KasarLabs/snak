@@ -39,11 +39,11 @@ const createLink = (text: string, url: string): string =>
   `\u001B]8;;${url}\u0007${text}\u001B]8;;\u0007`;
 
 const logo = `${chalk.cyan(`
-   _____             __  
+   _____             __
   / ___/____  ____ _/ /__
   \\__ \\/ __ \\/ __ \`/ //_/
- ___/ / / / / /_/ / ,<   
-/____/_/ /_/\\__,_/_/|_|  
+ ___/ / / / / /_/ / ,<
+/____/_/ /_/\\__,_/_/|_|
 
 ${chalk.dim('v0.0.11 by ')}${createLink('Kasar', 'https://kasar.io')}`)}`;
 
@@ -184,7 +184,6 @@ const LocalRun = async () => {
         signature: 'key',
         agentMode: 'agent',
         agentconfig: agent_config,
-        embeddingKey: process.env.EMBEDDING_API_KEY as string,
       });
       await agent.createAgentReactExecutor();
       while (true) {
@@ -241,7 +240,6 @@ const LocalRun = async () => {
         signature: 'key',
         agentMode: 'auto',
         agentconfig: agent_config,
-        embeddingKey: process.env.EMBEDDING_API_KEY as string,
       });
 
       await agent.createAgentReactExecutor();

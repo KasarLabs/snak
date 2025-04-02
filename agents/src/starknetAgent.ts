@@ -26,7 +26,6 @@ export interface StarknetAgentConfig {
   signature: string;
   agentMode: string;
   agentconfig: JsonConfig;
-  embeddingKey?: string;
 }
 
 export class StarknetAgent implements IAgent {
@@ -60,14 +59,10 @@ export class StarknetAgent implements IAgent {
   }
 
   public async createAgentReactExecutor() {
-    if (!this.config.embeddingKey) {
-      throw new Error('Embedding key not found');
-    }
     const config: AiConfig = {
       aiModel: this.aiModel,
       aiProviderApiKey: this.aiProviderApiKey,
       aiProvider: this.config.aiProvider,
-      embeddingKey: this.config.embeddingKey,
     };
 
     if (this.currentMode === 'auto') {
