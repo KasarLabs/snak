@@ -140,7 +140,7 @@ export const registerTools = async (
           );
         }
 
-        tools.concat(tools_new);
+        tools.push(...tools_new);
 
         return true;
       })
