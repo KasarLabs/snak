@@ -23,7 +23,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     interval: 1000,
     chat_id: 'mock_chat_id',
     internal_plugins: [],
-	memory: false,
+    memory: false,
   };
 
   const twitter_auth_mode = undefined;
@@ -66,7 +66,7 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     interval: 1000,
     chat_id: 'mock_chat_id',
     internal_plugins: [],
-	memory: false,
+    memory: false,
   };
 
   const twitter_auth_mode = undefined;
