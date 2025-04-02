@@ -736,6 +736,7 @@ export class PostgresAdaptater {
       }
     }
   };
+
   /**
    * Gets the name of the current database
    * @returns {string} The database name

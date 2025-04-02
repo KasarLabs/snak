@@ -48,30 +48,73 @@ export const executeV3Transaction = async ({
 };
 
 /**
+ * Searches for a file by traversing up the directory tree
+ * @param filename The filename to search for
+ * @param startDir The starting directory (default: current working directory)
+ * @returns The full path if found, null otherwise
+ */
+function findUp(
+  filename: string,
+  startDir: string = process.cwd()
+): string | null {
+  let currentDir = path.resolve(startDir);
+  const { root } = path.parse(currentDir);
+
+  while (true) {
+    const filePath = path.join(currentDir, filename);
+    if (fs.existsSync(filePath)) {
+      return filePath;
+    }
+
+    // Stop if we reach the filesystem root
+    if (currentDir === root) {
+      return null;
+    }
+
+    // Move up one level
+    currentDir = path.dirname(currentDir);
+  }
+}
+
+/**
+ * Detects the repository root by looking for the lerna.json file
+ * @returns Absolute path to the repository root
+ */
+function getRepoRoot(): string {
+  const lernaJsonPath = findUp('lerna.json');
+  if (!lernaJsonPath) {
+    throw new Error('Unable to find repository root (lerna.json not found)');
+  }
+  return path.dirname(lernaJsonPath);
+}
+
+/**
  * Resolves file paths to locate contract files
+ * Simply joins the repo root with the provided path
  * @param {string} filePath - Original file path provided
  * @returns {string} Resolved file path
  */
 export function resolveContractFilePath(filePath: string): string {
-  const possiblePaths = [
-    filePath,
-    path.resolve(process.cwd(), filePath),
-    path.resolve(process.cwd(), '..', filePath),
-    path.resolve(
-      process.cwd(),
-      '..',
-      'plugins',
-      'contract',
-      'src',
-      'compiled',
-      path.basename(filePath)
-    ),
-  ];
-
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      return p;
+  // If the path is already absolute and exists, return it as is
+  if (path.isAbsolute(filePath)) {
+    if (fs.existsSync(filePath)) {
+      return filePath;
+    } else {
+      // Even if it's absolute but doesn't exist, we'll still try from repo root
+      console.warn(`Absolute path provided but does not exist: ${filePath}`);
     }
   }
-  throw new Error(`Could not resolve path for: ${filePath}`);
+
+  // Get the repository root
+  const repoRoot = getRepoRoot();
+
+  // Join the repo root with the provided path
+  const resolvedPath = path.join(repoRoot, filePath);
+
+  // Check if the path exists
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`Path does not exist: ${resolvedPath}`);
+  }
+
+  return resolvedPath;
 }

@@ -3,7 +3,7 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager';
 import { deployContractSchema } from '../schemas/schema';
-import { resolveContractFilePath } from '../utils/utils';
+import { getSierraCasmFromDB } from '../utils/db';
 
 /**
  * Deploys a contract on StarkNet using an existing class hash
@@ -32,19 +32,13 @@ export const deployContract = async (
 
     const contractManager = new ContractManager(account);
 
-    if (params.abiPath) {
-      await contractManager.loadAbiFile(
-        resolveContractFilePath(params.abiPath)
-      );
-    } else if (params.sierraPath && params.casmPath) {
-      await contractManager.loadContractCompilationFiles(
-        resolveContractFilePath(params.sierraPath),
-        resolveContractFilePath(params.casmPath)
-      );
-      await contractManager.loadAbiFile();
-    } else {
-      throw new Error('Either ABI path or Sierra and CASM paths are required');
-    }
+    const { sierraPath, casmPath } = await getSierraCasmFromDB(
+      agent,
+      params.projectName,
+      params.contractName
+    );
+    await contractManager.loadContractCompilationFiles(sierraPath, casmPath);
+    await contractManager.loadAbiFile();
 
     const constructorParamDefs = contractManager.extractConstructorParams();
     const typedConstructorArgs = contractManager.convertConstructorArgs(
