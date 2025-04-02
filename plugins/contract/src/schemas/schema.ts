@@ -65,3 +65,33 @@ export const getConstructorParamsSchema = z.object({
       'Arguments for the contract constructor that need to be ordered'
     ),
 });
+
+/**
+ * Schema pour lister les contrats et leurs instances déployées
+ * 
+ * @typedef {Object} ListContractsSchema
+ * @property {string} [projectName] - Filtrer par nom de projet (optionnel)
+ * @property {string} [contractName] - Filtrer par nom de contrat (optionnel)
+ */
+export const listContractsSchema = z.object({
+  projectName: z
+    .string()
+    .optional()
+    .describe('Filter contracts by project name (optional)'),
+  contractName: z
+    .string()
+    .optional()
+    .describe('Filter contracts by contract name (optional)'),
+});
+
+/**
+ * Schema pour lister les instances déployées d'un contrat par son classHash
+ * 
+ * @typedef {Object} ListDeploymentsByClassHashSchema
+ * @property {string} classHash - Classhash du contrat dont on veut lister les déploiements
+ */
+export const listDeploymentsByClassHashSchema = z.object({
+  classHash: z
+    .string()
+    .describe('The class hash of the contract to list deployments for'),
+});

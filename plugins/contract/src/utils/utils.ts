@@ -1,4 +1,4 @@
-import { ExecuteV3Args } from '../types/types';
+import { ExecuteV3Args } from '../types/types.js';
 import path from 'path';
 import fs from 'fs';
 

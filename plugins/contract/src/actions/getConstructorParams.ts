@@ -1,9 +1,9 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { z } from 'zod';
-import { ContractManager } from '../utils/contractManager';
+import { z } from 'zod';  
+import { ContractManager } from '../utils/contractManager.js';
 import { Account, constants } from 'starknet';
-import { getConstructorParamsSchema } from '../schemas/schema';
-import { getSierraCasmFromDB } from '../utils/db';
+import { getConstructorParamsSchema } from '../schemas/schema.js';
+import { getSierraCasmFromDB } from '../utils/db.js';
 
 /**
  * Retrieves the constructor parameters for a contract

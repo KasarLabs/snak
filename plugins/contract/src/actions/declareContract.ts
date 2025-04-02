@@ -1,9 +1,10 @@
 import { Account, constants } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
-import { ContractManager } from '../utils/contractManager';
-import { declareContractSchema } from '../schemas/schema';
-import { getSierraCasmFromDB } from '../utils/db';
+import { ContractManager } from '../utils/contractManager.js';
+import { declareContractSchema } from '../schemas/schema.js';
+import { getSierraCasmFromDB } from '../utils/db.js';
+import { initializeContractDatabase, saveContractDeclaration } from '../utils/db_init.js';
 
 /**
  * Declares a contract on StarkNet
@@ -16,8 +17,8 @@ export const declareContract = async (
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {
-    console.log('declaring contract');
-    console.log(params);
+    console.log('\n➜ Declaring contract');
+    console.log(JSON.stringify(params, null, 2));
     const { sierraPath, casmPath } = await getSierraCasmFromDB(
       agent,
       params.projectName,
@@ -38,6 +39,15 @@ export const declareContract = async (
     await contractManager.loadContractCompilationFiles(sierraPath, casmPath);
 
     const declareResponse = await contractManager.declareContract();
+
+    // Sauvegarder les informations de déclaration dans la base de données
+    if (declareResponse.transactionHash && declareResponse.classHash) {
+      await saveContractDeclaration(
+        agent,
+        declareResponse.classHash,
+        declareResponse.transactionHash
+      );
+    }
 
     return JSON.stringify({
       status: 'success',

@@ -10,7 +10,7 @@ import {
 } from 'starknet';
 
 import * as fs from 'fs';
-import { getV3DetailsPayload } from './utils';
+import { getV3DetailsPayload } from './utils.js';
 
 /**
  * Class for managing StarkNet contract operations
