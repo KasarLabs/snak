@@ -1,6 +1,6 @@
 import { Controller, OnModuleInit, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { metrics, contentType } from '@starknet-agent-kit/agents/metrics.js';
+import { metrics } from '@starknet-agent-kit/agents';
 
 @Controller('metrics')
 export class MetricsController implements OnModuleInit {
@@ -8,7 +8,7 @@ export class MetricsController implements OnModuleInit {
 
   @Get()
   async metrics(@Res() res: Response): Promise<void> {
-    res.header('Content-Type', contentType);
-    res.send(await metrics());
+    res.header('Content-Type', metrics.contentType);
+    res.send(await metrics.metrics());
   }
 }
