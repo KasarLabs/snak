@@ -32,8 +32,7 @@ export interface CairoProgram {
 
 export interface Dependency {
   name: string;
-  version?: string;
-  git?: string;
+  version: string;
 }
 
 export interface ProjectData {

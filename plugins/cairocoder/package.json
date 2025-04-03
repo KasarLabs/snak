@@ -13,11 +13,12 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
+    "@starknet-agent-kit/agents": "workspace:*",
+    "axios": "^1.8.2",
     "starknet": "^5.25.0",
-    "zod": "^3.22.4",
-    "axios": "^1.6.7",
-    "@starknet-agent-kit/agents": "workspace:*"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/axios": "^0.14.4"
   }
-} 
+}

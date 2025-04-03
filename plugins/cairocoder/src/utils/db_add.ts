@@ -5,6 +5,8 @@ import fsPromises from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import { getRepoRoot } from './path.js';
+import { getAllPackagesList } from './dependencies.js';
+
 /**
  * Crée un hash à partir d'une chaîne
  * @param input Chaîne à hasher
@@ -65,59 +67,6 @@ export function encodeSourceCode(code: string): string {
     const sourceCode = await fsPromises.readFile(resolvedPath, 'utf-8');
     return sourceCode;
   }
-  
-// /**
-//  * Adds a program to the database
-//  * @param agent The StarkNet agent
-//  * @param projectId The project ID
-//  * @param name The name of the program
-//  * @param sourcePath The path to the source code file
-//  */
-// export const addExistingProgram = async (
-//     agent: StarknetAgentInterface,
-//     projectId: number,
-//     name: string,
-//     sourcePath: string
-//   ) => {
-//     try {
-//       const database = agent.getDatabaseByName('scarb_db');
-//       if (!database) {
-//         throw new Error('Database not found');
-//       }
-  
-//       const resolvedPath = resolveContractPath(sourcePath);
-//       const sourceCode = await fs.readFile(resolvedPath, 'utf-8');
-//       const encodedCode = encodeSourceCode(sourceCode);
-  
-//       const existingProgram = await database.select({
-//         SELECT: ['id'],
-//         FROM: ['program'],
-//         WHERE: [`project_id = ${projectId}`, `name = '${name}'`],
-//       });
-  
-//       if (existingProgram.query && existingProgram.query.rows.length > 0) {
-//         await database.update({
-//           table_name: 'program',
-//           ONLY: false,
-//           SET: [`source_code = ${encodedCode}`],
-//           WHERE: [`id = ${existingProgram.query.rows[0].id}`],
-//         });
-//       } else {
-//         await database.insert({
-//           table_name: 'program',
-//           fields: new Map<string, string | number>([
-//             ['id', 'DEFAULT'],
-//             ['project_id', projectId],
-//             ['name', name],
-//             ['source_code', encodedCode],
-//           ]),
-//         });
-//       }
-//     } catch (error) {
-//       console.error(`Error adding program ${name}:`, error);
-//       throw error;
-//     }
-//   };
   
   /**
    * Adds a program to the database
@@ -182,41 +131,30 @@ export function encodeSourceCode(code: string): string {
   export const addDependency = async (
     agent: StarknetAgentInterface,
     projectId: number,
-    dependency: Dependency
+    dependencyName: string
   ) => {
     try {
       const database = agent.getDatabaseByName('scarb_db');
       if (!database) {
         throw new Error('Database not found');
       }
-  
-      const existingDep = await database.select({
-        SELECT: ['id'],
-        FROM: ['dependency'],
-        WHERE: [`project_id = ${projectId}`, `name = '${dependency.name}'`],
-      });
-  
-      if (existingDep.query && existingDep.query.rows.length > 0) {
-        const correctVersion = dependency.version || '';
-        await database.update({
-          table_name: 'dependency',
-          ONLY: false,
-          SET: [`version = '${correctVersion}'`],
-          WHERE: [`id = ${existingDep.query.rows[0].id}`],
-        });
-      } else {
-        await database.insert({
-          table_name: 'dependency',
-          fields: new Map<string, string | number>([
-            ['id', 'DEFAULT'],
-            ['project_id', projectId],
-            ['name', dependency.name],
-            ['version', dependency.version || ''],
-          ]),
-        });
+      const allDependencies = await getAllPackagesList();
+      const dependency = allDependencies.find(dep => dep.name === dependencyName);
+      if (!dependency) {
+        throw new Error(`Dependency ${dependencyName} not found`);
       }
+  
+      await database.insert({
+        table_name: 'dependency',
+        fields: new Map<string, string | number>([
+          ['id', 'DEFAULT'],
+          ['project_id', projectId],
+          ['name', dependency.name],
+          ['version', dependency.version || ''],
+        ]),
+      });
     } catch (error) {
-      console.error(`Error adding dependency ${dependency.name}:`, error);
+      console.error(`Error adding dependency ${dependencyName}:`, error);
       throw error;
     }
   };

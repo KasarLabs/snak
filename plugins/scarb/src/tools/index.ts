@@ -3,51 +3,25 @@ import { compileContract } from '../actions/buildProgram.js';
 import { executeProgram } from '../actions/executeProgram.js';
 import { proveProgram } from '../actions/proveProgram.js';
 import { verifyProgram } from '../actions/verifyProgram.js';
-// import { registerProject } from '../actions/registerProject.js';
-// import {
-//   deleteProgramAction,
-//   deleteDependencyAction,
-//   deleteProjectAction,
-// } from '../actions/deleteItemProject.js';
+
 import {
   executeProgramSchema,
   proveProgramSchema,
   verifyProgramSchema,
   installScarbSchema,
   compileContractSchema,
-  // registerProjectSchema,
-  // deleteProgramSchema,
-  // deleteDependencySchema,
-  // deleteProjectSchema,
 } from '../schema/schema.js';
 import {
   PostgresAdaptater,
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
-// import { initializeDatabase } from '../utils/db_init.js';
 
-export const initializeTools = async (
-  agent: StarknetAgentInterface
-) => {
-  // try {
-  //   const res = await initializeDatabase(agent);
-  //   return res;
-  // } catch (error) {
-  //   console.error('Error initializing database:', error);
-  // }
-};
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
   agent: StarknetAgentInterface
 ) => {
-  // const database_instance = await initializeTools(agent);
-  // if (!database_instance) {
-  //   console.error('Error while initializing database');
-  //   return;
-  // }
-
   StarknetToolRegistry.push({
     name: 'scarb_install',
     description: 'Install the latest version of Scarb if not already installed',

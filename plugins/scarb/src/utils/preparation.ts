@@ -59,7 +59,6 @@ export async function addSeveralDependancies(
         await addDependency({
           package: dependency.name,
           version: dependency.version,
-          git: dependency.git,
           path: projectDir,
         });
       }

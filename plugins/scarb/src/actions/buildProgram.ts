@@ -28,7 +28,7 @@ export const compileContract = async (
     projectDir = await setupScarbProject({
       projectName: params.projectName,
     });
-
+    
     const tomlSections =
       projectData.type === 'cairo_program'
         ? []

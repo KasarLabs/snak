@@ -59,13 +59,7 @@ export const registerProjectSchema = z.object({
     .optional()
     .describe('Type of project (contract or cairo_program)'),
   dependencies: z
-    .array(
-      z.object({
-        name: z.string().describe('Dependency name'),
-        version: z.string().optional().describe('Dependency version'),
-        git: z.string().optional().describe('Git URL for the dependency'),
-      })
-    )
+    .array(z.string())
     .optional()
     .describe('List of project dependencies'),
 });
@@ -121,14 +115,8 @@ export const addDependencySchema = z.object({
     .string()
     .describe('The name of the existing project to add the dependency to'),
   dependencies: z
-    .array(
-      z.object({
-        name: z.string().describe('Dependency name'),
-        version: z.string().optional().describe('Dependency version'),
-        git: z.string().optional().describe('Git URL for the dependency'),
-      })
-    )
-    .describe('List of project dependencies'),
+    .array(z.string())
+    .describe('List of names of project dependencies'),
 });
 
 /**

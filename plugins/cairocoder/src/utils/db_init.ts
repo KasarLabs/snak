@@ -152,7 +152,7 @@ export const initializeProjectData = async (
   agent: StarknetAgentInterface,
   projectName: string,
   contractPaths: string[],
-  dependencies: Dependency[] = [],
+  dependencies: string[] = [],
   projectType: 'contract' | 'cairo_program'
 ) => {
   try {
