@@ -12,7 +12,8 @@ export const addProgramAction = async (
   ) => {
     try {
       console.log('\n➜ Adding program');
-
+      console.log(JSON.stringify(params, null, 2));
+      
       const projectData = await retrieveProjectData(agent, params.projectName);
         
       for (const contractPath of params.programPaths) {
@@ -45,6 +46,9 @@ export const addProgramAction = async (
     params: z.infer<typeof addDependencySchema>
   ) => {
     try {
+      console.log('\n➜ Adding dependency');
+      console.log(JSON.stringify(params, null, 2));
+
       const projectData = await retrieveProjectData(agent, params.projectName);
   
       for (const dependency of params.dependencies) {

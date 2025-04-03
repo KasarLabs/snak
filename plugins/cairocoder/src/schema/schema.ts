@@ -50,10 +50,10 @@ export const registerProjectSchema = z.object({
   projectName: z
     .string()
     .describe('The name of the project to create or register'),
-  programPaths: z
+  existingProgramNames: z
     .array(z.string())
     .optional()
-    .describe('Array of paths to Cairo files'),
+    .describe('Array of already existing program names to directly add to the project. If provided, no need to generate code.'),
   projectType: z
     .enum(['contract', 'cairo_program'])
     .optional()

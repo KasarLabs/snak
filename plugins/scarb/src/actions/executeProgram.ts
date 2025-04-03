@@ -20,6 +20,9 @@ export const executeProgram = async (
   let projectDir = '';
   let mode = '';
   try {
+    console.log('\n➜ Executing program');
+    console.log(JSON.stringify(params, null, 2));
+
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -100,7 +103,7 @@ export const executeProgram = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    console.log('Error executing contract:', errors);
+    // console.log('Error executing contract:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,

@@ -5,6 +5,7 @@ import {
   getConstructorParamsSchema,
   listContractsSchema,
   listDeploymentsByClassHashSchema,
+  deleteContractByClassHashSchema,
 } from '../schemas/schema.js';
 import { declareContract } from '../actions/declareContract.js';
 import { deployContract } from '../actions/deployContract.js';
@@ -12,6 +13,7 @@ import { getConstructorParams } from '../actions/getConstructorParams.js';
 import { initializeContractDatabase } from '../utils/db_init.js';
 import { listDeclaredContracts } from '../actions/listContracts.js';
 import { listDeploymentsByClassHash } from '../actions/listDeploymentsByClassHash.js';
+import { deleteContractByClassHashAction } from '../actions/deleteContractByClassHash.js';
 
 export const initializeTools = async (
   agent: StarknetAgentInterface
@@ -74,5 +76,14 @@ export const registerTools = async (
       'List all deployed instances of a contract by its class hash.',
     schema: listDeploymentsByClassHashSchema,
     execute: listDeploymentsByClassHash,
+  });
+  
+  StarknetToolRegistry.push({
+    name: 'delete_contract_by_class_hash',
+    plugins: 'contract',
+    description:
+      'Remove a contract classhash from the database and all its deployments. This operation cannot be undone.',
+    schema: deleteContractByClassHashSchema,
+    execute: deleteContractByClassHashAction,
   });
 };

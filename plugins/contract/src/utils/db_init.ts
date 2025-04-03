@@ -193,3 +193,38 @@ export const saveContractDeployment = async (
     throw error;
   }
 };
+
+/**
+ * Supprime un contrat et tous ses déploiements associés par son classHash
+ * @param agent L'agent Starknet
+ * @param classHash Hash de classe du contrat à supprimer
+ * @returns Un objet indiquant le succès ou l'échec de l'opération
+ */
+export const deleteContractByClassHash = async (
+  agent: StarknetAgentInterface,
+  classHash: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const database = agent.getDatabaseByName('contract_db');
+    if (!database) {
+      throw new Error('Contract database not found');
+    }
+
+    await database.delete({
+      table_name: 'contract',
+      ONLY: false,
+      WHERE: [`class_hash = '${classHash}'`],
+    });
+
+    return {
+      success: true,
+      message: `Contract with class hash ${classHash} successfully deleted`,
+    };
+  } catch (error) {
+    console.error('Error deleting contract:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+};

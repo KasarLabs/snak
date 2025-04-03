@@ -38,8 +38,15 @@ export const registerProject = async (
       params.projectName
     );
 
-    if (alreadyRegistered)
-      throw new Error("Project already registered");
+    if (alreadyRegistered) {
+      return JSON.stringify({
+        status: 'success',
+        message: `Project ${params.projectName} already registered`,
+        projectId: alreadyRegistered.id,
+        projectName: alreadyRegistered.name,
+        projectType: alreadyRegistered.type,
+      });
+    }
 
     const projectType = params.projectType
       ? params.projectType
@@ -48,7 +55,7 @@ export const registerProject = async (
     await initializeProjectData(
       agent,
       params.projectName,
-      params.programPaths || [],
+      params.existingProgramNames || [],
       params.dependencies || [],
       projectType
     );

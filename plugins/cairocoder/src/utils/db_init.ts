@@ -261,12 +261,12 @@ export const retrieveProjectData = async (
   export const doesProjectExist = async (
     agent: StarknetAgentInterface,
     projectName: string
-  ): Promise<boolean> => {
+  ): Promise<{id: number, name: string, type: 'contract' | 'cairo_program'} | undefined> => {
     try {
-      await getProjectByName(agent, projectName);
-      return true;
+      const project = await getProjectByName(agent, projectName);
+      return project;
     } catch (error) {
-      return false;
+      return undefined;
     }
   }
   

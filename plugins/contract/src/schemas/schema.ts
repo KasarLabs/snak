@@ -95,3 +95,15 @@ export const listDeploymentsByClassHashSchema = z.object({
     .string()
     .describe('The class hash of the contract to list deployments for'),
 });
+
+/**
+ * Schema pour supprimer un contrat par son classHash
+ * 
+ * @typedef {Object} DeleteContractByClassHashSchema
+ * @property {string} classHash - Classhash du contrat à supprimer
+ */
+export const deleteContractByClassHashSchema = z.object({
+  classHash: z
+    .string()
+    .describe('The class hash of the contract to delete'),
+});
