@@ -289,14 +289,9 @@ importers:
 
   packages/database:
     devDependencies:
-      '@snak/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       typescript:
         specifier: latest
         version: 5.8.2
-
-  packages/typescript-config: {}
 
   plugins/argent:
     devDependencies:
