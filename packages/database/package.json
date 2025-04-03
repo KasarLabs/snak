@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@snak/database",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch",
+    "test-setup": "docker compose -f compose.test.yaml up -d",
+    "test-teardown": "docker compose -f compose.test.yaml down",
+    "test-jest": "jest --config jest.config.cjs --setupFiles dotenv/config",
+    "test": "pnpm test-setup && pnpm test-jest && pnpm test-teardown",
+    "build": "tsc",
+    "check-types": "tsc --noEmit"
+  },
+  "dependecies": {
+    "pg": "^8.14.1"
+  },
+  "devDependencies": {
+    "@snak/typescript-config": "workspace:*",
+    "typescript": "latest"
+  }
+}
