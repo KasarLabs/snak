@@ -44,7 +44,7 @@ export class AgentsController implements OnModuleInit {
 
   @Post('request')
   async handleUserRequest(@Body() userRequest: AgentRequestDTO) {
-    const agent = this.agent.getAgentConfig().name;
+    const agent = this.agent.getAgentConfig()?.name ?? 'agent';
     const mode = this.agent.agentMode; // TODO: This should be exposed by method
     const route = this.reflector.get('path', this.handleUserRequest);
     const action = this.agentService.handleUserRequest(this.agent, userRequest);

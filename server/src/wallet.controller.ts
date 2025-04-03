@@ -41,7 +41,7 @@ export class WalletController implements OnModuleInit {
 
   @Post('request')
   async handleUserCalldataRequest(@Body() userRequest: AgentRequestDTO) {
-    const agent = this.agent.getAgentConfig().name;
+    const agent = this.agent.getAgentConfig()?.name ?? 'agent';
     const mode = this.agent.agentMode; // TODO: This should be exposed by method
     const route = this.reflector.get('path', this.handleUserCalldataRequest);
     const action = this.walletService.handleUserCalldataRequest(

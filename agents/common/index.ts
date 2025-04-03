@@ -66,7 +66,7 @@ export interface IAgent {
 
   getProvider(): RpcProvider;
 
-  getAgentConfig(): JsonConfig;
+  getAgentConfig(): JsonConfig | undefined;
 
   getAgentMode(): string;
 }

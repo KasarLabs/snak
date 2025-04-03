@@ -6,6 +6,7 @@ import { JsonConfig } from './jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { PostgresAdaptater } from './databases/postgresql/src/database.js';
 import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
+import logger from './logger.js';
 import * as metrics from '../metrics.js';
 
 /**
@@ -71,7 +72,7 @@ export class StarknetAgent implements IAgent {
     this.agentconfig = config.agentconfig;
 
     metrics.metricsAgentCountActiveConnect(
-      config.agentconfig.name,
+      config.agentconfig?.name ?? 'agent',
       config.agentMode
     );
   }
@@ -82,7 +83,7 @@ export class StarknetAgent implements IAgent {
    * @description Creates an agent executor based on the current mode
    * @returns {Promise<void>}
    */
-  public async createAgentReactExecutor() {
+  public async createAgentReactExecutor(): Promise<void> {
     const config: AiConfig = {
       aiModel: this.aiModel,
       aiProviderApiKey: this.aiProviderApiKey,
