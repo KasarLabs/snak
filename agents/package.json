@@ -33,5 +33,8 @@
     "langchain": "^0.3.10",
     "mem0ai": "^2.1.9",
     "nanospinner": "^1.2.2"
+  },
+  "devDependencies": {
+    "@starknet-agent-kit/server": "workspace:*"
   }
 }
