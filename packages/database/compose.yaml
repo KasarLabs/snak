@@ -1,0 +1,13 @@
+name: postgresql
+
+services:
+  postgres:
+    image: postgres:17.4
+    container_name: "posgresql"
+    shm_size: 128m
+    ports:
+      - 5432:5432
+    env_file:
+    - .env
+    volumes:
+      - ./data:/var/lib/postgresql/data
