@@ -375,7 +375,7 @@ export class StarknetAgent implements IAgent {
       },
       {
         recursionLimit: 15,
-        configurable: { thread_id: this.agentconfig.chat_id },
+        configurable: { thread_id: this.agentconfig?.chat_id as string},
       }
     );
 

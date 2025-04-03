@@ -91,7 +91,9 @@ export class PostgresAdaptater {
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          logger.warn('Database already exist. Skip creation.');
+          logger.warn(
+            `Database ${database_name} already exists. Skipping creation.`
+          );
           return true;
         }
       }
@@ -248,8 +250,8 @@ export class PostgresAdaptater {
       queryBuilder.append(fields.join(', '));
       queryBuilder.append(')');
       const query = queryBuilder.build();
-      this.tables.push(tables);
       const result_create_table = await this.pool.query(query);
+      this.tables.push(tables);
       const queryResponse: QueryResponseInterface = {
         status: 'success',
         code: '0000',
@@ -285,12 +287,16 @@ export class PostgresAdaptater {
       if (this.pool === undefined) {
         throw new Error('Error database not connected.');
       }
-      if (this.tables.find((table) => table.table_name === table.table_name)) {
-        throw new Error('Error table already exists.');
+      if (
+        this.tables.find(
+          (existingTable) => existingTable.table_name === table.table_name
+        )
+      ) {
+        throw new Error(`Error table: ${table.table_name}`);
       }
       this.tables.push(table);
     } catch (error) {
-      console.error('Failed to add table:', error.message);
+      logger.error('Failed to add table:', error);
     }
   }
 

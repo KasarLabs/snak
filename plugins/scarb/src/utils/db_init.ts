@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { resolveContractPath } from './path.js';
 import { ProjectData, Dependency, CairoProgram } from '../types/index.js';
+import { logger } from '@starknet-agent-kit/agents';
 
 /**
  * Encodes Cairo source code for database storage
@@ -83,7 +84,9 @@ export const initializeDatabase = async (
 
       if (result.status === 'error') {
         if (result.code === '42P07') {
-          console.warn(`Table ${table.table_name} already exists. Adding it.`);
+          logger.warn(
+            `Table ${table.table_name} already exists. Adding table parameters to adapatater.`
+          );
           database.addExistingTable({
             table_name: table.table_name,
             if_not_exist: false,

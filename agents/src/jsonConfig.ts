@@ -260,7 +260,7 @@ const checkParseJson = async (
         `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`
       )
     );
-    logger.error('Failed to parse config:');
+    logger.error('Failed to parse config : ', error);
     return undefined;
   }
 };
