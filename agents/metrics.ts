@@ -93,9 +93,9 @@ export async function metricsAgentResponseTime<T>(
  * @param agent - Agent being monitored.
  * @param mode - Agent mode, `agent` or `auto`.
  * @see metrics
- * @see metricsAgentCountActiveDisconnet
+ * @see metricsAgentDisconnect
  */
-export function metricsAgentCountActiveConnect(agent: string, mode: string) {
+export function metricsAgentConnect(agent: string, mode: string) {
   agentCountActive.labels({ agent, mode }).inc();
   agentCountTotal.labels({ agent, mode }).inc();
 }
@@ -107,9 +107,9 @@ export function metricsAgentCountActiveConnect(agent: string, mode: string) {
  * @param agent - Agent being monitored.
  * @param mode - Agent mode, `agent` or `auto`.
  * @see metrics
- * @see metricsAgentCountActiveConnect
+ * @see metricsAgentConnect
  */
-export function metricsAgentCountActiveDisconnet(agent: string, mode: string) {
+export function metricsAgentDisconnect(agent: string, mode: string) {
   agentCountActive.labels({ agent, mode }).dec();
 }
 
