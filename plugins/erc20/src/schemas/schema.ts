@@ -11,10 +11,12 @@ import { z } from 'zod';
 export const getAllowanceSchema = z.object({
   ownerAddress: z
     .string()
-    .describe('The address of the account owner of the tokens'),
+    .describe('The starknet address of the account owner of the tokens'),
   spenderAddress: z
     .string()
-    .describe('The address of the account allowed to spend the tokens'),
+    .describe(
+      'The starknet address of the account allowed to spend the tokens'
+    ),
   assetSymbol: z
     .string()
     .optional()
@@ -35,7 +37,9 @@ export const getAllowanceSchema = z.object({
 export const getMyGivenAllowanceSchema = z.object({
   spenderAddress: z
     .string()
-    .describe('The address of the account allowed to spend the tokens'),
+    .describe(
+      'The starknet address of the account allowed to spend the tokens'
+    ),
   assetSymbol: z
     .string()
     .optional()
@@ -56,7 +60,9 @@ export const getMyGivenAllowanceSchema = z.object({
 export const getAllowanceGivenToMeSchema = z.object({
   ownerAddress: z
     .string()
-    .describe('The address of the account allowed to spend the tokens'),
+    .describe(
+      'The starknet address of the account allowed to spend the tokens'
+    ),
   assetSymbol: z
     .string()
     .optional()

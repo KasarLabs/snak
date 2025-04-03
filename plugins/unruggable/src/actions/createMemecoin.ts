@@ -32,8 +32,8 @@ import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
  *     : result;
  *
  *   if (response.status === 'success') {
- *     console.log('Transaction hash:', response.transactionHash);
- *     console.log('View transaction: https://voyager.online/tx/' + response.transactionHash);
+ *     logger.info('Transaction hash:', response.transactionHash);
+ *     logger.info('View transaction: https://voyager.online/tx/' + response.transactionHash);
  *   } else {
  *     console.error('Creation failed:', response.error);
  *   }

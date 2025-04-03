@@ -32,6 +32,7 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import { JsonConfig } from './jsonConfig.js';
+import logger from './logger.js';
 
 export function selectModel(aiConfig: AiConfig) {
   switch (aiConfig.aiProvider) {
@@ -159,7 +160,7 @@ export const createAgent = async (
           ]),
         });
         if (dbCreation.code == '42P07')
-          console.log('Agent memory table already exists');
+          logger.warn('Agent memory table already exists');
         else console.log('Agent memory table successfully created');
       } catch (error) {
         console.error('Error creating memories table:', error);
@@ -476,10 +477,7 @@ export const createAgent = async (
 
     return app;
   } catch (error) {
-    console.error(
-      `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`
-    );
-    console.error('Failed to load or parse JSON config:', error);
+    logger.error('Failed to create an agent : ', error);
     throw error;
   }
 };

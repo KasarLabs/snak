@@ -1,5 +1,5 @@
 {
-  "name": "starknet-agent-kit",
+  "name": "snaktest",
   "version": "0.0.10",
   "description": "A toolkit for creating AI agents that can interact with the Starknet network",
   "author": "Kasar Labs",
@@ -59,6 +59,7 @@
     "pg": "^8.13.3",
     "starknet": "^6.23.1",
     "util": "^0.12.5",
+    "winston": "^3.17.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

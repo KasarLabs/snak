@@ -1,6 +1,6 @@
 import { Account, uint256 } from 'starknet';
 import { tokenAddresses } from '../constants/erc20.js';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 /**
  * Configuration interface for transfer operations
@@ -90,7 +90,7 @@ export const transfer = async (
       ],
     });
 
-    console.log(
+    logger.info(
       'transfer initiated. Transaction hash:',
       result.transaction_hash
     );
@@ -177,7 +177,6 @@ export const transfer_signature = async (input: {
         };
       })
     );
-    console.log('Results :', results);
     return JSON.stringify({ transaction_type: 'INVOKE', results });
   } catch (error) {
     console.error('Transfer call data failure:', error);

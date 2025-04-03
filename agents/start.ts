@@ -13,6 +13,7 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import logger from './src/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -171,7 +172,9 @@ const LocalRun = async () => {
     await validateEnvVars();
     spinner.success({ text: 'Agent initialized successfully' });
     const agent_config = await load_json_config(agent_config_name);
-
+    if (agent_config === undefined) {
+      throw new Error('Failed to load agent configuration');
+    }
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       const agent = new StarknetAgent({
@@ -222,7 +225,7 @@ const LocalRun = async () => {
               createBox('Agent Response', formatAgentResponse(airesponse))
             );
           } else {
-            console.error('Invalid response type');
+            logger.error('Invalid response type');
           }
         } catch (error) {
           executionSpinner.error({ text: 'Error processing request' });
@@ -251,7 +254,7 @@ const LocalRun = async () => {
         autoSpinner.success({ text: 'Autonomous execution completed' });
       } catch (error) {
         autoSpinner.error({ text: 'Error in autonomous mode' });
-        console.error(
+        logger.error(
           createBox(error.message, { title: 'Error', isError: true })
         );
       }
