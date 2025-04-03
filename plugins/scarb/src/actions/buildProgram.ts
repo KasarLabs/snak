@@ -68,7 +68,7 @@ export const compileContract = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    // console.log('Error compiling contract:', errors);
+    console.log('Error compiling contract:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,

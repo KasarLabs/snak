@@ -48,7 +48,7 @@ export const deployContract = async (
       constructorParamDefs,
       params.constructorArgs as string[]
     );
-
+    
     const deployResponse = await contractManager.deployContract(
       params.classHash,
       typedConstructorArgs
@@ -70,6 +70,7 @@ export const deployContract = async (
       contractAddress: deployResponse.contractAddress,
     });
   } catch (error) {
+    console.log('Error deploying contract:', error.message);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

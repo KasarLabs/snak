@@ -134,7 +134,7 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
   } catch (error) {
     throw new Error(`Failed to get generated contract files: ${error.message}`);
   }
-
+  console.log('path generated:', result);
   return result;
 }
 

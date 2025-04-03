@@ -52,9 +52,7 @@ export const declareContract = async (
     return JSON.stringify({
       status: 'success',
       transactionHash: declareResponse.transactionHash,
-      classHash: declareResponse.classHash,
-      sierraPath: sierraPath,
-      casmPath: casmPath,
+      classHash: declareResponse.classHash
     });
   } catch (error) {
     return JSON.stringify({
