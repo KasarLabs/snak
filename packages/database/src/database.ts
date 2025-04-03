@@ -7,11 +7,11 @@
  * env variables:
  *
  * ```
- * PGUSER=...
- * PGPASSWORD=...
- * PGDATABASE=...
- * PGHOST=...
- * PGPORT=...
+ * POSTGRES_USER=...
+ * POSTGRES_HOST=...
+ * POSTGRES_DB=...
+ * POSTGRES_PASSWORD=...
+ * POSTGRES_PORT=...
  * ```
  *
  * Make sure they are part of your `.env` or you will be getting some strange
@@ -33,16 +33,12 @@ import { DatabaseError } from './error.js';
  * @see module:database
  */
 const pool = new Pool({
-	// For some reason pg requires env of the form `PG_...` instead of 
-	// `POSTGRES_...` which is what postgres expects???
-	database: process.env.POSTGRES_DATABASE,
-	port: Number(process.env.POSTGRES_PORT),
-	host: process.env.POSTGRES_HOST,
 	user: process.env.POSTGRES_USER,
-	password: process.env.POSTGRES_PASSWORD
+	host: process.env.POSTGRES_HOST,
+	database: process.env.POSTGRES_DB,
+	password: process.env.POSTGRES_PASSWORD,
+	port: parseInt(process.env.POSTGRES_PORT || '5432'),
 });
-
-console.log(`pwd: ${process.env.POSTGRES_PASSWORD}`);
 
 pool.on('error', (err) => {
 	console.error('something bad has happened!', err.stack)
@@ -75,10 +71,10 @@ export class Query {
  * @throws { DatabaseError }
  * @see module:database
  */
-export async function query<Model>(q: Query): Promise<Model | undefined> {
+export async function query<Model>(q: Query): Promise<Model[] | undefined> {
 	try {
 		const query = await pool.query(q.query, q.values);
-		return query.rows[0];
+		return query.rows;
 	} catch (err: any) {
 		DatabaseError.handlePgError(err);
 	}
