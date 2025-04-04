@@ -15,6 +15,7 @@
   "devDependencies": {
     "@starknet-agent-kit/agents": "workspace:*",
     "@types/fs-extra": "^11.0.4",
+    "@types/jsdom": "^21.1.7",
     "@types/tmp": "^0.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
@@ -26,6 +27,7 @@
   "dependencies": {
     "find-up": "^5.0.0",
     "fs-extra": "^11.3.0",
+    "jsdom": "^26.0.0",
     "tmp": "^0.2.3"
   }
 }

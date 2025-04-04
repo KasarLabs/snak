@@ -1,11 +1,11 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { buildProject } from '../utils/command.js';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';
-import { retrieveProjectData } from '../utils/db_init.js';
+import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { saveCompilationResults } from '../utils/db_save.js';
-import { cleanProject } from '../utils/command.js';
 import { compileContractSchema } from '../schema/schema.js';
+import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
 
 /**
@@ -20,12 +20,14 @@ export const compileContract = async (
 ) => {
   let projectDir = '';
   try {
+    logger.info('\n➜ Compiling contract');
+    logger.info(JSON.stringify(params, null, 2));
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
       projectName: params.projectName,
     });
-
+    
     const tomlSections =
       projectData.type === 'cairo_program'
         ? []
@@ -48,13 +50,15 @@ export const compileContract = async (
 
     const contractFiles = await getGeneratedContractFiles(projectDir);
 
-    await saveCompilationResults(
-      agent,
-      projectData.id,
-      contractFiles.sierraFiles,
-      contractFiles.casmFiles,
-      contractFiles.artifactFile
-    );
+    if (projectData.type !== 'cairo_program') {
+      await saveCompilationResults(
+        agent,
+        projectData.id,
+        contractFiles.sierraFiles,
+        contractFiles.casmFiles,
+        contractFiles.artifactFile
+      );
+    }
 
     return JSON.stringify({
       status: 'success',
@@ -64,10 +68,15 @@ export const compileContract = async (
       projectDir: projectDir,
     });
   } catch (error) {
-    console.error('Error compiling contract:', error);
+    const errors = formatCompilationError(error);
     return JSON.stringify({
       status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      errors: errors,
+      metadata: {
+        error_type: 'raw_cairo_error',
+        needs_exact_forwarding: true
+      },
+      projectDir: projectDir,
     });
   } finally {
     await cleanProject({ path: projectDir, removeDirectory: true });

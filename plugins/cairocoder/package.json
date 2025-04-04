@@ -1,5 +1,5 @@
 {
-  "name": "@starknet-agent-kit/plugin-contract",
+  "name": "@starknet-agent-kit/plugin-cairocoder",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,11 +12,13 @@
     "clean:all": "pnpm clean && pnpm clean:dist",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
-  "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*"
+  "dependencies": {
+    "@starknet-agent-kit/agents": "workspace:*",
+    "axios": "^1.8.2",
+    "starknet": "^5.25.0",
+    "zod": "^3.22.4"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "devDependencies": {
+    "@types/axios": "^0.14.4"
+  }
 }

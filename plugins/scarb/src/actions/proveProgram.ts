@@ -1,12 +1,12 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { proveProject } from '../utils/command.js';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { proveProject, cleanProject } from '../utils/workspace.js';
 import { proveProgramSchema } from '../schema/schema.js';
 import { executeProgram } from './executeProgram.js';
-import { z } from 'zod';
 import { saveProof } from '../utils/db_save.js';
-import { retrieveProjectData } from '../utils/db_init.js';
-import { cleanProject } from '../utils/command.js';
+import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { getProjectDir } from '../utils/preparation.js';
+import { formatCompilationError } from '../utils/utils.js';
+import { z } from 'zod';
 
 /**
  * Prove a program execution
@@ -20,6 +20,9 @@ export const proveProgram = async (
 ) => {
   let projectDir = '';
   try {
+    logger.info('\n➜ Proving program');
+    logger.info(JSON.stringify(params, null, 2));
+
     const execResult = await executeProgram(agent, {
       ...params,
       mode: 'standalone',
@@ -55,10 +58,11 @@ export const proveProgram = async (
       errors: parsedResult.errors,
     });
   } catch (error) {
-    console.error('Error proving contract execution:', error);
+    const errors = formatCompilationError(error);
     return JSON.stringify({
       status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      errors: errors,
+      projectDir: projectDir,
     });
   } finally {
     await cleanProject({ path: projectDir, removeDirectory: true });

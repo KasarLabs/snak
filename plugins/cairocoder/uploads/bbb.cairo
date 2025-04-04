@@ -5,7 +5,7 @@ trait ISimpleStorage<TContractState> {
 }
 
 #[starknet::contract]
-mod SimpleStorage2 {
+mod SimpleStorage {
     use core::starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 
     #[storage]
@@ -14,7 +14,7 @@ mod SimpleStorage2 {
     }
 
     #[abi(embed_v0)]
-    impl SimpleStorage2 of super::ISimpleStorage<ContractState> {
+    impl SimpleStorage of super::ISimpleStorage<ContractState> {
         fn set(ref self: ContractState, x: u128) {
             self.stored_data.write(x);
         }

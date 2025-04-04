@@ -1,11 +1,11 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { executeProject } from '../utils/command.js';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
-import { retrieveProjectData } from '../utils/db_init.js';
+import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { executeProgramSchema } from '../schema/schema.js';
-import { z } from 'zod';
 import { saveExecutionResults } from '../utils/db_save.js';
-import { cleanProject } from '../utils/command.js';
+import { formatCompilationError } from '../utils/utils.js';
+import { z } from 'zod';
 
 /**
  * Execute a program
@@ -20,6 +20,9 @@ export const executeProgram = async (
   let projectDir = '';
   let mode = '';
   try {
+    logger.info('\n➜ Executing program');
+    logger.info(JSON.stringify(params, null, 2));
+
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -99,10 +102,11 @@ export const executeProgram = async (
       errors: parsedExecResult.errors,
     });
   } catch (error) {
-    console.log('Error executing contract:', error);
+    const errors = formatCompilationError(error);
     return JSON.stringify({
       status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      errors: errors,
+      projectDir: projectDir,
     });
   } finally {
     if (mode !== 'standalone')

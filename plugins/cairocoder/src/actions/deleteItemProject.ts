@@ -1,19 +1,19 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import {
   deleteProgram,
   deleteDependency,
   deleteProject,
 } from '../utils/db_delete.js';
-import { retrieveProjectData } from '../utils/db_init.js';
 import {
   deleteProgramSchema,
   deleteDependencySchema,
   deleteProjectSchema,
 } from '../schema/schema.js';
+import { retrieveProjectData } from '../utils/db_init.js';
 
 /**
- * Delete a program from a project
+ * Delete several programs from a project
  *
  * @param agent The StarkNet agent
  * @param params The deletion parameters
@@ -26,19 +26,21 @@ export const deleteProgramAction = async (
   try {
     const projectData = await retrieveProjectData(agent, params.projectName);
 
-    await deleteProgram(agent, projectData.id, params.programName);
+    for (const program of params.programName) {
+      await deleteProgram(agent, projectData.id, program);
+    }
 
     const updatedProject = await retrieveProjectData(agent, params.projectName);
 
     return JSON.stringify({
       status: 'success',
-      message: `Program ${params.programName} deleted from project ${params.projectName}`,
+      message: `Programs ${params.programName} deleted from project ${params.projectName}`,
       projectId: updatedProject.id,
       projectName: updatedProject.name,
       programsCount: updatedProject.programs.length,
     });
   } catch (error) {
-    console.error('Error deleting program:', error);
+    logger.error('Error deleting program:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -47,7 +49,7 @@ export const deleteProgramAction = async (
 };
 
 /**
- * Delete a dependency from a project
+ * Delete several dependencies from a project
  *
  * @param agent The StarkNet agent
  * @param params The deletion parameters
@@ -60,19 +62,21 @@ export const deleteDependencyAction = async (
   try {
     const projectData = await retrieveProjectData(agent, params.projectName);
 
-    await deleteDependency(agent, projectData.id, params.dependencyName);
+    for (const dependency of params.dependencyName) {
+      await deleteDependency(agent, projectData.id, dependency);
+    }
 
     const updatedProject = await retrieveProjectData(agent, params.projectName);
 
     return JSON.stringify({
       status: 'success',
-      message: `Dependency ${params.dependencyName} deleted from project ${params.projectName}`,
+      message: `Dependencies ${params.dependencyName} deleted from project ${params.projectName}`,
       projectId: updatedProject.id,
       projectName: updatedProject.name,
       dependenciesCount: updatedProject.dependencies.length,
     });
   } catch (error) {
-    console.error('Error deleting dependency:', error);
+    logger.error('Error deleting dependency:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -81,7 +85,7 @@ export const deleteDependencyAction = async (
 };
 
 /**
- * Delete an entire project
+ * Delete several projects
  *
  * @param agent The StarkNet agent
  * @param params The deletion parameters
@@ -92,14 +96,16 @@ export const deleteProjectAction = async (
   params: z.infer<typeof deleteProjectSchema>
 ) => {
   try {
-    await deleteProject(agent, params.projectName);
+    for (const project of params.projectName) {
+      await deleteProject(agent, project);
+    }
 
     return JSON.stringify({
       status: 'success',
-      message: `Project ${params.projectName} deleted successfully`,
+      message: `Projects ${params.projectName} deleted successfully`,
     });
   } catch (error) {
-    console.error('Error deleting project:', error);
+    logger.error('Error deleting project:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

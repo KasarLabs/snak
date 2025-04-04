@@ -81,8 +81,7 @@ export const retrieveCompilationFilesByName = async (
 
     return { sierra, casm };
   } catch (error) {
-    console.error('Error retrieving compilation files:', error);
-    throw error;
+    throw new Error(`Error retrieving compilation files: ${error.message}`);
   }
 };
 
@@ -103,7 +102,6 @@ export const getSierraCasmFromDB = async (
 
     return { sierraPath, casmPath };
   } catch (error) {
-    console.error('Error retrieving compilation files:', error);
-    throw error;
+    throw new Error(`Error retrieving compilation files: ${error.message}`);
   }
 };

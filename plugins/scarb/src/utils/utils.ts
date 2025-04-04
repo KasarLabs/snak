@@ -96,3 +96,18 @@ export const writeJsonToFile = (
     );
   }
 };
+
+/**
+ * Formats compilation errors
+ * @param error The error
+ * @returns The formatted error
+ */
+export function formatCompilationError(error: any): string {
+  if (!error || !error.stdout) {
+    return error?.message || 'Unknown compilation error';
+  }
+
+  return `[EXACT_ERROR_BEGIN]
+${error.stdout}
+[EXACT_ERROR_END]`;
+} 
