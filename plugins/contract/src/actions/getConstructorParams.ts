@@ -1,7 +1,7 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';  
 import { ContractManager } from '../utils/contractManager.js';
-import { Account, constants } from 'starknet';
+import { Account } from 'starknet';
 import { getConstructorParamsSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
 

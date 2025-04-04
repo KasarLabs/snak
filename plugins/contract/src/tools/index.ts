@@ -19,7 +19,6 @@ export const initializeTools = async (
   agent: StarknetAgentInterface
 ): Promise<void> => {
   try {
-    // Initialiser la base de données de contrats
     await initializeContractDatabase(agent);
   } catch (error) {
     console.error('Error initializing contract database:', error);
@@ -30,7 +29,6 @@ export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
   agent: StarknetAgentInterface
 ) => {
-  // Initialiser les outils (base de données, etc.)
   await initializeTools(agent);
   
   StarknetToolRegistry.push({

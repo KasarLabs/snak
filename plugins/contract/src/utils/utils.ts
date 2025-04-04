@@ -65,13 +65,9 @@ function findUp(
     if (fs.existsSync(filePath)) {
       return filePath;
     }
-
-    // Stop if we reach the filesystem root
     if (currentDir === root) {
       return null;
     }
-
-    // Move up one level
     currentDir = path.dirname(currentDir);
   }
 }
@@ -95,23 +91,16 @@ function getRepoRoot(): string {
  * @returns {string} Resolved file path
  */
 export function resolveContractFilePath(filePath: string): string {
-  // If the path is already absolute and exists, return it as is
   if (path.isAbsolute(filePath)) {
     if (fs.existsSync(filePath)) {
       return filePath;
     } else {
-      // Even if it's absolute but doesn't exist, we'll still try from repo root
       console.warn(`Absolute path provided but does not exist: ${filePath}`);
     }
   }
 
-  // Get the repository root
   const repoRoot = getRepoRoot();
-
-  // Join the repo root with the provided path
   const resolvedPath = path.join(repoRoot, filePath);
-
-  // Check if the path exists
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`Path does not exist: ${resolvedPath}`);
   }

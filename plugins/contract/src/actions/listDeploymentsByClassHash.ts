@@ -1,13 +1,12 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { listDeploymentsByClassHashSchema } from '../schemas/schema.js';
-import { initializeContractDatabase } from '../utils/db_init.js';
 
 /**
- * Liste tous les contrats déployés pour un classHash spécifique
- * @param {StarknetAgentInterface} agent - Starknet agent interface
- * @param {z.infer<typeof listDeploymentsByClassHashSchema>} params - Paramètres avec le classHash à rechercher
- * @returns {Promise<string>} JSON string avec la liste des contrats déployés
+ * List the deployments by class hash
+ * @param agent The Starknet agent
+ * @param params The parameters
+ * @returns The result of the operation
  */
 export const listDeploymentsByClassHash = async (
   agent: StarknetAgentInterface,
@@ -41,16 +40,8 @@ export const listDeploymentsByClassHash = async (
       WHERE: [`contract_id = ${contractId}`]
     });
 
-    if (!deploymentsResult.query?.rows.length) {
-      return JSON.stringify({
-        status: 'success',
-        message: `No deployments found for contract with class hash ${params.classHash}`,
-        deployments: [],
-      });
-    }
-
     const deployments = [];
-    for (const deployment of deploymentsResult.query.rows) {
+    for (const deployment of deploymentsResult.query?.rows || []) {
       deployments.push({
         contractAddress: deployment.contract_address,
         deployTxHash: deployment.deploy_tx_hash
@@ -59,7 +50,7 @@ export const listDeploymentsByClassHash = async (
 
     return JSON.stringify({
       status: 'success',
-      message: `Found ${deployments.length} deployments for contract with class hash ${params.classHash}`,
+      message: deployments.length > 0 ? `Found ${deployments.length} deployments for contract with class hash ${params.classHash}` : `No deployments found for contract with class hash ${params.classHash}`,
       classHash: params.classHash,
       deployments: deployments,
     });

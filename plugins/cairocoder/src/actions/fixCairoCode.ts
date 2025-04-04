@@ -51,15 +51,12 @@ Can you fix the compilation errors?`;
     const generatedContent = await callCairoGenerationAPI(fixPrompt);
     const fixedCairoCode = extractCairoCode(generatedContent);
     
-    const debugFile = saveToDebugFile(params.programName, fixedCairoCode);
-    
     await addProgram(agent, projectData.id, params.programName, fixedCairoCode);
     
     return JSON.stringify({
       status: 'success',
       message: `Cairo code fixed and updated in database as ${params.programName}`,
       programName: params.programName,
-      debugFile: debugFile,
       originalCode: program.source_code,
       fixedCode: fixedCairoCode
     });

@@ -19,6 +19,7 @@ export const declareContract = async (
   try {
     console.log('\n➜ Declaring contract');
     console.log(JSON.stringify(params, null, 2));
+
     const { sierraPath, casmPath } = await getSierraCasmFromDB(
       agent,
       params.projectName,
@@ -40,7 +41,6 @@ export const declareContract = async (
 
     const declareResponse = await contractManager.declareContract();
 
-    // Sauvegarder les informations de déclaration dans la base de données
     if (declareResponse.transactionHash && declareResponse.classHash) {
       await saveContractDeclaration(
         agent,

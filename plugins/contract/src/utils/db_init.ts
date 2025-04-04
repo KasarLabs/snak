@@ -1,9 +1,9 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 /**
- * Initialise la base de données du plugin contract
- * @param agent L'agent Starknet
- * @returns L'instance de la base de données
+ * Initialize the contract database
+ * @param agent The Starknet agent
+ * @returns The database instance
  */
 export const initializeContractDatabase = async (
   agent: StarknetAgentInterface
@@ -18,7 +18,6 @@ export const initializeContractDatabase = async (
       }
     }
 
-    // Définition des tables
     const tables = [
       {
         table_name: 'contract',
@@ -39,8 +38,7 @@ export const initializeContractDatabase = async (
       },
     ];
 
-    // Création des tables
-    for (const table of tables) {
+      for (const table of tables) {
       const result = await database.createTable({
         table_name: table.table_name,
         if_not_exist: true,
@@ -60,13 +58,11 @@ export const initializeContractDatabase = async (
 };
 
 /**
- * Sauvegarde les informations de déclaration d'un contrat
- * @param agent L'agent Starknet
- * @param projectName Nom du projet
- * @param contractName Nom du contrat
- * @param classHash Hash de classe du contrat
- * @param transactionHash Hash de la transaction de déclaration
- * @returns L'ID du contrat dans la base de données
+ * Save the contract declaration
+ * @param agent The Starknet agent
+ * @param classHash The class hash
+ * @param transactionHash The transaction hash
+ * @returns The contract id
  */
 export const saveContractDeclaration = async (
   agent: StarknetAgentInterface,
@@ -79,7 +75,6 @@ export const saveContractDeclaration = async (
       throw new Error('Contract database not found');
     }
 
-    // Vérifier si le contrat existe déjà avec ce class_hash
     const existingContract = await database.select({
       SELECT: ['id'],
       FROM: ['contract'],
@@ -87,11 +82,9 @@ export const saveContractDeclaration = async (
     });
 
     if (existingContract.query && existingContract.query.rows.length > 0) {
-      // Le contrat existe déjà, pas besoin de le réinsérer
       return existingContract.query.rows[0].id;
     }
 
-    // Insérer le nouveau contrat
     const res = await database.insert({
       table_name: 'contract',
       fields: new Map<string, string>([
@@ -100,9 +93,6 @@ export const saveContractDeclaration = async (
       ]),
     });
 
-    console.log(res);
-
-    // Récupérer l'ID du contrat nouvellement inséré
     const newContract = await database.select({
       SELECT: ['id'],
       FROM: ['contract'],
@@ -121,13 +111,11 @@ export const saveContractDeclaration = async (
 };
 
 /**
- * Sauvegarde les informations de déploiement d'un contrat
- * @param agent L'agent Starknet
- * @param classHash Hash de classe du contrat
- * @param contractAddress Adresse du contrat déployé
- * @param constructorArgs Arguments du constructeur (au format JSON)
- * @param transactionHash Hash de la transaction de déploiement
- * @returns L'ID du déploiement dans la base de données
+ * Save the contract deployment
+ * @param agent The Starknet agent
+ * @param classHash The class hash
+ * @param contractAddress The contract address
+ * @param transactionHash The transaction hash
  */
 export const saveContractDeployment = async (
   agent: StarknetAgentInterface,
@@ -141,7 +129,6 @@ export const saveContractDeployment = async (
       throw new Error('Contract database not found');
     }
 
-    // Récupérer l'ID du contrat
     const contract = await database.select({
       SELECT: ['id'],
       FROM: ['contract'],
@@ -154,7 +141,6 @@ export const saveContractDeployment = async (
 
     const contractId = contract.query.rows[0].id;
 
-    // Vérifier si le déploiement existe déjà
     const existingDeployment = await database.select({
       SELECT: ['id'],
       FROM: ['deployment'],
@@ -162,11 +148,9 @@ export const saveContractDeployment = async (
     });
 
     if (existingDeployment.query && existingDeployment.query.rows.length > 0) {
-      // Le déploiement existe déjà
       return existingDeployment.query.rows[0].id;
     }
 
-    // Insérer le nouveau déploiement
     await database.insert({
       table_name: 'deployment',
       fields: new Map<string, any>([
@@ -176,7 +160,6 @@ export const saveContractDeployment = async (
       ]),
     });
 
-    // Récupérer l'ID du déploiement nouvellement inséré
     const newDeployment = await database.select({
       SELECT: ['id'],
       FROM: ['deployment'],
@@ -195,10 +178,10 @@ export const saveContractDeployment = async (
 };
 
 /**
- * Supprime un contrat et tous ses déploiements associés par son classHash
- * @param agent L'agent Starknet
- * @param classHash Hash de classe du contrat à supprimer
- * @returns Un objet indiquant le succès ou l'échec de l'opération
+ * Delete a contract by its class hash
+ * @param agent The Starknet agent
+ * @param classHash The class hash
+ * @returns The result of the operation
  */
 export const deleteContractByClassHash = async (
   agent: StarknetAgentInterface,

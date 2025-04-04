@@ -1,13 +1,13 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
-import { initializeContractDatabase, deleteContractByClassHash } from '../utils/db_init.js';
+import { deleteContractByClassHash } from '../utils/db_init.js';
 
 /**
- * Supprime un contrat par son classHash
- * @param {StarknetAgentInterface} agent - Starknet agent interface
- * @param {z.infer<typeof deleteContractByClassHashSchema>} params - Paramètres avec le classHash à supprimer
- * @returns {Promise<string>} JSON string avec le résultat de l'opération
+ * Deletes a contract by its class hash
+ * @param agent The Starknet agent
+ * @param params The parameters
+ * @returns The result of the operation
  */
 export const deleteContractByClassHashAction = async (
   agent: StarknetAgentInterface,

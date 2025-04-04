@@ -24,8 +24,6 @@ export const generateCairoCode = async (
     const generatedContent = await callCairoGenerationAPI(params.prompt);
     const cairoCode = extractCairoCode(generatedContent);
     
-    const debugFile = saveToDebugFile(params.programName, cairoCode);
-    
     const projectData = await retrieveProjectData(agent, params.projectName);
     await addProgram(agent, projectData.id, params.programName, cairoCode);
     
@@ -33,7 +31,6 @@ export const generateCairoCode = async (
       status: 'success',
       message: `Cairo code generated and saved to database as ${params.programName}`,
       programName: params.programName,
-      debugFile: debugFile,
       code: cairoCode
     });
   } catch (error) {

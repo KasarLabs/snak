@@ -1,10 +1,10 @@
 import { Account, constants } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { deployContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
-import { initializeContractDatabase, saveContractDeployment } from '../utils/db_init.js';
+import { saveContractDeployment } from '../utils/db_init.js';
+import { z } from 'zod';
 
 /**
  * Deploys a contract on StarkNet using an existing class hash
@@ -17,11 +17,12 @@ export const deployContract = async (
   params: z.infer<typeof deployContractSchema>
 ): Promise<string> => {
   try {
+    console.log('\n➜ Deploying contract');
+    console.log(JSON.stringify(params, null, 2));
+
     if (!params?.classHash) {
       throw new Error('Class hash is required for deployment');
     }
-    console.log('\n➜ Deploying contract');
-    console.log(JSON.stringify(params, null, 2));
     
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
@@ -53,8 +54,7 @@ export const deployContract = async (
       params.classHash,
       typedConstructorArgs
     );
-    
-    // Sauvegarder les informations de déploiement dans la base de données
+
     if (deployResponse.transactionHash && deployResponse.contractAddress) {
       await saveContractDeployment(
         agent,

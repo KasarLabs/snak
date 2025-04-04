@@ -1,13 +1,12 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { z } from 'zod';
 import { listContractsSchema } from '../schemas/schema.js';
-import { initializeContractDatabase } from '../utils/db_init.js';
+import { z } from 'zod';
 
 /**
- * Liste les contrats enregistrés dans la base de données
- * @param {StarknetAgentInterface} agent - Starknet agent interface
- * @param {z.infer<typeof listContractsSchema>} params - Filtres optionnels pour la liste
- * @returns {Promise<string>} JSON string avec la liste des contrats
+ * List the declared contracts
+ * @param agent The Starknet agent
+ * @param params The parameters
+ * @returns The result of the operation
  */
 export const listDeclaredContracts = async (
   agent: StarknetAgentInterface,
@@ -19,22 +18,13 @@ export const listDeclaredContracts = async (
       throw new Error('Database not found');
     }
 
-    // Récupérer tous les contrats avec une requête simple
     const contractsResult = await database.select({
       SELECT: ['class_hash', 'declare_tx_hash'],
       FROM: ['contract']
     });
 
-    if (!contractsResult.query?.rows.length) {
-      return JSON.stringify({
-        status: 'success',
-        message: 'No contracts found in the database',
-        contracts: [],
-      });
-    }
-
     const contracts = [];
-    for (const contract of contractsResult.query.rows) {
+    for (const contract of contractsResult.query?.rows || []) {
       contracts.push({
         classHash: contract.class_hash,
         declareTxHash: contract.declare_tx_hash
@@ -43,7 +33,7 @@ export const listDeclaredContracts = async (
 
     return JSON.stringify({
       status: 'success',
-      message: `Found ${contracts.length} contracts in the database`,
+      message: contracts.length > 0 ? `Found ${contracts.length} contracts in the database` : 'No contracts found in the database',
       contracts: contracts,
     });
   } catch (error) {
