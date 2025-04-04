@@ -19,6 +19,8 @@ import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
 import { AgentFactory } from './agents.factory.js';
+import { metrics } from '@starknet-agent-kit/agents';
+import { Reflector } from '@nestjs/core';
 
 @Controller('key')
 @UseInterceptors(AgentResponseInterceptor)
@@ -26,7 +28,8 @@ export class AgentsController implements OnModuleInit {
   private agent: StarknetAgent;
   constructor(
     private readonly agentService: AgentService,
-    private readonly agentFactory: AgentFactory
+    private readonly agentFactory: AgentFactory,
+    private readonly reflector: Reflector
   ) {}
 
   async onModuleInit() {
@@ -41,7 +44,11 @@ export class AgentsController implements OnModuleInit {
 
   @Post('request')
   async handleUserRequest(@Body() userRequest: AgentRequestDTO) {
-    return await this.agentService.handleUserRequest(this.agent, userRequest);
+    const agent = this.agent.getAgentConfig()?.name ?? 'agent';
+    const mode = this.agent.getAgentMode();
+    const route = this.reflector.get('path', this.handleUserRequest);
+    const action = this.agentService.handleUserRequest(this.agent, userRequest);
+    return await metrics.metricsAgentResponseTime(agent, mode, route, action);
   }
 
   @Get('status')

@@ -9,6 +9,13 @@ import { MemorySaver } from '@langchain/langgraph';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createAllowedToollkits } from './tools/external_tools.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
+import logger from './logger.js';
+import {
+  DynamicStructuredTool,
+  StructuredTool,
+  Tool,
+} from '@langchain/core/tools';
+import { AnyZodObject } from 'zod';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -58,20 +65,19 @@ export const createAutonomousAgent = async (
 
   try {
     const json_config = starknetAgent.getAgentConfig();
-
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
 
-    let tools;
+    let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[];
     const allowedTools = await createAllowedTools(
       starknetAgent,
       json_config.internal_plugins
     );
 
-    const allowedToolsKits = json_config.external_plugins
-      ? createAllowedToollkits(json_config.external_plugins)
-      : null;
+    const allowedToolsKits = await createAllowedToollkits(
+      json_config.external_plugins
+    );
 
     tools = allowedToolsKits
       ? [...allowedTools, ...allowedToolsKits]
@@ -99,10 +105,7 @@ export const createAutonomousAgent = async (
       json_config,
     };
   } catch (error) {
-    console.error(
-      `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`
-    );
-    console.error('Failed to load or parse JSON config:', error);
+    logger.error('Failed to create autonomous agent : ', error);
     throw error;
   }
 };

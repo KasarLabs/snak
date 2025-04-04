@@ -1,5 +1,5 @@
 import { Account, Call } from 'starknet';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import {
   Address,
@@ -58,7 +58,7 @@ export class WithdrawEarnService {
         ? { value: toBN(res.value), decimals: DEFAULT_DECIMALS }
         : undefined;
     } catch (err) {
-      console.log('error', err);
+      logger.error('error', err);
       return undefined;
     }
   }
@@ -213,7 +213,7 @@ export class WithdrawEarnService {
       if (!collateralPoolAsset) {
         throw new Error('Collateral asset not found in pool');
       }
-      console.log(
+      logger.info(
         'collateralPoolAsset.decimals===',
         collateralPoolAsset.decimals
       );
@@ -250,7 +250,7 @@ export class WithdrawEarnService {
         },
       ]);
 
-      console.log('approval initiated. Transaction hash:', tx.transaction_hash);
+      logger.info('approval initiated. Transaction hash:', tx.transaction_hash);
       await provider.waitForTransaction(tx.transaction_hash);
 
       const transferResult: WithdrawResult = {
@@ -305,7 +305,6 @@ export const withdrawEarnPosition = async (
   params: WithdrawParams
 ) => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;
-  console.log('hello withdraw', accountAddress);
   try {
     const withdrawEarn = withdrawService(agent, accountAddress);
     const result = await withdrawEarn.withdrawEarnTransaction(params, agent);

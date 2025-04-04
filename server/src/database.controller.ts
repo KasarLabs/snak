@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import pkg from 'pg';
+import { logger } from '@starknet-agent-kit/agents';
 const { Pool } = pkg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,7 +30,7 @@ export class DatabaseController implements OnModuleInit {
   @Post('insert_into_table')
   async insertIntoTable(@Body() data: { table: string; fields: string[] }) {
     try {
-      console.log(`INSERT INTO ${data.table} VALUES(${data.fields.join(',')})`);
+      logger.info(`INSERT INTO ${data.table} VALUES(${data.fields.join(',')})`);
       await this.database.query(
         `INSERT INTO ${data.table} VALUES(${data.fields.join(',')})`
       );
@@ -37,7 +38,7 @@ export class DatabaseController implements OnModuleInit {
         status: 'success',
       };
     } catch (error) {
-      console.log(error);
+      logger.error(error);
       return {
         status: 'error',
       };

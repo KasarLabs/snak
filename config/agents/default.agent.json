@@ -25,7 +25,7 @@
     "Understanding of plugin architecture and custom action development"
   ],
   "interval": 30000,
-  "autonomous": true,
+  "autonomous": false,
   "chat_id": "sak_guide",
   "mcp": false,
   "external_plugins": [],
@@ -36,7 +36,6 @@
     "braavos",
     "openzeppelin",
     "rpc",
-    "transaction",
     "avnu",
     "erc20",
     "erc721",
@@ -44,5 +43,6 @@
     "contract",
     "cairocoder",
     "atlantic"
-  ]
+  ],
+  "memory":true
 }

@@ -16,6 +16,8 @@ import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
 import { AgentFactory } from './agents.factory.js';
+import { Reflector } from '@nestjs/core';
+import { metrics } from '@starknet-agent-kit/agents';
 
 @Controller('wallet')
 export class WalletController implements OnModuleInit {
@@ -23,7 +25,8 @@ export class WalletController implements OnModuleInit {
 
   constructor(
     private readonly walletService: WalletService,
-    private readonly agentFactory: AgentFactory
+    private readonly agentFactory: AgentFactory,
+    private readonly reflector: Reflector
   ) {}
 
   async onModuleInit() {
@@ -38,10 +41,14 @@ export class WalletController implements OnModuleInit {
 
   @Post('request')
   async handleUserCalldataRequest(@Body() userRequest: AgentRequestDTO) {
-    return await this.walletService.handleUserCalldataRequest(
+    const agent = this.agent.getAgentConfig()?.name ?? 'agent';
+    const mode = this.agent.agentMode; // TODO: This should be exposed by method
+    const route = this.reflector.get('path', this.handleUserCalldataRequest);
+    const action = this.walletService.handleUserCalldataRequest(
       this.agent,
       userRequest
     );
+    return await metrics.metricsAgentResponseTime(agent, mode, route, action);
   }
 
   @Post('upload_large_file')

@@ -10,7 +10,8 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "start": "npx tsx -r tsconfig-paths/register ./start.ts ",
+    "pgvector": "./pgvector.sh",
+    "start": "pnpm pgvector && npx tsx -r tsconfig-paths/register ./start.ts ",
     "lint": "eslint \"src/**/*.ts\""
   },
   "keywords": [],
@@ -18,17 +19,20 @@
   "license": "ISC",
   "description": "The Agent Kit engine of Snak",
   "dependencies": {
+    "@huggingface/transformers": "^3.4.0",
     "@langchain/anthropic": "^0.3.11",
-    "@langchain/community": "^0.3.28",
-    "@langchain/core": "^0.3.37",
+    "@langchain/community": "^0.3.34",
+    "@langchain/core": "^0.3.42",
     "@langchain/deepseek": "^0.0.1",
     "@langchain/google-genai": "^0.1.6",
     "@langchain/langgraph": "^0.2.44",
     "@langchain/ollama": "^0.1.4",
     "@langchain/openai": "^0.3.17",
-    "langchain": "^0.3.10",
     "discord.js": "^14.17.3",
+    "inquirer": "^12.4.1",
+    "langchain": "^0.3.10",
+    "mem0ai": "^2.1.9",
     "nanospinner": "^1.2.2",
-    "inquirer": "^12.4.1"
+    "prom-client": "^15.1.3"
   }
 }

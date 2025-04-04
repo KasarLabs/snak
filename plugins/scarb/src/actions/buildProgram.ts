@@ -50,13 +50,15 @@ export const compileContract = async (
 
     const contractFiles = await getGeneratedContractFiles(projectDir);
 
-    await saveCompilationResults(
-      agent,
-      projectData.id,
-      contractFiles.sierraFiles,
-      contractFiles.casmFiles,
-      contractFiles.artifactFile
-    );
+    if (projectData.type !== 'cairo_program') {
+      await saveCompilationResults(
+        agent,
+        projectData.id,
+        contractFiles.sierraFiles,
+        contractFiles.casmFiles,
+        contractFiles.artifactFile
+      );
+    }
 
     return JSON.stringify({
       status: 'success',

@@ -13,11 +13,10 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import logger from './src/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const load_command = async (): Promise<string> => {
   const argv = await yargs(hideBin(process.argv))
@@ -41,11 +40,11 @@ const createLink = (text: string, url: string): string =>
   `\u001B]8;;${url}\u0007${text}\u001B]8;;\u0007`;
 
 const logo = `${chalk.cyan(`
-   _____             __  
+   _____             __
   / ___/____  ____ _/ /__
   \\__ \\/ __ \\/ __ \`/ //_/
- ___/ / / / / /_/ / ,<   
-/____/_/ /_/\\__,_/_/|_|  
+ ___/ / / / / /_/ / ,<
+/____/_/ /_/\\__,_/_/|_|
 
 ${chalk.dim('v0.0.11 by ')}${createLink('Kasar', 'https://kasar.io')}`)}`;
 
@@ -173,7 +172,9 @@ const LocalRun = async () => {
     await validateEnvVars();
     spinner.success({ text: 'Agent initialized successfully' });
     const agent_config = await load_json_config(agent_config_name);
-
+    if (agent_config === undefined) {
+      throw new Error('Failed to load agent configuration');
+    }
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       const agent = new StarknetAgent({
@@ -224,7 +225,7 @@ const LocalRun = async () => {
               createBox('Agent Response', formatAgentResponse(airesponse))
             );
           } else {
-            console.error('Invalid response type');
+            logger.error('Invalid response type');
           }
         } catch (error) {
           executionSpinner.error({ text: 'Error processing request' });
@@ -253,7 +254,7 @@ const LocalRun = async () => {
         autoSpinner.success({ text: 'Autonomous execution completed' });
       } catch (error) {
         autoSpinner.error({ text: 'Error in autonomous mode' });
-        console.error(
+        logger.error(
           createBox(error.message, { title: 'Error', isError: true })
         );
       }

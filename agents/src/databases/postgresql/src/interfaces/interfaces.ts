@@ -1,5 +1,4 @@
 import { Pool, QueryResult } from 'pg';
-import { DEFAULT } from '../types/database.js';
 
 /**
  * Represents a PostgreSQL database connection.
@@ -63,12 +62,14 @@ export interface deleteOptionInterface {
  * @property {string} [ALIAS] - Optional alias for the main table
  * @property {string[]} SELECT - Array of expressions to select
  * @property {string[]} [WHERE] - Optional WHERE conditions
+ * @property {number} [LIMIT] - Optional limit on the number of rows to return
  */
 export interface selectOptionInterface {
   FROM: string[];
   ALIAS?: string;
   SELECT: string[];
   WHERE?: string[];
+  LIMIT?: number;
 }
 
 /**
