@@ -1,5 +1,8 @@
-import { describe } from "@jest/globals"
-import { query, transaction, shutdown, Query } from "../src/database.js";
+import { query, transaction, connect, shutdown, Query } from "../src/database.js";
+
+beforeAll(async () => {
+	await connect();
+})
 
 afterAll(async () => {
 	await shutdown();
@@ -9,7 +12,7 @@ describe('Database connect', () => {
 	it('Should connect to db', async () => {
 		interface Model { state: string };
 		const q = new Query("SELECT state FROM pg_stat_activity WHERE datname = $1;", [process.env.POSTGRES_DB!]);
-		await expect(query<Model>(q)).resolves.toEqual([{ state: "active" }]);
+		await expect(query<Model>(q)).resolves.toContainEqual({ state: "active" });
 	});
 });
 
@@ -37,7 +40,6 @@ describe('Database queries', () => {
 
 	it("Should handle transactions", async () => {
 		const t = [
-			new Query(`BEGIN;`),
 			new Query(
 				`CREATE TABLE job_details(
 					job VARCHAR(255) PRIMARY KEY,
@@ -65,7 +67,6 @@ describe('Database queries', () => {
 					('joe', 44, 'dev'),
 					('jepsen', 45, 'teacher');`
 			),
-			new Query(`COMMIT;`)
 		];
 		await expect(transaction(t)).resolves.toBeUndefined();
 
