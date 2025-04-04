@@ -4,11 +4,8 @@ import { generateCairoCode } from '../actions/generateCairoCode.js';
 import { fixCairoCode } from '../actions/fixCairoCode.js';
 import { initializeDatabase } from '../utils/db_init.js';
 import { registerProject } from '../actions/registerProject.js';
-import { deleteProgramAction } from '../actions/deleteItemProject.js';
-import { deleteDependencyAction } from '../actions/deleteItemProject.js';
-import { deleteProjectAction } from '../actions/deleteItemProject.js';
-import { addDependencyAction } from '../actions/addItem.js';
-import { addProgramAction } from '../actions/addItem.js';
+import { deleteProgramAction, deleteDependencyAction, deleteProjectAction } from '../actions/deleteItemProject.js';
+import { addDependencyAction, addProgramAction } from '../actions/addItem.js';
 import { listProjects } from '../actions/listProjects.js';
 
 export const initializeTools = async (
@@ -40,7 +37,6 @@ export const registerTools = async (
     execute: generateCairoCode,
   });
   
-  // Add the new fixCairo tool
   StarknetToolRegistry.push({
     name: 'cairocoder_fix_code',
     plugins: 'cairocoder',
@@ -59,7 +55,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'cairocoder_delete_program',
-    description: 'Delete a program from a Cairo project in the database. Requires a program name.',
+    description: 'Delete programs from a Cairo project in the database. Requires a project name and a list of program names.',
     plugins: 'cairocoder',
     schema: deleteProgramSchema,
     execute: deleteProgramAction,
@@ -67,7 +63,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'cairocoder_delete_dependency',
-    description: 'Delete a dependency from a Cairo project in the database. Requires a dependency name.',
+    description: 'Delete dependencies from a Cairo project in the database. Requires a project name and a list of dependency names.',
     plugins: 'cairocoder',
     schema: deleteDependencySchema,
     execute: deleteDependencyAction,
@@ -75,7 +71,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'cairocoder_delete_project',
-    description: 'Delete an entire Cairo project and all its data from the database. Requires a project name.',
+    description: 'Delete several Cairo projects and all their data from the database. Requires a list of project names.',
     plugins: 'cairocoder',
     schema: deleteProjectSchema,
     execute: deleteProjectAction,
@@ -83,7 +79,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'cairocoder_add_dependency',
-    description: 'Add a dependency to an existing Cairo project in the database. Requires a dependency name.',
+    description: 'Add dependencies to an existing Cairo project in the database. Requires a project name and a list of dependency names.',
     plugins: 'cairocoder',
     schema: addDependencySchema,
     execute: addDependencyAction,
@@ -91,7 +87,7 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'cairocoder_add_program',
-    description: 'Add a program to an existing Cairo project in the database. Requires a program name.',
+    description: 'Add programs to an existing Cairo project in the database. Requires a project name and a list of program paths.',
     plugins: 'cairocoder',
     schema: addProgramSchema,
     execute: addProgramAction,

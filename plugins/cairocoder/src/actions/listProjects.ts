@@ -23,16 +23,8 @@ export const listProjects = async (
       FROM: ['project']
     });
 
-    if (!projectsResult.query?.rows.length) {
-      return JSON.stringify({
-        status: 'success',
-        message: 'No projects found in the database',
-        projects: [],
-      });
-    }
-
     const projects = [];
-    for (const project of projectsResult.query.rows) {
+    for (const project of projectsResult.query?.rows || []) {
       projects.push({
         name: project.name,
       });
@@ -40,7 +32,7 @@ export const listProjects = async (
 
     return JSON.stringify({
       status: 'success',
-      message: `Found ${projects.length} projects in the database`,
+      message: projects.length > 0 ? `Found ${projects.length} projects in the database` : 'No projects found in the database',
       projects: projects,
     });
   } catch (error) {

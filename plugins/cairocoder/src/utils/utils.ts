@@ -2,10 +2,12 @@ import { CairoCodeGenerationResponse } from "../types/index.js";
 import { generateCairoCodeSchema } from "../schema/schema.js";
 import axios from "axios";
 import fs from "fs";
+import fsPromises from "fs/promises";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { z } from "zod";
+import { resolveContractPath } from "./path.js";
 
 // Get current file's directory (ES module equivalent of __dirname)
 const __filename = fileURLToPath(import.meta.url);
@@ -37,7 +39,6 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     if (!apiUrl) {
       throw new Error('CAIRO_GENERATION_API_URL is not set');
     }
-    // console.log(prompt);
     const response = await axios.post<CairoCodeGenerationResponse>(
       apiUrl,
       {
@@ -71,7 +72,6 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     if (!generatedContent) {
       throw new Error('No content was generated from the API');
     }
-    // console.log("\nGenerated content = ", generatedContent);
     return generatedContent;
   }
   
@@ -98,7 +98,6 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
    * @returns The path to the saved file
    */
   export function saveToDebugFile(contractName: string, cairoCode: string): string {
-    // Using resolved directory path instead of __dirname directly
     const debugDir = path.join(__dirname, '../..', 'contract');
     if (!fs.existsSync(debugDir)) {
       fs.mkdirSync(debugDir, { recursive: true });
@@ -106,45 +105,26 @@ export function validateParams(params: z.infer<typeof generateCairoCodeSchema>):
     
     const debugFile = path.join(debugDir, contractName);
     fs.writeFileSync(debugFile, cairoCode);
-    //  console.log("\nCairo code written to debug file:", debugFile);
     
     return debugFile;
   }
   
-//   /**
-//    * Saves Cairo code to the database
-//    * @param agent The Starknet agent
-//    * @param contractName The name of the contract
-//    * @param cairoCode The Cairo code to save
-//    */
-//   export async function saveToDB(
-//     agent: StarknetAgentInterface,
-//     contractName: string,
-//     cairoCode: string
-//   ): Promise<void> {
-//     try {
-//         await addProgram(agent, contractName, cairoCode);
-//         console.log(`Cairo code saved to database as ${contractName}`);
-//     } catch (error) {
-//         throw new Error(`Database error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-//     }
-//   }
+/**
+ * Encodes Cairo source code for database storage
+ * @param code The source code to encode
+ * @returns The encoded source code
+ */
+export function encodeSourceCode(code: string): string {
+  return code.replace(/\0/g, '');
+}
 
-//   /**
-//  * Get a raw program from the database by name
-//  * @param agent The StarkNet agent
-//  * @param programName The name of the program to get
-//  * @returns The raw program if found, undefined otherwise
-//  */
-// export async function getRawProgramByName(
-//   agent: StarknetAgentInterface,
-//   programName: string
-// ): Promise<RawProgram | undefined> {
-//   try {
-//     const allPrograms = await getAllRawPrograms(agent);
-//     return allPrograms.find(program => program.name === programName);
-//   } catch (error) {
-//     console.error('Error retrieving program:', error);
-//     throw new Error(`Failed to retrieve program ${programName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-//   }
-// }
+/**
+ * Extracts the source code from a contract file
+ * @param sourcePath The path to the contract file
+ * @returns The source code of the contract file
+ */
+export async function  extractFile(sourcePath: string): Promise<string> {
+  const resolvedPath = await resolveContractPath(sourcePath);
+  const sourceCode = await fsPromises.readFile(resolvedPath, 'utf-8');
+  return sourceCode;
+}

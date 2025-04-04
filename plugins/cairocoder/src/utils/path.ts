@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-
+import fsPromises from 'fs/promises';
 /**
  * Search for a file in the parent directories
  * @param filename The name of the file to search for
@@ -39,4 +39,28 @@ function findUp(
     }
     return path.dirname(rootPackageJsonPath);
   }
+
+  /**
+ * Resolves the full path of a contract file based on its name
+ * @param fileName The name of the contract file
+ * @returns The full path of the contract file
+ */
+export async function resolveContractPath(fileName: string): Promise<string> {
+  let uploadDir = process.env.UPLOAD_DIR;
+  if (!uploadDir) {
+    throw new Error('UPLOAD_DIR is not defined');
+  }
+
+  let repoRoot = getRepoRoot();
+
+  const filePath = path.join(repoRoot, uploadDir, fileName);
+
+  try {
+    await fsPromises.access(filePath);
+  } catch (error) {
+    throw new Error(`File not found: ${filePath}. Make sure the file exists in the ${uploadDir} directory.`);
+  }
+
+  return filePath;
+}   
   

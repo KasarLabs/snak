@@ -1,11 +1,17 @@
 import { StarknetAgentInterface } from "@starknet-agent-kit/agents";
 import { addProgramSchema, addDependencySchema } from "../schema/schema.js";
+import { retrieveProjectData } from "../utils/db_init.js";
+import { addProgram, addDependency } from "../utils/db_add.js";
+import { extractFile } from "../utils/utils.js";
 import path from 'path';
 import { z } from 'zod';
-import { retrieveProjectData } from "../utils/db_init.js";
-import { extractFile, addProgram, addDependency, resolveContractPath } from "../utils/db_add.js";
 
-
+/**
+ * Add several programs to a project
+ * @param agent The Starknet agent
+ * @param params The parameters of the program
+ * @returns The result of the operation
+ */
 export const addProgramAction = async (
     agent: StarknetAgentInterface,
     params: z.infer<typeof addProgramSchema>
@@ -41,6 +47,12 @@ export const addProgramAction = async (
   };
   
   
+  /**
+   * Add several dependencies to a project
+   * @param agent The Starknet agent
+   * @param params The parameters of the dependencies
+   * @returns The result of the operation
+   */
   export const addDependencyAction = async (
     agent: StarknetAgentInterface,
     params: z.infer<typeof addDependencySchema>

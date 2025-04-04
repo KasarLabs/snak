@@ -1,65 +1,6 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { Dependency } from '../types/index.js';
-import fs from 'fs';
-import fsPromises from 'fs/promises'; 
-import path from 'path';
-import crypto from 'crypto';
-import { getRepoRoot } from './path.js';
 import { getAllPackagesList } from './dependencies.js';
-
-
-
-/**
- * Résout le chemin complet d'un fichier de contrat à partir de son nom
- * en utilisant le répertoire d'upload défini dans les variables d'environnement
- * @param fileName Nom du fichier de contrat
- * @returns Chemin complet du fichier
- */
-export async function resolveContractPath(fileName: string): Promise<string> {
-  let uploadDir = process.env.UPLOAD_DIR;
-  if (!uploadDir) {
-    throw new Error('UPLOAD_DIR is not defined');
-  }
-
-  let repoRoot = getRepoRoot();
-
-  const filePath = path.join(repoRoot, uploadDir, fileName);
-
-  try {
-    await fsPromises.access(filePath);
-  } catch (error) {
-    throw new Error(`File not found: ${filePath}. Make sure the file exists in the ${uploadDir} directory.`);
-  }
-
-  return filePath;
-}
-
-/**
- * Encodes Cairo source code for database storage
- * @param code The source code to encode
- * @returns The encoded source code
- */
-export function encodeSourceCode(code: string): string {
-    return code.replace(/\0/g, '');
-  }
-  
-  /**
-   * Decodes Cairo source code from database storage
-   * @param encodedCode The encoded source code
-   * @returns The decoded source code
-   */
-  export function decodeSourceCode(encodedCode: string): string {
-    return encodedCode;
-  }
-
-  /**
-   * Modifie la fonction extractFile pour utiliser la nouvelle version asynchrone de resolveContractPath
-   */
-  export async function  extractFile(sourcePath: string): Promise<string> {
-    const resolvedPath = await resolveContractPath(sourcePath);
-    const sourceCode = await fsPromises.readFile(resolvedPath, 'utf-8');
-    return sourceCode;
-  }
+import { encodeSourceCode } from './utils.js';
   
   /**
    * Adds a program to the database
@@ -89,15 +30,12 @@ export function encodeSourceCode(code: string): string {
         });
 
       if (existingProgram.query && existingProgram.query.rows.length > 0) {
-        // console.log(`Updating existing program ${name}`);
-        const res = await database.query(
+        await database.query(
           `UPDATE program SET source_code = $1 WHERE id = $2`,
           [encodedCode, existingProgram.query.rows[0].id]
         );
-        // console.log(res);
       } else {
-        // console.log(`Adding new program ${name}`);
-        const res = await database.insert({
+        await database.insert({
           table_name: 'program',
           fields: new Map<string, string | number>([
             ['id', 'DEFAULT'],
@@ -106,11 +44,8 @@ export function encodeSourceCode(code: string): string {
             ['source_code', encodedCode],
           ]),
         });
-        // console.log(res);
       }
-      // console.log(`Program ${name} added to database`);
     } catch (error) {
-      console.error(`Error adding program ${name}:`, error);
       throw error;
     }
   };
@@ -147,7 +82,6 @@ export function encodeSourceCode(code: string): string {
         ]),
       });
     } catch (error) {
-      console.error(`Error adding dependency ${dependencyName}:`, error);
       throw error;
     }
   };

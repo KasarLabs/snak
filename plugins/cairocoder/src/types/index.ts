@@ -27,17 +27,26 @@ export interface CairoCodeGenerationResponse {
   };
 } 
 
+/**
+ * Represents a Cairo program
+ */
 export interface CairoProgram {
   name: string;
   source_code: string;
 }
 
+/**
+ * Represents a dependency
+ */
 export interface Dependency {
   name: string;
   version?: string;
   git?: string;
 }
 
+/**
+ * Represents a project
+ */ 
 export interface ProjectData {
   id: number;
   name: string;

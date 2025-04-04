@@ -74,7 +74,6 @@ export const deleteDependency = async (
       WHERE: [`project_id = ${projectId}`, `name = '${dependencyName}'`],
     });
   } catch (error) {
-    console.error(`Error deleting dependency ${dependencyName}:`, error);
     throw error;
   }
 };
@@ -105,7 +104,6 @@ export const deleteProject = async (
       throw new Error(`Failed to delete project "${projectName}"`);
     }
   } catch (error) {
-    console.error(`Error deleting project ${projectName}:`, error);
     throw error;
   }
 };

@@ -68,7 +68,7 @@ export const registerProjectSchema = z.object({
  * Schema for deleting a program
  *
  * @property projectName The name of the project to delete the program from
- * @property programName The name of the program to delete
+ * @property programName The name of the programs to delete
  */
 export const deleteProgramSchema = z.object({
   projectName: z
@@ -83,7 +83,7 @@ export const deleteProgramSchema = z.object({
  * Schema for deleting a dependency
  *
  * @property projectName The name of the project to delete the dependency from
- * @property dependencyName The name of the dependency to delete
+ * @property dependencyName The name of the dependencies to delete
  */
 export const deleteDependencySchema = z.object({
   projectName: z
@@ -97,7 +97,7 @@ export const deleteDependencySchema = z.object({
 /**
  * Schema for deleting a project
  *
- * @property projectName The name of the project to delete
+ * @property projectName The name of the projects to delete
  */
 export const deleteProjectSchema = z.object({
   projectName: z
@@ -105,6 +105,12 @@ export const deleteProjectSchema = z.object({
     .describe('Array of project names to delete'),
 });
 
+/**
+ * Schema for adding a program
+ *
+ * @property projectName The name of the existing project to add the program to
+ * @property programPaths Array of paths to Cairo files
+ */
 export const addProgramSchema = z.object({
   projectName: z
     .string()
@@ -114,6 +120,12 @@ export const addProgramSchema = z.object({
     .describe('Array of paths to Cairo files'),
 });
 
+/**
+ * Schema for adding a dependency
+ *
+ * @property projectName The name of the existing project to add the dependency to
+ * @property dependencies Array of dependency names
+ */
 export const addDependencySchema = z.object({
   projectName: z
     .string()

@@ -1,10 +1,9 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-// import { resolveContractPath } from './path.js';
-import { Dependency, CairoProgram, ProjectData } from '../types/index.js';
-import { addProgram, extractFile } from './db_add.js';
+import * as path from 'path'; 
+import { CairoProgram, ProjectData } from '../types/index.js';
+import { addProgram } from './db_add.js';
 import { addDependency } from './db_add.js';
+import { extractFile } from './utils.js';
 
 
 /**
@@ -68,7 +67,6 @@ export const initializeDatabase = async (
 
       if (result.status === 'error') {
         if (result.code === '42P07') {
-          console.warn(`Table ${table.table_name} already exists. Adding it.`);
           database.addExistingTable({
             table_name: table.table_name,
             if_not_exist: false,
@@ -220,7 +218,6 @@ export const retrieveProjectData = async (
         dependencies: dependenciesResult.query?.rows || [],
       };
     } catch (error) {
-      console.error('Error in retrieving data : ', error.message);
       throw error;
     }
   };
@@ -253,7 +250,6 @@ export const retrieveProjectData = async (
 
       return projectResult.query?.rows[0];
     } catch (error) {
-      console.error("Project not found in database");
       throw error;
     }
   };

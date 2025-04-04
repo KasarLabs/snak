@@ -5,6 +5,10 @@ import { Dependency } from '../types/index.js';
 
 const BASE_URL = "https://scarbs.xyz/";
 
+/**
+ * Fetches all packages from the Scarbs website
+ * @returns An async generator of package tuples [name, version]
+ */
 export async function* fetchAllPackages(): AsyncGenerator<[string, string]> {
   const response = await axios.get(new URL('/packages', BASE_URL).toString());
   const dom = new JSDOM(response.data);
@@ -30,6 +34,11 @@ export async function* fetchAllPackages(): AsyncGenerator<[string, string]> {
   }
 }
 
+/**
+ * Fetches packages from a specific page of the Scarbs website
+ * @param pageUrl The URL of the page to fetch packages from
+ * @returns An async generator of package tuples [name, version]
+ */
 export async function* getPackagesFromPage(pageUrl: string): AsyncGenerator<[string, string]> {
   const response = await axios.get(pageUrl);
   const dom = new JSDOM(response.data);
@@ -54,8 +63,8 @@ export async function* getPackagesFromPage(pageUrl: string): AsyncGenerator<[str
 }
 
 /**
- * Récupère la liste complète de tous les packages avec leurs versions
- * @returns Une promesse qui résout vers un tableau de tuples [nom du package, version]
+ * Fetches all packages from the Scarbs website and returns a list of dependencies
+ * @returns A list of dependencies
  */
 export async function getAllPackagesList(): Promise<Dependency[]> {
   const packagesList: Dependency[] = [];

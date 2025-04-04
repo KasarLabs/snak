@@ -13,7 +13,7 @@ import {
 import { retrieveProjectData } from '../utils/db_init.js';
 
 /**
- * Delete a program from a project
+ * Delete several programs from a project
  *
  * @param agent The StarkNet agent
  * @param params The deletion parameters
@@ -49,7 +49,7 @@ export const deleteProgramAction = async (
 };
 
 /**
- * Delete a dependency from a project
+ * Delete several dependencies from a project
  *
  * @param agent The StarkNet agent
  * @param params The deletion parameters
@@ -85,7 +85,7 @@ export const deleteDependencyAction = async (
 };
 
 /**
- * Delete an entire project
+ * Delete several projects
  *
  * @param agent The StarkNet agent
  * @param params The deletion parameters
