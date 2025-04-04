@@ -247,12 +247,7 @@ export class ContractManager {
     return typedArgs;
   }
 
-  /**
-   * Converts a string to the appropriate JavaScript type
-   * @param value - The string to convert
-   * @param type - The Cairo type
-   * @returns The converted value in the appropriate JavaScript type
-   */
+//
   convertStringToType(value: string, type: string): any {
     if (value === undefined || value === null) {
       throw new Error(`Missing value for type ${type}`);
