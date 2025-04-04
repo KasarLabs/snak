@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from "@starknet-agent-kit/agents";
+import { logger, StarknetAgentInterface } from "@starknet-agent-kit/agents";
 import { addProgramSchema, addDependencySchema } from "../schema/schema.js";
 import { retrieveProjectData } from "../utils/db_init.js";
 import { addProgram, addDependency } from "../utils/db_add.js";
@@ -17,8 +17,8 @@ export const addProgramAction = async (
     params: z.infer<typeof addProgramSchema>
   ) => {
     try {
-      console.log('\n➜ Adding program');
-      console.log(JSON.stringify(params, null, 2));
+      logger.info('\n➜ Adding program');
+      logger.info(JSON.stringify(params, null, 2));
       
       const projectData = await retrieveProjectData(agent, params.projectName);
         
@@ -38,7 +38,7 @@ export const addProgramAction = async (
         programsCount: updatedProject.programs.length,
       });
     } catch (error) {
-      console.error('Error adding program:', error);
+      logger.error('Error adding program:', error);
       return JSON.stringify({
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -58,8 +58,8 @@ export const addProgramAction = async (
     params: z.infer<typeof addDependencySchema>
   ) => {
     try {
-      console.log('\n➜ Adding dependency');
-      console.log(JSON.stringify(params, null, 2));
+      logger.info('\n➜ Adding dependency');
+      logger.info(JSON.stringify(params, null, 2));
 
       const projectData = await retrieveProjectData(agent, params.projectName);
   
@@ -77,7 +77,7 @@ export const addProgramAction = async (
         dependenciesCount: updatedProject.dependencies.length,
       });
     } catch (error) {
-      console.error('Error adding dependency:', error);
+      logger.error('Error adding dependency:', error);
       return JSON.stringify({
         status: 'failure',
         error: error instanceof Error ? error.message : 'Unknown error',

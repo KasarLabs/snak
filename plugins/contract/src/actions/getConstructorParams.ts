@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';  
 import { ContractManager } from '../utils/contractManager.js';
 import { Account } from 'starknet';
@@ -42,6 +42,7 @@ export const getConstructorParams = async (
       paramCount: constructorParams.length,
     });
   } catch (error) {
+    logger.error('Error getting constructor parameters:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

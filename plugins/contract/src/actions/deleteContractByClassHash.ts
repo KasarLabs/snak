@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
 import { deleteContractByClassHash } from '../utils/db_init.js';
@@ -14,25 +14,18 @@ export const deleteContractByClassHashAction = async (
   params: z.infer<typeof deleteContractByClassHashSchema>
 ): Promise<string> => {
   try {
-    console.log('\n➜ Deleting contract by class hash');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Deleting contract by class hash');
+    logger.info(JSON.stringify(params, null, 2));
     
-    const result = await deleteContractByClassHash(agent, params.classHash);
-
-    if (!result.success) {
-      return JSON.stringify({
-        status: 'failure',
-        error: result.message,
-      });
-    }
+    await deleteContractByClassHash(agent, params.classHash);
 
     return JSON.stringify({
       status: 'success',
-      message: result.message,
+      message: `Contract with class hash ${params.classHash} successfully deleted`,
       classHash: params.classHash,
     });
   } catch (error) {
-    console.error('Error deleting contract by class hash:', error);
+    logger.error('Error deleting contract by class hash:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

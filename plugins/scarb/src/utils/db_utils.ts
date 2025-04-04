@@ -39,8 +39,7 @@ export async function storeJsonFromFile(
       );
     }
   } catch (error) {
-    console.error('Error storing JSON file:', error);
-    throw error;
+    throw new Error(`Error storing JSON file: ${error.message}`);
   }
 }
 

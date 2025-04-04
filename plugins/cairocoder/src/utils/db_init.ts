@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as path from 'path'; 
 import { CairoProgram, ProjectData } from '../types/index.js';
 import { addProgram } from './db_add.js';
@@ -79,7 +79,7 @@ export const initializeDatabase = async (
     }
     return database;
   } catch (error) {
-    console.error('Error initializing database:', error);
+    logger.error('Error initializing database:', error);
     return undefined;
   }
 };
@@ -133,8 +133,7 @@ export const createProject = async (
 
     return newProject.query.rows[0].id;
   } catch (error) {
-    console.error('Error creating project:', error);
-    throw error;
+    throw new Error(`Error creating project: ${error.message}`);
   }
 };
 
@@ -166,8 +165,7 @@ export const initializeProjectData = async (
       await addDependency(agent, projectId, dependency);
     }
   } catch (error) {
-    console.error('Error initializing project data:', error);
-    throw error;
+    throw new Error(`Error initializing project data: ${error.message}`);
   }
 };
 
@@ -218,7 +216,7 @@ export const retrieveProjectData = async (
         dependencies: dependenciesResult.query?.rows || [],
       };
     } catch (error) {
-      throw error;
+      throw new Error(`Error retrieving project data: ${error.message}`);
     }
   };
   
@@ -250,7 +248,7 @@ export const retrieveProjectData = async (
 
       return projectResult.query?.rows[0];
     } catch (error) {
-      throw error;
+      throw new Error(`Error getting project by name: ${error.message}`);
     }
   };
 

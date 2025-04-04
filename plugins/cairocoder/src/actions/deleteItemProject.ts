@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import {
   deleteProgram,
@@ -40,7 +40,7 @@ export const deleteProgramAction = async (
       programsCount: updatedProject.programs.length,
     });
   } catch (error) {
-    console.error('Error deleting program:', error);
+    logger.error('Error deleting program:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -76,7 +76,7 @@ export const deleteDependencyAction = async (
       dependenciesCount: updatedProject.dependencies.length,
     });
   } catch (error) {
-    console.error('Error deleting dependency:', error);
+    logger.error('Error deleting dependency:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -105,7 +105,7 @@ export const deleteProjectAction = async (
       message: `Projects ${params.projectName} deleted successfully`,
     });
   } catch (error) {
-    console.error('Error deleting project:', error);
+    logger.error('Error deleting project:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

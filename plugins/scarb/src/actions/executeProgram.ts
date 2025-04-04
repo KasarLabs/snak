@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { retrieveProjectData } from '../utils/db_retrieve.js';
@@ -20,8 +20,8 @@ export const executeProgram = async (
   let projectDir = '';
   let mode = '';
   try {
-    console.log('\n➜ Executing program');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Executing program');
+    logger.info(JSON.stringify(params, null, 2));
 
     const projectData = await retrieveProjectData(agent, params.projectName);
 

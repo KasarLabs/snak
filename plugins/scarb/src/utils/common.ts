@@ -36,8 +36,7 @@ export async function setupScarbProject(
 
     return projectDir;
   } catch (error) {
-    console.error('Error setting up Scarb project:', error);
-    throw error;
+    throw new Error(`Error setting up Scarb project: ${error.message}`);
   }
 }
 

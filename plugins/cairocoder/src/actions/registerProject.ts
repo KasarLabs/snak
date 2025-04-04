@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import {
   initializeProjectData,
@@ -19,8 +19,8 @@ export const registerProject = async (
   params: z.infer<typeof registerProjectSchema>
 ) => {
   try {
-    console.log('\n➜ Registering project');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Registering project');
+    logger.info(JSON.stringify(params, null, 2));
     
     if (params.projectName.includes('-'))
       throw new Error(
@@ -73,7 +73,7 @@ export const registerProject = async (
       dependenciesCount: projectData.dependencies.length,
     });
   } catch (error) {
-    console.error('Error registering project:', error);
+    logger.error('Error registering project:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

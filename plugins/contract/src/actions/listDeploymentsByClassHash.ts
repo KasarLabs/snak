@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { listDeploymentsByClassHashSchema } from '../schemas/schema.js';
 
@@ -55,7 +55,7 @@ export const listDeploymentsByClassHash = async (
       deployments: deployments,
     });
   } catch (error) {
-    console.error('Error listing deployments by class hash:', error);
+    logger.error('Error listing deployments by class hash:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

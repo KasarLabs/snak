@@ -58,8 +58,7 @@ export const retrieveProjectData = async (
       dependencies: dependenciesResult.query?.rows || [],
     };
   } catch (error) {
-    console.error('Error in retrieving data : ', error.message);
-    throw error;
+    throw new Error(`Error in retrieving data: ${error.message}`);
   }
 };
 
@@ -119,8 +118,7 @@ export const retrieveCompilationFilesByName = async (
 
     return { sierra, casm };
   } catch (error) {
-    console.error('Error retrieving compilation files:', error);
-    throw error;
+    throw new Error(`Error retrieving compilation files: ${error.message}`);
   }
 };
 
@@ -171,8 +169,7 @@ export const retrieveTrace = async (
     if (outputPath) await fs.writeFile(outputPath, buffer);
     else return buffer;
   } catch (error) {
-    console.error('Error retrieving execution results:', error);
-    throw error;
+    throw new Error(`Error retrieving execution results: ${error.message}`);
   }
 };
 
@@ -208,8 +205,7 @@ export const retrieveProof = async (
     const projectProof = projectResult.query.rows[0].proof;
     return projectProof;
   } catch (error) {
-    console.error('Error retrieving compilation files:', error);
-    throw error;
+    throw new Error(`Error retrieving proof: ${error.message}`);
   }
 };
 
@@ -245,7 +241,6 @@ export const retrieveVerification = async (
     const projectVerification = projectResult.query.rows[0].verified;
     return projectVerification;
   } catch (error) {
-    console.error('Error retrieving compilation files:', error);
-    throw error;
+    throw new Error(`Error retrieving verification: ${error.message}`);
   }
 };

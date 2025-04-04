@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 /**
  * Initialize the contract database
@@ -52,8 +52,7 @@ export const initializeContractDatabase = async (
 
     return database;
   } catch (error) {
-    console.error('Error initializing contract database:', error);
-    return undefined;
+    throw new Error(`Error initializing contract database: ${error.message}`);
   }
 };
 
@@ -105,8 +104,7 @@ export const saveContractDeclaration = async (
 
     return newContract.query.rows[0].id;
   } catch (error) {
-    console.error('Error saving contract declaration:', error);
-    throw error;
+    throw new Error(`Error saving contract declaration: ${error.message}`);
   }
 };
 
@@ -172,8 +170,7 @@ export const saveContractDeployment = async (
 
     return newDeployment.query.rows[0].id;
   } catch (error) {
-    console.error('Error saving contract deployment:', error);
-    throw error;
+    throw new Error(`Error saving contract deployment: ${error.message}`);
   }
 };
 
@@ -186,7 +183,7 @@ export const saveContractDeployment = async (
 export const deleteContractByClassHash = async (
   agent: StarknetAgentInterface,
   classHash: string
-): Promise<{ success: boolean; message: string }> => {
+): Promise<void> => {
   try {
     const database = agent.getDatabaseByName('contract_db');
     if (!database) {
@@ -199,15 +196,7 @@ export const deleteContractByClassHash = async (
       WHERE: [`class_hash = '${classHash}'`],
     });
 
-    return {
-      success: true,
-      message: `Contract with class hash ${classHash} successfully deleted`,
-    };
   } catch (error) {
-    console.error('Error deleting contract:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Unknown error',
-    };
+    throw new Error(`Error deleting contract: ${error.message}`);
   }
 };

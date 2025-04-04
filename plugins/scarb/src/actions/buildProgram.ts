@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';
@@ -20,8 +20,8 @@ export const compileContract = async (
 ) => {
   let projectDir = '';
   try {
-    console.log('\n➜ Compiling contract');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Compiling contract');
+    logger.info(JSON.stringify(params, null, 2));
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -69,7 +69,6 @@ export const compileContract = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    console.log('Error compiling contract:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,

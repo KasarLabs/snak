@@ -1,5 +1,5 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { ContractManager } from '../utils/contractManager.js';
 import { deployContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
@@ -17,8 +17,8 @@ export const deployContract = async (
   params: z.infer<typeof deployContractSchema>
 ): Promise<string> => {
   try {
-    console.log('\n➜ Deploying contract');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Deploying contract');
+    logger.info(JSON.stringify(params, null, 2));
 
     if (!params?.classHash) {
       throw new Error('Class hash is required for deployment');
@@ -70,7 +70,7 @@ export const deployContract = async (
       contractAddress: deployResponse.contractAddress,
     });
   } catch (error) {
-    console.log('Error deploying contract:', error.message);
+    logger.error('Error deploying contract:', error.message);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

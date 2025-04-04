@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
 import { saveVerification } from '../utils/db_save.js';
@@ -19,8 +19,9 @@ export const verifyProgram = async (
 ) => {
   let projectDir = '';
   try {
-    console.log('\n➜ Verifying program');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Verifying program');
+    logger.info(JSON.stringify(params, null, 2));
+
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -49,6 +50,7 @@ export const verifyProgram = async (
       errors: parsedResult.errors,
     });
   } catch (error) {
+    logger.error('Error verifying program:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

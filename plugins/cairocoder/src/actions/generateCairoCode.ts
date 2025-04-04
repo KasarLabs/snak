@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { generateCairoCodeSchema } from '../schema/schema.js';
 import { validateParams, callCairoGenerationAPI, extractCairoCode, saveToDebugFile } from '../utils/utils.js';
@@ -16,8 +16,8 @@ export const generateCairoCode = async (
   params: z.infer<typeof generateCairoCodeSchema>
 ): Promise<string> => {
   try {
-    console.log('\n➜ Generating Cairo code');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Generating Cairo code');
+    logger.info(JSON.stringify(params, null, 2));
     
     validateParams(params);
     
@@ -34,7 +34,7 @@ export const generateCairoCode = async (
       code: cairoCode
     });
   } catch (error) {
-    console.error('Error generating Cairo code:', error);
+    logger.error('Error generating Cairo code:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error'

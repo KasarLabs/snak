@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { fixCairoCodeSchema } from '../schema/schema.js';
 import { callCairoGenerationAPI, extractCairoCode, saveToDebugFile } from '../utils/utils.js';
 import { addProgram } from '../utils/db_add.js';
@@ -16,8 +16,8 @@ export const fixCairoCode = async (
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {
-    console.log('\n➜ Fixing Cairo code');
-    console.log(JSON.stringify(params, null, 2));
+    logger.info('\n➜ Fixing Cairo code');
+    logger.info(JSON.stringify(params, null, 2));
 
     if (!params?.programName || !params.programName.endsWith('.cairo')) {
       throw new Error('Program name is required and must end with .cairo');
@@ -61,7 +61,7 @@ Can you fix the compilation errors?`;
       fixedCode: fixedCairoCode
     });
   } catch (error) {
-    console.error('Error fixing Cairo code:', error);
+    logger.error('Error fixing Cairo code:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error'

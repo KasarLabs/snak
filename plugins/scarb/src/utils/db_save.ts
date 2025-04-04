@@ -40,8 +40,7 @@ export const saveCompilationResults = async (
       const casmFile = casmFiles.find(file => path.basename(file) === contract.artifacts.casm);
       
       if (!sierraFile || !casmFile) {
-        console.warn(`Could not find Sierra or CASM file for ${nameContract}`);
-        continue;
+        throw new Error(`Could not find Sierra or CASM file for ${nameContract}`);
       }
 
       const program_id = await database.query(`
@@ -52,8 +51,7 @@ export const saveCompilationResults = async (
       `);
 
       if (program_id.status !== 'success') {
-        console.warn(`Failed to get program id for ${nameContract}: ${program_id.error_message}`);
-        continue;
+        throw new Error(`Failed to get program id for ${nameContract}: ${program_id.error_message}`);
       }
 
       await storeJsonFromFile(
@@ -72,8 +70,7 @@ export const saveCompilationResults = async (
       );
     }
   } catch (error) {
-    console.error('Error saving compilation results:', error);
-    throw error;
+    throw new Error(`Error saving compilation results: ${error.message}`);
   }
 };
 
@@ -111,8 +108,7 @@ export const saveExecutionResults = async (
 
     return updateResult;
   } catch (error) {
-    console.error('Error saving execution results:', error);
-    throw error;
+    throw new Error(`Error saving execution results: ${error.message}`);
   }
 };
 
@@ -133,8 +129,7 @@ export const saveProof = async (
     const fullPath = path.join(projectDir, proofPath);
     await storeJsonFromFile(agent, 'project', projectId, 'proof', fullPath);
   } catch (error) {
-    console.error('Error saving proof:', error);
-    throw error;
+    throw new Error(`Error saving proof: ${error.message}`);
   }
 };
 
@@ -167,7 +162,6 @@ export const saveVerification = async (
       );
     }
   } catch (error) {
-    console.error('Error saving verification status:', error);
-    throw error;
+    throw new Error(`Error saving verification status: ${error.message}`);
   }
 };

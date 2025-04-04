@@ -46,7 +46,7 @@ import { encodeSourceCode } from './utils.js';
         });
       }
     } catch (error) {
-      throw error;
+      throw new Error(`Error adding program: ${error.message}`);
     }
   };
   
@@ -82,6 +82,6 @@ import { encodeSourceCode } from './utils.js';
         ]),
       });
     } catch (error) {
-      throw error;
+      throw new Error(`Error adding dependency: ${error.message}`);
     }
   };

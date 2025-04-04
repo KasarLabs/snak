@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { listContractsSchema } from '../schemas/schema.js';
 import { z } from 'zod';
 
@@ -37,7 +37,7 @@ export const listDeclaredContracts = async (
       contracts: contracts,
     });
   } catch (error) {
-    console.error('Error listing contracts:', error);
+    logger.error('Error listing contracts:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
