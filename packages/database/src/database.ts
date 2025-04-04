@@ -71,7 +71,7 @@ export class Query {
  * @throws { DatabaseError }
  * @see module:database
  */
-export async function query<Model>(q: Query): Promise<Model[] | undefined> {
+export async function query<Model = {}>(q: Query): Promise<Model[] | undefined> {
 	try {
 		const query = await pool.query(q.query, q.values);
 		return query.rows;
@@ -111,8 +111,10 @@ export async function transaction(qs: Query[]): Promise<void> {
  * Closes the connection pool.
  *
  * > [!CAUTION]
- * > This method must imperatively be called at the end of the app's lifetime or
- * > else we risk starving the database of connections overtime!
+ * > This method must imperatively be called at the end of the app's lifetime 
+ * > or else we risk starving the database of connections overtime! **New calls
+ * > to the database can no longer be made once the connection pool has been 
+ * > closed**.
  */
 export async function shutdown(): Promise<void> {
 	try {
