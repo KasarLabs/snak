@@ -72,35 +72,3 @@ export function getWorkspacePath() {
 
   return workspacePath;
 }
-
-/**
- * Résout un chemin relatif par rapport à la racine du plugin
- * @param paths Segments de chemin à joindre au chemin du plugin
- * @returns Chemin absolu
- */
-export function resolvePluginPath(...paths: string[]) {
-  return path.join(getPluginRoot(), ...paths);
-}
-
-/**
- * Résout un chemin de contrat, cherchant d'abord dans les chemins relatifs au répertoire
- * de travail courant, puis dans les chemins relatifs au plugin
- * @param contractPath Chemin relatif ou nom du fichier contrat
- * @returns Chemin absolu vers le fichier contrat
- */
-export function resolveContractPath(contractPath: string): string {
-  const possiblePaths = [
-    contractPath,
-    path.resolve(process.cwd(), contractPath),
-    resolvePluginPath('src', 'contract', path.basename(contractPath)),
-    path.join(getWorkspacePath(), path.basename(contractPath)),
-  ];
-
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      return p;
-    }
-  }
-
-  throw new Error(`Contract file not found: ${contractPath}`);
-}

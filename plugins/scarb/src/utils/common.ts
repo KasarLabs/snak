@@ -1,5 +1,5 @@
 import { checkScarbInstalled } from './install.js';
-import { initProject } from './command.js';
+import { initProject } from './workspace.js';
 import {
   ScarbBaseParams,
   TomlSection,

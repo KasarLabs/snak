@@ -1,13 +1,12 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { proveProject } from '../utils/command.js';
+import { proveProject, cleanProject } from '../utils/workspace.js';
 import { proveProgramSchema } from '../schema/schema.js';
 import { executeProgram } from './executeProgram.js';
-import { z } from 'zod';
 import { saveProof } from '../utils/db_save.js';
-import { retrieveProjectData } from '../utils/db_init.js';
-import { cleanProject } from '../utils/command.js';
+import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { getProjectDir } from '../utils/preparation.js';
-import { formatCompilationError } from '../utils/errorHandler.js';
+import { formatCompilationError } from '../utils/utils.js';
+import { z } from 'zod';
 /**
  * Prove a program execution
  * @param agent The Starknet agent
@@ -22,6 +21,7 @@ export const proveProgram = async (
   try {
     console.log('\n➜ Proving program');
     console.log(JSON.stringify(params, null, 2));
+
     const execResult = await executeProgram(agent, {
       ...params,
       mode: 'standalone',

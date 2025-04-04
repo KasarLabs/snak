@@ -1,13 +1,12 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { buildProject } from '../utils/command.js';
+import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';
-import { retrieveProjectData } from '../utils/db_init.js';
+import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { saveCompilationResults } from '../utils/db_save.js';
-import { cleanProject } from '../utils/command.js';
 import { compileContractSchema } from '../schema/schema.js';
+import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
-import { formatCompilationError } from '../utils/errorHandler.js';
 
 /**
  * Compile a contract

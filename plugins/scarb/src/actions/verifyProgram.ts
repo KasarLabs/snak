@@ -1,13 +1,11 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { verifyProject } from '../utils/command.js';
+import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
-import { z } from 'zod';
 import { saveVerification } from '../utils/db_save.js';
-import { retrieveProjectData } from '../utils/db_init.js';
-import { retrieveProof } from '../utils/db_retrieve.js';
+import { retrieveProjectData, retrieveProof } from '../utils/db_retrieve.js';
 import { setupScarbProject } from '../utils/common.js';
 import { writeJsonToFile } from '../utils/utils.js';
-import { cleanProject } from '../utils/command.js';
+import { z } from 'zod';
 
 /**
  * Verify a program

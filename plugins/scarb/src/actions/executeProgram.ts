@@ -1,12 +1,12 @@
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { executeProject } from '../utils/command.js';
+import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
-import { retrieveProjectData } from '../utils/db_init.js';
+import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { executeProgramSchema } from '../schema/schema.js';
-import { z } from 'zod';
 import { saveExecutionResults } from '../utils/db_save.js';
-import { cleanProject } from '../utils/command.js';
-import { formatCompilationError } from '../utils/errorHandler.js';
+import { formatCompilationError } from '../utils/utils.js';
+import { z } from 'zod';
+
 /**
  * Execute a program
  * @param agent The Starknet agent
