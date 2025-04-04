@@ -74,7 +74,9 @@ export const deleteProgramSchema = z.object({
   projectName: z
     .string()
     .describe('The name of the project to delete the program from'),
-  programName: z.string().min(1).describe('The name of the program to delete'),
+  programName: z
+    .array(z.string())
+    .describe('Array of program names to delete'),
 });
 
 /**
@@ -88,8 +90,8 @@ export const deleteDependencySchema = z.object({
     .string()
     .describe('The name of the project to delete the dependency from'),
   dependencyName: z
-    .string()
-    .describe('The name of the dependency to delete'),
+    .array(z.string())
+    .describe('Array of dependency names to delete'),
 });
 
 /**
@@ -98,7 +100,9 @@ export const deleteDependencySchema = z.object({
  * @property projectName The name of the project to delete
  */
 export const deleteProjectSchema = z.object({
-  projectName: z.string().describe('The name of the project to delete'),
+  projectName: z
+    .array(z.string())
+    .describe('Array of project names to delete'),
 });
 
 export const addProgramSchema = z.object({

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { JSDOM } from 'jsdom';
 import { URL } from 'url';
 import { Dependency } from '../types/index.js';
+
 const BASE_URL = "https://scarbs.xyz/";
 
 export async function* fetchAllPackages(): AsyncGenerator<[string, string]> {

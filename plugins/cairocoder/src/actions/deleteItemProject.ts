@@ -26,13 +26,15 @@ export const deleteProgramAction = async (
   try {
     const projectData = await retrieveProjectData(agent, params.projectName);
 
-    await deleteProgram(agent, projectData.id, params.programName);
+    for (const program of params.programName) {
+      await deleteProgram(agent, projectData.id, program);
+    }
 
     const updatedProject = await retrieveProjectData(agent, params.projectName);
 
     return JSON.stringify({
       status: 'success',
-      message: `Program ${params.programName} deleted from project ${params.projectName}`,
+      message: `Programs ${params.programName} deleted from project ${params.projectName}`,
       projectId: updatedProject.id,
       projectName: updatedProject.name,
       programsCount: updatedProject.programs.length,
@@ -60,13 +62,15 @@ export const deleteDependencyAction = async (
   try {
     const projectData = await retrieveProjectData(agent, params.projectName);
 
-    await deleteDependency(agent, projectData.id, params.dependencyName);
+    for (const dependency of params.dependencyName) {
+      await deleteDependency(agent, projectData.id, dependency);
+    }
 
     const updatedProject = await retrieveProjectData(agent, params.projectName);
 
     return JSON.stringify({
       status: 'success',
-      message: `Dependency ${params.dependencyName} deleted from project ${params.projectName}`,
+      message: `Dependencies ${params.dependencyName} deleted from project ${params.projectName}`,
       projectId: updatedProject.id,
       projectName: updatedProject.name,
       dependenciesCount: updatedProject.dependencies.length,
@@ -92,11 +96,13 @@ export const deleteProjectAction = async (
   params: z.infer<typeof deleteProjectSchema>
 ) => {
   try {
-    await deleteProject(agent, params.projectName);
+    for (const project of params.projectName) {
+      await deleteProject(agent, project);
+    }
 
     return JSON.stringify({
       status: 'success',
-      message: `Project ${params.projectName} deleted successfully`,
+      message: `Projects ${params.projectName} deleted successfully`,
     });
   } catch (error) {
     console.error('Error deleting project:', error);

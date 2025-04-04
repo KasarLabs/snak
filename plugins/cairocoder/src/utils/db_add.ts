@@ -7,14 +7,7 @@ import crypto from 'crypto';
 import { getRepoRoot } from './path.js';
 import { getAllPackagesList } from './dependencies.js';
 
-/**
- * Crée un hash à partir d'une chaîne
- * @param input Chaîne à hasher
- * @returns Hash de la chaîne
- */
-async function createHash(input: string): Promise<string> {
-  return crypto.createHash('md5').update(input).digest('hex');
-}
+
 
 /**
  * Résout le chemin complet d'un fichier de contrat à partir de son nom

@@ -25,7 +25,6 @@ export const saveCompilationResults = async (
       throw new Error('Database not found');
     }
 
-    // Lire le contenu du fichier d'artefact pour obtenir les informations correctes sur les contrats
     const artifactContent = await fs.promises.readFile(artifactFile, 'utf-8');
     const artifact = JSON.parse(artifactContent);
 
@@ -33,66 +32,19 @@ export const saveCompilationResults = async (
       throw new Error('Invalid artifact file format: missing contracts array');
     }
 
-    // COMMENTÉ: Cette boucle cause l'inversion des associations entre noms de modules et fichiers Sierra/CASM
-    /*
-    for (let i = 0; i < sierraFiles.length; i++) {
-      const sierraFile = sierraFiles[i];
-      const casmFile = casmFiles[i];
-
-      const nameContract = await extractModuleFromArtifact(artifactFile, i);
-      const program_id = await database.query(`
-        SELECT id 
-        FROM program 
-        WHERE project_id = ${projectId}
-        AND name = '${nameContract + '.cairo'}'
-      `);
-
-      if (program_id.status !== 'success') {
-        throw new Error(
-          `Failed to get program id: ${program_id.error_message}`
-        );
-      }
-
-      console.log('program_name:', nameContract + '.cairo');
-      console.log('sierraFile:', sierraFile);
-
-      await storeJsonFromFile(
-        agent,
-        'program',
-        program_id.query?.rows[0].id,
-        'sierra',
-        sierraFile
-      );
-      await storeJsonFromFile(
-        agent,
-        'program',
-        program_id.query?.rows[0].id,
-        'casm',
-        casmFile
-      );
-    }
-    */
-
-    // NOUVEAU: Association correcte basée sur les informations de l'artefact
     for (const contract of artifact.contracts) {
-      // Extraire le nom du module (deuxième segment du chemin du module)
       const modulePath = contract.module_path;
       const parts = modulePath.split('::');
       const nameContract = parts.length >= 3 ? parts[parts.length - 2] : '';
       
-      // Trouver les fichiers Sierra et CASM correspondants
-      const sierraFileName = contract.artifacts.sierra;
-      const casmFileName = contract.artifacts.casm;
-      
-      const sierraFile = sierraFiles.find(file => path.basename(file) === sierraFileName);
-      const casmFile = casmFiles.find(file => path.basename(file) === casmFileName);
+      const sierraFile = sierraFiles.find(file => path.basename(file) === contract.artifacts.sierra);
+      const casmFile = casmFiles.find(file => path.basename(file) === contract.artifacts.casm);
       
       if (!sierraFile || !casmFile) {
         console.warn(`Could not find Sierra or CASM file for ${nameContract}`);
         continue;
       }
 
-      // Obtenir l'ID du programme
       const program_id = await database.query(`
         SELECT id 
         FROM program 
@@ -105,10 +57,6 @@ export const saveCompilationResults = async (
         continue;
       }
 
-      console.log('program_name:', nameContract + '.cairo');
-      console.log('sierraFile:', sierraFile);
-
-      // Stocker les fichiers Sierra et CASM
       await storeJsonFromFile(
         agent,
         'program',
