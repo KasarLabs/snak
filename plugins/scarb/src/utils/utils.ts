@@ -98,9 +98,9 @@ export const writeJsonToFile = (
 };
 
 /**
- * Formate les erreurs de compilation pour les retourner dans la réponse
- * @param error L'erreur capturée lors de l'exécution de la commande
- * @returns Un message d'erreur formaté
+ * Formats compilation errors
+ * @param error The error
+ * @returns The formatted error
  */
 export function formatCompilationError(error: any): string {
   if (!error || !error.stdout) {

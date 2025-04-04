@@ -12,7 +12,6 @@ import {
   compileContractSchema,
 } from '../schema/schema.js';
 import {
-  PostgresAdaptater,
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
@@ -61,37 +60,4 @@ export const registerTools = async (
     schema: verifyProgramSchema,
     execute: verifyProgram,
   });
-
-  // StarknetToolRegistry.push({
-  //   name: 'scarb_register_project',
-  //   description: 'Register or update a Cairo project in the database',
-  //   plugins: 'scarb',
-  //   schema: registerProjectSchema,
-  //   execute: registerProject,
-  // });
-
-  // StarknetToolRegistry.push({
-  //   name: 'scarb_delete_program',
-  //   description: 'Delete a program from a Cairo project in the database',
-  //   plugins: 'scarb',
-  //   schema: deleteProgramSchema,
-  //   execute: deleteProgramAction,
-  // });
-
-  // StarknetToolRegistry.push({
-  //   name: 'scarb_delete_dependency',
-  //   description: 'Delete a dependency from a Cairo project in the database',
-  //   plugins: 'scarb',
-  //   schema: deleteDependencySchema,
-  //   execute: deleteDependencyAction,
-  // });
-
-  // StarknetToolRegistry.push({
-  //   name: 'scarb_delete_project',
-  //   description:
-  //     'Delete an entire Cairo project and all its data from the database',
-  //   plugins: 'scarb',
-  //   schema: deleteProjectSchema,
-  //   execute: deleteProjectAction,
-  // });
 };

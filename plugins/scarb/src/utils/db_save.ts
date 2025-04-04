@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { storeJsonFromFile } from './db_utils.js';
-import { extractModuleFromArtifact } from './utils.js';
 
 /**
  * Save the compilation results in the database

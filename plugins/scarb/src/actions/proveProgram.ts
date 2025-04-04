@@ -58,7 +58,6 @@ export const proveProgram = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    // console.log('Error proving contract execution:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,

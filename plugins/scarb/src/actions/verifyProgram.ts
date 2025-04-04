@@ -49,7 +49,6 @@ export const verifyProgram = async (
       errors: parsedResult.errors,
     });
   } catch (error) {
-    // console.error('Error verifying proof:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

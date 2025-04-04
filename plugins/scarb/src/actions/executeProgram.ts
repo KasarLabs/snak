@@ -103,7 +103,6 @@ export const executeProgram = async (
     });
   } catch (error) {
     const errors = formatCompilationError(error);
-    // console.log('Error executing contract:', errors);
     return JSON.stringify({
       status: 'failure',
       errors: errors,

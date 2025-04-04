@@ -33,7 +33,6 @@ export async function storeJsonFromFile(
       recordId,
     ]);
 
-    // console.log(jsonContent);
     if (updateResult.status !== 'success') {
       throw new Error(
         `Failed to store JSON file: ${updateResult.error_message}`

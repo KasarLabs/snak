@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-//jsdoc more detailed description
-
 /**
  * Schema for installing Scarb
  *
