@@ -32,7 +32,7 @@ import { DatabaseError } from './error.js';
  *
  * @see module:database
  */
-const pool = new Pool({
+let pool = new Pool({
 	user: process.env.POSTGRES_USER,
 	host: process.env.POSTGRES_HOST,
 	database: process.env.POSTGRES_DB,
@@ -66,6 +66,28 @@ export class Query {
 }
 
 /**
+ * Creates a new connection pool. Shutting down the previous one if it was 
+ * still active.
+ *
+ * > This is mostly intended for use in setup/teardown logic between tests.
+ */
+export async function connect(): Promise<void> {
+	await shutdown();
+
+	pool = new Pool({
+		user: process.env.POSTGRES_USER,
+		host: process.env.POSTGRES_HOST,
+		database: process.env.POSTGRES_DB,
+		password: process.env.POSTGRES_PASSWORD,
+		port: parseInt(process.env.POSTGRES_PORT || '5432'),
+	});
+
+	pool.on('error', (err) => {
+		console.error('something bad has happened!', err.stack)
+	})
+}
+
+/**
  * Performs a query against the locally configured database.
  *
  * @throws { DatabaseError }
@@ -92,11 +114,11 @@ export async function transaction(qs: Query[]): Promise<void> {
 	try {
 		client = await pool.connect();
 
-		await client.query('BEGIN');
+		await client.query('BEGIN;');
 		for (const q of qs) {
 			await client.query(q.query, q.values);
 		}
-		await client.query('COMMIT');
+		await client.query('COMMIT;');
 
 	} catch (err: any) {
 		DatabaseError.handlePgError(err);
