@@ -21,10 +21,7 @@
 
 import client from 'prom-client';
 
-const register = new client.Registry();
-export const contentType = register.contentType;
-
-client.collectDefaultMetrics({ prefix: 'sank_', register });
+export const contentType = client.register.contentType;
 
 /**
  * Get the latest app metrics.
@@ -32,35 +29,66 @@ client.collectDefaultMetrics({ prefix: 'sank_', register });
  * @returns Plaintext prometheus metrics.
  */
 export async function metrics(): Promise<string> {
-  return await register.metrics();
+  if (!agentCountActive) {
+    metricsRegister();
+  }
+
+  return await client.register.metrics();
+}
+
+/**
+ * Lazy-loads the metrics if they have not been initialized yet.
+ */
+async function metricsRegister(): Promise<void> {
+  if (!agentCountActive) {
+    client.collectDefaultMetrics({ prefix: 'snak_' });
+
+    agentCountActive = new client.Gauge({
+      name: 'agent_count_active',
+      help: 'Number of currently active agents',
+      labelNames: ['agent', 'mode'] as const,
+    });
+
+    agentCountTotal = new client.Counter({
+      name: 'agent_count_total',
+      help: 'Number of agents created since server start',
+      labelNames: ['agent', 'mode'] as const,
+    });
+
+    agentResponseTime = new client.Histogram({
+      name: 'agent_response_time_seconds',
+      help: 'Time agents take to response to API requests, in seconds',
+      labelNames: ['agent', 'mode', 'route'] as const,
+      buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
+    });
+
+    dbQueryTime = new client.Histogram({
+      name: 'db_response_time_seconds',
+      help: 'Time the database takes to respond to queries, in seconds',
+      labelNames: ['query'] as const,
+      buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
+    });
+
+    dbCountError = new client.Counter({
+      name: 'db_count_error',
+      help: 'Number of database-related errors since server startup',
+      labelNames: ['query'] as const,
+    });
+
+    dbCountConnections = new client.Counter({
+      name: 'db_count_connections',
+      help: 'Number of active database connections',
+    });
+  }
 }
 
 // ========================================================================== //
 // ...............................AGENT METRICS.............................. //
 // ========================================================================== //
 
-const agentCountActive = new client.Gauge({
-  name: 'agent_count_active',
-  help: 'Number of currently active agents',
-  labelNames: ['agent', 'mode'] as const,
-});
-register.registerMetric(agentCountActive);
-
-const agentCountTotal = new client.Counter({
-  name: 'agent_count_total',
-  help: 'Number of agents created since server start',
-  labelNames: ['agent', 'mode'] as const,
-});
-register.registerMetric(agentCountTotal);
-
-const agentResponseTime = new client.Histogram({
-  name: 'agent_response_time_seconds',
-  help: 'Time agents take to response to API requests, in seconds',
-  labelNames: ['agent', 'mode', 'route'] as const,
-  buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
-});
-register.registerMetric(agentResponseTime);
-
+let agentCountActive: undefined | client.Gauge;
+let agentCountTotal: undefined | client.Counter;
+let agentResponseTime: undefined | client.Histogram;
 const agentToolUseCounter = new Map<string, client.Counter>();
 
 /**
@@ -81,7 +109,11 @@ export async function metricsAgentResponseTime<T>(
   route: string,
   f: Promise<T>
 ): Promise<T> {
-  const end = agentResponseTime.startTimer();
+  if (!agentResponseTime) {
+    metricsRegister();
+  }
+
+  const end = agentResponseTime!.startTimer();
   const res = await f;
   end({ agent, mode, route });
   return res;
@@ -96,8 +128,12 @@ export async function metricsAgentResponseTime<T>(
  * @see metricsAgentDisconnect
  */
 export function metricsAgentConnect(agent: string, mode: string) {
-  agentCountActive.labels({ agent, mode }).inc();
-  agentCountTotal.labels({ agent, mode }).inc();
+  if (!agentCountActive) {
+    metricsRegister();
+  }
+
+  agentCountActive!.labels({ agent, mode }).inc();
+  agentCountTotal!.labels({ agent, mode }).inc();
 }
 
 // TODO: need graceful shutdown
@@ -110,7 +146,11 @@ export function metricsAgentConnect(agent: string, mode: string) {
  * @see metricsAgentConnect
  */
 export function metricsAgentDisconnect(agent: string, mode: string) {
-  agentCountActive.labels({ agent, mode }).dec();
+  if (!agentCountActive) {
+    metricsRegister();
+  }
+
+  agentCountActive!.labels({ agent, mode }).dec();
 }
 
 /**
@@ -141,7 +181,6 @@ export function metricsAgentToolUseCount(
         labelNames: ['agent', 'mode'] as const,
       });
 
-      register.registerMetric(counterNew);
       agentToolUseCounter.set(tool, counterNew);
 
       return counterNew;
@@ -155,32 +194,19 @@ export function metricsAgentToolUseCount(
 // ========================================================================== //
 
 // TODO:not implementing this until db refactor
-const DbQueryTime = new client.Histogram({
-  name: 'db_response_time_seconds',
-  help: 'Time the database takes to respond to queries, in seconds',
-  labelNames: ['query'] as const,
-  buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
-});
-register.registerMetric(DbQueryTime);
-
-const DbCountError = new client.Counter({
-  name: 'db_count_error',
-  help: 'Number of database-related errors since server startup',
-  labelNames: ['query'] as const,
-});
-register.registerMetric(DbCountError);
-
-const DbCountConnections = new client.Counter({
-  name: 'db_count_connections',
-  help: 'Number of active database connections',
-});
-register.registerMetric(DbCountConnections);
+let dbQueryTime: undefined | client.Histogram;
+let dbCountError: undefined | client.Counter;
+let dbCountConnections: undefined | client.Counter;
 
 export async function metricsDbResponseTime<T>(
   query: string,
   f: () => Promise<T>
 ) {
-  const end = DbQueryTime.startTimer();
+  if (!dbQueryTime) {
+    metricsRegister();
+  }
+
+  const end = dbQueryTime!.startTimer();
   const res = await f();
   end({ query });
   res;
