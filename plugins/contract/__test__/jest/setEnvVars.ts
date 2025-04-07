@@ -1,4 +1,4 @@
-import { setupTestEnvironment } from '../utils/helper';
+import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
 import { StarknetAgentInterface, JsonConfig } from '@starknet-agent-kit/agents';
 import { SystemMessage } from '@langchain/core/messages';
