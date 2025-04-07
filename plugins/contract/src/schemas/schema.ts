@@ -8,7 +8,7 @@ import { z } from 'zod';
  * @property {string} contractName - name of the contract to deploy (.cairo)
  */
 export const declareContractSchema = z.object({
-  projectName: z.string().describe('The name of the project containing the contract to declare'),
+  projectName: z.string().describe('The name of the project in the database containing the contract to declare'),
   contractName: z
     .string()
     .describe('The name of the contract to declare (finishing with .cairo)'),
