@@ -35,12 +35,18 @@ export const saveCompilationResults = async (
       const modulePath = contract.module_path;
       const parts = modulePath.split('::');
       const nameContract = parts.length >= 3 ? parts[parts.length - 2] : '';
-      
-      const sierraFile = sierraFiles.find(file => path.basename(file) === contract.artifacts.sierra);
-      const casmFile = casmFiles.find(file => path.basename(file) === contract.artifacts.casm);
-      
+
+      const sierraFile = sierraFiles.find(
+        (file) => path.basename(file) === contract.artifacts.sierra
+      );
+      const casmFile = casmFiles.find(
+        (file) => path.basename(file) === contract.artifacts.casm
+      );
+
       if (!sierraFile || !casmFile) {
-        throw new Error(`Could not find Sierra or CASM file for ${nameContract}`);
+        throw new Error(
+          `Could not find Sierra or CASM file for ${nameContract}`
+        );
       }
 
       const program_id = await database.query(`
@@ -51,7 +57,9 @@ export const saveCompilationResults = async (
       `);
 
       if (program_id.status !== 'success') {
-        throw new Error(`Failed to get program id for ${nameContract}: ${program_id.error_message}`);
+        throw new Error(
+          `Failed to get program id for ${nameContract}: ${program_id.error_message}`
+        );
       }
 
       await storeJsonFromFile(

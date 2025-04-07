@@ -25,7 +25,7 @@ export interface CairoCodeGenerationResponse {
     type?: string;
     code?: string;
   };
-} 
+}
 
 /**
  * Represents a Cairo program
@@ -46,7 +46,7 @@ export interface Dependency {
 
 /**
  * Represents a project
- */ 
+ */
 export interface ProjectData {
   id: number;
   name: string;

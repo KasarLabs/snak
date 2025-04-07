@@ -27,7 +27,7 @@ export const compileContract = async (
     projectDir = await setupScarbProject({
       projectName: params.projectName,
     });
-    
+
     const tomlSections =
       projectData.type === 'cairo_program'
         ? []
@@ -74,7 +74,7 @@ export const compileContract = async (
       errors: errors,
       metadata: {
         error_type: 'raw_cairo_error',
-        needs_exact_forwarding: true
+        needs_exact_forwarding: true,
       },
       projectDir: projectDir,
     });

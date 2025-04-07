@@ -23,7 +23,7 @@ export const deployContract = async (
     if (!params?.classHash) {
       throw new Error('Class hash is required for deployment');
     }
-    
+
     const provider = agent.getProvider();
     const accountCredentials = agent.getAccountCredentials();
     const account = new Account(
@@ -49,7 +49,7 @@ export const deployContract = async (
       constructorParamDefs,
       params.constructorArgs as string[]
     );
-    
+
     const deployResponse = await contractManager.deployContract(
       params.classHash,
       typedConstructorArgs

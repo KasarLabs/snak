@@ -38,7 +38,7 @@ export const initializeContractDatabase = async (
       },
     ];
 
-      for (const table of tables) {
+    for (const table of tables) {
       const result = await database.createTable({
         table_name: table.table_name,
         if_not_exist: true,
@@ -195,7 +195,6 @@ export const deleteContractByClassHash = async (
       ONLY: false,
       WHERE: [`class_hash = '${classHash}'`],
     });
-
   } catch (error) {
     throw new Error(`Error deleting contract: ${error.message}`);
   }

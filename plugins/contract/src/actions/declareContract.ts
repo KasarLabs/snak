@@ -4,7 +4,10 @@ import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { declareContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
-import { initializeContractDatabase, saveContractDeclaration } from '../utils/db_init.js';
+import {
+  initializeContractDatabase,
+  saveContractDeclaration,
+} from '../utils/db_init.js';
 import { logger } from '@starknet-agent-kit/agents';
 
 /**
@@ -53,7 +56,7 @@ export const declareContract = async (
     return JSON.stringify({
       status: 'success',
       transactionHash: declareResponse.transactionHash,
-      classHash: declareResponse.classHash
+      classHash: declareResponse.classHash,
     });
   } catch (error) {
     logger.error(error.message);

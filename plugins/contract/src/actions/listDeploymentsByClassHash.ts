@@ -21,9 +21,9 @@ export const listDeploymentsByClassHash = async (
     const contractResult = await database.select({
       SELECT: ['id'],
       FROM: ['contract'],
-      WHERE: [`class_hash = '${params.classHash}'`]
+      WHERE: [`class_hash = '${params.classHash}'`],
     });
-    
+
     if (!contractResult.query?.rows.length) {
       return JSON.stringify({
         status: 'success',
@@ -37,20 +37,23 @@ export const listDeploymentsByClassHash = async (
     const deploymentsResult = await database.select({
       SELECT: ['contract_address', 'deploy_tx_hash'],
       FROM: ['deployment'],
-      WHERE: [`contract_id = ${contractId}`]
+      WHERE: [`contract_id = ${contractId}`],
     });
 
     const deployments = [];
     for (const deployment of deploymentsResult.query?.rows || []) {
       deployments.push({
         contractAddress: deployment.contract_address,
-        deployTxHash: deployment.deploy_tx_hash
+        deployTxHash: deployment.deploy_tx_hash,
       });
     }
 
     return JSON.stringify({
       status: 'success',
-      message: deployments.length > 0 ? `Found ${deployments.length} deployments for contract with class hash ${params.classHash}` : `No deployments found for contract with class hash ${params.classHash}`,
+      message:
+        deployments.length > 0
+          ? `Found ${deployments.length} deployments for contract with class hash ${params.classHash}`
+          : `No deployments found for contract with class hash ${params.classHash}`,
       classHash: params.classHash,
       deployments: deployments,
     });
@@ -61,4 +64,4 @@ export const listDeploymentsByClassHash = async (
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}; 
+};

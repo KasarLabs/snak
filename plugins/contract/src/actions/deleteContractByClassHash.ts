@@ -16,7 +16,7 @@ export const deleteContractByClassHashAction = async (
   try {
     logger.info('\n➜ Deleting contract by class hash');
     logger.info(JSON.stringify(params, null, 2));
-    
+
     await deleteContractByClassHash(agent, params.classHash);
 
     return JSON.stringify({
@@ -31,4 +31,4 @@ export const deleteContractByClassHashAction = async (
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}; 
+};

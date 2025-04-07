@@ -13,10 +13,12 @@ export const generateCairoCodeSchema = z.object({
     .describe('The prompt describing what Cairo code to generate'),
   programName: z
     .string()
-    .describe('The name of the Cairo program/contract file to be created (with .cairo extension)'),
+    .describe(
+      'The name of the Cairo program/contract file to be created (with .cairo extension)'
+    ),
   projectName: z
     .string()
-    .describe('The name of the existing project to associate the program with')
+    .describe('The name of the existing project to associate the program with'),
 });
 
 /**
@@ -35,7 +37,9 @@ export const fixCairoCodeSchema = z.object({
     .describe('The error message or issue description that needs to be fixed'),
   projectName: z
     .string()
-    .describe('The name of the existing project to associate the fixed program with')
+    .describe(
+      'The name of the existing project to associate the fixed program with'
+    ),
 });
 
 /**
@@ -53,7 +57,9 @@ export const registerProjectSchema = z.object({
   existingProgramNames: z
     .array(z.string())
     .optional()
-    .describe('Array of already existing program names to directly add to the project. If provided, no need to generate code.'),
+    .describe(
+      'Array of already existing program names to directly add to the project. If provided, no need to generate code.'
+    ),
   projectType: z
     .enum(['contract', 'cairo_program'])
     .optional()
@@ -74,9 +80,7 @@ export const deleteProgramSchema = z.object({
   projectName: z
     .string()
     .describe('The name of the project to delete the program from'),
-  programName: z
-    .array(z.string())
-    .describe('Array of program names to delete'),
+  programName: z.array(z.string()).describe('Array of program names to delete'),
 });
 
 /**
@@ -100,9 +104,7 @@ export const deleteDependencySchema = z.object({
  * @property projectName The name of the projects to delete
  */
 export const deleteProjectSchema = z.object({
-  projectName: z
-    .array(z.string())
-    .describe('Array of project names to delete'),
+  projectName: z.array(z.string()).describe('Array of project names to delete'),
 });
 
 /**
@@ -115,9 +117,7 @@ export const addProgramSchema = z.object({
   projectName: z
     .string()
     .describe('The name of the existing project to add the program to'),
-  programPaths: z
-    .array(z.string())
-    .describe('Array of paths to Cairo files'),
+  programPaths: z.array(z.string()).describe('Array of paths to Cairo files'),
 });
 
 /**
@@ -137,7 +137,7 @@ export const addDependencySchema = z.object({
 
 /**
  * Schema for listing all projects
- * 
+ *
  * Empty schema as no parameters are required
  */
 export const listProjectsSchema = z.object({});

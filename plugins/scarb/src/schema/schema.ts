@@ -12,7 +12,6 @@ export const installScarbSchema = z.object({
     .describe('The path to the project (defaults to current directory)'),
 });
 
-
 /**
  * Schema for compiling a contract
  *
@@ -87,4 +86,3 @@ export const proveProgramSchema = z.object({
 export const verifyProgramSchema = z.object({
   projectName: z.string().describe('The name of the project to prove'),
 });
-

@@ -1,4 +1,7 @@
-import { StarknetTool, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import {
+  StarknetTool,
+  StarknetAgentInterface,
+} from '@starknet-agent-kit/agents';
 import {
   declareContractSchema,
   deployContractSchema,
@@ -30,12 +33,12 @@ export const registerTools = async (
   agent: StarknetAgentInterface
 ) => {
   await initializeTools(agent);
-  
+
   StarknetToolRegistry.push({
     name: 'declare_contract',
     plugins: 'contract',
     description:
-      'Declare a cairo project\'s contract on Starknet. This is the first step in the deployment process if no classhash is provided.',
+      "Declare a cairo project's contract on Starknet. This is the first step in the deployment process if no classhash is provided.",
     schema: declareContractSchema,
     execute: declareContract,
   });
@@ -53,11 +56,11 @@ export const registerTools = async (
     name: 'step1_prepare_deploy',
     plugins: 'contract',
     description:
-      'Prepare the deployment. ALWAYS use this before deploying a cairo project\'s contract to understand the required arguments and their correct order. This tool returns the exact parameter names required by the contract constructor',
+      "Prepare the deployment. ALWAYS use this before deploying a cairo project's contract to understand the required arguments and their correct order. This tool returns the exact parameter names required by the contract constructor",
     schema: getConstructorParamsSchema,
     execute: getConstructorParams,
   });
-  
+
   StarknetToolRegistry.push({
     name: 'list_declared_contracts',
     plugins: 'contract',
@@ -66,16 +69,15 @@ export const registerTools = async (
     schema: listContractsSchema,
     execute: listDeclaredContracts,
   });
-  
+
   StarknetToolRegistry.push({
     name: 'list_deployed_contracts_by_class_hash',
     plugins: 'contract',
-    description:
-      'List all deployed instances of a contract by its class hash.',
+    description: 'List all deployed instances of a contract by its class hash.',
     schema: listDeploymentsByClassHashSchema,
     execute: listDeploymentsByClassHash,
   });
-  
+
   StarknetToolRegistry.push({
     name: 'delete_contract_by_class_hash',
     plugins: 'contract',

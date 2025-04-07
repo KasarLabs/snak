@@ -110,4 +110,4 @@ export function formatCompilationError(error: any): string {
   return `[EXACT_ERROR_BEGIN]
 ${error.stdout}
 [EXACT_ERROR_END]`;
-} 
+}

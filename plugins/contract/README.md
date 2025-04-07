@@ -1,6 +1,7 @@
 # Contract Plugin - Comprehensive Guide
 
 ## Overview
+
 The Contract plugin for Starknet Agent Kit provides tools for declaring, deploying, and managing Cairo contracts on the Starknet blockchain. It offers a streamlined workflow for taking compiled contracts and deploying them to Starknet network through simple conversational commands.
 
 ## Core Tools and Their Usage
@@ -8,8 +9,9 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 ### Contract Declaration
 
 #### `declare_contract`
+
 - **Purpose**: Declares a Cairo contract on Starknet
-- **Usage**: ```declare erc20.cairo from the project my_project```
+- **Usage**: `declare erc20.cairo from the project my_project`
 - **Parameters**:
   - Project name: Name of the project in the database containing the contract to declare
   - Contract name: Name of the specific contract to declare
@@ -18,8 +20,9 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 ### Contract Deployment
 
 #### `deploy_contract`
+
 - **Purpose**: Deploys a declared contract to Starknet
-- **Usage**: ```deploy my contract with class hash 0x123... with parameters x:10, y:'hello'```
+- **Usage**: `deploy my contract with class hash 0x123... with parameters x:10, y:'hello'`
 - **Parameters**:
   - Class hash: Hash of the declared contract
   - Constructor arguments: Arguments for the contract constructor
@@ -28,20 +31,23 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 ### Contract Management
 
 #### `list_declared_contracts`
+
 - **Purpose**: Lists all declared contracts
-- **Usage**: ```list all my declared contracts```
+- **Usage**: `list all my declared contracts`
 - **Details**: Show all contracts that have been declared with their class hashes and transaction hashes.
 
 #### `list_deployed_contracts_by_class_hash`
+
 - **Purpose**: Lists all deployments of a specific contract
-- **Usage**: ```list all deployments of contract with class hash 0x123...```
+- **Usage**: `list all deployments of contract with class hash 0x123...`
 - **Parameters**:
   - Class hash: The contract's class hash
 - **Details**: Shows all instances where a particular contract has been deployed.
 
 #### `delete_contract_by_class_hash`
+
 - **Purpose**: Removes a contract from the database
-- **Usage**: ```delete the contract with class hash 0x123...```
+- **Usage**: `delete the contract with class hash 0x123...`
 - **Parameters**:
   - Class hash: The contract's class hash
 - **Details**: Removes the contract reference from local storage. This doesn't affect on-chain deployments.
@@ -49,6 +55,7 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 ## Usage Examples
 
 ### Basic Deployment Workflow
+
 ```
 1. Declare my token erc20.cairo from the project in my_project
    [Uses declare_contract to register on Starknet]
@@ -58,6 +65,7 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 ```
 
 ### Contract Management
+
 ```
 1. List all my declared contracts
    [Uses list_declared_contracts to see all contracts]
@@ -72,6 +80,7 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 ## Integration with Other Plugins
 
 ### Integration with Scarb Plugin
+
 The Contract plugin works as the final step in the development pipeline after compilation with Scarb:
 
 - Seamlessly takes Scarb-compiled artifacts for declaration and deployment
@@ -79,6 +88,7 @@ The Contract plugin works as the final step in the development pipeline after co
 - Enables a complete workflow from compilation to on-chain deployment
 
 ### Integration with CairoCoder Plugin
+
 From a Contract deployment perspective, CairoCoder provides:
 
 - Contract templates that are deployment-ready once compiled

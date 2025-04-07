@@ -1,7 +1,12 @@
 import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { generateCairoCodeSchema } from '../schema/schema.js';
-import { validateParams, callCairoGenerationAPI, extractCairoCode, saveToDebugFile } from '../utils/utils.js';
+import {
+  validateParams,
+  callCairoGenerationAPI,
+  extractCairoCode,
+  saveToDebugFile,
+} from '../utils/utils.js';
 import { addProgram } from '../utils/db_add.js';
 import { retrieveProjectData } from '../utils/db_init.js';
 
@@ -18,26 +23,26 @@ export const generateCairoCode = async (
   try {
     logger.info('\n➜ Generating Cairo code');
     logger.info(JSON.stringify(params, null, 2));
-    
+
     validateParams(params);
-    
+
     const generatedContent = await callCairoGenerationAPI(params.prompt);
     const cairoCode = extractCairoCode(generatedContent);
-    
+
     const projectData = await retrieveProjectData(agent, params.projectName);
     await addProgram(agent, projectData.id, params.programName, cairoCode);
-    
+
     return JSON.stringify({
       status: 'success',
       message: `Cairo code generated and saved to database as ${params.programName}`,
       programName: params.programName,
-      code: cairoCode
+      code: cairoCode,
     });
   } catch (error) {
     logger.error('Error generating Cairo code:', error);
     return JSON.stringify({
       status: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}; 
+};

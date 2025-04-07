@@ -4,7 +4,7 @@ import { listProjectsSchema } from '../schema/schema.js';
 
 /**
  * List all projects in the scarb_db database
- * 
+ *
  * @param agent The StarkNet agent
  * @returns JSON string with all projects information
  */
@@ -20,7 +20,7 @@ export const listProjects = async (
 
     const projectsResult = await database.select({
       SELECT: ['id', 'name'],
-      FROM: ['project']
+      FROM: ['project'],
     });
 
     const projects = [];
@@ -32,7 +32,10 @@ export const listProjects = async (
 
     return JSON.stringify({
       status: 'success',
-      message: projects.length > 0 ? `Found ${projects.length} projects in the database` : 'No projects found in the database',
+      message:
+        projects.length > 0
+          ? `Found ${projects.length} projects in the database`
+          : 'No projects found in the database',
       projects: projects,
     });
   } catch (error) {
@@ -42,4 +45,4 @@ export const listProjects = async (
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}; 
+};

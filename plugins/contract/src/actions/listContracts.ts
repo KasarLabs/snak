@@ -20,20 +20,23 @@ export const listDeclaredContracts = async (
 
     const contractsResult = await database.select({
       SELECT: ['class_hash', 'declare_tx_hash'],
-      FROM: ['contract']
+      FROM: ['contract'],
     });
 
     const contracts = [];
     for (const contract of contractsResult.query?.rows || []) {
       contracts.push({
         classHash: contract.class_hash,
-        declareTxHash: contract.declare_tx_hash
+        declareTxHash: contract.declare_tx_hash,
       });
     }
 
     return JSON.stringify({
       status: 'success',
-      message: contracts.length > 0 ? `Found ${contracts.length} contracts in the database` : 'No contracts found in the database',
+      message:
+        contracts.length > 0
+          ? `Found ${contracts.length} contracts in the database`
+          : 'No contracts found in the database',
       contracts: contracts,
     });
   } catch (error) {
@@ -43,4 +46,4 @@ export const listDeclaredContracts = async (
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}; 
+};

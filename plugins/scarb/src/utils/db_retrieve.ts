@@ -2,7 +2,7 @@ import { CairoProgram, ProjectData } from '../types/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as fs from 'fs/promises';
 
-/** 
+/**
  * Retrieves the project data from the database
  * @param agent The StarkNet agent
  * @param projectName The name of the project

@@ -21,7 +21,7 @@ export const registerProject = async (
   try {
     logger.info('\n➜ Registering project');
     logger.info(JSON.stringify(params, null, 2));
-    
+
     if (params.projectName.includes('-'))
       throw new Error(
         "Project name cannot contain hyphens ('-'). Please use underscores ('_') instead."
@@ -29,14 +29,11 @@ export const registerProject = async (
 
     if (/[A-Z]/.test(params.projectName)) {
       throw new Error(
-        "Project name cannot contain uppercase letters. Please use snake_case (lowercase letters and underscores) for the project name."
+        'Project name cannot contain uppercase letters. Please use snake_case (lowercase letters and underscores) for the project name.'
       );
     }
 
-    const alreadyRegistered = await doesProjectExist(
-      agent,
-      params.projectName
-    );
+    const alreadyRegistered = await doesProjectExist(agent, params.projectName);
 
     if (alreadyRegistered) {
       return JSON.stringify({
@@ -50,7 +47,7 @@ export const registerProject = async (
 
     const projectType = params.projectType
       ? params.projectType
-        : 'cairo_program';
+      : 'cairo_program';
 
     await initializeProjectData(
       agent,
@@ -60,7 +57,6 @@ export const registerProject = async (
       projectType
     );
 
-    
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     return JSON.stringify({

@@ -16,7 +16,6 @@ import {
   StarknetTool,
 } from '@starknet-agent-kit/agents';
 
-
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
   agent: StarknetAgentInterface
@@ -31,7 +30,8 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_compile_contract',
-    description: 'Compile contracts or program of an existing project using Scarb',
+    description:
+      'Compile contracts or program of an existing project using Scarb',
     plugins: 'scarb',
     schema: compileContractSchema,
     execute: compileContract,
@@ -39,7 +39,8 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_execute_program',
-    description: 'Execute a Cairo program function of an existing project using Scarb',
+    description:
+      'Execute a Cairo program function of an existing project using Scarb',
     plugins: 'scarb',
     schema: executeProgramSchema,
     execute: executeProgram,
@@ -47,7 +48,8 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_prove_program',
-    description: 'Generate a proof for a Cairo program execution of an existing project using Scarb',
+    description:
+      'Generate a proof for a Cairo program execution of an existing project using Scarb',
     plugins: 'scarb',
     schema: proveProgramSchema,
     execute: proveProgram,
@@ -55,7 +57,8 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_verify_program',
-    description: 'Verify a proof for a Cairo program execution of a project using Scarb',
+    description:
+      'Verify a proof for a Cairo program execution of a project using Scarb',
     plugins: 'scarb',
     schema: verifyProgramSchema,
     execute: verifyProgram,
