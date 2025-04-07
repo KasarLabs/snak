@@ -61,6 +61,7 @@ export class AgentFactory {
           ? json.external_plugins
           : [],
         memory: json.memory || false,
+        long_term_memory: json.long_term_memory || false,
       };
 
       this.initialized = true;

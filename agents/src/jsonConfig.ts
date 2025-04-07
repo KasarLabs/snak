@@ -42,6 +42,7 @@ export interface JsonConfig {
   mcp?: boolean;
   autonomous?: boolean;
   memory: boolean;
+  long_term_memory: boolean;
 }
 
 /**
@@ -246,6 +247,7 @@ const checkParseJson = async (
         ? json.external_plugins
         : [],
       memory: json.memory || false,
+      long_term_memory: json.long_term_memory || false,
       mcp: json.mcp || false,
     };
 
