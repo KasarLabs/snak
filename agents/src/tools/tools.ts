@@ -3,6 +3,7 @@ import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 import logger from '../logger.js';
+import * as metrics from '../../metrics.js';
 
 /**
  * @interface StarknetAgentInterface
@@ -108,14 +109,13 @@ export class StarknetToolRegistry {
  * @param {StarknetAgentInterface} agent - The Starknet agent
  * @param {string[]} allowed_tools - The allowed tools
  * @param {StarknetTool[]} tools - The tools
- * @returns {Promise<void>}
  * @throws {Error} Throws an error if the tools cannot be registered
  */
 export const registerTools = async (
   agent: StarknetAgentInterface,
   allowed_tools: string[],
   tools: StarknetTool[]
-) => {
+): Promise<void> => {
   try {
     let index = 0;
     await Promise.all(
@@ -128,7 +128,19 @@ export const registerTools = async (
         if (typeof imported_tool.registerTools !== 'function') {
           return false;
         }
-        await imported_tool.registerTools(tools, agent);
+        const tools_new = new Array<StarknetTool>();
+        await imported_tool.registerTools(tools_new, agent);
+
+        for (const tool of tools_new) {
+          metrics.metricsAgentToolUseCount(
+            agent.getAgentConfig()?.name ?? 'agent',
+            'tools', // TODO: refactored agent interface to allow this
+            tool.name
+          );
+        }
+
+        tools.push(...tools_new);
+
         return true;
       })
     );
