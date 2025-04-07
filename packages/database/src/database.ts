@@ -57,9 +57,9 @@ pool.on('error', (err) => {
  */
 export class Query {
 	public readonly query: string;
-	public readonly values?: string[];
+	public readonly values?: any[];
 
-	public constructor(query: string, values?: string[]) {
+	public constructor(query: string, values?: any[]) {
 		this.query = query;
 		this.values = values;
 	}
