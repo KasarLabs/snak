@@ -9,7 +9,7 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 
 #### `declare_contract`
 - **Purpose**: Declares a Cairo contract on Starknet
-- **Usage**: "Declare erc20.cairo from the project my_project"
+- **Usage**: ```declare erc20.cairo from the project my_project```
 - **Parameters**:
   - Project name: Name of the project in the database containing the contract to declare
   - Contract name: Name of the specific contract to declare
@@ -19,7 +19,7 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 
 #### `deploy_contract`
 - **Purpose**: Deploys a declared contract to Starknet
-- **Usage**: "Deploy my contract with class hash 0x123... with parameters x:10, y:'hello'"
+- **Usage**: ```deploy my contract with class hash 0x123... with parameters x:10, y:'hello'```
 - **Parameters**:
   - Class hash: Hash of the declared contract
   - Constructor arguments: Arguments for the contract constructor
@@ -29,19 +29,19 @@ The Contract plugin for Starknet Agent Kit provides tools for declaring, deployi
 
 #### `list_declared_contracts`
 - **Purpose**: Lists all declared contracts
-- **Usage**: "List all my declared contracts"
+- **Usage**: ```list all my declared contracts```
 - **Details**: Show all contracts that have been declared with their class hashes and transaction hashes.
 
 #### `list_deployed_contracts_by_class_hash`
 - **Purpose**: Lists all deployments of a specific contract
-- **Usage**: "List all deployments of contractwith class hash 0x123..."
+- **Usage**: ```list all deployments of contract with class hash 0x123...```
 - **Parameters**:
   - Class hash: The contract's class hash
 - **Details**: Shows all instances where a particular contract has been deployed.
 
 #### `delete_contract_by_class_hash`
 - **Purpose**: Removes a contract from the database
-- **Usage**: "Delete the contract with class hash 0x123... from my database"
+- **Usage**: ```delete the contract with class hash 0x123...```
 - **Parameters**:
   - Class hash: The contract's class hash
 - **Details**: Removes the contract reference from local storage. This doesn't affect on-chain deployments.

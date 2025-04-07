@@ -11,14 +11,14 @@ The Scarb plugin for Starknet Agent Kit provides a seamless interface for workin
 
 #### `scarb_install`
 - **Purpose**: Installs or verifies Scarb installation
-- **Usage**: "Install Scarb on my system"
+- **Usage**: ```install scarb```
 - **Details**: Automatically installs Scarb version 2.10.0 if not present, or verifies that the exact required version is installed. If a different version is detected, it will notify you.
 
 ### Contract Compilation
 
-#### `scarb_compile_contract`
+#### `compile_contract`
 - **Purpose**: Compiles Cairo contracts or programs using Scarb
-- **Usage**: "Compile my Cairo project in my_project"
+- **Usage**: ```compile my project erc20_contract```
 - **Parameters**:
   - Project name: Name of the project in the database containing the contract/program to compile
 - **Details**: 
@@ -27,9 +27,9 @@ The Scarb plugin for Starknet Agent Kit provides a seamless interface for workin
 
 ### Program Execution
 
-#### `scarb_execute_program`
+#### `execute_program`
 - **Purpose**: Executes a Cairo program function
-- **Usage**: "Execute the main function in my Cairo program"
+- **Usage**: ```execute my project fibonacci```
 - **Parameters**:
   - Project name: Name of the project to execute
   - Executable name (optional): The specific executable target name to run
@@ -48,9 +48,9 @@ The Scarb plugin for Starknet Agent Kit provides a seamless interface for workin
 
 ### Proof Generation and Verification
 
-#### `scarb_prove_program`
+#### `prove_program`
 - **Purpose**: Generates a mathematical proof for a Cairo program execution in a JSON file
-- **Usage**: "Generate a proof for my Cairo program execution"
+- **Usage**: ```prove my project fibonacci```
 - **Parameters**:
   - Project name: Target project
 - **Details**: 
@@ -58,9 +58,9 @@ The Scarb plugin for Starknet Agent Kit provides a seamless interface for workin
   - Creates cryptographic proofs that verify the correct execution of Cairo programs
   - Automatically runs scarb_execute_program beforehand to get the execution trace
 
-#### `scarb_verify_program`
+#### `verify_program`
 - **Purpose**: Verifies a proof for a Cairo program execution
-- **Usage**: "Verify the proof for my Cairo program"
+- **Usage**: ```verify my project fibonacci```
 - **Parameters**:
   - Project name: Target project
 - **Details**: 
@@ -76,16 +76,16 @@ The Scarb plugin for Starknet Agent Kit provides a seamless interface for workin
    [Uses scarb_install to set up the required tooling]
 
 2. Compile my project my_cairo_program
-   [Uses scarb_compile_contract to build the project]
+   [Uses compile_contract to build the project]
 
 3. Execute the main function in my project my_cairo_program
-   [Uses scarb_execute_program]
+   [Uses execute_program]
 
 4. Generate a proof for this execution
-   [Uses scarb_prove_program with the execution trace]
+   [Uses prove_program with the execution trace]
 
 5. Verify the generated proof
-   [Uses scarb_verify_program to validate the execution]
+   [Uses verify_program to validate the execution]
 ```
 
 ### Integration with Other Plugins
@@ -97,7 +97,7 @@ The Scarb plugin for Starknet Agent Kit provides a seamless interface for workin
    [Uses CairoCoder plugin]
 
 3. Compile project erc20_contract
-   [Uses scarb_compile_contract]
+   [Uses Scarb plugin]
 
 4. Declare and deploy erc20.cairo of project erc20_contract
    [Uses Contract plugin]
