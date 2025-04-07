@@ -1,0 +1,19 @@
+{
+  "name": "",
+  "bio": "",
+  "lore": "",
+  "objectives": "",
+  "knowledge": "",
+  "interval": 0,
+  "internal_plugins": [],
+  "autonomous": true,
+  "chat_id": "sak_guide",
+  "mcp": false,
+  "agent_name": "Kasar",
+  "agent_bio": "test",
+  "agent_lore": "test",
+  "agent_objectives": "test",
+  "agent_knowledge": "test",
+  "agent_interval": "test",
+  "createdAt": "2025-04-01T19:44:52.532Z"
+}

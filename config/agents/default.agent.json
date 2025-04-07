@@ -27,7 +27,6 @@
   "interval": 30000,
   "autonomous": true,
   "chat_id": "sak_guide",
-  "mcp": true,
   "external_plugins": [],
   "internal_plugins": [
     "argent",

@@ -71,7 +71,7 @@ const ProgressBarFunction = async (workspaces: string[]): Promise<void> => {
   };
 
 export const InkDemo = async () => {
-  
+    
 }
 
 const main = async (): Promise<void> => {

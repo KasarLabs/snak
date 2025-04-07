@@ -241,7 +241,7 @@ export const LocalRun = async () => {
         aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
         signature: 'key',
         agentMode: 'auto',
-        agentconfig: agent_config,
+        agentconfig: undefined,
       });
 
       await agent.createAgentReactExecutor();
@@ -272,3 +272,11 @@ export const LocalRun = async () => {
 //   );
 //   process.exit(1);
 // });
+
+
+LocalRun().catch((error) => {
+  console.error(
+    createBox(error.message, { title: 'Fatal Error', isError: true })
+  );
+  process.exit(1);
+});
