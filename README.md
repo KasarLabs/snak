@@ -90,8 +90,20 @@ POSTGRES_PORT="YOUR_POSTGRES_PORT"
   "interval": "Your agent interval beetween each transaction of the Agent in ms,",
   "chat_id": "Your Agent Chat-id for isolating memory",
   "autonomous": "Your agent is autonomous or not",
-  "plugins": ["Your first plugin", "Your second plugin"]
-  
+  "plugins": ["Your first plugin", "Your second plugin"],
+  "mcpServers": {
+    "nxp_server_example": {
+      "command": "npx",
+      "args": ["-y", "@npm_package_example/npx_server_example"],
+      "env": {
+        "API_KEY": "YOUR_API_KEY"
+      }
+    },
+    "local_server_example": {
+      "command": "node",
+      "args": ["node /path/to/local_server/dist/index.js"]
+    }
+  }
 }
 ```
 
