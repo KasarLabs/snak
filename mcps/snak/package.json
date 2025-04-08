@@ -1,5 +1,5 @@
 {
-  "name": "@starknet-agent-kit/mcp-snak",
+  "name": "@kasar-labs/snak-mcp",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

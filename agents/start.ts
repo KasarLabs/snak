@@ -138,7 +138,7 @@ const LocalRun = async () => {
   console.log(
     createBox(
       'Welcome to Snak, an advanced Agent engine powered by Starknet.',
-      'For more informations, visit our documentation at https://docs.starkagent.ai'
+      'For more informations, visit our documentation at https://docs.snakagent.com'
     )
   );
 
@@ -150,12 +150,12 @@ const LocalRun = async () => {
       message: 'Select operation mode:',
       choices: [
         {
-          name: `${chalk.green('>')} Interactive Mode`,
+          name: `Interactive Mode`,
           value: 'agent',
           short: 'Interactive',
         },
         {
-          name: `${chalk.blue('>')} Autonomous Mode`,
+          name: `Autonomous Mode`,
           value: 'auto',
           short: 'Autonomous',
         },

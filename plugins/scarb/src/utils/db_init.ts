@@ -84,7 +84,7 @@ export const initializeDatabase = async (
 
       if (result.status === 'error') {
         if (result.code === '42P07') {
-          logger.warn(
+          logger.debug(
             `Table ${table.table_name} already exists. Adding table parameters to adapatater.`
           );
           database.addExistingTable({

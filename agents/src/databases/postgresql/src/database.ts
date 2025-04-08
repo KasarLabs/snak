@@ -91,7 +91,7 @@ export class PostgresAdaptater {
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error) {
         if (error.code === '42P04') {
-          logger.warn(
+          logger.debug(
             `Database ${database_name} already exists. Skipping creation.`
           );
           return true;

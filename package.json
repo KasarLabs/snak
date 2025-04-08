@@ -1,7 +1,7 @@
 {
-  "name": "snak",
+  "name": "@kasar-labs/snak",
   "version": "0.0.10",
-  "description": "A toolkit for creating AI agents that can interact with the Starknet network",
+  "description": "Build powerful and secure agents powered by Starknet",
   "author": "Kasar Labs",
   "license": "MIT",
   "main": "dist/index.js",

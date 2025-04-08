@@ -27,8 +27,7 @@ export interface Token {
  * @property {SystemMessage} prompt - The prompt message for the agent
  * @property {number} interval - The interval for the agent
  * @property {string} chat_id - The chat ID for the agent
- * @property {string[]} internal_plugins - The internal plugins for the agent
- * @property {string[]} external_plugins - The external plugins for the agent
+ * @property {string[]} plugins - The plugins for the agent
  * @property {boolean} mcp - The MCP flag for the agent
  * @property {boolean} autonomous - The autonomous flag for the agent
  */
@@ -37,8 +36,7 @@ export interface JsonConfig {
   prompt: SystemMessage;
   interval: number;
   chat_id: string;
-  internal_plugins: string[];
-  external_plugins?: string[];
+  plugins: string[];
   mcp?: boolean;
   autonomous?: boolean;
   memory: boolean;
@@ -128,7 +126,7 @@ export const createContextFromJson = (json: any): string => {
   // Display the formatted output
   console.log(
     chalk.bold.cyan(
-      '\n=== AGENT CONFIGURATION (https://docs.starkagent.ai/customize-your-agent) ==='
+      '\n=== AGENT CONFIGURATION (https://docs.snakagent.com/customize-your-agent) ==='
     )
   );
   console.log(displayOutput);
@@ -147,7 +145,7 @@ export const validateConfig = (config: JsonConfig) => {
     'name',
     'interval',
     'chat_id',
-    'internal_plugins',
+    'plugins',
     'prompt',
   ] as const;
 
@@ -239,18 +237,15 @@ const checkParseJson = async (
       interval: json.interval,
       chat_id: json.chat_id,
       autonomous: json.autonomous || false,
-      internal_plugins: Array.isArray(json.internal_plugins)
-        ? json.internal_plugins.map((tool: string) => tool.toLowerCase())
-        : [],
-      external_plugins: Array.isArray(json.external_plugins)
-        ? json.external_plugins
+      plugins: Array.isArray(json.plugins)
+        ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
       memory: json.memory || false,
       mcp: json.mcp || false,
     };
 
-    if (jsonconfig.internal_plugins.length === 0) {
-      logger.warn("No internal plugins specified in agent's config");
+    if (jsonconfig.plugins.length === 0) {
+      logger.warn("No plugins specified in agent's config");
     }
     validateConfig(jsonconfig);
     return jsonconfig;

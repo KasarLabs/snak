@@ -12,7 +12,7 @@ export const insertChatInstruction = async (
     }
 
     const result = await database.insert({
-      table_name: 'sak_table_chat',
+      table_name: 'snak_table_chat',
       fields: new Map<string, string>([
         ['instruction', `${params.instruction}`],
       ]),
@@ -37,7 +37,7 @@ export const readChatPool = async (agent: StarknetAgentInterface) => {
     }
 
     const result = await database.select({
-      FROM: ['sak_table_chat'],
+      FROM: ['snak_table_chat'],
       SELECT: ['*'],
     });
     const instructions: string[] = [];

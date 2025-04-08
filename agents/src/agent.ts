@@ -7,7 +7,6 @@ import { ChatDeepSeek } from '@langchain/deepseek';
 import { StarknetAgentInterface } from './tools/tools.js';
 import { createSignatureTools } from './tools/signatureTools.js';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
 import {
   Annotation,
@@ -96,20 +95,13 @@ export async function initializeToolsList(
   const isSignature = starknetAgent.getSignature().signature === 'wallet';
 
   if (isSignature) {
-    toolsList = await createSignatureTools(jsonConfig.internal_plugins);
+    toolsList = await createSignatureTools(jsonConfig.plugins);
   } else {
     const allowedTools = await createAllowedTools(
       starknetAgent,
-      jsonConfig.internal_plugins
+      jsonConfig.plugins
     );
-
-    const allowedToolsKits = await createAllowedToollkits(
-      jsonConfig.external_plugins
-    );
-
-    toolsList = allowedToolsKits
-      ? [...allowedTools, ...allowedToolsKits]
-      : [...allowedTools];
+    toolsList = [...allowedTools];
   }
 
   if (jsonConfig.mcp === true) {
@@ -161,7 +153,7 @@ export const createAgent = async (
         });
         if (dbCreation.code == '42P07')
           logger.warn('Agent memory table already exists');
-        else console.log('Agent memory table successfully created');
+        else logger.debug('Agent memory table successfully created');
       } catch (error) {
         console.error('Error creating memories table:', error);
         throw error;

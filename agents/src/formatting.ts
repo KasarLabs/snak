@@ -50,7 +50,7 @@ export const createBox = (
   let result = '\n';
 
   // Top border
-  result += color('┌' + horizontalLine + '┐\n');
+  result += color('╭' + horizontalLine + '╮\n');
 
   // Title section
   result +=
@@ -80,7 +80,7 @@ export const createBox = (
   });
 
   // Bottom border
-  result += color('└' + horizontalLine + '┘\n');
+  result += color('╰' + horizontalLine + '╯\n');
 
   return result;
 };

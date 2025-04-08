@@ -7,7 +7,6 @@ import { ChatOllama } from '@langchain/ollama';
 import { StarknetAgentInterface } from './tools/tools.js';
 import { MemorySaver } from '@langchain/langgraph';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { createAllowedToollkits } from './tools/external_tools.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import logger from './logger.js';
 import {
@@ -72,16 +71,10 @@ export const createAutonomousAgent = async (
     let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[];
     const allowedTools = await createAllowedTools(
       starknetAgent,
-      json_config.internal_plugins
+      json_config.plugins
     );
 
-    const allowedToolsKits = await createAllowedToollkits(
-      json_config.external_plugins
-    );
-
-    tools = allowedToolsKits
-      ? [...allowedTools, ...allowedToolsKits]
-      : allowedTools;
+    tools = allowedTools;
     const memory = new MemorySaver();
 
     if (json_config.mcp === true) {
