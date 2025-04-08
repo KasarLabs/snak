@@ -93,12 +93,12 @@ export async function connect(): Promise<void> {
  * @throws { DatabaseError }
  * @see module:database
  */
-export async function query<Model = {}>(q: Query): Promise<Model[] | undefined> {
+export async function query<Model = {}>(q: Query): Promise<Model[]> {
 	try {
 		const query = await pool.query(q.query, q.values);
 		return query.rows;
 	} catch (err: any) {
-		DatabaseError.handlePgError(err);
+		throw DatabaseError.handlePgError(err);
 	}
 }
 
@@ -121,7 +121,7 @@ export async function transaction(qs: Query[]): Promise<void> {
 		await client.query('COMMIT;');
 
 	} catch (err: any) {
-		DatabaseError.handlePgError(err);
+		throw DatabaseError.handlePgError(err);
 	} finally {
 		if (client) {
 			client.release();
@@ -142,6 +142,6 @@ export async function shutdown(): Promise<void> {
 	try {
 		await pool.end();
 	} catch (err: any) {
-		DatabaseError.handlePgError(err);
+		throw DatabaseError.handlePgError(err);
 	}
 }

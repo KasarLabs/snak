@@ -18,6 +18,10 @@ describe('Chat-pool database initialization', () => {
 		await expect(chat.init()).resolves.toBeUndefined();
 	});
 
+	it('Should handle empty retrievals', async () => {
+		await expect(chat.select_instruction()).resolves.toEqual([]);
+	});
+
 	it('Should handle insertions', async () => {
 		await expect(chat.insert_instruction("Lorem Ipsum dolor si amet")).resolves.toBeUndefined();
 	});
