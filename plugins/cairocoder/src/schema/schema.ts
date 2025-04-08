@@ -16,7 +16,7 @@ export const generateCairoCodeSchema = z.object({
     .describe('The name of the Cairo program/contract file to be created (with .cairo extension)'),
   projectName: z
     .string()
-    .describe('The name of the existing project to associate the program with')
+    .describe('The name of the existing project to associate the program with. It must respect snake case.')
 });
 
 /**
@@ -49,7 +49,7 @@ export const fixCairoCodeSchema = z.object({
 export const registerProjectSchema = z.object({
   projectName: z
     .string()
-    .describe('The name of the project to create or register'),
+    .describe('The name of the project to create or register. It must respect snake case.'),
   programPaths: z
     .array(z.string())
     .optional()
