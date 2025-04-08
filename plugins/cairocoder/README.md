@@ -9,7 +9,7 @@ CairoCoder is a Starknet Agent Kit plugin that lets you generate, fix, and manag
 For the CairoCoder plugin to function properly, make sure to set these environment variables in your `.env` file:
 
 - **CAIRO_GENERATION_API_URL**: URL of the API used for Cairo code generation
-- **CAIRO_UPLOAD_DIR**: Directory where Cairo files should be placed for import (relative to plugin root)
+- **CAIRO_UPLOAD_DIR**: Directory where Cairo files should be placed for import (relative to the root of the repository, eg. "plugins/cairocoder/uploads/")
 - **PostgreSQL variables**: Standard database connection variables (see database documentation)
 
 ## Core Tools and Their Usage

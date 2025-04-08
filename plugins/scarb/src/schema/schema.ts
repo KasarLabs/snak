@@ -49,6 +49,7 @@ export const executeProgramSchema = z.object({
   mode: z
     .enum(['standalone', 'bootloader'])
     .optional()
+    .default('bootloader')
     .describe('The target to compile for'),
 });
 

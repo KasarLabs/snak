@@ -33,7 +33,6 @@ export class ContractManager {
       this.compiledSierra = JSON.parse(
         fs.readFileSync(sierraPath).toString('ascii')
       );
-      console.log(this.compiledSierra);
 
       this.compiledCasm = JSON.parse(
         fs.readFileSync(casmPath).toString('ascii')

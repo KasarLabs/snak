@@ -37,6 +37,9 @@ export const generateCairoCode = async (
       message: `Cairo code generated and saved to database as ${params.programName}`,
       programName: params.programName,
       code: cairoCode,
+      stopExecution: true,
+      stopExecutionReason:
+        'Do not continue execution except if there is an error or another tool is called',
     });
   } catch (error) {
     logger.error('Error generating Cairo code:', error);

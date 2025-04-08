@@ -109,7 +109,8 @@ export const executeProgram = async (
       projectDir: projectDir,
     });
   } finally {
-    if (mode !== 'standalone')
-      await cleanProject({ path: projectDir, removeDirectory: true });
+    //   if (mode !== 'standalone')
+    //     await cleanProject({ path: projectDir, removeDirectory: true });
+    // }
   }
 };

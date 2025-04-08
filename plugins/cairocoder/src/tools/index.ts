@@ -50,8 +50,14 @@ export const registerTools = async (
   StarknetToolRegistry.push({
     name: 'cairocoder_generate_code',
     plugins: 'cairocoder',
-    description:
-      'Generate Cairo code using AI and add it to the database within a project. Requires a prompt describing the code to be generated, a program name and the project name. No need to check if the project exists.',
+    description: `
+      DESCRIPTION: Generate Cairo code using AI and add it to the database within a project.
+      TRIGGER: Only call when the user explicitly asks to generate or create Cairo code.
+      PARAMETERS: Requires a prompt, program name and project name.
+      SUCCESS: After successful generation, consider this task complete. 
+      FAILURE: After 2 failed attempts, report the error and stop retrying.
+      DO NOT automatically compile, execute, or otherwise process the generated code unless explicitly requested.
+    `,
     schema: generateCairoCodeSchema,
     execute: generateCairoCode,
   });

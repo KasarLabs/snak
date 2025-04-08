@@ -48,9 +48,8 @@ export const compileContract = async (
     const buildResult = await buildProject({ path: projectDir });
     const parsedBuildResult = JSON.parse(buildResult);
 
-    const contractFiles = await getGeneratedContractFiles(projectDir);
-
     if (projectData.type !== 'cairo_program') {
+      const contractFiles = await getGeneratedContractFiles(projectDir);
       await saveCompilationResults(
         agent,
         projectData.id,
@@ -79,6 +78,6 @@ export const compileContract = async (
       projectDir: projectDir,
     });
   } finally {
-    await cleanProject({ path: projectDir, removeDirectory: true });
+    // await cleanProject({ path: projectDir, removeDirectory: true });
   }
 };
