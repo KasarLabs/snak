@@ -13,7 +13,7 @@ Here is an example of the `mcp.config.json` file:
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "nxp_server_example": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/npx_server_example"],
@@ -24,7 +24,7 @@ Here is an example of the `mcp.config.json` file:
     },
     "local_server": {
       "command": "node",
-      "args": ["node /User/username/snak/mcp_server/local_server/dist/index.js"]
+      "args": ["node /User/username/snak/mcps/local_server/dist/index.js"]
     }
   }
 }
@@ -36,7 +36,7 @@ After creating these configuration files, build and start your project. All tool
 pnpm run start
 ```
 
-## How to Use Snak-Mcp-Server in Your Claude Desktop
+## How to Use Snak Mcp Server in your Claude Desktop
 
 ### Installation
 
@@ -45,7 +45,7 @@ pnpm run start
 
 ### Configuration
 
-To integrate Snak-Mcp-Server with your Claude Desktop environment, follow these steps:
+To integrate Snak MCP server with your Claude Desktop environment, follow these steps:
 
 1. Locate your `claude_desktop_config.json` configuration file
 2. Add the following MCP server configuration:
@@ -53,10 +53,10 @@ To integrate Snak-Mcp-Server with your Claude Desktop environment, follow these 
 ```json
 {
   "mcpServers": {
-    "starknet_test": {
+    "snak": {
       "command": "node",
       "args": [
-        "/absolute/path/to/snak/mcp_server/starknet/dist/index.js",
+        "/absolute/path/to/snak/mcps/snak/dist/index.js",
         "plugins_name_1",
         "plugins_name_2",
         "plugins_name_3",
@@ -74,4 +74,4 @@ To integrate Snak-Mcp-Server with your Claude Desktop environment, follow these 
 ```
 
 4. Restart the Claude Desktop application to apply the changes.
-   **_NOTE:_** Ensure you replace the placeholder path with the actual absolute path to your Starknet server implementation, and specify only the plugins you wish to enable.
+   **_NOTE:_** Ensure you replace the placeholder path with the actual absolute path to your Snak server implementation, and specify only the plugins you wish to enable.
