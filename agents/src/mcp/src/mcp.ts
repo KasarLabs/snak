@@ -19,20 +19,36 @@ export class MCP_CONTROLLER {
 
   /**
    * @constructor
-   * @description Initializes the MCP_CONTROLLER with configuration from the default config file path
+   * @description Initializes the MCP_CONTROLLER with configuration
+   * @param {Record<string, any>} mcpServers - MCP servers configuration from agent config
    * @throws {Error} Throws an error if initialization fails
    */
-  constructor() {
-    const mcp_config_path = path.join(
-      process.cwd(),
-      '..',
-      'config',
-      'mcp',
-      'mcp.config.json'
-    );
-    logger.info(`MCP config path: ${mcp_config_path}`);
-    this.client = MultiServerMCPClient.fromConfigFile(mcp_config_path);
+  constructor(mcpServers: Record<string, any>) {
+    if (!mcpServers || Object.keys(mcpServers).length === 0) {
+      throw new Error('MCP servers configuration is required');
+    }
+
+    logger.info('Initializing MCP_CONTROLLER with provided servers config');
+    this.client = new MultiServerMCPClient(mcpServers);
     logger.info('MCP_CONTROLLER initialized');
+  }
+
+  /**
+   * @static
+   * @function fromJsonConfig
+   * @description Creates an MCP_CONTROLLER instance from agent config
+   * @param {any} jsonConfig - The agent configuration
+   * @returns {MCP_CONTROLLER} A new MCP_CONTROLLER instance
+   */
+  public static fromJsonConfig(jsonConfig: any): MCP_CONTROLLER {
+    if (
+      !jsonConfig ||
+      !jsonConfig.mcpServers ||
+      Object.keys(jsonConfig.mcpServers).length === 0
+    ) {
+      throw new Error('Agent configuration must include mcpServers');
+    }
+    return new MCP_CONTROLLER(jsonConfig.mcpServers);
   }
 
   /**

@@ -77,12 +77,22 @@ export const createAutonomousAgent = async (
     tools = allowedTools;
     const memory = new MemorySaver();
 
-    if (json_config.mcp === true) {
-      const mcp = new MCP_CONTROLLER();
-      await mcp.initializeConnections();
-      console.log(mcp.getTools());
-      tools = [...tools, ...mcp.getTools()];
+    if (
+      json_config.mcpServers &&
+      Object.keys(json_config.mcpServers).length > 0
+    ) {
+      try {
+        const mcp = MCP_CONTROLLER.fromJsonConfig(json_config);
+        await mcp.initializeConnections();
+        logger.info('MCP tools initialized successfully');
+        const mcpTools = mcp.getTools();
+        logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+        tools = [...tools, ...mcpTools];
+      } catch (error) {
+        logger.error(`Failed to initialize MCP tools: ${error}`);
+      }
     }
+
     const agent = createReactAgent({
       llm: model,
       tools: tools,

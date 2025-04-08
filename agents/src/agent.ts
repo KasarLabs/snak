@@ -104,11 +104,17 @@ export async function initializeToolsList(
     toolsList = [...allowedTools];
   }
 
-  if (jsonConfig.mcp === true) {
-    const mcp = new MCP_CONTROLLER();
-    await mcp.initializeConnections();
-    console.log(mcp.getTools());
-    toolsList = [...toolsList, ...mcp.getTools()];
+  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
+    try {
+      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
+      await mcp.initializeConnections();
+      logger.info('MCP tools initialized successfully');
+      const mcpTools = mcp.getTools();
+      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+      toolsList = [...toolsList, ...mcpTools];
+    } catch (error) {
+      logger.error(`Failed to initialize MCP tools: ${error}`);
+    }
   }
 
   return toolsList;

@@ -28,8 +28,9 @@ export interface Token {
  * @property {number} interval - The interval for the agent
  * @property {string} chat_id - The chat ID for the agent
  * @property {string[]} plugins - The plugins for the agent
- * @property {boolean} mcp - The MCP flag for the agent
  * @property {boolean} autonomous - The autonomous flag for the agent
+ * @property {boolean} memory - The memory flag for the agent
+ * @property {Record<string, any>} mcpServers - The MCP servers configuration
  */
 export interface JsonConfig {
   name: string;
@@ -37,9 +38,9 @@ export interface JsonConfig {
   interval: number;
   chat_id: string;
   plugins: string[];
-  mcp?: boolean;
   autonomous?: boolean;
   memory: boolean;
+  mcpServers?: Record<string, any>;
 }
 
 /**
@@ -241,7 +242,7 @@ const checkParseJson = async (
         ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
       memory: json.memory || false,
-      mcp: json.mcp || false,
+      mcpServers: json.mcpServers || {},
     };
 
     if (jsonconfig.plugins.length === 0) {
