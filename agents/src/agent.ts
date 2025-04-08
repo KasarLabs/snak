@@ -33,6 +33,7 @@ import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import { JsonConfig } from './jsonConfig.js';
 import logger from './logger.js';
+//import { MemorySystem } from './memorySystem.js';
 
 export function selectModel(aiConfig: AiConfig) {
   switch (aiConfig.aiProvider) {
@@ -139,6 +140,7 @@ export const createAgent = async (
     }
 
     let databaseConnection = null;
+    //let memorySystem = null;
     if (json_config.memory) {
       const databaseName = json_config.chat_id;
       databaseConnection = await starknetAgent.createDatabase(databaseName);
@@ -159,9 +161,27 @@ export const createAgent = async (
             ['history', "JSONB DEFAULT '[]'"],
           ]),
         });
-        if (dbCreation.code == '42P07')
+        if (dbCreation.code == '42P07') {
+          databaseConnection.addExistingTable({
+            table_name: 'agent_memories',
+            fields: new Map<string, string>([
+              ['id', 'SERIAL PRIMARY KEY'],
+              ['user_id', 'VARCHAR(100)'],
+              ['content', 'TEXT'],
+              ['embedding', `vector(${embeddingDimensions})`],
+              ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
+              ['updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
+              ['metadata', 'TEXT'],
+              ['history', "JSONB DEFAULT '[]'"],
+            ]),
+          });
           logger.warn('Agent memory table already exists');
-        else console.log('Agent memory table successfully created');
+        } else logger.info('Agent memory table successfully created');
+
+        // memorySystem = new MemorySystem(aiConfig, databaseConnection, {
+        //   chat_id: json_config.chat_id || 'default_user',
+        //   delaySeconds: 10,
+        // });
       } catch (error) {
         console.error('Error creating memories table:', error);
         throw error;
@@ -244,7 +264,6 @@ export const createAgent = async (
               }
             }
           }
-          //console.log('\nInserting inside the table : ', content);
           if (databaseConnection) {
             await databaseConnection.insert({
               table_name: 'agent_memories',
@@ -310,8 +329,13 @@ export const createAgent = async (
           ORDER BY similarity DESC
           LIMIT 4
         `;
+        // if (!memorySystem) {
+        // 	return {memories : ''}
+        // }
 
         const results = await databaseConnection.query(similarMemoriesQuery);
+        //const memories1 = await memorySystem.retrieveMemories(lastMessage, 4)
+        //memorySystem.scheduleMemoryProcessing(state.messages)
 
         // const results = await databaseConnection.select({
         //   FROM: ['agent_memories'],
@@ -359,11 +383,19 @@ export const createAgent = async (
       }
     };
 
-    //if (json_config.memory) toolsList.push(upsertMemoryToolDB);
+    if (json_config.long_term_memory) toolsList.push(upsertMemoryToolDB);
     const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
     const configPrompt = json_config.prompt?.content;
+    const basicPrompt1 = `
+    The most relevant memories for the current query are:
+    <memories>
+    {memories}
+    </memories>
+
+    Use this information to provide more personalized and context-aware responses.
+    `;
     const basicPrompt = `
 		Use your upsert_memory tool whenever there is information that is relevant, this includes but is not limited to : contract/wallet addresses, public/private keys, names, preferences etc. When you want to update an information already stored in the database, make sure to specify that it is an update. The most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;
 		`;
@@ -408,8 +440,8 @@ export const createAgent = async (
    - Only update memory when there's a meaningful change or correction
 
    - Avoid redundant memory storage for information that's already well-documented in memory`;
-    const memoryPrompt = ``;
-    const finalPrompt = json_config.memory
+    const memoryPrompt = `${refinedPrompt1}`;
+    const finalPrompt = json_config.long_term_memory
       ? `${configPrompt}\n${memoryPrompt}`
       : `${configPrompt}`;
 

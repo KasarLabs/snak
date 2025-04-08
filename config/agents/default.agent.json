@@ -43,5 +43,6 @@
     "contract",
     "atlantic"
   ],
-  "memory":true
+  "memory":true,
+  "long_term_memory":false
 }
