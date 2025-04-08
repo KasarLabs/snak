@@ -52,7 +52,7 @@ export namespace scarb {
 		);
 		await query(q);
 	}
-	export async function selectProject(name: string): Promise<Project[] | undefined> {
+	export async function selectProject(name: string): Promise<Project[]> {
 		const q = new Query(
 			`SELECT id, name, type FROM project WHERE name = $1;`,
 			[name]
@@ -75,7 +75,7 @@ export namespace scarb {
 		);
 		await query(q);
 	}
-	export async function selectPrograms(project_id: number): Promise<Program[] | undefined> {
+	export async function selectPrograms(project_id: number): Promise<Program[]> {
 		const q = new Query(
 			`SELECT project_id, name, source_code FROM program
 			WHERE project_id = $1
@@ -100,7 +100,7 @@ export namespace scarb {
 		);
 		await query(q);
 	}
-	export async function selectDependencies(projectId: number): Promise<Dependency[] | undefined> {
+	export async function selectDependencies(projectId: number): Promise<Dependency[]> {
 		const q = new Query(
 			`SELECT project_id, name, version FROM dependency
 			WHERE project_id = $1
@@ -167,15 +167,17 @@ export namespace scarb {
 		);
 
 		const q_res = await query<ProjectQueryRes>(q);
-		const init: ProjectData = {
-			id: 0,
-			name: '',
-			type: 'contract',
-			programs: [],
-			dependencies: [],
-		};
 
-		return q_res?.reduce<ProjectData>(reduce, init);
+		if (q_res.length) {
+			const init: ProjectData = {
+				id: 0,
+				name: '',
+				type: 'contract',
+				programs: [],
+				dependencies: [],
+			};
+			return q_res.reduce<ProjectData>(reduce, init);
+		}
 	}
 	function reduce(acc: ProjectData, next: ProjectQueryRes): ProjectData {
 		acc.id = next.project_id;

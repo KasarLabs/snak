@@ -25,40 +25,40 @@ export class DatabaseError extends Error {
 	 *
 	 * @throws { DatabaseError }
 	 */
-	public static handlePgError(err: PgError) {
+	public static handlePgError(err: PgError): DatabaseError {
 		// See https://www.postgresql.org/docs/current/errcodes-appendix.html
 		switch (err.code) {
 			case '23505': // unique_violation
-				throw new DatabaseError('Duplicate key violation', err);
+				return new DatabaseError('Duplicate key violation', err);
 
 			case '23503': // foreign_key_violation
-				throw new DatabaseError('Referenced record does not exist', err);
+				return new DatabaseError('Referenced record does not exist', err);
 
 			case '28P01': // invalid_password
-				throw new DatabaseError('Database authentication failed', err);
+				return new DatabaseError('Database authentication failed', err);
 
 			case '57P01': // admin_shutdown
 			case '57P02': // crash_shutdown
 			case '57P03': // cannot_connect_now
-				throw new DatabaseError('Database server unavailable', err);
+				return new DatabaseError('Database server unavailable', err);
 
 			case '42P01': // undefined_table
-				throw new DatabaseError('Schema error: table not found', err);
+				return new DatabaseError('Schema error: table not found', err);
 
 			case '42P07': // duplicate_table
-				throw new DatabaseError('Table already exists', err);
+				return new DatabaseError('Table already exists', err);
 
 			case '42501': // insufficient_privilege
-				throw new DatabaseError('Insufficient database privileges', err);
+				return new DatabaseError('Insufficient database privileges', err);
 
 			case '42601': // syntax error
-				throw new DatabaseError('Syntax error', err);
+				return new DatabaseError('Syntax error', err);
 
 			case '42703': // undefined_column
-				throw new DatabaseError('Schema error: column not found', err);
+				return new DatabaseError('Schema error: column not found', err);
 
 			default:
-				throw new DatabaseError('Database operation failed', err);
+				return new DatabaseError('Database operation failed', err);
 		}
 	}
 }

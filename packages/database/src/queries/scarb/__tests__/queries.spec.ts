@@ -34,6 +34,10 @@ describe('Project table', () => {
 		const project: scarb.Project = { id: 1, name: "Foo", type: 'contract' };
 		await expect(scarb.selectProject("Foo")).resolves.toEqual([project]);
 	});
+
+	it('Should handle invalid retrievals', async () => {
+		await expect(scarb.selectProject('Bazz')).resolves.toEqual([]);
+	});
 })
 
 describe('Program table', () => {
@@ -58,6 +62,10 @@ describe('Program table', () => {
 		const program2: scarb.Program = { project_id: project.id!, name: "Sieve", source_code: "prime_sieve" };
 		await expect(scarb.selectPrograms(project.id!)).resolves.toEqual([program1, program2]);
 	});
+
+	it('Should handle invalid retrievals', async () => {
+		await expect(scarb.selectPrograms(2)).resolves.toEqual([]);
+	});
 })
 
 describe('Dependency table', () => {
@@ -81,7 +89,11 @@ describe('Dependency table', () => {
 		const dependency1: scarb.Dependency = { project_id: project.id!, name: "libc", version: '2.0.0' };
 		const dependency2: scarb.Dependency = { project_id: project.id!, name: "gcc", version: "" };
 		await expect(scarb.selectDependencies(project.id!)).resolves.toEqual([dependency1, dependency2]);
-	})
+	});
+
+	it('Should handle invalid retrievals', async () => {
+		await expect(scarb.selectDependencies(2)).resolves.toEqual([]);
+	});
 })
 
 describe('Project aggregation', () => {
@@ -98,5 +110,9 @@ describe('Project aggregation', () => {
 			dependencies: [dependency1, dependency2]
 		};
 		await expect(scarb.retrieveProjectData("Foo")).resolves.toEqual(projectData);
+	});
+
+	it('Should handle missing projects', async () => {
+		await expect(scarb.retrieveProjectData('Bazz')).resolves.toBeUndefined();
 	});
 })
