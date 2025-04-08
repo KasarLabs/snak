@@ -3,9 +3,38 @@ import { MultiServerMCPClient } from 'snak-mcps';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../../../src/logger.js';
+import chalk from 'chalk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * @interface MCPOptions
+ * @description Options for MCP controller
+ * @property {boolean} boxed - Whether to show MCP logs in a special box
+ * @property {boolean} silent - Whether to mute MCP logs entirely
+ */
+export interface MCPOptions {
+  boxed?: boolean;
+  silent?: boolean;
+}
+
+/**
+ * Function to create a box around MCP logs
+ */
+const createMCPLogBox = (message: string): string => {
+  const lines = message.split('\n');
+  const width = Math.max(...lines.map((line) => line.length)) + 4;
+
+  const top = '┌' + '─'.repeat(width) + '┐';
+  const bottom = '└' + '─'.repeat(width) + '┘';
+
+  const formattedLines = lines.map(
+    (line) => '│ ' + line + ' '.repeat(width - line.length - 3) + '│'
+  );
+
+  return chalk.cyan(`\n${top}\n${formattedLines.join('\n')}\n${bottom}\n`);
+};
 
 /**
  * @class MCP_CONTROLLER
@@ -16,21 +45,87 @@ const __dirname = path.dirname(__filename);
 export class MCP_CONTROLLER {
   private client: MultiServerMCPClient;
   private tools: StructuredTool[] = [];
+  private options: MCPOptions;
 
   /**
    * @constructor
    * @description Initializes the MCP_CONTROLLER with configuration
    * @param {Record<string, any>} mcpServers - MCP servers configuration from agent config
+   * @param {MCPOptions} options - Options for MCP controller
    * @throws {Error} Throws an error if initialization fails
    */
-  constructor(mcpServers: Record<string, any>) {
+  constructor(mcpServers: Record<string, any>, options: MCPOptions = {}) {
     if (!mcpServers || Object.keys(mcpServers).length === 0) {
       throw new Error('MCP servers configuration is required');
+    }
+
+    this.options = options;
+
+    if (this.options.silent) {
+      this.silenceConsoleLogs();
+    } else if (this.options.boxed) {
+      this.setupBoxedLogs();
     }
 
     logger.info('Initializing MCP_CONTROLLER with provided servers config');
     this.client = new MultiServerMCPClient(mcpServers);
     logger.info('MCP_CONTROLLER initialized');
+  }
+
+  /**
+   * @private
+   * @function silenceConsoleLogs
+   * @description Temporarily silences console logs for MCP servers
+   */
+  private silenceConsoleLogs() {
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    // Override console methods
+    console.log = (...args) => {
+      // Only filter MCP-related logs
+      const message = args.join(' ');
+      if (!message.includes('MCP') && !message.includes('server')) {
+        originalConsoleLog(...args);
+      }
+    };
+
+    console.error = (...args) => {
+      // Only filter MCP-related logs
+      const message = args.join(' ');
+      if (!message.includes('MCP') && !message.includes('server')) {
+        originalConsoleError(...args);
+      }
+    };
+  }
+
+  /**
+   * @private
+   * @function setupBoxedLogs
+   * @description Sets up boxed logging for MCP servers
+   */
+  private setupBoxedLogs() {
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    // Override console methods
+    console.log = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('MCP') || message.includes('server')) {
+        originalConsoleLog(createMCPLogBox(message));
+      } else {
+        originalConsoleLog(...args);
+      }
+    };
+
+    console.error = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('MCP') || message.includes('server')) {
+        originalConsoleError(chalk.red(createMCPLogBox(message)));
+      } else {
+        originalConsoleError(...args);
+      }
+    };
   }
 
   /**
@@ -48,7 +143,13 @@ export class MCP_CONTROLLER {
     ) {
       throw new Error('Agent configuration must include mcpServers');
     }
-    return new MCP_CONTROLLER(jsonConfig.mcpServers);
+
+    const options: MCPOptions = {
+      silent: jsonConfig.mcpOptions?.silent || false,
+      boxed: jsonConfig.mcpOptions?.boxed || false,
+    };
+
+    return new MCP_CONTROLLER(jsonConfig.mcpServers, options);
   }
 
   /**
@@ -87,6 +188,7 @@ export class MCP_CONTROLLER {
     try {
       await this.client.initializeConnections();
       this.parseTools();
+      logger.info(`MCP connections initialized successfully`);
     } catch (error) {
       throw new Error(`Error initializing connections: ${error}`);
     }
@@ -113,6 +215,7 @@ export class MCP_CONTROLLER {
   public close = async () => {
     try {
       await this.client.close();
+      logger.info('MCP connections closed');
     } catch (error) {
       throw new Error(`Error closing connections: ${error}`);
     }

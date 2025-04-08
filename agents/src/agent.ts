@@ -108,7 +108,18 @@ export async function initializeToolsList(
     try {
       const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
       await mcp.initializeConnections();
-      logger.info('MCP tools initialized successfully');
+
+      // Log about MCP mode
+      if (jsonConfig.mcpOptions?.silent) {
+        logger.info('MCP running in silent mode');
+      } else if (jsonConfig.mcpOptions?.boxed) {
+        logger.info(
+          'MCP running in boxed mode - logs will be displayed in colored boxes'
+        );
+      } else {
+        logger.info('MCP tools initialized successfully');
+      }
+
       const mcpTools = mcp.getTools();
       logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
       toolsList = [...toolsList, ...mcpTools];
