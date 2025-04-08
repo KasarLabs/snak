@@ -12,6 +12,8 @@ export namespace scarb {
 				id SERIAL PRIMARY KEY,
 				name VARCHAR(100),
 				type VARCHAR(50) CHECK (type in ('contract', 'cairo_program')),
+				proof JSONB,
+				verified BOOLEAN DEFAULT FALSE,
 				UNIQUE (name)
 			);`
 			),
@@ -21,6 +23,8 @@ export namespace scarb {
 				project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
 				name VARCHAR(255) NOT NULL,
 				source_code TEXT,
+				sierra JSONB,
+				casm JSONB,
 				UNIQUE (project_id, name)
 			)`
 			),
@@ -59,11 +63,20 @@ export namespace scarb {
 		);
 		return await query(q);
 	}
+	export async function deleteProject(name: string): Promise<void> {
+		const q = new Query(
+			`DELETE FROM project WHERE name = $1`,
+			[name]
+		);
+		await query(q);
+	}
 
 	export interface Program {
 		project_id?: number,
 		name: string,
-		source_code: string
+		source_code: string,
+		sierra?: string | null,
+		casm?: string | null
 	}
 	export async function insertProgram(program: Program): Promise<void> {
 		const q = new Query(
@@ -77,12 +90,19 @@ export namespace scarb {
 	}
 	export async function selectPrograms(project_id: number): Promise<Program[]> {
 		const q = new Query(
-			`SELECT project_id, name, source_code FROM program
+			`SELECT project_id, name, source_code, sierra, casm FROM program
 			WHERE project_id = $1
 			ORDER BY id ASC;`,
 			[project_id]
 		);
 		return await query(q);
+	}
+	export async function deleteProgram(projectId: number, name: string): Promise<void> {
+		const q = new Query(
+			`DELETE FROM program WHERE project_id = $1 AND name = $2;`,
+			[projectId, name]
+		);
+		await query(q);
 	}
 
 	export interface Dependency {
@@ -108,6 +128,13 @@ export namespace scarb {
 			[projectId]
 		);
 		return await query<Dependency>(q);
+	}
+	export async function deleteDependency(projectId: number, name: string): Promise<void> {
+		const q = new Query(
+			`DELETE FROM Dependency WHERE project_id = $1 AND name = $2;`,
+			[projectId, name]
+		);
+		await query(q);
 	}
 
 	export interface ProjectData {
@@ -201,5 +228,24 @@ export namespace scarb {
 		}
 
 		return acc;
+	}
+
+	export async function saveCompilationResults(
+		programNames: string[],
+		sierraFiles: string[],
+		casmFiles: string[]
+	): Promise<void> {
+		const t = programNames.map((name, index) => {
+			return new Query(
+				`UPDATE program SET sierra = $1, casm = $2 WHERE name = $3;`,
+				[
+					JSON.stringify(sierraFiles[index]),
+					JSON.stringify(casmFiles[index]),
+					name
+				]
+			);
+		});
+
+		await transaction(t);
 	}
 }

@@ -7,7 +7,7 @@ import {
   CairoProgram,
 } from '../types/index.js';
 import {
-  addSeveralDependancies,
+  addSeveralDependancies as addSeveralDependencies,
   isProjectInitialized,
   addTomlSection,
   getProjectDir,
@@ -60,8 +60,8 @@ export async function setupToml(
       valuesObject: section.valuesObject,
     });
   }
-  await addSeveralDependancies(requiredDependencies || [], projectDir);
-  await addSeveralDependancies(dependencies || [], projectDir);
+  await addSeveralDependencies(requiredDependencies || [], projectDir);
+  await addSeveralDependencies(dependencies || [], projectDir);
 }
 
 /**

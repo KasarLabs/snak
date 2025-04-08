@@ -406,6 +406,9 @@ importers:
 
   plugins/scarb:
     dependencies:
+      '@snak/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       find-up:
         specifier: ^5.0.0
         version: 5.0.0
