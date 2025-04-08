@@ -29,6 +29,20 @@
   "chat_id": "sak_guide",
   "mcp": false,
   "external_plugins": [],
-  "internal_plugins": ["scarb", "contract", "cairocoder"],
+  "internal_plugins": [
+    "argent",
+    "fibrous",
+    "okx",
+    "braavos",
+    "openzeppelin",
+    "rpc",
+    "avnu",
+    "erc20",
+    "erc721",
+    "scarb",
+    "contract",
+    "atlantic",
+    "cairocoder"
+  ],
   "memory": true
 }
