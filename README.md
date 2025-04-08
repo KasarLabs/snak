@@ -90,8 +90,8 @@ POSTGRES_PORT="YOUR_POSTGRES_PORT"
   "interval": "Your agent interval beetween each transaction of the Agent in ms,",
   "chat_id": "Your Agent Chat-id for isolating memory",
   "autonomous": "Your agent is autonomous or not",
-  "mcp": "Your agent can use mcp or not",
   "plugins": ["Your first plugin", "Your second plugin"]
+  
 }
 ```
 

@@ -28,9 +28,5 @@
       "command": "node",
       "args": ["node /path/to/local_server/dist/index.js"]
     }
-  },
-  "mcpOptions": {
-    "boxed": true,
-    "silent": false
   }
 }

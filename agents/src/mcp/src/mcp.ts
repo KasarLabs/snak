@@ -24,15 +24,15 @@ export interface MCPOptions {
  */
 const createMCPLogBox = (message: string): string => {
   const lines = message.split('\n');
-  const width = Math.max(...lines.map((line) => line.length)) + 4;
-
+  const width = Math.max(...lines.map(line => line.length)) + 4;
+  
   const top = '┌' + '─'.repeat(width) + '┐';
   const bottom = '└' + '─'.repeat(width) + '┘';
-
-  const formattedLines = lines.map(
-    (line) => '│ ' + line + ' '.repeat(width - line.length - 3) + '│'
+  
+  const formattedLines = lines.map(line => 
+    '│ ' + line + ' '.repeat(width - line.length - 3) + '│'
   );
-
+  
   return chalk.cyan(`\n${top}\n${formattedLines.join('\n')}\n${bottom}\n`);
 };
 
@@ -58,15 +58,15 @@ export class MCP_CONTROLLER {
     if (!mcpServers || Object.keys(mcpServers).length === 0) {
       throw new Error('MCP servers configuration is required');
     }
-
+    
     this.options = options;
-
+    
     if (this.options.silent) {
       this.silenceConsoleLogs();
     } else if (this.options.boxed) {
       this.setupBoxedLogs();
     }
-
+    
     logger.info('Initializing MCP_CONTROLLER with provided servers config');
     this.client = new MultiServerMCPClient(mcpServers);
     logger.info('MCP_CONTROLLER initialized');
@@ -80,7 +80,7 @@ export class MCP_CONTROLLER {
   private silenceConsoleLogs() {
     const originalConsoleLog = console.log;
     const originalConsoleError = console.error;
-
+    
     // Override console methods
     console.log = (...args) => {
       // Only filter MCP-related logs
@@ -89,7 +89,7 @@ export class MCP_CONTROLLER {
         originalConsoleLog(...args);
       }
     };
-
+    
     console.error = (...args) => {
       // Only filter MCP-related logs
       const message = args.join(' ');
@@ -107,7 +107,7 @@ export class MCP_CONTROLLER {
   private setupBoxedLogs() {
     const originalConsoleLog = console.log;
     const originalConsoleError = console.error;
-
+    
     // Override console methods
     console.log = (...args) => {
       const message = args.join(' ');
@@ -117,7 +117,7 @@ export class MCP_CONTROLLER {
         originalConsoleLog(...args);
       }
     };
-
+    
     console.error = (...args) => {
       const message = args.join(' ');
       if (message.includes('MCP') || message.includes('server')) {
@@ -143,12 +143,12 @@ export class MCP_CONTROLLER {
     ) {
       throw new Error('Agent configuration must include mcpServers');
     }
-
+    
     const options: MCPOptions = {
       silent: jsonConfig.mcpOptions?.silent || false,
-      boxed: jsonConfig.mcpOptions?.boxed || false,
+      boxed: jsonConfig.mcpOptions?.boxed || false
     };
-
+    
     return new MCP_CONTROLLER(jsonConfig.mcpServers, options);
   }
 
