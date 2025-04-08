@@ -5,7 +5,6 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import logger from './logger.js';
-import { MCPOptions } from './mcp/src/mcp.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +31,6 @@ export interface Token {
  * @property {boolean} autonomous - The autonomous flag for the agent
  * @property {boolean} memory - The memory flag for the agent
  * @property {Record<string, any>} mcpServers - The MCP servers configuration
- * @property {MCPOptions} mcpOptions - The MCP options
  */
 export interface JsonConfig {
   name: string;
@@ -43,7 +41,6 @@ export interface JsonConfig {
   autonomous?: boolean;
   memory: boolean;
   mcpServers?: Record<string, any>;
-  mcpOptions?: MCPOptions;
 }
 
 /**
@@ -246,7 +243,6 @@ const checkParseJson = async (
         : [],
       memory: json.memory || false,
       mcpServers: json.mcpServers || {},
-      mcpOptions: json.mcpOptions || {},
     };
 
     if (jsonconfig.plugins.length === 0) {

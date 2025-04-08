@@ -9,17 +9,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * @interface MCPOptions
- * @description Options for MCP controller
- * @property {boolean} boxed - Whether to show MCP logs in a special box
- * @property {boolean} silent - Whether to mute MCP logs entirely
- */
-export interface MCPOptions {
-  boxed?: boolean;
-  silent?: boolean;
-}
-
-/**
  * @class MCP_CONTROLLER
  * @description Controller for managing MCP (Model context protocol) Client and its tools
  * @property {MultiServerMCPClient} client - Client instance for managing multiple MCP server connections
@@ -28,22 +17,18 @@ export interface MCPOptions {
 export class MCP_CONTROLLER {
   private client: MultiServerMCPClient;
   private tools: StructuredTool[] = [];
-  private options: MCPOptions;
 
   /**
    * @constructor
    * @description Initializes the MCP_CONTROLLER with configuration
    * @param {Record<string, any>} mcpServers - MCP servers configuration from agent config
-   * @param {MCPOptions} options - Options for MCP controller
    * @throws {Error} Throws an error if initialization fails
    */
-  constructor(mcpServers: Record<string, any>, options: MCPOptions = {}) {
+  constructor(mcpServers: Record<string, any>) {
     if (!mcpServers || Object.keys(mcpServers).length === 0) {
       throw new Error('MCP servers configuration is required');
     }
-    
-    this.options = options;
-    
+
     logger.info('Initializing MCP_CONTROLLER with provided servers config');
     this.client = new MultiServerMCPClient(mcpServers);
     logger.info('MCP_CONTROLLER initialized');
@@ -57,7 +42,7 @@ export class MCP_CONTROLLER {
   private silenceConsoleLogs() {
     const originalConsoleLog = console.log;
     const originalConsoleError = console.error;
-    
+
     // Override console methods
     console.log = (...args) => {
       // Only filter MCP-related logs
@@ -66,7 +51,7 @@ export class MCP_CONTROLLER {
         originalConsoleLog(...args);
       }
     };
-    
+
     console.error = (...args) => {
       // Only filter MCP-related logs
       const message = args.join(' ');
@@ -91,13 +76,8 @@ export class MCP_CONTROLLER {
     ) {
       throw new Error('Agent configuration must include mcpServers');
     }
-    
-    const options: MCPOptions = {
-      silent: jsonConfig.mcpOptions?.silent || false,
-      boxed: jsonConfig.mcpOptions?.boxed || false
-    };
-    
-    return new MCP_CONTROLLER(jsonConfig.mcpServers, options);
+
+    return new MCP_CONTROLLER(jsonConfig.mcpServers);
   }
 
   /**

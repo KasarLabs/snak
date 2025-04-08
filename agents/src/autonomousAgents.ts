@@ -85,17 +85,6 @@ export const createAutonomousAgent = async (
         const mcp = MCP_CONTROLLER.fromJsonConfig(json_config);
         await mcp.initializeConnections();
 
-        // Log about MCP mode
-        if (json_config.mcpOptions?.silent) {
-          logger.info('MCP running in silent mode (autonomous agent)');
-        } else if (json_config.mcpOptions?.boxed) {
-          logger.info(
-            'MCP running in boxed mode - logs will be displayed in colored boxes (autonomous agent)'
-          );
-        } else {
-          logger.info('MCP tools initialized successfully');
-        }
-
         const mcpTools = mcp.getTools();
         logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
         tools = [...tools, ...mcpTools];
