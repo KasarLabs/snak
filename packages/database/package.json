@@ -11,6 +11,11 @@
     "build": "tsc",
     "check-types": "tsc --noEmit"
   },
+  "exports": {
+    ".": "./src/database.ts",
+    "./error": "./src/error.ts",
+    "./queries": "./src/queries/index.ts"
+  },
   "dependecies": {
     "pg": "^8.14.1"
   },
