@@ -18,10 +18,11 @@ export const registerProject = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof registerProjectSchema>
 ) => {
+  console.log("\n➜ Registering project");
   try {
-    console.log("\n➜ Registering Cairo project");
-    console.log(JSON.stringify(params, null, 2));
-    console.log("\n");
+    console.log("[REGISTER] Starting project registration");
+    console.log(`[REGISTER] Project: ${params.projectName}, Type: ${params.projectType || 'cairo_program'}`);
+    console.log(`[REGISTER] Programs: ${params.programPaths?.length || 0}, Dependencies: ${params.dependencies?.length || 0}`);
     if (params.projectName.includes('-'))
       throw new Error(
         "Project name cannot contain hyphens ('-'). Please use underscores ('_') instead."
@@ -49,9 +50,9 @@ export const registerProject = async (
 
     
     const projectData = await retrieveProjectData(agent, params.projectName);
-    // console.log(
-    //   `Project ${params.projectName}: ${alreadyRegistered ? 'updated' : 'created'}`
-    // );
+    
+    console.log("[REGISTER] Status: Success");
+    console.log(`[REGISTER] Project ID: ${projectData.id}`);
 
     return JSON.stringify({
       status: 'success',

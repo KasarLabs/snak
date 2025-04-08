@@ -18,7 +18,6 @@ export const generateCairoCode = async (
   try {
     console.log("\n➜ Generating Cairo code");
     console.log(JSON.stringify(params, null, 2));
-    console.log("\n");
     validateParams(params);
     
     const generatedContent = await callCairoGenerationAPI(params.prompt);

@@ -19,11 +19,11 @@ export const compileContract = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof compileContractSchema>
 ) => {
+  console.log("\n➜ Compiling program");
   let projectDir = '';
   try {
-    console.log("\n➜ Compiling Cairo project");
-    // console.log(JSON.stringify(params, null, 2));
-    console.log("\n");
+    console.log("[COMPILING] Starting compilation of Cairo project");
+    console.log(`[COMPILING] Project: ${params.projectName}`);
     
     const projectData = await retrieveProjectData(agent, params.projectName);
 
@@ -60,6 +60,11 @@ export const compileContract = async (
       contractFiles.casmFiles,
       contractFiles.artifactFile
     );
+
+    console.log("[COMPILING] Status: Success");
+    console.log(`[COMPILING] Project ID: ${projectData.id}`);
+    console.log(`[COMPILING] Sierra files: ${contractFiles.sierraFiles.length}`);
+    console.log(`[COMPILING] CASM files: ${contractFiles.casmFiles.length}`);
 
     return JSON.stringify({
       status: 'success',

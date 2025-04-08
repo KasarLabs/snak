@@ -17,14 +17,13 @@ export const executeProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof executeProgramSchema>
 ) => {
+  console.log("\n➜ Executing program");
   let projectDir = '';
   let mode = '';
   try {
-    // if (params.mode === 'bootloader'){
-      console.log("\n➜ Executing Cairo program");
-      // console.log(JSON.stringify(params, null, 2));
-      console.log("\n");
-  // }
+    console.log("[EXEC] Starting execution of Cairo program");
+    console.log(`[EXEC] Project: ${params.projectName}, Function: ${params.executableFunction || 'main'}`);
+    console.log(`[EXEC] Parameters: ${JSON.stringify(params.arguments || {})}`);
     
     const projectData = await retrieveProjectData(agent, params.projectName);
 
@@ -94,6 +93,14 @@ export const executeProgram = async (
         projectData.id,
         parsedExecResult.tracePath
       );
+    }
+
+    console.log("[EXEC] Status: Success");
+    console.log(`[EXEC] Project ID: ${projectData.id}`);
+    console.log(`[EXEC] Execution ID: ${parsedExecResult.executionId}`);
+    console.log(`[EXEC] Mode: ${mode}`);
+    if (parsedExecResult.tracePath) {
+      console.log(`[EXEC] Trace path: ${parsedExecResult.tracePath}`);
     }
 
     return JSON.stringify({

@@ -13,6 +13,7 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import * as readline from 'readline';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -35,6 +36,16 @@ const load_command = async (): Promise<string> => {
 
 const clearScreen = () => {
   process.stdout.write('\x1Bc');
+};
+
+// Fonction pour placer le curseur à une position spécifique
+const moveCursor = (x: number, y: number) => {
+  readline.cursorTo(process.stdout, x, y);
+};
+
+// Fonction pour effacer la ligne courante
+const clearLine = () => {
+  readline.clearLine(process.stdout, 0);
 };
 
 const createLink = (text: string, url: string): string =>
@@ -246,12 +257,131 @@ const LocalRun = async () => {
 
       await agent.createAgentReactExecutor();
       console.log(chalk.dim('\nStarting interactive session...\n'));
-      const autoSpinner = createSpinner('Running autonomous mode\n').start();
-
+      
+      // On désactive le spinner par défaut de nanospinner et on implémente notre propre version fixe
+      const spinnerText = 'Running autonomous mode';
+      const autoSpinner = createSpinner(spinnerText);
+      
+      // Empêcher le spinner de s'afficher lui-même
+      autoSpinner.write = () => autoSpinner;
+      
+      // Définir les frames du spinner
+      const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+      let currentFrameIndex = 0;
+      
+      // Sauvegarde de l'original console.log
+      const originalConsoleLog = console.log;
+      
+      // Déplacer le curseur à la dernière ligne du terminal
+      const moveToBotom = () => {
+        const rows = process.stdout.rows || 30;
+        readline.cursorTo(process.stdout, 0, rows - 1);
+        readline.clearLine(process.stdout, 0);
+      };
+      
+      // Position actuelle pour permettre de revenir après réaffichage du spinner
+      let lastLogPosition = 0;
+      
+      // Variable pour stocker tous les logs
+      const logHistory: string[] = [];
+      
+      // Remplacer console.log
+      console.log = function(...args: any[]) {
+        // Capturer le log dans l'historique
+        const logMessage = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ');
+        logHistory.push(logMessage);
+        
+        // Effacer la ligne du spinner
+        moveToBotom();
+        readline.clearLine(process.stdout, 0);
+        
+        // Afficher le contenu normal
+        originalConsoleLog.apply(console, args);
+        
+        // Mémoriser la position après le log
+        lastLogPosition = process.stdout.rows ? process.stdout.rows - 2 : 0;
+        
+        // Réafficher le spinner à la dernière ligne
+        moveToBotom();
+        process.stdout.write(`${chalk.yellow(spinnerFrames[currentFrameIndex])} ${spinnerText}`);
+        
+        // Reposition curseur après le texte pour le prochain log
+        if (lastLogPosition > 0) {
+          readline.cursorTo(process.stdout, 0, lastLogPosition);
+        }
+      };
+      
+      // Timer pour animer le spinner
+      const spinnerInterval = setInterval(() => {
+        currentFrameIndex = (currentFrameIndex + 1) % spinnerFrames.length;
+        
+        // Sauvegarder la position courante
+        const rows = process.stdout.rows || 30;
+        const currentRow = lastLogPosition;
+        
+        // Dessiner le spinner
+        moveToBotom();
+        readline.clearLine(process.stdout, 0);
+        process.stdout.write(`${chalk.yellow(spinnerFrames[currentFrameIndex])} ${spinnerText}`);
+        
+        // Revenir à la position avant l'update
+        if (currentRow > 0) {
+          readline.cursorTo(process.stdout, 0, currentRow);
+        }
+      }, 80);
+      
+      // Fonction pour gérer Ctrl+C et assurer qu'on restaure correctement le terminal
+      const handleExit = () => {
+        clearInterval(spinnerInterval);
+        console.log = originalConsoleLog;
+        moveToBotom();
+        readline.clearLine(process.stdout, 0);
+        process.exit(0);
+      };
+      
+      // Capturer Ctrl+C
+      process.on('SIGINT', handleExit);
+      
+      // Démarrer le spinner (pour la compatibilité avec le code existant)
+      autoSpinner.start();
+      
       try {
         await agent.execute_autonomous();
+        
+        // Nettoyage
+        clearInterval(spinnerInterval);
+        process.removeListener('SIGINT', handleExit);
+        console.log = originalConsoleLog;
+        
+        // Effacer la dernière ligne de spinner
+        moveToBotom();
+        readline.clearLine(process.stdout, 0);
+        
+        // Si des logs semblent manquer, les réafficher
+        if (logHistory.length > 0) {
+          console.log("\nExecution log summary:");
+          logHistory.forEach(log => console.log(log));
+        }
+        
         autoSpinner.success({ text: 'Autonomous execution completed' });
       } catch (error) {
+        // Nettoyage
+        clearInterval(spinnerInterval);
+        process.removeListener('SIGINT', handleExit);
+        console.log = originalConsoleLog;
+        
+        // Effacer la dernière ligne de spinner
+        moveToBotom();
+        readline.clearLine(process.stdout, 0);
+        
+        // Si des logs semblent manquer, les réafficher
+        if (logHistory.length > 0) {
+          console.log("\nExecution log summary:");
+          logHistory.forEach(log => console.log(log));
+        }
+        
         autoSpinner.error({ text: 'Error in autonomous mode' });
         console.error(
           createBox(error.message, { title: 'Error', isError: true })

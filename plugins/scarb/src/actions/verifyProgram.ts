@@ -19,11 +19,11 @@ export const verifyProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof verifyProgramSchema>
 ) => {
+  console.log("\n➜ Verifying program");
   let projectDir = '';
   try {
-    console.log("\n➜ Verifying Cairo program proof");
-    // console.log(JSON.stringify(params, null, 2));
-    console.log("\n");
+    console.log("[VERIFY] Starting program verification");
+    console.log(`[VERIFY] Project: ${params.projectName}`);
     
     const projectData = await retrieveProjectData(agent, params.projectName);
 
@@ -45,6 +45,11 @@ export const verifyProgram = async (
       projectData.id,
       parsedResult.status === 'success' ? true : false
     );
+
+    if (parsedResult.status === 'success') {
+      console.log('[VERIFY] Status: Success');
+      console.log(`[VERIFY] Project: ${projectData.name}`);
+    }
 
     return JSON.stringify({
       status: parsedResult.status,

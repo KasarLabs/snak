@@ -18,11 +18,12 @@ export const proveProgram = async (
   agent: StarknetAgentInterface,
   params: z.infer<typeof proveProgramSchema>
 ) => {
+  console.log("\n➜ Proving program");
   let projectDir = '';
   try {
-    console.log("\n➜ Generating proof for Cairo program");
-    // console.log(JSON.stringify(params, null, 2));
-    console.log("\n");
+    console.log("[PROVE] Starting proof generation");
+    console.log(`[PROVE] Project: ${params.projectName}, Function: ${params.executableFunction || 'main'}`);
+    console.log(`[PROVE] Parameters: ${JSON.stringify(params.arguments || {})}`);
     
     const execResult = await executeProgram(agent, {
       ...params,
@@ -51,6 +52,10 @@ export const proveProgram = async (
     const parsedResult = JSON.parse(result);
 
     await saveProof(agent, projectData.id, projectDir, parsedResult.proofPath);
+
+    console.log("[PROVE] Status: Success");
+    console.log(`[PROVE] Project ID: ${projectData.id}`);
+    console.log(`[PROVE] Proof Path: ${parsedResult.proofPath}`);
 
     return JSON.stringify({
       status: 'success',
