@@ -31,18 +31,26 @@ export class AgentService implements IAgentService {
 
     try {
       const status = await this.getAgentStatus(agent);
+      if (!userRequest || !userRequest.request) {
+        throw new AgentValidationError('Missing required field: request');
+      }
       if (!status.isReady) {
         throw new AgentCredentialsError('Agent is not properly configured');
       }
-
       if (!(await agent.validateRequest(userRequest.request))) {
         throw new AgentValidationError('Invalid request format or parameters');
       }
+      if (!(await agent.validateRequest(userRequest.agentName))) {
+        throw new AgentValidationError('Invalid request format or parameters');
+      }
 
+      console.log('Agent Request Starting...');
       const result = await agent.execute(userRequest.request);
 
       this.logger.debug({
         message: 'Agent request processed successfully',
+        agentName: agent.getAgentConfig()?.name,
+        agentInternalTools: agent.getAgentConfig()?.internal_plugins.join(','),
         result,
       });
 

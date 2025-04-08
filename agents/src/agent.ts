@@ -169,7 +169,6 @@ export const createAgent = async (
     }
 
     let toolsList = await initializeToolsList(starknetAgent, json_config);
-
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),

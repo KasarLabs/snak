@@ -21,7 +21,11 @@ export {
 } from './src/tools/signatureTools.js';
 
 // Config exports
-export { JsonConfig, load_json_config } from './src/jsonConfig.js';
+export {
+  JsonConfig,
+  load_json_config,
+  createContextFromJson,
+} from './src/jsonConfig.js';
 
 // Common exports
 export { IAgent, AiConfig } from './common/index.js';

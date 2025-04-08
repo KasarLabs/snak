@@ -21,11 +21,16 @@ export class WalletService implements IWalletService {
   ): Promise<any> {
     try {
       const status = await this.getAgentStatus(agent);
+      if (!userRequest || !userRequest.request) {
+        throw new AgentValidationError('Missing required field: request');
+      }
       if (!status.isReady) {
         throw new AgentCredentialsError('Agent is not properly configured');
       }
-
       if (!(await agent.validateRequest(userRequest.request))) {
+        throw new AgentValidationError('Invalid request format or parameters');
+      }
+      if (!(await agent.validateRequest(userRequest.agentName))) {
         throw new AgentValidationError('Invalid request format or parameters');
       }
       const result = await agent.execute_call_data(userRequest.request);

@@ -1,3 +1,4 @@
+import { JsonConfig } from '@starknet-agent-kit/agents';
 import { RpcProvider } from 'starknet';
 
 export interface IAgent {
@@ -52,4 +53,6 @@ export interface IAgent {
   };
 
   getProvider(): RpcProvider;
+
+  getAgentConfig(): JsonConfig | undefined;
 }

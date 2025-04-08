@@ -13,7 +13,7 @@ const colors = {
   warn: 'yellow',
   info: 'green',
   http: 'magenta',
-  debug: 'blue',
+  debug: 'cyan',
 };
 
 winston.addColors(colors);

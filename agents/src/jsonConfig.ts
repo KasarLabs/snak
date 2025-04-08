@@ -50,7 +50,10 @@ export interface JsonConfig {
  * @param {any} json - The JSON configuration object
  * @returns {string} The context string
  */
-export const createContextFromJson = (json: any): string => {
+export const createContextFromJson = (
+  json: any,
+  display: boolean = true
+): string => {
   if (!json) {
     throw new Error(
       'Error while trying to parse your context from the config file.'
@@ -78,24 +81,31 @@ export const createContextFromJson = (json: any): string => {
     );
   }
 
-  if (identityParts.length > 0) {
+  if (identityParts.length > 0 && display === true) {
     displayOutput += createBox('IDENTITY', identityParts);
   }
 
   if (Array.isArray(json.lore)) {
-    displayOutput += createBox('BACKGROUND', json.lore);
+    if (display === true) {
+      displayOutput += createBox('BACKGROUND', json.lore);
+    }
+
     contextParts.push(`Your lore : [${json.lore.join(']\n[')}]`);
   }
 
   // Objectives Section
   if (Array.isArray(json.objectives)) {
-    displayOutput += createBox('OBJECTIVES', json.objectives);
+    if (display === true) {
+      displayOutput += createBox('OBJECTIVES', json.objectives);
+    }
     contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
   }
 
   // Knowledge Section
   if (Array.isArray(json.knowledge)) {
-    displayOutput += createBox('KNOWLEDGE', json.knowledge);
+    if (display === true) {
+      displayOutput += createBox('KNOWLEDGE', json.knowledge);
+    }
     contextParts.push(`Your knowledge : [${json.knowledge.join(']\n[')}]`);
   }
 
@@ -120,18 +130,20 @@ export const createContextFromJson = (json: any): string => {
       );
     }
 
-    if (examplesParts.length > 0) {
+    if (examplesParts.length > 0 && display === true) {
       displayOutput += createBox('EXAMPLES', examplesParts);
     }
   }
 
   // Display the formatted output
-  console.log(
-    chalk.bold.cyan(
-      '\n=== AGENT CONFIGURATION (https://docs.starkagent.ai/customize-your-agent) ==='
-    )
-  );
-  console.log(displayOutput);
+  if (display === true) {
+    console.log(
+      chalk.bold.cyan(
+        '\n=== AGENT CONFIGURATION (https://docs.starkagent.ai/customize-your-agent) ==='
+      )
+    );
+    console.log(displayOutput);
+  }
 
   return contextParts.join('\n');
 };

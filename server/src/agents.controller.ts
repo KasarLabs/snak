@@ -25,7 +25,7 @@ import { Reflector } from '@nestjs/core';
 @Controller('key')
 @UseInterceptors(AgentResponseInterceptor)
 export class AgentsController implements OnModuleInit {
-  private agent: StarknetAgent;
+  private agents: Map<string, StarknetAgent>;
   constructor(
     private readonly agentService: AgentService,
     private readonly agentFactory: AgentFactory,
@@ -34,8 +34,12 @@ export class AgentsController implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      this.agent = await this.agentFactory.createAgent('key', 'agent');
-      await this.agent.createAgentReactExecutor();
+      this.agents = await this.agentFactory.createAgent('key', 'agent');
+      for (const agent of this.agents.values()) {
+        await agent.createAgentReactExecutor();
+      }
+
+      console.log('Agents initialized successfully');
     } catch (error) {
       console.error('Failed to initialize AgentsController:', error);
       throw error;
@@ -44,16 +48,30 @@ export class AgentsController implements OnModuleInit {
 
   @Post('request')
   async handleUserRequest(@Body() userRequest: AgentRequestDTO) {
-    const agent = this.agent.getAgentConfig()?.name ?? 'agent';
-    const mode = this.agent.getAgentMode();
+    const agent = this.agents.get(userRequest.agentName);
+    if (!agent) {
+      throw new NotFoundException(`Agent ${userRequest.agentName} not found`);
+    }
+    console.log('Agent Request Starting... : ', userRequest.agentName);
+    const agent_name = agent.getAgentConfig()?.name ?? 'agent';
+    const mode = agent.getAgentMode();
     const route = this.reflector.get('path', this.handleUserRequest);
-    const action = this.agentService.handleUserRequest(this.agent, userRequest);
-    return await metrics.metricsAgentResponseTime(agent, mode, route, action);
+    const action = this.agentService.handleUserRequest(agent, userRequest);
+    return await metrics.metricsAgentResponseTime(
+      agent_name,
+      mode,
+      route,
+      action
+    );
   }
 
   @Get('status')
-  async getAgentStatus() {
-    return await this.agentService.getAgentStatus(this.agent);
+  async getAgentStatus(@Body() userRequest: AgentRequestDTO) {
+    const agent = this.agents.get(userRequest.agentName);
+    if (!agent) {
+      throw new NotFoundException(`Agent ${userRequest.agentName} not found`);
+    }
+    return await this.agentService.getAgentStatus(agent);
   }
 
   @Post('upload_large_file')

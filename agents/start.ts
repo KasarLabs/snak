@@ -186,8 +186,9 @@ const LocalRun = async () => {
         aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
         signature: 'key',
         agentMode: 'agent',
-        agentconfig: agent_config,
+        agentconfig: undefined,
       });
+      await agent.getConfigFromDatabase();
       await agent.createAgentReactExecutor();
       while (true) {
         const { user } = await inquirer.prompt([
@@ -242,9 +243,8 @@ const LocalRun = async () => {
         aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
         signature: 'key',
         agentMode: 'auto',
-        agentconfig: agent_config,
+        agentconfig: undefined,
       });
-
       await agent.createAgentReactExecutor();
       console.log(chalk.dim('\nStarting interactive session...\n'));
       const autoSpinner = createSpinner('Running autonomous mode\n').start();

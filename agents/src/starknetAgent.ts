@@ -2,8 +2,8 @@ import { AiConfig, IAgent } from '../common/index.js';
 import { createAgent } from './agent.js';
 import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from './autonomousAgents.js';
-import { JsonConfig } from './jsonConfig.js';
-import { HumanMessage } from '@langchain/core/messages';
+import { createContextFromJson, JsonConfig } from './jsonConfig.js';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { PostgresAdaptater } from './databases/postgresql/src/database.js';
 import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 import logger from './logger.js';
@@ -46,12 +46,14 @@ export class StarknetAgent implements IAgent {
   private readonly aiModel: string;
   private readonly aiProviderApiKey: string;
   private agentReactExecutor: any;
+
   private currentMode: string;
   private database: PostgresAdaptater[] = [];
-
+  private agentconfig: JsonConfig | undefined;
+  private agentlist: any[] = [];
+  private agentConfigList: JsonConfig[] = [];
   public readonly signature: string;
   public readonly agentMode: string;
-  public readonly agentconfig: JsonConfig | undefined;
 
   /**
    * @constructor
@@ -135,6 +137,57 @@ export class StarknetAgent implements IAgent {
     return `Switched to ${newMode} mode`;
   }
 
+  public async getConfigFromDatabase(): Promise<JsonConfig | undefined> {
+    try {
+      const configs: JsonConfig[] = [];
+      await this.connectDatabase(process.env.POSTGRES_ROOT_DB as string);
+      const database = this.getDatabaseByName('postgres');
+      if (!database) {
+        throw new Error(
+          `Postgres Database : ${this.agentconfig?.chat_id} not found`
+        );
+      }
+      const query = `SELECT name FROM agents;`;
+      const query_response = await database.query(query);
+      console.log('query_response', JSON.stringify(query_response.query?.rows));
+      const select_response = await database.query('SELECT * FROM agents;');
+      if (
+        select_response.status === 'error' ||
+        select_response.query === undefined
+      ) {
+        throw new Error(select_response.error_message);
+      }
+      for (const row of select_response.query.rows) {
+        if (row.name !== this.agentConfigList.filter((config) => config.name)) {
+          continue;
+        }
+        const context = createContextFromJson(row, false);
+        const systemMessage = new SystemMessage(context);
+        const config: JsonConfig = {
+          name: row.name,
+          chat_id: row.chat_id,
+          autonomous: row.autonomous,
+          prompt: systemMessage,
+          interval: row.interval,
+          internal_plugins: row.internal_plugins,
+          external_plugins: row.external_plugins,
+          memory: row.memory,
+        };
+        configs.push(config);
+        this.agentconfig = config;
+        this.agentConfigList.push(config);
+      }
+      for (const config of configs) {
+        console.log('config', config.name);
+      }
+      return;
+    } catch (error) {
+      logger.error(
+        `Failed to load agent configuration from database: ${error}`
+      );
+      return undefined;
+    }
+  }
   /**
    * @function connectDatabase
    * @async

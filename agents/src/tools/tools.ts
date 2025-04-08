@@ -92,13 +92,16 @@ export class StarknetToolRegistry {
     allowed_tools: string[]
   ) {
     await registerTools(agent, allowed_tools, this.tools);
-    return this.tools.map(({ name, description, schema, execute }) =>
-      tool(async (params: any) => execute(agent, params), {
-        name,
-        description,
-        ...(schema && { schema }),
-      })
+    const tools_return = this.tools.map(
+      ({ name, description, schema, execute }) =>
+        tool(async (params: any) => execute(agent, params), {
+          name,
+          description,
+          ...(schema && { schema }),
+        })
     );
+    this.tools = [];
+    return tools_return;
   }
 }
 
@@ -121,7 +124,6 @@ export const registerTools = async (
     await Promise.all(
       allowed_tools.map(async (tool) => {
         index = index + 1;
-
         const imported_tool = await import(
           `@starknet-agent-kit/plugin-${tool}/dist/index.js`
         );
@@ -130,7 +132,6 @@ export const registerTools = async (
         }
         const tools_new = new Array<StarknetTool>();
         await imported_tool.registerTools(tools_new, agent);
-
         for (const tool of tools_new) {
           metrics.metricsAgentToolUseCount(
             agent.getAgentConfig()?.name ?? 'agent',
@@ -140,7 +141,6 @@ export const registerTools = async (
         }
 
         tools.push(...tools_new);
-
         return true;
       })
     );

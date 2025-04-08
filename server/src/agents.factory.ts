@@ -1,119 +1,176 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import {
   StarknetAgent,
   JsonConfig,
   load_json_config,
+  createContextFromJson,
+  logger,
 } from '@starknet-agent-kit/agents';
+const { SystemMessage } = await import('@langchain/core/messages');
+import pkg from 'pg';
+const { Pool } = pkg;
 
 @Injectable()
-export class AgentFactory {
-  private json_config: JsonConfig;
+export class AgentFactory implements OnModuleInit {
   private agentInstances: Map<string, StarknetAgent> = new Map();
   private initialized: boolean = false;
   private initPromise: Promise<void>;
+  private agentConfigList: JsonConfig[] = [];
+  private database: pkg.Pool;
 
-  constructor(private readonly config: ConfigurationService) {
-    this.initPromise = this.initialize();
+  constructor(private readonly config: ConfigurationService) {}
+
+  async onModuleInit() {
+    // try {
+    //   this.database = new Pool({
+    //     host: process.env.POSTGRES_HOST,
+    //     user: process.env.POSTGRES_USER,
+    //     password: process.env.POSTGRES_PASSWORD,
+    //     database: process.env.POSTGRES_ROOT_DB,
+    //     port: Number(process.env.POSTGRES_PORT),
+    //   });
+    //   // Initialiser tout de suite et attendre
+    //   await this.initialize();
+    // } catch (error) {
+    //   logger.error(`Module initialization failed: ${error}`);
+    //   throw error; // Propager l'erreur pour que NestJS sache que l'initialisation a échoué
+    // }
   }
 
-  private async initialize() {
+  public async initialize() {
     try {
-      const fs = await import('fs/promises');
-      const path = await import('path');
+      this.database = new Pool({
+        host: process.env.POSTGRES_HOST,
+        user: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+        database: process.env.POSTGRES_ROOT_DB,
+        port: Number(process.env.POSTGRES_PORT),
+      });
 
-      const projectRoot = path.resolve(process.cwd(), '..');
-      const configPath = path.join(
-        projectRoot,
-        'config',
-        'agents',
-        'default.agent.json'
-      );
-
-      try {
-        await fs.access(configPath);
-      } catch (error) {
-        console.error('Config file not found:', configPath);
-        throw new Error(`Config file not found: ${configPath}`);
+      // logger.debug('Starting initialization...');
+      const database = this.database;
+      if (!database) {
+        throw new Error(
+          `Database connection is not established. Please check your .env configuration.`
+        );
       }
 
-      const jsonData = await fs.readFile(configPath, 'utf8');
+      const select_response = await database.query('SELECT * FROM agents;');
+      // logger.debug(`Found ${select_response.rowCount} agents in database`);
 
-      const json = JSON.parse(jsonData);
-
-      if (!json) {
-        throw new Error('Empty JSON configuration');
+      if (
+        select_response.rowCount === 0 ||
+        select_response.rows === undefined
+      ) {
+        throw new Error('Error trying to load agent configuration');
       }
 
-      const { SystemMessage } = await import('@langchain/core/messages');
+      // Vider la liste avant de la remplir
+      this.agentConfigList = [];
 
-      const systemMessage = new SystemMessage(json.name);
-      this.json_config = {
-        prompt: systemMessage,
-        name: json.name,
-        interval: json.interval || 30000,
-        chat_id: json.chat_id || 'default',
-        autonomous: json.autonomous || false,
-        internal_plugins: Array.isArray(json.internal_plugins)
-          ? json.internal_plugins.map((tool: string) => tool.toLowerCase())
-          : [],
-        external_plugins: Array.isArray(json.external_plugins)
-          ? json.external_plugins
-          : [],
-        memory: json.memory || false,
-      };
+      for (const row of select_response.rows) {
+        // Vérifier si cet agent existe déjà dans notre liste
+        const existingConfig = this.agentConfigList.find(
+          (cfg) => cfg.name === row.name
+        );
+        if (existingConfig) {
+          // logger.debug(`Agent ${row.name} already in list, skipping`);
+          continue;
+        }
+
+        // logger.debug(`Processing agent configuration: ${row.name}`);
+        const context = createContextFromJson(row, false);
+
+        const systemMessage = new SystemMessage(context);
+        const config: JsonConfig = {
+          name: row.name,
+          chat_id: row.chat_id,
+          autonomous: row.autonomous,
+          prompt: systemMessage,
+          interval: row.interval,
+          internal_plugins: row.internal_plugins,
+          external_plugins: row.external_plugins,
+          memory: row.memory,
+        };
+        this.agentConfigList.push(config);
+        // logger.debug(`Added agent configuration: ${config.name}`);
+      }
+
+      // logger.debug(`Total agent configurations loaded: ${this.agentConfigList.length}`);
+      for (const config of this.agentConfigList) {
+        // logger.debug(`Loaded config: ${config.internal_plugins}`);
+      }
 
       this.initialized = true;
+      // logger.debug('Initialization completed successfully');
     } catch (error) {
-      console.error('Error in initialize:', error);
-      throw error;
+      this.initialized = false;
+      logger.error(
+        `Failed to load agent configuration from database: ${error}`
+      );
+      throw error; // Propager l'erreur pour une meilleure gestion
     }
   }
 
   async createAgent(
     signature: string,
     agentMode: string = 'agent'
-  ): Promise<StarknetAgent> {
-    if (!this.initialized) {
-      await this.initPromise;
-    }
-
-    if (!this.json_config) {
-      throw new Error(
-        'Agent configuration is still undefined after initialization'
-      );
-    }
-
+  ): Promise<Map<string, StarknetAgent>> {
     try {
-      if (this.agentInstances.has(signature)) {
-        const agentSignature = this.agentInstances.get(signature);
-        if (!agentSignature) {
-          throw new Error(
-            `Agent with signature ${signature} exists in map but returned undefined`
-          );
+      // S'assurer que l'initialisation est terminée
+      if (!this.initialized) {
+        logger.debug('Not initialized yet, waiting for initialization...');
+        await this.initialize(); // Réessayer l'initialisation explicitement
+
+        // Vérifier à nouveau après avoir essayé d'initialiser
+        if (!this.initialized || this.agentConfigList.length === 0) {
+          throw new Error('Failed to initialize agent configurations');
         }
-        return agentSignature;
       }
 
-      const agent = new StarknetAgent({
-        provider: this.config.starknet.provider,
-        accountPrivateKey: this.config.starknet.privateKey,
-        accountPublicKey: this.config.starknet.publicKey,
-        aiModel: this.config.ai.model,
-        aiProvider: this.config.ai.provider,
-        aiProviderApiKey: this.config.ai.apiKey,
-        agentconfig: this.json_config,
-        signature: signature,
-        agentMode: agentMode,
-      });
+      logger.debug(
+        `Creating agents with ${this.agentConfigList.length} configurations`
+      );
 
-      // Store for later reuse
-      this.agentInstances.set(signature, agent);
+      // Nettoyer les instances existantes
+      this.agentInstances.clear();
 
-      return agent;
+      for (const config of this.agentConfigList) {
+        const agent = new StarknetAgent({
+          provider: this.config.starknet.provider,
+          accountPrivateKey: this.config.starknet.privateKey,
+          accountPublicKey: this.config.starknet.publicKey,
+          aiModel: this.config.ai.model,
+          aiProvider: this.config.ai.provider,
+          aiProviderApiKey: this.config.ai.apiKey,
+          agentconfig: config,
+          signature: signature,
+          agentMode: agentMode,
+        });
+
+        // Store for later reuse
+        logger.debug(config.name);
+        this.agentInstances.set(config.name, agent);
+      }
+
+      logger.debug(
+        `Total agent instances created: ${this.agentInstances.size}`
+      );
+      return this.agentInstances;
     } catch (error) {
       console.error('Error creating agent:', error);
       throw error;
     }
+  }
+
+  // Méthode pour vérifier si un agent existe
+  hasAgent(name: string): boolean {
+    return this.agentInstances.has(name);
+  }
+
+  // Méthode pour récupérer les noms de tous les agents configurés
+  getAgentNames(): string[] {
+    return this.agentConfigList.map((config) => config.name);
   }
 }
