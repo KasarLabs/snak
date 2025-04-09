@@ -30,7 +30,7 @@
     "build": "turbo build",
     "build:ci": "turbo build --scope \"@starknet-agent-kit/agents\" --scope \"@starknet-agent-kit/plugin-*\" --scope \"@starknet-agent-kit/server\"",
     "start": "./scripts/start.sh",
-    "start:logs": "turbo build && lerna run --scope @starknet-agent-kit/agents start --",
+    "start:normal": "turbo build && lerna run --scope @starknet-agent-kit/agents start --",
     "start:server": "pnpm run build && lerna run start --scope \"@starknet-agent-kit/server\" --scope \"@starknet-agent-kit/client\"",
     "start:test": "turbo test",
     "test": "./scripts/run_all_test.sh",

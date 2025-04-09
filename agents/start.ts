@@ -296,6 +296,11 @@ const LocalRun = async () => {
   }
 };
 
+process.on('SIGINT', async () => {
+  console.log("\nGracefully shutting down from SIGINT (Ctrl+C)");
+  process.exit(0);
+});
+
 LocalRun().catch((error) => {
   console.error(
     createBox(error.message, { title: 'Fatal Error', isError: true })

@@ -543,9 +543,9 @@ main() {
   
   # Show final status
   if [ $status -eq 0 ]; then
-    echo -e "\n${GREEN}${BOLD}✓ SNAK started successfully!${NC}\n"
+    echo -e "\n${GREEN}${BOLD}Snak runned successfully!${NC}\n"
   else
-    echo -e "\n${RED}${BOLD}✗ SNAK could not start correctly.${NC}\n"
+    echo -e "\n${RED}${BOLD}Snak could not run correctly.${NC}\n"
     exit $status
   fi
 }
