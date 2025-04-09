@@ -393,86 +393,94 @@ export class StarknetAgent implements IAgent {
     return result.messages[result.messages.length - 1].content;
   }
 
-/**
- * @function execute_autonomous
- * @async
- * @description Executes in autonomous mode continuously
- * @returns {Promise<unknown>} Result if execution fails
- * @throws {Error} Throws an error if not in auto mode
- */
-async execute_autonomous(): Promise<unknown> {
-  console.log = logger.info.bind(logger);  // Force tous les console.log à passer par logger.info
-  console.error = logger.error.bind(logger)
-  try {
-    if (this.currentMode !== 'auto') {
-      throw new Error(`Need to be in autonomous mode to execute_autonomous`);
-    }
-
-    logger.debug('Starting autonomous execution loop');
-    
-    let iterationCount = 0;
-    // Run autonomously with memory management
-    while (true) {
-      iterationCount++;
-      logger.info(`--- Autonomous iteration #${iterationCount} starting ---`);
-      
-      try {
-        // Create a fresh agent executor every 5 iterations to prevent context growth
-        if (iterationCount > 1 && iterationCount % 5 === 0) {
-          logger.info('Recreating agent executor to manage context size');
-          await this.createAgentReactExecutor();
-        }
-        
-        // Use a simpler prompt that encourages concrete action
-        const result = await this.agentReactExecutor.agent.invoke(
-          {
-            messages: 'Based on my objectives, I should take action now without seeking permission. What specific action should I take?'
-          },
-          this.agentReactExecutor.agentConfig
-        );
-
-        const agentResponse = result.messages[result.messages.length - 1].content;
-        
-        // Format the response similar to interactive mode
-        const formatAgentResponse = (response: string) => {
-          if (typeof response !== 'string') return response;
-
-          return response.split('\n').map((line) => {
-            if (line.includes('•')) {
-              return `  ${line.trim()}`;
-            }
-            return line;
-          });
-        };
-
-        // Log formatted response - this will also ensure visibility in production
-        console.log(createBox('Agent Response', formatAgentResponse(agentResponse)));
-        
-        // Wait for the configured interval before next iteration
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.agentReactExecutor.json_config.interval)
-        );
-      } catch (loopError) {
-        logger.error(`Error in autonomous iteration #${iterationCount}:`);
-        logger.error(loopError instanceof Error ? loopError.message : String(loopError));
-        
-        // If we hit a token limit, recreate the agent immediately
-        if (loopError.message && loopError.message.includes('prompt is too long')) {
-          logger.info('Token limit exceeded, recreating agent executor');
-          await this.createAgentReactExecutor();
-        }
-        
-        // Wait a bit before trying again
-        await new Promise(resolve => setTimeout(resolve, 3000));
+  /**
+   * @function execute_autonomous
+   * @async
+   * @description Executes in autonomous mode continuously
+   * @returns {Promise<unknown>} Result if execution fails
+   * @throws {Error} Throws an error if not in auto mode
+   */
+  async execute_autonomous(): Promise<unknown> {
+    console.log = logger.info.bind(logger); // Force tous les console.log à passer par logger.info
+    console.error = logger.error.bind(logger);
+    try {
+      if (this.currentMode !== 'auto') {
+        throw new Error(`Need to be in autonomous mode to execute_autonomous`);
       }
+
+      logger.debug('Starting autonomous execution loop');
+
+      let iterationCount = 0;
+      // Run autonomously with memory management
+      while (true) {
+        iterationCount++;
+        logger.info(`--- Autonomous iteration #${iterationCount} starting ---`);
+
+        try {
+          // Create a fresh agent executor every 5 iterations to prevent context growth
+          if (iterationCount > 1 && iterationCount % 5 === 0) {
+            logger.info('Recreating agent executor to manage context size');
+            await this.createAgentReactExecutor();
+          }
+
+          // Use a simpler prompt that encourages concrete action
+          const result = await this.agentReactExecutor.agent.invoke(
+            {
+              messages:
+                'Based on my objectives, You should take action now without seeking permission. Choose what to do.',
+            },
+            this.agentReactExecutor.agentConfig
+          );
+
+          const agentResponse =
+            result.messages[result.messages.length - 1].content;
+
+          const formatAgentResponse = (response: string) => {
+            if (typeof response !== 'string') return response;
+
+            return response.split('\n').map((line) => {
+              if (line.includes('•')) {
+                return `  ${line.trim()}`;
+              }
+              return line;
+            });
+          };
+
+          // Log formatted response - this will also ensure visibility in production
+          console.log(
+            createBox('Agent Response', formatAgentResponse(agentResponse))
+          );
+
+          // Wait for the configured interval before next iteration
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.agentReactExecutor.json_config.interval)
+          );
+        } catch (loopError) {
+          logger.error(`Error in autonomous iteration #${iterationCount}:`);
+          logger.error(
+            loopError instanceof Error ? loopError.message : String(loopError)
+          );
+
+          // If we hit a token limit, recreate the agent immediately
+          if (
+            loopError.message &&
+            loopError.message.includes('prompt is too long')
+          ) {
+            logger.info('Token limit exceeded, recreating agent executor');
+            await this.createAgentReactExecutor();
+          }
+
+          // Wait a bit before trying again
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(error.message);
+      }
+      return;
     }
-  } catch (error) {
-    if (error instanceof Error) {
-      logger.error(error.message);
-    }
-    return;
   }
-}
 
   /**
    * @function execute_call_data

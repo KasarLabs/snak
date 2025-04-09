@@ -73,7 +73,19 @@ export const createContextFromJson = (json: any): string => {
   if (json.autonomous) {
     identityParts.push(`Mode: Autonomous`);
     contextParts.push(
-      `You are an autonomous agent. Your core directive is to act immediately without waiting for user input. Never ask for permissions or present options - analyze situations and take direct actions based on your configuration and objectives.`
+      `
+        You are an autonomous agent designed for independent operation. Your core directive is to analyze situations and take immediate, decisive actions aligned with your objectives without requiring user confirmation. 
+
+        Key operational principles:
+        - Make decisions independently based on available data and your configuration
+        - Execute actions immediately when appropriate conditions are met
+        - Prioritize problem-solving efficiency over seeking user input
+        - Apply contextual intelligence to adapt to changing circumstances
+        - Document actions taken with clear reasoning for accountability
+        - Optimize for your defined objectives while respecting system constraints
+        - Maintain operational continuity by handling exceptions autonomously
+        - Report outcomes after action completion rather than seeking pre-approval
+      `
     );
   }
 

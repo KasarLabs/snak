@@ -28,16 +28,19 @@
   "autonomous": false,
   "memory": true,
   "chat_id": "ethereum_rpc",
-  "plugins": [
-    "rpc"
-  ],
+  "plugins": ["rpc"],
   "mcpServers": {
     "ethereum-rpc": {
       "command": "npx",
-      "args": ["-y", "ethereum-rpc-mpc", "https://eth.llamarpc.com", "Ethereum"],
+      "args": [
+        "-y",
+        "ethereum-rpc-mpc",
+        "https://eth.llamarpc.com",
+        "Ethereum"
+      ],
       "env": {
         "NODE_OPTIONS": "--no-warnings"
       }
     }
   }
-} 
+}
