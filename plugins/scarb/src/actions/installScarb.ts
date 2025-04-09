@@ -32,7 +32,6 @@ export const installScarb = async (): Promise<string> => {
       errors: stderr || undefined,
     });
   } catch (error) {
-    logger.error('Error installing Scarb:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

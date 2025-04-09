@@ -54,7 +54,6 @@ export const buildProject = async (params: { path: string }) => {
     const { stdout, stderr } = await execAsync('scarb build', {
       cwd: params.path,
     });
-
     return JSON.stringify({
       status: 'success',
       message: 'Project built successfully',
@@ -62,7 +61,7 @@ export const buildProject = async (params: { path: string }) => {
       errors: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to build project: ${error.message}`);
+    throw error;
   }
 };
 
@@ -92,7 +91,7 @@ export const cleanProject = async (params: {
       errors: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to clean project: ${error.message}`);
+    throw error;
   }
 };
 
@@ -125,7 +124,7 @@ export const executeProject = async (params: ExecuteContractParams) => {
       error: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to execute program: ${error.message}`);
+    throw error;
   }
 };
 
@@ -156,7 +155,7 @@ export const proveProject = async (params: ProveProjectParams) => {
       error: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to prove program: ${error.message}`);
+    throw error;
   }
 };
 
@@ -179,6 +178,6 @@ export const verifyProject = async (params: VerifyProjectParams) => {
       error: stderr || undefined,
     });
   } catch (error) {
-    throw new Error(`Failed to verify proof: ${error.message}`);
+    throw error;
   }
 };

@@ -5,12 +5,7 @@ import { z } from 'zod';
  *
  * @property path The path to the project (defaults to current directory)
  */
-export const installScarbSchema = z.object({
-  path: z
-    .string()
-    .optional()
-    .describe('The path to the project (defaults to current directory)'),
-});
+export const installScarbSchema = z.object({});
 
 /**
  * Schema for compiling a contract
@@ -35,22 +30,22 @@ export const executeProgramSchema = z.object({
   executableName: z
     .string()
     .optional()
-    .describe('The name of the executable to run'),
+    .describe('OPTIONAL: The name of the executable to run'),
   executableFunction: z
     .string()
     .optional()
-    .describe('The name of the function to run'),
+    .describe('OPTIONAL: The name of the function to run'),
   arguments: z
     .string()
     .optional()
     .describe(
-      'Comma-separated list of integers corresponding to the function arguments'
+      'OPTIONAL: Comma-separated list of integers corresponding to the function arguments'
     ),
   mode: z
     .enum(['standalone', 'bootloader'])
     .optional()
     .default('bootloader')
-    .describe('The target to compile for'),
+    .describe('OPTIONAL: The target to compile for'),
 });
 
 /**
@@ -66,16 +61,16 @@ export const proveProgramSchema = z.object({
   executableName: z
     .string()
     .optional()
-    .describe('The name of the executable to run'),
+    .describe('OPTIONAL: The name of the executable to run'),
   executableFunction: z
     .string()
     .optional()
-    .describe('The name of the function to run'),
+    .describe('OPTIONAL: The name of the function to run'),
   arguments: z
     .string()
     .optional()
     .describe(
-      'Comma-separated list of integers corresponding to the function arguments'
+      'OPTIONAL: Comma-separated list of integers corresponding to the function arguments'
     ),
 });
 

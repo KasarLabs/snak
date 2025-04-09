@@ -1,26 +1,19 @@
-#[starknet::interface]
-trait ISimpleStorage<TContractState> {
-    fn set(ref self: TContractState, x: u128);
-    fn get(self: @TContractState) -> u128;
-}
+fn main() -> felt252 {
+    let n_iterations: felt252 = 5;
+    let mut a: felt252 = 0;
+    let mut b: felt252 = 1;
+    let mut i: felt252 = 0;
 
-#[starknet::contract]
-mod SimpleStorage {
-    use core::starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
-
-    #[storage]
-    struct Storage {
-        stored_data: u128,
-    }
-
-    #[abi(embed_v0)]
-    impl SimpleStorage of super::ISimpleStorage<ContractState> {
-        fn set(ref self: ContractState, x: u128) {
-            self.stored_data.write(x);
+    loop {
+        if i == n_iterations {
+            break;
         }
 
-        fn get(self: @ContractState) -> u128 {
-            self.stored_data.read()
-        }
-    }
+        let temp: felt252 = a + b;
+        a = b;
+        b = temp;
+        i += 1;
+    };
+
+    a
 }

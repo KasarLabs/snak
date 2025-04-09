@@ -56,6 +56,8 @@ export const verifyProgram = async (
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   } finally {
-    await cleanProject({ path: projectDir, removeDirectory: true });
+    if (projectDir) {
+      await cleanProject({ path: projectDir, removeDirectory: true });
+    }
   }
 };

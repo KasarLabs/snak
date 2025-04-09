@@ -78,6 +78,8 @@ export const compileContract = async (
       projectDir: projectDir,
     });
   } finally {
-    await cleanProject({ path: projectDir, removeDirectory: true });
+    if (projectDir) {
+      await cleanProject({ path: projectDir, removeDirectory: true });
+    }
   }
 };
