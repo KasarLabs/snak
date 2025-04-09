@@ -159,6 +159,33 @@ export const validateConfig = (config: JsonConfig) => {
   if (!(config.prompt instanceof SystemMessage)) {
     throw new Error('prompt must be an instance of SystemMessage');
   }
+
+  // Validate mcpServers if present
+  if (config.mcpServers) {
+    if (typeof config.mcpServers !== 'object') {
+      throw new Error('mcpServers must be an object');
+    }
+
+    for (const [serverName, serverConfig] of Object.entries(
+      config.mcpServers
+    )) {
+      if (!serverConfig.command || typeof serverConfig.command !== 'string') {
+        throw new Error(
+          `mcpServers.${serverName} must have a valid command string`
+        );
+      }
+
+      if (!Array.isArray(serverConfig.args)) {
+        throw new Error(`mcpServers.${serverName} must have an args array`);
+      }
+
+      if (serverConfig.env && typeof serverConfig.env !== 'object') {
+        throw new Error(
+          `mcpServers.${serverName} env must be an object if present`
+        );
+      }
+    }
+  }
 };
 
 // log all this function

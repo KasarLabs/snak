@@ -28,8 +28,6 @@ export { IAgent, AiConfig } from './common/index.js';
 
 // Logger
 export { default as logger } from './src/logger.js';
-// External tools
-export * from './src/tools/external_tools.js';
 
 import * as metrics from './metrics.js';
 export { metrics };

@@ -46,7 +46,7 @@
     "prettier:client": "prettier --check \"client/**/*.{ts,tsx}\" --write",
     "prettier:all": "pnpm prettier:server && pnpm prettier:agents && pnpm prettier:plugins && pnpm prettier:client",
     "prepublishOnly": "lerna run prepublishOnly",
-    "node:server": "node ./mcp/snak/dist/index.js"
+    "node:server": "node ./mcps/snak/dist/index.js"
   },
   "dependencies": {
     "@types/pg": "^8.11.11",

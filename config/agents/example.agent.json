@@ -14,7 +14,6 @@
   "chat_id": "Your Agent Chat-id for isolating memory",
   "autonomous": "Your agent is autonomous or not",
   "memory": "Enable agent's memory",
-  "mcp": "Your agent can use mcp or not",
   "plugins": ["Your first plugin", "Your second plugin"],
   "mcpServers": {
     "nxp_server_example": {
