@@ -242,6 +242,16 @@ check_prerequisites() {
 
 # Launches the interactive Snak agent engine
 run_interactive_command() {
+  # Select agent configuration first
+  select_agent_config
+  local config_status=$?
+  
+  # Exit if config selection failed
+  if [ $config_status -ne 0 ]; then
+    echo -e "\n${RED}${BOLD}✗ Configuration selection failed.${NC}\n"
+    return $config_status
+  fi
+  
   echo -e "\n${CYAN}${BOLD}Launching Snak...${NC}\n"
   
   # Launch lerna command directly to maintain proper terminal IO handling
@@ -295,7 +305,7 @@ select_agent_config() {
   # Interactive prompt with autocomplete - improved version
   echo -e "\n${YELLOW}Enter the name of the Agent configuration to use (without .agent.json extension):${NC}"
   
-# Show custom configuration info
+  # Show custom configuration info
   echo -e "\n${YELLOW}You can also create a custom configuration.${NC}"
   echo -e "${DIM}For more information, visit: https://docs.starkagent.ai/customize-your-agent${NC}"
 
@@ -506,16 +516,6 @@ main() {
 
   # Verify dependencies and tools
   check_prerequisites
-  
-  # Select agent configuration AVANT de présenter les options
-  select_agent_config
-  local config_status=$?
-  
-  # Exit if config selection failed
-  if [ $config_status -ne 0 ]; then
-    echo -e "\n${RED}${BOLD}✗ Configuration selection failed.${NC}\n"
-    exit $config_status
-  fi
   
   # Present main options
   echo -e "\n${YELLOW}What would you like to do?${NC}"

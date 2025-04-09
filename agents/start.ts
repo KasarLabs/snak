@@ -199,13 +199,30 @@ const LocalRun = async () => {
   try {
     spinner.stop();
     await validateEnvVars();
-    spinner.success({ text: 'Agent initialized successfully' });
     const agent_config = await load_json_config(agent_config_name);
     if (agent_config === undefined) {
       throw new Error('Failed to load agent configuration');
     }
+
+    // Afficher plus d'informations sur l'agent
+    const agentName = agent_config.name || 'Unknown';
+    const configPath = path.basename(agent_config_name);
+    const aiModel = process.env.AI_MODEL;
+    const aiProvider = process.env.AI_PROVIDER;
+
+    spinner.success({
+      text: chalk.black(
+        `Agent "${chalk.cyan(agentName)}" initialized successfully`
+      ),
+    });
+
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
+      console.log(
+        chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +
+          chalk.dim(`- Model: ${chalk.bold(aiModel)}\n`) +
+          chalk.dim(`- Provider: ${chalk.bold(aiProvider)}\n`)
+      );
       const agent = new StarknetAgent({
         provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
         accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
@@ -271,7 +288,9 @@ const LocalRun = async () => {
           }
         } catch (error) {
           console.error(chalk.red('Error processing request'));
-          console.log(createBox('Error', error.message, { isError: true }));
+          console.log(
+            createBox(error.message, { title: 'Error', isError: true })
+          );
         }
       }
     } else if (mode === 'auto') {

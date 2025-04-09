@@ -15,52 +15,60 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
+import { tokenTracker, configureModelWithTracking } from './tokenTracking.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
 ) => {
-  const model = (() => {
-    switch (aiConfig.aiProvider) {
-      case 'anthropic':
-        if (!aiConfig.aiProviderApiKey) {
-          throw new Error(
-            'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
-          );
-        }
-        return new ChatAnthropic({
-          modelName: aiConfig.aiModel,
-          anthropicApiKey: aiConfig.aiProviderApiKey,
-        });
-      case 'openai':
-        if (!aiConfig.aiProviderApiKey) {
-          throw new Error(
-            'Valid OpenAI api key is required https://platform.openai.com/api-keys'
-          );
-        }
-        return new ChatOpenAI({
-          modelName: aiConfig.aiModel,
-          openAIApiKey: aiConfig.aiProviderApiKey,
-        });
-      case 'gemini':
-        if (!aiConfig.aiProviderApiKey) {
-          throw new Error(
-            'Valid Gemini api key is required https://ai.google.dev/gemini-api/docs/api-key'
-          );
-        }
-        return new ChatGoogleGenerativeAI({
-          modelName: aiConfig.aiModel,
-          apiKey: aiConfig.aiProviderApiKey,
-          convertSystemMessageToHumanContent: true,
-        });
-      case 'ollama':
-        return new ChatOllama({
-          model: aiConfig.aiModel,
-        });
-      default:
-        throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
-    }
-  })();
+  let model;
+
+  switch (aiConfig.aiProvider) {
+    case 'anthropic':
+      if (!aiConfig.aiProviderApiKey) {
+        throw new Error(
+          'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
+        );
+      }
+      model = new ChatAnthropic({
+        modelName: aiConfig.aiModel,
+        anthropicApiKey: aiConfig.aiProviderApiKey,
+      });
+      break;
+    case 'openai':
+      if (!aiConfig.aiProviderApiKey) {
+        throw new Error(
+          'Valid OpenAI api key is required https://platform.openai.com/api-keys'
+        );
+      }
+      model = new ChatOpenAI({
+        modelName: aiConfig.aiModel,
+        openAIApiKey: aiConfig.aiProviderApiKey,
+      });
+      break;
+    case 'gemini':
+      if (!aiConfig.aiProviderApiKey) {
+        throw new Error(
+          'Valid Gemini api key is required https://ai.google.dev/gemini-api/docs/api-key'
+        );
+      }
+      model = new ChatGoogleGenerativeAI({
+        modelName: aiConfig.aiModel,
+        apiKey: aiConfig.aiProviderApiKey,
+        convertSystemMessageToHumanContent: true,
+      });
+      break;
+    case 'ollama':
+      model = new ChatOllama({
+        model: aiConfig.aiModel,
+      });
+      break;
+    default:
+      throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
+  }
+
+  // Ajouter le tracking des tokens
+  model = configureModelWithTracking(model);
 
   try {
     const json_config = starknetAgent.getAgentConfig();

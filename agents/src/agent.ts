@@ -33,8 +33,15 @@ import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import { JsonConfig } from './jsonConfig.js';
 import logger from './logger.js';
 import { createBox } from './formatting.js';
+import {
+  tokenTracker,
+  configureModelWithTracking,
+  addTokenInfoToBox,
+} from './tokenTracking.js';
 
 export function selectModel(aiConfig: AiConfig) {
+  let model;
+
   switch (aiConfig.aiProvider) {
     case 'anthropic':
       if (!aiConfig.aiProviderApiKey) {
@@ -42,50 +49,58 @@ export function selectModel(aiConfig: AiConfig) {
           'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
         );
       }
-      return new ChatAnthropic({
+      model = new ChatAnthropic({
         modelName: aiConfig.aiModel,
         anthropicApiKey: aiConfig.aiProviderApiKey,
         temperature: 0,
       });
+      break;
     case 'openai':
       if (!aiConfig.aiProviderApiKey) {
         throw new Error(
           'Valid OpenAI api key is required https://platform.openai.com/api-keys'
         );
       }
-      return new ChatOpenAI({
+      model = new ChatOpenAI({
         modelName: aiConfig.aiModel,
         apiKey: aiConfig.aiProviderApiKey,
         temperature: 0,
       });
+      break;
     case 'gemini':
       if (!aiConfig.aiProviderApiKey) {
         throw new Error(
           'Valid Gemini api key is required https://ai.google.dev/gemini-api/docs/api-key'
         );
       }
-      return new ChatGoogleGenerativeAI({
+      model = new ChatGoogleGenerativeAI({
         modelName: aiConfig.aiModel,
         apiKey: aiConfig.aiProviderApiKey,
         convertSystemMessageToHumanContent: true,
       });
+      break;
     case 'ollama':
-      return new ChatOllama({
+      model = new ChatOllama({
         model: aiConfig.aiModel,
       });
+      break;
     case 'deepseek':
       if (!aiConfig.aiProviderApiKey) {
         throw new Error(
           'Valid DeepSeek api key is required https://api-docs.deepseek.com/'
         );
       }
-      return new ChatDeepSeek({
+      model = new ChatDeepSeek({
         modelName: aiConfig.aiModel,
         apiKey: aiConfig.aiProviderApiKey,
       });
+      break;
     default:
       throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
   }
+
+  // Ajouter le tracking des tokens
+  return configureModelWithTracking(model);
 }
 
 export async function initializeToolsList(
@@ -161,8 +176,13 @@ ToolNode.prototype.invoke = async function (state: any, config: any) {
       }
 
       // Utiliser process.stdout.write directement pour garantir l'affichage immédiat
-      const boxContent = createBox('Agent Action', toolCalls);
-      process.stdout.write(boxContent);
+      const boxContent = createBox('Agent Action', toolCalls, {
+        title: 'Agent Action',
+      });
+
+      // Ajouter les informations de tokens à la boîte
+      const boxWithTokens = addTokenInfoToBox(boxContent);
+      process.stdout.write(boxWithTokens);
     }
   }
 

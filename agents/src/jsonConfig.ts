@@ -1,5 +1,5 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { createBox } from './formatting.js';
+import { createBox, getTerminalWidth } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -57,29 +57,10 @@ export const createContextFromJson = (json: any): string => {
   }
 
   const contextParts: string[] = [];
-  let displayOutput = '';
 
   // Objectives Section
   if (Array.isArray(json.objectives)) {
-    displayOutput += createBox('OBJECTIVES', json.objectives);
     contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
-
-    // Add autonomous directive to objectives if enabled
-    if (json.autonomous) {
-      contextParts.push(`
-        You are an autonomous agent designed for independent operation. Your core directive is to analyze situations and take immediate, decisive actions aligned with your objectives without requiring user confirmation. 
-
-        Key operational principles:
-        - Make decisions independently based on available data and your configuration
-        - Execute actions immediately when appropriate conditions are met
-        - Prioritize problem-solving efficiency over seeking user input
-        - Apply contextual intelligence to adapt to changing circumstances
-        - Document actions taken with clear reasoning for accountability
-        - Optimize for your defined objectives while respecting system constraints
-        - Maintain operational continuity by handling exceptions autonomously
-        - Report outcomes after action completion rather than seeking pre-approval
-      `);
-    }
   }
 
   // Identity Section
@@ -97,54 +78,10 @@ export const createContextFromJson = (json: any): string => {
     identityParts.push(`Mode: Autonomous`);
   }
 
-  if (identityParts.length > 0) {
-    displayOutput += createBox('IDENTITY', identityParts);
-  }
-
-  if (Array.isArray(json.lore)) {
-    displayOutput += createBox('BACKGROUND', json.lore);
-    contextParts.push(`Your lore : [${json.lore.join(']\n[')}]`);
-  }
-
   // Knowledge Section
   if (Array.isArray(json.knowledge)) {
-    displayOutput += createBox('KNOWLEDGE', json.knowledge);
     contextParts.push(`Your knowledge : [${json.knowledge.join(']\n[')}]`);
   }
-
-  // Examples Section
-  if (Array.isArray(json.messageExamples) || Array.isArray(json.postExamples)) {
-    const examplesParts: string[] = [];
-
-    if (Array.isArray(json.messageExamples)) {
-      examplesParts.push('Message Examples:');
-      examplesParts.push(...json.messageExamples);
-      contextParts.push(
-        `Your messageExamples : [${json.messageExamples.join(']\n[')}]`
-      );
-    }
-
-    if (Array.isArray(json.postExamples)) {
-      if (examplesParts.length > 0) examplesParts.push('');
-      examplesParts.push('Post Examples:');
-      examplesParts.push(...json.postExamples);
-      contextParts.push(
-        `Your postExamples : [${json.postExamples.join(']\n[')}]`
-      );
-    }
-
-    if (examplesParts.length > 0) {
-      displayOutput += createBox('EXAMPLES', examplesParts);
-    }
-  }
-
-  // Display the formatted output
-  console.log(
-    chalk.bold.cyan(
-      '\n=== AGENT CONFIGURATION (https://docs.snakagent.com/customize-your-agent) ==='
-    )
-  );
-  console.log(displayOutput);
 
   return contextParts.join('\n');
 };
