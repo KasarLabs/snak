@@ -202,11 +202,9 @@ const checkParseJson = async (
   try {
     // Try multiple possible locations for the config file
     const possiblePaths = [
-      path.join(process.cwd(), 'config', 'agents', agent_config_name),
-
-      path.join(process.cwd(), '..', 'config', 'agents', agent_config_name),
-
-      path.join(
+      path.resolve(process.cwd(), 'config', 'agents', agent_config_name),
+      path.resolve(process.cwd(), '..', 'config', 'agents', agent_config_name),
+      path.resolve(
         __dirname,
         '..',
         '..',
@@ -215,8 +213,7 @@ const checkParseJson = async (
         'agents',
         agent_config_name
       ),
-
-      path.join(
+      path.resolve(
         __dirname,
         '..',
         '..',
@@ -238,7 +235,11 @@ const checkParseJson = async (
         configPath = tryPath;
         jsonData = await fs.readFile(tryPath, 'utf8');
         break;
-      } catch {}
+      } catch (error) {
+        logger.debug(
+          `Failed to access config file at ${tryPath}: ${error.message}`
+        );
+      }
     }
 
     if (!configPath || !jsonData) {

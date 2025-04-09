@@ -29,7 +29,36 @@ const load_command = async (): Promise<string> => {
     .strict()
     .parse();
 
-  return argv['agent'];
+  const agentPath = argv['agent'];
+
+  // Try multiple possible locations for the config file
+  const possiblePaths = [
+    path.resolve(process.cwd(), 'config', 'agents', agentPath),
+    path.resolve(process.cwd(), '..', 'config', 'agents', agentPath),
+    path.resolve(__dirname, '..', '..', '..', 'config', 'agents', agentPath),
+    path.resolve(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'config',
+      'agents',
+      agentPath
+    ),
+  ];
+
+  // Try each path until we find one that works
+  for (const tryPath of possiblePaths) {
+    if (fs.existsSync(tryPath)) {
+      return tryPath;
+    }
+  }
+
+  // If not found in any of the expected locations, try the absolute path
+  return path.isAbsolute(agentPath)
+    ? agentPath
+    : path.resolve(process.cwd(), agentPath);
 };
 
 const clearScreen = () => {
