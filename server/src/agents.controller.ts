@@ -65,6 +65,11 @@ export class AgentsController implements OnModuleInit {
     );
   }
 
+  @Get('healthcheck')
+  async pingAgent() {
+    return { status: 'success'};
+  }
+
   @Get('status')
   async getAgentStatus(@Body() userRequest: AgentRequestDTO) {
     const agent = this.agents.get(userRequest.agentName);

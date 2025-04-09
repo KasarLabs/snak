@@ -19,6 +19,9 @@ export class AgentResponseInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const url = request.url;
 
+    if (url === '/api/key/healthcheck') {
+      return next.handle();
+    }
     if (url === '/api/wallet/request') {
       return next.handle();
     }
