@@ -414,7 +414,9 @@ export class StarknetAgent implements IAgent {
       // Run autonomously with memory management
       while (true) {
         iterationCount++;
-        logger.info(`--- Autonomous iteration #${iterationCount} starting ---`);
+        logger.debug(
+          `--- Autonomous iteration #${iterationCount} starting ---`
+        );
 
         try {
           // Create a fresh agent executor every 5 iterations to prevent context growth
@@ -446,10 +448,11 @@ export class StarknetAgent implements IAgent {
             });
           };
 
-          // Log formatted response - this will also ensure visibility in production
-          console.log(
-            createBox('Agent Response', formatAgentResponse(agentResponse))
+          const boxContent = createBox(
+            'Agent Response',
+            formatAgentResponse(agentResponse)
           );
+          process.stdout.write(boxContent);
 
           // Wait for the configured interval before next iteration
           await new Promise((resolve) =>

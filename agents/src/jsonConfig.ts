@@ -59,6 +59,29 @@ export const createContextFromJson = (json: any): string => {
   const contextParts: string[] = [];
   let displayOutput = '';
 
+  // Objectives Section
+  if (Array.isArray(json.objectives)) {
+    displayOutput += createBox('OBJECTIVES', json.objectives);
+    contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
+
+    // Add autonomous directive to objectives if enabled
+    if (json.autonomous) {
+      contextParts.push(`
+        You are an autonomous agent designed for independent operation. Your core directive is to analyze situations and take immediate, decisive actions aligned with your objectives without requiring user confirmation. 
+
+        Key operational principles:
+        - Make decisions independently based on available data and your configuration
+        - Execute actions immediately when appropriate conditions are met
+        - Prioritize problem-solving efficiency over seeking user input
+        - Apply contextual intelligence to adapt to changing circumstances
+        - Document actions taken with clear reasoning for accountability
+        - Optimize for your defined objectives while respecting system constraints
+        - Maintain operational continuity by handling exceptions autonomously
+        - Report outcomes after action completion rather than seeking pre-approval
+      `);
+    }
+  }
+
   // Identity Section
   const identityParts: string[] = [];
   if (json.name) {
@@ -72,21 +95,6 @@ export const createContextFromJson = (json: any): string => {
 
   if (json.autonomous) {
     identityParts.push(`Mode: Autonomous`);
-    contextParts.push(
-      `
-        You are an autonomous agent designed for independent operation. Your core directive is to analyze situations and take immediate, decisive actions aligned with your objectives without requiring user confirmation. 
-
-        Key operational principles:
-        - Make decisions independently based on available data and your configuration
-        - Execute actions immediately when appropriate conditions are met
-        - Prioritize problem-solving efficiency over seeking user input
-        - Apply contextual intelligence to adapt to changing circumstances
-        - Document actions taken with clear reasoning for accountability
-        - Optimize for your defined objectives while respecting system constraints
-        - Maintain operational continuity by handling exceptions autonomously
-        - Report outcomes after action completion rather than seeking pre-approval
-      `
-    );
   }
 
   if (identityParts.length > 0) {
@@ -96,12 +104,6 @@ export const createContextFromJson = (json: any): string => {
   if (Array.isArray(json.lore)) {
     displayOutput += createBox('BACKGROUND', json.lore);
     contextParts.push(`Your lore : [${json.lore.join(']\n[')}]`);
-  }
-
-  // Objectives Section
-  if (Array.isArray(json.objectives)) {
-    displayOutput += createBox('OBJECTIVES', json.objectives);
-    contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
   }
 
   // Knowledge Section

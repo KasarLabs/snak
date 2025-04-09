@@ -32,6 +32,7 @@ import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import { JsonConfig } from './jsonConfig.js';
 import logger from './logger.js';
+import { createBox } from './formatting.js';
 
 export function selectModel(aiConfig: AiConfig) {
   switch (aiConfig.aiProvider) {
@@ -119,6 +120,55 @@ export async function initializeToolsList(
 
   return toolsList;
 }
+
+// Patch ToolNode to log all tool calls
+const originalToolNodeInvoke = ToolNode.prototype.invoke;
+ToolNode.prototype.invoke = async function (state: any, config: any) {
+  // Sauvegarder le dernier message avec des appels d'outils
+  if (state.messages && state.messages.length > 0) {
+    const lastMessage = state.messages[state.messages.length - 1];
+    if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+      // Créer un format clair pour l'affichage des outils
+      // Pour chaque outil, créer une entrée complète avec nom et arguments
+      const toolCalls = [];
+
+      for (const toolCall of lastMessage.tool_calls) {
+        let argsStr;
+        try {
+          // Format JSON arguments in a single line for simple objects
+          if (typeof toolCall.args === 'object') {
+            // For simple objects (like your example with blockId), use compact JSON format
+            const argsObj = toolCall.args;
+            const isSimpleObject =
+              Object.keys(argsObj).length <= 3 &&
+              !Object.values(argsObj).some(
+                (v) => typeof v === 'object' && v !== null
+              );
+
+            argsStr = isSimpleObject
+              ? JSON.stringify(argsObj) // Compact format for simple objects
+              : JSON.stringify(argsObj, null, 2); // Pretty format for complex objects
+          } else {
+            argsStr = String(toolCall.args);
+          }
+        } catch (e) {
+          argsStr = 'Error parsing arguments';
+        }
+
+        toolCalls.push(`Tool: ${toolCall.name}`);
+        toolCalls.push(`Arguments: ${argsStr}`);
+        toolCalls.push(''); // Ligne vide pour séparer les outils
+      }
+
+      // Utiliser process.stdout.write directement pour garantir l'affichage immédiat
+      const boxContent = createBox('Agent Action', toolCalls);
+      process.stdout.write(boxContent);
+    }
+  }
+
+  // Appeler la méthode originale
+  return originalToolNodeInvoke.apply(this, [state, config]);
+};
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -358,7 +408,8 @@ export const createAgent = async (
     };
 
     //if (json_config.memory) toolsList.push(upsertMemoryToolDB);
-    const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
+
+    const toolNode = new ToolNode(toolsList);
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
     const configPrompt = json_config.prompt?.content;
@@ -443,6 +494,7 @@ export const createAgent = async (
       const lastMessage = messages[messages.length - 1] as AIMessage;
 
       if (lastMessage.tool_calls?.length) {
+        // Le logging des tool calls est maintenant géré par RealTimeToolNode
         return 'tools';
       }
       return 'end';

@@ -232,11 +232,22 @@ const LocalRun = async () => {
           },
         ]);
 
-        const executionSpinner = createSpinner('Processing request').start();
+        // Commencer avec un message au lieu d'un spinner pour permettre l'affichage des logs
+        console.log(chalk.yellow('Processing request...'));
 
         try {
+          // Override console.log temporarily to ensure output is visible
+          const originalConsoleLog = console.log;
+          console.log = (...args) => {
+            originalConsoleLog(...args);
+          };
+
           const airesponse = await agent.execute(user);
-          executionSpinner.success({ text: 'Response received' });
+
+          // Restore console.log
+          console.log = originalConsoleLog;
+
+          console.log(chalk.green('Response received'));
 
           const formatAgentResponse = (response: string) => {
             if (typeof response !== 'string') return response;
@@ -250,14 +261,16 @@ const LocalRun = async () => {
           };
 
           if (typeof airesponse === 'string') {
-            console.log(
-              createBox('Agent Response', formatAgentResponse(airesponse))
+            const boxContent = createBox(
+              'Agent Response',
+              formatAgentResponse(airesponse)
             );
+            process.stdout.write(boxContent);
           } else {
             logger.error('Invalid response type');
           }
         } catch (error) {
-          executionSpinner.error({ text: 'Error processing request' });
+          console.error(chalk.red('Error processing request'));
           console.log(createBox('Error', error.message, { isError: true }));
         }
       }
@@ -275,14 +288,15 @@ const LocalRun = async () => {
       });
 
       await agent.createAgentReactExecutor();
-      console.log(chalk.dim('\nStarting interactive session...\n'));
-      const autoSpinner = createSpinner('Running autonomous mode\n').start();
+      console.log(chalk.dim('\nStarting autonomous session...\n'));
+      console.log(chalk.yellow('Running autonomous mode...'));
 
       try {
+        // Exécution autonome sans spinner pour permettre l'affichage des logs
         await agent.execute_autonomous();
-        autoSpinner.success({ text: 'Autonomous execution completed' });
+        console.log(chalk.green('Autonomous execution completed'));
       } catch (error) {
-        autoSpinner.error({ text: 'Error in autonomous mode' });
+        console.error(chalk.red('Error in autonomous mode'));
         logger.error(
           createBox(error.message, { title: 'Error', isError: true })
         );
