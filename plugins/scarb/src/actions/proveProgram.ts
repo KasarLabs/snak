@@ -56,6 +56,7 @@ export const proveProgram = async (
       message: 'Contract execution proved successfully',
       output: parsedResult.output,
       errors: parsedResult.errors,
+      projectDir: projectDir,
     });
   } catch (error) {
     const errors = formatCompilationError(error);

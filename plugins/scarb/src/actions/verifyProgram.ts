@@ -48,6 +48,7 @@ export const verifyProgram = async (
       message: parsedResult.message,
       output: parsedResult.output,
       errors: parsedResult.errors,
+      projectDir: projectDir,
     });
   } catch (error) {
     logger.error('Error verifying program:', error);
