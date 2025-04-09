@@ -100,7 +100,7 @@ export const executeProgram = async (
       tracePath: parsedExecResult.tracePath,
       output: parsedExecResult.output,
       errors: parsedExecResult.errors,
-      projectDir: projectDir,
+      projectName: params.projectName,
     });
   } catch (error) {
     const errors = formatCompilationError(error);

@@ -64,7 +64,7 @@ export const compileContract = async (
       message: `Contract compiled successfully`,
       output: parsedBuildResult.output,
       warnings: parsedBuildResult.errors,
-      projectDir: projectDir,
+      projectName: params.projectName,
     });
   } catch (error) {
     const errors = formatCompilationError(error);
@@ -75,7 +75,7 @@ export const compileContract = async (
         error_type: 'raw_cairo_error',
         needs_exact_forwarding: true,
       },
-      projectDir: projectDir,
+      projectName: params.projectName,
     });
   } finally {
     if (projectDir) {

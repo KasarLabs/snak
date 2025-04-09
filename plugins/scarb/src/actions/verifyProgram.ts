@@ -48,13 +48,14 @@ export const verifyProgram = async (
       message: parsedResult.message,
       output: parsedResult.output,
       errors: parsedResult.errors,
-      projectDir: projectDir,
+      projectName: params.projectName,
     });
   } catch (error) {
     logger.error('Error verifying program:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
+      projectName: params.projectName,
     });
   } finally {
     if (projectDir) {

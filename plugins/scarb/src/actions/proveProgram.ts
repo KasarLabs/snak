@@ -56,14 +56,14 @@ export const proveProgram = async (
       message: 'Contract execution proved successfully',
       output: parsedResult.output,
       errors: parsedResult.errors,
-      projectDir: projectDir,
+      projectName: params.projectName,
     });
   } catch (error) {
     const errors = formatCompilationError(error);
     return JSON.stringify({
       status: 'failure',
       errors: errors,
-      projectDir: projectDir,
+      projectName: params.projectName,
     });
   } finally {
     if (projectDir) {
