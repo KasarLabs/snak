@@ -9,6 +9,7 @@ import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interf
 import logger from './logger.js';
 import * as metrics from '../metrics.js';
 import { createBox } from './formatting.js';
+import { addTokenInfoToBox } from './tokenTracking.js';
 
 /**
  * @interface StarknetAgentConfig
@@ -36,6 +37,19 @@ export interface StarknetAgentConfig {
 }
 
 /**
+ * @interface LoggingOptions
+ * @description Options for configuring logging behavior
+ * @property {boolean} langchainVerbose - Whether to enable verbose logging for LangChain
+ * @property {boolean} tokenLogging - Whether to log token usage
+ * @property {boolean} disabled - Whether logging is completely disabled
+ */
+export interface LoggingOptions {
+  langchainVerbose?: boolean;
+  tokenLogging?: boolean;
+  disabled?: boolean;
+}
+
+/**
  * @class StarknetAgent
  * @implements {IAgent}
  * @description Agent for interacting with Starknet blockchain with AI capabilities
@@ -49,6 +63,15 @@ export class StarknetAgent implements IAgent {
   private agentReactExecutor: any;
   private currentMode: string;
   private database: PostgresAdaptater[] = [];
+  private loggingOptions: LoggingOptions = {
+    langchainVerbose: true,
+    tokenLogging: true,
+    disabled: false,
+  };
+  private originalLoggerInfo: any;
+  private originalLoggerDebug: any;
+  private originalLoggerWarn: any;
+  private originalLoggerError: any;
 
   public readonly signature: string;
   public readonly agentMode: string;
@@ -60,22 +83,66 @@ export class StarknetAgent implements IAgent {
    * @throws {Error} Throws an error if required configuration is missing
    */
   constructor(private readonly config: StarknetAgentConfig) {
-    this.validateConfig(config);
+    this.disableLogging();
 
-    this.provider = config.provider;
-    this.accountPrivateKey = config.accountPrivateKey;
-    this.accountPublicKey = config.accountPublicKey;
-    this.aiModel = config.aiModel;
-    this.aiProviderApiKey = config.aiProviderApiKey;
-    this.signature = config.signature;
-    this.agentMode = config.agentMode;
-    this.currentMode = config.agentMode;
-    this.agentconfig = config.agentconfig;
+    try {
+      this.validateConfig(config);
 
-    metrics.metricsAgentConnect(
-      config.agentconfig?.name ?? 'agent',
-      config.agentMode
-    );
+      this.provider = config.provider;
+      this.accountPrivateKey = config.accountPrivateKey;
+      this.accountPublicKey = config.accountPublicKey;
+      this.aiModel = config.aiModel;
+      this.aiProviderApiKey = config.aiProviderApiKey;
+      this.signature = config.signature;
+      this.agentMode = config.agentMode;
+      this.currentMode = config.agentMode;
+      this.agentconfig = config.agentconfig;
+
+      metrics.metricsAgentConnect(
+        config.agentconfig?.name ?? 'agent',
+        config.agentMode
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * @function disableLogging
+   * @description Disables all logging by replacing logger methods with no-ops
+   * @returns {void}
+   */
+  private disableLogging(): void {
+    // Store the original methods in case we want to restore them later
+    this.originalLoggerInfo = logger.info;
+    this.originalLoggerDebug = logger.debug;
+    this.originalLoggerWarn = logger.warn;
+    this.originalLoggerError = logger.error;
+
+    // Replace with no-op functions that respect the logger method signature
+    const noop = (message: any, ...meta: any[]): any => logger;
+    logger.info = noop;
+    logger.debug = noop;
+    logger.warn = noop;
+    logger.error = noop;
+
+    this.loggingOptions.disabled = true;
+  }
+
+  /**
+   * @function enableLogging
+   * @description Restores original logging functions
+   * @returns {void}
+   */
+  public enableLogging(): void {
+    if (!this.originalLoggerInfo) return;
+
+    logger.info = this.originalLoggerInfo;
+    logger.debug = this.originalLoggerDebug;
+    logger.warn = this.originalLoggerWarn;
+    logger.error = this.originalLoggerError;
+
+    this.loggingOptions.disabled = false;
   }
 
   /**
@@ -85,16 +152,27 @@ export class StarknetAgent implements IAgent {
    * @returns {Promise<void>}
    */
   public async createAgentReactExecutor(): Promise<void> {
-    const config: AiConfig = {
-      aiModel: this.aiModel,
-      aiProviderApiKey: this.aiProviderApiKey,
-      aiProvider: this.config.aiProvider,
-    };
+    try {
+      const config: AiConfig = {
+        aiModel: this.aiModel,
+        aiProviderApiKey: this.aiProviderApiKey,
+        aiProvider: this.config.aiProvider,
+        langchainVerbose: this.loggingOptions.langchainVerbose,
+      };
 
-    if (this.currentMode === 'auto') {
-      this.agentReactExecutor = await createAutonomousAgent(this, config);
-    } else if (this.currentMode === 'agent') {
-      this.agentReactExecutor = await createAgent(this, config);
+      if (this.currentMode === 'auto') {
+        this.agentReactExecutor = await createAutonomousAgent(this, config);
+      } else if (this.currentMode === 'agent') {
+        this.agentReactExecutor = await createAgent(this, config);
+      }
+
+      // Apply logging settings to the created executor if it exists
+      if (this.agentReactExecutor && this.agentReactExecutor.agent?.llm) {
+        this.agentReactExecutor.agent.llm.verbose =
+          this.loggingOptions.langchainVerbose;
+      }
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -106,9 +184,14 @@ export class StarknetAgent implements IAgent {
    * @throws {Error} Throws an error if required configuration is missing
    */
   private validateConfig(config: StarknetAgentConfig) {
+    if (!config) {
+      throw new Error('Configuration object is required');
+    }
+
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
+
     if (config.aiModel !== 'ollama' && !config.aiProviderApiKey) {
       throw new Error('AAI_PROVIDER_API_KEY is required');
     }
@@ -131,9 +214,14 @@ export class StarknetAgent implements IAgent {
       return `Already in ${newMode} mode`;
     }
 
-    this.currentMode = newMode;
-    this.createAgentReactExecutor();
-    return `Switched to ${newMode} mode`;
+    try {
+      this.currentMode = newMode;
+      await this.createAgentReactExecutor();
+      return `Switched to ${newMode} mode`;
+    } catch (error) {
+      this.currentMode = newMode; // Keep the mode switch even if executor creation fails
+      return `Switched to ${newMode} mode but failed to create executor: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 
   /**
@@ -152,17 +240,17 @@ export class StarknetAgent implements IAgent {
         host: process.env.POSTGRES_HOST as string,
         port: parseInt(process.env.POSTGRES_PORT as string, 10),
       };
+
       const database = await new PostgresAdaptater(params).connectDatabase();
+
       if (!database) {
         throw new Error(
           'Error when trying to initialize your Postgres database'
         );
       }
+
       this.database.push(database);
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error(error.message);
-      }
       return;
     }
   }
@@ -185,16 +273,19 @@ export class StarknetAgent implements IAgent {
         host: process.env.POSTGRES_HOST as string,
         port: parseInt(process.env.POSTGRES_PORT as string, 10),
       };
+
       const database = await new PostgresAdaptater(params).connectDatabase();
       if (!database) {
         throw new Error(
           'Error when trying to initialize your Postgres database'
         );
       }
+
       const new_database = await database.createDatabase(database_name);
       if (!new_database) {
         throw new Error('Error when trying to create your Postgres database');
       }
+
       const new_params: PostgresDatabasePoolInterface = {
         user: process.env.POSTGRES_USER as string,
         password: process.env.POSTGRES_PASSWORD as string,
@@ -202,32 +293,26 @@ export class StarknetAgent implements IAgent {
         host: process.env.POSTGRES_HOST as string,
         port: parseInt(process.env.POSTGRES_PORT as string, 10),
       };
+
       const new_database_connection = await new PostgresAdaptater(
         new_params
       ).connectDatabase();
+
       if (!new_database_connection) {
         throw new Error('Error when trying to connect to your database');
       }
+
       try {
-        // Assuming there's a public method like query() or execute() in PostgresAdaptater
         await new_database_connection.query(
           'CREATE EXTENSION IF NOT EXISTS vector;'
         );
       } catch (extError) {
-        console.error(
-          `Failed to create vector extension in database ${database_name}:`,
-          extError
-        );
-        console.warn(
-          'Vector functionality may not work properly. Make sure pgvector is installed.'
-        );
+        // Vector functionality may not work properly. Make sure pgvector is installed.
       }
+
       this.database.push(new_database_connection);
       return new_database_connection;
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error(error.message);
-      }
       return undefined;
     }
   }
@@ -245,10 +330,10 @@ export class StarknetAgent implements IAgent {
       if (!database) {
         throw new Error(`Postgres Database : ${database_name} not found`);
       }
+
       await database.closeDatabase();
       this.deleteDatabaseByName(database_name);
     } catch (error) {
-      logger.log(error);
       return;
     }
   }
@@ -269,7 +354,8 @@ export class StarknetAgent implements IAgent {
    * @returns {PostgresAdaptater|undefined} Database adapter or undefined if not found
    */
   getDatabaseByName(name: string): PostgresAdaptater | undefined {
-    return this.database.find((db) => db.getDatabaseName() === name);
+    const db = this.database.find((db) => db.getDatabaseName() === name);
+    return db;
   }
 
   /**
@@ -282,6 +368,7 @@ export class StarknetAgent implements IAgent {
     if (!this.database) {
       return;
     }
+
     const database = this.database.filter(
       (db) => db.getDatabaseName() !== name
     );
@@ -364,7 +451,8 @@ export class StarknetAgent implements IAgent {
    * @returns {Promise<boolean>} True if valid, false otherwise
    */
   async validateRequest(request: string): Promise<boolean> {
-    return Boolean(request && typeof request === 'string');
+    const isValid = Boolean(request && typeof request === 'string');
+    return isValid;
   }
 
   /**
@@ -377,20 +465,38 @@ export class StarknetAgent implements IAgent {
    */
   async execute(input: string): Promise<unknown> {
     if (this.currentMode !== 'agent') {
-      throw new Error(`Need to be in agent mode to execute`);
+      const error = new Error(
+        `Need to be in agent mode to execute (current mode: ${this.currentMode})`
+      );
+      throw error;
     }
 
-    const result = await this.agentReactExecutor.invoke(
-      {
-        messages: [new HumanMessage(input)],
-      },
-      {
-        recursionLimit: 15,
-        configurable: { thread_id: this.agentconfig?.chat_id as string },
-      }
-    );
+    try {
+      const humanMessage = new HumanMessage(input);
 
-    return result.messages[result.messages.length - 1].content;
+      if (!this.agentReactExecutor) {
+        throw new Error('Agent executor is not initialized');
+      }
+
+      const result = await this.agentReactExecutor.invoke(
+        {
+          messages: [humanMessage],
+        },
+        {
+          recursionLimit: 15,
+          configurable: { thread_id: this.agentconfig?.chat_id as string },
+        }
+      );
+
+      if (!result.messages || result.messages.length === 0) {
+        return '';
+      }
+
+      const content = result.messages[result.messages.length - 1].content;
+      return content;
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**
@@ -401,31 +507,32 @@ export class StarknetAgent implements IAgent {
    * @throws {Error} Throws an error if not in auto mode
    */
   async execute_autonomous(): Promise<unknown> {
-    console.log = logger.info.bind(logger); // Force tous les console.log à passer par logger.info
-    console.error = logger.error.bind(logger);
     try {
       if (this.currentMode !== 'auto') {
-        throw new Error(`Need to be in autonomous mode to execute_autonomous`);
+        throw new Error(
+          `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
+        );
       }
 
-      logger.debug('Starting autonomous execution loop');
+      if (!this.agentReactExecutor) {
+        throw new Error(
+          'Agent executor is not initialized for autonomous execution'
+        );
+      }
 
       let iterationCount = 0;
-      // Run autonomously with memory management
       while (true) {
         iterationCount++;
-        logger.debug(
-          `--- Autonomous iteration #${iterationCount} starting ---`
-        );
 
         try {
-          // Create a fresh agent executor every 5 iterations to prevent context growth
           if (iterationCount > 1 && iterationCount % 5 === 0) {
-            logger.info('Recreating agent executor to manage context size');
             await this.createAgentReactExecutor();
           }
 
-          // Use a simpler prompt that encourages concrete action
+          if (!this.agentReactExecutor.agent) {
+            throw new Error('Agent property is missing from executor');
+          }
+
           const result = await this.agentReactExecutor.agent.invoke(
             {
               messages:
@@ -434,11 +541,17 @@ export class StarknetAgent implements IAgent {
             this.agentReactExecutor.agentConfig
           );
 
+          if (!result.messages || result.messages.length === 0) {
+            continue;
+          }
+
           const agentResponse =
             result.messages[result.messages.length - 1].content;
 
           const formatAgentResponse = (response: string) => {
-            if (typeof response !== 'string') return response;
+            if (typeof response !== 'string') {
+              return response;
+            }
 
             return response.split('\n').map((line) => {
               if (line.includes('•')) {
@@ -448,40 +561,37 @@ export class StarknetAgent implements IAgent {
             });
           };
 
+          // Afficher la réponse même avec les logs désactivés
           const boxContent = createBox(
             'Agent Response',
             formatAgentResponse(agentResponse)
           );
-          process.stdout.write(boxContent);
+          // Ajouter les informations de tokens à la boîte
+          const boxWithTokens = addTokenInfoToBox(boxContent);
+          process.stdout.write(boxWithTokens);
 
-          // Wait for the configured interval before next iteration
-          await new Promise((resolve) =>
-            setTimeout(resolve, this.agentReactExecutor.json_config.interval)
-          );
+          const interval =
+            this.agentReactExecutor.json_config?.interval || 5000;
+          await new Promise((resolve) => setTimeout(resolve, interval));
         } catch (loopError) {
-          logger.error(`Error in autonomous iteration #${iterationCount}:`);
-          logger.error(
-            loopError instanceof Error ? loopError.message : String(loopError)
-          );
-
-          // If we hit a token limit, recreate the agent immediately
           if (
+            loopError instanceof Error &&
             loopError.message &&
             loopError.message.includes('prompt is too long')
           ) {
-            logger.info('Token limit exceeded, recreating agent executor');
-            await this.createAgentReactExecutor();
+            try {
+              await this.createAgentReactExecutor();
+            } catch (recreateError) {
+              // Ignore recreation errors
+            }
           }
 
-          // Wait a bit before trying again
+          // Wait before retrying
           await new Promise((resolve) => setTimeout(resolve, 3000));
         }
       }
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error(error.message);
-      }
-      return;
+      return error;
     }
   }
 
@@ -496,27 +606,85 @@ export class StarknetAgent implements IAgent {
   async execute_call_data(input: string): Promise<unknown> {
     try {
       if (this.currentMode !== 'agent') {
-        throw new Error(`Need to be in agent mode to execute_call_data`);
+        throw new Error(
+          `Need to be in agent mode to execute_call_data (current mode: ${this.currentMode})`
+        );
       }
+
+      if (!this.agentReactExecutor) {
+        throw new Error('Agent executor is not initialized');
+      }
+
       const aiMessage = await this.agentReactExecutor.invoke({
         messages: input,
       });
+
       try {
-        const parsedResult = JSON.parse(
-          aiMessage.messages[aiMessage.messages.length - 2].content
-        );
+        if (!aiMessage.messages || aiMessage.messages.length < 2) {
+          throw new Error(
+            'Insufficient messages returned from call data execution'
+          );
+        }
+
+        const messageContent =
+          aiMessage.messages[aiMessage.messages.length - 2].content;
+        const parsedResult = JSON.parse(messageContent);
         return parsedResult;
       } catch (parseError) {
         return {
           status: 'failure',
-          error: `Failed to parse observation: ${parseError.message}`,
+          error: `Failed to parse observation: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
         };
       }
     } catch (error) {
-      if (error instanceof Error) {
-        logger.error(error.message);
-      }
+      return {
+        status: 'failure',
+        error: `Execution error: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  /**
+   * @function setLoggingOptions
+   * @description Sets logging options for the agent
+   * @param {LoggingOptions} options - Logging options to set
+   */
+  public setLoggingOptions(options: LoggingOptions): void {
+    this.loggingOptions = { ...this.loggingOptions, ...options };
+
+    if (options.disabled === true && !this.loggingOptions.disabled) {
+      this.disableLogging();
       return;
+    } else if (options.disabled === false && this.loggingOptions.disabled) {
+      this.enableLogging();
+    }
+
+    if (!this.loggingOptions.disabled && this.agentReactExecutor) {
+      if (this.agentReactExecutor.agent?.llm) {
+        const llm = this.agentReactExecutor.agent.llm;
+        llm.verbose = this.loggingOptions.langchainVerbose === true;
+      }
+
+      if (this.agentReactExecutor.graph?._nodes?.agent?.data?.model) {
+        this.agentReactExecutor.graph._nodes.agent.data.model.verbose =
+          this.loggingOptions.langchainVerbose === true;
+      }
+
+      const applyToAllModels = (obj: any) => {
+        if (!obj) return;
+        if (obj.verbose !== undefined && typeof obj.verbose === 'boolean') {
+          obj.verbose = this.loggingOptions.langchainVerbose === true;
+        }
+        if (typeof obj === 'object') {
+          Object.values(obj).forEach((val) => {
+            if (val && typeof val === 'object') {
+              applyToAllModels(val);
+            }
+          });
+        }
+      };
+
+      applyToAllModels(this.agentReactExecutor);
     }
   }
 }

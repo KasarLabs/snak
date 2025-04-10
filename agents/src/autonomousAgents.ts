@@ -33,6 +33,7 @@ export const createAutonomousAgent = async (
       model = new ChatAnthropic({
         modelName: aiConfig.aiModel,
         anthropicApiKey: aiConfig.aiProviderApiKey,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     case 'openai':
@@ -44,6 +45,7 @@ export const createAutonomousAgent = async (
       model = new ChatOpenAI({
         modelName: aiConfig.aiModel,
         openAIApiKey: aiConfig.aiProviderApiKey,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     case 'gemini':
@@ -56,11 +58,13 @@ export const createAutonomousAgent = async (
         modelName: aiConfig.aiModel,
         apiKey: aiConfig.aiProviderApiKey,
         convertSystemMessageToHumanContent: true,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     case 'ollama':
       model = new ChatOllama({
         model: aiConfig.aiModel,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     default:
@@ -68,7 +72,9 @@ export const createAutonomousAgent = async (
   }
 
   // Ajouter le tracking des tokens
-  model = configureModelWithTracking(model);
+  model = configureModelWithTracking(model, {
+    tokenLogging: aiConfig.langchainVerbose !== false,
+  });
 
   try {
     const json_config = starknetAgent.getAgentConfig();

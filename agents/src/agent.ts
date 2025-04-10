@@ -44,7 +44,7 @@ export function selectModel(aiConfig: AiConfig) {
 
   switch (aiConfig.aiProvider) {
     case 'anthropic':
-      if (!aiConfig.aiProviderApiKey) {
+      if (!aiConfig.aiProviderApiKey && aiConfig.aiModel != 'ollama') {
         throw new Error(
           'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
         );
@@ -52,7 +52,7 @@ export function selectModel(aiConfig: AiConfig) {
       model = new ChatAnthropic({
         modelName: aiConfig.aiModel,
         anthropicApiKey: aiConfig.aiProviderApiKey,
-        temperature: 0,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     case 'openai':
@@ -63,8 +63,8 @@ export function selectModel(aiConfig: AiConfig) {
       }
       model = new ChatOpenAI({
         modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
-        temperature: 0,
+        openAIApiKey: aiConfig.aiProviderApiKey,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     case 'gemini':
@@ -76,23 +76,23 @@ export function selectModel(aiConfig: AiConfig) {
       model = new ChatGoogleGenerativeAI({
         modelName: aiConfig.aiModel,
         apiKey: aiConfig.aiProviderApiKey,
-        convertSystemMessageToHumanContent: true,
+        verbose: aiConfig.langchainVerbose === true,
+      });
+      break;
+    case 'deepseek':
+      if (!aiConfig.aiProviderApiKey) {
+        throw new Error('Valid DeepSeek api key is required');
+      }
+      model = new ChatDeepSeek({
+        modelName: aiConfig.aiModel,
+        apiKey: aiConfig.aiProviderApiKey,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     case 'ollama':
       model = new ChatOllama({
         model: aiConfig.aiModel,
-      });
-      break;
-    case 'deepseek':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid DeepSeek api key is required https://api-docs.deepseek.com/'
-        );
-      }
-      model = new ChatDeepSeek({
-        modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
+        verbose: aiConfig.langchainVerbose === true,
       });
       break;
     default:

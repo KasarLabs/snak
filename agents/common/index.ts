@@ -6,11 +6,13 @@ import { JsonConfig } from '../src/jsonConfig.js';
  * @property {string} apiKey - API key for the AI service
  * @property {string} aiModel - Model identifier to use
  * @property {string} aiProvider - Name of the AI service provider
+ * @property {boolean} langchainVerbose - Whether to enable verbose logging for LangChain
  */
 export type AiConfig = {
   aiProviderApiKey: string;
   aiModel: string;
   aiProvider: string;
+  langchainVerbose?: boolean;
 };
 
 export interface IAgent {

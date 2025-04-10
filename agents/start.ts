@@ -6,6 +6,7 @@ import { RpcProvider } from 'starknet';
 import { config } from 'dotenv';
 import { load_json_config } from './src/jsonConfig.js';
 import { createBox } from './src/formatting.js';
+import { addTokenInfoToBox } from './src/tokenTracking.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as fs from 'fs';
@@ -15,10 +16,18 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import logger from './src/logger.js';
 
+// Désactivation globale des logs LangChain
+// Définir la variable d'environnement pour désactiver les logs LangChain
+process.env.LANGCHAIN_TRACING = 'false';
+process.env.LANGCHAIN_VERBOSE = 'false';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const load_command = async (): Promise<string> => {
+const load_command = async (): Promise<{
+  agentPath: string;
+  silentLlm: boolean;
+}> => {
   const argv = await yargs(hideBin(process.argv))
     .option('agent', {
       alias: 'a',
@@ -26,10 +35,17 @@ const load_command = async (): Promise<string> => {
       type: 'string',
       default: 'default.agent.json',
     })
+    .option('silent-llm', {
+      alias: 's',
+      describe: 'Disable LLM logs',
+      type: 'boolean',
+      default: true,
+    })
     .strict()
     .parse();
 
   const agentPath = argv['agent'];
+  const silentLlm = argv['silent-llm'];
 
   // Try multiple possible locations for the config file
   const possiblePaths = [
@@ -51,14 +67,17 @@ const load_command = async (): Promise<string> => {
   // Try each path until we find one that works
   for (const tryPath of possiblePaths) {
     if (fs.existsSync(tryPath)) {
-      return tryPath;
+      return { agentPath: tryPath, silentLlm };
     }
   }
 
   // If not found in any of the expected locations, try the absolute path
-  return path.isAbsolute(agentPath)
-    ? agentPath
-    : path.resolve(process.cwd(), agentPath);
+  return {
+    agentPath: path.isAbsolute(agentPath)
+      ? agentPath
+      : path.resolve(process.cwd(), agentPath),
+    silentLlm,
+  };
 };
 
 const clearScreen = () => {
@@ -171,7 +190,7 @@ const LocalRun = async () => {
     )
   );
 
-  const agent_config_name = await load_command();
+  const { agentPath, silentLlm } = await load_command();
   const { mode } = await inquirer.prompt([
     {
       type: 'list',
@@ -199,14 +218,14 @@ const LocalRun = async () => {
   try {
     spinner.stop();
     await validateEnvVars();
-    const agent_config = await load_json_config(agent_config_name);
+    const agent_config = await load_json_config(agentPath);
     if (agent_config === undefined) {
       throw new Error('Failed to load agent configuration');
     }
 
     // Afficher plus d'informations sur l'agent
     const agentName = agent_config.name || 'Unknown';
-    const configPath = path.basename(agent_config_name);
+    const configPath = path.basename(agentPath);
     const aiModel = process.env.AI_MODEL;
     const aiProvider = process.env.AI_PROVIDER;
 
@@ -235,6 +254,15 @@ const LocalRun = async () => {
         agentconfig: agent_config,
       });
       await agent.createAgentReactExecutor();
+
+      // Configure logging options
+      setTimeout(() => {
+        agent.setLoggingOptions({
+          langchainVerbose: !silentLlm,
+          tokenLogging: !silentLlm,
+        });
+      }, 100); // Un petit délai pour s'assurer que tout est bien initialisé
+
       while (true) {
         const { user } = await inquirer.prompt([
           {
@@ -253,18 +281,7 @@ const LocalRun = async () => {
         console.log(chalk.yellow('Processing request...'));
 
         try {
-          // Override console.log temporarily to ensure output is visible
-          const originalConsoleLog = console.log;
-          console.log = (...args) => {
-            originalConsoleLog(...args);
-          };
-
           const airesponse = await agent.execute(user);
-
-          // Restore console.log
-          console.log = originalConsoleLog;
-
-          console.log(chalk.green('Response received'));
 
           const formatAgentResponse = (response: string) => {
             if (typeof response !== 'string') return response;
@@ -282,7 +299,9 @@ const LocalRun = async () => {
               'Agent Response',
               formatAgentResponse(airesponse)
             );
-            process.stdout.write(boxContent);
+            // Ajouter les informations de tokens à la boîte
+            const boxWithTokens = addTokenInfoToBox(boxContent);
+            process.stdout.write(boxWithTokens);
           } else {
             logger.error('Invalid response type');
           }
@@ -307,7 +326,21 @@ const LocalRun = async () => {
       });
 
       await agent.createAgentReactExecutor();
+
+      // Configure logging options
+      setTimeout(() => {
+        agent.setLoggingOptions({
+          langchainVerbose: !silentLlm,
+          tokenLogging: !silentLlm,
+        });
+      }, 100); // Un petit délai pour s'assurer que tout est bien initialisé
+
       console.log(chalk.dim('\nStarting autonomous session...\n'));
+      console.log(
+        chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +
+          chalk.dim(`- Model: ${chalk.bold(aiModel)}\n`) +
+          chalk.dim(`- Provider: ${chalk.bold(aiProvider)}\n`)
+      );
       console.log(chalk.yellow('Running autonomous mode...'));
 
       try {
