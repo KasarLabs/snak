@@ -45,7 +45,7 @@ export function selectModel(aiConfig: AiConfig) {
 
   switch (aiConfig.aiProvider) {
     case 'anthropic':
-      if (!aiConfig.aiProviderApiKey && aiConfig.aiModel != 'ollama') {
+      if (!aiConfig.aiProviderApiKey) {
         throw new Error(
           'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
         );
@@ -100,7 +100,7 @@ export function selectModel(aiConfig: AiConfig) {
       throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
   }
 
-  // Ajouter le tracking des tokens avec des limites configurables
+  // Add token tracking with configurable limits
   return configureModelWithTracking(model, {
     tokenLogging: aiConfig.langchainVerbose !== false,
     maxInputTokens: aiConfig.maxInputTokens || 50000,
@@ -145,20 +145,18 @@ export async function initializeToolsList(
 // Patch ToolNode to log all tool calls
 const originalToolNodeInvoke = ToolNode.prototype.invoke;
 ToolNode.prototype.invoke = async function (state: any, config: any) {
-  // Sauvegarder le dernier message avec des appels d'outils
+  // Save the last message with tool calls
   if (state.messages && state.messages.length > 0) {
     const lastMessage = state.messages[state.messages.length - 1];
     if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
-      // Créer un format clair pour l'affichage des outils
-      // Pour chaque outil, créer une entrée complète avec nom et arguments
+      // Create a clear format for displaying tools
+      // For each tool, create a complete entry with name and arguments
       const toolCalls = [];
 
       for (const toolCall of lastMessage.tool_calls) {
         let argsStr;
         try {
-          // Format JSON arguments in a single line for simple objects
           if (typeof toolCall.args === 'object') {
-            // For simple objects (like your example with blockId), use compact JSON format
             const argsObj = toolCall.args;
             const isSimpleObject =
               Object.keys(argsObj).length <= 3 &&
@@ -167,8 +165,8 @@ ToolNode.prototype.invoke = async function (state: any, config: any) {
               );
 
             argsStr = isSimpleObject
-              ? JSON.stringify(argsObj) // Compact format for simple objects
-              : JSON.stringify(argsObj, null, 2); // Pretty format for complex objects
+              ? JSON.stringify(argsObj)
+              : JSON.stringify(argsObj, null, 2);
           } else {
             argsStr = String(toolCall.args);
           }
@@ -178,21 +176,21 @@ ToolNode.prototype.invoke = async function (state: any, config: any) {
 
         toolCalls.push(`Tool: ${toolCall.name}`);
         toolCalls.push(`Arguments: ${argsStr}`);
-        toolCalls.push(''); // Ligne vide pour séparer les outils
+        toolCalls.push('');
       }
 
-      // Utiliser process.stdout.write directement pour garantir l'affichage immédiat
+      // Use process.stdout.write directly to ensure immediate display
       const boxContent = createBox('Agent Action', toolCalls, {
         title: 'Agent Action',
       });
 
-      // Ajouter les informations de tokens à la boîte
+      // Add token information to the box
       const boxWithTokens = addTokenInfoToBox(boxContent);
       process.stdout.write(boxWithTokens);
     }
   }
 
-  // Appeler la méthode originale
+  // Call the original method
   return originalToolNodeInvoke.apply(this, [state, config]);
 };
 
@@ -217,7 +215,7 @@ export const createAgent = async (
       const databaseName = json_config.chat_id;
       databaseConnection = await starknetAgent.createDatabase(databaseName);
       if (!databaseConnection) {
-        throw new Error(`Failed to create or connect to database: `);
+        throw new Error('Failed to create or connect to database');
       }
       try {
         const dbCreation = await databaseConnection.createTable({
@@ -387,17 +385,6 @@ export const createAgent = async (
 
         const results = await databaseConnection.query(similarMemoriesQuery);
 
-        // const results = await databaseConnection.select({
-        //   FROM: ['agent_memories'],
-        //   SELECT: [
-        //     'id',
-        //     'content',
-        //     'history',
-        //     `1 - (embedding <=> '${queryEmbeddingStr}'::vector) as similarity`
-        //   ],
-        //   WHERE: [`user_id = '${userId}'`]
-        // });
-
         let memories = '\n';
         if (
           results.status === 'success' &&
@@ -416,7 +403,7 @@ export const createAgent = async (
                   }
                 }
               } catch (e) {
-                console.error('Error stringifying history : ', e);
+                console.error('Error stringifying history:', e);
               }
               return `Memory [id: ${row.id}, similarity: ${row.similarity.toFixed(4)},history : ${historyStr}]: ${row.content}`;
             })
@@ -433,56 +420,10 @@ export const createAgent = async (
       }
     };
 
-    //if (json_config.memory) toolsList.push(upsertMemoryToolDB);
-
     const toolNode = new ToolNode(toolsList);
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
     const configPrompt = json_config.prompt?.content;
-    const basicPrompt = `
-		Use your upsert_memory tool whenever there is information that is relevant, this includes but is not limited to : contract/wallet addresses, public/private keys, names, preferences etc. When you want to update an information already stored in the database, make sure to specify that it is an update. The most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;
-		`;
-    const refinedPrompt1 = `When conversing with users, PROACTIVELY use the upsert_memory tool to store and retrieve important information:
-
-1. AUTOMATICALLY STORE without being asked:
-   - NEW user names, preferences, and personal information (not confirmations of existing data)
-   - ALL wallet details when created or mentioned (addresses, public/private keys)
-   - Contract addresses and blockchain identifiers
-   - Important dates, amounts, and transaction details
-
-2. When storing memory, ALWAYS include:
-   - Descriptive memory_content with complete details
-   - Relevant tags for easy retrieval (e.g., "wallet", "preference", "contact")
-   - Context about where/how the information was obtained
-
-3. UPDATE existing memories when:
-   - New information contradicts stored data
-   - More complete information becomes available
-   - User corrects previously stored information
-   - Include original memory ID when updating
-
-4. The 4 most relevant memories for the current query are:
-<memories>
-{memories}
-</memories>
-
-5. RETRIEVE additional memories when:
-   - Any financial or blockchain action is requested
-   - User references past conversations or saved information
-   - Making recommendations based on user history
-
-6. AFTER MEMORY OPERATIONS:
-   - ALWAYS ANSWER THE USER'S ORIGINAL QUESTION after storing or retrieving memory
-   - When the user asks "what's my name?", directly answer with "Your name is [Name]" based on memory
-   - Never skip answering the user's question just because you've stored or updated memory
-   - For memory verification questions (like name confirmations), answer definitively rather than asking for additional confirmation
-   - Remember that memory operations are invisible infrastructure - the user still expects their question to be answered
-
-7. MEMORY EFFICIENCY GUIDELINES:
-   - Do NOT store memory for simple confirmations of existing information
-   - Only update memory when there's a meaningful change or correction
-
-   - Avoid redundant memory storage for information that's already well-documented in memory`;
     const memoryPrompt = ``;
     const finalPrompt = json_config.memory
       ? `${configPrompt}\n${memoryPrompt}`
@@ -509,20 +450,19 @@ export const createAgent = async (
           memories: state.memories || '',
         });
 
-        // Estimer la taille des messages et vérifier la limite
-        // Utiliser la fonction estimateTokens pour éviter les requêtes coûteuses
+        // Estimate message size and check limit
         const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
         if (estimatedTokens > 90000) {
-          // Limite de sécurité pour éviter les erreurs de token
+          // Safety limit to avoid token errors
           logger.warn(
             `Prompt exceeds safe token limit: ${estimatedTokens} tokens. Truncating messages...`
           );
 
-          // Créer une version tronquée des messages d'entrée
-          // Ne conserver que les 2 derniers messages utilisateur et leurs réponses
+          // Create a truncated version of input messages
+          // Only keep the last 4 messages
           const truncatedMessages = state.messages.slice(-4);
 
-          // Reformater le prompt avec les messages tronqués
+          // Reformat the prompt with truncated messages
           const truncatedPrompt = await prompt.formatMessages({
             system_message: '',
             tool_names: toolsList.map((tool) => tool.name).join(', '),
@@ -530,20 +470,20 @@ export const createAgent = async (
             memories: state.memories || '',
           });
 
-          // Utiliser le prompt tronqué
+          // Use truncated prompt
           const result = await modelSelected.invoke(truncatedPrompt);
           return {
             messages: [result],
           };
         }
 
-        // Si nous sommes en dessous de la limite, utiliser le prompt complet
+        // If we're below the limit, use the full prompt
         const result = await modelSelected.invoke(formattedPrompt);
         return {
           messages: [result],
         };
       } catch (error) {
-        // Gérer spécifiquement les erreurs de limite de tokens
+        // Handle token limit errors specifically
         if (
           error instanceof Error &&
           (error.message.includes('token limit') ||
@@ -552,11 +492,11 @@ export const createAgent = async (
         ) {
           logger.error(`Token limit error: ${error.message}`);
 
-          // Créer une version très réduite avec seulement le dernier message
+          // Create a very reduced version with only the last message
           const minimalMessages = state.messages.slice(-2);
 
           try {
-            // Tenter avec un prompt minimal
+            // Try with a minimal prompt
             const emergencyPrompt = await prompt.formatMessages({
               system_message:
                 'Previous conversation was too long. Continuing with just recent messages.',
@@ -570,19 +510,19 @@ export const createAgent = async (
               messages: [result],
             };
           } catch (emergencyError) {
-            // Si même le prompt d'urgence échoue, renvoyer un message d'erreur formaté
+            // If even the emergency prompt fails, return a formatted error message
             return {
               messages: [
                 new AIMessage({
                   content:
-                    'La conversation est devenue trop longue et dépasse les limites de tokens. Veuillez démarrer une nouvelle conversation.',
+                    'The conversation has become too long and exceeds token limits. Please start a new conversation.',
                 }),
               ],
             };
           }
         }
 
-        // Pour les autres types d'erreurs, les propager
+        // For other types of errors, propagate them
         throw error;
       }
     }
@@ -592,7 +532,6 @@ export const createAgent = async (
       const lastMessage = messages[messages.length - 1] as AIMessage;
 
       if (lastMessage.tool_calls?.length) {
-        // Le logging des tool calls est maintenant géré par RealTimeToolNode
         return 'tools';
       }
       return 'end';
@@ -625,7 +564,7 @@ export const createAgent = async (
 
     return app;
   } catch (error) {
-    logger.error('Failed to create an agent : ', error);
+    logger.error('Failed to create an agent:', error);
     throw error;
   }
 };
