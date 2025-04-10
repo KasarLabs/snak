@@ -54,6 +54,15 @@ export interface LoggingOptions {
 }
 
 /**
+ * Error response structure for execution failures
+ */
+interface ErrorResponse {
+  status: string;
+  error: string;
+  step?: string;
+}
+
+/**
  * @class StarknetAgent
  * @implements {IAgent}
  * @description Agent for interacting with Starknet blockchain with AI capabilities
@@ -198,33 +207,6 @@ export class StarknetAgent implements IAgent {
 
     if (config.aiModel !== 'ollama' && !config.aiProviderApiKey) {
       throw new Error('AAI_PROVIDER_API_KEY is required');
-    }
-  }
-
-  /**
-   * @function switchMode
-   * @private
-   * @async
-   * @description Switches the agent mode between 'auto' and 'agent'
-   * @param {string} newMode - New mode to switch to
-   * @returns {Promise<string>} Result message
-   */
-  private async switchMode(newMode: string): Promise<string> {
-    if (newMode === 'auto' && !this.agentconfig?.autonomous) {
-      return 'Cannot switch to autonomous mode - not enabled in configuration';
-    }
-
-    if (this.currentMode === newMode) {
-      return `Already in ${newMode} mode`;
-    }
-
-    try {
-      this.currentMode = newMode;
-      await this.createAgentReactExecutor();
-      return `Switched to ${newMode} mode`;
-    } catch (error) {
-      this.currentMode = newMode; // Keep the mode switch even if executor creation fails
-      return `Switched to ${newMode} mode but failed to create executor: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
@@ -528,12 +510,12 @@ export class StarknetAgent implements IAgent {
       let consecutiveErrorCount = 0;
       let tokensErrorCount = 0;
 
-      // Utiliser une file de messages d'erreur pour éviter de répéter le même message d'erreur
+      // Use an error message queue to avoid repeating the same error message
       const lastErrors = new Set<string>();
       const addError = (error: string) => {
         lastErrors.add(error);
         if (lastErrors.size > 3) {
-          // Garder seulement les 3 dernières erreurs uniques
+          // Keep only the 3 most recent unique errors
           const iterator = lastErrors.values();
           lastErrors.delete(iterator.next().value);
         }
@@ -543,20 +525,20 @@ export class StarknetAgent implements IAgent {
         iterationCount++;
 
         try {
-          // Réinitialiser le compteur d'erreurs consécutives en cas de succès
+          // Reset consecutive error counter on success
           consecutiveErrorCount = 0;
 
-          // Réduction progressive du nombre d'erreurs de tokens
+          // Gradually reduce token error count
           if (tokensErrorCount > 0) {
             tokensErrorCount--;
           }
 
-          // Recréer l'agent périodiquement pour éviter l'accumulation de contexte
-          // Plus fréquent s'il y a eu des erreurs de tokens récentes
+          // Periodically recreate the agent to avoid context accumulation
+          // More frequent if there have been recent token errors
           const refreshInterval = tokensErrorCount > 0 ? 3 : 5;
           if (iterationCount > 1 && iterationCount % refreshInterval === 0) {
             logger.info(
-              `Rafraîchissement périodique de l'agent (itération ${iterationCount})`
+              `Periodic agent refresh (iteration ${iterationCount})`
             );
             await this.createAgentReactExecutor();
           }
@@ -565,12 +547,12 @@ export class StarknetAgent implements IAgent {
             throw new Error('Agent property is missing from executor');
           }
 
-          // Ajuster le message en fonction du contexte des erreurs récentes
+          // Adjust the message based on recent error context
           let promptMessage =
             'Based on my objectives, You should take action now without seeking permission. Choose what to do.';
 
           if (tokensErrorCount > 0) {
-            // Si des erreurs de tokens récentes, demander spécifiquement des actions plus simples
+            // If recent token errors, specifically request simpler actions
             promptMessage =
               'Due to recent token limit issues, choose a very simple action now. Prefer actions that require minimal context and processing.';
           }
@@ -582,17 +564,17 @@ export class StarknetAgent implements IAgent {
 
           if (!result.messages || result.messages.length === 0) {
             logger.warn(
-              "L'agent a retourné une réponse vide, continuons à la prochaine itération"
+              "Agent returned an empty response, continuing to next iteration"
             );
             continue;
           }
 
-          // Récupérer et vérifier le contenu du dernier message
+          // Get and check the content of the last message
           const lastMessage = result.messages[result.messages.length - 1];
           const agentResponse = lastMessage.content;
 
-          // Si le message contient des outils et des résultats volumineux, il peut être nécessaire de le tronquer
-          // Limite de 20 000 tokens pour éviter des requêtes trop coûteuses lors de l'itération suivante
+          // If the message contains tools and large results, it may need to be truncated
+          // Limit of 20,000 tokens to avoid expensive requests during the next iteration
           const MAX_RESPONSE_TOKENS = 20000;
           const estimatedTokens = estimateTokens(
             typeof agentResponse === 'string'
@@ -602,7 +584,7 @@ export class StarknetAgent implements IAgent {
 
           let formattedAgentResponse;
           if (estimatedTokens > MAX_RESPONSE_TOKENS) {
-            // Tronquer la réponse pour respecter la limite de tokens
+            // Truncate the response to respect the token limit
             logger.warn(
               `Response exceeds token limit: ${estimatedTokens} > ${MAX_RESPONSE_TOKENS}. Truncating...`
             );
@@ -612,7 +594,7 @@ export class StarknetAgent implements IAgent {
                 MAX_RESPONSE_TOKENS
               );
             } else {
-              // Pour les réponses non-string (objets, etc.), on les stringifie puis on tronque
+              // For non-string responses (objects, etc.), stringify then truncate
               formattedAgentResponse = truncateToTokenLimit(
                 JSON.stringify(agentResponse),
                 MAX_RESPONSE_TOKENS
@@ -635,42 +617,42 @@ export class StarknetAgent implements IAgent {
             });
           };
 
-          // Afficher la réponse même avec les logs désactivés
+          // Display the response even with logs disabled
           const boxContent = createBox(
             'Agent Response',
             formatAgentResponse(formattedAgentResponse)
           );
-          // Ajouter les informations de tokens à la boîte
+          // Add token information to the box
           const boxWithTokens = addTokenInfoToBox(boxContent);
           process.stdout.write(boxWithTokens);
 
-          // Attendre un intervalle adaptatif basé sur la complexité de la dernière réponse
-          // Si la réponse était volumineuse, attendre plus longtemps pour donner le temps aux ressources de se libérer
+          // Wait for an adaptive interval based on the complexity of the last response
+          // If the response was large, wait longer to give resources time to free up
           const baseInterval =
             this.agentReactExecutor.json_config?.interval || 5000;
           let interval = baseInterval;
 
-          // Augmenter l'intervalle si la réponse était volumineuse pour éviter la surcharge
+          // Increase the interval if the response was large to avoid overload
           if (estimatedTokens > MAX_RESPONSE_TOKENS / 2) {
             interval = baseInterval * 1.5;
           }
 
           await new Promise((resolve) => setTimeout(resolve, interval));
         } catch (loopError) {
-          // Incrémenter le compteur d'erreurs consécutives
+          // Increment consecutive error counter
           consecutiveErrorCount++;
 
-          // Créer une clé d'erreur unique pour éviter de répéter les mêmes messages d'erreur
+          // Create a unique error key to avoid repeating the same error messages
           const errorMessage =
             loopError instanceof Error ? loopError.message : String(loopError);
           addError(errorMessage);
 
-          // Message d'erreur détaillé pour aider au débogage
+          // Detailed error message to help with debugging
           logger.error(
             `Error in autonomous agent (iteration ${iterationCount}): ${errorMessage}`
           );
 
-          // Gérer l'erreur de limite de tokens ou de contexte trop long
+          // Handle token limit or context too long error
           const isTokenError =
             loopError instanceof Error &&
             (errorMessage.includes('token limit') ||
@@ -680,25 +662,25 @@ export class StarknetAgent implements IAgent {
               errorMessage.includes('maximum context length'));
 
           if (isTokenError) {
-            // Incrémenter le compteur d'erreurs de tokens
-            tokensErrorCount += 2; // Augmenter davantage pour les erreurs de tokens
+            // Increment token error counter
+            tokensErrorCount += 2; // Increase more for token errors
 
             try {
-              // Au lieu de recréer complètement l'agent, nous allons simplement
-              // abandonner l'action actuelle et continuer avec le même contexte
+              // Instead of completely recreating the agent, we'll just
+              // abandon the current action and continue with the same context
               logger.warn(
-                "Limite de tokens atteinte - abandon de l'action actuelle sans perte de contexte"
+                "Token limit reached - abandoning current action without losing context"
               );
 
-              // Afficher un message indiquant l'abandon de l'action
+              // Display a message indicating the action was abandoned
               const warningMessage = createBox(
-                'Action Abandonnée',
-                "L'action en cours a été abandonnée en raison d'une limite de tokens. L'agent va tenter une action différente."
+                'Action Abandoned',
+                "Current action was abandoned due to a token limit. The agent will try a different action."
               );
               process.stdout.write(warningMessage);
 
-              // Attendre avant de reprendre pour éviter les boucles d'erreur
-              // L'attente augmente avec le nombre d'erreurs consécutives
+              // Wait before resuming to avoid error loops
+              // Waiting time increases with the number of consecutive errors
               const pauseDuration = Math.min(
                 5000 + consecutiveErrorCount * 1000,
                 15000
@@ -707,73 +689,73 @@ export class StarknetAgent implements IAgent {
                 setTimeout(resolve, pauseDuration)
               );
 
-              // Réinitialisation forcée si plusieurs erreurs liées aux tokens
+              // Forced reset if multiple token-related errors
               if (consecutiveErrorCount >= 2 || tokensErrorCount >= 3) {
                 logger.warn(
-                  "Trop d'erreurs liées aux tokens, réinitialisation complète de l'agent..."
+                  "Too many token-related errors, complete agent reset..."
                 );
 
-                // Forcer l'agent à oublier son contexte pour éviter d'accumuler des tokens
+                // Force the agent to forget its context to avoid accumulating tokens
                 await this.createAgentReactExecutor();
 
                 const resetMessage = createBox(
                   'Agent Reset',
-                  "En raison de problèmes persistants de tokens, l'agent a été réinitialisé. Cela peut effacer certaines informations de contexte mais permettra de poursuivre l'exécution."
+                  "Due to persistent token issues, the agent has been reset. This may clear some context information but will allow execution to continue."
                 );
                 process.stdout.write(resetMessage);
 
-                // Attendre plus longtemps après une réinitialisation
+                // Wait longer after a reset
                 await new Promise((resolve) => setTimeout(resolve, 8000));
 
-                // Réinitialiser le compteur d'erreurs consécutives mais pas tokensErrorCount
+                // Reset consecutive error counter but not tokensErrorCount
                 consecutiveErrorCount = 0;
               }
             } catch (recreateError) {
               logger.error(
                 `Failed to handle token limit gracefully: ${recreateError}`
               );
-              // Attente progressive en cas d'erreur
+              // Progressive waiting in case of error
               const waitTime = consecutiveErrorCount >= 3 ? 15000 : 5000;
               await new Promise((resolve) => setTimeout(resolve, waitTime));
 
-              // Si vraiment rien ne fonctionne, tenter une réinitialisation d'urgence
+              // If nothing works, try an emergency reset
               if (consecutiveErrorCount >= 5) {
                 try {
-                  // Forcer une réinitialisation complète avec un nouvel exécuteur
+                  // Force a complete reset with a new executor
                   await this.createAgentReactExecutor();
                   logger.warn(
-                    "Réinitialisation d'urgence effectuée après échecs multiples"
+                    "Emergency reset performed after multiple failures"
                   );
                 } catch (e) {
-                  // Juste continuer - nous avons tout essayé
+                  // Just continue - we've tried everything
                 }
               }
             }
           } else {
-            // Pour les autres types d'erreurs, attente progressive
-            let waitTime = 3000; // Temps d'attente de base
+            // For other types of errors, progressive waiting
+            let waitTime = 3000; // Base waiting time
 
-            // Augmenter le temps d'attente avec le nombre d'erreurs consécutives
+            // Increase waiting time with the number of consecutive errors
             if (consecutiveErrorCount >= 5) {
-              waitTime = 30000; // 30 secondes pour 5+ erreurs
+              waitTime = 30000; // 30 seconds for 5+ errors
               logger.warn(
                 `${consecutiveErrorCount} errors in a row, waiting much longer before retry...`
               );
             } else if (consecutiveErrorCount >= 3) {
-              waitTime = 10000; // 10 secondes pour 3-4 erreurs
+              waitTime = 10000; // 10 seconds for 3-4 errors
               logger.warn(
                 `${consecutiveErrorCount} errors in a row, waiting longer before retry...`
               );
             }
 
-            // Appliquer une pause pour éviter les boucles d'erreur rapides
+            // Apply a pause to avoid rapid error loops
             await new Promise((resolve) => setTimeout(resolve, waitTime));
 
-            // Si trop d'erreurs s'accumulent (non liées aux tokens), réinitialiser l'agent
+            // If too many errors accumulate (not token-related), reset the agent
             if (consecutiveErrorCount >= 7) {
               try {
                 logger.warn(
-                  "Trop d'erreurs consécutives, tentative de réinitialisation complète..."
+                  "Too many consecutive errors, attempting complete reset..."
                 );
                 await this.createAgentReactExecutor();
                 await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -853,32 +835,19 @@ export class StarknetAgent implements IAgent {
       this.enableLogging();
     }
 
+    // Only update LLM verbosity settings if we have an executor and logging is enabled
     if (!this.loggingOptions.disabled && this.agentReactExecutor) {
+      // Update main LLM if available
       if (this.agentReactExecutor.agent?.llm) {
-        const llm = this.agentReactExecutor.agent.llm;
-        llm.verbose = this.loggingOptions.langchainVerbose === true;
+        this.agentReactExecutor.agent.llm.verbose = 
+          this.loggingOptions.langchainVerbose === true;
       }
-
+      
+      // Update model in graph nodes if available
       if (this.agentReactExecutor.graph?._nodes?.agent?.data?.model) {
         this.agentReactExecutor.graph._nodes.agent.data.model.verbose =
           this.loggingOptions.langchainVerbose === true;
       }
-
-      const applyToAllModels = (obj: any) => {
-        if (!obj) return;
-        if (obj.verbose !== undefined && typeof obj.verbose === 'boolean') {
-          obj.verbose = this.loggingOptions.langchainVerbose === true;
-        }
-        if (typeof obj === 'object') {
-          Object.values(obj).forEach((val) => {
-            if (val && typeof val === 'object') {
-              applyToAllModels(val);
-            }
-          });
-        }
-      };
-
-      applyToAllModels(this.agentReactExecutor);
     }
   }
 }
