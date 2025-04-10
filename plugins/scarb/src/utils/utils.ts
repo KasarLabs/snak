@@ -1,7 +1,7 @@
 import * as fsp from 'fs/promises';
 import * as fs from 'fs';
 import * as path from 'path';
-
+import { logger } from '@starknet-agent-kit/agents';
 /**
  * Get the trace path from the stdout of the bootloader command
  * @param stdout The stdout from the bootloader command
@@ -96,3 +96,18 @@ export const writeJsonToFile = (
     );
   }
 };
+
+/**
+ * Formats compilation errors
+ * @param error The error
+ * @returns The formatted error
+ */
+export function formatCompilationError(error: any): string {
+  if (!error || !error.stdout) {
+    return error?.message || 'Unknown compilation error';
+  }
+
+  return `[EXACT_ERROR_BEGIN]
+${error.stdout}
+[EXACT_ERROR_END]`;
+}

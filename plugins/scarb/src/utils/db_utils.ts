@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as fspromises from 'fs/promises';
+import { retrieveProjectData } from './db_retrieve.js';
+import { ProjectData } from '../types/index.js';
 
 /**
  * Store a JSON file in the database
@@ -37,8 +39,7 @@ export async function storeJsonFromFile(
       );
     }
   } catch (error) {
-    console.error('Error storing JSON file:', error);
-    throw error;
+    throw new Error(`Error storing JSON file: ${error.message}`);
   }
 }
 
@@ -54,3 +55,20 @@ export function compareFiles(file1: string, file2: string): boolean {
 
   return JSON.stringify(content1) === JSON.stringify(content2);
 }
+
+/**
+ * Checks if a project already exists in the database
+ * @param agent The StarkNet agent
+ * @param projectName The name of the project
+ * @returns The project data if it exists, otherwise undefined
+ */
+export const projectAlreadyExists = async (
+  agent: StarknetAgentInterface,
+  projectName: string
+): Promise<ProjectData | undefined> => {
+  try {
+    return await retrieveProjectData(agent, projectName);
+  } catch (error) {
+    return undefined;
+  }
+};

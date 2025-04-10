@@ -1,9 +1,10 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { ContractManager } from '../utils/contractManager.js';
+import { deployContractSchema } from '../schemas/schema.js';
+import { getSierraCasmFromDB } from '../utils/db.js';
+import { saveContractDeployment } from '../utils/db_init.js';
 import { z } from 'zod';
-import { ContractManager } from '../utils/contractManager';
-import { deployContractSchema } from '../schemas/schema';
-import { getSierraCasmFromDB } from '../utils/db';
 
 /**
  * Deploys a contract on StarkNet using an existing class hash
@@ -16,6 +17,9 @@ export const deployContract = async (
   params: z.infer<typeof deployContractSchema>
 ): Promise<string> => {
   try {
+    logger.info('\n➜ Deploying contract');
+    logger.info(JSON.stringify(params, null, 2));
+
     if (!params?.classHash) {
       throw new Error('Class hash is required for deployment');
     }
@@ -51,12 +55,22 @@ export const deployContract = async (
       typedConstructorArgs
     );
 
+    if (deployResponse.transactionHash && deployResponse.contractAddress) {
+      await saveContractDeployment(
+        agent,
+        params.classHash,
+        deployResponse.contractAddress,
+        deployResponse.transactionHash
+      );
+    }
+
     return JSON.stringify({
       status: 'success',
       transactionHash: deployResponse.transactionHash,
       contractAddress: deployResponse.contractAddress,
     });
   } catch (error) {
+    logger.error('Error deploying contract:', error.message);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

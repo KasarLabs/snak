@@ -1,5 +1,5 @@
 import { checkScarbInstalled } from './install.js';
-import { initProject } from './command.js';
+import { initProject } from './workspace.js';
 import {
   ScarbBaseParams,
   TomlSection,
@@ -15,8 +15,6 @@ import {
   processContractForExecution,
   importContract,
 } from './preparation.js';
-
-// write all the jsdoc in english please
 
 /**
  * Set up a Scarb project
@@ -38,8 +36,7 @@ export async function setupScarbProject(
 
     return projectDir;
   } catch (error) {
-    console.error('Error setting up Scarb project:', error);
-    throw error;
+    throw new Error(`Error setting up Scarb project: ${error.message}`);
   }
 }
 
@@ -67,6 +64,12 @@ export async function setupToml(
   await addSeveralDependancies(dependencies || [], projectDir);
 }
 
+/**
+ * Sets up the source code for a Scarb project
+ * @param projectDir The project directory
+ * @param programs The programs to setup
+ * @param formattedExecutable The formatted executable
+ */
 export async function setupSrc(
   projectDir: string,
   programs: CairoProgram[],

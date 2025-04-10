@@ -1,9 +1,9 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
-import { ContractManager } from '../utils/contractManager';
-import { Account, constants } from 'starknet';
-import { getConstructorParamsSchema } from '../schemas/schema';
-import { getSierraCasmFromDB } from '../utils/db';
+import { ContractManager } from '../utils/contractManager.js';
+import { Account } from 'starknet';
+import { getConstructorParamsSchema } from '../schemas/schema.js';
+import { getSierraCasmFromDB } from '../utils/db.js';
 
 /**
  * Retrieves the constructor parameters for a contract
@@ -42,6 +42,7 @@ export const getConstructorParams = async (
       paramCount: constructorParams.length,
     });
   } catch (error) {
+    logger.error('Error getting constructor parameters:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

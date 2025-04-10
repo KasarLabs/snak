@@ -40,7 +40,8 @@
     "erc721",
     "scarb",
     "contract",
-    "atlantic"
+    "atlantic",
+    "cairocoder"
   ],
   "mcpServers": {
     "brave-search": {

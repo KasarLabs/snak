@@ -1,27 +1,9 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import * as fs from 'fs/promises';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import * as path from 'path';
-import { resolveContractPath } from './path.js';
-import { ProjectData, Dependency, CairoProgram } from '../types/index.js';
-import { logger } from '@starknet-agent-kit/agents';
-
-/**
- * Encodes Cairo source code for database storage
- * @param code The source code to encode
- * @returns The encoded source code
- */
-export function encodeSourceCode(code: string): string {
-  return code.replace(/\0/g, '');
-}
-
-/**
- * Decodes Cairo source code from database storage
- * @param encodedCode The encoded source code
- * @returns The decoded source code
- */
-export function decodeSourceCode(encodedCode: string): string {
-  return encodedCode;
-}
+import { CairoProgram, ProjectData } from '../types/index.js';
+import { addProgram } from './db_add.js';
+import { addDependency } from './db_add.js';
+import { extractFile } from './utils.js';
 
 /**
  * Initializes the database
@@ -84,9 +66,6 @@ export const initializeDatabase = async (
 
       if (result.status === 'error') {
         if (result.code === '42P07') {
-          logger.debug(
-            `Table ${table.table_name} already exists. Adding table parameters to adapatater.`
-          );
           database.addExistingTable({
             table_name: table.table_name,
             if_not_exist: false,
@@ -99,7 +78,7 @@ export const initializeDatabase = async (
     }
     return database;
   } catch (error) {
-    console.error('Error initializing database:', error);
+    logger.error('Error initializing database:', error);
     return undefined;
   }
 };
@@ -153,109 +132,7 @@ export const createProject = async (
 
     return newProject.query.rows[0].id;
   } catch (error) {
-    console.error('Error creating project:', error);
-    throw error;
-  }
-};
-
-/**
- * Adds a program to the database
- * @param agent The StarkNet agent
- * @param projectId The project ID
- * @param name The name of the program
- * @param sourcePath The path to the source code file
- */
-export const addProgram = async (
-  agent: StarknetAgentInterface,
-  projectId: number,
-  name: string,
-  sourcePath: string
-) => {
-  try {
-    const database = agent.getDatabaseByName('scarb_db');
-    if (!database) {
-      throw new Error('Database not found');
-    }
-
-    const resolvedPath = resolveContractPath(sourcePath);
-    const sourceCode = await fs.readFile(resolvedPath, 'utf-8');
-    const encodedCode = encodeSourceCode(sourceCode);
-
-    const existingProgram = await database.select({
-      SELECT: ['id'],
-      FROM: ['program'],
-      WHERE: [`project_id = ${projectId}`, `name = '${name}'`],
-    });
-
-    if (existingProgram.query && existingProgram.query.rows.length > 0) {
-      await database.update({
-        table_name: 'program',
-        ONLY: false,
-        SET: [`source_code = ${encodedCode}`],
-        WHERE: [`id = ${existingProgram.query.rows[0].id}`],
-      });
-    } else {
-      await database.insert({
-        table_name: 'program',
-        fields: new Map<string, string | number>([
-          ['id', 'DEFAULT'],
-          ['project_id', projectId],
-          ['name', name],
-          ['source_code', encodedCode],
-        ]),
-      });
-    }
-  } catch (error) {
-    console.error(`Error adding program ${name}:`, error);
-    throw error;
-  }
-};
-
-/**
- * Adds a dependency to the database
- * @param agent The StarkNet agent
- * @param projectId The project ID
- * @param dependency The dependency to add
- */
-export const addDependency = async (
-  agent: StarknetAgentInterface,
-  projectId: number,
-  dependency: Dependency
-) => {
-  try {
-    const database = agent.getDatabaseByName('scarb_db');
-    if (!database) {
-      throw new Error('Database not found');
-    }
-
-    const existingDep = await database.select({
-      SELECT: ['id'],
-      FROM: ['dependency'],
-      WHERE: [`project_id = ${projectId}`, `name = '${dependency.name}'`],
-    });
-
-    if (existingDep.query && existingDep.query.rows.length > 0) {
-      const correctVersion = dependency.version || '';
-      await database.update({
-        table_name: 'dependency',
-        ONLY: false,
-        SET: [`version = '${correctVersion}'`],
-        WHERE: [`id = ${existingDep.query.rows[0].id}`],
-      });
-    } else {
-      await database.insert({
-        table_name: 'dependency',
-        fields: new Map<string, string | number>([
-          ['id', 'DEFAULT'],
-          ['project_id', projectId],
-          ['name', dependency.name],
-          ['version', dependency.version || ''],
-        ]),
-      });
-    }
-  } catch (error) {
-    console.error(`Error adding dependency ${dependency.name}:`, error);
-    throw error;
+    throw new Error(`Error creating project: ${error.message}`);
   }
 };
 
@@ -271,7 +148,7 @@ export const initializeProjectData = async (
   agent: StarknetAgentInterface,
   projectName: string,
   contractPaths: string[],
-  dependencies: Dependency[] = [],
+  dependencies: string[] = [],
   projectType: 'contract' | 'cairo_program'
 ) => {
   try {
@@ -279,15 +156,15 @@ export const initializeProjectData = async (
 
     for (const contractPath of contractPaths) {
       const fileName = path.basename(contractPath);
-      await addProgram(agent, projectId, fileName, contractPath);
+      const sourceCode = await extractFile(fileName);
+      await addProgram(agent, projectId, fileName, sourceCode);
     }
 
     for (const dependency of dependencies) {
       await addDependency(agent, projectId, dependency);
     }
   } catch (error) {
-    console.error('Error initializing project data:', error);
-    throw error;
+    throw new Error(`Error initializing project data: ${error.message}`);
   }
 };
 
@@ -302,23 +179,14 @@ export const retrieveProjectData = async (
   projectName: string
 ): Promise<ProjectData> => {
   try {
+    const project = await getProjectByName(agent, projectName);
     const database = agent.getDatabaseByName('scarb_db');
     if (!database) {
       throw new Error('Database not found');
     }
 
-    const projectResult = await database.select({
-      SELECT: ['id', 'name', 'type', 'execution_trace', 'proof', 'verified'],
-      FROM: ['project'],
-      WHERE: [`name = '${projectName}'`],
-    });
-
-    if (!projectResult.query?.rows.length) {
-      throw new Error(`Project "${projectName}" not found in database`);
-    }
-
-    const projectId = projectResult.query.rows[0].id;
-    const projectType = projectResult.query.rows[0].type;
+    const projectId = project.id;
+    const projectType = project.type;
 
     const programsResult = await database.select({
       SELECT: ['name', 'source_code'],
@@ -335,7 +203,7 @@ export const retrieveProjectData = async (
     const programs: CairoProgram[] = (programsResult.query?.rows || []).map(
       (row) => ({
         name: row.name,
-        source_code: decodeSourceCode(row.source_code),
+        source_code: row.source_code,
       })
     );
 
@@ -347,8 +215,7 @@ export const retrieveProjectData = async (
       dependencies: dependenciesResult.query?.rows || [],
     };
   } catch (error) {
-    console.error('Error in retrieving data : ', error.message);
-    throw error;
+    throw new Error(`Error retrieving project data: ${error.message}`);
   }
 };
 
@@ -358,12 +225,45 @@ export const retrieveProjectData = async (
  * @param projectName The name of the project
  * @returns The project data if it exists, otherwise undefined
  */
-export const projectAlreadyExists = async (
+export const getProjectByName = async (
   agent: StarknetAgentInterface,
   projectName: string
-): Promise<ProjectData | undefined> => {
+): Promise<{
+  id: number;
+  name: string;
+  type: 'contract' | 'cairo_program';
+}> => {
   try {
-    return await retrieveProjectData(agent, projectName);
+    const database = agent.getDatabaseByName('scarb_db');
+    if (!database) {
+      throw new Error('Database not found');
+    }
+
+    const projectResult = await database.select({
+      SELECT: ['id', 'name', 'type', 'execution_trace', 'proof', 'verified'],
+      FROM: ['project'],
+      WHERE: [`name = '${projectName}'`],
+    });
+
+    if (!projectResult.query?.rows.length) {
+      throw new Error(`Project "${projectName}" not found in database`);
+    }
+
+    return projectResult.query?.rows[0];
+  } catch (error) {
+    throw new Error(`Error getting project by name: ${error.message}`);
+  }
+};
+
+export const doesProjectExist = async (
+  agent: StarknetAgentInterface,
+  projectName: string
+): Promise<
+  { id: number; name: string; type: 'contract' | 'cairo_program' } | undefined
+> => {
+  try {
+    const project = await getProjectByName(agent, projectName);
+    return project;
   } catch (error) {
     return undefined;
   }

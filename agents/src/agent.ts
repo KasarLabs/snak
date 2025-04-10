@@ -37,6 +37,7 @@ import {
   tokenTracker,
   configureModelWithTracking,
   addTokenInfoToBox,
+  estimateTokens
 } from './tokenTracking.js';
 
 export function selectModel(aiConfig: AiConfig) {
@@ -99,8 +100,13 @@ export function selectModel(aiConfig: AiConfig) {
       throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
   }
 
-  // Ajouter le tracking des tokens
-  return configureModelWithTracking(model);
+  // Ajouter le tracking des tokens avec des limites configurables
+  return configureModelWithTracking(model, {
+    tokenLogging: aiConfig.langchainVerbose !== false,
+    maxInputTokens: aiConfig.maxInputTokens || 50000,
+    maxCompletionTokens: aiConfig.maxCompletionTokens || 50000,
+    maxTotalTokens: aiConfig.maxTotalTokens || 100000
+  });
 }
 
 export async function initializeToolsList(
@@ -495,18 +501,84 @@ export const createAgent = async (
         new MessagesPlaceholder('messages'),
       ]);
 
-      const formattedPrompt = await prompt.formatMessages({
-        system_message: '',
-        tool_names: toolsList.map((tool) => tool.name).join(', '),
-        messages: state.messages,
-        memories: state.memories || '',
-      });
+      try {
+        const formattedPrompt = await prompt.formatMessages({
+          system_message: '',
+          tool_names: toolsList.map((tool) => tool.name).join(', '),
+          messages: state.messages,
+          memories: state.memories || '',
+        });
 
-      const result = await modelSelected.invoke(formattedPrompt);
+        // Estimer la taille des messages et vérifier la limite
+        // Utiliser la fonction estimateTokens pour éviter les requêtes coûteuses
+        const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
+        if (estimatedTokens > 90000) { // Limite de sécurité pour éviter les erreurs de token
+          logger.warn(`Prompt exceeds safe token limit: ${estimatedTokens} tokens. Truncating messages...`);
+          
+          // Créer une version tronquée des messages d'entrée
+          // Ne conserver que les 2 derniers messages utilisateur et leurs réponses
+          const truncatedMessages = state.messages.slice(-4);
+          
+          // Reformater le prompt avec les messages tronqués
+          const truncatedPrompt = await prompt.formatMessages({
+            system_message: '',
+            tool_names: toolsList.map((tool) => tool.name).join(', '),
+            messages: truncatedMessages,
+            memories: state.memories || '',
+          });
+          
+          // Utiliser le prompt tronqué
+          const result = await modelSelected.invoke(truncatedPrompt);
+          return {
+            messages: [result],
+          };
+        }
 
-      return {
-        messages: [result],
-      };
+        // Si nous sommes en dessous de la limite, utiliser le prompt complet
+        const result = await modelSelected.invoke(formattedPrompt);
+        return {
+          messages: [result],
+        };
+      } catch (error) {
+        // Gérer spécifiquement les erreurs de limite de tokens
+        if (error instanceof Error && 
+            (error.message.includes('token limit') || 
+             error.message.includes('tokens exceed') ||
+             error.message.includes('context length'))) {
+          
+          logger.error(`Token limit error: ${error.message}`);
+          
+          // Créer une version très réduite avec seulement le dernier message
+          const minimalMessages = state.messages.slice(-2);
+          
+          try {
+            // Tenter avec un prompt minimal
+            const emergencyPrompt = await prompt.formatMessages({
+              system_message: 'Previous conversation was too long. Continuing with just recent messages.',
+              tool_names: toolsList.map((tool) => tool.name).join(', '),
+              messages: minimalMessages,
+              memories: '',
+            });
+            
+            const result = await modelSelected.invoke(emergencyPrompt);
+            return {
+              messages: [result],
+            };
+          } catch (emergencyError) {
+            // Si même le prompt d'urgence échoue, renvoyer un message d'erreur formaté
+            return {
+              messages: [
+                new AIMessage({
+                  content: "La conversation est devenue trop longue et dépasse les limites de tokens. Veuillez démarrer une nouvelle conversation.",
+                })
+              ]
+            };
+          }
+        }
+        
+        // Pour les autres types d'erreurs, les propager
+        throw error;
+      }
     }
 
     function shouldContinue(state: typeof GraphState.State) {

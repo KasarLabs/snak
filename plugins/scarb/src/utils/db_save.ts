@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { storeJsonFromFile } from './db_utils.js';
-import { extractModuleFromArtifact } from './utils.js';
 
 /**
  * Save the compilation results in the database
@@ -25,11 +24,31 @@ export const saveCompilationResults = async (
       throw new Error('Database not found');
     }
 
-    for (let i = 0; i < sierraFiles.length; i++) {
-      const sierraFile = sierraFiles[i];
-      const casmFile = casmFiles[i];
+    const artifactContent = await fs.promises.readFile(artifactFile, 'utf-8');
+    const artifact = JSON.parse(artifactContent);
 
-      const nameContract = await extractModuleFromArtifact(artifactFile, i);
+    if (!artifact.contracts || !Array.isArray(artifact.contracts)) {
+      throw new Error('Invalid artifact file format: missing contracts array');
+    }
+
+    for (const contract of artifact.contracts) {
+      const modulePath = contract.module_path;
+      const parts = modulePath.split('::');
+      const nameContract = parts.length >= 3 ? parts[parts.length - 2] : '';
+
+      const sierraFile = sierraFiles.find(
+        (file) => path.basename(file) === contract.artifacts.sierra
+      );
+      const casmFile = casmFiles.find(
+        (file) => path.basename(file) === contract.artifacts.casm
+      );
+
+      if (!sierraFile || !casmFile) {
+        throw new Error(
+          `Could not find Sierra or CASM file for ${nameContract}`
+        );
+      }
+
       const program_id = await database.query(`
         SELECT id 
         FROM program 
@@ -39,7 +58,7 @@ export const saveCompilationResults = async (
 
       if (program_id.status !== 'success') {
         throw new Error(
-          `Failed to get program id: ${program_id.error_message}`
+          `Failed to get program id for ${nameContract}: ${program_id.error_message}`
         );
       }
 
@@ -59,8 +78,7 @@ export const saveCompilationResults = async (
       );
     }
   } catch (error) {
-    console.error('Error saving compilation results:', error);
-    throw error;
+    throw new Error(`Error saving compilation results: ${error.message}`);
   }
 };
 
@@ -98,8 +116,7 @@ export const saveExecutionResults = async (
 
     return updateResult;
   } catch (error) {
-    console.error('Error saving execution results:', error);
-    throw error;
+    throw new Error(`Error saving execution results: ${error.message}`);
   }
 };
 
@@ -120,8 +137,7 @@ export const saveProof = async (
     const fullPath = path.join(projectDir, proofPath);
     await storeJsonFromFile(agent, 'project', projectId, 'proof', fullPath);
   } catch (error) {
-    console.error('Error saving proof:', error);
-    throw error;
+    throw new Error(`Error saving proof: ${error.message}`);
   }
 };
 
@@ -154,7 +170,6 @@ export const saveVerification = async (
       );
     }
   } catch (error) {
-    console.error('Error saving verification status:', error);
-    throw error;
+    throw new Error(`Error saving verification status: ${error.message}`);
   }
 };

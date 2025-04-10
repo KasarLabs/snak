@@ -10,7 +10,7 @@ import {
 } from 'starknet';
 
 import * as fs from 'fs';
-import { getV3DetailsPayload } from './utils';
+import { getV3DetailsPayload } from './utils.js';
 
 /**
  * Class for managing StarkNet contract operations
@@ -216,10 +216,10 @@ export class ContractManager {
   }
 
   /**
-   * Convertit les arguments du constructeur de chaînes en types appropriés
-   * @param paramDefs - Définitions des paramètres du constructeur extraites de l'ABI
-   * @param argsStrings - Arguments sous forme de chaînes à convertir
-   * @returns Les arguments convertis dans les types JavaScript appropriés
+   * Converts constructor arguments from strings to types
+   * @param paramDefs - Constructor parameter definitions
+   * @param argsStrings - Constructor arguments as strings
+   * @returns The converted arguments in the appropriate JavaScript types
    */
   convertConstructorArgs(
     paramDefs: Array<{ name: string; type: string }>,
@@ -247,10 +247,10 @@ export class ContractManager {
   }
 
   /**
-   * Convertit une chaîne en type JavaScript approprié selon le type Cairo
-   * @param value - La chaîne à convertir
-   * @param type - Le type Cairo
-   * @returns La valeur convertie dans le type JavaScript approprié
+   * Converts a string to the appropriate JavaScript type
+   * @param value - The string to convert
+   * @param type - The Cairo type
+   * @returns The converted value in the appropriate JavaScript type
    */
   convertStringToType(value: string, type: string): any {
     if (value === undefined || value === null) {

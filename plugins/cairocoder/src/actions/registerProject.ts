@@ -1,8 +1,8 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import {
   initializeProjectData,
-  projectAlreadyExists,
+  doesProjectExist,
   retrieveProjectData,
 } from '../utils/db_init.js';
 import { registerProjectSchema } from '../schema/schema.js';
@@ -19,39 +19,49 @@ export const registerProject = async (
   params: z.infer<typeof registerProjectSchema>
 ) => {
   try {
+    logger.info('\n➜ Registering project');
+    logger.info(JSON.stringify(params, null, 2));
+
     if (params.projectName.includes('-'))
       throw new Error(
         "Project name cannot contain hyphens ('-'). Please use underscores ('_') instead."
       );
 
-    const alreadyRegistered = await projectAlreadyExists(
-      agent,
-      params.projectName
-    );
+    if (/[A-Z]/.test(params.projectName)) {
+      throw new Error(
+        'Project name cannot contain uppercase letters. Please use snake_case (lowercase letters and underscores) for the project name.'
+      );
+    }
+
+    const alreadyRegistered = await doesProjectExist(agent, params.projectName);
+
+    if (alreadyRegistered) {
+      return JSON.stringify({
+        status: 'success',
+        message: `Project ${params.projectName} already registered`,
+        projectId: alreadyRegistered.id,
+        projectName: alreadyRegistered.name,
+        projectType: alreadyRegistered.type,
+      });
+    }
+
     const projectType = params.projectType
       ? params.projectType
-      : alreadyRegistered
-        ? alreadyRegistered.type
-        : 'cairo_program';
+      : 'cairo_program';
 
     await initializeProjectData(
       agent,
       params.projectName,
-      params.programPaths || [],
+      params.existingProgramNames || [],
       params.dependencies || [],
       projectType
     );
 
     const projectData = await retrieveProjectData(agent, params.projectName);
-    console.log(
-      `Project ${params.projectName}: ${alreadyRegistered ? 'updated' : 'created'}`
-    );
 
     return JSON.stringify({
       status: 'success',
-      message: alreadyRegistered
-        ? `Project ${params.projectName} updated successfully`
-        : `Project ${params.projectName} created successfully`,
+      message: `Project ${params.projectName} created successfully`,
       projectId: projectData.id,
       projectName: projectData.name,
       projectType: projectData.type,
@@ -59,7 +69,7 @@ export const registerProject = async (
       dependenciesCount: projectData.dependencies.length,
     });
   } catch (error) {
-    console.error('Error registering project:', error);
+    logger.error('Error registering project:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
