@@ -19,6 +19,7 @@
   "license": "ISC",
   "description": "The Agent Kit engine of Snak",
   "dependencies": {
+    "@snak/database": "workspace:*",
     "@huggingface/transformers": "^3.4.0",
     "@langchain/anthropic": "^0.3.11",
     "@langchain/community": "^0.3.34",

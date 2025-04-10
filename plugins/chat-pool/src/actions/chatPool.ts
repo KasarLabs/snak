@@ -1,5 +1,7 @@
 import { insertChatIntructionParams } from '../schema/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { chat } from '@snak/database/queries'
+
 export const insertChatInstruction = async (
   agent: StarknetAgentInterface,
   params: insertChatIntructionParams
@@ -11,16 +13,7 @@ export const insertChatInstruction = async (
       return;
     }
 
-    const result = await database.insert({
-      table_name: 'snak_table_chat',
-      fields: new Map<string, string>([
-        ['instruction', `${params.instruction}`],
-      ]),
-    });
-
-    if (result.status === 'error') {
-      throw new Error(`Error[${result.code}] : ${result.error_message}`);
-    }
+    chat.insert_instruction(params.instruction);
 
     return JSON.stringify({ status: 'success' });
   } catch (error) {

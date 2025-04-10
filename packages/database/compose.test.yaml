@@ -2,7 +2,7 @@ name: postgresql
 
 services:
   postgres-test:
-    image: postgres:17.4
+    image: pgvector/pgvector:pg17
     container_name: "posgresql-test"
     shm_size: 128m
     ports:
