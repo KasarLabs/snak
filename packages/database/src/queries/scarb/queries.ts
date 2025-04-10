@@ -56,12 +56,13 @@ export namespace scarb {
 		);
 		await query(q);
 	}
-	export async function selectProject(name: string): Promise<Project[]> {
+	export async function selectProject(name: string): Promise<Project | undefined> {
 		const q = new Query(
 			`SELECT id, name, type FROM project WHERE name = $1;`,
 			[name]
 		);
-		return await query(q);
+		const q_res = await query<Project>(q)
+		return q_res ? q_res[0] : undefined;
 	}
 	export async function deleteProject(name: string): Promise<void> {
 		const q = new Query(
@@ -71,11 +72,12 @@ export namespace scarb {
 		await query(q);
 	}
 
+	// FIXME: all program functions should be done with a project NAME to guarantee transactionality.
 	export interface Program {
 		project_id?: number,
 		name: string,
 		source_code: string,
-		sierra?: string | null,
+		sierra?: string | null, // FIXME: we can do better than maybe null by leveraging generics
 		casm?: string | null
 	}
 	export async function insertProgram(program: Program): Promise<void> {
@@ -87,6 +89,16 @@ export namespace scarb {
 			[program.project_id, program.name, program.source_code]
 		);
 		await query(q);
+	}
+	export async function selectProgram(project_id: number, program_name: string): Promise<Program | undefined> {
+		const q = new Query(
+			`SELECT project_id, name, source_code, sierra, casm FROM program
+			WHERE project_id = $1 AND name = $2
+			ORDER BY id ASC;`,
+			[project_id, program_name]
+		);
+		const q_res = await query<Program>(q);
+		return q_res ? q_res[0] : undefined;
 	}
 	export async function selectPrograms(project_id: number): Promise<Program[]> {
 		const q = new Query(

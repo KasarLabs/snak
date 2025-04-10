@@ -1,7 +1,6 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
-import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 import logger from '../logger.js';
 import * as metrics from '../../metrics.js';
 
@@ -32,12 +31,6 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
-  getDatabase: () => PostgresAdaptater[];
-  connectDatabase: (database_name: string) => Promise<void>;
-  createDatabase: (
-    database_name: string
-  ) => Promise<PostgresAdaptater | undefined>;
-  getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 
 /**

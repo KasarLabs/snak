@@ -1,11 +1,12 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger } from '@starknet-agent-kit/agents';
 import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
-import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { executeProgramSchema } from '../schema/schema.js';
-import { saveExecutionResults } from '../utils/db_save.js';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
+import { scarb } from '@snak/database/queries';
+import path from 'path';
+import { readFileSync } from 'fs';
 
 /**
  * Execute a program
@@ -14,7 +15,6 @@ import { z } from 'zod';
  * @returns The execution results
  */
 export const executeProgram = async (
-  agent: StarknetAgentInterface,
   params: z.infer<typeof executeProgramSchema>
 ) => {
   let projectDir = '';
@@ -23,7 +23,10 @@ export const executeProgram = async (
     logger.debug('\n Executing program');
     logger.debug(JSON.stringify(params, null, 2));
 
-    const projectData = await retrieveProjectData(agent, params.projectName);
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
+    }
 
     projectDir = await setupScarbProject({
       projectName: params.projectName,
@@ -85,12 +88,9 @@ export const executeProgram = async (
     const parsedExecResult = JSON.parse(execResult);
 
     if (mode !== 'standalone') {
-      await saveExecutionResults(
-        agent,
-        projectDir,
-        projectData.id,
-        parsedExecResult.tracePath
-      );
+      const fullTracePath = path.join(projectDir, parsedExecResult.tracePath);
+      const executionTrace = readFileSync(fullTracePath);
+      await scarb.saveExecutionResults(projectData.id, executionTrace);
     }
 
     return JSON.stringify({

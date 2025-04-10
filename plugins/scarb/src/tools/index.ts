@@ -12,14 +12,22 @@ import {
   compileContractSchema,
 } from '../schema/schema.js';
 import {
+  logger,
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
+import { scarb } from '@snak/database/queries';
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
-  agent: StarknetAgentInterface
 ) => {
+  try {
+    await scarb.init();
+  } catch (error) {
+    logger.error('Failed to initialize scarb db: ', error);
+    throw error;
+  }
+
   StarknetToolRegistry.push({
     name: 'scarb_install',
     description: 'Install the latest version of Scarb if not already installed',

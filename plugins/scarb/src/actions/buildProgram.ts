@@ -17,6 +17,7 @@ import { extractModuleFromArtifact } from '@/utils/utils.js';
  * @returns The compilation results
  */
 export const compileContract = async (
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof compileContractSchema>
 ) => {
   let projectDir = '';

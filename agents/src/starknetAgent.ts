@@ -4,8 +4,6 @@ import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from './autonomousAgents.js';
 import { JsonConfig } from './jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { PostgresAdaptater } from './databases/postgresql/src/database.js';
-import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 import logger from './logger.js';
 import * as metrics from '../metrics.js';
 import { createBox } from './formatting.js';
@@ -59,13 +57,6 @@ export class StarknetAgent implements IAgent {
   private readonly aiProviderApiKey: string;
   private agentReactExecutor: any;
   private currentMode: string;
-  private database: PostgresAdaptater[] = [];
-  private loggingOptions: LoggingOptions = {
-    langchainVerbose: true,
-    tokenLogging: true,
-    disabled: false,
-  };
-  private originalLoggerFunctions: Record<string, any> = {};
 
   public readonly signature: string;
   public readonly agentMode: string;
@@ -202,145 +193,24 @@ export class StarknetAgent implements IAgent {
    * Connects to an existing PostgreSQL database
    * @param databaseName - Name of the database to connect to
    */
-  public async connectDatabase(databaseName: string): Promise<void> {
-    try {
-      const params: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: databaseName,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-
-      const database = await new PostgresAdaptater(params).connectDatabase();
-
-      if (!database) {
-        throw new Error(
-          'Error when trying to initialize your Postgres database'
-        );
-      }
-
-      this.database.push(database);
-    } catch (error) {
-      // Silently fail and return
-      return;
-    }
-  }
-
-  /**
-   * Creates a new PostgreSQL database and connects to it
-   * @param databaseName - Name of the database to create
-   * @returns The connected database or undefined if failed
-   */
-  public async createDatabase(
-    databaseName: string
-  ): Promise<PostgresAdaptater | undefined> {
-    try {
-      // Connect to root database first to create a new one
-      const rootParams: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: process.env.POSTGRES_ROOT_DB as string,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-
-      const rootDatabase = await new PostgresAdaptater(
-        rootParams
-      ).connectDatabase();
-      if (!rootDatabase) {
-        throw new Error(
-          'Error when trying to initialize your Postgres database'
-        );
-      }
-
-      // Create new database
-      const result = await rootDatabase.createDatabase(databaseName);
-      if (!result) {
-        throw new Error('Error when trying to create your Postgres database');
-      }
-
-      // Connect to the newly created database
-      const newParams: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: databaseName,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-
-      const newDatabaseConnection = await new PostgresAdaptater(
-        newParams
-      ).connectDatabase();
-
-      if (!newDatabaseConnection) {
-        throw new Error('Error when trying to connect to your database');
-      }
-
-      // Setup vector extension if possible
-      try {
-        await newDatabaseConnection.query(
-          'CREATE EXTENSION IF NOT EXISTS vector;'
-        );
-      } catch (extError) {
-        // Vector functionality may not work properly. Make sure pgvector is installed.
-      }
-
-      this.database.push(newDatabaseConnection);
-      return newDatabaseConnection;
-    } catch (error) {
-      return undefined;
-    }
-  }
-
-  /**
-   * Deletes a database connection
-   * @param databaseName - Name of the database to delete from connections
-   */
-  public async deleteDatabase(databaseName: string): Promise<void> {
-    try {
-      const database = this.getDatabaseByName(databaseName);
-      if (!database) {
-        throw new Error(`Postgres Database: ${databaseName} not found`);
-      }
-
-      await database.closeDatabase();
-      this.deleteDatabaseByName(databaseName);
-    } catch (error) {
-      // Silently fail and return
-      return;
-    }
-  }
-
-  /**
-   * Gets the array of database adapters instance
-   */
-  public getDatabase(): PostgresAdaptater[] {
-    return this.database;
-  }
-
-  /**
-   * Gets a database adapter instance by name
-   * @param name - Name of the database to get
-   */
-  public getDatabaseByName(name: string): PostgresAdaptater | undefined {
-    return this.database.find((db) => db.getDatabaseName() === name);
-  }
-
-  /**
-   * Removes a database from the array of database adapters
-   * @param name - Name of the database to remove
-   */
-  public deleteDatabaseByName(name: string): void {
-    if (!this.database || this.database.length === 0) {
-      return;
+  private async switchMode(newMode: string): Promise<string> {
+    if (newMode === 'auto' && !this.agentconfig?.autonomous) {
+      return 'Cannot switch to autonomous mode - not enabled in configuration';
     }
 
-    this.database = this.database.filter((db) => db.getDatabaseName() !== name);
+    if (this.currentMode === newMode) {
+      return `Already in ${newMode} mode`;
+    }
+
+    this.currentMode = newMode;
+    this.createAgentReactExecutor();
+    return `Switched to ${newMode} mode`;
   }
 
   /**
-   * Gets the Starknet account credentials
+   * @function getAccountCredentials
+   * @description Gets the Starknet account credentials
+   * @returns {{accountPrivateKey: string, accountPublicKey: string}} Account credentials
    */
   public getAccountCredentials() {
     return {
