@@ -15,12 +15,7 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import {
-  tokenTracker,
-  configureModelWithTracking,
-  truncateToTokenLimit,
-  estimateTokens,
-} from './tokenTracking.js';
+import { configureModelWithTracking } from './tokenTracking.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -76,7 +71,7 @@ export const createAutonomousAgent = async (
       throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
   }
 
-  // Ajouter le tracking des tokens avec des limites plus souples pour le mode autonome
+  // Add token tracking with flexible limits for autonomous mode
   model = configureModelWithTracking(model, {
     tokenLogging: aiConfig.langchainVerbose !== false,
     maxInputTokens: aiConfig.maxInputTokens || 50000,
@@ -122,15 +117,15 @@ export const createAutonomousAgent = async (
       messageModifier: json_config.prompt,
     });
 
-    // Patcher l'agent pour gérer les limites de tokens en mode autonome
+    // Patch the agent to handle token limits in autonomous mode
     const originalAgentInvoke = agent.invoke.bind(agent);
-    // @ts-ignore - Ignorer les erreurs de typage pour cette méthode
+    // @ts-ignore - Ignore type errors for this method
     agent.invoke = async function (input: any, config?: any) {
       try {
-        // Essayer l'appel normal
+        // Try normal call
         return await originalAgentInvoke(input, config);
       } catch (error) {
-        // Vérifier si l'erreur est liée aux limites de tokens
+        // Check if error is related to token limits
         if (
           error instanceof Error &&
           (error.message.includes('token limit') ||
@@ -138,32 +133,30 @@ export const createAutonomousAgent = async (
             error.message.includes('context length'))
         ) {
           logger.warn(
-            `Erreur de limite de tokens dans l'agent autonome: ${error.message}`
+            `Token limit error in autonomous agent: ${error.message}`
           );
 
-          // Au lieu de recréer un contexte entièrement nouveau,
-          // nous allons juste utiliser un message plus court pour continuer
+          // Instead of recreating an entirely new context,
+          // we'll just use a shorter message to continue
           const continueInput = {
             messages:
-              "L'action précédente était trop complexe et a dépassé les limites de tokens. Prends une action plus simple tout en gardant en tête tes objectifs principaux.",
+              'The previous action was too complex and exceeded token limits. Take a simpler action while keeping your main objectives in mind.',
           };
 
           try {
-            // Réessayer avec un message simplifié mais qui préserve l'intention
+            // Retry with a simplified message that preserves intent
             return await originalAgentInvoke(continueInput, config);
           } catch (secondError) {
-            // Si même cette approche échoue, logger l'erreur
-            logger.error(
-              `Échec de la tentative d'action simplifiée: ${secondError}`
-            );
+            // If even this approach fails, log the error
+            logger.error(`Failed simplified action attempt: ${secondError}`);
 
-            // Retourner un format compatible avec l'interface attendue
-            // @ts-ignore - Ignorer les erreurs de typage pour ce retour d'erreur
+            // Return a format compatible with the expected interface
+            // @ts-ignore - Ignore type errors for this error return
             return {
               messages: [
                 {
                   content:
-                    "J'ai dû abandonner l'action en cours en raison des limites de tokens. Je vais essayer une approche différente au prochain tour.",
+                    "I had to abandon the current action due to token limits. I'll try a different approach in the next turn.",
                   type: 'ai',
                 },
               ],
@@ -171,7 +164,7 @@ export const createAutonomousAgent = async (
           }
         }
 
-        // Pour les autres types d'erreurs, les propager
+        // For other types of errors, propagate them
         throw error;
       }
     };
