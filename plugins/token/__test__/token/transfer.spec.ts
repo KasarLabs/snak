@@ -1,4 +1,4 @@
-import { transfer } from '../..//src/actions/transfer';
+import { transfer } from '../../src/actions/transfer';
 import * as C from '../utils/constant';
 import { createMockStarknetAgent } from '../jest/setEnvVars';
 import { setupTestEnvironment } from '../utils/helper';

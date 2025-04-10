@@ -20,6 +20,7 @@ export class AgentResponseInterceptor implements NestInterceptor {
     const url = request.url;
 
     if (url === '/api/key/healthcheck') {
+      console.log("Hello from the interceptor");
       return next.handle();
     }
     if (url === '/api/wallet/request') {

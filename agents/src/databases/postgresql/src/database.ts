@@ -14,6 +14,7 @@ import {
 import { getError } from './types/error.js';
 import pg from 'pg';
 import logger from '../../../logger.js';
+import { LogEntry } from '@langchain/core/tracers/log_stream';
 const { Pool } = pg;
 
 /**
@@ -32,7 +33,7 @@ export class PostgresAdaptater {
   private password: string;
   private database: string;
   private port: number;
-  private pool: pg.Pool;
+  private pool: pg.Pool | undefined = undefined;
   private tables: PostgresTables[] = [];
 
   /**
@@ -64,7 +65,7 @@ export class PostgresAdaptater {
     try {
       await pool.query('SELECT NOW()');
     } catch (error) {
-      logger.log(error);
+      // logger.log(error);
       return undefined;
     }
     return this;

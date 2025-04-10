@@ -5,30 +5,32 @@ export * from './src/autonomousAgents.js';
 export { PostgresAdaptater } from './src/databases/postgresql/src/database.js';
 
 // Tool-related exports
-export {
+export type {
   StarknetAgentInterface,
   StarknetTool,
   StarknetToolRegistry,
-  createAllowedTools,
-  registerTools,
 } from './src/tools/tools.js';
+export { createAllowedTools, registerTools } from './src/tools/tools.js';
 
 export { StarknetAgent } from './src/starknetAgent.js';
 
-export {
+export type {
   SignatureTool,
   StarknetSignatureToolRegistry,
 } from './src/tools/signatureTools.js';
 
 // Config exports
 export {
-  JsonConfig,
   load_json_config,
   createContextFromJson,
 } from './src/jsonConfig.js';
 
+export type {
+  JsonConfig
+} from './src/jsonConfig.js';
+
 // Common exports
-export { IAgent, AiConfig } from './common/index.js';
+export type { IAgent, AiConfig } from './common/index.js';
 
 // Logger
 export { default as logger } from './src/logger.js';

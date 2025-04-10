@@ -12,7 +12,9 @@ import ErrorLoggingInterceptor from './common/interceptors/error-logging.interce
 import { ConfigurationService } from './config/configuration.js';
 import { FastifyInstance } from 'fastify';
 import fastifyMultipart from '@fastify/multipart';
-
+import * as net from 'net';
+import * as fs from 'fs';
+import * as path from 'path';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
@@ -32,6 +34,11 @@ async function bootstrap() {
     });
 
     const config = app.get(ConfigurationService);
+    const port = {
+      basePort: 4000, // Port de départ
+      maxPortAttempts: 100, // Nombre maximum de tentatives
+      path: '../../common/server_port.txt',
+    };
 
     app.useGlobalPipes(
       new ValidationPipe({
@@ -59,6 +66,44 @@ async function bootstrap() {
       })
     );
 
+    const isPortAvailable = (port: number): Promise<boolean> => {
+      return new Promise((resolve) => {
+        const server = net.createServer();
+
+        server.once('error', () => {
+          resolve(false);
+        });
+
+        server.once('listening', () => {
+          server.close();
+          resolve(true);
+        });
+
+        server.listen(port, '0.0.0.0');
+      });
+    };
+
+    // Trouver un port disponible
+    const findAvailablePort = async (
+      startPort: number,
+      maxAttempts: number
+    ): Promise<number> => {
+      let port = startPort;
+      let attempts = 0;
+
+      while (attempts < maxAttempts) {
+        if (await isPortAvailable(port)) {
+          return port;
+        }
+        port++;
+        attempts++;
+      }
+
+      throw new Error(
+        `Impossible de trouver un port disponible après ${maxAttempts} tentatives`
+      );
+    };
+
     app.useGlobalFilters(new GlobalExceptionFilter(config));
     app.useGlobalInterceptors(new ErrorLoggingInterceptor());
 
@@ -72,7 +117,22 @@ async function bootstrap() {
       allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
     });
 
-    await app.listen(config.port, '0.0.0.0');
+    const availablePort = await findAvailablePort(
+      port.basePort,
+      port.maxPortAttempts
+    );
+    await app.listen(availablePort, '0.0.0.0');
+
+    const portFilePath = path.resolve(port.path);
+    const portFileDir = path.dirname(portFilePath);
+
+    if (!fs.existsSync(portFileDir)) {
+      logger.warn(`Directory ${portFileDir} does not exist. Creating it...`);
+      fs.mkdirSync(portFileDir, { recursive: true });
+    }
+    fs.writeFileSync(portFilePath, availablePort.toString(), {
+      encoding: 'utf8',
+    });
 
     logger.log(`Application is running on: ${await app.getUrl()}`);
     logger.log(`Environment: ${config.nodeEnv}`);
