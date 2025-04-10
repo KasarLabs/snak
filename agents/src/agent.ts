@@ -203,8 +203,6 @@ export const createAgent = async (
     model: 'Xenova/all-MiniLM-L6-v2',
     dtype: 'fp32',
   });
-  const embeddingDimensions = 384; //1536 for OpenAI, 512 for TensorFlow, 384 for HuggingFace
-
   try {
     const json_config = starknetAgent.getAgentConfig();
     if (!json_config) {
@@ -237,8 +235,7 @@ export const createAgent = async (
       ): Promise<string> => {
         try {
           const userId = config.configurable?.userId || 'default_user';
-          const embeddingResult = await embeddings.embedQuery(content);
-          const embedding = `[${embeddingResult.join(',')}]`.replace(/'/g, "''");
+          const embedding = await embeddings.embedQuery(content);
           const metadata = { timestamp: new Date().toISOString() };
           content = content.replace(/'/g, "''");
 
@@ -292,57 +289,22 @@ export const createAgent = async (
       config: LangGraphRunnableConfig
     ) => {
       try {
-        if (!databaseConnection)
-          return {
-            memories: '',
-          };
         const userId = config.configurable?.userId || 'default_user';
-        const lastMessage = state.messages[state.messages.length - 1]
-          .content as string;
-        const queryEmbedding = await embeddings.embedQuery(lastMessage);
-        const queryEmbeddingStr = `[${queryEmbedding.join(',')}]`;
-        const similarMemoriesQuery = `
-          SELECT id, content, history, 1 - (embedding <=> '${queryEmbeddingStr}'::vector) as similarity
-          FROM agent_memories
-          WHERE user_id = '${userId}'
-          ORDER BY similarity DESC
-          LIMIT 4
-        `;
+        const lastMessage = state.messages[state.messages.length - 1].content as string;
+        const embedding = await embeddings.embedQuery(lastMessage);
+        const similar = await memory.similar_memory(userId, embedding);
 
-        const results = await databaseConnection.query(similarMemoriesQuery);
+        const memories = similar.map(
+          (similarity) => {
+            const history = JSON.stringify(similarity.history);
+            return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)},history : ${history}]: ${similarity.content}`;
+          },
+        ).join('\n');
 
-        let memories = '\n';
-        if (
-          results.status === 'success' &&
-          results.query &&
-          results.query.rows.length > 0
-        ) {
-          memories = results.query.rows
-            .map((row) => {
-              let historyStr = '[]';
-              try {
-                if (row.history) {
-                  if (typeof row.history === 'string') {
-                    historyStr = row.history;
-                  } else {
-                    historyStr = JSON.stringify(row.history);
-                  }
-                }
-              } catch (e) {
-                console.error('Error stringifying history:', e);
-              }
-              return `Memory [id: ${row.id}, similarity: ${row.similarity.toFixed(4)},history : ${historyStr}]: ${row.content}`;
-            })
-            .join('\n');
-        }
-        return {
-          memories: memories,
-        };
+        return { memories };
       } catch (error) {
         console.error('Error retrieving memories:', error);
-        return {
-          memories: '',
-        };
+        return { memories: '' };
       }
     };
 
