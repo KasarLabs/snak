@@ -1,11 +1,12 @@
 import { query, transaction, Query } from "../../database.js"
 import { DatabaseError } from "../../error.js";
+import { types } from 'pg';
 
 export namespace memory {
 	export async function init() {
 		const t = [
 			new Query(
-				`CREATE EXTENSION IF NOT EXISTS vector;`
+				/* sql */ `CREATE EXTENSION IF NOT EXISTS vector;`
 			),
 			new Query(
 				`CREATE TABLE IF NOT EXISTS agent_memories(
@@ -118,18 +119,30 @@ export namespace memory {
 			`)
 		];
 		await transaction(t);
+
+		const q = new Query(`SELECT 'vector'::regtype::oid;`);
+		const oid = (await query<{ oid: number }>(q))[0].oid;
+		types.setTypeParser(oid, (v) => {
+			return JSON.parse(v) as number[];
+		})
 	}
 
 	export interface Memory {
 		id?: number,
 		user_id: string,
 		content: string,
-		embedding: string,
-		created_at?: string,
-		updated_at?: string,
+		embedding: number[],
+		created_at?: Date,
+		updated_at?: Date,
 		metadata: Metadata,
 		history: History[]
 	};
+	export interface Similarity {
+		id: number,
+		content: string,
+		history: History[],
+		similarity: number
+	}
 	export interface Metadata {
 		timestamp: string
 	};
@@ -144,7 +157,7 @@ export namespace memory {
 			[
 				memory.user_id,
 				memory.content,
-				memory.embedding,
+				JSON.stringify(memory.embedding),
 				memory.created_at,
 				memory.updated_at,
 				JSON.stringify(memory.metadata),
@@ -161,11 +174,23 @@ export namespace memory {
 		const q_res = await query<Memory>(q);
 		return q_res ? q_res[0] : undefined;
 	}
-	export async function update_memory(id: number, content: string, embedding: string): Promise<void> {
+	export async function update_memory(id: number, content: string, embedding: number[]): Promise<void> {
 		const q = new Query(
 			`SELECT update_memory($1, $2, $3);`,
-			[id, content, embedding]
+			[id, content, JSON.stringify(embedding)]
 		);
 		await query(q);
+	}
+	export async function similar_memory(userId: string, embedding: number[]): Promise<Similarity[]> {
+		const q = new Query(
+			`SELECT id, content, history, 1 - (embedding <=> $1::vector) AS similarity
+				  FROM agent_memories
+				  WHERE user_id = $2
+				  ORDER BY similarity DESC
+				  LIMIT 4;
+			`,
+			[JSON.stringify(embedding), userId]
+		);
+		return await query(q);
 	}
 }

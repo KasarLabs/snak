@@ -24,7 +24,7 @@ describe('Memory table', () => {
 		const m: memory.Memory = {
 			user_id: 'default_user',
 			content: 'content',
-			embedding: `[${[...Array(384).keys()].join(',')}]`,
+			embedding: [...Array(384).keys()],
 			metadata: {
 				timestamp: 'now'
 			},
@@ -41,7 +41,7 @@ describe('Memory table', () => {
 
 	it('Should handle updates', async () => {
 		const content = 'content2';
-		const embedding = `[${[...Array(384).keys()].map(n => n - 383).join(',')}]`;
+		const embedding = [...Array(384).keys()].map(n => n - 383);
 		await expect(memory.update_memory(1, content, embedding)).resolves.toBeUndefined();
 	});
 
@@ -49,14 +49,13 @@ describe('Memory table', () => {
 		const m = {
 			user_id: 'default_user',
 			content: 'content2',
-			embedding: `[${[...Array(384).keys()].map(n => n - 383).join(',')}]`,
+			embedding: [...Array(384).keys()].map(n => n - 383),
 			metadata: {
 				timestamp: 'now'
 			},
 			history: [
 				{
 					value: 'value',
-					timestamp: 'now',
 					action: 'UPDATE'
 				},
 				{
@@ -70,5 +69,25 @@ describe('Memory table', () => {
 
 	it('Should handle invalid retrievals', async () => {
 		await expect(memory.select_memory(2)).resolves.toBeUndefined();
+	});
+
+	it('Should handle similar retrievals', async () => {
+		const embedding = [...Array(384).keys()].map(n => n - 383);
+		const m = {
+			id: 1,
+			content: 'content2',
+			history: [
+				{
+					value: 'value',
+					action: 'UPDATE'
+				},
+				{
+					value: 'content',
+					action: 'UPDATE'
+				}
+			],
+			similarity: 1
+		};
+		await expect(memory.similar_memory('default_user', embedding)).resolves.toMatchObject([m]);
 	})
 })
