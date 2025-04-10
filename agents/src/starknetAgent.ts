@@ -166,13 +166,13 @@ export class StarknetAgent implements IAgent {
    */
   private applyLoggerVerbosityToExecutor(): void {
     if (!this.agentReactExecutor) return;
-    
+
     // Update main LLM if available
     if (this.agentReactExecutor.agent?.llm) {
-      this.agentReactExecutor.agent.llm.verbose = 
+      this.agentReactExecutor.agent.llm.verbose =
         this.loggingOptions.langchainVerbose === true;
     }
-    
+
     // Update model in graph nodes if available
     if (this.agentReactExecutor.graph?._nodes?.agent?.data?.model) {
       this.agentReactExecutor.graph._nodes.agent.data.model.verbose =
@@ -215,7 +215,9 @@ export class StarknetAgent implements IAgent {
       const database = await new PostgresAdaptater(params).connectDatabase();
 
       if (!database) {
-        throw new Error('Error when trying to initialize your Postgres database');
+        throw new Error(
+          'Error when trying to initialize your Postgres database'
+        );
       }
 
       this.database.push(database);
@@ -243,9 +245,13 @@ export class StarknetAgent implements IAgent {
         port: parseInt(process.env.POSTGRES_PORT as string, 10),
       };
 
-      const rootDatabase = await new PostgresAdaptater(rootParams).connectDatabase();
+      const rootDatabase = await new PostgresAdaptater(
+        rootParams
+      ).connectDatabase();
       if (!rootDatabase) {
-        throw new Error('Error when trying to initialize your Postgres database');
+        throw new Error(
+          'Error when trying to initialize your Postgres database'
+        );
       }
 
       // Create new database
@@ -273,7 +279,9 @@ export class StarknetAgent implements IAgent {
 
       // Setup vector extension if possible
       try {
-        await newDatabaseConnection.query('CREATE EXTENSION IF NOT EXISTS vector;');
+        await newDatabaseConnection.query(
+          'CREATE EXTENSION IF NOT EXISTS vector;'
+        );
       } catch (extError) {
         // Vector functionality may not work properly. Make sure pgvector is installed.
       }
@@ -328,9 +336,7 @@ export class StarknetAgent implements IAgent {
       return;
     }
 
-    this.database = this.database.filter(
-      (db) => db.getDatabaseName() !== name
-    );
+    this.database = this.database.filter((db) => db.getDatabaseName() !== name);
   }
 
   /**
@@ -445,7 +451,7 @@ export class StarknetAgent implements IAgent {
   public async execute_autonomous(): Promise<unknown> {
     try {
       this.validateAutonomousMode();
-      
+
       let iterationCount = 0;
       let consecutiveErrorCount = 0;
       let tokensErrorCount = 0;
@@ -490,7 +496,7 @@ export class StarknetAgent implements IAgent {
 
           if (!result.messages || result.messages.length === 0) {
             logger.warn(
-              "Agent returned an empty response, continuing to next iteration"
+              'Agent returned an empty response, continuing to next iteration'
             );
             continue;
           }
@@ -500,13 +506,13 @@ export class StarknetAgent implements IAgent {
         } catch (loopError) {
           // Handle errors in autonomous execution
           await this.handleAutonomousExecutionError(
-            loopError, 
-            iterationCount, 
-            consecutiveErrorCount, 
+            loopError,
+            iterationCount,
+            consecutiveErrorCount,
             tokensErrorCount,
             addError
           );
-          
+
           // Update error counters for next iteration
           consecutiveErrorCount++;
           if (this.isTokenRelatedError(loopError)) {
@@ -539,7 +545,10 @@ export class StarknetAgent implements IAgent {
   /**
    * Handles periodic agent refresh to prevent context buildup
    */
-  private async handlePeriodicAgentRefresh(iterationCount: number, tokensErrorCount: number): Promise<void> {
+  private async handlePeriodicAgentRefresh(
+    iterationCount: number,
+    tokensErrorCount: number
+  ): Promise<void> {
     // Periodically recreate the agent to avoid context accumulation
     // More frequent if there have been recent token errors
     const refreshInterval = tokensErrorCount > 0 ? 3 : 5;
@@ -557,7 +566,7 @@ export class StarknetAgent implements IAgent {
       // If recent token errors, specifically request simpler actions
       return 'Due to recent token limit issues, choose a very simple action now. Prefer actions that require minimal context and processing.';
     }
-    
+
     return 'Based on my objectives, You should take action now without seeking permission. Choose what to do.';
   }
 
@@ -572,9 +581,10 @@ export class StarknetAgent implements IAgent {
     // If the message contains tools and large results, it may need to be truncated
     // Limit of 20,000 tokens to avoid expensive requests during the next iteration
     const MAX_RESPONSE_TOKENS = 20000;
-    const responseString = typeof agentResponse === 'string' 
-      ? agentResponse 
-      : JSON.stringify(agentResponse);
+    const responseString =
+      typeof agentResponse === 'string'
+        ? agentResponse
+        : JSON.stringify(agentResponse);
     const estimatedTokens = estimateTokens(responseString);
 
     let formattedAgentResponse;
@@ -592,8 +602,10 @@ export class StarknetAgent implements IAgent {
     }
 
     // Format the response for display
-    const formattedContent = this.formatResponseForDisplay(formattedAgentResponse);
-    
+    const formattedContent = this.formatResponseForDisplay(
+      formattedAgentResponse
+    );
+
     // Display the response even with logs disabled
     const boxContent = createBox('Agent Response', formattedContent);
     // Add token information to the box
@@ -623,7 +635,10 @@ export class StarknetAgent implements IAgent {
   /**
    * Waits for an adaptive interval based on response complexity
    */
-  private async waitAdaptiveInterval(estimatedTokens: number, maxTokens: number): Promise<void> {
+  private async waitAdaptiveInterval(
+    estimatedTokens: number,
+    maxTokens: number
+  ): Promise<void> {
     // Wait for an adaptive interval based on the complexity of the last response
     // If the response was large, wait longer to give resources time to free up
     const baseInterval = this.agentReactExecutor.json_config?.interval || 5000;
@@ -642,20 +657,22 @@ export class StarknetAgent implements IAgent {
    */
   private isTokenRelatedError(error: any): boolean {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return errorMessage.includes('token limit') ||
+    return (
+      errorMessage.includes('token limit') ||
       errorMessage.includes('tokens exceed') ||
       errorMessage.includes('context length') ||
       errorMessage.includes('prompt is too long') ||
-      errorMessage.includes('maximum context length');
+      errorMessage.includes('maximum context length')
+    );
   }
 
   /**
    * Handles errors in autonomous execution mode
    */
   private async handleAutonomousExecutionError(
-    error: any, 
-    iterationCount: number, 
-    consecutiveErrorCount: number, 
+    error: any,
+    iterationCount: number,
+    consecutiveErrorCount: number,
     tokensErrorCount: number,
     addError: (error: string) => void
   ): Promise<void> {
@@ -677,30 +694,38 @@ export class StarknetAgent implements IAgent {
   /**
    * Handles token limit errors in autonomous mode
    */
-  private async handleTokenLimitError(consecutiveErrorCount: number, tokensErrorCount: number): Promise<void> {
+  private async handleTokenLimitError(
+    consecutiveErrorCount: number,
+    tokensErrorCount: number
+  ): Promise<void> {
     try {
       // Display warning message
-      logger.warn("Token limit reached - abandoning current action without losing context");
+      logger.warn(
+        'Token limit reached - abandoning current action without losing context'
+      );
       const warningMessage = createBox(
         'Action Abandoned',
-        "Current action was abandoned due to a token limit. The agent will try a different action."
+        'Current action was abandoned due to a token limit. The agent will try a different action.'
       );
       process.stdout.write(warningMessage);
 
       // Wait before resuming to avoid error loops
-      const pauseDuration = Math.min(5000 + consecutiveErrorCount * 1000, 15000);
+      const pauseDuration = Math.min(
+        5000 + consecutiveErrorCount * 1000,
+        15000
+      );
       await new Promise((resolve) => setTimeout(resolve, pauseDuration));
 
       // Forced reset if multiple token-related errors
       if (consecutiveErrorCount >= 2 || tokensErrorCount >= 3) {
-        logger.warn("Too many token-related errors, complete agent reset...");
+        logger.warn('Too many token-related errors, complete agent reset...');
 
         // Force the agent to forget its context to avoid accumulating tokens
         await this.createAgentReactExecutor();
 
         const resetMessage = createBox(
           'Agent Reset',
-          "Due to persistent token issues, the agent has been reset. This may clear some context information but will allow execution to continue."
+          'Due to persistent token issues, the agent has been reset. This may clear some context information but will allow execution to continue.'
         );
         process.stdout.write(resetMessage);
 
@@ -718,7 +743,7 @@ export class StarknetAgent implements IAgent {
         try {
           // Force a complete reset with a new executor
           await this.createAgentReactExecutor();
-          logger.warn("Emergency reset performed after multiple failures");
+          logger.warn('Emergency reset performed after multiple failures');
         } catch (e) {
           // Just continue - we've tried everything
         }
@@ -729,17 +754,23 @@ export class StarknetAgent implements IAgent {
   /**
    * Handles general errors in autonomous mode
    */
-  private async handleGeneralError(consecutiveErrorCount: number): Promise<void> {
+  private async handleGeneralError(
+    consecutiveErrorCount: number
+  ): Promise<void> {
     // Progressive waiting time for general errors
     let waitTime = 3000; // Base waiting time
 
     // Increase waiting time with the number of consecutive errors
     if (consecutiveErrorCount >= 5) {
       waitTime = 30000; // 30 seconds for 5+ errors
-      logger.warn(`${consecutiveErrorCount} errors in a row, waiting much longer before retry...`);
+      logger.warn(
+        `${consecutiveErrorCount} errors in a row, waiting much longer before retry...`
+      );
     } else if (consecutiveErrorCount >= 3) {
       waitTime = 10000; // 10 seconds for 3-4 errors
-      logger.warn(`${consecutiveErrorCount} errors in a row, waiting longer before retry...`);
+      logger.warn(
+        `${consecutiveErrorCount} errors in a row, waiting longer before retry...`
+      );
     }
 
     // Apply a pause to avoid rapid error loops
@@ -748,7 +779,9 @@ export class StarknetAgent implements IAgent {
     // If too many errors accumulate, reset the agent
     if (consecutiveErrorCount >= 7) {
       try {
-        logger.warn("Too many consecutive errors, attempting complete reset...");
+        logger.warn(
+          'Too many consecutive errors, attempting complete reset...'
+        );
         await this.createAgentReactExecutor();
         await new Promise((resolve) => setTimeout(resolve, 5000));
       } catch (e) {
@@ -785,7 +818,8 @@ export class StarknetAgent implements IAgent {
           );
         }
 
-        const messageContent = aiMessage.messages[aiMessage.messages.length - 2].content;
+        const messageContent =
+          aiMessage.messages[aiMessage.messages.length - 2].content;
         return JSON.parse(messageContent);
       } catch (parseError) {
         return {
