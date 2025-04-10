@@ -412,7 +412,7 @@ export function addTokenInfoToBox(boxContent: string): string {
 
       // Assemble the new line with exact spacing
       lines[titleLineIndex] =
-        `${leftPart}│ ${finalContent}${' '.repeat(paddingLength)} │${rightPart.substring(1)}`;
+        `${leftPart}│ ${finalContent}${' '.repeat(paddingLength)} ${chalk.cyan('│')}${rightPart.substring(1)}`;
 
       return lines.join('\n');
     }
@@ -452,7 +452,7 @@ export function addTokenInfoToBox(boxContent: string): string {
           const rightPart = nextLine.substring(lastPipe);
 
           // Construct line with exact spacing and correct borders
-          const tokenLine = `${leftPart}│ ${finalContent}${' '.repeat(paddingLength)} │${rightPart.substring(1)}`;
+          const tokenLine = `${leftPart}│ ${finalContent}${' '.repeat(paddingLength)} ${chalk.cyan('│')}${rightPart.substring(1)}`;
 
           // Insert after the separator
           lines.splice(i + 1, 0, tokenLine);
