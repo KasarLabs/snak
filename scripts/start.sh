@@ -39,18 +39,15 @@ check_command() {
 }
 
 # Creates an interactive selection menu with keyboard navigation
-# Arguments: List of options
-# Returns: Selected index
 select_option() {
   local options=("$@")
   local selected=0
   local ESC=$(printf '\033')
   
-  # Hide cursor during selection
-  tput civis
+  tput civis  # Hide cursor
   
   while true; do
-    # Print all options with the selected one highlighted
+    # Print options with selected one highlighted
     for i in "${!options[@]}"; do
       if [ $i -eq $selected ]; then
         echo -e "${CYAN}${BOLD}❯ ${options[$i]}${NC}"
@@ -59,7 +56,6 @@ select_option() {
       fi
     done
     
-    # Read keystroke
     read -rsn3 key
     
     # Clear displayed options for redraw
@@ -80,21 +76,18 @@ select_option() {
     fi
   done
   
-  # Restore cursor
-  tput cnorm
+  tput cnorm  # Restore cursor
   
   return $selected
 }
 
 # Renders a progress bar with percentage
-# Arguments: Progress percentage (0-100), Message to display
 progress_bar() {
   local progress=$1
   local message=$2
   local width=50
   local bar_width=$((progress * width / 100))
   
-  # Draw the progress bar
   printf "\r${BLUE}%s${NC} [" "$message"
   for ((i=0; i<width; i++)); do
     if [ $i -lt $bar_width ]; then
@@ -107,21 +100,16 @@ progress_bar() {
 }
 
 # Executes a command with an animated progress bar
-# Arguments: Message to display, Command to run, Show logs on error (true/false)
-# Returns: Command exit status
 run_with_progress() {
   local message=$1
   local command=$2
   local show_logs_on_error=${3:-"false"}
   
-  # Initialize progress display
   progress_bar 0 "$message"
   
-  # Execute command in the background and capture output
   eval "$command" > "$LOG_FILE" 2>&1 &
   local pid=$!
   
-  # Animate progress while command is running
   local progress=0
   while kill -0 $pid 2>/dev/null; do
     progress_bar $progress "$message"
@@ -132,11 +120,9 @@ run_with_progress() {
     fi
   done
   
-  # Wait for command to complete
   wait $pid
   local status=$?
   
-  # Display final status
   if [ $status -eq 0 ]; then
     progress_bar 100 "$message"
     echo -e "\n${GREEN}✓ $message completed${NC}"
@@ -157,18 +143,15 @@ run_with_progress() {
 install_dependencies() {
   echo -e "${YELLOW}${BOLD}Installing dependencies...${NC}\n"
   
-  # Verify pnpm is available
   if ! check_command pnpm; then
     echo -e "${RED}pnpm is not installed. Installation required.${NC}"
     echo -e "You can install it with: npm install -g pnpm"
     exit 1
   fi
   
-  # Run installation with progress indicator
   run_with_progress "Installing modules" "pnpm install" "true"
   local status=$?
   
-  # Clear and redraw the UI after successful installation
   if [ $status -eq 0 ]; then
     clear
     draw_ascii_logo
@@ -183,11 +166,9 @@ install_dependencies() {
 remove_dependencies() {
   echo -e "${YELLOW}${BOLD}Removing dependencies...${NC}\n"
   
-  # Run clean:all command with progress indicator
   run_with_progress "Removing all dependencies" "pnpm run clean:all" "true"
   local status=$?
   
-  # Clear and redraw the UI after successful removal
   if [ $status -eq 0 ]; then
     clear
     draw_ascii_logo
@@ -246,7 +227,6 @@ run_interactive_command() {
   select_agent_config
   local config_status=$?
   
-  # Exit if config selection failed
   if [ $config_status -ne 0 ]; then
     echo -e "\n${RED}${BOLD}✗ Configuration selection failed.${NC}\n"
     return $config_status
@@ -254,15 +234,13 @@ run_interactive_command() {
   
   echo -e "\n${CYAN}${BOLD}Launching Snak...${NC}\n"
   
-  # Launch lerna command directly to maintain proper terminal IO handling
   lerna run --scope @starknet-agent-kit/agents start -- --agent="${SELECTED_AGENT_CONFIG}" || return $?
   
-  # Return success
   return 0
 }
 
 select_agent_config() {
-  # Clear screen and redraw logo and info box before displaying agent configs
+  # Clear screen before displaying agent configs
   clear
   draw_ascii_logo
   create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
@@ -271,7 +249,6 @@ select_agent_config() {
   local config_dir="./config/agents"
   local available_configs=()
   
-  # Check if config directory exists
   if [ ! -d "$config_dir" ]; then
     echo -e "${RED}Config directory not found: $config_dir${NC}"
     return 1
@@ -302,16 +279,12 @@ select_agent_config() {
     echo "$suggestion"
   }
   
-  # Interactive prompt with autocomplete - improved version
   echo -e "\n${YELLOW}Enter the name of the Agent configuration to use (without .agent.json extension):${NC}"
-  
-  # Show custom configuration info
   echo -e "\n${YELLOW}You can also create a custom configuration.${NC}"
   echo -e "${DIM}For more information, visit: https://docs.starkagent.ai/customize-your-agent${NC}"
 
   local input=""
   local key=""
-  local suggestion=""
   
   # Save terminal settings
   local old_settings=$(stty -g)
@@ -323,12 +296,10 @@ select_agent_config() {
     # Display prompt with current input and suggestion
     echo -en "\r\033[K> ${input}${DIM}$(get_suggestion "$input")${NC}"
     
-    # Read a single character
     key=$(dd bs=1 count=1 2> /dev/null)
     
     # Handle Enter key
     if [ "$key" = $'\r' ] || [ "$key" = $'\n' ]; then
-      # Echo a newline and break the loop
       echo ""
       break
     fi
@@ -371,7 +342,6 @@ select_agent_config() {
     echo -e "${YELLOW}No configuration specified. Using default configuration.${NC}"
     SELECTED_AGENT_CONFIG="default.agent.json"
     
-    # Clear and redraw the UI after successful selection
     clear
     draw_ascii_logo
     create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
@@ -387,7 +357,6 @@ select_agent_config() {
     echo -e "${GREEN}Configuration found: ${config_file}${NC}"
     SELECTED_AGENT_CONFIG="$config_file"
     
-    # Clear and redraw the UI after successful selection
     clear
     draw_ascii_logo
     create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
@@ -409,7 +378,6 @@ select_agent_config() {
         echo -e "${GREEN}Configuration created successfully: ${config_file}${NC}"
         SELECTED_AGENT_CONFIG="$config_file"
         
-        # Clear and redraw the UI after successful config creation
         clear
         draw_ascii_logo
         create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
@@ -419,7 +387,6 @@ select_agent_config() {
         echo -e "${RED}Configuration wasn't created. Using default configuration.${NC}"
         SELECTED_AGENT_CONFIG="default.agent.json"
         
-        # Clear and redraw the UI after falling back to default config
         clear
         draw_ascii_logo
         create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
@@ -430,7 +397,6 @@ select_agent_config() {
       echo -e "${YELLOW}Using default configuration.${NC}"
       SELECTED_AGENT_CONFIG="default.agent.json"
 
-      # Clear and redraw the UI after falling back to default config
       clear
       draw_ascii_logo
       create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
@@ -455,40 +421,30 @@ draw_ascii_logo() {
 }
 
 # Creates a styled information box
-# Arguments: Main text, Subtext (optional)
 create_info_box() {
   local text=$1
   local subtext=$2
   
   # Calculate box dimensions based on terminal width
   local term_width=$(tput cols)
-  local max_width=80  # Maximum width
-  
-  # Use terminal width or max_width, whichever is smaller
+  local max_width=80
   local box_width=$((term_width < max_width ? term_width : max_width))
-  
-  # Account for border characters
   local inner_width=$((box_width - 2))
   
   # Create horizontal border
   local horizontal_line=$(printf '%*s' "$inner_width" | tr ' ' '─')
   
-  # Draw top border
+  # Draw borders and content
   echo -e "${CYAN}╭${horizontal_line}╮${NC}"
   
-  # Calculate padding for main text
   local text_length=${#text}
   local padding_spaces=$((inner_width - text_length))
   local left_padding=1
   local right_padding=$((padding_spaces - left_padding))
   
-  # Draw main text with padding
   printf "${CYAN}│${NC}%${left_padding}s${YELLOW}%s${NC}%${right_padding}s${CYAN}│${NC}\n" "" "$text" ""
-  
-  # Draw middle border
   echo -e "${CYAN}├${horizontal_line}┤${NC}"
   
-  # Draw subtext if provided
   if [ -n "$subtext" ]; then
     local subtext_length=${#subtext}
     local subtext_padding=$((inner_width - subtext_length))
@@ -498,33 +454,26 @@ create_info_box() {
     printf "${CYAN}│${NC}%${subtext_left_padding}s%s%${subtext_right_padding}s${CYAN}│${NC}\n" "" "$subtext" ""
   fi
   
-  # Draw bottom border
   echo -e "${CYAN}╰${horizontal_line}╯${NC}"
 }
 
 # ----- MAIN PROGRAM -----
 
 main() {
-  # Clear screen for clean UI
   clear
   
-  # Display logo and welcome message
   draw_ascii_logo
-  
   create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
                   "For more informations, visit our documentation at https://docs.snakagent.com"
 
-  # Verify dependencies and tools
   check_prerequisites
   
-  # Present main options
   echo -e "\n${YELLOW}What would you like to do?${NC}"
   echo ""
   select_option "Launch Snak Engine" "Remove dependencies" "Quit"
   local choice=$?
   
   if [ $choice -eq 1 ]; then
-    # Remove dependencies
     remove_dependencies
     exit 0
   elif [ $choice -eq 2 ]; then
@@ -532,16 +481,13 @@ main() {
     exit 0
   fi
   
-  # Build packages
   if ! run_with_progress "Building packages" "turbo build" "true"; then
     exit 1
   fi
 
-  # Launch interactive mode - la sélection de config est maintenant intégrée dans run_interactive_command
   run_interactive_command
   local status=$?
   
-  # Show final status
   if [ $status -eq 0 ]; then
     echo -e "\n${GREEN}${BOLD}Snak runned successfully!${NC}\n"
   else
