@@ -41,7 +41,7 @@ export namespace chat {
 	 * @returns An array of all instructions.
 	 * @throws { DatabaseError }
 	 */
-	export async function select_instruction(): Promise<Instruction[]> {
+	export async function select_instructions(): Promise<Instruction[]> {
 		const q = new Query(`SELECT instruction FROM sak_table_chat;`);
 		return await query<{ instruction: string }>(q);
 	}

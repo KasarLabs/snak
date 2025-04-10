@@ -58,7 +58,7 @@ describe('Project table', () => {
 
 describe('Program table', () => {
 	it('Should handle insertions', async () => {
-		const project = (await scarb.selectProject("Foo"))![0];
+		const project = (await scarb.selectProject("Foo"))!;
 		const program1: scarb.Program = { project_id: project.id!, name: "Fibonacci", source_code: "fibb_recursive" };
 		await expect(scarb.insertProgram(program1)).resolves.toBeUndefined();
 
@@ -70,7 +70,7 @@ describe('Program table', () => {
 	});
 
 	it('Should handle duplicates', async () => {
-		const project = (await scarb.selectProject("Foo"))![0];
+		const project = (await scarb.selectProject("Foo"))!;
 		const program: scarb.Program = { project_id: project.id!, name: "Fibonacci", source_code: "fibb_iterative" };
 		await expect(scarb.insertProgram(program)).resolves.toBeUndefined();
 	});
@@ -86,7 +86,7 @@ describe('Program table', () => {
 	});
 
 	it('Should handle retrievals', async () => {
-		const project = (await scarb.selectProject("Foo"))![0];
+		const project = (await scarb.selectProject("Foo"))!;
 		const program1: scarb.Program = {
 			project_id: project.id!,
 			name: "Fibonacci",
@@ -111,7 +111,7 @@ describe('Program table', () => {
 
 describe('Dependency table', () => {
 	it('Should handle insertions', async () => {
-		const project = (await scarb.selectProject("Foo"))![0];
+		const project = (await scarb.selectProject("Foo"))!;
 		const dependency1: scarb.Dependency = { project_id: project.id!, name: "libc", version: '1.0.0' };
 		await expect(scarb.insertDependency(dependency1)).resolves.toBeUndefined();
 
@@ -123,7 +123,7 @@ describe('Dependency table', () => {
 	});
 
 	it('Should handle duplicates', async () => {
-		const project = (await scarb.selectProject("Foo"))![0];
+		const project = (await scarb.selectProject("Foo"))!;
 		const dependency: scarb.Dependency = { project_id: project.id!, name: "libc", version: '2.0.0' };
 		await expect(scarb.insertDependency(dependency)).resolves.toBeUndefined();
 	});
@@ -139,7 +139,7 @@ describe('Dependency table', () => {
 	});
 
 	it('Should handle retrieval', async () => {
-		const project = (await scarb.selectProject("Foo"))![0];
+		const project = (await scarb.selectProject("Foo"))!;
 		const dependency1: scarb.Dependency = { project_id: project.id!, name: "libc", version: '2.0.0' };
 		const dependency2: scarb.Dependency = { project_id: project.id!, name: "gcc", version: "" };
 		await expect(scarb.selectDependencies(project.id!)).resolves.toEqual([dependency1, dependency2]);
