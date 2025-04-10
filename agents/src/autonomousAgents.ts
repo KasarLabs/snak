@@ -15,7 +15,12 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { tokenTracker, configureModelWithTracking, truncateToTokenLimit, estimateTokens } from './tokenTracking.js';
+import {
+  tokenTracker,
+  configureModelWithTracking,
+  truncateToTokenLimit,
+  estimateTokens,
+} from './tokenTracking.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -76,7 +81,7 @@ export const createAutonomousAgent = async (
     tokenLogging: aiConfig.langchainVerbose !== false,
     maxInputTokens: aiConfig.maxInputTokens || 50000,
     maxCompletionTokens: aiConfig.maxCompletionTokens || 50000,
-    maxTotalTokens: aiConfig.maxTotalTokens || 100000
+    maxTotalTokens: aiConfig.maxTotalTokens || 100000,
   });
 
   try {
@@ -116,49 +121,56 @@ export const createAutonomousAgent = async (
       checkpointSaver: memory,
       messageModifier: json_config.prompt,
     });
-    
+
     // Patcher l'agent pour gérer les limites de tokens en mode autonome
     const originalAgentInvoke = agent.invoke.bind(agent);
     // @ts-ignore - Ignorer les erreurs de typage pour cette méthode
-    agent.invoke = async function(input: any, config?: any) {
+    agent.invoke = async function (input: any, config?: any) {
       try {
         // Essayer l'appel normal
         return await originalAgentInvoke(input, config);
       } catch (error) {
         // Vérifier si l'erreur est liée aux limites de tokens
-        if (error instanceof Error && 
-            (error.message.includes('token limit') || 
-             error.message.includes('tokens exceed') ||
-             error.message.includes('context length'))) {
-             
-          logger.warn(`Erreur de limite de tokens dans l'agent autonome: ${error.message}`);
-          
+        if (
+          error instanceof Error &&
+          (error.message.includes('token limit') ||
+            error.message.includes('tokens exceed') ||
+            error.message.includes('context length'))
+        ) {
+          logger.warn(
+            `Erreur de limite de tokens dans l'agent autonome: ${error.message}`
+          );
+
           // Au lieu de recréer un contexte entièrement nouveau,
           // nous allons juste utiliser un message plus court pour continuer
           const continueInput = {
-            messages: "L'action précédente était trop complexe et a dépassé les limites de tokens. Prends une action plus simple tout en gardant en tête tes objectifs principaux."
+            messages:
+              "L'action précédente était trop complexe et a dépassé les limites de tokens. Prends une action plus simple tout en gardant en tête tes objectifs principaux.",
           };
-          
+
           try {
             // Réessayer avec un message simplifié mais qui préserve l'intention
             return await originalAgentInvoke(continueInput, config);
           } catch (secondError) {
             // Si même cette approche échoue, logger l'erreur
-            logger.error(`Échec de la tentative d'action simplifiée: ${secondError}`);
-            
+            logger.error(
+              `Échec de la tentative d'action simplifiée: ${secondError}`
+            );
+
             // Retourner un format compatible avec l'interface attendue
             // @ts-ignore - Ignorer les erreurs de typage pour ce retour d'erreur
             return {
               messages: [
                 {
-                  content: "J'ai dû abandonner l'action en cours en raison des limites de tokens. Je vais essayer une approche différente au prochain tour.",
-                  type: "ai"
-                }
-              ]
+                  content:
+                    "J'ai dû abandonner l'action en cours en raison des limites de tokens. Je vais essayer une approche différente au prochain tour.",
+                  type: 'ai',
+                },
+              ],
             };
           }
         }
-        
+
         // Pour les autres types d'erreurs, les propager
         throw error;
       }

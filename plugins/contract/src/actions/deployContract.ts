@@ -17,8 +17,8 @@ export const deployContract = async (
   params: z.infer<typeof deployContractSchema>
 ): Promise<string> => {
   try {
-    logger.info('\n➜ Deploying contract');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Deploying contract');
+    logger.debug(JSON.stringify(params, null, 2));
 
     if (!params?.classHash) {
       throw new Error('Class hash is required for deployment');

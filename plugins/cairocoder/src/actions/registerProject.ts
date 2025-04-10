@@ -19,8 +19,8 @@ export const registerProject = async (
   params: z.infer<typeof registerProjectSchema>
 ) => {
   try {
-    logger.info('\n➜ Registering project');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Registering project');
+    logger.debug(JSON.stringify(params, null, 2));
 
     if (params.projectName.includes('-'))
       throw new Error(

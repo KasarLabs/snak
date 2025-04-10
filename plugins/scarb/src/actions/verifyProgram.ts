@@ -19,8 +19,8 @@ export const verifyProgram = async (
 ) => {
   let projectDir = '';
   try {
-    logger.info('\n➜ Verifying program');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Verifying program');
+    logger.debug(JSON.stringify(params, null, 2));
 
     const projectData = await retrieveProjectData(agent, params.projectName);
 

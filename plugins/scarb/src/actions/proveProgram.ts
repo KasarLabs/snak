@@ -20,8 +20,8 @@ export const proveProgram = async (
 ) => {
   let projectDir = '';
   try {
-    logger.info('\n➜ Proving program');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Proving program');
+    logger.debug(JSON.stringify(params, null, 2));
 
     const execResult = await executeProgram(agent, {
       ...params,

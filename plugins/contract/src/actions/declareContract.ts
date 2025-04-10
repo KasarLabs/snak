@@ -21,8 +21,8 @@ export const declareContract = async (
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {
-    logger.info('\n➜ Declaring contract');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Declaring contract');
+    logger.debug(JSON.stringify(params, null, 2));
 
     const { sierraPath, casmPath } = await getSierraCasmFromDB(
       agent,

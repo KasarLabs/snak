@@ -9,7 +9,11 @@ import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interf
 import logger from './logger.js';
 import * as metrics from '../metrics.js';
 import { createBox } from './formatting.js';
-import { addTokenInfoToBox, truncateToTokenLimit, estimateTokens } from './tokenTracking.js';
+import {
+  addTokenInfoToBox,
+  truncateToTokenLimit,
+  estimateTokens,
+} from './tokenTracking.js';
 
 /**
  * @interface StarknetAgentConfig
@@ -523,7 +527,7 @@ export class StarknetAgent implements IAgent {
       let iterationCount = 0;
       let consecutiveErrorCount = 0;
       let tokensErrorCount = 0;
-      
+
       // Utiliser une file de messages d'erreur pour éviter de répéter le même message d'erreur
       const lastErrors = new Set<string>();
       const addError = (error: string) => {
@@ -534,14 +538,14 @@ export class StarknetAgent implements IAgent {
           lastErrors.delete(iterator.next().value);
         }
       };
-      
+
       while (true) {
         iterationCount++;
 
         try {
           // Réinitialiser le compteur d'erreurs consécutives en cas de succès
           consecutiveErrorCount = 0;
-          
+
           // Réduction progressive du nombre d'erreurs de tokens
           if (tokensErrorCount > 0) {
             tokensErrorCount--;
@@ -551,7 +555,9 @@ export class StarknetAgent implements IAgent {
           // Plus fréquent s'il y a eu des erreurs de tokens récentes
           const refreshInterval = tokensErrorCount > 0 ? 3 : 5;
           if (iterationCount > 1 && iterationCount % refreshInterval === 0) {
-            logger.info(`Rafraîchissement périodique de l'agent (itération ${iterationCount})`);
+            logger.info(
+              `Rafraîchissement périodique de l'agent (itération ${iterationCount})`
+            );
             await this.createAgentReactExecutor();
           }
 
@@ -560,11 +566,13 @@ export class StarknetAgent implements IAgent {
           }
 
           // Ajuster le message en fonction du contexte des erreurs récentes
-          let promptMessage = 'Based on my objectives, You should take action now without seeking permission. Choose what to do.';
-          
+          let promptMessage =
+            'Based on my objectives, You should take action now without seeking permission. Choose what to do.';
+
           if (tokensErrorCount > 0) {
             // Si des erreurs de tokens récentes, demander spécifiquement des actions plus simples
-            promptMessage = 'Due to recent token limit issues, choose a very simple action now. Prefer actions that require minimal context and processing.';
+            promptMessage =
+              'Due to recent token limit issues, choose a very simple action now. Prefer actions that require minimal context and processing.';
           }
 
           const result = await this.agentReactExecutor.agent.invoke(
@@ -573,29 +581,40 @@ export class StarknetAgent implements IAgent {
           );
 
           if (!result.messages || result.messages.length === 0) {
-            logger.warn("L'agent a retourné une réponse vide, continuons à la prochaine itération");
+            logger.warn(
+              "L'agent a retourné une réponse vide, continuons à la prochaine itération"
+            );
             continue;
           }
 
           // Récupérer et vérifier le contenu du dernier message
           const lastMessage = result.messages[result.messages.length - 1];
           const agentResponse = lastMessage.content;
-          
+
           // Si le message contient des outils et des résultats volumineux, il peut être nécessaire de le tronquer
           // Limite de 20 000 tokens pour éviter des requêtes trop coûteuses lors de l'itération suivante
           const MAX_RESPONSE_TOKENS = 20000;
-          const estimatedTokens = estimateTokens(typeof agentResponse === 'string' ? agentResponse : JSON.stringify(agentResponse));
-          
+          const estimatedTokens = estimateTokens(
+            typeof agentResponse === 'string'
+              ? agentResponse
+              : JSON.stringify(agentResponse)
+          );
+
           let formattedAgentResponse;
           if (estimatedTokens > MAX_RESPONSE_TOKENS) {
             // Tronquer la réponse pour respecter la limite de tokens
-            logger.warn(`Response exceeds token limit: ${estimatedTokens} > ${MAX_RESPONSE_TOKENS}. Truncating...`);
+            logger.warn(
+              `Response exceeds token limit: ${estimatedTokens} > ${MAX_RESPONSE_TOKENS}. Truncating...`
+            );
             if (typeof agentResponse === 'string') {
-              formattedAgentResponse = truncateToTokenLimit(agentResponse, MAX_RESPONSE_TOKENS);
+              formattedAgentResponse = truncateToTokenLimit(
+                agentResponse,
+                MAX_RESPONSE_TOKENS
+              );
             } else {
               // Pour les réponses non-string (objets, etc.), on les stringifie puis on tronque
               formattedAgentResponse = truncateToTokenLimit(
-                JSON.stringify(agentResponse), 
+                JSON.stringify(agentResponse),
                 MAX_RESPONSE_TOKENS
               );
             }
@@ -627,86 +646,104 @@ export class StarknetAgent implements IAgent {
 
           // Attendre un intervalle adaptatif basé sur la complexité de la dernière réponse
           // Si la réponse était volumineuse, attendre plus longtemps pour donner le temps aux ressources de se libérer
-          const baseInterval = this.agentReactExecutor.json_config?.interval || 5000;
+          const baseInterval =
+            this.agentReactExecutor.json_config?.interval || 5000;
           let interval = baseInterval;
-          
+
           // Augmenter l'intervalle si la réponse était volumineuse pour éviter la surcharge
           if (estimatedTokens > MAX_RESPONSE_TOKENS / 2) {
             interval = baseInterval * 1.5;
           }
-          
+
           await new Promise((resolve) => setTimeout(resolve, interval));
         } catch (loopError) {
           // Incrémenter le compteur d'erreurs consécutives
           consecutiveErrorCount++;
-          
+
           // Créer une clé d'erreur unique pour éviter de répéter les mêmes messages d'erreur
-          const errorMessage = loopError instanceof Error ? loopError.message : String(loopError);
+          const errorMessage =
+            loopError instanceof Error ? loopError.message : String(loopError);
           addError(errorMessage);
-          
+
           // Message d'erreur détaillé pour aider au débogage
-          logger.error(`Error in autonomous agent (iteration ${iterationCount}): ${errorMessage}`);
-          
+          logger.error(
+            `Error in autonomous agent (iteration ${iterationCount}): ${errorMessage}`
+          );
+
           // Gérer l'erreur de limite de tokens ou de contexte trop long
-          const isTokenError = (loopError instanceof Error &&
+          const isTokenError =
+            loopError instanceof Error &&
             (errorMessage.includes('token limit') ||
-             errorMessage.includes('tokens exceed') ||
-             errorMessage.includes('context length') ||
-             errorMessage.includes('prompt is too long') ||
-             errorMessage.includes('maximum context length')));
-             
+              errorMessage.includes('tokens exceed') ||
+              errorMessage.includes('context length') ||
+              errorMessage.includes('prompt is too long') ||
+              errorMessage.includes('maximum context length'));
+
           if (isTokenError) {
             // Incrémenter le compteur d'erreurs de tokens
             tokensErrorCount += 2; // Augmenter davantage pour les erreurs de tokens
-            
+
             try {
               // Au lieu de recréer complètement l'agent, nous allons simplement
               // abandonner l'action actuelle et continuer avec le même contexte
-              logger.warn("Limite de tokens atteinte - abandon de l'action actuelle sans perte de contexte");
-              
+              logger.warn(
+                "Limite de tokens atteinte - abandon de l'action actuelle sans perte de contexte"
+              );
+
               // Afficher un message indiquant l'abandon de l'action
               const warningMessage = createBox(
                 'Action Abandonnée',
                 "L'action en cours a été abandonnée en raison d'une limite de tokens. L'agent va tenter une action différente."
               );
               process.stdout.write(warningMessage);
-              
+
               // Attendre avant de reprendre pour éviter les boucles d'erreur
               // L'attente augmente avec le nombre d'erreurs consécutives
-              const pauseDuration = Math.min(5000 + (consecutiveErrorCount * 1000), 15000);
-              await new Promise((resolve) => setTimeout(resolve, pauseDuration));
-              
+              const pauseDuration = Math.min(
+                5000 + consecutiveErrorCount * 1000,
+                15000
+              );
+              await new Promise((resolve) =>
+                setTimeout(resolve, pauseDuration)
+              );
+
               // Réinitialisation forcée si plusieurs erreurs liées aux tokens
               if (consecutiveErrorCount >= 2 || tokensErrorCount >= 3) {
-                logger.warn("Trop d'erreurs liées aux tokens, réinitialisation complète de l'agent...");
-                
+                logger.warn(
+                  "Trop d'erreurs liées aux tokens, réinitialisation complète de l'agent..."
+                );
+
                 // Forcer l'agent à oublier son contexte pour éviter d'accumuler des tokens
                 await this.createAgentReactExecutor();
-                
+
                 const resetMessage = createBox(
                   'Agent Reset',
                   "En raison de problèmes persistants de tokens, l'agent a été réinitialisé. Cela peut effacer certaines informations de contexte mais permettra de poursuivre l'exécution."
                 );
                 process.stdout.write(resetMessage);
-                
+
                 // Attendre plus longtemps après une réinitialisation
                 await new Promise((resolve) => setTimeout(resolve, 8000));
-                
+
                 // Réinitialiser le compteur d'erreurs consécutives mais pas tokensErrorCount
                 consecutiveErrorCount = 0;
               }
             } catch (recreateError) {
-              logger.error(`Failed to handle token limit gracefully: ${recreateError}`);
+              logger.error(
+                `Failed to handle token limit gracefully: ${recreateError}`
+              );
               // Attente progressive en cas d'erreur
               const waitTime = consecutiveErrorCount >= 3 ? 15000 : 5000;
               await new Promise((resolve) => setTimeout(resolve, waitTime));
-              
+
               // Si vraiment rien ne fonctionne, tenter une réinitialisation d'urgence
               if (consecutiveErrorCount >= 5) {
                 try {
                   // Forcer une réinitialisation complète avec un nouvel exécuteur
                   await this.createAgentReactExecutor();
-                  logger.warn("Réinitialisation d'urgence effectuée après échecs multiples");
+                  logger.warn(
+                    "Réinitialisation d'urgence effectuée après échecs multiples"
+                  );
                 } catch (e) {
                   // Juste continuer - nous avons tout essayé
                 }
@@ -715,23 +752,29 @@ export class StarknetAgent implements IAgent {
           } else {
             // Pour les autres types d'erreurs, attente progressive
             let waitTime = 3000; // Temps d'attente de base
-            
+
             // Augmenter le temps d'attente avec le nombre d'erreurs consécutives
             if (consecutiveErrorCount >= 5) {
               waitTime = 30000; // 30 secondes pour 5+ erreurs
-              logger.warn(`${consecutiveErrorCount} errors in a row, waiting much longer before retry...`);
+              logger.warn(
+                `${consecutiveErrorCount} errors in a row, waiting much longer before retry...`
+              );
             } else if (consecutiveErrorCount >= 3) {
               waitTime = 10000; // 10 secondes pour 3-4 erreurs
-              logger.warn(`${consecutiveErrorCount} errors in a row, waiting longer before retry...`);
+              logger.warn(
+                `${consecutiveErrorCount} errors in a row, waiting longer before retry...`
+              );
             }
-            
+
             // Appliquer une pause pour éviter les boucles d'erreur rapides
             await new Promise((resolve) => setTimeout(resolve, waitTime));
-            
+
             // Si trop d'erreurs s'accumulent (non liées aux tokens), réinitialiser l'agent
             if (consecutiveErrorCount >= 7) {
               try {
-                logger.warn("Trop d'erreurs consécutives, tentative de réinitialisation complète...");
+                logger.warn(
+                  "Trop d'erreurs consécutives, tentative de réinitialisation complète..."
+                );
                 await this.createAgentReactExecutor();
                 await new Promise((resolve) => setTimeout(resolve, 5000));
               } catch (e) {

@@ -14,8 +14,8 @@ export const deleteContractByClassHashAction = async (
   params: z.infer<typeof deleteContractByClassHashSchema>
 ): Promise<string> => {
   try {
-    logger.info('\n➜ Deleting contract by class hash');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Deleting contract by class hash');
+    logger.debug(JSON.stringify(params, null, 2));
 
     await deleteContractByClassHash(agent, params.classHash);
 

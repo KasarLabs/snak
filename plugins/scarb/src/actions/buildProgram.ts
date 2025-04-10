@@ -20,8 +20,8 @@ export const compileContract = async (
 ) => {
   let projectDir = '';
   try {
-    logger.info('\n➜ Compiling contract');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Compiling contract');
+    logger.debug(JSON.stringify(params, null, 2));
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({

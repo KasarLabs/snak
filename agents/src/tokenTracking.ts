@@ -40,21 +40,22 @@ export class TokenTrackingHandler extends BaseCallbackHandler {
     completionTokens: 0,
     totalTokens: 0,
   };
-  
+
   // Ajout des limites de tokens par défaut
   maxInputTokens = 100000; // Limite de tokens d'entrée
   maxCompletionTokens = 100000; // Limite de tokens de sortie
   maxTotalTokens = 150000; // Limite totale de tokens
 
-  constructor(options?: { 
-    debug?: boolean,
-    maxInputTokens?: number,
-    maxCompletionTokens?: number,
-    maxTotalTokens?: number 
+  constructor(options?: {
+    debug?: boolean;
+    maxInputTokens?: number;
+    maxCompletionTokens?: number;
+    maxTotalTokens?: number;
   }) {
     super();
     if (options?.maxInputTokens) this.maxInputTokens = options.maxInputTokens;
-    if (options?.maxCompletionTokens) this.maxCompletionTokens = options.maxCompletionTokens;
+    if (options?.maxCompletionTokens)
+      this.maxCompletionTokens = options.maxCompletionTokens;
     if (options?.maxTotalTokens) this.maxTotalTokens = options.maxTotalTokens;
   }
 
@@ -78,29 +79,38 @@ export class TokenTrackingHandler extends BaseCallbackHandler {
    * @param messages Messages to analyze
    * @returns True if within limits, error object if exceeded
    */
-  checkTokenLimits(messageTokens: number): { success: boolean; error?: string } {
+  checkTokenLimits(messageTokens: number): {
+    success: boolean;
+    error?: string;
+  } {
     // On ne bloque jamais même en cas de dépassement extrême
     // On enregistre simplement un avertissement avec des niveaux de gravité
     if (messageTokens > this.maxInputTokens * 2) {
       // Dépassement très important - avertissement critique
-      logger.warn(`CRITIQUE: Input tokens (${messageTokens}) dépassent largement la limite (${this.maxInputTokens}). Performances dégradées probables.`);
+      logger.warn(
+        `CRITIQUE: Input tokens (${messageTokens}) dépassent largement la limite (${this.maxInputTokens}). Performances dégradées probables.`
+      );
       // On force une réinitialisation des compteurs pour éviter l'accumulation
       this.reset();
       return { success: true };
     } else if (messageTokens > this.maxInputTokens) {
       // Dépassement modéré - simple avertissement
-      logger.warn(`Input tokens (${messageTokens}) excèdent la limite suggérée (${this.maxInputTokens}), mais on continue avec précaution`);
+      logger.warn(
+        `Input tokens (${messageTokens}) excèdent la limite suggérée (${this.maxInputTokens}), mais on continue avec précaution`
+      );
       return { success: true };
     }
-    
+
     // Vérifier si l'ajout de ces tokens dépasserait la limite totale
     if (this.promptTokens + messageTokens > this.maxTotalTokens) {
-      logger.warn(`Total tokens (${this.promptTokens + messageTokens}) dépasseraient la limite (${this.maxTotalTokens}), réinitialisation des compteurs`);
+      logger.warn(
+        `Total tokens (${this.promptTokens + messageTokens}) dépasseraient la limite (${this.maxTotalTokens}), réinitialisation des compteurs`
+      );
       // Réinitialiser les compteurs et continuer plutôt que de bloquer
       this.reset();
       return { success: true };
     }
-    
+
     return { success: true };
   }
 
@@ -273,14 +283,19 @@ export class TokenTrackingHandler extends BaseCallbackHandler {
 
       // Détecter les problèmes de tokens plus tôt
       // Vérifier à la fois les tokens d'entrée et de sortie
-      const totalForThisCall = (tokenUsage.promptTokens || 0) + (tokenUsage.completionTokens || 0);
-      
+      const totalForThisCall =
+        (tokenUsage.promptTokens || 0) + (tokenUsage.completionTokens || 0);
+
       // Si un seul appel dépasse déjà 75% de la limite, c'est un signe de problème potentiel
       if (totalForThisCall > this.maxTotalTokens * 0.75) {
-        logger.warn(`Appel LLM volumineux: ${totalForThisCall} tokens (${tokenUsage.promptTokens || 0} in / ${tokenUsage.completionTokens || 0} out)`);
-        logger.warn(`Cet appel représente plus de 75% de la limite totale (${this.maxTotalTokens}). Traitement plus agressif recommandé.`);
+        logger.warn(
+          `Appel LLM volumineux: ${totalForThisCall} tokens (${tokenUsage.promptTokens || 0} in / ${tokenUsage.completionTokens || 0} out)`
+        );
+        logger.warn(
+          `Cet appel représente plus de 75% de la limite totale (${this.maxTotalTokens}). Traitement plus agressif recommandé.`
+        );
       }
-      
+
       // Check if completion tokens exceed limit
       if (tokenUsage.completionTokens > this.maxCompletionTokens) {
         logger.warn(
@@ -295,9 +310,11 @@ export class TokenTrackingHandler extends BaseCallbackHandler {
 
       // Auto-reset des compteurs à un seuil plus bas (80% au lieu de 90%)
       // pour anticiper les problèmes plus tôt
-      const tokenThreshold = this.maxTotalTokens * 0.80;
+      const tokenThreshold = this.maxTotalTokens * 0.8;
       if (this.totalTokens > tokenThreshold) {
-        logger.warn(`Limite de tokens approchée (${this.totalTokens}/${this.maxTotalTokens}). Réinitialisation préventive des compteurs.`);
+        logger.warn(
+          `Limite de tokens approchée (${this.totalTokens}/${this.maxTotalTokens}). Réinitialisation préventive des compteurs.`
+        );
         this.reset();
       }
 
@@ -401,36 +418,40 @@ export function estimateTokens(text: string): number {
  * @param maxTokens Maximum tokens allowed
  * @returns Truncated content
  */
-export function truncateToTokenLimit(content: string, maxTokens: number): string {
+export function truncateToTokenLimit(
+  content: string,
+  maxTokens: number
+): string {
   const estimatedTokens = estimateTokens(content);
   if (estimatedTokens <= maxTokens) return content;
-  
+
   // Si nous avons besoin de tronquer le contenu, essayons de le faire intelligemment
-  
+
   // 1. Détection des commandes ou résultats d'outils - ces sections sont souvent les plus volumineuses
-  const containsToolOutput = content.includes('Result:') || 
-                             content.includes('Tool output:') || 
-                             content.includes('Command output:');
-  
+  const containsToolOutput =
+    content.includes('Result:') ||
+    content.includes('Tool output:') ||
+    content.includes('Command output:');
+
   // 2. Découper le contenu en paragraphes pour pouvoir garder les plus importants
   const paragraphs = content.split('\n\n');
-  
+
   // 3. Stratégie différente selon le type de contenu
   if (containsToolOutput && paragraphs.length > 2) {
     // Pour les résultats d'outils, nous voulons garder le début et la fin, mais résumer le milieu
-    
+
     // Approximation: chaque token = ~4 caractères
     const targetChars = maxTokens * 4;
-    
+
     // Réserver 10% pour le message d'avertissement et les derniers paragraphes
-    const reservedChars = targetChars * 0.10;
-    
+    const reservedChars = targetChars * 0.1;
+
     // Utiliser 50% pour le début (contexte initial)
-    const headChars = targetChars * 0.50;
-    
+    const headChars = targetChars * 0.5;
+
     // Utiliser le reste (40%) pour la fin (résultats et conclusions)
     const tailChars = targetChars - headChars - reservedChars;
-    
+
     // Extraire le début et la fin
     let currentLength = 0;
     let headParagraphs = [];
@@ -442,7 +463,7 @@ export function truncateToTokenLimit(content: string, maxTokens: number): string
         break;
       }
     }
-    
+
     let tailParagraphs = [];
     currentLength = 0;
     for (const para of paragraphs.slice().reverse()) {
@@ -453,48 +474,60 @@ export function truncateToTokenLimit(content: string, maxTokens: number): string
         break;
       }
     }
-    
+
     // Construire le contenu tronqué
-    return headParagraphs.join('\n\n') + 
-           '\n\n[...CONTENU TRONQUÉ...]\n\n' + 
-           tailParagraphs.join('\n\n') +
-           '\n\n[NOTE: CONTENU TRONQUÉ POUR RESPECTER LA LIMITE DE TOKENS]';
+    return (
+      headParagraphs.join('\n\n') +
+      '\n\n[...CONTENU TRONQUÉ...]\n\n' +
+      tailParagraphs.join('\n\n') +
+      '\n\n[NOTE: CONTENU TRONQUÉ POUR RESPECTER LA LIMITE DE TOKENS]'
+    );
   } else if (content.length > 1000 && containsToolOutput) {
     // Pour les très longs résultats d'outils, garder le début et la fin sans paragraphes
     const charLimit = maxTokens * 4;
     const headSize = Math.floor(charLimit * 0.5);
     const tailSize = Math.floor(charLimit * 0.3);
-    
+
     const head = content.substring(0, headSize);
     const tail = content.substring(content.length - tailSize);
-    
-    return head + '\n\n[...CONTENU TRONQUÉ...]\n\n' + tail + 
-           '\n\n[NOTE: CONTENU TRONQUÉ POUR RESPECTER LA LIMITE DE TOKENS]';
+
+    return (
+      head +
+      '\n\n[...CONTENU TRONQUÉ...]\n\n' +
+      tail +
+      '\n\n[NOTE: CONTENU TRONQUÉ POUR RESPECTER LA LIMITE DE TOKENS]'
+    );
   } else {
     // Pour les contenus normaux, préserver le début qui contient souvent le raisonnement principal
     // Estimation: maxTokens * 4 caractères pour la taille approximative
     const approximateChars = maxTokens * 4;
-    
+
     // Réserver de l'espace pour le message d'avertissement
     const reservedChars = 100;
     const usableChars = approximateChars - reservedChars;
-    
+
     // Préserver 80% du début et 20% de la fin
     const headSize = Math.floor(usableChars * 0.8);
     const tailSize = Math.floor(usableChars * 0.2);
-    
+
     if (content.length <= headSize + tailSize + reservedChars) {
       // Pas besoin de tronquer la fin
-      return content.substring(0, approximateChars - reservedChars) + 
-             "\n\n[FIN TRONQUÉE POUR RESPECTER LA LIMITE DE TOKENS]";
+      return (
+        content.substring(0, approximateChars - reservedChars) +
+        '\n\n[FIN TRONQUÉE POUR RESPECTER LA LIMITE DE TOKENS]'
+      );
     }
-    
+
     // Tronquer en préservant le début et la fin
     const head = content.substring(0, headSize);
     const tail = content.substring(content.length - tailSize);
-    
-    return head + '\n\n[...CONTENU CENTRAL TRONQUÉ...]\n\n' + tail + 
-           '\n\n[NOTE: CONTENU TRONQUÉ POUR RESPECTER LA LIMITE DE TOKENS]';
+
+    return (
+      head +
+      '\n\n[...CONTENU CENTRAL TRONQUÉ...]\n\n' +
+      tail +
+      '\n\n[NOTE: CONTENU TRONQUÉ POUR RESPECTER LA LIMITE DE TOKENS]'
+    );
   }
 }
 
@@ -506,20 +539,20 @@ export function truncateToTokenLimit(content: string, maxTokens: number): string
  */
 export function configureModelWithTracking(
   model: any,
-  options?: { 
-    tokenLogging?: boolean,
-    maxInputTokens?: number,
-    maxCompletionTokens?: number,
-    maxTotalTokens?: number
+  options?: {
+    tokenLogging?: boolean;
+    maxInputTokens?: number;
+    maxCompletionTokens?: number;
+    maxTotalTokens?: number;
   }
 ): any {
   // Create a new token tracker with custom limits if specified
   const tracker = new SilentTokenTrackingHandler({
     maxInputTokens: options?.maxInputTokens,
     maxCompletionTokens: options?.maxCompletionTokens,
-    maxTotalTokens: options?.maxTotalTokens
+    maxTotalTokens: options?.maxTotalTokens,
   });
-  
+
   // Check if token logging is disabled
   if (options?.tokenLogging === false) {
     // Assurez-vous de désactiver la verbosité du modèle
@@ -532,59 +565,73 @@ export function configureModelWithTracking(
 
   // Override the invoke method to check token limits before sending to the model
   const originalInvoke = model.invoke.bind(model);
-  model.invoke = async function(messages: any, ...args: any[]) {
-    let messageContent = "";
-    
+  model.invoke = async function (messages: any, ...args: any[]) {
+    let messageContent = '';
+
     try {
       // Extract text content from messages for token estimation
       if (Array.isArray(messages)) {
-        messageContent = messages.map((m: any) => {
-          if (typeof m === 'string') return m;
-          if (m.content) return m.content;
-          return JSON.stringify(m);
-        }).join("\n");
-      } else if (typeof messages === 'object') {
-        if (messages.content) messageContent = messages.content;
-        else if (messages.messages) {
-          messageContent = messages.messages.map((m: any) => {
+        messageContent = messages
+          .map((m: any) => {
             if (typeof m === 'string') return m;
             if (m.content) return m.content;
             return JSON.stringify(m);
-          }).join("\n");
+          })
+          .join('\n');
+      } else if (typeof messages === 'object') {
+        if (messages.content) messageContent = messages.content;
+        else if (messages.messages) {
+          messageContent = messages.messages
+            .map((m: any) => {
+              if (typeof m === 'string') return m;
+              if (m.content) return m.content;
+              return JSON.stringify(m);
+            })
+            .join('\n');
         } else {
           messageContent = JSON.stringify(messages);
         }
       } else if (typeof messages === 'string') {
         messageContent = messages;
       }
-      
+
       // Estimate tokens in the prompt
       const estimatedTokens = estimateTokens(messageContent);
-      
+
       // Check token limits - notre approche permissive qui n'échoue jamais
       tracker.checkTokenLimits(estimatedTokens);
-      
+
       // Gestion progressive des cas de dépassement
       let truncationApplied = false;
-      
+
       // 1. Cas de dépassement extrême (plus de 2x la limite) - réduction drastique
       if (estimatedTokens > tracker.maxInputTokens * 2) {
-        logger.warn(`ALERTE: Entrée extrêmement volumineuse (${estimatedTokens} tokens estimés)`);
+        logger.warn(
+          `ALERTE: Entrée extrêmement volumineuse (${estimatedTokens} tokens estimés)`
+        );
         truncationApplied = true;
-        
+
         // Réduction drastique - conserver uniquement les informations essentielles
         if (typeof messages === 'string') {
           // Créer un résumé avec juste 20% de la limite autorisée
-          messages = "LE CONTEXTE PRÉCÉDENT ÉTAIT TROP VOLUMINEUX. Merci de prendre une action simple basée sur les informations suivantes : " + 
-                    truncateToTokenLimit(messages, Math.floor(tracker.maxInputTokens * 0.2));
+          messages =
+            'LE CONTEXTE PRÉCÉDENT ÉTAIT TROP VOLUMINEUX. Merci de prendre une action simple basée sur les informations suivantes : ' +
+            truncateToTokenLimit(
+              messages,
+              Math.floor(tracker.maxInputTokens * 0.2)
+            );
         } else if (Array.isArray(messages)) {
           // Garder uniquement les messages essentiels
           if (messages.length > 1) {
             // Garder uniquement le premier message (système) et le dernier (plus récent)
             messages = [
               messages[0],
-              { role: "system", content: "Le contexte précédent était trop volumineux et a été complètement supprimé. Merci de prendre une action simple." },
-              messages[messages.length - 1]
+              {
+                role: 'system',
+                content:
+                  'Le contexte précédent était trop volumineux et a été complètement supprimé. Merci de prendre une action simple.',
+              },
+              messages[messages.length - 1],
             ];
           }
         } else if (messages?.messages && Array.isArray(messages.messages)) {
@@ -593,17 +640,23 @@ export function configureModelWithTracking(
           if (msgArray.length > 1) {
             messages.messages = [
               msgArray[0],
-              { role: "system", content: "Le contexte précédent était trop volumineux et a été complètement supprimé. Merci de prendre une action simple." },
-              msgArray[msgArray.length - 1]
+              {
+                role: 'system',
+                content:
+                  'Le contexte précédent était trop volumineux et a été complètement supprimé. Merci de prendre une action simple.',
+              },
+              msgArray[msgArray.length - 1],
             ];
           }
         }
       }
       // 2. Cas de dépassement important mais gérable (entre 1x et 2x la limite)
       else if (estimatedTokens > tracker.maxInputTokens * 1.5) {
-        logger.warn(`Entrée très volumineuse (${estimatedTokens} tokens estimés), troncature appliquée`);
+        logger.warn(
+          `Entrée très volumineuse (${estimatedTokens} tokens estimés), troncature appliquée`
+        );
         truncationApplied = true;
-        
+
         // Préparer un message tronqué
         if (typeof messages === 'string') {
           // Si c'est une chaîne simple
@@ -615,9 +668,13 @@ export function configureModelWithTracking(
               // Garder le premier message (souvent le système)
               messages[0],
               // Ajouter un message indiquant la troncature
-              { role: "system", content: "Le contexte précédent a été partiellement tronqué pour des raisons de limite de tokens." },
+              {
+                role: 'system',
+                content:
+                  'Le contexte précédent a été partiellement tronqué pour des raisons de limite de tokens.',
+              },
               // Garder les derniers messages (plus pertinents)
-              ...messages.slice(-Math.min(4, messages.length))
+              ...messages.slice(-Math.min(4, messages.length)),
             ];
           }
         } else if (messages?.messages && Array.isArray(messages.messages)) {
@@ -628,18 +685,24 @@ export function configureModelWithTracking(
               // Garder le premier message
               msgArray[0],
               // Ajouter un message de troncature
-              { role: "system", content: "Le contexte précédent a été partiellement tronqué pour des raisons de limite de tokens." },
+              {
+                role: 'system',
+                content:
+                  'Le contexte précédent a été partiellement tronqué pour des raisons de limite de tokens.',
+              },
               // Garder les derniers messages
-              ...msgArray.slice(-Math.min(4, msgArray.length))
+              ...msgArray.slice(-Math.min(4, msgArray.length)),
             ];
           }
         }
       }
       // 3. Cas de dépassement léger (entre 1x et 1.5x la limite)
       else if (estimatedTokens > tracker.maxInputTokens) {
-        logger.warn(`Entrée volumineuse (${estimatedTokens} tokens estimés), légère troncature appliquée`);
+        logger.warn(
+          `Entrée volumineuse (${estimatedTokens} tokens estimés), légère troncature appliquée`
+        );
         truncationApplied = true;
-        
+
         // Troncature légère
         if (typeof messages === 'string') {
           messages = truncateToTokenLimit(messages, tracker.maxInputTokens);
@@ -647,102 +710,143 @@ export function configureModelWithTracking(
           // Garder plus de messages mais supprimer certains du milieu
           const systemMessages = messages.slice(0, 1);
           const recentMessages = messages.slice(-Math.min(5, messages.length));
-          
+
           messages = [
             ...systemMessages,
-            { role: "system", content: "Quelques messages intermédiaires ont été omis pour des raisons de limite de tokens." },
-            ...recentMessages
+            {
+              role: 'system',
+              content:
+                'Quelques messages intermédiaires ont été omis pour des raisons de limite de tokens.',
+            },
+            ...recentMessages,
           ];
-        } else if (messages?.messages && Array.isArray(messages.messages) && messages.messages.length > 4) {
+        } else if (
+          messages?.messages &&
+          Array.isArray(messages.messages) &&
+          messages.messages.length > 4
+        ) {
           const msgArray = messages.messages;
           const systemMessages = msgArray.slice(0, 1);
           const recentMessages = msgArray.slice(-Math.min(5, msgArray.length));
-          
+
           messages.messages = [
             ...systemMessages,
-            { role: "system", content: "Quelques messages intermédiaires ont été omis pour des raisons de limite de tokens." },
-            ...recentMessages
+            {
+              role: 'system',
+              content:
+                'Quelques messages intermédiaires ont été omis pour des raisons de limite de tokens.',
+            },
+            ...recentMessages,
           ];
         }
       }
-      
+
       // Si une troncature a été appliquée, estimer à nouveau les tokens pour vérification
       if (truncationApplied) {
-        let newContent = "";
+        let newContent = '';
         if (typeof messages === 'string') {
           newContent = messages;
         } else if (Array.isArray(messages)) {
-          newContent = messages.map((m: any) => typeof m === 'string' ? m : (m.content || JSON.stringify(m))).join("\n");
+          newContent = messages
+            .map((m: any) =>
+              typeof m === 'string' ? m : m.content || JSON.stringify(m)
+            )
+            .join('\n');
         } else if (messages?.messages && Array.isArray(messages.messages)) {
-          newContent = messages.messages.map((m: any) => typeof m === 'string' ? m : (m.content || JSON.stringify(m))).join("\n");
+          newContent = messages.messages
+            .map((m: any) =>
+              typeof m === 'string' ? m : m.content || JSON.stringify(m)
+            )
+            .join('\n');
         } else {
           newContent = JSON.stringify(messages);
         }
-        
+
         const newEstimatedTokens = estimateTokens(newContent);
-        logger.info(`Après troncature: ${newEstimatedTokens} tokens estimés (réduction de ${Math.round((estimatedTokens - newEstimatedTokens) / estimatedTokens * 100)}%)`);
+        logger.info(
+          `Après troncature: ${newEstimatedTokens} tokens estimés (réduction de ${Math.round(((estimatedTokens - newEstimatedTokens) / estimatedTokens) * 100)}%)`
+        );
       }
-      
+
       // Tenter d'invoquer le modèle avec les messages (potentiellement tronqués)
       try {
         return await originalInvoke(messages, ...args);
       } catch (invokeError) {
         // Gérer les erreurs d'invocation liées aux tokens
-        if (invokeError instanceof Error && 
-            (invokeError.message.includes('token limit') || 
-             invokeError.message.includes('tokens exceed') ||
-             invokeError.message.includes('context length') ||
-             invokeError.message.includes('maximum context length'))) {
-          
-          logger.error(`Erreur de tokens malgré la troncature: ${invokeError.message}`);
-          
+        if (
+          invokeError instanceof Error &&
+          (invokeError.message.includes('token limit') ||
+            invokeError.message.includes('tokens exceed') ||
+            invokeError.message.includes('context length') ||
+            invokeError.message.includes('maximum context length'))
+        ) {
+          logger.error(
+            `Erreur de tokens malgré la troncature: ${invokeError.message}`
+          );
+
           // Tentative d'urgence - réduction drastique à un simple message
           if (typeof messages === 'string') {
-            const emergencyMessage = "Le contexte était trop volumineux. Merci de prendre une action très simple basée sur les objectifs généraux.";
+            const emergencyMessage =
+              'Le contexte était trop volumineux. Merci de prendre une action très simple basée sur les objectifs généraux.';
             return await originalInvoke(emergencyMessage, ...args);
           } else if (Array.isArray(messages) && messages.length > 0) {
             // Créer un message d'urgence minimal
             const emergencyMessages = [
               messages[0], // Conserver le message système si disponible
-              { role: "system", content: "Toutes les informations précédentes ont été perdues en raison de limites de tokens. Prendre une action très simple." }
+              {
+                role: 'system',
+                content:
+                  'Toutes les informations précédentes ont été perdues en raison de limites de tokens. Prendre une action très simple.',
+              },
             ];
             return await originalInvoke(emergencyMessages, ...args);
-          } else if (messages?.messages && Array.isArray(messages.messages) && messages.messages.length > 0) {
+          } else if (
+            messages?.messages &&
+            Array.isArray(messages.messages) &&
+            messages.messages.length > 0
+          ) {
             // Même approche pour les objets avec une propriété messages
             const msgArray = messages.messages;
             messages.messages = [
               msgArray[0], // Message système
-              { role: "system", content: "Toutes les informations précédentes ont été perdues en raison de limites de tokens. Prendre une action très simple." }
+              {
+                role: 'system',
+                content:
+                  'Toutes les informations précédentes ont été perdues en raison de limites de tokens. Prendre une action très simple.',
+              },
             ];
             return await originalInvoke(messages, ...args);
           }
-          
+
           // Si toutes les tentatives échouent, retourner un message d'erreur formaté comme une réponse LLM
           // Cela permettra au code appelant de continuer sans exception
           return {
-            content: "Je ne peux pas traiter cette demande en raison de limites de tokens. Veuillez essayer une action plus simple.",
+            content:
+              'Je ne peux pas traiter cette demande en raison de limites de tokens. Veuillez essayer une action plus simple.',
             tool_calls: [],
-            usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+            usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
           };
         }
-        
+
         // Pour les autres types d'erreurs, les propager
         throw invokeError;
       }
     } catch (error) {
       // Gestion des erreurs lors de la préparation des messages
       logger.error(`Erreur lors de la préparation des messages: ${error}`);
-      
+
       // Tenter une récupération d'urgence avec un message minimal
       try {
-        const emergencyMessage = "Une erreur s'est produite lors du traitement du contexte. Merci de prendre une action simple basée sur les objectifs généraux.";
+        const emergencyMessage =
+          "Une erreur s'est produite lors du traitement du contexte. Merci de prendre une action simple basée sur les objectifs généraux.";
         return await originalInvoke(emergencyMessage, ...args);
       } catch (finalError) {
         // Si même la récupération d'urgence échoue, retourner un format compatible
         return {
-          content: "Impossible de traiter cette demande. Veuillez réessayer avec une requête plus simple.",
+          content:
+            'Impossible de traiter cette demande. Veuillez réessayer avec une requête plus simple.',
           tool_calls: [],
-          usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+          usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
         };
       }
     }
@@ -754,7 +858,7 @@ export function configureModelWithTracking(
   } else {
     model.callbacks = [tracker];
   }
-  
+
   // Make the tracker globally available
   tokenTracker = tracker;
 

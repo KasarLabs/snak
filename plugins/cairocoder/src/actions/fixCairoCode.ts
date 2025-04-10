@@ -20,8 +20,8 @@ export const fixCairoCode = async (
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {
-    logger.info('\n➜ Fixing Cairo code');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Fixing Cairo code');
+    logger.debug(JSON.stringify(params, null, 2));
 
     if (!params?.programName || !params.programName.endsWith('.cairo')) {
       throw new Error('Program name is required and must end with .cairo');

@@ -17,8 +17,8 @@ export const addProgramAction = async (
   params: z.infer<typeof addProgramSchema>
 ) => {
   try {
-    logger.info('\n➜ Adding program');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Adding program');
+    logger.debug(JSON.stringify(params, null, 2));
 
     const projectData = await retrieveProjectData(agent, params.projectName);
 
@@ -57,8 +57,8 @@ export const addDependencyAction = async (
   params: z.infer<typeof addDependencySchema>
 ) => {
   try {
-    logger.info('\n➜ Adding dependency');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Adding dependency');
+    logger.debug(JSON.stringify(params, null, 2));
 
     const projectData = await retrieveProjectData(agent, params.projectName);
 

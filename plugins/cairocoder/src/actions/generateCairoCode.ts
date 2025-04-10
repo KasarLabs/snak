@@ -21,8 +21,8 @@ export const generateCairoCode = async (
   params: z.infer<typeof generateCairoCodeSchema>
 ): Promise<string> => {
   try {
-    logger.info('\n➜ Generating Cairo code');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Generating Cairo code');
+    logger.debug(JSON.stringify(params, null, 2));
 
     validateParams(params);
 

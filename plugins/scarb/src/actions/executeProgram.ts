@@ -20,8 +20,8 @@ export const executeProgram = async (
   let projectDir = '';
   let mode = '';
   try {
-    logger.info('\n➜ Executing program');
-    logger.info(JSON.stringify(params, null, 2));
+    logger.debug('\n Executing program');
+    logger.debug(JSON.stringify(params, null, 2));
 
     const projectData = await retrieveProjectData(agent, params.projectName);
 
