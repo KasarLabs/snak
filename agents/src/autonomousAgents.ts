@@ -21,58 +21,61 @@ export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
 ) => {
-  let model;
+  // Initialize model based on provider
+  const initializeModel = () => {
+    const verbose = aiConfig.langchainVerbose === true;
 
-  switch (aiConfig.aiProvider) {
-    case 'anthropic':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
-        );
-      }
-      model = new ChatAnthropic({
-        modelName: aiConfig.aiModel,
-        anthropicApiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    case 'openai':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid OpenAI api key is required https://platform.openai.com/api-keys'
-        );
-      }
-      model = new ChatOpenAI({
-        modelName: aiConfig.aiModel,
-        openAIApiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    case 'gemini':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid Gemini api key is required https://ai.google.dev/gemini-api/docs/api-key'
-        );
-      }
-      model = new ChatGoogleGenerativeAI({
-        modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
-        convertSystemMessageToHumanContent: true,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    case 'ollama':
-      model = new ChatOllama({
-        model: aiConfig.aiModel,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    default:
-      throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
-  }
+    switch (aiConfig.aiProvider) {
+      case 'anthropic':
+        if (!aiConfig.aiProviderApiKey) {
+          throw new Error(
+            'Valid Anthropic API key is required: https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
+          );
+        }
+        return new ChatAnthropic({
+          modelName: aiConfig.aiModel,
+          anthropicApiKey: aiConfig.aiProviderApiKey,
+          verbose,
+        });
 
-  // Add token tracking with flexible limits for autonomous mode
-  model = configureModelWithTracking(model, {
+      case 'openai':
+        if (!aiConfig.aiProviderApiKey) {
+          throw new Error(
+            'Valid OpenAI API key is required: https://platform.openai.com/api-keys'
+          );
+        }
+        return new ChatOpenAI({
+          modelName: aiConfig.aiModel,
+          openAIApiKey: aiConfig.aiProviderApiKey,
+          verbose,
+        });
+
+      case 'gemini':
+        if (!aiConfig.aiProviderApiKey) {
+          throw new Error(
+            'Valid Gemini API key is required: https://ai.google.dev/gemini-api/docs/api-key'
+          );
+        }
+        return new ChatGoogleGenerativeAI({
+          modelName: aiConfig.aiModel,
+          apiKey: aiConfig.aiProviderApiKey,
+          convertSystemMessageToHumanContent: true,
+          verbose,
+        });
+
+      case 'ollama':
+        return new ChatOllama({
+          model: aiConfig.aiModel,
+          verbose,
+        });
+
+      default:
+        throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
+    }
+  };
+
+  // Initialize model with token tracking
+  const model = configureModelWithTracking(initializeModel(), {
     tokenLogging: aiConfig.langchainVerbose !== false,
     maxInputTokens: aiConfig.maxInputTokens || 50000,
     maxCompletionTokens: aiConfig.maxCompletionTokens || 50000,
@@ -85,15 +88,11 @@ export const createAutonomousAgent = async (
       throw new Error('Agent configuration is required');
     }
 
-    let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[];
-    const allowedTools = await createAllowedTools(
-      starknetAgent,
-      json_config.plugins
-    );
+    // Get allowed tools
+    let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[] =
+      await createAllowedTools(starknetAgent, json_config.plugins);
 
-    tools = allowedTools;
-    const memory = new MemorySaver();
-
+    // Initialize MCP tools if configured
     if (
       json_config.mcpServers &&
       Object.keys(json_config.mcpServers).length > 0
@@ -110,22 +109,24 @@ export const createAutonomousAgent = async (
       }
     }
 
+    // Create the agent
+    const memory = new MemorySaver();
     const agent = createReactAgent({
       llm: model,
-      tools: tools,
+      tools,
       checkpointSaver: memory,
       messageModifier: json_config.prompt,
     });
 
     // Patch the agent to handle token limits in autonomous mode
     const originalAgentInvoke = agent.invoke.bind(agent);
+
     // @ts-ignore - Ignore type errors for this method
     agent.invoke = async function (input: any, config?: any) {
       try {
-        // Try normal call
         return await originalAgentInvoke(input, config);
       } catch (error) {
-        // Check if error is related to token limits
+        // Handle token limit errors
         if (
           error instanceof Error &&
           (error.message.includes('token limit') ||
@@ -136,18 +137,15 @@ export const createAutonomousAgent = async (
             `Token limit error in autonomous agent: ${error.message}`
           );
 
-          // Instead of recreating an entirely new context,
-          // we'll just use a shorter message to continue
+          // Use a shorter message to continue
           const continueInput = {
             messages:
               'The previous action was too complex and exceeded token limits. Take a simpler action while keeping your main objectives in mind.',
           };
 
           try {
-            // Retry with a simplified message that preserves intent
             return await originalAgentInvoke(continueInput, config);
           } catch (secondError) {
-            // If even this approach fails, log the error
             logger.error(`Failed simplified action attempt: ${secondError}`);
 
             // Return a format compatible with the expected interface
@@ -177,7 +175,7 @@ export const createAutonomousAgent = async (
       json_config,
     };
   } catch (error) {
-    logger.error('Failed to create autonomous agent : ', error);
+    logger.error('Failed to create autonomous agent:', error);
     throw error;
   }
 };

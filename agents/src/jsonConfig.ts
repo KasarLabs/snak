@@ -10,10 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * @interface Token
- * @description Interface for a token object
- * @property {string} symbol - The symbol of the token
- * @property {number} amount - The amount of the token
+ * Interface for a token object
  */
 export interface Token {
   symbol: string;
@@ -21,16 +18,7 @@ export interface Token {
 }
 
 /**
- * @interface JsonConfig
- * @description Interface for the JSON configuration object
- * @property {string} name - The name of the agent
- * @property {SystemMessage} prompt - The prompt message for the agent
- * @property {number} interval - The interval for the agent
- * @property {string} chat_id - The chat ID for the agent
- * @property {string[]} plugins - The plugins for the agent
- * @property {boolean} autonomous - The autonomous flag for the agent
- * @property {boolean} memory - The memory flag for the agent
- * @property {Record<string, any>} mcpServers - The MCP servers configuration
+ * Interface for the JSON configuration object
  */
 export interface JsonConfig {
   name: string;
@@ -44,10 +32,7 @@ export interface JsonConfig {
 }
 
 /**
- * @function createContextFromJson
- * @description Creates a context string from the JSON configuration object
- * @param {any} json - The JSON configuration object
- * @returns {string} The context string
+ * Creates a context string from the JSON configuration object
  */
 export const createContextFromJson = (json: any): string => {
   if (!json) {
@@ -87,10 +72,7 @@ export const createContextFromJson = (json: any): string => {
 };
 
 /**
- * @function validateConfig
- * @description Validates the JSON configuration object
- * @param {JsonConfig} config Your jsonconfig
- * @throws {Error} Throws an error if the JSON config is invalid
+ * Validates the JSON configuration object
  */
 export const validateConfig = (config: JsonConfig) => {
   const requiredFields = [
@@ -139,13 +121,8 @@ export const validateConfig = (config: JsonConfig) => {
   }
 };
 
-// log all this function
 /**
- * @function checkParseJson
- * @description Checks and parses the JSON configuration object
- * @param {string} agent_config_name The name of the agent config
- * @returns {JsonConfig | undefined} The JSON configuration object
- * @throws {Error} Throws an error if the JSON config is invalid
+ * Checks and parses the JSON configuration object
  */
 const checkParseJson = async (
   agent_config_name: string
@@ -179,7 +156,7 @@ const checkParseJson = async (
     let configPath: string | null = null;
     let jsonData: string | null = null;
 
-    // Try each path until we find one that works
+    // Find first accessible config file
     for (const tryPath of possiblePaths) {
       try {
         await fs.access(tryPath);
@@ -241,11 +218,7 @@ const checkParseJson = async (
 };
 
 /**
- * @function load_json_config
- * @description Loads the JSON configuration object
- * @param {string} agent_config_name The name of the agent config
- * @returns {JsonConfig | undefined} The JSON configuration object
- * @throws {Error} Throws an error if the JSON config is invalid
+ * Loads the JSON configuration object
  */
 export const load_json_config = async (
   agent_config_name: string
