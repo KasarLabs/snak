@@ -15,6 +15,9 @@
   "devDependencies": {
     "@starknet-agent-kit/agents": "workspace:*"
   },
+  "dependencies": {
+    "@snak/database": "workspace:*"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

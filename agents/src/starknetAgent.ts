@@ -4,8 +4,6 @@ import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from './autonomousAgents.js';
 import { JsonConfig } from './jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { PostgresAdaptater } from './databases/postgresql/src/database.js';
-import { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 import logger from './logger.js';
 import * as metrics from '../metrics.js';
 
@@ -47,7 +45,6 @@ export class StarknetAgent implements IAgent {
   private readonly aiProviderApiKey: string;
   private agentReactExecutor: any;
   private currentMode: string;
-  private database: PostgresAdaptater[] = [];
 
   public readonly signature: string;
   public readonly agentMode: string;
@@ -133,158 +130,6 @@ export class StarknetAgent implements IAgent {
     this.currentMode = newMode;
     this.createAgentReactExecutor();
     return `Switched to ${newMode} mode`;
-  }
-
-  /**
-   * @function connectDatabase
-   * @async
-   * @description Connects to an existing PostgreSQL database
-   * @param {string} database_name - Name of the database to connect to
-   * @returns {Promise<void>}
-   */
-  public async connectDatabase(database_name: string): Promise<void> {
-    try {
-      const params: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: database_name,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-      const database = await new PostgresAdaptater(params).connectDatabase();
-      if (!database) {
-        throw new Error(
-          'Error when trying to initialize your Postgres database'
-        );
-      }
-      this.database.push(database);
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error(error.message);
-      }
-      return;
-    }
-  }
-
-  /**
-   * @function createDatabase
-   * @async
-   * @description Creates a new PostgreSQL database and connects to it
-   * @param {string} database_name - Name of the database to create
-   * @returns {Promise<PostgresAdaptater | undefined>} The connected database or undefined if failed
-   */
-  public async createDatabase(
-    database_name: string
-  ): Promise<PostgresAdaptater | undefined> {
-    try {
-      const params: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: process.env.POSTGRES_ROOT_DB as string,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-      const database = await new PostgresAdaptater(params).connectDatabase();
-      if (!database) {
-        throw new Error(
-          'Error when trying to initialize your Postgres database'
-        );
-      }
-      const new_database = await database.createDatabase(database_name);
-      if (!new_database) {
-        throw new Error('Error when trying to create your Postgres database');
-      }
-      const new_params: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: database_name,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-      const new_database_connection = await new PostgresAdaptater(
-        new_params
-      ).connectDatabase();
-      if (!new_database_connection) {
-        throw new Error('Error when trying to connect to your database');
-      }
-      try {
-        // Assuming there's a public method like query() or execute() in PostgresAdaptater
-        await new_database_connection.query(
-          'CREATE EXTENSION IF NOT EXISTS vector;'
-        );
-      } catch (extError) {
-        console.error(
-          `Failed to create vector extension in database ${database_name}:`,
-          extError
-        );
-        console.warn(
-          'Vector functionality may not work properly. Make sure pgvector is installed.'
-        );
-      }
-      this.database.push(new_database_connection);
-      return new_database_connection;
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error(error.message);
-      }
-      return undefined;
-    }
-  }
-
-  /**
-   * @function deleteDatabase
-   * @async
-   * @description Deletes a database connection
-   * @param {string} database_name - Name of the database to delete
-   * @returns {Promise<void>}
-   */
-  public async deleteDatabase(database_name: string): Promise<void> {
-    try {
-      const database = this.getDatabaseByName(database_name);
-      if (!database) {
-        throw new Error(`Postgres Database : ${database_name} not found`);
-      }
-      await database.closeDatabase();
-      this.deleteDatabaseByName(database_name);
-    } catch (error) {
-      logger.log(error);
-      return;
-    }
-  }
-
-  /**
-   * @function getDatabase
-   * @description Gets the array of database adapters instance
-   * @returns {PostgresAdaptater[]} Array of database adapters
-   */
-  getDatabase(): PostgresAdaptater[] {
-    return this.database;
-  }
-
-  /**
-   * @function getDatabaseByName
-   * @description Gets a database adapters instance by name
-   * @param {string} name - Name of the database to get
-   * @returns {PostgresAdaptater|undefined} Database adapter or undefined if not found
-   */
-  getDatabaseByName(name: string): PostgresAdaptater | undefined {
-    return this.database.find((db) => db.getDatabaseName() === name);
-  }
-
-  /**
-   * @function deleteDatabaseByName
-   * @description Removes a database from the array of database adapters
-   * @param {string} name - Name of the database to remove
-   * @returns {void}
-   */
-  deleteDatabaseByName(name: string): void {
-    if (!this.database) {
-      return;
-    }
-    const database = this.database.filter(
-      (db) => db.getDatabaseName() !== name
-    );
-    this.database = database;
   }
 
   /**

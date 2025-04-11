@@ -5,6 +5,10 @@ import { executeProgram } from './executeProgram.js';
 import { saveProof } from '../utils/db_save.js';
 import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { getProjectDir } from '../utils/preparation.js';
+import { scarb } from '@snak/database/queries';
+import path from 'path';
+import { readFile } from 'fs/promises';
+import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
 
