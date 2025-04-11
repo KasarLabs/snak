@@ -19,7 +19,8 @@ import { configureModelWithTracking } from './tokenTracking.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig
+  aiConfig: AiConfig,
+  configPath?: string
 ) => {
   // Initialize model based on provider
   const initializeModel = () => {
@@ -90,7 +91,7 @@ export const createAutonomousAgent = async (
 
     // Get allowed tools
     let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[] =
-      await createAllowedTools(starknetAgent, json_config.plugins);
+      await createAllowedTools(starknetAgent, json_config.plugins, configPath || '');
 
     // Initialize MCP tools if configured
     if (

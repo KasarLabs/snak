@@ -139,7 +139,7 @@ export class StarknetAgent implements IAgent {
   /**
    * Creates an agent executor based on the current mode
    */
-  public async createAgentReactExecutor(): Promise<void> {
+  public async createAgentReactExecutor(configPath?: string): Promise<void> {
     try {
       const config: AiConfig = {
         aiModel: this.aiModel,
@@ -149,9 +149,9 @@ export class StarknetAgent implements IAgent {
       };
 
       if (this.currentMode === 'auto') {
-        this.agentReactExecutor = await createAutonomousAgent(this, config);
+        this.agentReactExecutor = await createAutonomousAgent(this, config, configPath);
       } else if (this.currentMode === 'agent') {
-        this.agentReactExecutor = await createAgent(this, config);
+        this.agentReactExecutor = await createAgent(this, config, configPath);
       }
 
       // Apply logging settings to the created executor if it exists

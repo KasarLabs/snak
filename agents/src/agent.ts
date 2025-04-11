@@ -111,7 +111,8 @@ export function selectModel(aiConfig: AiConfig) {
 
 export async function initializeToolsList(
   starknetAgent: StarknetAgentInterface,
-  jsonConfig: JsonConfig
+  jsonConfig: JsonConfig,
+  configPath?: string
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const isSignature = starknetAgent.getSignature().signature === 'wallet';
@@ -121,7 +122,8 @@ export async function initializeToolsList(
   } else {
     const allowedTools = await createAllowedTools(
       starknetAgent,
-      jsonConfig.plugins
+      jsonConfig.plugins,
+      configPath || ''
     );
     toolsList = [...allowedTools];
   }
@@ -196,7 +198,8 @@ ToolNode.prototype.invoke = async function (state: any, config: any) {
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig
+  aiConfig: AiConfig,
+  configPath?: string
 ) => {
   const embeddings = new CustomHuggingFaceEmbeddings({
     model: 'Xenova/all-MiniLM-L6-v2',
@@ -240,7 +243,7 @@ export const createAgent = async (
       }
     }
 
-    let toolsList = await initializeToolsList(starknetAgent, json_config);
+    let toolsList = await initializeToolsList(starknetAgent, json_config, configPath);
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({

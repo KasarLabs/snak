@@ -293,7 +293,7 @@ const localRun = async (): Promise<void> => {
       agentconfig: agentConfig,
     });
 
-    await agent.createAgentReactExecutor();
+    await agent.createAgentReactExecutor(agentPath);
 
     // Configure logging options with a small delay to ensure initialization
     setTimeout(() => {
