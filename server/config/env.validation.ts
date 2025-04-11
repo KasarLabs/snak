@@ -3,6 +3,11 @@ import { z } from 'zod';
 // Available AI models for each provider
 const AI_PROVIDER_MODELS = {
   openai: [
+    'o1',
+    'o1-pro',
+    'o3-mini',
+    'o1-mini',
+    'gpt-4.5-preview',
     'gpt-4o',
     'gpt-4o-2024-08-06',
     'gpt-4o-mini',
@@ -39,6 +44,7 @@ const AI_PROVIDER_MODELS = {
     'claude-3-haiku@20240307',
   ],
   gemini: [
+    'gemini-2.5-pro-preview-03-25',
     'gemini-2.0-flash-exp',
     'gemini-1.5-flash',
     'gemini-1.5-flash-8b',
