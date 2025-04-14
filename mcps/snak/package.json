@@ -1,6 +1,6 @@
 {
   "name": "@kasarlabs/snak-mcp",
-  "version": "1.0.2-alpha.0",
+  "version": "0.0.12-alpha.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",

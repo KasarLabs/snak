@@ -1,6 +1,6 @@
 {
   "name": "@kasarlabs/plugin-cairocoder",
-  "version": "0.0.11",
+  "version": "0.0.12-alpha.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -16,7 +16,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-  "@kasarlabs/core": "workspace:*",
+    "@kasarlabs/core": "workspace:*",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"
