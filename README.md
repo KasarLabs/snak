@@ -148,10 +148,10 @@ pnpm run start:server --agent="name_of_your_config.json"
 
 ```bash
 #using npm
-npm install @starknet-agent-kit
+npm install @kasarlabs
 
 # using pnpm
-pnpm add @starknet-agent-kit
+pnpm add @kasarlabs
 ```
 
 2. Create your agent instance

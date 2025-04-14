@@ -1,6 +1,6 @@
 {
-  "name": "@starknet-agent-kit/plugin-argent",
-  "version": "1.0.1-alpha.0",
+  "name": "@kasarlabs/plugin-argent",
+  "version": "0.0.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -27,10 +27,11 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@starknet-agent-kit/core": "workspace:*"
+    "@kasarlabs/core": "0.0.1",
+    "winston": "^3.17.0"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+   "description": ""
 }

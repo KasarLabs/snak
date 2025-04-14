@@ -167,67 +167,67 @@ importers:
       '@langchain/openai':
         specifier: ^0.3.17
         version: 0.3.17(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(encoding@0.1.13)(ws@8.18.1)
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../core
-      '@starknet-agent-kit/plugin-argent':
+      '@kasarlabs/plugin-argent':
         specifier: workspace:*
         version: link:../plugins/argent
-      '@starknet-agent-kit/plugin-artpeace':
+      '@kasarlabs/plugin-artpeace':
         specifier: workspace:*
         version: link:../plugins/artpeace
-      '@starknet-agent-kit/plugin-atlantic':
+      '@kasarlabs/plugin-atlantic':
         specifier: workspace:*
         version: link:../plugins/atlantic
-      '@starknet-agent-kit/plugin-avnu':
+      '@kasarlabs/plugin-avnu':
         specifier: workspace:*
         version: link:../plugins/avnu
-      '@starknet-agent-kit/plugin-braavos':
+      '@kasarlabs/plugin-braavos':
         specifier: workspace:*
         version: link:../plugins/braavos
-      '@starknet-agent-kit/plugin-cairocoder':
+      '@kasarlabs/plugin-cairocoder':
         specifier: workspace:*
         version: link:../plugins/cairocoder
-      '@starknet-agent-kit/plugin-chat-pool':
+      '@kasarlabs/plugin-chat-pool':
         specifier: workspace:*
         version: link:../plugins/chat-pool
-      '@starknet-agent-kit/plugin-contract':
+      '@kasarlabs/plugin-contract':
         specifier: workspace:*
         version: link:../plugins/contract
-      '@starknet-agent-kit/plugin-erc20':
+      '@kasarlabs/plugin-erc20':
         specifier: workspace:*
         version: link:../plugins/erc20
-      '@starknet-agent-kit/plugin-erc721':
+      '@kasarlabs/plugin-erc721':
         specifier: workspace:*
         version: link:../plugins/erc721
-      '@starknet-agent-kit/plugin-fibrous':
+      '@kasarlabs/plugin-fibrous':
         specifier: workspace:*
         version: link:../plugins/fibrous
-      '@starknet-agent-kit/plugin-okx':
+      '@kasarlabs/plugin-okx':
         specifier: workspace:*
         version: link:../plugins/okx
-      '@starknet-agent-kit/plugin-openzeppelin':
+      '@kasarlabs/plugin-openzeppelin':
         specifier: workspace:*
         version: link:../plugins/openzeppelin
-      '@starknet-agent-kit/plugin-opus':
+      '@kasarlabs/plugin-opus':
         specifier: workspace:*
         version: link:../plugins/opus
-      '@starknet-agent-kit/plugin-rpc':
+      '@kasarlabs/plugin-rpc':
         specifier: workspace:*
         version: link:../plugins/rpc
-      '@starknet-agent-kit/plugin-scarb':
+      '@kasarlabs/plugin-scarb':
         specifier: workspace:*
         version: link:../plugins/scarb
-      '@starknet-agent-kit/plugin-token':
+      '@kasarlabs/plugin-token':
         specifier: workspace:*
         version: link:../plugins/token
-      '@starknet-agent-kit/plugin-transaction':
+      '@kasarlabs/plugin-transaction':
         specifier: workspace:*
         version: link:../plugins/transaction
-      '@starknet-agent-kit/plugin-unruggable':
+      '@kasarlabs/plugin-unruggable':
         specifier: workspace:*
         version: link:../plugins/unruggable
-      '@starknet-agent-kit/plugin-vesu':
+      '@kasarlabs/plugin-vesu':
         specifier: workspace:*
         version: link:../plugins/vesu
       discord.js:
@@ -343,7 +343,7 @@ importers:
         specifier: ^3.24.2
         version: 3.24.2
     devDependencies:
-      '@starknet-agent-kit/agents':
+      '@kasarlabs/agents':
         specifier: workspace:*
         version: link:../../agents
       '@types/node':
@@ -355,19 +355,19 @@ importers:
 
   plugins/argent:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/artpeace:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/atlantic:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -377,19 +377,19 @@ importers:
         specifier: ^3.0.0
         version: 3.0.2(ethers@6.13.5)(moment@2.30.1)(qs@6.14.0)(starknet@6.24.1(encoding@0.1.13))
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/braavos:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/cairocoder:
     dependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
       axios:
@@ -408,25 +408,25 @@ importers:
 
   plugins/chat-pool:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/contract:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/erc20:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/erc721:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -436,31 +436,31 @@ importers:
         specifier: ^0.4.3
         version: 0.4.3(encoding@0.1.13)
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/okx:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/openzeppelin:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/opus:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/rpc:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -479,7 +479,7 @@ importers:
         specifier: ^0.2.3
         version: 0.2.3
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
       '@types/fs-extra':
@@ -500,25 +500,25 @@ importers:
 
   plugins/token:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/transaction:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/unruggable:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/vesu:
     devDependencies:
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -564,10 +564,10 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
     devDependencies:
-      '@starknet-agent-kit/agents':
+      '@kasarlabs/agents':
         specifier: workspace:*
         version: link:../agents
-      '@starknet-agent-kit/core':
+      '@kasarlabs/core':
         specifier: workspace:*
         version: link:../core
       typescript:

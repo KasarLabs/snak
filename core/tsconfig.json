@@ -1,8 +1,25 @@
 {
-  "extends": "../tsconfig.json",
   "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2020",
+    "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "paths": {
       "@/*": ["./*"],
       "@src/*": ["./src/*"],
@@ -11,6 +28,6 @@
       "@database/*": ["./src/databases/*"],
     }
   },
-  "include": ["src/**/*", "./common/**/*", "./start.ts", "./index.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "./index.ts"],
+  "exclude": ["node_modules", "dist", ".turbo"]
 }

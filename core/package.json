@@ -1,9 +1,12 @@
 {
-  "name": "@starknet-agent-kit/core",
-  "version": "1.0.0",
+  "name": "@kasarlabs/core",
+  "version": "0.0.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "echo \"No test has been created for this package\" && exit 0",
     "build": "tsc",
@@ -17,6 +20,11 @@
   "license": "ISC",
   "description": "The Agent Kit engine of Snak",
   "dependencies": {
-    "prom-client": "^15.1.3"
+    "prom-client": "^15.1.3",
+    "pg": "^8.13.3",
+    "@langchain/core": "^0.3.42",
+    "@types/pg": "^8.11.11",
+    "winston": "^3.17.0"
+
   }
 }
