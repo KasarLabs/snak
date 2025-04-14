@@ -81,7 +81,7 @@ main () {
 
 	info "Fetching agent configuration..."
 
-	if ! HTTP_RESPONSE=$(curl -sL -w "\n%{http_code}" --connect-timeout 10 "https://starkagent.ai/api/agents/$CONFIG_ID"); then
+	if ! HTTP_RESPONSE=$(curl -sL -w "\n%{http_code}" --connect-timeout 10 "https://snakagent.com/api/agents/$CONFIG_ID"); then
 		error "Could not connect to the server. Please check your internet connection and try again."
 	fi
 

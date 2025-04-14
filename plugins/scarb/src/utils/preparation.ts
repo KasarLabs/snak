@@ -59,7 +59,6 @@ export async function addSeveralDependancies(
         await addDependency({
           package: dependency.name,
           version: dependency.version,
-          git: dependency.git,
           path: projectDir,
         });
       }
@@ -134,7 +133,6 @@ export async function getGeneratedContractFiles(projectDir: string): Promise<{
   } catch (error) {
     throw new Error(`Failed to get generated contract files: ${error.message}`);
   }
-
   return result;
 }
 
@@ -343,19 +341,14 @@ export const addTomlSection = async (params: any) => {
 export const addDependency = async (params: {
   package: string;
   version?: string;
-  git?: string;
   path?: string;
 }) => {
   try {
     const workingDir = params.path || process.cwd();
     let command = `scarb add ${params.package}`;
 
-    if (params.git) {
-      command += ` --git ${params.git}`;
-    }
     if (params.version) {
-      if (params.git) command += ` --tag ${params.version}`;
-      else command += `@${params.version}`;
+      command += `@${params.version}`;
     }
     const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
 

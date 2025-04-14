@@ -1,9 +1,12 @@
-import { DynamicStructuredTool, tool } from '@langchain/core/tools';
+import { DynamicStructuredTool, StructuredTool, Tool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 import logger from '../logger.js';
 import * as metrics from '../../metrics.js';
+import { createMCPTools } from './mcpTools.js';
+import { createSignatureTools } from './signatureTools.js';
+import { MCP_CONTROLLER } from '../mcp/src/mcp.js';
 
 /**
  * @interface StarknetAgentInterface
@@ -158,16 +161,58 @@ export const registerTools = async (
  * @description Creates allowed tools
  * @param {StarknetAgentInterface} agent - The Starknet agent
  * @param {string[]} allowed_tools - The allowed tools
+ * @param {string} configPath - The config path
  * @throws {Error} Throws an error if the allowed tools cannot be created
  */
-export const createAllowedTools = async (
-  agent: StarknetAgentInterface,
-  allowed_tools: string[]
-): Promise<DynamicStructuredTool<any>[]> => {
-  if (allowed_tools.length === 0) {
-    logger.warn('No tools allowed');
+export async function createAllowedTools(
+  starknetAgent: StarknetAgentInterface,
+  plugins: string[],
+  configPath: string
+): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
+  let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+  
+  // Add MCP tools
+  const mcpTools = createMCPTools(starknetAgent.getAgentConfig() as JsonConfig, configPath);
+  toolsList = [...toolsList, ...mcpTools];
+
+  // Add Starknet tools
+  if (plugins.length > 0) {
+    const starknetTools = await StarknetToolRegistry.createAllowedTools(starknetAgent, plugins);
+    toolsList = [...toolsList, ...starknetTools];
   }
-  return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
-};
+
+  return toolsList;
+}
+
+export async function initializeToolsList(
+  starknetAgent: StarknetAgentInterface,
+  jsonConfig: JsonConfig,
+  configPath?: string
+): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
+  let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+  const isSignature = starknetAgent.getSignature().signature === 'wallet';
+
+  if (isSignature) {
+    toolsList = await createSignatureTools(jsonConfig.plugins);
+  } else {
+    const allowedTools = await createAllowedTools(starknetAgent, jsonConfig.plugins, configPath || '');
+    toolsList = [...allowedTools];
+  }
+
+  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
+    try {
+      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
+      await mcp.initializeConnections();
+
+      const mcpTools = mcp.getTools();
+      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+      toolsList = [...toolsList, ...mcpTools];
+    } catch (error) {
+      logger.error(`Failed to initialize MCP tools: ${error}`);
+    }
+  }
+
+  return toolsList;
+}
 
 export default StarknetToolRegistry;

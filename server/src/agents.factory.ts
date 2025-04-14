@@ -54,11 +54,8 @@ export class AgentFactory {
         interval: json.interval || 30000,
         chat_id: json.chat_id || 'default',
         autonomous: json.autonomous || false,
-        internal_plugins: Array.isArray(json.internal_plugins)
-          ? json.internal_plugins.map((tool: string) => tool.toLowerCase())
-          : [],
-        external_plugins: Array.isArray(json.external_plugins)
-          ? json.external_plugins
+        plugins: Array.isArray(json.plugins)
+          ? json.plugins.map((tool: string) => tool.toLowerCase())
           : [],
         memory: json.memory || false,
       };

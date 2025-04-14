@@ -1,9 +1,14 @@
 import { Account, constants } from 'starknet';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
-import { ContractManager } from '../utils/contractManager';
-import { declareContractSchema } from '../schemas/schema';
-import { getSierraCasmFromDB } from '../utils/db';
+import { ContractManager } from '../utils/contractManager.js';
+import { declareContractSchema } from '../schemas/schema.js';
+import { getSierraCasmFromDB } from '../utils/db.js';
+import {
+  initializeContractDatabase,
+  saveContractDeclaration,
+} from '../utils/db_init.js';
+import { logger } from '@starknet-agent-kit/agents';
 
 /**
  * Declares a contract on StarkNet
@@ -16,6 +21,9 @@ export const declareContract = async (
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {
+    logger.debug('\n Declaring contract');
+    logger.debug(JSON.stringify(params, null, 2));
+
     const { sierraPath, casmPath } = await getSierraCasmFromDB(
       agent,
       params.projectName,
@@ -37,14 +45,21 @@ export const declareContract = async (
 
     const declareResponse = await contractManager.declareContract();
 
+    if (declareResponse.transactionHash && declareResponse.classHash) {
+      await saveContractDeclaration(
+        agent,
+        declareResponse.classHash,
+        declareResponse.transactionHash
+      );
+    }
+
     return JSON.stringify({
       status: 'success',
       transactionHash: declareResponse.transactionHash,
       classHash: declareResponse.classHash,
-      sierraPath: sierraPath,
-      casmPath: casmPath,
     });
   } catch (error) {
+    logger.error(error.message);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',

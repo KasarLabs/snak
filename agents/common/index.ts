@@ -6,11 +6,19 @@ import { JsonConfig } from '../src/jsonConfig.js';
  * @property {string} apiKey - API key for the AI service
  * @property {string} aiModel - Model identifier to use
  * @property {string} aiProvider - Name of the AI service provider
+ * @property {boolean} langchainVerbose - Whether to enable verbose logging for LangChain
+ * @property {number} maxInputTokens - Maximum number of input tokens allowed
+ * @property {number} maxCompletionTokens - Maximum number of completion tokens allowed
+ * @property {number} maxTotalTokens - Maximum number of total tokens allowed
  */
 export type AiConfig = {
   aiProviderApiKey: string;
   aiModel: string;
   aiProvider: string;
+  langchainVerbose?: boolean;
+  maxInputTokens?: number;
+  maxCompletionTokens?: number;
+  maxTotalTokens?: number;
 };
 
 export interface IAgent {

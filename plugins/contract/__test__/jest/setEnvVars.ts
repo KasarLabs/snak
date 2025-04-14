@@ -1,4 +1,4 @@
-import { setupTestEnvironment } from '../utils/helper';
+import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
 import { StarknetAgentInterface, JsonConfig } from '@starknet-agent-kit/agents';
 import { SystemMessage } from '@langchain/core/messages';
@@ -14,7 +14,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     prompt: mockSystemMessage,
     interval: 1000,
     chat_id: 'mock_chat_id',
-    internal_plugins: [],
+    plugins: [],
     memory: false,
   };
 
@@ -50,7 +50,7 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     prompt: mockSystemMessage,
     interval: 1000,
     chat_id: 'mock_chat_id',
-    internal_plugins: [],
+    plugins: [],
     memory: false,
   };
 

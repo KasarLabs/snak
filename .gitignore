@@ -48,3 +48,6 @@ tsconfig.build.tsbuildinfo
 tsconfig.tsbuildinfo
 
 *.tgz
+
+# Plugins
+plugins/scarb/src/workspace/

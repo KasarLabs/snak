@@ -6,19 +6,31 @@ import { RpcProvider } from 'starknet';
 import { config } from 'dotenv';
 import { load_json_config } from './src/jsonConfig.js';
 import { createBox } from './src/formatting.js';
+import { addTokenInfoToBox } from './src/tokenTracking.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as fs from 'fs';
 import path from 'path';
-import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname } from 'path';
 import logger from './src/logger.js';
+
+// Global deactivation of LangChain logs
+process.env.LANGCHAIN_TRACING = 'false';
+process.env.LANGCHAIN_VERBOSE = 'false';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const load_command = async (): Promise<string> => {
+interface CommandOptions {
+  agentPath: string;
+  silentLlm: boolean;
+}
+
+/**
+ * Loads command line arguments and resolves the agent configuration path
+ */
+const loadCommand = async (): Promise<CommandOptions> => {
   const argv = await yargs(hideBin(process.argv))
     .option('agent', {
       alias: 'a',
@@ -26,19 +38,65 @@ const load_command = async (): Promise<string> => {
       type: 'string',
       default: 'default.agent.json',
     })
+    .option('silent-llm', {
+      alias: 's',
+      describe: 'Disable LLM logs',
+      type: 'boolean',
+      default: true,
+    })
     .strict()
     .parse();
 
-  return argv['agent'];
+  const agentPath = argv['agent'] as string;
+  const silentLlm = argv['silent-llm'] as boolean;
+
+  // Try multiple possible locations for the config file
+  const possiblePaths = [
+    path.resolve(process.cwd(), 'config', 'agents', agentPath),
+    path.resolve(process.cwd(), '..', 'config', 'agents', agentPath),
+    path.resolve(__dirname, '..', '..', '..', 'config', 'agents', agentPath),
+    path.resolve(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'config',
+      'agents',
+      agentPath
+    ),
+  ];
+
+  // Try each path until we find one that works
+  for (const tryPath of possiblePaths) {
+    if (fs.existsSync(tryPath)) {
+      return { agentPath: tryPath, silentLlm };
+    }
+  }
+
+  // If not found in any of the expected locations, try the absolute path
+  return {
+    agentPath: path.isAbsolute(agentPath)
+      ? agentPath
+      : path.resolve(process.cwd(), agentPath),
+    silentLlm,
+  };
 };
 
-const clearScreen = () => {
+/**
+ * Clears the terminal screen
+ */
+const clearScreen = (): void => {
   process.stdout.write('\x1Bc');
 };
 
+/**
+ * Creates a terminal hyperlink
+ */
 const createLink = (text: string, url: string): string =>
   `\u001B]8;;${url}\u0007${text}\u001B]8;;\u0007`;
 
+// Application logo with styling
 const logo = `${chalk.cyan(`
    _____             __
   / ___/____  ____ _/ /__
@@ -48,10 +106,16 @@ const logo = `${chalk.cyan(`
 
 ${chalk.dim('v0.0.11 by ')}${createLink('Kasar', 'https://kasar.io')}`)}`;
 
+/**
+ * Gets the available terminal width
+ */
 const getTerminalWidth = (): number => {
   return Math.min(process.stdout.columns || 80, 100);
 };
 
+/**
+ * Wraps text to fit within a maximum width
+ */
 const wrapText = (text: string, maxWidth: number): string[] => {
   const words = text.split(' ');
   const lines: string[] = [];
@@ -70,7 +134,10 @@ const wrapText = (text: string, maxWidth: number): string[] => {
   return lines;
 };
 
-function reloadEnvVars() {
+/**
+ * Reloads environment variables from .env file
+ */
+function reloadEnvVars(): Record<string, string> | undefined {
   Object.keys(process.env).forEach((key) => {
     delete process.env[key];
   });
@@ -87,7 +154,10 @@ function reloadEnvVars() {
   return result.parsed;
 }
 
-const validateEnvVars = async () => {
+/**
+ * Validates required environment variables and prompts for missing ones
+ */
+const validateEnvVars = async (): Promise<void> => {
   const required = [
     'STARKNET_RPC_URL',
     'STARKNET_PRIVATE_KEY',
@@ -96,7 +166,9 @@ const validateEnvVars = async () => {
     'AI_PROVIDER',
     'AI_PROVIDER_API_KEY',
   ];
+
   const missings = required.filter((key) => !process.env[key]);
+
   if (missings.length > 0) {
     console.error(
       createBox(missings.join('\n'), {
@@ -119,10 +191,10 @@ const validateEnvVars = async () => {
         },
       ]);
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         fs.appendFile('.env', `\n${missing}=${prompt}\n`, (err) => {
           if (err) reject(new Error('Error when trying to write on .env file'));
-          resolve(null);
+          resolve();
         });
       });
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -132,17 +204,37 @@ const validateEnvVars = async () => {
   }
 };
 
-const LocalRun = async () => {
+/**
+ * Formats agent response for display
+ */
+const formatAgentResponse = (response: string): string => {
+  if (typeof response !== 'string') return response;
+
+  return response
+    .split('\n')
+    .map((line) => {
+      if (line.includes('•')) {
+        return `  ${line.trim()}`;
+      }
+      return line;
+    })
+    .join('\n');
+};
+
+/**
+ * Main function to run the application
+ */
+const localRun = async (): Promise<void> => {
   clearScreen();
   console.log(logo);
   console.log(
     createBox(
       'Welcome to Snak, an advanced Agent engine powered by Starknet.',
-      'For more informations, visit our documentation at https://docs.starkagent.ai'
+      'For more information, visit our documentation at https://docs.snakagent.com'
     )
   );
 
-  const agent_config_name = await load_command();
+  const { agentPath, silentLlm } = await loadCommand();
   const { mode } = await inquirer.prompt([
     {
       type: 'list',
@@ -150,12 +242,12 @@ const LocalRun = async () => {
       message: 'Select operation mode:',
       choices: [
         {
-          name: `${chalk.green('>')} Interactive Mode`,
+          name: `Interactive Mode`,
           value: 'agent',
           short: 'Interactive',
         },
         {
-          name: `${chalk.blue('>')} Autonomous Mode`,
+          name: `Autonomous Mode`,
           value: 'auto',
           short: 'Autonomous',
         },
@@ -170,25 +262,55 @@ const LocalRun = async () => {
   try {
     spinner.stop();
     await validateEnvVars();
-    spinner.success({ text: 'Agent initialized successfully' });
-    const agent_config = await load_json_config(agent_config_name);
-    if (agent_config === undefined) {
+    const agentConfig = await load_json_config(agentPath);
+
+    if (agentConfig === undefined) {
       throw new Error('Failed to load agent configuration');
     }
+
+    // Display more information about the agent
+    const agentName = agentConfig.name || 'Unknown';
+    const configPath = path.basename(agentPath);
+    const aiModel = process.env.AI_MODEL;
+    const aiProvider = process.env.AI_PROVIDER;
+
+    spinner.success({
+      text: chalk.black(
+        `Agent "${chalk.cyan(agentName)}" initialized successfully`
+      ),
+    });
+
+    // Create agent instance with proper configuration
+    const agent = new StarknetAgent({
+      provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
+      accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
+      accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
+      aiModel: process.env.AI_MODEL as string,
+      aiProvider: process.env.AI_PROVIDER as string,
+      aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
+      signature: 'key',
+      agentMode: mode,
+      agentconfig: agentConfig,
+    });
+
+    await agent.createAgentReactExecutor(agentPath);
+
+    // Configure logging options with a small delay to ensure initialization
+    setTimeout(() => {
+      agent.setLoggingOptions({
+        langchainVerbose: !silentLlm,
+        tokenLogging: !silentLlm,
+      });
+    }, 100);
+
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
-      const agent = new StarknetAgent({
-        provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
-        accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
-        accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-        aiModel: process.env.AI_MODEL as string,
-        aiProvider: process.env.AI_PROVIDER as string,
-        aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
-        signature: 'key',
-        agentMode: 'agent',
-        agentconfig: agent_config,
-      });
-      await agent.createAgentReactExecutor();
+      console.log(
+        chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +
+          chalk.dim(`- Model: ${chalk.bold(aiModel)}\n`) +
+          chalk.dim(`- Provider: ${chalk.bold(aiProvider)}\n`)
+      );
+
       while (true) {
         const { user } = await inquirer.prompt([
           {
@@ -203,57 +325,45 @@ const LocalRun = async () => {
           },
         ]);
 
-        const executionSpinner = createSpinner('Processing request').start();
+        // Start with a message instead of a spinner to allow log display
+        console.log(chalk.yellow('Processing request...'));
 
         try {
-          const airesponse = await agent.execute(user);
-          executionSpinner.success({ text: 'Response received' });
+          const aiResponse = await agent.execute(user);
 
-          const formatAgentResponse = (response: string) => {
-            if (typeof response !== 'string') return response;
-
-            return response.split('\n').map((line) => {
-              if (line.includes('•')) {
-                return `  ${line.trim()}`;
-              }
-              return line;
-            });
-          };
-
-          if (typeof airesponse === 'string') {
-            console.log(
-              createBox('Agent Response', formatAgentResponse(airesponse))
+          if (typeof aiResponse === 'string') {
+            const boxContent = createBox(
+              'Agent Response',
+              formatAgentResponse(aiResponse)
             );
+            // Add token information to the box
+            const boxWithTokens = addTokenInfoToBox(boxContent);
+            process.stdout.write(boxWithTokens);
           } else {
             logger.error('Invalid response type');
           }
         } catch (error) {
-          executionSpinner.error({ text: 'Error processing request' });
-          console.log(createBox('Error', error.message, { isError: true }));
+          console.error(chalk.red('Error processing request'));
+          console.log(
+            createBox(error.message, { title: 'Error', isError: true })
+          );
         }
       }
     } else if (mode === 'auto') {
-      const agent = new StarknetAgent({
-        provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
-        accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
-        accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-        aiModel: process.env.AI_MODEL as string,
-        aiProvider: process.env.AI_PROVIDER as string,
-        aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
-        signature: 'key',
-        agentMode: 'auto',
-        agentconfig: agent_config,
-      });
-
-      await agent.createAgentReactExecutor();
-      console.log(chalk.dim('\nStarting interactive session...\n'));
-      const autoSpinner = createSpinner('Running autonomous mode\n').start();
+      console.log(chalk.dim('\nStarting autonomous session...\n'));
+      console.log(
+        chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +
+          chalk.dim(`- Model: ${chalk.bold(aiModel)}\n`) +
+          chalk.dim(`- Provider: ${chalk.bold(aiProvider)}\n`)
+      );
+      console.log(chalk.yellow('Running autonomous mode...'));
 
       try {
+        // Autonomous execution without spinner to allow log display
         await agent.execute_autonomous();
-        autoSpinner.success({ text: 'Autonomous execution completed' });
+        console.log(chalk.green('Autonomous execution completed'));
       } catch (error) {
-        autoSpinner.error({ text: 'Error in autonomous mode' });
+        console.error(chalk.red('Error in autonomous mode'));
         logger.error(
           createBox(error.message, { title: 'Error', isError: true })
         );
@@ -267,7 +377,14 @@ const LocalRun = async () => {
   }
 };
 
-LocalRun().catch((error) => {
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\nGracefully shutting down from SIGINT (Ctrl+C)');
+  process.exit(0);
+});
+
+// Run the application
+localRun().catch((error) => {
   console.error(
     createBox(error.message, { title: 'Fatal Error', isError: true })
   );

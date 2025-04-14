@@ -1,13 +1,11 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { verifyProject } from '../utils/command.js';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
-import { z } from 'zod';
 import { saveVerification } from '../utils/db_save.js';
-import { retrieveProjectData } from '../utils/db_init.js';
-import { retrieveProof } from '../utils/db_retrieve.js';
+import { retrieveProjectData, retrieveProof } from '../utils/db_retrieve.js';
 import { setupScarbProject } from '../utils/common.js';
 import { writeJsonToFile } from '../utils/utils.js';
-import { cleanProject } from '../utils/command.js';
+import { z } from 'zod';
 
 /**
  * Verify a program
@@ -21,6 +19,9 @@ export const verifyProgram = async (
 ) => {
   let projectDir = '';
   try {
+    logger.debug('\n Verifying program');
+    logger.debug(JSON.stringify(params, null, 2));
+
     const projectData = await retrieveProjectData(agent, params.projectName);
 
     projectDir = await setupScarbProject({
@@ -47,14 +48,18 @@ export const verifyProgram = async (
       message: parsedResult.message,
       output: parsedResult.output,
       errors: parsedResult.errors,
+      projectName: params.projectName,
     });
   } catch (error) {
-    console.error('Error verifying proof:', error);
+    logger.error('Error verifying program:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
+      projectName: params.projectName,
     });
   } finally {
-    await cleanProject({ path: projectDir, removeDirectory: true });
+    if (projectDir) {
+      await cleanProject({ path: projectDir, removeDirectory: true });
+    }
   }
 };

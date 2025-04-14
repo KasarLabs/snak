@@ -1,19 +1,44 @@
-import { StarknetTool } from '@starknet-agent-kit/agents';
+import {
+  StarknetTool,
+  StarknetAgentInterface,
+} from '@starknet-agent-kit/agents';
 import {
   declareContractSchema,
   deployContractSchema,
   getConstructorParamsSchema,
-} from '../schemas/schema';
-import { declareContract } from '../actions/declareContract';
-import { deployContract } from '../actions/deployContract';
-import { getConstructorParams } from '../actions/getConstructorParams';
+  listContractsSchema,
+  listDeploymentsByClassHashSchema,
+  deleteContractByClassHashSchema,
+} from '../schemas/schema.js';
+import { declareContract } from '../actions/declareContract.js';
+import { deployContract } from '../actions/deployContract.js';
+import { getConstructorParams } from '../actions/getConstructorParams.js';
+import { initializeContractDatabase } from '../utils/db_init.js';
+import { listDeclaredContracts } from '../actions/listContracts.js';
+import { listDeploymentsByClassHash } from '../actions/listDeploymentsByClassHash.js';
+import { deleteContractByClassHashAction } from '../actions/deleteContractByClassHash.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const initializeTools = async (
+  agent: StarknetAgentInterface
+): Promise<void> => {
+  try {
+    await initializeContractDatabase(agent);
+  } catch (error) {
+    console.error('Error initializing contract database:', error);
+  }
+};
+
+export const registerTools = async (
+  StarknetToolRegistry: StarknetTool[],
+  agent: StarknetAgentInterface
+) => {
+  await initializeTools(agent);
+
   StarknetToolRegistry.push({
     name: 'declare_contract',
     plugins: 'contract',
     description:
-      'Declare a contract on StarkNet using Sierra and CASM files. This is the first step in the deployment process if no classhash is provided.',
+      "Declare a cairo project's contract on Starknet. This is the first step in the deployment process if no classhash is provided.",
     schema: declareContractSchema,
     execute: declareContract,
   });
@@ -31,8 +56,34 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     name: 'step1_prepare_deploy',
     plugins: 'contract',
     description:
-      'Prepare the deployment. ALWAYS use this before deploying a contract to understand the required arguments and their correct order. This tool returns the exact parameter names required by the contract constructor',
+      "Prepare the deployment. ALWAYS use this before deploying a cairo project's contract to understand the required arguments and their correct order. This tool returns the exact parameter names required by the contract constructor",
     schema: getConstructorParamsSchema,
     execute: getConstructorParams,
+  });
+
+  StarknetToolRegistry.push({
+    name: 'list_declared_contracts',
+    plugins: 'contract',
+    description:
+      'List all declared contracts and their deployed instances. Can be filtered by project name or contract name.',
+    schema: listContractsSchema,
+    execute: listDeclaredContracts,
+  });
+
+  StarknetToolRegistry.push({
+    name: 'list_deployed_contracts_by_class_hash',
+    plugins: 'contract',
+    description: 'List all deployed instances of a contract by its class hash.',
+    schema: listDeploymentsByClassHashSchema,
+    execute: listDeploymentsByClassHash,
+  });
+
+  StarknetToolRegistry.push({
+    name: 'delete_contract_by_class_hash',
+    plugins: 'contract',
+    description:
+      'Remove a contract classhash from the database and all its deployments. This operation cannot be undone.',
+    schema: deleteContractByClassHashSchema,
+    execute: deleteContractByClassHashAction,
   });
 };

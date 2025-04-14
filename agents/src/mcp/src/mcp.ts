@@ -1,8 +1,9 @@
 import { StructuredTool } from '@langchain/core/tools';
-import { MultiServerMCPClient } from 'snak-mcps';
+import { MultiServerMCPClient } from '@kasarlabs/snak-mcps';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../../../src/logger.js';
+import chalk from 'chalk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,20 +20,64 @@ export class MCP_CONTROLLER {
 
   /**
    * @constructor
-   * @description Initializes the MCP_CONTROLLER with configuration from the default config file path
+   * @description Initializes the MCP_CONTROLLER with configuration
+   * @param {Record<string, any>} mcpServers - MCP servers configuration from agent config
    * @throws {Error} Throws an error if initialization fails
    */
-  constructor() {
-    const mcp_config_path = path.join(
-      process.cwd(),
-      '..',
-      'config',
-      'mcp',
-      'mcp.config.json'
-    );
-    logger.info(`MCP config path: ${mcp_config_path}`);
-    this.client = MultiServerMCPClient.fromConfigFile(mcp_config_path);
+  constructor(mcpServers: Record<string, any>) {
+    if (!mcpServers || Object.keys(mcpServers).length === 0) {
+      throw new Error('MCP servers configuration is required');
+    }
+
+    logger.info('Initializing MCP_CONTROLLER with provided servers config');
+    this.client = new MultiServerMCPClient(mcpServers);
     logger.info('MCP_CONTROLLER initialized');
+  }
+
+  /**
+   * @private
+   * @function silenceConsoleLogs
+   * @description Temporarily silences console logs for MCP servers
+   */
+  private silenceConsoleLogs() {
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    // Override console methods
+    console.log = (...args) => {
+      // Only filter MCP-related logs
+      const message = args.join(' ');
+      if (!message.includes('MCP') && !message.includes('server')) {
+        originalConsoleLog(...args);
+      }
+    };
+
+    console.error = (...args) => {
+      // Only filter MCP-related logs
+      const message = args.join(' ');
+      if (!message.includes('MCP') && !message.includes('server')) {
+        originalConsoleError(...args);
+      }
+    };
+  }
+
+  /**
+   * @static
+   * @function fromJsonConfig
+   * @description Creates an MCP_CONTROLLER instance from agent config
+   * @param {any} jsonConfig - The agent configuration
+   * @returns {MCP_CONTROLLER} A new MCP_CONTROLLER instance
+   */
+  public static fromJsonConfig(jsonConfig: any): MCP_CONTROLLER {
+    if (
+      !jsonConfig ||
+      !jsonConfig.mcpServers ||
+      Object.keys(jsonConfig.mcpServers).length === 0
+    ) {
+      throw new Error('Agent configuration must include mcpServers');
+    }
+
+    return new MCP_CONTROLLER(jsonConfig.mcpServers);
   }
 
   /**
@@ -71,6 +116,7 @@ export class MCP_CONTROLLER {
     try {
       await this.client.initializeConnections();
       this.parseTools();
+      logger.info(`MCP connections initialized successfully`);
     } catch (error) {
       throw new Error(`Error initializing connections: ${error}`);
     }
@@ -97,6 +143,7 @@ export class MCP_CONTROLLER {
   public close = async () => {
     try {
       await this.client.close();
+      logger.info('MCP connections closed');
     } catch (error) {
       throw new Error(`Error closing connections: ${error}`);
     }

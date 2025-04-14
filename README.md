@@ -61,7 +61,7 @@ AI_PROVIDER="YOUR_AI_PROVIDER"
 SERVER_API_KEY="YOUR_SERVER_API_KEY"
 SERVER_PORT="YOUR_SERVER_PORT"
 
-#Node Configuration # optional by default : production 
+#Node Configuration # optional by default : production
 NODE_ENV="YOUR_NODE_ENV"
 # Agent additional configuration
 
@@ -73,6 +73,7 @@ POSTGRES_PORT="YOUR_POSTGRES_PORT"
 ```
 
 2. Create your agent.config.json
+
 ```json
 {
   "name": "Your Agent name",
@@ -87,20 +88,26 @@ POSTGRES_PORT="YOUR_POSTGRES_PORT"
     "second knowledge of your AI Agent"
   ],
   "interval": "Your agent interval beetween each transaction of the Agent in ms,",
-  "chat_id": "Your Agent Chat-id for isolating memory",  
-  "autonomous" : "Your agent is autonomous or not",
-  "mcp": "Your agent can use mcp or not",
-  "internal_plugins": [
-    "Your first internal plugin",
-    "Your second internal plugin"
-  ],
-  "external_plugins": [
-    "Your first external plugin",
-    "Your second external plugin"
-  ]
+  "chat_id": "Your Agent Chat-id for isolating memory",
+  "autonomous": "Your agent is autonomous or not",
+  "plugins": ["Your first plugin", "Your second plugin"],
+  "mcpServers": {
+    "nxp_server_example": {
+      "command": "npx",
+      "args": ["-y", "@npm_package_example/npx_server_example"],
+      "env": {
+        "API_KEY": "YOUR_API_KEY"
+      }
+    },
+    "local_server_example": {
+      "command": "node",
+      "args": ["node /path/to/local_server/dist/index.js"]
+    }
+  }
 }
 ```
-You can simply create your own agent configuration using our tool on  [starkagent](https://www.starkagent.ai/create-agent)
+
+You can simply create your own agent configuration using our tool on [snakagent](https://www.snakagent.com/create-agent)
 
 ## Usage
 
@@ -118,7 +125,8 @@ pnpm run start --agent="name_of_your_config.json"
 
 ### Server Mode
 
-Run the server : 
+Run the server :
+
 ```bash
 # start with the default.agent.json
 pnpm run start:server
@@ -129,11 +137,10 @@ pnpm run start:server --agent="name_of_your_config.json"
 
 #### Available Modes
 
-|          | Interactive Mode | Autonomous Mode |
-|----------|----------|----------|
-| Prompt Mode | ✅  | ✅  |
-| Server Mode  | ✅ | ❌  |
-
+|             | Interactive Mode | Autonomous Mode |
+| ----------- | ---------------- | --------------- |
+| Prompt Mode | ✅               | ✅              |
+| Server Mode | ✅               | ❌              |
 
 ### Implement Snak in your project
 
@@ -143,11 +150,12 @@ pnpm run start:server --agent="name_of_your_config.json"
 #using npm
 npm install @starknet-agent-kit
 
-# using pnpm 
+# using pnpm
 pnpm add @starknet-agent-kit
 ```
 
 2. Create your agent instance
+
 ```typescript
 import { StarknetAgent } from 'starknet-agent-kit';
 

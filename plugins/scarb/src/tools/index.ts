@@ -3,51 +3,23 @@ import { compileContract } from '../actions/buildProgram.js';
 import { executeProgram } from '../actions/executeProgram.js';
 import { proveProgram } from '../actions/proveProgram.js';
 import { verifyProgram } from '../actions/verifyProgram.js';
-import { registerProject } from '../actions/registerProject.js';
-import {
-  deleteProgramAction,
-  deleteDependencyAction,
-  deleteProjectAction,
-} from '../actions/deleteItemProject.js';
+
 import {
   executeProgramSchema,
   proveProgramSchema,
   verifyProgramSchema,
   installScarbSchema,
   compileContractSchema,
-  registerProjectSchema,
-  deleteProgramSchema,
-  deleteDependencySchema,
-  deleteProjectSchema,
 } from '../schema/schema.js';
 import {
-  PostgresAdaptater,
   StarknetAgentInterface,
   StarknetTool,
 } from '@starknet-agent-kit/agents';
-import { initializeDatabase } from '../utils/db_init.js';
-
-export const initializeTools = async (
-  agent: StarknetAgentInterface
-): Promise<PostgresAdaptater | undefined> => {
-  try {
-    const res = await initializeDatabase(agent);
-    return res;
-  } catch (error) {
-    console.error('Error initializing database:', error);
-  }
-};
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
   agent: StarknetAgentInterface
 ) => {
-  const database_instance = await initializeTools(agent);
-  if (!database_instance) {
-    console.error('Error while initializing database');
-    return;
-  }
-
   StarknetToolRegistry.push({
     name: 'scarb_install',
     description: 'Install the latest version of Scarb if not already installed',
@@ -58,7 +30,13 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_compile_contract',
-    description: 'Compile StarkNet contracts using Scarb',
+    description: `
+      DESCRIPTION: Compile contracts or program of an existing project using Scarb.
+      TRIGGER: Only call when the user explicitly asks to compile contracts or program.
+      PARAMETERS: Requires a project name.
+      SUCCESS: After successful compilation, consider this task complete. 
+      FAILURE: After 2 failed attempts, report the error and stop retrying.
+    `,
     plugins: 'scarb',
     schema: compileContractSchema,
     execute: compileContract,
@@ -66,7 +44,13 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_execute_program',
-    description: 'Execute a Cairo program function using Scarb',
+    description: `
+      DESCRIPTION: Execute a Cairo program function of an existing project using Scarb.
+      TRIGGER: Only call when the user explicitly asks to execute a Cairo program function.
+      PARAMETERS: Requires a project name and a program name.
+      SUCCESS: After successful execution, consider this task complete. 
+      FAILURE: After 2 failed attempts, report the error and stop retrying.
+    `,
     plugins: 'scarb',
     schema: executeProgramSchema,
     execute: executeProgram,
@@ -74,7 +58,13 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_prove_program',
-    description: 'Generate a proof for a Cairo program execution using Scarb',
+    description: `
+      DESCRIPTION: Generate a proof for a Cairo program execution of an existing project using Scarb.
+      TRIGGER: Only call when the user explicitly asks to generate a proof for a Cairo program execution.
+      PARAMETERS: Requires a project name and a program name.
+      SUCCESS: After successful proof generation, consider this task complete. 
+      FAILURE: After 2 failed attempts, report the error and stop retrying.
+    `,
     plugins: 'scarb',
     schema: proveProgramSchema,
     execute: proveProgram,
@@ -82,42 +72,15 @@ export const registerTools = async (
 
   StarknetToolRegistry.push({
     name: 'scarb_verify_program',
-    description: 'Verify a proof for a Cairo program execution using Scarb',
+    description: `
+      DESCRIPTION: Verify a proof for a Cairo program execution of a project using Scarb.
+      TRIGGER: Only call when the user explicitly asks to verify a proof for a Cairo program execution.
+      PARAMETERS: Requires a project name and a program name.
+      SUCCESS: After successful verification, consider this task complete. 
+      FAILURE: After 2 failed attempts, report the error and stop retrying.
+    `,
     plugins: 'scarb',
     schema: verifyProgramSchema,
     execute: verifyProgram,
-  });
-
-  StarknetToolRegistry.push({
-    name: 'scarb_register_project',
-    description: 'Register or update a Cairo project in the database',
-    plugins: 'scarb',
-    schema: registerProjectSchema,
-    execute: registerProject,
-  });
-
-  StarknetToolRegistry.push({
-    name: 'scarb_delete_program',
-    description: 'Delete a program from a Cairo project in the database',
-    plugins: 'scarb',
-    schema: deleteProgramSchema,
-    execute: deleteProgramAction,
-  });
-
-  StarknetToolRegistry.push({
-    name: 'scarb_delete_dependency',
-    description: 'Delete a dependency from a Cairo project in the database',
-    plugins: 'scarb',
-    schema: deleteDependencySchema,
-    execute: deleteDependencyAction,
-  });
-
-  StarknetToolRegistry.push({
-    name: 'scarb_delete_project',
-    description:
-      'Delete an entire Cairo project and all its data from the database',
-    plugins: 'scarb',
-    schema: deleteProjectSchema,
-    execute: deleteProjectAction,
   });
 };

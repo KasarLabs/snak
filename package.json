@@ -1,7 +1,7 @@
 {
-  "name": "snaktest",
+  "name": "@kasarlabs/snak",
   "version": "0.0.10",
-  "description": "A toolkit for creating AI agents that can interact with the Starknet network",
+  "description": "Build powerful and secure agents powered by Starknet",
   "author": "Kasar Labs",
   "license": "MIT",
   "main": "dist/index.js",
@@ -29,7 +29,8 @@
     "clean:dist": "lerna run clean:dist",
     "build": "turbo build",
     "build:ci": "turbo build --scope \"@starknet-agent-kit/agents\" --scope \"@starknet-agent-kit/plugin-*\" --scope \"@starknet-agent-kit/server\"",
-    "start": "turbo build && lerna run --scope @starknet-agent-kit/agents start --",
+    "start": "./scripts/start.sh",
+    "start:normal": "turbo build && lerna run --scope @starknet-agent-kit/agents start --",
     "start:server": "pnpm run build && lerna run start --scope \"@starknet-agent-kit/server\" --scope \"@starknet-agent-kit/client\"",
     "start:test": "turbo test",
     "test": "./scripts/run_all_test.sh",
@@ -46,7 +47,7 @@
     "prettier:client": "prettier --check \"client/**/*.{ts,tsx}\" --write",
     "prettier:all": "pnpm prettier:server && pnpm prettier:agents && pnpm prettier:plugins && pnpm prettier:client",
     "prepublishOnly": "lerna run prepublishOnly",
-    "node:server": "node ./mcp/snak/dist/index.js"
+    "node:server": "node ./mcps/snak/dist/index.js"
   },
   "dependencies": {
     "@types/pg": "^8.11.11",
@@ -83,7 +84,7 @@
     "jest": "^29.7.0",
     "lerna": "^8.2.0",
     "prettier": "^3.5.2",
-    "snak-mcps": "^0.1.2",
+    "@kasarlabs/snak-mcps": "^0.1.8",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.6",

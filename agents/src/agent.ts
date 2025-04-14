@@ -7,7 +7,6 @@ import { ChatDeepSeek } from '@langchain/deepseek';
 import { StarknetAgentInterface } from './tools/tools.js';
 import { createSignatureTools } from './tools/signatureTools.js';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { createAllowedToollkits } from './tools/external_tools.js';
 import { createAllowedTools } from './tools/tools.js';
 import {
   Annotation,
@@ -33,8 +32,17 @@ import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import { JsonConfig } from './jsonConfig.js';
 import logger from './logger.js';
+import { createBox } from './formatting.js';
+import {
+  tokenTracker,
+  configureModelWithTracking,
+  addTokenInfoToBox,
+  estimateTokens,
+} from './tokenTracking.js';
 
 export function selectModel(aiConfig: AiConfig) {
+  let model;
+
   switch (aiConfig.aiProvider) {
     case 'anthropic':
       if (!aiConfig.aiProviderApiKey) {
@@ -42,89 +50,156 @@ export function selectModel(aiConfig: AiConfig) {
           'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
         );
       }
-      return new ChatAnthropic({
+      model = new ChatAnthropic({
         modelName: aiConfig.aiModel,
         anthropicApiKey: aiConfig.aiProviderApiKey,
-        temperature: 0,
+        verbose: aiConfig.langchainVerbose === true,
       });
+      break;
     case 'openai':
       if (!aiConfig.aiProviderApiKey) {
         throw new Error(
           'Valid OpenAI api key is required https://platform.openai.com/api-keys'
         );
       }
-      return new ChatOpenAI({
+      model = new ChatOpenAI({
         modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
-        temperature: 0,
+        openAIApiKey: aiConfig.aiProviderApiKey,
+        verbose: aiConfig.langchainVerbose === true,
       });
+      break;
     case 'gemini':
       if (!aiConfig.aiProviderApiKey) {
         throw new Error(
           'Valid Gemini api key is required https://ai.google.dev/gemini-api/docs/api-key'
         );
       }
-      return new ChatGoogleGenerativeAI({
+      model = new ChatGoogleGenerativeAI({
         modelName: aiConfig.aiModel,
         apiKey: aiConfig.aiProviderApiKey,
-        convertSystemMessageToHumanContent: true,
+        verbose: aiConfig.langchainVerbose === true,
       });
-    case 'ollama':
-      return new ChatOllama({
-        model: aiConfig.aiModel,
-      });
+      break;
     case 'deepseek':
       if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid DeepSeek api key is required https://api-docs.deepseek.com/'
-        );
+        throw new Error('Valid DeepSeek api key is required');
       }
-      return new ChatDeepSeek({
+      model = new ChatDeepSeek({
         modelName: aiConfig.aiModel,
         apiKey: aiConfig.aiProviderApiKey,
+        verbose: aiConfig.langchainVerbose === true,
       });
+      break;
+    case 'ollama':
+      model = new ChatOllama({
+        model: aiConfig.aiModel,
+        verbose: aiConfig.langchainVerbose === true,
+      });
+      break;
     default:
       throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
   }
+
+  // Add token tracking with configurable limits
+  return configureModelWithTracking(model, {
+    tokenLogging: aiConfig.langchainVerbose !== false,
+    maxInputTokens: aiConfig.maxInputTokens || 50000,
+    maxCompletionTokens: aiConfig.maxCompletionTokens || 50000,
+    maxTotalTokens: aiConfig.maxTotalTokens || 100000,
+  });
 }
 
 export async function initializeToolsList(
   starknetAgent: StarknetAgentInterface,
-  jsonConfig: JsonConfig
+  jsonConfig: JsonConfig,
+  configPath?: string
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const isSignature = starknetAgent.getSignature().signature === 'wallet';
 
   if (isSignature) {
-    toolsList = await createSignatureTools(jsonConfig.internal_plugins);
+    toolsList = await createSignatureTools(jsonConfig.plugins);
   } else {
     const allowedTools = await createAllowedTools(
       starknetAgent,
-      jsonConfig.internal_plugins
+      jsonConfig.plugins,
+      configPath || ''
     );
-
-    const allowedToolsKits = await createAllowedToollkits(
-      jsonConfig.external_plugins
-    );
-
-    toolsList = allowedToolsKits
-      ? [...allowedTools, ...allowedToolsKits]
-      : [...allowedTools];
+    toolsList = [...allowedTools];
   }
 
-  if (jsonConfig.mcp === true) {
-    const mcp = new MCP_CONTROLLER();
-    await mcp.initializeConnections();
-    console.log(mcp.getTools());
-    toolsList = [...toolsList, ...mcp.getTools()];
+  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
+    try {
+      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
+      await mcp.initializeConnections();
+
+      const mcpTools = mcp.getTools();
+      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+      toolsList = [...toolsList, ...mcpTools];
+    } catch (error) {
+      logger.error(`Failed to initialize MCP tools: ${error}`);
+    }
   }
 
   return toolsList;
 }
 
+// Patch ToolNode to log all tool calls
+const originalToolNodeInvoke = ToolNode.prototype.invoke;
+ToolNode.prototype.invoke = async function (state: any, config: any) {
+  // Save the last message with tool calls
+  if (state.messages && state.messages.length > 0) {
+    const lastMessage = state.messages[state.messages.length - 1];
+    if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+      // Create a clear format for displaying tools
+      // For each tool, create a complete entry with name and arguments
+      const toolCalls = [];
+
+      for (const toolCall of lastMessage.tool_calls) {
+        let argsStr;
+        try {
+          if (typeof toolCall.args === 'object') {
+            const argsObj = toolCall.args;
+            const isSimpleObject =
+              Object.keys(argsObj).length <= 3 &&
+              !Object.values(argsObj).some(
+                (v) => typeof v === 'object' && v !== null
+              );
+
+            argsStr = isSimpleObject
+              ? JSON.stringify(argsObj)
+              : JSON.stringify(argsObj, null, 2);
+          } else {
+            argsStr = String(toolCall.args);
+          }
+        } catch (e) {
+          argsStr = 'Error parsing arguments';
+        }
+
+        toolCalls.push(`Tool: ${toolCall.name}`);
+        toolCalls.push(`Arguments: ${argsStr}`);
+        toolCalls.push('');
+      }
+
+      // Use process.stdout.write directly to ensure immediate display
+      const boxContent = createBox('Agent Action', toolCalls, {
+        title: 'Agent Action',
+      });
+
+      // Add token information to the box
+      const boxWithTokens = addTokenInfoToBox(boxContent);
+      process.stdout.write(boxWithTokens);
+    }
+  }
+
+  // Call the original method
+  return originalToolNodeInvoke.apply(this, [state, config]);
+};
+
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig
+  aiConfig: AiConfig,
+  configPath?: string
 ) => {
   const embeddings = new CustomHuggingFaceEmbeddings({
     model: 'Xenova/all-MiniLM-L6-v2',
@@ -143,7 +218,7 @@ export const createAgent = async (
       const databaseName = json_config.chat_id;
       databaseConnection = await starknetAgent.createDatabase(databaseName);
       if (!databaseConnection) {
-        throw new Error(`Failed to create or connect to database: `);
+        throw new Error('Failed to create or connect to database');
       }
       try {
         const dbCreation = await databaseConnection.createTable({
@@ -161,14 +236,14 @@ export const createAgent = async (
         });
         if (dbCreation.code == '42P07')
           logger.warn('Agent memory table already exists');
-        else console.log('Agent memory table successfully created');
+        else logger.debug('Agent memory table successfully created');
       } catch (error) {
         console.error('Error creating memories table:', error);
         throw error;
       }
     }
 
-    let toolsList = await initializeToolsList(starknetAgent, json_config);
+    let toolsList = await initializeToolsList(starknetAgent, json_config, configPath);
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
@@ -313,17 +388,6 @@ export const createAgent = async (
 
         const results = await databaseConnection.query(similarMemoriesQuery);
 
-        // const results = await databaseConnection.select({
-        //   FROM: ['agent_memories'],
-        //   SELECT: [
-        //     'id',
-        //     'content',
-        //     'history',
-        //     `1 - (embedding <=> '${queryEmbeddingStr}'::vector) as similarity`
-        //   ],
-        //   WHERE: [`user_id = '${userId}'`]
-        // });
-
         let memories = '\n';
         if (
           results.status === 'success' &&
@@ -342,7 +406,7 @@ export const createAgent = async (
                   }
                 }
               } catch (e) {
-                console.error('Error stringifying history : ', e);
+                console.error('Error stringifying history:', e);
               }
               return `Memory [id: ${row.id}, similarity: ${row.similarity.toFixed(4)},history : ${historyStr}]: ${row.content}`;
             })
@@ -359,55 +423,10 @@ export const createAgent = async (
       }
     };
 
-    //if (json_config.memory) toolsList.push(upsertMemoryToolDB);
-    const toolNode = new ToolNode<typeof GraphState.State>(toolsList);
+    const toolNode = new ToolNode(toolsList);
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
     const configPrompt = json_config.prompt?.content;
-    const basicPrompt = `
-		Use your upsert_memory tool whenever there is information that is relevant, this includes but is not limited to : contract/wallet addresses, public/private keys, names, preferences etc. When you want to update an information already stored in the database, make sure to specify that it is an update. The most 4 relevant memories concerning the query are :\n<memories>\n{memories}\n<memories/>\n;
-		`;
-    const refinedPrompt1 = `When conversing with users, PROACTIVELY use the upsert_memory tool to store and retrieve important information:
-
-1. AUTOMATICALLY STORE without being asked:
-   - NEW user names, preferences, and personal information (not confirmations of existing data)
-   - ALL wallet details when created or mentioned (addresses, public/private keys)
-   - Contract addresses and blockchain identifiers
-   - Important dates, amounts, and transaction details
-
-2. When storing memory, ALWAYS include:
-   - Descriptive memory_content with complete details
-   - Relevant tags for easy retrieval (e.g., "wallet", "preference", "contact")
-   - Context about where/how the information was obtained
-
-3. UPDATE existing memories when:
-   - New information contradicts stored data
-   - More complete information becomes available
-   - User corrects previously stored information
-   - Include original memory ID when updating
-
-4. The 4 most relevant memories for the current query are:
-<memories>
-{memories}
-</memories>
-
-5. RETRIEVE additional memories when:
-   - Any financial or blockchain action is requested
-   - User references past conversations or saved information
-   - Making recommendations based on user history
-
-6. AFTER MEMORY OPERATIONS:
-   - ALWAYS ANSWER THE USER'S ORIGINAL QUESTION after storing or retrieving memory
-   - When the user asks "what's my name?", directly answer with "Your name is [Name]" based on memory
-   - Never skip answering the user's question just because you've stored or updated memory
-   - For memory verification questions (like name confirmations), answer definitively rather than asking for additional confirmation
-   - Remember that memory operations are invisible infrastructure - the user still expects their question to be answered
-
-7. MEMORY EFFICIENCY GUIDELINES:
-   - Do NOT store memory for simple confirmations of existing information
-   - Only update memory when there's a meaningful change or correction
-
-   - Avoid redundant memory storage for information that's already well-documented in memory`;
     const memoryPrompt = ``;
     const finalPrompt = json_config.memory
       ? `${configPrompt}\n${memoryPrompt}`
@@ -426,18 +445,89 @@ export const createAgent = async (
         new MessagesPlaceholder('messages'),
       ]);
 
-      const formattedPrompt = await prompt.formatMessages({
-        system_message: '',
-        tool_names: toolsList.map((tool) => tool.name).join(', '),
-        messages: state.messages,
-        memories: state.memories || '',
-      });
+      try {
+        const formattedPrompt = await prompt.formatMessages({
+          system_message: '',
+          tool_names: toolsList.map((tool) => tool.name).join(', '),
+          messages: state.messages,
+          memories: state.memories || '',
+        });
 
-      const result = await modelSelected.invoke(formattedPrompt);
+        // Estimate message size and check limit
+        const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
+        if (estimatedTokens > 90000) {
+          // Safety limit to avoid token errors
+          logger.warn(
+            `Prompt exceeds safe token limit: ${estimatedTokens} tokens. Truncating messages...`
+          );
 
-      return {
-        messages: [result],
-      };
+          // Create a truncated version of input messages
+          // Only keep the last 4 messages
+          const truncatedMessages = state.messages.slice(-4);
+
+          // Reformat the prompt with truncated messages
+          const truncatedPrompt = await prompt.formatMessages({
+            system_message: '',
+            tool_names: toolsList.map((tool) => tool.name).join(', '),
+            messages: truncatedMessages,
+            memories: state.memories || '',
+          });
+
+          // Use truncated prompt
+          const result = await modelSelected.invoke(truncatedPrompt);
+          return {
+            messages: [result],
+          };
+        }
+
+        // If we're below the limit, use the full prompt
+        const result = await modelSelected.invoke(formattedPrompt);
+        return {
+          messages: [result],
+        };
+      } catch (error) {
+        // Handle token limit errors specifically
+        if (
+          error instanceof Error &&
+          (error.message.includes('token limit') ||
+            error.message.includes('tokens exceed') ||
+            error.message.includes('context length'))
+        ) {
+          logger.error(`Token limit error: ${error.message}`);
+
+          // Create a very reduced version with only the last message
+          const minimalMessages = state.messages.slice(-2);
+
+          try {
+            // Try with a minimal prompt
+            const emergencyPrompt = await prompt.formatMessages({
+              system_message:
+                'Previous conversation was too long. Continuing with just recent messages.',
+              tool_names: toolsList.map((tool) => tool.name).join(', '),
+              messages: minimalMessages,
+              memories: '',
+            });
+
+            const result = await modelSelected.invoke(emergencyPrompt);
+            return {
+              messages: [result],
+            };
+          } catch (emergencyError) {
+            // If even the emergency prompt fails, return a formatted error message
+            return {
+              messages: [
+                new AIMessage({
+                  content:
+                    'The conversation has become too long and exceeds token limits. Please start a new conversation.',
+                }),
+              ],
+            };
+          }
+        }
+
+        // For other types of errors, propagate them
+        throw error;
+      }
     }
 
     function shouldContinue(state: typeof GraphState.State) {
@@ -477,7 +567,7 @@ export const createAgent = async (
 
     return app;
   } catch (error) {
-    logger.error('Failed to create an agent : ', error);
+    logger.error('Failed to create an agent:', error);
     throw error;
   }
 };

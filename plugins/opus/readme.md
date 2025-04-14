@@ -11,7 +11,7 @@ Follow the steps below to get started and set up your bot.
    {
      "name": "Mito",
      ...
-     "internal_plugins": ["rpc", "opus"]
+     "plugins": ["rpc", "opus"]
    }
    ```
 

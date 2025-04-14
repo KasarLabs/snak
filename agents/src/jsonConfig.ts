@@ -1,5 +1,5 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { createBox } from './formatting.js';
+import { createBox, getTerminalWidth } from './formatting.js';
 import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -10,10 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * @interface Token
- * @description Interface for a token object
- * @property {string} symbol - The symbol of the token
- * @property {number} amount - The amount of the token
+ * Interface for a token object
  */
 export interface Token {
   symbol: string;
@@ -21,34 +18,21 @@ export interface Token {
 }
 
 /**
- * @interface JsonConfig
- * @description Interface for the JSON configuration object
- * @property {string} name - The name of the agent
- * @property {SystemMessage} prompt - The prompt message for the agent
- * @property {number} interval - The interval for the agent
- * @property {string} chat_id - The chat ID for the agent
- * @property {string[]} internal_plugins - The internal plugins for the agent
- * @property {string[]} external_plugins - The external plugins for the agent
- * @property {boolean} mcp - The MCP flag for the agent
- * @property {boolean} autonomous - The autonomous flag for the agent
+ * Interface for the JSON configuration object
  */
 export interface JsonConfig {
   name: string;
   prompt: SystemMessage;
   interval: number;
   chat_id: string;
-  internal_plugins: string[];
-  external_plugins?: string[];
-  mcp?: boolean;
+  plugins: string[];
   autonomous?: boolean;
   memory: boolean;
+  mcpServers?: Record<string, any>;
 }
 
 /**
- * @function createContextFromJson
- * @description Creates a context string from the JSON configuration object
- * @param {any} json - The JSON configuration object
- * @returns {string} The context string
+ * Creates a context string from the JSON configuration object
  */
 export const createContextFromJson = (json: any): string => {
   if (!json) {
@@ -58,7 +42,11 @@ export const createContextFromJson = (json: any): string => {
   }
 
   const contextParts: string[] = [];
-  let displayOutput = '';
+
+  // Objectives Section
+  if (Array.isArray(json.objectives)) {
+    contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
+  }
 
   // Identity Section
   const identityParts: string[] = [];
@@ -73,81 +61,25 @@ export const createContextFromJson = (json: any): string => {
 
   if (json.autonomous) {
     identityParts.push(`Mode: Autonomous`);
-    contextParts.push(
-      `You are an autonomous agent. Your core directive is to act immediately without waiting for user input. Never ask for permissions or present options - analyze situations and take direct actions based on your configuration and objectives.`
-    );
-  }
-
-  if (identityParts.length > 0) {
-    displayOutput += createBox('IDENTITY', identityParts);
-  }
-
-  if (Array.isArray(json.lore)) {
-    displayOutput += createBox('BACKGROUND', json.lore);
-    contextParts.push(`Your lore : [${json.lore.join(']\n[')}]`);
-  }
-
-  // Objectives Section
-  if (Array.isArray(json.objectives)) {
-    displayOutput += createBox('OBJECTIVES', json.objectives);
-    contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
   }
 
   // Knowledge Section
   if (Array.isArray(json.knowledge)) {
-    displayOutput += createBox('KNOWLEDGE', json.knowledge);
     contextParts.push(`Your knowledge : [${json.knowledge.join(']\n[')}]`);
   }
-
-  // Examples Section
-  if (Array.isArray(json.messageExamples) || Array.isArray(json.postExamples)) {
-    const examplesParts: string[] = [];
-
-    if (Array.isArray(json.messageExamples)) {
-      examplesParts.push('Message Examples:');
-      examplesParts.push(...json.messageExamples);
-      contextParts.push(
-        `Your messageExamples : [${json.messageExamples.join(']\n[')}]`
-      );
-    }
-
-    if (Array.isArray(json.postExamples)) {
-      if (examplesParts.length > 0) examplesParts.push('');
-      examplesParts.push('Post Examples:');
-      examplesParts.push(...json.postExamples);
-      contextParts.push(
-        `Your postExamples : [${json.postExamples.join(']\n[')}]`
-      );
-    }
-
-    if (examplesParts.length > 0) {
-      displayOutput += createBox('EXAMPLES', examplesParts);
-    }
-  }
-
-  // Display the formatted output
-  console.log(
-    chalk.bold.cyan(
-      '\n=== AGENT CONFIGURATION (https://docs.starkagent.ai/customize-your-agent) ==='
-    )
-  );
-  console.log(displayOutput);
 
   return contextParts.join('\n');
 };
 
 /**
- * @function validateConfig
- * @description Validates the JSON configuration object
- * @param {JsonConfig} config Your jsonconfig
- * @throws {Error} Throws an error if the JSON config is invalid
+ * Validates the JSON configuration object
  */
 export const validateConfig = (config: JsonConfig) => {
   const requiredFields = [
     'name',
     'interval',
     'chat_id',
-    'internal_plugins',
+    'plugins',
     'prompt',
   ] as const;
 
@@ -160,15 +92,37 @@ export const validateConfig = (config: JsonConfig) => {
   if (!(config.prompt instanceof SystemMessage)) {
     throw new Error('prompt must be an instance of SystemMessage');
   }
+
+  // Validate mcpServers if present
+  if (config.mcpServers) {
+    if (typeof config.mcpServers !== 'object') {
+      throw new Error('mcpServers must be an object');
+    }
+
+    for (const [serverName, serverConfig] of Object.entries(
+      config.mcpServers
+    )) {
+      if (!serverConfig.command || typeof serverConfig.command !== 'string') {
+        throw new Error(
+          `mcpServers.${serverName} must have a valid command string`
+        );
+      }
+
+      if (!Array.isArray(serverConfig.args)) {
+        throw new Error(`mcpServers.${serverName} must have an args array`);
+      }
+
+      if (serverConfig.env && typeof serverConfig.env !== 'object') {
+        throw new Error(
+          `mcpServers.${serverName} env must be an object if present`
+        );
+      }
+    }
+  }
 };
 
-// log all this function
 /**
- * @function checkParseJson
- * @description Checks and parses the JSON configuration object
- * @param {string} agent_config_name The name of the agent config
- * @returns {JsonConfig | undefined} The JSON configuration object
- * @throws {Error} Throws an error if the JSON config is invalid
+ * Checks and parses the JSON configuration object
  */
 const checkParseJson = async (
   agent_config_name: string
@@ -176,11 +130,9 @@ const checkParseJson = async (
   try {
     // Try multiple possible locations for the config file
     const possiblePaths = [
-      path.join(process.cwd(), 'config', 'agents', agent_config_name),
-
-      path.join(process.cwd(), '..', 'config', 'agents', agent_config_name),
-
-      path.join(
+      path.resolve(process.cwd(), 'config', 'agents', agent_config_name),
+      path.resolve(process.cwd(), '..', 'config', 'agents', agent_config_name),
+      path.resolve(
         __dirname,
         '..',
         '..',
@@ -189,8 +141,7 @@ const checkParseJson = async (
         'agents',
         agent_config_name
       ),
-
-      path.join(
+      path.resolve(
         __dirname,
         '..',
         '..',
@@ -205,14 +156,18 @@ const checkParseJson = async (
     let configPath: string | null = null;
     let jsonData: string | null = null;
 
-    // Try each path until we find one that works
+    // Find first accessible config file
     for (const tryPath of possiblePaths) {
       try {
         await fs.access(tryPath);
         configPath = tryPath;
         jsonData = await fs.readFile(tryPath, 'utf8');
         break;
-      } catch {}
+      } catch (error) {
+        logger.debug(
+          `Failed to access config file at ${tryPath}: ${error.message}`
+        );
+      }
     }
 
     if (!configPath || !jsonData) {
@@ -239,18 +194,15 @@ const checkParseJson = async (
       interval: json.interval,
       chat_id: json.chat_id,
       autonomous: json.autonomous || false,
-      internal_plugins: Array.isArray(json.internal_plugins)
-        ? json.internal_plugins.map((tool: string) => tool.toLowerCase())
-        : [],
-      external_plugins: Array.isArray(json.external_plugins)
-        ? json.external_plugins
+      plugins: Array.isArray(json.plugins)
+        ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
       memory: json.memory || false,
-      mcp: json.mcp || false,
+      mcpServers: json.mcpServers || {},
     };
 
-    if (jsonconfig.internal_plugins.length === 0) {
-      logger.warn("No internal plugins specified in agent's config");
+    if (jsonconfig.plugins.length === 0) {
+      logger.warn("No plugins specified in agent's config");
     }
     validateConfig(jsonconfig);
     return jsonconfig;
@@ -266,11 +218,7 @@ const checkParseJson = async (
 };
 
 /**
- * @function load_json_config
- * @description Loads the JSON configuration object
- * @param {string} agent_config_name The name of the agent config
- * @returns {JsonConfig | undefined} The JSON configuration object
- * @throws {Error} Throws an error if the JSON config is invalid
+ * Loads the JSON configuration object
  */
 export const load_json_config = async (
   agent_config_name: string
