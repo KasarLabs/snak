@@ -30,7 +30,9 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
             tool.name === 'remove_mcp' ||
             tool.name === 'reload_mcp_config' ||
             tool.name === 'get_mcp_tools' ||
-            tool.name === 'reload_mcp_connections'
+            tool.name === 'reload_mcp_connections' ||
+            tool.name === 'list_mcp_servers' ||
+            tool.name === 'update_mcp'
         );
 
         // Then add the new MCP server tools
@@ -102,6 +104,66 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
     }
     process.exit(0);
   });
+
+  // Function to initialize or reinitialize the MCP controller
+  const initOrReinitMcpController = async () => {
+    try {
+      // Get the latest config
+      const currentConfig = mcpManager.getConfig();
+
+      // Clean up existing controller if it exists
+      if (mcpController) {
+        try {
+          await mcpController.close();
+        } catch (error) {
+          logger.error(`Error closing existing MCP controller: ${error}`);
+        }
+      }
+
+      // Initialize a new controller with the current config
+      if (
+        currentConfig.mcpServers &&
+        Object.keys(currentConfig.mcpServers).length > 0
+      ) {
+        mcpController = MCP_CONTROLLER.fromJsonConfig(currentConfig);
+
+        // Re-register for tool updates
+        mcpController.onToolsUpdate((updatedTools) => {
+          // Update our tools list with new tools
+          // First, remove old MCP server tools (keep only management tools)
+          allTools = allTools.filter(
+            (tool) =>
+              tool.name === 'search_mcp' ||
+              tool.name === 'add_mcp' ||
+              tool.name === 'remove_mcp' ||
+              tool.name === 'reload_mcp_config' ||
+              tool.name === 'get_mcp_tools' ||
+              tool.name === 'reload_mcp_connections' ||
+              tool.name === 'list_mcp_servers' ||
+              tool.name === 'update_mcp'
+          );
+
+          // Then add the new MCP server tools
+          allTools.push(...updatedTools);
+
+          logger.info(
+            `Tools list updated with ${updatedTools.length} tools from MCP servers`
+          );
+        });
+
+        // Initialize connections
+        await mcpController.initializeConnections();
+        logger.info('MCP controller successfully reinitialized');
+        return true;
+      } else {
+        logger.warn('No MCP servers configured, controller not initialized');
+        return false;
+      }
+    } catch (error) {
+      logger.error(`Failed to reinitialize MCP controller: ${error}`);
+      return false;
+    }
+  };
 
   const searchMCPTool = new DynamicStructuredTool({
     name: 'search_mcp',
@@ -229,15 +291,29 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
       'Force reload MCP connections and tools without restarting the server',
     schema: z.object({}),
     func: async () => {
-      if (!mcpController) {
-        return 'Aucun contrôleur MCP initialisé';
-      }
-
       try {
-        await mcpController.reloadConnections();
-        return 'Connexions MCP rechargées avec succès. Les outils devraient maintenant être disponibles.';
+        logger.info('Attempting to completely reload MCP connections...');
+
+        // Try the reinitialize approach first
+        const success = await initOrReinitMcpController();
+
+        if (success) {
+          return 'Connexions MCP rechargées et réinitialisées avec succès. Les outils devraient maintenant être disponibles.';
+        }
+
+        // If reinitialization failed but we still have a controller, try the regular reload
+        if (mcpController) {
+          try {
+            await mcpController.reloadConnections();
+            return 'Connexions MCP rechargées avec succès. Les outils devraient maintenant être disponibles.';
+          } catch (error) {
+            return `Erreur lors du rechargement des connexions MCP via reloadConnections(): ${error}. Essayez de redémarrer l'application.`;
+          }
+        }
+
+        return "Impossible de réinitialiser le contrôleur MCP. Assurez-vous que votre configuration est valide et essayez de redémarrer l'application.";
       } catch (error) {
-        return `Erreur lors du rechargement des connexions MCP: ${error}`;
+        return `Erreur lors du rechargement des connexions MCP: ${error}. Essayez de redémarrer l'application.`;
       }
     },
   });
@@ -263,6 +339,158 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
     },
   });
 
+  // Ajout d'un outil pour lister les serveurs MCP installés
+  const listMCPServersTool = new DynamicStructuredTool({
+    name: 'list_mcp_servers',
+    description: 'List all installed MCP servers in the configuration',
+    schema: z.object({}),
+    func: async () => {
+      try {
+        const currentConfig = mcpManager.getConfig();
+
+        if (
+          !currentConfig.mcpServers ||
+          Object.keys(currentConfig.mcpServers).length === 0
+        ) {
+          return "Aucun serveur MCP n'est actuellement configuré.";
+        }
+
+        const serverEntries = Object.entries(currentConfig.mcpServers);
+        const formattedServers = serverEntries
+          .map(([name, config]) => {
+            const serverConfig = config as {
+              command: string;
+              args: string[];
+              env: Record<string, string>;
+            };
+
+            // Try to extract the Smithery qualified name from args if available
+            let qualifiedName = 'N/A';
+            if (serverConfig.args && serverConfig.args.includes('run')) {
+              const runIndex = serverConfig.args.indexOf('run');
+              if (runIndex >= 0 && runIndex + 1 < serverConfig.args.length) {
+                qualifiedName = serverConfig.args[runIndex + 1];
+              }
+            }
+
+            // Format environment variables if any
+            const envVars = Object.keys(serverConfig.env || {}).join(', ');
+
+            return `- ${name}:
+  Qualified Name: ${qualifiedName}
+  Command: ${serverConfig.command} ${serverConfig.args.join(' ')}
+  Environment Variables: ${envVars || 'Aucune'}`;
+          })
+          .join('\n\n');
+
+        return `Serveurs MCP configurés (${serverEntries.length}):\n\n${formattedServers}`;
+      } catch (error) {
+        return `Erreur lors de la récupération des serveurs MCP: ${error}`;
+      }
+    },
+  });
+
+  // Ajout d'un outil pour mettre à jour les serveurs MCP existants
+  const updateMCPTool = new DynamicStructuredTool({
+    name: 'update_mcp',
+    description: 'Update an existing MCP server configuration',
+    schema: z.object({
+      serverName: z.string().describe('The name of the MCP server to update'),
+      qualifiedName: z
+        .string()
+        .optional()
+        .describe('New qualifiedName of the Smithery server (optional)'),
+      env: z
+        .record(z.string())
+        .describe('New environment variables for the server'),
+    }),
+    func: async ({ serverName, qualifiedName, env }) => {
+      try {
+        const currentConfig = mcpManager.getConfig();
+
+        if (
+          !currentConfig.mcpServers ||
+          !currentConfig.mcpServers[serverName]
+        ) {
+          return `Serveur "${serverName}" non trouvé dans la configuration.`;
+        }
+
+        // Get the current server configuration
+        const currentServerConfig = currentConfig.mcpServers[serverName];
+
+        // If a new qualified name is provided, we need to update the server details
+        if (qualifiedName) {
+          try {
+            const serverDetails =
+              await mcpManager.getServerDetails(qualifiedName);
+
+            // Create a server object that matches the MCP interface
+            const server: MCP = {
+              name: serverDetails.displayName,
+              description: 'Smithery server',
+              id: qualifiedName,
+            };
+
+            // Remove the existing server
+            await mcpManager.removeMCP(serverName);
+
+            // Add the server with new details and environment variables
+            await mcpManager.addMCP(server, env);
+
+            return `Le serveur "${serverName}" a été mis à jour avec succès vers "${serverDetails.displayName}" (${qualifiedName}).`;
+          } catch (error) {
+            return `Erreur lors de la mise à jour du serveur avec le nouveau qualified name: ${error}`;
+          }
+        } else {
+          // If only env variables are updated, extract the qualifiedName from current config
+          let existingQualifiedName = null;
+
+          if (
+            currentServerConfig.args &&
+            currentServerConfig.args.includes('run')
+          ) {
+            const runIndex = currentServerConfig.args.indexOf('run');
+            if (
+              runIndex >= 0 &&
+              runIndex + 1 < currentServerConfig.args.length
+            ) {
+              existingQualifiedName = currentServerConfig.args[runIndex + 1];
+            }
+          }
+
+          if (!existingQualifiedName) {
+            return `Impossible de déterminer le qualified name existant pour "${serverName}". Veuillez fournir un qualified name explicite.`;
+          }
+
+          try {
+            const serverDetails = await mcpManager.getServerDetails(
+              existingQualifiedName
+            );
+
+            // Create a server object that matches the MCP interface
+            const server: MCP = {
+              name: serverDetails.displayName,
+              description: 'Smithery server',
+              id: existingQualifiedName,
+            };
+
+            // Remove the existing server
+            await mcpManager.removeMCP(serverName);
+
+            // Add the server with new environment variables
+            await mcpManager.addMCP(server, env);
+
+            return `Les variables d'environnement du serveur "${serverName}" ont été mises à jour avec succès.`;
+          } catch (error) {
+            return `Erreur lors de la mise à jour des variables d'environnement du serveur: ${error}`;
+          }
+        }
+      } catch (error) {
+        return `Erreur lors de la mise à jour du serveur MCP: ${error}`;
+      }
+    },
+  });
+
   // Add management tools to the list
   allTools.push(
     searchMCPTool,
@@ -270,7 +498,9 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
     removeMCPTool,
     reloadMCPConfigTool,
     reloadMCPConnectionsTool,
-    getMCPToolsTool
+    getMCPToolsTool,
+    listMCPServersTool,
+    updateMCPTool
   );
 
   return allTools;
