@@ -1,37 +1,32 @@
 {
+  "prompt": {
+    "lc": 1,
+    "type": "constructor",
+    "id": ["langchain_core", "messages", "SystemMessage"],
+    "kwargs": {
+      "content": "Your name : [Starknet RPC Agent]",
+      "additional_kwargs": {},
+      "response_metadata": {}
+    }
+  },
   "name": "Starknet RPC Agent",
   "interval": 15000,
   "chat_id": "ethereum_rpc",
   "autonomous": true,
-  "plugins": [
-    "rpc"
-  ],
+  "plugins": ["rpc"],
   "memory": true,
   "mcpServers": {
-    "mcp-twikit": {
-      "command": "uvx",
+    "brave-search": {
+      "command": "npx",
       "args": [
-        "--from",
-        "git+https://github.com/adhikasp/mcp-twikit",
-        "mcp-twikit"
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/brave-search",
+        "--config",
+        "{\"braveApiKey\":\"BSAgWXjaOOpxLi7o-_2jw3oDJSrVw5K\"}"
       ],
-      "env": {
-        "TWITTER_USERNAME": "${TWITTER_USERNAME}",
-        "TWITTER_PASSWORD": "${TWITTER_PASSWORD}",
-        "TWITTER_EMAIL": "${TWITTER_EMAIL}"
-      }
-    },
-    "mcp-discord": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/hanweg/mcp-discord",
-        "mcp-discord"
-      ],
-      "env": {
-        "DISCORD_TOKEN": "${DISCORD_TOKEN}",
-        "DISCORD_CHANNEL_ID": "${DISCORD_CHANNEL_ID}"
-      }
+      "env": {}
     }
   }
 }

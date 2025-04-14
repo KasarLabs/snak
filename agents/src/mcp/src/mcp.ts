@@ -17,6 +17,9 @@ const __dirname = path.dirname(__filename);
 export class MCP_CONTROLLER {
   private client: MultiServerMCPClient;
   private tools: StructuredTool[] = [];
+  private currentConfig: Record<string, any>;
+  // Add an event handler system for tool updates
+  private toolUpdateHandlers: ((tools: StructuredTool[]) => void)[] = [];
 
   /**
    * @constructor
@@ -30,8 +33,43 @@ export class MCP_CONTROLLER {
     }
 
     logger.info('Initializing MCP_CONTROLLER with provided servers config');
+    this.currentConfig = { ...mcpServers };
     this.client = new MultiServerMCPClient(mcpServers);
     logger.info('MCP_CONTROLLER initialized');
+  }
+
+  /**
+   * @public
+   * @function onToolsUpdate
+   * @description Register a callback that will be called when the tools list changes
+   * @param {function} handler - Function to call when tools are updated
+   * @returns {void}
+   */
+  public onToolsUpdate(handler: (tools: StructuredTool[]) => void): void {
+    this.toolUpdateHandlers.push(handler);
+    logger.info('Registered new MCP tools update handler');
+  }
+
+  /**
+   * @private
+   * @function notifyToolsUpdate
+   * @description Notify all registered handlers that tools have been updated
+   * @returns {void}
+   */
+  private notifyToolsUpdate(): void {
+    if (this.toolUpdateHandlers.length > 0) {
+      logger.info(
+        `Notifying ${this.toolUpdateHandlers.length} listeners about MCP tools update`
+      );
+
+      for (const handler of this.toolUpdateHandlers) {
+        try {
+          handler(this.tools);
+        } catch (error) {
+          logger.error(`Error in MCP tools update handler: ${error}`);
+        }
+      }
+    }
   }
 
   /**
@@ -89,6 +127,9 @@ export class MCP_CONTROLLER {
    */
   private parseTools = () => {
     try {
+      // Clear existing tools first
+      this.tools = [];
+
       const raw_tools = this.client.getTools();
       if (!raw_tools) {
         throw new Error('No tools found');
@@ -99,6 +140,15 @@ export class MCP_CONTROLLER {
           this.tools.push(tool);
         }
       }
+
+      // Log tools to help with debugging
+      logger.info(`Loaded ${this.tools.length} tools from MCP servers`);
+      this.tools.forEach((tool) => {
+        logger.info(`MCP tool available: ${tool.name}`);
+      });
+
+      // Notify all handlers about the updated tools
+      this.notifyToolsUpdate();
     } catch (error) {
       throw new Error(`Error getting tools: ${error}`);
     }
@@ -119,6 +169,82 @@ export class MCP_CONTROLLER {
       logger.info(`MCP connections initialized successfully`);
     } catch (error) {
       throw new Error(`Error initializing connections: ${error}`);
+    }
+  };
+
+  /**
+   * @public
+   * @async
+   * @function reloadConnections
+   * @description Reloads all MCP connections without changing configuration
+   * This is useful when you want to force a refresh of connections and tools
+   * @returns {Promise<void>}
+   * @throws {Error} Throws an error if the reload fails
+   */
+  public reloadConnections = async (): Promise<void> => {
+    try {
+      logger.info('Force reloading MCP connections...');
+
+      // Close existing connections
+      await this.close();
+
+      // Recreate client with same configuration
+      this.client = new MultiServerMCPClient(this.currentConfig);
+
+      // Reinitialize connections
+      await this.initializeConnections();
+
+      logger.info('MCP connections reloaded successfully');
+      return;
+    } catch (error) {
+      logger.error(`Error reloading MCP connections: ${error}`);
+      throw error;
+    }
+  };
+
+  /**
+   * @public
+   * @async
+   * @function updateConfiguration
+   * @description Updates the MCP servers configuration, closes existing connections and reinitializes
+   * @param {Record<string, any>} mcpServers - New MCP servers configuration
+   * @returns {Promise<void>}
+   * @throws {Error} Throws an error if the update fails
+   */
+  public updateConfiguration = async (
+    mcpServers: Record<string, any>
+  ): Promise<void> => {
+    if (!mcpServers || Object.keys(mcpServers).length === 0) {
+      throw new Error('MCP servers configuration is required for update');
+    }
+
+    try {
+      // Check if configuration has actually changed
+      const configChanged =
+        JSON.stringify(this.currentConfig) !== JSON.stringify(mcpServers);
+
+      if (!configChanged) {
+        logger.info('MCP configuration unchanged, skipping reconnection');
+        return;
+      }
+
+      logger.info('Updating MCP configuration and restarting connections');
+
+      // Close existing connections
+      await this.close();
+
+      // Update configuration
+      this.currentConfig = { ...mcpServers };
+      this.client = new MultiServerMCPClient(mcpServers);
+
+      // Reinitialize connections
+      await this.initializeConnections();
+
+      logger.info(
+        'MCP configuration updated and connections reinitialized successfully'
+      );
+    } catch (error) {
+      throw new Error(`Error updating MCP configuration: ${error}`);
     }
   };
 

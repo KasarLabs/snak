@@ -91,24 +91,15 @@ export const createAutonomousAgent = async (
 
     // Get allowed tools
     let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[] =
-      await createAllowedTools(starknetAgent, json_config.plugins, configPath || '');
+      await createAllowedTools(
+        starknetAgent,
+        json_config.plugins,
+        configPath || ''
+      );
 
-    // Initialize MCP tools if configured
-    if (
-      json_config.mcpServers &&
-      Object.keys(json_config.mcpServers).length > 0
-    ) {
-      try {
-        const mcp = MCP_CONTROLLER.fromJsonConfig(json_config);
-        await mcp.initializeConnections();
-
-        const mcpTools = mcp.getTools();
-        logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-        tools = [...tools, ...mcpTools];
-      } catch (error) {
-        logger.error(`Failed to initialize MCP tools: ${error}`);
-      }
-    }
+    // Note: MCP tools are now initialized and managed by createAllowedTools via mcpTools.ts
+    // No need to initialize them again here, as the mcpTools.ts will handle their lifecycle
+    // This avoids double-initialization and connection issues
 
     // Create the agent
     const memory = new MemorySaver();

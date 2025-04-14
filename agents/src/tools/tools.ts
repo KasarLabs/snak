@@ -1,4 +1,9 @@
-import { DynamicStructuredTool, StructuredTool, Tool, tool } from '@langchain/core/tools';
+import {
+  DynamicStructuredTool,
+  StructuredTool,
+  Tool,
+  tool,
+} from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
 import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
@@ -170,14 +175,20 @@ export async function createAllowedTools(
   configPath: string
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-  
+
   // Add MCP tools
-  const mcpTools = createMCPTools(starknetAgent.getAgentConfig() as JsonConfig, configPath);
+  const mcpTools = createMCPTools(
+    starknetAgent.getAgentConfig() as JsonConfig,
+    configPath
+  );
   toolsList = [...toolsList, ...mcpTools];
 
   // Add Starknet tools
   if (plugins.length > 0) {
-    const starknetTools = await StarknetToolRegistry.createAllowedTools(starknetAgent, plugins);
+    const starknetTools = await StarknetToolRegistry.createAllowedTools(
+      starknetAgent,
+      plugins
+    );
     toolsList = [...toolsList, ...starknetTools];
   }
 
@@ -195,22 +206,17 @@ export async function initializeToolsList(
   if (isSignature) {
     toolsList = await createSignatureTools(jsonConfig.plugins);
   } else {
-    const allowedTools = await createAllowedTools(starknetAgent, jsonConfig.plugins, configPath || '');
+    const allowedTools = await createAllowedTools(
+      starknetAgent,
+      jsonConfig.plugins,
+      configPath || ''
+    );
     toolsList = [...allowedTools];
   }
 
-  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
-    try {
-      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
-      await mcp.initializeConnections();
-
-      const mcpTools = mcp.getTools();
-      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-      toolsList = [...toolsList, ...mcpTools];
-    } catch (error) {
-      logger.error(`Failed to initialize MCP tools: ${error}`);
-    }
-  }
+  // Note: MCP tools are now initialized and managed by createAllowedTools via mcpTools.ts
+  // No need to initialize them again here, as the mcpTools.ts will handle their lifecycle
+  // This avoids double-initialization and connection issues
 
   return toolsList;
 }

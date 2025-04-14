@@ -128,18 +128,9 @@ export async function initializeToolsList(
     toolsList = [...allowedTools];
   }
 
-  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
-    try {
-      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
-      await mcp.initializeConnections();
-
-      const mcpTools = mcp.getTools();
-      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-      toolsList = [...toolsList, ...mcpTools];
-    } catch (error) {
-      logger.error(`Failed to initialize MCP tools: ${error}`);
-    }
-  }
+  // Note: MCP tools are now initialized and managed by createAllowedTools via mcpTools.ts
+  // No need to initialize them again here, as the mcpTools.ts will handle their lifecycle
+  // This avoids double-initialization and connection issues
 
   return toolsList;
 }
@@ -243,7 +234,11 @@ export const createAgent = async (
       }
     }
 
-    let toolsList = await initializeToolsList(starknetAgent, json_config, configPath);
+    let toolsList = await initializeToolsList(
+      starknetAgent,
+      json_config,
+      configPath
+    );
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({

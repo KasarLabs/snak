@@ -149,7 +149,11 @@ export class StarknetAgent implements IAgent {
       };
 
       if (this.currentMode === 'auto') {
-        this.agentReactExecutor = await createAutonomousAgent(this, config, configPath);
+        this.agentReactExecutor = await createAutonomousAgent(
+          this,
+          config,
+          configPath
+        );
       } else if (this.currentMode === 'agent') {
         this.agentReactExecutor = await createAgent(this, config, configPath);
       }

@@ -62,15 +62,70 @@ export interface MCP {
   url?: string;
 }
 
+// Smithery API interfaces
+export interface SmitheryServer {
+  qualifiedName: string;
+  displayName: string;
+  description: string;
+  homepage: string;
+  useCount: number;
+  isDeployed: boolean;
+  createdAt: string;
+}
+
+export interface SmitherySearchResponse {
+  servers: SmitheryServer[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+    totalCount: number;
+  };
+}
+
+export interface SmitheryServerDetails {
+  qualifiedName: string;
+  displayName: string;
+  remote: boolean;
+  connections: {
+    type: string;
+    deploymentUrl: string;
+    configSchema: {
+      type: string;
+      required: string[];
+      properties: {
+        [key: string]: {
+          type: string;
+          description: string;
+        };
+      };
+    };
+  }[];
+}
+
+// Callback type for config change events
+export type OnConfigChangeCallback = (config: JsonConfig) => Promise<void>;
+
 export class MCPConfigManager {
   private config: JsonConfig;
   private configPath: string;
   private configWatcher: fs.FSWatcher | null = null;
+  private onConfigChangeCallbacks: OnConfigChangeCallback[] = [];
+  private smitheryApiKey: string = '4fc37f77-2258-46ea-b1e7-924aff06bf5c';
 
   constructor(config: JsonConfig, configPath: string) {
     this.config = config;
     this.configPath = configPath;
     this.setupConfigWatcher();
+  }
+
+  /**
+   * Register a callback that will be called when the configuration changes
+   * @param callback Function to call when configuration changes
+   */
+  onConfigChange(callback: OnConfigChangeCallback): void {
+    this.onConfigChangeCallbacks.push(callback);
+    logger.info('Registered new MCP configuration change callback');
   }
 
   /**
@@ -95,7 +150,7 @@ export class MCPConfigManager {
   }
 
   /**
-   * Reloads the configuration from the file
+   * Reloads the configuration from the file and notifies listeners
    */
   async reloadConfig(): Promise<void> {
     try {
@@ -103,6 +158,23 @@ export class MCPConfigManager {
       const newConfig = JSON.parse(fileContent);
       this.config = newConfig;
       logger.info(`MCP configuration reloaded successfully`);
+
+      // Notify all registered callbacks about configuration change
+      if (this.onConfigChangeCallbacks.length > 0) {
+        logger.info(
+          `Notifying ${this.onConfigChangeCallbacks.length} listeners about MCP config change`
+        );
+
+        for (const callback of this.onConfigChangeCallbacks) {
+          try {
+            await callback(this.config);
+          } catch (error) {
+            logger.error(
+              `Error in MCP configuration change callback: ${error}`
+            );
+          }
+        }
+      }
     } catch (error) {
       logger.error(`Failed to reload configuration: ${error}`);
     }
@@ -110,60 +182,117 @@ export class MCPConfigManager {
 
   async searchMCP(query: string): Promise<MCP[]> {
     try {
-      const response = await axios.get(`https://registry.mcphub.io/recommend?description=${encodeURIComponent(query)}`);
-      
-      if (!response.data || response.data.length === 0) {
+      // Use Smithery API instead of MCPHub
+      const response = await axios.get(
+        `https://registry.smithery.ai/servers?q=${encodeURIComponent(query)}&page=1&pageSize=5`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.smitheryApiKey}`,
+          },
+        }
+      );
+
+      const searchResponse = response.data as SmitherySearchResponse;
+
+      if (!searchResponse.servers || searchResponse.servers.length === 0) {
         return [];
       }
-      
+
       // Transform response format to match the expected MCP interface
-      return response.data.map((server: any) => ({
-        name: server.title,
+      return searchResponse.servers.map((server: SmitheryServer) => ({
+        name: server.displayName,
         description: server.description,
-        title: server.title,
-        similarity: server.similarity,
-        repository: {
-          url: server.github_url
-        },
-        github_url: server.github_url
+        title: server.displayName,
+        similarity: server.useCount, // Using useCount as a proxy for similarity
+        url: server.homepage,
+        // Store qualifiedName for later use when adding the server
+        id: server.qualifiedName,
       }));
     } catch (error) {
-      logger.error(`Failed to search MCP servers: ${error}`);
+      logger.error(`Failed to search Smithery servers: ${error}`);
+      throw error;
+    }
+  }
+
+  async getServerDetails(
+    qualifiedName: string
+  ): Promise<SmitheryServerDetails> {
+    try {
+      const response = await axios.get(
+        `https://registry.smithery.ai/servers/${qualifiedName}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.smitheryApiKey}`,
+          },
+        }
+      );
+
+      return response.data as SmitheryServerDetails;
+    } catch (error) {
+      logger.error(`Failed to get Smithery server details: ${error}`);
       throw error;
     }
   }
 
   async addMCP(server: MCP, env: { [key: string]: string }): Promise<void> {
-    // Use title if name is not available (for MCP Compass responses)
-    const serverName = (server.name || server.title || '').toLowerCase().replace(/\s+/g, '_');
-    
-    if (!this.config.mcpServers) {
-      this.config.mcpServers = {};
-    }
+    try {
+      // Use the server name from the server object, default to a slug of the title if not available
+      const serverName = (server.name || server.title || '')
+        .toLowerCase()
+        .replace(/\s+/g, '-');
 
-    // Get the package name from GitHub URL if available
-    let packageName = `@npm_package_example/${serverName}`;
-    if (server.github_url) {
-      const urlParts = server.github_url.split('/');
-      if (urlParts.length >= 2) {
-        const repoOwner = urlParts[urlParts.length - 2];
-        const repoName = urlParts[urlParts.length - 1];
-        if (repoOwner && repoName) {
-          packageName = `@${repoOwner}/${repoName}`;
-        }
+      if (!this.config.mcpServers) {
+        this.config.mcpServers = {};
       }
+
+      let qualifiedName = server.id;
+
+      // If we have a qualifiedName (from Smithery search), use it directly
+      if (qualifiedName) {
+        // Convert config to JSON string
+        const configJson = JSON.stringify(env);
+
+        this.config.mcpServers[serverName] = {
+          command: 'npx',
+          args: [
+            '-y',
+            '@smithery/cli@latest',
+            'run',
+            qualifiedName,
+            '--config',
+            configJson,
+          ],
+          env: {},
+        };
+      } else {
+        // Fallback to old MCP behavior for backward compatibility
+        let packageName = `@npm_package_example/${serverName}`;
+        if (server.github_url) {
+          const urlParts = server.github_url.split('/');
+          if (urlParts.length >= 2) {
+            const repoOwner = urlParts[urlParts.length - 2];
+            const repoName = urlParts[urlParts.length - 1];
+            if (repoOwner && repoName) {
+              packageName = `@${repoOwner}/${repoName}`;
+            }
+          }
+        }
+
+        this.config.mcpServers[serverName] = {
+          command: 'npx',
+          args: ['@mcpm/cli', 'install', packageName],
+          env: env,
+        };
+      }
+
+      // Save the updated configuration to file
+      await this.saveConfig();
+
+      logger.info(`Added server: ${serverName}`);
+    } catch (error) {
+      logger.error(`Failed to add server: ${error}`);
+      throw error;
     }
-
-    this.config.mcpServers[serverName] = {
-      command: 'npx',
-      args: ['@mcpm/cli', 'install', packageName],
-      env: env
-    };
-
-    // Save the updated configuration to file
-    await this.saveConfig();
-
-    logger.info(`Added MCP server: ${serverName}`);
   }
 
   async removeMCP(serverName: string): Promise<void> {
@@ -184,6 +313,9 @@ export class MCPConfigManager {
         JSON.stringify(this.config, null, 2)
       );
       logger.info(`Configuration saved to ${this.configPath}`);
+
+      // After saving, manually trigger configuration reload to notify listeners
+      await this.reloadConfig();
     } catch (error) {
       logger.error(`Failed to save configuration: ${error}`);
       throw error;
@@ -203,5 +335,7 @@ export class MCPConfigManager {
       this.configWatcher = null;
       logger.info('MCP configuration watcher closed');
     }
+    // Clear all callbacks
+    this.onConfigChangeCallbacks = [];
   }
-} 
+}
