@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 import * as fspromises from 'fs/promises';
 import { retrieveProjectData } from './db_retrieve.js';
 import { ProjectData } from '../types/index.js';

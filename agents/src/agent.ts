@@ -31,7 +31,7 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import { JsonConfig } from './jsonConfig.js';
-import { logger } from '@kasarlabs/core';
+import { logger } from '@hijox/core';
 import { createBox } from './formatting.js';
 import {
   tokenTracker,

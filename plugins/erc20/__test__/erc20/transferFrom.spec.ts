@@ -3,7 +3,7 @@ import { approve } from '../../src/actions/approve.js';
 import { transferFrom } from '../../src/actions/transferFrom.js';
 import { createMockStarknetAgent } from '../jest/setEnvVars.js';
 import { setupTestEnvironment } from '../utils/helper.js';
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 
 describe('TransferFrom with prior approval', () => {
   const approvalAmount = '1.0';

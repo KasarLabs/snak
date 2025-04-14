@@ -1,4 +1,4 @@
-import { SignatureTool } from '@kasarlabs/agents';
+import { SignatureTool } from '@hijox/agents';
 import {
   transferFromSignatureSchema,
   approveSignatureSchema,

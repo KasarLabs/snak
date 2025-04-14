@@ -1,4 +1,4 @@
-import { SignatureTool } from '@kasarlabs/agents';
+import { SignatureTool } from '@hijox/agents';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { DeployOKXAccountSignature } from '../actions/deployAccount.js';
 import { CreateOKXAccountSignature } from '../actions/createAccount.js';

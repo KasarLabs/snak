@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 
 export const getChainId = async (agent: StarknetAgentInterface) => {
   const provider = agent.getProvider();

@@ -4,7 +4,7 @@ import {
   StarknetAgentInterface,
   JsonConfig,
   PostgresAdaptater,
-} from '@kasarlabs/agents';
+} from '@hijox/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();

@@ -2,7 +2,7 @@ import { ContractAddressParams } from '../schema/index.js';
 import { Contract } from 'starknet';
 import { FACTORY_ABI } from '../abis/unruggableFactory.js';
 import { FACTORY_ADDRESS } from '../constants/index.js';
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 
 type LiquidityType =
   | { type: 'JediERC20'; address: string }

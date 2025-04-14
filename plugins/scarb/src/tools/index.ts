@@ -11,7 +11,7 @@ import {
   installScarbSchema,
   compileContractSchema,
 } from '../schema/schema.js';
-import { StarknetAgentInterface, StarknetTool } from '@kasarlabs/core';
+import { StarknetAgentInterface, StarknetTool } from '@hijox/core';
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],

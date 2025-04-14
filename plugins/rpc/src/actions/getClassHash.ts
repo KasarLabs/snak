@@ -1,6 +1,6 @@
 import { BlockIdAndContractAddressParams } from '../schema/index.js';
 import { BlockNumber } from 'starknet';
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 
 export const getClassHashAt = async (
   agent: StarknetAgentInterface,

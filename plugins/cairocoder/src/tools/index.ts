@@ -2,7 +2,7 @@ import {
   StarknetTool,
   StarknetAgentInterface,
   PostgresAdaptater,
-} from '@kasarlabs/core';
+} from '@hijox/core';
 import {
   generateCairoCodeSchema,
   fixCairoCodeSchema,

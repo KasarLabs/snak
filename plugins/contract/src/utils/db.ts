@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 
 /**
  * Write JSON data to a file

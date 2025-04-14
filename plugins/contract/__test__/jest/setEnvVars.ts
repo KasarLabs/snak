@@ -1,6 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@kasarlabs/agents';
+import { StarknetAgentInterface, JsonConfig } from '@hijox/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();

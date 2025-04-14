@@ -1,7 +1,4 @@
-import {
-  StarknetTool,
-  StarknetAgentInterface,
-} from '@kasarlabs/agents';
+import { StarknetTool, StarknetAgentInterface } from '@hijox/agents';
 import {
   declareContractSchema,
   deployContractSchema,

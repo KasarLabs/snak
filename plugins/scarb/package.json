@@ -1,6 +1,6 @@
 {
   "name": "@hijox/plugin-scarb",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -22,7 +22,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@hijox/core": "workspace:*",
+    "@hijox/core": "^0.0.4",
     "@types/fs-extra": "^11.0.4",
     "@types/jsdom": "^21.1.7",
     "@types/tmp": "^0.2.6",
@@ -39,5 +39,5 @@
     "jsdom": "^26.0.0",
     "tmp": "^0.2.3"
   },
-  "gitHead": "86ba335607c19465e7541f2d3a68094a04e75b0f"
+  "gitHead": "66e99d704eefc9167b7e7179e79758d2a070dee4"
 }

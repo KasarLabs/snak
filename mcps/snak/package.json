@@ -1,6 +1,6 @@
 {
   "name": "@hijox/snak-mcp",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -17,12 +17,13 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@hijox/agents": "workspace:*",
+    "@hijox/agents": "^0.0.4",
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "gitHead": "66e99d704eefc9167b7e7179e79758d2a070dee4"
 }

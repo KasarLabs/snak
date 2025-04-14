@@ -1,7 +1,4 @@
-import {
-  StarknetTool,
-  StarknetAgentInterface,
-} from '@kasarlabs/agents';
+import { StarknetTool, StarknetAgentInterface } from '@hijox/agents';
 import { getSpecVersion } from '../actions/getSpecVersion.js';
 import { getBlockWithTxHashes } from '../actions/getBlockWithTxHashes.js';
 import { getBlockWithReceipts } from '../actions/getBlockWithReceipts.js';

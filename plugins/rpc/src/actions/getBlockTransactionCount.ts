@@ -1,5 +1,5 @@
 import { BlockIdParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 
 export const getBlockTransactionCount = async (
   agent: StarknetAgentInterface,

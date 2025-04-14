@@ -1,6 +1,6 @@
 {
   "name": "@hijox/plugin-erc721",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -22,10 +22,11 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@hijox/core": "workspace:*"
+    "@hijox/core": "^0.0.4"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "gitHead": "66e99d704eefc9167b7e7179e79758d2a070dee4"
 }

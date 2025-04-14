@@ -1,5 +1,5 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { declareContractSchema } from '../schemas/schema.js';
@@ -8,7 +8,7 @@ import {
   initializeContractDatabase,
   saveContractDeclaration,
 } from '../utils/db_init.js';
-import { logger } from '@kasarlabs/core';
+import { logger } from '@hijox/core';
 
 /**
  * Declares a contract on StarkNet

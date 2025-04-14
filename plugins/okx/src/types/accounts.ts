@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@hijox/agents';
 import { ProviderInterface } from 'starknet';
 /**
  * Details of a Starknet account
