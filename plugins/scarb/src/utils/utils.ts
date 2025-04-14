@@ -1,7 +1,7 @@
 import * as fsp from 'fs/promises';
 import * as fs from 'fs';
 import * as path from 'path';
-import { logger } from '@starknet-agent-kit/core';
+import { logger } from '@kasarlabs/core';
 /**
  * Get the trace path from the stdout of the bootloader command
  * @param stdout The stdout from the bootloader command

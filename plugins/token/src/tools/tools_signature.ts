@@ -1,4 +1,4 @@
-import { SignatureTool } from '@starknet-agent-kit/agents';
+import { SignatureTool } from '@kasarlabs/agents';
 import { transfer_signature } from '../actions/transfer.js';
 import { getBalanceSignature } from '../actions/getBalances.js';
 import { getBalanceSchema, transferSignatureschema } from '../schema/index.js';

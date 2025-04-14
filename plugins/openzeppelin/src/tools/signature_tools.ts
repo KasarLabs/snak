@@ -1,4 +1,4 @@
-import { SignatureTool } from '@starknet-agent-kit/agents';
+import { SignatureTool } from '@kasarlabs/agents';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { CreateOZAccountSignature } from '../actions/createAccount.js';
 import { DeployOZAccountSignature } from '../actions/deployAccount.js';

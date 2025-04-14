@@ -1,5 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
-('@starknet-agent-kit/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
 import { saveVerification } from '../utils/db_save.js';

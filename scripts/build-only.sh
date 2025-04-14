@@ -6,4 +6,4 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-lerna run build --scope @starknet-agent-kit/$1
+lerna run build --scope @kasarlabs/$1

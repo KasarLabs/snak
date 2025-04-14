@@ -1,6 +1,6 @@
 import { Account, Call } from 'starknet';
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
-('@starknet-agent-kit/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { z } from 'zod';
 import {
   Address,

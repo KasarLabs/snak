@@ -1,4 +1,4 @@
-import { StarknetAgentInterface, StarknetTool } from '@starknet-agent-kit/core';
+import { StarknetAgentInterface, StarknetTool } from '@kasarlabs/core';
 import { swapSchema } from '../schema/index.js';
 import { swapTokensFibrous } from '../actions/swap.js';
 import { batchSwapSchema, routeSchema } from '../schema/index.js';

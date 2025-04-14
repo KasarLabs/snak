@@ -1,5 +1,5 @@
 {
-  "name": "@starknet-agent-kit/plugin-rpc",
+  "name": "@kasarlabs/plugin-rpc",
   "version": "1.0.1-alpha.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +16,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@starknet-agent-kit/core": "workspace:*"
+    "@kasarlabs/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

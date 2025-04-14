@@ -1,9 +1,9 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
-import { PostgresAdaptater } from '@starknet-agent-kit/core';
-import { logger } from '@starknet-agent-kit/core';
-import { metrics } from '@starknet-agent-kit/core';
+import { PostgresAdaptater } from '@kasarlabs/core';
+import { logger } from '@kasarlabs/core';
+import { metrics } from '@kasarlabs/core';
 
 /**
  * @interface StarknetAgentInterface
@@ -123,7 +123,7 @@ export const registerTools = async (
         index = index + 1;
 
         const imported_tool = await import(
-          `@starknet-agent-kit/plugin-${tool}/dist/index.js`
+          `@kasarlabs/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerTools !== 'function') {
           return false;

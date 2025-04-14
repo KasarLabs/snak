@@ -1,5 +1,5 @@
 {
-  "name": "@starknet-agent-kit/server",
+  "name": "@kasarlabs/server",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "typescript": "^5.7.3",
-    "@starknet-agent-kit/agents": "workspace:*",
-    "@starknet-agent-kit/core": "workspace:*"
+    "@kasarlabs/agents": "workspace:*",
+    "@kasarlabs/core": "workspace:*"
   }
 }

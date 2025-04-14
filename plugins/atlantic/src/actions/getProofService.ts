@@ -1,5 +1,5 @@
 import { ATLANTIC_URL, DASHBOARD_URL } from '../constants/atlantic.js';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 import { AtlanticParam, AtlanticRes } from '../types/Atlantic.js';
 import { promises as fs } from 'fs';
 import { validateZip } from '../utils/validateZip.js';

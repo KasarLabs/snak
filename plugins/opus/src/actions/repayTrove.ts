@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 import { RepayTroveParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 

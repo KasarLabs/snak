@@ -5,7 +5,7 @@ import {
   StarknetAgent,
   registerTools,
   StarknetTool,
-} from '@starknet-agent-kit/agents';
+} from '@kasarlabs/agents';
 import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';

@@ -1,6 +1,6 @@
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import chalk from 'chalk';
-import { logger } from '@starknet-agent-kit/core';
+import { logger } from '@kasarlabs/core';
 
 /**
  * Interface for token usage information

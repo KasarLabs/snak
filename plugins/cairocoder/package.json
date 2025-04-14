@@ -1,5 +1,5 @@
 {
-  "name": "@starknet-agent-kit/plugin-cairocoder",
+  "name": "@kasarlabs/plugin-cairocoder",
   "version": "1.0.1-alpha.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +16,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@starknet-agent-kit/core": "workspace:*",
+    "@kasarlabs/core": "workspace:*",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"

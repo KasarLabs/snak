@@ -4,7 +4,7 @@ import {
   StarknetAgent,
   JsonConfig,
   load_json_config,
-} from '@starknet-agent-kit/agents';
+} from '@kasarlabs/agents';
 
 @Injectable()
 export class AgentFactory {

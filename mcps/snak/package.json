@@ -17,7 +17,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*",
+    "@kasarlabs/agents": "workspace:*",
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   },

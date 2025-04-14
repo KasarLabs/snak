@@ -1,4 +1,4 @@
-import { StarknetAgentInterface, StarknetTool } from '@starknet-agent-kit/core';
+import { StarknetAgentInterface, StarknetTool } from '@kasarlabs/core';
 import {
   borrowTroveSchema,
   collateralActionSchema,

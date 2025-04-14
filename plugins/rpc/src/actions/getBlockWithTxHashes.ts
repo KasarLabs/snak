@@ -1,5 +1,5 @@
 import { BlockIdParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 
 export const getBlockWithTxHashes = async (
   agent: StarknetAgentInterface,

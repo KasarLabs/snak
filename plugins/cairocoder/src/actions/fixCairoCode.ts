@@ -1,5 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
-('@starknet-agent-kit/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { fixCairoCodeSchema } from '../schema/schema.js';
 import {
   callCairoGenerationAPI,

@@ -1,6 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface, JsonConfig } from '@kasarlabs/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();

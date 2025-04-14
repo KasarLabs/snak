@@ -1,5 +1,5 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { declareContractSchema } from '../schemas/schema.js';
@@ -8,7 +8,7 @@ import {
   initializeContractDatabase,
   saveContractDeclaration,
 } from '../utils/db_init.js';
-import { logger } from '@starknet-agent-kit/core';
+import { logger } from '@kasarlabs/core';
 
 /**
  * Declares a contract on StarkNet
