@@ -247,43 +247,27 @@ export class MCPConfigManager {
 
       let qualifiedName = server.id;
 
-      // If we have a qualifiedName (from Smithery search), use it directly
-      if (qualifiedName) {
-        // Convert config to JSON string
-        const configJson = JSON.stringify(env);
-
-        this.config.mcpServers[serverName] = {
-          command: 'npx',
-          args: [
-            '-y',
-            '@smithery/cli@latest',
-            'run',
-            qualifiedName,
-            '--config',
-            configJson,
-          ],
-          env: {},
-        };
-      } else {
-        // Fallback to old MCP behavior for backward compatibility
-        let packageName = `@npm_package_example/${serverName}`;
-        if (server.github_url) {
-          const urlParts = server.github_url.split('/');
-          if (urlParts.length >= 2) {
-            const repoOwner = urlParts[urlParts.length - 2];
-            const repoName = urlParts[urlParts.length - 1];
-            if (repoOwner && repoName) {
-              packageName = `@${repoOwner}/${repoName}`;
-            }
-          }
-        }
-
-        this.config.mcpServers[serverName] = {
-          command: 'npx',
-          args: ['@mcpm/cli', 'install', packageName],
-          env: env,
-        };
+      if (!qualifiedName) {
+        throw new Error(
+          'Server ID (qualifiedName) is required for Smithery servers'
+        );
       }
+
+      // Convert config to JSON string
+      const configJson = JSON.stringify(env);
+
+      this.config.mcpServers[serverName] = {
+        command: 'npx',
+        args: [
+          '-y',
+          '@smithery/cli@latest',
+          'run',
+          qualifiedName,
+          '--config',
+          configJson,
+        ],
+        env: {},
+      };
 
       // Save the updated configuration to file
       await this.saveConfig();
