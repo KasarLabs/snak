@@ -1,6 +1,6 @@
 {
   "name": "@starknet-agent-kit/plugin-openzeppelin",
-  "version": "1.0.0",
+  "version": "0.0.1-alpha.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -13,7 +13,8 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-"@starknet-agent-kit/core": "workspace:*"  },
+    "@starknet-agent-kit/core": "workspace:*"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

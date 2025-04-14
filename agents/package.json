@@ -1,6 +1,6 @@
 {
   "name": "@starknet-agent-kit/agents",
-  "version": "1.0.0",
+  "version": "0.0.1-alpha.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -28,11 +28,6 @@
     "@langchain/langgraph": "^0.2.44",
     "@langchain/ollama": "^0.1.4",
     "@langchain/openai": "^0.3.17",
-    "discord.js": "^14.17.3",
-    "inquirer": "^12.4.1",
-    "langchain": "^0.3.10",
-    "mem0ai": "^2.1.9",
-    "nanospinner": "^1.2.2",
     "@starknet-agent-kit/core": "workspace:*",
     "@starknet-agent-kit/plugin-argent": "workspace:*",
     "@starknet-agent-kit/plugin-artpeace": "workspace:*",
@@ -53,7 +48,11 @@
     "@starknet-agent-kit/plugin-token": "workspace:*",
     "@starknet-agent-kit/plugin-transaction": "workspace:*",
     "@starknet-agent-kit/plugin-unruggable": "workspace:*",
-    "@starknet-agent-kit/plugin-vesu": "workspace:*"
-
+    "@starknet-agent-kit/plugin-vesu": "workspace:*",
+    "discord.js": "^14.17.3",
+    "inquirer": "^12.4.1",
+    "langchain": "^0.3.10",
+    "mem0ai": "^2.1.9",
+    "nanospinner": "^1.2.2"
   }
 }
