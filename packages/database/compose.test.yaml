@@ -1,7 +1,14 @@
 name: postgresql
 
 services:
-  postgres-test:
+  init-logs:
+    image: alpine
+    container_name: "init-logs"
+    volumes:
+      - ./log:/etc/postgresql/log
+    command: chmod 777 /etc/postgresql/log
+
+  postgresql-test:
     image: pgvector/pgvector:pg17
     container_name: "posgresql-test"
     shm_size: 128m
@@ -9,3 +16,14 @@ services:
       - 5432:5432
     env_file:
     - .env
+    volumes:
+      - ./log:/etc/postgresql/log
+    depends_on: 
+      - init-logs
+    command: >
+      postgres
+        -c logging_collector=on 
+        -c log_directory=/etc/postgresql/log 
+        -c log_file_mode=0664 
+        -c log_min_messages=debug 
+        -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'

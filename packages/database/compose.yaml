@@ -1,6 +1,13 @@
 name: postgresql
 
 services:
+  init-logs:
+    image: alpine
+    container_name: "init-logs"
+    volumes:
+      - ./log:/etc/postgresql/log
+    command: chmod 777 /etc/postgresql/log
+
   postgres:
     image: pgvector/pgvector:pg17
     container_name: "posgresql"
@@ -10,4 +17,13 @@ services:
     env_file:
     - .env
     volumes:
+      - ./log:/etc/postgresql/log
       - ./data:/var/lib/postgresql/data
+    depends_on: 
+      - init-logs
+    command: >
+      postgres
+        -c logging_collector=on
+        -c log_directory=/etc/postgresql/log
+        -c log_file_mode=0664
+        -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
