@@ -1,5 +1,5 @@
 import { tool } from '@langchain/core/tools';
-import { logger } from '@starknet-agent-kit/core';
+import { logger } from '@kasarlabs/core';
 
 /**
  * @interface SignatureTool
@@ -68,7 +68,7 @@ export const RegisterSignatureTools = async (
       allowed_tools.map(async (tool) => {
         index = index + 1;
         const imported_tool = await import(
-          `@starknet-agent-kit/plugin-${tool}/dist/index.js`
+          `@kasarlabs/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerSignatureTools !== 'function') {
           return false;

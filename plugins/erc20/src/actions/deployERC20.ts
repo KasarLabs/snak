@@ -1,5 +1,5 @@
 import { Account, shortString, cairo } from 'starknet';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 import { ContractManager } from '../utils/contractManager.js';
 import { deployERC20Schema } from '../schemas/schema.js';
 import {

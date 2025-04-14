@@ -9,7 +9,7 @@ import {
   SimulateDeclareTransactionAccountParams,
   Invocation_Declare,
 } from '../types/simulateTransactionTypes.js';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 import { TransactionReponseFormat } from '../utils/outputSimulateTransaction.js';
 import { DEFAULT_NONCE } from '../constant/index.js';
 

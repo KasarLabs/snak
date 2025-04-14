@@ -1,5 +1,5 @@
 import { TransactionHashParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 
 export const getTransactionByHash = async (
   agent: StarknetAgentInterface,

@@ -1,5 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
-('@starknet-agent-kit/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import * as path from 'path';
 import { CairoProgram, ProjectData } from '../types/index.js';
 import { addProgram } from './db_add.js';

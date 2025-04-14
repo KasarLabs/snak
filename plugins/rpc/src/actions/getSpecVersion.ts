@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 
 export const getSpecVersion = async (agent: StarknetAgentInterface) => {
   try {

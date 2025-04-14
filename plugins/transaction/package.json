@@ -16,7 +16,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@kasarlabs/core": "1.0.0"
+  "@kasarlabs/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

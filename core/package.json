@@ -25,6 +25,5 @@
     "@langchain/core": "^0.3.42",
     "@types/pg": "^8.11.11",
     "winston": "^3.17.0"
-
   }
 }

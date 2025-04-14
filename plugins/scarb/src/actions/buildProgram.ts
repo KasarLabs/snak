@@ -1,5 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
-('@starknet-agent-kit/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';

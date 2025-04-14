@@ -4,10 +4,10 @@ import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from './autonomousAgents.js';
 import { JsonConfig } from './jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { PostgresAdaptater } from '@starknet-agent-kit/core';
-import { PostgresDatabasePoolInterface } from '@starknet-agent-kit/core';
-import { logger } from '@starknet-agent-kit/core';
-import { metrics } from '@starknet-agent-kit/core';
+import { PostgresAdaptater } from '@kasarlabs/core';
+import { PostgresDatabasePoolInterface } from '@kasarlabs/core';
+import { logger } from '@kasarlabs/core';
+import { metrics } from '@kasarlabs/core';
 import { createBox } from './formatting.js';
 import {
   addTokenInfoToBox,

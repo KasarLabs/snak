@@ -1,6 +1,6 @@
 {
-  "name": "@starknet-agent-kit/plugin-cairocoder",
-  "version": "1.0.1-alpha.0",
+  "name": "@kasarlabs/plugin-cairocoder",
+  "version": "0.0.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -16,12 +16,13 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@starknet-agent-kit/core": "workspace:*",
+  "@kasarlabs/core": "workspace:*",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/axios": "^0.14.4"
-  }
+  },
+  "gitHead": "86ba335607c19465e7541f2d3a68094a04e75b0f"
 }

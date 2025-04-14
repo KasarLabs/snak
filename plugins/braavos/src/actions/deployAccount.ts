@@ -1,5 +1,5 @@
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@kasarlabs/agents';
 import { AccountManager } from '../utils/AccountManager.js';
 import { z } from 'zod';
 import { accountDetailsSchema } from '../schemas/schema.js';

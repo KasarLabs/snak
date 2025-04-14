@@ -1,6 +1,6 @@
 {
   "name": "@kasarlabs/snak",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Build powerful and secure agents powered by Starknet",
   "author": "Kasar Labs",
   "license": "MIT",
@@ -55,18 +55,14 @@
     "publish" :"lerna publish --no-private"
   },
   "dependencies": {
-    "@types/pg": "^8.11.11",
     "add": "^2.0.6",
     "boxen": "^8.0.1",
     "chalk": "^4.1.2",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
     "express": "^4.21.2",
-    "pg": "^8.13.3",
-    "prom-client": "^15.1.3",
     "starknet": "^6.23.1",
     "util": "^0.12.5",
-    "winston": "^3.17.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

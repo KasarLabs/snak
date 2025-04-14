@@ -27,8 +27,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@kasarlabs/core": "0.0.1",
-    "winston": "^3.17.0"
+    "@kasarlabs/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

@@ -1,7 +1,7 @@
 import {
   StarknetTool,
   StarknetAgentInterface,
-} from '@starknet-agent-kit/agents';
+} from '@kasarlabs/agents';
 import {
   getBalanceSchema,
   Transferschema,

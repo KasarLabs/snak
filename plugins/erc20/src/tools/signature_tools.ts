@@ -1,4 +1,4 @@
-import { SignatureTool } from '@starknet-agent-kit/agents';
+import { SignatureTool } from '@kasarlabs/agents';
 import {
   transferFromSignatureSchema,
   approveSignatureSchema,

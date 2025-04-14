@@ -4,7 +4,7 @@ import {
   PostgresAdaptater,
   StarknetAgentInterface,
   StarknetTool,
-} from '@starknet-agent-kit/core';
+} from '@kasarlabs/core';
 
 const initializeTools = async (
   agent: StarknetAgentInterface

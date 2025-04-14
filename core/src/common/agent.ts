@@ -1,5 +1,5 @@
 import { RpcProvider } from 'starknet';
-import { PostgresAdaptater } from '@database/postgresql/src/database.js';
+import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 import { SystemMessage } from '@langchain/core/messages';
 
 export interface StarknetTool<P = unknown> {
