@@ -22,7 +22,7 @@
  */
 
 
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, QueryResult } from 'pg';
 
 import { DatabaseError } from './error.js';
 
@@ -109,17 +109,19 @@ export async function query<Model = {}>(q: Query): Promise<Model[]> {
  * @throws { DatabaseError }
  * @see module:database
  */
-export async function transaction(qs: Query[]): Promise<void> {
+export async function transaction<Model = {}>(qs: Query[]): Promise<Model[]> {
 	let client: PoolClient | undefined;
+	let res: QueryResult | undefined;
 	try {
 		client = await pool.connect();
 
 		await client.query('BEGIN;');
 		for (const q of qs) {
-			await client.query(q.query, q.values);
+			res = await client.query(q.query, q.values);
 		}
 		await client.query('COMMIT;');
 
+		return res ? res.rows : [];
 	} catch (err: any) {
 		throw DatabaseError.handlePgError(err);
 	} finally {

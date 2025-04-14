@@ -1,12 +1,11 @@
 import { query, transaction, Query } from "../../database.js"
-import { DatabaseError } from "../../error.js";
 import { types } from 'pg';
 
 export namespace memory {
 	export async function init() {
 		const t = [
 			new Query(
-				/* sql */ `CREATE EXTENSION IF NOT EXISTS vector;`
+				`CREATE EXTENSION IF NOT EXISTS vector;`
 			),
 			new Query(
 				`CREATE TABLE IF NOT EXISTS agent_memories(

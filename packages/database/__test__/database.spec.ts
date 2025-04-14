@@ -68,7 +68,7 @@ describe('Database queries', () => {
 					('jepsen', 45, 'teacher');`
 			),
 		];
-		await expect(transaction(t)).resolves.toBeUndefined();
+		await expect(transaction(t)).resolves.toEqual([]);
 
 		interface Model { name: string, age: number, job: string, pay_avg: number };
 		const q = new Query(
