@@ -10,6 +10,9 @@
     "type": "git",
     "url": "git+https://github.com/kasarlabs/snak.git"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "packageManager": "pnpm@9.3.0",
   "keywords": [
     "starknet",
