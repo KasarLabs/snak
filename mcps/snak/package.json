@@ -1,6 +1,6 @@
 {
-  "name": "@kasarlabs/snak-mcp",
-  "version": "0.0.12-alpha.0",
+  "name": "@hijox/snak-mcp",
+  "version": "0.0.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -17,7 +17,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@kasarlabs/agents": "workspace:*",
+    "@hijox/agents": "workspace:*",
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   },

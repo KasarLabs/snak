@@ -1,12 +1,18 @@
 {
-  "name": "@kasarlabs/core",
-  "version": "0.0.12-alpha.0",
+  "name": "@hijox/core",
+  "version": "0.0.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ],
   "scripts": {
     "test": "echo \"No test has been created for this package\" && exit 0",
     "build": "tsc",
@@ -24,6 +30,7 @@
     "@types/pg": "^8.11.11",
     "pg": "^8.13.3",
     "prom-client": "^15.1.3",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "zod": "^3.22.4"
   }
 }

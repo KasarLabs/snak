@@ -1,12 +1,18 @@
 {
-  "name": "@kasarlabs/plugin-cairocoder",
-  "version": "0.0.12-alpha.0",
+  "name": "@hijox/plugin-cairocoder",
+  "version": "0.0.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ],
   "scripts": {
     "test": "jest",
     "build": "pnpm clean:dist && tsc",
@@ -16,7 +22,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@kasarlabs/core": "workspace:*",
+    "@hijox/core": "workspace:*",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"

@@ -1,12 +1,18 @@
 {
-  "name": "@kasarlabs/plugin-scarb",
-  "version": "0.0.12-alpha.0",
+  "name": "@hijox/plugin-scarb",
+  "version": "0.0.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ],
   "scripts": {
     "test": "jest",
     "build": "pnpm clean:dist && tsc",
@@ -16,7 +22,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@kasarlabs/core": "workspace:*",
+    "@hijox/core": "workspace:*",
     "@types/fs-extra": "^11.0.4",
     "@types/jsdom": "^21.1.7",
     "@types/tmp": "^0.2.6",
