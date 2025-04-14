@@ -2,7 +2,6 @@
 export * from './src/agent.js';
 export * from './src/starknetAgent.js';
 export * from './src/autonomousAgents.js';
-export { PostgresAdaptater } from './src/databases/postgresql/src/database.js';
 
 // Tool-related exports
 export {
@@ -25,9 +24,3 @@ export { JsonConfig, load_json_config } from './src/jsonConfig.js';
 
 // Common exports
 export { IAgent, AiConfig } from './common/index.js';
-
-// Logger
-export { default as logger } from './src/logger.js';
-
-import * as metrics from './metrics.js';
-export { metrics };

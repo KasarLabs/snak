@@ -1,7 +1,4 @@
-import {
-  StarknetAgentInterface,
-  StarknetTool,
-} from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface, StarknetTool } from '@starknet-agent-kit/core';
 import { getSpecVersion } from '../src/actions/getSpecVersion.js';
 import { getBlockWithTxHashes } from '../src/actions/getBlockWithTxHashes.js';
 import { getBlockWithReceipts } from '../src/actions/getBlockWithReceipts.js';

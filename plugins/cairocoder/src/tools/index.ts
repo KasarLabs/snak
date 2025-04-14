@@ -2,7 +2,7 @@ import {
   StarknetTool,
   StarknetAgentInterface,
   PostgresAdaptater,
-} from '@starknet-agent-kit/agents';
+} from '@starknet-agent-kit/core';
 import {
   generateCairoCodeSchema,
   fixCairoCodeSchema,

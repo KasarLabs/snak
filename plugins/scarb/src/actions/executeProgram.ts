@@ -1,4 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
+('@starknet-agent-kit/core');
 import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { retrieveProjectData } from '../utils/db_retrieve.js';

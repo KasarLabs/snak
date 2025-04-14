@@ -33,6 +33,27 @@
     "langchain": "^0.3.10",
     "mem0ai": "^2.1.9",
     "nanospinner": "^1.2.2",
-    "prom-client": "^15.1.3"
+    "@starknet-agent-kit/core": "workspace:*",
+    "@starknet-agent-kit/plugin-argent": "workspace:*",
+    "@starknet-agent-kit/plugin-artpeace": "workspace:*",
+    "@starknet-agent-kit/plugin-atlantic": "workspace:*",
+    "@starknet-agent-kit/plugin-avnu": "workspace:*",
+    "@starknet-agent-kit/plugin-braavos": "workspace:*",
+    "@starknet-agent-kit/plugin-cairocoder": "workspace:*",
+    "@starknet-agent-kit/plugin-chat-pool": "workspace:*",
+    "@starknet-agent-kit/plugin-contract": "workspace:*",
+    "@starknet-agent-kit/plugin-erc20": "workspace:*",
+    "@starknet-agent-kit/plugin-erc721": "workspace:*",
+    "@starknet-agent-kit/plugin-fibrous": "workspace:*",
+    "@starknet-agent-kit/plugin-okx": "workspace:*",
+    "@starknet-agent-kit/plugin-openzeppelin": "workspace:*",
+    "@starknet-agent-kit/plugin-opus": "workspace:*",
+    "@starknet-agent-kit/plugin-rpc": "workspace:*",
+    "@starknet-agent-kit/plugin-scarb": "workspace:*",
+    "@starknet-agent-kit/plugin-token": "workspace:*",
+    "@starknet-agent-kit/plugin-transaction": "workspace:*",
+    "@starknet-agent-kit/plugin-unruggable": "workspace:*",
+    "@starknet-agent-kit/plugin-vesu": "workspace:*"
+
   }
 }

@@ -13,7 +13,7 @@ import {
 } from './interfaces/interfaces.js';
 import { getError } from './types/error.js';
 import pg from 'pg';
-import logger from '../../../logger.js';
+import logger from '../../../logger/logger.js';
 const { Pool } = pg;
 
 /**

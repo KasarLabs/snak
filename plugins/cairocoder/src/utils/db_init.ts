@@ -1,4 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
+('@starknet-agent-kit/core');
 import * as path from 'path';
 import { CairoProgram, ProjectData } from '../types/index.js';
 import { addProgram } from './db_add.js';
@@ -201,7 +202,7 @@ export const retrieveProjectData = async (
     });
 
     const programs: CairoProgram[] = (programsResult.query?.rows || []).map(
-      (row) => ({
+      (row: any) => ({
         name: row.name,
         source_code: row.source_code,
       })

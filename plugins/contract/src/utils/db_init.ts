@@ -1,4 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
+('@starknet-agent-kit/core');
 
 /**
  * Initialize the contract database

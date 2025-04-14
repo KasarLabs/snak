@@ -45,7 +45,8 @@
     "prettier:agents": "prettier --check \"agents/**/*.{ts,tsx}\" --write",
     "prettier:plugins": "prettier --check \"plugins/**/*.{ts,tsx}\" --write",
     "prettier:client": "prettier --check \"client/**/*.{ts,tsx}\" --write",
-    "prettier:all": "pnpm prettier:server && pnpm prettier:agents && pnpm prettier:plugins && pnpm prettier:client",
+    "prettier:core": "prettier --check \"core/**/*.{ts,tsx}\" --write",
+    "prettier:all": "pnpm prettier:server && pnpm prettier:agents && pnpm prettier:plugins && pnpm prettier:client && pnpm prettier:core",
     "prepublishOnly": "lerna run prepublishOnly",
     "node:server": "node ./mcps/snak/dist/index.js"
   },

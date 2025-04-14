@@ -1,21 +1,22 @@
 {
-  "name": "@starknet-agent-kit/plugin-erc20",
+  "name": "@starknet-agent-kit/core",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "test": "jest --passWithNoTests",
+    "test": "echo \"No test has been created for this package\" && exit 0",
     "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "lint": "eslint \"src/**/*.ts\" --fix"
+    "lint": "eslint \"src/**/*.ts\""
   },
-  "devDependencies": {
-"@starknet-agent-kit/core": "workspace:*"  },
   "keywords": [],
-  "author": "",
+  "author": "KasarLabs",
   "license": "ISC",
-  "description": ""
+  "description": "The Agent Kit engine of Snak",
+  "dependencies": {
+    "prom-client": "^15.1.3"
+  }
 }

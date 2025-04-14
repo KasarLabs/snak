@@ -24,7 +24,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*"
+    "@starknet-agent-kit/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

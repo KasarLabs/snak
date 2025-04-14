@@ -1,9 +1,6 @@
 import { wrapAccountCreationResponse } from '../utils/AccountManager.js';
 import { accountDetailsSchema } from '../schemas/schema.js';
-import {
-  StarknetAgentInterface,
-  StarknetTool,
-} from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface, StarknetTool } from '@starknet-agent-kit/core';
 import { DeployBraavosAccount } from '../actions/deployAccount.js';
 import { CreateBraavosAccount } from '../actions/createAccount.js';
 

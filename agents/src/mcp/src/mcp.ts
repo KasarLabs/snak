@@ -2,8 +2,7 @@ import { StructuredTool } from '@langchain/core/tools';
 import { MultiServerMCPClient } from 'snak-mcps';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import logger from '../../../src/logger.js';
-import chalk from 'chalk';
+import { logger } from '@starknet-agent-kit/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

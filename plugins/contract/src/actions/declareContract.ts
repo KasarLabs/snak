@@ -8,7 +8,7 @@ import {
   initializeContractDatabase,
   saveContractDeclaration,
 } from '../utils/db_init.js';
-import { logger } from '@starknet-agent-kit/agents';
+import { logger } from '@starknet-agent-kit/core';
 
 /**
  * Declares a contract on StarkNet

@@ -1,5 +1,6 @@
 import { Account, constants } from 'starknet';
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
+('@starknet-agent-kit/core');
 import { ContractManager } from '../utils/contractManager.js';
 import { deployContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';

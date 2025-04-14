@@ -1,4 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
+('@starknet-agent-kit/core');
 import { addProgramSchema, addDependencySchema } from '../schema/schema.js';
 import { retrieveProjectData } from '../utils/db_init.js';
 import { addProgram, addDependency } from '../utils/db_add.js';

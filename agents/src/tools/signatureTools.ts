@@ -1,5 +1,5 @@
 import { tool } from '@langchain/core/tools';
-import logger from '../logger.js';
+import { logger } from '@starknet-agent-kit/core';
 
 /**
  * @interface SignatureTool

@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import logger from './src/logger.js';
+import { logger } from '@starknet-agent-kit/core';
 
 // Global deactivation of LangChain logs
 process.env.LANGCHAIN_TRACING = 'false';

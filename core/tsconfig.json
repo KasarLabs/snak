@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@src/*": ["./src/*"],
+      "@logger/*": ["./src/logger/*"],
+      "@metrics/*": ["./src/metrics/*"],
+      "@database/*": ["./src/databases/*"],
+    }
+  },
+  "include": ["src/**/*", "./common/**/*", "./start.ts", "./index.ts"],
+  "exclude": ["node_modules", "dist"]
+}

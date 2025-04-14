@@ -1,4 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
+('@starknet-agent-kit/core');
 import { proveProject, cleanProject } from '../utils/workspace.js';
 import { proveProgramSchema } from '../schema/schema.js';
 import { executeProgram } from './executeProgram.js';

@@ -16,8 +16,7 @@
     "fibrous-router-sdk": "^0.4.3"
   },
   "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*"
-  },
+"@starknet-agent-kit/core": "workspace:*"  },
   "keywords": [],
   "author": "",
   "license": "ISC",

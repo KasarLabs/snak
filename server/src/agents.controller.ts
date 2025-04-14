@@ -19,7 +19,7 @@ import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
 import { AgentFactory } from './agents.factory.js';
-import { metrics } from '@starknet-agent-kit/agents';
+import { metrics } from '@starknet-agent-kit/core';
 import { Reflector } from '@nestjs/core';
 
 @Controller('key')

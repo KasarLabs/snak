@@ -4,3 +4,4 @@ packages:
   - 'agents'
   - 'plugins/*'
   - 'mcps/*'
+  - 'core'

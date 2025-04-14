@@ -1,4 +1,5 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/core';
+('@starknet-agent-kit/core');
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
 import { deleteContractByClassHash } from '../utils/db_init.js';

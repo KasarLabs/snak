@@ -4,6 +4,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "private": true,
   "scripts": {
     "build": "pnpm clean:dist && nest build",
     "clean": "rm -rf node_modules",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "typescript": "^5.7.3",
-    "@starknet-agent-kit/agents": "workspace:*"
+    "@starknet-agent-kit/agents": "workspace:*",
+    "@starknet-agent-kit/core": "workspace:*"
   }
 }

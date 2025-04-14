@@ -1,9 +1,9 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../jsonConfig.js';
-import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
-import logger from '../logger.js';
-import * as metrics from '../../metrics.js';
+import { PostgresAdaptater } from '@starknet-agent-kit/core';
+import { logger } from '@starknet-agent-kit/core';
+import { metrics } from '@starknet-agent-kit/core';
 
 /**
  * @interface StarknetAgentInterface

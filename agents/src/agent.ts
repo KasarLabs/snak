@@ -31,7 +31,7 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
 import { JsonConfig } from './jsonConfig.js';
-import logger from './logger.js';
+import { logger } from '@starknet-agent-kit/core';
 import { createBox } from './formatting.js';
 import {
   tokenTracker,
