@@ -1,6 +1,6 @@
 {
   "name": "@kasarlabs/plugin-openzeppelin",
-  "version": "1.0.2-alpha.0",
+  "version": "0.0.11",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -16,10 +16,10 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@kasarlabs/core": "workspace:*"
+  "@kasarlabs/core": "workspace:*"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+   "description": ""
 }
