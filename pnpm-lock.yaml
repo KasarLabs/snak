@@ -143,30 +143,6 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.4.0
         version: 3.4.2
-      '@langchain/anthropic':
-        specifier: ^0.3.11
-        version: 0.3.16(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(encoding@0.1.13)
-      '@langchain/community':
-        specifier: ^0.3.34
-        version: 0.3.39(mtqftel7ewqlcyh7g6njm2dclq)
-      '@langchain/core':
-        specifier: ^0.3.42
-        version: 0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2))
-      '@langchain/deepseek':
-        specifier: ^0.0.1
-        version: 0.0.1(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(encoding@0.1.13)(ws@8.18.1)
-      '@langchain/google-genai':
-        specifier: ^0.1.6
-        version: 0.1.12(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(zod@3.24.2)
-      '@langchain/langgraph':
-        specifier: ^0.2.44
-        version: 0.2.62(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(react@19.1.0)(zod-to-json-schema@3.24.5(zod@3.24.2))
-      '@langchain/ollama':
-        specifier: ^0.1.4
-        version: 0.1.6(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))
-      '@langchain/openai':
-        specifier: ^0.3.17
-        version: 0.3.17(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(encoding@0.1.13)(ws@8.18.1)
       '@kasarlabs/core':
         specifier: workspace:*
         version: link:../core
@@ -230,6 +206,30 @@ importers:
       '@kasarlabs/plugin-vesu':
         specifier: workspace:*
         version: link:../plugins/vesu
+      '@langchain/anthropic':
+        specifier: ^0.3.11
+        version: 0.3.16(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(encoding@0.1.13)
+      '@langchain/community':
+        specifier: ^0.3.34
+        version: 0.3.39(mtqftel7ewqlcyh7g6njm2dclq)
+      '@langchain/core':
+        specifier: ^0.3.42
+        version: 0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2))
+      '@langchain/deepseek':
+        specifier: ^0.0.1
+        version: 0.0.1(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(encoding@0.1.13)(ws@8.18.1)
+      '@langchain/google-genai':
+        specifier: ^0.1.6
+        version: 0.1.12(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(zod@3.24.2)
+      '@langchain/langgraph':
+        specifier: ^0.2.44
+        version: 0.2.62(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(react@19.1.0)(zod-to-json-schema@3.24.5(zod@3.24.2))
+      '@langchain/ollama':
+        specifier: ^0.1.4
+        version: 0.1.6(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))
+      '@langchain/openai':
+        specifier: ^0.3.17
+        version: 0.3.17(@langchain/core@0.3.43(openai@4.91.1(encoding@0.1.13)(ws@8.18.1)(zod@3.24.2)))(encoding@0.1.13)(ws@8.18.1)
       discord.js:
         specifier: ^14.17.3
         version: 14.18.0
