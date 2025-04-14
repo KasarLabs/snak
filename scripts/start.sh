@@ -174,6 +174,21 @@ remove_dependencies() {
     draw_ascii_logo
     create_info_box "Dependencies removed successfully." \
                     "You can reinstall them again to restart Snak."
+
+    # Return to main menu after removing dependencies
+    echo -e "\n${YELLOW}What would you like to do?${NC}"
+    echo ""
+    select_option "Install dependencies" "Quit"
+    local choice=$?
+    
+    if [ $choice -eq 0 ]; then
+      install_dependencies
+      # Return to main after installation
+      main
+    else
+      clear
+      exit 0
+    fi
   fi
   
   return $status
@@ -475,7 +490,8 @@ main() {
   
   if [ $choice -eq 1 ]; then
     remove_dependencies
-    exit 0
+    # Remove the exit command to allow returning to main menu
+    return 0
   elif [ $choice -eq 2 ]; then
     clear
     exit 0
