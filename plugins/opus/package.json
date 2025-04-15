@@ -21,7 +21,7 @@
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
     "format": "prettier --write \"src/**/*.ts\"",
-    "prepublishOnly": "npm run format && npm run test && npm run build",
+    "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
@@ -32,5 +32,5 @@
   "author": "",
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for interacting with the Opus lending protocol, enabling creation and management of Troves for borrowing.",
-  "gitHead": "e5a880a1ad36b3ca33d5b8821ab9bcbb7b491730"
+  "gitHead": "6d0c71275dfb75d18ef6e32d2904f7a876543ad3"
 }

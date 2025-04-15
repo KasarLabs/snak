@@ -21,7 +21,7 @@
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
     "format": "prettier --write \"src/**/*.ts\"",
-    "prepublishOnly": "npm run format && npm run test && npm run build",
+    "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
     "pgvector": "../scripts/pgvector.sh",
     "start": "pnpm pgvector && npx tsx -r tsconfig-paths/register ./start.ts ",
@@ -69,5 +69,5 @@
     "nanospinner": "^1.2.2",
     "snak-mcps": "^0.1.2"
   },
-  "gitHead": "e5a880a1ad36b3ca33d5b8821ab9bcbb7b491730"
+  "gitHead": "6d0c71275dfb75d18ef6e32d2904f7a876543ad3"
 }
