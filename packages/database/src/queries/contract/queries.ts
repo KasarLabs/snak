@@ -17,7 +17,7 @@ export namespace contract {
 					id SERIAL PRIMARY KEY,
 					contract_id INTEGER REFERENCES contract(id) ON DELETE CASCADE,
 					contract_address VARCHAR(100) NOT NULL,
-					deploy_tx_hash VARCHAR(100),
+					deploy_tx_hash VARCHAR(100) NOT NULL,
 					UNIQUE(contract_address)
 				);`
 			)
@@ -57,11 +57,22 @@ export namespace contract {
 			FROM
 				contract
 			WHERE
-				class_hash = $1`,
+				class_hash = $1;`,
 			[classHash]
 		);
 		const q_res = await query<Contract<Id.Id>>(q);
 		return q_res ? q_res[0] : undefined;
+	}
+	export async function selectContracts(): Promise<Contract<Id.Id>[]> {
+		const q = new Query(
+			`SELECT
+				id,
+				class_hash,
+				declare_tx_hash
+			FROM
+				contract;`
+		);
+		return await query(q);
 	}
 	export async function deleteContract(classHash: string): Promise<void> {
 		const q = new Query(
@@ -117,5 +128,23 @@ export namespace contract {
 		);
 		const q_res = await query<Deployment<Id.Id>>(q);
 		return q_res ? q_res[0] : undefined;
+	}
+	export async function selectDeployments(
+		classHash: string
+	): Promise<Deployment<Id.Id>[]> {
+		const q = new Query(
+			`SELECT
+				id,
+				contract_id,
+				contract_address,
+				deploy_tx_hash
+			FROM
+				deployment
+			WHERE
+				contract_id = (SELECT id FROM contract WHERE class_hash = $1);
+			`,
+			[classHash]
+		);
+		return await query(q);
 	}
 }

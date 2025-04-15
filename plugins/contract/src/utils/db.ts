@@ -37,8 +37,8 @@ export const writeJsonToFile = (
  * @param contractName The name of the contract
  * @returns The compilation files
  */
-export const retrieveCompilationFilesByName = async (
-  agent: StarknetAgentInterface,
+export const retrieveCompilationFileByName = async (
+  _agent: StarknetAgentInterface,
   projectName: string,
   contractName: string
 ): Promise<{ sierra: JSON; casm: JSON }> => {
@@ -70,7 +70,7 @@ export const getSierraCasmFromDB = async (
   contractName: string
 ): Promise<{ sierraPath: string; casmPath: string }> => {
   try {
-    const { sierra, casm } = await retrieveCompilationFilesByName(
+    const { sierra, casm } = await retrieveCompilationFileByName(
       agent,
       projectName,
       contractName

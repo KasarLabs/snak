@@ -1,23 +1,22 @@
 import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
-import { deleteContractByClassHash } from '../utils/db_init.js';
+import { contract } from '@snak/database/queries';
 
 /**
  * Deletes a contract by its class hash
- * @param agent The Starknet agent
  * @param params The parameters
  * @returns The result of the operation
  */
 export const deleteContractByClassHashAction = async (
-  agent: StarknetAgentInterface,
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof deleteContractByClassHashSchema>
 ): Promise<string> => {
   try {
     logger.debug('\n Deleting contract by class hash');
     logger.debug(JSON.stringify(params, null, 2));
 
-    await deleteContractByClassHash(agent, params.classHash);
+    await contract.deleteContract(params.classHash);
 
     return JSON.stringify({
       status: 'success',
