@@ -57,6 +57,12 @@ export class StarknetAgent implements IAgent {
   private readonly aiProviderApiKey: string;
   private agentReactExecutor: any;
   private currentMode: string;
+  private loggingOptions: LoggingOptions = {
+    langchainVerbose: true,
+    tokenLogging: true,
+    disabled: false,
+  };
+  private originalLoggerFunctions: Record<string, any> = {};
 
   public readonly signature: string;
   public readonly agentMode: string;
