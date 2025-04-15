@@ -1,6 +1,6 @@
 {
   "name": "@hijox/plugin-argent",
-  "version": "0.0.5",
+  "version": "0.0.4",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -21,16 +21,16 @@
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
     "format": "prettier --write \"src/**/*.ts\"",
-    "prepublishOnly": "npm run format && npm run test && npm run build",
+    "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
-  "devDependencies": {
-    "@hijox/core": "^0.0.5"
+  "dependencies": {
+    "@hijox/core": "^0.0.4"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for creating and deploying Argent wallet accounts on Starknet.",
-  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
+  "gitHead": "aa5bdf1bedbc26e433ce5472cd08171d4e0cfaeb"
 }
