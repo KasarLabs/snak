@@ -1,10 +1,8 @@
 {
   "name": "@hijox/server",
-  "version": "0.0.11",
+  "version": "0.0.5",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "types": "./dist/index.d.ts",
-  "module": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "type": "module",
   "private": true,
@@ -21,6 +19,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
     "@fastify/multipart": "^9.0.3",
     "@nestjs/common": "^11.0.7",
     "@nestjs/config": "^4.0.0",
@@ -30,14 +29,13 @@
     "@nestjs/throttler": "^6.4.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "fastify": "^5.2.1",
     "helmet": "^8.0.0",
-    "@anthropic-ai/sdk": "^0.36.3",
-    "rxjs": "^7.8.1",
-    "fastify": "^5.2.1"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
     "@hijox/agents": "workspace:*",
-    "@hijox/core": "workspace:*"
+    "@hijox/core": "workspace:*",
+    "typescript": "^5.7.3"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@hijox/plugin-avnu",
-  "version": "0.1.0",
+  "version": "0.0.5",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -29,7 +29,7 @@
     "@avnu/avnu-sdk": "^3.0.0"
   },
   "devDependencies": {
-    "@hijox/core": "^0.1.0"
+    "@hijox/core": "^0.0.4"
   },
   "keywords": [],
   "author": "",
