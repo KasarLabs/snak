@@ -34,7 +34,7 @@ export const generateCairoCode = async (
     await scarb.insertProgram({
       project_id: projectData.id,
       name: params.programName,
-      source_code: cairoCode
+      source_code: cairoCode,
     });
 
     return JSON.stringify({

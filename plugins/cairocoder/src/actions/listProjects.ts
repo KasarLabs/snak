@@ -14,7 +14,7 @@ export const listProjects = async (
   _params: z.infer<typeof listProjectsSchema>
 ) => {
   try {
-    // TODO: there probably is a more intelligent way of doing this using 
+    // TODO: there probably is a more intelligent way of doing this using
     // cursors. For now this is just a port of the previous database logic.
     const projects = await scarb.selectProjects();
 

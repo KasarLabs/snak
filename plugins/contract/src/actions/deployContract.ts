@@ -58,7 +58,7 @@ export const deployContract = async (
     if (res.transactionHash && res.contractAddress) {
       const deployment: contract.Deployment = {
         contract_address: res.contractAddress,
-        deploy_tx_hash: res.transactionHash
+        deploy_tx_hash: res.transactionHash,
       };
       await contract.insertDeployment(deployment, params.classHash);
     }

@@ -45,7 +45,7 @@ export const declareContract = async (
     if (declareResponse.transactionHash && declareResponse.classHash) {
       await contract.insertContract({
         class_hash: declareResponse.classHash,
-        declare_tx_hash: declareResponse.transactionHash
+        declare_tx_hash: declareResponse.transactionHash,
       });
     }
 

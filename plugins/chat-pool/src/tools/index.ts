@@ -1,13 +1,9 @@
 import { insertChatInstruction, readChatPool } from '../actions/chatPool.js';
 import { insertChatIntructionSchema } from '../schema/index.js';
-import {
-  StarknetTool,
-} from '@starknet-agent-kit/agents';
-import { chat } from "@snak/database/queries";
+import { StarknetTool } from '@starknet-agent-kit/agents';
+import { chat } from '@snak/database/queries';
 
-export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
-) => {
+export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
   try {
     chat.init();
   } catch (error) {

@@ -24,12 +24,12 @@ export const deleteProgramAction = async (
       throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    await scarb.deletePrograms(params.programName.map(
-      (program) => ({
+    await scarb.deletePrograms(
+      params.programName.map((program) => ({
         projectId: projectData.id,
-        name: program
-      })
-    ));
+        name: program,
+      }))
+    );
 
     return JSON.stringify({
       status: 'success',
@@ -64,19 +64,20 @@ export const deleteDependencyAction = async (
       throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    scarb.deleteDependencies(params.dependencyName.map(
-      (dep) => ({
+    scarb.deleteDependencies(
+      params.dependencyName.map((dep) => ({
         projectId: projectData.id,
-        name: dep
-      })
-    ));
+        name: dep,
+      }))
+    );
 
     return JSON.stringify({
       status: 'success',
       message: `Dependencies ${params.dependencyName} deleted from project ${params.projectName}`,
       projectId: projectData.id,
       projectName: projectData.name,
-      dependenciesCount: projectData.dependencies.length - params.dependencyName.length,
+      dependenciesCount:
+        projectData.dependencies.length - params.dependencyName.length,
     });
   } catch (error) {
     logger.error('Error deleting dependencies:', error);

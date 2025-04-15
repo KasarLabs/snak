@@ -1,9 +1,6 @@
 import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { fixCairoCodeSchema } from '../schema/schema.js';
-import {
-  callCairoGenerationAPI,
-  extractCairoCode,
-} from '../utils/utils.js';
+import { callCairoGenerationAPI, extractCairoCode } from '../utils/utils.js';
 import { z } from 'zod';
 import { scarb } from '@snak/database/queries';
 
@@ -69,7 +66,7 @@ Can you fix the compilation errors?`;
     await scarb.insertProgram({
       project_id: projectData.id,
       name: params.programName,
-      source_code: fixedCairoCode
+      source_code: fixedCairoCode,
     });
 
     return JSON.stringify({

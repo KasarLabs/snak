@@ -39,7 +39,7 @@ import {
   addTokenInfoToBox,
   estimateTokens,
 } from './tokenTracking.js';
-import { memory } from "@snak/database/queries";
+import { memory } from '@snak/database/queries';
 
 export function selectModel(aiConfig: AiConfig) {
   let model;
@@ -145,7 +145,7 @@ export async function initializeToolsList(
 
 // Patch ToolNode to log all tool calls
 const originalToolNodeInvoke = ToolNode.prototype.invoke;
-ToolNode.prototype.invoke = async function(state: any, config: any) {
+ToolNode.prototype.invoke = async function (state: any, config: any) {
   // Save the last message with tool calls
   if (state.messages && state.messages.length > 0) {
     const lastMessage = state.messages[state.messages.length - 1];
@@ -251,7 +251,7 @@ export const createAgent = async (
             content,
             embedding,
             metadata,
-            history: []
+            history: [],
           });
 
           return 'Memory stored successfully.';
@@ -290,16 +290,17 @@ export const createAgent = async (
     ) => {
       try {
         const userId = config.configurable?.userId || 'default_user';
-        const lastMessage = state.messages[state.messages.length - 1].content as string;
+        const lastMessage = state.messages[state.messages.length - 1]
+          .content as string;
         const embedding = await embeddings.embedQuery(lastMessage);
         const similar = await memory.similar_memory(userId, embedding);
 
-        const memories = similar.map(
-          (similarity) => {
+        const memories = similar
+          .map((similarity) => {
             const history = JSON.stringify(similarity.history);
             return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)},history : ${history}]: ${similarity.content}`;
-          },
-        ).join('\n');
+          })
+          .join('\n');
 
         return { memories };
       } catch (error) {
@@ -444,9 +445,9 @@ export const createAgent = async (
     const app = workflow.compile({
       ...(json_config.memory
         ? {
-          checkpointer: checkpointer,
-          configurable: {},
-        }
+            checkpointer: checkpointer,
+            configurable: {},
+          }
         : {}),
     });
 

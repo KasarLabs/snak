@@ -31,7 +31,7 @@ export const addProgramAction = async (
       programs.push({
         project_id: projectData.id,
         name: path.basename(contractPath),
-        source_code: await extractFile(contractPath)
+        source_code: await extractFile(contractPath),
       });
     }
     await scarb.insertPrograms(programs);
@@ -82,7 +82,7 @@ export const addDependencyAction = async (
       return {
         project_id: projectData.id,
         name: info.name,
-        version: info.version
+        version: info.version,
       };
     });
 

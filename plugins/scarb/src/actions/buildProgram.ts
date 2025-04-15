@@ -47,7 +47,7 @@ export const compileContract = async (
                 casm: true,
               },
             },
-          ]
+          ];
       }
     })();
 
@@ -65,16 +65,14 @@ export const compileContract = async (
       let casmFiles: string[] = [];
 
       for (let i = 0; i < contractFiles.sierraFiles.length; i++) {
-        programNames.push(await extractModuleFromArtifact(contractFiles.artifactFile, i));
+        programNames.push(
+          await extractModuleFromArtifact(contractFiles.artifactFile, i)
+        );
         sierraFiles.push(await readFile(contractFiles.sierraFiles[i], 'utf-8'));
         casmFiles.push(await readFile(contractFiles.casmFiles[i], 'utf-8'));
       }
 
-      await scarb.saveCompilationResults(
-        programNames,
-        sierraFiles,
-        casmFiles
-      );
+      await scarb.saveCompilationResults(programNames, sierraFiles, casmFiles);
     }
 
     return JSON.stringify({

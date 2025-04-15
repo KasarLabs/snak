@@ -18,9 +18,7 @@ import {
 } from '@starknet-agent-kit/agents';
 import { scarb } from '@snak/database/queries';
 
-export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
-) => {
+export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
   try {
     await scarb.init();
   } catch (error) {

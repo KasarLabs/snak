@@ -1,6 +1,6 @@
 import { insertChatIntructionParams } from '../schema/index.js';
 import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { chat } from '@snak/database/queries'
+import { chat } from '@snak/database/queries';
 
 export const insertChatInstruction = async (
   _agent: StarknetAgentInterface,
@@ -19,7 +19,9 @@ export const readChatPool = async (_agent: StarknetAgentInterface) => {
   try {
     return JSON.stringify({
       status: 'success',
-      instructions: (await chat.select_instructions()).map((row) => row.instruction),
+      instructions: (await chat.select_instructions()).map(
+        (row) => row.instruction
+      ),
     });
   } catch (error) {
     console.log(error);

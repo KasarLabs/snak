@@ -46,10 +46,12 @@ export const proveProgram = async (
 
     projectDir = await getProjectDir(projectData.name);
 
-    const res = JSON.parse(await proveProject({
-      projectDir: projectDir,
-      executionId: parsedExecResult.executionId,
-    }));
+    const res = JSON.parse(
+      await proveProject({
+        projectDir: projectDir,
+        executionId: parsedExecResult.executionId,
+      })
+    );
 
     const fullPath = path.join(projectDir, res.proofPath);
     const proof = await readFile(fullPath, 'utf-8');

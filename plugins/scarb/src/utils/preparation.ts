@@ -392,7 +392,7 @@ export async function getProjectDir(projectName: string) {
   const workspaceDir = getWorkspacePath();
   try {
     await fs.mkdir(workspaceDir, { recursive: true });
-  } catch (error) { }
+  } catch (error) {}
 
   await checkWorkspaceLimit(workspaceDir, projectName);
   return path.join(workspaceDir, projectName);
