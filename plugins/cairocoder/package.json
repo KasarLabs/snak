@@ -1,6 +1,6 @@
 {
   "name": "@hijox/plugin-cairocoder",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -34,5 +34,5 @@
   "devDependencies": {
     "@types/axios": "^0.14.4"
   },
-  "gitHead": "6d0c71275dfb75d18ef6e32d2904f7a876543ad3"
+  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
 }
