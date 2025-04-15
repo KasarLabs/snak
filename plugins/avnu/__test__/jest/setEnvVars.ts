@@ -34,10 +34,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabase: () => [],
-    connectDatabase: async () => {},
-    createDatabase: async () => undefined,
-    getDatabaseByName: () => undefined,
   };
 };
 
@@ -68,9 +64,5 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabase: () => [],
-    connectDatabase: async () => {},
-    createDatabase: async () => undefined,
-    getDatabaseByName: () => undefined,
   };
 };

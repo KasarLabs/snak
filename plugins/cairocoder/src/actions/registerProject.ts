@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { registerProjectSchema } from '../schema/schema.js';
 import { scarb } from '@snak/database/queries';
 import { basename } from 'path';
-import { resolveContractPath } from '@/utils/path.js';
 import { readFile } from 'fs/promises';
-import { getAllPackagesList } from '@/utils/dependencies.js';
+import { getAllPackagesList } from '../utils/dependencies.js';
+import { resolveContractPath } from '../utils/path.js';
 
 /**
  * Register a new project in the database

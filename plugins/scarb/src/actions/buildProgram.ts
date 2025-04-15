@@ -7,7 +7,7 @@ import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
 import { scarb } from '@snak/database/queries';
 import { readFile } from 'fs/promises';
-import { extractModuleFromArtifact } from '@/utils/utils.js';
+import { extractModuleFromArtifact } from '../utils/utils.js';
 
 /**
  * Compile a contract

@@ -1,10 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import {
-  StarknetAgentInterface,
-  JsonConfig,
-  PostgresAdaptater,
-} from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface, JsonConfig } from '@starknet-agent-kit/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -40,10 +36,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabase: () => [],
-    connectDatabase: async () => {},
-    createDatabase: async () => undefined,
-    getDatabaseByName: () => undefined,
   };
 };
 
@@ -76,9 +68,5 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabase: () => [],
-    connectDatabase: async () => {},
-    createDatabase: async () => undefined,
-    getDatabaseByName: () => undefined,
   };
 };
