@@ -1,5 +1,5 @@
 import { RpcProvider } from 'starknet';
-import { JsonConfig } from '../src/jsonConfig.js';
+import { JsonConfig } from '../config/jsonConfig.js';
 
 /**
  * AI service configuration

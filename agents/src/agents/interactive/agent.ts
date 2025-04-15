@@ -1,13 +1,15 @@
 import { ChatAnthropic } from '@langchain/anthropic';
-import { AiConfig } from '../common/index.js';
+import { AiConfig } from '../../common/index.js';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
 import { ChatDeepSeek } from '@langchain/deepseek';
-import { StarknetAgentInterface } from './tools/tools.js';
-import { createSignatureTools } from './tools/signatureTools.js';
+import {
+  StarknetAgentInterface,
+  createAllowedTools,
+} from '../../tools/tools.js';
+import { createSignatureTools } from '../../tools/signatureTools.js';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { createAllowedTools } from './tools/tools.js';
 import {
   Annotation,
   MemorySaver,
@@ -28,17 +30,16 @@ import {
 } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 
-import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
-import { MCP_CONTROLLER } from './mcp/src/mcp.js';
-import { JsonConfig } from './jsonConfig.js';
+import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
+import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
+import { JsonConfig } from '../../config/jsonConfig.js';
 import { logger } from '@hijox/core';
-import { createBox } from './formatting.js';
+import { createBox } from '../../prompt/formatting.js';
 import {
-  tokenTracker,
   configureModelWithTracking,
   addTokenInfoToBox,
   estimateTokens,
-} from './tokenTracking.js';
+} from '../../token/tokenTracking.js';
 
 export function selectModel(aiConfig: AiConfig) {
   let model;

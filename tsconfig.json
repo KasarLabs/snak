@@ -12,6 +12,7 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "skipLibCheck": true,
     "strictNullChecks": true,
     "noImplicitAny": true,

@@ -1,19 +1,19 @@
-import { AiConfig, IAgent } from '../common/index.js';
-import { createAgent } from './agent.js';
+import { AiConfig, IAgent } from '../../common/index.js';
+import { createAgent } from '../interactive/agent.js';
 import { RpcProvider } from 'starknet';
-import { createAutonomousAgent } from './autonomousAgents.js';
-import { JsonConfig } from './jsonConfig.js';
+import { createAutonomousAgent } from '../autonomous/autonomousAgents.js';
+import { JsonConfig } from '../../config/jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { PostgresAdaptater } from '@hijox/core';
 import { PostgresDatabasePoolInterface } from '@hijox/core';
 import { logger } from '@hijox/core';
 import { metrics } from '@hijox/core';
-import { createBox } from './formatting.js';
+import { createBox } from '../../prompt/formatting.js';
 import {
   addTokenInfoToBox,
   truncateToTokenLimit,
   estimateTokens,
-} from './tokenTracking.js';
+} from '../../token/tokenTracking.js';
 
 /**
  * Configuration for the StarknetAgent

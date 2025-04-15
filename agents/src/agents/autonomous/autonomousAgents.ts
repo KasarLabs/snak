@@ -1,13 +1,13 @@
 import { ChatAnthropic } from '@langchain/anthropic';
-import { createAllowedTools } from './tools/tools.js';
-import { AiConfig } from '../common/index.js';
+import { createAllowedTools } from '../../tools/tools.js';
+import { AiConfig } from '../../common/index.js';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
-import { StarknetAgentInterface } from './tools/tools.js';
+import { StarknetAgentInterface } from '../../tools/tools.js';
 import { MemorySaver } from '@langchain/langgraph';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { MCP_CONTROLLER } from './mcp/src/mcp.js';
+import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { logger } from '@hijox/core';
 import {
   DynamicStructuredTool,
@@ -15,7 +15,7 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { configureModelWithTracking } from './tokenTracking.js';
+import { configureModelWithTracking } from '../../token/tokenTracking.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,

@@ -1,6 +1,6 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
-import { JsonConfig } from '../jsonConfig.js';
+import { JsonConfig } from '../config/jsonConfig.js';
 import { PostgresAdaptater } from '@hijox/core';
 import { logger } from '@hijox/core';
 import { metrics } from '@hijox/core';

@@ -3,6 +3,7 @@
   "version": "0.0.4",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -10,15 +11,18 @@
   "files": [
     "dist",
     "LICENSE",
-    "tsconfig.json",
-    "tsconfig.build.json"
+    "package.json",
+    "README.md"
   ],
   "scripts": {
     "test": "echo \"No test has been created for this plugins\" && exit 0",
-    "build": "tsc",
+    "build": "tsup",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run test && npm run build",
+    "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
@@ -30,6 +34,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "gitHead": "66e99d704eefc9167b7e7179e79758d2a070dee4"
+  "description": "Starknet Agent Kit plugin for interacting with the Fibrous decentralized exchange, enabling single and batch token swaps.",
+  "gitHead": "aa5bdf1bedbc26e433ce5472cd08171d4e0cfaeb"
 }

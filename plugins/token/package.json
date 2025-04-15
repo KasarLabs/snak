@@ -3,6 +3,7 @@
   "version": "0.0.4",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -10,23 +11,32 @@
   "files": [
     "dist",
     "LICENSE",
+    "README.md",
     "tsconfig.json",
     "tsconfig.build.json"
   ],
   "scripts": {
     "test": "jest --passWithNoTests",
-    "build": "tsc",
+    "build": "tsup",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run test && npm run build",
+    "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
     "@hijox/core": "^0.0.4"
   },
-  "keywords": [],
+  "keywords": [
+    "starknet",
+    "token",
+    "plugin",
+    "agent-kit"
+  ],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "gitHead": "66e99d704eefc9167b7e7179e79758d2a070dee4"
+  "description": "Starknet Agent Kit plugin for token operations including transfers and balance checks.",
+  "gitHead": "aa5bdf1bedbc26e433ce5472cd08171d4e0cfaeb"
 }
