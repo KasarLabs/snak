@@ -32,5 +32,5 @@
   "author": "",
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for ERC721 NFT management, including ownership, transfers, and approvals.",
-  "gitHead": "aa5bdf1bedbc26e433ce5472cd08171d4e0cfaeb"
+  "gitHead": "6c9016b91cdb782724745374ff00e07e3c6fb353"
 }
