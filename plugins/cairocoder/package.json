@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@starknet-agent-kit/agents": "workspace:*",
+    "@snak/database": "workspace:*",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"

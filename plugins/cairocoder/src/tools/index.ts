@@ -1,7 +1,6 @@
 import {
   StarknetTool,
   StarknetAgentInterface,
-  PostgresAdaptater,
 } from '@starknet-agent-kit/agents';
 import {
   generateCairoCodeSchema,
@@ -16,7 +15,6 @@ import {
 } from '../schema/schema.js';
 import { generateCairoCode } from '../actions/generateCairoCode.js';
 import { fixCairoCode } from '../actions/fixCairoCode.js';
-import { initializeDatabase } from '../utils/db_init.js';
 import { registerProject } from '../actions/registerProject.js';
 import {
   deleteProgramAction,
@@ -25,13 +23,13 @@ import {
 } from '../actions/deleteItemProject.js';
 import { addDependencyAction, addProgramAction } from '../actions/addItem.js';
 import { listProjects } from '../actions/listProjects.js';
+import { scarb } from '@snak/database/queries';
 
 export const initializeTools = async (
-  agent: StarknetAgentInterface
-): Promise<PostgresAdaptater | undefined> => {
+  _agent: StarknetAgentInterface
+): Promise<void> => {
   try {
-    const res = await initializeDatabase(agent);
-    return res;
+    await scarb.init();
   } catch (error) {
     console.error('Error initializing database:', error);
   }
@@ -39,14 +37,8 @@ export const initializeTools = async (
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
-  agent: StarknetAgentInterface
+  _agent: StarknetAgentInterface
 ) => {
-  const database_instance = await initializeTools(agent);
-  if (!database_instance) {
-    console.error('Error while initializing database');
-    return;
-  }
-
   StarknetToolRegistry.push({
     name: 'cairocoder_generate_code',
     plugins: 'cairocoder',

@@ -1,26 +1,27 @@
 import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { z } from 'zod';
-import {
-  initializeProjectData,
-  doesProjectExist,
-  retrieveProjectData,
-} from '../utils/db_init.js';
 import { registerProjectSchema } from '../schema/schema.js';
+import { scarb } from '@snak/database/queries';
+import { basename } from 'path';
+import { resolveContractPath } from '@/utils/path.js';
+import { readFile } from 'fs/promises';
+import { getAllPackagesList } from '@/utils/dependencies.js';
 
 /**
  * Register a new project in the database
  *
- * @param agent The StarkNet agent
  * @param params The project registration parameters
  * @returns The registration result
  */
 export const registerProject = async (
-  agent: StarknetAgentInterface,
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof registerProjectSchema>
 ) => {
   try {
     logger.debug('\n Registering project');
     logger.debug(JSON.stringify(params, null, 2));
+
+    let projectData: scarb.ProjectData | undefined;
 
     if (params.projectName.includes('-'))
       throw new Error(
@@ -33,31 +34,48 @@ export const registerProject = async (
       );
     }
 
-    const alreadyRegistered = await doesProjectExist(agent, params.projectName);
-
-    if (alreadyRegistered) {
+    projectData = await scarb.retrieveProjectData(params.projectName);
+    if (projectData) {
       return JSON.stringify({
         status: 'success',
         message: `Project ${params.projectName} already registered`,
-        projectId: alreadyRegistered.id,
-        projectName: alreadyRegistered.name,
-        projectType: alreadyRegistered.type,
+        projectId: projectData.id,
+        projectName: projectData.name,
+        projectType: projectData.type,
       });
     }
 
-    const projectType = params.projectType
-      ? params.projectType
-      : 'cairo_program';
+    projectData = await (async () => {
+      const programs: scarb.Program[] = [];
+      const dependencies: scarb.Dependency[] = [];
+      const project: scarb.Project = {
+        name: params.projectName,
+        type: params.projectType ?? 'cairo_program',
+      };
 
-    await initializeProjectData(
-      agent,
-      params.projectName,
-      params.existingProgramNames || [],
-      params.dependencies || [],
-      projectType
-    );
+      for (const path of params.existingProgramNames || []) {
+        const fileName = basename(path);
+        const pathResolved = await resolveContractPath(path);
+        const sourceCode = await readFile(pathResolved, 'utf-8');
+        const encoded = sourceCode.replace(/\0/g, '');
+        programs.push({ name: fileName, source_code: encoded });
+      }
 
-    const projectData = await retrieveProjectData(agent, params.projectName);
+      const allDependencies = await getAllPackagesList();
+      for (const depName of params.dependencies || []) {
+        const dep = allDependencies.find((dep) => dep.name === depName);
+        if (!dep) {
+          throw new Error(`Dependency ${depName} not found`);
+        }
+        dependencies.push({ name: dep.name, version: dep.version });
+      }
+
+      return scarb.initProject(project, programs, dependencies);
+    })();
+
+    if (!projectData) {
+      throw new Error(`Failed to initialize project ${params.projectName}`);
+    }
 
     return JSON.stringify({
       status: 'success',

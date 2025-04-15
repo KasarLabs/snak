@@ -3,11 +3,9 @@ import { fixCairoCodeSchema } from '../schema/schema.js';
 import {
   callCairoGenerationAPI,
   extractCairoCode,
-  saveToDebugFile,
 } from '../utils/utils.js';
-import { addProgram } from '../utils/db_add.js';
-import { retrieveProjectData } from '../utils/db_init.js';
 import { z } from 'zod';
+import { scarb } from '@snak/database/queries';
 
 /**
  * Fix Cairo code using AI via API and update it in the database
@@ -16,7 +14,7 @@ import { z } from 'zod';
  * @returns {Promise<string>} JSON string with the fixed code or error
  */
 export const fixCairoCode = async (
-  agent: StarknetAgentInterface,
+  _angent: StarknetAgentInterface,
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {
@@ -31,7 +29,10 @@ export const fixCairoCode = async (
       throw new Error('Error description is required for fixing Cairo code');
     }
 
-    const projectData = await retrieveProjectData(agent, params.projectName);
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
+    }
     const program = projectData.programs.find(
       (p) => p.name === params.programName
     );
@@ -65,7 +66,11 @@ Can you fix the compilation errors?`;
     const generatedContent = await callCairoGenerationAPI(fixPrompt);
     const fixedCairoCode = extractCairoCode(generatedContent);
 
-    await addProgram(agent, projectData.id, params.programName, fixedCairoCode);
+    await scarb.insertProgram({
+      project_id: projectData.id,
+      name: params.programName,
+      source_code: fixedCairoCode
+    });
 
     return JSON.stringify({
       status: 'success',

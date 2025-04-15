@@ -5,7 +5,7 @@ import {
   deleteProjectSchema,
 } from '../schema/schema.js';
 import { scarb } from '@snak/database/queries';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 /**
  * Delete several programs from a project
@@ -24,20 +24,19 @@ export const deleteProgramAction = async (
       throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    for (const program of params.programName) {
-      await scarb.deleteProgram(projectData.id, program);
-    }
-
-    const find = (program: scarb.Program) => program.name === params.programName;
-    const index = projectData.programs.findIndex(find);
-    projectData.programs.splice(index, 1);
+    await scarb.deletePrograms(params.programName.map(
+      (program) => ({
+        projectId: projectData.id,
+        name: program
+      })
+    ));
 
     return JSON.stringify({
       status: 'success',
       message: `Programs ${params.programName} deleted from project ${params.projectName}`,
       projectId: projectData.id,
       projectName: projectData.name,
-      programsCount: projectData.programs.length,
+      programsCount: projectData.programs.length - params.programName.length,
     });
   } catch (error) {
     logger.error('Error deleting programs:', error);
@@ -65,20 +64,19 @@ export const deleteDependencyAction = async (
       throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    for (const dep of params.dependencyName) {
-      await scarb.deleteDependency(projectData.id, dep);
-    }
-
-    const find = (dependency: scarb.Dependency) => dependency.name === params.dependencyName;
-    const index = projectData.dependencies.findIndex(find);
-    projectData.dependencies.splice(index, 1);
+    scarb.deleteDependencies(params.dependencyName.map(
+      (dep) => ({
+        projectId: projectData.id,
+        name: dep
+      })
+    ));
 
     return JSON.stringify({
       status: 'success',
       message: `Dependencies ${params.dependencyName} deleted from project ${params.projectName}`,
       projectId: projectData.id,
       projectName: projectData.name,
-      dependenciesCount: projectData.dependencies.length,
+      dependenciesCount: projectData.dependencies.length - params.dependencyName.length,
     });
   } catch (error) {
     logger.error('Error deleting dependencies:', error);
