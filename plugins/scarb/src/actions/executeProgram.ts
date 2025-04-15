@@ -1,4 +1,4 @@
-import { logger } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { executeProgramSchema } from '../schema/schema.js';
@@ -15,6 +15,7 @@ import { readFileSync } from 'fs';
  * @returns The execution results
  */
 export const executeProgram = async (
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof executeProgramSchema>
 ) => {
   let projectDir = '';

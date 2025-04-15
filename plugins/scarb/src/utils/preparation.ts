@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import { promisify } from 'util';
 import path from 'path';
 import { getWorkspacePath } from './path.js';
-import { Dependency } from '../types/index.js';
+import { scarb } from '@snak/database/queries';
 
 const execAsync = promisify(exec);
 
@@ -50,7 +50,7 @@ export async function importContract(
  * @param projectDir The Scarb project directory
  */
 export async function addSeveralDependancies(
-  dependencies: Dependency[],
+  dependencies: scarb.Dependency[],
   projectDir: string
 ) {
   try {
@@ -392,7 +392,7 @@ export async function getProjectDir(projectName: string) {
   const workspaceDir = getWorkspacePath();
   try {
     await fs.mkdir(workspaceDir, { recursive: true });
-  } catch (error) {}
+  } catch (error) { }
 
   await checkWorkspaceLimit(workspaceDir, projectName);
   return path.join(workspaceDir, projectName);

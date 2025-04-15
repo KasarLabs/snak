@@ -1,14 +1,10 @@
 import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
-import { saveVerification } from '../utils/db_save.js';
-import { retrieveProjectData, retrieveProof } from '../utils/db_retrieve.js';
 import { setupScarbProject } from '../utils/common.js';
 import { writeJsonToFile } from '../utils/utils.js';
 import { z } from 'zod';
-import { cleanProject } from '../utils/command.js';
 import { scarb } from '@snak/database/queries';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 
 /**
  * Verify a program
@@ -42,8 +38,8 @@ export const verifyProgram = async (
     });
     const parsedResult = JSON.parse(result);
 
-    await scarb.verifyProject(
-      projectData.name,
+    await scarb.saveVerify(
+      projectData.id,
       parsedResult.status === 'success' ? true : false
     );
 

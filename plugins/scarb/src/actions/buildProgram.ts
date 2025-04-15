@@ -2,7 +2,6 @@ import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';
-import { cleanProject } from '../utils/command.js';
 import { compileContractSchema } from '../schema/schema.js';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';

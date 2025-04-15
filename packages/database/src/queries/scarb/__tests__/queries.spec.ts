@@ -60,7 +60,7 @@ describe('Project table', () => {
 })
 
 describe('Program table', () => {
-	it('thould handle insertions', async () => {
+	it('Should handle insertions', async () => {
 		const project = (await scarb.selectProject("Foo"))!;
 		const program1: scarb.Program<Id.Id> = { project_id: project.id, name: "Fibonacci", source_code: "fibb_recursive" };
 		await expect(scarb.insertProgram(program1)).resolves.toBeUndefined();
@@ -207,6 +207,36 @@ describe('Compilation results', () => {
 		await expect(scarb.selectPrograms(1)).resolves.toEqual([program1, program2]);
 	});
 })
+
+describe('Execution results', () => {
+	it('Should save', async () => {
+		const project = (await scarb.selectProject('Foo'))!;
+		const trace = Buffer.from('trace');
+
+		await expect(scarb.saveExecutionResults(project.id, trace)).resolves.toBeUndefined();
+		await expect(scarb.selectProject('Foo')).resolves.toHaveProperty('execution_trace', trace);
+	})
+})
+
+describe('Proof results', () => {
+	it('Should save', async () => {
+		const project = (await scarb.selectProject('Foo'))!;
+		const proof = "proof";
+
+		await expect(scarb.saveProof(project.id, proof)).resolves.toBeUndefined();
+		await expect(scarb.selectProject('Foo')).resolves.toHaveProperty('proof', proof);
+	})
+})
+
+describe('Verification results', () => {
+	it('Should save', async () => {
+		const project = (await scarb.selectProject('Foo'))!;
+		const verified = true;
+
+		await expect(scarb.saveVerify(project.id, verified)).resolves.toBeUndefined();
+		await expect(scarb.selectProject('Foo')).resolves.toHaveProperty('verified', verified);
+	})
+});
 
 describe('Project initialization', () => {
 	it('Should work', async () => {

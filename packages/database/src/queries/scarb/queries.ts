@@ -12,6 +12,7 @@ export namespace scarb {
 					id SERIAL PRIMARY KEY,
 					name VARCHAR(100),
 					type VARCHAR(50) CHECK (type in ('contract', 'cairo_program')),
+					execution_trace BYTEA,
 					proof JSONB,
 					verified BOOLEAN DEFAULT FALSE,
 					UNIQUE (name)
@@ -133,6 +134,9 @@ export namespace scarb {
 					project_id INTEGER,
 					project_name VARCHAR(100),
 					project_type VARCHAR(50),
+					project_trace BYTEA,
+					project_proof JSONB,
+					project_verif BOOLEAN,
 					program_name VARCHAR(255),
 					program_code TEXT,
 					dep_name VARCHAR(255),
@@ -143,6 +147,9 @@ export namespace scarb {
 							project.id AS project_id,
 							project.name AS project_name,
 							project.type AS project_type,
+							project.execution_trace AS project_trace,
+							project.proof AS project_proof,
+							project.verified AS project_verif,
 							program.name AS program_name,
 							program.source_code AS program_code,
 							NULL AS dep_name,
@@ -161,6 +168,9 @@ export namespace scarb {
 							project.id AS project_id,
 							project.name AS project_name,
 							project.type AS project_type,
+							project.execution_trace AS project_trace,
+							project.proof AS project_proof,
+							project.verified AS project_verif,
 							NULL AS program_name,
 							NULL AS program_code,
 							dependency.name AS dep_name,
@@ -181,33 +191,16 @@ export namespace scarb {
 
 	interface ProjectBase {
 		name: string,
-		type: 'contract' | 'cairo_program'
+		type: 'contract' | 'cairo_program',
+		execution_trace?: string,
+		proof?: string;
+		verified?: boolean;
 	}
 	interface ProjectWithId extends ProjectBase {
 		id: number
 	}
 	export type Project<HasId extends Id = Id.NoId> =
 		HasId extends Id.Id ? ProjectWithId : ProjectBase;
-
-	export interface ProjectData {
-		id: number;
-		name: string;
-		type: 'contract' | 'cairo_program';
-		programs: Program<Id.Id>[];
-		dependencies: Dependency<Id.Id>[];
-		proof?: string;
-		verified?: boolean;
-	}
-	interface ProjectQueryRes {
-		project_id: number,
-		project_name: string,
-		project_type: 'contract' | 'cairo_program';
-		program_name?: string,
-		program_code?: string,
-		dep_name?: string,
-		dep_version?: string
-	};
-
 	export async function insertProject(project: Project): Promise<void> {
 		const q = new Query(
 			`SELECT insert_project($1, $2);`,
@@ -217,7 +210,17 @@ export namespace scarb {
 	}
 	export async function selectProject(name: string): Promise<Project<Id.Id> | undefined> {
 		const q = new Query(
-			`SELECT id, name, type FROM project WHERE name = $1;`,
+			`SELECT
+				id,
+				name,
+				type,
+				execution_trace,
+				proof,
+				verified
+			FROM
+				project
+			WHERE
+				name = $1;`,
 			[name]
 		);
 		const q_res = await query<Project<Id.Id>>(q)
@@ -234,6 +237,29 @@ export namespace scarb {
 		);
 		await query(q);
 	}
+
+	export interface ProjectData {
+		id: number;
+		name: string;
+		type: 'contract' | 'cairo_program';
+		programs: Program<Id.Id>[];
+		dependencies: Dependency<Id.Id>[];
+		execution_trace?: string,
+		proof?: string;
+		verified?: boolean;
+	}
+	interface ProjectQueryRes {
+		project_id: number,
+		project_name: string,
+		project_type: 'contract' | 'cairo_program';
+		project_trace?: string,
+		project_proof?: string,
+		project_verif?: boolean,
+		program_name?: string,
+		program_code?: string,
+		dep_name?: string,
+		dep_version?: string
+	};
 	export async function initProject(
 		project: Project,
 		programs: Program[],
@@ -304,6 +330,18 @@ export namespace scarb {
 				name: next.dep_name,
 				version: next.dep_version
 			});
+		}
+
+		if (next.project_trace) {
+			acc.execution_trace = next.project_trace;
+		}
+
+		if (next.project_proof) {
+			acc.proof = next.project_proof;
+		}
+
+		if (next.project_verif) {
+			acc.verified = next.project_verif;
 		}
 
 		return acc;
@@ -440,5 +478,38 @@ export namespace scarb {
 		});
 
 		await transaction(t);
+	}
+
+	export async function saveExecutionResults(
+		projectId: number,
+		trace: Buffer,
+	): Promise<void> {
+		const q = new Query(
+			`UPDATE PROJECT SET execution_trace = $1 WHERE id = $2;`,
+			[trace, projectId]
+		);
+		await query(q);
+	}
+
+	export async function saveProof(
+		projectId: number,
+		proof: string
+	): Promise<void> {
+		const q = new Query(
+			`UPDATE PROJECT SET proof = $1 WHERE id = $2;`,
+			[JSON.stringify(proof), projectId]
+		);
+		await query(q);
+	}
+
+	export async function saveVerify(
+		projectId: number,
+		verified: boolean
+	): Promise<void> {
+		const q = new Query(
+			`UPDATE PROJECT SET verified = $1 WHERE id = $2`,
+			[verified, projectId]
+		);
+		await query(q);
 	}
 }

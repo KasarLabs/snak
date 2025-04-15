@@ -1,7 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { checkScarbInstalled, getScarbVersion } from '../utils/install.js';
-import { logger } from '@starknet-agent-kit/agents';
 
 const execAsync = promisify(exec);
 

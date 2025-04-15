@@ -2,13 +2,10 @@ import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { proveProject, cleanProject } from '../utils/workspace.js';
 import { proveProgramSchema } from '../schema/schema.js';
 import { executeProgram } from './executeProgram.js';
-import { saveProof } from '../utils/db_save.js';
-import { retrieveProjectData } from '../utils/db_retrieve.js';
 import { getProjectDir } from '../utils/preparation.js';
 import { scarb } from '@snak/database/queries';
 import path from 'path';
 import { readFile } from 'fs/promises';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
 
@@ -27,6 +24,11 @@ export const proveProgram = async (
     logger.debug('\n Proving program');
     logger.debug(JSON.stringify(params, null, 2));
 
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
+    }
+
     const execResult = await executeProgram(agent, {
       ...params,
       mode: 'standalone',
@@ -42,24 +44,22 @@ export const proveProgram = async (
       );
     }
 
-    const projectData = await retrieveProjectData(agent, params.projectName);
-
     projectDir = await getProjectDir(projectData.name);
 
-    const result = await proveProject({
+    const res = JSON.parse(await proveProject({
       projectDir: projectDir,
       executionId: parsedExecResult.executionId,
-    });
+    }));
 
-    const parsedResult = JSON.parse(result);
-
-    await saveProof(agent, projectData.id, projectDir, parsedResult.proofPath);
+    const fullPath = path.join(projectDir, res.proofPath);
+    const proof = await readFile(fullPath, 'utf-8');
+    await scarb.saveProof(projectData.id, proof);
 
     return JSON.stringify({
       status: 'success',
       message: 'Contract execution proved successfully',
-      output: parsedResult.output,
-      errors: parsedResult.errors,
+      output: res.output,
+      errors: res.errors,
       projectName: params.projectName,
     });
   } catch (error) {
