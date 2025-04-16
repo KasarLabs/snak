@@ -26,6 +26,10 @@
   ],
   "interval": 7000,
   "autonomous": true,
+  "memory": {
+    "enabled": true,
+    "shortTermMemorySize": 15
+  },
   "chat_id": "cairo_task_runner",
   "plugins": ["scarb", "cairocoder"]
 }

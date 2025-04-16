@@ -13,7 +13,10 @@
   "interval": "Your agent interval beetween each transaction of the Agent in ms,",
   "chat_id": "Your Agent Chat-id for isolating memory",
   "autonomous": "Your agent is autonomous or not",
-  "memory": "Enable agent's memory",
+  "memory": {
+    "enabled": true,
+    "shortTermMemorySize": 15
+  },
   "plugins": ["Your first plugin", "Your second plugin"],
   "mcpServers": {
     "nxp_server_example": {

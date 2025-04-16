@@ -148,7 +148,14 @@ ToolNode.prototype.invoke = async function (state: any, config: any) {
   // Save the last message with tool calls
   if (state.messages && state.messages.length > 0) {
     const lastMessage = state.messages[state.messages.length - 1];
-    if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+    if (
+      lastMessage.tool_calls &&
+      lastMessage.tool_calls.length > 0 &&
+      !lastMessage._logged
+    ) {
+      // Mark this message as logged to prevent duplicate logging
+      lastMessage._logged = true;
+
       // Create a clear format for displaying tools
       // For each tool, create a complete entry with name and arguments
       const toolCalls = [];

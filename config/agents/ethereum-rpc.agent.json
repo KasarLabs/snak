@@ -26,7 +26,10 @@
   ],
   "interval": 15000,
   "autonomous": false,
-  "memory": true,
+  "memory": {
+    "enabled": true,
+    "shortTermMemorySize": 15
+  },
   "chat_id": "ethereum_rpc",
   "plugins": ["rpc"],
   "mcpServers": {

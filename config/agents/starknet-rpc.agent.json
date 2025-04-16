@@ -8,7 +8,10 @@
   "knowledge": ["I know how to use the Starknet RPC API"],
   "interval": 15000,
   "autonomous": true,
-  "memory": true,
+  "memory": {
+    "enabled": true,
+    "shortTermMemorySize": 15
+  },
   "chat_id": "ethereum_rpc",
   "plugins": ["rpc"]
 }

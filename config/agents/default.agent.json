@@ -26,7 +26,10 @@
   ],
   "interval": 30000,
   "autonomous": false,
-  "memory": true,
+  "memory": {
+    "enabled": true,
+    "shortTermMemorySize": 5
+  },
   "chat_id": "snak_guide",
   "plugins": [
     "argent",
