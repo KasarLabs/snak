@@ -26,10 +26,9 @@ export interface JsonConfig {
   interval: number;
   chat_id: string;
   plugins: string[];
-  autonomous: boolean;
   memory: boolean;
   mcpServers?: Record<string, any>;
-  mode?: ModeConfig;
+  mode: ModeConfig;
 }
 
 /**
@@ -69,9 +68,6 @@ export const updateModeConfig = async (
       json.mode.autonomous = true;
     }
 
-    // For backwards compatibility
-    json.autonomous = json.mode.autonomous;
-
     // Write the updated JSON back to the file
     await fs.writeFile(configPath, JSON.stringify(json, null, 2), 'utf8');
     return true;
@@ -109,7 +105,8 @@ export const createContextFromJson = (json: any): string => {
     contextParts.push(`Your Bio : [${json.bio}]`);
   }
 
-  if (json.autonomous) {
+  // Check for autonomous mode
+  if (json.mode && json.mode.autonomous) {
     identityParts.push(`Mode: Autonomous`);
   }
 
@@ -131,6 +128,7 @@ export const validateConfig = (config: JsonConfig) => {
     'chat_id',
     'plugins',
     'prompt',
+    'mode',
   ] as const;
 
   for (const field of requiredFields) {
@@ -143,26 +141,21 @@ export const validateConfig = (config: JsonConfig) => {
     throw new Error('prompt must be an instance of SystemMessage');
   }
 
-  // Validate mode configuration if present
-  if (config.mode) {
-    // Ensure modes are exclusive
-    if (config.mode.interactive && config.mode.autonomous) {
-      logger.warn(
-        'Both interactive and autonomous modes are enabled - setting autonomous to false'
-      );
-      config.mode.autonomous = false;
-    }
+  // Validate mode configuration
+  // Ensure modes are exclusive
+  if (config.mode.interactive && config.mode.autonomous) {
+    logger.warn(
+      'Both interactive and autonomous modes are enabled - setting autonomous to false'
+    );
+    config.mode.autonomous = false;
+  }
 
-    // Ensure recursion limit is valid
-    if (
-      typeof config.mode.recursionLimit !== 'number' ||
-      config.mode.recursionLimit < 0
-    ) {
-      config.mode.recursionLimit = 15;
-    }
-
-    // Ensure backward compatibility
-    config.autonomous = config.mode.autonomous;
+  // Ensure recursion limit is valid
+  if (
+    typeof config.mode.recursionLimit !== 'number' ||
+    config.mode.recursionLimit < 0
+  ) {
+    config.mode.recursionLimit = 15;
   }
 
   // Validate mcpServers if present
@@ -259,23 +252,12 @@ const checkParseJson = async (
       createContextFromJson(json)
     );
 
-    // Create config object
-    const jsonconfig: JsonConfig = {
-      prompt: systemMessagefromjson,
-      name: json.name,
-      interval: json.interval,
-      chat_id: json.chat_id,
-      autonomous: json.autonomous || false,
-      plugins: Array.isArray(json.plugins)
-        ? json.plugins.map((tool: string) => tool.toLowerCase())
-        : [],
-      memory: json.memory || false,
-      mcpServers: json.mcpServers || {},
-    };
+    // Handle mode configuration
+    let modeConfig: ModeConfig;
 
-    // Add mode configuration if present
     if (json.mode) {
-      jsonconfig.mode = {
+      // Use existing mode configuration
+      modeConfig = {
         interactive: json.mode.interactive !== false, // default to true if not specified
         autonomous: json.mode.autonomous === true, // default to false if not specified
         recursionLimit:
@@ -283,26 +265,44 @@ const checkParseJson = async (
             ? json.mode.recursionLimit
             : 15, // default to 15 if not specified
       };
-
-      // Ensure only one mode is enabled
-      if (jsonconfig.mode.interactive && jsonconfig.mode.autonomous) {
-        logger.warn(
-          'Both interactive and autonomous modes are enabled - setting interactive to true and autonomous to false'
-        );
-        jsonconfig.mode.interactive = true;
-        jsonconfig.mode.autonomous = false;
-      }
-
-      // For backwards compatibility with older configuration
-      jsonconfig.autonomous = jsonconfig.mode.autonomous;
+    } else if (json.autonomous !== undefined) {
+      // Migration path: create mode config from legacy autonomous property
+      modeConfig = {
+        interactive: !json.autonomous,
+        autonomous: json.autonomous,
+        recursionLimit: 15,
+      };
     } else {
-      // Create default mode configuration if not present
-      jsonconfig.mode = {
+      // Default mode configuration
+      modeConfig = {
         interactive: true,
-        autonomous: jsonconfig.autonomous || false,
+        autonomous: false,
         recursionLimit: 15,
       };
     }
+
+    // Ensure only one mode is enabled
+    if (modeConfig.interactive && modeConfig.autonomous) {
+      logger.warn(
+        'Both interactive and autonomous modes are enabled - setting interactive to true and autonomous to false'
+      );
+      modeConfig.interactive = true;
+      modeConfig.autonomous = false;
+    }
+
+    // Create config object
+    const jsonconfig: JsonConfig = {
+      prompt: systemMessagefromjson,
+      name: json.name,
+      interval: json.interval,
+      chat_id: json.chat_id,
+      mode: modeConfig,
+      plugins: Array.isArray(json.plugins)
+        ? json.plugins.map((tool: string) => tool.toLowerCase())
+        : [],
+      memory: json.memory || false,
+      mcpServers: json.mcpServers || {},
+    };
 
     if (jsonconfig.plugins.length === 0) {
       logger.warn("No plugins specified in agent's config");
