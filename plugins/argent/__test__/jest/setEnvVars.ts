@@ -19,8 +19,8 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     mode: {
       interactive: true,
       autonomous: false,
-      recursionLimit: 15
-    }
+      recursionLimit: 15,
+    },
   };
 
   return {
@@ -60,8 +60,8 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     mode: {
       interactive: true,
       autonomous: false,
-      recursionLimit: 15
-    }
+      recursionLimit: 15,
+    },
   };
 
   return {
