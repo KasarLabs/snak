@@ -26,6 +26,5 @@
     "shortTermMemorySize": 5
   },
   "plugins": ["rpc"],
-  "mcpServers": {},
-  "autonomous": true
+  "mcpServers": {}
 }

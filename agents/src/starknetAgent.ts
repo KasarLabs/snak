@@ -112,16 +112,11 @@ export class StarknetAgent implements IAgent {
       this.agentMode = config.agentMode;
 
       // Set the current mode - ensure it's properly set for autonomous mode
-      if (
+      this.currentMode =
         config.agentMode === 'auto' ||
-        config.agentconfig?.autonomous === true ||
         config.agentconfig?.mode?.autonomous === true
-      ) {
-        logger.debug('Setting current mode to auto based on config');
-        this.currentMode = 'auto';
-      } else {
-        this.currentMode = config.agentMode;
-      }
+          ? 'auto'
+          : config.agentMode || 'agent';
 
       this.agentconfig = config.agentconfig;
       this.memory = config.memory || {};
@@ -530,9 +525,9 @@ export class StarknetAgent implements IAgent {
 
     if (this.currentMode !== 'auto') {
       // Check if agentconfig has autonomous mode enabled as a fallback
-      if (this.agentconfig?.mode?.autonomous || this.agentconfig?.autonomous) {
+      if (this.agentconfig?.mode?.autonomous) {
         logger.info(
-          `Overriding mode to 'auto' based on config settings (autonomous=${this.agentconfig?.mode?.autonomous}, legacy autonomous=${this.agentconfig?.autonomous})`
+          `Overriding mode to 'auto' based on config settings (autonomous=${this.agentconfig?.mode?.autonomous})`
         );
         this.currentMode = 'auto';
       } else {

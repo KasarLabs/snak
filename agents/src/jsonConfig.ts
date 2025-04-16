@@ -265,13 +265,6 @@ const checkParseJson = async (
             ? json.mode.recursionLimit
             : 15, // default to 15 if not specified
       };
-    } else if (json.autonomous !== undefined) {
-      // Migration path: create mode config from legacy autonomous property
-      modeConfig = {
-        interactive: !json.autonomous,
-        autonomous: json.autonomous,
-        recursionLimit: 15,
-      };
     } else {
       // Default mode configuration
       modeConfig = {
