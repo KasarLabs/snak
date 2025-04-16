@@ -88,6 +88,11 @@ export const createAutonomousAgent = async (
       throw new Error('Agent configuration is required');
     }
 
+    // Check if autonomous mode is explicitly disabled in new mode config
+    if (json_config.mode && json_config.mode.autonomous === false) {
+      throw new Error('Autonomous mode is disabled in agent configuration');
+    }
+
     // Get allowed tools
     let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[] =
       await createAllowedTools(starknetAgent, json_config.plugins);

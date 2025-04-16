@@ -25,7 +25,11 @@
     "Understanding of plugin architecture and custom action development"
   ],
   "interval": 30000,
-  "autonomous": false,
+  "mode": {
+    "interactive": true,
+    "autonomous": false,
+    "recursionLimit": 0
+  },
   "memory": {
     "enabled": true,
     "shortTermMemorySize": 5
@@ -54,5 +58,6 @@
         "BRAVE_API_KEY": "BSAgWXjaOOpxLi7o-_2jw3oDJSrVw5K"
       }
     }
-  }
+  },
+  "autonomous": false
 }

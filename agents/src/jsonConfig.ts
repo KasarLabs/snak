@@ -26,10 +26,60 @@ export interface JsonConfig {
   interval: number;
   chat_id: string;
   plugins: string[];
-  autonomous?: boolean;
+  autonomous: boolean;
   memory: boolean;
   mcpServers?: Record<string, any>;
+  mode?: ModeConfig;
 }
+
+/**
+ * Type for the mode of operation of the agent
+ */
+export interface ModeConfig {
+  interactive: boolean;
+  autonomous: boolean;
+  recursionLimit: number;
+}
+
+/**
+ * Updates the mode configuration in the JSON file
+ */
+export const updateModeConfig = async (
+  configPath: string,
+  mode: 'interactive' | 'autonomous'
+): Promise<boolean> => {
+  try {
+    // Read the current JSON file
+    const jsonData = await fs.readFile(configPath, 'utf8');
+    const json = JSON.parse(jsonData);
+
+    // Ensure the mode object exists
+    if (!json.mode) {
+      json.mode = {
+        recursionLimit: 15,
+      };
+    }
+
+    // Update the mode properties
+    if (mode === 'interactive') {
+      json.mode.interactive = true;
+      json.mode.autonomous = false;
+    } else if (mode === 'autonomous') {
+      json.mode.interactive = false;
+      json.mode.autonomous = true;
+    }
+
+    // For backwards compatibility
+    json.autonomous = json.mode.autonomous;
+
+    // Write the updated JSON back to the file
+    await fs.writeFile(configPath, JSON.stringify(json, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    logger.error('Failed to update mode configuration: ', error);
+    return false;
+  }
+};
 
 /**
  * Creates a context string from the JSON configuration object
@@ -91,6 +141,28 @@ export const validateConfig = (config: JsonConfig) => {
 
   if (!(config.prompt instanceof SystemMessage)) {
     throw new Error('prompt must be an instance of SystemMessage');
+  }
+
+  // Validate mode configuration if present
+  if (config.mode) {
+    // Ensure modes are exclusive
+    if (config.mode.interactive && config.mode.autonomous) {
+      logger.warn(
+        'Both interactive and autonomous modes are enabled - setting autonomous to false'
+      );
+      config.mode.autonomous = false;
+    }
+
+    // Ensure recursion limit is valid
+    if (
+      typeof config.mode.recursionLimit !== 'number' ||
+      config.mode.recursionLimit < 0
+    ) {
+      config.mode.recursionLimit = 15;
+    }
+
+    // Ensure backward compatibility
+    config.autonomous = config.mode.autonomous;
   }
 
   // Validate mcpServers if present
@@ -200,6 +272,37 @@ const checkParseJson = async (
       memory: json.memory || false,
       mcpServers: json.mcpServers || {},
     };
+
+    // Add mode configuration if present
+    if (json.mode) {
+      jsonconfig.mode = {
+        interactive: json.mode.interactive !== false, // default to true if not specified
+        autonomous: json.mode.autonomous === true, // default to false if not specified
+        recursionLimit:
+          typeof json.mode.recursionLimit === 'number'
+            ? json.mode.recursionLimit
+            : 15, // default to 15 if not specified
+      };
+
+      // Ensure only one mode is enabled
+      if (jsonconfig.mode.interactive && jsonconfig.mode.autonomous) {
+        logger.warn(
+          'Both interactive and autonomous modes are enabled - setting interactive to true and autonomous to false'
+        );
+        jsonconfig.mode.interactive = true;
+        jsonconfig.mode.autonomous = false;
+      }
+
+      // For backwards compatibility with older configuration
+      jsonconfig.autonomous = jsonconfig.mode.autonomous;
+    } else {
+      // Create default mode configuration if not present
+      jsonconfig.mode = {
+        interactive: true,
+        autonomous: jsonconfig.autonomous || false,
+        recursionLimit: 15,
+      };
+    }
 
     if (jsonconfig.plugins.length === 0) {
       logger.warn("No plugins specified in agent's config");

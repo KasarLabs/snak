@@ -21,6 +21,7 @@ import {
 export interface MemoryConfig {
   enabled?: boolean; // Controls if memory is enabled
   shortTermMemorySize?: number; // Controls maximum number of messages in conversation history; oldest messages are pruned when this limit is reached
+  recursionLimit?: number; // Controls the recursion limit for autonomous iterations; 0 = no limit, undefined = use shortTermMemorySize
 }
 
 /**
@@ -109,7 +110,19 @@ export class StarknetAgent implements IAgent {
       this.aiProviderApiKey = config.aiProviderApiKey;
       this.signature = config.signature;
       this.agentMode = config.agentMode;
-      this.currentMode = config.agentMode;
+
+      // Set the current mode - ensure it's properly set for autonomous mode
+      if (
+        config.agentMode === 'auto' ||
+        config.agentconfig?.autonomous === true ||
+        config.agentconfig?.mode?.autonomous === true
+      ) {
+        logger.debug('Setting current mode to auto based on config');
+        this.currentMode = 'auto';
+      } else {
+        this.currentMode = config.agentMode;
+      }
+
       this.agentconfig = config.agentconfig;
       this.memory = config.memory || {};
 
@@ -452,30 +465,44 @@ export class StarknetAgent implements IAgent {
 
       // Only apply recursion limit if memory is enabled
       if (this.memory.enabled !== false) {
-        const recursionLimit = this.memory.shortTermMemorySize || 15;
-        invokeOptions.recursionLimit = recursionLimit;
+        // Use mode.recursionLimit if available, otherwise fallback to memory config
+        const recursionLimit =
+          this.agentconfig?.mode?.recursionLimit !== undefined
+            ? this.agentconfig.mode.recursionLimit
+            : this.memory.recursionLimit !== undefined
+              ? this.memory.recursionLimit
+              : this.memory.shortTermMemorySize || 15;
 
-        // Add a messageHandler to prune oldest messages when reaching the limit
-        invokeOptions.messageHandler = (messages: any[]) => {
-          if (messages.length > recursionLimit) {
-            logger.debug(
-              `Message pruning: ${messages.length} messages exceeds limit ${recursionLimit}, pruning oldest messages`
-            );
-            const prunedMessages = [
-              messages[0],
-              ...messages.slice(-(recursionLimit - 1)),
-            ];
-            logger.debug(
-              `Pruned from ${messages.length} to ${prunedMessages.length} messages`
-            );
-            return prunedMessages;
-          }
-          return messages;
-        };
+        // Only apply recursion limit if it's not zero (0 means no limit)
+        if (recursionLimit !== 0) {
+          invokeOptions.recursionLimit = recursionLimit;
 
-        logger.debug(
-          `Execute: configured with recursionLimit=${recursionLimit}, memory enabled=${this.memory.enabled}`
-        );
+          // Add a messageHandler to prune oldest messages when reaching the limit
+          invokeOptions.messageHandler = (messages: any[]) => {
+            if (messages.length > recursionLimit) {
+              logger.debug(
+                `Message pruning: ${messages.length} messages exceeds limit ${recursionLimit}, pruning oldest messages`
+              );
+              const prunedMessages = [
+                messages[0],
+                ...messages.slice(-(recursionLimit - 1)),
+              ];
+              logger.debug(
+                `Pruned from ${messages.length} to ${prunedMessages.length} messages`
+              );
+              return prunedMessages;
+            }
+            return messages;
+          };
+
+          logger.debug(
+            `Execute: configured with recursionLimit=${recursionLimit}, memory enabled=${this.memory.enabled}`
+          );
+        } else {
+          logger.debug(
+            `Execute: running without recursion limit, memory enabled=${this.memory.enabled}`
+          );
+        }
       }
 
       const result = await this.agentReactExecutor.invoke(
@@ -499,10 +526,20 @@ export class StarknetAgent implements IAgent {
    * Validates that the current mode is set to autonomous
    */
   private validateAutonomousMode(): void {
+    logger.debug(`Current mode is: ${this.currentMode}, comparing with 'auto'`);
+
     if (this.currentMode !== 'auto') {
-      throw new Error(
-        `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
-      );
+      // Check if agentconfig has autonomous mode enabled as a fallback
+      if (this.agentconfig?.mode?.autonomous || this.agentconfig?.autonomous) {
+        logger.info(
+          `Overriding mode to 'auto' based on config settings (autonomous=${this.agentconfig?.mode?.autonomous}, legacy autonomous=${this.agentconfig?.autonomous})`
+        );
+        this.currentMode = 'auto';
+      } else {
+        throw new Error(
+          `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
+        );
+      }
     }
 
     if (!this.agentReactExecutor) {
@@ -574,31 +611,46 @@ export class StarknetAgent implements IAgent {
 
           // Add message pruning handler if memory is enabled
           if (this.memory.enabled !== false) {
-            const recursionLimit = this.memory.shortTermMemorySize || 15;
+            // Use mode.recursionLimit if available, otherwise fallback to memory config
+            const recursionLimit =
+              this.agentconfig?.mode?.recursionLimit !== undefined
+                ? this.agentconfig.mode.recursionLimit
+                : this.memory.recursionLimit !== undefined
+                  ? this.memory.recursionLimit
+                  : this.memory.shortTermMemorySize || 15;
+
             if (!agentConfig.configurable) {
               agentConfig.configurable = {};
             }
-            agentConfig.recursionLimit = recursionLimit;
-            agentConfig.messageHandler = (messages: any[]) => {
-              if (messages.length > recursionLimit) {
-                logger.debug(
-                  `Autonomous - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
-                );
-                const prunedMessages = [
-                  messages[0],
-                  ...messages.slice(-(recursionLimit - 1)),
-                ];
-                logger.debug(
-                  `Autonomous - pruned from ${messages.length} to ${prunedMessages.length} messages`
-                );
-                return prunedMessages;
-              }
-              return messages;
-            };
 
-            logger.debug(
-              `Autonomous iteration ${iterationCount}: configured with recursionLimit=${recursionLimit}`
-            );
+            // Only set recursionLimit if it's not zero (0 means no limit)
+            if (recursionLimit !== 0) {
+              agentConfig.recursionLimit = recursionLimit;
+              agentConfig.messageHandler = (messages: any[]) => {
+                if (messages.length > recursionLimit) {
+                  logger.debug(
+                    `Autonomous - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
+                  );
+                  const prunedMessages = [
+                    messages[0],
+                    ...messages.slice(-(recursionLimit - 1)),
+                  ];
+                  logger.debug(
+                    `Autonomous - pruned from ${messages.length} to ${prunedMessages.length} messages`
+                  );
+                  return prunedMessages;
+                }
+                return messages;
+              };
+
+              logger.debug(
+                `Autonomous iteration ${iterationCount}: configured with recursionLimit=${recursionLimit}`
+              );
+            } else {
+              logger.debug(
+                `Autonomous iteration ${iterationCount}: running without recursion limit`
+              );
+            }
           }
 
           logger.debug(
@@ -961,27 +1013,39 @@ export class StarknetAgent implements IAgent {
 
       // Add message pruning if memory is enabled
       if (this.memory.enabled !== false) {
-        const recursionLimit = this.memory.shortTermMemorySize || 15;
-        invokeOptions.recursionLimit = recursionLimit;
-        invokeOptions.messageHandler = (messages: any[]) => {
-          if (messages.length > recursionLimit) {
-            logger.debug(
-              `Call data - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
-            );
-            const prunedMessages = [
-              messages[0],
-              ...messages.slice(-(recursionLimit - 1)),
-            ];
-            logger.debug(
-              `Call data - pruned from ${messages.length} to ${prunedMessages.length} messages`
-            );
-            return prunedMessages;
-          }
-          return messages;
-        };
-        logger.debug(
-          `Execute call data: configured with recursionLimit=${recursionLimit}`
-        );
+        // Use mode.recursionLimit if available, otherwise fallback to memory config
+        const recursionLimit =
+          this.agentconfig?.mode?.recursionLimit !== undefined
+            ? this.agentconfig.mode.recursionLimit
+            : this.memory.recursionLimit !== undefined
+              ? this.memory.recursionLimit
+              : this.memory.shortTermMemorySize || 15;
+
+        // Only apply recursion limit if it's not zero (0 means no limit)
+        if (recursionLimit !== 0) {
+          invokeOptions.recursionLimit = recursionLimit;
+          invokeOptions.messageHandler = (messages: any[]) => {
+            if (messages.length > recursionLimit) {
+              logger.debug(
+                `Call data - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
+              );
+              const prunedMessages = [
+                messages[0],
+                ...messages.slice(-(recursionLimit - 1)),
+              ];
+              logger.debug(
+                `Call data - pruned from ${messages.length} to ${prunedMessages.length} messages`
+              );
+              return prunedMessages;
+            }
+            return messages;
+          };
+          logger.debug(
+            `Execute call data: configured with recursionLimit=${recursionLimit}`
+          );
+        } else {
+          logger.debug(`Execute call data: running without recursion limit`);
+        }
       }
 
       logger.debug('Execute call data: invoking agent');

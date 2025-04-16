@@ -25,7 +25,11 @@
     "Proficiency in blockchain data analysis and interpretation techniques"
   ],
   "interval": 15000,
-  "autonomous": false,
+  "mode": {
+    "interactive": true,
+    "autonomous": false,
+    "recursionLimit": 15
+  },
   "memory": {
     "enabled": true,
     "shortTermMemorySize": 15

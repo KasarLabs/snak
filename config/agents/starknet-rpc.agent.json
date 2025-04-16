@@ -7,7 +7,11 @@
   "objectives": ["Do RPC calls to the Starknet network"],
   "knowledge": ["I know how to use the Starknet RPC API"],
   "interval": 15000,
-  "autonomous": true,
+  "mode": {
+    "interactive": false,
+    "autonomous": true,
+    "recursionLimit": 15
+  },
   "memory": {
     "enabled": true,
     "shortTermMemorySize": 15
