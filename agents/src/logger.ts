@@ -19,8 +19,8 @@ const colors = {
 winston.addColors(colors);
 
 const level = () => {
-  const env = process.env.NODE_ENV || 'production';
-  return env === 'development' ? 'debug' : 'info';
+  const env = process.env.NODE_ENV || 'development';
+  return env === 'development' ? 'debug' : 'warn';
 };
 
 const format = winston.format.combine(

@@ -177,7 +177,7 @@ export async function createAllowedTools(
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
 
   // Add MCP tools
-  const mcpTools = createMCPTools(
+  const mcpTools = await createMCPTools(
     starknetAgent.getAgentConfig() as JsonConfig,
     configPath
   );

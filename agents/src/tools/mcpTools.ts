@@ -3,13 +3,16 @@ import {
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { z } from 'zod';
+import { AnyZodObject, z } from 'zod';
 import { MCPConfigManager, MCP } from '../mcpConfig.js';
 import { JsonConfig } from '../jsonConfig.js';
 import { MCP_CONTROLLER } from '../mcp/src/mcp.js';
 import logger from '../logger.js';
 
-export const createMCPTools = (config: JsonConfig, configPath: string) => {
+export const createMCPTools = async(
+  config: JsonConfig,
+  configPath: string
+): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool<AnyZodObject>)[]> => {
   const mcpManager = new MCPConfigManager(config, configPath);
   let mcpController: MCP_CONTROLLER | null = null;
   let allTools: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
@@ -46,16 +49,15 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
       // Initialize connections
       const initializeAndGetTools = async () => {
         try {
+          const test = await mcpController!.getTools();
           await mcpController!.initializeConnections();
           // Tools will be added via the onToolsUpdate handler
         } catch (error) {
           logger.error(`Failed to initialize MCP connections: ${error}`);
         }
       };
-
+      await initializeAndGetTools();
       // Execute initialization immediately
-      initializeAndGetTools();
-
       // Register callback for configuration changes
       mcpManager.onConfigChange(async (newConfig) => {
         if (mcpController && newConfig.mcpServers) {
@@ -74,7 +76,6 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
     }
   }
 
-  // Register cleanup handler for when the process exits
   process.on('exit', () => {
     mcpManager.cleanup();
     if (mcpController) {
@@ -84,7 +85,6 @@ export const createMCPTools = (config: JsonConfig, configPath: string) => {
     }
   });
 
-  // Also handle signals for graceful shutdown
   process.on('SIGINT', () => {
     mcpManager.cleanup();
     if (mcpController) {

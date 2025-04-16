@@ -25,20 +25,7 @@
         "@smithery-ai/brave-search",
         "--config",
         "{\"braveApiKey\":\"BSAgWXjaOOpxLi7o-_2jw3oDJSrVw5K\"}"
-      ],
-      "env": {}
-    },
-    "soccer-data-server": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@smithery/cli@latest",
-        "run",
-        "@obinopaul/soccer-mcp-server",
-        "--config",
-        "{}"
-      ],
-      "env": {}
+      ]
     }
   }
 }

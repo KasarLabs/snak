@@ -298,8 +298,7 @@ const localRun = async (): Promise<void> => {
     // Configure logging options with a small delay to ensure initialization
     setTimeout(() => {
       agent.setLoggingOptions({
-        langchainVerbose: !silentLlm,
-        tokenLogging: !silentLlm,
+        disabled: false
       });
     }, 100);
 

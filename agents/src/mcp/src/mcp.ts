@@ -1,9 +1,10 @@
-import { StructuredTool } from '@langchain/core/tools';
-import { MultiServerMCPClient } from '@kasarlabs/snak-mcps';
+import { StructuredTool, StructuredToolInterface } from '@langchain/core/tools';
+import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../../../src/logger.js';
 import chalk from 'chalk';
+import { raw } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,10 +17,12 @@ const __dirname = path.dirname(__filename);
  */
 export class MCP_CONTROLLER {
   private client: MultiServerMCPClient;
-  private tools: StructuredTool[] = [];
+  private tools: StructuredToolInterface<any>[] = [];
   private currentConfig: Record<string, any>;
   // Add an event handler system for tool updates
-  private toolUpdateHandlers: ((tools: StructuredTool[]) => void)[] = [];
+  private toolUpdateHandlers: ((
+    tools: StructuredToolInterface<any>[]
+  ) => void)[] = [];
 
   /**
    * @constructor
@@ -31,12 +34,12 @@ export class MCP_CONTROLLER {
     if (!mcpServers || Object.keys(mcpServers).length === 0) {
       throw new Error('MCP servers configuration is required');
     }
-
     logger.info('Initializing MCP_CONTROLLER with provided servers config');
     this.currentConfig = { ...mcpServers };
+    console.log(JSON.stringify(this.currentConfig));
     this.client = new MultiServerMCPClient(mcpServers);
-    logger.info('MCP_CONTROLLER initialized');
   }
+      
 
   /**
    * @public
@@ -120,25 +123,22 @@ export class MCP_CONTROLLER {
 
   /**
    * @private
+   * @async
    * @function parseTools
    * @description Parses and collects tools from all connected MCP servers
    * @returns {void}
    * @throws {Error} Throws an error if tools cannot be retrieved
    */
-  private parseTools = () => {
+  private parseTools = async () => {
     try {
       // Clear existing tools first
       this.tools = [];
-
-      const raw_tools = this.client.getTools();
+      const raw_tools = await this.client.getTools();
       if (!raw_tools) {
         throw new Error('No tools found');
       }
-      const tools_array = Array.from(raw_tools.values());
-      for (const tools of tools_array) {
-        for (const tool of tools) {
-          this.tools.push(tool);
-        }
+      for (const tools of raw_tools) {
+        this.tools.push(tools);
       }
 
       // Log tools to help with debugging
@@ -146,7 +146,6 @@ export class MCP_CONTROLLER {
       this.tools.forEach((tool) => {
         logger.info(`MCP tool available: ${tool.name}`);
       });
-
       // Notify all handlers about the updated tools
       this.notifyToolsUpdate();
     } catch (error) {
@@ -164,8 +163,8 @@ export class MCP_CONTROLLER {
    */
   public initializeConnections = async () => {
     try {
-      await this.client.initializeConnections();
-      this.parseTools();
+      await this.parseTools();
+      console.log(this.tools);
       logger.info(`MCP connections initialized successfully`);
     } catch (error) {
       throw new Error(`Error initializing connections: ${error}`);
@@ -254,7 +253,7 @@ export class MCP_CONTROLLER {
    * @description Gets all structured tools available from connected MCP servers
    * @returns {StructuredTool[]} Array of structured tools
    */
-  public getTools = (): StructuredTool[] => {
+  public getTools = (): StructuredToolInterface<any>[] => {
     return this.tools;
   };
 

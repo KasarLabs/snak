@@ -76,8 +76,7 @@ export class StarknetAgent implements IAgent {
    * @param config - Configuration for the StarknetAgent
    */
   constructor(private readonly config: StarknetAgentConfig) {
-    this.disableLogging();
-
+    this.disableLogging(); // TODO - update the way to handle logging
     try {
       this.validateConfig(config);
 
