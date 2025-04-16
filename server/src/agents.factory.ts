@@ -53,7 +53,11 @@ export class AgentFactory {
         name: json.name,
         interval: json.interval || 30000,
         chat_id: json.chat_id || 'default',
-        autonomous: json.autonomous || false,
+        mode: {
+          interactive: true,
+          autonomous: json.autonomous || false,
+          recursionLimit: 15
+        },
         plugins: Array.isArray(json.plugins)
           ? json.plugins.map((tool: string) => tool.toLowerCase())
           : [],

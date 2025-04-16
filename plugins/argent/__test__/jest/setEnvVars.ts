@@ -16,6 +16,11 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     plugins: [],
     memory: false,
+    mode: {
+      interactive: true,
+      autonomous: false,
+      recursionLimit: 15
+    }
   };
 
   return {
@@ -52,6 +57,11 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     plugins: [],
     memory: false,
+    mode: {
+      interactive: true,
+      autonomous: false,
+      recursionLimit: 15
+    }
   };
 
   return {
