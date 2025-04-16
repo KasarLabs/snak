@@ -5,7 +5,7 @@ import path from 'path';
 import { z } from 'zod';
 import { scarb } from '@snak/database/queries';
 import { getAllPackagesList } from '../utils/dependencies.js';
-import { Id } from 'node_modules/@snak/database/src/queries/common.js';
+import { Id } from '@snak/database/common';
 
 /**
  * Add several programs to a project

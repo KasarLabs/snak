@@ -14,7 +14,8 @@
   "exports": {
     ".": "./src/database.ts",
     "./error": "./src/error.ts",
-    "./queries": "./src/queries/index.ts"
+    "./queries": "./src/queries/index.ts",
+    "./common": "./src/queries/common.ts"
   },
   "dependecies": {
     "pg": "^8.14.1"
