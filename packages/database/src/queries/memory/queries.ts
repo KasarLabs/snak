@@ -1,5 +1,5 @@
 import { query, transaction, Query } from "../../database.js"
-import { types } from 'pg';
+import pg from 'pg';
 
 export namespace memory {
 	export async function init() {
@@ -121,7 +121,7 @@ export namespace memory {
 
 		const q = new Query(`SELECT 'vector'::regtype::oid;`);
 		const oid = (await query<{ oid: number }>(q))[0].oid;
-		types.setTypeParser(oid, (v) => {
+		pg.types.setTypeParser(oid, (v: any) => {
 			return JSON.parse(v) as number[];
 		})
 	}

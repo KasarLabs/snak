@@ -22,7 +22,8 @@
  */
 
 
-import { Pool, PoolClient, QueryResult } from 'pg';
+import pg, { PoolClient, QueryResult } from 'pg'
+const { Pool } = pg;
 
 import { DatabaseError } from './error.js';
 
