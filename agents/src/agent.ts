@@ -129,55 +129,46 @@ export async function initializeToolsList(
   jsonConfig: JsonConfig,
   configPath?: string
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
+  let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = []; // Initialize
+
   // Check if starknetAgent has the adaptive tool selection method
   if ('createToolSelectionExecutor' in starknetAgent) {
     // Use the adaptive model selection based on tool count
-    const { toolsList } = await (starknetAgent as any).createToolSelectionExecutor(true);
-    return toolsList;
+    const { toolsList: retrievedTools } = await (starknetAgent as any).createToolSelectionExecutor(true);
+    toolsList = retrievedTools;
   } else {
-<<<<<<< HEAD
-    // Fall back to original implementation if the agent doesn't support adaptive selection
-    let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-    const isSignature = starknetAgent.getSignature().signature === 'wallet';
-
-    if (isSignature) {
-      toolsList = await createSignatureTools(jsonConfig.plugins);
-    } else {
-      const allowedTools = await createAllowedTools(
-        starknetAgent,
-        jsonConfig.plugins
-      );
-      toolsList = [...allowedTools];
-    }
-=======
-    const allowedTools = await createAllowedTools(
+    // Fall back to updated implementation if agent doesn't support adaptive selection
+    logger.warn(
+      'Agent does not support adaptive tool selection. Falling back to default tool loading.'
+    );
+    // Call createAllowedTools with configPath
+    toolsList = await createAllowedTools(
       starknetAgent,
       jsonConfig.plugins,
-      configPath || ''
+      configPath || '' // Pass configPath
     );
-    toolsList = [...allowedTools];
   }
 
-  // Note: MCP tools are now initialized and managed by createAllowedTools via mcpTools.ts
-  // No need to initialize them again here, as the mcpTools.ts will handle their lifecycle
-  // This avoids double-initialization and connection issues
->>>>>>> 919dd8b8fa5b188375f19bcd2c0f14642f70a863
+  // Note: MCP tools might be initialized by createAllowedTools or handled here,
+  // depending on the implementation of createAllowedTools.
+  // The following block ensures MCP tools are added if not already handled.
+  // This assumes mcp.getTools() returns a type compatible with toolsList.
+  // A type assertion might be needed if linter errors persist.
+  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
+    try {
+      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
+      await mcp.initializeConnections();
 
-    if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
-      try {
-        const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
-        await mcp.initializeConnections();
-
-        const mcpTools = mcp.getTools();
-        logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-        toolsList = [...toolsList, ...mcpTools];
-      } catch (error) {
-        logger.error(`Failed to initialize MCP tools: ${error}`);
-      }
+      const mcpTools = mcp.getTools();
+      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+      // Add MCP tools, potentially casting if types mismatch (addressing potential linter error)
+      toolsList = [...toolsList, ...(mcpTools as any[])];
+    } catch (error) {
+      logger.error(`Failed to initialize MCP tools: ${error}`);
     }
-
-    return toolsList;
   }
+
+  return toolsList;
 }
 
 // Patch ToolNode to log all tool calls
@@ -298,55 +289,14 @@ export const createAgent = async (
       }
     }
 
-<<<<<<< HEAD
-    // Check if the agent supports adaptive tool selection
-    let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-
-    if ('createToolSelectionExecutor' in starknetAgent) {
-      // Use adaptive model selection based on tool count
-      const { toolsList: retrievedTools } = await (starknetAgent as any).createToolSelectionExecutor(true);
-      toolsList = retrievedTools;
-    } else {
-      // Fallback to original implementation if agent doesn't support adaptive selection
-      logger.warn(
-        'Agent does not support adaptive tool selection. Using default tools and model.'
-      );
-      const json_config = starknetAgent.getAgentConfig(); // Ensure config is available
-      if (!json_config) {
-        throw new Error('Agent configuration is required for default tool loading');
-      }
-      toolsList = await initializeToolsList(starknetAgent, json_config);
-    }
-
-    // Use the provider/model/key potentially updated by adaptive logic
-    const finalApiKey = aiConfig.aiProviderApiKey;
-    const finalProvider = aiConfig.aiProvider;
-    const finalModelName = aiConfig.aiModel;
-
-    // Default to original values if adaptive logic didn't run or failed to update
-    const effectiveApiKey = finalApiKey || apiKey; 
-    const effectiveProvider = finalProvider || aiConfig.aiProvider; 
-    const effectiveModelName = finalModelName || aiConfig.aiModel;
-
-    const verbose = aiConfig.langchainVerbose ?? false;
-    const tokenLimits = {
-      maxInputTokens: aiConfig.maxInputTokens,
-      maxCompletionTokens: aiConfig.maxCompletionTokens,
-      maxTotalTokens: aiConfig.maxTotalTokens,
-    };
-
-    // Log the final model being used for the agent graph
-    logger.info(`Initializing agent graph with model: ${effectiveProvider}/${effectiveModelName}`);
-
-    // Define ModelLevel type for GraphState
-    type ModelLevel = 'fast' | 'smart' | 'cheap';
-=======
     let toolsList = await initializeToolsList(
       starknetAgent,
       json_config,
       configPath
     );
->>>>>>> 919dd8b8fa5b188375f19bcd2c0f14642f70a863
+
+    // Define ModelLevel type for GraphState (required for dynamic model selection)
+    type ModelLevel = 'fast' | 'smart' | 'cheap';
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({

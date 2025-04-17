@@ -48,6 +48,7 @@ export interface IAgent {
    */
   getModelCredentials(): {
     aiModel: string;
+    aiProvider: string;
     aiProviderApiKey: string;
   };
 

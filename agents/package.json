@@ -26,6 +26,7 @@
     "@langchain/deepseek": "^0.0.1",
     "@langchain/google-genai": "^0.1.6",
     "@langchain/langgraph": "^0.2.44",
+    "@langchain/mcp-adapters": "^0.4.2",
     "@langchain/ollama": "^0.1.4",
     "@langchain/openai": "^0.3.17",
     "discord.js": "^14.17.3",

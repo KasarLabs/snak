@@ -245,7 +245,7 @@ export class StarknetAgent implements IAgent {
       if (isSignature) {
         toolsList = await createSignatureTools(jsonConfig.plugins);
       } else {
-        const allowedTools = await createAllowedTools(this, jsonConfig.plugins);
+        const allowedTools = await createAllowedTools(this, jsonConfig.plugins, '');
         toolsList = [...allowedTools];
       }
 
@@ -257,7 +257,8 @@ export class StarknetAgent implements IAgent {
 
           const mcpTools = mcp.getTools();
           logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-          toolsList = [...toolsList, ...mcpTools];
+          // Cast mcpTools to the expected type
+          toolsList = [...toolsList, ...(mcpTools as (Tool | DynamicStructuredTool<any> | StructuredTool)[] )];
         } catch (error) {
           logger.error(`Failed to initialize MCP tools: ${error}`);
         }
@@ -658,19 +659,31 @@ export class StarknetAgent implements IAgent {
    * Gets the AI model credentials (returns info for the 'smart' level)
    */
   public getModelCredentials() {
-    // Return details for the default 'smart' level from the loaded config
-    const smartModelInfo = this.modelsConfig.models.smart;
+    // Return credentials for the 'smart' model as a default/primary representation
+    const smartModelInfo = this.modelsConfig?.models?.smart;
     if (!smartModelInfo) {
-      // This should ideally not happen due to validateConfig check
-      logger.error(
-        "Cannot get model credentials: 'smart' model configuration is missing."
-      );
-      return { aiModel: 'unknown', aiProvider: 'unknown' };
+      throw new Error("'smart' model configuration not found.");
     }
+
+    const apiKey = this.getApiKeyForProvider(smartModelInfo.provider);
+    if (!apiKey && smartModelInfo.provider !== 'ollama') {
+      // Attempt to get primary API key if specific one not found
+      const primaryKey = this.config.aiProviderApiKey || this.apiKeys.openai || this.apiKeys.anthropic || this.apiKeys.gemini || this.apiKeys.deepseek;
+      if (!primaryKey) {
+        throw new Error(`API key for provider ${smartModelInfo.provider} not found and no primary key available.`);
+      }
+       logger.warn(`API key for provider ${smartModelInfo.provider} not found. Using primary key.`);
+       return {
+        aiModel: smartModelInfo.model_name,
+        aiProvider: smartModelInfo.provider,
+        aiProviderApiKey: primaryKey,
+      };
+    }
+
     return {
       aiModel: smartModelInfo.model_name,
       aiProvider: smartModelInfo.provider,
-      // Do not return apiKeys here for security
+      aiProviderApiKey: apiKey || '',
     };
   }
 

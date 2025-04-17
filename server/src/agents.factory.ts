@@ -5,10 +5,12 @@ import {
   JsonConfig,
   load_json_config,
 } from '@starknet-agent-kit/agents';
+import { ModelsConfig, loadModelsConfig } from '@starknet-agent-kit/agents/dist/src/jsonConfig.js';
 
 @Injectable()
 export class AgentFactory {
   private json_config: JsonConfig;
+  private models_config: ModelsConfig;
   private agentInstances: Map<string, StarknetAgent> = new Map();
   private initialized: boolean = false;
   private initPromise: Promise<void>;
@@ -29,17 +31,26 @@ export class AgentFactory {
         'agents',
         'default.agent.json'
       );
+      const modelsConfigPath = path.join(
+        projectRoot,
+        'config',
+        'models',
+        'default.models.json'
+      );
 
       try {
         await fs.access(configPath);
+        await fs.access(modelsConfigPath);
       } catch (error) {
-        console.error('Config file not found:', configPath);
-        throw new Error(`Config file not found: ${configPath}`);
+        console.error('Config file not found:', configPath, 'or', modelsConfigPath);
+        throw new Error(`Config file not found: ${configPath} or ${modelsConfigPath}`);
       }
 
       const jsonData = await fs.readFile(configPath, 'utf8');
+      const modelsJsonData = await fs.readFile(modelsConfigPath, 'utf8');
 
       const json = JSON.parse(jsonData);
+      const modelsJson = JSON.parse(modelsJsonData);
 
       if (!json) {
         throw new Error('Empty JSON configuration');
@@ -59,6 +70,13 @@ export class AgentFactory {
           : [],
         memory: json.memory || false,
       };
+
+      // Load and store models config
+      const loadedConfig = await loadModelsConfig(modelsJson);
+      if (!loadedConfig) {
+        throw new Error('Failed to load models configuration');
+      }
+      this.models_config = loadedConfig;
 
       this.initialized = true;
     } catch (error) {
@@ -96,9 +114,7 @@ export class AgentFactory {
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
-        aiModel: this.config.ai.model,
-        aiProvider: this.config.ai.provider,
-        aiProviderApiKey: this.config.ai.apiKey,
+        modelsConfig: this.models_config,
         agentconfig: this.json_config,
         signature: signature,
         agentMode: agentMode,
