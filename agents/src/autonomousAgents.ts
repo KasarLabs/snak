@@ -97,9 +97,25 @@ export const createAutonomousAgent = async (
       throw new Error('Agent configuration is required');
     }
 
-    // Get allowed tools
-    let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[] =
-      await createAllowedTools(starknetAgent, json_config.plugins);
+    // Get tools list with adaptive model selection if supported
+    let tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[] = [];
+    let suggestedModelLevel = 'smart'; // Default model level
+    
+    if ('createToolSelectionExecutor' in starknetAgent) {
+      // Use adaptive model selection based on tool count
+      const result = await (starknetAgent as any).createToolSelectionExecutor(true);
+      tools = result.toolsList;
+      suggestedModelLevel = result.modelLevel;
+      
+      // Log the suggested model level based on tool count
+      logger.info(`Tool count suggests using '${suggestedModelLevel}' model level for autonomous agent`);
+      
+      // Note: We don't actually change the model here since aiConfig is already passed in
+      // But we could in a future version if we modify the architecture to support changing model at runtime
+    } else {
+      // Fall back to original implementation
+      tools = await createAllowedTools(starknetAgent, json_config.plugins);
+    }
 
     // Initialize MCP tools if configured
     if (
@@ -187,6 +203,7 @@ export const createAutonomousAgent = async (
         configurable: { thread_id: json_config.chat_id },
       },
       json_config,
+      suggestedModelLevel, // Include suggested model level in the return object
     };
   } catch (error) {
     logger.error('Failed to create autonomous agent:', error);

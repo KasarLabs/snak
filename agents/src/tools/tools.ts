@@ -17,6 +17,8 @@ import * as metrics from '../../metrics.js';
  * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
  * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
  * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
+ * @property {() => any} getModelsConfig - Function to get the models configuration
+ * @property {(provider: string) => string | undefined} getApiKeyForProvider - Function to get the API key for a provider
  */
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
@@ -38,6 +40,8 @@ export interface StarknetAgentInterface {
     database_name: string
   ) => Promise<PostgresAdaptater | undefined>;
   getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
+  getModelsConfig?: () => any;
+  getApiKeyForProvider?: (provider: string) => string | undefined;
 }
 
 /**

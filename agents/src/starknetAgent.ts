@@ -18,6 +18,14 @@ import {
   ADAPTIVE_PROMPT_NORMAL,
   ADAPTIVE_PROMPT_TOKEN_LIMIT,
 } from './prompts/prompts.js';
+import { Tool, DynamicStructuredTool, StructuredTool } from '@langchain/core/tools';
+import { createAllowedTools } from './tools/tools.js';
+import { createSignatureTools } from './tools/signatureTools.js';
+// Import monitor prompts and types
+import { formatMonitorPrompt, parseMonitorResponse } from './prompts/monitor_prompts.js';
+import { BaseMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models'; // Import BaseChatModel
+import { selectModel } from './agent.js'; // Import selectModel to create monitor model instance
 
 // Define the type for model levels explicitly
 type ModelLevel = 'fast' | 'smart' | 'cheap';
@@ -64,6 +72,16 @@ interface ErrorResponse {
 }
 
 /**
+ * Interface for StarknetAgent that implements tool selection strategy
+ */
+export interface StarknetAgentInterface {
+  getSignature(): { signature: string };
+  getAgentConfig(): JsonConfig | undefined;
+  createDatabase(databaseName: string): Promise<PostgresAdaptater | undefined>;
+  // Add other required methods
+}
+
+/**
  * Agent for interacting with Starknet blockchain with AI capabilities
  */
 export class StarknetAgent implements IAgent {
@@ -81,6 +99,13 @@ export class StarknetAgent implements IAgent {
   private originalLoggerFunctions: Record<string, any> = {};
   private readonly modelsConfig: ModelsConfig; // Make modelsConfig readonly
   private apiKeys: ApiKeys = {}; // Store loaded API keys
+  private toolsModelStrategy: 'adaptive' | 'fixed' = 'fixed'; // Strategy for model selection based on tools
+
+  // Add properties to store pre-configured model instances
+  private fastModel?: BaseChatModel;
+  private smartModel?: BaseChatModel;
+  private cheapModel?: BaseChatModel;
+  private monitorModel?: BaseChatModel; // Dedicated model for the monitor agent
 
   public readonly signature: string;
   public readonly agentMode: string;
@@ -121,6 +146,12 @@ export class StarknetAgent implements IAgent {
       this.currentMode = config.agentMode;
       this.agentconfig = config.agentconfig;
 
+      // Initialize pre-configured models (moved to a separate method for clarity)
+      this.initializeModels();
+
+      // Enable adaptive tool selection strategy by default
+      this.toolsModelStrategy = 'adaptive';
+
       metrics.metricsAgentConnect(
         config.agentconfig?.name ?? 'agent',
         config.agentMode
@@ -129,6 +160,118 @@ export class StarknetAgent implements IAgent {
       this.enableLogging();
       logger.error('Failed to initialize StarknetAgent:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Initializes the model instances ('fast', 'smart', 'cheap', 'monitor') based on modelsConfig.
+   */
+  private initializeModels(): void {
+    logger.debug('Initializing pre-configured model instances...');
+    const levels: ModelLevel[] = ['fast', 'smart', 'cheap'];
+
+    for (const level of levels) {
+      const modelInfo = this.modelsConfig.models[level];
+      if (!modelInfo) {
+        logger.warn(`Model configuration for level '${level}' not found. Skipping initialization.`);
+        continue;
+      }
+
+      const apiKey = this.getApiKeyForProvider(modelInfo.provider);
+      if (!apiKey && modelInfo.provider !== 'ollama') {
+        logger.warn(`API key for provider ${modelInfo.provider} (level ${level}) not found. Skipping initialization.`);
+        continue;
+      }
+
+      try {
+        const modelInstance = selectModel(
+          apiKey,
+          modelInfo.provider,
+          modelInfo.model_name,
+          this.loggingOptions.langchainVerbose,
+          // Pass token limits from main config if available
+          {
+             maxInputTokens: (this.config as any).maxInputTokens,
+             maxCompletionTokens: (this.config as any).maxCompletionTokens,
+             maxTotalTokens: (this.config as any).maxTotalTokens,
+          }
+        );
+        // Store the instance
+        (this as any)[`${level}Model`] = modelInstance;
+        logger.info(`Initialized model instance for level '${level}': ${modelInfo.provider}/${modelInfo.model_name}`);
+
+        // Use the 'fast' or 'cheap' model as the monitor model (prefer 'fast', fallback to 'cheap')
+        if (!this.monitorModel && (level === 'fast' || level === 'cheap')) {
+            if (level === 'fast' || !this.fastModel) { // Prioritize fast, use cheap if fast wasn't available
+                 this.monitorModel = modelInstance;
+                 logger.info(`Using '${level}' model instance as the Monitor Agent model.`);
+            }
+        }
+
+      } catch (error) {
+        logger.error(`Failed to initialize model for level '${level}': ${error}`);
+      }
+    }
+     // Fallback for Monitor Model if neither fast nor cheap were initialized
+    if (!this.monitorModel) {
+        logger.warn("Monitor model could not be initialized from 'fast' or 'cheap' levels. Monitoring will default to 'smart'.");
+        // In invokeMonitorAgent, we'll default to 'smart' if this.monitorModel is undefined.
+    }
+  }
+
+  /**
+   * Creates tool selection executor with appropriate model based on tool count
+   * @param useAdaptiveStrategy - Whether to use adaptive strategy based on tool count
+   * @returns The tools list and selected model level
+   */
+  public async createToolSelectionExecutor(useAdaptiveStrategy = true): Promise<{
+    toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[];
+    // modelLevel: ModelLevel; // REMOVED - No longer returns modelLevel
+  }> {
+    // this.toolsModelStrategy = useAdaptiveStrategy ? 'adaptive' : 'fixed'; // Strategy setting removed/managed elsewhere if needed
+
+    try {
+      // Get JSON config
+      const jsonConfig = this.getAgentConfig();
+      if (!jsonConfig) {
+        throw new Error('Agent configuration is required');
+      }
+
+      // Initialize tools list
+      let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+      const isSignature = this.getSignature().signature === 'wallet';
+
+      // Create appropriate tools
+      if (isSignature) {
+        toolsList = await createSignatureTools(jsonConfig.plugins);
+      } else {
+        const allowedTools = await createAllowedTools(this, jsonConfig.plugins);
+        toolsList = [...allowedTools];
+      }
+
+      // Add MCP tools if configured
+      if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
+        try {
+          const mcp = await import('./mcp/src/mcp.js').then(m => m.MCP_CONTROLLER.fromJsonConfig(jsonConfig));
+          await mcp.initializeConnections();
+
+          const mcpTools = mcp.getTools();
+          logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+          toolsList = [...toolsList, ...mcpTools];
+        } catch (error) {
+          logger.error(`Failed to initialize MCP tools: ${error}`);
+        }
+      }
+
+      // Select appropriate model level based on tool count - REMOVED
+      // const modelLevel = this.getModelLevelForTools(toolsList);
+      // logger.info(`Selected model level for tool operations: ${modelLevel}`); // REMOVED
+
+      return { toolsList }; // Only return toolsList
+    } catch (error) {
+      logger.error(`Failed to initialize tools: ${error}`);
+      // Fall back to empty list if there's an error
+      return { toolsList: [] };
     }
   }
 
@@ -188,7 +331,7 @@ export class StarknetAgent implements IAgent {
   /**
    * Retrieves the appropriate API key for a given provider.
    */
-  private getApiKeyForProvider(provider: string): string | undefined {
+  public getApiKeyForProvider(provider: string): string | undefined {
     const key = this.apiKeys[provider as keyof ApiKeys];
     if (!key && provider !== 'ollama') {
       logger.warn(`API key for provider ${provider} not found.`);
@@ -287,10 +430,11 @@ export class StarknetAgent implements IAgent {
       // Create agent with the selected model details and the correct API key
       if (this.currentMode === 'auto') {
         // createAutonomousAgent now receives AiConfig containing the correct key
-        this.agentReactExecutor = await createAutonomousAgent(
+        const autonomousAgentResult = await createAutonomousAgent(
           this,
           baseAiConfig
         );
+        this.agentReactExecutor = autonomousAgentResult.agent; // Correctly assign the agent executor
       } else if (this.currentMode === 'agent') {
         // createAgent now receives AiConfig containing the correct key
         this.agentReactExecutor = await createAgent(this, baseAiConfig);
@@ -795,16 +939,15 @@ export class StarknetAgent implements IAgent {
           // Periodic refresh now always uses the 'smart' level defined in modelsConfig
           await this.handlePeriodicAgentRefresh(
             iterationCount,
-            tokensErrorCount,
-            'smart'
+            tokensErrorCount
           );
 
-          if (!this.agentReactExecutor || !this.agentReactExecutor.agent) {
+          if (!this.agentReactExecutor) {
             logger.error(
-              'Agent executor or agent property missing during autonomous loop. Attempting recovery...'
+              'Agent executor missing during autonomous loop. Attempting recovery...'
             );
-            await this.createAgentReactExecutor('smart'); // Recreate default ('smart')
-            if (!this.agentReactExecutor || !this.agentReactExecutor.agent) {
+            await this.createAgentReactExecutor();
+            if (!this.agentReactExecutor) {
               throw new Error(
                 'Critical error: Agent executor recovery failed during autonomous loop.'
               );
@@ -813,20 +956,20 @@ export class StarknetAgent implements IAgent {
           }
 
           const promptMessage = this.getAdaptivePromptMessage(tokensErrorCount);
-          // Get the config associated with the current executor (which should be the 'smart' one)
-          const agentConfigForInvoke =
-            (this.agentReactExecutor as any).agentConfig || {};
+          // Get the config associated with the current executor - this might be less relevant
+          // if the executor holds the compiled graph which manages internal state.
+          // const agentConfigForInvoke = (this.agentReactExecutor as any).agentConfig || {}; // May need adjustment
 
-          // Invoke the agent (using the 'smart' model executor)
+          // Invoke the agent executor (which contains the graph with the monitor node)
+          // The graph will internally handle monitor decision and model selection.
           const result = await this.agentReactExecutor.invoke(
-            // Changed from .agent.invoke to directly invoke the executor
             { messages: [new HumanMessage(promptMessage)] },
             {
               recursionLimit: 15, // Apply recursion limit here
               configurable: {
                 thread_id: this.agentconfig?.chat_id || 'autonomous_thread',
               }, // Use a consistent thread ID
-              ...agentConfigForInvoke, // Spread any other config if needed
+              // ...agentConfigForInvoke, // Spread any other config if needed - review if still needed
             }
           );
 
@@ -877,30 +1020,30 @@ export class StarknetAgent implements IAgent {
 
   /**
    * Handles periodic agent refresh to prevent context buildup.
-   * Always refreshes using the 'smart' level defined in the models config.
-   * @param modelLevel - Kept for consistency but always uses 'smart'.
+   * Always refreshes using the agent's standard creation logic (which includes the monitor graph).
+   * @param iterationCount - Current iteration number.
+   * @param tokensErrorCount - Count of recent token errors.
    */
   private async handlePeriodicAgentRefresh(
     iterationCount: number,
-    tokensErrorCount: number,
-    modelLevel: ModelLevel = 'smart' // Default to smart, but logic forces smart
+    tokensErrorCount: number
   ): Promise<void> {
     const refreshInterval = tokensErrorCount > 0 ? 3 : 5;
     if (iterationCount > 1 && iterationCount % refreshInterval === 0) {
       logger.info(
-        `Periodic agent refresh (iteration ${iterationCount}), recreating with 'smart' level from config.`
+        `Periodic agent refresh (iteration ${iterationCount}), recreating executor with standard monitor-enabled graph.`
       );
 
-      // Log model details before the refresh
+      // Log details before refresh - maybe log the default/smart model as the base config used
       if (this.modelsConfig && this.modelsConfig.models.smart) {
         const modelInfo = this.modelsConfig.models.smart;
         logger.debug(
-          `Agent refresh using model level: 'smart', Provider: ${modelInfo.provider}, Model: ${modelInfo.model_name}`
+          `Agent refresh initiated. Base config uses: 'smart', Provider: ${modelInfo.provider}, Model: ${modelInfo.model_name}. Actual model per turn decided by monitor.`
         );
       }
 
-      // Always recreate with 'smart' level as it's the default for autonomous mode now
-      await this.createAgentReactExecutor('smart');
+      // Recreate using the standard method - no specific level needed here
+      await this.createAgentReactExecutor();
     }
   }
 
@@ -1026,7 +1169,7 @@ export class StarknetAgent implements IAgent {
 
   /**
    * Handles token limit errors in autonomous mode.
-   * Resets using the 'smart' level from config.
+   * Resets using the standard agent creation logic (monitor-enabled graph).
    */
   private async handleTokenLimitError(
     consecutiveErrorCount: number,
@@ -1050,14 +1193,14 @@ export class StarknetAgent implements IAgent {
 
       if (consecutiveErrorCount >= 2 || tokensErrorCount >= 3) {
         logger.warn(
-          "Too many token-related errors, resetting agent using 'smart' level from config..."
+          "Too many token-related errors, resetting agent using standard configuration..."
         );
-        // Reset using the default 'smart' level
-        await this.createAgentReactExecutor('smart');
+        // Reset using the standard method
+        await this.createAgentReactExecutor();
 
         const resetMessage = createBox(
           'Agent Reset',
-          "Due to persistent token issues, the agent has been reset using the 'smart' configuration. This may clear some context information but will allow execution to continue."
+          "Due to persistent token issues, the agent executor has been reset. This may clear some intermediate context but allows execution to continue with the monitor deciding the model."
         );
         process.stdout.write(resetMessage);
 
@@ -1070,10 +1213,10 @@ export class StarknetAgent implements IAgent {
 
       if (consecutiveErrorCount >= 5) {
         try {
-          // Emergency reset using 'smart' level
-          await this.createAgentReactExecutor('smart');
+          // Emergency reset using standard method
+          await this.createAgentReactExecutor();
           logger.warn(
-            'Emergency reset (smart level) performed after multiple failures'
+            'Emergency reset performed after multiple failures'
           );
         } catch (e) {
           logger.error(
@@ -1087,7 +1230,7 @@ export class StarknetAgent implements IAgent {
 
   /**
    * Handles general errors in autonomous mode.
-   * Resets using the 'smart' level from config if too many errors occur.
+   * Resets using the standard agent creation logic if too many errors occur.
    */
   private async handleGeneralError(
     consecutiveErrorCount: number
@@ -1111,10 +1254,10 @@ export class StarknetAgent implements IAgent {
     if (consecutiveErrorCount >= 7) {
       try {
         logger.warn(
-          "Too many consecutive errors, attempting complete reset using 'smart' level from config..."
+          "Too many consecutive errors, attempting complete reset using standard configuration..."
         );
-        // Reset using the default 'smart' level
-        await this.createAgentReactExecutor('smart');
+        // Reset using the standard method
+        await this.createAgentReactExecutor();
         await new Promise((resolve) => setTimeout(resolve, 5000));
       } catch (e) {
         logger.error(
@@ -1241,5 +1384,83 @@ export class StarknetAgent implements IAgent {
         `Logging options set - langchainVerbose: ${this.loggingOptions.langchainVerbose}, tokenLogging: ${this.loggingOptions.tokenLogging}`
       );
     }
+  }
+
+  /**
+   * Executes a request with the appropriate model level based on tools count
+   * @param input - Input to execute
+   * @returns Result of the execution
+   */
+  public async executeWithAdaptiveModel(input: string): Promise<unknown> {
+    if (this.currentMode !== 'agent') {
+      throw new Error(
+        `Need to be in agent mode to execute with adaptive model (current mode: ${this.currentMode})`
+      );
+    }
+
+    try {
+      // First, determine which model should be used based on tools count
+      const { toolsList } = await this.createToolSelectionExecutor(true);
+      
+      logger.info(`Executing with ${toolsList.length} tools`);
+      
+      // Now execute with the selected model level
+      return this.executeWithLevel(input, 'smart');
+    } catch (error) {
+      logger.error(`Error during adaptive model execution: ${error}`);
+      
+      // Fall back to smart model if there's an error
+      logger.warn(`Falling back to 'smart' model due to error`);
+      return this.execute(input);  // Use default smart executor
+    }
+  }
+  
+  /**
+   * Sets the tool model selection strategy
+   * @param useAdaptiveStrategy - Whether to use adaptive strategy based on tool count
+   */
+  public setToolModelStrategy(useAdaptiveStrategy: boolean): void {
+    this.toolsModelStrategy = useAdaptiveStrategy ? 'adaptive' : 'fixed';
+    logger.info(`Set tool model strategy to: ${this.toolsModelStrategy}`);
+  }
+
+  /**
+   * Invokes the Monitor Agent to decide the model level for the next step.
+   * @param history - Recent conversation history.
+   * @param currentInput - The latest user input or agent task.
+   * @returns The decided ModelLevel ('fast', 'smart', 'cheap').
+   */
+  public async invokeMonitorAgent(history: BaseMessage[], currentInput: string): Promise<ModelLevel> {
+      if (!this.monitorModel) {
+          logger.warn("Monitor model not available, defaulting to 'smart' level.");
+          return 'smart';
+      }
+
+      try {
+          const historyLimit = 10; // Limit history length for monitor prompt
+          const recentHistory = history.slice(-historyLimit);
+
+          // Simple string representation of history
+          const historyStr = recentHistory.map(msg => {
+              const prefix = msg instanceof HumanMessage ? 'Human:' : msg instanceof AIMessage ? 'AI:' : 'System:';
+              const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+              return `${prefix} ${content}`;
+          }).join('\n');
+
+          const prompt = formatMonitorPrompt(historyStr, currentInput);
+
+          logger.debug('Invoking Monitor Agent...');
+          // Use invoke with a string prompt for simplicity here
+          const response = await this.monitorModel.invoke(prompt);
+
+          const responseText = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+          logger.debug(`Monitor Agent response: ${responseText}`);
+
+          return parseMonitorResponse(responseText);
+
+      } catch (error) {
+          logger.error(`Error invoking Monitor Agent: ${error}. Defaulting to 'smart'.`);
+          return 'smart';
+      }
   }
 }

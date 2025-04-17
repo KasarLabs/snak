@@ -128,33 +128,41 @@ export async function initializeToolsList(
   starknetAgent: StarknetAgentInterface,
   jsonConfig: JsonConfig
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
-  let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-  const isSignature = starknetAgent.getSignature().signature === 'wallet';
-
-  if (isSignature) {
-    toolsList = await createSignatureTools(jsonConfig.plugins);
+  // Check if starknetAgent has the adaptive tool selection method
+  if ('createToolSelectionExecutor' in starknetAgent) {
+    // Use the adaptive model selection based on tool count
+    const { toolsList } = await (starknetAgent as any).createToolSelectionExecutor(true);
+    return toolsList;
   } else {
-    const allowedTools = await createAllowedTools(
-      starknetAgent,
-      jsonConfig.plugins
-    );
-    toolsList = [...allowedTools];
-  }
+    // Fall back to original implementation if the agent doesn't support adaptive selection
+    let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+    const isSignature = starknetAgent.getSignature().signature === 'wallet';
 
-  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
-    try {
-      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
-      await mcp.initializeConnections();
-
-      const mcpTools = mcp.getTools();
-      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-      toolsList = [...toolsList, ...mcpTools];
-    } catch (error) {
-      logger.error(`Failed to initialize MCP tools: ${error}`);
+    if (isSignature) {
+      toolsList = await createSignatureTools(jsonConfig.plugins);
+    } else {
+      const allowedTools = await createAllowedTools(
+        starknetAgent,
+        jsonConfig.plugins
+      );
+      toolsList = [...allowedTools];
     }
-  }
 
-  return toolsList;
+    if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
+      try {
+        const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
+        await mcp.initializeConnections();
+
+        const mcpTools = mcp.getTools();
+        logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+        toolsList = [...toolsList, ...mcpTools];
+      } catch (error) {
+        logger.error(`Failed to initialize MCP tools: ${error}`);
+      }
+    }
+
+    return toolsList;
+  }
 }
 
 // Patch ToolNode to log all tool calls
@@ -274,13 +282,54 @@ export const createAgent = async (
       }
     }
 
-    let toolsList = await initializeToolsList(starknetAgent, json_config);
+    // Check if the agent supports adaptive tool selection
+    let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+
+    if ('createToolSelectionExecutor' in starknetAgent) {
+      // Use adaptive model selection based on tool count
+      const { toolsList: retrievedTools } = await (starknetAgent as any).createToolSelectionExecutor(true);
+      toolsList = retrievedTools;
+    } else {
+      // Fallback to original implementation if agent doesn't support adaptive selection
+      logger.warn(
+        'Agent does not support adaptive tool selection. Using default tools and model.'
+      );
+      const json_config = starknetAgent.getAgentConfig(); // Ensure config is available
+      if (!json_config) {
+        throw new Error('Agent configuration is required for default tool loading');
+      }
+      toolsList = await initializeToolsList(starknetAgent, json_config);
+    }
+
+    // Use the provider/model/key potentially updated by adaptive logic
+    const finalApiKey = aiConfig.aiProviderApiKey;
+    const finalProvider = aiConfig.aiProvider;
+    const finalModelName = aiConfig.aiModel;
+
+    // Default to original values if adaptive logic didn't run or failed to update
+    const effectiveApiKey = finalApiKey || apiKey; 
+    const effectiveProvider = finalProvider || aiConfig.aiProvider; 
+    const effectiveModelName = finalModelName || aiConfig.aiModel;
+
+    const verbose = aiConfig.langchainVerbose ?? false;
+    const tokenLimits = {
+      maxInputTokens: aiConfig.maxInputTokens,
+      maxCompletionTokens: aiConfig.maxCompletionTokens,
+      maxTotalTokens: aiConfig.maxTotalTokens,
+    };
+
+    // Log the final model being used for the agent graph
+    logger.info(`Initializing agent graph with model: ${effectiveProvider}/${effectiveModelName}`);
+
+    // Define ModelLevel type for GraphState
+    type ModelLevel = 'fast' | 'smart' | 'cheap';
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
       }),
       memories: Annotation<string>,
+      selectedModelLevel: Annotation<ModelLevel>,
     });
 
     const upsertMemoryToolDB = tool(
@@ -459,14 +508,61 @@ export const createAgent = async (
       }
     };
 
+    // Function to get the monitor agent's decision
+    async function getMonitorDecisionNode(
+        state: typeof GraphState.State,
+        config: LangGraphRunnableConfig
+    ): Promise<{ selectedModelLevel: ModelLevel }> {
+        logger.debug("Running Monitor Agent node...");
+        const { messages } = state;
+        const currentInputMsg = messages[messages.length - 1];
+        let currentInputText = '';
+        if (currentInputMsg) {
+            currentInputText = typeof currentInputMsg.content === 'string'
+                ? currentInputMsg.content
+                : JSON.stringify(currentInputMsg.content);
+        }
+
+        // We need the starknetAgent instance to call invokeMonitorAgent
+        // Assuming starknetAgent is accessible in this scope (it's passed into createAgent)
+        if (!starknetAgent || typeof (starknetAgent as any).invokeMonitorAgent !== 'function') {
+            logger.error("StarknetAgent or invokeMonitorAgent not available in getMonitorDecisionNode. Defaulting to 'smart'.");
+            return { selectedModelLevel: 'smart' };
+        }
+
+        try {
+            // Extract history (excluding the very last message which is the current input)
+            const history = messages.slice(0, -1);
+            const modelLevel = await (starknetAgent as any).invokeMonitorAgent(history, currentInputText);
+            logger.info(`Monitor Agent decided on model level: ${modelLevel}`);
+            return { selectedModelLevel: modelLevel };
+        } catch (error) {
+            logger.error(`Error in getMonitorDecisionNode: ${error}. Defaulting to 'smart'.`);
+            return { selectedModelLevel: 'smart' };
+        }
+    }
+
     const toolNode = new ToolNode(toolsList);
+    // Pass the potentially updated config values to selectModel - THIS PART CHANGES
+    // We no longer select *one* model here. Instead, we get the instances from starknetAgent.
+    /*
     const modelSelected = selectModel(
-      apiKey,
+      effectiveApiKey,
       effectiveProvider,
       effectiveModelName,
       verbose,
       tokenLimits
     ).bindTools(toolsList);
+    */
+    // Retrieve pre-configured model instances from starknetAgent
+    // Ensure starknetAgent has methods to retrieve these or they are public/accessible
+    const smartModel = (starknetAgent as any).smartModel;
+    const fastModel = (starknetAgent as any).fastModel;
+    const cheapModel = (starknetAgent as any).cheapModel;
+
+    if (!smartModel || !fastModel || !cheapModel) {
+        throw new Error("One or more required model instances (smart, fast, cheap) are missing from StarknetAgent.");
+    }
 
     const configPrompt = json_config.prompt?.content;
     const memoryPrompt = ``;
@@ -477,6 +573,32 @@ export const createAgent = async (
     async function callModel(
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
+      // --- Dynamic Model Selection Start ---
+      const selectedLevel = state.selectedModelLevel || 'smart'; // Default to smart if not set
+      let modelForThisTurn: typeof smartModel; // Use the type of smartModel
+
+      switch (selectedLevel) {
+        case 'fast':
+          modelForThisTurn = fastModel;
+          break;
+        case 'cheap':
+          modelForThisTurn = cheapModel;
+          break;
+        case 'smart':
+        default:
+          modelForThisTurn = smartModel;
+          break;
+      }
+
+      if (!modelForThisTurn) {
+          logger.error(`Model instance for selected level '${selectedLevel}' not found! Defaulting to smart model.`);
+          modelForThisTurn = smartModel;
+      }
+
+      // Bind tools to the selected model for this specific invocation
+      const boundModel = modelForThisTurn.bindTools(toolsList);
+      // --- Dynamic Model Selection End ---
+
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
@@ -494,7 +616,7 @@ export const createAgent = async (
 
         const formattedPrompt = await prompt.formatMessages({
           system_message: systemMessageContent,
-          tool_names: toolsList.map((tool) => tool.name).join(', '),
+          tool_names: toolsList.map((tool: { name: string }) => tool.name).join(', '),
           messages: state.messages,
         });
 
@@ -513,17 +635,20 @@ export const createAgent = async (
           // Reformat the prompt with truncated messages
           const truncatedPrompt = await prompt.formatMessages({
             system_message: systemMessageContent,
-            tool_names: toolsList.map((tool) => tool.name).join(', '),
+            tool_names: toolsList.map((tool: { name: string }) => tool.name).join(', '),
             messages: truncatedMessages,
           });
 
           // Log which model is being invoked before the call
+          const modelName = modelForThisTurn.lc_kwargs?.modelName || modelForThisTurn._modelType || selectedLevel;
           logger.debug(
-            `Invoking model with truncated prompt: ${modelSelected.llm?.model || modelSelected._modelName || modelSelected.model || effectiveProvider}/${effectiveModelName}`
+            // `Invoking model with truncated prompt: ${smartModel.llm?.model || smartModel._modelName || smartModel.model || effectiveProvider}/${effectiveModelName}`
+            `Invoking model [${selectedLevel}] ${modelName} with truncated prompt.`
           );
 
-          // Use truncated prompt
-          const result = await modelSelected.invoke(truncatedPrompt);
+          // Use truncated prompt with the dynamically selected bound model
+          // const result = await smartModel.invoke(truncatedPrompt);
+          const result = await boundModel.invoke(truncatedPrompt);
           return {
             messages: [result],
           };
@@ -531,11 +656,14 @@ export const createAgent = async (
 
         // If we're below the limit, use the full prompt
         // Log which model is being invoked before the call
+        const modelName = modelForThisTurn.lc_kwargs?.modelName || modelForThisTurn._modelType || selectedLevel;
         logger.debug(
-          `Invoking model: ${modelSelected.llm?.model || modelSelected._modelName || modelSelected.model || effectiveProvider}/${effectiveModelName}`
+          //`Invoking model: ${smartModel.llm?.model || smartModel._modelName || smartModel.model || effectiveProvider}/${effectiveModelName}`
+          `Invoking model [${selectedLevel}]: ${modelName}`
         );
 
-        const result = await modelSelected.invoke(formattedPrompt);
+        // const result = await smartModel.invoke(formattedPrompt);
+        const result = await boundModel.invoke(formattedPrompt);
         return {
           messages: [result],
         };
@@ -547,7 +675,7 @@ export const createAgent = async (
             error.message.includes('tokens exceed') ||
             error.message.includes('context length'))
         ) {
-          logger.error(`Token limit error: ${error.message}`);
+          logger.error(`Token limit error with model ${selectedLevel}: ${error.message}`);
 
           // Create a very reduced version with only the last message
           const minimalMessages = state.messages.slice(-2);
@@ -556,14 +684,17 @@ export const createAgent = async (
             // Try with a minimal prompt
             const emergencyPrompt = await prompt.formatMessages({
               system_message: ERROR_PROMPT_TOKEN_LIMIT_RECOVERY,
-              tool_names: toolsList.map((tool) => tool.name).join(', '),
+              tool_names: toolsList.map((tool: { name: string }) => tool.name).join(', '),
               messages: minimalMessages,
             });
 
+            const modelName = modelForThisTurn.lc_kwargs?.modelName || modelForThisTurn._modelType || selectedLevel;
             logger.debug(
-              `Invoking model with emergency prompt: ${modelSelected.llm?.model || modelSelected._modelName || modelSelected.model || effectiveProvider}/${effectiveModelName}`
+              // `Invoking model with emergency prompt: ${smartModel.llm?.model || smartModel._modelName || smartModel.model || effectiveProvider}/${effectiveModelName}`
+              `Invoking model [${selectedLevel}] ${modelName} with emergency prompt.`
             );
-            const result = await modelSelected.invoke(emergencyPrompt);
+            // const result = await smartModel.invoke(emergencyPrompt);
+            const result = await boundModel.invoke(emergencyPrompt);
             return {
               messages: [result],
             };
@@ -580,6 +711,7 @@ export const createAgent = async (
         }
 
         // For other types of errors, propagate them
+        logger.error(`Error during model invocation (${selectedLevel}): ${error}`);
         throw error;
       }
     }
@@ -596,16 +728,20 @@ export const createAgent = async (
 
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
-      .addNode('tools', toolNode);
+      .addNode('tools', toolNode)
+      .addNode('monitor', getMonitorDecisionNode);
+
     if (json_config.memory) {
       workflow
         .addNode('memory', addMemoriesFromDB)
         .addEdge('__start__', 'memory')
-        .addEdge('memory', 'agent');
+        .addEdge('memory', 'monitor');
     } else {
-      workflow.addEdge('__start__', 'agent');
+      workflow.addEdge('__start__', 'monitor');
     }
+
     workflow
+      .addEdge('monitor', 'agent')
       .addConditionalEdges('agent', shouldContinue)
       .addEdge('tools', 'agent');
 

@@ -23,6 +23,7 @@ declare -r ERROR_LOG_FILE=$(mktemp)
 
 # Global variables
 declare SELECTED_AGENT_CONFIG="default.agent.json"
+declare SELECTED_MODELS_CONFIG="default.models.json"
 
 # ----- HELPER FUNCTIONS -----
 
@@ -225,15 +226,21 @@ check_prerequisites() {
 run_interactive_command() {
   # Select agent configuration first
   select_agent_config
-  local config_status=$?
+  local agent_config_status=$?
   
-  if [ $config_status -ne 0 ]; then
-    echo -e "\n${RED}${BOLD}✗ Configuration selection failed.${NC}\n"
-    return $config_status
+  if [ $agent_config_status -ne 0 ]; then
+    echo -e "\n${RED}${BOLD}✗ Agent configuration selection failed.${NC}\n"
+    return $agent_config_status
   fi
 
-  # Define the models config file (can be made dynamic later if needed)
-  local SELECTED_MODELS_CONFIG="default.models.json"
+  # Select models configuration
+  select_models_config
+  local models_config_status=$?
+  
+  if [ $models_config_status -ne 0 ]; then
+    echo -e "\n${RED}${BOLD}✗ Models configuration selection failed.${NC}\n"
+    return $models_config_status
+  fi
   
   echo -e "\n${CYAN}${BOLD}Launching Snak...${NC}\n"
   
@@ -400,6 +407,173 @@ select_agent_config() {
     else
       echo -e "${YELLOW}Using default configuration.${NC}"
       SELECTED_AGENT_CONFIG="default.agent.json"
+
+      clear
+      draw_ascii_logo
+      create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
+                    "For more informations, visit our documentation at https://docs.snakagent.com"
+      return 0
+    fi
+  fi
+}
+
+select_models_config() {
+  # Clear screen before displaying models configs
+  clear
+  draw_ascii_logo
+  create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
+                  "For more informations, visit our documentation at https://docs.snakagent.com"
+                  
+  local config_dir="./config/models"
+  local available_configs=()
+  
+  if [ ! -d "$config_dir" ]; then
+    echo -e "${RED}Models config directory not found: $config_dir${NC}"
+    return 1
+  fi
+  
+  # Collect available configurations
+  for config in "$config_dir"/*.models.json; do
+    if [ -f "$config" ]; then
+      local config_name=$(basename "$config" .models.json)
+      available_configs+=("$config_name")
+    fi
+  done
+  
+  # Function to get autocompleted suggestion based on current input
+  get_suggestion() {
+    local input=$1
+    local suggestion=""
+    
+    if [ -n "$input" ]; then
+      for config in "${available_configs[@]}"; do
+        if [[ "$config" == "$input"* ]]; then
+          suggestion="${config:${#input}}"
+          break
+        fi
+      done
+    fi
+    
+    echo "$suggestion"
+  }
+  
+  echo -e "\n${YELLOW}Enter the name of the Models configuration to use (without .models.json extension):${NC}"
+  echo -e "\n${YELLOW}You can also create a custom configuration.${NC}"
+  echo -e "${DIM}For more information, visit: https://docs.starkagent.ai/customize-your-models${NC}"
+
+  local input=""
+  local key=""
+  
+  # Save terminal settings
+  local old_settings=$(stty -g)
+  
+  # Set terminal to raw mode
+  stty raw -echo min 1
+  
+  while true; do
+    # Display prompt with current input and suggestion
+    echo -en "\r\033[K> ${input}${DIM}$(get_suggestion "$input")${NC}"
+    
+    key=$(dd bs=1 count=1 2> /dev/null)
+    
+    # Handle Enter key
+    if [ "$key" = $'\r' ] || [ "$key" = $'\n' ]; then
+      echo ""
+      break
+    fi
+    
+    # Handle backspace or delete
+    if [ "$key" = $'\177' ] || [ "$key" = $'\b' ]; then
+      if [ ${#input} -gt 0 ]; then
+        input="${input:0:${#input}-1}"
+      fi
+      continue
+    fi
+    
+    # Handle tab for autocomplete
+    if [ "$key" = $'\t' ]; then
+      suggestion=$(get_suggestion "$input")
+      if [ -n "$suggestion" ]; then
+        input="$input$suggestion"
+      fi
+      continue
+    fi
+    
+    # Handle Ctrl+C to exit
+    if [ "$key" = $'\3' ]; then
+      stty "$old_settings"  # Restore terminal settings
+      echo -e "\n${RED}Cancelled.${NC}"
+      exit 1
+    fi
+    
+    # Add printable characters to input
+    if [[ "$key" =~ [[:print:]] ]]; then
+      input="$input$key"
+    fi
+  done
+  
+  # Restore terminal settings
+  stty "$old_settings"
+  
+  # Validate input
+  if [ -z "$input" ]; then
+    echo -e "${YELLOW}No models configuration specified. Using default configuration.${NC}"
+    SELECTED_MODELS_CONFIG="default.models.json"
+    
+    clear
+    draw_ascii_logo
+    create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
+                    "For more informations, visit our documentation at https://docs.snakagent.com"
+    return 0
+  fi
+  
+  # Add extension if not present
+  local config_file="${input}.models.json"
+  
+  # Check if config exists
+  if [ -f "$config_dir/$config_file" ]; then
+    echo -e "${GREEN}Models configuration found: ${config_file}${NC}"
+    SELECTED_MODELS_CONFIG="$config_file"
+    
+    clear
+    draw_ascii_logo
+    create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
+                    "For more informations, visit our documentation at https://docs.snakagent.com"
+    return 0
+  else
+    echo -e "${RED}Models configuration not found: ${config_file}${NC}"
+    echo -e "${YELLOW}Would you like to create this configuration? (y/n)${NC}"
+    read -r -p "> " create_config
+    
+    if [[ "$create_config" =~ ^[Yy]$ ]]; then
+      echo -e "${YELLOW}Please create your models configuration file at: $config_dir/$config_file${NC}"
+      echo -e "${DIM}For assistance, visit: https://docs.starkagent.ai/customize-your-models${NC}"
+      echo -e "${YELLOW}Press Enter when you're done...${NC}"
+      read -r
+      
+      # Check if config was created
+      if [ -f "$config_dir/$config_file" ]; then
+        echo -e "${GREEN}Models configuration created successfully: ${config_file}${NC}"
+        SELECTED_MODELS_CONFIG="$config_file"
+        
+        clear
+        draw_ascii_logo
+        create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
+                      "For more informations, visit our documentation at https://docs.snakagent.com"
+        return 0
+      else
+        echo -e "${RED}Models configuration wasn't created. Using default configuration.${NC}"
+        SELECTED_MODELS_CONFIG="default.models.json"
+        
+        clear
+        draw_ascii_logo
+        create_info_box "Welcome to Snak, an advanced Agent engine powered by Starknet." \
+                      "For more informations, visit our documentation at https://docs.snakagent.com"
+        return 0
+      fi
+    else
+      echo -e "${YELLOW}Using default models configuration.${NC}"
+      SELECTED_MODELS_CONFIG="default.models.json"
 
       clear
       draw_ascii_logo
