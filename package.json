@@ -31,7 +31,7 @@
     "build": "turbo build",
     "build:ci": "turbo build --scope \"@starknet-agent-kit/agents\" --scope \"@starknet-agent-kit/plugin-*\" --scope \"@starknet-agent-kit/server\"",
     "docker-setup": "docker compose -f ./packages/database/compose.yaml up -d",
-    "docker-teardown": "docker compose -f ./packages/database/compose.test.yaml rm -fsv",
+    "docker-teardown": "docker compose -f ./packages/database/compose.yaml rm -fsv",
     "start": "pnpm run docker-setup && ./scripts/start.sh ; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
     "start:normal": "pnpm run build && pnpm run docker-setup && lerna run --scope @starknet-agent-kit/agents start -- ; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
     "start:server": "pnpm run build && pnpm run docker-setup && lerna run start --scope \"@starknet-agent-kit/server\" --scope \"@starknet-agent-kit/client\" ; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
