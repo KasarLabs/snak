@@ -1,0 +1,19 @@
+{
+  "models": {
+    "fast": {
+      "provider": "openai",
+      "model_name": "gpt-4o-mini",
+      "description": "Optimized for speed and lower cost, suitable for simple tasks."
+    },
+    "smart": {
+      "provider": "anthropic",
+      "model_name": "claude-3-7-sonnet-latest",
+      "description": "Highest intelligence, suitable for complex reasoning and generation."
+    },
+    "cheap": {
+      "provider": "openai",
+      "model_name": "gpt-4o-mini",
+      "description": "Balanced cost and performance, good for routine tasks, potentially faster."
+    }
+  }
+}

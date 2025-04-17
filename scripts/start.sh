@@ -231,10 +231,14 @@ run_interactive_command() {
     echo -e "\n${RED}${BOLD}✗ Configuration selection failed.${NC}\n"
     return $config_status
   fi
+
+  # Define the models config file (can be made dynamic later if needed)
+  local SELECTED_MODELS_CONFIG="default.models.json"
   
   echo -e "\n${CYAN}${BOLD}Launching Snak...${NC}\n"
   
-  lerna run --scope @starknet-agent-kit/agents start -- --agent="${SELECTED_AGENT_CONFIG}" || return $?
+  # Pass both --agent and --models arguments
+  lerna run --scope @starknet-agent-kit/agents start -- --agent="${SELECTED_AGENT_CONFIG}" --models="${SELECTED_MODELS_CONFIG}" || return $?
   
   return 0
 }

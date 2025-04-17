@@ -30,7 +30,7 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 
 import { CustomHuggingFaceEmbeddings } from './customEmbedding.js';
 import { MCP_CONTROLLER } from './mcp/src/mcp.js';
-import { JsonConfig } from './jsonConfig.js';
+import { JsonConfig, ModelsConfig, loadModelsConfig } from './jsonConfig.js';
 import logger from './logger.js';
 import { createBox } from './formatting.js';
 import {
@@ -39,73 +39,88 @@ import {
   addTokenInfoToBox,
   estimateTokens,
 } from './tokenTracking.js';
+import {
+  ERROR_PROMPT_TOKEN_LIMIT_RECOVERY,
+  ERROR_MESSAGE_TOKEN_LIMIT_FATAL,
+} from './prompts/prompts.js';
 
-export function selectModel(aiConfig: AiConfig) {
+export function selectModel(
+  apiKey: string | undefined,
+  provider: string,
+  modelName: string,
+  verbose: boolean = false,
+  tokenLimits: {
+    maxInputTokens?: number;
+    maxCompletionTokens?: number;
+    maxTotalTokens?: number;
+  } = {}
+) {
   let model;
 
-  switch (aiConfig.aiProvider) {
+  switch (provider) {
     case 'anthropic':
-      if (!aiConfig.aiProviderApiKey) {
+      if (!apiKey) {
         throw new Error(
           'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
         );
       }
       model = new ChatAnthropic({
-        modelName: aiConfig.aiModel,
-        anthropicApiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
+        modelName: modelName,
+        anthropicApiKey: apiKey,
+        verbose: verbose,
       });
       break;
     case 'openai':
-      if (!aiConfig.aiProviderApiKey) {
+      if (!apiKey) {
         throw new Error(
           'Valid OpenAI api key is required https://platform.openai.com/api-keys'
         );
       }
       model = new ChatOpenAI({
-        modelName: aiConfig.aiModel,
-        openAIApiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
+        modelName: modelName,
+        openAIApiKey: apiKey,
+        verbose: verbose,
       });
       break;
     case 'gemini':
-      if (!aiConfig.aiProviderApiKey) {
+      if (!apiKey) {
         throw new Error(
           'Valid Gemini api key is required https://ai.google.dev/gemini-api/docs/api-key'
         );
       }
       model = new ChatGoogleGenerativeAI({
-        modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
+        modelName: modelName,
+        apiKey: apiKey,
+        verbose: verbose,
       });
       break;
     case 'deepseek':
-      if (!aiConfig.aiProviderApiKey) {
+      if (!apiKey) {
         throw new Error('Valid DeepSeek api key is required');
       }
       model = new ChatDeepSeek({
-        modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
+        modelName: modelName,
+        apiKey: apiKey,
+        verbose: verbose,
       });
       break;
     case 'ollama':
+      // API key might not be required for local Ollama
       model = new ChatOllama({
-        model: aiConfig.aiModel,
-        verbose: aiConfig.langchainVerbose === true,
+        model: modelName,
+        verbose: verbose,
       });
       break;
     default:
-      throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
+      throw new Error(`Unsupported AI provider: ${provider}`);
   }
 
   // Add token tracking with configurable limits
   return configureModelWithTracking(model, {
-    tokenLogging: aiConfig.langchainVerbose !== false,
-    maxInputTokens: aiConfig.maxInputTokens || 50000,
-    maxCompletionTokens: aiConfig.maxCompletionTokens || 50000,
-    maxTotalTokens: aiConfig.maxTotalTokens || 100000,
+    tokenLogging: verbose !== false,
+    maxInputTokens: tokenLimits.maxInputTokens || 50000,
+    maxCompletionTokens: tokenLimits.maxCompletionTokens || 50000,
+    maxTotalTokens: tokenLimits.maxTotalTokens || 100000,
   });
 }
 
@@ -198,6 +213,25 @@ export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
 ) => {
+  const effectiveProvider = aiConfig.aiProvider;
+  const effectiveModelName = aiConfig.aiModel;
+  const apiKey = aiConfig.aiProviderApiKey;
+  const verbose = aiConfig.langchainVerbose === true;
+  const tokenLimits = {
+    maxInputTokens: aiConfig.maxInputTokens,
+    maxCompletionTokens: aiConfig.maxCompletionTokens,
+    maxTotalTokens: aiConfig.maxTotalTokens,
+  };
+
+  logger.info(
+    `Creating agent instance with model: ${effectiveProvider} / ${effectiveModelName}`
+  );
+
+  // Log model level used - simpler approach
+  logger.info(
+    `Model details - Provider: ${effectiveProvider}, Model: ${effectiveModelName}`
+  );
+
   const embeddings = new CustomHuggingFaceEmbeddings({
     model: 'Xenova/all-MiniLM-L6-v2',
     dtype: 'fp32',
@@ -371,8 +405,13 @@ export const createAgent = async (
             memories: '',
           };
         const userId = config.configurable?.userId || 'default_user';
-        const lastMessage = state.messages[state.messages.length - 1]
-          .content as string;
+        const lastMessageContent =
+          state.messages[state.messages.length - 1]?.content;
+        const lastMessage =
+          typeof lastMessageContent === 'string'
+            ? lastMessageContent
+            : JSON.stringify(lastMessageContent);
+
         const queryEmbedding = await embeddings.embedQuery(lastMessage);
         const queryEmbeddingStr = `[${queryEmbedding.join(',')}]`;
         const similarMemoriesQuery = `
@@ -421,7 +460,13 @@ export const createAgent = async (
     };
 
     const toolNode = new ToolNode(toolsList);
-    const modelSelected = selectModel(aiConfig).bindTools(toolsList);
+    const modelSelected = selectModel(
+      apiKey,
+      effectiveProvider,
+      effectiveModelName,
+      verbose,
+      tokenLimits
+    ).bindTools(toolsList);
 
     const configPrompt = json_config.prompt?.content;
     const memoryPrompt = ``;
@@ -443,11 +488,14 @@ export const createAgent = async (
       ]);
 
       try {
+        const systemMessageContent = state.memories
+          ? `Relevant Memories:\n${state.memories}`
+          : '';
+
         const formattedPrompt = await prompt.formatMessages({
-          system_message: '',
+          system_message: systemMessageContent,
           tool_names: toolsList.map((tool) => tool.name).join(', '),
           messages: state.messages,
-          memories: state.memories || '',
         });
 
         // Estimate message size and check limit
@@ -464,11 +512,15 @@ export const createAgent = async (
 
           // Reformat the prompt with truncated messages
           const truncatedPrompt = await prompt.formatMessages({
-            system_message: '',
+            system_message: systemMessageContent,
             tool_names: toolsList.map((tool) => tool.name).join(', '),
             messages: truncatedMessages,
-            memories: state.memories || '',
           });
+
+          // Log which model is being invoked before the call
+          logger.debug(
+            `Invoking model with truncated prompt: ${modelSelected.llm?.model || modelSelected._modelName || modelSelected.model || effectiveProvider}/${effectiveModelName}`
+          );
 
           // Use truncated prompt
           const result = await modelSelected.invoke(truncatedPrompt);
@@ -478,6 +530,11 @@ export const createAgent = async (
         }
 
         // If we're below the limit, use the full prompt
+        // Log which model is being invoked before the call
+        logger.debug(
+          `Invoking model: ${modelSelected.llm?.model || modelSelected._modelName || modelSelected.model || effectiveProvider}/${effectiveModelName}`
+        );
+
         const result = await modelSelected.invoke(formattedPrompt);
         return {
           messages: [result],
@@ -498,13 +555,14 @@ export const createAgent = async (
           try {
             // Try with a minimal prompt
             const emergencyPrompt = await prompt.formatMessages({
-              system_message:
-                'Previous conversation was too long. Continuing with just recent messages.',
+              system_message: ERROR_PROMPT_TOKEN_LIMIT_RECOVERY,
               tool_names: toolsList.map((tool) => tool.name).join(', '),
               messages: minimalMessages,
-              memories: '',
             });
 
+            logger.debug(
+              `Invoking model with emergency prompt: ${modelSelected.llm?.model || modelSelected._modelName || modelSelected.model || effectiveProvider}/${effectiveModelName}`
+            );
             const result = await modelSelected.invoke(emergencyPrompt);
             return {
               messages: [result],
@@ -514,8 +572,7 @@ export const createAgent = async (
             return {
               messages: [
                 new AIMessage({
-                  content:
-                    'The conversation has become too long and exceeds token limits. Please start a new conversation.',
+                  content: ERROR_MESSAGE_TOKEN_LIMIT_FATAL,
                 }),
               ],
             };
@@ -557,14 +614,14 @@ export const createAgent = async (
       ...(json_config.memory
         ? {
             checkpointer: checkpointer,
-            configurable: {},
+            configurable: { userId: json_config.chat_id || 'default_user' },
           }
         : {}),
     });
 
     return app;
   } catch (error) {
-    logger.error('Failed to create an agent:', error);
+    logger.error('Failed to create an agent instance:', error);
     throw error;
   }
 };

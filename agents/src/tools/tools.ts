@@ -9,7 +9,7 @@ import * as metrics from '../../metrics.js';
  * @interface StarknetAgentInterface
  * @description Interface for the Starknet agent
  * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
- * @property {() => { aiModel: string; aiProviderApiKey: string; }} getModelCredentials - Function to get the model credentials
+ * @property {() => { aiModel: string; aiProvider: string; }} getModelCredentials - Function to get the model credentials
  * @property {() => { signature: string; }} getSignature - Function to get the signature
  * @property {() => RpcProvider} getProvider - Function to get the provider
  * @property {() => JsonConfig} getAgentConfig - Function to get the agent configuration
@@ -25,7 +25,7 @@ export interface StarknetAgentInterface {
   };
   getModelCredentials: () => {
     aiModel: string;
-    aiProviderApiKey: string;
+    aiProvider: string;
   };
   getSignature: () => {
     signature: string;

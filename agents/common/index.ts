@@ -64,12 +64,12 @@ export interface IAgent {
   };
 
   /**
-   * Returns the agent's AI provider credentials
-   * @returns AI provider credentials
+   * Returns the agent's base AI provider configuration details
+   * @returns Base AI provider details (model name and provider)
    */
   getModelCredentials(): {
     aiModel: string;
-    aiProviderApiKey: string;
+    aiProvider: string;
   };
 
   getProvider(): RpcProvider;

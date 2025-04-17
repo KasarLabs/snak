@@ -16,6 +16,10 @@ import {
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
 import { configureModelWithTracking } from './tokenTracking.js';
+import {
+  AUTONOMOUS_CONTINUE_ON_TOKEN_LIMIT,
+  AUTONOMOUS_FAIL_ON_TOKEN_LIMIT,
+} from './prompts/prompts.js';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -74,6 +78,11 @@ export const createAutonomousAgent = async (
     }
   };
 
+  // Log model details at the start
+  logger.info(
+    `Creating autonomous agent with model - Provider: ${aiConfig.aiProvider}, Model: ${aiConfig.aiModel}`
+  );
+
   // Initialize model with token tracking
   const model = configureModelWithTracking(initializeModel(), {
     tokenLogging: aiConfig.langchainVerbose !== false,
@@ -124,6 +133,10 @@ export const createAutonomousAgent = async (
     // @ts-ignore - Ignore type errors for this method
     agent.invoke = async function (input: any, config?: any) {
       try {
+        // Log which model is being used right before invocation
+        logger.info(
+          `Autonomous agent invoking model: ${model.llm?.model || model._modelName || model.model || aiConfig.aiProvider}/${aiConfig.aiModel}`
+        );
         return await originalAgentInvoke(input, config);
       } catch (error) {
         // Handle token limit errors
@@ -139,11 +152,13 @@ export const createAutonomousAgent = async (
 
           // Use a shorter message to continue
           const continueInput = {
-            messages:
-              'The previous action was too complex and exceeded token limits. Take a simpler action while keeping your main objectives in mind.',
+            messages: AUTONOMOUS_CONTINUE_ON_TOKEN_LIMIT,
           };
 
           try {
+            logger.info(
+              `Autonomous agent retry with simplified prompt: ${model.llm?.model || model._modelName || model.model || aiConfig.aiProvider}/${aiConfig.aiModel}`
+            );
             return await originalAgentInvoke(continueInput, config);
           } catch (secondError) {
             logger.error(`Failed simplified action attempt: ${secondError}`);
@@ -153,8 +168,7 @@ export const createAutonomousAgent = async (
             return {
               messages: [
                 {
-                  content:
-                    "I had to abandon the current action due to token limits. I'll try a different approach in the next turn.",
+                  content: AUTONOMOUS_FAIL_ON_TOKEN_LIMIT,
                   type: 'ai',
                 },
               ],

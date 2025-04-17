@@ -4,7 +4,11 @@ import { createSpinner } from 'nanospinner';
 import { StarknetAgent } from './src/starknetAgent.js';
 import { RpcProvider } from 'starknet';
 import { config } from 'dotenv';
-import { load_json_config } from './src/jsonConfig.js';
+import {
+  load_json_config,
+  loadModelsConfig,
+  ModelsConfig,
+} from './src/jsonConfig.js';
 import { createBox } from './src/formatting.js';
 import { addTokenInfoToBox } from './src/tokenTracking.js';
 import yargs from 'yargs';
@@ -24,19 +28,63 @@ const __dirname = dirname(__filename);
 
 interface CommandOptions {
   agentPath: string;
+  modelsPath: string;
   silentLlm: boolean;
 }
 
 /**
- * Loads command line arguments and resolves the agent configuration path
+ * Resolves the full path for a configuration file (agent or models)
+ */
+const resolveConfigPath = (
+  fileName: string,
+  configType: 'agents' | 'models'
+): string => {
+  // Try multiple possible locations for the config file
+  const possiblePaths = [
+    path.resolve(process.cwd(), 'config', configType, fileName),
+    path.resolve(process.cwd(), '..', 'config', configType, fileName),
+    path.resolve(__dirname, '..', '..', '..', 'config', configType, fileName),
+    path.resolve(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'config',
+      configType,
+      fileName
+    ),
+  ];
+
+  // Try each path until we find one that works
+  for (const tryPath of possiblePaths) {
+    if (fs.existsSync(tryPath)) {
+      return tryPath;
+    }
+  }
+
+  // If not found in any of the expected locations, try the absolute path or relative to cwd
+  return path.isAbsolute(fileName)
+    ? fileName
+    : path.resolve(process.cwd(), fileName);
+};
+
+/**
+ * Loads command line arguments and resolves configuration paths
  */
 const loadCommand = async (): Promise<CommandOptions> => {
   const argv = await yargs(hideBin(process.argv))
     .option('agent', {
       alias: 'a',
-      describe: 'Your config agent file name',
+      describe: 'Your config agent file name (e.g., default.agent.json)',
       type: 'string',
       default: 'default.agent.json',
+    })
+    .option('models', {
+      alias: 'm',
+      describe: 'Your config models file name (e.g., default.models.json)',
+      type: 'string',
+      default: 'default.models.json',
     })
     .option('silent-llm', {
       alias: 's',
@@ -47,40 +95,14 @@ const loadCommand = async (): Promise<CommandOptions> => {
     .strict()
     .parse();
 
-  const agentPath = argv['agent'] as string;
+  const agentFileName = argv['agent'] as string;
+  const modelsFileName = argv['models'] as string;
   const silentLlm = argv['silent-llm'] as boolean;
 
-  // Try multiple possible locations for the config file
-  const possiblePaths = [
-    path.resolve(process.cwd(), 'config', 'agents', agentPath),
-    path.resolve(process.cwd(), '..', 'config', 'agents', agentPath),
-    path.resolve(__dirname, '..', '..', '..', 'config', 'agents', agentPath),
-    path.resolve(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      'config',
-      'agents',
-      agentPath
-    ),
-  ];
+  const agentPath = resolveConfigPath(agentFileName, 'agents');
+  const modelsPath = resolveConfigPath(modelsFileName, 'models');
 
-  // Try each path until we find one that works
-  for (const tryPath of possiblePaths) {
-    if (fs.existsSync(tryPath)) {
-      return { agentPath: tryPath, silentLlm };
-    }
-  }
-
-  // If not found in any of the expected locations, try the absolute path
-  return {
-    agentPath: path.isAbsolute(agentPath)
-      ? agentPath
-      : path.resolve(process.cwd(), agentPath),
-    silentLlm,
-  };
+  return { agentPath, modelsPath, silentLlm };
 };
 
 /**
@@ -162,45 +184,45 @@ const validateEnvVars = async (): Promise<void> => {
     'STARKNET_RPC_URL',
     'STARKNET_PRIVATE_KEY',
     'STARKNET_PUBLIC_ADDRESS',
-    'AI_MODEL',
-    'AI_PROVIDER',
-    'AI_PROVIDER_API_KEY',
   ];
 
   const missings = required.filter((key) => !process.env[key]);
 
   if (missings.length > 0) {
     console.error(
-      createBox(missings.join('\n'), {
+      createBox(`Missing Environment Variables:\n- ${missings.join('\n- ')}`, {
         title: 'Missing Environment Variables',
         isError: true,
       })
     );
 
-    for (const missing of missings) {
-      const { prompt } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'prompt',
-          message: chalk.redBright(`Enter the value of ${missing}:`),
-          validate: (value: string) => {
-            const trimmed = value.trim();
-            if (!trimmed) return 'Please enter a valid message';
-            return true;
-          },
-        },
-      ]);
+    const answers = await inquirer.prompt(
+      missings.map((missing) => ({
+        type: 'input',
+        name: missing,
+        message: chalk.redBright(`Enter the value for ${missing}:`),
+        validate: (value: string) =>
+          value.trim() ? true : 'Please enter a valid value',
+      }))
+    );
 
-      await new Promise<void>((resolve, reject) => {
-        fs.appendFile('.env', `\n${missing}=${prompt}\n`, (err) => {
-          if (err) reject(new Error('Error when trying to write on .env file'));
-          resolve();
-        });
-      });
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    let envUpdates = '';
+    for (const [key, value] of Object.entries(answers)) {
+      envUpdates += `\n${key}=${value}`;
     }
-    reloadEnvVars();
-    await validateEnvVars();
+
+    if (envUpdates) {
+      try {
+        fs.appendFileSync('.env', envUpdates + '\n');
+        logger.info(`Appended missing variables to .env file.`);
+        reloadEnvVars();
+      } catch (err) {
+        logger.error(`Error writing to .env file: ${err.message}`);
+        throw new Error('Failed to update .env file with missing variables.');
+      }
+    } else {
+      throw new Error('Could not get missing environment variable values.');
+    }
   }
 };
 
@@ -234,7 +256,7 @@ const localRun = async (): Promise<void> => {
     )
   );
 
-  const { agentPath, silentLlm } = await loadCommand();
+  const { agentPath, modelsPath, silentLlm } = await loadCommand();
   const { mode } = await inquirer.prompt([
     {
       type: 'list',
@@ -263,52 +285,67 @@ const localRun = async (): Promise<void> => {
     spinner.stop();
     await validateEnvVars();
     const agentConfig = await load_json_config(agentPath);
-
     if (agentConfig === undefined) {
-      throw new Error('Failed to load agent configuration');
+      throw new Error(`Failed to load agent configuration from: ${agentPath}`);
     }
 
-    // Display more information about the agent
-    const agentName = agentConfig.name || 'Unknown';
-    const configPath = path.basename(agentPath);
-    const aiModel = process.env.AI_MODEL;
-    const aiProvider = process.env.AI_PROVIDER;
+    const modelsConfig = await loadModelsConfig(modelsPath);
+    if (modelsConfig === undefined) {
+      throw new Error(
+        `Failed to load models configuration from: ${modelsPath}`
+      );
+    }
 
     spinner.success({
       text: chalk.black(
-        `Agent "${chalk.cyan(agentName)}" initialized successfully`
+        `Agent "${chalk.cyan(agentConfig.name || 'Unknown')}" initialized successfully`
       ),
     });
 
-    // Create agent instance with proper configuration
+    const agentName = agentConfig.name || 'Unknown';
+    const agentConfigFileName = path.basename(agentPath);
+    const modelsConfigFileName = path.basename(modelsPath);
+
+    // Log model information for each level defined in the models config
+    console.log('\nModel configuration loaded:');
+    if (modelsConfig.models) {
+      for (const [level, modelInfo] of Object.entries(modelsConfig.models)) {
+        console.log(
+          chalk.dim(
+            `- Level '${chalk.bold(level)}': ${chalk.bold(modelInfo.provider)}/${chalk.bold(modelInfo.model_name)}`
+          )
+        );
+      }
+      console.log(''); // Empty line after model info
+    }
+
     const agent = new StarknetAgent({
       provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-      aiModel: process.env.AI_MODEL as string,
-      aiProvider: process.env.AI_PROVIDER as string,
       aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
       signature: 'key',
       agentMode: mode,
       agentconfig: agentConfig,
+      modelsConfig: modelsConfig,
     });
 
     await agent.createAgentReactExecutor();
 
-    // Configure logging options with a small delay to ensure initialization
-    setTimeout(() => {
-      agent.setLoggingOptions({
-        langchainVerbose: !silentLlm,
-        tokenLogging: !silentLlm,
-      });
-    }, 100);
+    // Set logging options immediately without setTimeout
+    agent.setLoggingOptions({
+      langchainVerbose: !silentLlm,
+      tokenLogging: !silentLlm,
+    });
+
+    // Log model information immediately to verify logging is working
+    logger.debug(`Agent initialized with logging - silentLlm: ${silentLlm}`);
 
     if (mode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       console.log(
-        chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +
-          chalk.dim(`- Model: ${chalk.bold(aiModel)}\n`) +
-          chalk.dim(`- Provider: ${chalk.bold(aiProvider)}\n`)
+        chalk.dim(`- Agent Config: ${chalk.bold(agentConfigFileName)}\n`) +
+          chalk.dim(`- Models Config: ${chalk.bold(modelsConfigFileName)}\n`)
       );
 
       while (true) {
@@ -325,7 +362,6 @@ const localRun = async (): Promise<void> => {
           },
         ]);
 
-        // Start with a message instead of a spinner to allow log display
         console.log(chalk.yellow('Processing request...'));
 
         try {
@@ -336,7 +372,6 @@ const localRun = async (): Promise<void> => {
               'Agent Response',
               formatAgentResponse(aiResponse)
             );
-            // Add token information to the box
             const boxWithTokens = addTokenInfoToBox(boxContent);
             process.stdout.write(boxWithTokens);
           } else {
@@ -352,14 +387,12 @@ const localRun = async (): Promise<void> => {
     } else if (mode === 'auto') {
       console.log(chalk.dim('\nStarting autonomous session...\n'));
       console.log(
-        chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +
-          chalk.dim(`- Model: ${chalk.bold(aiModel)}\n`) +
-          chalk.dim(`- Provider: ${chalk.bold(aiProvider)}\n`)
+        chalk.dim(`- Agent Config: ${chalk.bold(agentConfigFileName)}\n`) +
+          chalk.dim(`- Models Config: ${chalk.bold(modelsConfigFileName)}\n`)
       );
       console.log(chalk.yellow('Running autonomous mode...'));
 
       try {
-        // Autonomous execution without spinner to allow log display
         await agent.execute_autonomous();
         console.log(chalk.green('Autonomous execution completed'));
       } catch (error) {
@@ -374,6 +407,7 @@ const localRun = async (): Promise<void> => {
     console.error(
       createBox(error.message, { title: 'Fatal Error', isError: true })
     );
+    process.exit(1);
   }
 };
 

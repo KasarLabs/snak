@@ -8,6 +8,7 @@ import logger from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const workspaceRoot = path.resolve(__dirname, '..', '..');
 
 /**
  * Interface for a token object
@@ -29,6 +30,27 @@ export interface JsonConfig {
   autonomous?: boolean;
   memory: boolean;
   mcpServers?: Record<string, any>;
+}
+
+/**
+ * Interface for a single model configuration entry
+ */
+export interface ModelLevelConfig {
+  provider: string;
+  model_name: string;
+  description?: string;
+}
+
+/**
+ * Interface for the entire models configuration object
+ */
+export interface ModelsConfig {
+  models: {
+    fast: ModelLevelConfig;
+    smart: ModelLevelConfig;
+    cheap: ModelLevelConfig;
+    [key: string]: ModelLevelConfig; // Allow for other potential levels
+  };
 }
 
 /**
@@ -231,6 +253,60 @@ export const load_json_config = async (
     return json;
   } catch (error) {
     logger.error(error);
+    return undefined;
+  }
+};
+
+/**
+ * Loads the JSON models configuration object
+ */
+export const loadModelsConfig = async (
+  configFileName: string = 'default.models.json'
+): Promise<ModelsConfig | undefined> => {
+  // Use workspaceRoot calculated at the top of the file
+  const configPath = path.resolve(
+    workspaceRoot,
+    'config',
+    'models',
+    configFileName
+  );
+  logger.debug(`Attempting to load models config from: ${configPath}`);
+
+  try {
+    await fs.access(configPath);
+    const jsonData = await fs.readFile(configPath, 'utf8');
+    const config: ModelsConfig = JSON.parse(jsonData);
+
+    // Basic validation
+    if (
+      !config.models ||
+      !config.models.fast ||
+      !config.models.smart ||
+      !config.models.cheap
+    ) {
+      throw new Error(
+        'Invalid models config structure. Must include fast, smart, and cheap models.'
+      );
+    }
+    if (
+      !config.models.fast.provider ||
+      !config.models.fast.model_name ||
+      !config.models.smart.provider ||
+      !config.models.smart.model_name ||
+      !config.models.cheap.provider ||
+      !config.models.cheap.model_name
+    ) {
+      throw new Error(
+        'Each model level must specify a provider and model_name.'
+      );
+    }
+
+    logger.info(`Successfully loaded models config from ${configPath}`);
+    return config;
+  } catch (error) {
+    logger.error(
+      `Failed to load or parse models config from ${configPath}: ${error.message}`
+    );
     return undefined;
   }
 };

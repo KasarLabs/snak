@@ -2,12 +2,13 @@ import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
 import { StarknetAgentInterface, JsonConfig } from '@starknet-agent-kit/agents';
 import { SystemMessage } from '@langchain/core/messages';
+import { DEFAULT_TEST_PROMPT } from '../../../../agents/src/prompts/prompts';
 
 setupTestEnvironment();
 
 export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
-  const mockSystemMessage = new SystemMessage('Default system prompt');
+  const mockSystemMessage = new SystemMessage(DEFAULT_TEST_PROMPT);
 
   const json_config: JsonConfig = {
     name: 'MockAgent',
