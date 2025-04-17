@@ -126,7 +126,8 @@ export function selectModel(
 
 export async function initializeToolsList(
   starknetAgent: StarknetAgentInterface,
-  jsonConfig: JsonConfig
+  jsonConfig: JsonConfig,
+  configPath?: string
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   // Check if starknetAgent has the adaptive tool selection method
   if ('createToolSelectionExecutor' in starknetAgent) {
@@ -134,6 +135,7 @@ export async function initializeToolsList(
     const { toolsList } = await (starknetAgent as any).createToolSelectionExecutor(true);
     return toolsList;
   } else {
+<<<<<<< HEAD
     // Fall back to original implementation if the agent doesn't support adaptive selection
     let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
     const isSignature = starknetAgent.getSignature().signature === 'wallet';
@@ -147,6 +149,19 @@ export async function initializeToolsList(
       );
       toolsList = [...allowedTools];
     }
+=======
+    const allowedTools = await createAllowedTools(
+      starknetAgent,
+      jsonConfig.plugins,
+      configPath || ''
+    );
+    toolsList = [...allowedTools];
+  }
+
+  // Note: MCP tools are now initialized and managed by createAllowedTools via mcpTools.ts
+  // No need to initialize them again here, as the mcpTools.ts will handle their lifecycle
+  // This avoids double-initialization and connection issues
+>>>>>>> 919dd8b8fa5b188375f19bcd2c0f14642f70a863
 
     if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
       try {
@@ -219,7 +234,8 @@ ToolNode.prototype.invoke = async function (state: any, config: any) {
 
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig
+  aiConfig: AiConfig,
+  configPath?: string
 ) => {
   const effectiveProvider = aiConfig.aiProvider;
   const effectiveModelName = aiConfig.aiModel;
@@ -282,6 +298,7 @@ export const createAgent = async (
       }
     }
 
+<<<<<<< HEAD
     // Check if the agent supports adaptive tool selection
     let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
 
@@ -323,6 +340,13 @@ export const createAgent = async (
 
     // Define ModelLevel type for GraphState
     type ModelLevel = 'fast' | 'smart' | 'cheap';
+=======
+    let toolsList = await initializeToolsList(
+      starknetAgent,
+      json_config,
+      configPath
+    );
+>>>>>>> 919dd8b8fa5b188375f19bcd2c0f14642f70a863
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({

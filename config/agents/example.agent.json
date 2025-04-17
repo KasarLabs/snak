@@ -18,10 +18,15 @@
   "mcpServers": {
     "nxp_server_example": {
       "command": "npx",
-      "args": ["-y", "@npm_package_example/npx_server_example"],
-      "env": {
-        "API_KEY": "YOUR_API_KEY"
-      }
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "qualified/name-example",
+        "--config",
+        "{\"API_KEY\":\"YOUR_API_KEY\"}"
+      ],
+      "env": {}
     },
     "local_server_example": {
       "command": "node",

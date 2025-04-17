@@ -23,7 +23,8 @@ import {
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig
+  aiConfig: AiConfig,
+  configPath?: string
 ) => {
   // Initialize model based on provider
   const initializeModel = () => {
@@ -114,25 +115,16 @@ export const createAutonomousAgent = async (
       // But we could in a future version if we modify the architecture to support changing model at runtime
     } else {
       // Fall back to original implementation
-      tools = await createAllowedTools(starknetAgent, json_config.plugins);
+      tools =  await createAllowedTools(
+        starknetAgent,
+        json_config.plugins,
+        configPath || ''
+      );
     }
 
-    // Initialize MCP tools if configured
-    if (
-      json_config.mcpServers &&
-      Object.keys(json_config.mcpServers).length > 0
-    ) {
-      try {
-        const mcp = MCP_CONTROLLER.fromJsonConfig(json_config);
-        await mcp.initializeConnections();
-
-        const mcpTools = mcp.getTools();
-        logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-        tools = [...tools, ...mcpTools];
-      } catch (error) {
-        logger.error(`Failed to initialize MCP tools: ${error}`);
-      }
-    }
+    // Note: MCP tools are now initialized and managed by createAllowedTools via mcpTools.ts
+    // No need to initialize them again here, as the mcpTools.ts will handle their lifecycle
+    // This avoids double-initialization and connection issues
 
     // Create the agent
     const memory = new MemorySaver();

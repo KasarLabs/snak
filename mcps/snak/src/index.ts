@@ -32,17 +32,42 @@ server.tool('ping', 'Check if the server is running', async () => {
   };
 });
 
+// Placeholder for ModelLevelConfig if not imported
+interface ModelLevelConfig {
+  provider: string;
+  model_name: string;
+  description?: string;
+}
+
+// Placeholder for ModelsConfig if not imported
+interface ModelsConfig {
+  models: {
+    fast: ModelLevelConfig;
+    smart: ModelLevelConfig;
+    cheap: ModelLevelConfig;
+    [key: string]: ModelLevelConfig;
+  };
+}
+
 export const RegisterToolInServer = async (allowed_tools: string[]) => {
+  // Define a minimal valid ModelsConfig
+  const minimalModelsConfig: ModelsConfig = {
+    models: {
+      fast: { provider: 'placeholder', model_name: 'placeholder-fast' },
+      smart: { provider: 'placeholder', model_name: 'placeholder-smart' },
+      cheap: { provider: 'placeholder', model_name: 'placeholder-cheap' },
+    },
+  };
+
   const agent = new StarknetAgent({
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-    aiModel: process.env.AI_MODEL as string,
-    aiProvider: process.env.AI_PROVIDER as string,
     aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
     signature: 'key',
     agentMode: 'agent',
     agentconfig: undefined,
+    modelsConfig: minimalModelsConfig,
   });
   const tools: StarknetTool[] = [];
   await registerTools(agent, allowed_tools, tools);

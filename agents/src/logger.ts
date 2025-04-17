@@ -79,6 +79,7 @@ const logger = winston.createLogger({
   transports,
 });
 
+<<<<<<< HEAD
 // Add a startup message to verify logger configuration
 if (isLoggingEnabled()) {
   setTimeout(() => {
@@ -88,3 +89,6 @@ if (isLoggingEnabled()) {
 }
 
 export default logger;
+=======
+export default logger;
+>>>>>>> 919dd8b8fa5b188375f19bcd2c0f14642f70a863

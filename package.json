@@ -50,6 +50,7 @@
     "node:server": "node ./mcps/snak/dist/index.js"
   },
   "dependencies": {
+    "@langchain/mcp-adapters": "^0.4.2",
     "@types/pg": "^8.11.11",
     "add": "^2.0.6",
     "boxen": "^8.0.1",
@@ -65,6 +66,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@kasarlabs/snak-mcps": "^0.1.8",
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^11.0.10",
@@ -72,7 +74,7 @@
     "@types/gradient-string": "^1.1.6",
     "@types/jest": "^29.5.14",
     "@types/multer": "^1.4.12",
-    "@types/node": "^22.13.5",
+    "@types/node": "^22.14.0",
     "@types/supertest": "^6.0.2",
     "@types/yargs": "^17.0.33",
     "@typescript-eslint/eslint-plugin": "^8.25.0",
@@ -84,7 +86,6 @@
     "jest": "^29.7.0",
     "lerna": "^8.2.0",
     "prettier": "^3.5.2",
-    "snak-mcps": "^0.1.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.6",

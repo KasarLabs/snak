@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "perplexity-search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@arjunkmrm/perplexity-search",
+        "--config",
+        "{\"perplexityApiKey\":\"test_api_key\"}"
+      ],
+      "env": {}
+    }
+  }
+}

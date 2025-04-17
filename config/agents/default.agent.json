@@ -44,12 +44,16 @@
     "cairocoder"
   ],
   "mcpServers": {
-    "brave-search": {
+    "server-sequential-thinking": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-      "env": {
-        "BRAVE_API_KEY": "BSAgWXjaOOpxLi7o-_2jw3oDJSrVw5K"
-      }
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/server-sequential-thinking",
+        "--key",
+        "47601204-2b60-4b31-86b2-a6c1f8953530"
+      ]
     }
   }
 }
