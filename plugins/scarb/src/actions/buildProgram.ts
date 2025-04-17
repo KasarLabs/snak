@@ -65,9 +65,8 @@ export const compileContract = async (
       let casmFiles: string[] = [];
 
       for (let i = 0; i < contractFiles.sierraFiles.length; i++) {
-        programNames.push(
-          await extractModuleFromArtifact(contractFiles.artifactFile, i)
-        );
+        const name = await extractModuleFromArtifact(contractFiles.artifactFile, i);
+        programNames.push(name + '.cairo');
         sierraFiles.push(await readFile(contractFiles.sierraFiles[i], 'utf-8'));
         casmFiles.push(await readFile(contractFiles.casmFiles[i], 'utf-8'));
       }
