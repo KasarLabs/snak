@@ -291,8 +291,8 @@ const localRun = async (): Promise<void> => {
     const agentMode = mode;
 
     // Log the configuration and mode for debugging
-    logger.info(`Selected mode: ${mode}, Agent mode: ${agentMode}`);
-    logger.info(
+    logger.debug(`Selected mode: ${mode}, Agent mode: ${agentMode}`);
+    logger.debug(
       `Config mode settings: interactive=${agentConfig.mode?.interactive}, autonomous=${agentConfig.mode?.autonomous}`
     );
 
