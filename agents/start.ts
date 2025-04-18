@@ -287,27 +287,8 @@ const localRun = async (): Promise<void> => {
       }
     }
 
-    // Determine agent mode based on mode configuration
-    let agentMode = mode;
-    if (agentConfig.mode) {
-      if (mode === 'auto' && agentConfig.mode.autonomous === false) {
-        agentMode = 'agent';
-        logger.warn(
-          'Autonomous mode is disabled in config - switching to agent mode'
-        );
-      } else if (mode === 'agent' && agentConfig.mode.interactive === false) {
-        agentMode = 'auto';
-        logger.warn(
-          'Interactive mode is disabled in config - switching to autonomous mode'
-        );
-      }
-    }
-
-    // Make sure we correctly map mode values
-    if (agentMode === 'auto' && agentConfig.mode?.autonomous) {
-      logger.info('Setting mode to "auto" for autonomous execution');
-      agentMode = 'auto';
-    }
+    // Determine agent mode based on the user's selection
+    const agentMode = mode;
 
     // Log the configuration and mode for debugging
     logger.info(`Selected mode: ${mode}, Agent mode: ${agentMode}`);

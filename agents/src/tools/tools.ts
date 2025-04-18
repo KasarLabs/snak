@@ -93,7 +93,6 @@ export class StarknetToolRegistry {
     agent: StarknetAgentInterface,
     allowed_tools: string[]
   ) {
-    console.log('ALLOOOOO allowed_tools', allowed_tools);
     // Clear existing tools before registering new ones
     this.clearTools();
     await registerTools(agent, allowed_tools, this.tools);

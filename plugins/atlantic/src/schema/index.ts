@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@starknet-agent-kit/agents';
 
 export const GetProofServiceSchema = z.object({
   filename: z.string().describe('The filename you wish to generate the proof'),

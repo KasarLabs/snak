@@ -230,7 +230,7 @@ export class StarknetAgent implements IAgent {
    * @param databaseName - Name of the database to connect to
    */
   private async switchMode(newMode: string): Promise<string> {
-    if (newMode === 'auto' && !this.agentconfig?.autonomous) {
+    if (newMode === 'auto' && !this.agentconfig?.mode?.autonomous) {
       return 'Cannot switch to autonomous mode - not enabled in configuration';
     }
 
