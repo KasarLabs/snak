@@ -1,5 +1,5 @@
 import { fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { TokenService } from './fetchTokens.js';
 import { RouteSchemaType } from '../schema/index.js';
 import { RouteResult } from '../interfaces/index.js';

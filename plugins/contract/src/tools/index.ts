@@ -1,7 +1,4 @@
-import {
-  StarknetTool,
-  StarknetAgentInterface,
-} from '@starknet-agent-kit/agents';
+import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
 import {
   declareContractSchema,
   deployContractSchema,
@@ -16,7 +13,7 @@ import { getConstructorParams } from '../actions/getConstructorParams.js';
 import { listDeclaredContracts } from '../actions/listContracts.js';
 import { listDeploymentsByClassHash } from '../actions/listDeploymentsByClassHash.js';
 import { deleteContractByClassHashAction } from '../actions/deleteContractByClassHash.js';
-import { contract } from '@snak/database/queries';
+import { contract } from '@snakagent/database/queries';
 
 export const initializeTools = async (
   _agent: StarknetAgentInterface

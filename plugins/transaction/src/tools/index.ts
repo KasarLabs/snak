@@ -1,7 +1,4 @@
-import {
-  StarknetTool,
-  StarknetAgentInterface,
-} from '@starknet-agent-kit/agents';
+import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
 import {
   simulateInvokeTransactionSchema,
   simulateDeployAccountTransactionSchema,

@@ -1,9 +1,10 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { proveProject, cleanProject } from '../utils/workspace.js';
 import { proveProgramSchema } from '../schema/schema.js';
 import { executeProgram } from './executeProgram.js';
 import { getProjectDir } from '../utils/preparation.js';
-import { scarb } from '@snak/database/queries';
+import { scarb } from '@snakagent/database/queries';
 import path from 'path';
 import { readFile } from 'fs/promises';
 import { formatCompilationError } from '../utils/utils.js';

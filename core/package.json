@@ -1,0 +1,41 @@
+{
+  "name": "@snakagent/core",
+  "version": "0.0.6",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "echo \"No test has been created for this package\" && exit 0",
+    "build": "tsup",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run build",
+    "prepack": "npm run build",
+    "lint": "eslint \"src/**/*.ts\""
+  },
+  "keywords": [],
+  "author": "KasarLabs",
+  "license": "ISC",
+  "description": "The Agent Kit engine of Snak",
+  "dependencies": {
+    "@langchain/core": "^0.3.42",
+    "@types/pg": "^8.11.11",
+    "pg": "^8.13.3",
+    "prom-client": "^15.1.3",
+    "winston": "^3.17.0",
+    "zod": "^3.22.4"
+  },
+  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
+}

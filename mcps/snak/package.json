@@ -1,14 +1,19 @@
 {
-  "name": "@kasarlabs/snak-mcp",
-  "version": "0.0.1",
+  "name": "@snakagent/snak-mcp",
+  "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
   "type": "module",
+  "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run build",
+    "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
@@ -17,12 +22,13 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*",
+    "@snakagent/agents": "workspace:*",
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "gitHead": "aa5bdf1bedbc26e433ce5472cd08171d4e0cfaeb"
 }

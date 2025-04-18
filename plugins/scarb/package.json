@@ -1,19 +1,31 @@
 {
-  "name": "@starknet-agent-kit/plugin-scarb",
-  "version": "1.0.0",
+  "name": "@snakagent/plugin-scarb",
+  "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
   "scripts": {
     "test": "jest",
-    "build": "pnpm clean:dist && tsc",
+    "build": "tsup",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run build",
+    "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*",
     "@types/fs-extra": "^11.0.4",
     "@types/jsdom": "^21.1.7",
     "@types/tmp": "^0.2.6",
@@ -23,12 +35,14 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Starknet Agent Kit plugin for building and managing Cairo projects using the Scarb package manager.",
   "dependencies": {
-    "@snak/database": "workspace:*",
+    "@snakagent/database": "workspace:*",
     "find-up": "^5.0.0",
     "fs-extra": "^11.3.0",
     "jsdom": "^26.0.0",
-    "tmp": "^0.2.3"
-  }
+    "tmp": "^0.2.3",
+    "@snakagent/core": "workspace:*"
+  },
+  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
 }

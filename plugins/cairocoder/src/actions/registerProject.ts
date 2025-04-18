@@ -1,7 +1,8 @@
-import { logger, StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { z } from 'zod';
 import { registerProjectSchema } from '../schema/schema.js';
-import { scarb } from '@snak/database/queries';
+import { scarb } from '@snakagent/database/queries';
 import { basename } from 'path';
 import { readFile } from 'fs/promises';
 import { getAllPackagesList } from '../utils/dependencies.js';

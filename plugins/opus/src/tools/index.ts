@@ -1,7 +1,4 @@
-import {
-  StarknetAgentInterface,
-  StarknetTool,
-} from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
 import {
   borrowTroveSchema,
   collateralActionSchema,

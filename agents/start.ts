@@ -1,19 +1,19 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { createSpinner } from 'nanospinner';
-import { StarknetAgent } from './src/starknetAgent.js';
+import { StarknetAgent } from './src/agents/core/starknetAgent.js';
 import { RpcProvider } from 'starknet';
 import { config } from 'dotenv';
-import { load_json_config, updateModeConfig } from './src/jsonConfig.js';
-import { createBox } from './src/formatting.js';
-import { addTokenInfoToBox } from './src/tokenTracking.js';
+import { load_json_config, updateModeConfig } from './src/config/jsonConfig.js';
+import { createBox } from './src/prompt/formatting.js';
+import { addTokenInfoToBox } from './src/token/tokenTracking.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import logger from './src/logger.js';
+import { logger } from '@snakagent/core';
 
 // Global deactivation of LangChain logs
 process.env.LANGCHAIN_TRACING = 'false';

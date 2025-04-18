@@ -1,6 +1,6 @@
 {
-  "name": "@starknet-agent-kit/client",
-  "version": "0.1.0",
+  "name": "@snakagent/client",
+  "version": "0.0.7",
   "private": true,
   "scripts": {
     "dev": "next dev",

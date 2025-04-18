@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
-import { scarb } from '@snak/database/queries';
+import { StarknetAgentInterface } from '@snakagent/core';
+import { scarb } from '@snakagent/database/queries';
 
 /**
  * Write JSON data to a file

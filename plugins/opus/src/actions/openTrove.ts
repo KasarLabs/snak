@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { OpenTroveParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 

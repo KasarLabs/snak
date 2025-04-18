@@ -1,8 +1,8 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
-import { JsonConfig } from '../jsonConfig.js';
-import logger from '../logger.js';
-import * as metrics from '../../metrics.js';
+import { JsonConfig } from '../config/jsonConfig.js';
+import { logger } from '@snakagent/core';
+import { metrics } from '@snakagent/core';
 
 /**
  * @interface StarknetAgentInterface
@@ -127,7 +127,7 @@ export const registerTools = async (
         index = index + 1;
 
         const imported_tool = await import(
-          `@starknet-agent-kit/plugin-${tool}/dist/index.js`
+          `@snakagent/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerTools !== 'function') {
           return false;

@@ -1,5 +1,5 @@
 import { BlockIdParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@starknet-agent-kit/agents';
+import { StarknetAgentInterface } from '@snakagent/core';
 
 export const getBlockTransactionCount = async (
   agent: StarknetAgentInterface,

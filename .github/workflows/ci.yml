@@ -41,6 +41,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Build packages in order
+        run: |
+          pnpm --filter @snakagent/core build
+          pnpm --filter @snakagent/agents build
+          pnpm --filter='"@snakagent/plugin-*"' build || echo "Plugin build skipped"
+
       - name: Check TypeScript compilation (Backend)
         run: pnpm tsc --noEmit -p tsconfig.build.json
 
