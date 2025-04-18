@@ -8,6 +8,20 @@ as our backend with [`pgvector`] installed.
 > [`production`]. **Only the production container persists storage between restarts**. This is saved
 > under `packages/database/data/`.
 
+## Environment
+
+The `snak` database requires the following to be set in your root `.env`:
+
+```env
+POSTGRES_USER=...
+POSTGRES_HOST=...
+POSTGRES_DB=...
+POSTGRES_PASSWORD=...
+POSTGRES_PORT=5432
+```
+
+The exact values of these are not important, but please keep the `POSTGRES_PORT` as `5432`.
+
 ## Usage
 
 The database exposes query functions to be used by other packages. To start using the db, add it to
