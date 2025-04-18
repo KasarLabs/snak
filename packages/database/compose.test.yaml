@@ -13,7 +13,7 @@ services:
     container_name: 'posgresql-test'
     shm_size: 128m
     ports:
-      - 5432:5432
+      - 5454:5432
     env_file:
       - ../../.env
     volumes:
