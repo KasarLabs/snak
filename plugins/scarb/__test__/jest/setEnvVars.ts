@@ -1,10 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import {
-  StarknetAgentInterface,
-  JsonConfig,
-  PostgresAdaptater,
-} from '@hijox/agents';
+import { StarknetAgentInterface, JsonConfig } from '@kasarlabs/core';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -20,6 +16,11 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     plugins: [],
     memory: false,
+    mode: {
+      interactive: true,
+      autonomous: false,
+      recursionLimit: 15,
+    },
   };
 
   const twitter_auth_mode = undefined;
@@ -40,10 +41,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabase: () => [],
-    connectDatabase: async () => {},
-    createDatabase: async () => undefined,
-    getDatabaseByName: () => undefined,
   };
 };
 
@@ -58,6 +55,11 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     chat_id: 'mock_chat_id',
     plugins: [],
     memory: false,
+    mode: {
+      interactive: true,
+      autonomous: false,
+      recursionLimit: 15,
+    },
   };
 
   const twitter_auth_mode = undefined;
@@ -76,9 +78,5 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabase: () => [],
-    connectDatabase: async () => {},
-    createDatabase: async () => undefined,
-    getDatabaseByName: () => undefined,
   };
 };

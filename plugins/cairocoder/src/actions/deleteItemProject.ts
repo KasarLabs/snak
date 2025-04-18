@@ -1,17 +1,11 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
 import { z } from 'zod';
-import {
-  deleteProgram,
-  deleteDependency,
-  deleteProject,
-} from '../utils/db_delete.js';
 import {
   deleteProgramSchema,
   deleteDependencySchema,
   deleteProjectSchema,
 } from '../schema/schema.js';
-import { retrieveProjectData } from '../utils/db_init.js';
+import { scarb } from '@kasarlabs/database/queries';
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
 
 /**
  * Delete several programs from a project
@@ -21,27 +15,31 @@ import { retrieveProjectData } from '../utils/db_init.js';
  * @returns The deletion result
  */
 export const deleteProgramAction = async (
-  agent: StarknetAgentInterface,
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof deleteProgramSchema>
 ) => {
   try {
-    const projectData = await retrieveProjectData(agent, params.projectName);
-
-    for (const program of params.programName) {
-      await deleteProgram(agent, projectData.id, program);
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    const updatedProject = await retrieveProjectData(agent, params.projectName);
+    await scarb.deletePrograms(
+      params.programName.map((program) => ({
+        projectId: projectData.id,
+        name: program,
+      }))
+    );
 
     return JSON.stringify({
       status: 'success',
       message: `Programs ${params.programName} deleted from project ${params.projectName}`,
-      projectId: updatedProject.id,
-      projectName: updatedProject.name,
-      programsCount: updatedProject.programs.length,
+      projectId: projectData.id,
+      projectName: projectData.name,
+      programsCount: projectData.programs.length - params.programName.length,
     });
   } catch (error) {
-    logger.error('Error deleting program:', error);
+    logger.error('Error deleting programs:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -57,27 +55,32 @@ export const deleteProgramAction = async (
  * @returns The deletion result
  */
 export const deleteDependencyAction = async (
-  agent: StarknetAgentInterface,
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof deleteDependencySchema>
 ) => {
   try {
-    const projectData = await retrieveProjectData(agent, params.projectName);
-
-    for (const dependency of params.dependencyName) {
-      await deleteDependency(agent, projectData.id, dependency);
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    const updatedProject = await retrieveProjectData(agent, params.projectName);
+    scarb.deleteDependencies(
+      params.dependencyName.map((dep) => ({
+        projectId: projectData.id,
+        name: dep,
+      }))
+    );
 
     return JSON.stringify({
       status: 'success',
       message: `Dependencies ${params.dependencyName} deleted from project ${params.projectName}`,
-      projectId: updatedProject.id,
-      projectName: updatedProject.name,
-      dependenciesCount: updatedProject.dependencies.length,
+      projectId: projectData.id,
+      projectName: projectData.name,
+      dependenciesCount:
+        projectData.dependencies.length - params.dependencyName.length,
     });
   } catch (error) {
-    logger.error('Error deleting dependency:', error);
+    logger.error('Error deleting dependencies:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -93,12 +96,12 @@ export const deleteDependencyAction = async (
  * @returns The deletion result
  */
 export const deleteProjectAction = async (
-  agent: StarknetAgentInterface,
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof deleteProjectSchema>
 ) => {
   try {
     for (const project of params.projectName) {
-      await deleteProject(agent, project);
+      await scarb.deleteProject(project);
     }
 
     return JSON.stringify({

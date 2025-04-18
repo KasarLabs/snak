@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@kasarlabs/database",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch",
+    "test-setup": "docker compose -f compose.test.yaml up -d",
+    "test-teardown": "docker compose -f compose.test.yaml rm -fsv",
+    "test-jest": "DOTENV_CONFIG_PATH=../../.env jest --config jest.config.cjs --setupFiles dotenv/config",
+    "test": "pnpm test-setup && pnpm test-jest ; ECODE=$? ; pnpm test-teardown ; exit $ECODE",
+    "build": "tsc",
+    "check-types": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/database.ts",
+    "./error": "./src/error.ts",
+    "./queries": "./src/queries/index.ts",
+    "./common": "./src/queries/common.ts"
+  },
+  "dependecies": {
+    "pg": "^8.14.1"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}

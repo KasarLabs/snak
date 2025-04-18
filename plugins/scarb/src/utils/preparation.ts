@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import { promisify } from 'util';
 import path from 'path';
 import { getWorkspacePath } from './path.js';
-import { Dependency } from '../types/index.js';
+import { scarb } from '@kasarlabs/database/queries';
 
 const execAsync = promisify(exec);
 
@@ -50,7 +50,7 @@ export async function importContract(
  * @param projectDir The Scarb project directory
  */
 export async function addSeveralDependancies(
-  dependencies: Dependency[],
+  dependencies: scarb.Dependency[],
   projectDir: string
 ) {
   try {

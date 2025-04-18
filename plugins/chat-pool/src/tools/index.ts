@@ -1,58 +1,16 @@
 import { insertChatInstruction, readChatPool } from '../actions/chatPool.js';
 import { insertChatIntructionSchema } from '../schema/index.js';
-import {
-  PostgresAdaptater,
-  StarknetAgentInterface,
-  StarknetTool,
-} from '@hijox/core';
+import { StarknetTool } from '@kasarlabs/core';
+import { chat } from '@kasarlabs/database/queries';
 
-const initializeTools = async (
-  agent: StarknetAgentInterface
-): Promise<PostgresAdaptater | undefined> => {
+export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
   try {
-    const database = await agent.createDatabase('chat_pool_db');
-    if (!database) {
-      throw new Error('Database not found');
-    }
-
-    const result = await database.createTable({
-      table_name: 'snak_table_chat',
-      if_not_exist: false,
-      fields: new Map<string, string>([
-        ['id', 'SERIAL PRIMARY KEY'],
-        ['instruction', 'VARCHAR(255) NOT NULL'],
-      ]),
-    });
-    if (result.status === 'error') {
-      if (result.code === '42P07') {
-        database.addExistingTable({
-          table_name: 'snak_table_chat',
-          if_not_exist: false,
-          fields: new Map<string, string>([
-            ['id', 'SERIAL PRIMARY KEY'],
-            ['instruction', 'VARCHAR(255) NOT NULL'],
-          ]),
-        });
-        return database;
-      } else {
-        throw new Error(`Error ${result.code} : ${result.error_message}`);
-      }
-    }
-    return database;
+    chat.init();
   } catch (error) {
-    console.error(error);
+    console.error('Failed to initialize chat-pool db: ', error);
+    throw error;
   }
-};
 
-export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
-  agent: StarknetAgentInterface
-) => {
-  const database_instance = await initializeTools(agent);
-  if (!database_instance) {
-    console.error('Error while initializing database');
-    return;
-  }
   StarknetToolRegistry.push({
     name: 'insert_chat_instruction',
     plugins: 'chat-pool',

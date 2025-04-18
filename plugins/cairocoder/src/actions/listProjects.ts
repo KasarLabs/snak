@@ -1,7 +1,8 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { z } from 'zod';
 import { listProjectsSchema } from '../schema/schema.js';
+import { scarb } from '@kasarlabs/database/queries';
 
 /**
  * List all projects in the scarb_db database
@@ -10,26 +11,13 @@ import { listProjectsSchema } from '../schema/schema.js';
  * @returns JSON string with all projects information
  */
 export const listProjects = async (
-  agent: StarknetAgentInterface,
-  params: z.infer<typeof listProjectsSchema>
+  _agent: StarknetAgentInterface,
+  _params: z.infer<typeof listProjectsSchema>
 ) => {
   try {
-    const database = agent.getDatabaseByName('scarb_db');
-    if (!database) {
-      throw new Error('Database not found');
-    }
-
-    const projectsResult = await database.select({
-      SELECT: ['id', 'name'],
-      FROM: ['project'],
-    });
-
-    const projects = [];
-    for (const project of projectsResult.query?.rows || []) {
-      projects.push({
-        name: project.name,
-      });
-    }
+    // TODO: there probably is a more intelligent way of doing this using
+    // cursors. For now this is just a port of the previous database logic.
+    const projects = await scarb.selectProjects();
 
     return JSON.stringify({
       status: 'success',

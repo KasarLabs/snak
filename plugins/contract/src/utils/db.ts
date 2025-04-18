@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
+import { scarb } from '@kasarlabs/database/queries';
 
 /**
  * Write JSON data to a file
@@ -36,48 +37,26 @@ export const writeJsonToFile = (
  * @param contractName The name of the contract
  * @returns The compilation files
  */
-export const retrieveCompilationFilesByName = async (
-  agent: StarknetAgentInterface,
+export const retrieveCompilationFileByName = async (
+  _agent: StarknetAgentInterface,
   projectName: string,
   contractName: string
 ): Promise<{ sierra: JSON; casm: JSON }> => {
   try {
-    const database = agent.getDatabaseByName('scarb_db');
-    if (!database) {
-      throw new Error('Database not found');
-    }
-
-    const projectResult = await database.select({
-      SELECT: ['id'],
-      FROM: ['project'],
-      WHERE: [`name = '${projectName}'`],
-    });
-
-    if (
-      projectResult.status !== 'success' ||
-      !projectResult.query?.rows.length
-    ) {
+    const project = await scarb.selectProject(projectName);
+    if (!project) {
       throw new Error(`Project with name "${projectName}" not found`);
     }
 
-    const projectId = projectResult.query.rows[0].id;
-
-    const programResult = await database.query(`
-        SELECT sierra, casm 
-        FROM program 
-        WHERE project_id = ${projectId} AND name = '${contractName}'
-      `);
-
-    if (
-      programResult.status !== 'success' ||
-      !programResult.query?.rows.length
-    ) {
+    const program = await scarb.selectProgram(project.id!, contractName);
+    if (!program) {
       throw new Error(
         `Contract "${contractName}" not found in project "${projectName}"`
       );
     }
 
-    const { sierra, casm } = programResult.query.rows[0];
+    const sierra = JSON.parse(program.sierra!);
+    const casm = JSON.parse(program.casm!);
 
     return { sierra, casm };
   } catch (error) {
@@ -91,14 +70,14 @@ export const getSierraCasmFromDB = async (
   contractName: string
 ): Promise<{ sierraPath: string; casmPath: string }> => {
   try {
-    const { sierra, casm } = await retrieveCompilationFilesByName(
+    const { sierra, casm } = await retrieveCompilationFileByName(
       agent,
       projectName,
       contractName
     );
 
-    const sierraPath = await writeJsonToFile(sierra, '/tmp', 'sierra.json');
-    const casmPath = await writeJsonToFile(casm, '/tmp', 'casm.json');
+    const sierraPath = writeJsonToFile(sierra, '/tmp', 'sierra.json');
+    const casmPath = writeJsonToFile(casm, '/tmp', 'casm.json');
 
     return { sierraPath, casmPath };
   } catch (error) {

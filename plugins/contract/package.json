@@ -1,5 +1,5 @@
 {
-  "name": "@hijox/plugin-contract",
+  "name": "@kasarlabs/plugin-contract",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,7 +26,8 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@hijox/core": "^0.0.4"
+    "@kasarlabs/core": "workspace:*",
+    "@kasarlabs/database": "workspace:*"
   },
   "keywords": [],
   "author": "",

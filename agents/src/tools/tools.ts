@@ -1,9 +1,8 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../config/jsonConfig.js';
-import { PostgresAdaptater } from '@hijox/core';
-import { logger } from '@hijox/core';
-import { metrics } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
+import { metrics } from '@kasarlabs/core';
 
 /**
  * @interface StarknetAgentInterface
@@ -32,12 +31,6 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
-  getDatabase: () => PostgresAdaptater[];
-  connectDatabase: (database_name: string) => Promise<void>;
-  createDatabase: (
-    database_name: string
-  ) => Promise<PostgresAdaptater | undefined>;
-  getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }
 
 /**
@@ -80,6 +73,15 @@ export class StarknetToolRegistry {
 
   /**
    * @static
+   * @function clearTools
+   * @description Clears all registered tools
+   */
+  static clearTools(): void {
+    this.tools = [];
+  }
+
+  /**
+   * @static
    * @async
    * @function createAllowedTools
    * @description Creates allowed tools
@@ -91,6 +93,9 @@ export class StarknetToolRegistry {
     agent: StarknetAgentInterface,
     allowed_tools: string[]
   ) {
+    console.log('ALLOOOOO allowed_tools', allowed_tools);
+    // Clear existing tools before registering new ones
+    this.clearTools();
     await registerTools(agent, allowed_tools, this.tools);
     return this.tools.map(({ name, description, schema, execute }) =>
       tool(async (params: any) => execute(agent, params), {
@@ -123,7 +128,7 @@ export const registerTools = async (
         index = index + 1;
 
         const imported_tool = await import(
-          `@hijox/plugin-${tool}/dist/index.js`
+          `@kasarlabs/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerTools !== 'function') {
           return false;

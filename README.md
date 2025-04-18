@@ -148,10 +148,10 @@ pnpm run start:server --agent="name_of_your_config.json"
 
 ```bash
 #using npm
-npm install @hijox
+npm install @kasarlabs
 
 # using pnpm
-pnpm add @hijox
+pnpm add @kasarlabs
 ```
 
 2. Create your agent instance

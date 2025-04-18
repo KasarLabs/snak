@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@hijox/agents';
+import { StarknetTool, StarknetAgentInterface } from '@kasarlabs/core';
 import {
   declareContractSchema,
   deployContractSchema,
@@ -10,16 +10,16 @@ import {
 import { declareContract } from '../actions/declareContract.js';
 import { deployContract } from '../actions/deployContract.js';
 import { getConstructorParams } from '../actions/getConstructorParams.js';
-import { initializeContractDatabase } from '../utils/db_init.js';
 import { listDeclaredContracts } from '../actions/listContracts.js';
 import { listDeploymentsByClassHash } from '../actions/listDeploymentsByClassHash.js';
 import { deleteContractByClassHashAction } from '../actions/deleteContractByClassHash.js';
+import { contract } from '@kasarlabs/database/queries';
 
 export const initializeTools = async (
-  agent: StarknetAgentInterface
+  _agent: StarknetAgentInterface
 ): Promise<void> => {
   try {
-    await initializeContractDatabase(agent);
+    await contract.init();
   } catch (error) {
     console.error('Error initializing contract database:', error);
   }

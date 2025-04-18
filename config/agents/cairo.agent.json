@@ -25,7 +25,15 @@
     "Provides concise, log-style output at each step to describe current actions without fluff"
   ],
   "interval": 7000,
-  "autonomous": true,
+  "mode": {
+    "interactive": false,
+    "autonomous": true,
+    "recursionLimit": 20
+  },
+  "memory": {
+    "enabled": true,
+    "shortTermMemorySize": 15
+  },
   "chat_id": "cairo_task_runner",
   "plugins": ["scarb", "cairocoder"]
 }

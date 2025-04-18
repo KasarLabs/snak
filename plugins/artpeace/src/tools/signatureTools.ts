@@ -1,4 +1,4 @@
-import { SignatureTool } from '@hijox/agents';
+import { SignatureTool } from '@kasarlabs/core';
 import { placePixelSchema } from '../schema/index.js';
 import { placePixelSignature } from '../actions/placePixel.js';
 

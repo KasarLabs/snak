@@ -1,5 +1,5 @@
 import { Account, Contract, RpcProvider } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { OLD_ERC20_ABI } from '../abis/old.js';
 import { NEW_ERC20_ABI_MAINNET } from '../abis/new.js';
 import { detectAbiType } from '../utils/utils.js';

@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@kasarlabs/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 
 export const getBlockNumber = async (agent: StarknetAgentInterface) => {
   const provider = agent.getProvider();

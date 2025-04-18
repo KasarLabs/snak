@@ -86,7 +86,7 @@ try {
       table_name : 'Kasar',
       fields: new Map<string, string | string[]>([
           ['id', `DEFAULT`],
-          ['twitter', '@hijox'],
+          ['twitter', '@kasarlabs'],
           ['projects', ['Madara','Quaza','Snak']]
         ]),
   })

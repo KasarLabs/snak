@@ -1,5 +1,5 @@
 {
-  "name": "@hijox/plugin-avnu",
+  "name": "@kasarlabs/plugin-avnu",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@avnu/avnu-sdk": "^3.0.0",
-    "@hijox/core": "^0.0.4"
+    "@kasarlabs/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

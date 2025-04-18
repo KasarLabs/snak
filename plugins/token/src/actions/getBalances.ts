@@ -1,5 +1,5 @@
 import { Account, Contract, RpcProvider } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { tokenAddresses } from '../constants/erc20.js';
 import { GetBalanceParams, GetOwnBalanceParams } from '../types/balance.js';
 import { ERC20_ABI } from '../abis/erc20Abi.js';

@@ -25,8 +25,15 @@
     "Proficiency in blockchain data analysis and interpretation techniques"
   ],
   "interval": 15000,
-  "autonomous": false,
-  "memory": true,
+  "mode": {
+    "interactive": true,
+    "autonomous": false,
+    "recursionLimit": 15
+  },
+  "memory": {
+    "enabled": true,
+    "shortTermMemorySize": 15
+  },
   "chat_id": "ethereum_rpc",
   "plugins": ["rpc"],
   "mcpServers": {

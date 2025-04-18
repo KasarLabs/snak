@@ -1,4 +1,4 @@
-import { SignatureTool } from '@hijox/agents';
+import { SignatureTool } from '@kasarlabs/core';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { DeployArgentAccountSignature } from '../actions/deployAccount.js';
 import { CreateArgentAccountSignature } from '../actions/createAccount.js';

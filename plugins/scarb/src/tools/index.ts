@@ -11,12 +11,17 @@ import {
   installScarbSchema,
   compileContractSchema,
 } from '../schema/schema.js';
-import { StarknetAgentInterface, StarknetTool } from '@hijox/core';
+import { StarknetAgentInterface, StarknetTool, logger } from '@kasarlabs/core';
+import { scarb } from '@kasarlabs/database/queries';
 
-export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
-  agent: StarknetAgentInterface
-) => {
+export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
+  try {
+    await scarb.init();
+  } catch (error) {
+    logger.error('Failed to initialize scarb db: ', error);
+    throw error;
+  }
+
   StarknetToolRegistry.push({
     name: 'scarb_install',
     description: 'Install the latest version of Scarb if not already installed',

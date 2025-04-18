@@ -1,24 +1,21 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { z } from 'zod';
 import { generateCairoCodeSchema } from '../schema/schema.js';
 import {
   validateParams,
   callCairoGenerationAPI,
   extractCairoCode,
-  saveToDebugFile,
 } from '../utils/utils.js';
-import { addProgram } from '../utils/db_add.js';
-import { retrieveProjectData } from '../utils/db_init.js';
+import { scarb } from '@kasarlabs/database/queries';
 
 /**
  * Generate Cairo code using AI via API and store it in the database
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
  * @param {GenerateCairoCodeParams} params - The parameters for code generation
  * @returns {Promise<string>} JSON string with the generated code or error
  */
 export const generateCairoCode = async (
-  agent: StarknetAgentInterface,
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof generateCairoCodeSchema>
 ): Promise<string> => {
   try {
@@ -30,8 +27,16 @@ export const generateCairoCode = async (
     const generatedContent = await callCairoGenerationAPI(params.prompt);
     const cairoCode = extractCairoCode(generatedContent);
 
-    const projectData = await retrieveProjectData(agent, params.projectName);
-    await addProgram(agent, projectData.id, params.programName, cairoCode);
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
+    }
+
+    await scarb.insertProgram({
+      project_id: projectData.id,
+      name: params.programName,
+      source_code: cairoCode,
+    });
 
     return JSON.stringify({
       status: 'success',

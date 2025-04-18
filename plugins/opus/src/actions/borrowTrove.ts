@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { BorrowTroveParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 

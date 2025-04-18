@@ -1,5 +1,5 @@
 import { Account, Contract, RpcProvider, constants } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import {
   validateAndFormatParams,
   executeV3Transaction,

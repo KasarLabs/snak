@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { storeJsonFromFile } from './db_utils.js';
 
 /**

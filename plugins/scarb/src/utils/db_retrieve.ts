@@ -1,5 +1,5 @@
 import { CairoProgram, ProjectData } from '../types/index.js';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import * as fs from 'fs/promises';
 
 /**

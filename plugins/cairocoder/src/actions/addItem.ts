@@ -1,42 +1,48 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { addProgramSchema, addDependencySchema } from '../schema/schema.js';
-import { retrieveProjectData } from '../utils/db_init.js';
-import { addProgram, addDependency } from '../utils/db_add.js';
 import { extractFile } from '../utils/utils.js';
 import path from 'path';
 import { z } from 'zod';
+import { scarb } from '@kasarlabs/database/queries';
+import { getAllPackagesList } from '../utils/dependencies.js';
+import { Id } from '@kasarlabs/database/common';
 
 /**
  * Add several programs to a project
- * @param agent The Starknet agent
+ * @param _angent The Starknet agent
  * @param params The parameters of the program
  * @returns The result of the operation
  */
 export const addProgramAction = async (
-  agent: StarknetAgentInterface,
+  _angent: StarknetAgentInterface,
   params: z.infer<typeof addProgramSchema>
 ) => {
   try {
     logger.debug('\n Adding program');
     logger.debug(JSON.stringify(params, null, 2));
 
-    const projectData = await retrieveProjectData(agent, params.projectName);
-
-    for (const contractPath of params.programPaths) {
-      const fileName = path.basename(contractPath);
-      const sourceCode = await extractFile(contractPath);
-      await addProgram(agent, projectData.id, fileName, sourceCode);
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    const updatedProject = await retrieveProjectData(agent, params.projectName);
+    const programs: scarb.Program<Id.Id>[] = [];
+    for (const contractPath of params.programPaths) {
+      programs.push({
+        project_id: projectData.id,
+        name: path.basename(contractPath),
+        source_code: await extractFile(contractPath),
+      });
+    }
+    await scarb.insertPrograms(programs);
 
     return JSON.stringify({
       status: 'success',
       message: `Programs added to project ${params.projectName}`,
-      projectId: updatedProject.id,
-      projectName: updatedProject.name,
-      programsCount: updatedProject.programs.length,
+      projectId: projectData.id,
+      projectName: projectData.name,
+      programsCount: projectData.programs.length + params.programPaths.length,
     });
   } catch (error) {
     logger.error('Error adding program:', error);
@@ -49,32 +55,46 @@ export const addProgramAction = async (
 
 /**
  * Add several dependencies to a project
- * @param agent The Starknet agent
+ * @param _angent The Starknet agent
  * @param params The parameters of the dependencies
  * @returns The result of the operation
  */
 export const addDependencyAction = async (
-  agent: StarknetAgentInterface,
+  _angent: StarknetAgentInterface,
   params: z.infer<typeof addDependencySchema>
 ) => {
   try {
     logger.debug('\n Adding dependency');
     logger.debug(JSON.stringify(params, null, 2));
 
-    const projectData = await retrieveProjectData(agent, params.projectName);
-
-    for (const dependency of params.dependencies) {
-      await addDependency(agent, projectData.id, dependency);
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
     }
 
-    const updatedProject = await retrieveProjectData(agent, params.projectName);
+    const allDeps = await getAllPackagesList();
+    const deps: scarb.Dependency<Id.Id>[] = params.dependencies.map((name) => {
+      const info = allDeps.find((dep) => dep.name === name);
+
+      if (!info) {
+        throw new Error(`Dependency ${name} not found`);
+      }
+
+      return {
+        project_id: projectData.id,
+        name: info.name,
+        version: info.version,
+      };
+    });
+
+    await scarb.insertDependencies(deps);
 
     return JSON.stringify({
       status: 'success',
       message: `Dependencies added to project ${params.projectName}`,
-      projectId: updatedProject.id,
-      projectName: updatedProject.name,
-      dependenciesCount: updatedProject.dependencies.length,
+      projectId: projectData.id,
+      projectName: projectData.name,
+      dependenciesCount: projectData.dependencies.length + deps.length,
     });
   } catch (error) {
     logger.error('Error adding dependency:', error);

@@ -1,5 +1,5 @@
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { ARGENT_CLASS_HASH } from '../constant/contract.js';
 import { AccountManager } from '../utils/AccountManager.js';
 import { z } from 'zod';

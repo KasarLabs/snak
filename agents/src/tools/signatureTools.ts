@@ -1,5 +1,5 @@
 import { tool } from '@langchain/core/tools';
-import { logger } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
 
 /**
  * @interface SignatureTool
@@ -32,6 +32,15 @@ export class StarknetSignatureToolRegistry {
 
   /**
    * @static
+   * @function clearTools
+   * @description Clears all registered tools
+   */
+  static clearTools(): void {
+    this.tools = [];
+  }
+
+  /**
+   * @static
    * @async
    * @function createSignatureTools
    * @description Creates signature tools
@@ -39,6 +48,8 @@ export class StarknetSignatureToolRegistry {
    * @returns {Promise<SignatureTool[]>} The signature tools
    */
   static async createSignatureTools(allowed_tools: string[]) {
+    // Clear existing tools before registering new ones
+    this.clearTools();
     await RegisterSignatureTools(allowed_tools, this.tools);
     return this.tools.map(({ name, description, schema, execute }) =>
       tool(async (params: any) => execute(params), {
@@ -68,7 +79,7 @@ export const RegisterSignatureTools = async (
       allowed_tools.map(async (tool) => {
         index = index + 1;
         const imported_tool = await import(
-          `@hijox/plugin-${tool}/dist/index.js`
+          `@kasarlabs/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerSignatureTools !== 'function') {
           return false;

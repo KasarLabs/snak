@@ -8,7 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { StarknetAgent } from '@hijox/agents';
+import { StarknetAgent } from '@kasarlabs/agents';
 import { WalletService } from './services/wallet.service.js';
 import { AgentRequestDTO } from './dto/agents.js';
 import { FileTypeGuard } from './guard/file-validator.guard.js';
@@ -17,7 +17,7 @@ import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
 import { AgentFactory } from './agents.factory.js';
 import { Reflector } from '@nestjs/core';
-import { metrics } from '@hijox/core';
+import { metrics } from '@kasarlabs/core';
 
 @Controller('wallet')
 export class WalletController implements OnModuleInit {

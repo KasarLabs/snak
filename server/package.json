@@ -1,5 +1,5 @@
 {
-  "name": "@hijox/server",
+  "name": "@kasarlabs/server",
   "version": "0.0.5",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -34,8 +34,8 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "@hijox/agents": "workspace:*",
-    "@hijox/core": "workspace:*",
+    "@kasarlabs/agents": "workspace:*",
+    "@kasarlabs/core": "workspace:*",
     "typescript": "^5.7.3"
   }
 }

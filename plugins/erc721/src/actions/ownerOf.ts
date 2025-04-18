@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import { validateAndFormatTokenId } from '../utils/utils.js';
 import { bigint, z } from 'zod';

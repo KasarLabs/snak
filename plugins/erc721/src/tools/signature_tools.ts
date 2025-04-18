@@ -8,7 +8,7 @@ import { transferFromSignature } from '../actions/transferFrom.js';
 import { approveSignature } from '../actions/approve.js';
 import { setApprovalForAllSignature } from '../actions/setApprovalForAll.js';
 import { safeTransferFromSignature } from '../actions/safeTransferFrom.js';
-import { SignatureTool } from '@hijox/agents';
+import { SignatureTool } from '@kasarlabs/core';
 
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]

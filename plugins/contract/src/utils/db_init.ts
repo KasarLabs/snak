@@ -1,5 +1,5 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 
 /**
  * Initialize the contract database

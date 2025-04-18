@@ -1,5 +1,5 @@
 import { BlockNumber } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { GetClassAtParams } from '../schema/index.js';
 
 export const getClassAt = async (

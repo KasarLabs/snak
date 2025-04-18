@@ -1,13 +1,14 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';
-import { retrieveProjectData } from '../utils/db_retrieve.js';
-import { saveCompilationResults } from '../utils/db_save.js';
 import { compileContractSchema } from '../schema/schema.js';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
+import { scarb } from '@kasarlabs/database/queries';
+import { readFile } from 'fs/promises';
+import { extractModuleFromArtifact } from '../utils/utils.js';
 
 /**
  * Compile a contract
@@ -16,23 +17,29 @@ import { z } from 'zod';
  * @returns The compilation results
  */
 export const compileContract = async (
-  agent: StarknetAgentInterface,
+  _agent: StarknetAgentInterface,
   params: z.infer<typeof compileContractSchema>
 ) => {
   let projectDir = '';
   try {
-    logger.debug('\n Compiling contract');
-    logger.debug(JSON.stringify(params, null, 2));
-    const projectData = await retrieveProjectData(agent, params.projectName);
+    logger.info('\n➜ Compiling contract');
+    logger.info(JSON.stringify(params, null, 2));
+
+    const projectData = await scarb.retrieveProjectData(params.projectName);
+    if (!projectData) {
+      throw new Error(`project ${params.projectName} does not exist`);
+    }
 
     projectDir = await setupScarbProject({
       projectName: params.projectName,
     });
 
-    const tomlSections =
-      projectData.type === 'cairo_program'
-        ? []
-        : [
+    const tomlSections = (() => {
+      switch (projectData.type) {
+        case 'cairo_program':
+          return [];
+        case 'contract':
+          return [
             {
               workingDir: projectDir,
               sectionTitle: 'target.starknet-contract',
@@ -42,6 +49,8 @@ export const compileContract = async (
               },
             },
           ];
+      }
+    })();
 
     await setupToml(projectDir, tomlSections, projectData.dependencies);
     await setupSrc(projectDir, projectData.programs);
@@ -51,13 +60,22 @@ export const compileContract = async (
 
     if (projectData.type !== 'cairo_program') {
       const contractFiles = await getGeneratedContractFiles(projectDir);
-      await saveCompilationResults(
-        agent,
-        projectData.id,
-        contractFiles.sierraFiles,
-        contractFiles.casmFiles,
-        contractFiles.artifactFile
-      );
+
+      let programNames: string[] = [];
+      let sierraFiles: string[] = [];
+      let casmFiles: string[] = [];
+
+      for (let i = 0; i < contractFiles.sierraFiles.length; i++) {
+        const name = await extractModuleFromArtifact(
+          contractFiles.artifactFile,
+          i
+        );
+        programNames.push(name + '.cairo');
+        sierraFiles.push(await readFile(contractFiles.sierraFiles[i], 'utf-8'));
+        casmFiles.push(await readFile(contractFiles.casmFiles[i], 'utf-8'));
+      }
+
+      await scarb.saveCompilationResults(programNames, sierraFiles, casmFiles);
     }
 
     return JSON.stringify({

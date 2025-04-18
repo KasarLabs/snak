@@ -1,14 +1,11 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { declareContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
-import {
-  initializeContractDatabase,
-  saveContractDeclaration,
-} from '../utils/db_init.js';
-import { logger } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
+import { contract } from '@kasarlabs/database/queries';
 
 /**
  * Declares a contract on StarkNet
@@ -46,11 +43,10 @@ export const declareContract = async (
     const declareResponse = await contractManager.declareContract();
 
     if (declareResponse.transactionHash && declareResponse.classHash) {
-      await saveContractDeclaration(
-        agent,
-        declareResponse.classHash,
-        declareResponse.transactionHash
-      );
+      await contract.insertContract({
+        class_hash: declareResponse.classHash,
+        declare_tx_hash: declareResponse.transactionHash,
+      });
     }
 
     return JSON.stringify({

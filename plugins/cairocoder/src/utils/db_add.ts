@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { getAllPackagesList } from './dependencies.js';
 import { encodeSourceCode } from './utils.js';
 

@@ -4,7 +4,7 @@ import { createSpinner } from 'nanospinner';
 import { StarknetAgent } from './src/agents/core/starknetAgent.js';
 import { RpcProvider } from 'starknet';
 import { config } from 'dotenv';
-import { load_json_config } from './src/config/jsonConfig.js';
+import { load_json_config, updateModeConfig } from './src/config/jsonConfig.js';
 import { createBox } from './src/prompt/formatting.js';
 import { addTokenInfoToBox } from './src/token/tokenTracking.js';
 import yargs from 'yargs';
@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { logger } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
 
 // Global deactivation of LangChain logs
 process.env.LANGCHAIN_TRACING = 'false';
@@ -268,6 +268,53 @@ const localRun = async (): Promise<void> => {
       throw new Error('Failed to load agent configuration');
     }
 
+    // Update the configuration file with the selected mode
+    if (mode === 'agent' || mode === 'auto') {
+      const modeToUpdate = mode === 'agent' ? 'interactive' : 'autonomous';
+      const updateSpinner = createSpinner(
+        `Updating configuration to ${modeToUpdate} mode`
+      ).start();
+
+      const updateSuccess = await updateModeConfig(agentPath, modeToUpdate);
+      if (updateSuccess) {
+        updateSpinner.success({
+          text: `Configuration updated to ${modeToUpdate} mode`,
+        });
+      } else {
+        updateSpinner.error({
+          text: `Failed to update configuration, continuing with current settings`,
+        });
+      }
+    }
+
+    // Determine agent mode based on mode configuration
+    let agentMode = mode;
+    if (agentConfig.mode) {
+      if (mode === 'auto' && agentConfig.mode.autonomous === false) {
+        agentMode = 'agent';
+        logger.warn(
+          'Autonomous mode is disabled in config - switching to agent mode'
+        );
+      } else if (mode === 'agent' && agentConfig.mode.interactive === false) {
+        agentMode = 'auto';
+        logger.warn(
+          'Interactive mode is disabled in config - switching to autonomous mode'
+        );
+      }
+    }
+
+    // Make sure we correctly map mode values
+    if (agentMode === 'auto' && agentConfig.mode?.autonomous) {
+      logger.info('Setting mode to "auto" for autonomous execution');
+      agentMode = 'auto';
+    }
+
+    // Log the configuration and mode for debugging
+    logger.info(`Selected mode: ${mode}, Agent mode: ${agentMode}`);
+    logger.info(
+      `Config mode settings: interactive=${agentConfig.mode?.interactive}, autonomous=${agentConfig.mode?.autonomous}`
+    );
+
     // Display more information about the agent
     const agentName = agentConfig.name || 'Unknown';
     const configPath = path.basename(agentPath);
@@ -289,9 +336,11 @@ const localRun = async (): Promise<void> => {
       aiProvider: process.env.AI_PROVIDER as string,
       aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
       signature: 'key',
-      agentMode: mode,
+      agentMode: agentMode,
       agentconfig: agentConfig,
     });
+
+    logger.info(`Created StarknetAgent with agentMode: ${agentMode}`);
 
     await agent.createAgentReactExecutor();
 
@@ -303,7 +352,7 @@ const localRun = async (): Promise<void> => {
       });
     }, 100);
 
-    if (mode === 'agent') {
+    if (agentMode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       console.log(
         chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +
@@ -349,7 +398,7 @@ const localRun = async (): Promise<void> => {
           );
         }
       }
-    } else if (mode === 'auto') {
+    } else if (agentMode === 'auto') {
       console.log(chalk.dim('\nStarting autonomous session...\n'));
       console.log(
         chalk.dim(`- Config: ${chalk.bold(configPath)}\n`) +

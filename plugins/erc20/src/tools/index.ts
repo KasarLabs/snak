@@ -1,4 +1,4 @@
-import { StarknetTool } from '@hijox/agents';
+import { StarknetTool } from '@kasarlabs/core';
 
 import {
   getAllowanceSchema,

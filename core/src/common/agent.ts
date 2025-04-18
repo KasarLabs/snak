@@ -14,6 +14,24 @@ export interface StarknetTool<P = unknown> {
     plugins_manager?: any
   ) => Promise<unknown>;
 }
+
+/**
+ * @interface SignatureTool
+ * @description Interface for the signature tool
+ * @property {string} name - The name of the tool
+ * @property {string} categorie - The categorie of the tool
+ * @property {string} description - The description of the tool
+ * @property {object} schema - The schema for the tool
+ * @property {(params: any) => Promise<unknown>} execute - Function to execute the tool
+ */
+export interface SignatureTool<P = any> {
+  name: string;
+  categorie?: string;
+  description: string;
+  schema?: object;
+  execute: (params: P) => Promise<unknown>;
+}
+
 /**
  * Interface for the JSON configuration object
  */

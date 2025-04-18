@@ -1,4 +1,4 @@
-import { StarknetAgentInterface, StarknetTool } from '@hijox/core';
+import { StarknetAgentInterface, StarknetTool } from '@kasarlabs/core';
 import { getProofService } from '../actions/getProofService.js';
 import {
   GetProofServiceSchema,

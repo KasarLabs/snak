@@ -6,7 +6,7 @@ import {
   GetTransactionReceiptResponse,
 } from 'starknet';
 import { formatUnits, parseUnits } from 'ethers';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import {
   BorrowTroveResult,
   DepositTroveResult,

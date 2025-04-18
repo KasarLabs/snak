@@ -1,11 +1,11 @@
 import { Account, constants } from 'starknet';
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+('@kasarlabs/core');
 import { ContractManager } from '../utils/contractManager.js';
 import { deployContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
-import { saveContractDeployment } from '../utils/db_init.js';
 import { z } from 'zod';
+import { contract } from '@kasarlabs/database/queries';
 
 /**
  * Deploys a contract on StarkNet using an existing class hash
@@ -51,24 +51,25 @@ export const deployContract = async (
       params.constructorArgs as string[]
     );
 
-    const deployResponse = await contractManager.deployContract(
+    const res = await contractManager.deployContract(
       params.classHash,
       typedConstructorArgs
     );
 
-    if (deployResponse.transactionHash && deployResponse.contractAddress) {
-      await saveContractDeployment(
-        agent,
-        params.classHash,
-        deployResponse.contractAddress,
-        deployResponse.transactionHash
-      );
+    if (res.transactionHash && res.contractAddress) {
+      const deployment: contract.Deployment = {
+        contract_address: res.contractAddress,
+        deploy_tx_hash: res.transactionHash,
+      };
+      await contract.insertDeployment(deployment, params.classHash);
     }
 
+    // TODO(alvina): we probably should return an error message here in case we
+    // are not inserting the deployment??
     return JSON.stringify({
       status: 'success',
-      transactionHash: deployResponse.transactionHash,
-      contractAddress: deployResponse.contractAddress,
+      transactionHash: res.transactionHash,
+      contractAddress: res.contractAddress,
     });
   } catch (error) {
     logger.error('Error deploying contract:', error.message);

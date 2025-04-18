@@ -1,6 +1,6 @@
 import { ContractAddressParams } from '../schema/index.js';
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { FACTORY_ABI } from '../abis/unruggableFactory.js';
 import { FACTORY_ADDRESS } from '../constants/index.js';
 

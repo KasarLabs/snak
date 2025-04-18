@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
-import { logger } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,10 +26,56 @@ export interface JsonConfig {
   interval: number;
   chat_id: string;
   plugins: string[];
-  autonomous?: boolean;
   memory: boolean;
   mcpServers?: Record<string, any>;
+  mode: ModeConfig;
 }
+
+/**
+ * Type for the mode of operation of the agent
+ */
+export interface ModeConfig {
+  interactive: boolean;
+  autonomous: boolean;
+  recursionLimit: number;
+}
+
+/**
+ * Updates the mode configuration in the JSON file
+ */
+export const updateModeConfig = async (
+  configPath: string,
+  mode: 'interactive' | 'autonomous'
+): Promise<boolean> => {
+  try {
+    // Read the current JSON file
+    const jsonData = await fs.readFile(configPath, 'utf8');
+    const json = JSON.parse(jsonData);
+
+    // Ensure the mode object exists
+    if (!json.mode) {
+      json.mode = {
+        recursionLimit: 15,
+      };
+    }
+
+    // Update the mode properties
+    if (mode === 'interactive') {
+      json.mode.interactive = true;
+      json.mode.autonomous = false;
+    } else if (mode === 'autonomous') {
+      json.mode.interactive = false;
+      json.mode.autonomous = true;
+    }
+
+    // Write the updated JSON back to the file
+    await fs.writeFile(configPath, JSON.stringify(json, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    logger.error('Failed to update mode configuration: ', error);
+    return false;
+  }
+};
 
 /**
  * Creates a context string from the JSON configuration object
@@ -59,7 +105,8 @@ export const createContextFromJson = (json: any): string => {
     contextParts.push(`Your Bio : [${json.bio}]`);
   }
 
-  if (json.autonomous) {
+  // Check for autonomous mode
+  if (json.mode && json.mode.autonomous) {
     identityParts.push(`Mode: Autonomous`);
   }
 
@@ -81,6 +128,7 @@ export const validateConfig = (config: JsonConfig) => {
     'chat_id',
     'plugins',
     'prompt',
+    'mode',
   ] as const;
 
   for (const field of requiredFields) {
@@ -91,6 +139,23 @@ export const validateConfig = (config: JsonConfig) => {
 
   if (!(config.prompt instanceof SystemMessage)) {
     throw new Error('prompt must be an instance of SystemMessage');
+  }
+
+  // Validate mode configuration
+  // Ensure modes are exclusive
+  if (config.mode.interactive && config.mode.autonomous) {
+    logger.warn(
+      'Both interactive and autonomous modes are enabled - setting autonomous to false'
+    );
+    config.mode.autonomous = false;
+  }
+
+  // Ensure recursion limit is valid
+  if (
+    typeof config.mode.recursionLimit !== 'number' ||
+    config.mode.recursionLimit < 0
+  ) {
+    config.mode.recursionLimit = 15;
   }
 
   // Validate mcpServers if present
@@ -187,13 +252,44 @@ const checkParseJson = async (
       createContextFromJson(json)
     );
 
+    // Handle mode configuration
+    let modeConfig: ModeConfig;
+
+    if (json.mode) {
+      // Use existing mode configuration
+      modeConfig = {
+        interactive: json.mode.interactive !== false, // default to true if not specified
+        autonomous: json.mode.autonomous === true, // default to false if not specified
+        recursionLimit:
+          typeof json.mode.recursionLimit === 'number'
+            ? json.mode.recursionLimit
+            : 15, // default to 15 if not specified
+      };
+    } else {
+      // Default mode configuration
+      modeConfig = {
+        interactive: true,
+        autonomous: false,
+        recursionLimit: 15,
+      };
+    }
+
+    // Ensure only one mode is enabled
+    if (modeConfig.interactive && modeConfig.autonomous) {
+      logger.warn(
+        'Both interactive and autonomous modes are enabled - setting interactive to true and autonomous to false'
+      );
+      modeConfig.interactive = true;
+      modeConfig.autonomous = false;
+    }
+
     // Create config object
     const jsonconfig: JsonConfig = {
       prompt: systemMessagefromjson,
       name: json.name,
       interval: json.interval,
       chat_id: json.chat_id,
-      autonomous: json.autonomous || false,
+      mode: modeConfig,
       plugins: Array.isArray(json.plugins)
         ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],

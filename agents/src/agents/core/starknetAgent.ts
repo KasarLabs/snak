@@ -4,16 +4,23 @@ import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from '../autonomous/autonomousAgents.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { PostgresAdaptater } from '@hijox/core';
-import { PostgresDatabasePoolInterface } from '@hijox/core';
-import { logger } from '@hijox/core';
-import { metrics } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
+import { metrics } from '@kasarlabs/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   addTokenInfoToBox,
   truncateToTokenLimit,
   estimateTokens,
 } from '../../token/tokenTracking.js';
+
+/**
+ * Memory configuration for the agent
+ */
+export interface MemoryConfig {
+  enabled?: boolean; // Controls if memory is enabled
+  shortTermMemorySize?: number; // Controls maximum number of messages in conversation history; oldest messages are pruned when this limit is reached
+  recursionLimit?: number; // Controls the recursion limit for autonomous iterations; 0 = no limit, undefined = use shortTermMemorySize
+}
 
 /**
  * Configuration for the StarknetAgent
@@ -28,6 +35,7 @@ export interface StarknetAgentConfig {
   signature: string;
   agentMode: string;
   agentconfig?: JsonConfig;
+  memory?: MemoryConfig;
 }
 
 /**
@@ -59,13 +67,13 @@ export class StarknetAgent implements IAgent {
   private readonly aiProviderApiKey: string;
   private agentReactExecutor: any;
   private currentMode: string;
-  private database: PostgresAdaptater[] = [];
   private loggingOptions: LoggingOptions = {
     langchainVerbose: true,
     tokenLogging: true,
     disabled: false,
   };
   private originalLoggerFunctions: Record<string, any> = {};
+  private memory: MemoryConfig;
 
   public readonly signature: string;
   public readonly agentMode: string;
@@ -76,7 +84,18 @@ export class StarknetAgent implements IAgent {
    * @param config - Configuration for the StarknetAgent
    */
   constructor(private readonly config: StarknetAgentConfig) {
-    this.disableLogging();
+    // Check environment variables for logging configuration
+    const disableLogging = process.env.DISABLE_LOGGING === 'true';
+    const enableDebugLogging = process.env.DEBUG_LOGGING === 'true';
+
+    if (disableLogging) {
+      this.disableLogging();
+    } else if (enableDebugLogging) {
+      logger.debug('Debug logging enabled via environment variables');
+      this.loggingOptions.disabled = false;
+    } else {
+      this.disableLogging();
+    }
 
     try {
       this.validateConfig(config);
@@ -88,8 +107,16 @@ export class StarknetAgent implements IAgent {
       this.aiProviderApiKey = config.aiProviderApiKey;
       this.signature = config.signature;
       this.agentMode = config.agentMode;
-      this.currentMode = config.agentMode;
+
+      // Set the current mode - ensure it's properly set for autonomous mode
+      this.currentMode =
+        config.agentMode === 'auto' ||
+        config.agentconfig?.mode?.autonomous === true
+          ? 'auto'
+          : config.agentMode || 'agent';
+
       this.agentconfig = config.agentconfig;
+      this.memory = config.memory || {};
 
       metrics.metricsAgentConnect(
         config.agentconfig?.name ?? 'agent',
@@ -202,145 +229,24 @@ export class StarknetAgent implements IAgent {
    * Connects to an existing PostgreSQL database
    * @param databaseName - Name of the database to connect to
    */
-  public async connectDatabase(databaseName: string): Promise<void> {
-    try {
-      const params: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: databaseName,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
+  // private async switchMode(newMode: string): Promise<string> {
+  //   if (newMode === 'auto' && !this.agentconfig?.autonomous) {
+  //     return 'Cannot switch to autonomous mode - not enabled in configuration';
+  //   }
 
-      const database = await new PostgresAdaptater(params).connectDatabase();
+  //   if (this.currentMode === newMode) {
+  //     return `Already in ${newMode} mode`;
+  //   }
 
-      if (!database) {
-        throw new Error(
-          'Error when trying to initialize your Postgres database'
-        );
-      }
-
-      this.database.push(database);
-    } catch (error) {
-      // Silently fail and return
-      return;
-    }
-  }
+  //   this.currentMode = newMode;
+  //   this.createAgentReactExecutor();
+  //   return `Switched to ${newMode} mode`;
+  // }
 
   /**
-   * Creates a new PostgreSQL database and connects to it
-   * @param databaseName - Name of the database to create
-   * @returns The connected database or undefined if failed
-   */
-  public async createDatabase(
-    databaseName: string
-  ): Promise<PostgresAdaptater | undefined> {
-    try {
-      // Connect to root database first to create a new one
-      const rootParams: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: process.env.POSTGRES_ROOT_DB as string,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-
-      const rootDatabase = await new PostgresAdaptater(
-        rootParams
-      ).connectDatabase();
-      if (!rootDatabase) {
-        throw new Error(
-          'Error when trying to initialize your Postgres database'
-        );
-      }
-
-      // Create new database
-      const result = await rootDatabase.createDatabase(databaseName);
-      if (!result) {
-        throw new Error('Error when trying to create your Postgres database');
-      }
-
-      // Connect to the newly created database
-      const newParams: PostgresDatabasePoolInterface = {
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        database: databaseName,
-        host: process.env.POSTGRES_HOST as string,
-        port: parseInt(process.env.POSTGRES_PORT as string, 10),
-      };
-
-      const newDatabaseConnection = await new PostgresAdaptater(
-        newParams
-      ).connectDatabase();
-
-      if (!newDatabaseConnection) {
-        throw new Error('Error when trying to connect to your database');
-      }
-
-      // Setup vector extension if possible
-      try {
-        await newDatabaseConnection.query(
-          'CREATE EXTENSION IF NOT EXISTS vector;'
-        );
-      } catch (extError) {
-        // Vector functionality may not work properly. Make sure pgvector is installed.
-      }
-
-      this.database.push(newDatabaseConnection);
-      return newDatabaseConnection;
-    } catch (error) {
-      return undefined;
-    }
-  }
-
-  /**
-   * Deletes a database connection
-   * @param databaseName - Name of the database to delete from connections
-   */
-  public async deleteDatabase(databaseName: string): Promise<void> {
-    try {
-      const database = this.getDatabaseByName(databaseName);
-      if (!database) {
-        throw new Error(`Postgres Database: ${databaseName} not found`);
-      }
-
-      await database.closeDatabase();
-      this.deleteDatabaseByName(databaseName);
-    } catch (error) {
-      // Silently fail and return
-      return;
-    }
-  }
-
-  /**
-   * Gets the array of database adapters instance
-   */
-  public getDatabase(): PostgresAdaptater[] {
-    return this.database;
-  }
-
-  /**
-   * Gets a database adapter instance by name
-   * @param name - Name of the database to get
-   */
-  public getDatabaseByName(name: string): PostgresAdaptater | undefined {
-    return this.database.find((db) => db.getDatabaseName() === name);
-  }
-
-  /**
-   * Removes a database from the array of database adapters
-   * @param name - Name of the database to remove
-   */
-  public deleteDatabaseByName(name: string): void {
-    if (!this.database || this.database.length === 0) {
-      return;
-    }
-
-    this.database = this.database.filter((db) => db.getDatabaseName() !== name);
-  }
-
-  /**
-   * Gets the Starknet account credentials
+   * @function getAccountCredentials
+   * @description Gets the Starknet account credentials
+   * @returns {{accountPrivateKey: string, accountPublicKey: string}} Account credentials
    */
   public getAccountCredentials() {
     return {
@@ -424,14 +330,57 @@ export class StarknetAgent implements IAgent {
       }
 
       const humanMessage = new HumanMessage(input);
+      const invokeOptions: any = {
+        configurable: { thread_id: this.agentconfig?.chat_id as string },
+      };
+
+      // Only apply recursion limit if memory is enabled
+      if (this.memory.enabled !== false) {
+        // Use mode.recursionLimit if available, otherwise fallback to memory config
+        const recursionLimit =
+          this.agentconfig?.mode?.recursionLimit !== undefined
+            ? this.agentconfig.mode.recursionLimit
+            : this.memory.recursionLimit !== undefined
+              ? this.memory.recursionLimit
+              : this.memory.shortTermMemorySize || 15;
+
+        // Only apply recursion limit if it's not zero (0 means no limit)
+        if (recursionLimit !== 0) {
+          invokeOptions.recursionLimit = recursionLimit;
+
+          // Add a messageHandler to prune oldest messages when reaching the limit
+          invokeOptions.messageHandler = (messages: any[]) => {
+            if (messages.length > recursionLimit) {
+              logger.debug(
+                `Message pruning: ${messages.length} messages exceeds limit ${recursionLimit}, pruning oldest messages`
+              );
+              const prunedMessages = [
+                messages[0],
+                ...messages.slice(-(recursionLimit - 1)),
+              ];
+              logger.debug(
+                `Pruned from ${messages.length} to ${prunedMessages.length} messages`
+              );
+              return prunedMessages;
+            }
+            return messages;
+          };
+
+          logger.debug(
+            `Execute: configured with recursionLimit=${recursionLimit}, memory enabled=${this.memory.enabled}`
+          );
+        } else {
+          logger.debug(
+            `Execute: running without recursion limit, memory enabled=${this.memory.enabled}`
+          );
+        }
+      }
+
       const result = await this.agentReactExecutor.invoke(
         {
           messages: [humanMessage],
         },
-        {
-          recursionLimit: 15,
-          configurable: { thread_id: this.agentconfig?.chat_id as string },
-        }
+        invokeOptions
       );
 
       if (!result.messages || result.messages.length === 0) {
@@ -442,6 +391,45 @@ export class StarknetAgent implements IAgent {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Validates that the current mode is set to autonomous
+   */
+  private validateAutonomousMode(): void {
+    logger.debug(`Current mode is: ${this.currentMode}, comparing with 'auto'`);
+
+    if (this.currentMode !== 'auto') {
+      // Check if agentconfig has autonomous mode enabled as a fallback
+      if (this.agentconfig?.mode?.autonomous) {
+        logger.info(
+          `Overriding mode to 'auto' based on config settings (autonomous=${this.agentconfig?.mode?.autonomous})`
+        );
+        this.currentMode = 'auto';
+      } else {
+        throw new Error(
+          `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
+        );
+      }
+    }
+
+    if (!this.agentReactExecutor) {
+      throw new Error(
+        'Agent executor is not initialized for autonomous execution'
+      );
+    }
+  }
+
+  /**
+   * Gets an adaptive prompt message based on recent execution context
+   */
+  private getAdaptivePromptMessage(tokensErrorCount: number): string {
+    if (tokensErrorCount > 0) {
+      // If recent token errors, specifically request simpler actions
+      return 'Due to recent token limit issues, choose a very simple action now. Prefer actions that require minimal context and processing.';
+    }
+
+    return 'Based on my objectives, You should take action now without seeking permission. Choose what to do.';
   }
 
   /**
@@ -489,9 +477,62 @@ export class StarknetAgent implements IAgent {
           // Adjust the message based on recent error context
           const promptMessage = this.getAdaptivePromptMessage(tokensErrorCount);
 
+          // Prepare invoke options with message handler for pruning
+          const agentConfig = { ...this.agentReactExecutor.agentConfig };
+
+          // Add message pruning handler if memory is enabled
+          if (this.memory.enabled !== false) {
+            // Use mode.recursionLimit if available, otherwise fallback to memory config
+            const recursionLimit =
+              this.agentconfig?.mode?.recursionLimit !== undefined
+                ? this.agentconfig.mode.recursionLimit
+                : this.memory.recursionLimit !== undefined
+                  ? this.memory.recursionLimit
+                  : this.memory.shortTermMemorySize || 15;
+
+            if (!agentConfig.configurable) {
+              agentConfig.configurable = {};
+            }
+
+            // Only set recursionLimit if it's not zero (0 means no limit)
+            if (recursionLimit !== 0) {
+              agentConfig.recursionLimit = recursionLimit;
+              agentConfig.messageHandler = (messages: any[]) => {
+                if (messages.length > recursionLimit) {
+                  logger.debug(
+                    `Autonomous - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
+                  );
+                  const prunedMessages = [
+                    messages[0],
+                    ...messages.slice(-(recursionLimit - 1)),
+                  ];
+                  logger.debug(
+                    `Autonomous - pruned from ${messages.length} to ${prunedMessages.length} messages`
+                  );
+                  return prunedMessages;
+                }
+                return messages;
+              };
+
+              logger.debug(
+                `Autonomous iteration ${iterationCount}: configured with recursionLimit=${recursionLimit}`
+              );
+            } else {
+              logger.debug(
+                `Autonomous iteration ${iterationCount}: running without recursion limit`
+              );
+            }
+          }
+
+          logger.debug(
+            `Autonomous iteration ${iterationCount}: invoking agent (tokensErrorCount=${tokensErrorCount})`
+          );
           const result = await this.agentReactExecutor.agent.invoke(
             { messages: promptMessage },
-            this.agentReactExecutor.agentConfig
+            agentConfig
+          );
+          logger.debug(
+            `Autonomous iteration ${iterationCount}: agent invocation complete`
           );
 
           if (!result.messages || result.messages.length === 0) {
@@ -526,23 +567,6 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Validates that the current mode is set to autonomous
-   */
-  private validateAutonomousMode(): void {
-    if (this.currentMode !== 'auto') {
-      throw new Error(
-        `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
-      );
-    }
-
-    if (!this.agentReactExecutor) {
-      throw new Error(
-        'Agent executor is not initialized for autonomous execution'
-      );
-    }
-  }
-
-  /**
    * Handles periodic agent refresh to prevent context buildup
    */
   private async handlePeriodicAgentRefresh(
@@ -554,20 +578,12 @@ export class StarknetAgent implements IAgent {
     const refreshInterval = tokensErrorCount > 0 ? 3 : 5;
     if (iterationCount > 1 && iterationCount % refreshInterval === 0) {
       logger.info(`Periodic agent refresh (iteration ${iterationCount})`);
+      logger.debug(
+        `Agent refresh triggered: iteration=${iterationCount}, tokensErrorCount=${tokensErrorCount}, refreshInterval=${refreshInterval}`
+      );
       await this.createAgentReactExecutor();
+      logger.debug('Agent refresh complete: new executor created');
     }
-  }
-
-  /**
-   * Gets an adaptive prompt message based on recent execution context
-   */
-  private getAdaptivePromptMessage(tokensErrorCount: number): string {
-    if (tokensErrorCount > 0) {
-      // If recent token errors, specifically request simpler actions
-      return 'Due to recent token limit issues, choose a very simple action now. Prefer actions that require minimal context and processing.';
-    }
-
-    return 'Based on my objectives, You should take action now without seeking permission. Choose what to do.';
   }
 
   /**
@@ -587,6 +603,10 @@ export class StarknetAgent implements IAgent {
         : JSON.stringify(agentResponse);
     const estimatedTokens = estimateTokens(responseString);
 
+    logger.debug(
+      `Processing agent response: estimatedTokens=${estimatedTokens}, maxLimit=${MAX_RESPONSE_TOKENS}`
+    );
+
     let formattedAgentResponse;
     if (estimatedTokens > MAX_RESPONSE_TOKENS) {
       // Truncate the response to respect the token limit
@@ -597,6 +617,7 @@ export class StarknetAgent implements IAgent {
         responseString,
         MAX_RESPONSE_TOKENS
       );
+      logger.debug(`Response truncated to fit token limit`);
     } else {
       formattedAgentResponse = agentResponse;
     }
@@ -647,8 +668,12 @@ export class StarknetAgent implements IAgent {
     // Increase the interval if the response was large to avoid overload
     if (estimatedTokens > maxTokens / 2) {
       interval = baseInterval * 1.5;
+      logger.debug(
+        `Increasing wait interval due to large response: ${interval}ms (base: ${baseInterval}ms)`
+      );
     }
 
+    logger.debug(`Waiting for ${interval}ms before next iteration`);
     await new Promise((resolve) => setTimeout(resolve, interval));
   }
 
@@ -657,13 +682,20 @@ export class StarknetAgent implements IAgent {
    */
   private isTokenRelatedError(error: any): boolean {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return (
+    const isTokenError =
       errorMessage.includes('token limit') ||
       errorMessage.includes('tokens exceed') ||
       errorMessage.includes('context length') ||
       errorMessage.includes('prompt is too long') ||
-      errorMessage.includes('maximum context length')
-    );
+      errorMessage.includes('maximum context length');
+
+    if (isTokenError) {
+      logger.debug(
+        `Token-related error detected: "${errorMessage.substring(0, 100)}${errorMessage.length > 100 ? '...' : ''}"`
+      );
+    }
+
+    return isTokenError;
   }
 
   /**
@@ -682,6 +714,9 @@ export class StarknetAgent implements IAgent {
     // Detailed error message to help with debugging
     logger.error(
       `Error in autonomous agent (iteration ${iterationCount}): ${errorMessage}`
+    );
+    logger.debug(
+      `Error stats: iterationCount=${iterationCount}, consecutiveErrorCount=${consecutiveErrorCount}, tokensErrorCount=${tokensErrorCount}`
     );
 
     if (this.isTokenRelatedError(error)) {
@@ -703,6 +738,10 @@ export class StarknetAgent implements IAgent {
       logger.warn(
         'Token limit reached - abandoning current action without losing context'
       );
+      logger.debug(
+        `Token limit error handler: consecutiveErrorCount=${consecutiveErrorCount}, tokensErrorCount=${tokensErrorCount}`
+      );
+
       const warningMessage = createBox(
         'Action Abandoned',
         'Current action was abandoned due to a token limit. The agent will try a different action.'
@@ -714,14 +753,19 @@ export class StarknetAgent implements IAgent {
         5000 + consecutiveErrorCount * 1000,
         15000
       );
+      logger.debug(`Pausing for ${pauseDuration}ms after token limit error`);
       await new Promise((resolve) => setTimeout(resolve, pauseDuration));
 
       // Forced reset if multiple token-related errors
       if (consecutiveErrorCount >= 2 || tokensErrorCount >= 3) {
         logger.warn('Too many token-related errors, complete agent reset...');
+        logger.debug(
+          `Forced agent reset triggered: consecutiveErrorCount=${consecutiveErrorCount}, tokensErrorCount=${tokensErrorCount}`
+        );
 
         // Force the agent to forget its context to avoid accumulating tokens
         await this.createAgentReactExecutor();
+        logger.debug('Agent executor recreated after token errors');
 
         const resetMessage = createBox(
           'Agent Reset',
@@ -730,22 +774,31 @@ export class StarknetAgent implements IAgent {
         process.stdout.write(resetMessage);
 
         // Wait longer after a reset
+        logger.debug('Waiting 8 seconds after agent reset');
         await new Promise((resolve) => setTimeout(resolve, 8000));
       }
     } catch (recreateError) {
       logger.error(`Failed to handle token limit gracefully: ${recreateError}`);
+      logger.debug(
+        `Error during token limit handling: ${recreateError instanceof Error ? recreateError.stack : recreateError}`
+      );
       // Progressive waiting in case of error
       const waitTime = consecutiveErrorCount >= 3 ? 15000 : 5000;
+      logger.debug(`Error recovery wait: ${waitTime}ms`);
       await new Promise((resolve) => setTimeout(resolve, waitTime));
 
       // If nothing works, try an emergency reset
       if (consecutiveErrorCount >= 5) {
         try {
           // Force a complete reset with a new executor
+          logger.debug('Attempting emergency reset after multiple failures');
           await this.createAgentReactExecutor();
           logger.warn('Emergency reset performed after multiple failures');
         } catch (e) {
           // Just continue - we've tried everything
+          logger.debug(
+            `Even emergency reset failed: ${e instanceof Error ? e.message : String(e)}`
+          );
         }
       }
     }
@@ -759,6 +812,9 @@ export class StarknetAgent implements IAgent {
   ): Promise<void> {
     // Progressive waiting time for general errors
     let waitTime = 3000; // Base waiting time
+    logger.debug(
+      `General error handler: consecutiveErrorCount=${consecutiveErrorCount}, base wait=${waitTime}ms`
+    );
 
     // Increase waiting time with the number of consecutive errors
     if (consecutiveErrorCount >= 5) {
@@ -766,14 +822,21 @@ export class StarknetAgent implements IAgent {
       logger.warn(
         `${consecutiveErrorCount} errors in a row, waiting much longer before retry...`
       );
+      logger.debug(
+        `Extended wait time (30s) due to high error count: ${consecutiveErrorCount}`
+      );
     } else if (consecutiveErrorCount >= 3) {
       waitTime = 10000; // 10 seconds for 3-4 errors
       logger.warn(
         `${consecutiveErrorCount} errors in a row, waiting longer before retry...`
       );
+      logger.debug(
+        `Increased wait time (10s) due to multiple errors: ${consecutiveErrorCount}`
+      );
     }
 
     // Apply a pause to avoid rapid error loops
+    logger.debug(`Pausing for ${waitTime}ms after general error`);
     await new Promise((resolve) => setTimeout(resolve, waitTime));
 
     // If too many errors accumulate, reset the agent
@@ -782,10 +845,19 @@ export class StarknetAgent implements IAgent {
         logger.warn(
           'Too many consecutive errors, attempting complete reset...'
         );
+        logger.debug(
+          `Critical error threshold reached (${consecutiveErrorCount} errors), full agent reset initiated`
+        );
         await this.createAgentReactExecutor();
+        logger.debug(
+          'Agent executor successfully recreated after multiple errors'
+        );
         await new Promise((resolve) => setTimeout(resolve, 5000));
       } catch (e) {
         // Continue even if reset fails
+        logger.debug(
+          `Failed to reset agent after multiple errors: ${e instanceof Error ? e.message : String(e)}`
+        );
       }
     }
   }
@@ -807,9 +879,54 @@ export class StarknetAgent implements IAgent {
         throw new Error('Agent executor is not initialized');
       }
 
-      const aiMessage = await this.agentReactExecutor.invoke({
-        messages: input,
-      });
+      // Prepare invoke options with message pruning
+      const invokeOptions: any = {};
+
+      // Add message pruning if memory is enabled
+      if (this.memory.enabled !== false) {
+        // Use mode.recursionLimit if available, otherwise fallback to memory config
+        const recursionLimit =
+          this.agentconfig?.mode?.recursionLimit !== undefined
+            ? this.agentconfig.mode.recursionLimit
+            : this.memory.recursionLimit !== undefined
+              ? this.memory.recursionLimit
+              : this.memory.shortTermMemorySize || 15;
+
+        // Only apply recursion limit if it's not zero (0 means no limit)
+        if (recursionLimit !== 0) {
+          invokeOptions.recursionLimit = recursionLimit;
+          invokeOptions.messageHandler = (messages: any[]) => {
+            if (messages.length > recursionLimit) {
+              logger.debug(
+                `Call data - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
+              );
+              const prunedMessages = [
+                messages[0],
+                ...messages.slice(-(recursionLimit - 1)),
+              ];
+              logger.debug(
+                `Call data - pruned from ${messages.length} to ${prunedMessages.length} messages`
+              );
+              return prunedMessages;
+            }
+            return messages;
+          };
+          logger.debug(
+            `Execute call data: configured with recursionLimit=${recursionLimit}`
+          );
+        } else {
+          logger.debug(`Execute call data: running without recursion limit`);
+        }
+      }
+
+      logger.debug('Execute call data: invoking agent');
+      const aiMessage = await this.agentReactExecutor.invoke(
+        {
+          messages: input,
+        },
+        invokeOptions
+      );
+      logger.debug('Execute call data: agent invocation complete');
 
       try {
         if (!aiMessage.messages || aiMessage.messages.length < 2) {
@@ -853,5 +970,20 @@ export class StarknetAgent implements IAgent {
     if (!this.loggingOptions.disabled && this.agentReactExecutor) {
       this.applyLoggerVerbosityToExecutor();
     }
+  }
+
+  /**
+   * Gets the memory configuration
+   */
+  public getMemoryConfig(): MemoryConfig {
+    return this.memory;
+  }
+
+  /**
+   * Sets the memory configuration
+   * @param config - Memory configuration to set
+   */
+  public setMemoryConfig(config: MemoryConfig): void {
+    this.memory = { ...this.memory, ...config };
   }
 }

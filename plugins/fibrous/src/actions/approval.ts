@@ -1,5 +1,5 @@
 import { Account, Call, Contract } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { ERC20_ABI } from '../abis/erc20Abi.js';
 import { Router } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';

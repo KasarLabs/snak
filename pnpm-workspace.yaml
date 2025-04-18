@@ -5,3 +5,4 @@ packages:
   - 'plugins/*'
   - 'mcps/*'
   - 'core'
+  - 'packages/*'

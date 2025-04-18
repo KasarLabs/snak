@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/agents';
+import { StarknetAgentInterface } from '@kasarlabs/core';
 import { validateToken, formatBalance, detectAbiType } from '../utils/utils.js';
 import { validToken } from '../types/types.js';
 import { z } from 'zod';

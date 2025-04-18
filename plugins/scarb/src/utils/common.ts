@@ -7,7 +7,7 @@ import {
   CairoProgram,
 } from '../types/index.js';
 import {
-  addSeveralDependancies,
+  addSeveralDependancies as addSeveralDependencies,
   isProjectInitialized,
   addTomlSection,
   getProjectDir,
@@ -15,6 +15,7 @@ import {
   processContractForExecution,
   importContract,
 } from './preparation.js';
+import { scarb } from '@kasarlabs/database/queries';
 
 /**
  * Set up a Scarb project
@@ -50,8 +51,8 @@ export async function setupScarbProject(
 export async function setupToml(
   projectDir: string,
   sections: TomlSection[],
-  dependencies?: Dependency[],
-  requiredDependencies?: Dependency[]
+  dependencies?: scarb.Dependency[],
+  requiredDependencies?: scarb.Dependency[]
 ): Promise<void> {
   for (const section of sections) {
     await addTomlSection({
@@ -60,8 +61,8 @@ export async function setupToml(
       valuesObject: section.valuesObject,
     });
   }
-  await addSeveralDependancies(requiredDependencies || [], projectDir);
-  await addSeveralDependancies(dependencies || [], projectDir);
+  await addSeveralDependencies(requiredDependencies || [], projectDir);
+  await addSeveralDependencies(dependencies || [], projectDir);
 }
 
 /**

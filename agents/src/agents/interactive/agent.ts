@@ -33,13 +33,14 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
-import { logger } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   configureModelWithTracking,
   addTokenInfoToBox,
   estimateTokens,
 } from '../../token/tokenTracking.js';
+import { memory } from '@kasarlabs/database/queries';
 
 export function selectModel(aiConfig: AiConfig) {
   let model;
@@ -149,7 +150,14 @@ ToolNode.prototype.invoke = async function (state: any, config: any) {
   // Save the last message with tool calls
   if (state.messages && state.messages.length > 0) {
     const lastMessage = state.messages[state.messages.length - 1];
-    if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+    if (
+      lastMessage.tool_calls &&
+      lastMessage.tool_calls.length > 0 &&
+      !lastMessage._logged
+    ) {
+      // Mark this message as logged to prevent duplicate logging
+      lastMessage._logged = true;
+
       // Create a clear format for displaying tools
       // For each tool, create a complete entry with name and arguments
       const toolCalls = [];
@@ -203,38 +211,16 @@ export const createAgent = async (
     model: 'Xenova/all-MiniLM-L6-v2',
     dtype: 'fp32',
   });
-  const embeddingDimensions = 384; //1536 for OpenAI, 512 for TensorFlow, 384 for HuggingFace
-
   try {
     const json_config = starknetAgent.getAgentConfig();
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
 
-    let databaseConnection = null;
     if (json_config.memory) {
-      const databaseName = json_config.chat_id;
-      databaseConnection = await starknetAgent.createDatabase(databaseName);
-      if (!databaseConnection) {
-        throw new Error('Failed to create or connect to database');
-      }
       try {
-        const dbCreation = await databaseConnection.createTable({
-          table_name: 'agent_memories',
-          fields: new Map<string, string>([
-            ['id', 'SERIAL PRIMARY KEY'],
-            ['user_id', 'VARCHAR(100)'],
-            ['content', 'TEXT'],
-            ['embedding', `vector(${embeddingDimensions})`],
-            ['created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
-            ['updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
-            ['metadata', 'TEXT'],
-            ['history', "JSONB DEFAULT '[]'"],
-          ]),
-        });
-        if (dbCreation.code == '42P07')
-          logger.warn('Agent memory table already exists');
-        else logger.debug('Agent memory table successfully created');
+        await memory.init();
+        console.log('Agent memory table successfully created');
       } catch (error) {
         console.error('Error creating memories table:', error);
         throw error;
@@ -257,80 +243,24 @@ export const createAgent = async (
       ): Promise<string> => {
         try {
           const userId = config.configurable?.userId || 'default_user';
-          const embeddingResult = await embeddings.embedQuery(content);
-          const embeddingString = `[${embeddingResult.join(',')}]`;
-          const metadata = JSON.stringify({
-            timestamp: new Date().toISOString(),
-          });
+          const embedding = await embeddings.embedQuery(content);
+          const metadata = { timestamp: new Date().toISOString() };
+          content = content.replace(/'/g, "''");
+
           console.log('\nCalling memory tool');
+
           if (memoryId) {
             console.log('\nmemoryId detected : ', memoryId);
-            const response = await databaseConnection?.select({
-              FROM: ['agent_memories'],
-              SELECT: ['content', 'history', 'created_at'],
-              WHERE: [`id = ${memoryId}`],
-            });
-            if (
-              response?.status === 'success' &&
-              response.query &&
-              response.query.rows.length > 0
-            ) {
-              const existingMemory = response.query.rows[0];
-              const oldContent = existingMemory.content;
-              let history = existingMemory.history;
-              if (!history) {
-                history = [];
-              } else if (typeof history === 'string') {
-                try {
-                  history = JSON.parse(history);
-                } catch (e) {
-                  console.error('Error parsing history : ', e);
-                  history = [];
-                }
-              }
-              const timestamp = new Date().toISOString();
-              history.push({
-                value: oldContent,
-                timestamp: timestamp,
-                action: 'UPDATE',
-              });
-
-              const historyString = JSON.stringify(history);
-              const updateResponse = await databaseConnection?.update({
-                table_name: 'agent_memories',
-                ONLY: true,
-                SET: [
-                  `content = '${content.replace(/'/g, "''")}'`,
-                  `embedding = '${embeddingString.replace(/'/g, "''")}'`,
-                  `updated_at = CURRENT_TIMESTAMP`,
-                  `history = '${historyString.replace(/'/g, "''")}'`,
-                ],
-                WHERE: [`id = ${memoryId}`],
-              });
-
-              if (updateResponse?.status === 'success') {
-                return 'Memory updated successfully.';
-              } else {
-                throw new Error(
-                  `Failed to update memory : ${updateResponse?.error_message}`
-                );
-              }
-            }
+            await memory.update_memory(memoryId, content, embedding);
           }
-          //console.log('\nInserting inside the table : ', content);
-          if (databaseConnection) {
-            await databaseConnection.insert({
-              table_name: 'agent_memories',
-              fields: new Map<string, string | string[]>([
-                ['id', 'DEFAULT'],
-                ['user_id', userId],
-                ['content', content],
-                ['embedding', embeddingString],
-                ['metadata', metadata],
-                ['history', '[]'],
-              ]),
-            });
-          }
+
+          memory.insert_memory({
+            user_id: userId,
+            content,
+            embedding,
+            metadata,
+            history: [],
+          });
 
           return 'Memory stored successfully.';
         } catch (error) {
@@ -367,57 +297,23 @@ export const createAgent = async (
       config: LangGraphRunnableConfig
     ) => {
       try {
-        if (!databaseConnection)
-          return {
-            memories: '',
-          };
         const userId = config.configurable?.userId || 'default_user';
         const lastMessage = state.messages[state.messages.length - 1]
           .content as string;
-        const queryEmbedding = await embeddings.embedQuery(lastMessage);
-        const queryEmbeddingStr = `[${queryEmbedding.join(',')}]`;
-        const similarMemoriesQuery = `
-          SELECT id, content, history, 1 - (embedding <=> '${queryEmbeddingStr}'::vector) as similarity
-          FROM agent_memories
-          WHERE user_id = '${userId}'
-          ORDER BY similarity DESC
-          LIMIT 4
-        `;
+        const embedding = await embeddings.embedQuery(lastMessage);
+        const similar = await memory.similar_memory(userId, embedding);
 
-        const results = await databaseConnection.query(similarMemoriesQuery);
+        const memories = similar
+          .map((similarity) => {
+            const history = JSON.stringify(similarity.history);
+            return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)},history : ${history}]: ${similarity.content}`;
+          })
+          .join('\n');
 
-        let memories = '\n';
-        if (
-          results.status === 'success' &&
-          results.query &&
-          results.query.rows.length > 0
-        ) {
-          memories = results.query.rows
-            .map((row) => {
-              let historyStr = '[]';
-              try {
-                if (row.history) {
-                  if (typeof row.history === 'string') {
-                    historyStr = row.history;
-                  } else {
-                    historyStr = JSON.stringify(row.history);
-                  }
-                }
-              } catch (e) {
-                console.error('Error stringifying history:', e);
-              }
-              return `Memory [id: ${row.id}, similarity: ${row.similarity.toFixed(4)},history : ${historyStr}]: ${row.content}`;
-            })
-            .join('\n');
-        }
-        return {
-          memories: memories,
-        };
+        return { memories };
       } catch (error) {
         console.error('Error retrieving memories:', error);
-        return {
-          memories: '',
-        };
+        return { memories: '' };
       }
     };
 

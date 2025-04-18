@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
-import { StarknetAgent, JsonConfig, load_json_config } from '@hijox/agents';
+import { StarknetAgent, JsonConfig, load_json_config } from '@kasarlabs/agents';
 
 @Injectable()
 export class AgentFactory {
@@ -49,7 +49,11 @@ export class AgentFactory {
         name: json.name,
         interval: json.interval || 30000,
         chat_id: json.chat_id || 'default',
-        autonomous: json.autonomous || false,
+        mode: {
+          interactive: true,
+          autonomous: json.autonomous || false,
+          recursionLimit: 15,
+        },
         plugins: Array.isArray(json.plugins)
           ? json.plugins.map((tool: string) => tool.toLowerCase())
           : [],

@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@hijox/agents';
+import { StarknetTool, StarknetAgentInterface } from '@kasarlabs/core';
 import {
   simulateInvokeTransactionSchema,
   simulateDeployAccountTransactionSchema,

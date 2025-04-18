@@ -8,7 +8,7 @@ import { StarknetAgentInterface } from '../../tools/tools.js';
 import { MemorySaver } from '@langchain/langgraph';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
-import { logger } from '@hijox/core';
+import { logger } from '@kasarlabs/core';
 import {
   DynamicStructuredTool,
   StructuredTool,
@@ -86,6 +86,11 @@ export const createAutonomousAgent = async (
     const json_config = starknetAgent.getAgentConfig();
     if (!json_config) {
       throw new Error('Agent configuration is required');
+    }
+
+    // Check if autonomous mode is explicitly disabled in new mode config
+    if (json_config.mode && json_config.mode.autonomous === false) {
+      throw new Error('Autonomous mode is disabled in agent configuration');
     }
 
     // Get allowed tools
