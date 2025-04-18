@@ -32,4 +32,4 @@ When asking the agent to perform Vesu-related tasks, it will use the appropriate
 
 ## Development
 
-To extend this plugin, add new services in the `src/actions` directory and export them in the `src/index.ts` file. 
+To extend this plugin, add new services in the `src/actions` directory and export them in the `src/index.ts` file.

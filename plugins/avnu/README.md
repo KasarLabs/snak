@@ -24,4 +24,4 @@ When asking the agent to perform AVNU-related tasks, it will use the appropriate
 
 ## Development
 
-To extend this plugin, add new tools in the `src/tools` directory and register them in the `registerTools` function in `src/tools/index.ts`. 
+To extend this plugin, add new tools in the `src/tools` directory and register them in the `registerTools` function in `src/tools/index.ts`.

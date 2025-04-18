@@ -33,4 +33,4 @@ When asking the agent to perform ERC20-related tasks, it will use the appropriat
 
 ## Development
 
-To extend this plugin, add new tools in the `src/tools` directory and register them in the `registerTools` function in `src/tools/index.ts`. 
+To extend this plugin, add new tools in the `src/tools` directory and register them in the `registerTools` function in `src/tools/index.ts`.

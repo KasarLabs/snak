@@ -28,7 +28,6 @@
   "dependencies": {
     "@snakagent/core": "workspace:*",
     "@snakagent/database": "workspace:*"
-
   },
   "keywords": [],
   "author": "",

@@ -60,7 +60,10 @@ const accountDetails = {
   // Other required account details according to accountDetailsSchema
 };
 
-const deploymentResult = await agent.execute('deploy_existing_argent_account', accountDetails);
+const deploymentResult = await agent.execute(
+  'deploy_existing_argent_account',
+  accountDetails
+);
 
 console.log('Deployed Account:', deploymentResult);
 ```

@@ -22,7 +22,7 @@ The Contract Plugin is used internally by the Starknet Agent and doesn't need to
 When asking the agent to perform contract-related tasks, it will use the appropriate tools from this plugin:
 
 ```
-"Deploy my smart contract from the cairo-project directory"  
+"Deploy my smart contract from the cairo-project directory"
 // Uses declare_contract, step1_prepare_deploy, and step2_deploy_contract in sequence
 
 "Show me all my declared contracts"  // Uses list_declared_contracts

@@ -23,4 +23,4 @@ When asking the agent to perform ArtPeace-related tasks, it will use the place_p
 
 ## Development
 
-To extend this plugin, add new tools in the `src/tools` directory and register them in the `registerTools` function in `src/tools/index.ts`. 
+To extend this plugin, add new tools in the `src/tools` directory and register them in the `registerTools` function in `src/tools/index.ts`.

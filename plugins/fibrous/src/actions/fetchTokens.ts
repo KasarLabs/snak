@@ -6,7 +6,8 @@ export class TokenService {
   async initializeTokens(): Promise<void> {
     try {
       const fibrous = new FibrousRouter();
-      this.tokens = await fibrous.supportedTokens('starknet');
+      const tokensRecord = await fibrous.supportedTokens('starknet');
+      this.tokens = new Map(Object.entries(tokensRecord));
     } catch (error) {
       throw new Error(`Failed to initialize tokens: ${error.message}`);
     }

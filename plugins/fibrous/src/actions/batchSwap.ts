@@ -3,7 +3,7 @@ import { Account, Call, constants } from 'starknet';
 import { ApprovalService } from './approval.js';
 import { StarknetAgentInterface } from '@snakagent/core';
 import { TokenService } from './fetchTokens.js';
-import { Router as FibrousRouter } from 'fibrous-router-sdk';
+import { Router as FibrousRouter, RouteSuccess } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
 import { getV3DetailsPayload } from '../utils/utils.js';
 import { TransactionMonitor } from '../utils/transactionMonitor.js';
@@ -13,15 +13,16 @@ import { SLIPPAGE_PERCENTAGE } from '../constants/index.js';
 export class BatchSwapService {
   private tokenService: TokenService;
   private approvalService: ApprovalService;
+  private router: FibrousRouter;
 
   constructor(
     private agent: StarknetAgentInterface,
     private walletAddress: string,
-    private router: FibrousRouter
+    routerInstance?: FibrousRouter
   ) {
     this.tokenService = new TokenService();
     this.approvalService = new ApprovalService(agent);
-    this.router = new FibrousRouter();
+    this.router = routerInstance || new FibrousRouter();
   }
 
   async initialize(): Promise<void> {
@@ -68,23 +69,28 @@ export class BatchSwapService {
       );
 
       const swapParams = this.extractBatchSwapParams(params);
-      const route = await this.router.getBestRouteBatch(
-        swapParams.sellAmounts as BigNumber[],
-        swapParams.sellTokenAddresses,
-        swapParams.buyTokenAddresses,
-        'starknet'
-      );
-      if (route.length != swapParams.sellAmounts.length) {
-        throw new Error('Invalid route');
+
+      // Get routes for each swap individually instead of batch
+      const routes = [];
+      for (let i = 0; i < swapParams.sellAmounts.length; i++) {
+        const route = await this.router.getBestRoute(
+          swapParams.sellAmounts[i],
+          swapParams.sellTokenAddresses[i],
+          swapParams.buyTokenAddresses[i],
+          'starknet'
+        );
+        routes.push(route);
       }
 
-      for (let i = 0; i < route.length; i++) {
+      for (let i = 0; i < routes.length; i++) {
         console.log(`${i}. Route information: `, {
           sellToken: params.sellTokenSymbols[i],
           buyToken: params.buyTokenSymbols[i],
           sellAmount: params.sellAmounts[i],
-          // @ts-expect-error Accessing a private property for testing
-          buyAmount: route[i]?.outputAmount,
+          buyAmount:
+            routes[i] && routes[i].success
+              ? (routes[i] as RouteSuccess).outputAmount
+              : 'N/A',
         });
       }
       const destinationAddress = account.address; // !!! Destination address is the address of the account that will receive the tokens might be the any address
@@ -157,7 +163,7 @@ export const createSwapService = (
     throw new Error('Wallet address not configured');
   }
 
-  return new BatchSwapService(agent, walletAddress, new FibrousRouter());
+  return new BatchSwapService(agent, walletAddress);
 };
 
 export const batchSwapTokens = async (
