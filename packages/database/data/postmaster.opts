@@ -1,1 +1,0 @@
-/usr/lib/postgresql/17/bin/postgres "-c" "logging_collector=on" "-c" "log_directory=/etc/postgresql/log" "-c" "log_file_mode=0664" "-c" "log_filename=postgresql-%Y-%m-%d_%H:%M:%S.log"
