@@ -295,7 +295,7 @@ _migrated_ to this new schema. Here are a few key points to keep in mind.
 3. Modifications are a pain (renaming a table, changing a type...).
 4. Changes should be easy to apply (UP migration).
 5. Changes should be easy to revert (DOWN migration).
-6. Back up the database before pushing these changes to prod.
+6. Back up the database before pushing changes to prod.
 
 ## Debugging
 
@@ -338,6 +338,8 @@ You can then open a client connection in another terminal:
 ```bash
 docker exec -i --tty -u postgres container-hash psql
 ```
+
+Where you should replace `container-hash` with the hash of the running database container.
 
 [`PostgreSQL`]: https://www.postgresql.org/docs/17/index.html
 [`pgvector`]: https://github.com/pgvector/pgvector
