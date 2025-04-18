@@ -40,6 +40,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+        
+      - name: Build core package
+        run: cd core && pnpm build
 
       - name: Check TypeScript compilation (Backend)
         run: pnpm tsc --noEmit -p tsconfig.build.json
