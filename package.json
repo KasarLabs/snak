@@ -63,7 +63,7 @@
     "starknet": "^6.23.1",
     "util": "^0.12.5",
     "winston": "^3.17.0",
-    "zod": "^3.24.3"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",

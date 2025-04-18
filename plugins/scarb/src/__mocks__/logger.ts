@@ -29,4 +29,4 @@ const mockLogger: MockLogger = {
 
 export default mockLogger;
 export const enableLogging: jest.Mock<() => void> = mockLogger.enableLogging;
-export const disableLogging: jest.Mock<() => void> = mockLogger.disableLogging; 
+export const disableLogging: jest.Mock<() => void> = mockLogger.disableLogging;

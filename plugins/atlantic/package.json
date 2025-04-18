@@ -13,9 +13,12 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
-    "@starknet-agent-kit/agents": "workspace:*"
+    "@starknet-agent-kit/agents": "workspace:*",
+    "zod": "^3.24.3"
   },
   "peerDependencies": {
+    "@starknet-agent-kit/agents": "workspace:*",
+    "zod": "^3.24.3"
   },
   "keywords": [],
   "author": "",

@@ -33,7 +33,6 @@
     "langchain": "^0.3.10",
     "mem0ai": "^2.1.9",
     "nanospinner": "^1.2.2",
-    "prom-client": "^15.1.3",
-    "zod": "^3.24.3"
+    "prom-client": "^15.1.3"
   }
 }

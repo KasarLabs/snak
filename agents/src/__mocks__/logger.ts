@@ -21,4 +21,4 @@ export default mockLogger;
 
 // Also export the mocked enable/disable functions if they are used directly
 export const enableLogging = mockLogger.enableLogging;
-export const disableLogging = mockLogger.disableLogging; 
+export const disableLogging = mockLogger.disableLogging;

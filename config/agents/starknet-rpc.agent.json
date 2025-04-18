@@ -4,12 +4,8 @@
   "lore": [
     "I was developed as a Snak Agent to Snak to demonstrate advanced blockchain interaction capabilities"
   ],
-  "objectives": [
-    "Do RPC calls to the Starknet network"
-  ],
-  "knowledge": [
-    "I know how to use the Starknet RPC API"
-  ],
+  "objectives": ["Do RPC calls to the Starknet network"],
+  "knowledge": ["I know how to use the Starknet RPC API"],
   "interval": 15000,
   "mode": {
     "interactive": true,
@@ -21,7 +17,5 @@
     "shortTermMemorySize": 15
   },
   "chat_id": "ethereum_rpc",
-  "plugins": [
-    "rpc"
-  ]
+  "plugins": ["rpc"]
 }

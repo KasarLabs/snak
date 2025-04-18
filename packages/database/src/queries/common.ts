@@ -1,4 +1,4 @@
 export enum Id {
-	Id,
-	NoId
-};
+  Id,
+  NoId,
+}

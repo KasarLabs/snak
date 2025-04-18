@@ -21,29 +21,28 @@
  * @packageDocumentation
  */
 
-
-import pg, { PoolClient, QueryResult } from 'pg'
+import pg, { PoolClient, QueryResult } from 'pg';
 const { Pool } = pg;
 
 import { DatabaseError } from './error.js';
 
 /**
- * We rely on the default postgress environment variables to establish a 
+ * We rely on the default postgress environment variables to establish a
  * connection.
  *
  * @see module:database
  */
 let pool = new Pool({
-	user: process.env.POSTGRES_USER,
-	host: process.env.POSTGRES_HOST,
-	database: process.env.POSTGRES_DB,
-	password: process.env.POSTGRES_PASSWORD,
-	port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  user: process.env.POSTGRES_USER,
+  host: process.env.POSTGRES_HOST,
+  database: process.env.POSTGRES_DB,
+  password: process.env.POSTGRES_PASSWORD,
+  port: parseInt(process.env.POSTGRES_PORT || '5432'),
 });
 
 pool.on('error', (err) => {
-	console.error('something bad has happened!', err.stack)
-})
+  console.error('something bad has happened!', err.stack);
+});
 
 /**
  * A query and its associated values.
@@ -57,35 +56,35 @@ pool.on('error', (err) => {
  * ```
  */
 export class Query {
-	public readonly query: string;
-	public readonly values?: any[];
+  public readonly query: string;
+  public readonly values?: any[];
 
-	public constructor(query: string, values?: any[]) {
-		this.query = query;
-		this.values = values;
-	}
+  public constructor(query: string, values?: any[]) {
+    this.query = query;
+    this.values = values;
+  }
 }
 
 /**
- * Creates a new connection pool. Shutting down the previous one if it was 
+ * Creates a new connection pool. Shutting down the previous one if it was
  * still active.
  *
  * > This is mostly intended for use in setup/teardown logic between tests.
  */
 export async function connect(): Promise<void> {
-	await shutdown();
+  await shutdown();
 
-	pool = new Pool({
-		user: process.env.POSTGRES_USER,
-		host: process.env.POSTGRES_HOST,
-		database: process.env.POSTGRES_DB,
-		password: process.env.POSTGRES_PASSWORD,
-		port: parseInt(process.env.POSTGRES_PORT || '5432'),
-	});
+  pool = new Pool({
+    user: process.env.POSTGRES_USER,
+    host: process.env.POSTGRES_HOST,
+    database: process.env.POSTGRES_DB,
+    password: process.env.POSTGRES_PASSWORD,
+    port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  });
 
-	pool.on('error', (err) => {
-		console.error('something bad has happened!', err.stack)
-	})
+  pool.on('error', (err) => {
+    console.error('something bad has happened!', err.stack);
+  });
 }
 
 /**
@@ -95,56 +94,56 @@ export async function connect(): Promise<void> {
  * @see module:database
  */
 export async function query<Model = {}>(q: Query): Promise<Model[]> {
-	try {
-		const query = await pool.query(q.query, q.values);
-		return query.rows;
-	} catch (err: any) {
-		throw DatabaseError.handlePgError(err);
-	}
+  try {
+    const query = await pool.query(q.query, q.values);
+    return query.rows;
+  } catch (err: any) {
+    throw DatabaseError.handlePgError(err);
+  }
 }
 
 /**
- * Performs a single [ACID](https://en.wikipedia.org/wiki/ACID) transaction 
+ * Performs a single [ACID](https://en.wikipedia.org/wiki/ACID) transaction
  * against the locally configured database.
  *
  * @throws { DatabaseError }
  * @see module:database
  */
 export async function transaction<Model = {}>(qs: Query[]): Promise<Model[]> {
-	let client: PoolClient | undefined;
-	let res: QueryResult | undefined;
-	try {
-		client = await pool.connect();
+  let client: PoolClient | undefined;
+  let res: QueryResult | undefined;
+  try {
+    client = await pool.connect();
 
-		await client.query('BEGIN;');
-		for (const q of qs) {
-			res = await client.query(q.query, q.values);
-		}
-		await client.query('COMMIT;');
+    await client.query('BEGIN;');
+    for (const q of qs) {
+      res = await client.query(q.query, q.values);
+    }
+    await client.query('COMMIT;');
 
-		return res ? res.rows : [];
-	} catch (err: any) {
-		throw DatabaseError.handlePgError(err);
-	} finally {
-		if (client) {
-			client.release();
-		}
-	}
+    return res ? res.rows : [];
+  } catch (err: any) {
+    throw DatabaseError.handlePgError(err);
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
 }
 
 /**
  * Closes the connection pool.
  *
  * > [!CAUTION]
- * > This method must imperatively be called at the end of the app's lifetime 
+ * > This method must imperatively be called at the end of the app's lifetime
  * > or else we risk starving the database of connections overtime! **New calls
- * > to the database can no longer be made once the connection pool has been 
+ * > to the database can no longer be made once the connection pool has been
  * > closed**.
  */
 export async function shutdown(): Promise<void> {
-	try {
-		await pool.end();
-	} catch (err: any) {
-		throw DatabaseError.handlePgError(err);
-	}
+  try {
+    await pool.end();
+  } catch (err: any) {
+    throw DatabaseError.handlePgError(err);
+  }
 }
