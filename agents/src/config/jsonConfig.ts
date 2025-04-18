@@ -142,12 +142,12 @@ export const validateConfig = (config: JsonConfig) => {
   }
 
   // Validate mode configuration
-  // Ensure modes are exclusive
+  // Log a warning if both modes are enabled but don't change the configuration
+  // This allows the runtime code to control which mode is active
   if (config.mode.interactive && config.mode.autonomous) {
     logger.warn(
-      'Both interactive and autonomous modes are enabled - setting autonomous to false'
+      'Both interactive and autonomous modes are enabled in configuration'
     );
-    config.mode.autonomous = false;
   }
 
   // Ensure recursion limit is valid

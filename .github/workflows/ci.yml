@@ -53,6 +53,7 @@ jobs:
           pnpm prettier --check "agents/**/*.{ts,tsx}"
           pnpm prettier --check "client/src/**/*.{ts,tsx}"
           pnpm prettier --check "plugins/**/*.{ts,tsx}"
+          pnpm prettier --check "packages/**/*.{ts,tsx}"
 
       - name: Security audit
         run: pnpm audit || true

@@ -280,6 +280,12 @@ const localRun = async (): Promise<void> => {
         updateSpinner.success({
           text: `Configuration updated to ${modeToUpdate} mode`,
         });
+
+        // Reload the configuration after updating it
+        const updatedConfig = await load_json_config(agentPath);
+        if (updatedConfig) {
+          Object.assign(agentConfig, updatedConfig);
+        }
       } else {
         updateSpinner.error({
           text: `Failed to update configuration, continuing with current settings`,
@@ -287,31 +293,21 @@ const localRun = async (): Promise<void> => {
       }
     }
 
-    // Determine agent mode based on mode configuration
-    let agentMode = mode;
-    if (agentConfig.mode) {
-      if (mode === 'auto' && agentConfig.mode.autonomous === false) {
-        agentMode = 'agent';
-        logger.warn(
-          'Autonomous mode is disabled in config - switching to agent mode'
-        );
-      } else if (mode === 'agent' && agentConfig.mode.interactive === false) {
-        agentMode = 'auto';
-        logger.warn(
-          'Interactive mode is disabled in config - switching to autonomous mode'
-        );
-      }
+    // Make sure the mode settings match the user's selection
+    if (mode === 'agent') {
+      agentConfig.mode.interactive = true;
+      agentConfig.mode.autonomous = false;
+    } else if (mode === 'auto') {
+      agentConfig.mode.interactive = false;
+      agentConfig.mode.autonomous = true;
     }
 
-    // Make sure we correctly map mode values
-    if (agentMode === 'auto' && agentConfig.mode?.autonomous) {
-      logger.info('Setting mode to "auto" for autonomous execution');
-      agentMode = 'auto';
-    }
+    // Determine agent mode based on the user's selection
+    const agentMode = mode;
 
     // Log the configuration and mode for debugging
-    logger.info(`Selected mode: ${mode}, Agent mode: ${agentMode}`);
-    logger.info(
+    logger.debug(`Selected mode: ${mode}, Agent mode: ${agentMode}`);
+    logger.debug(
       `Config mode settings: interactive=${agentConfig.mode?.interactive}, autonomous=${agentConfig.mode?.autonomous}`
     );
 
@@ -408,6 +404,11 @@ const localRun = async (): Promise<void> => {
       console.log(chalk.yellow('Running autonomous mode...'));
 
       try {
+        // Verify autonomous mode is enabled in the configuration
+        if (!agentConfig.mode.autonomous) {
+          throw new Error('Autonomous mode is disabled in agent configuration');
+        }
+
         // Autonomous execution without spinner to allow log display
         await agent.execute_autonomous();
         console.log(chalk.green('Autonomous execution completed'));

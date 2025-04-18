@@ -3,22 +3,22 @@ name: postgresql
 services:
   init-logs:
     image: alpine
-    container_name: "init-logs"
+    container_name: 'init-logs'
     volumes:
       - ./log:/etc/postgresql/log
     command: chmod 777 /etc/postgresql/log
 
   postgresql-test:
     image: pgvector/pgvector:pg17
-    container_name: "posgresql-test"
+    container_name: 'posgresql-test'
     shm_size: 128m
     ports:
-      - 5432:5432
+      - 5454:5432
     env_file:
-    - ../../.env
+      - ../../.env
     volumes:
       - ./log:/etc/postgresql/log
-    depends_on: 
+    depends_on:
       - init-logs
     command: >
       postgres

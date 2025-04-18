@@ -8,8 +8,8 @@
   "knowledge": ["I know how to use the Starknet RPC API"],
   "interval": 15000,
   "mode": {
-    "interactive": false,
-    "autonomous": true,
+    "interactive": true,
+    "autonomous": false,
     "recursionLimit": 15
   },
   "memory": {

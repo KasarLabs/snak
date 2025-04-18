@@ -3,27 +3,17 @@
   "extends": ["//"],
   "tasks": {
     "dev": {
-      "dependsOn": [
-        "^dev"
-      ]
+      "dependsOn": ["^dev"]
     },
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     },
     "check-types": {
-      "dependsOn": [
-        "^check-types"
-      ]
+      "dependsOn": ["^check-types"]
     },
     "test": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "cache": false
     }
   }

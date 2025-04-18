@@ -1,5 +1,5 @@
 {
-  "name": "@kasarlabs/snak",
+  "name": "snak",
   "version": "0.0.1",
   "description": "Build powerful and secure agents powered by Starknet",
   "author": "Kasar Labs",
@@ -46,6 +46,7 @@
     "lint:plugins": "lerna run lint --scope \"@kasarlabs/plugins-*\"",
     "lint:agents": "lerna run lint --scope \"@kasarlabs/agents\"",
     "prettier:all": "lerna run format",
+    "prepublishOnly": "lerna run prepublishOnly",
     "node:server": "node ./mcps/snak/dist/index.js"
   },
   "dependencies": {

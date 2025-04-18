@@ -220,7 +220,7 @@ export const createAgent = async (
     if (json_config.memory) {
       try {
         await memory.init();
-        console.log('Agent memory table successfully created');
+        logger.debug('Agent memory table successfully created');
       } catch (error) {
         console.error('Error creating memories table:', error);
         throw error;

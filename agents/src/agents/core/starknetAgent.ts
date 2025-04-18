@@ -229,19 +229,19 @@ export class StarknetAgent implements IAgent {
    * Connects to an existing PostgreSQL database
    * @param databaseName - Name of the database to connect to
    */
-  // private async switchMode(newMode: string): Promise<string> {
-  //   if (newMode === 'auto' && !this.agentconfig?.autonomous) {
-  //     return 'Cannot switch to autonomous mode - not enabled in configuration';
-  //   }
+  private async switchMode(newMode: string): Promise<string> {
+    if (newMode === 'auto' && !this.agentconfig?.mode?.autonomous) {
+      return 'Cannot switch to autonomous mode - not enabled in configuration';
+    }
 
-  //   if (this.currentMode === newMode) {
-  //     return `Already in ${newMode} mode`;
-  //   }
+    if (this.currentMode === newMode) {
+      return `Already in ${newMode} mode`;
+    }
 
-  //   this.currentMode = newMode;
-  //   this.createAgentReactExecutor();
-  //   return `Switched to ${newMode} mode`;
-  // }
+    this.currentMode = newMode;
+    this.createAgentReactExecutor();
+    return `Switched to ${newMode} mode`;
+  }
 
   /**
    * @function getAccountCredentials
