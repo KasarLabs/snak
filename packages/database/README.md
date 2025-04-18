@@ -262,11 +262,10 @@ modules.
 
 ### Indempotence
 
-> [!NOTE]
-> Idempotence is the property of certain operations in mathematics and computer science whereby they
-> can be applied multiple times without changing the result beyond the initial application. 
+> _"Idempotence is the property of certain operations in mathematics and computer science whereby 
+> they can be applied multiple times without changing the result beyond the initial application."_
 
-Because of the way in which the server is set up, some functions such as `init` might and will be
+Because of the way in which the server is set up, some functions such as `init` might and _will_ be
 called multiple times. It is crucial that these functions do not cause errors when this is the case.
 In you `init` logic, you should make sure to create tables only if they do not exist already. The
 same goes for functions or extensions. Make sure to add indempotence tests as part of your module's
