@@ -1,4 +1,4 @@
-import { SignatureTool } from '@kasarlabs/core';
+import { SignatureTool } from '@snakagent/core';
 import { placePixelSchema } from '../schema/index.js';
 import { placePixelSignature } from '../actions/placePixel.js';
 

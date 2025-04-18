@@ -1,5 +1,5 @@
 {
-  "name": "@kasarlabs/server",
+  "name": "@snakagent/server",
   "version": "0.0.5",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -34,8 +34,8 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "@kasarlabs/agents": "workspace:*",
-    "@kasarlabs/core": "workspace:*",
+    "@snakagent/agents": "workspace:*",
+    "@snakagent/core": "workspace:*",
     "typescript": "^5.7.3"
   }
 }

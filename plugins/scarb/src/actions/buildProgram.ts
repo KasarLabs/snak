@@ -1,12 +1,12 @@
-import { logger, StarknetAgentInterface } from '@kasarlabs/core';
-('@kasarlabs/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';
 import { compileContractSchema } from '../schema/schema.js';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarb } from '@kasarlabs/database/queries';
+import { scarb } from '@snakagent/database/queries';
 import { readFile } from 'fs/promises';
 import { extractModuleFromArtifact } from '../utils/utils.js';
 

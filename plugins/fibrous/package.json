@@ -1,5 +1,5 @@
 {
-  "name": "@kasarlabs/plugin-fibrous",
+  "name": "@snakagent/plugin-fibrous",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,7 +26,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@kasarlabs/core": "workspace:*",
+    "@snakagent/core": "workspace:*",
     "fibrous-router-sdk": "^0.4.3"
   },
   "keywords": [],

@@ -1,6 +1,6 @@
 import { BlockIdAndContractAddressParams } from '../schema/index.js';
 import { BlockNumber } from 'starknet';
-import { StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 
 export const getClass = async (
   agent: StarknetAgentInterface,

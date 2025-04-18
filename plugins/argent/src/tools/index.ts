@@ -2,7 +2,7 @@ import { wrapAccountCreationResponse } from '../utils/AccountManager.js';
 import { CreateArgentAccount } from '../actions/createAccount.js';
 import { DeployArgentAccount } from '../actions/deployAccount.js';
 import { accountDetailsSchema } from '../schemas/schema.js';
-import { StarknetAgentInterface, StarknetTool } from '@kasarlabs/core';
+import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
 
 export const registerTools = (
   StarknetToolRegistry: StarknetTool[],

@@ -1,4 +1,4 @@
-import { SignatureTool } from '@kasarlabs/core';
+import { SignatureTool } from '@snakagent/core';
 import {
   transferFromSignatureSchema,
   approveSignatureSchema,

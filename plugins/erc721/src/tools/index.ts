@@ -20,7 +20,7 @@ import { getApproved } from '../actions/getApproved.js';
 import { safeTransferFrom } from '../actions/safeTransferFrom.js';
 import { setApprovalForAll } from '../actions/setApprovalForAll.js';
 import { deployERC721Contract } from '../actions/deployERC721.js';
-import { StarknetTool } from '@kasarlabs/core';
+import { StarknetTool } from '@snakagent/core';
 
 export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({

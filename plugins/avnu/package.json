@@ -1,5 +1,5 @@
 {
-  "name": "@kasarlabs/plugin-avnu",
+  "name": "@snakagent/plugin-avnu",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@avnu/avnu-sdk": "^3.0.0",
-    "@kasarlabs/core": "workspace:*"
+    "@snakagent/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

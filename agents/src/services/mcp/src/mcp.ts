@@ -2,7 +2,7 @@ import { StructuredTool } from '@langchain/core/tools';
 import { MultiServerMCPClient } from 'snak-mcps';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { logger } from '@kasarlabs/core';
+import { logger } from '@snakagent/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

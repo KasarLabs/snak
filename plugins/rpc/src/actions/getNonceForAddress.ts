@@ -1,5 +1,5 @@
 import { BlockIdAndContractAddressParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { BlockNumber } from 'starknet';
 
 export const getNonceForAddress = async (

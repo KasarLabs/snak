@@ -135,70 +135,70 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.4.0
         version: 3.5.0
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../core
-      '@kasarlabs/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../packages/database
-      '@kasarlabs/plugin-argent':
+      '@snakagent/plugin-argent':
         specifier: workspace:*
         version: link:../plugins/argent
-      '@kasarlabs/plugin-artpeace':
+      '@snakagent/plugin-artpeace':
         specifier: workspace:*
         version: link:../plugins/artpeace
-      '@kasarlabs/plugin-atlantic':
+      '@snakagent/plugin-atlantic':
         specifier: workspace:*
         version: link:../plugins/atlantic
-      '@kasarlabs/plugin-avnu':
+      '@snakagent/plugin-avnu':
         specifier: workspace:*
         version: link:../plugins/avnu
-      '@kasarlabs/plugin-braavos':
+      '@snakagent/plugin-braavos':
         specifier: workspace:*
         version: link:../plugins/braavos
-      '@kasarlabs/plugin-cairocoder':
+      '@snakagent/plugin-cairocoder':
         specifier: workspace:*
         version: link:../plugins/cairocoder
-      '@kasarlabs/plugin-chat-pool':
+      '@snakagent/plugin-chat-pool':
         specifier: workspace:*
         version: link:../plugins/chat-pool
-      '@kasarlabs/plugin-contract':
+      '@snakagent/plugin-contract':
         specifier: workspace:*
         version: link:../plugins/contract
-      '@kasarlabs/plugin-erc20':
+      '@snakagent/plugin-erc20':
         specifier: workspace:*
         version: link:../plugins/erc20
-      '@kasarlabs/plugin-erc721':
+      '@snakagent/plugin-erc721':
         specifier: workspace:*
         version: link:../plugins/erc721
-      '@kasarlabs/plugin-fibrous':
+      '@snakagent/plugin-fibrous':
         specifier: workspace:*
         version: link:../plugins/fibrous
-      '@kasarlabs/plugin-okx':
+      '@snakagent/plugin-okx':
         specifier: workspace:*
         version: link:../plugins/okx
-      '@kasarlabs/plugin-openzeppelin':
+      '@snakagent/plugin-openzeppelin':
         specifier: workspace:*
         version: link:../plugins/openzeppelin
-      '@kasarlabs/plugin-opus':
+      '@snakagent/plugin-opus':
         specifier: workspace:*
         version: link:../plugins/opus
-      '@kasarlabs/plugin-rpc':
+      '@snakagent/plugin-rpc':
         specifier: workspace:*
         version: link:../plugins/rpc
-      '@kasarlabs/plugin-scarb':
+      '@snakagent/plugin-scarb':
         specifier: workspace:*
         version: link:../plugins/scarb
-      '@kasarlabs/plugin-token':
+      '@snakagent/plugin-token':
         specifier: workspace:*
         version: link:../plugins/token
-      '@kasarlabs/plugin-transaction':
+      '@snakagent/plugin-transaction':
         specifier: workspace:*
         version: link:../plugins/transaction
-      '@kasarlabs/plugin-unruggable':
+      '@snakagent/plugin-unruggable':
         specifier: workspace:*
         version: link:../plugins/unruggable
-      '@kasarlabs/plugin-vesu':
+      '@snakagent/plugin-vesu':
         specifier: workspace:*
         version: link:../plugins/vesu
       '@langchain/anthropic':
@@ -356,7 +356,7 @@ importers:
         specifier: ^3.24.2
         version: 3.24.3
     devDependencies:
-      '@kasarlabs/agents':
+      '@snakagent/agents':
         specifier: workspace:*
         version: link:../../agents
       '@types/node':
@@ -374,19 +374,19 @@ importers:
 
   plugins/argent:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/artpeace:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/atlantic:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -395,22 +395,22 @@ importers:
       '@avnu/avnu-sdk':
         specifier: ^3.0.0
         version: 3.0.2(ethers@6.13.5)(moment@2.30.1)(qs@6.14.0)(starknet@6.24.1(encoding@0.1.13))
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/braavos:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/cairocoder:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@kasarlabs/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
       axios:
@@ -429,37 +429,37 @@ importers:
 
   plugins/chat-pool:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@kasarlabs/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
 
   plugins/contract:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@kasarlabs/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
 
   plugins/erc20:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/erc721:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/fibrous:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
       fibrous-router-sdk:
@@ -468,34 +468,34 @@ importers:
 
   plugins/okx:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/openzeppelin:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/opus:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/rpc:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/scarb:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@kasarlabs/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
       find-up:
@@ -529,25 +529,25 @@ importers:
 
   plugins/token:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/transaction:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/unruggable:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/vesu:
     dependencies:
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -593,10 +593,10 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
     devDependencies:
-      '@kasarlabs/agents':
+      '@snakagent/agents':
         specifier: workspace:*
         version: link:../agents
-      '@kasarlabs/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../core
       typescript:

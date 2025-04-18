@@ -4,8 +4,8 @@ import {
   deleteDependencySchema,
   deleteProjectSchema,
 } from '../schema/schema.js';
-import { scarb } from '@kasarlabs/database/queries';
-import { logger, StarknetAgentInterface } from '@kasarlabs/core';
+import { scarb } from '@snakagent/database/queries';
+import { logger, StarknetAgentInterface } from '@snakagent/core';
 
 /**
  * Delete several programs from a project

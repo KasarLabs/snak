@@ -8,6 +8,7 @@
     "agents",
     "plugins/*",
     "mcps/*",
-    "core"
+    "core",
+    "packages/*"
   ]
 }

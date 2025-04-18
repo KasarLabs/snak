@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@kasarlabs/database",
+  "name": "@snakagent/database",
   "type": "module",
   "scripts": {
     "dev": "tsc --watch",
@@ -8,7 +8,11 @@
     "test-teardown": "docker compose -f compose.test.yaml rm -fsv",
     "test-jest": "DOTENV_CONFIG_PATH=../../.env jest --config jest.config.cjs --setupFiles dotenv/config",
     "test": "pnpm test-setup && pnpm test-jest ; ECODE=$? ; pnpm test-teardown ; exit $ECODE",
+    "format": "prettier --write \"src/**/*.ts\"",
     "build": "tsc",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
     "check-types": "tsc --noEmit"
   },
   "exports": {

@@ -1,5 +1,5 @@
 import { Account, Contract, constants } from 'starknet';
-import { StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import {
   validateAndFormatTokenId,

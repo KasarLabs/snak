@@ -1,5 +1,5 @@
 {
-  "name": "@kasarlabs/plugin-contract",
+  "name": "@snakagent/plugin-contract",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,8 +26,8 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@kasarlabs/core": "workspace:*",
-    "@kasarlabs/database": "workspace:*"
+    "@snakagent/core": "workspace:*",
+    "@snakagent/database": "workspace:*"
   },
   "keywords": [],
   "author": "",

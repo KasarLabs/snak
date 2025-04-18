@@ -2,7 +2,7 @@ import { CreateMemecoinParams } from '../schema/index.js';
 import { stark, uint256 } from 'starknet';
 import { execute, decimalsScale } from '../utils/helper.js';
 import { Account } from 'starknet';
-import { StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 
 /**
  * Creates a new memecoin using the Unruggable Factory.

@@ -1,8 +1,8 @@
-import { logger, StarknetAgentInterface } from '@kasarlabs/core';
-('@kasarlabs/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { listContractsSchema } from '../schemas/schema.js';
 import { z } from 'zod';
-import { contract } from '@kasarlabs/database/queries';
+import { contract } from '@snakagent/database/queries';
 
 /**
  * List the declared contracts

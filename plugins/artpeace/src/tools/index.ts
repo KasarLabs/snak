@@ -1,4 +1,4 @@
-import { StarknetAgentInterface, StarknetTool } from '@kasarlabs/core';
+import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
 import { placePixel } from '../actions/placePixel.js';
 import { placePixelSchema } from '../schema/index.js';
 

@@ -1,4 +1,4 @@
-import { StarknetTool } from '@kasarlabs/core';
+import { StarknetTool } from '@snakagent/core';
 
 import {
   getAllowanceSchema,

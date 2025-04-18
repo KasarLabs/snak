@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { AtlanticRes, VerifierParam } from '../types/Atlantic.js';
 import { ATLANTIC_URL, DASHBOARD_URL } from '../constants/atlantic.js';
 import { promises as fs } from 'fs';

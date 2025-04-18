@@ -1,11 +1,11 @@
-import { logger, StarknetAgentInterface } from '@kasarlabs/core';
-('@kasarlabs/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
 import { setupScarbProject } from '../utils/common.js';
 import { writeJsonToFile } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarb } from '@kasarlabs/database/queries';
+import { scarb } from '@snakagent/database/queries';
 
 /**
  * Verify a program

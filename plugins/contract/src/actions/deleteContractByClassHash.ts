@@ -1,8 +1,8 @@
-import { logger, StarknetAgentInterface } from '@kasarlabs/core';
-('@kasarlabs/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
-import { contract } from '@kasarlabs/database/queries';
+import { contract } from '@snakagent/database/queries';
 
 /**
  * Deletes a contract by its class hash

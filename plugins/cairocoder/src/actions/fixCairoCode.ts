@@ -1,9 +1,9 @@
-import { logger, StarknetAgentInterface } from '@kasarlabs/core';
-('@kasarlabs/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { fixCairoCodeSchema } from '../schema/schema.js';
 import { callCairoGenerationAPI, extractCairoCode } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarb } from '@kasarlabs/database/queries';
+import { scarb } from '@snakagent/database/queries';
 
 /**
  * Fix Cairo code using AI via API and update it in the database

@@ -1,6 +1,6 @@
 import { insertChatIntructionParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@kasarlabs/core';
-import { chat } from '@kasarlabs/database/queries';
+import { StarknetAgentInterface } from '@snakagent/core';
+import { chat } from '@snakagent/database/queries';
 
 export const insertChatInstruction = async (
   _agent: StarknetAgentInterface,

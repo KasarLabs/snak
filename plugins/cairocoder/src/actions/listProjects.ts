@@ -1,8 +1,8 @@
-import { logger, StarknetAgentInterface } from '@kasarlabs/core';
-('@kasarlabs/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { z } from 'zod';
 import { listProjectsSchema } from '../schema/schema.js';
-import { scarb } from '@kasarlabs/database/queries';
+import { scarb } from '@snakagent/database/queries';
 
 /**
  * List all projects in the scarb_db database

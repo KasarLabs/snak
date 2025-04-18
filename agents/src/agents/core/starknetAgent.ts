@@ -4,8 +4,8 @@ import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from '../autonomous/autonomousAgents.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { logger } from '@kasarlabs/core';
-import { metrics } from '@kasarlabs/core';
+import { logger } from '@snakagent/core';
+import { metrics } from '@snakagent/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   addTokenInfoToBox,

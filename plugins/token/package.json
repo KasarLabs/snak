@@ -1,5 +1,5 @@
 {
-  "name": "@kasarlabs/plugin-token",
+  "name": "@snakagent/plugin-token",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@kasarlabs/core": "workspace:*"
+    "@snakagent/core": "workspace:*"
   },
   "keywords": [
     "starknet",

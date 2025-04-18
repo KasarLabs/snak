@@ -1,4 +1,4 @@
-import { SignatureTool } from '@kasarlabs/core';
+import { SignatureTool } from '@snakagent/core';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { CreateOZAccountSignature } from '../actions/createAccount.js';
 import { DeployOZAccountSignature } from '../actions/deployAccount.js';

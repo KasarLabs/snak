@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
 import {
   generateCairoCodeSchema,
   fixCairoCodeSchema,
@@ -20,7 +20,7 @@ import {
 } from '../actions/deleteItemProject.js';
 import { addDependencyAction, addProgramAction } from '../actions/addItem.js';
 import { listProjects } from '../actions/listProjects.js';
-import { scarb } from '@kasarlabs/database/queries';
+import { scarb } from '@snakagent/database/queries';
 
 export const initializeTools = async (
   _agent: StarknetAgentInterface

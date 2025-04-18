@@ -234,7 +234,7 @@ run_interactive_command() {
   
   echo -e "\n${CYAN}${BOLD}Launching Snak...${NC}\n"
   
-  lerna run --scope @kasarlabs/agents start -- --agent="${SELECTED_AGENT_CONFIG}" || return $?
+  lerna run --scope @snakagent/agents start -- --agent="${SELECTED_AGENT_CONFIG}" || return $?
   
   return 0
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@kasarlabs/plugin-vesu",
+  "name": "@snakagent/plugin-vesu",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,7 +26,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@kasarlabs/core": "workspace:*"
+    "@snakagent/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

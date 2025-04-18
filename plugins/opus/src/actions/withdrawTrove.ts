@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { WithdrawTroveParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 

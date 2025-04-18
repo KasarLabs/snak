@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@kasarlabs/core';
+import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
 import {
   contractAddressSchema,
   launchOnEkuboSchema,
