@@ -17,10 +17,11 @@ POSTGRES_USER=...
 POSTGRES_HOST=...
 POSTGRES_DB=...
 POSTGRES_PASSWORD=...
-POSTGRES_PORT=5432
 ```
 
-The exact values of these are not important, but please keep the `POSTGRES_PORT` as `5432`.
+The exact values of these are not important. Note that `snak` assumes that you have port `5454` free
+as this is used by default to connect the PostgreSQL container. If you need to change this, for
+example to use a local database, you can set the `POSTGRES_PORT` environment variable.
 
 ## Usage
 
