@@ -280,11 +280,26 @@ const localRun = async (): Promise<void> => {
         updateSpinner.success({
           text: `Configuration updated to ${modeToUpdate} mode`,
         });
+
+        // Reload the configuration after updating it
+        const updatedConfig = await load_json_config(agentPath);
+        if (updatedConfig) {
+          Object.assign(agentConfig, updatedConfig);
+        }
       } else {
         updateSpinner.error({
           text: `Failed to update configuration, continuing with current settings`,
         });
       }
+    }
+
+    // Make sure the mode settings match the user's selection
+    if (mode === 'agent') {
+      agentConfig.mode.interactive = true;
+      agentConfig.mode.autonomous = false;
+    } else if (mode === 'auto') {
+      agentConfig.mode.interactive = false;
+      agentConfig.mode.autonomous = true;
     }
 
     // Determine agent mode based on the user's selection
@@ -389,6 +404,11 @@ const localRun = async (): Promise<void> => {
       console.log(chalk.yellow('Running autonomous mode...'));
 
       try {
+        // Verify autonomous mode is enabled in the configuration
+        if (!agentConfig.mode.autonomous) {
+          throw new Error('Autonomous mode is disabled in agent configuration');
+        }
+
         // Autonomous execution without spinner to allow log display
         await agent.execute_autonomous();
         console.log(chalk.green('Autonomous execution completed'));
