@@ -1,5 +1,4 @@
 import { RpcProvider } from 'starknet';
-import { PostgresAdaptater } from '../databases/postgresql/src/database.js';
 import { SystemMessage } from '@langchain/core/messages';
 
 export interface StarknetTool<P = unknown> {
@@ -32,6 +31,12 @@ export interface SignatureTool<P = any> {
   execute: (params: P) => Promise<unknown>;
 }
 
+export interface ModeConfig {
+  interactive: boolean;
+  autonomous: boolean;
+  recursionLimit: number;
+}
+
 /**
  * Interface for the JSON configuration object
  */
@@ -41,9 +46,9 @@ export interface JsonConfig {
   interval: number;
   chat_id: string;
   plugins: string[];
-  autonomous?: boolean;
   memory: boolean;
   mcpServers?: Record<string, any>;
+  mode: ModeConfig;
 }
 
 /**
@@ -73,10 +78,4 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
-  getDatabase: () => PostgresAdaptater[];
-  connectDatabase: (database_name: string) => Promise<void>;
-  createDatabase: (
-    database_name: string
-  ) => Promise<PostgresAdaptater | undefined>;
-  getDatabaseByName: (name: string) => PostgresAdaptater | undefined;
 }

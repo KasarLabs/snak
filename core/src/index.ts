@@ -1,5 +1,3 @@
-export { PostgresAdaptater } from './databases/postgresql/src/database.js';
-export type { PostgresDatabasePoolInterface } from './databases/postgresql/src/interfaces/interfaces.js';
 export type {
   JsonConfig,
   StarknetAgentInterface,
