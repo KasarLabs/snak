@@ -46,7 +46,6 @@
     "lint:plugins": "lerna run lint --scope \"@hijox/plugins-*\"",
     "lint:agents": "lerna run lint --scope \"@hijox/agents\"",
     "prettier:all": "lerna run format",
-    "prepack": "lerna run prepack",
     "node:server": "node ./mcps/snak/dist/index.js"
   },
   "dependencies": {
