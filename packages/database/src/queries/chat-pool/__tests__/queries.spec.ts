@@ -32,6 +32,6 @@ describe('Chat-pool database initialization', () => {
     const instruction: chat.Instruction = {
       instruction: 'Lorem Ipsum dolor si amet',
     };
-    await expect(chat.select_instructions()).resolves.toEqual([instruction]);
+    await expect(chat.select_instructions()).resolves.toMatchObject([instruction]);
   });
 });

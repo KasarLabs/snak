@@ -434,8 +434,8 @@ export namespace scarb {
   interface ProgramBase {
     name: string;
     source_code: string;
-    sierra?: string;
-    casm?: string;
+    sierra?: string | null;
+    casm?: string | null;
   }
   interface ProgramWithId extends ProgramBase {
     project_id: number;
