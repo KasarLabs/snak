@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Fibrous Plugin
+# Snak - Fibrous Plugin
 
 The Fibrous Plugin provides tools for interacting with the Fibrous decentralized exchange on the Starknet blockchain, enabling token swaps and routing.
 

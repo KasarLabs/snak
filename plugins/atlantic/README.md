@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Atlantic Plugin
+# Snak - Atlantic Plugin
 
 The Atlantic Plugin provides tools for working with zero-knowledge proofs on the Starknet blockchain via the Atlantic proof service.
 

@@ -1,4 +1,4 @@
-# Starknet Agent Kit - AVNU Plugin
+# Snak - AVNU Plugin
 
 The AVNU Plugin provides tools for interacting with the AVNU decentralized exchange on the Starknet blockchain, enabling token swaps and route information.
 

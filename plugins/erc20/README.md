@@ -1,4 +1,4 @@
-# Starknet Agent Kit - ERC20 Plugin
+# Snak - ERC20 Plugin
 
 The ERC20 Plugin provides comprehensive tools for interacting with ERC20 tokens on the Starknet blockchain.
 

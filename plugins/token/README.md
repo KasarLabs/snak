@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Token Plugin
+# Snak - Token Plugin
 
 The Token Plugin provides tools for working with tokens on the Starknet blockchain.
 

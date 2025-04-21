@@ -1,4 +1,4 @@
-# Starknet Agent Kit - ArtPeace Plugin
+# Snak - ArtPeace Plugin
 
 The ArtPeace Plugin provides tools for interacting with pixel art on the Starknet blockchain, allowing users to place pixels on a collaborative canvas.
 

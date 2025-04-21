@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Vesu Plugin
+# Snak - Vesu Plugin
 
 The Vesu Plugin provides tools for interacting with the Vesu protocol on the Starknet blockchain, enabling deposit and withdrawal operations for earning positions.
 

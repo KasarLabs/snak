@@ -32,6 +32,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Starknet Agent Kit plugin for smart contract declaration, deployment, and management on Starknet.",
+  "description": "Snak plugin for smart contract declaration, deployment, and management on Starknet.",
   "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
 }

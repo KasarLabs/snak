@@ -35,7 +35,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Starknet Agent Kit plugin for building and managing Cairo projects using the Scarb package manager.",
+  "description": "Snak plugin for building and managing Cairo projects using the Scarb package manager.",
   "dependencies": {
     "@snakagent/database": "workspace:*",
     "find-up": "^5.0.0",

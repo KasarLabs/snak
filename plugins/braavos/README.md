@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Braavos Plugin
+# Snak - Braavos Plugin
 
 The Braavos Plugin provides tools for creating and deploying Braavos wallet accounts on the Starknet blockchain.
 

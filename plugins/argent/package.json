@@ -31,6 +31,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Starknet Agent Kit plugin for creating and deploying Argent wallet accounts on Starknet.",
+  "description": "Snak plugin for creating and deploying Argent wallet accounts on Starknet.",
   "gitHead": "aa5bdf1bedbc26e433ce5472cd08171d4e0cfaeb"
 }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-CairoCoder is a Starknet Agent Kit plugin that lets you generate, fix, and manage Cairo code using AI. It organizes your code in a structured system of projects, programs, and dependencies, stored in a database for persistence.
+CairoCoder is a Snak plugin that lets you generate, fix, and manage Cairo code using AI. It organizes your code in a structured system of projects, programs, and dependencies, stored in a database for persistence.
 
 ## Required Environment Variables
 
@@ -131,4 +131,4 @@ Once your Cairo projects are created and stored in the database, they can be sea
 - **Generate proofs**: Create mathematical proofs for your Cairo programs with `scarb_prove_program`
 - **Verify proofs**: Validate program execution proofs with `scarb_verify_program`
 
-This integration provides a complete development workflow from code generation and management with CairoCoder to compilation and execution with Scarb, all within the Starknet Agent Kit environment.
+This integration provides a complete development workflow from code generation and management with CairoCoder to compilation and execution with Scarb, all within the Snak environment.

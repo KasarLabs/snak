@@ -37,6 +37,6 @@
   ],
   "author": "",
   "license": "ISC",
-  "description": "Starknet Agent Kit plugin for token operations including transfers and balance checks.",
+  "description": "Snak plugin for token operations including transfers and balance checks.",
   "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
 }

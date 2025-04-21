@@ -1,6 +1,6 @@
-# Contributing to Starknet Agent Kit
+# Contributing to Snak
 
-Thank you for your interest in contributing to Starknet Agent Kit! We welcome all contributions, no matter how big or small.
+Thank you for your interest in contributing to Snak! We welcome all contributions, no matter how big or small.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Starknet Agent Kit! We welcome al
 
 ## Repository Structure
 
-The Starknet Agent Kit is organized with the following structure:
+The Snak is organized with the following structure:
 
 ```
 .
@@ -217,4 +217,4 @@ If you're stuck or have questions:
 5. Address review comments
 6. Update documentation as needed
 
-Thank you for contributing to Starknet Agent Kit!
+Thank you for contributing to Snak!

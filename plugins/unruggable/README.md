@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Unruggable Plugin
+# Snak - Unruggable Plugin
 
 The Unruggable Plugin provides tools for creating and analyzing memecoins on the Starknet blockchain, with a focus on safer token launches and liquidity locking.
 

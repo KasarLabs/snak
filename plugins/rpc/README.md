@@ -1,4 +1,4 @@
-# Starknet Agent Kit - RPC Plugin
+# Snak - RPC Plugin
 
 The RPC Plugin provides tools for interacting directly with the Starknet blockchain via RPC (Remote Procedure Call) methods, enabling access to blockchain data and state.
 

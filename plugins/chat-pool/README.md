@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Chat Pool Plugin
+# Snak - Chat Pool Plugin
 
 The Chat Pool Plugin provides tools for storing and retrieving chat instructions in a database, allowing for persistent chat-related data.
 

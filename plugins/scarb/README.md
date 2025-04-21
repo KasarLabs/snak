@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Scarb plugin for Starknet Agent Kit provides a seamless interface for working with Scarb, the Cairo package manager and build tool. It enables installing Scarb, compiling Cairo contracts, executing programs, and generating/verifying proofs - all through conversational commands to your agent.
+The Scarb plugin for Snak provides a seamless interface for working with Scarb, the Cairo package manager and build tool. It enables installing Scarb, compiling Cairo contracts, executing programs, and generating/verifying proofs - all through conversational commands to your agent.
 
 > **IMPORTANT**: This plugin requires Scarb version 2.10.0 specifically. Other versions may cause compatibility issues with the tools provided.
 

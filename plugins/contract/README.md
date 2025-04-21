@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Contract Plugin
+# Snak - Contract Plugin
 
 The Contract Plugin provides tools for managing contracts on the Starknet blockchain, including declaration, deployment, and contract management.
 

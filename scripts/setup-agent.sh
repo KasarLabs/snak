@@ -60,7 +60,7 @@ main () {
 		error "Config ID must be exactly 16 characters long"
 	fi
 
-	info "Starting Starknet Agent Kit setup with config ID: $CONFIG_ID"
+	info "Starting Snak setup with config ID: $CONFIG_ID"
 
 	INSTALL_DIR="$HOME/.starknet-agent-kit"
 

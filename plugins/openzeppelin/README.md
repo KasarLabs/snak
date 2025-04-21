@@ -1,4 +1,4 @@
-# Starknet Agent Kit - OpenZeppelin Plugin
+# Snak - OpenZeppelin Plugin
 
 The OpenZeppelin Plugin provides tools for creating and deploying OpenZeppelin account contracts on the Starknet blockchain.
 

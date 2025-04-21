@@ -1,4 +1,4 @@
-# Starknet Agent Kit - OKX Plugin
+# Snak - OKX Plugin
 
 The OKX Plugin provides tools for creating and deploying OKX wallet accounts on the Starknet blockchain.
 

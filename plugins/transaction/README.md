@@ -1,4 +1,4 @@
-# Starknet Agent Kit - Transaction Plugin
+# Snak - Transaction Plugin
 
 The Transaction Plugin provides tools for simulating various types of transactions on the Starknet blockchain without actually executing them.
 

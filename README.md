@@ -3,7 +3,7 @@
     <!-- For users in dark mode, load a white logo -->
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-white-no-bg.png?raw=true">
     <!-- Default image for light mode -->
-    <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-black-no-bg.png?raw=true" width="150" alt="Starknet Agent Kit Logo">
+    <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-black-no-bg.png?raw=true" width="150" alt="Snak Logo">
   </picture>
   
   <h1>Snak (alpha)</h1>

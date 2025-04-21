@@ -1,4 +1,4 @@
-# Starknet Agent Kit - ERC721 Plugin
+# Snak - ERC721 Plugin
 
 The ERC721 Plugin provides comprehensive tools for interacting with ERC721 Non-Fungible Tokens (NFTs) on the Starknet blockchain.
 
