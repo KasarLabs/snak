@@ -221,7 +221,8 @@ the existing db code.
 
 ### Injections
 
-> [!CAUTION] > **Never** interpolate an SQL query string. **EVER**.
+> [!CAUTION]
+> **Never** interpolate an SQL query string. **EVER**.
 
 If you need to pass external data to an SQL query, use numbered parameters with the `$` syntax. You
 can see examples of this above. For more information, check out the section of `node-postgres` on
@@ -280,7 +281,8 @@ data, then optimize for performance if needed.
 
 ### Up and Down migrations
 
-> [!IMPORTANT] > `snak` _does not_ currently support database migrations, so this section is not terribly relevant
+> [!IMPORTANT]
+> `snak` _does not_ currently support database migrations, so this section is not terribly relevant
 > right now.
 
 When updating an exiting module's table, please keep in mind that existing data will have to
