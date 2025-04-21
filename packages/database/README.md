@@ -106,29 +106,29 @@ export namespace dummy {
   export async function init() {
     const t = [
       new Query(`
-                CREATE TABLE IF NOT EXISTS users(
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    surname TEXT NOT NULL,
-                    UNIQUE (name, surname)
-                );
-            `),
+        CREATE TABLE IF NOT EXISTS users(
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          surname TEXT NOT NULL,
+          UNIQUE (name, surname)
+        );
+      `),
       new Query(`
-                CREATE OR REPLACE FUNCTION insert_user(
-                    name text,
-                    surname text
-                ) RETURNS integer AS $$
-                    INSERT INTO user (
-                        name,
-                        surname
-                    ) VALUES (
-                        $1,
-                        $2
-                    ) RETURNING (
-                        id
-                    );
-                $$ LANGUAGE sql
-            `),
+        CREATE OR REPLACE FUNCTION insert_user(
+          name text,
+          surname text
+        ) RETURNS integer AS $$
+          INSERT INTO user (
+            name,
+            surname
+          ) VALUES (
+            $1,
+            $2
+          ) RETURNING (
+            id
+          );
+        $$ LANGUAGE sql
+      `),
     ];
     await transaction(t);
   }
@@ -171,11 +171,11 @@ export namespace dummy {
   export async function selectUserId(user: User): Promise<number | undefined> {
     const q = new Query(
       `SELECT
-                id,
-            FROM
-                users
-            WHERE
-                name = $1 AND surname = $2`,
+        id,
+      FROM
+        users
+      WHERE
+        name = $1 AND surname = $2`,
       [user.name, user.surname]
     );
     return await query(q);
@@ -186,13 +186,13 @@ export namespace dummy {
   ): Promise<User<Id.Id>[]> {
     const q = new Query(
       `SELECT
-                id,
-                name,
-                surname
-            FROM
-                users
-            WHERE
-                surname = $1`,
+        id,
+        name,
+        surname
+      FROM
+        users
+      WHERE
+        surname = $1`,
       [surname]
     );
     return (await query(q)) ?? [];
@@ -200,13 +200,13 @@ export namespace dummy {
   export async function selectUserbyName(name: string): Promise<User<Id.Id>[]> {
     const q = new Query(
       `SELECT
-                id,
-                name,
-                surname
-            FROM
-                users
-            WHERE
-                name = $1`,
+        id,
+        name,
+        surname
+      FROM
+        users
+      WHERE
+        name = $1`,
       [name]
     );
     return (await query(q)) ?? [];
