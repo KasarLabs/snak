@@ -1,15 +1,15 @@
 /**
-* Centralized point for handling database errors.
-*
-* @module database
-* @packageDocumentation
-*/
+ * Centralized point for handling database errors.
+ *
+ * @module database
+ * @packageDocumentation
+ */
 
-import { DatabaseError as PgError } from "pg";
+import { DatabaseError as PgError } from 'pg';
 
 /**
- * A wrapper around around { @see PgError } which provides extra information 
-* when handling errors.
+ * A wrapper around around { @see PgError } which provides extra information
+ * when handling errors.
  */
 export class DatabaseError extends Error {
   code?: string;

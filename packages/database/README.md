@@ -4,7 +4,7 @@ This package contains the database logic of `Snak`. We use a containerized versi
 as our backend with [`pgvector`] installed.
 
 > [!WARNING]
-> We use two versions of the same `compose.yaml` file: one for [`testing`], and the other for 
+> We use two versions of the same `compose.yaml` file: one for [`testing`], and the other for
 > [`production`]. **Only the production container persists storage between restarts**. This is saved
 > under `packages/database/data/`.
 
@@ -37,11 +37,11 @@ your `package.json`.
 Here is an example of how you would use it:
 
 ```ts
-import { scarb } from "@snak/database/queries";
-import { Id } from "@snak/database/common";
+import { scarb } from '@snak/database/queries';
+import { Id } from '@snak/database/common';
 
 async function getProject(projectName: string): Promise<scarb.Project<Id.Id>> {
-    return await scarb.selectProject(projectName);
+  return await scarb.selectProject(projectName);
 }
 ```
 
@@ -52,10 +52,10 @@ async function getProject(projectName: string): Promise<scarb.Project<Id.Id>> {
 
 ## Structure
 
-The database package is split up into different _query modules_. Each module is responsible for 
+The database package is split up into different _query modules_. Each module is responsible for
 handling queries for a set of related tables, as well as providing a way to create those tables.
-These functions are defined in the `queries.ts` file inside each module. A module also includes a 
-`__test__` folder which should contain tests for all the queries it provides, including failure 
+These functions are defined in the `queries.ts` file inside each module. A module also includes a
+`__test__` folder which should contain tests for all the queries it provides, including failure
 cases and edge cases. A module's `queries.ts` is the **only** place where you should be writing raw
 SQL queries.
 
@@ -98,14 +98,14 @@ structure. Also:
 Here is an example of a dummy `queries.ts` file:
 
 ```ts
-import { query, transaction, Query } from "../../database.js"
-import { Id } from "../common.js";
+import { query, transaction, Query } from '../../database.js';
+import { Id } from '../common.js';
 
 export namespace dummy {
-    // This function must be indemptotent. More on this later.
-    export async function init() {
-        const t = [
-            new Query(`
+  // This function must be indemptotent. More on this later.
+  export async function init() {
+    const t = [
+      new Query(`
                 CREATE TABLE IF NOT EXISTS users(
                     id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -113,7 +113,7 @@ export namespace dummy {
                     UNIQUE (name, surname)
                 );
             `),
-            new Query(`
+      new Query(`
                 CREATE OR REPLACE FUNCTION insert_user(
                     name text,
                     surname text
@@ -128,65 +128,64 @@ export namespace dummy {
                         id
                     );
                 $$ LANGUAGE sql
-            `)
-        ];
-        await transaction(t);
-    }
+            `),
+    ];
+    await transaction(t);
+  }
 
-    // We provide a type-safe interface for each table. We use the version 
-    // without an id for insertions, and the version with an id for retrievals.
-    // This avoids marking id as `?`, which would require users of this api to
-    // know the implementation details of each function to know when id should
-    // and should not treated as null.
-    interface UserBase {
-        name: string,
-        surname: number
-    }
-    interface UserWithId extends UserBase{
-        id: number
-    }
-    export type User<HasId extends Id = Id.NoId> = 
-        hasId extends Id.Id ? UserWithId : UserBase;
+  // We provide a type-safe interface for each table. We use the version
+  // without an id for insertions, and the version with an id for retrievals.
+  // This avoids marking id as `?`, which would require users of this api to
+  // know the implementation details of each function to know when id should
+  // and should not treated as null.
+  interface UserBase {
+    name: string;
+    surname: number;
+  }
+  interface UserWithId extends UserBase {
+    id: number;
+  }
+  export type User<HasId extends Id = Id.NoId> = hasId extends Id.Id
+    ? UserWithId
+    : UserBase;
 
-    // The logic for `insert_user` is used multiple times, so we have refactored
-    // it into an SQL function.
-    export async function insertUser(user: User): Promise<number | undefined> {
-        const q = new Query(
-            `SELECT * FROM insert_user($1, $2)`,
-            [user.id, user.surname]
-        );
-        return await query(q);
-    }
-    // Multiple related operations on the database should be transactional. More
-    // on this later.
-    export async function insertUsers(users: User[]): Promise<number[]> {
-        const t = users.map((user) => new Query(
-            `SELECT * FROM insert_user($1, $2)`,
-            [user.id, user.surname]
-        ));
-        return (await transaction(t)) ?? [];
-    }
-    // Operations which are not reused are fine to be written in-place.
-    export async function selectUserId(
-        user: User
-    ): Promise<number | undefined> {
-        const q = new Query(
-            `SELECT
+  // The logic for `insert_user` is used multiple times, so we have refactored
+  // it into an SQL function.
+  export async function insertUser(user: User): Promise<number | undefined> {
+    const q = new Query(`SELECT * FROM insert_user($1, $2)`, [
+      user.id,
+      user.surname,
+    ]);
+    return await query(q);
+  }
+  // Multiple related operations on the database should be transactional. More
+  // on this later.
+  export async function insertUsers(users: User[]): Promise<number[]> {
+    const t = users.map(
+      (user) =>
+        new Query(`SELECT * FROM insert_user($1, $2)`, [user.id, user.surname])
+    );
+    return (await transaction(t)) ?? [];
+  }
+  // Operations which are not reused are fine to be written in-place.
+  export async function selectUserId(user: User): Promise<number | undefined> {
+    const q = new Query(
+      `SELECT
                 id,
             FROM
                 users
             WHERE
                 name = $1 AND surname = $2`,
-            [user.name, user.surname]
-        );
-        return await query(q);
-    }
-    // Notice we are returning the version of `User` with an id.
-    export async function selectUserbySurname(
-        surname: string
-    ): Promise<User<Id.Id>[]> {
-        const q = new Query(
-            `SELECT
+      [user.name, user.surname]
+    );
+    return await query(q);
+  }
+  // Notice we are returning the version of `User` with an id.
+  export async function selectUserbySurname(
+    surname: string
+  ): Promise<User<Id.Id>[]> {
+    const q = new Query(
+      `SELECT
                 id,
                 name,
                 surname
@@ -194,15 +193,13 @@ export namespace dummy {
                 users
             WHERE
                 surname = $1`,
-            [surname]
-        );
-        return (await query(q)) ?? [];
-    }
-    export async function selectUserbyName(
-        name: string
-    ): Promise<User<Id.Id>[]> {
-        const q = new Query(
-            `SELECT
+      [surname]
+    );
+    return (await query(q)) ?? [];
+  }
+  export async function selectUserbyName(name: string): Promise<User<Id.Id>[]> {
+    const q = new Query(
+      `SELECT
                 id,
                 name,
                 surname
@@ -210,10 +207,10 @@ export namespace dummy {
                 users
             WHERE
                 name = $1`,
-            [name]
-        );
-        return (await query(q)) ?? [];
-    }
+      [name]
+    );
+    return (await query(q)) ?? [];
+  }
 }
 ```
 
@@ -224,8 +221,7 @@ the existing db code.
 
 ### Injections
 
-> [!CAUTION]
-> **Never** interpolate an SQL query string. **EVER**.
+> [!CAUTION] > **Never** interpolate an SQL query string. **EVER**.
 
 If you need to pass external data to an SQL query, use numbered parameters with the `$` syntax. You
 can see examples of this above. For more information, check out the section of `node-postgres` on
@@ -234,36 +230,36 @@ can see examples of this above. For more information, check out the section of `
 ### Transactionality
 
 > [!CAUTION]
-> It should not be possible for the database to enter a state of partial read or partial write. 
+> It should not be possible for the database to enter a state of partial read or partial write.
 > **You are responsible for ensuring this!**
 
 When making multiple related operations on the database, you should always default to using a
-[transaction]. You should _not_, for example, be aggregating the result of multiple queries inside a 
+[transaction]. You should _not_, for example, be aggregating the result of multiple queries inside a
 `for` loop. The following is _seriously_ wrong.
 
 ```ts
 const users: dummy.User = [];
 for (const name of ['Jeff', 'Joff', 'John', 'Joe']) {
-    users.push(...(await dummy.selectUserByName(name)));
+  users.push(...(await dummy.selectUserByName(name)));
 }
 ```
 
 The reason this is wrong is that the state of the database could be changing _as we are performing
 this query_. So Jeff or John could be removed or inserted midway during the loop and we could be
 retrieving users which no longer exist -yikes! Generally speaking, you should be interfacing with
-the state of the database as part of a single transaction. Any more complex logic such as looping 
+the state of the database as part of a single transaction. Any more complex logic such as looping
 should be moved inside of a [plpgsql] function. You can see [examples] of this in the existing query
 modules.
 
 > [!WARNING]
 > This is _doubly true_ when inserting related information into the database. You **MUST NOT** be
 > inserting related data using multiple queries/transactions. It would be enough for the server to
-> shut down unexpectedly for only a portion of these writes to take effect, putting the database 
+> shut down unexpectedly for only a portion of these writes to take effect, putting the database
 > into an invalid state! Use transactions!
 
 ### Indempotence
 
-> _"Idempotence is the property of certain operations in mathematics and computer science whereby 
+> _"Idempotence is the property of certain operations in mathematics and computer science whereby
 > they can be applied multiple times without changing the result beyond the initial application."_
 
 Because of the way in which the server is set up, some functions such as `init` might and _will_ be
@@ -284,8 +280,7 @@ data, then optimize for performance if needed.
 
 ### Up and Down migrations
 
-> [!IMPORTANT]
-> `snak` _does not_ currently support database migrations, so this section is not terribly relevant
+> [!IMPORTANT] > `snak` _does not_ currently support database migrations, so this section is not terribly relevant
 > right now.
 
 When updating an exiting module's table, please keep in mind that existing data will have to
@@ -301,7 +296,7 @@ _migrated_ to this new schema. Here are a few key points to keep in mind.
 ## Debugging
 
 When implementing the above, you will most probably run into some misbehavior which needs to be
-debugged. 
+debugged.
 
 ### Logging
 
