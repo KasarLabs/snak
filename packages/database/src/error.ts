@@ -1,5 +1,16 @@
-import { DatabaseError as PgError } from 'pg';
+/**
+* Centralized point for handling database errors.
+*
+* @module database
+* @packageDocumentation
+*/
 
+import { DatabaseError as PgError } from "pg";
+
+/**
+ * A wrapper around around { @see PgError } which provides extra information 
+* when handling errors.
+ */
 export class DatabaseError extends Error {
   code?: string;
   detail?: string;
