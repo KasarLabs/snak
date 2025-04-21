@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 import { GetTroveHealthParams, GetUserTrovesParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 

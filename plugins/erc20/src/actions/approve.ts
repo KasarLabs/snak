@@ -1,5 +1,5 @@
 import { Account, Contract, RpcProvider, constants } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 import {
   validateAndFormatParams,
   executeV3Transaction,

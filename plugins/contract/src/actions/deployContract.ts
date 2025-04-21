@@ -1,11 +1,11 @@
 import { Account, constants } from 'starknet';
-import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
+import { logger, StarknetAgentInterface } from '@hijox/core';
+('@hijox/core');
 import { ContractManager } from '../utils/contractManager.js';
 import { deployContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
 import { z } from 'zod';
-import { contract } from '@snakagent/database/queries';
+import { contract } from '@hijox/database/queries';
 
 /**
  * Deploys a contract on StarkNet using an existing class hash

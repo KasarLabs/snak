@@ -9,7 +9,7 @@ import {
   SimulateDeclareTransactionAccountParams,
   Invocation_Declare,
 } from '../types/simulateTransactionTypes.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 import { TransactionReponseFormat } from '../utils/outputSimulateTransaction.js';
 import { DEFAULT_NONCE } from '../constant/index.js';
 

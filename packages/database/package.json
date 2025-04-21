@@ -1,7 +1,18 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@snakagent/database",
+  "name": "@hijox/database",
   "type": "module",
+  "version": "0.1.2",
+  "files": [
+    "dist",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsc --watch",
     "test-setup": "docker compose -f compose.test.yaml up -d",
@@ -21,10 +32,11 @@
     "./queries": "./src/queries/index.ts",
     "./common": "./src/queries/common.ts"
   },
-  "dependecies": {
+  "dependencies": {
     "pg": "^8.14.1"
   },
   "devDependencies": {
     "typescript": "latest"
-  }
+  },
+  "gitHead": "19f358a4d37a9b0e25d83b2997b9bb6d27548257"
 }

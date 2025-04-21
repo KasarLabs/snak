@@ -33,14 +33,14 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
-import { logger } from '@snakagent/core';
+import { logger } from '@hijox/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   configureModelWithTracking,
   addTokenInfoToBox,
   estimateTokens,
 } from '../../token/tokenTracking.js';
-import { memory } from '@snakagent/database/queries';
+import { memory } from '@hijox/database/queries';
 
 export function selectModel(aiConfig: AiConfig) {
   let model;

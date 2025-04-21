@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { StarknetTool, StarknetAgentInterface } from '@hijox/core';
 import { getSpecVersion } from '../actions/getSpecVersion.js';
 import { getBlockWithTxHashes } from '../actions/getBlockWithTxHashes.js';
 import { getBlockWithReceipts } from '../actions/getBlockWithReceipts.js';

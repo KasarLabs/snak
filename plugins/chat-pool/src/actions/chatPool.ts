@@ -1,6 +1,6 @@
 import { insertChatIntructionParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
-import { chat } from '@snakagent/database/queries';
+import { StarknetAgentInterface } from '@hijox/core';
+import { chat } from '@hijox/database/queries';
 
 export const insertChatInstruction = async (
   _agent: StarknetAgentInterface,

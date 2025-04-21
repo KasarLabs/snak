@@ -1,4 +1,4 @@
-import { SignatureTool } from '@snakagent/core';
+import { SignatureTool } from '@hijox/core';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { DeployOKXAccountSignature } from '../actions/deployAccount.js';
 import { CreateOKXAccountSignature } from '../actions/createAccount.js';

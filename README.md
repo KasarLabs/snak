@@ -148,10 +148,10 @@ pnpm run start:server --agent="name_of_your_config.json"
 
 ```bash
 #using npm
-npm install @snakagent
+npm install @hijox
 
 # using pnpm
-pnpm add @snakagent
+pnpm add @hijox
 ```
 
 2. Create your agent instance

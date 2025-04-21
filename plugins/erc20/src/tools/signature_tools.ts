@@ -1,4 +1,4 @@
-import { SignatureTool } from '@snakagent/core';
+import { SignatureTool } from '@hijox/core';
 import {
   transferFromSignatureSchema,
   approveSignatureSchema,

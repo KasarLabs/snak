@@ -1,6 +1,6 @@
 {
-  "name": "@snakagent/plugin-cairocoder",
-  "version": "0.0.7",
+  "name": "@hijox/plugin-cairocoder",
+  "version": "0.1.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -26,8 +26,8 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@snakagent/core": "workspace:*",
-    "@snakagent/database": "workspace:*",
+    "@hijox/core": "^0.0.6",
+    "@hijox/database": "^0.0.9",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"
@@ -35,5 +35,5 @@
   "devDependencies": {
     "@types/axios": "^0.14.4"
   },
-  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
+  "gitHead": "19f358a4d37a9b0e25d83b2997b9bb6d27548257"
 }

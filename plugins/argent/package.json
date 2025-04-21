@@ -1,6 +1,6 @@
 {
-  "name": "@snakagent/plugin-argent",
-  "version": "0.0.4",
+  "name": "@hijox/plugin-argent",
+  "version": "0.1.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -26,11 +26,11 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@snakagent/core": "workspace:*"
+    "@hijox/core": "^0.0.6"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for creating and deploying Argent wallet accounts on Starknet.",
-  "gitHead": "aa5bdf1bedbc26e433ce5472cd08171d4e0cfaeb"
+  "gitHead": "19f358a4d37a9b0e25d83b2997b9bb6d27548257"
 }

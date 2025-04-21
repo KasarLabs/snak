@@ -1,6 +1,6 @@
 {
-  "name": "@snakagent/plugin-artpeace",
-  "version": "0.0.7",
+  "name": "@hijox/plugin-artpeace",
+  "version": "0.1.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -26,11 +26,11 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@snakagent/core": "workspace:*"
+    "@hijox/core": "^0.0.6"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for collaborative pixel art creation on a shared canvas.",
-  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
+  "gitHead": "19f358a4d37a9b0e25d83b2997b9bb6d27548257"
 }

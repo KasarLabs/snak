@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 import { Account, constants, Contract } from 'starknet';
 import { artpeaceAbi } from '../abis/artpeaceAbi.js';
 import { artpeaceAddr } from '../constants/artpeace.js';

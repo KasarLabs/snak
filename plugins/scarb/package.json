@@ -1,6 +1,6 @@
 {
-  "name": "@snakagent/plugin-scarb",
-  "version": "0.0.7",
+  "name": "@hijox/plugin-scarb",
+  "version": "0.1.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -37,13 +37,12 @@
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for building and managing Cairo projects using the Scarb package manager.",
   "dependencies": {
-    "@snakagent/database": "workspace:*",
+    "@hijox/core": "^0.0.6",
+    "@hijox/database": "^0.0.9",
     "find-up": "^5.0.0",
     "fs-extra": "^11.3.0",
     "jsdom": "^26.0.0",
-    "tmp": "^0.2.3",
-    "@snakagent/core": "workspace:*"
-
+    "tmp": "^0.2.3"
   },
-  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
+  "gitHead": "19f358a4d37a9b0e25d83b2997b9bb6d27548257"
 }

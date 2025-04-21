@@ -1,5 +1,5 @@
 import { IsNotEmpty } from 'class-validator';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 
 export class CreateAgentDTO {
   @IsNotEmpty()

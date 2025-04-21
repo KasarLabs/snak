@@ -15,7 +15,7 @@ import {
   processContractForExecution,
   importContract,
 } from './preparation.js';
-import { scarb } from '@snakagent/database/queries';
+import { scarb } from '@hijox/database/queries';
 
 /**
  * Set up a Scarb project

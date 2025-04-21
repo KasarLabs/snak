@@ -1,8 +1,8 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
+import { logger, StarknetAgentInterface } from '@hijox/core';
+('@hijox/core');
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
-import { contract } from '@snakagent/database/queries';
+import { contract } from '@hijox/database/queries';
 
 /**
  * Deletes a contract by its class hash

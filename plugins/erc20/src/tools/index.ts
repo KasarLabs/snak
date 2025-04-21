@@ -1,4 +1,4 @@
-import { StarknetTool } from '@snakagent/core';
+import { StarknetTool } from '@hijox/core';
 
 import {
   getAllowanceSchema,

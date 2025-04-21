@@ -1,7 +1,7 @@
 import { insertChatInstruction, readChatPool } from '../actions/chatPool.js';
 import { insertChatIntructionSchema } from '../schema/index.js';
-import { StarknetTool } from '@snakagent/core';
-import { chat } from '@snakagent/database/queries';
+import { StarknetTool } from '@hijox/core';
+import { chat } from '@hijox/database/queries';
 
 export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
   try {

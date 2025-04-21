@@ -1,4 +1,4 @@
-import { SignatureTool } from '@snakagent/core';
+import { SignatureTool } from '@hijox/core';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { DeployArgentAccountSignature } from '../actions/deployAccount.js';
 import { CreateArgentAccountSignature } from '../actions/createAccount.js';

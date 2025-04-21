@@ -1,5 +1,5 @@
 {
-  "name": "@snakagent/snak-mcp",
+  "name": "@hijox/snak-mcp",
   "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@snakagent/agents": "workspace:*",
+    "@hijox/agents": "workspace:*",
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   },

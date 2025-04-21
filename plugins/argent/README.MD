@@ -15,7 +15,7 @@ This package provides Starknet tools that allow developers to easily create and 
 ## Installation
 
 ```bash
-npm install @snakagent/argent-plugins
+npm install @hijox/argent-plugins
 ```
 
 ## Usage
@@ -25,8 +25,8 @@ npm install @snakagent/argent-plugins
 Import and register the Argent tools in your application:
 
 ```javascript
-import { registerTools } from '@snakagent/argent-plugins';
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { registerTools } from '@hijox/argent-plugins';
+import { StarknetTool, StarknetAgentInterface } from '@hijox/core';
 
 // Initialize your tools registry
 const StarknetToolRegistry = [];
@@ -94,7 +94,7 @@ The package uses `accountDetailsSchema` to validate account details for deployme
 
 ## Dependencies
 
-- `@snakagent/core`: Core framework for Starknet tools and agent interfaces
+- `@hijox/core`: Core framework for Starknet tools and agent interfaces
 - Account management utilities from '../utils/AccountManager.js'
 - Account creation and deployment actions
 

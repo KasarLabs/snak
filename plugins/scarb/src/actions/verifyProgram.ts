@@ -1,11 +1,11 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
+import { logger, StarknetAgentInterface } from '@hijox/core';
+('@hijox/core');
 import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
 import { setupScarbProject } from '../utils/common.js';
 import { writeJsonToFile } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarb } from '@snakagent/database/queries';
+import { scarb } from '@hijox/database/queries';
 
 /**
  * Verify a program

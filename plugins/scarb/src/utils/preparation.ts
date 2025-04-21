@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import { promisify } from 'util';
 import path from 'path';
 import { getWorkspacePath } from './path.js';
-import { scarb } from '@snakagent/database/queries';
+import { scarb } from '@hijox/database/queries';
 
 const execAsync = promisify(exec);
 

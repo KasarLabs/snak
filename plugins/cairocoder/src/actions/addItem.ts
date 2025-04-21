@@ -1,12 +1,12 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
+import { logger, StarknetAgentInterface } from '@hijox/core';
+('@hijox/core');
 import { addProgramSchema, addDependencySchema } from '../schema/schema.js';
 import { extractFile } from '../utils/utils.js';
 import path from 'path';
 import { z } from 'zod';
-import { scarb } from '@snakagent/database/queries';
+import { scarb } from '@hijox/database/queries';
 import { getAllPackagesList } from '../utils/dependencies.js';
-import { Id } from '@snakagent/database/common';
+import { Id } from '@hijox/database/common';
 
 /**
  * Add several programs to a project

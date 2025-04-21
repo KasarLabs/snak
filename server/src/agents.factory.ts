@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
-import { StarknetAgent, JsonConfig, load_json_config } from '@snakagent/agents';
+import { StarknetAgent, JsonConfig, load_json_config } from '@hijox/agents';
 
 @Injectable()
 export class AgentFactory {

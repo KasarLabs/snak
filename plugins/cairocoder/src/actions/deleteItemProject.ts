@@ -4,8 +4,8 @@ import {
   deleteDependencySchema,
   deleteProjectSchema,
 } from '../schema/schema.js';
-import { scarb } from '@snakagent/database/queries';
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { scarb } from '@hijox/database/queries';
+import { logger, StarknetAgentInterface } from '@hijox/core';
 
 /**
  * Delete several programs from a project
