@@ -13,181 +13,181 @@ export namespace scarb {
     const t = [
       new Query(
         `CREATE TABLE IF NOT EXISTS project(
-					id SERIAL PRIMARY KEY,
-					name VARCHAR(100),
-					type VARCHAR(50) CHECK (type in ('contract', 'cairo_program')),
-					execution_trace BYTEA,
-					proof JSONB,
-					verified BOOLEAN DEFAULT FALSE,
-					UNIQUE (name)
-				);`
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          type VARCHAR(50) CHECK (type in ('contract', 'cairo_program')),
+          execution_trace BYTEA,
+          proof JSONB,
+          verified BOOLEAN DEFAULT FALSE,
+          UNIQUE (name)
+        );`
       ),
       new Query(
         `CREATE TABLE IF NOT EXISTS program(
-					id SERIAL PRIMARY KEY,
-					project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
-					name VARCHAR(255) NOT NULL,
-					source_code TEXT,
-					sierra JSONB,
-					casm JSONB,
-					UNIQUE (project_id, name)
-				)`
+          id SERIAL PRIMARY KEY,
+          project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          source_code TEXT,
+          sierra JSONB,
+          casm JSONB,
+          UNIQUE (project_id, name)
+        )`
       ),
       new Query(
         `CREATE TABLE IF NOT EXISTS dependency(
-					id SERIAL PRIMARY KEY,
-					project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
-					name VARCHAR(255) NOT NULL,
-					version VARCHAR(50),
-					UNIQUE (project_id, name)
-				)`
+          id SERIAL PRIMARY KEY,
+          project_id INTEGER REFERENCES project(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          version VARCHAR(50),
+          UNIQUE (project_id, name)
+        )`
       ),
       new Query(
         `CREATE OR REPLACE FUNCTION insert_project(
-					name varchar(100),
-					type varchar(50)
-				) RETURNS integer AS $$
-					INSERT INTO project(name, type) VALUES
-						($1, $2)
-						ON CONFLICT (name)
-						DO NOTHING
-						RETURNING id;
-				$$ LANGUAGE sql`
+          name varchar(100),
+          type varchar(50)
+        ) RETURNS integer AS $$
+          INSERT INTO project(name, type) VALUES
+            ($1, $2)
+            ON CONFLICT (name)
+            DO NOTHING
+            RETURNING id;
+        $$ LANGUAGE sql`
       ),
       new Query(
         `CREATE OR REPLACE FUNCTION insert_program(
-					project_id integer,
-					name varchar(255),
-					source_code text
-				) RETURNS void AS $$
-					INSERT INTO program (
-						project_id,
-						name,
-						source_code
-					) VALUES (
-						$1,
-						$2,
-						$3
-					) ON CONFLICT (
-						project_id,
-						name
-					) DO UPDATE 
-						SET source_code = $3;
-				$$ LANGUAGE sql;`
+          project_id integer,
+          name varchar(255),
+          source_code text
+        ) RETURNS void AS $$
+          INSERT INTO program (
+            project_id,
+            name,
+            source_code
+          ) VALUES (
+            $1,
+            $2,
+            $3
+          ) ON CONFLICT (
+            project_id,
+            name
+          ) DO UPDATE 
+            SET source_code = $3;
+        $$ LANGUAGE sql;`
       ),
       new Query(
         `CREATE OR REPLACE FUNCTION insert_dependency(
-					project_id integer,
-					name varchar(255),
-					version varchar(50)
-				) RETURNS void AS $$
-					INSERT INTO dependency (
-						project_id,
-						name,
-						version
-					) VALUES (
-						$1,
-						$2,
-						COALESCE($3, '')
-					) ON CONFLICT (
-						project_id, 
-						name
-					) DO UPDATE 
-						SET version = COALESCE($3, '');
-				$$ LANGUAGE sql;`
+          project_id integer,
+          name varchar(255),
+          version varchar(50)
+        ) RETURNS void AS $$
+          INSERT INTO dependency (
+            project_id,
+            name,
+            version
+          ) VALUES (
+            $1,
+            $2,
+            COALESCE($3, '')
+          ) ON CONFLICT (
+            project_id, 
+            name
+          ) DO UPDATE 
+            SET version = COALESCE($3, '');
+        $$ LANGUAGE sql;`
       ),
       new Query(
         `CREATE OR REPLACE FUNCTION init_project(
-					project jsonb,
-					programs jsonb,
-					dependencies jsonb
-				) RETURNS void AS $$
-				DECLARE
-					id integer := insert_project(project->>'name', project->>'type');
-					program jsonb;
-					dependency jsonb;
-					count integer;
-				BEGIN
-					FOR program IN
-						SELECT * FROM jsonb_array_elements(programs)
-					LOOP
-						PERFORM insert_program(
-							id,
-							program->>'name',
-							program->>'source_code'
-						);
-					END LOOP;
+          project jsonb,
+          programs jsonb,
+          dependencies jsonb
+        ) RETURNS void AS $$
+        DECLARE
+          id integer := insert_project(project->>'name', project->>'type');
+          program jsonb;
+          dependency jsonb;
+          count integer;
+        BEGIN
+          FOR program IN
+            SELECT * FROM jsonb_array_elements(programs)
+          LOOP
+            PERFORM insert_program(
+              id,
+              program->>'name',
+              program->>'source_code'
+            );
+          END LOOP;
 
-					FOR dependency IN
-						SELECT * FROM jsonb_array_elements(dependencies)
-					LOOP
-						PERFORM insert_dependency(
-							id,
-							dependency->>'name',
-							dependency->>'version'
-						);
-					END LOOP;
-				 END;
-				$$ LANGUAGE plpgsql;
-				`
+          FOR dependency IN
+            SELECT * FROM jsonb_array_elements(dependencies)
+          LOOP
+            PERFORM insert_dependency(
+              id,
+              dependency->>'name',
+              dependency->>'version'
+            );
+          END LOOP;
+         END;
+        $$ LANGUAGE plpgsql;
+        `
       ),
       new Query(
         `CREATE OR REPLACE FUNCTION retrieve_project(
-					name varchar(100)
-				) RETURNS TABLE (
-					project_id INTEGER,
-					project_name VARCHAR(100),
-					project_type VARCHAR(50),
-					project_trace BYTEA,
-					project_proof JSONB,
-					project_verif BOOLEAN,
-					program_name VARCHAR(255),
-					program_code TEXT,
-					dep_name VARCHAR(255),
-					dep_version VARCHAR(50)
-				) AS $$
-					SELECT * FROM(
-						SELECT
-							project.id AS project_id,
-							project.name AS project_name,
-							project.type AS project_type,
-							project.execution_trace AS project_trace,
-							project.proof AS project_proof,
-							project.verified AS project_verif,
-							program.name AS program_name,
-							program.source_code AS program_code,
-							NULL AS dep_name,
-							NULL as dep_version
-						FROM
-							project
-							LEFT JOIN program 
-								ON program.project_id = project.id
-						WHERE
-							project.name = $1
-						ORDER BY program.id ASC
-					)
-					UNION ALL
-					SELECT * FROM(
-						SELECT
-							project.id AS project_id,
-							project.name AS project_name,
-							project.type AS project_type,
-							project.execution_trace AS project_trace,
-							project.proof AS project_proof,
-							project.verified AS project_verif,
-							NULL AS program_name,
-							NULL AS program_code,
-							dependency.name AS dep_name,
-							dependency.version as dep_version
-						FROM
-							project
-							LEFT JOIN dependency
-								ON dependency.project_id = project.id
-						WHERE
-							project.name = $1
-						ORDER BY dependency.id ASC
-					);
-				$$ LANGUAGE sql`
+          name varchar(100)
+        ) RETURNS TABLE (
+          project_id INTEGER,
+          project_name VARCHAR(100),
+          project_type VARCHAR(50),
+          project_trace BYTEA,
+          project_proof JSONB,
+          project_verif BOOLEAN,
+          program_name VARCHAR(255),
+          program_code TEXT,
+          dep_name VARCHAR(255),
+          dep_version VARCHAR(50)
+        ) AS $$
+          SELECT * FROM(
+            SELECT
+              project.id AS project_id,
+              project.name AS project_name,
+              project.type AS project_type,
+              project.execution_trace AS project_trace,
+              project.proof AS project_proof,
+              project.verified AS project_verif,
+              program.name AS program_name,
+              program.source_code AS program_code,
+              NULL AS dep_name,
+              NULL as dep_version
+            FROM
+              project
+              LEFT JOIN program 
+                ON program.project_id = project.id
+            WHERE
+              project.name = $1
+            ORDER BY program.id ASC
+          )
+          UNION ALL
+          SELECT * FROM(
+            SELECT
+              project.id AS project_id,
+              project.name AS project_name,
+              project.type AS project_type,
+              project.execution_trace AS project_trace,
+              project.proof AS project_proof,
+              project.verified AS project_verif,
+              NULL AS program_name,
+              NULL AS program_code,
+              dependency.name AS dep_name,
+              dependency.version as dep_version
+            FROM
+              project
+              LEFT JOIN dependency
+                ON dependency.project_id = project.id
+            WHERE
+              project.name = $1
+            ORDER BY dependency.id ASC
+          );
+        $$ LANGUAGE sql`
       ),
     ];
     await transaction(t);
@@ -250,16 +250,16 @@ export namespace scarb {
   ): Promise<Project<Id.Id> | undefined> {
     const q = new Query(
       `SELECT
-				id,
-				name,
-				type,
-				execution_trace,
-				proof,
-				verified
-			FROM
-				project
-			WHERE
-				name = $1;`,
+        id,
+        name,
+        type,
+        execution_trace,
+        proof,
+        verified
+      FROM
+        project
+      WHERE
+        name = $1;`,
       [name]
     );
     const q_res = await query<Project<Id.Id>>(q);
@@ -511,8 +511,8 @@ export namespace scarb {
   ): Promise<Program<Id.Id> | undefined> {
     const q = new Query(
       `SELECT project_id, name, source_code, sierra, casm FROM program
-			WHERE project_id = $1 AND name = $2
-			ORDER BY id ASC;`,
+      WHERE project_id = $1 AND name = $2
+      ORDER BY id ASC;`,
       [projectId, programName]
     );
     const q_res = await query<Program<Id.Id>>(q);
@@ -538,8 +538,8 @@ export namespace scarb {
   ): Promise<Program<Id.Id>[]> {
     const q = new Query(
       `SELECT project_id, name, source_code, sierra, casm FROM program
-			WHERE project_id = $1
-			ORDER BY id ASC;`,
+      WHERE project_id = $1
+      ORDER BY id ASC;`,
       [project_id]
     );
     return await query(q);
@@ -667,8 +667,8 @@ export namespace scarb {
   ): Promise<Dependency<Id.Id>[]> {
     const q = new Query(
       `SELECT project_id, name, version FROM dependency
-			WHERE project_id = $1
-			ORDER BY id ASC;`,
+      WHERE project_id = $1
+      ORDER BY id ASC;`,
       [projectId]
     );
     return await query(q);

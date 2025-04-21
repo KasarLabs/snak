@@ -1,2 +1,5 @@
 # Database
-./packages/database/data/*
+packages/database/data/*
+
+# Dependencies
+pnpm-lock.yaml
