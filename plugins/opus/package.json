@@ -1,6 +1,6 @@
 {
   "name": "@hijox/plugin-opus",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -26,11 +26,11 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@hijox/core": "^0.0.6"
+    "@hijox/core": "^0.0.7"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for interacting with the Opus lending protocol, enabling creation and management of Troves for borrowing.",
-  "gitHead": "79900c4fcd3aec06a8d69d1338b0d355363cf555"
+  "gitHead": "b666c09583709a6f2af4a5f12ee14c8af4248532"
 }

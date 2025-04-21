@@ -1,6 +1,6 @@
 {
   "name": "@hijox/plugin-cairocoder",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -26,8 +26,8 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@hijox/core": "^0.0.6",
-    "@hijox/database": "^0.0.9",
+    "@hijox/core": "^0.0.7",
+    "@hijox/database": "^0.0.10",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"
@@ -35,5 +35,5 @@
   "devDependencies": {
     "@types/axios": "^0.14.4"
   },
-  "gitHead": "79900c4fcd3aec06a8d69d1338b0d355363cf555"
+  "gitHead": "b666c09583709a6f2af4a5f12ee14c8af4248532"
 }

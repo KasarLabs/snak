@@ -2,11 +2,13 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@hijox/database",
   "type": "module",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "files": [
     "dist",
     "LICENSE",
     "package.json",
+    "compose.test.yaml",
+    "compose.yaml",
     "README.md"
   ],
   "private": false,
@@ -27,10 +29,26 @@
     "check-types": "tsc --noEmit"
   },
   "exports": {
-    ".": "./src/database.ts",
-    "./error": "./src/error.ts",
-    "./queries": "./src/queries/index.ts",
-    "./common": "./src/queries/common.ts"
+    ".": "./dist/database.js",
+    "./error": "./dist/error.js",
+    "./queries": "./dist/queries/index.js",
+    "./common": "./dist/queries/common.js"
+  },
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/database.d.ts"
+      ],
+      "error": [
+        "./dist/error.d.ts"
+      ],
+      "queries": [
+        "./dist/queries/index.d.ts"
+      ],
+      "common": [
+        "./dist/queries/common.d.ts"
+      ]
+    }
   },
   "dependencies": {
     "pg": "^8.14.1"
@@ -38,5 +56,5 @@
   "devDependencies": {
     "typescript": "latest"
   },
-  "gitHead": "79900c4fcd3aec06a8d69d1338b0d355363cf555"
+  "gitHead": "b666c09583709a6f2af4a5f12ee14c8af4248532"
 }
