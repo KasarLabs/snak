@@ -742,8 +742,8 @@ export class StarknetAgent implements IAgent {
       return 'Recent actions caused token limit issues. Based on your objectives and the conversation history, prioritize a simple, low-context action now. Proceed without asking for permission.';
     }
 
-    // Standard prompt referencing objectives and history
-    return 'Based on your objectives and the recent conversation history, determine the next best action to take. Proceed without asking for permission.';
+    // Standard fallback prompt referencing objectives and history
+    return 'No specific next step was planned in the previous turn. Based on your objectives and the recent conversation history, determine the next best action to take. Proceed without asking for permission.';
   }
 
   /**
@@ -771,6 +771,7 @@ export class StarknetAgent implements IAgent {
       let iterationCount = 0;
       let consecutiveErrorCount = 0;
       let tokensErrorCount = 0;
+      let lastNextSteps: string | null = null; // Variable to store next steps from previous iteration
 
       // Use an error message queue to avoid repeating the same error message
       const lastErrors = new Set<string>();
@@ -802,11 +803,24 @@ export class StarknetAgent implements IAgent {
             throw new Error('Agent property is missing from executor');
           }
 
-          // Adjust the message based on recent error context
-          const promptMessage = this.getAdaptivePromptMessage(tokensErrorCount);
-
-          // Log model selection if debug is enabled
-          this.logModelSelection(promptMessage);
+          // Determine the prompt message for this iteration
+          let promptMessage: string;
+          if (lastNextSteps) {
+            logger.debug(
+              `Using previous NEXT STEPS as prompt: "${lastNextSteps}"`
+            );
+            // Construct a prompt that focuses on executing the planned action
+            promptMessage = `Execute the following planned action based on the previous turn: "${lastNextSteps}". Ensure it's a single, simple action. If it seems complex, clearly state the simpler first step and outline the rest in the NEXT STEPS section.`;
+            lastNextSteps = null; // Consume the stored next steps for this iteration
+          } else {
+            logger.debug(
+              'No previous NEXT STEPS found, generating adaptive prompt.'
+            );
+            // Fallback to the general adaptive prompt
+            promptMessage = this.getAdaptivePromptMessage(tokensErrorCount);
+            // Only log model selection when using the fallback prompt
+            this.logModelSelection(promptMessage);
+          }
 
           // Prepare invoke options with message handler for pruning
           const agentConfig = { ...this.agentReactExecutor.agentConfig };
@@ -856,10 +870,10 @@ export class StarknetAgent implements IAgent {
           }
 
           logger.debug(
-            `Autonomous iteration ${iterationCount}: invoking agent (tokensErrorCount=${tokensErrorCount})`
+            `Autonomous iteration ${iterationCount}: invoking agent with prompt: "${promptMessage.substring(0, 100)}..." (tokensErrorCount=${tokensErrorCount})`
           );
           const result = await this.agentReactExecutor.agent.invoke(
-            { messages: promptMessage },
+            { messages: promptMessage }, // Use the determined promptMessage
             agentConfig
           );
           logger.debug(
@@ -873,8 +887,8 @@ export class StarknetAgent implements IAgent {
             continue;
           }
 
-          // Process and display agent response
-          await this.processAgentResponse(result);
+          // Process and display agent response, storing the next steps for the *next* iteration
+          lastNextSteps = await this.processAgentResponse(result);
         } catch (loopError) {
           // Handle errors in autonomous execution
           await this.handleAutonomousExecutionError(
@@ -919,8 +933,9 @@ export class StarknetAgent implements IAgent {
 
   /**
    * Processes and displays the agent response
+   * @returns The extracted "NEXT STEPS" content, or null if not found.
    */
-  private async processAgentResponse(result: any): Promise<void> {
+  private async processAgentResponse(result: any): Promise<string | null> {
     // Get and check the content of the last message
     const lastMessage = result.messages[result.messages.length - 1];
     const rawAgentResponse = lastMessage.content; // Get the raw response first
@@ -956,7 +971,7 @@ export class StarknetAgent implements IAgent {
     // --- Splitting Logic ---
     let mainResponse = processedResponseString;
     let nextStepsContent: string | null = null;
-    const nextStepsMarkerRegex = /NEXT STEPS:|NEXT\\s+STEPS:\\s*/i;
+    const nextStepsMarkerRegex = /NEXT STEPS:|NEXT\s+STEPS:\s*/i;
     const parts = processedResponseString.split(nextStepsMarkerRegex);
 
     if (parts.length > 1) {
@@ -990,6 +1005,9 @@ export class StarknetAgent implements IAgent {
 
     // Wait for an adaptive interval based on the complexity of the last response
     await this.waitAdaptiveInterval(estimatedTokens, MAX_RESPONSE_TOKENS);
+
+    // Return the extracted next steps content for the next iteration
+    return nextStepsContent;
   }
 
   /**
