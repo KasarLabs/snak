@@ -2,7 +2,7 @@ import { logger, StarknetAgentInterface } from '@hijox/core';
 ('@hijox/core');
 import { z } from 'zod';
 import { listProjectsSchema } from '../schema/schema.js';
-import { scarb } from '@hijox/database/queries';
+import { scarbQueries } from '@hijox/database/queries';
 
 /**
  * List all projects in the scarb_db database
@@ -17,6 +17,10 @@ export const listProjects = async (
   try {
     // TODO: there probably is a more intelligent way of doing this using
     // cursors. For now this is just a port of the previous database logic.
+    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
+    if (!scarb) {
+      throw new Error('Scarb database not found');
+    }
     const projects = await scarb.selectProjects();
 
     return JSON.stringify({

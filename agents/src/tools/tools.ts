@@ -3,6 +3,8 @@ import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../config/jsonConfig.js';
 import { logger } from '@hijox/core';
 import { metrics } from '@hijox/core';
+import { DatabaseCredentials } from './types/database.js';
+import { Postgres } from '@hijox/database';
 
 /**
  * @interface StarknetAgentInterface
@@ -17,6 +19,7 @@ import { metrics } from '@hijox/core';
  * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
  * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
  */
+
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
     accountPublicKey: string;
@@ -26,11 +29,14 @@ export interface StarknetAgentInterface {
     aiModel: string;
     aiProviderApiKey: string;
   };
+  getDatabaseCredentials: () => DatabaseCredentials;
   getSignature: () => {
     signature: string;
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
+  getDatabase: () => Map<string,Postgres>;
+  setDatabase: (databases: Map<string,Postgres>) => void;
 }
 
 /**

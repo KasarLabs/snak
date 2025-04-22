@@ -5,7 +5,7 @@ import { verifyProgramSchema } from '../schema/schema.js';
 import { setupScarbProject } from '../utils/common.js';
 import { writeJsonToFile } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarb } from '@hijox/database/queries';
+import { scarbQueries } from '@hijox/database/queries';
 
 /**
  * Verify a program
@@ -21,7 +21,11 @@ export const verifyProgram = async (
   try {
     logger.debug('\n Verifying program');
     logger.debug(JSON.stringify(params, null, 2));
-
+    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
+    if (!scarb) {
+      throw new Error('Scarb database not found');
+    }
+    
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);

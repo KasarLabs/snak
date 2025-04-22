@@ -4,7 +4,7 @@ import { proveProject, cleanProject } from '../utils/workspace.js';
 import { proveProgramSchema } from '../schema/schema.js';
 import { executeProgram } from './executeProgram.js';
 import { getProjectDir } from '../utils/preparation.js';
-import { scarb } from '@hijox/database/queries';
+import { scarbQueries } from '@hijox/database/queries';
 import path from 'path';
 import { readFile } from 'fs/promises';
 import { formatCompilationError } from '../utils/utils.js';
@@ -24,7 +24,10 @@ export const proveProgram = async (
   try {
     logger.debug('\n Proving program');
     logger.debug(JSON.stringify(params, null, 2));
-
+    const scarb = agent.getDatabase().get('scarb') as scarbQueries;
+    if (!scarb) {
+      throw new Error('Scarb database not found');
+    }
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);

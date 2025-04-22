@@ -2,7 +2,7 @@ import { logger, StarknetAgentInterface } from '@hijox/core';
 ('@hijox/core');
 import { listContractsSchema } from '../schemas/schema.js';
 import { z } from 'zod';
-import { contract } from '@hijox/database/queries';
+import { contract, contractQueries } from '@hijox/database/queries';
 
 /**
  * List the declared contracts
@@ -13,6 +13,10 @@ export const listDeclaredContracts = async (
   _params: z.infer<typeof listContractsSchema>
 ): Promise<string> => {
   try {
+    const contract = _agent.getDatabase().get('contract') as contractQueries;
+    if (!contract) {
+      throw new Error('Contract database not found');
+    }
     const contracts = await contract.selectContracts();
 
     return JSON.stringify({

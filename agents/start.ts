@@ -14,6 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { logger } from '@hijox/core';
+import { DatabaseCredentials } from 'tools/types/database.js';
 
 // Global deactivation of LangChain logs
 process.env.LANGCHAIN_TRACING = 'false';
@@ -323,6 +324,14 @@ const localRun = async (): Promise<void> => {
       ),
     });
 
+    const database: DatabaseCredentials = {
+      database: process.env.POSTGRES_DB as string,
+      host: process.env.POSTGRES_HOST as string,
+      user: process.env.POSTGRES_USER as string,
+      password: process.env.POSTGRES_PASSWORD as string,
+      port: parseInt(process.env.POSTGRES_PORT as string),
+    };
+
     // Create agent instance with proper configuration
     const agent = new StarknetAgent({
       provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
@@ -332,6 +341,7 @@ const localRun = async (): Promise<void> => {
       aiProvider: process.env.AI_PROVIDER as string,
       aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
       signature: 'key',
+      db_credentials: database,
       agentMode: agentMode,
       agentconfig: agentConfig,
     });

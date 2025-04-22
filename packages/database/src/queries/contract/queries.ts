@@ -1,8 +1,40 @@
-import { query, transaction, Query } from '../../database.js';
+import { DatabaseCredentials } from '../../utils/database.js';
+import { Postgres, Query } from '../../database.js';
 import { Id } from '../common.js';
 
 export namespace contract {
-  export async function init(): Promise<void> {
+  export interface ContractBase {
+    class_hash: string;
+    declare_tx_hash: string;
+  }
+  export interface ContractWithId extends ContractBase {
+    id: number;
+  }
+
+  export interface DeploymentBase {
+    contract_address: string;
+    deploy_tx_hash: string;
+  }
+  export interface DeploymentWithId extends DeploymentBase {
+    id: number;
+    contract_id: number;
+  }
+  export type Deployment<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? DeploymentWithId
+    : DeploymentBase;
+
+  export type Contract<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? ContractWithId
+    : ContractBase;
+}
+
+export class contractQueries extends Postgres {
+
+  constructor(credentials: DatabaseCredentials) {
+    super(credentials);
+  }
+
+  public async init(): Promise<void> {
     const t = [
       new Query(
         `CREATE TABLE IF NOT EXISTS contract(
@@ -22,21 +54,10 @@ export namespace contract {
 				);`
       ),
     ];
-    await transaction(t);
+    await this.transaction(t);
   }
 
-  interface ContractBase {
-    class_hash: string;
-    declare_tx_hash: string;
-  }
-  interface ContractWithId extends ContractBase {
-    id: number;
-  }
-  export type Contract<HasId extends Id = Id.NoId> = HasId extends Id.Id
-    ? ContractWithId
-    : ContractBase;
-
-  export async function insertContract(contract: Contract): Promise<void> {
+  public async insertContract(contract: contract.Contract): Promise<void> {
     const q = new Query(
       `INSERT INTO contract(
 				class_hash,
@@ -47,11 +68,11 @@ export namespace contract {
 			)`,
       [contract.class_hash, contract.declare_tx_hash]
     );
-    await query(q);
+    await this.query(q);
   }
-  export async function selectContract(
+  public async selectContract(
     classHash: string
-  ): Promise<Contract<Id.Id> | undefined> {
+  ): Promise<contract.Contract<Id.Id> | undefined> {
     const q = new Query(
       `SELECT 
 				id, 
@@ -63,10 +84,10 @@ export namespace contract {
 				class_hash = $1;`,
       [classHash]
     );
-    const q_res = await query<Contract<Id.Id>>(q);
+    const q_res = await this.query<contract.Contract<Id.Id>>(q);
     return q_res ? q_res[0] : undefined;
   }
-  export async function selectContracts(): Promise<Contract<Id.Id>[]> {
+  public async selectContracts(): Promise<contract.Contract<Id.Id>[]> {
     const q = new Query(
       `SELECT
 				id,
@@ -75,29 +96,17 @@ export namespace contract {
 			FROM
 				contract;`
     );
-    return await query(q);
+    return await this.query(q);
   }
-  export async function deleteContract(classHash: string): Promise<void> {
+  public async deleteContract(classHash: string): Promise<void> {
     const q = new Query(`DELETE FROM contract WHERE class_hash = $1;`, [
       classHash,
     ]);
-    await query(q);
+    await this.query(q);
   }
 
-  interface DeploymentBase {
-    contract_address: string;
-    deploy_tx_hash: string;
-  }
-  interface DeploymentWithId extends DeploymentBase {
-    id: number;
-    contract_id: number;
-  }
-  export type Deployment<HasId extends Id = Id.NoId> = HasId extends Id.Id
-    ? DeploymentWithId
-    : DeploymentBase;
-
-  export async function insertDeployment(
-    deployment: Deployment,
+  public async insertDeployment(
+    deployment: contract.Deployment,
     classHash: string
   ): Promise<void> {
     const q = new Query(
@@ -112,11 +121,11 @@ export namespace contract {
 			);`,
       [classHash, deployment.contract_address, deployment.deploy_tx_hash]
     );
-    await query(q);
+    await this.query(q);
   }
-  export async function selectDeployment(
+  public async selectDeployment(
     contractAddress: string
-  ): Promise<Deployment<Id.Id> | undefined> {
+  ): Promise<contract.Deployment<Id.Id> | undefined> {
     const q = new Query(
       `SELECT 
 				id,
@@ -129,12 +138,12 @@ export namespace contract {
 				contract_address = $1`,
       [contractAddress]
     );
-    const q_res = await query<Deployment<Id.Id>>(q);
+    const q_res = await this.query<contract.Deployment<Id.Id>>(q);
     return q_res ? q_res[0] : undefined;
   }
-  export async function selectDeployments(
+  public async selectDeployments(
     classHash: string
-  ): Promise<Deployment<Id.Id>[]> {
+  ): Promise<contract.Deployment<Id.Id>[]> {
     const q = new Query(
       `SELECT
 				id,
@@ -148,6 +157,6 @@ export namespace contract {
 			`,
       [classHash]
     );
-    return await query(q);
+    return await this.query(q);
   }
 }

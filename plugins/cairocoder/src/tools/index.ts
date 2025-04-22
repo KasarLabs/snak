@@ -20,13 +20,19 @@ import {
 } from '../actions/deleteItemProject.js';
 import { addDependencyAction, addProgramAction } from '../actions/addItem.js';
 import { listProjects } from '../actions/listProjects.js';
-import { scarb } from '@hijox/database/queries';
+import { scarbQueries, Postgres } from '@hijox/database/queries';
 
 export const initializeTools = async (
   _agent: StarknetAgentInterface
 ): Promise<void> => {
   try {
-    await scarb.init();
+    const scarb = new scarbQueries(_agent.getDatabaseCredentials());
+    const db = _agent.getDatabase();
+    if (db.has('scarb')) {
+      throw new Error('Scarb database already exists');
+    }
+    db.set('scarb', scarb);
+    _agent.setDatabase(db);
   } catch (error) {
     console.error('Error initializing database:', error);
   }

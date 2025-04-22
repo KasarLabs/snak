@@ -5,7 +5,7 @@ import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { executeProgramSchema } from '../schema/schema.js';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarb } from '@hijox/database/queries';
+import { scarbQueries } from '@hijox/database/queries';
 import path from 'path';
 import { readFileSync } from 'fs';
 

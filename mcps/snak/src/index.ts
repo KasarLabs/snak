@@ -29,6 +29,14 @@ server.tool('ping', 'Check if the server is running', async () => {
 });
 
 export const RegisterToolInServer = async (allowed_tools: string[]) => {
+  const database = {
+    database: process.env.POSTGRES_DB as string,
+    host: process.env.POSTGRES_HOST as string,
+    user: process.env.POSTGRES_USER as string,
+    password: process.env.POSTGRES_PASSWORD as string,
+    port: parseInt(process.env.POSTGRES_PORT as string),
+  };
+
   const agent = new StarknetAgent({
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
@@ -37,6 +45,8 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     aiProvider: process.env.AI_PROVIDER as string,
     aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
     signature: 'key',
+    db_credentials: database,
+
     agentMode: 'agent',
     agentconfig: undefined,
   });

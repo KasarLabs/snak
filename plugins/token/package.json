@@ -27,7 +27,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@hijox/core": "^0.0.7"
+    "@hijox/core": "workspace:*"
   },
   "keywords": [
     "starknet",

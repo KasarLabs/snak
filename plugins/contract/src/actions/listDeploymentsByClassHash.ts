@@ -2,7 +2,7 @@ import { logger, StarknetAgentInterface } from '@hijox/core';
 ('@hijox/core');
 import { z } from 'zod';
 import { listDeploymentsByClassHashSchema } from '../schemas/schema.js';
-import { contract } from '@hijox/database/queries';
+import { contract, contractQueries } from '@hijox/database/queries';
 
 /**
  * List the deployments by class hash
@@ -15,6 +15,11 @@ export const listDeploymentsByClassHash = async (
   params: z.infer<typeof listDeploymentsByClassHashSchema>
 ): Promise<string> => {
   try {
+    const contract = _agent.getDatabase().get('contract') as contractQueries;
+    if (!contract) {
+      throw new Error('Contract database not found');
+    }
+
     const c = await contract.selectContract(params.classHash);
     if (!c) {
       return JSON.stringify({

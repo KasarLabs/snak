@@ -12,6 +12,8 @@ import {
   truncateToTokenLimit,
   estimateTokens,
 } from '../../token/tokenTracking.js';
+import { DatabaseCredentials } from 'tools/types/database.js';
+import { Postgres } from '@hijox/database';
 
 /**
  * Memory configuration for the agent
@@ -34,6 +36,7 @@ export interface StarknetAgentConfig {
   accountPrivateKey: string;
   signature: string;
   agentMode: string;
+  db_credentials: DatabaseCredentials;
   agentconfig?: JsonConfig;
   memory?: MemoryConfig;
 }
@@ -74,11 +77,13 @@ export class StarknetAgent implements IAgent {
   };
   private originalLoggerFunctions: Record<string, any> = {};
   private memory: MemoryConfig;
+  private database: Map<string, Postgres> = new Map<string, Postgres>();
+
+  private readonly db_credentials: DatabaseCredentials;
 
   public readonly signature: string;
   public readonly agentMode: string;
   public readonly agentconfig?: JsonConfig;
-
   /**
    * Creates a new StarknetAgent instance
    * @param config - Configuration for the StarknetAgent
@@ -107,7 +112,7 @@ export class StarknetAgent implements IAgent {
       this.aiProviderApiKey = config.aiProviderApiKey;
       this.signature = config.signature;
       this.agentMode = config.agentMode;
-
+      this.db_credentials = config.db_credentials;
       // Set the current mode - ensure it's properly set for autonomous mode
       this.currentMode =
         config.agentMode === 'auto' ||
@@ -263,6 +268,18 @@ export class StarknetAgent implements IAgent {
       aiModel: this.aiModel,
       aiProviderApiKey: this.aiProviderApiKey,
     };
+  }
+
+  public getDatabaseCredentials() {
+    return this.db_credentials;
+  }
+
+  public getDatabase() {
+    return this.database;
+  }
+
+  public setDatabase(databases: Map<string, Postgres>) {
+    this.database = databases;
   }
 
   /**

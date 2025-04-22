@@ -37,8 +37,8 @@
   "license": "ISC",
   "description": "Starknet Agent Kit plugin for building and managing Cairo projects using the Scarb package manager.",
   "dependencies": {
-    "@hijox/core": "^0.0.7",
-    "@hijox/database": "^0.0.10",
+    "@hijox/core": "workspace:*",
+    "@hijox/database": "workspace:*",
     "find-up": "^5.0.0",
     "fs-extra": "^11.3.0",
     "jsdom": "^26.0.0",

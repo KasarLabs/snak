@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@avnu/avnu-sdk": "^3.0.0",
-    "@hijox/core": "^0.0.7"
+    "@hijox/core": "workspace:*"
   },
   "keywords": [],
   "author": "",
