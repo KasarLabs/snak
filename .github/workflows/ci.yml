@@ -43,7 +43,6 @@ jobs:
 
       - name: Build packages in order
         run: |
-           pnpm --filter @hijox/database build
            pnpm --filter @hijox/core build
            pnpm --filter @hijox/agents build
            pnpm --filter='"@hijox/plugin-*"' build || echo "Plugin build skipped"
