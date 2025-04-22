@@ -22,6 +22,7 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ModelSelectionAgent } from './modelSelectionAgent.js';
 
 /**
  * Memory configuration for the agent
@@ -40,9 +41,9 @@ export interface StarknetAgentConfig {
   provider: RpcProvider;
   accountPublicKey: string;
   accountPrivateKey: string;
-  aiModel: string;
-  aiProvider: string;
-  aiProviderApiKey: string;
+  aiModel?: string; // Optional for backward compatibility
+  aiProvider?: string; // Optional for backward compatibility
+  aiProviderApiKey?: string; // Optional for backward compatibility
   signature: string;
   agentMode: string;
   agentconfig?: JsonConfig;
@@ -56,6 +57,7 @@ export interface LoggingOptions {
   langchainVerbose?: boolean;
   tokenLogging?: boolean;
   disabled?: boolean;
+  modelSelectionDebug?: boolean;
 }
 
 /**
@@ -77,12 +79,14 @@ export class StarknetAgent implements IAgent {
   private modelsConfig!: ModelsConfig;
   private apiKeys: ApiKeys = {};
   private models: Record<string, BaseChatModel> = {};
+  private modelSelector: ModelSelectionAgent | null = null;
   private agentReactExecutor: any;
   private currentMode: string;
   private loggingOptions: LoggingOptions = {
     langchainVerbose: true,
     tokenLogging: true,
     disabled: false,
+    modelSelectionDebug: false,
   };
   private originalLoggerFunctions: Record<string, any> = {};
   private memory: MemoryConfig;
@@ -98,13 +102,16 @@ export class StarknetAgent implements IAgent {
   constructor(private readonly config: StarknetAgentConfig) {
     // Check environment variables for logging configuration
     const disableLogging = process.env.DISABLE_LOGGING === 'true';
-    const enableDebugLogging = process.env.DEBUG_LOGGING === 'true';
+    const enableDebugLogging =
+      process.env.DEBUG_LOGGING === 'true' ||
+      process.env.LOG_LEVEL === 'debug' ||
+      process.env.NODE_ENV === 'development';
 
     if (disableLogging) {
       this.disableLogging();
     } else if (enableDebugLogging) {
-      logger.debug('Debug logging enabled via environment variables');
       this.loggingOptions.disabled = false;
+      this.loggingOptions.modelSelectionDebug = true;
     } else {
       this.disableLogging();
     }
@@ -156,6 +163,8 @@ export class StarknetAgent implements IAgent {
       logger.info('Initializing StarknetAgent...');
       this.modelsConfig = await loadModelsConfig(this.config.modelsConfigPath);
       this.initializeModels();
+      // Initialize model selector after models are available
+      this.initializeModelSelector();
       // Perform validation AFTER models are initialized
       this.validateConfigPostInit();
       logger.info('StarknetAgent initialized successfully.');
@@ -166,16 +175,107 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
+   * Initializes the ModelSelectionAgent for intelligent model routing
+   */
+  private initializeModelSelector(): void {
+    logger.debug('Initializing ModelSelectionAgent...');
+    if (Object.keys(this.models).length === 0) {
+      logger.error(
+        'Cannot initialize ModelSelectionAgent: no models available'
+      );
+      return;
+    }
+
+    // Check if metaSelection is enabled in the agent config
+    // DEBUGGING - Force enable meta-selection to test functionality
+    const metaSelectionFromConfig =
+      this.agentconfig?.mode?.metaSelection === true;
+    const useMetaSelection = true; // Force true for debugging
+
+    // Add detailed debugging info
+    logger.debug(`Agent config: ${JSON.stringify(this.agentconfig, null, 2)}`);
+    logger.debug(
+      `Mode config from agent.json: ${JSON.stringify(this.agentconfig?.mode)}`
+    );
+    logger.debug(
+      `Meta-selection from config: ${metaSelectionFromConfig} (Forced to ${useMetaSelection} for debugging)`
+    );
+
+    this.modelSelector = new ModelSelectionAgent(this.models, {
+      debugMode: true, // Force debug mode on
+      useMetaSelection: useMetaSelection,
+    });
+
+    // Explicitly verify what was passed to ModelSelectionAgent
+    logger.debug(
+      `ModelSelector options passed: debugMode=true, useMetaSelection=${useMetaSelection}`
+    );
+
+    logger.debug(
+      `ModelSelectionAgent initialized successfully (Meta selection: ${useMetaSelection ? 'enabled' : 'disabled'})`
+    );
+  }
+
+  /**
+   * Gets the appropriate model for a task based on messages
+   * @param messages - The messages to analyze for model selection
+   * @param forceModelType - Optional model type to force using
+   * @returns The selected model
+   */
+  public async getModelForTask(
+    messages: any[],
+    forceModelType?: string
+  ): Promise<BaseChatModel> {
+    if (!this.modelSelector) {
+      logger.warn(
+        'ModelSelectionAgent not initialized, defaulting to smart model'
+      );
+      return this.models.smart || Object.values(this.models)[0];
+    }
+
+    if (forceModelType && this.models[forceModelType]) {
+      if (this.loggingOptions.modelSelectionDebug) {
+        logger.debug(`Forced model selection: ${forceModelType}`);
+      }
+      return this.models[forceModelType];
+    }
+
+    return this.modelSelector.getModelForTask(messages);
+  }
+
+  /**
+   * Invokes an AI model with the appropriate selection logic
+   * @param messages - The messages to process
+   * @param forceModelType - Optional model type to force using
+   * @returns The model response
+   */
+  public async invokeModel(
+    messages: any[],
+    forceModelType?: string
+  ): Promise<any> {
+    if (!this.modelSelector) {
+      logger.warn(
+        'ModelSelectionAgent not initialized, defaulting to smart model'
+      );
+      return this.models.smart.invoke(messages);
+    }
+
+    return this.modelSelector.invokeModel(messages, forceModelType);
+  }
+
+  /**
    * Disables all logging by replacing logger methods with no-ops
    */
   private disableLogging(): void {
-    // Store the original methods in case we want to restore them later
-    this.originalLoggerFunctions = {
-      info: logger.info,
-      debug: logger.debug,
-      warn: logger.warn,
-      error: logger.error,
-    };
+    // Store the original methods if we haven't already
+    if (!this.originalLoggerFunctions.info) {
+      this.originalLoggerFunctions = {
+        info: logger.info,
+        debug: logger.debug,
+        warn: logger.warn,
+        error: logger.error,
+      };
+    }
 
     // Replace with no-op functions that respect the logger method signature
     const noop = (message: any, ...meta: any[]): any => logger;
@@ -185,20 +285,28 @@ export class StarknetAgent implements IAgent {
     logger.error = noop;
 
     this.loggingOptions.disabled = true;
+    console.log('Logging has been disabled');
   }
 
   /**
    * Restores original logging functions
    */
   public enableLogging(): void {
-    if (!this.originalLoggerFunctions.info) return;
+    // Only restore if we have the original functions saved
+    if (!this.originalLoggerFunctions.info) {
+      console.log('No original logger functions to restore');
+      return;
+    }
 
+    // Restore original functions
     logger.info = this.originalLoggerFunctions.info;
     logger.debug = this.originalLoggerFunctions.debug;
     logger.warn = this.originalLoggerFunctions.warn;
     logger.error = this.originalLoggerFunctions.error;
 
     this.loggingOptions.disabled = false;
+    console.log('Logging has been enabled');
+    logger.debug('Logger functions restored');
   }
 
   /**
@@ -337,6 +445,8 @@ export class StarknetAgent implements IAgent {
         aiProvider: smartModelConfig.provider,
         aiProviderApiKey: smartApiKey,
         langchainVerbose: this.loggingOptions.langchainVerbose,
+        // Add ModelSelectionAgent reference for agent creation
+        modelSelector: this.modelSelector,
       };
 
       if (this.currentMode === 'auto') {
@@ -494,6 +604,15 @@ export class StarknetAgent implements IAgent {
         throw new Error('Agent executor is not initialized');
       }
 
+      // Log model selection decision if ModelSelectionAgent is available
+      if (this.modelSelector && this.loggingOptions.modelSelectionDebug) {
+        const humanMessage = new HumanMessage(input);
+        const modelType = this.modelSelector.selectModelForMessages([
+          humanMessage,
+        ]);
+        logger.debug(`Model Selection for request: ${modelType}`);
+      }
+
       const humanMessage = new HumanMessage(input);
       const invokeOptions: any = {
         configurable: { thread_id: this.agentconfig?.chat_id as string },
@@ -598,6 +717,20 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
+   * Logs model selection information for a message if debug is enabled
+   * @param message - The message to analyze
+   */
+  private logModelSelection(message: string): void {
+    if (!this.modelSelector || !this.loggingOptions.modelSelectionDebug) {
+      return;
+    }
+
+    const dummyMessage = new HumanMessage(message);
+    const modelType = this.modelSelector.selectModelForMessages([dummyMessage]);
+    logger.debug(`Model Selection for autonomous message: ${modelType}`);
+  }
+
+  /**
    * Executes in autonomous mode continuously
    * @returns Result if execution fails
    */
@@ -641,6 +774,9 @@ export class StarknetAgent implements IAgent {
 
           // Adjust the message based on recent error context
           const promptMessage = this.getAdaptivePromptMessage(tokensErrorCount);
+
+          // Log model selection if debug is enabled
+          this.logModelSelection(promptMessage);
 
           // Prepare invoke options with message handler for pruning
           const agentConfig = { ...this.agentReactExecutor.agentConfig };
@@ -1122,6 +1258,7 @@ export class StarknetAgent implements IAgent {
    * @param options - Logging options to set
    */
   public setLoggingOptions(options: LoggingOptions): void {
+    // Apply options
     this.loggingOptions = { ...this.loggingOptions, ...options };
 
     if (options.disabled === true && !this.loggingOptions.disabled) {
@@ -1129,6 +1266,20 @@ export class StarknetAgent implements IAgent {
       return;
     } else if (options.disabled === false && this.loggingOptions.disabled) {
       this.enableLogging();
+    }
+
+    // Update model selector debug mode if it exists and the option has changed
+    if (this.modelSelector && options.modelSelectionDebug !== undefined) {
+      // Preserve the metaSelection setting from agent config
+      const useMetaSelection = this.agentconfig?.mode?.metaSelection === true;
+
+      this.modelSelector = new ModelSelectionAgent(this.models, {
+        debugMode: this.loggingOptions.modelSelectionDebug,
+        useMetaSelection: useMetaSelection,
+      });
+      logger.debug(
+        `Updated ModelSelectionAgent: debug mode=${this.loggingOptions.modelSelectionDebug}, meta selection=${useMetaSelection}`
+      );
     }
 
     // Only update LLM verbosity settings if we have an executor and logging is enabled

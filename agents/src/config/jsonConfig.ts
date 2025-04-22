@@ -38,6 +38,7 @@ export interface ModeConfig {
   interactive: boolean;
   autonomous: boolean;
   recursionLimit: number;
+  metaSelection?: boolean;
 }
 
 /**

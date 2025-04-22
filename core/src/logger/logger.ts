@@ -21,12 +21,21 @@ winston.addColors(colors);
 const level = () => {
   // Check directly for LOG_LEVEL first
   if (process.env.LOG_LEVEL) {
-    return process.env.LOG_LEVEL.toLowerCase();
+    const logLevel = process.env.LOG_LEVEL.toLowerCase();
+    // If debug level is set, automatically enable model debug too
+    if (logLevel === 'debug') {
+      process.env.DEBUG_LOGGING = 'true';
+    }
+    return logLevel;
   }
 
   // Fall back to NODE_ENV based logic
   const env = process.env.NODE_ENV || 'production';
-  return env === 'development' ? 'debug' : 'info';
+  if (env === 'development') {
+    process.env.DEBUG_LOGGING = 'true';
+    return 'debug';
+  }
+  return 'info';
 };
 
 const format = winston.format.combine(

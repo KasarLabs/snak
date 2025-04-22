@@ -155,11 +155,26 @@ const wrapText = (text: string, maxWidth: number): string[] => {
 };
 
 /**
- * Reloads environment variables from .env file
+ * Reloads environment variables from .env file while preserving command-line environment variables
  */
 function reloadEnvVars(): Record<string, string> | undefined {
+  // Save debug-related environment variables
+  const debugVars = {
+    NODE_ENV: process.env.NODE_ENV,
+    LOG_LEVEL: process.env.LOG_LEVEL,
+    DEBUG_LOGGING: process.env.DEBUG_LOGGING,
+    DISABLE_LOGGING: process.env.DISABLE_LOGGING,
+  };
+
+  // Clear non-essential variables
   Object.keys(process.env).forEach((key) => {
-    delete process.env[key];
+    if (
+      !['NODE_ENV', 'LOG_LEVEL', 'DEBUG_LOGGING', 'DISABLE_LOGGING'].includes(
+        key
+      )
+    ) {
+      delete process.env[key];
+    }
   });
 
   // Correctly determine the project root relative to the script
@@ -170,13 +185,21 @@ function reloadEnvVars(): Record<string, string> | undefined {
 
   const result = config({
     path: envPath,
-    override: true,
+    override: false, // Don't override existing environment variables
   });
 
   if (result.error) {
     logger.error(`Failed to reload .env file from ${envPath}`, result.error);
     throw new Error('Failed to reload .env file');
   }
+
+  // Re-apply debug variables (command-line takes precedence)
+  Object.entries(debugVars).forEach(([key, value]) => {
+    if (value !== undefined) {
+      process.env[key] = value;
+      logger.debug(`Preserved environment variable: ${key}=${value}`);
+    }
+  });
 
   logger.debug('.env file reloaded successfully.');
   return result.parsed;
@@ -344,7 +367,7 @@ const localRun = async (): Promise<void> => {
     };
 
     // Display agent information
-    const agentName = json_config.name || 'Unknown';
+    const agentName = json_config?.name || 'Unknown';
     const configPath = path.basename(agentPath);
 
     spinner.success({
@@ -355,10 +378,19 @@ const localRun = async (): Promise<void> => {
 
     // Instantiate & Initialize Agent
     agent = new StarknetAgent(agentConfig);
+
+    // Determine logging configuration from environment
+    const enableDebugLogging =
+      process.env.DEBUG_LOGGING === 'true' ||
+      process.env.LOG_LEVEL === 'debug' ||
+      process.env.NODE_ENV === 'development';
+    const disableLogging = process.env.DISABLE_LOGGING === 'true';
+
     agent.setLoggingOptions({
       langchainVerbose: !silentLlm,
       tokenLogging: !silentLlm,
-      disabled: process.env.DISABLE_LOGGING === 'true' || false,
+      disabled: disableLogging,
+      modelSelectionDebug: enableDebugLogging,
     });
     await agent.init();
     await agent.createAgentReactExecutor();
@@ -419,7 +451,7 @@ const localRun = async (): Promise<void> => {
 
       try {
         // Verify autonomous mode is enabled in the configuration
-        if (!json_config.mode.autonomous) {
+        if (!json_config?.mode?.autonomous) {
           throw new Error('Autonomous mode is disabled in agent configuration');
         }
 

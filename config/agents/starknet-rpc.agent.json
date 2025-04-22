@@ -10,7 +10,8 @@
   "mode": {
     "interactive": true,
     "autonomous": false,
-    "recursionLimit": 15
+    "recursionLimit": 15,
+    "metaSelection": true
   },
   "memory": {
     "enabled": true,

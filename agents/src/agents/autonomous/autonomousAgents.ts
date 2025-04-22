@@ -16,13 +16,41 @@ import {
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
 import { configureModelWithTracking } from '../../token/tokenTracking.js';
+import { BaseMessage } from '@langchain/core/messages';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
 ) => {
-  // Initialize model based on provider
+  // Use model selector if available, otherwise initialize model based on provider
   const initializeModel = () => {
+    // Check if we should use the modelSelector
+    if (aiConfig.modelSelector) {
+      logger.debug('Using ModelSelectionAgent for autonomous agent');
+      // Return a proxy model that will use the ModelSelectionAgent for invocation
+      return {
+        invoke: async (messages: BaseMessage[], options?: any) => {
+          const startTime = Date.now();
+          // For autonomous agent, we typically want the smartest model by default
+          // but allow the modelSelector to choose based on the content
+          const result = await aiConfig.modelSelector.invokeModel(messages);
+          const endTime = Date.now();
+          logger.debug(
+            `Model invocation completed in ${endTime - startTime}ms`
+          );
+          return result;
+        },
+        // Add basic properties needed for LangChain
+        _llmType: () => 'modelSelector',
+        _modelType: () => 'modelSelector',
+        // Pass-through for any undefined methods/properties
+        get: (target: any, prop: string) => {
+          return target[prop];
+        },
+      };
+    }
+
+    // Default initialization if no modelSelector
     const verbose = aiConfig.langchainVerbose === true;
 
     switch (aiConfig.aiProvider) {
