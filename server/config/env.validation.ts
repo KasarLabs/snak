@@ -70,7 +70,9 @@ const AI_PROVIDER_MODELS = {
 };
 
 export const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
   SERVER_PORT: z.coerce.number().default(3000),
   SERVER_API_KEY: z.string(),
 

@@ -13,7 +13,6 @@ export async function loadModelsConfig(
   configPath: string
 ): Promise<ModelsConfig> {
   const absolutePath = path.resolve(configPath);
-  console.log(`Loading models configuration from: ${absolutePath}`);
 
   try {
     const fileContent = await fs.readFile(absolutePath, 'utf-8');
@@ -26,9 +25,6 @@ export async function loadModelsConfig(
       );
     }
 
-    // Further validation could be added here to check provider/model_name formats if needed.
-
-    console.log('Models configuration loaded and validated successfully.');
     return config as ModelsConfig;
   } catch (error: any) {
     console.error(

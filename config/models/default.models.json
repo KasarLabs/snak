@@ -6,7 +6,7 @@
   },
   "smart": {
     "provider": "anthropic",
-    "model_name": "claude-3-sonnet-20240229",
+    "model_name": "claude-3-5-sonnet-latest",
     "description": "Optimized for complex reasoning."
   },
   "cheap": {
