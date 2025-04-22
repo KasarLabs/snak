@@ -24,7 +24,10 @@ export const executeProgram = async (
   try {
     logger.debug('\n Executing program');
     logger.debug(JSON.stringify(params, null, 2));
-
+    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
+    if (!scarb) {
+      throw new Error('Scarb database not found');
+    }
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);

@@ -7,7 +7,7 @@ import { basename } from 'path';
 import { readFile } from 'fs/promises';
 import { getAllPackagesList } from '../utils/dependencies.js';
 import { resolveContractPath } from '../utils/path.js';
-import {scarb} from '@hijox/database/queries';
+import { scarb } from '@hijox/database/queries';
 /**
  * Register a new project in the database
  *

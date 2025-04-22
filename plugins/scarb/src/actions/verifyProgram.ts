@@ -25,7 +25,7 @@ export const verifyProgram = async (
     if (!scarb) {
       throw new Error('Scarb database not found');
     }
-    
+
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);

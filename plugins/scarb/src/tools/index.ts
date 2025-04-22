@@ -22,10 +22,10 @@ export const registerTools = async (
   } catch (error) {
     const scarb = new scarbQueries(agent.getDatabaseCredentials());
     const db = agent.getDatabase();
-    if (db.has("scarb")) {
-      throw new Error("Scarb database already exists");
+    if (db.has('scarb')) {
+      throw new Error('Scarb database already exists');
     }
-    db.set("scarb", scarb);
+    db.set('scarb', scarb);
     agent.setDatabase(db);
     logger.error('Failed to initialize scarb db: ', error);
     throw error;

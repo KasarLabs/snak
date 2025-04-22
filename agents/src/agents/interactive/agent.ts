@@ -207,7 +207,6 @@ export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
 ) => {
-
   const _memory = new memoryQueries(starknetAgent.getDatabaseCredentials());
   const embeddings = new CustomHuggingFaceEmbeddings({
     model: 'Xenova/all-MiniLM-L6-v2',

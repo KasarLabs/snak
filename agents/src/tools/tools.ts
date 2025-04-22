@@ -35,8 +35,8 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
-  getDatabase: () => Map<string,Postgres>;
-  setDatabase: (databases: Map<string,Postgres>) => void;
+  getDatabase: () => Map<string, Postgres>;
+  setDatabase: (databases: Map<string, Postgres>) => void;
 }
 
 /**
