@@ -118,7 +118,7 @@ export namespace dummy {
           name text,
           surname text
         ) RETURNS integer AS $$
-          INSERT INTO user (
+          INSERT INTO users (
             name,
             surname
           ) VALUES (
@@ -140,12 +140,12 @@ export namespace dummy {
   // and should not treated as null.
   interface UserBase {
     name: string;
-    surname: number;
+    surname: string;
   }
   interface UserWithId extends UserBase {
     id: number;
   }
-  export type User<HasId extends Id = Id.NoId> = hasId extends Id.Id
+  export type User<HasId extends Id = Id.NoId> = HasId extends Id.Id
     ? UserWithId
     : UserBase;
 
@@ -153,7 +153,7 @@ export namespace dummy {
   // it into an SQL function.
   export async function insertUser(user: User): Promise<number | undefined> {
     const q = new Query(`SELECT * FROM insert_user($1, $2)`, [
-      user.id,
+      user.name,
       user.surname,
     ]);
     return await query(q);
@@ -258,7 +258,7 @@ modules.
 > shut down unexpectedly for only a portion of these writes to take effect, putting the database
 > into an invalid state! Use transactions!
 
-### Indempotence
+### Idempotence
 
 > _"Idempotence is the property of certain operations in mathematics and computer science whereby
 > they can be applied multiple times without changing the result beyond the initial application."_
@@ -266,7 +266,7 @@ modules.
 Because of the way in which the server is set up, some functions such as `init` might and _will_ be
 called multiple times. It is crucial that these functions do not cause errors when this is the case.
 In you `init` logic, you should make sure to create tables only if they do not exist already. The
-same goes for functions or extensions. Make sure to add indempotence tests as part of your module's
+same goes for functions or extensions. Make sure to add idempotence tests as part of your module's
 `query.spec.ts`.
 
 ### Normal Forms
