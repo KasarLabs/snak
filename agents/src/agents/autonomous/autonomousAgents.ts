@@ -27,8 +27,17 @@ export const createAutonomousAgent = async (
     // Check if we should use the modelSelector
     if (aiConfig.modelSelector) {
       logger.debug('Using ModelSelectionAgent for autonomous agent');
-      // Return a proxy model that will use the ModelSelectionAgent for invocation
-      return {
+
+      // Create a base model to extend - this will provide the necessary methods and properties
+      // that LangChain expects for the React agent
+      const baseModel = new ChatOpenAI({
+        modelName: 'placeholder-model',
+        temperature: 0,
+      });
+
+      // Create a proxy that wraps the baseModel but redirects invoke calls to modelSelector
+      const modelProxy = {
+        ...baseModel,
         invoke: async (messages: BaseMessage[], options?: any) => {
           const startTime = Date.now();
           // For autonomous agent, we typically want the smartest model by default
@@ -40,14 +49,15 @@ export const createAutonomousAgent = async (
           );
           return result;
         },
-        // Add basic properties needed for LangChain
-        _llmType: () => 'modelSelector',
-        _modelType: () => 'modelSelector',
-        // Pass-through for any undefined methods/properties
-        get: (target: any, prop: string) => {
-          return target[prop];
+        // Ensure bindTools works properly
+        bindTools: function (tools: any) {
+          logger.debug('ModelSelectionAgent proxy bindTools called');
+          // Return this to maintain chainability
+          return this;
         },
       };
+
+      return modelProxy;
     }
 
     // Default initialization if no modelSelector

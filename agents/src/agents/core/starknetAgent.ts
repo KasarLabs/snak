@@ -709,11 +709,12 @@ export class StarknetAgent implements IAgent {
    */
   private getAdaptivePromptMessage(tokensErrorCount: number): string {
     if (tokensErrorCount > 0) {
-      // If recent token errors, specifically request simpler actions
-      return 'Due to recent token limit issues, choose a very simple action now. Prefer actions that require minimal context and processing.';
+      // If recent token errors, specifically request simpler actions and reference history/objectives
+      return 'Recent actions caused token limit issues. Based on your objectives and the conversation history, prioritize a simple, low-context action now. Proceed without asking for permission.';
     }
 
-    return 'Based on my objectives, You should take action now without seeking permission. Choose what to do.';
+    // Standard prompt referencing objectives and history
+    return 'Based on your objectives and the recent conversation history, determine the next best action to take. Proceed without asking for permission.';
   }
 
   /**
