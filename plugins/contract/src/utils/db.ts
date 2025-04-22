@@ -43,6 +43,10 @@ export const retrieveCompilationFileByName = async (
   contractName: string
 ): Promise<{ sierra: JSON; casm: JSON }> => {
   try {
+    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
+    if (!scarb) {
+      throw new Error('Scarb database not found');
+    }
     const project = await scarb.selectProject(projectName);
     if (!project) {
       throw new Error(`Project with name "${projectName}" not found`);

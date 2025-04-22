@@ -14,7 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { logger } from '@hijox/core';
-import { DatabaseCredentials } from 'tools/types/database.js';
+import { DatabaseCredentials } from './src/tools/types/database.js';
 
 // Global deactivation of LangChain logs
 process.env.LANGCHAIN_TRACING = 'false';

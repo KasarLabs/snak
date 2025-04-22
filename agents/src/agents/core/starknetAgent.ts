@@ -12,7 +12,7 @@ import {
   truncateToTokenLimit,
   estimateTokens,
 } from '../../token/tokenTracking.js';
-import { DatabaseCredentials } from 'tools/types/database.js';
+import { DatabaseCredentials } from '../../tools/types/database.js';
 import { Postgres } from '@hijox/database';
 
 /**
