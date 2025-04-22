@@ -2,7 +2,6 @@ import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
 import { StarknetAgentInterface, JsonConfig } from '@hijox/core';
 import { SystemMessage } from '@langchain/core/messages';
-import { Postgres } from '@hijox/database/queries';
 setupTestEnvironment();
 
 export const createMockStarknetAgent = (): StarknetAgentInterface => {
@@ -47,8 +46,8 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     getProvider: () => provider,
     getAgentConfig: () => json_config,
     getDatabaseCredentials: () => database,
-    getDatabase: () => new Map<string, Postgres>(),
-    setDatabase: (databases: Map<string, Postgres>) => {
+    getDatabase: () => new Map<string, any>(),
+    setDatabase: (databases: Map<string, any>) => {
       console.log('Database set:', databases);
     },
   };
@@ -96,8 +95,8 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     getProvider: () => provider,
     getAgentConfig: () => json_config,
     getDatabaseCredentials: () => database,
-    getDatabase: () => new Map<string, Postgres>(),
-    setDatabase: (databases: Map<string, Postgres>) => {
+    getDatabase: () => new Map<string, any>(),
+    setDatabase: (databases: Map<string, any>) => {
       console.log('Database set:', databases);
     },
   };
