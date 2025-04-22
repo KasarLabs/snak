@@ -923,51 +923,70 @@ export class StarknetAgent implements IAgent {
   private async processAgentResponse(result: any): Promise<void> {
     // Get and check the content of the last message
     const lastMessage = result.messages[result.messages.length - 1];
-    const agentResponse = lastMessage.content;
+    const rawAgentResponse = lastMessage.content; // Get the raw response first
 
     // If the message contains tools and large results, it may need to be truncated
     // Limit of 20,000 tokens to avoid expensive requests during the next iteration
     const MAX_RESPONSE_TOKENS = 20000;
     const responseString =
-      typeof agentResponse === 'string'
-        ? agentResponse
-        : JSON.stringify(agentResponse);
+      typeof rawAgentResponse === 'string'
+        ? rawAgentResponse
+        : JSON.stringify(rawAgentResponse);
     const estimatedTokens = estimateTokens(responseString);
 
     logger.debug(
       `Processing agent response: estimatedTokens=${estimatedTokens}, maxLimit=${MAX_RESPONSE_TOKENS}`
     );
 
-    let formattedAgentResponse;
+    let processedResponseString;
     if (estimatedTokens > MAX_RESPONSE_TOKENS) {
       // Truncate the response to respect the token limit
       logger.warn(
         `Response exceeds token limit: ${estimatedTokens} > ${MAX_RESPONSE_TOKENS}. Truncating...`
       );
-      formattedAgentResponse = truncateToTokenLimit(
+      processedResponseString = truncateToTokenLimit(
         responseString,
         MAX_RESPONSE_TOKENS
       );
       logger.debug(`Response truncated to fit token limit`);
     } else {
-      formattedAgentResponse = agentResponse;
+      processedResponseString = responseString;
     }
 
-    // Format the response for display
-    const formattedContent = this.formatResponseForDisplay(
-      formattedAgentResponse
-    );
+    // --- Splitting Logic ---
+    let mainResponse = processedResponseString;
+    let nextStepsContent: string | null = null;
+    const nextStepsMarkerRegex = /NEXT STEPS:|NEXT\\s+STEPS:\\s*/i;
+    const parts = processedResponseString.split(nextStepsMarkerRegex);
 
-    // Check if modelSelector should be informed about the response complexity
-    if (this.modelSelector && typeof formattedAgentResponse === 'string') {
-      this.analyzeResponseForModelSelection(formattedAgentResponse);
+    if (parts.length > 1) {
+      mainResponse = parts[0].trim();
+      nextStepsContent = parts[1].trim();
+    }
+    // --- End Splitting Logic ---
+
+    // Check if modelSelector should be informed about the response complexity (use original if possible)
+    if (this.modelSelector && typeof responseString === 'string') {
+      // Analyze original untruncated response for better model selection decision
+      this.analyzeResponseForModelSelection(responseString);
     }
 
-    // Display the response even with logs disabled
-    const boxContent = createBox('Agent Response', formattedContent);
-    // Add token information to the box
-    const boxWithTokens = addTokenInfoToBox(boxContent);
-    process.stdout.write(boxWithTokens);
+    // Display the main response
+    const mainFormattedContent = this.formatResponseForDisplay(mainResponse);
+    const mainBoxContent = createBox('Agent Response', mainFormattedContent);
+    const mainBoxWithTokens = addTokenInfoToBox(mainBoxContent); // Attach tokens here
+    process.stdout.write(mainBoxWithTokens);
+
+    // Display the next steps box if content exists
+    if (nextStepsContent && nextStepsContent.length > 0) {
+      const nextStepsFormattedContent =
+        this.formatResponseForDisplay(nextStepsContent);
+      const nextStepsBoxContent = createBox(
+        'Agent Next Steps',
+        nextStepsFormattedContent
+      );
+      process.stdout.write(nextStepsBoxContent); // No token info needed here
+    }
 
     // Wait for an adaptive interval based on the complexity of the last response
     await this.waitAdaptiveInterval(estimatedTokens, MAX_RESPONSE_TOKENS);
@@ -982,27 +1001,34 @@ export class StarknetAgent implements IAgent {
     if (!this.modelSelector) {
       return;
     }
-    
+
     // Extract NEXT STEPS section if present
     const nextStepsMatch = response.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
     if (nextStepsMatch && nextStepsMatch[1]) {
       const nextStepsContent = nextStepsMatch[1].trim();
-      
+
       if (this.loggingOptions.modelSelectionDebug) {
-        logger.debug(`Found NEXT STEPS section for model selection: "${nextStepsContent}"`);
+        logger.debug(
+          `Found NEXT STEPS section for model selection: "${nextStepsContent}"`
+        );
       }
-      
+
       // Create a dummy message with the next steps for model selection analysis
       // This helps the model selector understand the upcoming complexity
-      const dummyMessage = new HumanMessage(`Next planned action: ${nextStepsContent}`);
-      this.modelSelector.selectModelForMessages([dummyMessage])
-        .then(modelType => {
+      const dummyMessage = new HumanMessage(
+        `Next planned action: ${nextStepsContent}`
+      );
+      this.modelSelector
+        .selectModelForMessages([dummyMessage])
+        .then((modelType) => {
           if (this.loggingOptions.modelSelectionDebug) {
             logger.debug(`Model selected for next steps: ${modelType}`);
           }
         })
-        .catch(error => {
-          logger.debug(`Error analyzing next steps for model selection: ${error}`);
+        .catch((error) => {
+          logger.debug(
+            `Error analyzing next steps for model selection: ${error}`
+          );
         });
     }
   }
@@ -1015,23 +1041,19 @@ export class StarknetAgent implements IAgent {
       return response;
     }
 
-    // Enhance the display of the NEXT STEPS section
+    // Only format bullet points, remove NEXT STEPS specific formatting as it's handled by splitting
     const lines = response.split('\n');
     const formattedLines = lines.map((line: string) => {
       // Format bullet points
       if (line.includes('•')) {
         return `  ${line.trim()}`;
       }
-      
-      // Highlight NEXT STEPS section
-      if (line.includes('NEXT STEPS:')) {
-        return `\n${line.trim()}`;
-      }
-      
+      // Removed NEXT STEPS highlighting logic
       return line;
     });
 
-    return formattedLines;
+    // Join lines back, ensuring consistent line breaks
+    return formattedLines.join('\n');
   }
 
   /**

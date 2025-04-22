@@ -427,20 +427,56 @@ const localRun = async (): Promise<void> => {
           const aiResponse = await agent.execute(user);
 
           if (typeof aiResponse === 'string') {
-            const boxContent = createBox(
+            let mainResponse = aiResponse;
+            let nextStepsContent: string | null = null;
+            // Use a more robust regex to split, accounting for whitespace and case
+            const nextStepsMarkerRegex = /\\s*NEXT\\s+STEPS:\\s*/i;
+            const parts = aiResponse.split(nextStepsMarkerRegex);
+
+            if (parts.length > 1) {
+              // If split produces more than one part, the marker was found
+              mainResponse = parts[0].trim(); // Everything before the marker
+              nextStepsContent = parts[1].trim(); // Everything after the marker
+            } else {
+              // Marker not found, the whole response is the main response
+              mainResponse = aiResponse.trim();
+            }
+
+            // Format and print the main response box
+            const mainBoxContent = createBox(
               'Agent Response',
-              formatAgentResponse(aiResponse)
+              formatAgentResponse(mainResponse) // Format only the main part
             );
-            // Add token information to the box
-            const boxWithTokens = addTokenInfoToBox(boxContent);
-            process.stdout.write(boxWithTokens);
+            // Add token information to the main box
+            const mainBoxWithTokens = addTokenInfoToBox(mainBoxContent);
+            process.stdout.write(mainBoxWithTokens);
+
+            // Format and print the "Next Steps" box if it exists and is not empty
+            if (nextStepsContent && nextStepsContent.length > 0) {
+              const nextStepsBoxContent = createBox(
+                'Agent Next Steps',
+                formatAgentResponse(nextStepsContent) // Format only the next steps part
+              );
+              // Do not add token info here, it's part of the main generation stats
+              process.stdout.write(nextStepsBoxContent);
+            }
           } else {
-            logger.error('Invalid response type');
+            logger.error('Invalid response type received:', aiResponse);
+            console.log(
+              createBox('Received invalid response type from agent.', {
+                title: 'Error',
+                isError: true,
+              })
+            );
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error(chalk.red('Error processing request'));
+          logger.error('Error during agent execution:', error);
           console.log(
-            createBox(error.message, { title: 'Error', isError: true })
+            createBox(
+              error.message || 'An unknown error occurred during processing.',
+              { title: 'Error', isError: true }
+            )
           );
         }
       }

@@ -129,8 +129,8 @@ export class ModelSelectionAgent {
 
       // Check for the NEXT STEPS section in the message content
       let analysisContent = content;
-      let nextStepsSection = "";
-      
+      let nextStepsSection = '';
+
       // For autonomous agent responses, extract the NEXT STEPS section
       const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
       if (nextStepsMatch && nextStepsMatch[1]) {
@@ -138,20 +138,24 @@ export class ModelSelectionAgent {
         if (this.debugMode) {
           logger.debug(`Found NEXT STEPS section: "${nextStepsSection}"`);
         }
-        
+
         // If we have NEXT STEPS, use it as the primary content for analysis
         // but also keep a shortened version of the original content for context
-        const truncatedContent = content.substring(0, 300) + "...";
+        const truncatedContent = content.substring(0, 300) + '...';
         analysisContent = `Next planned actions: ${nextStepsSection}\n\nContext: ${truncatedContent}`;
       }
 
       // Use fast model to analyze which model should handle this request
       const prompt = new HumanMessage(
         `Analyze this content and determine which AI model should handle it.
-${nextStepsSection ? "Focus primarily on the 'Next planned actions' which represents upcoming tasks." : ""}
-Select 'fast' for simple, urgent tasks or classification.
-Select 'smart' for complex reasoning, creativity, or medium complexity tasks.
-Select 'cheap' for non-urgent, simple tasks.
+${nextStepsSection ? "Focus primarily on the 'Next planned actions' which represents upcoming tasks." : ''}
+Select 'fast' for simple, focused tasks that involve a single action or basic operations.
+Select 'smart' for complex reasoning, creativity, or tasks that might take multiple steps to complete.
+Select 'cheap' for non-urgent, simple tasks that don't require sophisticated reasoning.
+
+Priority is on simplicity - if the task appears to be trying to do too much at once, select 'smart'.
+If the task is properly broken down into one simple step, prefer 'fast' or 'cheap'.
+
 Respond with only one word: 'fast', 'smart', or 'cheap'.
 
 ${analysisContent}`
@@ -159,7 +163,9 @@ ${analysisContent}`
 
       if (this.debugMode) {
         logger.debug(`Invoking fast model for meta-selection analysis`);
-        logger.debug(`Using ${nextStepsSection ? "NEXT STEPS-focused" : "regular"} analysis`);
+        logger.debug(
+          `Using ${nextStepsSection ? 'NEXT STEPS-focused' : 'regular'} analysis`
+        );
       }
 
       const response = await this.models.fast.invoke([prompt]);
@@ -179,7 +185,9 @@ ${analysisContent}`
         return 'smart';
       }
     } catch (error) {
-      logger.warn(`Error in meta-selection: ${error}, falling back to heuristics`);
+      logger.warn(
+        `Error in meta-selection: ${error}, falling back to heuristics`
+      );
       // Fall back to heuristic selection
       return this.selectModelUsingHeuristics(messages);
     }
@@ -199,13 +207,15 @@ ${analysisContent}`
 
     // Extract NEXT STEPS section if present
     let analysisContent = content;
-    let nextStepsContent = "";
-    
+    let nextStepsContent = '';
+
     const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
     if (nextStepsMatch && nextStepsMatch[1]) {
       nextStepsContent = nextStepsMatch[1].trim();
       if (this.debugMode) {
-        logger.debug(`Heuristic analysis found NEXT STEPS: "${nextStepsContent}"`);
+        logger.debug(
+          `Heuristic analysis found NEXT STEPS: "${nextStepsContent}"`
+        );
       }
       // If we have next steps, prioritize analyzing them
       analysisContent = nextStepsContent;
@@ -288,6 +298,33 @@ ${analysisContent}`
       )
     ) {
       criteria.complexity = 'high';
+    }
+
+    // Check for multiple actions in a single step (indicates too much complexity)
+    if (
+      content.match(
+        /and then|after that|followed by|next,|subsequently|finally,/i
+      ) ||
+      content.match(/\d+\.\s.*\d+\.\s/s) // Looks for numbered lists with multiple items
+    ) {
+      if (this.debugMode) {
+        logger.debug(
+          'Detected multiple actions in a single step - marking as high complexity'
+        );
+      }
+      criteria.complexity = 'high';
+    }
+
+    // Check for simpler, more focused task indicators
+    if (
+      content.match(
+        /simple|straightforward|basic|single|focused|one step|easy/i
+      )
+    ) {
+      // Don't downgrade high complexity tasks, but mark medium ones as low
+      if (criteria.complexity !== 'high') {
+        criteria.complexity = 'low';
+      }
     }
 
     return criteria;

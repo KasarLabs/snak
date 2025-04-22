@@ -155,18 +155,26 @@ export const createAutonomousAgent = async (
     // Modify the original prompt or create a new one with next steps instruction
     let originalPrompt = json_config.prompt;
     let modifiedPrompt: SystemMessage;
-    
+
     if (originalPrompt) {
       // Add next steps instruction to the existing prompt
       modifiedPrompt = new SystemMessage(
-        originalPrompt.content + 
-        "\n\nVery important: Always end your response with a section titled 'NEXT STEPS:' where you clearly state what actions you plan to take next. Be specific about your next actions so they can be evaluated for complexity."
+        originalPrompt.content +
+          '\n\nImportant instructions for task management:\n' +
+          '1. Focus on ONE SIMPLE TASK per iteration. Do not try to accomplish multiple tasks at once.\n' +
+          '2. Break complex operations into multiple simple steps across separate iterations.\n' +
+          '3. Keep each action focused, specific, and achievable in a single step.\n' +
+          "4. Always end your response with a section titled 'NEXT STEPS:' where you clearly state what single action you plan to take next. Be specific but keep it simple and focused."
       );
     } else {
       // Create a new prompt with next steps instruction
       modifiedPrompt = new SystemMessage(
-        "You are an autonomous agent with access to various tools. Respond to queries and take actions as needed." +
-        "\n\nVery important: Always end your response with a section titled 'NEXT STEPS:' where you clearly state what actions you plan to take next. Be specific about your next actions so they can be evaluated for complexity."
+        'You are an autonomous agent with access to various tools. Respond to queries and take actions as needed.' +
+          '\n\nImportant instructions for task management:\n' +
+          '1. Focus on ONE SIMPLE TASK per iteration. Do not try to accomplish multiple tasks at once.\n' +
+          '2. Break complex operations into multiple simple steps across separate iterations.\n' +
+          '3. Keep each action focused, specific, and achievable in a single step.\n' +
+          "4. Always end your response with a section titled 'NEXT STEPS:' where you clearly state what single action you plan to take next. Be specific but keep it simple and focused."
       );
     }
 
@@ -215,7 +223,7 @@ export const createAutonomousAgent = async (
               messages: [
                 {
                   content:
-                    "I had to abandon the current action due to token limits. I'll try a different approach in the next turn.\n\nNEXT STEPS: I will attempt a simpler action that requires fewer tokens.",
+                    "I had to abandon the current action due to token limits. I'll try a different approach in the next turn.\n\nNEXT STEPS: I will attempt a simpler action that requires fewer tokens. I will focus on a single, small step that can be completed easily.",
                   type: 'ai',
                 },
               ],
