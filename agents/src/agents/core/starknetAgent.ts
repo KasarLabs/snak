@@ -958,6 +958,11 @@ export class StarknetAgent implements IAgent {
       formattedAgentResponse
     );
 
+    // Check if modelSelector should be informed about the response complexity
+    if (this.modelSelector && typeof formattedAgentResponse === 'string') {
+      this.analyzeResponseForModelSelection(formattedAgentResponse);
+    }
+
     // Display the response even with logs disabled
     const boxContent = createBox('Agent Response', formattedContent);
     // Add token information to the box
@@ -969,6 +974,40 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
+   * Analyzes the agent response to inform model selection
+   * @param response - The agent response string
+   */
+  private analyzeResponseForModelSelection(response: string): void {
+    // Check if modelSelector exists
+    if (!this.modelSelector) {
+      return;
+    }
+    
+    // Extract NEXT STEPS section if present
+    const nextStepsMatch = response.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
+    if (nextStepsMatch && nextStepsMatch[1]) {
+      const nextStepsContent = nextStepsMatch[1].trim();
+      
+      if (this.loggingOptions.modelSelectionDebug) {
+        logger.debug(`Found NEXT STEPS section for model selection: "${nextStepsContent}"`);
+      }
+      
+      // Create a dummy message with the next steps for model selection analysis
+      // This helps the model selector understand the upcoming complexity
+      const dummyMessage = new HumanMessage(`Next planned action: ${nextStepsContent}`);
+      this.modelSelector.selectModelForMessages([dummyMessage])
+        .then(modelType => {
+          if (this.loggingOptions.modelSelectionDebug) {
+            logger.debug(`Model selected for next steps: ${modelType}`);
+          }
+        })
+        .catch(error => {
+          logger.debug(`Error analyzing next steps for model selection: ${error}`);
+        });
+    }
+  }
+
+  /**
    * Formats the agent response for display
    */
   private formatResponseForDisplay(response: string | any): string | any {
@@ -976,12 +1015,23 @@ export class StarknetAgent implements IAgent {
       return response;
     }
 
-    return response.split('\n').map((line: string) => {
+    // Enhance the display of the NEXT STEPS section
+    const lines = response.split('\n');
+    const formattedLines = lines.map((line: string) => {
+      // Format bullet points
       if (line.includes('•')) {
         return `  ${line.trim()}`;
       }
+      
+      // Highlight NEXT STEPS section
+      if (line.includes('NEXT STEPS:')) {
+        return `\n${line.trim()}`;
+      }
+      
       return line;
     });
+
+    return formattedLines;
   }
 
   /**

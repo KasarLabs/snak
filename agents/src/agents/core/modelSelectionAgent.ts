@@ -127,19 +127,39 @@ export class ModelSelectionAgent {
           ? lastMessage.content
           : JSON.stringify(lastMessage.content);
 
+      // Check for the NEXT STEPS section in the message content
+      let analysisContent = content;
+      let nextStepsSection = "";
+      
+      // For autonomous agent responses, extract the NEXT STEPS section
+      const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
+      if (nextStepsMatch && nextStepsMatch[1]) {
+        nextStepsSection = nextStepsMatch[1].trim();
+        if (this.debugMode) {
+          logger.debug(`Found NEXT STEPS section: "${nextStepsSection}"`);
+        }
+        
+        // If we have NEXT STEPS, use it as the primary content for analysis
+        // but also keep a shortened version of the original content for context
+        const truncatedContent = content.substring(0, 300) + "...";
+        analysisContent = `Next planned actions: ${nextStepsSection}\n\nContext: ${truncatedContent}`;
+      }
+
       // Use fast model to analyze which model should handle this request
       const prompt = new HumanMessage(
-        `Analyze this user request and determine which AI model should handle it.
+        `Analyze this content and determine which AI model should handle it.
+${nextStepsSection ? "Focus primarily on the 'Next planned actions' which represents upcoming tasks." : ""}
 Select 'fast' for simple, urgent tasks or classification.
 Select 'smart' for complex reasoning, creativity, or medium complexity tasks.
 Select 'cheap' for non-urgent, simple tasks.
 Respond with only one word: 'fast', 'smart', or 'cheap'.
 
-User request: ${content}`
+${analysisContent}`
       );
 
       if (this.debugMode) {
         logger.debug(`Invoking fast model for meta-selection analysis`);
+        logger.debug(`Using ${nextStepsSection ? "NEXT STEPS-focused" : "regular"} analysis`);
       }
 
       const response = await this.models.fast.invoke([prompt]);
@@ -159,10 +179,8 @@ User request: ${content}`
         return 'smart';
       }
     } catch (error) {
-      // If the meta-selection fails, fall back to heuristic approach
-      logger.warn(
-        `Meta-selection failed: ${error}, falling back to heuristics`
-      );
+      logger.warn(`Error in meta-selection: ${error}, falling back to heuristics`);
+      // Fall back to heuristic selection
       return this.selectModelUsingHeuristics(messages);
     }
   }
@@ -179,14 +197,31 @@ User request: ${content}`
         ? lastMessage.content
         : JSON.stringify(lastMessage.content);
 
+    // Extract NEXT STEPS section if present
+    let analysisContent = content;
+    let nextStepsContent = "";
+    
+    const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
+    if (nextStepsMatch && nextStepsMatch[1]) {
+      nextStepsContent = nextStepsMatch[1].trim();
+      if (this.debugMode) {
+        logger.debug(`Heuristic analysis found NEXT STEPS: "${nextStepsContent}"`);
+      }
+      // If we have next steps, prioritize analyzing them
+      analysisContent = nextStepsContent;
+    }
+
     // Quick heuristics based on message content
-    const criteria = this.analyzeMessageContent(content);
+    const criteria = this.analyzeMessageContent(analysisContent);
     const modelType = this.selectModelBasedOnCriteria(criteria);
 
     if (this.debugMode) {
       logger.debug(
         `Heuristic model selection for task: ${modelType} (complexity: ${criteria.complexity}, urgency: ${criteria.urgency}, creativity: ${criteria.creativeRequirement}, type: ${criteria.taskType})`
       );
+      if (nextStepsContent) {
+        logger.debug(`Selection was based on NEXT STEPS content`);
+      }
     }
 
     return modelType;
@@ -244,6 +279,15 @@ User request: ${content}`
     // Look for urgency indicators
     if (content.match(/urgent|quickly|immediate|asap|now|fast/i)) {
       criteria.urgency = 'high';
+    }
+
+    // Special keywords for next step complexity
+    if (
+      content.match(
+        /complicated|complex|difficult|challenging|advanced|multiple steps|in-depth/i
+      )
+    ) {
+      criteria.complexity = 'high';
     }
 
     return criteria;

@@ -16,7 +16,7 @@ import {
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
 import { configureModelWithTracking } from '../../token/tokenTracking.js';
-import { BaseMessage } from '@langchain/core/messages';
+import { BaseMessage, SystemMessage } from '@langchain/core/messages';
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -152,13 +152,31 @@ export const createAutonomousAgent = async (
       }
     }
 
+    // Modify the original prompt or create a new one with next steps instruction
+    let originalPrompt = json_config.prompt;
+    let modifiedPrompt: SystemMessage;
+    
+    if (originalPrompt) {
+      // Add next steps instruction to the existing prompt
+      modifiedPrompt = new SystemMessage(
+        originalPrompt.content + 
+        "\n\nVery important: Always end your response with a section titled 'NEXT STEPS:' where you clearly state what actions you plan to take next. Be specific about your next actions so they can be evaluated for complexity."
+      );
+    } else {
+      // Create a new prompt with next steps instruction
+      modifiedPrompt = new SystemMessage(
+        "You are an autonomous agent with access to various tools. Respond to queries and take actions as needed." +
+        "\n\nVery important: Always end your response with a section titled 'NEXT STEPS:' where you clearly state what actions you plan to take next. Be specific about your next actions so they can be evaluated for complexity."
+      );
+    }
+
     // Create the agent
     const memory = new MemorySaver();
     const agent = createReactAgent({
       llm: model,
       tools,
       checkpointSaver: memory,
-      messageModifier: json_config.prompt,
+      messageModifier: modifiedPrompt,
     });
 
     // Patch the agent to handle token limits in autonomous mode
@@ -197,7 +215,7 @@ export const createAutonomousAgent = async (
               messages: [
                 {
                   content:
-                    "I had to abandon the current action due to token limits. I'll try a different approach in the next turn.",
+                    "I had to abandon the current action due to token limits. I'll try a different approach in the next turn.\n\nNEXT STEPS: I will attempt a simpler action that requires fewer tokens.",
                   type: 'ai',
                 },
               ],
