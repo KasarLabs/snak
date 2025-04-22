@@ -92,6 +92,15 @@ export class AgentFactory {
         return agentSignature;
       }
 
+      const path = await import('path');
+      const projectRoot = path.resolve(process.cwd());
+      const modelsConfigPath = path.join(
+        projectRoot,
+        'config',
+        'models',
+        'default.models.json'
+      );
+
       const agent = new StarknetAgent({
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
@@ -102,6 +111,7 @@ export class AgentFactory {
         agentconfig: this.json_config,
         signature: signature,
         agentMode: agentMode,
+        modelsConfigPath: this.config.ai.modelsConfigPath,
       });
 
       // Store for later reuse

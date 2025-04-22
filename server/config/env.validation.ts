@@ -69,82 +69,28 @@ const AI_PROVIDER_MODELS = {
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
 };
 
-export const envSchema = z
-  .object({
-    // Server configuration
-    /** Port number for the server to listen on */
-    SERVER_PORT: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .default('3001'),
+export const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  SERVER_PORT: z.coerce.number().default(3000),
+  SERVER_API_KEY: z.string(),
 
-    /** Runtime environment for the application */
-    NODE_ENV: z
-      .enum(['development', 'production', 'test'])
-      .default('development'),
+  STARKNET_PRIVATE_KEY: z.string(),
+  STARKNET_PUBLIC_ADDRESS: z.string(),
+  STARKNET_RPC_URL: z.string().url(),
 
-    /** API key for general server authentication */
-    SERVER_API_KEY: z
-      .string()
-      .min(1, 'API key is required for server authentication'),
+  AI_MODEL_LEVEL: z.string().optional().default('smart'),
+  AI_MODELS_CONFIG_PATH: z
+    .string()
+    .optional()
+    .default('config/models/default.models.json'),
 
-    // Starknet configuration
-    /** Private key for Starknet blockchain interactions */
-    STARKNET_PRIVATE_KEY: z
-      .string()
-      .min(1, 'Starknet private key is required for blockchain transactions'),
-
-    /** Public blockchain address for the application */
-    STARKNET_PUBLIC_ADDRESS: z
-      .string()
-      .min(1, 'Public address is required for blockchain interactions'),
-
-    /** RPC endpoint URL for connecting to the blockchain network */
-    STARKNET_RPC_URL: z
-      .string()
-      .url('Invalid RPC URL. Please provide a valid blockchain RPC endpoint'),
-
-    // AI Service configuration
-    /** API key for accessing AI provider services */
-    AI_PROVIDER_API_KEY: z
-      .string()
-      .min(1, 'AI provider API key is required for machine learning services'),
-
-    /** Selected AI model provider for the application */
-    AI_PROVIDER: z.union(
-      [
-        z.literal('openai'),
-        z.literal('anthropic'),
-        z.literal('ollama'),
-        z.literal('gemini'),
-        z.literal('deepseek'),
-      ],
-      {
-        errorMap: () => ({
-          message:
-            'Invalid AI model provider. Must be one of: openai, anthropic, ollama, gemini or deepseek.',
-        }),
-      }
-    ),
-
-    /** Specific AI model to use for the selected provider */
-    AI_MODEL: z.string().min(1, 'AI model name cannot be empty'),
-  })
-  .superRefine((data, ctx) => {
-    // Get the current provider from the parent object
-    const provider = data.AI_PROVIDER;
-
-    // Get available models for the selected provider
-    const availableModels = AI_PROVIDER_MODELS[provider];
-
-    // Check if the specified model exists for the provider
-    if (!availableModels.includes(data.AI_MODEL)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Invalid model "${data.AI_MODEL}" for provider "${provider}". Available models are: ${availableModels.join(', ')}`,
-      });
-    }
-  });
+  // Provider-specific API Keys (optional)
+  OPENAI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  DEEPSEEK_API_KEY: z.string().optional(),
+  // Add other provider keys here if needed
+});
 
 // Type inference
 export type EnvConfig = z.infer<typeof envSchema>;

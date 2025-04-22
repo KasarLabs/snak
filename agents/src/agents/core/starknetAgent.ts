@@ -4,14 +4,24 @@ import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from '../autonomous/autonomousAgents.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { logger } from '@snakagent/core';
-import { metrics } from '@snakagent/core';
+import {
+  logger,
+  loadModelsConfig,
+  ModelsConfig,
+  ApiKeys,
+  ModelLevelConfig,
+  metrics,
+} from '@snakagent/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   addTokenInfoToBox,
   truncateToTokenLimit,
   estimateTokens,
 } from '../../token/tokenTracking.js';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
 /**
  * Memory configuration for the agent
@@ -26,12 +36,13 @@ export interface MemoryConfig {
  * Configuration for the StarknetAgent
  */
 export interface StarknetAgentConfig {
-  aiProviderApiKey: string;
-  aiModel: string;
-  aiProvider: string;
+  modelsConfigPath: string;
   provider: RpcProvider;
   accountPublicKey: string;
   accountPrivateKey: string;
+  aiModel: string;
+  aiProvider: string;
+  aiProviderApiKey: string;
   signature: string;
   agentMode: string;
   agentconfig?: JsonConfig;
@@ -63,8 +74,9 @@ export class StarknetAgent implements IAgent {
   private readonly provider: RpcProvider;
   private readonly accountPrivateKey: string;
   private readonly accountPublicKey: string;
-  private readonly aiModel: string;
-  private readonly aiProviderApiKey: string;
+  private modelsConfig!: ModelsConfig;
+  private apiKeys: ApiKeys = {};
+  private models: Record<string, BaseChatModel> = {};
   private agentReactExecutor: any;
   private currentMode: string;
   private loggingOptions: LoggingOptions = {
@@ -98,31 +110,57 @@ export class StarknetAgent implements IAgent {
     }
 
     try {
-      this.validateConfig(config);
+      // Basic validation checks (e.g., for config, accountPrivateKey, modelsConfigPath)
+      if (!config) {
+        throw new Error('Configuration object is required');
+      }
+      if (!config.accountPrivateKey) {
+        throw new Error('STARKNET_PRIVATE_KEY is required');
+      }
+      if (!config.modelsConfigPath) {
+        throw new Error('modelsConfigPath is required in the configuration');
+      }
 
       this.provider = config.provider;
       this.accountPrivateKey = config.accountPrivateKey;
       this.accountPublicKey = config.accountPublicKey;
-      this.aiModel = config.aiModel;
-      this.aiProviderApiKey = config.aiProviderApiKey;
       this.signature = config.signature;
       this.agentMode = config.agentMode;
-
-      // Set the current mode - ensure it's properly set for autonomous mode
       this.currentMode =
         config.agentMode === 'auto' ||
         config.agentconfig?.mode?.autonomous === true
           ? 'auto'
           : config.agentMode || 'agent';
-
       this.agentconfig = config.agentconfig;
       this.memory = config.memory || {};
+
+      // Load API Keys synchronously
+      this.loadApiKeys();
 
       metrics.metricsAgentConnect(
         config.agentconfig?.name ?? 'agent',
         config.agentMode
       );
     } catch (error) {
+      logger.error(`StarknetAgent constructor failed: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Asynchronously initializes the agent, loading configurations and models.
+   * This method must be called after the constructor.
+   */
+  public async init(): Promise<void> {
+    try {
+      logger.info('Initializing StarknetAgent...');
+      this.modelsConfig = await loadModelsConfig(this.config.modelsConfigPath);
+      this.initializeModels();
+      // Perform validation AFTER models are initialized
+      this.validateConfigPostInit();
+      logger.info('StarknetAgent initialized successfully.');
+    } catch (error) {
+      logger.error(`StarknetAgent initialization failed: ${error}`);
       throw error;
     }
   }
@@ -164,26 +202,155 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
+   * Loads API keys from environment variables.
+   */
+  private loadApiKeys(): void {
+    logger.debug('Loading API keys from environment variables...');
+    const PROVIDER_ENV_VAR_MAP: Record<string, string> = {
+      openai: 'OPENAI_API_KEY',
+      anthropic: 'ANTHROPIC_API_KEY',
+      gemini: 'GOOGLE_API_KEY', // Or GEMINI_API_KEY, adjust as needed
+      deepseek: 'DEEPSEEK_API_KEY',
+      // Add other providers here
+    };
+
+    this.apiKeys = {}; // Reset keys
+    for (const [provider, envVar] of Object.entries(PROVIDER_ENV_VAR_MAP)) {
+      const apiKey = process.env[envVar];
+      if (apiKey) {
+        this.apiKeys[provider] = apiKey;
+        logger.debug(`Loaded API key for provider: ${provider}`);
+      } else {
+        logger.warn(
+          `API key environment variable not found for provider: ${provider} (expected: ${envVar})`
+        );
+      }
+    }
+    logger.debug('Finished loading API keys.');
+  }
+
+  /**
+   * Initializes chat model instances based on the loaded configuration.
+   */
+  private initializeModels(): void {
+    logger.debug('Initializing AI models...');
+    if (!this.modelsConfig) {
+      logger.error(
+        'Models configuration is not loaded. Cannot initialize models.'
+      );
+      throw new Error('Models configuration is not loaded.');
+    }
+
+    this.models = {}; // Reset models
+    for (const [levelName, levelConfigUntyped] of Object.entries(
+      this.modelsConfig
+    )) {
+      const levelConfig = levelConfigUntyped as ModelLevelConfig; // Cast to correct type
+      const { provider, model_name } = levelConfig;
+      const apiKey = this.apiKeys[provider];
+
+      if (!apiKey) {
+        logger.warn(
+          `API key for provider '${provider}' not found. Skipping initialization for model level '${levelName}'.`
+        );
+        continue;
+      }
+
+      try {
+        let modelInstance: BaseChatModel | null = null;
+        const commonConfig = {
+          modelName: model_name,
+          apiKey: apiKey,
+          verbose: this.loggingOptions.langchainVerbose,
+          // Add other common config like temperature if needed
+        };
+
+        switch (provider.toLowerCase()) {
+          case 'openai':
+            modelInstance = new ChatOpenAI(commonConfig);
+            break;
+          case 'anthropic':
+            modelInstance = new ChatAnthropic(commonConfig);
+            break;
+          case 'gemini':
+            // Note: Gemini might use `googleApiKey` or a different config structure
+            modelInstance = new ChatGoogleGenerativeAI({
+              ...commonConfig,
+              apiKey: apiKey, // Ensure correct property name
+            });
+            break;
+          // Add cases for 'deepseek' and other providers
+          default:
+            logger.warn(
+              `Unsupported AI provider '${provider}' for model level '${levelName}'. Skipping.`
+            );
+            continue; // Skip unsupported providers
+        }
+
+        if (modelInstance) {
+          this.models[levelName] = modelInstance;
+          logger.info(
+            `Initialized model for level '${levelName}': ${provider} - ${model_name}`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Failed to initialize model for level '${levelName}' (${provider} - ${model_name}): ${error}`
+        );
+        // Decide if we should throw or just log and continue
+      }
+    }
+    logger.debug('Finished initializing AI models.');
+
+    // Validate that essential models were loaded
+    if (!this.models.fast || !this.models.smart || !this.models.cheap) {
+      logger.error(
+        'One or more essential model levels (fast, smart, cheap) failed to initialize. Check API keys and configuration.'
+      );
+      // Potentially throw an error here if these are critical
+      // throw new Error('Essential model levels failed to initialize.');
+    }
+  }
+
+  /**
    * Creates an agent executor based on the current mode
    */
   public async createAgentReactExecutor(): Promise<void> {
     try {
-      const config: AiConfig = {
-        aiModel: this.aiModel,
-        aiProviderApiKey: this.aiProviderApiKey,
-        aiProvider: this.config.aiProvider,
+      const smartModelConfig = this.modelsConfig?.['smart'];
+      if (!smartModelConfig) {
+        throw new Error(
+          "The 'smart' model configuration is not loaded. Cannot create agent executor."
+        );
+      }
+      const smartApiKey = this.apiKeys[smartModelConfig.provider];
+      if (!smartApiKey) {
+        throw new Error(
+          `API key for the 'smart' model provider (${smartModelConfig.provider}) is missing.`
+        );
+      }
+
+      // TEMPORARY FIX: Create the old AiConfig structure for compatibility.
+      // TODO: Update createAgent and createAutonomousAgent to accept BaseChatModel directly.
+      const tempAiConfig: AiConfig = {
+        aiModel: smartModelConfig.model_name,
+        aiProvider: smartModelConfig.provider,
+        aiProviderApiKey: smartApiKey,
         langchainVerbose: this.loggingOptions.langchainVerbose,
       };
 
       if (this.currentMode === 'auto') {
-        this.agentReactExecutor = await createAutonomousAgent(this, config);
+        this.agentReactExecutor = await createAutonomousAgent(
+          this,
+          tempAiConfig
+        );
       } else if (this.currentMode === 'agent') {
-        this.agentReactExecutor = await createAgent(this, config);
+        this.agentReactExecutor = await createAgent(this, tempAiConfig);
       }
 
-      // Apply logging settings to the created executor if it exists
       this.applyLoggerVerbosityToExecutor();
     } catch (error) {
+      logger.error(`Failed to create Agent React Executor: ${error}`);
       throw error;
     }
   }
@@ -208,21 +375,29 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Validates the configuration provided
-   * @param config - Configuration to validate
+   * Validates the configuration *after* asynchronous initialization.
    */
-  private validateConfig(config: StarknetAgentConfig): void {
-    if (!config) {
-      throw new Error('Configuration object is required');
+  private validateConfigPostInit(): void {
+    logger.debug('Performing post-initialization validation...');
+    if (!this.modelsConfig) {
+      throw new Error(
+        'Models configuration was not loaded during initialization.'
+      );
     }
-
-    if (!config.accountPrivateKey) {
-      throw new Error('STARKNET_PRIVATE_KEY is required');
+    if (Object.keys(this.models).length === 0) {
+      throw new Error(
+        'No models were initialized. Check configuration and API keys.'
+      );
     }
-
-    if (config.aiModel !== 'ollama' && !config.aiProviderApiKey) {
-      throw new Error('AAI_PROVIDER_API_KEY is required');
+    // Example: Ensure essential models are loaded
+    if (!this.models.fast || !this.models.smart || !this.models.cheap) {
+      logger.error(
+        'One or more essential model levels (fast, smart, cheap) failed to initialize. Check API keys and configuration.'
+      );
+      // Decide whether to throw an error based on requirements
+      // throw new Error('Essential model levels failed to initialize.');
     }
+    logger.debug('Post-initialization validation complete.');
   }
 
   /**
@@ -252,16 +427,6 @@ export class StarknetAgent implements IAgent {
     return {
       accountPrivateKey: this.accountPrivateKey,
       accountPublicKey: this.accountPublicKey,
-    };
-  }
-
-  /**
-   * Gets the AI model credentials
-   */
-  public getModelCredentials() {
-    return {
-      aiModel: this.aiModel,
-      aiProviderApiKey: this.aiProviderApiKey,
     };
   }
 
@@ -985,5 +1150,22 @@ export class StarknetAgent implements IAgent {
    */
   public setMemoryConfig(config: MemoryConfig): void {
     this.memory = { ...this.memory, ...config };
+  }
+
+  /**
+   * @deprecated This method is deprecated and returns dummy data.
+   * Use direct model access via `this.models` instead.
+   */
+  public getModelCredentials() {
+    logger.warn(
+      'getModelCredentials() is deprecated and should not be relied upon.'
+    );
+    // Return dummy data or throw an error to discourage use
+    return {
+      aiModel: 'deprecated',
+      aiProviderApiKey: 'deprecated',
+      // Consider adding a reference to the new models structure if possible
+      // models: this.models // Maybe too verbose or complex for this context
+    };
   }
 }

@@ -6,6 +6,11 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import {
+  logger,
+  ApiKeys,
+  metrics,
+} from '@snakagent/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,13 +38,16 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-    aiModel: process.env.AI_MODEL as string,
-    aiProvider: process.env.AI_PROVIDER as string,
-    aiProviderApiKey: process.env.AI_PROVIDER_API_KEY as string,
+    aiModel: '',
+    aiProvider: '',
+    aiProviderApiKey: '',
     signature: 'key',
     agentMode: 'agent',
     agentconfig: undefined,
+    modelsConfigPath: '',
   });
+  await agent.init();
+
   const tools: StarknetTool[] = [];
   await registerTools(agent, allowed_tools, tools);
   for (const tool of tools) {
