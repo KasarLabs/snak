@@ -20,6 +20,16 @@ export namespace contract {
     id: number;
     contract_id: number;
   }
+  /**
+   * A { @see Contract } deployment on-chain.
+   *
+   * @field { number } [id] - Deployment id in db (optional).
+   * @field { number } [contract_id] - Related contract id in db (optional).
+   * @field { string } [contract_address] - On-chain address of the deployed contract.
+   * @field { string } [deploy_tx_hash] - Hash of the deploy this.transaction.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   export type Deployment<HasId extends Id = Id.NoId> = HasId extends Id.Id
     ? DeploymentWithId
     : DeploymentBase;
@@ -38,11 +48,14 @@ export namespace contract {
 }
 
 export class contractQueries extends Postgres {
-
   constructor(credentials: DatabaseCredentials) {
     super(credentials);
   }
-
+  /**
+   * Initializes the { @see Contract } and { @see Deployment } tables.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async init(): Promise<void> {
     const t = [
       new Query(
@@ -66,6 +79,13 @@ export class contractQueries extends Postgres {
     await this.transaction(t);
   }
 
+  /**
+   * Inserts a new { @see Contract } into the database.
+   *
+   * @param { Contract } contract - Contract to insert
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async insertContract(contract: contract.Contract): Promise<void> {
     const q = new Query(
       `INSERT INTO contract(
@@ -79,6 +99,16 @@ export class contractQueries extends Postgres {
     );
     await this.query(q);
   }
+
+  /**
+   * Selects a { @see Contract } from the database by `class_hash`.
+   *
+   * @param { string } classHash - Class hash from which the contract is derived.
+   *
+   * @returns { Contract<Id.Id> | undefined } - Contract associated to the `class_hash`, if it exists.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async selectContract(
     classHash: string
   ): Promise<contract.Contract<Id.Id> | undefined> {
@@ -96,6 +126,18 @@ export class contractQueries extends Postgres {
     const q_res = await this.query<contract.Contract<Id.Id>>(q);
     return q_res ? q_res[0] : undefined;
   }
+
+  /**
+   * Selects all { @see Contract } from the database.
+   *
+   * > [!WARNING]
+   * > This is probably not a good idea and should be replace by a proper
+   * > cursor asap.
+   *
+   * @returns { Contract<Id.Id>[] } All contracts currently stored in db.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async selectContracts(): Promise<contract.Contract<Id.Id>[]> {
     const q = new Query(
       `SELECT
@@ -107,6 +149,14 @@ export class contractQueries extends Postgres {
     );
     return await this.query(q);
   }
+
+  /**
+   * Deletes a { @see Contract } from the database, if it exists.
+   *
+   * @param { string } classHash - Class hash from which the contract is derived.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async deleteContract(classHash: string): Promise<void> {
     const q = new Query(`DELETE FROM contract WHERE class_hash = $1;`, [
       classHash,
@@ -114,6 +164,14 @@ export class contractQueries extends Postgres {
     await this.query(q);
   }
 
+  /**
+   * Inserts a new { @see Deployment } into the database.
+   *
+   * @param { Deployment } deployment - Contract deployment to insert.
+   * @param { string } classHash - Class hash of the contract being deployed.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async insertDeployment(
     deployment: contract.Deployment,
     classHash: string
@@ -132,6 +190,16 @@ export class contractQueries extends Postgres {
     );
     await this.query(q);
   }
+
+  /**
+   * Selects a { @see Deployment } from the database by `contract_address`.
+   *
+   * @param { string} contractAddress - On-chain address of the deployed contract.
+   *
+   * @returns { Deployment<Id.Id> | undefined } - Deployment associated to the `contract_address`, if it exists.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async selectDeployment(
     contractAddress: string
   ): Promise<contract.Deployment<Id.Id> | undefined> {
@@ -150,6 +218,20 @@ export class contractQueries extends Postgres {
     const q_res = await this.query<contract.Deployment<Id.Id>>(q);
     return q_res ? q_res[0] : undefined;
   }
+
+  /**
+   * Selects all { @see Deployment } of a given contract from the database.
+   *
+   * > [!WARNING]
+   * > This is probably not a good idea and should be replace by a proper
+   * > cursor asap.
+   *
+   * @param { string } classHash - Class hash of the deployed contract.
+   *
+   * @returns { Deployment<Id.Id>[] } - All deployments associated to this contract.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
   public async selectDeployments(
     classHash: string
   ): Promise<contract.Deployment<Id.Id>[]> {

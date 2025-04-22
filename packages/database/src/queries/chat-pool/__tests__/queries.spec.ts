@@ -48,6 +48,8 @@ describe('Chat-pool database initialization', () => {
     const instruction: chatPool.Instruction = {
       instruction: 'Lorem Ipsum dolor si amet',
     };
-    await expect(_chat.select_instructions()).resolves.toMatchObject([instruction]);
+    await expect(_chat.select_instructions()).resolves.toMatchObject([
+      instruction,
+    ]);
   });
 });

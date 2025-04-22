@@ -93,7 +93,7 @@ export class Postgres {
   }
 
   /**
-   * Performs a query against the loc!ally configured database.
+   * Performs a query against the locally configured database.
    *
    * @throws { DatabaseError }
    * @see module:database
@@ -109,7 +109,6 @@ export class Postgres {
       throw DatabaseError.handlePgError(err);
     }
   }
-
   /**
    * Performs a single [ACID](https://en.wikipedia.org/wiki/ACID) transaction
    * against the locally configured database.

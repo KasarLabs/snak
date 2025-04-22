@@ -2,8 +2,6 @@ import { Postgres } from '../../../database.js';
 import { memoryQueries, memory } from '../queries.js';
 import { DatabaseCredentials } from '../../../utils/database.js';
 
-
-
 const databasecredentials: DatabaseCredentials = {
   user: process.env.POSTGRES_USER as string,
   host: process.env.POSTGRES_HOST as string,
@@ -30,11 +28,11 @@ afterAll(async () => {
 
 describe('Memory database initialization', () => {
   it('Should create table', async () => {
-   await expect(_memory.init()).resolves.toBeUndefined();
+    await expect(_memory.init()).resolves.toBeUndefined();
   });
 
   it('Should be indempotent', async () => {
-   await expect(_memory.init()).resolves.toBeUndefined();
+    await expect(_memory.init()).resolves.toBeUndefined();
   });
 });
 
@@ -109,7 +107,7 @@ describe('Memory table', () => {
       ],
       similarity: 1,
     };
-   await expect(
+    await expect(
       _memory.similar_memory('default_user', embedding)
     ).resolves.toMatchObject([m]);
   });
