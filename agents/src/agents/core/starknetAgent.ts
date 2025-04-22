@@ -604,16 +604,35 @@ export class StarknetAgent implements IAgent {
         throw new Error('Agent executor is not initialized');
       }
 
-      // Log model selection decision if ModelSelectionAgent is available
-      if (this.modelSelector && this.loggingOptions.modelSelectionDebug) {
-        const humanMessage = new HumanMessage(input);
-        const modelType = this.modelSelector.selectModelForMessages([
+      // Create human message from input
+      const humanMessage = new HumanMessage(input);
+
+      // Get model selection if ModelSelectionAgent is available
+      let selectedModel: BaseChatModel | undefined;
+      let modelType: string | undefined;
+      if (this.modelSelector) {
+        // Get the model type first
+        modelType = await this.modelSelector.selectModelForMessages([
           humanMessage,
         ]);
-        logger.debug(`Model Selection for request: ${modelType}`);
+        if (this.loggingOptions.modelSelectionDebug) {
+          logger.debug(`Model Selection for request: ${modelType}`);
+        }
+
+        // Get the model instance based on the already determined type
+        if (modelType && this.models[modelType]) {
+          selectedModel = this.models[modelType];
+        } else {
+          // Fall back to smart model if the selected model is not available
+          selectedModel = this.models.smart;
+          if (modelType && !this.models[modelType]) {
+            logger.warn(
+              `Selected model "${modelType}" not available, falling back to "smart"`
+            );
+          }
+        }
       }
 
-      const humanMessage = new HumanMessage(input);
       const invokeOptions: any = {
         configurable: { thread_id: this.agentconfig?.chat_id as string },
       };
@@ -660,12 +679,22 @@ export class StarknetAgent implements IAgent {
         }
       }
 
-      const result = await this.agentReactExecutor.invoke(
-        {
-          messages: [humanMessage],
-        },
-        invokeOptions
-      );
+      let result;
+
+      // If a model was selected by the ModelSelectionAgent, use it directly
+      if (selectedModel) {
+        logger.debug('Using model selected by ModelSelectionAgent');
+        result = await selectedModel.invoke([humanMessage]);
+      } else {
+        // Fall back to using the agentReactExecutor if no model selection
+        logger.debug('Using default agentReactExecutor (no model selection)');
+        result = await this.agentReactExecutor.invoke(
+          {
+            messages: [humanMessage],
+          },
+          invokeOptions
+        );
+      }
 
       if (!result.messages || result.messages.length === 0) {
         return '';
