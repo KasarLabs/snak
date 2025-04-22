@@ -43,9 +43,10 @@ jobs:
 
       - name: Build packages in order
         run: |
-          pnpm --filter @snakagent/core build
-          pnpm --filter @snakagent/agents build
-          pnpm --filter='"@snakagent/plugin-*"' build || echo "Plugin build skipped"
+           pnpm --filter @hijox/database
+           pnpm --filter @hijox/core build
+           pnpm --filter @hijox/agents build
+           pnpm --filter='"@hijox/plugin-*"' build || echo "Plugin build skipped"
 
       - name: Check TypeScript compilation (Backend)
         run: pnpm tsc --noEmit -p tsconfig.build.json
