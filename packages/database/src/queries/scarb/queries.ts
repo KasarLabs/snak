@@ -1,6 +1,7 @@
 import { DatabaseCredentials } from '../../utils/database.js';
 import { Postgres, Query } from '../../database.js';
 import { Id } from '../common.js';
+import { DatabaseError } from '../../error.js';
 
 export namespace scarb {
   export interface ProjectBase {

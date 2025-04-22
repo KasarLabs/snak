@@ -13,19 +13,8 @@ export namespace memory {
     metadata: Metadata;
     history: History[];
   }
-  export interface Similarity {
+  interface MemoryWithId extends MemoryBase {
     id: number;
-    content: string;
-    history: History[];
-    similarity: number;
-  }
-  export interface Metadata {
-    timestamp: string;
-  }
-  export interface History {
-    value: string;
-    timestamp: string;
-    action: 'UPDATE';
   }
 }
 
