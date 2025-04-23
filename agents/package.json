@@ -20,7 +20,7 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "format": "prettier --write \"./**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
     "pgvector": "../scripts/pgvector.sh",

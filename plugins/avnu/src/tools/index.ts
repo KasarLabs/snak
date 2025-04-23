@@ -1,7 +1,4 @@
-import {
-  StarknetTool,
-  StarknetAgentInterface,
-} from '@snakagent/core';
+import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
 import { routeSchema, swapSchema } from '../schema/index.js';
 import { swapTokens } from '../actions/swap.js';
 import { getRoute } from '../actions/fetchRoute.js';

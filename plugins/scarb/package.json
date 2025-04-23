@@ -10,7 +10,7 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "lint": "eslint \"src/**/*.ts\" --fix"
+    "format": "prettier --write \"src/**/*.ts\"",    "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "devDependencies": {
     "@snakagent/core": "workspace:*",

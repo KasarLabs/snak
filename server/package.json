@@ -11,7 +11,7 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "dev": "nest start --watch",
+    "format": "prettier --write \"src/**/*.ts\"",    "dev": "nest start --watch",
     "start": "node dist/main"
   },
   "keywords": [],

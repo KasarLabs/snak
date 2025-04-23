@@ -1,7 +1,4 @@
-import {
-  StarknetAgentInterface,
-  StarknetTool,
-} from '@snakagent/core';
+import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
 import { getProofService } from '../actions/getProofService.js';
 import {
   GetProofServiceSchema,
