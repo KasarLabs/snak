@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@hijox/core": "workspace:*",
-    "fibrous-router-sdk": "^0.4.3"
+    "fibrous-router-sdk": "0.4.3"
   },
   "keywords": [],
   "author": "",
