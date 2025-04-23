@@ -1,5 +1,5 @@
 import { tool } from '@langchain/core/tools';
-import { logger } from '@hijox/core';
+import { logger } from '@snakagent/core';
 
 /**
  * @interface SignatureTool
@@ -79,7 +79,7 @@ export const RegisterSignatureTools = async (
       allowed_tools.map(async (tool) => {
         index = index + 1;
         const imported_tool = await import(
-          `@hijox/plugin-${tool}/dist/index.js`
+          `@snakagent/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerSignatureTools !== 'function') {
           return false;

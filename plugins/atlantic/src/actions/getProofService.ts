@@ -1,5 +1,5 @@
 import { ATLANTIC_URL, DASHBOARD_URL } from '../constants/atlantic.js';
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { AtlanticParam, AtlanticRes } from '../types/Atlantic.js';
 import { promises as fs } from 'fs';
 import { validateZip } from '../utils/validateZip.js';

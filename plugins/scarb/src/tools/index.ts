@@ -11,8 +11,8 @@ import {
   installScarbSchema,
   compileContractSchema,
 } from '../schema/schema.js';
-import { StarknetAgentInterface, StarknetTool, logger } from '@hijox/core';
-import { scarbQueries } from '@hijox/database/queries';
+import { StarknetAgentInterface, StarknetTool, logger } from '@snakagent/core';
+import { scarbQueries } from '@snakagent/database/queries';
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],

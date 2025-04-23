@@ -1,8 +1,8 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { z } from 'zod';
 import { listProjectsSchema } from '../schema/schema.js';
-import { scarbQueries } from '@hijox/database/queries';
+import { scarbQueries } from '@snakagent/database/queries';
 
 /**
  * List all projects in the scarb_db database

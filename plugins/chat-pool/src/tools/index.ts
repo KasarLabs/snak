@@ -1,8 +1,8 @@
-import { logger } from '@hijox/core';
+import { logger } from '@snakagent/core';
 import { insertChatInstruction, readChatPool } from '../actions/chatPool.js';
 import { insertChatIntructionSchema } from '../schema/index.js';
-import { StarknetAgentInterface, StarknetTool } from '@hijox/core';
-import { chatPoolQueries } from '@hijox/database/queries';
+import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import { chatPoolQueries } from '@snakagent/database/queries';
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],

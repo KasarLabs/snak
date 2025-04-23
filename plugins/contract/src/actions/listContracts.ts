@@ -1,8 +1,8 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { listContractsSchema } from '../schemas/schema.js';
 import { z } from 'zod';
-import { contract, contractQueries } from '@hijox/database/queries';
+import { contract, contractQueries } from '@snakagent/database/queries';
 
 /**
  * List the declared contracts

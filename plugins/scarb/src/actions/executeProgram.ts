@@ -1,11 +1,11 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { executeProgramSchema } from '../schema/schema.js';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarbQueries } from '@hijox/database/queries';
+import { scarbQueries } from '@snakagent/database/queries';
 import path from 'path';
 import { readFileSync } from 'fs';
 

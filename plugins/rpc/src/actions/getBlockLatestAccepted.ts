@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 
 export const getBlockLatestAccepted = async (agent: StarknetAgentInterface) => {
   const provider = agent.getProvider();

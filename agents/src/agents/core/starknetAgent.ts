@@ -4,8 +4,8 @@ import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from '../autonomous/autonomousAgents.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { logger } from '@hijox/core';
-import { metrics } from '@hijox/core';
+import { logger } from '@snakagent/core';
+import { metrics } from '@snakagent/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   addTokenInfoToBox,
@@ -13,7 +13,7 @@ import {
   estimateTokens,
 } from '../../token/tokenTracking.js';
 import { DatabaseCredentials } from '../../tools/types/database.js';
-import { Postgres } from '@hijox/database';
+import { Postgres } from '@snakagent/database';
 
 /**
  * Memory configuration for the agent

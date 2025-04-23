@@ -1,11 +1,11 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { declareContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
-import { logger } from '@hijox/core';
-import { contract, contractQueries } from '@hijox/database/queries';
+import { logger } from '@snakagent/core';
+import { contract, contractQueries } from '@snakagent/database/queries';
 
 /**
  * Declares a contract on StarkNet

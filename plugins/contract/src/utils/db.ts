@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { StarknetAgentInterface } from '@hijox/core';
-import { scarbQueries } from '@hijox/database/queries';
+import { StarknetAgentInterface } from '@snakagent/core';
+import { scarbQueries } from '@snakagent/database/queries';
 
 /**
  * Write JSON data to a file

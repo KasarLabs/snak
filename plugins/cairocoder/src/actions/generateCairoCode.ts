@@ -1,5 +1,5 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { z } from 'zod';
 import { generateCairoCodeSchema } from '../schema/schema.js';
 import {
@@ -7,7 +7,7 @@ import {
   callCairoGenerationAPI,
   extractCairoCode,
 } from '../utils/utils.js';
-import { scarbQueries } from '@hijox/database/queries';
+import { scarbQueries } from '@snakagent/database/queries';
 
 /**
  * Generate Cairo code using AI via API and store it in the database

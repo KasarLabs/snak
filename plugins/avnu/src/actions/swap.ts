@@ -2,7 +2,7 @@ import { executeSwap, fetchQuotes, QuoteRequest, Quote } from '@avnu/avnu-sdk';
 import { Account, constants } from 'starknet';
 
 import { ApprovalService } from './approval.js';
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { SwapParams, SwapResult } from '../types/index.js';
 import { DEFAULT_QUOTE_SIZE, SLIPPAGE_PERCENTAGE } from '../constants/index.js';
 import { TokenService } from './fetchTokens.js';

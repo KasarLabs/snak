@@ -1,5 +1,5 @@
 import { BlockIdParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 
 export const getBlockTransactionsTraces = async (
   agent: StarknetAgentInterface,

@@ -1,7 +1,7 @@
 import { Account, Call, constants } from 'starknet';
 
 import { ApprovalService } from './approval.js';
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';

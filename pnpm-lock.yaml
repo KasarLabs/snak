@@ -132,72 +132,6 @@ importers:
 
   agents:
     dependencies:
-      '@hijox/core':
-        specifier: workspace:*
-        version: link:../core
-      '@hijox/database':
-        specifier: workspace:*
-        version: link:../packages/database
-      '@hijox/plugin-argent':
-        specifier: workspace:*
-        version: link:../plugins/argent
-      '@hijox/plugin-artpeace':
-        specifier: workspace:*
-        version: link:../plugins/artpeace
-      '@hijox/plugin-atlantic':
-        specifier: workspace:*
-        version: link:../plugins/atlantic
-      '@hijox/plugin-avnu':
-        specifier: workspace:*
-        version: link:../plugins/avnu
-      '@hijox/plugin-braavos':
-        specifier: workspace:*
-        version: link:../plugins/braavos
-      '@hijox/plugin-cairocoder':
-        specifier: workspace:*
-        version: link:../plugins/cairocoder
-      '@hijox/plugin-chat-pool':
-        specifier: workspace:*
-        version: link:../plugins/chat-pool
-      '@hijox/plugin-contract':
-        specifier: workspace:*
-        version: link:../plugins/contract
-      '@hijox/plugin-erc20':
-        specifier: workspace:*
-        version: link:../plugins/erc20
-      '@hijox/plugin-erc721':
-        specifier: workspace:*
-        version: link:../plugins/erc721
-      '@hijox/plugin-fibrous':
-        specifier: workspace:*
-        version: link:../plugins/fibrous
-      '@hijox/plugin-okx':
-        specifier: workspace:*
-        version: link:../plugins/okx
-      '@hijox/plugin-openzeppelin':
-        specifier: workspace:*
-        version: link:../plugins/openzeppelin
-      '@hijox/plugin-opus':
-        specifier: workspace:*
-        version: link:../plugins/opus
-      '@hijox/plugin-rpc':
-        specifier: workspace:*
-        version: link:../plugins/rpc
-      '@hijox/plugin-scarb':
-        specifier: workspace:*
-        version: link:../plugins/scarb
-      '@hijox/plugin-token':
-        specifier: workspace:*
-        version: link:../plugins/token
-      '@hijox/plugin-transaction':
-        specifier: workspace:*
-        version: link:../plugins/transaction
-      '@hijox/plugin-unruggable':
-        specifier: workspace:*
-        version: link:../plugins/unruggable
-      '@hijox/plugin-vesu':
-        specifier: workspace:*
-        version: link:../plugins/vesu
       '@huggingface/transformers':
         specifier: ^3.4.0
         version: 3.5.0
@@ -225,6 +159,72 @@ importers:
       '@langchain/openai':
         specifier: ^0.3.17
         version: 0.3.17(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1)
+      '@snakagent/core':
+        specifier: workspace:*
+        version: link:../core
+      '@snakagent/database':
+        specifier: workspace:*
+        version: link:../packages/database
+      '@snakagent/plugin-argent':
+        specifier: workspace:*
+        version: link:../plugins/argent
+      '@snakagent/plugin-artpeace':
+        specifier: workspace:*
+        version: link:../plugins/artpeace
+      '@snakagent/plugin-atlantic':
+        specifier: workspace:*
+        version: link:../plugins/atlantic
+      '@snakagent/plugin-avnu':
+        specifier: workspace:*
+        version: link:../plugins/avnu
+      '@snakagent/plugin-braavos':
+        specifier: workspace:*
+        version: link:../plugins/braavos
+      '@snakagent/plugin-cairocoder':
+        specifier: workspace:*
+        version: link:../plugins/cairocoder
+      '@snakagent/plugin-chat-pool':
+        specifier: workspace:*
+        version: link:../plugins/chat-pool
+      '@snakagent/plugin-contract':
+        specifier: workspace:*
+        version: link:../plugins/contract
+      '@snakagent/plugin-erc20':
+        specifier: workspace:*
+        version: link:../plugins/erc20
+      '@snakagent/plugin-erc721':
+        specifier: workspace:*
+        version: link:../plugins/erc721
+      '@snakagent/plugin-fibrous':
+        specifier: workspace:*
+        version: link:../plugins/fibrous
+      '@snakagent/plugin-okx':
+        specifier: workspace:*
+        version: link:../plugins/okx
+      '@snakagent/plugin-openzeppelin':
+        specifier: workspace:*
+        version: link:../plugins/openzeppelin
+      '@snakagent/plugin-opus':
+        specifier: workspace:*
+        version: link:../plugins/opus
+      '@snakagent/plugin-rpc':
+        specifier: workspace:*
+        version: link:../plugins/rpc
+      '@snakagent/plugin-scarb':
+        specifier: workspace:*
+        version: link:../plugins/scarb
+      '@snakagent/plugin-token':
+        specifier: workspace:*
+        version: link:../plugins/token
+      '@snakagent/plugin-transaction':
+        specifier: workspace:*
+        version: link:../plugins/transaction
+      '@snakagent/plugin-unruggable':
+        specifier: workspace:*
+        version: link:../plugins/unruggable
+      '@snakagent/plugin-vesu':
+        specifier: workspace:*
+        version: link:../plugins/vesu
       discord.js:
         specifier: ^14.17.3
         version: 14.18.0
@@ -325,12 +325,12 @@ importers:
 
   core:
     dependencies:
-      '@hijox/database':
-        specifier: workspace:*
-        version: link:../packages/database
       '@langchain/core':
         specifier: ^0.3.42
         version: 0.3.45(openai@4.95.0(encoding@0.1.13)(zod@3.24.3))
+      '@snakagent/database':
+        specifier: workspace:*
+        version: link:../packages/database
       '@types/pg':
         specifier: ^8.11.11
         version: 8.11.13
@@ -359,7 +359,7 @@ importers:
         specifier: ^3.24.2
         version: 3.24.3
     devDependencies:
-      '@hijox/agents':
+      '@snakagent/agents':
         specifier: workspace:*
         version: link:../../agents
       '@types/node':
@@ -381,19 +381,19 @@ importers:
 
   plugins/argent:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/artpeace:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/atlantic:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -402,22 +402,22 @@ importers:
       '@avnu/avnu-sdk':
         specifier: ^3.0.0
         version: 3.0.2(ethers@6.13.5)(moment@2.30.1)(qs@6.14.0)(starknet@6.24.1(encoding@0.1.13))
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/braavos:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/cairocoder:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@hijox/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
       axios:
@@ -436,37 +436,37 @@ importers:
 
   plugins/chat-pool:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@hijox/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
 
   plugins/contract:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@hijox/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
 
   plugins/erc20:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/erc721:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/fibrous:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
       fibrous-router-sdk:
@@ -475,34 +475,34 @@ importers:
 
   plugins/okx:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/openzeppelin:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/opus:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/rpc:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/scarb:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      '@hijox/database':
+      '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
       find-up:
@@ -536,25 +536,25 @@ importers:
 
   plugins/token:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/transaction:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/unruggable:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/vesu:
     dependencies:
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
@@ -600,10 +600,10 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
     devDependencies:
-      '@hijox/agents':
+      '@snakagent/agents':
         specifier: workspace:*
         version: link:../agents
-      '@hijox/core':
+      '@snakagent/core':
         specifier: workspace:*
         version: link:../core
       typescript:

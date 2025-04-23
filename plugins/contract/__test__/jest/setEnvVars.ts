@@ -1,8 +1,8 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@hijox/core';
+import { StarknetAgentInterface, JsonConfig } from '@snakagent/core';
 import { SystemMessage } from '@langchain/core/messages';
-import { Postgres } from '@hijox/database/queries';
+import { Postgres } from '@snakagent/database/queries';
 
 setupTestEnvironment();
 

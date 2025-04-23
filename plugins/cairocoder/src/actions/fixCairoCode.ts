@@ -1,9 +1,9 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
+('@snakagent/core');
 import { fixCairoCodeSchema } from '../schema/schema.js';
 import { callCairoGenerationAPI, extractCairoCode } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarbQueries } from '@hijox/database/queries';
+import { scarbQueries } from '@snakagent/database/queries';
 
 /**
  * Fix Cairo code using AI via API and update it in the database

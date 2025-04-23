@@ -1,4 +1,4 @@
-import { DatabaseCredentials } from '@hijox/core';
+import { DatabaseCredentials } from '@snakagent/core';
 import { Postgres, Query } from '../src/database.js';
 
 const databasecredentials: DatabaseCredentials = {
