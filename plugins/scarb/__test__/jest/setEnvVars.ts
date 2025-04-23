@@ -1,6 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@snakagent/core';
+import { StarknetAgentInterface, JsonConfig } from '@hijox/core';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -9,6 +9,13 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
+  const database = {
+    host: 'localhost',
+    port: 5432,
+    user: 'postgres',
+    password: 'postgres',
+    database: 'postgres',
+  };
   const json_config: JsonConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
@@ -22,8 +29,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
       recursionLimit: 15,
     },
   };
-
-  const twitter_auth_mode = undefined;
 
   return {
     getAccountCredentials: () => ({
@@ -32,15 +37,16 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
       accountPrivateKey:
         '0x00000000000000000000000000000000b137668388dbe9acdfa3bc734cc2c469',
     }),
-    getModelCredentials: () => ({
-      aiModel: '',
-      aiProviderApiKey: '',
-    }),
     getSignature: () => ({
       signature: '',
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
+    getDatabaseCredentials: () => database,
+    getDatabase: () => new Map<string, any>(),
+    setDatabase: (databases: Map<string, any>) => {
+      console.log('Database set:', databases);
+    },
   };
 };
 
@@ -48,6 +54,13 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
+  const database = {
+    host: 'localhost',
+    port: 5432,
+    user: 'postgres',
+    password: 'postgres',
+    database: 'postgres',
+  };
   const json_config: JsonConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
@@ -62,21 +75,20 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     },
   };
 
-  const twitter_auth_mode = undefined;
-
   return {
     getAccountCredentials: () => ({
       accountPublicKey: 'dlksjflkdsjf',
       accountPrivateKey: 'dsfahdskfgdsjkah',
-    }),
-    getModelCredentials: () => ({
-      aiModel: '',
-      aiProviderApiKey: '',
     }),
     getSignature: () => ({
       signature: '',
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
+    getDatabaseCredentials: () => database,
+    getDatabase: () => new Map<string, any>(),
+    setDatabase: (databases: Map<string, any>) => {
+      console.log('Database set:', databases);
+    },
   };
 };

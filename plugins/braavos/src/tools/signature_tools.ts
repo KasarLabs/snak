@@ -1,4 +1,4 @@
-import { SignatureTool } from '@snakagent/core';
+import { SignatureTool } from '@hijox/core';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { CreateBraavosAccountSignature } from '../actions/createAccount.js';
 import { DeployBraavosAccountSignature } from '../actions/deployAccount.js';

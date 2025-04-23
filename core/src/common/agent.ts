@@ -1,6 +1,6 @@
 import { RpcProvider } from 'starknet';
 import { SystemMessage } from '@langchain/core/messages';
-
+import { Postgres } from '@hijox/database';
 export interface StarknetTool<P = unknown> {
   name: string;
   plugins: string;
@@ -51,11 +51,19 @@ export interface JsonConfig {
   mode: ModeConfig;
 }
 
+export interface DatabaseCredentials {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  database: string;
+}
+
 /**
  * @interface StarknetAgentInterface
  * @description Interface for the Starknet agent
  * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
- * @property {() => { aiModel: string; aiProviderApiKey: string; }} getModelCredentials - Function to get the model credentials
+ * @property {() => DatabaseCredentials} getDatabaseCredentials - Function to get the database credentials
  * @property {() => { signature: string; }} getSignature - Function to get the signature
  * @property {() => RpcProvider} getProvider - Function to get the provider
  * @property {() => JsonConfig} getAgentConfig - Function to get the agent configuration
@@ -69,13 +77,12 @@ export interface StarknetAgentInterface {
     accountPublicKey: string;
     accountPrivateKey: string;
   };
-  getModelCredentials: () => {
-    aiModel: string;
-    aiProviderApiKey: string;
-  };
+  getDatabaseCredentials: () => DatabaseCredentials;
   getSignature: () => {
     signature: string;
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
+  getDatabase: () => Map<string, Postgres>;
+  setDatabase: (databases: Map<string, Postgres>) => void;
 }

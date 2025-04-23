@@ -1,5 +1,5 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
+import { logger, StarknetAgentInterface } from '@hijox/core';
+('@hijox/core');
 import { z } from 'zod';
 import { generateCairoCodeSchema } from '../schema/schema.js';
 import {
@@ -7,7 +7,7 @@ import {
   callCairoGenerationAPI,
   extractCairoCode,
 } from '../utils/utils.js';
-import { scarb } from '@snakagent/database/queries';
+import { scarbQueries } from '@hijox/database/queries';
 
 /**
  * Generate Cairo code using AI via API and store it in the database
@@ -21,7 +21,10 @@ export const generateCairoCode = async (
   try {
     logger.debug('\n Generating Cairo code');
     logger.debug(JSON.stringify(params, null, 2));
-
+    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
+    if (!scarb) {
+      throw new Error('Scarb database not found');
+    }
     validateParams(params);
 
     const generatedContent = await callCairoGenerationAPI(params.prompt);

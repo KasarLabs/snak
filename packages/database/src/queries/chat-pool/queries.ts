@@ -1,24 +1,30 @@
-import { query, Query } from '../../database.js';
+import { DatabaseCredentials } from '../../utils/database.js';
+import { Postgres, Query } from '../../database.js';
 import { DatabaseError } from '../../error.js';
 
-export namespace chat {
+export namespace chatPool {
+  export interface Instruction {
+    instruction: string;
+  }
+}
+
+export class chatPoolQueries extends Postgres {
+  constructor(credentials: DatabaseCredentials) {
+    super(credentials);
+  }
   /**
    * Initializes the chat-poo table.
    *
    * @throws { DatabaseError }
    */
-  export async function init(): Promise<void> {
+  async init(): Promise<void> {
     const q = new Query(
       `CREATE TABLE IF NOT EXISTS sak_table_chat(
-			id SERIAL PRIMARY KEY,
-			instruction VARCHAR(255) NOT NULL
-		)`
+        id SERIAL PRIMARY KEY,
+        instruction VARCHAR(255) NOT NULL
+      )`
     );
-    await query(q);
-  }
-
-  export interface Instruction {
-    instruction: string;
+    await this.query(q);
   }
 
   /**
@@ -27,12 +33,12 @@ export namespace chat {
    * @param instruction - Instruction to insert.
    * @throws { DatabaseError }
    */
-  export async function insert_instruction(instruction: string): Promise<void> {
+  async insert_instruction(instruction: string): Promise<void> {
     const q = new Query(
       `INSERT INTO sak_table_chat(instruction) VALUES ($1);`,
       [instruction]
     );
-    await query(q);
+    await this.query(q);
   }
 
   /**
@@ -41,8 +47,8 @@ export namespace chat {
    * @returns An array of all instructions.
    * @throws { DatabaseError }
    */
-  export async function select_instructions(): Promise<Instruction[]> {
+  async select_instructions(): Promise<chatPool.Instruction[]> {
     const q = new Query(`SELECT instruction FROM sak_table_chat;`);
-    return await query<{ instruction: string }>(q);
+    return await this.query<{ instruction: string }>(q);
   }
 }

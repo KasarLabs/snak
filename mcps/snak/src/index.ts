@@ -1,12 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgent, registerTools, StarknetTool } from '@snakagent/agents';
+import { StarknetAgent, registerTools, StarknetTool } from '@hijox/agents';
 import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { logger, ApiKeys, metrics } from '@snakagent/core';
+import { logger, ApiKeys, metrics } from '@hijox/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -30,6 +30,14 @@ server.tool('ping', 'Check if the server is running', async () => {
 });
 
 export const RegisterToolInServer = async (allowed_tools: string[]) => {
+  const database = {
+    database: process.env.POSTGRES_DB as string,
+    host: process.env.POSTGRES_HOST as string,
+    user: process.env.POSTGRES_USER as string,
+    password: process.env.POSTGRES_PASSWORD as string,
+    port: parseInt(process.env.POSTGRES_PORT as string),
+  };
+
   const agent = new StarknetAgent({
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
@@ -38,6 +46,8 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     aiProvider: '',
     aiProviderApiKey: '',
     signature: 'key',
+    db_credentials: database,
+
     agentMode: 'agent',
     agentconfig: undefined,
     modelsConfigPath: '',

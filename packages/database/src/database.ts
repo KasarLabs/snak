@@ -25,25 +25,7 @@ import pg, { PoolClient, QueryResult } from 'pg';
 const { Pool } = pg;
 
 import { DatabaseError } from './error.js';
-
-/**
- * We rely on the default postgress environment variables to establish a
- * connection.
- *
- * @see module:database
- */
-let pool = new Pool({
-  user: process.env.POSTGRES_USER,
-  host: process.env.POSTGRES_HOST,
-  database: process.env.POSTGRES_DB,
-  password: process.env.POSTGRES_PASSWORD,
-  port: parseInt(process.env.POSTGRES_PORT || '5454'),
-});
-
-pool.on('error', (err) => {
-  console.error('something bad has happened!', err.stack);
-});
-
+import { DatabaseCredentials } from './utils/database.js';
 /**
  * A query and its associated values.
  *
@@ -65,85 +47,117 @@ export class Query {
   }
 }
 
-/**
- * Creates a new connection pool. Shutting down the previous one if it was
- * still active.
- *
- * > This is mostly intended for use in setup/teardown logic between tests.
- */
-export async function connect(): Promise<void> {
-  await shutdown();
+export class Postgres {
+  /**
+   * We rely on the default postgress environment variables to establish a
+   * connection.
+   *
+   * @see module:database
+   */
 
-  pool = new Pool({
-    user: process.env.POSTGRES_USER,
-    host: process.env.POSTGRES_HOST,
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: parseInt(process.env.POSTGRES_PORT || '5454'),
-  });
+  protected pool: pg.Pool | undefined = undefined;
 
-  pool.on('error', (err) => {
-    console.error('something bad has happened!', err.stack);
-  });
-}
-
-/**
- * Performs a query against the locally configured database.
- *
- * @throws { DatabaseError }
- * @see module:database
- */
-export async function query<Model = {}>(q: Query): Promise<Model[]> {
-  try {
-    const query = await pool.query(q.query, q.values);
-    return query.rows;
-  } catch (err: any) {
-    throw DatabaseError.handlePgError(err);
+  public constructor(db: DatabaseCredentials) {
+    this.pool = new Pool({
+      user: db.user,
+      host: db.host,
+      database: db.database,
+      password: db.password,
+      port: db.port,
+    });
+    this.pool.on('error', (err) => {
+      console.error('something bad has happened!', err.stack);
+    });
   }
-}
 
-/**
- * Performs a single [ACID](https://en.wikipedia.org/wiki/ACID) transaction
- * against the locally configured database.
- *
- * @throws { DatabaseError }
- * @see module:database
- */
-export async function transaction<Model = {}>(qs: Query[]): Promise<Model[]> {
-  let client: PoolClient | undefined;
-  let res: QueryResult | undefined;
-  try {
-    client = await pool.connect();
+  public async connect(
+    user: string,
+    host: string,
+    database: string,
+    password: string,
+    port: number
+  ): Promise<void> {
+    await this.shutdown();
 
-    await client.query('BEGIN;');
-    for (const q of qs) {
-      res = await client.query(q.query, q.values);
-    }
-    await client.query('COMMIT;');
+    this.pool = new Pool({
+      user,
+      host,
+      database,
+      password,
+      port,
+    });
 
-    return res ? res.rows : [];
-  } catch (err: any) {
-    throw DatabaseError.handlePgError(err);
-  } finally {
-    if (client) {
-      client.release();
+    this.pool.on('error', (err) => {
+      console.error('something bad has happened!', err.stack);
+    });
+  }
+
+  /**
+   * Performs a query against the locally configured database.
+   *
+   * @throws { DatabaseError }
+   * @see module:database
+   */
+  public async query<Model = {}>(q: Query): Promise<Model[]> {
+    try {
+      if (!this.pool) {
+        throw new Error('Database not connected');
+      }
+      const query = await this.pool.query(q.query, q.values);
+      return query.rows;
+    } catch (err: any) {
+      throw DatabaseError.handlePgError(err);
     }
   }
-}
+  /**
+   * Performs a single [ACID](https://en.wikipedia.org/wiki/ACID) transaction
+   * against the locally configured database.
+   *
+   * @throws { DatabaseError }
+   * @see module:database
+   */
+  public async transaction<Model = {}>(qs: Query[]): Promise<Model[]> {
+    let client: PoolClient | undefined;
+    let res: QueryResult | undefined;
+    try {
+      if (!this.pool) {
+        throw new Error('Database not connected');
+      }
+      client = await this.pool.connect();
 
-/**
- * Closes the connection pool.
- *
- * > [!CAUTION]
- * > This method must imperatively be called at the end of the app's lifetime
- * > or else we risk starving the database of connections overtime! **New calls
- * > to the database can no longer be made once the connection pool has been
- * > closed**.
- */
-export async function shutdown(): Promise<void> {
-  try {
-    await pool.end();
-  } catch (err: any) {
-    throw DatabaseError.handlePgError(err);
+      await client.query('BEGIN;');
+      for (const q of qs) {
+        res = await client.query(q.query, q.values);
+      }
+      await client.query('COMMIT;');
+
+      return res ? res.rows : [];
+    } catch (err: any) {
+      throw DatabaseError.handlePgError(err);
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  }
+
+  /**
+   * Closes the connection pool.
+   *
+   * > [!CAUTION]
+   * > This method must imperatively be called at the end of the app's lifetime
+   * > or else we risk starving the database of connections overtime! **New calls
+   * > to the database can no longer be made once the connection pool has been
+   * > closed**.
+   */
+  public async shutdown(): Promise<void> {
+    try {
+      if (!this.pool) {
+        throw new Error('Database not connected');
+      }
+      await this.pool.end();
+    } catch (err: any) {
+      throw DatabaseError.handlePgError(err);
+    }
   }
 }

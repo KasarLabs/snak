@@ -1,6 +1,17 @@
-import { chat } from './chat-pool/queries.js';
-import { scarb } from './scarb/queries.js';
-import { memory } from './memory/queries.js';
-import { contract } from './contract/queries.js';
+import { chatPool, chatPoolQueries } from './chat-pool/queries.js';
+import { scarbQueries, scarb } from './scarb/queries.js';
+import { memory, memoryQueries } from './memory/queries.js';
+import { contract, contractQueries } from './contract/queries.js';
+import { Postgres } from '../database.js';
 
-export { scarb, chat, memory, contract };
+export {
+  scarbQueries,
+  scarb,
+  chatPool,
+  chatPoolQueries,
+  memoryQueries,
+  memory,
+  contractQueries,
+  contract,
+  Postgres,
+};

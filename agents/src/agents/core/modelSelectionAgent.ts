@@ -1,6 +1,6 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
-import { logger } from '@snakagent/core';
+import { logger } from '@hijox/core';
 
 /**
  * Criteria for model selection

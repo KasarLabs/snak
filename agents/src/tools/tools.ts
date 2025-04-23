@@ -1,14 +1,15 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../config/jsonConfig.js';
-import { logger } from '@snakagent/core';
-import { metrics } from '@snakagent/core';
+import { logger } from '@hijox/core';
+import { metrics } from '@hijox/core';
+import { DatabaseCredentials } from './types/database.js';
+import { Postgres } from '@hijox/database';
 
 /**
  * @interface StarknetAgentInterface
  * @description Interface for the Starknet agent
  * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
- * @property {() => { aiModel: string; aiProviderApiKey: string; }} getModelCredentials - Function to get the model credentials
  * @property {() => { signature: string; }} getSignature - Function to get the signature
  * @property {() => RpcProvider} getProvider - Function to get the provider
  * @property {() => JsonConfig} getAgentConfig - Function to get the agent configuration
@@ -17,20 +18,20 @@ import { metrics } from '@snakagent/core';
  * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
  * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
  */
+
 export interface StarknetAgentInterface {
   getAccountCredentials: () => {
     accountPublicKey: string;
     accountPrivateKey: string;
   };
-  getModelCredentials: () => {
-    aiModel: string;
-    aiProviderApiKey: string;
-  };
+  getDatabaseCredentials: () => DatabaseCredentials;
   getSignature: () => {
     signature: string;
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
+  getDatabase: () => Map<string, Postgres>;
+  setDatabase: (databases: Map<string, Postgres>) => void;
 }
 
 /**
@@ -127,7 +128,7 @@ export const registerTools = async (
         index = index + 1;
 
         const imported_tool = await import(
-          `@snakagent/plugin-${tool}/dist/index.js`
+          `@hijox/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerTools !== 'function') {
           return false;

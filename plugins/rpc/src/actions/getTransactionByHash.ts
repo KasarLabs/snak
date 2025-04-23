@@ -1,5 +1,5 @@
 import { TransactionHashParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 
 export const getTransactionByHash = async (
   agent: StarknetAgentInterface,

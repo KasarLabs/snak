@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { StarknetTool, StarknetAgentInterface } from '@hijox/core';
 import {
   contractAddressSchema,
   launchOnEkuboSchema,

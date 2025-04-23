@@ -11,7 +11,7 @@ import {
   ApiKeys,
   ModelLevelConfig,
   metrics,
-} from '@snakagent/core';
+} from '@hijox/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   addTokenInfoToBox,
@@ -23,6 +23,8 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ModelSelectionAgent } from './modelSelectionAgent.js';
+import { DatabaseCredentials } from '../../tools/types/database.js';
+import { Postgres } from '@hijox/database';
 
 /**
  * Memory configuration for the agent
@@ -46,6 +48,7 @@ export interface StarknetAgentConfig {
   aiProviderApiKey?: string; // Optional for backward compatibility
   signature: string;
   agentMode: string;
+  db_credentials: DatabaseCredentials;
   agentconfig?: JsonConfig;
   memory?: MemoryConfig;
 }
@@ -90,11 +93,13 @@ export class StarknetAgent implements IAgent {
   };
   private originalLoggerFunctions: Record<string, any> = {};
   private memory: MemoryConfig;
+  private database: Map<string, Postgres> = new Map<string, Postgres>();
+
+  private readonly db_credentials: DatabaseCredentials;
 
   public readonly signature: string;
   public readonly agentMode: string;
   public readonly agentconfig?: JsonConfig;
-
   /**
    * Creates a new StarknetAgent instance
    * @param config - Configuration for the StarknetAgent
@@ -133,6 +138,8 @@ export class StarknetAgent implements IAgent {
       this.accountPublicKey = config.accountPublicKey;
       this.signature = config.signature;
       this.agentMode = config.agentMode;
+      this.db_credentials = config.db_credentials;
+      // Set the current mode - ensure it's properly set for autonomous mode
       this.currentMode =
         config.agentMode === 'auto' ||
         config.agentconfig?.mode?.autonomous === true
@@ -538,6 +545,18 @@ export class StarknetAgent implements IAgent {
       accountPrivateKey: this.accountPrivateKey,
       accountPublicKey: this.accountPublicKey,
     };
+  }
+
+  public getDatabaseCredentials() {
+    return this.db_credentials;
+  }
+
+  public getDatabase() {
+    return this.database;
+  }
+
+  public setDatabase(databases: Map<string, Postgres>) {
+    this.database = databases;
   }
 
   /**
@@ -1421,22 +1440,5 @@ export class StarknetAgent implements IAgent {
    */
   public setMemoryConfig(config: MemoryConfig): void {
     this.memory = { ...this.memory, ...config };
-  }
-
-  /**
-   * @deprecated This method is deprecated and returns dummy data.
-   * Use direct model access via `this.models` instead.
-   */
-  public getModelCredentials() {
-    logger.warn(
-      'getModelCredentials() is deprecated and should not be relied upon.'
-    );
-    // Return dummy data or throw an error to discourage use
-    return {
-      aiModel: 'deprecated',
-      aiProviderApiKey: 'deprecated',
-      // Consider adding a reference to the new models structure if possible
-      // models: this.models // Maybe too verbose or complex for this context
-    };
   }
 }

@@ -42,14 +42,5 @@ export interface IAgent {
     accountPublicKey: string;
   };
 
-  /**
-   * Returns the agent's AI provider credentials
-   * @returns AI provider credentials
-   */
-  getModelCredentials(): {
-    aiModel: string;
-    aiProviderApiKey: string;
-  };
-
   getProvider(): RpcProvider;
 }

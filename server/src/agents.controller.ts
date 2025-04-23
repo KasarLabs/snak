@@ -11,7 +11,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { AgentRequestDTO } from './dto/agents.js';
-import { StarknetAgent } from '@snakagent/agents';
+import { StarknetAgent } from '@hijox/agents';
 import { AgentService } from './services/agent.service.js';
 import { AgentResponseInterceptor } from './interceptors/response.js';
 import { FileTypeGuard } from './guard/file-validator.guard.js';
@@ -19,7 +19,7 @@ import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
 import { AgentFactory } from './agents.factory.js';
-import { metrics } from '@snakagent/core';
+import { metrics } from '@hijox/core';
 import { Reflector } from '@nestjs/core';
 
 @Controller('key')

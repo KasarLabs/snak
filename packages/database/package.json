@@ -1,14 +1,27 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@snakagent/database",
+  "name": "@hijox/database",
   "type": "module",
+  "version": "1.0.0",
+  "files": [
+    "dist",
+    "LICENSE",
+    "package.json",
+    "compose.test.yaml",
+    "compose.yaml",
+    "README.md"
+  ],
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsc --watch",
     "test-setup": "docker compose -f compose.test.yaml up -d",
     "test-teardown": "docker compose -f compose.test.yaml rm -fsv",
     "test-jest": "DOTENV_CONFIG_PATH=../../.env jest --config jest.config.cjs --setupFiles dotenv/config",
     "test": "pnpm test-setup && pnpm test-jest ; ECODE=$? ; pnpm test-teardown ; exit $ECODE",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --write \"./**/*.ts\"",
     "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
@@ -16,15 +29,32 @@
     "check-types": "tsc --noEmit"
   },
   "exports": {
-    ".": "./src/database.ts",
-    "./error": "./src/error.ts",
-    "./queries": "./src/queries/index.ts",
-    "./common": "./src/queries/common.ts"
+    ".": "./dist/database.js",
+    "./error": "./dist/error.js",
+    "./queries": "./dist/queries/index.js",
+    "./common": "./dist/queries/common.js"
   },
-  "dependecies": {
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/database.d.ts"
+      ],
+      "error": [
+        "./dist/error.d.ts"
+      ],
+      "queries": [
+        "./dist/queries/index.d.ts"
+      ],
+      "common": [
+        "./dist/queries/common.d.ts"
+      ]
+    }
+  },
+  "dependencies": {
     "pg": "^8.14.1"
   },
   "devDependencies": {
     "typescript": "latest"
-  }
+  },
+  "gitHead": "b666c09583709a6f2af4a5f12ee14c8af4248532"
 }

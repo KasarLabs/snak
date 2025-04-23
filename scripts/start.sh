@@ -244,7 +244,7 @@ run_interactive_command() {
   
   echo -e "\n${CYAN}${BOLD}Launching Snak...${NC}\n"
   
-  lerna run --scope @snakagent/agents start -- --agent="${SELECTED_AGENT_CONFIG}" --models="${SELECTED_MODEL_CONFIG}" || return $?
+  lerna run --scope @hijox/agents start -- --agent="${SELECTED_AGENT_CONFIG}" --models="${SELECTED_MODEL_CONFIG}" || return $?
   
   return 0
 }

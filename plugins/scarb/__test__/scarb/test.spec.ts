@@ -2,8 +2,8 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { initializeProjectData } from '../../src/utils/db.js';
 import { createMockStarknetAgent } from '../jest/setEnvVars.js';
-import { StarknetAgentInterface } from '@snakagent/core';
-import { PostgresAdaptater } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
+import { PostgresAdaptater } from '@hijox/core';
 
 // Define a type for our mocks that matches the expected structure
 type MockDB = {

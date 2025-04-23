@@ -1,13 +1,13 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
+import { logger, StarknetAgentInterface } from '@hijox/core';
+('@hijox/core');
 import { z } from 'zod';
 import { registerProjectSchema } from '../schema/schema.js';
-import { scarb } from '@snakagent/database/queries';
+import { scarbQueries } from '@hijox/database/queries';
 import { basename } from 'path';
 import { readFile } from 'fs/promises';
 import { getAllPackagesList } from '../utils/dependencies.js';
 import { resolveContractPath } from '../utils/path.js';
-
+import { scarb } from '@hijox/database/queries';
 /**
  * Register a new project in the database
  *
@@ -21,7 +21,10 @@ export const registerProject = async (
   try {
     logger.debug('\n Registering project');
     logger.debug(JSON.stringify(params, null, 2));
-
+    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
+    if (!scarb) {
+      throw new Error('Scarb database not found');
+    }
     let projectData: scarb.ProjectData | undefined;
 
     if (params.projectName.includes('-'))

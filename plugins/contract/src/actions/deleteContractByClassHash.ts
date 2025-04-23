@@ -1,8 +1,8 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
+import { logger, StarknetAgentInterface } from '@hijox/core';
+('@hijox/core');
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
-import { contract } from '@snakagent/database/queries';
+import { contract, contractQueries } from '@hijox/database/queries';
 
 /**
  * Deletes a contract by its class hash
@@ -14,6 +14,10 @@ export const deleteContractByClassHashAction = async (
   params: z.infer<typeof deleteContractByClassHashSchema>
 ): Promise<string> => {
   try {
+    const contract = _agent.getDatabase().get('contract') as contractQueries;
+    if (!contract) {
+      throw new Error('Contract database not found');
+    }
     logger.debug('\n Deleting contract by class hash');
     logger.debug(JSON.stringify(params, null, 2));
 

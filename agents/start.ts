@@ -20,7 +20,8 @@ import * as fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { logger } from '@snakagent/core';
+import { logger } from '@hijox/core';
+import { DatabaseCredentials } from './src/tools/types/database.js';
 
 // Global deactivation of LangChain logs
 process.env.LANGCHAIN_TRACING = 'false';
@@ -348,6 +349,15 @@ const localRun = async (): Promise<void> => {
       logger.warn('Continuing with potentially outdated mode configuration.');
     }
 
+    // Setup database credentials from environment variables
+    const database: DatabaseCredentials = {
+      database: process.env.POSTGRES_DB as string,
+      host: process.env.POSTGRES_HOST as string,
+      user: process.env.POSTGRES_USER as string,
+      password: process.env.POSTGRES_PASSWORD as string,
+      port: parseInt(process.env.POSTGRES_PORT as string),
+    };
+
     // Prepare Agent Configuration
     const provider = new RpcProvider({
       nodeUrl: process.env.STARKNET_RPC_URL!,
@@ -361,6 +371,7 @@ const localRun = async (): Promise<void> => {
       agentMode: agentMode,
       agentconfig: json_config,
       modelsConfigPath: modelsConfigPath,
+      db_credentials: database,
       memory: {
         recursionLimit: json_config?.mode?.recursionLimit,
       },

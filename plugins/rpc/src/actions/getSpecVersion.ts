@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 
 export const getSpecVersion = async (agent: StarknetAgentInterface) => {
   try {

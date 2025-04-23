@@ -1,6 +1,6 @@
 {
-  "name": "@snakagent/plugin-cairocoder",
-  "version": "0.0.7",
+  "name": "@hijox/plugin-cairocoder",
+  "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.mjs",
@@ -20,14 +20,14 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --write \"./**/*.ts\"",
     "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@snakagent/core": "workspace:*",
-    "@snakagent/database": "workspace:*",
+    "@hijox/core": "workspace:*",
+    "@hijox/database": "workspace:*",
     "axios": "^1.8.2",
     "starknet": "^5.25.0",
     "zod": "^3.22.4"
@@ -35,5 +35,5 @@
   "devDependencies": {
     "@types/axios": "^0.14.4"
   },
-  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
+  "gitHead": "b666c09583709a6f2af4a5f12ee14c8af4248532"
 }

@@ -1,17 +1,28 @@
-import {
-  query,
-  transaction,
-  connect,
-  shutdown,
-  Query,
-} from '../src/database.js';
+import { DatabaseCredentials } from '@hijox/core';
+import { Postgres, Query } from '../src/database.js';
+
+const databasecredentials: DatabaseCredentials = {
+  user: process.env.POSTGRES_USER as string,
+  host: process.env.POSTGRES_HOST as string,
+  database: process.env.POSTGRES_DB as string,
+  password: process.env.POSTGRES_PASSWORD as string,
+  port: parseInt(process.env.POSTGRES_PORT || '5454'),
+};
+
+let db = new Postgres(databasecredentials);
 
 beforeAll(async () => {
-  await connect();
+  await db.connect(
+    process.env.POSTGRES_USER as string,
+    process.env.POSTGRES_HOST as string,
+    process.env.POSTGRES_DB as string,
+    process.env.POSTGRES_PASSWORD as string,
+    parseInt(process.env.POSTGRES_PORT || '5454')
+  );
 });
 
 afterAll(async () => {
-  await shutdown();
+  await db.shutdown();
 });
 
 describe('Database connect', () => {
@@ -23,7 +34,9 @@ describe('Database connect', () => {
       'SELECT state FROM pg_stat_activity WHERE datname = $1;',
       [process.env.POSTGRES_DB!]
     );
-    await expect(query<Model>(q)).resolves.toContainEqual({ state: 'active' });
+    await expect(db.query<Model>(q)).resolves.toContainEqual({
+      state: 'active',
+    });
   });
 });
 
@@ -36,19 +49,19 @@ describe('Database queries', () => {
 				age INT
 			);`
     );
-    await expect(query(q)).resolves.toHaveLength(0);
+    await expect(db.query(q)).resolves.toHaveLength(0);
 
     q = new Query(
       `INSERT INTO users(name, age) VALUES
 				('bob', 42), ('ben', 43), ('barry', 44);`
     );
-    await expect(query(q)).resolves.toHaveLength(0);
+    await expect(db.query(q)).resolves.toHaveLength(0);
 
     interface Model {
       name: string;
     }
     q = new Query(`SELECT name FROM users WHERE age < 44;`);
-    await expect(query<Model[]>(q)).resolves.toEqual([
+    await expect(db.query<Model[]>(q)).resolves.toEqual([
       { name: 'bob' },
       { name: 'ben' },
     ]);
@@ -84,7 +97,7 @@ describe('Database queries', () => {
 					('jepsen', 45, 'teacher');`
       ),
     ];
-    await expect(transaction(t)).resolves.toEqual([]);
+    await expect(db.transaction(t)).resolves.toEqual([]);
 
     interface Model {
       name: string;
@@ -98,7 +111,7 @@ describe('Database queries', () => {
 					JOIN job_details ON employees.job = job_details.job
 				WHERE job_details.job = 'painter';`
     );
-    await expect(query<Model>(q)).resolves.toEqual([
+    await expect(db.query<Model>(q)).resolves.toEqual([
       { name: 'jeff', age: 42, job: 'painter', pay_avg: 50 },
       { name: 'john', age: 43, job: 'painter', pay_avg: 50 },
     ]);

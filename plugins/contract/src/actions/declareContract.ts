@@ -1,11 +1,11 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { declareContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
-import { logger } from '@snakagent/core';
-import { contract } from '@snakagent/database/queries';
+import { logger } from '@hijox/core';
+import { contract, contractQueries } from '@hijox/database/queries';
 
 /**
  * Declares a contract on StarkNet
@@ -18,6 +18,10 @@ export const declareContract = async (
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {
+    const contract = agent.getDatabase().get('contract') as contractQueries;
+    if (!contract) {
+      throw new Error('Contract database not found');
+    }
     logger.debug('\n Declaring contract');
     logger.debug(JSON.stringify(params, null, 2));
 

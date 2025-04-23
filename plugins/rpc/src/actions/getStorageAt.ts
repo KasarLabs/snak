@@ -1,5 +1,5 @@
 import { GetStorageParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 
 export const getStorageAt = async (
   agent: StarknetAgentInterface,

@@ -1,5 +1,5 @@
 import { BlockIdParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 
 export const getBlockStateUpdate = async (
   agent: StarknetAgentInterface,

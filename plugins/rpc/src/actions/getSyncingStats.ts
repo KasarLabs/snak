@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { StarknetAgentInterface } from '@hijox/core';
 
 export const getSyncingStats = async (agent: StarknetAgentInterface) => {
   const provider = agent.getProvider();
