@@ -1,9 +1,5 @@
 import { DatabaseCredentials } from '@hijox/core';
-import {
-  Postgres,
-  Query,
-} from '../src/database.js';
-
+import { Postgres, Query } from '../src/database.js';
 
 const databasecredentials: DatabaseCredentials = {
   user: process.env.POSTGRES_USER as string,
@@ -29,7 +25,6 @@ afterAll(async () => {
   await db.shutdown();
 });
 
-
 describe('Database connect', () => {
   it('Should connect to db', async () => {
     interface Model {
@@ -39,7 +34,9 @@ describe('Database connect', () => {
       'SELECT state FROM pg_stat_activity WHERE datname = $1;',
       [process.env.POSTGRES_DB!]
     );
-    await expect(db.query<Model>(q)).resolves.toContainEqual({ state: 'active' });
+    await expect(db.query<Model>(q)).resolves.toContainEqual({
+      state: 'active',
+    });
   });
 });
 

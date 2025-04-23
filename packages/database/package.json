@@ -21,7 +21,7 @@
     "test-teardown": "docker compose -f compose.test.yaml rm -fsv",
     "test-jest": "DOTENV_CONFIG_PATH=../../.env jest --config jest.config.cjs --setupFiles dotenv/config",
     "test": "pnpm test-setup && pnpm test-jest ; ECODE=$? ; pnpm test-teardown ; exit $ECODE",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --write \"./**/*.ts\"",
     "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
