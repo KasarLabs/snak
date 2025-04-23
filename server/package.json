@@ -32,7 +32,8 @@
     "fastify": "^5.2.1",
     "helmet": "^8.0.0",
     "rxjs": "^7.8.1",
-    "@snakagent/agents": "workspace:*"
+    "@snakagent/agents": "workspace:*",
+    "@snakagent/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.3"

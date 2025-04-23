@@ -9,6 +9,13 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
+  const db_credentials = {
+    database: 'test_db',
+    host: 'localhost',
+    user: 'test_user',
+    password: 'test_password',
+    port: 5432,
+  };
   const json_config: JsonConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
@@ -39,13 +46,20 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-  };
+    getDatabaseCredentials: () => db_credentials,  };
 };
 
 export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
+  const db_credentials = {
+    database: 'test_db',
+    host: 'localhost',
+    user: 'test_user',
+    password: 'test_password',
+    port: 5432,
+  };
   const json_config: JsonConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
@@ -62,8 +76,9 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
 
   return {
     getAccountCredentials: () => ({
-      accountPublicKey: 'dlksjflkdsjf',
+            accountPublicKey: 'dlksjflkdsjf',
       accountPrivateKey: 'dsfahdskfgdsjkah',
+
     }),
     getModelCredentials: () => ({
       aiModel: '',
@@ -74,5 +89,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
+    getDatabaseCredentials: () => db_credentials,
   };
 };
