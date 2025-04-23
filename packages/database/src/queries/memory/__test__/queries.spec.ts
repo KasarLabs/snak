@@ -7,7 +7,7 @@ const db_credentials = {
   user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
   database: process.env.POSTGRES_DB as string,
-}
+};
 
 beforeAll(async () => {
   await Postgres.connect(db_credentials);

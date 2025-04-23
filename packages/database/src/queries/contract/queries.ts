@@ -130,9 +130,10 @@ export namespace contract {
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function deleteContract(classHash: string): Promise<void> {
-    const q = new Postgres.Query(`DELETE FROM contract WHERE class_hash = $1;`, [
-      classHash,
-    ]);
+    const q = new Postgres.Query(
+      `DELETE FROM contract WHERE class_hash = $1;`,
+      [classHash]
+    );
     await Postgres.query(q);
   }
 

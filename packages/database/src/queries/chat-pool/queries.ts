@@ -62,7 +62,9 @@ export namespace chat {
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function select_instructions(): Promise<Instruction<Id.Id>[]> {
-    const q = new Postgres.Query(`SELECT id, instruction FROM sak_table_chat; `);
+    const q = new Postgres.Query(
+      `SELECT id, instruction FROM sak_table_chat; `
+    );
     return await Postgres.query(q);
   }
 }

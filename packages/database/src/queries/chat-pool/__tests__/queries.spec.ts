@@ -7,7 +7,7 @@ const db_credentials = {
   user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
   database: process.env.POSTGRES_DB as string,
-}
+};
 
 beforeAll(async () => {
   await Postgres.connect(db_credentials);
@@ -40,6 +40,8 @@ describe('Chat-pool database initialization', () => {
     const instruction: chat.Instruction = {
       instruction: 'Lorem Ipsum dolor si amet',
     };
-    await expect(chat.select_instructions()).resolves.toMatchObject([instruction]);
+    await expect(chat.select_instructions()).resolves.toMatchObject([
+      instruction,
+    ]);
   });
 });

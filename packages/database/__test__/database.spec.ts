@@ -1,6 +1,4 @@
-import {
-  Postgres
-} from '../src/database.js';
+import { Postgres } from '../src/database.js';
 
 const db_credentials = {
   host: process.env.POSTGRES_HOST as string,
@@ -8,7 +6,7 @@ const db_credentials = {
   user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
   database: process.env.POSTGRES_DB as string,
-}
+};
 
 beforeAll(async () => {
   await Postgres.connect(db_credentials);
@@ -27,7 +25,9 @@ describe('Database connect', () => {
       'SELECT state FROM pg_stat_activity WHERE datname = $1;',
       [process.env.POSTGRES_DB!]
     );
-    await expect(Postgres.query<Model>(q)).resolves.toContainEqual({ state: 'active' });
+    await expect(Postgres.query<Model>(q)).resolves.toContainEqual({
+      state: 'active',
+    });
   });
 });
 

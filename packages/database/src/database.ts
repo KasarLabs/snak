@@ -79,7 +79,7 @@ export namespace Postgres {
     }
     console.log(
       `Connecting to database ${db.database} at ${db.host}:${db.port} as ${db.user}`
-    )
+    );
     pool = new Pool({
       user: db.user,
       host: db.host,
@@ -102,7 +102,7 @@ export namespace Postgres {
   export async function query<Model = {}>(q: Query): Promise<Model[]> {
     try {
       if (!pool) {
-        console.log(pool)
+        console.log(pool);
         throw new Error('Connection pool not initialized! query');
       }
       const query = await pool.query(q.query, q.values);

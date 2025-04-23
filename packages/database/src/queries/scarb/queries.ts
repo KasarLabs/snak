@@ -579,10 +579,10 @@ export namespace scarb {
   ): Promise<void> {
     const t = programs.map(
       (program) =>
-        new Postgres.Query(`DELETE FROM program WHERE project_id = $1 AND name = $2;`, [
-          program.projectId,
-          program.name,
-        ])
+        new Postgres.Query(
+          `DELETE FROM program WHERE project_id = $1 AND name = $2;`,
+          [program.projectId, program.name]
+        )
     );
     await Postgres.transaction(t);
   }
@@ -776,10 +776,10 @@ export namespace scarb {
     projectId: number,
     proof: string
   ): Promise<void> {
-    const q = new Postgres.Query(`UPDATE PROJECT SET proof = $1 WHERE id = $2;`, [
-      JSON.stringify(proof),
-      projectId,
-    ]);
+    const q = new Postgres.Query(
+      `UPDATE PROJECT SET proof = $1 WHERE id = $2;`,
+      [JSON.stringify(proof), projectId]
+    );
     await Postgres.query(q);
   }
 
@@ -795,10 +795,10 @@ export namespace scarb {
     projectId: number,
     verified: boolean
   ): Promise<void> {
-    const q = new Postgres.Query(`UPDATE PROJECT SET verified = $1 WHERE id = $2`, [
-      verified,
-      projectId,
-    ]);
+    const q = new Postgres.Query(
+      `UPDATE PROJECT SET verified = $1 WHERE id = $2`,
+      [verified, projectId]
+    );
     await Postgres.query(q);
   }
 }
