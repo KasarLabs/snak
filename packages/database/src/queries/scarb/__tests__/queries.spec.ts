@@ -1,133 +1,101 @@
-import { DatabaseCredentials } from '../../../utils/database.js';
 import { Postgres } from '../../../database.js';
 import { Id } from '../../common.js';
-import { scarbQueries, scarb } from '../queries.js';
+import { scarb } from '../queries.js';
 
-const databasecredentials: DatabaseCredentials = {
-  user: process.env.POSTGRES_USER as string,
+const db_credentials = {
   host: process.env.POSTGRES_HOST as string,
-  database: process.env.POSTGRES_DB as string,
+  port: parseInt(process.env.POSTGRES_PORT!) as number,
+  user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
-  port: parseInt(process.env.POSTGRES_PORT || '5454'),
+  database: process.env.POSTGRES_DB as string,
 };
 
-let _scarbQueries = new scarbQueries(databasecredentials);
-
 beforeAll(async () => {
-  await _scarbQueries.connect(
-    process.env.POSTGRES_USER as string,
-    process.env.POSTGRES_HOST as string,
-    process.env.POSTGRES_DB as string,
-    process.env.POSTGRES_PASSWORD as string,
-    parseInt(process.env.POSTGRES_PORT || '5454')
-  );
+  await Postgres.connect(db_credentials);
 });
 
 afterAll(async () => {
-  await _scarbQueries.shutdown();
+  await Postgres.shutdown();
 });
 
 describe('Scarb database initialization', () => {
   it('Should create tables', async () => {
-    await expect(_scarbQueries.init()).resolves.toBeUndefined();
+    await expect(scarb.init()).resolves.toBeUndefined();
   });
 
   it('Should be indempotent', async () => {
-    await expect(_scarbQueries.init()).resolves.toBeUndefined();
+    await expect(scarb.init()).resolves.toBeUndefined();
   });
 });
 
 describe('Project table', () => {
   it('Should handle insertions', async () => {
     const project1: scarb.Project = { name: 'Foo', type: 'contract' };
-
-    await expect(
-      _scarbQueries.insertProject(project1)
-    ).resolves.toBeUndefined();
+    await expect(scarb.insertProject(project1)).resolves.toBeUndefined();
   });
 
-  it('Should handle_scarbQueries.init duplicates', async () => {
+  it('Should handle duplicates', async () => {
     const project: scarb.Project = { name: 'Foo', type: 'cairo_program' };
-
-    await expect(_scarbQueries.insertProject(project)).resolves.toBeUndefined();
+    await expect(scarb.insertProject(project)).resolves.toBeUndefined();
   });
 
   it('Should handle retrievals', async () => {
     const project: scarb.Project = { name: 'Foo', type: 'contract' };
-
-    await expect(_scarbQueries.selectProject('Foo')).resolves.toMatchObject(
-      project
-    );
+    await expect(scarb.selectProject('Foo')).resolves.toMatchObject(project);
   });
 
   it('Should handle invalid retrievals', async () => {
-    await expect(_scarbQueries.selectProject('Bazz')).resolves.toBeUndefined();
+    await expect(scarb.selectProject('Bazz')).resolves.toBeUndefined();
   });
 
   it('Should handle deletions', async () => {
     const project2: scarb.Project = { name: 'Bazz', type: 'contract' };
-
-    await expect(
-      _scarbQueries.insertProject(project2)
-    ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectProject('Bazz')).resolves.toMatchObject(
-      project2
-    );
+    await expect(scarb.insertProject(project2)).resolves.toBeUndefined();
+    await expect(scarb.selectProject('Bazz')).resolves.toMatchObject(project2);
 
     const project: scarb.Project = { name: 'Foo', type: 'contract' };
-    await expect(_scarbQueries.deleteProject('Bazz')).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectProject('Bazz')).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectProject('Foo')).resolves.toMatchObject(
-      project
-    );
+    await expect(scarb.deleteProject('Bazz')).resolves.toBeUndefined();
+    await expect(scarb.selectProject('Bazz')).resolves.toBeUndefined();
+    await expect(scarb.selectProject('Foo')).resolves.toMatchObject(project);
   });
 
   it('Should handle invalid deletions', async () => {
     const project: scarb.Project = { name: 'Foo', type: 'contract' };
-
-    await expect(
-      _scarbQueries.deleteProject('FooBazz')
-    ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectProject('Foo')).resolves.toMatchObject(
-      project
-    );
+    await expect(scarb.deleteProject('FooBazz')).resolves.toBeUndefined();
+    await expect(scarb.selectProject('Foo')).resolves.toMatchObject(project);
   });
 });
 
 describe('Program table', () => {
   it('Should handle insertions', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const program1: scarb.Program<Id.Id> = {
       project_id: project.id,
       name: 'Fibonacci',
       source_code: 'fibb_recursive',
     };
-    await expect(
-      _scarbQueries.insertProgram(program1)
-    ).resolves.toBeUndefined();
+    await expect(scarb.insertProgram(program1)).resolves.toBeUndefined();
 
     const program2: scarb.Program<Id.Id> = {
       project_id: project.id,
       name: 'Sieve',
       source_code: 'prime_sieve',
     };
-    await expect(
-      _scarbQueries.insertProgram(program2)
-    ).resolves.toBeUndefined();
+    await expect(scarb.insertProgram(program2)).resolves.toBeUndefined();
   });
 
   it('Should handle duplicates', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const program: scarb.Program<Id.Id> = {
       project_id: project.id,
       name: 'Fibonacci',
       source_code: 'fibb_iterative',
     };
-    await expect(_scarbQueries.insertProgram(program)).resolves.toBeUndefined();
+    await expect(scarb.insertProgram(program)).resolves.toBeUndefined();
   });
 
   it('Should handle retrievals', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const program1: scarb.Program<Id.Id> = {
       project_id: project.id,
       name: 'Fibonacci',
@@ -142,14 +110,14 @@ describe('Program table', () => {
       sierra: null,
       casm: null,
     };
-    await expect(_scarbQueries.selectPrograms(project.id)).resolves.toEqual([
+    await expect(scarb.selectPrograms(project.id)).resolves.toEqual([
       program1,
       program2,
     ]);
   });
 
   it('Should handle invalid retrievals', async () => {
-    await expect(_scarbQueries.selectPrograms(2)).resolves.toEqual([]);
+    await expect(scarb.selectPrograms(2)).resolves.toEqual([]);
   });
 
   it('Should handle deletions', async () => {
@@ -158,61 +126,50 @@ describe('Program table', () => {
       name: 'Marching Cubes',
       source_code: 'marching_cubes',
     };
+    await expect(scarb.insertProgram(program3)).resolves.toBeUndefined();
+    await expect(scarb.selectPrograms(1)).resolves.toHaveLength(3);
 
     await expect(
-      _scarbQueries.insertProgram(program3)
+      scarb.deleteProgram(1, 'Marching Cubes')
     ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectPrograms(1)).resolves.toHaveLength(3);
-
-    await expect(
-      _scarbQueries.deleteProgram(1, 'Marching Cubes')
-    ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectPrograms(1)).resolves.toHaveLength(2);
+    await expect(scarb.selectPrograms(1)).resolves.toHaveLength(2);
   });
 
   it('Should handle invalid deletions', async () => {
-    await expect(
-      _scarbQueries.deleteProgram(1, 'FFT')
-    ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectPrograms(1)).resolves.toHaveLength(2);
+    await expect(scarb.deleteProgram(1, 'FFT')).resolves.toBeUndefined();
+    await expect(scarb.selectPrograms(1)).resolves.toHaveLength(2);
   });
 });
 
 describe('Dependency table', () => {
   it('Should handle insertions', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const dependency1: scarb.Dependency<Id.Id> = {
       project_id: project.id,
       name: 'libc',
       version: '1.0.0',
     };
-    await expect(
-      _scarbQueries.insertDependency(dependency1)
-    ).resolves.toBeUndefined();
+    await expect(scarb.insertDependency(dependency1)).resolves.toBeUndefined();
 
     const dependency2: scarb.Dependency<Id.Id> = {
       project_id: project.id,
       name: 'gcc',
     };
-    await expect(
-      _scarbQueries.insertDependency(dependency2)
-    ).resolves.toBeUndefined();
+    await expect(scarb.insertDependency(dependency2)).resolves.toBeUndefined();
   });
 
   it('Should handle duplicates', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const dependency: scarb.Dependency<Id.Id> = {
       project_id: project.id,
       name: 'libc',
       version: '2.0.0',
     };
-    await expect(
-      _scarbQueries.insertDependency(dependency)
-    ).resolves.toBeUndefined();
+    await expect(scarb.insertDependency(dependency)).resolves.toBeUndefined();
   });
 
   it('Should handle retrieval', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const dependency1: scarb.Dependency<Id.Id> = {
       project_id: project.id,
       name: 'libc',
@@ -223,41 +180,34 @@ describe('Dependency table', () => {
       name: 'gcc',
       version: '',
     };
-    await expect(_scarbQueries.selectDependencies(project.id)).resolves.toEqual(
-      [dependency1, dependency2]
-    );
+    await expect(scarb.selectDependencies(project.id)).resolves.toEqual([
+      dependency1,
+      dependency2,
+    ]);
   });
 
   it('Should handle invalid retrievals', async () => {
-    await expect(_scarbQueries.selectDependencies(2)).resolves.toEqual([]);
+    await expect(scarb.selectDependencies(2)).resolves.toEqual([]);
   });
 
   it('Should handle deletions', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const dependency3: scarb.Dependency<Id.Id> = {
       project_id: project.id,
       name: 'qt',
     };
-    await expect(
-      _scarbQueries.insertDependency(dependency3)
-    ).resolves.toBeUndefined();
-    await expect(
-      _scarbQueries.selectDependencies(project.id)
-    ).resolves.toHaveLength(3);
+    await expect(scarb.insertDependency(dependency3)).resolves.toBeUndefined();
+    await expect(scarb.selectDependencies(project.id)).resolves.toHaveLength(3);
 
     await expect(
-      _scarbQueries.deleteDependency(project.id, 'qt')
+      scarb.deleteDependency(project.id, 'qt')
     ).resolves.toBeUndefined();
-    await expect(
-      _scarbQueries.selectDependencies(project.id)
-    ).resolves.toHaveLength(2);
+    await expect(scarb.selectDependencies(project.id)).resolves.toHaveLength(2);
   });
 
   it('Should handle invalid deletions', async () => {
-    await expect(
-      _scarbQueries.deleteDependency(1, 'ffmpeg')
-    ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectDependencies(1)).resolves.toHaveLength(2);
+    await expect(scarb.deleteDependency(1, 'ffmpeg')).resolves.toBeUndefined();
+    await expect(scarb.selectDependencies(1)).resolves.toHaveLength(2);
   });
 });
 
@@ -277,22 +227,19 @@ describe('Project aggregation', () => {
       programs,
       dependencies,
     };
-
-    await expect(
-      _scarbQueries.retrieveProjectData('Foo')
-    ).resolves.toMatchObject(projectData);
+    await expect(scarb.retrieveProjectData('Foo')).resolves.toMatchObject(
+      projectData
+    );
   });
 
   it('Should handle missing projects', async () => {
-    await expect(
-      _scarbQueries.retrieveProjectData('Bazz')
-    ).resolves.toBeUndefined();
+    await expect(scarb.retrieveProjectData('Bazz')).resolves.toBeUndefined();
   });
 });
 
 describe('Compilation results', () => {
   it('Should save', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const programNames = ['Fibonacci', 'Sieve'];
     const sierraFiles = ['sierra1', 'sierra2'];
     const casmFiles = ['casm1', 'casm2'];
@@ -312,9 +259,9 @@ describe('Compilation results', () => {
     };
 
     await expect(
-      _scarbQueries.saveCompilationResults(programNames, sierraFiles, casmFiles)
+      scarb.saveCompilationResults(programNames, sierraFiles, casmFiles)
     ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectPrograms(1)).resolves.toEqual([
+    await expect(scarb.selectPrograms(1)).resolves.toEqual([
       program1,
       program2,
     ]);
@@ -323,13 +270,13 @@ describe('Compilation results', () => {
 
 describe('Execution results', () => {
   it('Should save', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const trace = Buffer.from('trace');
 
     await expect(
-      _scarbQueries.saveExecutionResults(project.id, trace)
+      scarb.saveExecutionResults(project.id, trace)
     ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectProject('Foo')).resolves.toHaveProperty(
+    await expect(scarb.selectProject('Foo')).resolves.toHaveProperty(
       'execution_trace',
       trace
     );
@@ -338,13 +285,11 @@ describe('Execution results', () => {
 
 describe('Proof results', () => {
   it('Should save', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const proof = 'proof';
 
-    await expect(
-      _scarbQueries.saveProof(project.id, proof)
-    ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectProject('Foo')).resolves.toHaveProperty(
+    await expect(scarb.saveProof(project.id, proof)).resolves.toBeUndefined();
+    await expect(scarb.selectProject('Foo')).resolves.toHaveProperty(
       'proof',
       proof
     );
@@ -353,13 +298,13 @@ describe('Proof results', () => {
 
 describe('Verification results', () => {
   it('Should save', async () => {
-    const project = (await _scarbQueries.selectProject('Foo'))!;
+    const project = (await scarb.selectProject('Foo'))!;
     const verified = true;
 
     await expect(
-      _scarbQueries.saveVerify(project.id, verified)
+      scarb.saveVerify(project.id, verified)
     ).resolves.toBeUndefined();
-    await expect(_scarbQueries.selectProject('Foo')).resolves.toHaveProperty(
+    await expect(scarb.selectProject('Foo')).resolves.toHaveProperty(
       'verified',
       verified
     );
@@ -386,10 +331,10 @@ describe('Project initialization', () => {
     };
 
     await expect(
-      _scarbQueries.initProject(project, programs, dependencies)
+      scarb.initProject(project, programs, dependencies)
     ).resolves.toMatchObject(projectData);
-    await expect(
-      _scarbQueries.retrieveProjectData('Doom')
-    ).resolves.toMatchObject(projectData);
+    await expect(scarb.retrieveProjectData('Doom')).resolves.toMatchObject(
+      projectData
+    );
   });
 });

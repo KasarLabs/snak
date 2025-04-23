@@ -1,6 +1,9 @@
 import { wrapAccountCreationResponse } from '../utils/AccountManager.js';
 import { accountDetailsSchema } from '../schemas/schema.js';
-import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import {
+  StarknetAgentInterface,
+  StarknetTool,
+} from '@snakagent/core';
 import { DeployOKXAccount } from '../actions/deployAccount.js';
 import { CreateOKXAccount } from '../actions/createAccount.js';
 

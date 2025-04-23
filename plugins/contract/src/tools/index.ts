@@ -1,4 +1,7 @@
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import {
+  StarknetTool,
+  StarknetAgentInterface,
+} from '@snakagent/core';
 import {
   declareContractSchema,
   deployContractSchema,
@@ -13,20 +16,12 @@ import { getConstructorParams } from '../actions/getConstructorParams.js';
 import { listDeclaredContracts } from '../actions/listContracts.js';
 import { listDeploymentsByClassHash } from '../actions/listDeploymentsByClassHash.js';
 import { deleteContractByClassHashAction } from '../actions/deleteContractByClassHash.js';
-import { contract, contractQueries } from '@snakagent/database/queries';
+import { contract } from '@snakagent/database/queries';
 
 export const initializeTools = async (
   _agent: StarknetAgentInterface
 ): Promise<void> => {
   try {
-    const contract = new contractQueries(_agent.getDatabaseCredentials());
-    const db = _agent.getDatabase();
-    if (db.has('contract')) {
-      throw new Error('Scarb database already exists');
-    }
-    db.set('contract', contract);
-    _agent.setDatabase(db);
-
     await contract.init();
   } catch (error) {
     console.error('Error initializing contract database:', error);

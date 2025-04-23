@@ -1,9 +1,8 @@
 import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
 import { fixCairoCodeSchema } from '../schema/schema.js';
 import { callCairoGenerationAPI, extractCairoCode } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarbQueries } from '@snakagent/database/queries';
+import { scarb } from '@snakagent/database/queries';
 
 /**
  * Fix Cairo code using AI via API and update it in the database
@@ -12,16 +11,12 @@ import { scarbQueries } from '@snakagent/database/queries';
  * @returns {Promise<string>} JSON string with the fixed code or error
  */
 export const fixCairoCode = async (
-  _agent: StarknetAgentInterface,
+  _angent: StarknetAgentInterface,
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {
     logger.debug('\n Fixing Cairo code');
     logger.debug(JSON.stringify(params, null, 2));
-    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
-    if (!scarb) {
-      throw new Error('Scarb database not found');
-    }
 
     if (!params?.programName || !params.programName.endsWith('.cairo')) {
       throw new Error('Program name is required and must end with .cairo');

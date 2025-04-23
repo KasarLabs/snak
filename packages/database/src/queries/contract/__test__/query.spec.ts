@@ -1,36 +1,29 @@
-import { DatabaseCredentials } from '../../../utils/database.js';
 import { Postgres } from '../../../database.js';
-import { contractQueries, contract } from '../queries.js';
+import { contract } from '../queries.js';
 
-const databasecredentials: DatabaseCredentials = {
-  user: process.env.POSTGRES_USER as string,
+const db_credentials = {
   host: process.env.POSTGRES_HOST as string,
-  database: process.env.POSTGRES_DB as string,
+  port: parseInt(process.env.POSTGRES_PORT!) as number,
+  user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
-  port: parseInt(process.env.POSTGRES_PORT || '5454'),
-};
+  database: process.env.POSTGRES_DB as string,
+}
 
-let _contract = new contractQueries(databasecredentials);
 beforeAll(async () => {
-  await _contract.connect(
-    process.env.POSTGRES_USER as string,
-    process.env.POSTGRES_HOST as string,
-    process.env.POSTGRES_DB as string,
-    process.env.POSTGRES_PASSWORD as string,
-    parseInt(process.env.POSTGRES_PORT || '5454')
-  );
+  await Postgres.connect(db_credentials);
 });
 
 afterAll(async () => {
-  await _contract.shutdown();
+  await Postgres.shutdown();
 });
+
 describe('Contract database initialization', () => {
   it('Should create tables', async () => {
-    await expect(_contract.init()).resolves.toBeUndefined();
+    await expect(contract.init()).resolves.toBeUndefined();
   });
 
   it('Should be indempotent', async () => {
-    await expect(_contract.init()).resolves.toBeUndefined();
+    await expect(contract.init()).resolves.toBeUndefined();
   });
 });
 
@@ -40,15 +33,13 @@ describe('Contract table', () => {
       class_hash: '0xdeadbeef',
       declare_tx_hash: '0xdab',
     };
-
-    await expect(_contract.insertContract(c1)).resolves.toBeUndefined();
+    await expect(contract.insertContract(c1)).resolves.toBeUndefined();
 
     const c2: contract.Contract = {
       class_hash: '0xdad',
       declare_tx_hash: '0xdababe',
     };
-
-    await expect(_contract.insertContract(c2)).resolves.toBeUndefined();
+    await expect(contract.insertContract(c2)).resolves.toBeUndefined();
   });
 
   it('Should reject duplicates', async () => {
@@ -56,8 +47,7 @@ describe('Contract table', () => {
       class_hash: '0xdeadbeef',
       declare_tx_hash: '0xdab',
     };
-
-    await expect(_contract.insertContract(c1)).rejects.toThrow();
+    await expect(contract.insertContract(c1)).rejects.toThrow();
   });
 
   it('Should handle retrievals', async () => {
@@ -66,10 +56,7 @@ describe('Contract table', () => {
       class_hash,
       declare_tx_hash: '0xdab',
     };
-
-    await expect(_contract.selectContract(class_hash)).resolves.toMatchObject(
-      c
-    );
+    await expect(contract.selectContract(class_hash)).resolves.toMatchObject(c);
   });
 
   it('Should handle bulk retrievals', async () => {
@@ -83,15 +70,13 @@ describe('Contract table', () => {
         declare_tx_hash: '0xdababe',
       },
     ];
-
-    await expect(_contract.selectContracts()).resolves.toMatchObject(c);
+    await expect(contract.selectContracts()).resolves.toMatchObject(c);
   });
 
   it('Should handle deletions', async () => {
     const class_hash = '0xdad';
-
-    await expect(_contract.deleteContract(class_hash)).resolves.toBeUndefined();
-    await expect(_contract.selectContract(class_hash)).resolves.toBeUndefined();
+    await expect(contract.deleteContract(class_hash)).resolves.toBeUndefined();
+    await expect(contract.selectContract(class_hash)).resolves.toBeUndefined();
   });
 });
 
@@ -102,9 +87,8 @@ describe('Deployment table', () => {
       contract_address: '0xfeed',
       deploy_tx_hash: '0xada',
     };
-
     await expect(
-      _contract.insertDeployment(deployment1, class_hash1)
+      contract.insertDeployment(deployment1, class_hash1)
     ).resolves.toBeUndefined();
 
     const class_hash2 = '0xdeadbeef';
@@ -113,7 +97,7 @@ describe('Deployment table', () => {
       deploy_tx_hash: '0xdad',
     };
     await expect(
-      _contract.insertDeployment(deployment2, class_hash2)
+      contract.insertDeployment(deployment2, class_hash2)
     ).resolves.toBeUndefined();
   });
 
@@ -123,9 +107,8 @@ describe('Deployment table', () => {
       contract_address: '0xfeed',
       deploy_tx_hash: '0xada',
     };
-
     await expect(
-      _contract.insertDeployment(deployment, class_hash)
+      contract.insertDeployment(deployment, class_hash)
     ).rejects.toThrow();
   });
 
@@ -135,9 +118,8 @@ describe('Deployment table', () => {
       contract_address,
       deploy_tx_hash: '0xada',
     };
-
     await expect(
-      _contract.selectDeployment(contract_address)
+      contract.selectDeployment(contract_address)
     ).resolves.toMatchObject(deployment);
   });
 
@@ -153,19 +135,17 @@ describe('Deployment table', () => {
         deploy_tx_hash: '0xdad',
       },
     ];
-
-    await expect(
-      _contract.selectDeployments(class_hash)
-    ).resolves.toMatchObject(deployments);
+    await expect(contract.selectDeployments(class_hash)).resolves.toMatchObject(
+      deployments
+    );
   });
 
   it('Should cascade deletions', async () => {
     const class_hash = '0xdeadbeef';
     const contract_address = '0xfeed';
-
-    await expect(_contract.deleteContract(class_hash)).resolves.toBeUndefined();
+    await expect(contract.deleteContract(class_hash)).resolves.toBeUndefined();
     await expect(
-      _contract.selectDeployment(contract_address)
+      contract.selectDeployment(contract_address)
     ).resolves.toBeUndefined();
   });
 });

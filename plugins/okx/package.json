@@ -1,36 +1,27 @@
 {
   "name": "@snakagent/plugin-okx",
-  "version": "0.0.12",
+  "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "module": "./dist/index.mjs",
   "type": "module",
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist",
-    "LICENSE",
-    "package.json",
-    "README.md"
-  ],
   "scripts": {
     "test": "jest --passWithNoTests",
-    "build": "tsup",
+    "build": "tsc",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "format": "prettier --write \"./**/*.ts\"",
-    "prepublishOnly": "npm run format && npm run build",
-    "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
-  "dependencies": {
-    "@snakagent/core": "workspace:*"
+  "devDependencies": {
+    "@snakagent/core": "workspace:*",
+    "zod": "^3.24.3"
+  },
+  "peerDependencies": {
+    "@snakagent/core": "workspace:*",
+    "zod": "^3.24.3"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Starknet Agent Kit plugin for creating and deploying OKX wallet accounts on Starknet.",
-  "gitHead": "92aedfbed422f736e1890cff065f6f2890e8befd"
+  "description": ""
 }

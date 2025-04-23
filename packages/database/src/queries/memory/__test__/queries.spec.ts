@@ -1,38 +1,29 @@
 import { Postgres } from '../../../database.js';
-import { memoryQueries, memory } from '../queries.js';
-import { DatabaseCredentials } from '../../../utils/database.js';
+import { memory } from '../queries.js';
 
-const databasecredentials: DatabaseCredentials = {
-  user: process.env.POSTGRES_USER as string,
+const db_credentials = {
   host: process.env.POSTGRES_HOST as string,
-  database: process.env.POSTGRES_DB as string,
+  port: parseInt(process.env.POSTGRES_PORT!) as number,
+  user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
-  port: parseInt(process.env.POSTGRES_PORT || '5454'),
-};
-
-let _memory = new memoryQueries(databasecredentials);
+  database: process.env.POSTGRES_DB as string,
+}
 
 beforeAll(async () => {
-  await _memory.connect(
-    process.env.POSTGRES_USER as string,
-    process.env.POSTGRES_HOST as string,
-    process.env.POSTGRES_DB as string,
-    process.env.POSTGRES_PASSWORD as string,
-    parseInt(process.env.POSTGRES_PORT || '5454')
-  );
+  await Postgres.connect(db_credentials);
 });
 
 afterAll(async () => {
-  await _memory.shutdown();
+  await Postgres.shutdown();
 });
 
 describe('Memory database initialization', () => {
   it('Should create table', async () => {
-    await expect(_memory.init()).resolves.toBeUndefined();
+    await expect(memory.init()).resolves.toBeUndefined();
   });
 
   it('Should be indempotent', async () => {
-    await expect(_memory.init()).resolves.toBeUndefined();
+    await expect(memory.init()).resolves.toBeUndefined();
   });
 });
 
@@ -53,14 +44,14 @@ describe('Memory table', () => {
         },
       ],
     };
-    await expect(_memory.insert_memory(m)).resolves.toBeUndefined();
+    await expect(memory.insert_memory(m)).resolves.toBeUndefined();
   });
 
   it('Should handle updates', async () => {
     const content = 'content2';
     const embedding = [...Array(384).keys()].map((n) => n - 383);
     await expect(
-      _memory.update_memory(1, content, embedding)
+      memory.update_memory(1, content, embedding)
     ).resolves.toBeUndefined();
   });
 
@@ -83,11 +74,11 @@ describe('Memory table', () => {
         },
       ],
     };
-    await expect(_memory.select_memory(1)).resolves.toMatchObject(m);
+    await expect(memory.select_memory(1)).resolves.toMatchObject(m);
   });
 
   it('Should handle invalid retrievals', async () => {
-    await expect(_memory.select_memory(2)).resolves.toBeUndefined();
+    await expect(memory.select_memory(2)).resolves.toBeUndefined();
   });
 
   it('Should handle similar retrievals', async () => {
@@ -108,7 +99,7 @@ describe('Memory table', () => {
       similarity: 1,
     };
     await expect(
-      _memory.similar_memory('default_user', embedding)
+      memory.similar_memory('default_user', embedding)
     ).resolves.toMatchObject([m]);
   });
 });

@@ -1,11 +1,10 @@
 import { logger, StarknetAgentInterface } from '@snakagent/core';
-('@snakagent/core');
 import { executeProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { executeProgramSchema } from '../schema/schema.js';
 import { formatCompilationError } from '../utils/utils.js';
 import { z } from 'zod';
-import { scarbQueries } from '@snakagent/database/queries';
+import { scarb } from '@snakagent/database/queries';
 import path from 'path';
 import { readFileSync } from 'fs';
 
@@ -24,10 +23,7 @@ export const executeProgram = async (
   try {
     logger.debug('\n Executing program');
     logger.debug(JSON.stringify(params, null, 2));
-    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
-    if (!scarb) {
-      throw new Error('Scarb database not found');
-    }
+
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);

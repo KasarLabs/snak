@@ -13,7 +13,6 @@ import {
   estimateTokens,
 } from '../../token/tokenTracking.js';
 import { DatabaseCredentials } from '../../tools/types/database.js';
-import { Postgres } from '@snakagent/database';
 
 /**
  * Memory configuration for the agent
@@ -77,7 +76,6 @@ export class StarknetAgent implements IAgent {
   };
   private originalLoggerFunctions: Record<string, any> = {};
   private memory: MemoryConfig;
-  private database: Map<string, Postgres> = new Map<string, Postgres>();
 
   private readonly db_credentials: DatabaseCredentials;
 
@@ -272,14 +270,6 @@ export class StarknetAgent implements IAgent {
 
   public getDatabaseCredentials() {
     return this.db_credentials;
-  }
-
-  public getDatabase() {
-    return this.database;
-  }
-
-  public setDatabase(databases: Map<string, Postgres>) {
-    this.database = databases;
   }
 
   /**

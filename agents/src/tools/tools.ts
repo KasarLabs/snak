@@ -4,7 +4,6 @@ import { JsonConfig } from '../config/jsonConfig.js';
 import { logger } from '@snakagent/core';
 import { metrics } from '@snakagent/core';
 import { DatabaseCredentials } from './types/database.js';
-import { Postgres } from '@snakagent/database';
 
 /**
  * @interface StarknetAgentInterface
@@ -35,8 +34,6 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
-  getDatabase: () => Map<string, Postgres>;
-  setDatabase: (databases: Map<string, Postgres>) => void;
 }
 
 /**

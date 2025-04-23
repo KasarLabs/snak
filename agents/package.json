@@ -32,6 +32,7 @@
   "license": "ISC",
   "description": "The Agent Kit engine of Snak",
   "dependencies": {
+    "@snakagent/database": "workspace:*",
     "@huggingface/transformers": "^3.4.0",
     "@langchain/anthropic": "^0.3.11",
     "@langchain/community": "^0.3.34",
@@ -42,7 +43,6 @@
     "@langchain/ollama": "^0.1.4",
     "@langchain/openai": "^0.3.17",
     "@snakagent/core": "workspace:*",
-    "@snakagent/database": "workspace:*",
     "@snakagent/plugin-argent": "workspace:*",
     "@snakagent/plugin-artpeace": "workspace:*",
     "@snakagent/plugin-atlantic": "workspace:*",

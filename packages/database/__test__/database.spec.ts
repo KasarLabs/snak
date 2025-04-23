@@ -1,28 +1,21 @@
-import { DatabaseCredentials } from '@snakagent/core';
-import { Postgres, Query } from '../src/database.js';
+import {
+  Postgres
+} from '../src/database.js';
 
-const databasecredentials: DatabaseCredentials = {
-  user: process.env.POSTGRES_USER as string,
+const db_credentials = {
   host: process.env.POSTGRES_HOST as string,
-  database: process.env.POSTGRES_DB as string,
+  port: parseInt(process.env.POSTGRES_PORT!) as number,
+  user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
-  port: parseInt(process.env.POSTGRES_PORT || '5454'),
-};
-
-let db = new Postgres(databasecredentials);
+  database: process.env.POSTGRES_DB as string,
+}
 
 beforeAll(async () => {
-  await db.connect(
-    process.env.POSTGRES_USER as string,
-    process.env.POSTGRES_HOST as string,
-    process.env.POSTGRES_DB as string,
-    process.env.POSTGRES_PASSWORD as string,
-    parseInt(process.env.POSTGRES_PORT || '5454')
-  );
+  await Postgres.connect(db_credentials);
 });
 
 afterAll(async () => {
-  await db.shutdown();
+  await Postgres.shutdown();
 });
 
 describe('Database connect', () => {
@@ -30,38 +23,36 @@ describe('Database connect', () => {
     interface Model {
       state: string;
     }
-    const q = new Query(
+    const q = new Postgres.Query(
       'SELECT state FROM pg_stat_activity WHERE datname = $1;',
       [process.env.POSTGRES_DB!]
     );
-    await expect(db.query<Model>(q)).resolves.toContainEqual({
-      state: 'active',
-    });
+    await expect(Postgres.query<Model>(q)).resolves.toContainEqual({ state: 'active' });
   });
 });
 
 describe('Database queries', () => {
   it('Should handle table creation', async () => {
-    let q = new Query(
+    let q = new Postgres.Query(
       `CREATE TABLE users(
 				id SERIAL PRIMARY KEY,
 				name VARCHAR(255) NOT NULL,
 				age INT
 			);`
     );
-    await expect(db.query(q)).resolves.toHaveLength(0);
+    await expect(Postgres.query(q)).resolves.toHaveLength(0);
 
-    q = new Query(
+    q = new Postgres.Query(
       `INSERT INTO users(name, age) VALUES
 				('bob', 42), ('ben', 43), ('barry', 44);`
     );
-    await expect(db.query(q)).resolves.toHaveLength(0);
+    await expect(Postgres.query(q)).resolves.toHaveLength(0);
 
     interface Model {
       name: string;
     }
-    q = new Query(`SELECT name FROM users WHERE age < 44;`);
-    await expect(db.query<Model[]>(q)).resolves.toEqual([
+    q = new Postgres.Query(`SELECT name FROM users WHERE age < 44;`);
+    await expect(Postgres.query<Model[]>(q)).resolves.toEqual([
       { name: 'bob' },
       { name: 'ben' },
     ]);
@@ -69,13 +60,13 @@ describe('Database queries', () => {
 
   it('Should handle transactions', async () => {
     const t = [
-      new Query(
+      new Postgres.Query(
         `CREATE TABLE job_details(
 					job VARCHAR(255) PRIMARY KEY,
 					pay_avg INT
 				);`
       ),
-      new Query(
+      new Postgres.Query(
         `CREATE TABLE employees(
 					id SERIAL PRIMARY KEY,
 					name VARCHAR(255) NOT NULL,
@@ -83,13 +74,13 @@ describe('Database queries', () => {
 					job VARCHAR(255) REFERENCES job_details(job)
 				);`
       ),
-      new Query(
+      new Postgres.Query(
         `INSERT INTO job_details(job, pay_avg) VALUES
 					('painter', 50),
 					('dev', 100),
 					('teacher', '20');`
       ),
-      new Query(
+      new Postgres.Query(
         `INSERT INTO employees(name, age, job) VALUES
 					('jeff', 42, 'painter'),
 					('john', 43, 'painter'),
@@ -97,7 +88,7 @@ describe('Database queries', () => {
 					('jepsen', 45, 'teacher');`
       ),
     ];
-    await expect(db.transaction(t)).resolves.toEqual([]);
+    await expect(Postgres.transaction(t)).resolves.toEqual([]);
 
     interface Model {
       name: string;
@@ -105,13 +96,13 @@ describe('Database queries', () => {
       job: string;
       pay_avg: number;
     }
-    const q = new Query(
+    const q = new Postgres.Query(
       `SELECT employees.name, employees.age, job_details.job, job_details.pay_avg
 				FROM employees
 					JOIN job_details ON employees.job = job_details.job
 				WHERE job_details.job = 'painter';`
     );
-    await expect(db.query<Model>(q)).resolves.toEqual([
+    await expect(Postgres.query<Model>(q)).resolves.toEqual([
       { name: 'jeff', age: 42, job: 'painter', pay_avg: 50 },
       { name: 'john', age: 43, job: 'painter', pay_avg: 50 },
     ]);

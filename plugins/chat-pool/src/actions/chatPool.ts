@@ -1,16 +1,12 @@
 import { insertChatIntructionParams } from '../schema/index.js';
 import { StarknetAgentInterface } from '@snakagent/core';
-import { chatPoolQueries } from '@snakagent/database/queries';
+import { chat } from '@snakagent/database/queries';
 
 export const insertChatInstruction = async (
   _agent: StarknetAgentInterface,
   params: insertChatIntructionParams
 ) => {
   try {
-    const chat = _agent.getDatabase().get('chatpool') as chatPoolQueries;
-    if (!chat) {
-      throw new Error('Chat database not found');
-    }
     chat.insert_instruction(params.instruction);
 
     return JSON.stringify({ status: 'success' });
@@ -21,10 +17,6 @@ export const insertChatInstruction = async (
 
 export const readChatPool = async (_agent: StarknetAgentInterface) => {
   try {
-    const chat = _agent.getDatabase().get('chatpool') as chatPoolQueries;
-    if (!chat) {
-      throw new Error('Chat database not found');
-    }
     return JSON.stringify({
       status: 'success',
       instructions: (await chat.select_instructions()).map(
