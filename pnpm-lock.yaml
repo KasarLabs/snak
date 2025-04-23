@@ -470,7 +470,7 @@ importers:
         specifier: workspace:*
         version: link:../../core
       fibrous-router-sdk:
-        specifier: ^0.4.3
+        specifier: 0.4.3
         version: 0.4.3(encoding@0.1.13)
 
   plugins/okx:
