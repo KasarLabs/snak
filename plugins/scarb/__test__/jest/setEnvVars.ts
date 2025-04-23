@@ -1,6 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@snakagent/core';
+import { StarknetAgentInterface, JsonConfig } from '@snakagent/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -9,6 +9,13 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
+  const db_credentials = {
+    database: 'test_db',
+    host: 'localhost',
+    user: 'test_user',
+    password: 'test_password',
+    port: 5432,
+  };
   const json_config: JsonConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
@@ -22,8 +29,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
       recursionLimit: 15,
     },
   };
-
-  const twitter_auth_mode = undefined;
 
   return {
     getAccountCredentials: () => ({
@@ -41,6 +46,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
+    getDatabaseCredentials: () => db_credentials,
   };
 };
 
@@ -48,6 +54,13 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
+  const db_credentials = {
+    database: 'test_db',
+    host: 'localhost',
+    user: 'test_user',
+    password: 'test_password',
+    port: 5432,
+  };
   const json_config: JsonConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
@@ -61,8 +74,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
       recursionLimit: 15,
     },
   };
-
-  const twitter_auth_mode = undefined;
 
   return {
     getAccountCredentials: () => ({
@@ -78,5 +89,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
+    getDatabaseCredentials: () => db_credentials,
   };
 };

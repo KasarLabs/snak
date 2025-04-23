@@ -41,7 +41,7 @@ import {
   estimateTokens,
 } from '../../token/tokenTracking.js';
 import { memory, Postgres } from '@snakagent/database/queries';
-import { DatabaseCredentials } from 'tools/types/database.js';
+import { DatabaseCredentials } from '@snakagent/database';
 
 export function selectModel(aiConfig: AiConfig) {
   let model;
