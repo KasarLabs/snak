@@ -31,7 +31,7 @@
   "description": "The Agent Kit engine of Snak",
   "dependencies": {
     "@langchain/core": "^0.3.42",
-    "@snakagent/database": "0.0.12",
+    "@snakagent/database": "workspace:*",
     "@types/pg": "^8.11.11",
     "pg": "^8.13.3",
     "prom-client": "^15.1.3",

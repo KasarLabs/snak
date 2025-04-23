@@ -26,7 +26,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@snakagent/core": "0.0.12",
+    "@snakagent/core": "workspace:*",
     "fibrous-router-sdk": "0.4.3"
   },
   "keywords": [],

@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@avnu/avnu-sdk": "^3.0.0",
-    "@snakagent/core": "0.0.12"
+    "@snakagent/core": "workspace:*"
   },
   "keywords": [],
   "author": "",

@@ -27,7 +27,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@snakagent/core": "0.0.12"
+    "@snakagent/core": "workspace:*"
   },
   "keywords": [
     "starknet",
