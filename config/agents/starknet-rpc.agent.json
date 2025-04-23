@@ -20,8 +20,8 @@
   ],
   "interval": 15000,
   "mode": {
-    "interactive": false,
-    "autonomous": true,
+    "interactive": true,
+    "autonomous": false,
     "recursionLimit": 15,
     "metaSelection": true
   },
@@ -30,5 +30,7 @@
     "shortTermMemorySize": 15
   },
   "chat_id": "ethereum_rpc",
-  "plugins": ["rpc"]
+  "plugins": [
+    "rpc"
+  ]
 }

@@ -40,12 +40,27 @@ export const createAutonomousAgent = async (
         ...baseModel,
         invoke: async (messages: BaseMessage[], options?: any) => {
           const startTime = Date.now();
-          // For autonomous agent, we typically want the smartest model by default
-          // but allow the modelSelector to choose based on the content
-          const result = await aiConfig.modelSelector.invokeModel(messages);
+          // Check options for a forced model type
+          const forceModel = options?.forceModelType === 'smart';
+          let modelTypeToUse: string | undefined = undefined;
+          if (forceModel) {
+            logger.debug(
+              "Model invocation triggered with forced 'smart' model."
+            );
+            modelTypeToUse = 'smart';
+          }
+
+          // Call the modelSelector's invokeModel, potentially forcing the type
+          // Pass the original messages and the potentially forced model type
+          const result = await aiConfig.modelSelector.invokeModel(
+            messages,
+            modelTypeToUse // Pass the determined model type
+          );
           const endTime = Date.now();
           logger.debug(
-            `Model invocation completed in ${endTime - startTime}ms`
+            `Model invocation completed in ${
+              endTime - startTime
+            }ms (Model used: ${modelTypeToUse || 'auto-selected'})`
           );
           return result;
         },
@@ -155,28 +170,33 @@ export const createAutonomousAgent = async (
     // Modify the original prompt or create a new one with next steps instruction
     let originalPrompt = json_config.prompt;
     let modifiedPrompt: SystemMessage;
+    // Updated instructions to explicitly mention considering tools
+    const toolInstruction =
+      '\\n\\nImportant instructions for task management and tool use:\\n' +
+      '1. Analyze the request and your objectives. Determine if any of your available tools can help achieve the goal.\\n' +
+      '2. If a tool is appropriate, plan to use it. If not, proceed with a text-based response or action.\\n' +
+      '3. Focus on ONE SIMPLE TASK per iteration, whether it involves using a tool or generating text.\\n' +
+      '4. Break complex operations into multiple simple steps across separate iterations.\\n' +
+      '5. Keep each action focused, specific, and achievable in a single step.\\n' +
+      "6. Always end your response with a section titled 'NEXT STEPS:' where you clearly state what single action you plan to take next (using a tool or generating text). Be specific but keep it simple and focused.";
 
     if (originalPrompt) {
       // Add next steps instruction to the existing prompt
       modifiedPrompt = new SystemMessage(
-        originalPrompt.content +
-          '\n\nImportant instructions for task management:\n' +
-          '1. Focus on ONE SIMPLE TASK per iteration. Do not try to accomplish multiple tasks at once.\n' +
-          '2. Break complex operations into multiple simple steps across separate iterations.\n' +
-          '3. Keep each action focused, specific, and achievable in a single step.\n' +
-          "4. Always end your response with a section titled 'NEXT STEPS:' where you clearly state what single action you plan to take next. Be specific but keep it simple and focused."
+        originalPrompt.content + toolInstruction
       );
     } else {
       // Create a new prompt with next steps instruction
       modifiedPrompt = new SystemMessage(
         'You are an autonomous agent with access to various tools. Respond to queries and take actions as needed.' +
-          '\n\nImportant instructions for task management:\n' +
-          '1. Focus on ONE SIMPLE TASK per iteration. Do not try to accomplish multiple tasks at once.\n' +
-          '2. Break complex operations into multiple simple steps across separate iterations.\n' +
-          '3. Keep each action focused, specific, and achievable in a single step.\n' +
-          "4. Always end your response with a section titled 'NEXT STEPS:' where you clearly state what single action you plan to take next. Be specific but keep it simple and focused."
+          toolInstruction
       );
     }
+
+    // Add logging for the tools being passed
+    logger.debug(
+      `Passing ${tools.length} tools to createReactAgent: ${tools.map((t) => t.name).join(', ')}`
+    );
 
     // Create the agent
     const memory = new MemorySaver();
@@ -193,46 +213,79 @@ export const createAutonomousAgent = async (
     // @ts-ignore - Ignore type errors for this method
     agent.invoke = async function (input: any, config?: any) {
       try {
+        // Log if this is a retry attempt
+        if (config?.isRetryAttempt === true) {
+          logger.debug("Executing retry attempt with forced 'smart' model.");
+        }
         return await originalAgentInvoke(input, config);
       } catch (error) {
-        // Handle token limit errors
-        if (
+        // Handle token limit errors (and potentially other retryable errors)
+        const isRetryableError =
           error instanceof Error &&
           (error.message.includes('token limit') ||
             error.message.includes('tokens exceed') ||
-            error.message.includes('context length'))
-        ) {
+            error.message.includes('context length')); // Add other error types if needed
+
+        // Check if it's a retryable error AND not already a retry attempt
+        if (isRetryableError && !(config?.isRetryAttempt === true)) {
           logger.warn(
-            `Token limit error in autonomous agent: ${error.message}`
+            `Agent action failed: ${
+              (error as Error).message
+            }. Retrying with 'smart' model.`
           );
 
-          // Use a shorter message to continue
-          const continueInput = {
-            messages:
-              'The previous action was too complex and exceeded token limits. Take a simpler action while keeping your main objectives in mind.',
+          // Prepare config for retry attempt
+          const retryConfig = {
+            ...config,
+            // Pass existing configurable fields
+            configurable: { ...(config?.configurable || {}) },
+            // Signal to the proxy invoke to force the smart model
+            forceModelType: 'smart',
+            // Mark this as a retry attempt to prevent infinite loops
+            isRetryAttempt: true,
           };
 
           try {
-            return await originalAgentInvoke(continueInput, config);
+            // Re-invoke with the *original* input but the new config forcing 'smart'
+            return await originalAgentInvoke(input, retryConfig);
           } catch (secondError) {
-            logger.error(`Failed simplified action attempt: ${secondError}`);
-
+            logger.error(
+              `Retry attempt with smart model also failed: ${secondError}`
+            );
+            // Fallback message if retry fails
             // Return a format compatible with the expected interface
             // @ts-ignore - Ignore type errors for this error return
             return {
               messages: [
                 {
                   content:
-                    "I had to abandon the current action due to token limits. I'll try a different approach in the next turn.\n\nNEXT STEPS: I will attempt a simpler action that requires fewer tokens. I will focus on a single, small step that can be completed easily.",
+                    'I encountered an issue performing the action, and retrying with a more powerful model also failed. I will abandon this complex step and try a simpler approach.\n\nNEXT STEPS: I will simplify the next action to avoid the previous error. I will focus on a single, small step.',
                   type: 'ai',
                 },
               ],
             };
           }
+        } else if (isRetryableError && config?.isRetryAttempt === true) {
+          // Handle case where the retry attempt itself failed
+          logger.error(
+            `Retry attempt failed: ${(error as Error).message}. Aborting action.`
+          );
+          // Fallback message if retry fails
+          // @ts-ignore - Ignore type errors for this error return
+          return {
+            messages: [
+              {
+                content:
+                  'I encountered an issue performing the action, and retrying with a more powerful model also failed. I will abandon this complex step and try a simpler approach.\n\nNEXT STEPS: I will simplify the next action to avoid the previous error. I will focus on a single, small step.',
+                type: 'ai',
+              },
+            ],
+          };
         }
 
-        // For other types of errors, propagate them
-        throw error;
+        // For non-retryable errors, or errors that occurred during retry, log and re-throw
+        logger.error(`Unhandled agent error during execution: ${error}`);
+        throw error; // Re-throw errors that shouldn't be retried or failed on retry
       }
     };
 

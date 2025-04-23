@@ -317,7 +317,7 @@ export class StarknetAgent implements IAgent {
     const PROVIDER_ENV_VAR_MAP: Record<string, string> = {
       openai: 'OPENAI_API_KEY',
       anthropic: 'ANTHROPIC_API_KEY',
-      gemini: 'GOOGLE_API_KEY', // Or GEMINI_API_KEY, adjust as needed
+      gemini: 'GEMINI_API_KEY',
       deepseek: 'DEEPSEEK_API_KEY',
       // Add other providers here
     };

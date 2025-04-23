@@ -404,6 +404,7 @@ ${analysisContent}`
     messages: BaseMessage[],
     forceModelType?: string
   ): Promise<any> {
+    // Use forced type if provided, otherwise select model
     const modelType =
       forceModelType || (await this.selectModelForMessages(messages));
 
