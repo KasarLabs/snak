@@ -52,7 +52,6 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
       console.log('Database set:', databases);
     },
   };
-
 };
 
 export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
