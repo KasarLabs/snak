@@ -99,10 +99,10 @@ export class ModelSelectionAgent {
     if (!messages || messages.length === 0) {
       if (this.debugMode) {
         logger.debug(
-          'No messages provided for model selection, defaulting to "fast"'
+          'No messages provided for model selection, defaulting to "smart"'
         );
       }
-      return 'fast';
+      return 'smart';
     }
 
     // Use the fast model to determine which model to use for the actual task
@@ -122,10 +122,20 @@ export class ModelSelectionAgent {
       }
 
       const lastMessage = messages[messages.length - 1];
+      // Add check for lastMessage existence
+      if (!lastMessage) {
+        logger.warn(
+          'ModelSelectionAgent: Could not get last message, defaulting to smart.'
+        );
+        return 'smart';
+      }
+
       const content =
-        typeof lastMessage.content === 'string'
-          ? lastMessage.content
-          : JSON.stringify(lastMessage.content);
+        lastMessage.content != null // Check for null/undefined explicitly
+          ? typeof lastMessage.content === 'string'
+            ? lastMessage.content
+            : JSON.stringify(lastMessage.content)
+          : ''; // Default to empty string if content is null/undefined
 
       // Check for the NEXT STEPS section in the message content
       let analysisContent = content;
@@ -199,11 +209,27 @@ ${analysisContent}`
    * @returns The selected model type
    */
   private selectModelUsingHeuristics(messages: BaseMessage[]): string {
+    if (!messages || messages.length === 0) {
+      logger.warn(
+        'Heuristic selection called with no messages, defaulting to smart.'
+      );
+      return 'smart';
+    }
     const lastMessage = messages[messages.length - 1];
+    // Add check for lastMessage existence
+    if (!lastMessage) {
+      logger.warn(
+        'Heuristic selection: Could not get last message, defaulting to smart.'
+      );
+      return 'smart';
+    }
+
     const content =
-      typeof lastMessage.content === 'string'
-        ? lastMessage.content
-        : JSON.stringify(lastMessage.content);
+      lastMessage.content != null // Check for null/undefined explicitly
+        ? typeof lastMessage.content === 'string'
+          ? lastMessage.content
+          : JSON.stringify(lastMessage.content)
+        : ''; // Default to empty string if content is null/undefined
 
     // Extract NEXT STEPS section if present
     let analysisContent = content;
@@ -243,6 +269,14 @@ ${analysisContent}`
    * @returns The analysis criteria
    */
   private analyzeMessageContent(content: string): ModelSelectionCriteria {
+    // Add check for null/undefined content, although the callers should now provide empty string minimum
+    if (content == null) {
+      logger.warn(
+        'analyzeMessageContent received null/undefined content, returning default criteria.'
+      );
+      content = ''; // Ensure content is at least an empty string
+    }
+
     // Default criteria
     const criteria: ModelSelectionCriteria = {
       complexity: 'medium',

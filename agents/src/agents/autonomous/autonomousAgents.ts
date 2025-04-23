@@ -5,8 +5,8 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
 import { StarknetAgentInterface } from '../../tools/tools.js';
-import { MemorySaver } from '@langchain/langgraph';
-import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { MemorySaver, StateGraph, END } from '@langchain/langgraph';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { logger } from '@hijox/core';
 import {
@@ -16,7 +16,21 @@ import {
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
 import { configureModelWithTracking } from '../../token/tokenTracking.js';
-import { BaseMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  SystemMessage,
+  AIMessage,
+  HumanMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
+import { RunnableConfig } from '@langchain/core/runnables';
+
+// Define the state for the graph
+interface AgentState {
+  messages: BaseMessage[];
+  isRetryAttempt?: boolean; // Flag for retry logic
+  // Potentially add 'sender' or other fields if needed for more complex routing
+}
 
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -27,52 +41,8 @@ export const createAutonomousAgent = async (
     // Check if we should use the modelSelector
     if (aiConfig.modelSelector) {
       logger.debug('Using ModelSelectionAgent for autonomous agent');
-
-      // Create a base model to extend - this will provide the necessary methods and properties
-      // that LangChain expects for the React agent
-      const baseModel = new ChatOpenAI({
-        modelName: 'placeholder-model',
-        temperature: 0,
-      });
-
-      // Create a proxy that wraps the baseModel but redirects invoke calls to modelSelector
-      const modelProxy = {
-        ...baseModel,
-        invoke: async (messages: BaseMessage[], options?: any) => {
-          const startTime = Date.now();
-          // Check options for a forced model type
-          const forceModel = options?.forceModelType === 'smart';
-          let modelTypeToUse: string | undefined = undefined;
-          if (forceModel) {
-            logger.debug(
-              "Model invocation triggered with forced 'smart' model."
-            );
-            modelTypeToUse = 'smart';
-          }
-
-          // Call the modelSelector's invokeModel, potentially forcing the type
-          // Pass the original messages and the potentially forced model type
-          const result = await aiConfig.modelSelector.invokeModel(
-            messages,
-            modelTypeToUse // Pass the determined model type
-          );
-          const endTime = Date.now();
-          logger.debug(
-            `Model invocation completed in ${
-              endTime - startTime
-            }ms (Model used: ${modelTypeToUse || 'auto-selected'})`
-          );
-          return result;
-        },
-        // Ensure bindTools works properly
-        bindTools: function (tools: any) {
-          logger.debug('ModelSelectionAgent proxy bindTools called');
-          // Return this to maintain chainability
-          return this;
-        },
-      };
-
-      return modelProxy;
+      // No need for the proxy model anymore, we'll call modelSelector directly
+      return aiConfig.modelSelector; // Return the selector itself
     }
 
     // Default initialization if no modelSelector
@@ -127,13 +97,7 @@ export const createAutonomousAgent = async (
     }
   };
 
-  // Initialize model with token tracking
-  const model = configureModelWithTracking(initializeModel(), {
-    tokenLogging: aiConfig.langchainVerbose !== false,
-    maxInputTokens: aiConfig.maxInputTokens || 50000,
-    maxCompletionTokens: aiConfig.maxCompletionTokens || 50000,
-    maxTotalTokens: aiConfig.maxTotalTokens || 100000,
-  });
+  const modelOrSelector = initializeModel(); // This can be a ModelSelectionAgent or a specific model
 
   try {
     const json_config = starknetAgent.getAgentConfig();
@@ -167,6 +131,8 @@ export const createAutonomousAgent = async (
       }
     }
 
+    const toolNode = new ToolNode(tools); // Create ToolNode
+
     // Modify the original prompt or create a new one with next steps instruction
     let originalPrompt = json_config.prompt;
     let modifiedPrompt: SystemMessage;
@@ -195,109 +161,194 @@ export const createAutonomousAgent = async (
 
     // Add logging for the tools being passed
     logger.debug(
-      `Passing ${tools.length} tools to createReactAgent: ${tools.map((t) => t.name).join(', ')}`
+      `Passing ${tools.length} tools to custom graph: ${tools.map((t) => t.name).join(', ')}`
     );
 
-    // Create the agent
-    const memory = new MemorySaver();
-    const agent = createReactAgent({
-      llm: model,
-      tools,
-      checkpointSaver: memory,
-      messageModifier: modifiedPrompt,
-    });
+    // --- Define Graph Nodes ---
+    const AGENT = 'agent';
+    const ACTION = 'action';
 
-    // Patch the agent to handle token limits in autonomous mode
-    const originalAgentInvoke = agent.invoke.bind(agent);
+    // Agent Node: Calls the model and handles retries
+    const agentNode = async (
+      state: AgentState,
+      config?: RunnableConfig
+    ): Promise<Partial<AgentState>> => {
+      const { messages, isRetryAttempt } = state;
 
-    // @ts-ignore - Ignore type errors for this method
-    agent.invoke = async function (input: any, config?: any) {
+      // Filter out any existing SystemMessage from the history and prepend the correct one.
+      const historyWithoutSystem = messages.filter(
+        (msg) => !(msg instanceof SystemMessage)
+      );
+      const messagesForModel = [modifiedPrompt, ...historyWithoutSystem];
+
+      let modelTypeToUse: string | undefined = undefined;
+      let response: AIMessage;
+
+      // Bind tools to the model/selector - REMOVED FROM HERE
+      // const modelWithTools = modelOrSelector.bind_tools(tools);
+
       try {
-        // Log if this is a retry attempt
-        if (config?.isRetryAttempt === true) {
+        if (isRetryAttempt) {
           logger.debug("Executing retry attempt with forced 'smart' model.");
+          modelTypeToUse = 'smart'; // Force smart model on retry
         }
-        return await originalAgentInvoke(input, config);
+
+        // Use modelSelector if available, otherwise use the single model instance
+        if ('invokeModel' in modelOrSelector) {
+          // Check if it's ModelSelectionAgent
+          // Assuming invokeModel handles tools internally or doesn't support them directly here.
+          // We are NOT binding tools explicitly to the ModelSelectionAgent itself.
+          logger.debug(
+            'Invoking ModelSelectionAgent (tools not bound at this level).'
+          );
+          response = await modelOrSelector.invokeModel(
+            messagesForModel,
+            modelTypeToUse
+          );
+          // If tools still aren't called, the issue might be within ModelSelectionAgent's invokeModel
+          // or how ModelSelectionAgent itself is initialized/configured with tools.
+        } else {
+          // It's a single BaseChatModel
+          // Bind tools ONLY for standard models
+          logger.debug(`Binding ${tools.length} tools to the standard model.`);
+          const modelWithTools = modelOrSelector.bind_tools(tools);
+          // Invoke the model *with tools bound*
+          response = await modelWithTools.invoke(messagesForModel, config);
+        }
+
+        // Apply token tracking to the response (if not done within invokeModel)
+        // Note: configureModelWithTracking logic might need adjustment for this structure
+        // For now, assume token tracking happens within invokeModel or the base model
+
+        // Successful invocation, reset retry flag if it was set
+        return { messages: [response], isRetryAttempt: false };
       } catch (error) {
-        // Handle token limit errors (and potentially other retryable errors)
         const isRetryableError =
           error instanceof Error &&
           (error.message.includes('token limit') ||
             error.message.includes('tokens exceed') ||
-            error.message.includes('context length')); // Add other error types if needed
+            error.message.includes('context length'));
 
-        // Check if it's a retryable error AND not already a retry attempt
-        if (isRetryableError && !(config?.isRetryAttempt === true)) {
+        if (isRetryableError && !isRetryAttempt) {
           logger.warn(
-            `Agent action failed: ${
-              (error as Error).message
-            }. Retrying with 'smart' model.`
+            `Agent action failed: ${(error as Error).message}. Retrying with 'smart' model.`
           );
-
-          // Prepare config for retry attempt
-          const retryConfig = {
-            ...config,
-            // Pass existing configurable fields
-            configurable: { ...(config?.configurable || {}) },
-            // Signal to the proxy invoke to force the smart model
-            forceModelType: 'smart',
-            // Mark this as a retry attempt to prevent infinite loops
-            isRetryAttempt: true,
-          };
-
-          try {
-            // Re-invoke with the *original* input but the new config forcing 'smart'
-            return await originalAgentInvoke(input, retryConfig);
-          } catch (secondError) {
-            logger.error(
-              `Retry attempt with smart model also failed: ${secondError}`
-            );
-            // Fallback message if retry fails
-            // Return a format compatible with the expected interface
-            // @ts-ignore - Ignore type errors for this error return
-            return {
-              messages: [
-                {
-                  content:
-                    'I encountered an issue performing the action, and retrying with a more powerful model also failed. I will abandon this complex step and try a simpler approach.\n\nNEXT STEPS: I will simplify the next action to avoid the previous error. I will focus on a single, small step.',
-                  type: 'ai',
-                },
-              ],
-            };
-          }
-        } else if (isRetryableError && config?.isRetryAttempt === true) {
-          // Handle case where the retry attempt itself failed
+          // Mark for retry on the next invocation of this node
+          return { messages: [], isRetryAttempt: true }; // Return empty messages to trigger retry? Or keep existing? Needs thought. Let's keep existing and set flag.
+          // Returning existing messages + retry flag. The router should handle looping back.
+          // return { messages: [], isRetryAttempt: true }; // Or perhaps signal retry differently? Let's try just setting the flag
+          return { isRetryAttempt: true }; // Signal retry - state merge will keep messages
+        } else if (isRetryableError && isRetryAttempt) {
           logger.error(
-            `Retry attempt failed: ${(error as Error).message}. Aborting action.`
+            `Retry attempt failed: ${(error as Error).message}. Aborting this path.`
           );
-          // Fallback message if retry fails
-          // @ts-ignore - Ignore type errors for this error return
-          return {
-            messages: [
-              {
-                content:
-                  'I encountered an issue performing the action, and retrying with a more powerful model also failed. I will abandon this complex step and try a simpler approach.\n\nNEXT STEPS: I will simplify the next action to avoid the previous error. I will focus on a single, small step.',
-                type: 'ai',
-              },
-            ],
-          };
+          const fallbackMessage = new AIMessage({
+            content:
+              'I encountered an issue performing the action, and retrying with a more powerful model also failed. I will abandon this complex step and try a simpler approach.\\n\\nNEXT STEPS: I will simplify the next action to avoid the previous error. I will focus on a single, small step.',
+          });
+          // Return fallback message and clear retry flag
+          return { messages: [fallbackMessage], isRetryAttempt: false };
+        } else {
+          logger.error(`Unhandled agent error during execution: ${error}`);
+          throw error; // Re-throw non-retryable errors
         }
-
-        // For non-retryable errors, or errors that occurred during retry, log and re-throw
-        logger.error(`Unhandled agent error during execution: ${error}`);
-        throw error; // Re-throw errors that shouldn't be retried or failed on retry
       }
     };
 
+    // Router Node: Decides the next step
+    const router = (state: AgentState): string => {
+      const { messages, isRetryAttempt } = state;
+
+      // If retry attempt is flagged, loop back to agent immediately
+      if (isRetryAttempt) {
+        logger.debug('Router: Retry flag is set, looping back to agent node.');
+        return 'agent';
+      }
+
+      const lastMessage = messages[messages.length - 1];
+      if (!lastMessage) {
+        throw new Error('Router: No messages found in state.');
+      }
+
+      // Check for tool calls
+      if (
+        lastMessage instanceof AIMessage &&
+        lastMessage.tool_calls &&
+        lastMessage.tool_calls.length > 0
+      ) {
+        logger.debug('Router: Detected tool calls, routing to action node.');
+        return 'action'; // Route to ToolNode
+      }
+
+      // Check for a "final answer" indicator (customize as needed)
+      if (
+        lastMessage instanceof AIMessage &&
+        typeof lastMessage.content === 'string' &&
+        lastMessage.content.toUpperCase().includes('FINAL ANSWER')
+      ) {
+        logger.debug("Router: Detected 'FINAL ANSWER', routing to end.");
+        return END;
+      }
+
+      // Otherwise, continue the loop by calling the agent again
+      logger.debug(
+        'Router: AIMessage received, routing to END to return state.'
+      );
+      return END;
+    };
+
+    // --- Define the Graph ---
+    const workflow = new StateGraph<AgentState>({
+      channels: {
+        messages: {
+          value: (x: BaseMessage[], y: BaseMessage[]) => x.concat(y), // Append messages
+          default: () => [], // Default to empty array
+        },
+        isRetryAttempt: {
+          value: (x?: boolean, y?: boolean) => y ?? x, // Take the newest value
+          default: () => false,
+        },
+        // Add other channels if needed
+      },
+    });
+
+    // Add nodes
+    workflow.addNode(AGENT, agentNode);
+    workflow.addNode(ACTION, toolNode);
+
+    // Define edges
+    // Cast to any to bypass strict type checking issues
+    workflow.setEntryPoint(AGENT as any); // Start with the agent
+
+    // Conditional edge from agent node based on router logic
+    // Cast to any to bypass strict type checking issues
+    workflow.addConditionalEdges(AGENT as any, router, {
+      // Cast target node names to any as well
+      [ACTION]: ACTION as any,
+      [AGENT]: AGENT as any,
+      [END]: END,
+    });
+
+    // Edge from action node (tool execution) back to agent node
+    // Cast to any to bypass strict type checking issues
+    workflow.addEdge(ACTION as any, AGENT as any);
+
+    // --- Compile the Graph ---
+    const memory = new MemorySaver();
+    const graph = workflow.compile({ checkpointer: memory });
+
+    logger.info('Autonomous agent graph created successfully.');
+
+    // Return the compiled graph and config
     return {
-      agent,
+      agent: graph, // The compiled graph is the new 'agent'
       agentConfig: {
-        configurable: { thread_id: json_config.chat_id },
+        configurable: { thread_id: json_config.chat_id }, // Config for invoking the graph
       },
       json_config,
     };
   } catch (error) {
-    logger.error('Failed to create autonomous agent:', error);
+    logger.error('Failed to create autonomous agent graph:', error);
     throw error;
   }
 };

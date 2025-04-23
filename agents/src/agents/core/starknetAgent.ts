@@ -3,7 +3,11 @@ import { createAgent } from '../interactive/agent.js';
 import { RpcProvider } from 'starknet';
 import { createAutonomousAgent } from '../autonomous/autonomousAgents.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
-import { HumanMessage } from '@langchain/core/messages';
+import {
+  HumanMessage,
+  BaseMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
 import {
   logger,
   loadModelsConfig,
@@ -25,6 +29,7 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ModelSelectionAgent } from './modelSelectionAgent.js';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { Postgres } from '@hijox/database';
+import { AIMessage } from '@langchain/core/messages';
 
 /**
  * Memory configuration for the agent
@@ -743,6 +748,9 @@ export class StarknetAgent implements IAgent {
         const formattedContent = this.formatResponseForDisplay(responseContent);
         const boxContent = createBox('Agent Response', formattedContent);
         const boxWithTokens = addTokenInfoToBox(boxContent);
+        logger.debug(
+          `Attempting to print main response box: Length=${formattedContent?.length ?? 0}`
+        );
         process.stdout.write(boxWithTokens);
       } else {
         logger.warn('Agent returned an empty response in interactive mode.');
@@ -834,8 +842,6 @@ export class StarknetAgent implements IAgent {
       let consecutiveErrorCount = 0;
       let tokensErrorCount = 0;
       let lastNextSteps: string | null = null; // Variable to store next steps from previous iteration
-
-      // Use an error message queue to avoid repeating the same error message
       const lastErrors = new Set<string>();
       const addError = (error: string) => {
         lastErrors.add(error);
@@ -846,111 +852,128 @@ export class StarknetAgent implements IAgent {
         }
       };
 
+      // Keep track of the full conversation history for invoking the graph
+      let conversationHistory: BaseMessage[] = [];
+
+      // Add the initial system prompt if available in config
+      const systemPrompt = this.agentconfig?.prompt; // Assuming JsonConfig might have the base prompt
+      if (systemPrompt) {
+        conversationHistory.push(systemPrompt);
+      }
+
       while (true) {
+        // Loop indefinitely until a break condition
         iterationCount++;
 
         try {
-          // Reset consecutive error counter on success
           consecutiveErrorCount = 0;
+          if (tokensErrorCount > 0) tokensErrorCount--;
 
-          // Gradually reduce token error count
-          if (tokensErrorCount > 0) {
-            tokensErrorCount--;
-          }
+          // Periodic agent refresh (might need adjustment - graph state is external now)
+          // this.handlePeriodicAgentRefresh(iterationCount, tokensErrorCount);
+          // We might not need agent refresh if state is managed correctly via checkpointer
 
-          // Periodically recreate the agent to avoid context accumulation
-          this.handlePeriodicAgentRefresh(iterationCount, tokensErrorCount);
-
-          if (!this.agentReactExecutor.agent) {
-            throw new Error('Agent property is missing from executor');
-          }
-
-          // Determine the prompt message for this iteration
-          let promptMessage: string;
+          // Determine the prompt message for THIS iteration
+          let currentTurnInput: BaseMessage;
           if (lastNextSteps) {
             logger.debug(
               `Using previous NEXT STEPS as prompt: "${lastNextSteps}"`
             );
-            // Construct a prompt that focuses on executing the planned action
-            promptMessage = `Execute the following planned action based on the previous turn: "${lastNextSteps}". Ensure it's a single, simple action. If it seems complex, clearly state the simpler first step and outline the rest in the NEXT STEPS section.`;
-            lastNextSteps = null; // Consume the stored next steps for this iteration
+            // Use the NEXT STEPS as the user input for this turn
+            currentTurnInput = new HumanMessage({
+              content: `Execute the following planned action based on the previous turn: "${lastNextSteps}". Ensure it's a single, simple action. If it seems complex, clearly state the simpler first step and outline the rest in the NEXT STEPS section.`,
+              name: 'Planner', // Assign a name to distinguish from user input
+            });
           } else {
             logger.debug(
               'No previous NEXT STEPS found, generating adaptive prompt.'
             );
             // Fallback to the general adaptive prompt
-            promptMessage = this.getAdaptivePromptMessage(tokensErrorCount);
-            // Only log model selection when using the fallback prompt
+            const promptMessage =
+              this.getAdaptivePromptMessage(tokensErrorCount);
+            currentTurnInput = new HumanMessage(promptMessage);
+            // Log model selection when using the fallback prompt
             this.logModelSelection(promptMessage);
           }
 
-          // Prepare invoke options with message handler for pruning
+          // Append the input for this turn to the history
+          conversationHistory.push(currentTurnInput);
+
+          // Prepare invoke options (mostly config)
           const agentConfig = { ...this.agentReactExecutor.agentConfig };
-
-          // Add message pruning handler if memory is enabled
-          if (this.memory.enabled !== false) {
-            // Use mode.recursionLimit if available, otherwise fallback to memory config
-            const recursionLimit =
-              this.agentconfig?.mode?.recursionLimit !== undefined
-                ? this.agentconfig.mode.recursionLimit
-                : this.memory.recursionLimit !== undefined
-                  ? this.memory.recursionLimit
-                  : this.memory.shortTermMemorySize || 15;
-
-            if (!agentConfig.configurable) {
-              agentConfig.configurable = {};
-            }
-
-            // Only set recursionLimit if it's not zero (0 means no limit)
-            if (recursionLimit !== 0) {
-              agentConfig.recursionLimit = recursionLimit;
-              agentConfig.messageHandler = (messages: any[]) => {
-                if (messages.length > recursionLimit) {
-                  logger.debug(
-                    `Autonomous - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
-                  );
-                  const prunedMessages = [
-                    messages[0],
-                    ...messages.slice(-(recursionLimit - 1)),
-                  ];
-                  logger.debug(
-                    `Autonomous - pruned from ${messages.length} to ${prunedMessages.length} messages`
-                  );
-                  return prunedMessages;
-                }
-                return messages;
-              };
-
-              logger.debug(
-                `Autonomous iteration ${iterationCount}: configured with recursionLimit=${recursionLimit}`
-              );
-            } else {
-              logger.debug(
-                `Autonomous iteration ${iterationCount}: running without recursion limit`
-              );
-            }
-          }
+          // Recursion limit might not be directly applicable to the graph invoke in the same way,
+          // but we pass the thread_id config.
+          // Pruning needs to be handled explicitly if desired before invoking graph.
+          // TODO: Implement explicit history pruning based on memory limits if needed.
 
           logger.debug(
-            `Autonomous iteration ${iterationCount}: invoking agent with prompt: "${promptMessage.substring(0, 100)}..." (tokensErrorCount=${tokensErrorCount})`
+            `Autonomous iteration ${iterationCount}: invoking graph with ${conversationHistory.length} messages (tokensErrorCount=${tokensErrorCount})`
           );
+          // Invoke the graph with the current full history
           const result = await this.agentReactExecutor.agent.invoke(
-            { messages: promptMessage }, // Use the determined promptMessage
-            agentConfig
+            { messages: conversationHistory }, // Pass current history
+            agentConfig // Pass config (e.g., thread_id)
           );
           logger.debug(
-            `Autonomous iteration ${iterationCount}: agent invocation complete`
+            `Autonomous iteration ${iterationCount}: graph invocation complete`
           );
 
-          if (!result.messages || result.messages.length === 0) {
+          // --- Process Graph Result ---
+          if (!result || !result.messages || result.messages.length === 0) {
             logger.warn(
-              'Agent returned an empty response, continuing to next iteration'
+              'Graph returned empty or invalid state, stopping loop.'
             );
-            continue;
+            break; // Stop if graph returns unexpected state
           }
 
-          // Process and display agent response, storing the next steps for the *next* iteration
-          lastNextSteps = await this.processAgentResponse(result);
+          // The result.messages contains the state *after* the graph finished.
+          // The last message(s) should be the agent's response or tool results.
+          conversationHistory = result.messages; // Update history with the final state from the graph run
+
+          // Find the very last message added by the graph run (should be AIMessage or ToolMessage)
+          const lastMessageFromGraph =
+            conversationHistory[conversationHistory.length - 1];
+
+          if (lastMessageFromGraph instanceof AIMessage) {
+            // Process and display the AI response
+            lastNextSteps =
+              await this.processAgentResponse(lastMessageFromGraph);
+
+            // Check if the agent signaled a final answer
+            if (
+              typeof lastMessageFromGraph.content === 'string' &&
+              lastMessageFromGraph.content
+                .toUpperCase()
+                .includes('FINAL ANSWER')
+            ) {
+              logger.info('Detected FINAL ANSWER. Ending autonomous session.');
+              break; // Exit the loop
+            }
+          } else if (lastMessageFromGraph instanceof ToolMessage) {
+            // If the graph ended after a tool call (unexpected based on current router/edges),
+            // log it and potentially reset next steps.
+            logger.warn(
+              `Graph ended unexpectedly after ToolMessage: ${lastMessageFromGraph.content}`
+            );
+            lastNextSteps = null; // Reset plan as the graph didn't loop back to agent
+          } else {
+            // Handle other unexpected message types
+            logger.warn(
+              `Graph ended with unexpected message type: ${lastMessageFromGraph.constructor.name}`
+            );
+            lastNextSteps = null;
+            // Potentially break the loop here too
+            break;
+          }
+
+          // Optional: Add iteration limit or other break conditions
+          const MAX_ITERATIONS = 50; // Example limit
+          if (iterationCount >= MAX_ITERATIONS) {
+            logger.warn(
+              `Reached maximum iteration limit (${MAX_ITERATIONS}). Stopping autonomous session.`
+            );
+            break;
+          }
         } catch (loopError) {
           // Handle errors in autonomous execution
           await this.handleAutonomousExecutionError(
@@ -967,7 +990,8 @@ export class StarknetAgent implements IAgent {
             tokensErrorCount += 2;
           }
         }
-      }
+      } // End of while loop
+      logger.info('Autonomous session finished.');
     } catch (error) {
       return error;
     }
@@ -997,10 +1021,11 @@ export class StarknetAgent implements IAgent {
    * Processes and displays the agent response
    * @returns The extracted "NEXT STEPS" content, or null if not found.
    */
-  private async processAgentResponse(result: any): Promise<string | null> {
+  private async processAgentResponse(
+    lastAiMessage: AIMessage
+  ): Promise<string | null> {
     // Get and check the content of the last message
-    const lastMessage = result.messages[result.messages.length - 1];
-    const rawAgentResponse = lastMessage.content; // Get the raw response first
+    const rawAgentResponse = lastAiMessage.content; // Get the raw response from the message
 
     // If the message contains tools and large results, it may need to be truncated
     // Limit of 20,000 tokens to avoid expensive requests during the next iteration
@@ -1052,6 +1077,9 @@ export class StarknetAgent implements IAgent {
     const mainFormattedContent = this.formatResponseForDisplay(mainResponse);
     const mainBoxContent = createBox('Agent Response', mainFormattedContent);
     const mainBoxWithTokens = addTokenInfoToBox(mainBoxContent); // Attach tokens here
+    logger.debug(
+      `Attempting to print main response box: Length=${mainFormattedContent?.length ?? 0}`
+    );
     process.stdout.write(mainBoxWithTokens);
 
     // Display the next steps box if content exists
@@ -1061,6 +1089,9 @@ export class StarknetAgent implements IAgent {
       const nextStepsBoxContent = createBox(
         'Agent Next Steps',
         nextStepsFormattedContent
+      );
+      logger.debug(
+        `Attempting to print next steps box: Length=${nextStepsFormattedContent?.length ?? 0}`
       );
       process.stdout.write(nextStepsBoxContent); // No token info needed here
     }
