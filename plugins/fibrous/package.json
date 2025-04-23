@@ -13,7 +13,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
-    "fibrous-router-sdk": "^0.4.3"
+    "fibrous-router-sdk": "0.4.3"
   },
   "devDependencies": {
     "@snakagent/core": "workspace:*"
