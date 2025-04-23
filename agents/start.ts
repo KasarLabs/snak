@@ -1,3 +1,11 @@
+// Simple log configuration - set DEBUG=true to enable debug logs
+const DEBUG = process.env.DEBUG === 'true';
+process.env.LOG_LEVEL = DEBUG ? 'debug' : 'info';
+process.env.DEBUG_LOGGING = DEBUG ? 'true' : 'false';
+process.env.LANGCHAIN_VERBOSE = DEBUG ? 'true' : 'false';
+// Always disable langchain tracing regardless of debug mode
+process.env.LANGCHAIN_TRACING = 'false';
+
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { createSpinner } from 'nanospinner';
@@ -22,10 +30,6 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { logger } from '@hijox/core';
 import { DatabaseCredentials } from './src/tools/types/database.js';
-
-// Global deactivation of LangChain logs
-process.env.LANGCHAIN_TRACING = 'false';
-process.env.LANGCHAIN_VERBOSE = 'false';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -156,102 +160,36 @@ const wrapText = (text: string, maxWidth: number): string[] => {
 };
 
 /**
- * Reloads environment variables from .env file while preserving command-line environment variables
+ * Charge les variables d'environnement depuis le fichier .env
+ * Les variables définies en ligne de commande ont priorité
  */
-function reloadEnvVars(): Record<string, string> | undefined {
-  // Save debug-related environment variables
-  const debugVars = {
-    NODE_ENV: process.env.NODE_ENV,
-    LOG_LEVEL: process.env.LOG_LEVEL,
-    DEBUG_LOGGING: process.env.DEBUG_LOGGING,
-    DISABLE_LOGGING: process.env.DISABLE_LOGGING,
-  };
-
-  // Clear non-essential variables
-  Object.keys(process.env).forEach((key) => {
-    if (
-      !['NODE_ENV', 'LOG_LEVEL', 'DEBUG_LOGGING', 'DISABLE_LOGGING'].includes(
-        key
-      )
-    ) {
-      delete process.env[key];
-    }
-  });
-
+function loadEnvVars(): Record<string, string> | undefined {
   // Correctly determine the project root relative to the script
   const projectRoot = path.resolve(__dirname, '..');
   const envPath = path.resolve(projectRoot, '.env');
 
-  logger.debug(`Attempting to load .env file from: ${envPath}`);
+  if (process.env.DEBUG === 'true')
+    console.log(`Loading .env file from: ${envPath}`);
 
   const result = config({
     path: envPath,
-    override: false, // Don't override existing environment variables
+    override: false, // Ne pas écraser les variables définies en ligne de commande
   });
 
-  if (result.error) {
-    logger.error(`Failed to reload .env file from ${envPath}`, result.error);
-    throw new Error('Failed to reload .env file');
+  if (result.error && !fs.existsSync(envPath)) {
+    console.warn(
+      `No .env file found at ${envPath}, using environment variables only`
+    );
+    return undefined;
+  } else if (result.error) {
+    console.error(`Failed to load .env file from ${envPath}`, result.error);
+    throw new Error('Failed to load .env file');
   }
 
-  // Re-apply debug variables (command-line takes precedence)
-  Object.entries(debugVars).forEach(([key, value]) => {
-    if (value !== undefined) {
-      process.env[key] = value;
-      logger.debug(`Preserved environment variable: ${key}=${value}`);
-    }
-  });
-
-  logger.debug('.env file reloaded successfully.');
+  if (process.env.DEBUG === 'true')
+    console.log('.env file loaded successfully');
   return result.parsed;
 }
-
-/**
- * Validates required environment variables and prompts for missing ones
- */
-const validateEnvVars = async (): Promise<void> => {
-  const required = [
-    'STARKNET_RPC_URL',
-    'STARKNET_PRIVATE_KEY',
-    'STARKNET_PUBLIC_ADDRESS',
-  ];
-
-  const missings = required.filter((key) => !process.env[key]);
-
-  if (missings.length > 0) {
-    console.error(
-      createBox(missings.join('\n'), {
-        title: 'Missing Environment Variables',
-        isError: true,
-      })
-    );
-
-    for (const missing of missings) {
-      const { prompt } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'prompt',
-          message: chalk.redBright(`Enter the value of ${missing}:`),
-          validate: (value: string) => {
-            const trimmed = value.trim();
-            if (!trimmed) return 'Please enter a valid message';
-            return true;
-          },
-        },
-      ]);
-
-      await new Promise<void>((resolve, reject) => {
-        fs.appendFile('.env', `\n${missing}=${prompt}\n`, (err) => {
-          if (err) reject(new Error('Error when trying to write on .env file'));
-          resolve();
-        });
-      });
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    reloadEnvVars();
-    await validateEnvVars();
-  }
-};
 
 /**
  * Formats agent response for display
@@ -295,9 +233,22 @@ const localRun = async (): Promise<void> => {
       throw new Error(`Failed to load agent configuration from ${agentPath}`);
     }
 
-    // Load env vars
-    reloadEnvVars();
-    await validateEnvVars();
+    // Load environment variables
+    loadEnvVars();
+
+    // Verify required environment variables
+    const required = [
+      'STARKNET_RPC_URL',
+      'STARKNET_PRIVATE_KEY',
+      'STARKNET_PUBLIC_ADDRESS',
+    ];
+
+    const missing = required.filter((key) => !process.env[key]);
+    if (missing.length > 0) {
+      throw new Error(
+        `Missing required environment variables: ${missing.join(', ')}`
+      );
+    }
 
     // Ask for mode
     const { mode } = await inquirer.prompt([
@@ -380,6 +331,7 @@ const localRun = async (): Promise<void> => {
     // Display agent information
     const agentName = json_config?.name || 'Unknown';
     const configPath = path.basename(agentPath);
+    const modelsPath = path.basename(modelsConfigPath);
 
     spinner.success({
       text: chalk.black(
@@ -390,18 +342,12 @@ const localRun = async (): Promise<void> => {
     // Instantiate & Initialize Agent
     agent = new StarknetAgent(agentConfig);
 
-    // Determine logging configuration from environment
-    const enableDebugLogging =
-      process.env.DEBUG_LOGGING === 'true' ||
-      process.env.LOG_LEVEL === 'debug' ||
-      process.env.NODE_ENV === 'development';
-    const disableLogging = process.env.DISABLE_LOGGING === 'true';
-
+    // Set logging options based on DEBUG mode
     agent.setLoggingOptions({
-      langchainVerbose: !silentLlm,
-      tokenLogging: !silentLlm,
-      disabled: disableLogging,
-      modelSelectionDebug: enableDebugLogging,
+      langchainVerbose: DEBUG,
+      tokenLogging: DEBUG,
+      disabled: !DEBUG,
+      modelSelectionDebug: DEBUG,
     });
     await agent.init();
     await agent.createAgentReactExecutor();
@@ -410,6 +356,7 @@ const localRun = async (): Promise<void> => {
     if (agentMode === 'agent') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       console.log(chalk.dim(`- Config: ${chalk.bold(configPath)}`));
+      console.log(chalk.dim(`- Models: ${chalk.bold(modelsPath)}\n`));
 
       while (true) {
         const { user } = await inquirer.prompt([

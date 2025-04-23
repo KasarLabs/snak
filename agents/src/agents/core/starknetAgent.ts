@@ -167,14 +167,14 @@ export class StarknetAgent implements IAgent {
    */
   public async init(): Promise<void> {
     try {
-      logger.info('Initializing StarknetAgent...');
+      logger.debug('Initializing StarknetAgent...');
       this.modelsConfig = await loadModelsConfig(this.config.modelsConfigPath);
       this.initializeModels();
       // Initialize model selector after models are available
       this.initializeModelSelector();
       // Perform validation AFTER models are initialized
       this.validateConfigPostInit();
-      logger.info('StarknetAgent initialized successfully.');
+      logger.debug('StarknetAgent initialized successfully.');
     } catch (error) {
       logger.error(`StarknetAgent initialization failed: ${error}`);
       throw error;
@@ -404,7 +404,7 @@ export class StarknetAgent implements IAgent {
 
         if (modelInstance) {
           this.models[levelName] = modelInstance;
-          logger.info(
+          logger.debug(
             `Initialized model for level '${levelName}': ${provider} - ${model_name}`
           );
         }
@@ -623,6 +623,9 @@ export class StarknetAgent implements IAgent {
         throw new Error('Agent executor is not initialized');
       }
 
+      let result;
+      let responseContent: string | unknown = ''; // Initialize responseContent
+
       // Create human message from input
       const humanMessage = new HumanMessage(input);
 
@@ -643,18 +646,38 @@ export class StarknetAgent implements IAgent {
           selectedModel = this.models[modelType];
         } else {
           // Fall back to smart model if the selected model is not available
-          selectedModel = this.models.smart;
+          // Don't set selectedModel here, let the executor use its default
           if (modelType && !this.models[modelType]) {
             logger.warn(
-              `Selected model "${modelType}" not available, falling back to "smart"`
+              `Selected model "${modelType}" not available, executor will use default`
+            );
+          } else {
+            logger.debug(
+              `No specific model selected, executor will use default`
             );
           }
         }
+      } else {
+        logger.debug(`ModelSelector not available, executor will use default`);
       }
 
       const invokeOptions: any = {
-        configurable: { thread_id: this.agentconfig?.chat_id as string },
+        // Ensure configurable exists
+        configurable: {
+          ...(this.agentconfig?.chat_id && {
+            thread_id: this.agentconfig.chat_id as string,
+          }),
+        },
       };
+
+      // If a specific model was selected, pass it in the config
+      // Assumes the executor graph uses 'llm' as the configurable key for the model
+      if (selectedModel) {
+        logger.debug(
+          `Passing selected model (${modelType}) to executor via config`
+        );
+        invokeOptions.configurable.llm = selectedModel;
+      }
 
       // Only apply recursion limit if memory is enabled
       if (this.memory.enabled !== false) {
@@ -698,29 +721,49 @@ export class StarknetAgent implements IAgent {
         }
       }
 
-      let result;
+      // Always use the agentReactExecutor, passing the selected model via config if available
+      logger.debug(
+        `Invoking agentReactExecutor with options: ${JSON.stringify(invokeOptions)}`
+      );
+      result = await this.agentReactExecutor.invoke(
+        {
+          messages: [humanMessage],
+        },
+        invokeOptions
+      );
 
-      // If a model was selected by the ModelSelectionAgent, use it directly
-      if (selectedModel) {
-        logger.debug('Using model selected by ModelSelectionAgent');
-        result = await selectedModel.invoke([humanMessage]);
+      // Extract content from the last message
+      if (result.messages && result.messages.length > 0) {
+        responseContent =
+          result.messages[result.messages.length - 1].content ?? '';
+      }
+
+      // Format and display the response using the boxing mechanism
+      if (responseContent) {
+        const formattedContent = this.formatResponseForDisplay(responseContent);
+        const boxContent = createBox('Agent Response', formattedContent);
+        const boxWithTokens = addTokenInfoToBox(boxContent);
+        process.stdout.write(boxWithTokens);
       } else {
-        // Fall back to using the agentReactExecutor if no model selection
-        logger.debug('Using default agentReactExecutor (no model selection)');
-        result = await this.agentReactExecutor.invoke(
-          {
-            messages: [humanMessage],
-          },
-          invokeOptions
-        );
+        logger.warn('Agent returned an empty response in interactive mode.');
+        // Optionally display an empty box or a message
+        const emptyBox = createBox('Agent Response', 'No response received.');
+        process.stdout.write(emptyBox);
       }
 
-      if (!result.messages || result.messages.length === 0) {
-        return '';
-      }
-
-      return result.messages[result.messages.length - 1].content;
+      // Return the raw content for potential further processing if needed by the caller
+      // Or return void if the caller doesn't expect a return value after printing
+      return responseContent;
     } catch (error) {
+      // Log the error and potentially format it for display
+      logger.error(`Error during interactive execution: ${error}`);
+      const errorBox = createBox(
+        'Execution Error',
+        error instanceof Error ? error.message : String(error),
+        { isError: true }
+      );
+      process.stdout.write(errorBox);
+      // Re-throw or return an error indicator as appropriate
       throw error;
     }
   }
