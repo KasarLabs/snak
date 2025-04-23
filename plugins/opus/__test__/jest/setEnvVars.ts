@@ -46,7 +46,8 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabaseCredentials: () => db_credentials,  };
+    getDatabaseCredentials: () => db_credentials,
+  };
 };
 
 export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
@@ -76,9 +77,8 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
 
   return {
     getAccountCredentials: () => ({
-            accountPublicKey: 'dlksjflkdsjf',
+      accountPublicKey: 'dlksjflkdsjf',
       accountPrivateKey: 'dsfahdskfgdsjkah',
-
     }),
     getModelCredentials: () => ({
       aiModel: '',
