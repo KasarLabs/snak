@@ -1,4 +1,4 @@
-# CairoCoder Plugin - Comprehensive Guide
+# Snak - CairoCoder Plugin
 
 ## Overview
 

@@ -1,26 +1,37 @@
 {
   "name": "@snakagent/plugin-contract",
-  "version": "1.0.0",
+  "version": "0.0.7",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
   "scripts": {
     "test": "jest",
-    "build": "pnpm clean:dist && tsc",
+    "build": "tsup",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
     "format": "prettier --write \"./**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run build",
+    "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
-  "devDependencies": {
-    "@snakagent/core": "workspace:*"
-  },
   "dependencies": {
+    "@snakagent/core": "workspace:*",
     "@snakagent/database": "workspace:*"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "Snak plugin for smart contract declaration, deployment, and management on Starknet.",
+  "gitHead": "56e42b5fbcd7aae40a3a27cf4276d2d4c7f771fe"
 }

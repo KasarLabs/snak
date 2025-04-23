@@ -367,47 +367,44 @@ importers:
         version: 5.8.3
 
   packages/database:
+    dependencies:
+      pg:
+        specifier: ^8.14.1
+        version: 8.14.1
     devDependencies:
       typescript:
         specifier: latest
         version: 5.8.3
 
   plugins/argent:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      zod:
-        specifier: ^3.24.3
-        version: 3.24.3
 
   plugins/artpeace:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/atlantic:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      zod:
-        specifier: ^3.24.3
-        version: 3.24.3
 
   plugins/avnu:
     dependencies:
       '@avnu/avnu-sdk':
         specifier: ^3.0.0
         version: 3.0.2(ethers@6.13.5)(moment@2.30.1)(qs@6.14.0)(starknet@6.24.1(encoding@0.1.13))
-    devDependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/braavos:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
@@ -436,75 +433,72 @@ importers:
 
   plugins/chat-pool:
     dependencies:
-      '@snakagent/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-    devDependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
+      '@snakagent/database':
+        specifier: workspace:*
+        version: link:../../packages/database
 
   plugins/contract:
     dependencies:
-      '@snakagent/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-    devDependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
+      '@snakagent/database':
+        specifier: workspace:*
+        version: link:../../packages/database
 
   plugins/erc20:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/erc721:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/fibrous:
     dependencies:
-      fibrous-router-sdk:
-        specifier: ^0.4.3
-        version: 0.4.3(encoding@0.1.13)
-    devDependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
+      fibrous-router-sdk:
+        specifier: 0.4.3
+        version: 0.4.3(encoding@0.1.13)
 
   plugins/okx:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      zod:
-        specifier: ^3.24.3
-        version: 3.24.3
 
   plugins/openzeppelin:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/opus:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/rpc:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/scarb:
     dependencies:
+      '@snakagent/core':
+        specifier: workspace:*
+        version: link:../../core
       '@snakagent/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -521,9 +515,6 @@ importers:
         specifier: ^0.2.3
         version: 0.2.3
     devDependencies:
-      '@snakagent/core':
-        specifier: workspace:*
-        version: link:../../core
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
@@ -541,25 +532,25 @@ importers:
         version: 5.8.3
 
   plugins/token:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/transaction:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/unruggable:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
 
   plugins/vesu:
-    devDependencies:
+    dependencies:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
@@ -593,6 +584,9 @@ importers:
       '@snakagent/agents':
         specifier: workspace:*
         version: link:../agents
+      '@snakagent/core':
+        specifier: workspace:*
+        version: link:../core
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -13198,8 +13192,8 @@ snapshots:
       '@typescript-eslint/parser': 8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3)
       eslint: 9.24.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7))
-      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.0)(eslint@9.24.0(jiti@1.21.7))
+      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
+      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.24.0(jiti@1.21.7))
       eslint-plugin-react: 7.37.5(eslint@9.24.0(jiti@1.21.7))
       eslint-plugin-react-hooks: 5.2.0(eslint@9.24.0(jiti@1.21.7))
@@ -13222,7 +13216,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7)):
+  eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.0
@@ -13233,22 +13227,22 @@ snapshots:
       tinyglobby: 0.2.12
       unrs-resolver: 1.5.0
     optionalDependencies:
-      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.0)(eslint@9.24.0(jiti@1.21.7))
+      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)):
+  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       '@typescript-eslint/parser': 8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3)
       eslint: 9.24.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7))
+      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.0)(eslint@9.24.0(jiti@1.21.7)):
+  eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.8
@@ -13259,7 +13253,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.24.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
+      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
