@@ -1,6 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@snakagent/agents';
+import { StarknetAgentInterface, JsonConfig } from '@snakagent/core';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -77,9 +77,8 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
 
   return {
     getAccountCredentials: () => ({
-            accountPublicKey: 'dlksjflkdsjf',
+      accountPublicKey: 'dlksjflkdsjf',
       accountPrivateKey: 'dsfahdskfgdsjkah',
-
     }),
     getModelCredentials: () => ({
       aiModel: '',
