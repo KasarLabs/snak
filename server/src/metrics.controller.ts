@@ -1,6 +1,6 @@
 import { Controller, OnModuleInit, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { metrics } from '@hijox/core';
+import { metrics } from '@snakagent/core';
 
 @Controller('metrics')
 export class MetricsController implements OnModuleInit {

@@ -1,5 +1,5 @@
 import { BlockIdAndContractAddressParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 
 export const getClassHashAt = async (
   agent: StarknetAgentInterface,

@@ -11,22 +11,13 @@ import {
   installScarbSchema,
   compileContractSchema,
 } from '../schema/schema.js';
-import { StarknetAgentInterface, StarknetTool, logger } from '@hijox/core';
-import { scarbQueries } from '@hijox/database/queries';
+import { logger, StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import { scarb } from '@snakagent/database/queries';
 
-export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
-  agent: StarknetAgentInterface
-) => {
+export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
   try {
+    await scarb.init();
   } catch (error) {
-    const scarb = new scarbQueries(agent.getDatabaseCredentials());
-    const db = agent.getDatabase();
-    if (db.has('scarb')) {
-      throw new Error('Scarb database already exists');
-    }
-    db.set('scarb', scarb);
-    agent.setDatabase(db);
     logger.error('Failed to initialize scarb db: ', error);
     throw error;
   }

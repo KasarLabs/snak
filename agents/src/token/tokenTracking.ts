@@ -1,6 +1,6 @@
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import chalk from 'chalk';
-import { logger } from '@hijox/core';
+import { logger } from '@snakagent/core';
 
 /**
  * Interface for token usage information

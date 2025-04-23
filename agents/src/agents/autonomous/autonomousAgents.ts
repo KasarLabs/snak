@@ -8,7 +8,7 @@ import { StarknetAgentInterface } from '../../tools/tools.js';
 import { MemorySaver, StateGraph, END } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
-import { logger } from '@hijox/core';
+import { logger } from '@snakagent/core';
 import {
   DynamicStructuredTool,
   StructuredTool,

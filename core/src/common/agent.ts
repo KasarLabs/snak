@@ -1,6 +1,5 @@
 import { RpcProvider } from 'starknet';
 import { SystemMessage } from '@langchain/core/messages';
-import { Postgres } from '@hijox/database';
 export interface StarknetTool<P = unknown> {
   name: string;
   plugins: string;
@@ -83,6 +82,4 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
-  getDatabase: () => Map<string, Postgres>;
-  setDatabase: (databases: Map<string, Postgres>) => void;
 }

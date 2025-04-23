@@ -1,4 +1,4 @@
-import { StarknetAgentInterface, StarknetTool } from '@hijox/core';
+import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
 import {
   borrowTroveSchema,
   collateralActionSchema,

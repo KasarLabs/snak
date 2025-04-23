@@ -1,54 +1,46 @@
-import { DatabaseCredentials } from '../../../utils/database.js';
 import { Postgres } from '../../../database.js';
-import { chatPoolQueries, chatPool } from '../queries.js';
+import { chat } from '../queries.js';
 
-const databasecredentials: DatabaseCredentials = {
-  user: process.env.POSTGRES_USER as string,
+const db_credentials = {
   host: process.env.POSTGRES_HOST as string,
-  database: process.env.POSTGRES_DB as string,
+  port: parseInt(process.env.POSTGRES_PORT!) as number,
+  user: process.env.POSTGRES_USER as string,
   password: process.env.POSTGRES_PASSWORD as string,
-  port: parseInt(process.env.POSTGRES_PORT || '5454'),
+  database: process.env.POSTGRES_DB as string,
 };
 
-let _chat = new chatPoolQueries(databasecredentials);
 beforeAll(async () => {
-  await _chat.connect(
-    process.env.POSTGRES_USER as string,
-    process.env.POSTGRES_HOST as string,
-    process.env.POSTGRES_DB as string,
-    process.env.POSTGRES_PASSWORD as string,
-    parseInt(process.env.POSTGRES_PORT || '5454')
-  );
+  await Postgres.connect(db_credentials);
 });
 
 afterAll(async () => {
-  await _chat.shutdown();
+  await Postgres.shutdown();
 });
 
 describe('Chat-pool database initialization', () => {
   it('Should create tables', async () => {
-    await expect(_chat.init()).resolves.toBeUndefined();
+    await expect(chat.init()).resolves.toBeUndefined();
   });
 
   it('Should be indempotent', async () => {
-    await expect(_chat.init()).resolves.toBeUndefined();
+    await expect(chat.init()).resolves.toBeUndefined();
   });
 
   it('Should handle empty retrievals', async () => {
-    await expect(_chat.select_instructions()).resolves.toEqual([]);
+    await expect(chat.select_instructions()).resolves.toEqual([]);
   });
 
   it('Should handle insertions', async () => {
     await expect(
-      _chat.insert_instruction('Lorem Ipsum dolor si amet')
+      chat.insert_instruction('Lorem Ipsum dolor si amet')
     ).resolves.toBeUndefined();
   });
 
   it('Should handle retrievals', async () => {
-    const instruction: chatPool.Instruction = {
+    const instruction: chat.Instruction = {
       instruction: 'Lorem Ipsum dolor si amet',
     };
-    await expect(_chat.select_instructions()).resolves.toMatchObject([
+    await expect(chat.select_instructions()).resolves.toMatchObject([
       instruction,
     ]);
   });

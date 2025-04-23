@@ -1,13 +1,12 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
 import { addProgramSchema, addDependencySchema } from '../schema/schema.js';
 import { extractFile } from '../utils/utils.js';
 import path from 'path';
 import { z } from 'zod';
-import { scarbQueries } from '@hijox/database/queries';
+import { scarb } from '@snakagent/database/queries';
 import { getAllPackagesList } from '../utils/dependencies.js';
-import { Id } from '@hijox/database/common';
-import { scarb } from '@hijox/database/queries';
+import { Id } from '@snakagent/database/common';
+
 /**
  * Add several programs to a project
  * @param _angent The Starknet agent
@@ -15,16 +14,12 @@ import { scarb } from '@hijox/database/queries';
  * @returns The result of the operation
  */
 export const addProgramAction = async (
-  _agent: StarknetAgentInterface,
+  _angent: StarknetAgentInterface,
   params: z.infer<typeof addProgramSchema>
 ) => {
   try {
     logger.debug('\n Adding program');
     logger.debug(JSON.stringify(params, null, 2));
-    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
-    if (!scarb) {
-      throw new Error('Scarb database not found');
-    }
 
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
@@ -64,16 +59,13 @@ export const addProgramAction = async (
  * @returns The result of the operation
  */
 export const addDependencyAction = async (
-  _agent: StarknetAgentInterface,
+  _angent: StarknetAgentInterface,
   params: z.infer<typeof addDependencySchema>
 ) => {
   try {
     logger.debug('\n Adding dependency');
     logger.debug(JSON.stringify(params, null, 2));
-    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
-    if (!scarb) {
-      throw new Error('Scarb database not found');
-    }
+
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);

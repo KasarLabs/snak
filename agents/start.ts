@@ -28,7 +28,7 @@ import * as fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { logger } from '@hijox/core';
+import { logger } from '@snakagent/core';
 import { DatabaseCredentials } from './src/tools/types/database.js';
 
 const __filename = fileURLToPath(import.meta.url);

@@ -1,5 +1,4 @@
-import { logger, StarknetAgentInterface } from '@hijox/core';
-('@hijox/core');
+import { logger, StarknetAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { Account } from 'starknet';

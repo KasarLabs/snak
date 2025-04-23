@@ -1,6 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@hijox/core';
+import { StarknetAgentInterface, JsonConfig } from '@snakagent/core';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -9,12 +9,12 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
-  const database = {
+  const db_credentials = {
+    database: 'test_db',
     host: 'localhost',
+    user: 'test_user',
+    password: 'test_password',
     port: 5432,
-    user: 'postgres',
-    password: 'postgres',
-    database: 'postgres',
   };
   const json_config: JsonConfig = {
     name: 'MockAgent',
@@ -42,11 +42,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabaseCredentials: () => database,
-    getDatabase: () => new Map<string, any>(),
-    setDatabase: (databases: Map<string, any>) => {
-      console.log('Database set:', databases);
-    },
+    getDatabaseCredentials: () => db_credentials,
   };
 };
 
@@ -54,12 +50,12 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
-  const database = {
+  const db_credentials = {
+    database: 'test_db',
     host: 'localhost',
+    user: 'test_user',
+    password: 'test_password',
     port: 5432,
-    user: 'postgres',
-    password: 'postgres',
-    database: 'postgres',
   };
   const json_config: JsonConfig = {
     name: 'MockAgent',
@@ -85,10 +81,6 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     }),
     getProvider: () => provider,
     getAgentConfig: () => json_config,
-    getDatabaseCredentials: () => database,
-    getDatabase: () => new Map<string, any>(),
-    setDatabase: (databases: Map<string, any>) => {
-      console.log('Database set:', databases);
-    },
+    getDatabaseCredentials: () => db_credentials,
   };
 };

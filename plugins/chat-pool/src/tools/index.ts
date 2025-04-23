@@ -1,23 +1,13 @@
-import { logger } from '@hijox/core';
 import { insertChatInstruction, readChatPool } from '../actions/chatPool.js';
 import { insertChatIntructionSchema } from '../schema/index.js';
-import { StarknetAgentInterface, StarknetTool } from '@hijox/core';
-import { chatPoolQueries } from '@hijox/database/queries';
+import { StarknetTool } from '@snakagent/core';
+import { chat } from '@snakagent/database/queries';
 
-export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
-  agent: StarknetAgentInterface
-) => {
+export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
   try {
-    const chatpool = new chatPoolQueries(agent.getDatabaseCredentials());
-    const db = agent.getDatabase();
-    if (db.has('chatpool')) {
-      throw new Error('Scarb database already exists');
-    }
-    db.set('chatpool', chatpool);
-    agent.setDatabase(db);
+    chat.init();
   } catch (error) {
-    logger.error('Failed to initialize scarb db: ', error);
+    console.error('Failed to initialize chat-pool db: ', error);
     throw error;
   }
 

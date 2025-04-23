@@ -4,7 +4,7 @@ import {
   constants,
   validateAndParseAddress,
 } from 'starknet';
-import { StarknetAgentInterface } from '@hijox/core';
+import { StarknetAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import {
   validateAndFormatTokenId,

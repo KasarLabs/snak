@@ -33,14 +33,15 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
-import { logger } from '@hijox/core';
+import { logger } from '@snakagent/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   configureModelWithTracking,
   addTokenInfoToBox,
   estimateTokens,
 } from '../../token/tokenTracking.js';
-import { memory, memoryQueries } from '@hijox/database/queries';
+import { memory, Postgres } from '@snakagent/database/queries';
+import { DatabaseCredentials } from '@snakagent/database';
 
 export function selectModel(aiConfig: AiConfig) {
   let model;
@@ -144,6 +145,17 @@ export async function initializeToolsList(
   return toolsList;
 }
 
+export const initializeDatabase = async (db: DatabaseCredentials) => {
+  try {
+    await Postgres.connect(db);
+    await memory.init();
+    logger.debug('Agent memory table successfully created');
+  } catch (error) {
+    logger.error('Error creating memories table:', error);
+    throw error;
+  }
+};
+
 // Patch ToolNode to log all tool calls
 const originalToolNodeInvoke = ToolNode.prototype.invoke;
 ToolNode.prototype.invoke = async function (state: any, config: any) {
@@ -207,7 +219,6 @@ export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
   aiConfig: AiConfig
 ) => {
-  const _memory = new memoryQueries(starknetAgent.getDatabaseCredentials());
   const embeddings = new CustomHuggingFaceEmbeddings({
     model: 'Xenova/all-MiniLM-L6-v2',
     dtype: 'fp32',
@@ -217,10 +228,10 @@ export const createAgent = async (
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
-
+    await initializeDatabase(starknetAgent.getDatabaseCredentials());
     if (json_config.memory) {
       try {
-        await _memory.init();
+        await memory.init();
         logger.debug('Agent memory table successfully created');
       } catch (error) {
         console.error('Error creating memories table:', error);
@@ -252,10 +263,10 @@ export const createAgent = async (
 
           if (memoryId) {
             console.log('\nmemoryId detected : ', memoryId);
-            await _memory.update_memory(memoryId, content, embedding);
+            await memory.update_memory(memoryId, content, embedding);
           }
 
-          _memory.insert_memory({
+          memory.insert_memory({
             user_id: userId,
             content,
             embedding,
@@ -266,7 +277,7 @@ export const createAgent = async (
           return 'Memory stored successfully.';
         } catch (error) {
           console.error('Error storing memory:', error);
-          return 'Failed to store _memory.';
+          return 'Failed to store memory.';
         }
       },
       {
@@ -277,13 +288,13 @@ export const createAgent = async (
             .number()
             .optional()
             .nullable()
-            .describe('Memory ID when wanting to update an existing _memory.'),
+            .describe('Memory ID when wanting to update an existing memory.'),
         }),
         description: `
 		  CREATE, UPDATE or DELETE persistent MEMORIES to persist across conversations.
 		  In your system prompt, you have access to the MEMORIES relevant to the user's
 		   query, each having their own MEMORY ID. Include the MEMORY ID when updating
-		   or deleting a _MEMORY. Omit when creating a new MEMORY - it will be created for
+		   or deleting a MEMORY. Omit when creating a new MEMORY - it will be created for
 		   you. Proactively call this tool when you:
 		   1.Identify a new USER preference.
 		   2.Receive an explicit USER request to remember something or otherwise alter your behavior.
@@ -302,7 +313,7 @@ export const createAgent = async (
         const lastMessage = state.messages[state.messages.length - 1]
           .content as string;
         const embedding = await embeddings.embedQuery(lastMessage);
-        const similar = await _memory.similar_memory(userId, embedding);
+        const similar = await memory.similar_memory(userId, embedding);
 
         const memories = similar
           .map((similarity) => {

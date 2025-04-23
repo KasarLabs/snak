@@ -30,14 +30,14 @@ your `package.json`.
 
 ```json
   "dependencies": {
-    "@snak/database": "workspace:*"
+    "@snakagent/database": "workspace:*"
   }
 ```
 
 Here is an example of how you would use it:
 
 ```ts
-import { scarb } from '@snak/database/queries';
+import { scarb } from '@snakagent/database/queries';
 import { Id } from '@snak/database/common';
 
 async function getProject(projectName: string): Promise<scarb.Project<Id.Id>> {

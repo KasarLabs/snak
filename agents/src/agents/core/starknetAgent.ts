@@ -15,7 +15,7 @@ import {
   ApiKeys,
   ModelLevelConfig,
   metrics,
-} from '@hijox/core';
+} from '@snakagent/core';
 import { createBox } from '../../prompt/formatting.js';
 import {
   addTokenInfoToBox,
@@ -28,7 +28,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ModelSelectionAgent } from './modelSelectionAgent.js';
 import { DatabaseCredentials } from '../../tools/types/database.js';
-import { Postgres } from '@hijox/database';
+import { Postgres } from '@snakagent/database';
 import { AIMessage } from '@langchain/core/messages';
 
 /**
@@ -98,7 +98,6 @@ export class StarknetAgent implements IAgent {
   };
   private originalLoggerFunctions: Record<string, any> = {};
   private memory: MemoryConfig;
-  private database: Map<string, Postgres> = new Map<string, Postgres>();
 
   private readonly db_credentials: DatabaseCredentials;
 
@@ -554,14 +553,6 @@ export class StarknetAgent implements IAgent {
 
   public getDatabaseCredentials() {
     return this.db_credentials;
-  }
-
-  public getDatabase() {
-    return this.database;
-  }
-
-  public setDatabase(databases: Map<string, Postgres>) {
-    this.database = databases;
   }
 
   /**

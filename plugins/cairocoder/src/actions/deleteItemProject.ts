@@ -4,8 +4,8 @@ import {
   deleteDependencySchema,
   deleteProjectSchema,
 } from '../schema/schema.js';
-import { scarbQueries } from '@hijox/database/queries';
-import { logger, StarknetAgentInterface } from '@hijox/core';
+import { scarb } from '@snakagent/database/queries';
+import { logger, StarknetAgentInterface } from '@snakagent/core';
 
 /**
  * Delete several programs from a project
@@ -19,10 +19,6 @@ export const deleteProgramAction = async (
   params: z.infer<typeof deleteProgramSchema>
 ) => {
   try {
-    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
-    if (!scarb) {
-      throw new Error('Scarb database not found');
-    }
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);
@@ -63,10 +59,6 @@ export const deleteDependencyAction = async (
   params: z.infer<typeof deleteDependencySchema>
 ) => {
   try {
-    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
-    if (!scarb) {
-      throw new Error('Scarb database not found');
-    }
     const projectData = await scarb.retrieveProjectData(params.projectName);
     if (!projectData) {
       throw new Error(`project ${params.projectName} does not exist`);
@@ -108,10 +100,6 @@ export const deleteProjectAction = async (
   params: z.infer<typeof deleteProjectSchema>
 ) => {
   try {
-    const scarb = _agent.getDatabase().get('scarb') as scarbQueries;
-    if (!scarb) {
-      throw new Error('Scarb database not found');
-    }
     for (const project of params.projectName) {
       await scarb.deleteProject(project);
     }

@@ -1,10 +1,9 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../config/jsonConfig.js';
-import { logger } from '@hijox/core';
-import { metrics } from '@hijox/core';
+import { logger } from '@snakagent/core';
+import { metrics } from '@snakagent/core';
 import { DatabaseCredentials } from './types/database.js';
-import { Postgres } from '@hijox/database';
 
 /**
  * @interface StarknetAgentInterface
@@ -30,8 +29,6 @@ export interface StarknetAgentInterface {
   };
   getProvider: () => RpcProvider;
   getAgentConfig: () => JsonConfig | undefined;
-  getDatabase: () => Map<string, Postgres>;
-  setDatabase: (databases: Map<string, Postgres>) => void;
 }
 
 /**
@@ -128,7 +125,7 @@ export const registerTools = async (
         index = index + 1;
 
         const imported_tool = await import(
-          `@hijox/plugin-${tool}/dist/index.js`
+          `@snakagent/plugin-${tool}/dist/index.js`
         );
         if (typeof imported_tool.registerTools !== 'function') {
           return false;
