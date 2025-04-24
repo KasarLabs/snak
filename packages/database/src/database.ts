@@ -77,9 +77,6 @@ export namespace Postgres {
     if (pool != undefined) {
       throw new Error('Connection pool already exists!');
     }
-    console.log(
-      `Connecting to database ${db.database} at ${db.host}:${db.port} as ${db.user}`
-    );
     pool = new Pool({
       user: db.user,
       host: db.host,

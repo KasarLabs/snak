@@ -1,4 +1,4 @@
-# Kasarlabs Argent Plugins
+# Snak - ArgentX Plugin
 
 A collection of Starknet tools for creating and deploying Argent accounts through the Kasarlabs ecosystem.
 
@@ -15,7 +15,11 @@ This package provides Starknet tools that allow developers to easily create and 
 ## Installation
 
 ```bash
+<<<<<<< HEAD
 npm install @hijox/argent-plugins
+=======
+npm install @snakagent/argent-plugins
+>>>>>>> 19776c86f85d380fec4cb66af4bb5a209c61a45e
 ```
 
 ## Usage
@@ -25,8 +29,13 @@ npm install @hijox/argent-plugins
 Import and register the Argent tools in your application:
 
 ```javascript
+<<<<<<< HEAD
 import { registerTools } from '@hijox/argent-plugins';
 import { StarknetTool, StarknetAgentInterface } from '@hijox/core';
+=======
+import { registerTools } from '@snakagent/argent-plugins';
+import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+>>>>>>> 19776c86f85d380fec4cb66af4bb5a209c61a45e
 
 // Initialize your tools registry
 const StarknetToolRegistry = [];
@@ -97,7 +106,11 @@ The package uses `accountDetailsSchema` to validate account details for deployme
 
 ## Dependencies
 
+<<<<<<< HEAD
 - `@hijox/core`: Core framework for Starknet tools and agent interfaces
+=======
+- `@snakagent/core`: Core framework for Starknet tools and agent interfaces
+>>>>>>> 19776c86f85d380fec4cb66af4bb5a209c61a45e
 - Account management utilities from '../utils/AccountManager.js'
 - Account creation and deployment actions
 
