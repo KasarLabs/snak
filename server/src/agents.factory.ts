@@ -112,14 +112,10 @@ export class AgentFactory {
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
-        aiModel: this.config.ai.model,
-        aiProvider: this.config.ai.provider,
-        aiProviderApiKey: this.config.ai.apiKey,
         agentconfig: this.json_config,
         db_credentials: database,
         signature: signature,
         agentMode: agentMode,
-        modelsConfigPath: this.config.ai.modelsConfigPath,
       });
 
       // Store for later reuse

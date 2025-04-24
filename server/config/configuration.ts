@@ -4,7 +4,7 @@ import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ModelsConfig, ModelLevelConfig } from '@hijox/core'; // Assuming core exports these types
+import { ModelsConfig, ModelLevelConfig } from '@snakagent/core'; // Assuming core exports these types
 
 @Injectable()
 export class ConfigurationService {

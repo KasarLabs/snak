@@ -6,7 +6,7 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { logger, ApiKeys, metrics } from '@hijox/core';
+import { logger, ApiKeys, metrics } from '@snakagent/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,15 +42,10 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-    aiModel: '',
-    aiProvider: '',
-    aiProviderApiKey: '',
     signature: 'key',
     db_credentials: database,
-
     agentMode: 'agent',
     agentconfig: undefined,
-    modelsConfigPath: '',
   });
   await agent.init();
 

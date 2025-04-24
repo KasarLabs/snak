@@ -11,10 +11,10 @@ export {
   selectModel,
   createAgent,
   initializeToolsList,
-} from './agents/interactive/agent.js';
+} from './agents/modes/interactive.js';
 
 // Autonomous agent exports
-export { createAutonomousAgent } from './agents/autonomous/autonomousAgents.js';
+export { createAutonomousAgent } from './agents/modes/autonomous.js';
 
 // Tool-related exports
 export type {

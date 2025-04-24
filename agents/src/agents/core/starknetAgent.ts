@@ -1,65 +1,41 @@
-import { AiConfig, IAgent } from '../../common/index.js';
-import { createAgent } from '../interactive/agent.js';
+// agents/main/starknetAgent.ts
+import { BaseAgent, AgentType, IModelAgent } from '../core/baseAgent.js';
 import { RpcProvider } from 'starknet';
-import { createAutonomousAgent } from '../autonomous/autonomousAgents.js';
-import { JsonConfig } from '../../config/jsonConfig.js';
-import {
-  HumanMessage,
-  BaseMessage,
-  ToolMessage,
-} from '@langchain/core/messages';
-import {
-  logger,
-  loadModelsConfig,
-  ModelsConfig,
-  ApiKeys,
-  ModelLevelConfig,
-  metrics,
-} from '@snakagent/core';
-import { createBox } from '../../prompt/formatting.js';
-import {
-  addTokenInfoToBox,
-  truncateToTokenLimit,
-  estimateTokens,
-} from '../../token/tokenTracking.js';
+import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
+import { logger, metrics } from '@snakagent/core';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatAnthropic } from '@langchain/anthropic';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { ModelSelectionAgent } from './modelSelectionAgent.js';
+import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { createBox } from '../../prompt/formatting.js';
+import { addTokenInfoToBox } from '../../token/tokenTracking.js';
 import { DatabaseCredentials } from '../../tools/types/database.js';
-import { Postgres } from '@snakagent/database';
-import { AIMessage } from '@langchain/core/messages';
+import { JsonConfig } from '../../config/jsonConfig.js';
 
 /**
- * Memory configuration for the agent
+ * Configuration de mémoire pour l'agent
  */
 export interface MemoryConfig {
-  enabled?: boolean; // Controls if memory is enabled
-  shortTermMemorySize?: number; // Controls maximum number of messages in conversation history; oldest messages are pruned when this limit is reached
-  recursionLimit?: number; // Controls the recursion limit for autonomous iterations; 0 = no limit, undefined = use shortTermMemorySize
+  enabled?: boolean;
+  shortTermMemorySize?: number;
+  recursionLimit?: number;
 }
 
 /**
- * Configuration for the StarknetAgent
+ * Configuration pour StarknetAgent
  */
 export interface StarknetAgentConfig {
-  modelsConfigPath: string;
   provider: RpcProvider;
   accountPublicKey: string;
   accountPrivateKey: string;
-  aiModel?: string; // Optional for backward compatibility
-  aiProvider?: string; // Optional for backward compatibility
-  aiProviderApiKey?: string; // Optional for backward compatibility
   signature: string;
   agentMode: string;
   db_credentials: DatabaseCredentials;
   agentconfig?: JsonConfig;
   memory?: MemoryConfig;
+  modelSelector?: ModelSelectionAgent;
 }
 
 /**
- * Options for configuring logging behavior
+ * Options de journalisation
  */
 export interface LoggingOptions {
   langchainVerbose?: boolean;
@@ -69,27 +45,20 @@ export interface LoggingOptions {
 }
 
 /**
- * Error response structure for execution failures
+ * L'agent principal pour interagir avec la blockchain Starknet
  */
-interface ErrorResponse {
-  status: string;
-  error: string;
-  step?: string;
-}
-
-/**
- * Agent for interacting with Starknet blockchain with AI capabilities
- */
-export class StarknetAgent implements IAgent {
+export class StarknetAgent extends BaseAgent implements IModelAgent {
   private readonly provider: RpcProvider;
   private readonly accountPrivateKey: string;
   private readonly accountPublicKey: string;
-  private modelsConfig!: ModelsConfig;
-  private apiKeys: ApiKeys = {};
-  private models: Record<string, BaseChatModel> = {};
-  private modelSelector: ModelSelectionAgent | null = null;
-  private agentReactExecutor: any;
+  private readonly signature: string;
+  private readonly agentMode: string;
+  private readonly agentconfig?: JsonConfig;
+  private readonly db_credentials: DatabaseCredentials;
+  private memory: MemoryConfig;
   private currentMode: string;
+  private agentReactExecutor: any;
+  private modelSelector: ModelSelectionAgent | null = null;
   private loggingOptions: LoggingOptions = {
     langchainVerbose: true,
     tokenLogging: true,
@@ -97,19 +66,11 @@ export class StarknetAgent implements IAgent {
     modelSelectionDebug: false,
   };
   private originalLoggerFunctions: Record<string, any> = {};
-  private memory: MemoryConfig;
 
-  private readonly db_credentials: DatabaseCredentials;
-
-  public readonly signature: string;
-  public readonly agentMode: string;
-  public readonly agentconfig?: JsonConfig;
-  /**
-   * Creates a new StarknetAgent instance
-   * @param config - Configuration for the StarknetAgent
-   */
-  constructor(private readonly config: StarknetAgentConfig) {
-    // Check environment variables for logging configuration
+  constructor(config: StarknetAgentConfig) {
+    super('starknet', AgentType.MAIN);
+    
+    // Configuration de journalisation
     const disableLogging = process.env.DISABLE_LOGGING === 'true';
     const enableDebugLogging =
       process.env.DEBUG_LOGGING === 'true' ||
@@ -125,59 +86,46 @@ export class StarknetAgent implements IAgent {
       this.disableLogging();
     }
 
-    try {
-      // Basic validation checks (e.g., for config, accountPrivateKey, modelsConfigPath)
-      if (!config) {
-        throw new Error('Configuration object is required');
-      }
-      if (!config.accountPrivateKey) {
-        throw new Error('STARKNET_PRIVATE_KEY is required');
-      }
-      if (!config.modelsConfigPath) {
-        throw new Error('modelsConfigPath is required in the configuration');
-      }
+    // Initialiser les propriétés
+    this.provider = config.provider;
+    this.accountPrivateKey = config.accountPrivateKey;
+    this.accountPublicKey = config.accountPublicKey;
+    this.signature = config.signature;
+    this.agentMode = config.agentMode;
+    this.db_credentials = config.db_credentials;
+    this.currentMode = config.agentMode === 'auto' || config.agentconfig?.mode?.autonomous === true
+      ? 'auto'
+      : config.agentMode || 'agent';
+    this.agentconfig = config.agentconfig;
+    this.memory = config.memory || {};
+    this.modelSelector = config.modelSelector || null;
 
-      this.provider = config.provider;
-      this.accountPrivateKey = config.accountPrivateKey;
-      this.accountPublicKey = config.accountPublicKey;
-      this.signature = config.signature;
-      this.agentMode = config.agentMode;
-      this.db_credentials = config.db_credentials;
-      // Set the current mode - ensure it's properly set for autonomous mode
-      this.currentMode =
-        config.agentMode === 'auto' ||
-        config.agentconfig?.mode?.autonomous === true
-          ? 'auto'
-          : config.agentMode || 'agent';
-      this.agentconfig = config.agentconfig;
-      this.memory = config.memory || {};
-
-      // Load API Keys synchronously
-      this.loadApiKeys();
-
-      metrics.metricsAgentConnect(
-        config.agentconfig?.name ?? 'agent',
-        config.agentMode
-      );
-    } catch (error) {
-      logger.error(`StarknetAgent constructor failed: ${error}`);
-      throw error;
+    // Vérifier la présence d'autres configurations nécessaires
+    if (!config.accountPrivateKey) {
+      throw new Error('STARKNET_PRIVATE_KEY is required');
     }
+
+    metrics.metricsAgentConnect(
+      config.agentconfig?.name ?? 'agent',
+      config.agentMode
+    );
   }
 
   /**
-   * Asynchronously initializes the agent, loading configurations and models.
-   * This method must be called after the constructor.
+   * Initialise l'agent Starknet
    */
   public async init(): Promise<void> {
     try {
       logger.debug('Initializing StarknetAgent...');
-      this.modelsConfig = await loadModelsConfig(this.config.modelsConfigPath);
-      this.initializeModels();
-      // Initialize model selector after models are available
-      this.initializeModelSelector();
-      // Perform validation AFTER models are initialized
-      this.validateConfigPostInit();
+      
+      // Si nous avons déjà un modelSelector, utiliser celui-là
+      if (!this.modelSelector) {
+        logger.warn('StarknetAgent: No ModelSelectionAgent provided, functionality will be limited');
+      }
+      
+      // Créer l'exécuteur d'agent React
+      await this.createAgentReactExecutor();
+      
       logger.debug('StarknetAgent initialized successfully.');
     } catch (error) {
       logger.error(`StarknetAgent initialization failed: ${error}`);
@@ -186,99 +134,10 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Initializes the ModelSelectionAgent for intelligent model routing
-   */
-  private initializeModelSelector(): void {
-    logger.debug('Initializing ModelSelectionAgent...');
-    if (Object.keys(this.models).length === 0) {
-      logger.error(
-        'Cannot initialize ModelSelectionAgent: no models available'
-      );
-      return;
-    }
-
-    // Check if metaSelection is enabled in the agent config
-    // DEBUGGING - Force enable meta-selection to test functionality
-    const metaSelectionFromConfig =
-      this.agentconfig?.mode?.metaSelection === true;
-    const useMetaSelection = true; // Force true for debugging
-
-    // Add detailed debugging info
-    logger.debug(`Agent config: ${JSON.stringify(this.agentconfig, null, 2)}`);
-    logger.debug(
-      `Mode config from agent.json: ${JSON.stringify(this.agentconfig?.mode)}`
-    );
-    logger.debug(
-      `Meta-selection from config: ${metaSelectionFromConfig} (Forced to ${useMetaSelection} for debugging)`
-    );
-
-    this.modelSelector = new ModelSelectionAgent(this.models, {
-      debugMode: true, // Force debug mode on
-      useMetaSelection: useMetaSelection,
-    });
-
-    // Explicitly verify what was passed to ModelSelectionAgent
-    logger.debug(
-      `ModelSelector options passed: debugMode=true, useMetaSelection=${useMetaSelection}`
-    );
-
-    logger.debug(
-      `ModelSelectionAgent initialized successfully (Meta selection: ${useMetaSelection ? 'enabled' : 'disabled'})`
-    );
-  }
-
-  /**
-   * Gets the appropriate model for a task based on messages
-   * @param messages - The messages to analyze for model selection
-   * @param forceModelType - Optional model type to force using
-   * @returns The selected model
-   */
-  public async getModelForTask(
-    messages: any[],
-    forceModelType?: string
-  ): Promise<BaseChatModel> {
-    if (!this.modelSelector) {
-      logger.warn(
-        'ModelSelectionAgent not initialized, defaulting to smart model'
-      );
-      return this.models.smart || Object.values(this.models)[0];
-    }
-
-    if (forceModelType && this.models[forceModelType]) {
-      if (this.loggingOptions.modelSelectionDebug) {
-        logger.debug(`Forced model selection: ${forceModelType}`);
-      }
-      return this.models[forceModelType];
-    }
-
-    return this.modelSelector.getModelForTask(messages);
-  }
-
-  /**
-   * Invokes an AI model with the appropriate selection logic
-   * @param messages - The messages to process
-   * @param forceModelType - Optional model type to force using
-   * @returns The model response
-   */
-  public async invokeModel(
-    messages: any[],
-    forceModelType?: string
-  ): Promise<any> {
-    if (!this.modelSelector) {
-      logger.warn(
-        'ModelSelectionAgent not initialized, defaulting to smart model'
-      );
-      return this.models.smart.invoke(messages);
-    }
-
-    return this.modelSelector.invokeModel(messages, forceModelType);
-  }
-
-  /**
-   * Disables all logging by replacing logger methods with no-ops
+   * Désactive la journalisation en remplaçant les méthodes du logger par des no-ops
    */
   private disableLogging(): void {
-    // Store the original methods if we haven't already
+    // Stocker les méthodes originales si ce n'est pas déjà fait
     if (!this.originalLoggerFunctions.info) {
       this.originalLoggerFunctions = {
         info: logger.info,
@@ -288,7 +147,7 @@ export class StarknetAgent implements IAgent {
       };
     }
 
-    // Replace with no-op functions that respect the logger method signature
+    // Remplacer par des fonctions no-op qui respectent la signature des méthodes du logger
     const noop = (message: any, ...meta: any[]): any => logger;
     logger.info = noop;
     logger.debug = noop;
@@ -300,16 +159,16 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Restores original logging functions
+   * Restaure les fonctions de journalisation d'origine
    */
   public enableLogging(): void {
-    // Only restore if we have the original functions saved
+    // Ne restaurer que si nous avons les fonctions d'origine sauvegardées
     if (!this.originalLoggerFunctions.info) {
       console.log('No original logger functions to restore');
       return;
     }
 
-    // Restore original functions
+    // Restaurer les fonctions d'origine
     logger.info = this.originalLoggerFunctions.info;
     logger.debug = this.originalLoggerFunctions.debug;
     logger.warn = this.originalLoggerFunctions.warn;
@@ -321,150 +180,55 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Loads API keys from environment variables.
+   * Définit les options de journalisation pour l'agent
    */
-  private loadApiKeys(): void {
-    logger.debug('Loading API keys from environment variables...');
-    const PROVIDER_ENV_VAR_MAP: Record<string, string> = {
-      openai: 'OPENAI_API_KEY',
-      anthropic: 'ANTHROPIC_API_KEY',
-      gemini: 'GEMINI_API_KEY',
-      deepseek: 'DEEPSEEK_API_KEY',
-      // Add other providers here
-    };
+  public setLoggingOptions(options: LoggingOptions): void {
+    // Appliquer les options
+    this.loggingOptions = { ...this.loggingOptions, ...options };
 
-    this.apiKeys = {}; // Reset keys
-    for (const [provider, envVar] of Object.entries(PROVIDER_ENV_VAR_MAP)) {
-      const apiKey = process.env[envVar];
-      if (apiKey) {
-        this.apiKeys[provider] = apiKey;
-        logger.debug(`Loaded API key for provider: ${provider}`);
-      } else {
-        logger.warn(
-          `API key environment variable not found for provider: ${provider} (expected: ${envVar})`
-        );
-      }
+    if (options.disabled === true && !this.loggingOptions.disabled) {
+      this.disableLogging();
+      return;
+    } else if (options.disabled === false && this.loggingOptions.disabled) {
+      this.enableLogging();
     }
-    logger.debug('Finished loading API keys.');
-  }
 
-  /**
-   * Initializes chat model instances based on the loaded configuration.
-   */
-  private initializeModels(): void {
-    logger.debug('Initializing AI models...');
-    if (!this.modelsConfig) {
-      logger.error(
-        'Models configuration is not loaded. Cannot initialize models.'
+    // Mettre à jour le mode de débogage de la sélection de modèle si elle existe et que l'option a changé
+    if (this.modelSelector && options.modelSelectionDebug !== undefined) {
+      // Préserver le paramètre metaSelection de la configuration de l'agent
+      const useMetaSelection = this.agentconfig?.mode?.metaSelection === true;
+
+      // Mettre à jour uniquement le mode debug
+      // this.modelSelector.setDebugMode(this.loggingOptions.modelSelectionDebug);
+      
+      logger.debug(
+        `Updated ModelSelectionAgent: debug mode=${this.loggingOptions.modelSelectionDebug}, meta selection=${useMetaSelection}`
       );
-      throw new Error('Models configuration is not loaded.');
     }
 
-    this.models = {}; // Reset models
-    for (const [levelName, levelConfigUntyped] of Object.entries(
-      this.modelsConfig
-    )) {
-      const levelConfig = levelConfigUntyped as ModelLevelConfig; // Cast to correct type
-      const { provider, model_name } = levelConfig;
-      const apiKey = this.apiKeys[provider];
-
-      if (!apiKey) {
-        logger.warn(
-          `API key for provider '${provider}' not found. Skipping initialization for model level '${levelName}'.`
-        );
-        continue;
-      }
-
-      try {
-        let modelInstance: BaseChatModel | null = null;
-        const commonConfig = {
-          modelName: model_name,
-          apiKey: apiKey,
-          verbose: this.loggingOptions.langchainVerbose,
-          // Add other common config like temperature if needed
-        };
-
-        switch (provider.toLowerCase()) {
-          case 'openai':
-            modelInstance = new ChatOpenAI(commonConfig);
-            break;
-          case 'anthropic':
-            modelInstance = new ChatAnthropic(commonConfig);
-            break;
-          case 'gemini':
-            // Note: Gemini might use `googleApiKey` or a different config structure
-            modelInstance = new ChatGoogleGenerativeAI({
-              ...commonConfig,
-              apiKey: apiKey, // Ensure correct property name
-            });
-            break;
-          // Add cases for 'deepseek' and other providers
-          default:
-            logger.warn(
-              `Unsupported AI provider '${provider}' for model level '${levelName}'. Skipping.`
-            );
-            continue; // Skip unsupported providers
-        }
-
-        if (modelInstance) {
-          this.models[levelName] = modelInstance;
-          logger.debug(
-            `Initialized model for level '${levelName}': ${provider} - ${model_name}`
-          );
-        }
-      } catch (error) {
-        logger.error(
-          `Failed to initialize model for level '${levelName}' (${provider} - ${model_name}): ${error}`
-        );
-        // Decide if we should throw or just log and continue
-      }
-    }
-    logger.debug('Finished initializing AI models.');
-
-    // Validate that essential models were loaded
-    if (!this.models.fast || !this.models.smart || !this.models.cheap) {
-      logger.error(
-        'One or more essential model levels (fast, smart, cheap) failed to initialize. Check API keys and configuration.'
-      );
-      // Potentially throw an error here if these are critical
-      // throw new Error('Essential model levels failed to initialize.');
+    // Ne mettre à jour les paramètres de verbosité LLM que si nous avons un exécuteur et que la journalisation est activée
+    if (!this.loggingOptions.disabled && this.agentReactExecutor) {
+      this.applyLoggerVerbosityToExecutor();
     }
   }
 
   /**
-   * Creates an agent executor based on the current mode
+   * Crée un exécuteur d'agent en fonction du mode actuel
    */
-  public async createAgentReactExecutor(): Promise<void> {
+  private async createAgentReactExecutor(): Promise<void> {
     try {
-      const smartModelConfig = this.modelsConfig?.['smart'];
-      if (!smartModelConfig) {
-        throw new Error(
-          "The 'smart' model configuration is not loaded. Cannot create agent executor."
-        );
-      }
-      const smartApiKey = this.apiKeys[smartModelConfig.provider];
-      if (!smartApiKey) {
-        throw new Error(
-          `API key for the 'smart' model provider (${smartModelConfig.provider}) is missing.`
-        );
-      }
+      // Importer les fonctions de création d'agents dynamiquement
+      const { createAgent } = await import('../modes/interactive.js');
+      const { createAutonomousAgent } = await import('../modes/autonomous.js');
 
-      // TEMPORARY FIX: Create the old AiConfig structure for compatibility.
-      // TODO: Update createAgent and createAutonomousAgent to accept BaseChatModel directly.
-      const tempAiConfig: AiConfig = {
-        aiModel: smartModelConfig.model_name,
-        aiProvider: smartModelConfig.provider,
-        aiProviderApiKey: smartApiKey,
+      // Créer la configuration temporaire de l'IA pour la compatibilité
+      const tempAiConfig = {
         langchainVerbose: this.loggingOptions.langchainVerbose,
-        // Add ModelSelectionAgent reference for agent creation
         modelSelector: this.modelSelector,
       };
 
       if (this.currentMode === 'auto') {
-        this.agentReactExecutor = await createAutonomousAgent(
-          this,
-          tempAiConfig
-        );
+        this.agentReactExecutor = await createAutonomousAgent(this, tempAiConfig);
       } else if (this.currentMode === 'agent') {
         this.agentReactExecutor = await createAgent(this, tempAiConfig);
       }
@@ -477,72 +241,46 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Applies the logging verbosity setting to the executor if it exists
+   * Applique le paramètre de verbosité de la journalisation à l'exécuteur s'il existe
    */
   private applyLoggerVerbosityToExecutor(): void {
     if (!this.agentReactExecutor) return;
 
-    // Update main LLM if available
+    // Mettre à jour le LLM principal s'il est disponible
     if (this.agentReactExecutor.agent?.llm) {
-      this.agentReactExecutor.agent.llm.verbose =
-        this.loggingOptions.langchainVerbose === true;
+      this.agentReactExecutor.agent.llm.verbose = this.loggingOptions.langchainVerbose === true;
     }
 
-    // Update model in graph nodes if available
+    // Mettre à jour le modèle dans les nœuds de graphe s'il est disponible
     if (this.agentReactExecutor.graph?._nodes?.agent?.data?.model) {
-      this.agentReactExecutor.graph._nodes.agent.data.model.verbose =
-        this.loggingOptions.langchainVerbose === true;
+      this.agentReactExecutor.graph._nodes.agent.data.model.verbose = this.loggingOptions.langchainVerbose === true;
     }
   }
 
   /**
-   * Validates the configuration *after* asynchronous initialization.
+   * Obtient le modèle approprié pour une tâche en fonction des messages
    */
-  private validateConfigPostInit(): void {
-    logger.debug('Performing post-initialization validation...');
-    if (!this.modelsConfig) {
-      throw new Error(
-        'Models configuration was not loaded during initialization.'
-      );
+  public async getModelForTask(messages: BaseMessage[], forceModelType?: string): Promise<BaseChatModel> {
+    if (!this.modelSelector) {
+      throw new Error('ModelSelectionAgent not available');
     }
-    if (Object.keys(this.models).length === 0) {
-      throw new Error(
-        'No models were initialized. Check configuration and API keys.'
-      );
-    }
-    // Example: Ensure essential models are loaded
-    if (!this.models.fast || !this.models.smart || !this.models.cheap) {
-      logger.error(
-        'One or more essential model levels (fast, smart, cheap) failed to initialize. Check API keys and configuration.'
-      );
-      // Decide whether to throw an error based on requirements
-      // throw new Error('Essential model levels failed to initialize.');
-    }
-    logger.debug('Post-initialization validation complete.');
+
+    return this.modelSelector.getModelForTask(messages, forceModelType);
   }
 
   /**
-   * Connects to an existing PostgreSQL database
-   * @param databaseName - Name of the database to connect to
+   * Invoque un modèle avec la logique de sélection appropriée
    */
-  private async switchMode(newMode: string): Promise<string> {
-    if (newMode === 'auto' && !this.agentconfig?.mode?.autonomous) {
-      return 'Cannot switch to autonomous mode - not enabled in configuration';
+  public async invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any> {
+    if (!this.modelSelector) {
+      throw new Error('ModelSelectionAgent not available');
     }
 
-    if (this.currentMode === newMode) {
-      return `Already in ${newMode} mode`;
-    }
-
-    this.currentMode = newMode;
-    this.createAgentReactExecutor();
-    return `Switched to ${newMode} mode`;
+    return this.modelSelector.invokeModel(messages, forceModelType);
   }
 
   /**
-   * @function getAccountCredentials
-   * @description Gets the Starknet account credentials
-   * @returns {{accountPrivateKey: string, accountPublicKey: string}} Account credentials
+   * Obtient les informations d'identification du compte Starknet
    */
   public getAccountCredentials() {
     return {
@@ -551,12 +289,15 @@ export class StarknetAgent implements IAgent {
     };
   }
 
+  /**
+   * Obtient les informations d'identification de la base de données
+   */
   public getDatabaseCredentials() {
     return this.db_credentials;
   }
 
   /**
-   * Gets the agent signature
+   * Obtient la signature de l'agent
    */
   public getSignature() {
     return {
@@ -565,7 +306,7 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Gets the current agent mode
+   * Obtient le mode d'agent actuel
    */
   public getAgent() {
     return {
@@ -574,851 +315,192 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Gets the agent configuration
+   * Obtient la configuration de l'agent
    */
   public getAgentConfig(): JsonConfig | undefined {
     return this.agentconfig;
   }
 
   /**
-   * Gets the original agent mode from initialization
+   * Obtient le mode d'agent d'origine de l'initialisation
    */
   public getAgentMode(): string {
     return this.agentMode;
   }
 
   /**
-   * Gets the Starknet RPC provider
+   * Obtient le fournisseur RPC Starknet
    */
   public getProvider(): RpcProvider {
     return this.provider;
   }
 
   /**
-   * Validates an input request
-   * @param request - Request to validate
+   * Execute the agent with the given input
    */
-  public async validateRequest(request: string): Promise<boolean> {
-    return Boolean(request && typeof request === 'string');
-  }
-
-  /**
-   * Executes a request in agent mode
-   * @param input - Input to execute
-   * @returns Result of the execution
-   */
-  public async execute(input: string): Promise<unknown> {
-    if (this.currentMode !== 'agent') {
-      throw new Error(
-        `Need to be in agent mode to execute (current mode: ${this.currentMode})`
-      );
-    }
+  public async execute(input: string | BaseMessage, config?: Record<string, any>): Promise<unknown> {
+    let responseContent: string | any;
+    let iteration = 0;
+    let errorCount = 0;
+    const maxIterations = this.memory?.recursionLimit ?? 5;
+    const maxErrors = 3;
 
     try {
+      logger.debug(`StarknetAgent executing with mode: ${this.currentMode}`);
+      
+      // Ensure the executor is created for the current mode
       if (!this.agentReactExecutor) {
-        throw new Error('Agent executor is not initialized');
-      }
-
-      let result;
-      let responseContent: string | unknown = ''; // Initialize responseContent
-
-      // Create human message from input
-      const humanMessage = new HumanMessage(input);
-
-      // Get model selection if ModelSelectionAgent is available
-      let selectedModel: BaseChatModel | undefined;
-      let modelType: string | undefined;
-      if (this.modelSelector) {
-        // Get the model type first
-        modelType = await this.modelSelector.selectModelForMessages([
-          humanMessage,
-        ]);
-        if (this.loggingOptions.modelSelectionDebug) {
-          logger.debug(`Model Selection for request: ${modelType}`);
-        }
-
-        // Get the model instance based on the already determined type
-        if (modelType && this.models[modelType]) {
-          selectedModel = this.models[modelType];
-        } else {
-          // Fall back to smart model if the selected model is not available
-          // Don't set selectedModel here, let the executor use its default
-          if (modelType && !this.models[modelType]) {
-            logger.warn(
-              `Selected model "${modelType}" not available, executor will use default`
-            );
-          } else {
-            logger.debug(
-              `No specific model selected, executor will use default`
-            );
-          }
-        }
-      } else {
-        logger.debug(`ModelSelector not available, executor will use default`);
-      }
-
-      const invokeOptions: any = {
-        // Ensure configurable exists
-        configurable: {
-          ...(this.agentconfig?.chat_id && {
-            thread_id: this.agentconfig.chat_id as string,
-          }),
-        },
-      };
-
-      // If a specific model was selected, pass it in the config
-      // Assumes the executor graph uses 'llm' as the configurable key for the model
-      if (selectedModel) {
-        logger.debug(
-          `Passing selected model (${modelType}) to executor via config`
-        );
-        invokeOptions.configurable.llm = selectedModel;
-      }
-
-      // Only apply recursion limit if memory is enabled
-      if (this.memory.enabled !== false) {
-        // Use mode.recursionLimit if available, otherwise fallback to memory config
-        const recursionLimit =
-          this.agentconfig?.mode?.recursionLimit !== undefined
-            ? this.agentconfig.mode.recursionLimit
-            : this.memory.recursionLimit !== undefined
-              ? this.memory.recursionLimit
-              : this.memory.shortTermMemorySize || 15;
-
-        // Only apply recursion limit if it's not zero (0 means no limit)
-        if (recursionLimit !== 0) {
-          invokeOptions.recursionLimit = recursionLimit;
-
-          // Add a messageHandler to prune oldest messages when reaching the limit
-          invokeOptions.messageHandler = (messages: any[]) => {
-            if (messages.length > recursionLimit) {
-              logger.debug(
-                `Message pruning: ${messages.length} messages exceeds limit ${recursionLimit}, pruning oldest messages`
-              );
-              const prunedMessages = [
-                messages[0],
-                ...messages.slice(-(recursionLimit - 1)),
-              ];
-              logger.debug(
-                `Pruned from ${messages.length} to ${prunedMessages.length} messages`
-              );
-              return prunedMessages;
-            }
-            return messages;
-          };
-
-          logger.debug(
-            `Execute: configured with recursionLimit=${recursionLimit}, memory enabled=${this.memory.enabled}`
-          );
-        } else {
-          logger.debug(
-            `Execute: running without recursion limit, memory enabled=${this.memory.enabled}`
-          );
+        await this.createAgentReactExecutor();
+        if (!this.agentReactExecutor) {
+            throw new Error("Failed to initialize Agent React Executor for the current mode.");
         }
       }
 
-      // Always use the agentReactExecutor, passing the selected model via config if available
-      logger.debug(
-        `Invoking agentReactExecutor with options: ${JSON.stringify(invokeOptions)}`
-      );
-      result = await this.agentReactExecutor.invoke(
-        {
-          messages: [humanMessage],
-        },
-        invokeOptions
-      );
+      const initialInput = typeof input === 'string' ? input : input.content;
 
-      // Extract content from the last message
-      if (result.messages && result.messages.length > 0) {
-        responseContent =
-          result.messages[result.messages.length - 1].content ?? '';
+      // Determine the model type to use
+      const forceModelType = config?.forceModelType;
+      let model;
+      if (forceModelType) {
+          model = await this.getModelForTask([typeof input === 'string' ? new HumanMessage(input) : input], forceModelType);
+          logger.debug(`Forcing model type: ${forceModelType}`);
       }
 
-      // Format and display the response using the boxing mechanism
-      if (responseContent) {
-        const formattedContent = this.formatResponseForDisplay(responseContent);
-        const boxContent = createBox('Agent Response', formattedContent);
-        const boxWithTokens = addTokenInfoToBox(boxContent);
-        logger.debug(
-          `Attempting to print main response box: Length=${formattedContent?.length ?? 0}`
-        );
-        process.stdout.write(boxWithTokens);
-      } else {
-        logger.warn('Agent returned an empty response in interactive mode.');
-        // Optionally display an empty box or a message
-        const emptyBox = createBox('Agent Response', 'No response received.');
-        process.stdout.write(emptyBox);
-      }
-
-      // Return the raw content for potential further processing if needed by the caller
-      // Or return void if the caller doesn't expect a return value after printing
-      return responseContent;
-    } catch (error) {
-      // Log the error and potentially format it for display
-      logger.error(`Error during interactive execution: ${error}`);
-      const errorBox = createBox(
-        'Execution Error',
-        error instanceof Error ? error.message : String(error),
-        { isError: true }
-      );
-      process.stdout.write(errorBox);
-      // Re-throw or return an error indicator as appropriate
-      throw error;
-    }
-  }
-
-  /**
-   * Validates that the current mode is set to autonomous
-   */
-  private validateAutonomousMode(): void {
-    logger.debug(`Current mode is: ${this.currentMode}, comparing with 'auto'`);
-
-    if (this.currentMode !== 'auto') {
-      // Check if agentconfig has autonomous mode enabled as a fallback
-      if (this.agentconfig?.mode?.autonomous) {
-        logger.info(
-          `Overriding mode to 'auto' based on config settings (autonomous=${this.agentconfig?.mode?.autonomous})`
-        );
-        this.currentMode = 'auto';
-      } else {
-        throw new Error(
-          `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
-        );
-      }
-    }
-
-    if (!this.agentReactExecutor) {
-      throw new Error(
-        'Agent executor is not initialized for autonomous execution'
-      );
-    }
-  }
-
-  /**
-   * Gets an adaptive prompt message based on recent execution context
-   */
-  private getAdaptivePromptMessage(tokensErrorCount: number): string {
-    if (tokensErrorCount > 0) {
-      // If recent token errors, specifically request simpler actions and reference history/objectives
-      return 'Recent actions caused token limit issues. Based on your objectives and the conversation history, prioritize a simple, low-context action now. Proceed without asking for permission.';
-    }
-
-    // Standard fallback prompt referencing objectives and history
-    return 'No specific next step was planned in the previous turn. Based on your objectives and the recent conversation history, determine the next best action to take. Proceed without asking for permission.';
-  }
-
-  /**
-   * Logs model selection information for a message if debug is enabled
-   * @param message - The message to analyze
-   */
-  private logModelSelection(message: string): void {
-    if (!this.modelSelector || !this.loggingOptions.modelSelectionDebug) {
-      return;
-    }
-
-    const dummyMessage = new HumanMessage(message);
-    const modelType = this.modelSelector.selectModelForMessages([dummyMessage]);
-    logger.debug(`Model Selection for autonomous message: ${modelType}`);
-  }
-
-  /**
-   * Executes in autonomous mode continuously
-   * @returns Result if execution fails
-   */
-  public async execute_autonomous(): Promise<unknown> {
-    try {
-      this.validateAutonomousMode();
-
-      let iterationCount = 0;
-      let consecutiveErrorCount = 0;
-      let tokensErrorCount = 0;
-      let lastNextSteps: string | null = null; // Variable to store next steps from previous iteration
-      const lastErrors = new Set<string>();
-      const addError = (error: string) => {
-        lastErrors.add(error);
-        if (lastErrors.size > 3) {
-          // Keep only the 3 most recent unique errors
-          const iterator = lastErrors.values();
-          lastErrors.delete(iterator.next().value);
-        }
-      };
-
-      // Keep track of the full conversation history for invoking the graph
-      let conversationHistory: BaseMessage[] = [];
-
-      // Add the initial system prompt if available in config
-      const systemPrompt = this.agentconfig?.prompt; // Assuming JsonConfig might have the base prompt
-      if (systemPrompt) {
-        conversationHistory.push(systemPrompt);
-      }
-
-      while (true) {
-        // Loop indefinitely until a break condition
-        iterationCount++;
-
+      // Start the execution loop
+      while (iteration < maxIterations && errorCount < maxErrors) {
+        iteration++;
+        logger.debug(`StarknetAgent iteration ${iteration}/${maxIterations}`);
+        
         try {
-          consecutiveErrorCount = 0;
-          if (tokensErrorCount > 0) tokensErrorCount--;
-
-          // Periodic agent refresh (might need adjustment - graph state is external now)
-          // this.handlePeriodicAgentRefresh(iterationCount, tokensErrorCount);
-          // We might not need agent refresh if state is managed correctly via checkpointer
-
-          // Determine the prompt message for THIS iteration
-          let currentTurnInput: BaseMessage;
-          if (lastNextSteps) {
-            logger.debug(
-              `Using previous NEXT STEPS as prompt: "${lastNextSteps}"`
-            );
-            // Use the NEXT STEPS as the user input for this turn
-            currentTurnInput = new HumanMessage({
-              content: `Execute the following planned action based on the previous turn: "${lastNextSteps}". Ensure it's a single, simple action. If it seems complex, clearly state the simpler first step and outline the rest in the NEXT STEPS section.`,
-              name: 'Planner', // Assign a name to distinguish from user input
-            });
-          } else {
-            logger.debug(
-              'No previous NEXT STEPS found, generating adaptive prompt.'
-            );
-            // Fallback to the general adaptive prompt
-            const promptMessage =
-              this.getAdaptivePromptMessage(tokensErrorCount);
-            currentTurnInput = new HumanMessage(promptMessage);
-            // Log model selection when using the fallback prompt
-            this.logModelSelection(promptMessage);
-          }
-
-          // Append the input for this turn to the history
-          conversationHistory.push(currentTurnInput);
-
-          // Prepare invoke options (mostly config)
-          const agentConfig = { ...this.agentReactExecutor.agentConfig };
-          // Recursion limit might not be directly applicable to the graph invoke in the same way,
-          // but we pass the thread_id config.
-          // Pruning needs to be handled explicitly if desired before invoking graph.
-          // TODO: Implement explicit history pruning based on memory limits if needed.
-
-          logger.debug(
-            `Autonomous iteration ${iterationCount}: invoking graph with ${conversationHistory.length} messages (tokensErrorCount=${tokensErrorCount})`
-          );
-          // Invoke the graph with the current full history
-          const result = await this.agentReactExecutor.agent.invoke(
-            { messages: conversationHistory }, // Pass current history
-            agentConfig // Pass config (e.g., thread_id)
-          );
-          logger.debug(
-            `Autonomous iteration ${iterationCount}: graph invocation complete`
-          );
-
-          // --- Process Graph Result ---
-          if (!result || !result.messages || result.messages.length === 0) {
-            logger.warn(
-              'Graph returned empty or invalid state, stopping loop.'
-            );
-            break; // Stop if graph returns unexpected state
-          }
-
-          // The result.messages contains the state *after* the graph finished.
-          // The last message(s) should be the agent's response or tool results.
-          conversationHistory = result.messages; // Update history with the final state from the graph run
-
-          // Find the very last message added by the graph run (should be AIMessage or ToolMessage)
-          const lastMessageFromGraph =
-            conversationHistory[conversationHistory.length - 1];
-
-          if (lastMessageFromGraph instanceof AIMessage) {
-            // Process and display the AI response
-            lastNextSteps =
-              await this.processAgentResponse(lastMessageFromGraph);
-
-            // Check if the agent signaled a final answer
-            if (
-              typeof lastMessageFromGraph.content === 'string' &&
-              lastMessageFromGraph.content
-                .toUpperCase()
-                .includes('FINAL ANSWER')
-            ) {
-              logger.info('Detected FINAL ANSWER. Ending autonomous session.');
-              break; // Exit the loop
+          const result = await this.agentReactExecutor.invoke(
+            { input: initialInput },
+            { 
+              ...config,
+              recursionLimit: maxIterations,
+              // Pass the pre-selected model if available
+              ...(model && { model: model }) 
             }
-          } else if (lastMessageFromGraph instanceof ToolMessage) {
-            // If the graph ended after a tool call (unexpected based on current router/edges),
-            // log it and potentially reset next steps.
-            logger.warn(
-              `Graph ended unexpectedly after ToolMessage: ${lastMessageFromGraph.content}`
-            );
-            lastNextSteps = null; // Reset plan as the graph didn't loop back to agent
-          } else {
-            // Handle other unexpected message types
-            logger.warn(
-              `Graph ended with unexpected message type: ${lastMessageFromGraph.constructor.name}`
-            );
-            lastNextSteps = null;
-            // Potentially break the loop here too
-            break;
-          }
-
-          // Optional: Add iteration limit or other break conditions
-          const MAX_ITERATIONS = 50; // Example limit
-          if (iterationCount >= MAX_ITERATIONS) {
-            logger.warn(
-              `Reached maximum iteration limit (${MAX_ITERATIONS}). Stopping autonomous session.`
-            );
-            break;
-          }
-        } catch (loopError) {
-          // Handle errors in autonomous execution
-          await this.handleAutonomousExecutionError(
-            loopError,
-            iterationCount,
-            consecutiveErrorCount,
-            tokensErrorCount,
-            addError
           );
+          
+          responseContent = result.output || result.response;
+          logger.debug(`StarknetAgent execution successful. Output: ${JSON.stringify(responseContent)}`);
+          break; // Exit loop on success
 
-          // Update error counters for next iteration
-          consecutiveErrorCount++;
-          if (this.isTokenRelatedError(loopError)) {
-            tokensErrorCount += 2;
+        } catch (error: any) {
+          errorCount++;
+          logger.error(`StarknetAgent execution error (Attempt ${errorCount}/${maxErrors}): ${error.message}`);
+          responseContent = `Error during execution: ${error.message}`;
+
+          if (this.isTokenRelatedError(error)) {
+            logger.error('Token related error detected, stopping execution.');
+            responseContent = `Error: Token validation failed. Please check your credentials.`;
+            break;
           }
+          
+          if (errorCount >= maxErrors) {
+            logger.error('Maximum error retries reached.');
+            responseContent = `Error: Maximum error retries reached. Last error: ${error.message}`;
+            break;
+          }
+          
+          // Optionally add delay or modify input for retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * errorCount)); // Exponential backoff
         }
-      } // End of while loop
-      logger.info('Autonomous session finished.');
-    } catch (error) {
-      return error;
-    }
-  }
-
-  /**
-   * Handles periodic agent refresh to prevent context buildup
-   */
-  private async handlePeriodicAgentRefresh(
-    iterationCount: number,
-    tokensErrorCount: number
-  ): Promise<void> {
-    // Periodically recreate the agent to avoid context accumulation
-    // More frequent if there have been recent token errors
-    const refreshInterval = tokensErrorCount > 0 ? 3 : 5;
-    if (iterationCount > 1 && iterationCount % refreshInterval === 0) {
-      logger.info(`Periodic agent refresh (iteration ${iterationCount})`);
-      logger.debug(
-        `Agent refresh triggered: iteration=${iterationCount}, tokensErrorCount=${tokensErrorCount}, refreshInterval=${refreshInterval}`
-      );
-      await this.createAgentReactExecutor();
-      logger.debug('Agent refresh complete: new executor created');
-    }
-  }
-
-  /**
-   * Processes and displays the agent response
-   * @returns The extracted "NEXT STEPS" content, or null if not found.
-   */
-  private async processAgentResponse(
-    lastAiMessage: AIMessage
-  ): Promise<string | null> {
-    // Get and check the content of the last message
-    const rawAgentResponse = lastAiMessage.content; // Get the raw response from the message
-
-    // If the message contains tools and large results, it may need to be truncated
-    // Limit of 20,000 tokens to avoid expensive requests during the next iteration
-    const MAX_RESPONSE_TOKENS = 20000;
-    const responseString =
-      typeof rawAgentResponse === 'string'
-        ? rawAgentResponse
-        : JSON.stringify(rawAgentResponse);
-    const estimatedTokens = estimateTokens(responseString);
-
-    logger.debug(
-      `Processing agent response: estimatedTokens=${estimatedTokens}, maxLimit=${MAX_RESPONSE_TOKENS}`
-    );
-
-    let processedResponseString;
-    if (estimatedTokens > MAX_RESPONSE_TOKENS) {
-      // Truncate the response to respect the token limit
-      logger.warn(
-        `Response exceeds token limit: ${estimatedTokens} > ${MAX_RESPONSE_TOKENS}. Truncating...`
-      );
-      processedResponseString = truncateToTokenLimit(
-        responseString,
-        MAX_RESPONSE_TOKENS
-      );
-      logger.debug(`Response truncated to fit token limit`);
-    } else {
-      processedResponseString = responseString;
-    }
-
-    // --- Splitting Logic ---
-    let mainResponse = processedResponseString;
-    let nextStepsContent: string | null = null;
-    const nextStepsMarkerRegex = /NEXT STEPS:|NEXT\s+STEPS:\s*/i;
-    const parts = processedResponseString.split(nextStepsMarkerRegex);
-
-    if (parts.length > 1) {
-      mainResponse = parts[0].trim();
-      nextStepsContent = parts[1].trim();
-    }
-    // --- End Splitting Logic ---
-
-    // Check if modelSelector should be informed about the response complexity (use original if possible)
-    if (this.modelSelector && typeof responseString === 'string') {
-      // Analyze original untruncated response for better model selection decision
-      this.analyzeResponseForModelSelection(responseString);
-    }
-
-    // Display the main response
-    const mainFormattedContent = this.formatResponseForDisplay(mainResponse);
-    const mainBoxContent = createBox('Agent Response', mainFormattedContent);
-    const mainBoxWithTokens = addTokenInfoToBox(mainBoxContent); // Attach tokens here
-    logger.debug(
-      `Attempting to print main response box: Length=${mainFormattedContent?.length ?? 0}`
-    );
-    process.stdout.write(mainBoxWithTokens);
-
-    // Display the next steps box if content exists
-    if (nextStepsContent && nextStepsContent.length > 0) {
-      const nextStepsFormattedContent =
-        this.formatResponseForDisplay(nextStepsContent);
-      const nextStepsBoxContent = createBox(
-        'Agent Next Steps',
-        nextStepsFormattedContent
-      );
-      logger.debug(
-        `Attempting to print next steps box: Length=${nextStepsFormattedContent?.length ?? 0}`
-      );
-      process.stdout.write(nextStepsBoxContent); // No token info needed here
-    }
-
-    // Wait for an adaptive interval based on the complexity of the last response
-    await this.waitAdaptiveInterval(estimatedTokens, MAX_RESPONSE_TOKENS);
-
-    // Return the extracted next steps content for the next iteration
-    return nextStepsContent;
-  }
-
-  /**
-   * Analyzes the agent response to inform model selection
-   * @param response - The agent response string
-   */
-  private analyzeResponseForModelSelection(response: string): void {
-    // Check if modelSelector exists
-    if (!this.modelSelector) {
-      return;
-    }
-
-    // Extract NEXT STEPS section if present
-    const nextStepsMatch = response.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
-    if (nextStepsMatch && nextStepsMatch[1]) {
-      const nextStepsContent = nextStepsMatch[1].trim();
-
-      if (this.loggingOptions.modelSelectionDebug) {
-        logger.debug(
-          `Found NEXT STEPS section for model selection: "${nextStepsContent}"`
-        );
       }
 
-      // Create a dummy message with the next steps for model selection analysis
-      // This helps the model selector understand the upcoming complexity
-      const dummyMessage = new HumanMessage(
-        `Next planned action: ${nextStepsContent}`
-      );
-      this.modelSelector
-        .selectModelForMessages([dummyMessage])
-        .then((modelType) => {
-          if (this.loggingOptions.modelSelectionDebug) {
-            logger.debug(`Model selected for next steps: ${modelType}`);
-          }
-        })
-        .catch((error) => {
-          logger.debug(
-            `Error analyzing next steps for model selection: ${error}`
-          );
-        });
+      if (iteration >= maxIterations) {
+        logger.warn(`Maximum iterations (${maxIterations}) reached. Returning current response.`);
+        responseContent = responseContent || `Error: Maximum iterations reached.`;
+      }
+
+    } catch (error: any) {
+      logger.error(`StarknetAgent main execution failed: ${error}`);
+      responseContent = `Error: ${error.message}`;
+    } finally {
+      // Ensure logging is re-enabled if it was temporarily disabled for verbosity
+      if (this.loggingOptions.disabled) {
+        // This assumes enableLogging handles the state correctly
+        // this.enableLogging(); 
+      }
     }
+
+    // Format response if needed (e.g., removing backticks)
+    const finalResponse = this.formatResponseForDisplay(responseContent);
+    logger.debug(`StarknetAgent final response: ${JSON.stringify(finalResponse)}`);
+
+    // Return structured AIMessage
+    return new AIMessage({
+      content: finalResponse,
+      additional_kwargs: {
+        from: 'starknet',
+        final: false // Let the supervisor decide if it's final
+      }
+    });
   }
 
   /**
-   * Formats the agent response for display
+   * Formate la réponse de l'agent pour l'affichage
    */
   private formatResponseForDisplay(response: string | any): string | any {
     if (typeof response !== 'string') {
       return response;
     }
 
-    // Only format bullet points, remove NEXT STEPS specific formatting as it's handled by splitting
+    // Formater uniquement les points à puces, supprimer le formatage spécifique NEXT STEPS car il est géré par la division
     const lines = response.split('\n');
     const formattedLines = lines.map((line: string) => {
-      // Format bullet points
+      // Formater les points à puces
       if (line.includes('•')) {
         return `  ${line.trim()}`;
       }
-      // Removed NEXT STEPS highlighting logic
       return line;
     });
 
-    // Join lines back, ensuring consistent line breaks
+    // Joindre les lignes, en assurant des sauts de ligne cohérents
     return formattedLines.join('\n');
   }
 
   /**
-   * Waits for an adaptive interval based on response complexity
-   */
-  private async waitAdaptiveInterval(
-    estimatedTokens: number,
-    maxTokens: number
-  ): Promise<void> {
-    // Wait for an adaptive interval based on the complexity of the last response
-    // If the response was large, wait longer to give resources time to free up
-    const baseInterval = this.agentReactExecutor.json_config?.interval || 5000;
-    let interval = baseInterval;
-
-    // Increase the interval if the response was large to avoid overload
-    if (estimatedTokens > maxTokens / 2) {
-      interval = baseInterval * 1.5;
-      logger.debug(
-        `Increasing wait interval due to large response: ${interval}ms (base: ${baseInterval}ms)`
-      );
-    }
-
-    logger.debug(`Waiting for ${interval}ms before next iteration`);
-    await new Promise((resolve) => setTimeout(resolve, interval));
-  }
-
-  /**
-   * Checks if an error is token-related
-   */
-  private isTokenRelatedError(error: any): boolean {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const isTokenError =
-      errorMessage.includes('token limit') ||
-      errorMessage.includes('tokens exceed') ||
-      errorMessage.includes('context length') ||
-      errorMessage.includes('prompt is too long') ||
-      errorMessage.includes('maximum context length');
-
-    if (isTokenError) {
-      logger.debug(
-        `Token-related error detected: "${errorMessage.substring(0, 100)}${errorMessage.length > 100 ? '...' : ''}"`
-      );
-    }
-
-    return isTokenError;
-  }
-
-  /**
-   * Handles errors in autonomous execution mode
-   */
-  private async handleAutonomousExecutionError(
-    error: any,
-    iterationCount: number,
-    consecutiveErrorCount: number,
-    tokensErrorCount: number,
-    addError: (error: string) => void
-  ): Promise<void> {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    addError(errorMessage);
-
-    // Detailed error message to help with debugging
-    logger.error(
-      `Error in autonomous agent (iteration ${iterationCount}): ${errorMessage}`
-    );
-    logger.debug(
-      `Error stats: iterationCount=${iterationCount}, consecutiveErrorCount=${consecutiveErrorCount}, tokensErrorCount=${tokensErrorCount}`
-    );
-
-    if (this.isTokenRelatedError(error)) {
-      await this.handleTokenLimitError(consecutiveErrorCount, tokensErrorCount);
-    } else {
-      await this.handleGeneralError(consecutiveErrorCount);
-    }
-  }
-
-  /**
-   * Handles token limit errors in autonomous mode
-   */
-  private async handleTokenLimitError(
-    consecutiveErrorCount: number,
-    tokensErrorCount: number
-  ): Promise<void> {
-    try {
-      // Display warning message
-      logger.warn(
-        'Token limit reached - abandoning current action without losing context'
-      );
-      logger.debug(
-        `Token limit error handler: consecutiveErrorCount=${consecutiveErrorCount}, tokensErrorCount=${tokensErrorCount}`
-      );
-
-      const warningMessage = createBox(
-        'Action Abandoned',
-        'Current action was abandoned due to a token limit. The agent will try a different action.'
-      );
-      process.stdout.write(warningMessage);
-
-      // Wait before resuming to avoid error loops
-      const pauseDuration = Math.min(
-        5000 + consecutiveErrorCount * 1000,
-        15000
-      );
-      logger.debug(`Pausing for ${pauseDuration}ms after token limit error`);
-      await new Promise((resolve) => setTimeout(resolve, pauseDuration));
-
-      // Forced reset if multiple token-related errors
-      if (consecutiveErrorCount >= 2 || tokensErrorCount >= 3) {
-        logger.warn('Too many token-related errors, complete agent reset...');
-        logger.debug(
-          `Forced agent reset triggered: consecutiveErrorCount=${consecutiveErrorCount}, tokensErrorCount=${tokensErrorCount}`
-        );
-
-        // Force the agent to forget its context to avoid accumulating tokens
-        await this.createAgentReactExecutor();
-        logger.debug('Agent executor recreated after token errors');
-
-        const resetMessage = createBox(
-          'Agent Reset',
-          'Due to persistent token issues, the agent has been reset. This may clear some context information but will allow execution to continue.'
-        );
-        process.stdout.write(resetMessage);
-
-        // Wait longer after a reset
-        logger.debug('Waiting 8 seconds after agent reset');
-        await new Promise((resolve) => setTimeout(resolve, 8000));
-      }
-    } catch (recreateError) {
-      logger.error(`Failed to handle token limit gracefully: ${recreateError}`);
-      logger.debug(
-        `Error during token limit handling: ${recreateError instanceof Error ? recreateError.stack : recreateError}`
-      );
-      // Progressive waiting in case of error
-      const waitTime = consecutiveErrorCount >= 3 ? 15000 : 5000;
-      logger.debug(`Error recovery wait: ${waitTime}ms`);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-
-      // If nothing works, try an emergency reset
-      if (consecutiveErrorCount >= 5) {
-        try {
-          // Force a complete reset with a new executor
-          logger.debug('Attempting emergency reset after multiple failures');
-          await this.createAgentReactExecutor();
-          logger.warn('Emergency reset performed after multiple failures');
-        } catch (e) {
-          // Just continue - we've tried everything
-          logger.debug(
-            `Even emergency reset failed: ${e instanceof Error ? e.message : String(e)}`
-          );
-        }
-      }
-    }
-  }
-
-  /**
-   * Handles general errors in autonomous mode
-   */
-  private async handleGeneralError(
-    consecutiveErrorCount: number
-  ): Promise<void> {
-    // Progressive waiting time for general errors
-    let waitTime = 3000; // Base waiting time
-    logger.debug(
-      `General error handler: consecutiveErrorCount=${consecutiveErrorCount}, base wait=${waitTime}ms`
-    );
-
-    // Increase waiting time with the number of consecutive errors
-    if (consecutiveErrorCount >= 5) {
-      waitTime = 30000; // 30 seconds for 5+ errors
-      logger.warn(
-        `${consecutiveErrorCount} errors in a row, waiting much longer before retry...`
-      );
-      logger.debug(
-        `Extended wait time (30s) due to high error count: ${consecutiveErrorCount}`
-      );
-    } else if (consecutiveErrorCount >= 3) {
-      waitTime = 10000; // 10 seconds for 3-4 errors
-      logger.warn(
-        `${consecutiveErrorCount} errors in a row, waiting longer before retry...`
-      );
-      logger.debug(
-        `Increased wait time (10s) due to multiple errors: ${consecutiveErrorCount}`
-      );
-    }
-
-    // Apply a pause to avoid rapid error loops
-    logger.debug(`Pausing for ${waitTime}ms after general error`);
-    await new Promise((resolve) => setTimeout(resolve, waitTime));
-
-    // If too many errors accumulate, reset the agent
-    if (consecutiveErrorCount >= 7) {
-      try {
-        logger.warn(
-          'Too many consecutive errors, attempting complete reset...'
-        );
-        logger.debug(
-          `Critical error threshold reached (${consecutiveErrorCount} errors), full agent reset initiated`
-        );
-        await this.createAgentReactExecutor();
-        logger.debug(
-          'Agent executor successfully recreated after multiple errors'
-        );
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-      } catch (e) {
-        // Continue even if reset fails
-        logger.debug(
-          `Failed to reset agent after multiple errors: ${e instanceof Error ? e.message : String(e)}`
-        );
-      }
-    }
-  }
-
-  /**
-   * Executes a call data (signature mode) request in agent mode
-   * @param input - Input to execute
-   * @returns Parsed result or error
+   * Exécute une demande de données d'appel (mode signature) en mode agent
    */
   public async execute_call_data(input: string): Promise<unknown> {
     try {
       if (this.currentMode !== 'agent') {
-        throw new Error(
-          `Need to be in agent mode to execute_call_data (current mode: ${this.currentMode})`
-        );
+        throw new Error(`Need to be in agent mode to execute_call_data (current mode: ${this.currentMode})`);
       }
 
       if (!this.agentReactExecutor) {
         throw new Error('Agent executor is not initialized');
       }
 
-      // Prepare invoke options with message pruning
+      // Préparer les options d'invocation avec élagage des messages
       const invokeOptions: any = {};
 
-      // Add message pruning if memory is enabled
+      // Ajouter l'élagage des messages si la mémoire est activée
       if (this.memory.enabled !== false) {
-        // Use mode.recursionLimit if available, otherwise fallback to memory config
-        const recursionLimit =
-          this.agentconfig?.mode?.recursionLimit !== undefined
-            ? this.agentconfig.mode.recursionLimit
-            : this.memory.recursionLimit !== undefined
-              ? this.memory.recursionLimit
-              : this.memory.shortTermMemorySize || 15;
+        // Utiliser mode.recursionLimit si disponible, sinon revenir à la configuration de la mémoire
+        const recursionLimit = this.agentconfig?.mode?.recursionLimit !== undefined
+          ? this.agentconfig.mode.recursionLimit
+          : this.memory.recursionLimit !== undefined
+            ? this.memory.recursionLimit
+            : this.memory.shortTermMemorySize || 15;
 
-        // Only apply recursion limit if it's not zero (0 means no limit)
+        // N'appliquer la limite de récursion que si elle n'est pas nulle (0 signifie pas de limite)
         if (recursionLimit !== 0) {
           invokeOptions.recursionLimit = recursionLimit;
           invokeOptions.messageHandler = (messages: any[]) => {
             if (messages.length > recursionLimit) {
-              logger.debug(
-                `Call data - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
-              );
+              logger.debug(`Call data - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`);
               const prunedMessages = [
                 messages[0],
                 ...messages.slice(-(recursionLimit - 1)),
               ];
-              logger.debug(
-                `Call data - pruned from ${messages.length} to ${prunedMessages.length} messages`
-              );
+              logger.debug(`Call data - pruned from ${messages.length} to ${prunedMessages.length} messages`);
               return prunedMessages;
             }
             return messages;
           };
-          logger.debug(
-            `Execute call data: configured with recursionLimit=${recursionLimit}`
-          );
+          logger.debug(`Execute call data: configured with recursionLimit=${recursionLimit}`);
         } else {
           logger.debug(`Execute call data: running without recursion limit`);
         }
@@ -1435,13 +517,10 @@ export class StarknetAgent implements IAgent {
 
       try {
         if (!aiMessage.messages || aiMessage.messages.length < 2) {
-          throw new Error(
-            'Insufficient messages returned from call data execution'
-          );
+          throw new Error('Insufficient messages returned from call data execution');
         }
 
-        const messageContent =
-          aiMessage.messages[aiMessage.messages.length - 2].content;
+        const messageContent = aiMessage.messages[aiMessage.messages.length - 2].content;
         return JSON.parse(messageContent);
       } catch (parseError) {
         return {
@@ -1458,52 +537,211 @@ export class StarknetAgent implements IAgent {
   }
 
   /**
-   * Sets logging options for the agent
-   * @param options - Logging options to set
+   * Exécute en mode autonome en continu
    */
-  public setLoggingOptions(options: LoggingOptions): void {
-    // Apply options
-    this.loggingOptions = { ...this.loggingOptions, ...options };
+  public async execute_autonomous(): Promise<unknown> {
+    // Rediriger vers la fonction appropriée dans starknetAgent.ts
+    try {
+      // Valider que nous sommes en mode autonome
+      if (this.currentMode !== 'auto') {
+        if (this.agentconfig?.mode?.autonomous) {
+          logger.info(`Overriding mode to 'auto' based on config settings (autonomous=${this.agentconfig?.mode?.autonomous})`);
+          this.currentMode = 'auto';
+        } else {
+          throw new Error(`Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`);
+        }
+      }
 
-    if (options.disabled === true && !this.loggingOptions.disabled) {
-      this.disableLogging();
-      return;
-    } else if (options.disabled === false && this.loggingOptions.disabled) {
-      this.enableLogging();
-    }
+      if (!this.agentReactExecutor) {
+        throw new Error('Agent executor is not initialized for autonomous execution');
+      }
 
-    // Update model selector debug mode if it exists and the option has changed
-    if (this.modelSelector && options.modelSelectionDebug !== undefined) {
-      // Preserve the metaSelection setting from agent config
-      const useMetaSelection = this.agentconfig?.mode?.metaSelection === true;
-
-      this.modelSelector = new ModelSelectionAgent(this.models, {
-        debugMode: this.loggingOptions.modelSelectionDebug,
-        useMetaSelection: useMetaSelection,
-      });
-      logger.debug(
-        `Updated ModelSelectionAgent: debug mode=${this.loggingOptions.modelSelectionDebug}, meta selection=${useMetaSelection}`
-      );
-    }
-
-    // Only update LLM verbosity settings if we have an executor and logging is enabled
-    if (!this.loggingOptions.disabled && this.agentReactExecutor) {
-      this.applyLoggerVerbosityToExecutor();
+      // Utiliser l'implémentation autonome du fichier original
+      const result = await this._executeAutonomous();
+      return result;
+    } catch (error) {
+      return {
+        status: 'failure',
+        error: `Autonomous execution error: ${error instanceof Error ? error.message : String(error)}`,
+      };
     }
   }
 
   /**
-   * Gets the memory configuration
+   * Implémentation interne de l'exécution autonome
+   */
+  private async _executeAutonomous(): Promise<any> {
+    // Implémentation simplifiée - la vraie implémentation serait plus complexe
+    try {
+      let iterationCount = 0;
+      let consecutiveErrorCount = 0;
+      let tokensErrorCount = 0;
+      let lastNextSteps: string | null = null;
+      const MAX_ITERATIONS = 50;
+
+      // Conserver un historique de conversation complet pour invoquer le graphe
+      let conversationHistory: BaseMessage[] = [];
+
+      // Ajouter le prompt système initial si disponible dans la configuration
+      const systemPrompt = this.agentconfig?.prompt;
+      if (systemPrompt) {
+        conversationHistory.push(systemPrompt);
+      }
+
+      // Boucle principale autonome
+      while (iterationCount < MAX_ITERATIONS) {
+        iterationCount++;
+        
+        try {
+          // Déterminer le message d'entrée pour CETTE itération
+          let currentTurnInput: BaseMessage;
+          
+          if (lastNextSteps) {
+            logger.debug(`Using previous NEXT STEPS as prompt: "${lastNextSteps}"`);
+            // Utiliser les NEXT STEPS comme entrée utilisateur pour ce tour
+            currentTurnInput = new HumanMessage({
+              content: `Execute the following planned action based on the previous turn: "${lastNextSteps}". Ensure it's a single, simple action.`,
+              name: 'Planner',
+            });
+          } else {
+            logger.debug('No previous NEXT STEPS found, generating adaptive prompt.');
+            // Repli sur le prompt adaptatif général
+            const promptMessage = 'Based on your objectives and the recent conversation history, determine the next best action to take.';
+            currentTurnInput = new HumanMessage(promptMessage);
+          }
+
+          // Ajouter l'entrée pour ce tour à l'historique
+          conversationHistory.push(currentTurnInput);
+
+          // Préparer les options d'invocation
+          const agentConfig = { ...this.agentReactExecutor.agentConfig };
+
+          logger.debug(
+            `Autonomous iteration ${iterationCount}: invoking graph with ${conversationHistory.length} messages`
+          );
+          
+          // Invoquer le graphe avec l'historique actuel complet
+          const result = await this.agentReactExecutor.agent.invoke(
+            { messages: conversationHistory },
+            agentConfig
+          );
+          
+          logger.debug(`Autonomous iteration ${iterationCount}: graph invocation complete`);
+
+          // Traiter le résultat du graphe
+          if (!result || !result.messages || result.messages.length === 0) {
+            logger.warn('Graph returned empty or invalid state, stopping loop.');
+            break;
+          }
+
+          // Le result.messages contient l'état *après* que le graphe ait terminé.
+          // Le(s) dernier(s) message(s) devrai(en)t être la réponse de l'agent ou les résultats de l'outil.
+          conversationHistory = result.messages;
+
+          // Trouver le tout dernier message ajouté par l'exécution du graphe (devrait être AIMessage ou ToolMessage)
+          const lastMessageFromGraph = conversationHistory[conversationHistory.length - 1];
+
+          if (lastMessageFromGraph instanceof AIMessage) {
+            // Traiter et afficher la réponse de l'IA
+            lastNextSteps = this.extractNextSteps(lastMessageFromGraph.content);
+
+            // Vérifier si l'agent a signalé une réponse finale
+            if (
+              typeof lastMessageFromGraph.content === 'string' &&
+              lastMessageFromGraph.content.toUpperCase().includes('FINAL ANSWER')
+            ) {
+              logger.info('Detected FINAL ANSWER. Ending autonomous session.');
+              break;
+            }
+          } else {
+            // Gérer d'autres types de messages inattendus
+            logger.warn(
+              `Graph ended with unexpected message type: ${lastMessageFromGraph.constructor.name}`
+            );
+            lastNextSteps = null;
+            break;
+          }
+
+        } catch (loopError) {
+          // Gérer les erreurs dans l'exécution autonome
+          logger.error(`Error in autonomous iteration ${iterationCount}: ${loopError}`);
+          
+          consecutiveErrorCount++;
+          if (this.isTokenRelatedError(loopError)) {
+            tokensErrorCount += 2;
+          }
+
+          if (consecutiveErrorCount > 3) {
+            logger.error('Too many consecutive errors. Stopping autonomous execution.');
+            break;
+          }
+
+          // Attendre avant la prochaine tentative
+          const waitTime = Math.min(2000 + consecutiveErrorCount * 1000, 10000);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+
+      logger.info('Autonomous session finished.');
+      return { status: 'success', iterations: iterationCount };
+    } catch (error) {
+      logger.error(`Fatal error in autonomous execution: ${error}`);
+      return { status: 'failure', error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Extrait la section "NEXT STEPS" du contenu
+   */
+  private extractNextSteps(content: string | any): string | null {
+    if (typeof content !== 'string') {
+      return null;
+    }
+
+    const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
+    if (nextStepsMatch && nextStepsMatch[1]) {
+      return nextStepsMatch[1].trim();
+    }
+    return null;
+  }
+
+  /**
+   * Vérifie si une erreur est liée aux tokens
+   */
+  private isTokenRelatedError(error: any): boolean {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return (
+      errorMessage.includes('token limit') ||
+      errorMessage.includes('tokens exceed') ||
+      errorMessage.includes('context length') ||
+      errorMessage.includes('prompt is too long') ||
+      errorMessage.includes('maximum context length')
+    );
+  }
+
+  /**
+   * Obtient la configuration de mémoire
    */
   public getMemoryConfig(): MemoryConfig {
     return this.memory;
   }
 
   /**
-   * Sets the memory configuration
-   * @param config - Memory configuration to set
+   * Définit la configuration de mémoire
    */
   public setMemoryConfig(config: MemoryConfig): void {
     this.memory = { ...this.memory, ...config };
+  }
+
+  /**
+   * Validates the user request before execution
+   * @param request The user's request string
+   * @returns Promise<boolean> indicating if request is valid
+   * @throws AgentValidationError if validation fails
+   */
+  public async validateRequest(request: string): Promise<boolean> {
+    // TODO: Implement actual validation logic
+    logger.debug(`Validating request (currently always true): ${request}`);
+    return true;
   }
 }

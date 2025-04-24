@@ -2,7 +2,8 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@snakagent/database",
   "version": "0.0.12",
-  "type": "module",  "files": [
+  "type": "module",
+  "files": [
     "dist",
     "LICENSE",
     "package.json",

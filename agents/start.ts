@@ -9,12 +9,9 @@ process.env.LANGCHAIN_TRACING = 'false';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { createSpinner } from 'nanospinner';
-import {
-  StarknetAgent,
-  StarknetAgentConfig,
-} from './src/agents/core/starknetAgent.js';
 import { RpcProvider } from 'starknet';
 import { config } from 'dotenv';
+import { Postgres } from '@snakagent/database';
 import {
   load_json_config,
   updateModeConfig,
@@ -30,6 +27,9 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { logger } from '@snakagent/core';
 import { DatabaseCredentials } from './src/tools/types/database.js';
+
+// Import our new agent system architecture
+import { AgentSystem, AgentSystemConfig } from './src/agents/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -221,7 +221,7 @@ const localRun = async (): Promise<void> => {
     )
   );
 
-  let agent: StarknetAgent | null = null;
+  let agentSystem: AgentSystem | null = null;
 
   try {
     // Load command line args
@@ -262,17 +262,17 @@ const localRun = async (): Promise<void> => {
         ],
       },
     ]);
-    const agentMode = mode === 'autonomous' ? 'auto' : 'agent';
+    const agentMode = mode === 'agent' ? 'interactive' : 'autonomous';
 
     clearScreen();
     console.log(logo);
-    const spinner = createSpinner('Initializing Starknet Agent').start();
+    const spinner = createSpinner('Initializing Agent System').start();
 
     // Update config file on disk if needed
     try {
       spinner.stop();
 
-      const modeToUpdate = agentMode === 'auto' ? 'autonomous' : 'interactive';
+      const modeToUpdate = agentMode === 'interactive' ? 'interactive' : 'autonomous';
       const updateSpinner = createSpinner(
         `Updating configuration to ${modeToUpdate} mode`
       ).start();
@@ -309,23 +309,33 @@ const localRun = async (): Promise<void> => {
       port: parseInt(process.env.POSTGRES_PORT as string),
     };
 
-    // Prepare Agent Configuration
+    // Initialize Database Connection Pool FIRST
+    try {
+      await Postgres.connect(database);
+      spinner.update({ text: 'Database connection pool initialized'});
+      logger.info('Database connection pool initialized successfully.');
+    } catch (dbError) {
+      spinner.error({ text: 'Failed to initialize database connection pool'});
+      logger.error('Database initialization failed:', dbError);
+      throw new Error(`Failed to initialize database: ${dbError.message}`);
+    }
+
+    // Prepare RPC Provider
     const provider = new RpcProvider({
       nodeUrl: process.env.STARKNET_RPC_URL!,
     });
 
-    const agentConfig: StarknetAgentConfig = {
-      provider: provider,
+    // Configure agent system
+    const agentSystemConfig: AgentSystemConfig = {
+      starknetProvider: provider,
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY!,
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS!,
-      signature: 'default-signature',
-      agentMode: agentMode,
-      agentconfig: json_config,
       modelsConfigPath: modelsConfigPath,
-      db_credentials: database,
-      memory: {
-        recursionLimit: json_config?.mode?.recursionLimit,
-      },
+      agentMode: agentMode as 'interactive' | 'autonomous',
+      signature: 'default-signature',
+      databaseCredentials: database,
+      agentConfigPath: agentPath,
+      debug: DEBUG,
     };
 
     // Display agent information
@@ -333,27 +343,18 @@ const localRun = async (): Promise<void> => {
     const configPath = path.basename(agentPath);
     const modelsPath = path.basename(modelsConfigPath);
 
+    // Instantiate & Initialize Agent System
+    agentSystem = new AgentSystem(agentSystemConfig);
+    await agentSystem.init();
+
     spinner.success({
       text: chalk.black(
-        `Agent "${chalk.cyan(agentName)}" initialized successfully`
+        `Agent System "${chalk.cyan(agentName)}" initialized successfully`
       ),
     });
 
-    // Instantiate & Initialize Agent
-    agent = new StarknetAgent(agentConfig);
-
-    // Set logging options based on DEBUG mode
-    agent.setLoggingOptions({
-      langchainVerbose: DEBUG,
-      tokenLogging: DEBUG,
-      disabled: !DEBUG,
-      modelSelectionDebug: DEBUG,
-    });
-    await agent.init();
-    await agent.createAgentReactExecutor();
-
     // --- Execution Logic based on mode ---
-    if (agentMode === 'agent') {
+    if (agentMode === 'interactive') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       console.log(chalk.dim(`- Config: ${chalk.bold(configPath)}`));
       console.log(chalk.dim(`- Models: ${chalk.bold(modelsPath)}\n`));
@@ -382,7 +383,16 @@ const localRun = async (): Promise<void> => {
         console.log(chalk.yellow('Processing request...'));
 
         try {
-          const aiResponse = await agent.execute(user);
+          // Execute through the supervisor agent which will route appropriately
+          const result = await agentSystem.execute(user);
+          
+          // Extract the response from the result
+          let aiResponse;
+          if (result && result.messages && result.messages.length > 0) {
+            aiResponse = result.messages[result.messages.length - 1].content;
+          } else {
+            aiResponse = String(result);
+          }
 
           if (typeof aiResponse === 'string') {
             let mainResponse = aiResponse;
@@ -421,7 +431,7 @@ const localRun = async (): Promise<void> => {
           } else {
             logger.error('Invalid response type received:', aiResponse);
             console.log(
-              createBox('Received invalid response type from agent.', {
+              createBox('Received invalid response type from agent system.', {
                 title: 'Error',
                 isError: true,
               })
@@ -438,7 +448,7 @@ const localRun = async (): Promise<void> => {
           );
         }
       }
-    } else if (agentMode === 'auto') {
+    } else if (agentMode === 'autonomous') {
       console.log(chalk.dim('\nStarting autonomous session...\n'));
       console.log(chalk.dim(`- Config: ${chalk.bold(configPath)}`));
       console.log(chalk.yellow('Running autonomous mode...'));
@@ -449,8 +459,15 @@ const localRun = async (): Promise<void> => {
           throw new Error('Autonomous mode is disabled in agent configuration');
         }
 
-        // Autonomous execution without spinner to allow log display
-        await agent.execute_autonomous();
+        // Get the Starknet Agent and execute in autonomous mode
+        const starknetAgent = agentSystem.getStarknetAgent();
+        if (!starknetAgent) {
+          throw new Error('Failed to get StarknetAgent from the agent system');
+        }
+        
+        // For backwards compatibility, still accessing execute_autonomous directly
+        // In future versions, this should be handled by the SupervisorAgent
+        await starknetAgent.execute_autonomous();
         console.log(chalk.green('Autonomous execution completed'));
       } catch (error) {
         console.error(chalk.red('Error in autonomous mode'));
@@ -467,6 +484,23 @@ const localRun = async (): Promise<void> => {
       })
     );
     process.exit(1);
+  } finally {
+    // Clean up resources
+    if (agentSystem) {
+      try {
+        await agentSystem.dispose();
+        logger.info('Agent system disposed.');
+      } catch (error) {
+        logger.error('Error during agent system disposal:', error);
+      }
+    }
+    // Shutdown database pool
+    try {
+      await Postgres.shutdown();
+      logger.info('Database connection pool shut down.');
+    } catch (dbShutdownError) {
+      logger.error('Error shutting down database pool:', dbShutdownError);
+    }
   }
 };
 

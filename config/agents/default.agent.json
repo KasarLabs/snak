@@ -26,8 +26,8 @@
   ],
   "interval": 30000,
   "mode": {
-    "interactive": false,
-    "autonomous": true,
+    "interactive": true,
+    "autonomous": false,
     "recursionLimit": 0
   },
   "memory": {
