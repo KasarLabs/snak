@@ -176,8 +176,8 @@ export class SupervisorAgent extends BaseAgent {
       }
 
       // Configuration améliorée
-      const maxIterations = this.config.agentConfig?.maxIterations || 8;
-      const workflowTimeout = this.config.agentConfig?.workflowTimeout || 45000;
+      const maxIterations = this.config.agentConfig?.maxIterations || 15;
+      const workflowTimeout = this.config.agentConfig?.workflowTimeout || 60000;
 
       logger.debug(
         `SupervisorAgent: WorkflowController will be configured with maxIterations=${maxIterations}, timeout=${workflowTimeout}ms`

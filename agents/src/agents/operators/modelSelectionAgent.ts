@@ -583,12 +583,12 @@ ${analysisContent}`
    * Point d'entrée principal pour l'exécution de l'agent
    */
   public async execute(input: any): Promise<AIMessage> {
-    // Convertir l'entrée en messages si ce n'est pas déjà le cas
+    // Convert input to messages if not already
     const messages: BaseMessage[] = Array.isArray(input)
       ? input
       : [typeof input === 'string' ? new HumanMessage(input) : input];
 
-    // Vérifier s'il y a des messages
+    // Check if there are messages
     if (messages.length === 0) {
       logger.warn(
         'ModelSelectionAgent received empty message array. Returning default model.'
@@ -597,54 +597,32 @@ ${analysisContent}`
         content: 'Selected model type: smart (default due to empty input)',
         additional_kwargs: {
           modelType: 'smart',
-          nextAgent: 'starknet', // CORRECTION: Toujours router vers starknet
+          nextAgent: 'starknet', // Always route to starknet
           from: 'model-selector',
           final: false,
         },
       });
     }
 
-    // Sélectionner un modèle
+    // Select model
     const modelType = await this.selectModelForMessages(messages);
 
-    // CORRECTION: Toujours définir nextAgent à starknet pour éviter les boucles
-    let nextAgent = 'starknet';
+    // CRITICAL FIX: Always set nextAgent to starknet to avoid loops
+    const nextAgent = 'starknet';
 
-    // Vérifier uniquement si un agent spécifique a été explicitement demandé
-    const lastMessage = messages[messages.length - 1];
-    if (
-      lastMessage &&
-      lastMessage.additional_kwargs &&
-      lastMessage.additional_kwargs.next_agent_after_selection
-    ) {
-      // Même si spécifié, valider que l'agent existe et n'est pas supervisor
-      const specifiedAgent = lastMessage.additional_kwargs
-        .next_agent_after_selection as string;
-      if (specifiedAgent && specifiedAgent !== 'supervisor') {
-        // TODO: Validate specifiedAgent exists in the workflow agents? Requires access to workflow config.
-        nextAgent = specifiedAgent;
-      }
-
-      if (this.debugMode) {
-        logger.debug(
-          `ModelSelectionAgent: Found 'next_agent_after_selection': ${specifiedAgent}, using nextAgent: ${nextAgent}`
-        );
-      }
-    }
-
-    // Log de la décision
+    // Log decision
     if (this.debugMode) {
       logger.debug(
         `ModelSelectionAgent selected model: ${modelType}, routing to: ${nextAgent}`
       );
     }
 
-    // Retourner un AIMessage formaté avec les métadonnées nécessaires
+    // Return formatted AIMessage with necessary metadata
     return new AIMessage({
       content: `Selected model type: ${modelType}`,
       additional_kwargs: {
         modelType,
-        nextAgent, // Utiliser la valeur définie ci-dessus
+        nextAgent, // Use value defined above
         from: 'model-selector',
         final: false, // Model selection itself is not final
       },

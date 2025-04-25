@@ -549,12 +549,12 @@ export class WorkflowController {
     logger.debug(`  - Current state agent: ${state.currentAgent}`);
     logger.debug(`  - Iteration count: ${state.iterationCount}`);
 
-    // Mettre à jour l'historique des agents
+    // Maintain agent history
     if (!state.metadata.agentHistory) {
       state.metadata.agentHistory = [];
     }
 
-    // Ajouter l'agent actuel à l'historique
+    // Add current agent to history if not already at END
     if (state.currentAgent && state.currentAgent !== END) {
       state.metadata.agentHistory.push(state.currentAgent);
       logger.debug(
@@ -562,7 +562,7 @@ export class WorkflowController {
       );
     }
 
-    // Vérifier le nombre d'itérations maximum
+    // Check max iterations
     if (state.iterationCount >= this.maxIterations) {
       logger.warn(
         `WorkflowController[Exec:${execId}]: Router - Max iterations (${this.maxIterations}) reached, forcing END`
@@ -570,7 +570,7 @@ export class WorkflowController {
       return END;
     }
 
-    // Vérifier que nous avons des messages
+    // Ensure we have messages
     if (!state.messages || state.messages.length === 0) {
       logger.warn(
         `WorkflowController[Exec:${execId}]: Router - No messages in state, forcing END`
@@ -581,14 +581,14 @@ export class WorkflowController {
     const lastMessage = state.messages[state.messages.length - 1];
     const history = state.metadata.agentHistory || [];
 
-    // Importante correction: Éviter les boucles avec supervisor
+    // CRITICAL FIX: Check for cycles involving supervisor
     if (state.currentAgent === 'supervisor') {
       const supervisorCount = history.filter(
         (agent: string) => agent === 'supervisor'
       ).length;
       if (supervisorCount > 1) {
         logger.warn(
-          `WorkflowController[Exec:${execId}]: Router - Supervisor called multiple times, routing to starknet`
+          `WorkflowController[Exec:${execId}]: Router - Supervisor called multiple times, routing directly to starknet`
         );
         if ('starknet' in this.agents) return 'starknet';
         logger.warn(
@@ -598,21 +598,7 @@ export class WorkflowController {
       }
     }
 
-    // Vérifier les appels d'outils
-    if (
-      lastMessage instanceof AIMessage &&
-      lastMessage.tool_calls &&
-      lastMessage.tool_calls.length > 0
-    ) {
-      if ('tools' in this.agents) {
-        logger.debug(
-          `WorkflowController[Exec:${execId}]: Router - Routing to tools agent.`
-        );
-        return 'tools';
-      }
-    }
-
-    // Correction critique: Gérer correctement les messages de model-selector
+    // CRITICAL FIX: Direct routing from model-selector to starknet
     if (lastMessage.additional_kwargs?.from === 'model-selector') {
       logger.debug(
         `WorkflowController[Exec:${execId}]: Router - Message from model-selector, routing directly to starknet`
@@ -626,7 +612,21 @@ export class WorkflowController {
       return END;
     }
 
-    // Pour les requêtes simples/courtes des utilisateurs
+    // Handle tool calls
+    if (
+      lastMessage instanceof AIMessage &&
+      lastMessage.tool_calls &&
+      lastMessage.tool_calls.length > 0
+    ) {
+      if ('tools' in this.agents) {
+        logger.debug(
+          `WorkflowController[Exec:${execId}]: Router - Routing to tools agent.`
+        );
+        return 'tools';
+      }
+    }
+
+    // For simple human messages, go directly to starknet
     if (lastMessage instanceof HumanMessage) {
       const content =
         typeof lastMessage.content === 'string' ? lastMessage.content : '';
@@ -647,7 +647,7 @@ export class WorkflowController {
       }
     }
 
-    // Si déjà à starknet, terminer le workflow
+    // If already at starknet, end workflow
     if (state.currentAgent === 'starknet') {
       logger.debug(
         `WorkflowController[Exec:${execId}]: Router - Current agent is starknet, ending workflow.`
@@ -655,7 +655,7 @@ export class WorkflowController {
       return END;
     }
 
-    // Seulement router vers supervisor pour les besoins de coordination complexes
+    // Only route to supervisor for complex coordination needs
     if (state.currentAgent !== 'supervisor' && 'supervisor' in this.agents) {
       logger.debug(
         `WorkflowController[Exec:${execId}]: Router - Routing to supervisor for coordination.`
@@ -663,7 +663,7 @@ export class WorkflowController {
       return 'supervisor';
     }
 
-    // Si on ne peut pas déterminer l'agent suivant, terminer le workflow
+    // If can't determine next agent, end workflow
     logger.warn(
       `WorkflowController[Exec:${execId}]: Router - Could not determine next agent, forcing END.`
     );
