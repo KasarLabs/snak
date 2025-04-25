@@ -35,6 +35,7 @@ export const createAgent = async (
 ) => {
   try {
     const json_config = starknetAgent.getAgentConfig();
+    logger.debug('json_config', json_config);
     if (!json_config) {
       throw new Error('Agent configuration is required');
     }
@@ -165,22 +166,22 @@ export const createAgent = async (
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
     // Build the prompt
-    const configPrompt = json_config.prompt?.content;
+    const configPrompt = json_config.prompt?.content || ''; // Use empty string as fallback
     const memoryPrompt = ``;
     const finalPrompt = json_config.memory
       ? `${configPrompt}\n${memoryPrompt}`
       : `${configPrompt}`;
 
-    // Main agent function that calls the model
     async function callModel(
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
-          `${finalPrompt}
-
-          {system_message}`,
+          `${finalPrompt.trim()}
+            ${state.memories ? '\nUser Memory Context:\n' + state.memories : ''}
+            ${state.memories ? '\n' : ''}
+            {system_message}`.trim(),
         ],
         new MessagesPlaceholder('messages'),
       ]);
@@ -193,6 +194,17 @@ export const createAgent = async (
           memories: state.memories || '',
         });
 
+        // Ensure we're logging properly
+        if (aiConfig.langchainVerbose) {
+          logger.debug(
+            `Formatted prompt for LLM: ${JSON.stringify(formattedPrompt, null, 2)}`
+          );
+        }
+
+        logger.debug(`Prompt template: ${JSON.stringify(prompt)}`);
+        logger.debug(
+          `Formatted prompt messages: ${JSON.stringify(formattedPrompt)}`
+        );
         // Estimate message size and check limit
         const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
         if (estimatedTokens > 90000) {

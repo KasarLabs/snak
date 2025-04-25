@@ -104,6 +104,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         ? 'auto'
         : config.agentMode || 'agent';
     this.agentconfig = config.agentconfig;
+    logger.debug('this agent config:', config.agentconfig);
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
 
