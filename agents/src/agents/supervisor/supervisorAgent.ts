@@ -1,5 +1,10 @@
 // agents/supervisor/supervisorAgent.ts
-import { BaseAgent, AgentType, AgentMessage, IAgent } from '../core/baseAgent.js';
+import {
+  BaseAgent,
+  AgentType,
+  AgentMessage,
+  IAgent,
+} from '../core/baseAgent.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { StarknetAgent } from '../core/starknetAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
@@ -7,7 +12,13 @@ import { MemoryAgent } from '../operators/memoryAgent.js';
 import { WorkflowController } from './worflowController.js';
 import { logger, metrics } from '@snakagent/core';
 import { StateGraph, MemorySaver, END } from '@langchain/langgraph';
-import { HumanMessage, AIMessage, SystemMessage, ToolMessage, BaseMessage } from '@langchain/core/messages';
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+  ToolMessage,
+  BaseMessage,
+} from '@langchain/core/messages';
 import { createBox } from '../../prompt/formatting.js';
 import { addTokenInfoToBox } from '../../token/tokenTracking.js';
 import { Tool } from '@langchain/core/tools';
@@ -36,6 +47,8 @@ export class SupervisorAgent extends BaseAgent {
   private config: SupervisorAgentConfig;
   private operators: Map<string, IAgent> = new Map();
   private debug: boolean;
+  private executionDepth: number = 0; // Track execution depth
+  private checkpointEnabled: boolean;
 
   constructor(config: SupervisorAgentConfig) {
     super('supervisor', AgentType.SUPERVISOR);
@@ -52,10 +65,11 @@ export class SupervisorAgent extends BaseAgent {
 
     try {
       // 1. Initialiser l'agent de sélection de modèle
+      logger.debug('SupervisorAgent: Initializing ModelSelectionAgent...');
       this.modelSelectionAgent = new ModelSelectionAgent({
         debugMode: this.debug,
         useMetaSelection: true,
-        modelsConfigPath: this.config.modelsConfigPath
+        modelsConfigPath: this.config.modelsConfigPath,
       });
       await this.modelSelectionAgent.init();
       this.operators.set(this.modelSelectionAgent.id, this.modelSelectionAgent);
@@ -63,35 +77,44 @@ export class SupervisorAgent extends BaseAgent {
 
       // 2. Initialiser l'agent mémoire si nécessaire
       if (this.config.agentConfig?.memory?.enabled !== false) {
+        logger.debug('SupervisorAgent: Initializing MemoryAgent...');
         this.memoryAgent = new MemoryAgent({
-          shortTermMemorySize: this.config.agentConfig?.memory?.shortTermMemorySize || 15,
+          shortTermMemorySize:
+            this.config.agentConfig?.memory?.shortTermMemorySize || 15,
           recursionLimit: this.config.agentConfig?.memory?.recursionLimit,
-          embeddingModel: this.config.agentConfig?.memory?.embeddingModel
+          embeddingModel: this.config.agentConfig?.memory?.embeddingModel,
         });
         await this.memoryAgent.init();
         this.operators.set(this.memoryAgent.id, this.memoryAgent);
         logger.debug('SupervisorAgent: MemoryAgent initialized');
+      } else {
+        logger.debug(
+          'SupervisorAgent: MemoryAgent initialization skipped (disabled in config)'
+        );
       }
 
       // 3. Initialiser l'agent principal (Starknet)
+      logger.debug('SupervisorAgent: Initializing StarknetAgent...');
       this.starknetAgent = new StarknetAgent({
         ...this.config.starknetConfig,
         modelSelector: this.modelSelectionAgent,
-        memory: this.config.agentConfig?.memory
+        memory: this.config.agentConfig?.memory,
       });
       await this.starknetAgent.init();
       logger.debug('SupervisorAgent: StarknetAgent initialized');
 
       // 4. Initialiser l'orchestrateur d'outils
+      logger.debug('SupervisorAgent: Initializing ToolsOrchestrator...');
       this.toolsOrchestrator = new ToolsOrchestrator({
         starknetAgent: this.starknetAgent,
-        agentConfig: this.config.agentConfig
+        agentConfig: this.config.agentConfig,
       });
       await this.toolsOrchestrator.init();
       this.operators.set(this.toolsOrchestrator.id, this.toolsOrchestrator);
       logger.debug('SupervisorAgent: ToolsOrchestrator initialized');
 
       // 5. Initialiser le contrôleur de workflow
+      logger.debug('SupervisorAgent: Initializing WorkflowController...');
       await this.initializeWorkflowController();
       logger.debug('SupervisorAgent: WorkflowController initialized');
 
@@ -109,53 +132,86 @@ export class SupervisorAgent extends BaseAgent {
    * Initialise le contrôleur de workflow
    */
   private async initializeWorkflowController(): Promise<void> {
+    logger.debug('SupervisorAgent: Entering initializeWorkflowController');
     try {
-      // Rassembler tous les agents dans une structure pour le contrôleur
+      // Rassembler tous les agents disponibles
       const allAgents: Record<string, IAgent> = {
-        'supervisor': this,
+        supervisor: this,
       };
 
-      // Ajouter tous les agents disponibles
+      // Ajouter tous les agents avec vérification
       if (this.starknetAgent) {
         allAgents['starknet'] = this.starknetAgent;
+        logger.debug(
+          `SupervisorAgent: Added starknet agent: ${!!this.starknetAgent}`
+        );
       } else {
         logger.warn('SupervisorAgent: starknetAgent is not initialized');
       }
-      
-      // Ajouter les opérateurs
+
       if (this.modelSelectionAgent) {
         allAgents['model-selector'] = this.modelSelectionAgent;
+        logger.debug(
+          `SupervisorAgent: Added model-selector agent: ${!!this.modelSelectionAgent}`
+        );
       } else {
         logger.warn('SupervisorAgent: modelSelectionAgent is not initialized');
       }
-      
+
       if (this.memoryAgent) {
         allAgents['memory'] = this.memoryAgent;
+        logger.debug('SupervisorAgent: Added memory agent');
       }
-      
+
       if (this.toolsOrchestrator) {
         allAgents['tools'] = this.toolsOrchestrator;
+        logger.debug('SupervisorAgent: Added tools orchestrator');
       }
 
-      // Vérifier que nous avons au moins 2 agents (supervisor + starknet)
+      // Vérifier que nous avons au moins les agents requis
       if (Object.keys(allAgents).length < 2 || !allAgents['starknet']) {
-        throw new Error('Workflow requires at least supervisor and starknet execution agent');
+        throw new Error(
+          'Workflow requires at least supervisor and starknet execution agent'
+        );
       }
 
-      // Créer et initialiser le contrôleur de workflow avec timeout
+      // Configuration améliorée
+      const maxIterations = this.config.agentConfig?.maxIterations || 8;
+      const workflowTimeout = this.config.agentConfig?.workflowTimeout || 45000;
+
+      logger.debug(
+        `SupervisorAgent: WorkflowController will be configured with maxIterations=${maxIterations}, timeout=${workflowTimeout}ms`
+      );
+
+      // Déterminer le point d'entrée idéal en fonction de la configuration
+      const entryPoint =
+        'model-selector' in allAgents ? 'model-selector' : 'starknet';
+      logger.debug(`SupervisorAgent: Using '${entryPoint}' as entry point`);
+
+      // Créer et initialiser le contrôleur
       this.workflowController = new WorkflowController({
         agents: allAgents,
-        entryPoint: 'supervisor',
-        checkpointEnabled: true,
+        entryPoint, // Use determined entry point
+        useConditionalEntryPoint: true,
+        checkpointEnabled: this.checkpointEnabled,
         debug: this.debug,
-        maxIterations: this.config.agentConfig?.maxIterations || 10, // Utiliser la config si disponible
-        workflowTimeout: this.config.agentConfig?.workflowTimeout || 30000 // 30 secondes par défaut, configurable
+        maxIterations, // Use configured value
+        workflowTimeout, // Use configured value
       });
 
       await this.workflowController.init();
-      logger.debug('WorkflowController initialized with agents: ' + Object.keys(allAgents).join(', '));
+      logger.debug(
+        'WorkflowController initialized with agents: ' +
+          Object.keys(allAgents).join(', ')
+      );
+      logger.debug('SupervisorAgent: Leaving initializeWorkflowController');
     } catch (error: any) {
-      logger.error(`Failed to initialize workflow controller: ${error.message || error}`);
+      logger.error(
+        `Failed to initialize workflow controller: ${error.message || error}`
+      );
+      logger.debug(
+        'SupervisorAgent: Leaving initializeWorkflowController with error'
+      );
       throw error;
     }
   }
@@ -164,6 +220,7 @@ export class SupervisorAgent extends BaseAgent {
    * Initialise les métriques
    */
   private initializeMetrics(): void {
+    logger.debug('SupervisorAgent: Initializing metrics');
     if (!this.starknetAgent) return;
 
     const agentName = this.config.agentConfig?.name || 'agent';
@@ -171,313 +228,172 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Configure le workflow interne du superviseur
+   * Exécute la tâche demandée par l'utilisateur
+   * @param input L'entrée de l'utilisateur
+   * @param config Configuration d'exécution
+   * @returns La réponse finale de l'agent
    */
-  private async supervisorWorkflow(message: BaseMessage): Promise<{ routeTo: string, message: BaseMessage }> {
-    try {
-      const content = message.content as string;
-      
-      // Par défaut, commencer par la sélection du modèle pour les requêtes substantielles
-      let routeTo = 'model-selector';
-      let modifiedMessage = message;
-  
-      // Pour les requêtes très simples ou les commandes système, router directement
-      if (content.trim().length < 10 || 
-          content.startsWith('/') || 
-          content.startsWith('!')) {
-        routeTo = 'starknet';
-      } else {
-        // Ajouter des métadonnées pour indiquer le prochain agent après la sélection du modèle
-        const additional_kwargs = { ...(message.additional_kwargs || {}) }; // Clone existing kwargs
-        additional_kwargs.next_agent_after_selection = 'starknet'; // Add new kwarg
-  
-        // Try to create a new message of the same type with updated kwargs
-        if (message instanceof HumanMessage) {
-          modifiedMessage = new HumanMessage({
-            content: message.content,
-            additional_kwargs: additional_kwargs
-          });
-        } else if (message instanceof AIMessage) {
-            modifiedMessage = new AIMessage({
-                content: message.content,
-                additional_kwargs: additional_kwargs,
-                response_metadata: message.response_metadata, // Preserve existing properties
-                tool_calls: message.tool_calls,
-                invalid_tool_calls: message.invalid_tool_calls,
-                usage_metadata: message.usage_metadata
-            });
-        } else if (message instanceof SystemMessage) {
-            modifiedMessage = new SystemMessage({
-                content: message.content,
-                additional_kwargs: additional_kwargs
-            });
-        } else if (message instanceof ToolMessage) {
-            modifiedMessage = new ToolMessage({
-                content: message.content,
-                tool_call_id: message.tool_call_id,
-                additional_kwargs: additional_kwargs
-            });
-        } else {
-            // If it's not a known concrete type, log a warning and don't modify the message
-            // as we cannot instantiate BaseMessage directly.
-            logger.warn(`SupervisorAgent: Cannot add metadata to unknown message type: ${message._getType()}. Original message kept.`);
-            // modifiedMessage remains the original message
-        }
-      }
-      
-      // Logique spécifique pour certains types de requêtes (overrides model selection route)
-      if (content.toLowerCase().includes('remember') || 
-          content.toLowerCase().includes('memory') || 
-          content.toLowerCase().includes('forget')) {
-        routeTo = 'memory';
-      } 
-      else if (content.toLowerCase().includes('tool') || 
-              content.toLowerCase().includes('execute command') ||
-              /use (?:the )?tool/i.test(content)) {
-        routeTo = 'tools';
-      }
-      
-      // Journaliser la décision de routage
-      if (this.debug) {
-        logger.debug(`SupervisorAgent routing decision: "${routeTo}"`);
-        if (modifiedMessage !== message) {
-          logger.debug(`SupervisorAgent: Added metadata: ${JSON.stringify(modifiedMessage.additional_kwargs)}`);
-        }
-      }
-      
-      return { 
-        routeTo,
-        message: modifiedMessage
-      };
-    } catch (error) {
-      logger.error(`SupervisorAgent workflow error: ${error}`);
-      return {
-        routeTo: 'starknet', // En cas d'erreur, revenir à l'agent principal
-        message
-      };
-    }
-  }
+  public async execute(
+    input: string | AgentMessage | BaseMessage,
+    config?: Record<string, any>
+  ): Promise<any> {
+    this.executionDepth++;
+    const depthIndent = '  '.repeat(this.executionDepth);
+    logger.debug(
+      `${depthIndent}SupervisorAgent[Depth:${this.executionDepth}]: Entering execute`
+    );
 
-  /**
-   * Récupère et enrichit le contexte de la mémoire
-   */
-  private async enrichWithMemoryContext(message: BaseMessage): Promise<BaseMessage> {
-    if (!this.memoryAgent) {
-      return message;
-    }
-
-    try {
-      // Récupérer les mémoires pertinentes
-      const memories = await this.memoryAgent.retrieveRelevantMemories(
-        message, 
-        this.config.agentConfig?.userId || 'default_user'
+    // CORRECTION: Limiter la profondeur d'exécution pour éviter les boucles infinies
+    if (this.executionDepth > 3) {
+      logger.warn(
+        `${depthIndent}SupervisorAgent: Maximum execution depth (${this.executionDepth}) reached, forcing direct execution`
       );
 
-      if (memories.length === 0) {
-        return message; // Aucune mémoire pertinente
-      }
+      try {
+        // Forcer l'exécution directe avec starknet, en contournant le workflow
+        if (this.starknetAgent) {
+          logger.debug(
+            `${depthIndent}SupervisorAgent: Forcing direct execution with StarknetAgent`
+          );
+          const result = await this.starknetAgent.execute(
+            typeof input === 'string'
+              ? input
+              : input instanceof BaseMessage
+                ? input
+                : (input as AgentMessage).content,
+            config
+          );
 
-      // Formater les mémoires pour le contexte
-      const memoryContext = this.memoryAgent.formatMemoriesForContext(memories);
-      
-      // Créer un nouveau message avec le contexte de mémoire
-      const originalContent = typeof message.content === 'string' 
-        ? message.content 
-        : JSON.stringify(message.content);
+          // Emballer le résultat et le marquer comme final
+          const finalResult =
+            result instanceof BaseMessage
+              ? result
+              : new AIMessage({
+                  content:
+                    typeof result === 'string'
+                      ? result
+                      : JSON.stringify(result),
+                  additional_kwargs: {
+                    from: 'supervisor',
+                    final: true,
+                  },
+                });
 
-      const newMessage = new HumanMessage({
-        content: originalContent,
-        additional_kwargs: {
-          ...message.additional_kwargs,
-          memory_context: memoryContext
+          logger.debug(
+            `${depthIndent}SupervisorAgent: Leaving execute with direct execution result`
+          );
+          this.executionDepth--;
+          return finalResult;
         }
-      });
 
-      return newMessage;
-    } catch (error) {
-      logger.error(`Error enriching with memory context: ${error}`);
-      return message; // En cas d'erreur, retourner le message original
+        // Si pas de starknetAgent, renvoyer un message d'erreur
+        const errorMsg = new AIMessage({
+          content:
+            'Maximum recursion depth reached. Please try again with a simpler query.',
+          additional_kwargs: {
+            from: 'supervisor',
+            final: true,
+            error: 'max_recursion_depth',
+          },
+        });
+        logger.debug(
+          `${depthIndent}SupervisorAgent: Leaving execute with error message due to max depth`
+        );
+        this.executionDepth--;
+        return errorMsg;
+      } catch (error) {
+        logger.error(
+          `${depthIndent}SupervisorAgent: Error in direct execution: ${error}`
+        );
+        const errorMsg = new AIMessage({
+          content: `Error occurred during forced direct execution: ${error instanceof Error ? error.message : String(error)}`,
+          additional_kwargs: {
+            from: 'supervisor',
+            final: true,
+            error: 'direct_execution_error',
+          },
+        });
+        this.executionDepth--;
+        return errorMsg;
+      }
     }
-  }
 
-  /**
- * Exécute une action avec le supervisor agent
- * @param input Entrée utilisateur ou message
- * @param config Configuration optionnelle
- */
-public async execute(input: string | AgentMessage | BaseMessage, config?: Record<string, any>): Promise<any> {
-    try {
-      // Convertir l'entrée en message si nécessaire
-      let message: BaseMessage;
-      if (typeof input === 'string') {
-        message = new HumanMessage(input);
-      } else if ('content' in input) {
-        message = input instanceof BaseMessage 
-          ? input 
-          : new HumanMessage((input as AgentMessage).content);
-      } else {
-        throw new Error('Invalid input format');
-      }
-  
-      // Si nous avons un agent mémoire, enrichir le message avec le contexte de mémoire
-      if (this.memoryAgent) {
-        message = await this.enrichWithMemoryContext(message);
-      }
-  
-      // Si nous utilisons le contrôleur de workflow
-      if (this.workflowController) {
-        const result = await this.workflowController.execute(message, config);
-        
-        // Vérifier si le résultat contient des messages et retourner le dernier
-        if (result && result.messages && result.messages.length > 0) {
-          // Si nous retournons simplement le dernier message, s'assurer qu'il est marqué comme final
-          // pour éviter les boucles futures
-          const lastMessage = result.messages[result.messages.length - 1];
-          
-          // S'assurer que le dernier message est marqué comme final
-          if (lastMessage instanceof BaseMessage) {
-            // Vérifier si le message n'est pas déjà marqué comme final
-            if (!lastMessage.additional_kwargs || lastMessage.additional_kwargs.final !== true) {
-              return new AIMessage({
-                content: typeof lastMessage.content === 'string' 
-                  ? lastMessage.content 
-                  : JSON.stringify(lastMessage.content),
-                additional_kwargs: {
-                  ...(lastMessage.additional_kwargs || {}),
-                  from: 'supervisor', // Assurer que l'origine est bien le superviseur
-                  final: true  // Toujours marquer comme final
-                }
-              });
-            }
-          }
-          
-          return lastMessage;
-        }
-        
-        return result;
-      }
-  
-      // Si le contrôleur de workflow n'est pas disponible, utiliser le workflow interne
-      logger.warn('SupervisorAgent: WorkflowController not available, using internal fallback logic.');
-      const { routeTo, message: routingMessage } = await this.supervisorWorkflow(message);
-      
-      let result;
-      const lastMessage = routingMessage; // Use the potentially modified message from supervisorWorkflow
-      
-      // Extract modelType from the last message's metadata if available
-      const modelType = lastMessage?.additional_kwargs?.modelType 
-                        ? lastMessage.additional_kwargs.modelType as string
-                        : 'smart'; // Default model
-      
-      if (this.debug) {
-        logger.debug(`SupervisorAgent (fallback): Routing to ${routeTo}, using modelType: ${modelType}`);
-      }
-
-      // Prepare config specifically for StarknetAgent call
-      const starknetAgentConfig = { 
-        ...(config || {}), 
-        forceModelType: modelType 
-      };
-
-      switch (routeTo) {
-        case 'memory':
-          if (this.memoryAgent) {
-            // Assume memoryAgent.execute takes only one argument
-            result = await this.memoryAgent.execute(routingMessage);
-          } else {
-            throw new Error('Memory agent is not available');
-          }
-          break;
-          
-        case 'tools':
-          if (this.toolsOrchestrator) {
-            // Assume toolsOrchestrator.execute takes only one argument
-            result = await this.toolsOrchestrator.execute(routingMessage);
-          } else {
-            throw new Error('Tools orchestrator is not available');
-          }
-          break;
-          
-        case 'model-selector':
-          if (this.modelSelectionAgent) {
-            // Assume modelSelectionAgent.execute takes only one argument
-            result = await this.modelSelectionAgent.execute(routingMessage);
-          } else {
-            throw new Error('Model selection agent is not available');
-          }
-          break;
-          
-        case 'starknet':
-        default:
-          if (this.starknetAgent) {
-            // Pass the specific config with forceModelType to StarknetAgent
-            result = await this.starknetAgent.execute(routingMessage, starknetAgentConfig);
-          } else {
-            throw new Error('Starknet agent is not available');
-          }
-          break;
-      }
-  
-      // Formater la réponse et marquer comme finale pour éviter les boucles
-      if (result instanceof BaseMessage) {
-        // Si c'est déjà un BaseMessage, ajouter les métadonnées nécessaires
-        const finalMessage = new AIMessage({
-          content: result.content,
-          additional_kwargs: {
-            ...(result.additional_kwargs || {}),
-            from: 'supervisor',
-            final: true
-          }
-        });
-        
-        // Journaliser si nécessaire
-        if (this.debug && typeof finalMessage.content === 'string') {
-          const formattedContent = this.formatResponse(finalMessage.content);
-          const boxContent = createBox('Supervisor Output', formattedContent);
-          const boxWithTokens = addTokenInfoToBox(boxContent);
-          logger.debug(`Supervisor response: ${boxWithTokens}`);
-        }
-        
-        return finalMessage;
-      } else {
-        // Pour les autres types de résultats, créer un nouveau AIMessage
-        const responseContent = typeof result === 'string' 
-          ? result 
-          : JSON.stringify(result);
-        
-        const finalMessage = new AIMessage({
-          content: responseContent,
-          additional_kwargs: {
-            from: 'supervisor',
-            final: true
-          }
-        });
-        
-        // Journaliser si nécessaire
-        if (this.debug && typeof responseContent === 'string') {
-          const formattedContent = this.formatResponse(responseContent);
-          const boxContent = createBox('Supervisor Output', formattedContent);
-          const boxWithTokens = addTokenInfoToBox(boxContent);
-          logger.debug(`Supervisor response: ${boxWithTokens}`);
-        }
-        
-        return finalMessage;
-      }
-    } catch (error) {
-      logger.error(`SupervisorAgent: Execution error: ${error}`);
-      
-      // Créer un message d'erreur qui est également marqué comme final
-      const errorMessage = new AIMessage({
-        content: `An error occurred: ${error instanceof Error ? error.message : String(error)}`,
+    // ---- Start Original Execute Logic ----
+    logger.debug(`${depthIndent}SupervisorAgent: Processing input...`);
+    let message: BaseMessage;
+    if (typeof input === 'string') {
+      message = new HumanMessage(input);
+    } else if (input instanceof BaseMessage) {
+      message = input;
+    } else if (input && typeof input === 'object' && input.content) {
+      message = new HumanMessage(input.content);
+    } else {
+      logger.error(
+        `${depthIndent}SupervisorAgent: Invalid input type: ${typeof input}`
+      );
+      this.executionDepth--; // Decrement depth before returning error
+      return new AIMessage({
+        content: 'Invalid input type provided to supervisor.',
         additional_kwargs: {
           from: 'supervisor',
-          error: true,
-          final: true
-        }
+          final: true,
+          error: 'invalid_input_type',
+        },
       });
-      
-      return errorMessage;
     }
+
+    // Enrichir avec le contexte de la mémoire si activé
+    if (
+      this.config.agentConfig?.memory?.enabled !== false &&
+      this.memoryAgent
+    ) {
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Enriching message with memory context`
+      );
+      message = await this.enrichWithMemoryContext(message);
+    } else {
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Memory enrichment skipped (disabled or agent unavailable)`
+      );
+    }
+
+    // Vérifier si workflowController est initialisé
+    if (!this.workflowController) {
+      logger.error(
+        `${depthIndent}SupervisorAgent: Workflow controller not initialized`
+      );
+      this.executionDepth--; // Decrement depth before returning error
+      throw new Error('WorkflowController not initialized');
+    }
+
+    // Exécuter le workflow
+    logger.debug(
+      `${depthIndent}SupervisorAgent: Invoking workflow controller...`
+    );
+    try {
+      const result = await this.workflowController.execute(message, config);
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Workflow controller execution finished`
+      );
+
+      // Formater la réponse finale
+      const formattedResponse = this.formatResponse(result);
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Formatted response: ${JSON.stringify(formattedResponse).substring(0, 100)}...`
+      );
+
+      // Retourner la réponse formatée
+      logger.debug(`${depthIndent}SupervisorAgent: Leaving execute normally`);
+      this.executionDepth--;
+      return formattedResponse;
+    } catch (error) {
+      logger.error(
+        `${depthIndent}SupervisorAgent: Error during workflow execution: ${error}`
+      );
+      this.executionDepth--; // Decrement depth before returning error
+      throw error; // Propager l'erreur
+    }
+    // ---- End Original Execute Logic ----
   }
 
   /**
@@ -486,7 +402,7 @@ public async execute(input: string | AgentMessage | BaseMessage, config?: Record
   private formatResponse(response: string): string {
     return response
       .split('\n')
-      .map(line => line.includes('•') ? `  ${line.trim()}` : line)
+      .map((line) => (line.includes('•') ? `  ${line.trim()}` : line))
       .join('\n');
   }
 
@@ -494,11 +410,17 @@ public async execute(input: string | AgentMessage | BaseMessage, config?: Record
    * Exécute une demande en mode autonome
    */
   public async executeAutonomous(): Promise<any> {
+    logger.debug('SupervisorAgent: Entering executeAutonomous');
     if (!this.starknetAgent) {
+      logger.error(
+        'SupervisorAgent: Starknet agent is not available for autonomous execution.'
+      );
       throw new Error('Starknet agent is not available');
     }
-    
-    return this.starknetAgent.execute_autonomous();
+    logger.debug('SupervisorAgent: Calling starknetAgent.execute_autonomous()');
+    const result = await this.starknetAgent.execute_autonomous();
+    logger.debug('SupervisorAgent: Leaving executeAutonomous');
+    return result;
   }
 
   /**
@@ -541,15 +463,15 @@ public async execute(input: string | AgentMessage | BaseMessage, config?: Record
    */
   public getAllTools(): Tool[] {
     const tools: Tool[] = [];
-    
+
     if (this.toolsOrchestrator) {
-      tools.push(...this.toolsOrchestrator.getTools());
+      tools.push(...(this.toolsOrchestrator.getTools() as Tool[]));
     }
-    
+
     if (this.memoryAgent) {
-      tools.push(...this.memoryAgent.getMemoryTools());
+      tools.push(...(this.memoryAgent.getMemoryTools() as Tool[]));
     }
-    
+
     return tools;
   }
 
@@ -557,37 +479,131 @@ public async execute(input: string | AgentMessage | BaseMessage, config?: Record
    * Réinitialise le superviseur et ses agents
    */
   public async reset(): Promise<void> {
+    logger.debug('SupervisorAgent: Entering reset');
     if (this.workflowController) {
+      logger.debug('SupervisorAgent: Resetting workflow controller...');
       await this.workflowController.reset();
+      logger.debug('SupervisorAgent: Workflow controller reset complete.');
+    } else {
+      logger.debug('SupervisorAgent: No workflow controller to reset.');
     }
+    this.executionDepth = 0; // Reset execution depth
+    logger.debug('SupervisorAgent: Leaving reset');
   }
 
   /**
    * Met à jour le mode de fonctionnement du superviseur
    */
   public async updateMode(mode: 'interactive' | 'autonomous'): Promise<void> {
+    logger.debug(`SupervisorAgent: Entering updateMode with mode: ${mode}`);
     this.config.agentMode = mode;
-    
+    logger.debug(`SupervisorAgent: Set agentMode to ${this.config.agentMode}`);
+
     // Reconfigurer le workflow
     if (this.workflowController) {
+      logger.debug(
+        'SupervisorAgent: Resetting and re-initializing workflow controller due to mode change...'
+      );
       await this.workflowController.reset();
       await this.initializeWorkflowController();
+      logger.debug('SupervisorAgent: Workflow controller re-initialized.');
+    } else {
+      logger.debug('SupervisorAgent: No workflow controller to reconfigure.');
     }
+    logger.debug('SupervisorAgent: Leaving updateMode');
   }
 
   /**
    * Libère les ressources
    */
   public async dispose(): Promise<void> {
-    logger.debug('SupervisorAgent: Disposing resources');
-    
+    logger.debug('SupervisorAgent: Entering dispose');
+
     // Réinitialiser le workflow
     if (this.workflowController) {
+      logger.debug(
+        'SupervisorAgent: Resetting workflow controller during dispose...'
+      );
       await this.workflowController.reset();
+      logger.debug('SupervisorAgent: Workflow controller reset complete.');
+    } else {
+      logger.debug(
+        'SupervisorAgent: No workflow controller to reset during dispose.'
+      );
     }
-    
+
     // Autres opérations de nettoyage si nécessaire
-    
-    logger.debug('SupervisorAgent: Resources disposed');
+    this.modelSelectionAgent = null;
+    this.starknetAgent = null;
+    this.toolsOrchestrator = null;
+    this.memoryAgent = null;
+    this.workflowController = null;
+    this.operators.clear();
+    logger.debug(
+      'SupervisorAgent: Cleared agent references and operators map.'
+    );
+
+    logger.debug('SupervisorAgent: Leaving dispose');
+  }
+
+  /**
+   * Récupère et enrichit le contexte de la mémoire
+   */
+  private async enrichWithMemoryContext(
+    message: BaseMessage
+  ): Promise<BaseMessage> {
+    logger.debug('SupervisorAgent: Entering enrichWithMemoryContext');
+    if (!this.memoryAgent) {
+      logger.debug(
+        'SupervisorAgent: Memory agent not available, skipping enrichment.'
+      );
+      logger.debug('SupervisorAgent: Leaving enrichWithMemoryContext');
+      return message;
+    }
+
+    try {
+      // Récupérer les mémoires pertinentes
+      logger.debug('SupervisorAgent: Retrieving relevant memories...');
+      const memories = await this.memoryAgent.retrieveRelevantMemories(
+        message,
+        this.config.agentConfig?.userId || 'default_user'
+      );
+      logger.debug(`SupervisorAgent: Retrieved ${memories.length} memories.`);
+
+      if (memories.length === 0) {
+        logger.debug('SupervisorAgent: No relevant memories found.');
+        logger.debug('SupervisorAgent: Leaving enrichWithMemoryContext');
+        return message; // Aucune mémoire pertinente
+      }
+
+      // Formater les mémoires pour le contexte
+      const memoryContext = this.memoryAgent.formatMemoriesForContext(memories);
+      logger.debug(
+        `SupervisorAgent: Formatted memory context: "${memoryContext.substring(0, 100)}..."`
+      );
+
+      // Créer un nouveau message avec le contexte de mémoire
+      const originalContent =
+        typeof message.content === 'string'
+          ? message.content
+          : JSON.stringify(message.content);
+
+      const newMessage = new HumanMessage({
+        content: originalContent,
+        additional_kwargs: {
+          ...message.additional_kwargs,
+          memory_context: memoryContext,
+        },
+      });
+      logger.debug('SupervisorAgent: Created new message with memory context.');
+      logger.debug('SupervisorAgent: Leaving enrichWithMemoryContext');
+      return newMessage;
+    } catch (error) {
+      logger.error(`Error enriching with memory context: ${error}`);
+      logger.debug(
+        'SupervisorAgent: Leaving enrichWithMemoryContext with error'
+      );
+      return message; // En cas d'erreur, retourner le message original
+    }
   }
 }

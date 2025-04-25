@@ -41,7 +41,9 @@ export class AgentSystem {
 
       // Charger la configuration de l'agent si le chemin est fourni
       if (this.config.agentConfigPath) {
-        this.agentConfig = await this.loadAgentConfig(this.config.agentConfigPath);
+        this.agentConfig = await this.loadAgentConfig(
+          this.config.agentConfigPath
+        );
       }
 
       // Initialiser l'agent superviseur
@@ -82,7 +84,9 @@ export class AgentSystem {
       const configContent = await fs.readFile(configPath, 'utf-8');
       return JSON.parse(configContent);
     } catch (error) {
-      logger.error(`Failed to load agent configuration from ${configPath}: ${error}`);
+      logger.error(
+        `Failed to load agent configuration from ${configPath}: ${error}`
+      );
       throw new Error(`Failed to load agent configuration: ${error}`);
     }
   }
@@ -90,7 +94,10 @@ export class AgentSystem {
   /**
    * Exécute une commande avec le système d'agents
    */
-  public async execute(input: string, config?: Record<string, any>): Promise<any> {
+  public async execute(
+    input: string,
+    config?: Record<string, any>
+  ): Promise<any> {
     if (!this.supervisorAgent) {
       throw new Error('Agent system not initialized. Call init() first.');
     }
@@ -136,16 +143,18 @@ export class AgentSystem {
   public async dispose(): Promise<void> {
     // Ici, nous libérerions toutes les ressources utilisées par le système d'agents
     logger.debug('AgentSystem: Disposing resources');
-    
+
     // Réinitialiser les références
     this.supervisorAgent = null;
-    
+
     logger.info('AgentSystem: Resources disposed');
   }
 }
 
 // Fonction d'aide pour créer un système d'agents
-export async function createAgentSystem(config: AgentSystemConfig): Promise<AgentSystem> {
+export async function createAgentSystem(
+  config: AgentSystemConfig
+): Promise<AgentSystem> {
   const system = new AgentSystem(config);
   await system.init();
   return system;

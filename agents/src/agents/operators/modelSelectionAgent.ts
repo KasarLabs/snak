@@ -66,16 +66,16 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
     try {
       // Charger la configuration des modèles
       this.modelsConfig = await loadModelsConfig(this.modelsConfigPath);
-      
+
       // Charger les clés API depuis les variables d'environnement
       this.loadApiKeys();
-      
+
       // Initialiser les modèles
       await this.initializeModels();
-      
+
       // Vérifier que les modèles nécessaires sont disponibles
       this.validateModels();
-      
+
       logger.debug('ModelSelectionAgent initialized successfully');
     } catch (error) {
       logger.error(`ModelSelectionAgent initialization failed: ${error}`);
@@ -116,7 +116,9 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   private async initializeModels(): Promise<void> {
     logger.debug('Initializing AI models...');
     if (!this.modelsConfig) {
-      logger.error('Models configuration is not loaded. Cannot initialize models.');
+      logger.error(
+        'Models configuration is not loaded. Cannot initialize models.'
+      );
       throw new Error('Models configuration is not loaded.');
     }
 
@@ -206,7 +208,9 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
    * @param messages Les messages à analyser
    * @returns Le type de modèle sélectionné
    */
-  public async selectModelForMessages(messages: BaseMessage[]): Promise<string> {
+  public async selectModelForMessages(
+    messages: BaseMessage[]
+  ): Promise<string> {
     // Si la méta-sélection est désactivée, toujours utiliser le modèle intelligent
     if (!this.useMetaSelection) {
       if (this.debugMode) {
@@ -217,7 +221,9 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
 
     if (!messages || messages.length === 0) {
       if (this.debugMode) {
-        logger.debug('No messages provided for model selection, defaulting to "smart"');
+        logger.debug(
+          'No messages provided for model selection, defaulting to "smart"'
+        );
       }
       return 'smart';
     }
@@ -225,18 +231,24 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
     // Utiliser le modèle rapide pour déterminer quel modèle utiliser pour la tâche
     try {
       if (this.debugMode) {
-        logger.debug('Meta-selection enabled, analyzing message with fast model');
+        logger.debug(
+          'Meta-selection enabled, analyzing message with fast model'
+        );
       }
 
       // Vérification CRITIQUE : S'assurer que le modèle rapide existe
       if (!this.models.fast) {
-        logger.error('Meta-selection is enabled but fast model is not available');
+        logger.error(
+          'Meta-selection is enabled but fast model is not available'
+        );
         return 'smart'; // Repli sur "smart" si le modèle rapide n'est pas disponible
       }
 
       const lastMessage = messages[messages.length - 1];
       if (!lastMessage) {
-        logger.warn('ModelSelectionAgent: Could not get last message, defaulting to smart.');
+        logger.warn(
+          'ModelSelectionAgent: Could not get last message, defaulting to smart.'
+        );
         return 'smart';
       }
 
@@ -283,7 +295,9 @@ ${analysisContent}`
 
       if (this.debugMode) {
         logger.debug(`Invoking fast model for meta-selection analysis`);
-        logger.debug(`Using ${nextStepsSection ? 'NEXT STEPS-focused' : 'regular'} analysis`);
+        logger.debug(
+          `Using ${nextStepsSection ? 'NEXT STEPS-focused' : 'regular'} analysis`
+        );
       }
 
       const response = await this.models.fast.invoke([prompt]);
@@ -297,11 +311,15 @@ ${analysisContent}`
         return modelChoice;
       } else {
         // Repli si la réponse est invalide
-        logger.warn(`Invalid model selection response: ${modelChoice}, defaulting to smart`);
+        logger.warn(
+          `Invalid model selection response: ${modelChoice}, defaulting to smart`
+        );
         return 'smart';
       }
     } catch (error) {
-      logger.warn(`Error in meta-selection: ${error}, falling back to heuristics`);
+      logger.warn(
+        `Error in meta-selection: ${error}, falling back to heuristics`
+      );
       // Repli sur la sélection heuristique
       return this.selectModelUsingHeuristics(messages);
     }
@@ -314,13 +332,17 @@ ${analysisContent}`
    */
   private selectModelUsingHeuristics(messages: BaseMessage[]): string {
     if (!messages || messages.length === 0) {
-      logger.warn('Heuristic selection called with no messages, defaulting to smart.');
+      logger.warn(
+        'Heuristic selection called with no messages, defaulting to smart.'
+      );
       return 'smart';
     }
-    
+
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage) {
-      logger.warn('Heuristic selection: Could not get last message, defaulting to smart.');
+      logger.warn(
+        'Heuristic selection: Could not get last message, defaulting to smart.'
+      );
       return 'smart';
     }
 
@@ -339,7 +361,9 @@ ${analysisContent}`
     if (nextStepsMatch && nextStepsMatch[1]) {
       nextStepsContent = nextStepsMatch[1].trim();
       if (this.debugMode) {
-        logger.debug(`Heuristic analysis found NEXT STEPS: "${nextStepsContent}"`);
+        logger.debug(
+          `Heuristic analysis found NEXT STEPS: "${nextStepsContent}"`
+        );
       }
       // Si nous avons next steps, prioriser leur analyse
       analysisContent = nextStepsContent;
@@ -368,7 +392,9 @@ ${analysisContent}`
    */
   private analyzeMessageContent(content: string): ModelSelectionCriteria {
     if (content == null) {
-      logger.warn('analyzeMessageContent received null/undefined content, returning default criteria.');
+      logger.warn(
+        'analyzeMessageContent received null/undefined content, returning default criteria.'
+      );
       content = '';
     }
 
@@ -431,18 +457,24 @@ ${analysisContent}`
 
     // Vérifier les actions multiples dans une seule étape (indique trop de complexité)
     if (
-      content.match(/and then|after that|followed by|next,|subsequently|finally,/i) ||
+      content.match(
+        /and then|after that|followed by|next,|subsequently|finally,/i
+      ) ||
       content.match(/\d+\.\s.*\d+\.\s/s) // Recherche des listes numérotées avec plusieurs éléments
     ) {
       if (this.debugMode) {
-        logger.debug('Detected multiple actions in a single step - marking as high complexity');
+        logger.debug(
+          'Detected multiple actions in a single step - marking as high complexity'
+        );
       }
       criteria.complexity = 'high';
     }
 
     // Vérifier les indicateurs de tâches plus simples et plus ciblées
     if (
-      content.match(/simple|straightforward|basic|single|focused|one step|easy/i)
+      content.match(
+        /simple|straightforward|basic|single|focused|one step|easy/i
+      )
     ) {
       // Ne pas dégrader les tâches de haute complexité, mais marquer les moyennes comme faibles
       if (criteria.complexity !== 'high') {
@@ -465,7 +497,10 @@ ${analysisContent}`
     }
 
     // Tâches de génération à haute créativité vers le modèle intelligent
-    if (criteria.creativeRequirement === 'high' && criteria.taskType === 'generation') {
+    if (
+      criteria.creativeRequirement === 'high' &&
+      criteria.taskType === 'generation'
+    ) {
       return 'smart';
     }
 
@@ -498,12 +533,18 @@ ${analysisContent}`
    * @param messages Les messages à analyser
    * @returns L'instance du modèle sélectionné
    */
-  public async getModelForTask(messages: BaseMessage[], forceModelType?: string): Promise<BaseChatModel> {
-    const modelType = forceModelType || await this.selectModelForMessages(messages);
+  public async getModelForTask(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<BaseChatModel> {
+    const modelType =
+      forceModelType || (await this.selectModelForMessages(messages));
 
     // S'assurer que le modèle sélectionné existe
     if (!this.models[modelType]) {
-      logger.warn(`Selected model "${modelType}" not available, falling back to "smart"`);
+      logger.warn(
+        `Selected model "${modelType}" not available, falling back to "smart"`
+      );
       return this.models['smart'] || Object.values(this.models)[0];
     }
 
@@ -516,12 +557,18 @@ ${analysisContent}`
    * @param forceModelType Paramètre optionnel pour forcer l'utilisation d'un type de modèle spécifique
    * @returns La réponse du modèle
    */
-  public async invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any> {
+  public async invokeModel(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<any> {
     // Utiliser le type forcé si fourni, sinon sélectionner le modèle
-    const modelType = forceModelType || await this.selectModelForMessages(messages);
+    const modelType =
+      forceModelType || (await this.selectModelForMessages(messages));
 
     if (!this.models[modelType]) {
-      logger.warn(`Selected model "${modelType}" not available, falling back to "smart"`);
+      logger.warn(
+        `Selected model "${modelType}" not available, falling back to "smart"`
+      );
       return this.models['smart'].invoke(messages);
     }
 
@@ -533,62 +580,75 @@ ${analysisContent}`
   }
 
   /**
-   * Exécute l'agent de sélection de modèle
-   * @param input L'entrée pour l'agent, peut être une chaîne ou un message
-   * @returns Un objet AIMessage indiquant le type de modèle sélectionné et potentiellement le prochain agent
+   * Point d'entrée principal pour l'exécution de l'agent
    */
   public async execute(input: any): Promise<AIMessage> {
     // Convertir l'entrée en messages si ce n'est pas déjà le cas
     const messages: BaseMessage[] = Array.isArray(input)
       ? input
       : [typeof input === 'string' ? new HumanMessage(input) : input];
-    
+
     // Vérifier s'il y a des messages
     if (messages.length === 0) {
-      logger.warn('ModelSelectionAgent received empty message array. Returning default model.');
+      logger.warn(
+        'ModelSelectionAgent received empty message array. Returning default model.'
+      );
       return new AIMessage({
         content: 'Selected model type: smart (default due to empty input)',
         additional_kwargs: {
           modelType: 'smart',
-          nextAgent: 'supervisor', // Default return
+          nextAgent: 'starknet', // CORRECTION: Toujours router vers starknet
           from: 'model-selector',
-          final: false
-        }
+          final: false,
+        },
       });
     }
-    
+
     // Sélectionner un modèle
     const modelType = await this.selectModelForMessages(messages);
-    
-    // Vérifier s'il y a un agent suivant spécifié dans les métadonnées du dernier message
-    let nextAgent = 'supervisor'; // Par défaut retourner au superviseur
+
+    // CORRECTION: Toujours définir nextAgent à starknet pour éviter les boucles
+    let nextAgent = 'starknet';
+
+    // Vérifier uniquement si un agent spécifique a été explicitement demandé
     const lastMessage = messages[messages.length - 1];
-    
-    if (lastMessage && 
-        lastMessage.additional_kwargs && 
-        lastMessage.additional_kwargs.next_agent_after_selection) {
-      nextAgent = lastMessage.additional_kwargs.next_agent_after_selection as string;
+    if (
+      lastMessage &&
+      lastMessage.additional_kwargs &&
+      lastMessage.additional_kwargs.next_agent_after_selection
+    ) {
+      // Même si spécifié, valider que l'agent existe et n'est pas supervisor
+      const specifiedAgent = lastMessage.additional_kwargs
+        .next_agent_after_selection as string;
+      if (specifiedAgent && specifiedAgent !== 'supervisor') {
+        // TODO: Validate specifiedAgent exists in the workflow agents? Requires access to workflow config.
+        nextAgent = specifiedAgent;
+      }
+
       if (this.debugMode) {
-        logger.debug(`ModelSelectionAgent: Found 'next_agent_after_selection' metadata: ${nextAgent}`);
+        logger.debug(
+          `ModelSelectionAgent: Found 'next_agent_after_selection': ${specifiedAgent}, using nextAgent: ${nextAgent}`
+        );
       }
     }
-    
+
+    // Log de la décision
+    if (this.debugMode) {
+      logger.debug(
+        `ModelSelectionAgent selected model: ${modelType}, routing to: ${nextAgent}`
+      );
+    }
+
     // Retourner un AIMessage formaté avec les métadonnées nécessaires
-    const responseMessage = new AIMessage({
+    return new AIMessage({
       content: `Selected model type: ${modelType}`,
       additional_kwargs: {
         modelType,
-        nextAgent, // Inclure le prochain agent déterminé
+        nextAgent, // Utiliser la valeur définie ci-dessus
         from: 'model-selector',
-        final: false // Laisser le superviseur décider
-      }
+        final: false, // Model selection itself is not final
+      },
     });
-
-    if (this.debugMode) {
-      logger.debug(`ModelSelectionAgent execute returning: ${JSON.stringify(responseMessage)}`);
-    }
-
-    return responseMessage;
   }
 
   /**

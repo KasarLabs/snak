@@ -5,7 +5,11 @@ import { StarknetAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { createSignatureTools } from '../../tools/signatureTools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
-import { Tool, StructuredTool, DynamicStructuredTool } from '@langchain/core/tools';
+import {
+  Tool,
+  StructuredTool,
+  DynamicStructuredTool,
+} from '@langchain/core/tools';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 
@@ -38,14 +42,16 @@ export class ToolsOrchestrator extends BaseAgent {
   public async init(): Promise<void> {
     try {
       logger.debug('ToolsOrchestrator: Starting initialization');
-      
+
       // Initialiser les outils
       await this.initializeTools();
-      
+
       // Créer le nœud d'outil
       this.toolNode = new ToolNode(this.tools);
-      
-      logger.debug(`ToolsOrchestrator: Initialized with ${this.tools.length} tools`);
+
+      logger.debug(
+        `ToolsOrchestrator: Initialized with ${this.tools.length} tools`
+      );
     } catch (error) {
       logger.error(`ToolsOrchestrator: Initialization failed: ${error}`);
       throw new Error(`ToolsOrchestrator initialization failed: ${error}`);
@@ -57,12 +63,15 @@ export class ToolsOrchestrator extends BaseAgent {
    */
   private async initializeTools(): Promise<void> {
     try {
-      const isSignature = this.starknetAgent.getSignature().signature === 'wallet';
-      
+      const isSignature =
+        this.starknetAgent.getSignature().signature === 'wallet';
+
       if (isSignature) {
         // Initialiser les outils de signature
         this.tools = await createSignatureTools(this.agentConfig.plugins);
-        logger.debug(`ToolsOrchestrator: Initialized signature tools (${this.tools.length})`);
+        logger.debug(
+          `ToolsOrchestrator: Initialized signature tools (${this.tools.length})`
+        );
       } else {
         // Initialiser les outils standard
         const allowedTools = await createAllowedTools(
@@ -70,11 +79,16 @@ export class ToolsOrchestrator extends BaseAgent {
           this.agentConfig.plugins
         );
         this.tools = [...allowedTools];
-        logger.debug(`ToolsOrchestrator: Initialized allowed tools (${this.tools.length})`);
+        logger.debug(
+          `ToolsOrchestrator: Initialized allowed tools (${this.tools.length})`
+        );
       }
 
       // Initialiser les outils MCP si configurés
-      if (this.agentConfig.mcpServers && Object.keys(this.agentConfig.mcpServers).length > 0) {
+      if (
+        this.agentConfig.mcpServers &&
+        Object.keys(this.agentConfig.mcpServers).length > 0
+      ) {
         try {
           const mcp = MCP_CONTROLLER.fromJsonConfig(this.agentConfig);
           await mcp.initializeConnections();
@@ -83,7 +97,9 @@ export class ToolsOrchestrator extends BaseAgent {
           logger.info(`ToolsOrchestrator: Added ${mcpTools.length} MCP tools`);
           this.tools = [...this.tools, ...mcpTools];
         } catch (error) {
-          logger.error(`ToolsOrchestrator: Failed to initialize MCP tools: ${error}`);
+          logger.error(
+            `ToolsOrchestrator: Failed to initialize MCP tools: ${error}`
+          );
         }
       }
     } catch (error) {
@@ -98,7 +114,10 @@ export class ToolsOrchestrator extends BaseAgent {
    * @param config Configuration optionnelle
    * @returns Le résultat de l'exécution de l'outil
    */
-  public async execute(input: string | BaseMessage | any, config?: Record<string, any>): Promise<any> {
+  public async execute(
+    input: string | BaseMessage | any,
+    config?: Record<string, any>
+  ): Promise<any> {
     try {
       if (!this.toolNode) {
         throw new Error('ToolsOrchestrator: ToolNode is not initialized');
@@ -106,13 +125,15 @@ export class ToolsOrchestrator extends BaseAgent {
 
       // Préparer l'entrée pour l'exécution de l'outil
       let toolCall;
-      
+
       if (typeof input === 'string') {
         // Essayer de parser l'entrée comme un appel d'outil JSON
         try {
           toolCall = JSON.parse(input);
         } catch (e) {
-          throw new Error(`ToolsOrchestrator: Input could not be parsed as a tool call: ${e}`);
+          throw new Error(
+            `ToolsOrchestrator: Input could not be parsed as a tool call: ${e}`
+          );
         }
       } else if (input instanceof BaseMessage) {
         // Extraire un appel d'outil du message
@@ -131,32 +152,32 @@ export class ToolsOrchestrator extends BaseAgent {
       }
 
       // Trouver l'outil correspondant
-      const tool = this.tools.find(t => t.name === toolCall.name);
+      const tool = this.tools.find((t) => t.name === toolCall.name);
       if (!tool) {
         throw new Error(`ToolsOrchestrator: Tool "${toolCall.name}" not found`);
       }
 
       // Exécuter l'outil
       logger.debug(`ToolsOrchestrator: Executing tool "${toolCall.name}"`);
-      
+
       // Préparer l'état pour ToolNode
       const state = {
         messages: [
           new HumanMessage({
             content: 'Execute tool',
-            tool_calls: [toolCall]
-          })
-        ]
+            tool_calls: [toolCall],
+          }),
+        ],
       };
 
       // Exécuter avec ToolNode pour un comportement cohérent
       const result = await this.toolNode.invoke(state, config);
-      
+
       // Extraire et retourner le résultat
       if (result && result.messages && result.messages.length > 0) {
         return result.messages[result.messages.length - 1].content;
       }
-      
+
       return 'Tool execution completed without result';
     } catch (error) {
       logger.error(`ToolsOrchestrator: Execution error: ${error}`);
@@ -174,7 +195,9 @@ export class ToolsOrchestrator extends BaseAgent {
   /**
    * Obtient un outil par son nom
    */
-  public getToolByName(name: string): Tool | StructuredTool | DynamicStructuredTool<any> | undefined {
-    return this.tools.find(tool => tool.name === name);
+  public getToolByName(
+    name: string
+  ): Tool | StructuredTool | DynamicStructuredTool<any> | undefined {
+    return this.tools.find((tool) => tool.name === name);
   }
 }

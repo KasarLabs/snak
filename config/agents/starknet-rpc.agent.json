@@ -30,7 +30,5 @@
     "shortTermMemorySize": 15
   },
   "chat_id": "ethereum_rpc",
-  "plugins": [
-    "rpc"
-  ]
+  "plugins": ["rpc"]
 }

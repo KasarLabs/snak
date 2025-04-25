@@ -272,7 +272,8 @@ const localRun = async (): Promise<void> => {
     try {
       spinner.stop();
 
-      const modeToUpdate = agentMode === 'interactive' ? 'interactive' : 'autonomous';
+      const modeToUpdate =
+        agentMode === 'interactive' ? 'interactive' : 'autonomous';
       const updateSpinner = createSpinner(
         `Updating configuration to ${modeToUpdate} mode`
       ).start();
@@ -312,10 +313,10 @@ const localRun = async (): Promise<void> => {
     // Initialize Database Connection Pool FIRST
     try {
       await Postgres.connect(database);
-      spinner.update({ text: 'Database connection pool initialized'});
+      spinner.update({ text: 'Database connection pool initialized' });
       logger.info('Database connection pool initialized successfully.');
     } catch (dbError) {
-      spinner.error({ text: 'Failed to initialize database connection pool'});
+      spinner.error({ text: 'Failed to initialize database connection pool' });
       logger.error('Database initialization failed:', dbError);
       throw new Error(`Failed to initialize database: ${dbError.message}`);
     }
@@ -385,7 +386,7 @@ const localRun = async (): Promise<void> => {
         try {
           // Execute through the supervisor agent which will route appropriately
           const result = await agentSystem.execute(user);
-          
+
           // Extract the response from the result
           let aiResponse;
           if (result && result.messages && result.messages.length > 0) {
@@ -464,7 +465,7 @@ const localRun = async (): Promise<void> => {
         if (!starknetAgent) {
           throw new Error('Failed to get StarknetAgent from the agent system');
         }
-        
+
         // For backwards compatibility, still accessing execute_autonomous directly
         // In future versions, this should be handled by the SupervisorAgent
         await starknetAgent.execute_autonomous();

@@ -35,7 +35,7 @@ export interface IAgent {
 export enum AgentType {
   SUPERVISOR = 'supervisor',
   OPERATOR = 'operator',
-  MAIN = 'main'
+  MAIN = 'main',
 }
 
 /**
@@ -55,7 +55,10 @@ export interface IModelAgent extends IAgent {
   /**
    * Obtient le modèle approprié pour une tâche
    */
-  getModelForTask(messages: BaseMessage[], forceModelType?: string): Promise<BaseChatModel>;
+  getModelForTask(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<BaseChatModel>;
 
   /**
    * Invoque un modèle avec la sélection appropriée

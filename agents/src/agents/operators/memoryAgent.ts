@@ -30,9 +30,9 @@ export class MemoryAgent extends BaseAgent {
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,
       recursionLimit: config.recursionLimit,
-      embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2'
+      embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
     };
-    
+
     // Initialiser les embeddings
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: this.config.embeddingModel,
@@ -46,13 +46,13 @@ export class MemoryAgent extends BaseAgent {
   public async init(): Promise<void> {
     try {
       logger.debug('MemoryAgent: Starting initialization');
-      
+
       // Initialiser la base de données de mémoire
       await this.initializeMemoryDB();
-      
+
       // Créer les outils de mémoire
       this.createMemoryTools();
-      
+
       this.initialized = true;
       logger.debug('MemoryAgent: Initialized successfully');
     } catch (error) {
@@ -69,7 +69,9 @@ export class MemoryAgent extends BaseAgent {
       await memory.init();
       logger.debug('MemoryAgent: Memory database initialized');
     } catch (error) {
-      logger.error(`MemoryAgent: Failed to initialize memory database: ${error}`);
+      logger.error(
+        `MemoryAgent: Failed to initialize memory database: ${error}`
+      );
       throw error;
     }
   }
@@ -80,7 +82,11 @@ export class MemoryAgent extends BaseAgent {
   private createMemoryTools(): void {
     // Outil pour créer ou mettre à jour une mémoire
     const upsertMemoryTool = tool(
-      async ({ content, memoryId, userId = 'default_user' }): Promise<string> => {
+      async ({
+        content,
+        memoryId,
+        userId = 'default_user',
+      }): Promise<string> => {
         try {
           const embedding = await this.embeddings.embedQuery(content);
           const metadata = { timestamp: new Date().toISOString() };
@@ -102,7 +108,7 @@ export class MemoryAgent extends BaseAgent {
             metadata,
             history: [],
           });
-          
+
           // Returning a generic message as the ID is not available from insert_memory
           return `Memory stored successfully.`;
         } catch (error) {
@@ -138,11 +144,15 @@ export class MemoryAgent extends BaseAgent {
 
     // Outil pour récupérer des souvenirs similaires
     const retrieveMemoriesTool = tool(
-      async ({ query, userId = 'default_user', limit = 5 }): Promise<string> => {
+      async ({
+        query,
+        userId = 'default_user',
+        limit = 5,
+      }): Promise<string> => {
         try {
           const embedding = await this.embeddings.embedQuery(query);
           // Corrected: similar_memory only takes userId and embedding
-          const similar = await memory.similar_memory(userId, embedding); 
+          const similar = await memory.similar_memory(userId, embedding);
           // Note: The 'limit' parameter is not used in the DB function call directly.
           // If limiting is needed, it might be handled inside the SQL function or requires filtering results here.
 
@@ -218,8 +228,13 @@ export class MemoryAgent extends BaseAgent {
     */
 
     // Adjusted tool list - removed deleteMemoryTool
-    this.memoryTools = [upsertMemoryTool, retrieveMemoriesTool /*, deleteMemoryTool */];
-    logger.debug(`MemoryAgent: Created ${this.memoryTools.length} memory tools`);
+    this.memoryTools = [
+      upsertMemoryTool,
+      retrieveMemoriesTool /*, deleteMemoryTool */,
+    ];
+    logger.debug(
+      `MemoryAgent: Created ${this.memoryTools.length} memory tools`
+    );
   }
 
   /**
@@ -229,7 +244,7 @@ export class MemoryAgent extends BaseAgent {
    * @param limit Le nombre maximum de mémoires à récupérer
    */
   public async retrieveRelevantMemories(
-    message: string | BaseMessage, 
+    message: string | BaseMessage,
     userId: string = 'default_user',
     limit: number = 5
   ): Promise<any[]> {
@@ -238,13 +253,12 @@ export class MemoryAgent extends BaseAgent {
         throw new Error('MemoryAgent: Not initialized');
       }
 
-      const query = typeof message === 'string' 
-        ? message 
-        : message.content.toString();
-      
+      const query =
+        typeof message === 'string' ? message : message.content.toString();
+
       const embedding = await this.embeddings.embedQuery(query);
       const memories = await memory.similar_memory(userId, embedding);
-      
+
       return memories;
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
@@ -281,18 +295,30 @@ export class MemoryAgent extends BaseAgent {
         throw new Error('MemoryAgent: Not initialized');
       }
 
-      const content = typeof input === 'string' 
-        ? input 
-        : input instanceof BaseMessage 
-          ? input.content.toString()
-          : JSON.stringify(input);
-      
+      const content =
+        typeof input === 'string'
+          ? input
+          : input instanceof BaseMessage
+            ? input.content.toString()
+            : JSON.stringify(input);
+
       // Déterminer le type d'opération de mémoire à effectuer
-      if (content.includes('store') || content.includes('remember') || content.includes('save')) {
+      if (
+        content.includes('store') ||
+        content.includes('remember') ||
+        content.includes('save')
+      ) {
         return this.storeMemory(content, config?.userId || 'default_user');
-      } else if (content.includes('retrieve') || content.includes('recall') || content.includes('get')) {
-        return this.retrieveMemoriesForContent(content, config?.userId || 'default_user');
-      } 
+      } else if (
+        content.includes('retrieve') ||
+        content.includes('recall') ||
+        content.includes('get')
+      ) {
+        return this.retrieveMemoriesForContent(
+          content,
+          config?.userId || 'default_user'
+        );
+      }
       /* // Commented out delete logic
       else if (content.includes('delete') || content.includes('forget') || content.includes('remove')) {
         // Extraction simplifiée d'ID de mémoire pour la suppression
@@ -305,7 +331,10 @@ export class MemoryAgent extends BaseAgent {
       */
 
       // Par défaut, nous récupérons simplement les mémoires pertinentes
-      return this.retrieveMemoriesForContent(content, config?.userId || 'default_user');
+      return this.retrieveMemoriesForContent(
+        content,
+        config?.userId || 'default_user'
+      );
     } catch (error) {
       logger.error(`MemoryAgent: Execution error: ${error}`);
       throw error;
@@ -341,10 +370,13 @@ export class MemoryAgent extends BaseAgent {
   /**
    * Récupère les mémoires pour un contenu
    */
-  private async retrieveMemoriesForContent(content: string, userId: string): Promise<string> {
+  private async retrieveMemoriesForContent(
+    content: string,
+    userId: string
+  ): Promise<string> {
     try {
       const embedding = await this.embeddings.embedQuery(content);
-       // Corrected: similar_memory only takes userId and embedding
+      // Corrected: similar_memory only takes userId and embedding
       const memories = await memory.similar_memory(userId, embedding);
       // Note: Limit (e.g., 5) is not passed here. Assumed handled by DB or needs slicing.
 
