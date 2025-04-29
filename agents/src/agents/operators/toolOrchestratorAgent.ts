@@ -14,7 +14,7 @@ import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 
 /**
- * Configuration pour l'orchestrateur d'outils
+ * Configuration for the tools orchestrator
  */
 export interface ToolsOrchestratorConfig {
   starknetAgent: StarknetAgentInterface;
@@ -22,7 +22,7 @@ export interface ToolsOrchestratorConfig {
 }
 
 /**
- * Agent opérateur qui gère l'orchestration des outils
+ * Operator agent that manages tools orchestration
  */
 export class ToolsOrchestrator extends BaseAgent {
   private starknetAgent: StarknetAgentInterface;
@@ -37,18 +37,13 @@ export class ToolsOrchestrator extends BaseAgent {
   }
 
   /**
-   * Initialise l'orchestrateur d'outils
+   * Initialize the tools orchestrator
    */
   public async init(): Promise<void> {
     try {
       logger.debug('ToolsOrchestrator: Starting initialization');
-
-      // Initialiser les outils
       await this.initializeTools();
-
-      // Créer le nœud d'outil
       this.toolNode = new ToolNode(this.tools);
-
       logger.debug(
         `ToolsOrchestrator: Initialized with ${this.tools.length} tools`
       );
@@ -59,7 +54,7 @@ export class ToolsOrchestrator extends BaseAgent {
   }
 
   /**
-   * Initialise les outils disponibles
+   * Initialize available tools
    */
   private async initializeTools(): Promise<void> {
     try {
@@ -67,13 +62,11 @@ export class ToolsOrchestrator extends BaseAgent {
         this.starknetAgent.getSignature().signature === 'wallet';
 
       if (isSignature) {
-        // Initialiser les outils de signature
         this.tools = await createSignatureTools(this.agentConfig.plugins);
         logger.debug(
           `ToolsOrchestrator: Initialized signature tools (${this.tools.length})`
         );
       } else {
-        // Initialiser les outils standard
         const allowedTools = await createAllowedTools(
           this.starknetAgent,
           this.agentConfig.plugins
@@ -84,7 +77,6 @@ export class ToolsOrchestrator extends BaseAgent {
         );
       }
 
-      // Initialiser les outils MCP si configurés
       if (
         this.agentConfig.mcpServers &&
         Object.keys(this.agentConfig.mcpServers).length > 0
@@ -109,10 +101,10 @@ export class ToolsOrchestrator extends BaseAgent {
   }
 
   /**
-   * Exécute un appel d'outil
-   * @param input Le contenu à traiter
-   * @param config Configuration optionnelle
-   * @returns Le résultat de l'exécution de l'outil
+   * Execute a tool call
+   * @param input Content to process
+   * @param config Optional configuration
+   * @returns Result of the tool execution
    */
   public async execute(
     input: string | BaseMessage | any,
@@ -123,11 +115,9 @@ export class ToolsOrchestrator extends BaseAgent {
         throw new Error('ToolsOrchestrator: ToolNode is not initialized');
       }
 
-      // Préparer l'entrée pour l'exécution de l'outil
       let toolCall;
 
       if (typeof input === 'string') {
-        // Essayer de parser l'entrée comme un appel d'outil JSON
         try {
           toolCall = JSON.parse(input);
         } catch (e) {
@@ -136,31 +126,25 @@ export class ToolsOrchestrator extends BaseAgent {
           );
         }
       } else if (input instanceof BaseMessage) {
-        // Extraire un appel d'outil du message
         if (!input.tool_calls || input.tool_calls.length === 0) {
           throw new Error('ToolsOrchestrator: No tool calls found in message');
         }
         toolCall = input.tool_calls[0];
       } else {
-        // Supposer que l'entrée est déjà un objet d'appel d'outil
         toolCall = input;
       }
 
-      // Valider l'appel d'outil
       if (!toolCall.name || toolCall.args === undefined) {
         throw new Error('ToolsOrchestrator: Invalid tool call format');
       }
 
-      // Trouver l'outil correspondant
       const tool = this.tools.find((t) => t.name === toolCall.name);
       if (!tool) {
         throw new Error(`ToolsOrchestrator: Tool "${toolCall.name}" not found`);
       }
 
-      // Exécuter l'outil
       logger.debug(`ToolsOrchestrator: Executing tool "${toolCall.name}"`);
 
-      // Préparer l'état pour ToolNode
       const state = {
         messages: [
           new HumanMessage({
@@ -170,10 +154,8 @@ export class ToolsOrchestrator extends BaseAgent {
         ],
       };
 
-      // Exécuter avec ToolNode pour un comportement cohérent
       const result = await this.toolNode.invoke(state, config);
 
-      // Extraire et retourner le résultat
       if (result && result.messages && result.messages.length > 0) {
         return result.messages[result.messages.length - 1].content;
       }
@@ -186,14 +168,14 @@ export class ToolsOrchestrator extends BaseAgent {
   }
 
   /**
-   * Obtient la liste des outils disponibles
+   * Get the list of available tools
    */
   public getTools(): (Tool | StructuredTool | DynamicStructuredTool<any>)[] {
     return [...this.tools];
   }
 
   /**
-   * Obtient un outil par son nom
+   * Get a tool by its name
    */
   public getToolByName(
     name: string

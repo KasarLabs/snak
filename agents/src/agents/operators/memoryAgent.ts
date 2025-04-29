@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
 
 /**
- * Configuration pour l'agent de mémoire
+ * Configuration for the memory agent
  */
 export interface MemoryAgentConfig {
   shortTermMemorySize?: number;
@@ -17,7 +17,7 @@ export interface MemoryAgentConfig {
 }
 
 /**
- * Agent opérateur qui gère la mémoire et les connaissances
+ * Operator agent that manages memory and knowledge
  */
 export class MemoryAgent extends BaseAgent {
   private config: MemoryAgentConfig;
@@ -33,7 +33,6 @@ export class MemoryAgent extends BaseAgent {
       embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
     };
 
-    // Initialiser les embeddings
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: this.config.embeddingModel,
       dtype: 'fp32',
@@ -41,18 +40,13 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Initialise l'agent de mémoire
+   * Initialize the memory agent
    */
   public async init(): Promise<void> {
     try {
       logger.debug('MemoryAgent: Starting initialization');
-
-      // Initialiser la base de données de mémoire
       await this.initializeMemoryDB();
-
-      // Créer les outils de mémoire
       this.createMemoryTools();
-
       this.initialized = true;
       logger.debug('MemoryAgent: Initialized successfully');
     } catch (error) {
@@ -62,7 +56,7 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Initialise la base de données de mémoire
+   * Initialize the memory database
    */
   private async initializeMemoryDB(): Promise<void> {
     try {
@@ -77,10 +71,10 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Crée les outils de mémoire
+   * Create memory tools
    */
   private createMemoryTools(): void {
-    // Outil pour créer ou mettre à jour une mémoire
+    // Tool for creating or updating a memory
     const upsertMemoryTool = tool(
       async ({
         content,
@@ -90,7 +84,7 @@ export class MemoryAgent extends BaseAgent {
         try {
           const embedding = await this.embeddings.embedQuery(content);
           const metadata = { timestamp: new Date().toISOString() };
-          content = content.replace(/'/g, "''"); // Échapper les apostrophes pour SQL
+          content = content.replace(/'/g, "''"); // Escape apostrophes for SQL
 
           logger.debug(`MemoryAgent: Upserting memory for user ${userId}`);
 
@@ -100,7 +94,6 @@ export class MemoryAgent extends BaseAgent {
             return `Memory ${memoryId} updated successfully.`;
           }
 
-          // insert_memory returns void, so we can't get the ID directly here.
           await memory.insert_memory({
             user_id: userId,
             content,
@@ -109,7 +102,6 @@ export class MemoryAgent extends BaseAgent {
             history: [],
           });
 
-          // Returning a generic message as the ID is not available from insert_memory
           return `Memory stored successfully.`;
         } catch (error) {
           logger.error(`MemoryAgent: Error storing memory: ${error}`);
@@ -142,7 +134,7 @@ export class MemoryAgent extends BaseAgent {
       }
     );
 
-    // Outil pour récupérer des souvenirs similaires
+    // Tool for retrieving similar memories
     const retrieveMemoriesTool = tool(
       async ({
         query,
@@ -151,10 +143,7 @@ export class MemoryAgent extends BaseAgent {
       }): Promise<string> => {
         try {
           const embedding = await this.embeddings.embedQuery(query);
-          // Corrected: similar_memory only takes userId and embedding
           const similar = await memory.similar_memory(userId, embedding);
-          // Note: The 'limit' parameter is not used in the DB function call directly.
-          // If limiting is needed, it might be handled inside the SQL function or requires filtering results here.
 
           if (similar.length === 0) {
             return 'No relevant memories found.';
@@ -192,56 +181,17 @@ export class MemoryAgent extends BaseAgent {
       }
     );
 
-    // Outil pour supprimer une mémoire - Commented out as delete_memory function doesn't exist in queries
-    /*
-    const deleteMemoryTool = tool(
-      async ({ memoryId, userId = 'default_user' }): Promise<string> => {
-        try {
-          if (!memoryId) {
-            return 'Memory ID is required for deletion.';
-          }
-
-          // FIXME: memory.delete_memory function does not exist in the provided database queries.
-          // await memory.delete_memory(memoryId, userId); 
-          // return `Memory ${memoryId} deleted successfully.`;
-          return `Deletion functionality is currently disabled.`; 
-        } catch (error) {
-          logger.error(`MemoryAgent: Error deleting memory: ${error}`);
-          return `Failed to delete memory: ${error}`;
-        }
-      },
-      {
-        name: 'delete_memory',
-        schema: z.object({
-          memoryId: z.number().describe('The ID of the memory to delete.'),
-          userId: z
-            .string()
-            .optional()
-            .describe('The user ID associated with the memory.'),
-        }),
-        description: `
-        Delete a specific memory by its ID.
-        Use this tool when information is outdated or no longer relevant.
-        `,
-      }
-    );
-    */
-
-    // Adjusted tool list - removed deleteMemoryTool
-    this.memoryTools = [
-      upsertMemoryTool,
-      retrieveMemoriesTool /*, deleteMemoryTool */,
-    ];
+    this.memoryTools = [upsertMemoryTool, retrieveMemoriesTool];
     logger.debug(
       `MemoryAgent: Created ${this.memoryTools.length} memory tools`
     );
   }
 
   /**
-   * Récupère les mémoires pertinentes pour un message
-   * @param message Le message pour lequel récupérer des mémoires
-   * @param userId L'ID de l'utilisateur
-   * @param limit Le nombre maximum de mémoires à récupérer
+   * Retrieve relevant memories for a message
+   * @param message The message to retrieve memories for
+   * @param userId The user ID
+   * @param limit Maximum number of memories to retrieve
    */
   public async retrieveRelevantMemories(
     message: string | BaseMessage,
@@ -267,8 +217,8 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Formate les mémoires pour l'inclusion dans un contexte
-   * @param memories Les mémoires à formater
+   * Format memories for inclusion in a context
+   * @param memories The memories to format
    */
   public formatMemoriesForContext(memories: any[]): string {
     if (memories.length === 0) {
@@ -285,9 +235,9 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Exécute une action avec l'agent de mémoire
-   * @param input L'entrée à traiter
-   * @param config Configuration optionnelle
+   * Execute an action with the memory agent
+   * @param input The input to process
+   * @param config Optional configuration
    */
   public async execute(input: any, config?: Record<string, any>): Promise<any> {
     try {
@@ -302,7 +252,7 @@ export class MemoryAgent extends BaseAgent {
             ? input.content.toString()
             : JSON.stringify(input);
 
-      // Déterminer le type d'opération de mémoire à effectuer
+      // Determine the type of memory operation to perform
       if (
         content.includes('store') ||
         content.includes('remember') ||
@@ -319,18 +269,8 @@ export class MemoryAgent extends BaseAgent {
           config?.userId || 'default_user'
         );
       }
-      /* // Commented out delete logic
-      else if (content.includes('delete') || content.includes('forget') || content.includes('remove')) {
-        // Extraction simplifiée d'ID de mémoire pour la suppression
-        const idMatch = content.match(/\bID\s*[:=]?\s*(\d+)/i) || content.match(/\bmemory\s*(\d+)/i);
-        if (idMatch && idMatch[1]) {
-          // return this.deleteMemory(parseInt(idMatch[1]), config?.userId || 'default_user');
-           return Promise.resolve("Deletion functionality is currently disabled.");
-        }
-      }
-      */
 
-      // Par défaut, nous récupérons simplement les mémoires pertinentes
+      // Default to retrieving relevant memories
       return this.retrieveMemoriesForContent(
         content,
         config?.userId || 'default_user'
@@ -342,7 +282,7 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Stocke une mémoire
+   * Store a memory
    */
   private async storeMemory(content: string, userId: string): Promise<string> {
     try {
@@ -350,7 +290,6 @@ export class MemoryAgent extends BaseAgent {
       const metadata = { timestamp: new Date().toISOString() };
       content = content.replace(/'/g, "''");
 
-      // insert_memory returns void
       await memory.insert_memory({
         user_id: userId,
         content,
@@ -359,7 +298,6 @@ export class MemoryAgent extends BaseAgent {
         history: [],
       });
 
-      // Returning generic message as ID is not available
       return `Memory stored successfully.`;
     } catch (error) {
       logger.error(`MemoryAgent: Error storing memory: ${error}`);
@@ -368,7 +306,7 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Récupère les mémoires pour un contenu
+   * Retrieve memories for a content
    */
   private async retrieveMemoriesForContent(
     content: string,
@@ -376,9 +314,7 @@ export class MemoryAgent extends BaseAgent {
   ): Promise<string> {
     try {
       const embedding = await this.embeddings.embedQuery(content);
-      // Corrected: similar_memory only takes userId and embedding
       const memories = await memory.similar_memory(userId, embedding);
-      // Note: Limit (e.g., 5) is not passed here. Assumed handled by DB or needs slicing.
 
       if (memories.length === 0) {
         return 'No relevant memories found.';
@@ -392,24 +328,7 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Supprime une mémoire - Commented out
-   */
-  /*
-  private async deleteMemory(memoryId: number, userId: string): Promise<string> {
-    try {
-      // FIXME: memory.delete_memory function does not exist.
-      // await memory.delete_memory(memoryId, userId);
-      // return `Memory ${memoryId} deleted successfully.`;
-       return `Deletion functionality is currently disabled.`;
-    } catch (error) {
-      logger.error(`MemoryAgent: Error deleting memory: ${error}`);
-      return `Failed to delete memory: ${error}`;
-    }
-  }
-  */
-
-  /**
-   * Obtient les outils de mémoire
+   * Get memory tools
    */
   public getMemoryTools(): any[] {
     return [...this.memoryTools];

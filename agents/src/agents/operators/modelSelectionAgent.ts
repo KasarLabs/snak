@@ -9,7 +9,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
 /**
- * Critères pour la sélection du modèle
+ * Criteria for model selection
  */
 export interface ModelSelectionCriteria {
   complexity: 'high' | 'medium' | 'low';
@@ -19,7 +19,7 @@ export interface ModelSelectionCriteria {
 }
 
 /**
- * Options pour l'agent de sélection de modèle
+ * Options for the model selection agent
  */
 export interface ModelSelectionOptions {
   debugMode?: boolean;
@@ -28,7 +28,7 @@ export interface ModelSelectionOptions {
 }
 
 /**
- * Représente un agent opérateur responsable de la sélection du modèle approprié pour différentes tâches
+ * Represents an operator agent responsible for selecting the appropriate model for different tasks
  */
 export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   private models: Record<string, BaseChatModel> = {};
@@ -38,20 +38,15 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   private apiKeys: ApiKeys = {};
   private modelsConfigPath: string;
 
-  /**
-   * Crée un nouvel agent de sélection de modèle
-   * @param options Options de configuration
-   */
   constructor(options: ModelSelectionOptions) {
     super('model-selector', AgentType.OPERATOR);
     this.debugMode = options.debugMode || false;
     this.useMetaSelection = options.useMetaSelection || false;
     this.modelsConfigPath = options.modelsConfigPath;
 
-    // Logging pour le débogage
     if (this.debugMode) {
       logger.debug(
-        `ModelSelectionAgent constructor called with options: ${JSON.stringify({
+        `ModelSelectionAgent initialized with options: ${JSON.stringify({
           debugMode: options.debugMode,
           useMetaSelection: options.useMetaSelection,
         })}`
@@ -60,22 +55,14 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Initialise l'agent de sélection de modèle
+   * Initialize the model selection agent
    */
   public async init(): Promise<void> {
     try {
-      // Charger la configuration des modèles
       this.modelsConfig = await loadModelsConfig(this.modelsConfigPath);
-
-      // Charger les clés API depuis les variables d'environnement
       this.loadApiKeys();
-
-      // Initialiser les modèles
       await this.initializeModels();
-
-      // Vérifier que les modèles nécessaires sont disponibles
       this.validateModels();
-
       logger.debug('ModelSelectionAgent initialized successfully');
     } catch (error) {
       logger.error(`ModelSelectionAgent initialization failed: ${error}`);
@@ -84,7 +71,7 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Charge les clés API depuis les variables d'environnement
+   * Load API keys from environment variables
    */
   private loadApiKeys(): void {
     logger.debug('Loading API keys from environment variables...');
@@ -107,11 +94,10 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
         );
       }
     }
-    logger.debug('Finished loading API keys.');
   }
 
   /**
-   * Initialise les instances de modèles basées sur la configuration chargée
+   * Initialize model instances based on loaded configuration
    */
   private async initializeModels(): Promise<void> {
     logger.debug('Initializing AI models...');
@@ -180,11 +166,10 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
         );
       }
     }
-    logger.debug('Finished initializing AI models.');
   }
 
   /**
-   * Vérifie que les modèles requis existent
+   * Verify that required models exist
    */
   private validateModels(): void {
     const requiredModels = ['fast', 'smart', 'cheap'];
@@ -204,14 +189,13 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Analyse les messages fournis et détermine quel modèle utiliser
-   * @param messages Les messages à analyser
-   * @returns Le type de modèle sélectionné
+   * Analyze provided messages and determine which model to use
+   * @param messages The messages to analyze
+   * @returns The selected model type
    */
   public async selectModelForMessages(
     messages: BaseMessage[]
   ): Promise<string> {
-    // Si la méta-sélection est désactivée, toujours utiliser le modèle intelligent
     if (!this.useMetaSelection) {
       if (this.debugMode) {
         logger.debug('Meta-selection disabled, using smart model');
@@ -228,7 +212,6 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
       return 'smart';
     }
 
-    // Utiliser le modèle rapide pour déterminer quel modèle utiliser pour la tâche
     try {
       if (this.debugMode) {
         logger.debug(
@@ -236,12 +219,11 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
         );
       }
 
-      // Vérification CRITIQUE : S'assurer que le modèle rapide existe
       if (!this.models.fast) {
         logger.error(
           'Meta-selection is enabled but fast model is not available'
         );
-        return 'smart'; // Repli sur "smart" si le modèle rapide n'est pas disponible
+        return 'smart';
       }
 
       const lastMessage = messages[messages.length - 1];
@@ -259,11 +241,9 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
             : JSON.stringify(lastMessage.content)
           : '';
 
-      // Vérifier si la section NEXT STEPS est présente dans le contenu du message
       let analysisContent = content;
       let nextStepsSection = '';
 
-      // Pour les réponses d'agent autonome, extraire la section NEXT STEPS
       const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
       if (nextStepsMatch && nextStepsMatch[1]) {
         nextStepsSection = nextStepsMatch[1].trim();
@@ -271,13 +251,10 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
           logger.debug(`Found NEXT STEPS section: "${nextStepsSection}"`);
         }
 
-        // Si nous avons NEXT STEPS, l'utiliser comme contenu principal pour l'analyse
-        // mais aussi garder une version raccourcie du contenu d'origine pour le contexte
         const truncatedContent = content.substring(0, 300) + '...';
         analysisContent = `Next planned actions: ${nextStepsSection}\n\nContext: ${truncatedContent}`;
       }
 
-      // Utiliser le modèle rapide pour analyser quel modèle devrait gérer cette demande
       const prompt = new HumanMessage(
         `Analyze this content and determine which AI model should handle it.
 ${nextStepsSection ? "Focus primarily on the 'Next planned actions' which represents upcoming tasks." : ''}
@@ -303,14 +280,12 @@ ${analysisContent}`
       const response = await this.models.fast.invoke([prompt]);
       const modelChoice = response.content.toString().toLowerCase().trim();
 
-      // Valider la réponse
       if (['fast', 'smart', 'cheap'].includes(modelChoice)) {
         if (this.debugMode) {
           logger.debug(`Meta-selection chose model: ${modelChoice}`);
         }
         return modelChoice;
       } else {
-        // Repli si la réponse est invalide
         logger.warn(
           `Invalid model selection response: ${modelChoice}, defaulting to smart`
         );
@@ -320,15 +295,14 @@ ${analysisContent}`
       logger.warn(
         `Error in meta-selection: ${error}, falling back to heuristics`
       );
-      // Repli sur la sélection heuristique
       return this.selectModelUsingHeuristics(messages);
     }
   }
 
   /**
-   * Sélectionne le modèle en utilisant des heuristiques simples comme mécanisme de secours
-   * @param messages Les messages à analyser
-   * @returns Le type de modèle sélectionné
+   * Select the model using simple heuristics as a fallback mechanism
+   * @param messages The messages to analyze
+   * @returns The selected model type
    */
   private selectModelUsingHeuristics(messages: BaseMessage[]): string {
     if (!messages || messages.length === 0) {
@@ -353,7 +327,6 @@ ${analysisContent}`
           : JSON.stringify(lastMessage.content)
         : '';
 
-    // Extraire la section NEXT STEPS si présente
     let analysisContent = content;
     let nextStepsContent = '';
 
@@ -365,11 +338,9 @@ ${analysisContent}`
           `Heuristic analysis found NEXT STEPS: "${nextStepsContent}"`
         );
       }
-      // Si nous avons next steps, prioriser leur analyse
       analysisContent = nextStepsContent;
     }
 
-    // Heuristiques rapides basées sur le contenu du message
     const criteria = this.analyzeMessageContent(analysisContent);
     const modelType = this.selectModelBasedOnCriteria(criteria);
 
@@ -386,9 +357,9 @@ ${analysisContent}`
   }
 
   /**
-   * Analyse le contenu du message pour déterminer les caractéristiques de la tâche
-   * @param content Le contenu du message à analyser
-   * @returns Les critères d'analyse
+   * Analyze message content to determine task characteristics
+   * @param content The message content to analyze
+   * @returns The analysis criteria
    */
   private analyzeMessageContent(content: string): ModelSelectionCriteria {
     if (content == null) {
@@ -398,7 +369,6 @@ ${analysisContent}`
       content = '';
     }
 
-    // Critères par défaut
     const criteria: ModelSelectionCriteria = {
       complexity: 'medium',
       urgency: 'medium',
@@ -406,14 +376,12 @@ ${analysisContent}`
       taskType: 'general',
     };
 
-    // Vérifier la longueur du contenu comme indicateur de complexité de base
     if (content.length > 1500) {
       criteria.complexity = 'high';
     } else if (content.length < 300) {
       criteria.complexity = 'low';
     }
 
-    // Rechercher des mots-clés indiquant des tâches de raisonnement
     if (
       content.match(
         /reason|analyze|explain why|consider|determine|evaluate|assess/i
@@ -423,7 +391,6 @@ ${analysisContent}`
       criteria.complexity = 'high';
     }
 
-    // Rechercher des mots-clés indiquant des tâches de génération
     if (
       content.match(/generate|create|write|draft|compose|design|develop|build/i)
     ) {
@@ -431,7 +398,6 @@ ${analysisContent}`
       criteria.creativeRequirement = 'high';
     }
 
-    // Rechercher des mots-clés indiquant des tâches de classification
     if (
       content.match(
         /categorize|classify|identify|determine if|is this|should I|yes or no/i
@@ -441,12 +407,10 @@ ${analysisContent}`
       criteria.complexity = 'low';
     }
 
-    // Rechercher des indicateurs d'urgence
     if (content.match(/urgent|quickly|immediate|asap|now|fast/i)) {
       criteria.urgency = 'high';
     }
 
-    // Mots-clés spéciaux pour la complexité de la prochaine étape
     if (
       content.match(
         /complicated|complex|difficult|challenging|advanced|multiple steps|in-depth/i
@@ -455,12 +419,11 @@ ${analysisContent}`
       criteria.complexity = 'high';
     }
 
-    // Vérifier les actions multiples dans une seule étape (indique trop de complexité)
     if (
       content.match(
         /and then|after that|followed by|next,|subsequently|finally,/i
       ) ||
-      content.match(/\d+\.\s.*\d+\.\s/s) // Recherche des listes numérotées avec plusieurs éléments
+      content.match(/\d+\.\s.*\d+\.\s/s)
     ) {
       if (this.debugMode) {
         logger.debug(
@@ -470,13 +433,11 @@ ${analysisContent}`
       criteria.complexity = 'high';
     }
 
-    // Vérifier les indicateurs de tâches plus simples et plus ciblées
     if (
       content.match(
         /simple|straightforward|basic|single|focused|one step|easy/i
       )
     ) {
-      // Ne pas dégrader les tâches de haute complexité, mais marquer les moyennes comme faibles
       if (criteria.complexity !== 'high') {
         criteria.complexity = 'low';
       }
@@ -486,17 +447,15 @@ ${analysisContent}`
   }
 
   /**
-   * Sélectionne le modèle approprié en fonction des critères de tâche
-   * @param criteria Les critères de tâche
-   * @returns Le type de modèle sélectionné
+   * Select the appropriate model based on task criteria
+   * @param criteria The task criteria
+   * @returns The selected model type
    */
   private selectModelBasedOnCriteria(criteria: ModelSelectionCriteria): string {
-    // Tâches de raisonnement de haute complexité vers le modèle intelligent
     if (criteria.complexity === 'high' && criteria.taskType === 'reasoning') {
       return 'smart';
     }
 
-    // Tâches de génération à haute créativité vers le modèle intelligent
     if (
       criteria.creativeRequirement === 'high' &&
       criteria.taskType === 'generation'
@@ -504,34 +463,29 @@ ${analysisContent}`
       return 'smart';
     }
 
-    // Tâches de faible complexité, haute urgence vers le modèle rapide
     if (criteria.complexity === 'low' && criteria.urgency === 'high') {
       return 'fast';
     }
 
-    // Tâches de classification typiquement vers le modèle rapide
     if (criteria.taskType === 'classification') {
       return 'fast';
     }
 
-    // Si le budget est une préoccupation et la tâche n'est pas complexe, utiliser le modèle économique
     if (criteria.complexity === 'low') {
       return 'cheap';
     }
 
-    // Par défaut vers le modèle intelligent pour les tâches de complexité moyenne
     if (criteria.complexity === 'medium') {
       return 'smart';
     }
 
-    // Repli par défaut
     return 'smart';
   }
 
   /**
-   * Obtient le modèle approprié pour une tâche donnée en fonction des messages
-   * @param messages Les messages à analyser
-   * @returns L'instance du modèle sélectionné
+   * Get the appropriate model for a given task based on messages
+   * @param messages The messages to analyze
+   * @returns The selected model instance
    */
   public async getModelForTask(
     messages: BaseMessage[],
@@ -540,7 +494,6 @@ ${analysisContent}`
     const modelType =
       forceModelType || (await this.selectModelForMessages(messages));
 
-    // S'assurer que le modèle sélectionné existe
     if (!this.models[modelType]) {
       logger.warn(
         `Selected model "${modelType}" not available, falling back to "smart"`
@@ -552,16 +505,15 @@ ${analysisContent}`
   }
 
   /**
-   * Invoque directement un modèle avec la logique de sélection
-   * @param messages Les messages à traiter
-   * @param forceModelType Paramètre optionnel pour forcer l'utilisation d'un type de modèle spécifique
-   * @returns La réponse du modèle
+   * Directly invoke a model with selection logic
+   * @param messages The messages to process
+   * @param forceModelType Optional parameter to force using a specific model type
+   * @returns The model response
    */
   public async invokeModel(
     messages: BaseMessage[],
     forceModelType?: string
   ): Promise<any> {
-    // Utiliser le type forcé si fourni, sinon sélectionner le modèle
     const modelType =
       forceModelType || (await this.selectModelForMessages(messages));
 
@@ -580,15 +532,13 @@ ${analysisContent}`
   }
 
   /**
-   * Point d'entrée principal pour l'exécution de l'agent
+   * Main entry point for agent execution
    */
   public async execute(input: any): Promise<AIMessage> {
-    // Convert input to messages if not already
     const messages: BaseMessage[] = Array.isArray(input)
       ? input
       : [typeof input === 'string' ? new HumanMessage(input) : input];
 
-    // Check if there are messages
     if (messages.length === 0) {
       logger.warn(
         'ModelSelectionAgent received empty message array. Returning default model.'
@@ -597,16 +547,14 @@ ${analysisContent}`
         content: 'Selected model type: smart (default due to empty input)',
         additional_kwargs: {
           modelType: 'smart',
-          nextAgent: 'starknet', // Always route to starknet
+          nextAgent: 'starknet',
           from: 'model-selector',
           final: false,
-          // Add reference to original user query (empty in this case)
           originalUserQuery: '',
         },
       });
     }
 
-    // Extract the original user question
     const originalUserMessage = messages.find(
       (msg) => msg instanceof HumanMessage
     );
@@ -616,13 +564,9 @@ ${analysisContent}`
         : JSON.stringify(originalUserMessage.content)
       : '';
 
-    // Select model
     const modelType = await this.selectModelForMessages(messages);
-
-    // CRITICAL FIX: Always set nextAgent to starknet to avoid loops
     const nextAgent = 'starknet';
 
-    // Log decision
     if (this.debugMode) {
       logger.debug(
         `ModelSelectionAgent selected model: ${modelType}, routing to: ${nextAgent}`
@@ -632,22 +576,20 @@ ${analysisContent}`
       );
     }
 
-    // Return formatted AIMessage with necessary metadata
-    // IMPORTANT: include originalUserQuery in the metadata
     return new AIMessage({
       content: `Selected model type: ${modelType}`,
       additional_kwargs: {
         modelType,
-        nextAgent, // Use value defined above
+        nextAgent,
         from: 'model-selector',
-        final: false, // Model selection itself is not final
-        originalUserQuery: originalQuery, // Critical addition: preserve original query
+        final: false,
+        originalUserQuery: originalQuery,
       },
     });
   }
 
   /**
-   * Obtient les modèles disponibles
+   * Get available models
    */
   public getModels(): Record<string, BaseChatModel> {
     return this.models;
