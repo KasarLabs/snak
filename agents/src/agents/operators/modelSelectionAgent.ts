@@ -600,9 +600,21 @@ ${analysisContent}`
           nextAgent: 'starknet', // Always route to starknet
           from: 'model-selector',
           final: false,
+          // Add reference to original user query (empty in this case)
+          originalUserQuery: '',
         },
       });
     }
+
+    // Extract the original user question
+    const originalUserMessage = messages.find(
+      (msg) => msg instanceof HumanMessage
+    );
+    const originalQuery = originalUserMessage
+      ? typeof originalUserMessage.content === 'string'
+        ? originalUserMessage.content
+        : JSON.stringify(originalUserMessage.content)
+      : '';
 
     // Select model
     const modelType = await this.selectModelForMessages(messages);
@@ -615,9 +627,13 @@ ${analysisContent}`
       logger.debug(
         `ModelSelectionAgent selected model: ${modelType}, routing to: ${nextAgent}`
       );
+      logger.debug(
+        `ModelSelectionAgent preserved original query: "${originalQuery}"`
+      );
     }
 
     // Return formatted AIMessage with necessary metadata
+    // IMPORTANT: include originalUserQuery in the metadata
     return new AIMessage({
       content: `Selected model type: ${modelType}`,
       additional_kwargs: {
@@ -625,6 +641,7 @@ ${analysisContent}`
         nextAgent, // Use value defined above
         from: 'model-selector',
         final: false, // Model selection itself is not final
+        originalUserQuery: originalQuery, // Critical addition: preserve original query
       },
     });
   }

@@ -1,5 +1,8 @@
 // agents/index.ts
-import { SupervisorAgent } from './supervisor/supervisorAgent.js';
+import {
+  SupervisorAgent,
+  SupervisorAgentConfig,
+} from './supervisor/supervisorAgent.js';
 import { RpcProvider } from 'starknet';
 import { logger } from '@snakagent/core';
 import { JsonConfig } from '../config/jsonConfig.js';
@@ -38,30 +41,90 @@ export class AgentSystem {
   public async init(): Promise<void> {
     try {
       logger.debug('AgentSystem: Starting initialization');
+      // Log the received config path
+      logger.debug(
+        `AgentSystem: Received agentConfigPath: ${this.config.agentConfigPath}`
+      );
 
       // Charger la configuration de l'agent si le chemin est fourni
       if (this.config.agentConfigPath) {
-        this.agentConfig = await this.loadAgentConfig(
-          this.config.agentConfigPath
+        logger.debug(
+          `AgentSystem: Attempting to load config from path: ${this.config.agentConfigPath}`
         );
+        try {
+          this.agentConfig = await this.loadAgentConfig(
+            this.config.agentConfigPath
+          );
+          logger.debug(
+            `AgentSystem: Successfully loaded agentConfig. Keys: ${this.agentConfig ? Object.keys(this.agentConfig).join(', ') : 'null'}`
+          );
+        } catch (loadError) {
+          logger.error(
+            `AgentSystem: Error during loadAgentConfig: ${loadError}`
+          );
+          this.agentConfig = null; // Ensure it's null on error
+        }
+      } else {
+        logger.warn(
+          'AgentSystem: No agentConfigPath provided in config, agentConfig will be null.'
+        );
+        this.agentConfig = null; // Ensure it's null if no path
       }
 
       // Initialiser l'agent superviseur
-      this.supervisorAgent = new SupervisorAgent({
-        modelsConfigPath: this.config.modelsConfigPath,
-        starknetConfig: {
-          provider: this.config.starknetProvider,
-          accountPrivateKey: this.config.accountPrivateKey,
-          accountPublicKey: this.config.accountPublicKey,
-          signature: this.config.signature,
-          agentMode: this.config.agentMode,
-          db_credentials: this.config.databaseCredentials,
-          agentconfig: this.agentConfig || undefined,
-        },
+      logger.debug(
+        'AgentSystem: ====> CHECKING this.agentConfig JUST BEFORE SupervisorAgent CREATION <===='
+      );
+      logger.debug(this.agentConfig); // Log direct de l'objet
+      logger.debug('AgentSystem: ====> FINISHED CHECKING <====');
+
+      // Create the config object for SupervisorAgent step-by-step
+      logger.debug(
+        'AgentSystem: Building supervisorConfigObject step-by-step...'
+      );
+      const supervisorConfigObject: Partial<SupervisorAgentConfig> = {}; // Start with partial
+
+      supervisorConfigObject.modelsConfigPath = this.config.modelsConfigPath;
+      logger.debug(
+        `AgentSystem: Added modelsConfigPath. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
+      );
+
+      supervisorConfigObject.agentMode = this.config.agentMode;
+      logger.debug(
+        `AgentSystem: Added agentMode. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
+      );
+
+      supervisorConfigObject.debug = this.config.debug;
+      logger.debug(
+        `AgentSystem: Added debug. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
+      );
+
+      supervisorConfigObject.agentConfig = this.agentConfig || undefined;
+      logger.debug(
+        `AgentSystem: Added agentConfig. Exists: ${!!supervisorConfigObject.agentConfig}. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
+      );
+
+      supervisorConfigObject.starknetConfig = {
+        provider: this.config.starknetProvider,
+        accountPrivateKey: this.config.accountPrivateKey,
+        accountPublicKey: this.config.accountPublicKey,
+        signature: this.config.signature,
         agentMode: this.config.agentMode,
-        agentConfig: this.agentConfig || undefined,
-        debug: this.config.debug,
-      });
+        db_credentials: this.config.databaseCredentials,
+        agentconfig: this.agentConfig || undefined,
+      };
+      logger.debug(
+        `AgentSystem: Added starknetConfig. Exists: ${!!supervisorConfigObject.starknetConfig}. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
+      );
+
+      logger.debug('AgentSystem: Finished building supervisorConfigObject.');
+      // logger.debug('AgentSystem: Prepared supervisorConfigObject. Keys:', Object.keys(supervisorConfigObject).join(', ')); // Old log
+      // logger.debug('AgentSystem: supervisorConfigObject.agentConfig exists:', !!supervisorConfigObject.agentConfig); // Old log
+
+      // Pass the step-by-step created object - need type assertion
+      this.supervisorAgent = new SupervisorAgent(
+        supervisorConfigObject as SupervisorAgentConfig
+      );
 
       // Initialiser le superviseur, qui à son tour initialisera tous les autres agents
       await this.supervisorAgent.init();

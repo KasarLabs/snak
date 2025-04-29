@@ -65,7 +65,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   private agentReactExecutor: any;
   private modelSelector: ModelSelectionAgent | null = null;
   private loggingOptions: LoggingOptions = {
-    langchainVerbose: true,
+    langchainVerbose: false,
     tokenLogging: true,
     disabled: false,
     modelSelectionDebug: false,
@@ -104,7 +104,11 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         ? 'auto'
         : config.agentMode || 'agent';
     this.agentconfig = config.agentconfig;
-    logger.debug('this agent config:', config.agentconfig);
+    logger.debug('this agent config raw:', config.agentconfig);
+    logger.debug(
+      'this agent config stringified:',
+      JSON.stringify(config.agentconfig)
+    );
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
 
@@ -461,15 +465,34 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     config?: Record<string, any>
   ): Promise<unknown> {
     let responseContent: string | any;
-    let iteration = 0;
     let errorCount = 0;
-    const maxIterations = this.memory?.recursionLimit ?? 5;
-    const maxErrors = 3; // Nombre max de tentatives d'initialisation
+    const maxErrors = 3;
     let fallbackAttempted = false;
     let originalMode = this.currentMode;
 
     try {
       logger.debug(`StarknetAgent executing with mode: ${this.currentMode}`);
+
+      // NEW: Retrieve the original user query if it exists in config metadata
+      let originalUserQuery = null;
+      if (config && config.originalUserQuery) {
+        originalUserQuery = config.originalUserQuery;
+        logger.debug(
+          `StarknetAgent: Retrieved original user query from config: "${originalUserQuery}"`
+        );
+      }
+
+      // NEW: Also extract from the input if it's a message from ModelSelectionAgent
+      if (
+        input instanceof BaseMessage &&
+        input.additional_kwargs?.from === 'model-selector' &&
+        input.additional_kwargs?.originalUserQuery
+      ) {
+        originalUserQuery = input.additional_kwargs.originalUserQuery;
+        logger.debug(
+          `StarknetAgent: Retrieved original user query from model-selector: "${originalUserQuery}"`
+        );
+      }
 
       // Vérifier si nous devons ajuster temporairement le mode pour cette exécution
       const requestedMode = config?.agentMode;
@@ -625,11 +648,26 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       logger.debug(
         `StarknetAgent: Invoking agent executor with input: ${JSON.stringify(currentMessages)}`
       );
+
+      // CRITICAL MODIFICATION: If we have an original query, use it as the main input
+      if (
+        originalUserQuery &&
+        currentMessages.length > 0 &&
+        currentMessages[0].additional_kwargs?.from === 'model-selector'
+      ) {
+        // If the first message comes from model-selector and we have the original query,
+        // replace the model-selector message with the original user query
+        logger.debug(
+          `StarknetAgent: Using original user query instead of model-selector message`
+        );
+        currentMessages = [new HumanMessage(originalUserQuery)];
+      }
+
       let result: any;
       try {
         result = await this.agentReactExecutor.invoke(
           { messages: currentMessages },
-          { configurable: { thread_id: 'default' } } // Assuming a default thread ID or manage dynamically
+          { configurable: { thread_id: 'default' } }
         );
         // Assuming result contains the final AIMessage or similar structure
         responseContent = result.messages[result.messages.length - 1].content;

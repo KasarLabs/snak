@@ -203,7 +203,7 @@ export class WorkflowController {
               const newCount = currentCount + 1;
 
               // Mettre à jour les métadonnées
-              const updatedMetadata = {
+              const updatedMetadata: Record<string, any> = {
                 ...state.metadata,
                 agentExecutionCount: {
                   ...agentExecutionCount,
@@ -241,6 +241,15 @@ export class WorkflowController {
               logger.debug(
                 `WorkflowController[Exec:${execId}]: Node[${agentId}] - Last message to process: Type=${lastMessage._getType()}, From=${lastMessage.additional_kwargs?.from || 'initial'}`
               );
+
+              // NOUVEAU: Extraire la requête originale et l'ajouter à la configuration
+              const originalUserQuery = this.extractOriginalUserQuery(state);
+              if (originalUserQuery) {
+                updatedMetadata.originalUserQuery = originalUserQuery;
+                logger.debug(
+                  `WorkflowController[Exec:${execId}]: Node[${agentId}] - Using original user query: "${originalUserQuery}"`
+                );
+              }
 
               // Préparer la configuration avec des métadonnées
               const config = {
@@ -603,6 +612,17 @@ export class WorkflowController {
       logger.debug(
         `WorkflowController[Exec:${execId}]: Router - Message from model-selector, routing directly to starknet`
       );
+
+      // NEW: Preserve the original user query in the state
+      if (lastMessage.additional_kwargs?.originalUserQuery) {
+        // Preserve the original query in the metadata
+        state.metadata.originalUserQuery =
+          lastMessage.additional_kwargs.originalUserQuery;
+        logger.debug(
+          `WorkflowController[Exec:${execId}]: Router - Preserved original user query: "${state.metadata.originalUserQuery}"`
+        );
+      }
+
       if ('starknet' in this.agents) {
         return 'starknet';
       }
@@ -933,5 +953,34 @@ export class WorkflowController {
   ): void {
     logger.debug('WorkflowController: Setting up conditional entry point');
     this.entryPointSelector = entryPointSelector;
+  }
+
+  /**
+   * Extrait la requête utilisateur originale à partir de l'état du workflow ou des messages
+   */
+  private extractOriginalUserQuery(state: WorkflowState): string | null {
+    // Essayer d'abord d'extraire depuis les métadonnées
+    if (state.metadata && state.metadata.originalUserQuery) {
+      return state.metadata.originalUserQuery;
+    }
+
+    // Sinon, chercher dans les messages
+    if (state.messages && state.messages.length > 0) {
+      // Chercher d'abord dans les métadonnées des messages
+      for (const msg of state.messages) {
+        if (msg.additional_kwargs?.originalUserQuery) {
+          return msg.additional_kwargs.originalUserQuery;
+        }
+      }
+
+      // Si pas trouvé, chercher un message utilisateur (HumanMessage)
+      for (const msg of state.messages) {
+        if (msg instanceof HumanMessage && typeof msg.content === 'string') {
+          return msg.content;
+        }
+      }
+    }
+
+    return null;
   }
 }

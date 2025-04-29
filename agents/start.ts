@@ -326,39 +326,39 @@ const localRun = async (): Promise<void> => {
       nodeUrl: process.env.STARKNET_RPC_URL!,
     });
 
-    // Configure agent system
+    // Prepare Agent System configuration ACCORDING TO THE DEFINITION IN agents/src/agents/index.ts
     const agentSystemConfig: AgentSystemConfig = {
       starknetProvider: provider,
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY!,
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS!,
-      modelsConfigPath: modelsConfigPath,
-      agentMode: agentMode as 'interactive' | 'autonomous',
-      signature: 'default-signature',
+      modelsConfigPath, // Already loaded
+      agentMode:
+        json_config?.mode?.autonomous === true ? 'autonomous' : 'interactive', // Use autonomous flag or default to interactive
+      signature: '', // TODO: Implement signature handling
       databaseCredentials: database,
-      agentConfigPath: agentPath,
+      agentConfigPath: agentPath, // Pass the PATH to the agent config file
       debug: DEBUG,
     };
 
-    // Display agent information
-    const agentName = json_config?.name || 'Unknown';
-    const configPath = path.basename(agentPath);
-    const modelsPath = path.basename(modelsConfigPath);
-
-    // Instantiate & Initialize Agent System
+    // Create and initialize the agent system
     agentSystem = new AgentSystem(agentSystemConfig);
     await agentSystem.init();
 
     spinner.success({
       text: chalk.black(
-        `Agent System "${chalk.cyan(agentName)}" initialized successfully`
+        `Agent System "${chalk.cyan(json_config?.name || 'Unknown')}" initialized successfully`
       ),
     });
 
     // --- Execution Logic based on mode ---
     if (agentMode === 'interactive') {
       console.log(chalk.dim('\nStarting interactive session...\n'));
-      console.log(chalk.dim(`- Config: ${chalk.bold(configPath)}`));
-      console.log(chalk.dim(`- Models: ${chalk.bold(modelsPath)}\n`));
+      console.log(
+        chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
+      );
+      console.log(
+        chalk.dim(`- Models: ${chalk.bold(path.basename(modelsConfigPath))}\n`)
+      );
 
       while (true) {
         const { user } = await inquirer.prompt([
@@ -451,7 +451,9 @@ const localRun = async (): Promise<void> => {
       }
     } else if (agentMode === 'autonomous') {
       console.log(chalk.dim('\nStarting autonomous session...\n'));
-      console.log(chalk.dim(`- Config: ${chalk.bold(configPath)}`));
+      console.log(
+        chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
+      );
       console.log(chalk.yellow('Running autonomous mode...'));
 
       try {

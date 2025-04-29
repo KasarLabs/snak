@@ -23,6 +23,7 @@ import { createBox } from '../../prompt/formatting.js';
 import { addTokenInfoToBox } from '../../token/tokenTracking.js';
 import { Tool } from '@langchain/core/tools';
 import { DatabaseCredentials } from '../../tools/types/database.js';
+import { JsonConfig } from '../../config/jsonConfig.js';
 
 /**
  * Configuration pour l'agent superviseur
@@ -44,16 +45,93 @@ export class SupervisorAgent extends BaseAgent {
   private toolsOrchestrator: ToolsOrchestrator | null = null;
   private memoryAgent: MemoryAgent | null = null;
   private workflowController: WorkflowController | null = null;
-  private config: SupervisorAgentConfig;
+  private config: SupervisorAgentConfig = {
+    modelsConfigPath: '',
+    starknetConfig: {},
+    agentMode: 'interactive',
+  };
   private operators: Map<string, IAgent> = new Map();
-  private debug: boolean;
+  private debug: boolean = false;
   private executionDepth: number = 0; // Track execution depth
-  private checkpointEnabled: boolean;
+  private checkpointEnabled: boolean = false;
+  // Store the original config as a static property
+  private static originalConfigCapture: any = null;
 
-  constructor(config: SupervisorAgentConfig) {
+  constructor(configObject: SupervisorAgentConfig) {
+    // AGGRESSIVELY capture the config before super() can do anything
+    try {
+      const configStr = JSON.stringify(arguments[0]);
+      SupervisorAgent.originalConfigCapture = JSON.parse(configStr);
+      logger.debug(
+        'SupervisorAgent: CAPTURED CONFIG JSON:',
+        configStr.substring(0, 100) + '...'
+      );
+    } catch (err) {
+      logger.error('SupervisorAgent: Failed to capture config via JSON:', err);
+      SupervisorAgent.originalConfigCapture = null;
+    }
+
     super('supervisor', AgentType.SUPERVISOR);
-    this.config = config;
-    this.debug = config.debug || false;
+
+    logger.debug(
+      'SupervisorAgent: After super(), attempting to restore config'
+    );
+
+    // MANUALLY RESTORE the config from our static property
+    if (SupervisorAgent.originalConfigCapture) {
+      // Manual assignment of each field to avoid reference issues
+      this.config = {
+        modelsConfigPath:
+          SupervisorAgent.originalConfigCapture.modelsConfigPath || '',
+        starknetConfig:
+          SupervisorAgent.originalConfigCapture.starknetConfig || {},
+        agentMode:
+          SupervisorAgent.originalConfigCapture.agentMode || 'interactive',
+        debug: !!SupervisorAgent.originalConfigCapture.debug,
+      };
+
+      // Special handling for agentConfig
+      if (SupervisorAgent.originalConfigCapture.agentConfig) {
+        try {
+          // Deep clone via JSON to break any problematic references
+          const agentConfigStr = JSON.stringify(
+            SupervisorAgent.originalConfigCapture.agentConfig
+          );
+          this.config.agentConfig = JSON.parse(agentConfigStr);
+          logger.debug(
+            'SupervisorAgent: Successfully restored agentConfig, keys:',
+            Object.keys(this.config.agentConfig).join(', ')
+          );
+        } catch (err) {
+          logger.error('SupervisorAgent: Failed to restore agentConfig:', err);
+        }
+      }
+
+      logger.debug(
+        'SupervisorAgent: Config restored. Keys:',
+        Object.keys(this.config).join(', ')
+      );
+      logger.debug(
+        'SupervisorAgent: modelsConfigPath:',
+        this.config.modelsConfigPath
+      );
+      logger.debug('SupervisorAgent: agentMode:', this.config.agentMode);
+      logger.debug(
+        'SupervisorAgent: agentConfig exists:',
+        !!this.config.agentConfig
+      );
+      logger.debug(
+        'SupervisorAgent: starknetConfig exists:',
+        !!this.config.starknetConfig
+      );
+    } else {
+      logger.error(
+        'SupervisorAgent: Failed to restore config - no original capture available'
+      );
+    }
+
+    // Set debug flag
+    this.debug = !!this.config.debug;
     logger.debug('SupervisorAgent: Initializing');
   }
 
@@ -61,7 +139,14 @@ export class SupervisorAgent extends BaseAgent {
    * Initialise le superviseur et tous les agents sous son contrôle
    */
   public async init(): Promise<void> {
+    const agentConfig = this.config.agentConfig; // Capture the config at the start
     logger.debug('SupervisorAgent: Starting initialization');
+    logger.debug(
+      'SupervisorAgent: Captured agentConfig at start:',
+      agentConfig
+        ? `Object with keys: ${Object.keys(agentConfig).join(', ')}`
+        : 'null or undefined'
+    );
 
     try {
       // 1. Initialiser l'agent de sélection de modèle
@@ -76,13 +161,12 @@ export class SupervisorAgent extends BaseAgent {
       logger.debug('SupervisorAgent: ModelSelectionAgent initialized');
 
       // 2. Initialiser l'agent mémoire si nécessaire
-      if (this.config.agentConfig?.memory?.enabled !== false) {
+      if (agentConfig?.memory?.enabled !== false) {
         logger.debug('SupervisorAgent: Initializing MemoryAgent...');
         this.memoryAgent = new MemoryAgent({
-          shortTermMemorySize:
-            this.config.agentConfig?.memory?.shortTermMemorySize || 15,
-          recursionLimit: this.config.agentConfig?.memory?.recursionLimit,
-          embeddingModel: this.config.agentConfig?.memory?.embeddingModel,
+          shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
+          recursionLimit: agentConfig?.memory?.recursionLimit,
+          embeddingModel: agentConfig?.memory?.embeddingModel,
         });
         await this.memoryAgent.init();
         this.operators.set(this.memoryAgent.id, this.memoryAgent);
@@ -95,10 +179,18 @@ export class SupervisorAgent extends BaseAgent {
 
       // 3. Initialiser l'agent principal (Starknet)
       logger.debug('SupervisorAgent: Initializing StarknetAgent...');
+      logger.debug(
+        'SupervisorAgent: Value of LOCAL agentConfig before creating StarknetAgent:',
+        agentConfig
+          ? `Object with keys: ${Object.keys(agentConfig).join(', ')}`
+          : 'null or undefined'
+      );
+
       this.starknetAgent = new StarknetAgent({
         ...this.config.starknetConfig,
         modelSelector: this.modelSelectionAgent,
-        memory: this.config.agentConfig?.memory,
+        memory: agentConfig?.memory,
+        agentconfig: agentConfig,
       });
       await this.starknetAgent.init();
       logger.debug('SupervisorAgent: StarknetAgent initialized');
@@ -107,7 +199,7 @@ export class SupervisorAgent extends BaseAgent {
       logger.debug('SupervisorAgent: Initializing ToolsOrchestrator...');
       this.toolsOrchestrator = new ToolsOrchestrator({
         starknetAgent: this.starknetAgent,
-        agentConfig: this.config.agentConfig,
+        agentConfig: agentConfig,
       });
       await this.toolsOrchestrator.init();
       this.operators.set(this.toolsOrchestrator.id, this.toolsOrchestrator);
@@ -115,11 +207,11 @@ export class SupervisorAgent extends BaseAgent {
 
       // 5. Initialiser le contrôleur de workflow
       logger.debug('SupervisorAgent: Initializing WorkflowController...');
-      await this.initializeWorkflowController();
+      await this.initializeWorkflowController(agentConfig);
       logger.debug('SupervisorAgent: WorkflowController initialized');
 
       // 6. Activer les métriques
-      this.initializeMetrics();
+      this.initializeMetrics(agentConfig);
 
       logger.info('SupervisorAgent: All agents initialized successfully');
     } catch (error) {
@@ -131,7 +223,9 @@ export class SupervisorAgent extends BaseAgent {
   /**
    * Initialise le contrôleur de workflow
    */
-  private async initializeWorkflowController(): Promise<void> {
+  private async initializeWorkflowController(
+    agentConfig: JsonConfig | null | undefined
+  ): Promise<void> {
     logger.debug('SupervisorAgent: Entering initializeWorkflowController');
     try {
       // Rassembler tous les agents disponibles
@@ -175,9 +269,9 @@ export class SupervisorAgent extends BaseAgent {
         );
       }
 
-      // Configuration améliorée
-      const maxIterations = this.config.agentConfig?.maxIterations || 15;
-      const workflowTimeout = this.config.agentConfig?.workflowTimeout || 60000;
+      // Configuration améliorée (use local agentConfig)
+      const maxIterations = 15; // Use default directly for now
+      const workflowTimeout = 60000; // Use default directly for now
 
       logger.debug(
         `SupervisorAgent: WorkflowController will be configured with maxIterations=${maxIterations}, timeout=${workflowTimeout}ms`
@@ -219,11 +313,11 @@ export class SupervisorAgent extends BaseAgent {
   /**
    * Initialise les métriques
    */
-  private initializeMetrics(): void {
+  private initializeMetrics(agentConfig: JsonConfig | null | undefined): void {
     logger.debug('SupervisorAgent: Initializing metrics');
     if (!this.starknetAgent) return;
 
-    const agentName = this.config.agentConfig?.name || 'agent';
+    const agentName = agentConfig?.name || 'agent';
     metrics.metricsAgentConnect(agentName, this.config.agentMode);
   }
 
@@ -505,7 +599,7 @@ export class SupervisorAgent extends BaseAgent {
         'SupervisorAgent: Resetting and re-initializing workflow controller due to mode change...'
       );
       await this.workflowController.reset();
-      await this.initializeWorkflowController();
+      await this.initializeWorkflowController(this.config.agentConfig);
       logger.debug('SupervisorAgent: Workflow controller re-initialized.');
     } else {
       logger.debug('SupervisorAgent: No workflow controller to reconfigure.');

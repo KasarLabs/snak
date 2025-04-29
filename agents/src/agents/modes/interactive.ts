@@ -187,10 +187,25 @@ export const createAgent = async (
       ]);
 
       try {
+        // NOUVEAU: Filtrer les messages du model-selector pour qu'ils n'apparaissent pas dans l'historique
+        const filteredMessages = state.messages.filter(
+          (msg) =>
+            !(
+              msg instanceof AIMessage &&
+              msg.additional_kwargs?.from === 'model-selector'
+            )
+        );
+
+        if (filteredMessages.length !== state.messages.length) {
+          logger.debug(
+            `Filtered out ${state.messages.length - filteredMessages.length} model-selector messages from history`
+          );
+        }
+
         const formattedPrompt = await prompt.formatMessages({
           system_message: '',
           tool_names: toolsList.map((tool) => tool.name).join(', '),
-          messages: state.messages,
+          messages: filteredMessages, // Use filtered messages instead of original ones
           memories: state.memories || '',
         });
 
