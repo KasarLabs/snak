@@ -41,6 +41,9 @@ export interface ModeConfig {
  */
 export interface JsonConfig {
   name: string;
+  bio?: string;
+  objectives?: string[];
+  knowledge?: string[];
   prompt: SystemMessage;
   interval: number;
   chat_id: string;

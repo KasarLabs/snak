@@ -321,10 +321,13 @@ const localRun = async (): Promise<void> => {
       throw new Error(`Failed to initialize database: ${dbError.message}`);
     }
 
+    const nodeUrl = process.env.STARKNET_RPC_URL;
+    if (!nodeUrl) {
+      throw new Error("STARKNET_RPC_URL n'est pas défini dans les variables d'environnement");
+    }
+
     // Prepare RPC Provider
-    const provider = new RpcProvider({
-      nodeUrl: process.env.STARKNET_RPC_URL!,
-    });
+    const provider = new RpcProvider({ nodeUrl: `${nodeUrl}` });
 
     // Prepare Agent System configuration ACCORDING TO THE DEFINITION IN agents/src/agents/index.ts
     const agentSystemConfig: AgentSystemConfig = {
