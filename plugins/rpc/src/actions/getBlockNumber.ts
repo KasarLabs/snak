@@ -4,13 +4,15 @@ export const getBlockNumber = async (agent: StarknetAgentInterface) => {
   const provider = agent.getProvider();
   console.log("this is the provider", provider);
   try {
+    console.log('Before calling getBlockNumber');
     const blockNumber = await provider.getBlockNumber();
-    console.log('trying to get blockNumber', blockNumber);
+    console.log('Block number received:', blockNumber);
     return JSON.stringify({
       status: 'success',
       blockNumber,
     });
   } catch (error) {
+    console.error('Error getting block number:', error);
     return JSON.stringify({
       status: 'failure',
       error: error instanceof Error ? error.message : 'Unknown error',
