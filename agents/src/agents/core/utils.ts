@@ -1,4 +1,3 @@
-// agents/core/utils.ts
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
@@ -23,8 +22,6 @@ import { configureModelWithTracking } from '../../token/tokenTracking.js';
 
 /**
  * Selects and configures an AI model based on the provided configuration
- * @param aiConfig AI configuration
- * @returns The configured model
  */
 export function selectModel(aiConfig: AiConfig) {
   let model;
@@ -97,9 +94,6 @@ export function selectModel(aiConfig: AiConfig) {
 
 /**
  * Initializes the list of tools for the agent
- * @param starknetAgent The Starknet agent interface
- * @param jsonConfig The agent configuration
- * @returns The list of initialized tools
  */
 export async function initializeToolsList(
   starknetAgent: StarknetAgentInterface,
@@ -136,7 +130,6 @@ export async function initializeToolsList(
 
 /**
  * Initializes the database connection for the agent
- * @param db Database credentials
  */
 export const initializeDatabase = async (db: DatabaseCredentials) => {
   try {

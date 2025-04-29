@@ -1,36 +1,35 @@
-// agents/core/baseAgent.ts
 import { BaseMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 /**
- * Interface de base pour tous les agents du système
+ * Base interface for all agents in the system
  */
 export interface IAgent {
   /**
-   * Identifiant unique de l'agent
+   * Unique identifier of the agent
    */
   readonly id: string;
 
   /**
-   * Type de l'agent
+   * Type of agent
    */
   readonly type: AgentType;
 
   /**
-   * Initialise l'agent
+   * Initializes the agent
    */
   init(): Promise<void>;
 
   /**
-   * Exécute une action avec l'agent
-   * @param input Entrée à traiter
-   * @param config Configuration optionnelle
+   * Executes an action with the agent
+   * @param input Input to process
+   * @param config Optional configuration
    */
   execute(input: any, config?: Record<string, any>): Promise<any>;
 }
 
 /**
- * Types d'agents disponibles dans le système
+ * Available agent types in the system
  */
 export enum AgentType {
   SUPERVISOR = 'supervisor',
@@ -39,7 +38,7 @@ export enum AgentType {
 }
 
 /**
- * Interface pour les messages entre agents
+ * Interface for messages between agents
  */
 export interface AgentMessage {
   from: string;
@@ -49,11 +48,11 @@ export interface AgentMessage {
 }
 
 /**
- * Interface pour les agents opérateurs qui utilisent des modèles LLM
+ * Interface for operator agents that use LLM models
  */
 export interface IModelAgent extends IAgent {
   /**
-   * Obtient le modèle approprié pour une tâche
+   * Gets the appropriate model for a task
    */
   getModelForTask(
     messages: BaseMessage[],
@@ -61,13 +60,13 @@ export interface IModelAgent extends IAgent {
   ): Promise<BaseChatModel>;
 
   /**
-   * Invoque un modèle avec la sélection appropriée
+   * Invokes a model with appropriate selection
    */
   invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any>;
 }
 
 /**
- * Classe de base abstraite pour tous les agents
+ * Abstract base class for all agents
  */
 export abstract class BaseAgent implements IAgent {
   readonly id: string;

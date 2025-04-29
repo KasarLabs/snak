@@ -16,9 +16,11 @@ import { z } from 'zod';
 import { logger, JsonConfig } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import { AiConfig } from '../../common/index.js';
-import { initializeToolsList } from '../core/utils.js';
-import { initializeDatabase } from '../core/utils.js';
-import { selectModel } from '../core/utils.js';
+import {
+  initializeToolsList,
+  initializeDatabase,
+  selectModel,
+} from '../core/utils.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { memory } from '@snakagent/database/queries';
@@ -26,8 +28,6 @@ import { estimateTokens } from '../../token/tokenTracking.js';
 
 /**
  * Creates an agent in interactive mode
- * @param starknetAgent The Starknet agent instance
- * @param aiConfig AI configuration
  */
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -40,7 +40,6 @@ export const createAgent = async (
       throw new Error('Agent configuration is required');
     }
 
-    // Initialize database if needed
     await initializeDatabase(starknetAgent.getDatabaseCredentials());
 
     // Initialize memory if configured
@@ -54,16 +53,13 @@ export const createAgent = async (
       }
     }
 
-    // Initialize tools
     const toolsList = await initializeToolsList(starknetAgent, json_config);
 
-    // Setup embeddings for memory operations
     const embeddings = new CustomHuggingFaceEmbeddings({
       model: 'Xenova/all-MiniLM-L6-v2',
       dtype: 'fp32',
     });
 
-    // Define the state graph
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
@@ -71,7 +67,6 @@ export const createAgent = async (
       memories: Annotation<string>,
     });
 
-    // Create memory tool
     const upsertMemoryToolDB = tool(
       async (
         { content, memoryId },
@@ -82,8 +77,6 @@ export const createAgent = async (
           const embedding = await embeddings.embedQuery(content);
           const metadata = { timestamp: new Date().toISOString() };
           content = content.replace(/'/g, "''");
-
-          logger.debug('Calling memory tool');
 
           if (memoryId) {
             logger.debug('memoryId detected : ' + memoryId);
@@ -128,12 +121,10 @@ export const createAgent = async (
       }
     );
 
-    // Add memory tool to tools list if memory is enabled
     if (json_config.memory) {
       toolsList.push(upsertMemoryToolDB);
     }
 
-    // Memory retrieval function
     const addMemoriesFromDB = async (
       state: typeof GraphState.State,
       config: LangGraphRunnableConfig
@@ -159,29 +150,22 @@ export const createAgent = async (
       }
     };
 
-    // Create tool node
     const toolNode = new ToolNode(toolsList);
-
-    // Select and bind the AI model with tools
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
-    // Build the prompt
-    const configPrompt = json_config.prompt?.content || ''; // Use empty string as fallback
+    const configPrompt = json_config.prompt?.content || '';
     const memoryPrompt = ``;
     const finalPrompt = json_config.memory
       ? `${configPrompt}\n${memoryPrompt}`
       : `${configPrompt}`;
 
-    // Modification à apporter à la fonction callModel dans interactive.ts
     async function callModel(
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
-      // Vérifier que la configuration est disponible
       if (!json_config) {
         throw new Error('Agent configuration is required but not available');
       }
 
-      // Vérifier que les éléments essentiels sont présents
       if (!json_config.name) {
         throw new Error('Agent name is required in configuration');
       }
@@ -204,7 +188,6 @@ export const createAgent = async (
         throw new Error('Agent knowledge is required in configuration');
       }
 
-      // Construire le système prompt à partir de la configuration validée
       const systemPromptContent = `
 Your name: ${json_config.name}
 Your bio: ${(json_config as any).bio}
@@ -221,11 +204,6 @@ Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
 When analyzing blockchain data, be thorough and use the appropriate RPC tools.
   `.trim();
 
-      // Logger le système prompt pour debugging
-      logger.debug(
-        `Generated system prompt: ${systemPromptContent.substring(0, 200)}...`
-      );
-
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
@@ -238,7 +216,7 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
       ]);
 
       try {
-        // NOUVEAU: Filtrer les messages du model-selector pour qu'ils n'apparaissent pas dans l'historique
+        // Filter model-selector messages from history
         const filteredMessages = state.messages.filter(
           (msg) =>
             !(
@@ -253,105 +231,41 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
           );
         }
 
-        // Ne plus utiliser system_message puisqu'il est maintenant inclus directement
         const formattedPrompt = await prompt.formatMessages({
           tool_names: toolsList.map((tool) => tool.name).join(', '),
           messages: filteredMessages,
           memories: state.memories || '',
         });
 
-        // Ajouter un log pour vérifier que le système prompt est correctement formaté
         if (aiConfig.langchainVerbose) {
-          logger.debug(
-            `Formatted prompt for LLM includes system content: ${
-              typeof formattedPrompt[0]?.content === 'string'
-                ? (formattedPrompt[0].content as string).substring(0, 100)
-                : 'No system content found or not a string!'
-            }...`
-          );
           logger.debug(
             `Formatted prompt for LLM: ${JSON.stringify(formattedPrompt, null, 2)}`
           );
         }
 
-        logger.debug(`Prompt template: ${JSON.stringify(prompt)}`);
-        logger.debug(
-          `Formatted prompt messages: ${JSON.stringify(formattedPrompt)}`
-        );
-
         // Estimate message size and check limit
         const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
         if (estimatedTokens > 90000) {
-          // Safety limit to avoid token errors
           logger.warn(
             `Prompt exceeds safe token limit: ${estimatedTokens} tokens. Truncating messages...`
           );
 
-          // Create a truncated version of input messages
           // Only keep the last 4 messages
           const truncatedMessages = state.messages.slice(-4);
 
-          // Reformat the prompt with truncated messages
           const truncatedPrompt = await prompt.formatMessages({
             tool_names: toolsList.map((tool) => tool.name).join(', '),
             messages: truncatedMessages,
             memories: state.memories || '',
           });
 
-          // Use truncated prompt
           const result = await modelSelected.invoke(truncatedPrompt);
-
-          // FIX: Ensure we're wrapping the result in an AIMessage with the right metadata if needed
-          let finalResult = result;
-          if (!(finalResult instanceof AIMessage)) {
-            finalResult = new AIMessage({
-              content:
-                typeof finalResult.content === 'string'
-                  ? finalResult.content
-                  : JSON.stringify(finalResult.content),
-              additional_kwargs: {
-                from: 'starknet',
-                final: true,
-              },
-            });
-          } else if (!finalResult.additional_kwargs) {
-            finalResult.additional_kwargs = { from: 'starknet', final: true };
-          } else if (!finalResult.additional_kwargs.from) {
-            finalResult.additional_kwargs.from = 'starknet';
-            finalResult.additional_kwargs.final = true;
-          }
-
-          return {
-            messages: [finalResult],
-          };
+          return formatAIMessageResult(result);
         }
 
         // If we're below the limit, use the full prompt
         const result = await modelSelected.invoke(formattedPrompt);
-
-        // FIX: Ensure the result is properly wrapped like above
-        let finalResult = result;
-        if (!(finalResult instanceof AIMessage)) {
-          finalResult = new AIMessage({
-            content:
-              typeof finalResult.content === 'string'
-                ? finalResult.content
-                : JSON.stringify(finalResult.content),
-            additional_kwargs: {
-              from: 'starknet',
-              final: true,
-            },
-          });
-        } else if (!finalResult.additional_kwargs) {
-          finalResult.additional_kwargs = { from: 'starknet', final: true };
-        } else if (!finalResult.additional_kwargs.from) {
-          finalResult.additional_kwargs.from = 'starknet';
-          finalResult.additional_kwargs.final = true;
-        }
-
-        return {
-          messages: [finalResult],
-        };
+        return formatAIMessageResult(result);
       } catch (error) {
         // Handle token limit errors specifically
         if (
@@ -374,30 +288,7 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
             });
 
             const result = await modelSelected.invoke(emergencyPrompt);
-
-            // FIX: Ensure proper AIMessage wrapping here too
-            let finalResult = result;
-            if (!(finalResult instanceof AIMessage)) {
-              finalResult = new AIMessage({
-                content:
-                  typeof finalResult.content === 'string'
-                    ? finalResult.content
-                    : JSON.stringify(finalResult.content),
-                additional_kwargs: {
-                  from: 'starknet',
-                  final: true,
-                },
-              });
-            } else if (!finalResult.additional_kwargs) {
-              finalResult.additional_kwargs = { from: 'starknet', final: true };
-            } else if (!finalResult.additional_kwargs.from) {
-              finalResult.additional_kwargs.from = 'starknet';
-              finalResult.additional_kwargs.final = true;
-            }
-
-            return {
-              messages: [finalResult],
-            };
+            return formatAIMessageResult(result);
           } catch (emergencyError) {
             // If even the emergency prompt fails, return a formatted error message
             return {
@@ -419,6 +310,32 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
         // For other types of errors, propagate them
         throw error;
       }
+    }
+
+    // Helper function to ensure consistent AI message formatting
+    function formatAIMessageResult(result: any): { messages: BaseMessage[] } {
+      let finalResult = result;
+      if (!(finalResult instanceof AIMessage)) {
+        finalResult = new AIMessage({
+          content:
+            typeof finalResult.content === 'string'
+              ? finalResult.content
+              : JSON.stringify(finalResult.content),
+          additional_kwargs: {
+            from: 'starknet',
+            final: true,
+          },
+        });
+      } else if (!finalResult.additional_kwargs) {
+        finalResult.additional_kwargs = { from: 'starknet', final: true };
+      } else if (!finalResult.additional_kwargs.from) {
+        finalResult.additional_kwargs.from = 'starknet';
+        finalResult.additional_kwargs.final = true;
+      }
+
+      return {
+        messages: [finalResult],
+      };
     }
 
     // Decides whether to continue with tools or end execution
