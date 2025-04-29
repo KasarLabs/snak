@@ -323,7 +323,9 @@ const localRun = async (): Promise<void> => {
 
     const nodeUrl = process.env.STARKNET_RPC_URL;
     if (!nodeUrl) {
-      throw new Error("STARKNET_RPC_URL n'est pas défini dans les variables d'environnement");
+      throw new Error(
+        "STARKNET_RPC_URL n'est pas défini dans les variables d'environnement"
+      );
     }
 
     // Prepare RPC Provider

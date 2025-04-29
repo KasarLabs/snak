@@ -2,7 +2,8 @@ import { StarknetAgentInterface } from '@snakagent/core';
 
 export const getBlockNumber = async (agent: StarknetAgentInterface) => {
   const provider = agent.getProvider();
-  console.log("this is the provider", provider);
+  console.log('this is the provider', provider);
+  console.log('this is the agent', agent);
   try {
     console.log('Before calling getBlockNumber');
     const blockNumber = await provider.getBlockNumber();

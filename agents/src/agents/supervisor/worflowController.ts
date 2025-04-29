@@ -590,6 +590,40 @@ export class WorkflowController {
     const lastMessage = state.messages[state.messages.length - 1];
     const history = state.metadata.agentHistory || [];
 
+    // IMPORTANT: Vérifier plus soigneusement si le dernier message contient une réponse finale
+    // Cette section est cruciale pour terminer correctement le workflow
+    if (lastMessage instanceof AIMessage) {
+      // Cas 1: Réponse finale explicite via metadata
+      if (lastMessage.additional_kwargs?.final === true) {
+        logger.debug(
+          `WorkflowController[Exec:${execId}]: Router - Message marked as final, ending workflow`
+        );
+        return END;
+      }
+
+      // Cas 2: Réponse de starknet - on assume que c'est toujours une réponse finale pour éviter les boucles
+      if (lastMessage.additional_kwargs?.from === 'starknet') {
+        logger.debug(
+          `WorkflowController[Exec:${execId}]: Router - Response from starknet, treating as final and ending workflow`
+        );
+        return END;
+      }
+
+      // Cas 3: Contenu vide ou autre signe que la conversation devrait se terminer
+      if (
+        !lastMessage.content ||
+        (Array.isArray(lastMessage.content) &&
+          lastMessage.content.length === 0) ||
+        (typeof lastMessage.content === 'string' &&
+          lastMessage.content.trim() === '')
+      ) {
+        logger.debug(
+          `WorkflowController[Exec:${execId}]: Router - Empty response detected, ending workflow`
+        );
+        return END;
+      }
+    }
+
     // CRITICAL FIX: Check for cycles involving supervisor
     if (state.currentAgent === 'supervisor') {
       const supervisorCount = history.filter(

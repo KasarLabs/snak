@@ -172,31 +172,38 @@ export const createAgent = async (
       ? `${configPrompt}\n${memoryPrompt}`
       : `${configPrompt}`;
 
+    // Modification à apporter à la fonction callModel dans interactive.ts
     async function callModel(
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
       // Vérifier que la configuration est disponible
       if (!json_config) {
-        throw new Error("Agent configuration is required but not available");
+        throw new Error('Agent configuration is required but not available');
       }
-      
+
       // Vérifier que les éléments essentiels sont présents
       if (!json_config.name) {
-        throw new Error("Agent name is required in configuration");
+        throw new Error('Agent name is required in configuration');
       }
-      
+
       if (!(json_config as any).bio) {
-        throw new Error("Agent bio is required in configuration");
+        throw new Error('Agent bio is required in configuration');
       }
-      
-      if (!Array.isArray((json_config as any).objectives) || (json_config as any).objectives.length === 0) {
-        throw new Error("Agent objectives are required in configuration");
+
+      if (
+        !Array.isArray((json_config as any).objectives) ||
+        (json_config as any).objectives.length === 0
+      ) {
+        throw new Error('Agent objectives are required in configuration');
       }
-      
-      if (!Array.isArray((json_config as any).knowledge) || (json_config as any).knowledge.length === 0) {
-        throw new Error("Agent knowledge is required in configuration");
+
+      if (
+        !Array.isArray((json_config as any).knowledge) ||
+        (json_config as any).knowledge.length === 0
+      ) {
+        throw new Error('Agent knowledge is required in configuration');
       }
-      
+
       // Construire le système prompt à partir de la configuration validée
       const systemPromptContent = `
 Your name: ${json_config.name}
@@ -212,18 +219,20 @@ You have access to Starknet RPC tools that allow you to interact with the blockc
 Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
 
 When analyzing blockchain data, be thorough and use the appropriate RPC tools.
-      `.trim();
+  `.trim();
 
       // Logger le système prompt pour debugging
-      logger.debug(`Generated system prompt: ${systemPromptContent.substring(0, 200)}...`);
+      logger.debug(
+        `Generated system prompt: ${systemPromptContent.substring(0, 200)}...`
+      );
 
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
           `${finalPrompt.trim()}
-            ${state.memories ? '\nUser Memory Context:\n' + state.memories : ''}
-            ${state.memories ? '\n' : ''}
-            ${systemPromptContent}`.trim(),
+        ${state.memories ? '\nUser Memory Context:\n' + state.memories : ''}
+        ${state.memories ? '\n' : ''}
+        ${systemPromptContent}`.trim(),
         ],
         new MessagesPlaceholder('messages'),
       ]);
@@ -250,13 +259,13 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
           messages: filteredMessages,
           memories: state.memories || '',
         });
-        
+
         // Ajouter un log pour vérifier que le système prompt est correctement formaté
         if (aiConfig.langchainVerbose) {
           logger.debug(
             `Formatted prompt for LLM includes system content: ${
-              typeof formattedPrompt[0]?.content === 'string' 
-                ? (formattedPrompt[0].content as string).substring(0, 100) 
+              typeof formattedPrompt[0]?.content === 'string'
+                ? (formattedPrompt[0].content as string).substring(0, 100)
                 : 'No system content found or not a string!'
             }...`
           );
@@ -269,7 +278,7 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
         logger.debug(
           `Formatted prompt messages: ${JSON.stringify(formattedPrompt)}`
         );
-        
+
         // Estimate message size and check limit
         const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
         if (estimatedTokens > 90000) {
@@ -291,15 +300,57 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
 
           // Use truncated prompt
           const result = await modelSelected.invoke(truncatedPrompt);
+
+          // FIX: Ensure we're wrapping the result in an AIMessage with the right metadata if needed
+          let finalResult = result;
+          if (!(finalResult instanceof AIMessage)) {
+            finalResult = new AIMessage({
+              content:
+                typeof finalResult.content === 'string'
+                  ? finalResult.content
+                  : JSON.stringify(finalResult.content),
+              additional_kwargs: {
+                from: 'starknet',
+                final: true,
+              },
+            });
+          } else if (!finalResult.additional_kwargs) {
+            finalResult.additional_kwargs = { from: 'starknet', final: true };
+          } else if (!finalResult.additional_kwargs.from) {
+            finalResult.additional_kwargs.from = 'starknet';
+            finalResult.additional_kwargs.final = true;
+          }
+
           return {
-            messages: [result],
+            messages: [finalResult],
           };
         }
 
         // If we're below the limit, use the full prompt
         const result = await modelSelected.invoke(formattedPrompt);
+
+        // FIX: Ensure the result is properly wrapped like above
+        let finalResult = result;
+        if (!(finalResult instanceof AIMessage)) {
+          finalResult = new AIMessage({
+            content:
+              typeof finalResult.content === 'string'
+                ? finalResult.content
+                : JSON.stringify(finalResult.content),
+            additional_kwargs: {
+              from: 'starknet',
+              final: true,
+            },
+          });
+        } else if (!finalResult.additional_kwargs) {
+          finalResult.additional_kwargs = { from: 'starknet', final: true };
+        } else if (!finalResult.additional_kwargs.from) {
+          finalResult.additional_kwargs.from = 'starknet';
+          finalResult.additional_kwargs.final = true;
+        }
+
         return {
-          messages: [result],
+          messages: [finalResult],
         };
       } catch (error) {
         // Handle token limit errors specifically
@@ -323,8 +374,29 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
             });
 
             const result = await modelSelected.invoke(emergencyPrompt);
+
+            // FIX: Ensure proper AIMessage wrapping here too
+            let finalResult = result;
+            if (!(finalResult instanceof AIMessage)) {
+              finalResult = new AIMessage({
+                content:
+                  typeof finalResult.content === 'string'
+                    ? finalResult.content
+                    : JSON.stringify(finalResult.content),
+                additional_kwargs: {
+                  from: 'starknet',
+                  final: true,
+                },
+              });
+            } else if (!finalResult.additional_kwargs) {
+              finalResult.additional_kwargs = { from: 'starknet', final: true };
+            } else if (!finalResult.additional_kwargs.from) {
+              finalResult.additional_kwargs.from = 'starknet';
+              finalResult.additional_kwargs.final = true;
+            }
+
             return {
-              messages: [result],
+              messages: [finalResult],
             };
           } catch (emergencyError) {
             // If even the emergency prompt fails, return a formatted error message
@@ -333,6 +405,11 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
                 new AIMessage({
                   content:
                     'The conversation has become too long and exceeds token limits. Please start a new conversation.',
+                  additional_kwargs: {
+                    from: 'starknet',
+                    final: true,
+                    error: 'token_limit_exceeded',
+                  },
                 }),
               ],
             };

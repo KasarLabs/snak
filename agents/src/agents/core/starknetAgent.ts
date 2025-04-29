@@ -473,7 +473,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     try {
       logger.debug(`StarknetAgent executing with mode: ${this.currentMode}`);
 
-      // NEW: Retrieve the original user query if it exists in config metadata
+      // Retrieve the original user query if it exists in config metadata
       let originalUserQuery = null;
       if (config && config.originalUserQuery) {
         originalUserQuery = config.originalUserQuery;
@@ -482,7 +482,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         );
       }
 
-      // NEW: Also extract from the input if it's a message from ModelSelectionAgent
+      // Also extract from the input if it's a message from ModelSelectionAgent
       if (
         input instanceof BaseMessage &&
         input.additional_kwargs?.from === 'model-selector' &&
@@ -669,8 +669,39 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           { messages: currentMessages },
           { configurable: { thread_id: 'default' } }
         );
-        // Assuming result contains the final AIMessage or similar structure
-        responseContent = result.messages[result.messages.length - 1].content;
+
+        // IMPROVED: Better handling of result extraction
+        if (result && result.messages && result.messages.length > 0) {
+          // Get the last non-empty AIMessage from the result
+          for (let i = result.messages.length - 1; i >= 0; i--) {
+            const msg = result.messages[i];
+            if (msg instanceof AIMessage && msg.content) {
+              if (
+                typeof msg.content === 'string' &&
+                msg.content.trim() !== ''
+              ) {
+                responseContent = msg.content;
+                break;
+              } else if (Array.isArray(msg.content) && msg.content.length > 0) {
+                responseContent = msg.content;
+                break;
+              }
+            }
+          }
+
+          // If we still don't have content, use the last message or a default
+          if (!responseContent) {
+            const lastMsg = result.messages[result.messages.length - 1];
+            responseContent =
+              lastMsg && lastMsg.content
+                ? lastMsg.content
+                : "Je n'ai pas pu générer de réponse spécifique pour cette requête.";
+          }
+        } else {
+          // Default response if no valid messages found
+          responseContent =
+            "Aucune réponse n'a pu être générée. Veuillez réessayer avec une requête différente.";
+        }
       } catch (agentExecError: any) {
         logger.error(
           `StarknetAgent: Agent execution failed: ${agentExecError}`
@@ -699,19 +730,17 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         `StarknetAgent final response: ${JSON.stringify(finalResponse)}`
       );
 
-      // Return structured AIMessage with metadata
-      // This should be the final return within the try block if successful
-      responseContent = new AIMessage({
+      // IMPROVED: Always return a properly formatted AIMessage with required metadata
+      return new AIMessage({
         content: finalResponse,
         additional_kwargs: {
           from: 'starknet',
           final: true,
-          agent_mode: this.currentMode, // Report the mode used for this response
+          agent_mode: this.currentMode,
         },
       });
     } catch (error: any) {
       logger.error(`StarknetAgent main execution failed: ${error}`);
-      responseContent = `Error: ${error.message}`;
       // In case of catastrophic error outside agent invocation, use fallback
       if (!fallbackAttempted) {
         logger.error(
@@ -721,7 +750,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         return this.executeSimpleFallback(input);
       }
       // If fallback was attempted or error happened after fallback check, create error AIMessage
-      responseContent = new AIMessage({
+      return new AIMessage({
         content: `Error: ${error.message}`,
         additional_kwargs: {
           from: 'starknet',
@@ -734,15 +763,8 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       if (config?.agentMode && this.currentMode !== originalMode) {
         logger.debug(`Restoring original agent mode: ${originalMode}`);
         this.currentMode = originalMode;
-        // Recréer l'executor pour le mode original si nécessaire
-        // await this.createAgentReactExecutor();
-        // ^-- Optionnel: dépend si on veut que l'agent soit prêt pour le prochain appel
       }
     }
-
-    logger.debug('StarknetAgent: Execution finished, returning response');
-    // Return the final responseContent (either AIMessage or error string from initial failures)
-    return responseContent;
   }
 
   /**

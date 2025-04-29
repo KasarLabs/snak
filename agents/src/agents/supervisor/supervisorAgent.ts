@@ -58,75 +58,39 @@ export class SupervisorAgent extends BaseAgent {
   private static originalConfigCapture: any = null;
 
   constructor(configObject: SupervisorAgentConfig) {
-    // AGGRESSIVELY capture the config before super() can do anything
-    try {
-      const configStr = JSON.stringify(arguments[0]);
-      SupervisorAgent.originalConfigCapture = JSON.parse(configStr);
-      logger.debug(
-        'SupervisorAgent: CAPTURED CONFIG JSON:',
-        configStr.substring(0, 100) + '...'
-      );
-    } catch (err) {
-      logger.error('SupervisorAgent: Failed to capture config via JSON:', err);
-      SupervisorAgent.originalConfigCapture = null;
-    }
-
     super('supervisor', AgentType.SUPERVISOR);
 
+    // Directly assign the provided config object
+    this.config = {
+      modelsConfigPath: configObject.modelsConfigPath || '',
+      starknetConfig: configObject.starknetConfig || {},
+      agentMode: configObject.agentMode || 'interactive',
+      agentConfig: configObject.agentConfig,
+      debug: !!configObject.debug,
+    };
+
+    // For debugging
     logger.debug(
-      'SupervisorAgent: After super(), attempting to restore config'
+      'SupervisorAgent: Config initialized directly. Keys:',
+      Object.keys(this.config).join(', ')
     );
-
-    // MANUALLY RESTORE the config from our static property
-    if (SupervisorAgent.originalConfigCapture) {
-      // Manual assignment of each field to avoid reference issues
-      this.config = {
-        modelsConfigPath:
-          SupervisorAgent.originalConfigCapture.modelsConfigPath || '',
-        starknetConfig:
-          SupervisorAgent.originalConfigCapture.starknetConfig || {},
-        agentMode:
-          SupervisorAgent.originalConfigCapture.agentMode || 'interactive',
-        debug: !!SupervisorAgent.originalConfigCapture.debug,
-      };
-
-      // Special handling for agentConfig
-      if (SupervisorAgent.originalConfigCapture.agentConfig) {
-        try {
-          // Deep clone via JSON to break any problematic references
-          const agentConfigStr = JSON.stringify(
-            SupervisorAgent.originalConfigCapture.agentConfig
-          );
-          this.config.agentConfig = JSON.parse(agentConfigStr);
-          logger.debug(
-            'SupervisorAgent: Successfully restored agentConfig, keys:',
-            Object.keys(this.config.agentConfig).join(', ')
-          );
-        } catch (err) {
-          logger.error('SupervisorAgent: Failed to restore agentConfig:', err);
-        }
-      }
-
+    logger.debug(
+      'SupervisorAgent: modelsConfigPath:',
+      this.config.modelsConfigPath
+    );
+    logger.debug('SupervisorAgent: agentMode:', this.config.agentMode);
+    logger.debug(
+      'SupervisorAgent: agentConfig exists:',
+      !!this.config.agentConfig
+    );
+    logger.debug(
+      'SupervisorAgent: starknetConfig exists:',
+      !!this.config.starknetConfig
+    );
+    if (this.config.starknetConfig) {
       logger.debug(
-        'SupervisorAgent: Config restored. Keys:',
-        Object.keys(this.config).join(', ')
-      );
-      logger.debug(
-        'SupervisorAgent: modelsConfigPath:',
-        this.config.modelsConfigPath
-      );
-      logger.debug('SupervisorAgent: agentMode:', this.config.agentMode);
-      logger.debug(
-        'SupervisorAgent: agentConfig exists:',
-        !!this.config.agentConfig
-      );
-      logger.debug(
-        'SupervisorAgent: starknetConfig exists:',
-        !!this.config.starknetConfig
-      );
-    } else {
-      logger.error(
-        'SupervisorAgent: Failed to restore config - no original capture available'
+        'SupervisorAgent: starknetConfig keys:',
+        Object.keys(this.config.starknetConfig).join(', ')
       );
     }
 
@@ -180,17 +144,22 @@ export class SupervisorAgent extends BaseAgent {
       // 3. Initialiser l'agent principal (Starknet)
       logger.debug('SupervisorAgent: Initializing StarknetAgent...');
       logger.debug(
-        'SupervisorAgent: Value of LOCAL agentConfig before creating StarknetAgent:',
-        agentConfig
-          ? `Object with keys: ${Object.keys(agentConfig).join(', ')}`
+        'SupervisorAgent: starknetConfig before creating StarknetAgent:',
+        this.config.starknetConfig
+          ? `Object with keys: ${Object.keys(this.config.starknetConfig).join(', ')}`
           : 'null or undefined'
       );
 
       this.starknetAgent = new StarknetAgent({
-        ...this.config.starknetConfig,
+        provider: this.config.starknetConfig.provider,
+        accountPublicKey: this.config.starknetConfig.accountPublicKey,
+        accountPrivateKey: this.config.starknetConfig.accountPrivateKey,
+        signature: this.config.starknetConfig.signature,
         modelSelector: this.modelSelectionAgent,
-        memory: agentConfig?.memory,
-        agentconfig: agentConfig,
+        memory: this.config.agentConfig?.memory,
+        agentconfig: this.config.agentConfig,
+        agentMode: this.config.agentMode,
+        db_credentials: this.config.starknetConfig.db_credentials,
       });
       await this.starknetAgent.init();
       logger.debug('SupervisorAgent: StarknetAgent initialized');
@@ -361,17 +330,10 @@ export class SupervisorAgent extends BaseAgent {
           // Emballer le résultat et le marquer comme final
           const finalResult =
             result instanceof BaseMessage
-              ? result
-              : new AIMessage({
-                  content:
-                    typeof result === 'string'
-                      ? result
-                      : JSON.stringify(result),
-                  additional_kwargs: {
-                    from: 'supervisor',
-                    final: true,
-                  },
-                });
+              ? result.content
+              : typeof result === 'string'
+                ? result
+                : JSON.stringify(result);
 
           logger.debug(
             `${depthIndent}SupervisorAgent: Leaving execute with direct execution result`
@@ -381,34 +343,14 @@ export class SupervisorAgent extends BaseAgent {
         }
 
         // Si pas de starknetAgent, renvoyer un message d'erreur
-        const errorMsg = new AIMessage({
-          content:
-            'Maximum recursion depth reached. Please try again with a simpler query.',
-          additional_kwargs: {
-            from: 'supervisor',
-            final: true,
-            error: 'max_recursion_depth',
-          },
-        });
-        logger.debug(
-          `${depthIndent}SupervisorAgent: Leaving execute with error message due to max depth`
-        );
         this.executionDepth--;
-        return errorMsg;
+        return 'Maximum recursion depth reached. Please try again with a simpler query.';
       } catch (error) {
         logger.error(
           `${depthIndent}SupervisorAgent: Error in direct execution: ${error}`
         );
-        const errorMsg = new AIMessage({
-          content: `Error occurred during forced direct execution: ${error instanceof Error ? error.message : String(error)}`,
-          additional_kwargs: {
-            from: 'supervisor',
-            final: true,
-            error: 'direct_execution_error',
-          },
-        });
         this.executionDepth--;
-        return errorMsg;
+        return `Error occurred during forced direct execution: ${error instanceof Error ? error.message : String(error)}`;
       }
     }
 
@@ -426,14 +368,7 @@ export class SupervisorAgent extends BaseAgent {
         `${depthIndent}SupervisorAgent: Invalid input type: ${typeof input}`
       );
       this.executionDepth--; // Decrement depth before returning error
-      return new AIMessage({
-        content: 'Invalid input type provided to supervisor.',
-        additional_kwargs: {
-          from: 'supervisor',
-          final: true,
-          error: 'invalid_input_type',
-        },
-      });
+      return 'Invalid input type provided to supervisor.';
     }
 
     // Enrichir avec le contexte de la mémoire si activé
@@ -470,10 +405,26 @@ export class SupervisorAgent extends BaseAgent {
         `${depthIndent}SupervisorAgent: Workflow controller execution finished`
       );
 
-      // Formater la réponse finale
-      const formattedResponse = this.formatResponse(result);
+      // Extraire le contenu du message ou formater la réponse
+      let formattedResponse;
+      if (result instanceof BaseMessage) {
+        // Extraire directement le contenu du message
+        formattedResponse = result.content;
+      } else {
+        // Pour les autres types de réponses, essayer de les formater si possible
+        try {
+          formattedResponse = this.formatResponse(result);
+        } catch (formatError) {
+          logger.warn(
+            `Error formatting response: ${formatError}. Returning raw response.`
+          );
+          formattedResponse =
+            typeof result === 'string' ? result : JSON.stringify(result);
+        }
+      }
+
       logger.debug(
-        `${depthIndent}SupervisorAgent: Formatted response: ${JSON.stringify(formattedResponse).substring(0, 100)}...`
+        `${depthIndent}SupervisorAgent: Formatted response ready to return`
       );
 
       // Retourner la réponse formatée
@@ -485,7 +436,9 @@ export class SupervisorAgent extends BaseAgent {
         `${depthIndent}SupervisorAgent: Error during workflow execution: ${error}`
       );
       this.executionDepth--; // Decrement depth before returning error
-      throw error; // Propager l'erreur
+
+      // Retourner un message d'erreur simple au lieu d'un objet AIMessage
+      return `An error occurred during processing: ${error instanceof Error ? error.message : String(error)}. Please try again.`;
     }
     // ---- End Original Execute Logic ----
   }
@@ -493,11 +446,31 @@ export class SupervisorAgent extends BaseAgent {
   /**
    * Formate une réponse pour la journalisation
    */
-  private formatResponse(response: string): string {
-    return response
-      .split('\n')
-      .map((line) => (line.includes('•') ? `  ${line.trim()}` : line))
-      .join('\n');
+  private formatResponse(response: any): any {
+    // Vérifier si la réponse est une chaîne de caractères
+    if (typeof response === 'string') {
+      return response
+        .split('\n')
+        .map((line: string) => (line.includes('•') ? `  ${line.trim()}` : line))
+        .join('\n');
+    }
+
+    // Si c'est un AIMessage ou un autre objet, le retourner tel quel
+    if (response && typeof response === 'object') {
+      // Si l'objet a une propriété content qui est une chaîne, formater ce contenu
+      if (response.content && typeof response.content === 'string') {
+        response.content = response.content
+          .split('\n')
+          .map((line: string) =>
+            line.includes('•') ? `  ${line.trim()}` : line
+          )
+          .join('\n');
+      }
+      return response;
+    }
+
+    // Fallback pour tout autre type
+    return response;
   }
 
   /**
