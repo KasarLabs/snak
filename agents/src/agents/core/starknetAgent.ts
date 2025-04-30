@@ -1,4 +1,3 @@
-// agents/main/starknetAgent.ts
 import { BaseAgent, AgentType, IModelAgent } from '../core/baseAgent.js';
 import { RpcProvider } from 'starknet';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
@@ -10,8 +9,6 @@ import {
   AIMessage,
   SystemMessage,
 } from '@langchain/core/messages';
-import { createBox } from '../../prompt/formatting.js';
-import { addTokenInfoToBox } from '../../token/tokenTracking.js';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
 
@@ -178,25 +175,18 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     logger.error = noop;
 
     this.loggingOptions.disabled = true;
-    console.log('Logging has been disabled');
   }
 
   /**
    * Restore original logging functions
    */
   public enableLogging(): void {
-    if (!this.originalLoggerFunctions.info) {
-      console.log('No original logger functions to restore');
-      return;
-    }
-
     logger.info = this.originalLoggerFunctions.info;
     logger.debug = this.originalLoggerFunctions.debug;
     logger.warn = this.originalLoggerFunctions.warn;
     logger.error = this.originalLoggerFunctions.error;
 
     this.loggingOptions.disabled = false;
-    console.log('Logging has been enabled');
   }
 
   /**

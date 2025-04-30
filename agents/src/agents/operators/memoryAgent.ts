@@ -1,4 +1,3 @@
-// agents/operators/memoryAgent.ts
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';

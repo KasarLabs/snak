@@ -1,6 +1,4 @@
-// agents/operators/toolsOrchestrator.ts
-console.log('📣 ToolsOrchestrator MODULE LOADED');
-import { BaseAgent, AgentType, IAgent } from '../core/baseAgent.js';
+import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
@@ -130,9 +128,6 @@ export class ToolsOrchestrator extends BaseAgent {
           toolCall = JSON.parse(input);
           toolName = toolCall.name;
           toolArgs = toolCall.args;
-          logger.debug(
-            `ToolsOrchestrator: Processing tool call for "${toolName}"`
-          );
         } catch (e) {
           throw new Error(
             `ToolsOrchestrator: Input could not be parsed as a tool call: ${e}`
@@ -148,16 +143,10 @@ export class ToolsOrchestrator extends BaseAgent {
         toolCall = (input as any).tool_calls[0];
         toolName = toolCall.name;
         toolArgs = toolCall.args;
-        logger.debug(
-          `ToolsOrchestrator: Processing BaseMessage tool call for "${toolName}"`
-        );
       } else {
         toolCall = input;
         toolName = toolCall.name;
         toolArgs = toolCall.args;
-        logger.debug(
-          `ToolsOrchestrator: Processing generic object tool call for "${toolName}"`
-        );
       }
 
       if (!toolName || toolArgs === undefined) {
@@ -192,9 +181,6 @@ export class ToolsOrchestrator extends BaseAgent {
         modelForToolExecution &&
         typeof modelForToolExecution.bindTools === 'function'
       ) {
-        logger.debug(
-          `ToolsOrchestrator: Creating new ToolNode with selected model`
-        );
         const boundTools = modelForToolExecution.bindTools(this.tools);
         execToolNode = new ToolNode(boundTools as any);
       }

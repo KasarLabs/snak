@@ -1,19 +1,13 @@
-// agents/modes/interactive.ts
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
-import {
-  Tool,
-  StructuredTool,
-  DynamicStructuredTool,
-  tool,
-} from '@langchain/core/tools';
+import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import { tool } from '@langchain/core/tools';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
 import { z } from 'zod';
-import { logger, JsonConfig } from '@snakagent/core';
+import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import { AiConfig } from '../../common/index.js';
 import {

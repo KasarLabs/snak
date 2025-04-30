@@ -1,4 +1,3 @@
-// agents/index.ts
 import {
   SupervisorAgent,
   SupervisorAgentConfig,
@@ -8,7 +7,7 @@ import { logger } from '@snakagent/core';
 import { JsonConfig } from '../config/jsonConfig.js';
 
 /**
- * Configuration pour l'initialisation du système d'agents
+ * Configuration for the agent system initialization
  */
 export interface AgentSystemConfig {
   starknetProvider: RpcProvider;
@@ -23,7 +22,7 @@ export interface AgentSystemConfig {
 }
 
 /**
- * Classe principale pour initialiser et gérer le système d'agents
+ * Main class for initializing and managing the agent system
  */
 export class AgentSystem {
   private supervisorAgent: SupervisorAgent | null = null;
@@ -36,97 +35,54 @@ export class AgentSystem {
   }
 
   /**
-   * Initialise le système d'agents
+   * Initialize the agent system
    */
   public async init(): Promise<void> {
     try {
       logger.debug('AgentSystem: Starting initialization');
-      // Log the received config path
-      logger.debug(
-        `AgentSystem: Received agentConfigPath: ${this.config.agentConfigPath}`
-      );
 
-      // Charger la configuration de l'agent si le chemin est fourni
+      // Load agent configuration if path is provided
       if (this.config.agentConfigPath) {
         logger.debug(
-          `AgentSystem: Attempting to load config from path: ${this.config.agentConfigPath}`
+          `AgentSystem: Loading config from: ${this.config.agentConfigPath}`
         );
         try {
           this.agentConfig = await this.loadAgentConfig(
             this.config.agentConfigPath
           );
-          logger.debug(
-            `AgentSystem: Successfully loaded agentConfig. Keys: ${this.agentConfig ? Object.keys(this.agentConfig).join(', ') : 'null'}`
-          );
+          logger.debug('AgentSystem: Successfully loaded agent configuration');
         } catch (loadError) {
           logger.error(
-            `AgentSystem: Error during loadAgentConfig: ${loadError}`
+            `AgentSystem: Error during config loading: ${loadError}`
           );
-          this.agentConfig = null; // Ensure it's null on error
+          this.agentConfig = null;
         }
       } else {
-        logger.warn(
-          'AgentSystem: No agentConfigPath provided in config, agentConfig will be null.'
-        );
-        this.agentConfig = null; // Ensure it's null if no path
+        logger.warn('AgentSystem: No agentConfigPath provided');
+        this.agentConfig = null;
       }
 
-      // Initialiser l'agent superviseur
-      logger.debug(
-        'AgentSystem: ====> CHECKING this.agentConfig JUST BEFORE SupervisorAgent CREATION <===='
-      );
-      logger.debug(this.agentConfig); // Log direct de l'objet
-      logger.debug('AgentSystem: ====> FINISHED CHECKING <====');
-
-      // Create the config object for SupervisorAgent step-by-step
-      logger.debug(
-        'AgentSystem: Building supervisorConfigObject step-by-step...'
-      );
-      const supervisorConfigObject: Partial<SupervisorAgentConfig> = {}; // Start with partial
-
-      supervisorConfigObject.modelsConfigPath = this.config.modelsConfigPath;
-      logger.debug(
-        `AgentSystem: Added modelsConfigPath. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
-      );
-
-      supervisorConfigObject.agentMode = this.config.agentMode;
-      logger.debug(
-        `AgentSystem: Added agentMode. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
-      );
-
-      supervisorConfigObject.debug = this.config.debug;
-      logger.debug(
-        `AgentSystem: Added debug. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
-      );
-
-      supervisorConfigObject.agentConfig = this.agentConfig || undefined;
-      logger.debug(
-        `AgentSystem: Added agentConfig. Exists: ${!!supervisorConfigObject.agentConfig}. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
-      );
-
-      supervisorConfigObject.starknetConfig = {
-        provider: this.config.starknetProvider,
-        accountPrivateKey: this.config.accountPrivateKey,
-        accountPublicKey: this.config.accountPublicKey,
-        signature: this.config.signature,
+      // Create the config object for SupervisorAgent
+      const supervisorConfigObject: SupervisorAgentConfig = {
+        modelsConfigPath: this.config.modelsConfigPath,
         agentMode: this.config.agentMode,
-        db_credentials: this.config.databaseCredentials,
-        agentconfig: this.agentConfig || undefined,
+        debug: this.config.debug,
+        agentConfig: this.agentConfig || undefined,
+        starknetConfig: {
+          provider: this.config.starknetProvider,
+          accountPrivateKey: this.config.accountPrivateKey,
+          accountPublicKey: this.config.accountPublicKey,
+          signature: this.config.signature,
+          agentMode: this.config.agentMode,
+          db_credentials: this.config.databaseCredentials,
+          agentconfig: this.agentConfig || undefined,
+        },
       };
-      logger.debug(
-        `AgentSystem: Added starknetConfig. Exists: ${!!supervisorConfigObject.starknetConfig}. Current keys: ${Object.keys(supervisorConfigObject).join(', ')}`
-      );
 
-      logger.debug('AgentSystem: Finished building supervisorConfigObject.');
-      // logger.debug('AgentSystem: Prepared supervisorConfigObject. Keys:', Object.keys(supervisorConfigObject).join(', ')); // Old log
-      // logger.debug('AgentSystem: supervisorConfigObject.agentConfig exists:', !!supervisorConfigObject.agentConfig); // Old log
+      // Initialize the supervisor agent
+      this.supervisorAgent = new SupervisorAgent(supervisorConfigObject);
 
-      // Pass the step-by-step created object - need type assertion
-      this.supervisorAgent = new SupervisorAgent(
-        supervisorConfigObject as SupervisorAgentConfig
-      );
-
-      // Initialiser le superviseur, qui à son tour initialisera tous les autres agents
+      // Initialize the supervisor, which will initialize all other agents
       await this.supervisorAgent.init();
 
       logger.info('AgentSystem: Initialization complete');
@@ -137,12 +93,10 @@ export class AgentSystem {
   }
 
   /**
-   * Charge la configuration de l'agent à partir du chemin spécifié
+   * Load agent configuration from the specified path
    */
   private async loadAgentConfig(configPath: string): Promise<JsonConfig> {
     try {
-      // Ici, nous importerions dynamiquement la configuration JSON
-      // Pour simplifier, supposons que cela fonctionne comme suit:
       const fs = await import('fs/promises');
       const configContent = await fs.readFile(configPath, 'utf-8');
       return JSON.parse(configContent);
@@ -155,7 +109,7 @@ export class AgentSystem {
   }
 
   /**
-   * Exécute une commande avec le système d'agents
+   * Execute a command with the agent system
    */
   public async execute(
     input: string,
@@ -174,14 +128,14 @@ export class AgentSystem {
   }
 
   /**
-   * Obtient l'agent superviseur
+   * Get the supervisor agent
    */
   public getSupervisor(): SupervisorAgent | null {
     return this.supervisorAgent;
   }
 
   /**
-   * Obtient l'agent Starknet (agent principal)
+   * Get the Starknet agent (main agent)
    */
   public getStarknetAgent(): any {
     if (!this.supervisorAgent) {
@@ -191,7 +145,7 @@ export class AgentSystem {
   }
 
   /**
-   * Obtient un opérateur par son ID
+   * Get an operator by ID
    */
   public getOperator(id: string): any {
     if (!this.supervisorAgent) {
@@ -201,20 +155,18 @@ export class AgentSystem {
   }
 
   /**
-   * Libère les ressources du système d'agents
+   * Release agent system resources
    */
   public async dispose(): Promise<void> {
-    // Ici, nous libérerions toutes les ressources utilisées par le système d'agents
     logger.debug('AgentSystem: Disposing resources');
-
-    // Réinitialiser les références
     this.supervisorAgent = null;
-
     logger.info('AgentSystem: Resources disposed');
   }
 }
 
-// Fonction d'aide pour créer un système d'agents
+/**
+ * Helper function to create an agent system
+ */
 export async function createAgentSystem(
   config: AgentSystemConfig
 ): Promise<AgentSystem> {

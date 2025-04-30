@@ -1,4 +1,3 @@
-// agents/modes/autonomous.ts
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import { AiConfig } from '../../common/index.js';

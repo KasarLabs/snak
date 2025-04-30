@@ -20,8 +20,8 @@
   ],
   "interval": 15000,
   "mode": {
-    "interactive": true,
-    "autonomous": false,
+    "interactive": false,
+    "autonomous": true,
     "recursionLimit": 15,
     "metaSelection": true
   },

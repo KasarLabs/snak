@@ -1,4 +1,3 @@
-// agents/operators/modelSelectionAgent.ts
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
