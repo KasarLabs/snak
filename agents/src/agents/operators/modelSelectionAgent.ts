@@ -38,11 +38,17 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   private apiKeys: ApiKeys = {};
   private modelsConfigPath: string;
 
+  // Add a static instance for singleton access
+  private static instance: ModelSelectionAgent | null = null;
+
   constructor(options: ModelSelectionOptions) {
     super('model-selector', AgentType.OPERATOR);
     this.debugMode = options.debugMode || false;
     this.useMetaSelection = options.useMetaSelection || false;
     this.modelsConfigPath = options.modelsConfigPath;
+
+    // Set this instance as the global instance for singleton access
+    ModelSelectionAgent.instance = this;
 
     if (this.debugMode) {
       logger.debug(
@@ -52,6 +58,11 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
         })}`
       );
     }
+  }
+
+  // Static method to get the current instance
+  public static getInstance(): ModelSelectionAgent | null {
+    return ModelSelectionAgent.instance;
   }
 
   /**

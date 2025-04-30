@@ -45,6 +45,7 @@ export interface AgentMessage {
   to: string;
   content: any;
   metadata?: Record<string, any>;
+  modelType?: string;
 }
 
 /**

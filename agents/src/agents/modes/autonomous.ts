@@ -14,15 +14,18 @@ import {
 import { AnyZodObject } from 'zod';
 import { selectModel } from '../core/utils.js';
 import { BaseMessage, SystemMessage } from '@langchain/core/messages';
+import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 
 /**
  * Creates an agent in autonomous mode
  * @param starknetAgent The Starknet agent instance
  * @param aiConfig AI configuration
+ * @param modelSelector Optional model selector
  */
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig
+  aiConfig: AiConfig,
+  modelSelector?: ModelSelectionAgent | null
 ) => {
   try {
     const json_config = starknetAgent.getAgentConfig();

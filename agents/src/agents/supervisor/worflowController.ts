@@ -22,6 +22,7 @@ interface WorkflowState {
   toolCalls: any[];
   error?: string;
   iterationCount: number; // Counter to avoid infinite loops
+  modelType?: string; // Add this to track the selected model type
 }
 
 /**
@@ -556,6 +557,13 @@ export class WorkflowController {
     logger.debug(`  - Current state agent: ${state.currentAgent}`);
     logger.debug(`  - Iteration count: ${state.iterationCount}`);
 
+    // Preserve model type if available in metadata
+    if (state.metadata.modelType) {
+      logger.debug(
+        `WorkflowController[Exec:${execId}]: Router - Preserved model type: "${state.metadata.modelType}"`
+      );
+    }
+
     // Maintain agent history
     if (!state.metadata.agentHistory) {
       state.metadata.agentHistory = [];
@@ -650,6 +658,15 @@ export class WorkflowController {
           lastMessage.additional_kwargs.originalUserQuery;
         logger.debug(
           `WorkflowController[Exec:${execId}]: Router - Preserved original user query: "${state.metadata.originalUserQuery}"`
+        );
+      }
+
+      // Add this to preserve model type selection
+      if (lastMessage.additional_kwargs?.modelType) {
+        state.metadata.modelType = lastMessage.additional_kwargs
+          .modelType as string;
+        logger.debug(
+          `WorkflowController[Exec:${execId}]: Router - Preserved model type: "${state.metadata.modelType}"`
         );
       }
 

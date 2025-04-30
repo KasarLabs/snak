@@ -12,6 +12,7 @@ import {
 } from '@langchain/core/tools';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
+import { ModelSelectionAgent } from './modelSelectionAgent.js';
 
 /**
  * Configuration for the tools orchestrator
@@ -19,6 +20,7 @@ import { ToolNode } from '@langchain/langgraph/prebuilt';
 export interface ToolsOrchestratorConfig {
   starknetAgent: StarknetAgentInterface;
   agentConfig: any;
+  modelSelectionAgent: ModelSelectionAgent | null;
 }
 
 /**
@@ -29,11 +31,13 @@ export class ToolsOrchestrator extends BaseAgent {
   private agentConfig: any;
   private tools: (Tool | StructuredTool | DynamicStructuredTool<any>)[] = [];
   private toolNode: ToolNode | null = null;
+  private modelSelectionAgent: ModelSelectionAgent | null = null;
 
   constructor(config: ToolsOrchestratorConfig) {
     super('tools-orchestrator', AgentType.OPERATOR);
     this.starknetAgent = config.starknetAgent;
     this.agentConfig = config.agentConfig;
+    this.modelSelectionAgent = config.modelSelectionAgent;
   }
 
   /**
@@ -126,9 +130,11 @@ export class ToolsOrchestrator extends BaseAgent {
           );
         }
       } else if (input instanceof BaseMessage) {
+        // @ts-ignore: BaseMessage TypeScript definition may not include tool_calls yet
         if (!input.tool_calls || input.tool_calls.length === 0) {
           throw new Error('ToolsOrchestrator: No tool calls found in message');
         }
+        // @ts-ignore: BaseMessage TypeScript definition may not include tool_calls yet
         toolCall = input.tool_calls[0];
       } else {
         toolCall = input;
@@ -145,8 +151,47 @@ export class ToolsOrchestrator extends BaseAgent {
 
       logger.debug(`ToolsOrchestrator: Executing tool "${toolCall.name}"`);
 
+      // Get the appropriate model for this tool execution
+      let modelForToolExecution = null;
+      if (this.modelSelectionAgent) {
+        // Determine which model to use for this tool execution
+        const modelType =
+          config?.modelType ||
+          (await this.modelSelectionAgent.selectModelForMessages([
+            // Create a context for the tool execution
+            new HumanMessage({
+              content: `Execute tool: ${toolCall.name} with args: ${JSON.stringify(toolCall.args)}`,
+            }),
+          ]));
+
+        logger.debug(
+          `ToolsOrchestrator: Selected model type for tool execution: ${modelType}`
+        );
+        modelForToolExecution = await this.modelSelectionAgent.getModelForTask(
+          [],
+          modelType
+        );
+      }
+
+      // Dynamically create a tool node with the appropriate model if available
+      let execToolNode = this.toolNode;
+      if (
+        modelForToolExecution &&
+        typeof modelForToolExecution.bindTools === 'function'
+      ) {
+        // Create a new ToolNode with the selected model
+        logger.debug(
+          `ToolsOrchestrator: Creating new ToolNode with selected model`
+        );
+        // @ts-ignore: Understand that bindTools will return compatible tools for ToolNode
+        const boundTools = modelForToolExecution.bindTools(this.tools);
+        // Force type to be compatible with ToolNode constructor
+        execToolNode = new ToolNode(boundTools as any);
+      }
+
       const state = {
         messages: [
+          // @ts-ignore: HumanMessage TypeScript definition may not include tool_calls yet
           new HumanMessage({
             content: 'Execute tool',
             tool_calls: [toolCall],
@@ -154,7 +199,7 @@ export class ToolsOrchestrator extends BaseAgent {
         ],
       };
 
-      const result = await this.toolNode.invoke(state, config);
+      const result = await execToolNode.invoke(state, config);
 
       if (result && result.messages && result.messages.length > 0) {
         return result.messages[result.messages.length - 1].content;

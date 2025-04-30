@@ -129,6 +129,7 @@ export class SupervisorAgent extends BaseAgent {
       this.toolsOrchestrator = new ToolsOrchestrator({
         starknetAgent: this.starknetAgent,
         agentConfig: agentConfig,
+        modelSelectionAgent: this.modelSelectionAgent,
       });
       await this.toolsOrchestrator.init();
       this.operators.set(this.toolsOrchestrator.id, this.toolsOrchestrator);
@@ -311,19 +312,47 @@ export class SupervisorAgent extends BaseAgent {
     }
 
     logger.debug(`${depthIndent}SupervisorAgent: Processing input...`);
-    let message: BaseMessage;
+    let message: string | HumanMessage;
+
     if (typeof input === 'string') {
+      logger.debug(`${depthIndent}SupervisorAgent: Input is a string`);
       message = new HumanMessage(input);
     } else if (input instanceof BaseMessage) {
-      message = input;
-    } else if (input && typeof input === 'object' && input.content) {
-      message = new HumanMessage(input.content);
-    } else {
-      logger.error(
-        `${depthIndent}SupervisorAgent: Invalid input type: ${typeof input}`
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Input is a BaseMessage: ${input.constructor.name}`
       );
-      this.executionDepth--;
-      return 'Invalid input type provided to supervisor.';
+      message = input;
+    } else if (
+      typeof input === 'object' &&
+      input !== null &&
+      'content' in input
+    ) {
+      // It's an AgentMessage
+      logger.debug(`${depthIndent}SupervisorAgent: Input is an AgentMessage`);
+      if (typeof input.content === 'string') {
+        message = new HumanMessage(input.content);
+      } else {
+        // Handle non-string content (e.g., structured data)
+        try {
+          const contentStr = JSON.stringify(input.content);
+          message = new HumanMessage(contentStr);
+        } catch (e) {
+          message = new HumanMessage('Unparseable content');
+          logger.warn(`Error parsing agent message content: ${e}`);
+        }
+      }
+    } else {
+      logger.warn(
+        `${depthIndent}SupervisorAgent: Unrecognized input type: ${typeof input}`
+      );
+      message = new HumanMessage('Unrecognized input format');
+    }
+
+    // If we have model type in config, pass it along and log it
+    if (config?.modelType) {
+      logger.debug(
+        `SupervisorAgent: Using provided model type: ${config.modelType}`
+      );
     }
 
     // Enrich with memory context if enabled

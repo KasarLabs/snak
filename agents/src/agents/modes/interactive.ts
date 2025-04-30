@@ -25,13 +25,15 @@ import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { memory } from '@snakagent/database/queries';
 import { estimateTokens } from '../../token/tokenTracking.js';
+import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 
 /**
  * Creates an agent in interactive mode
  */
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig
+  aiConfig: AiConfig,
+  modelSelector?: ModelSelectionAgent | null
 ) => {
   try {
     const json_config = starknetAgent.getAgentConfig();
@@ -259,13 +261,72 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
             memories: state.memories || '',
           });
 
-          const result = await modelSelected.invoke(truncatedPrompt);
-          return formatAIMessageResult(result);
+          // Use dynamic model selection if available
+          if (modelSelector) {
+            // Get modelType from state if available
+            const stateModelType =
+              typeof state.memories === 'object' && state.memories
+                ? (state.memories as any).modelType
+                : null;
+
+            const selectedModelType =
+              stateModelType ||
+              (await modelSelector.selectModelForMessages(filteredMessages));
+
+            logger.debug(
+              `Using dynamically selected model: ${selectedModelType}`
+            );
+            const modelForThisTask = await modelSelector.getModelForTask(
+              filteredMessages,
+              selectedModelType
+            );
+
+            const boundModel =
+              typeof modelForThisTask.bindTools === 'function'
+                ? modelForThisTask.bindTools(toolsList)
+                : modelForThisTask;
+
+            const result = await boundModel.invoke(truncatedPrompt);
+            return formatAIMessageResult(result);
+          } else {
+            // Fallback to predefined model
+            const result = await modelSelected.invoke(truncatedPrompt);
+            return formatAIMessageResult(result);
+          }
         }
 
-        // If we're below the limit, use the full prompt
-        const result = await modelSelected.invoke(formattedPrompt);
-        return formatAIMessageResult(result);
+        // If we're below the limit, use the full prompt with dynamic model selection
+        if (modelSelector) {
+          // Get modelType from state if available
+          const stateModelType =
+            typeof state.memories === 'object' && state.memories
+              ? (state.memories as any).modelType
+              : null;
+
+          const selectedModelType =
+            stateModelType ||
+            (await modelSelector.selectModelForMessages(filteredMessages));
+
+          logger.debug(
+            `Using dynamically selected model: ${selectedModelType}`
+          );
+          const modelForThisTask = await modelSelector.getModelForTask(
+            filteredMessages,
+            selectedModelType
+          );
+
+          const boundModel =
+            typeof modelForThisTask.bindTools === 'function'
+              ? modelForThisTask.bindTools(toolsList)
+              : modelForThisTask;
+
+          const result = await boundModel.invoke(formattedPrompt);
+          return formatAIMessageResult(result);
+        } else {
+          // Fallback to predefined model
+          const result = await modelSelected.invoke(formattedPrompt);
+          return formatAIMessageResult(result);
+        }
       } catch (error) {
         // Handle token limit errors specifically
         if (

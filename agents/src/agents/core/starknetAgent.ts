@@ -274,7 +274,8 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         }
         this.agentReactExecutor = await createAutonomousAgentFunc(
           this,
-          tempAiConfig
+          tempAiConfig,
+          this.modelSelector
         );
       } else if (
         this.currentMode === 'interactive' ||
@@ -286,7 +287,11 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
             'Interactive agent creation function is not available'
           );
         }
-        this.agentReactExecutor = await createAgentFunc(this, tempAiConfig);
+        this.agentReactExecutor = await createAgentFunc(
+          this,
+          tempAiConfig,
+          this.modelSelector
+        );
       } else {
         throw new Error(`Invalid mode: ${this.currentMode}`);
       }
@@ -428,6 +433,12 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
     try {
       logger.debug(`StarknetAgent executing with mode: ${this.currentMode}`);
+
+      // Extract model type from config if available
+      const modelType = config?.modelType || null;
+      logger.debug(
+        `StarknetAgent: Using model type from config: ${modelType || 'not specified'}`
+      );
 
       // Retrieve the original user query if it exists in config metadata
       let originalUserQuery = null;
@@ -1113,5 +1124,29 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   public async validateRequest(request: string): Promise<boolean> {
     logger.debug(`Validating request (currently always true): ${request}`);
     return true;
+  }
+
+  public async getModelForCurrentTask(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<BaseChatModel> {
+    if (!this.modelSelector) {
+      logger.warn(
+        'StarknetAgent: No ModelSelectionAgent available, using default model'
+      );
+      throw new Error(
+        'ModelSelectionAgent is not available and no default model is configured'
+      );
+    }
+
+    // Use the model selector to determine the best model
+    const selectedModelType =
+      forceModelType ||
+      (await this.modelSelector.selectModelForMessages(messages));
+
+    logger.debug(
+      `StarknetAgent: Selected model type for current task: ${selectedModelType}`
+    );
+    return this.modelSelector.getModelForTask(messages, selectedModelType);
   }
 }
