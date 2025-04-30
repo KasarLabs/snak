@@ -153,6 +153,39 @@ export const createAgent = async (
     };
 
     const toolNode = new ToolNode(toolsList);
+
+    // Add wrapper to log tool executions
+    const originalInvoke = toolNode.invoke.bind(toolNode);
+    toolNode.invoke = async (state, config) => {
+      // Log the tool call request
+      const lastMessage = state.messages[state.messages.length - 1];
+      const toolCalls = lastMessage?.tool_calls || [];
+
+      if (toolCalls.length > 0) {
+        logger.debug(`Tool execution starting: ${toolCalls.length} calls`);
+        for (const call of toolCalls) {
+          logger.debug(
+            `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
+          );
+        }
+      }
+
+      // Execute the original method
+      const startTime = Date.now();
+      const result = await originalInvoke(state, config);
+      const executionTime = Date.now() - startTime;
+
+      // Log the result
+      if (result && result.messages && result.messages.length > 0) {
+        const resultMessage = result.messages[result.messages.length - 1];
+        logger.debug(
+          `Tool execution completed in ${executionTime}ms with result type: ${resultMessage._getType?.() || typeof resultMessage}`
+        );
+      }
+
+      return result;
+    };
+
     const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
     const configPrompt = json_config.prompt?.content || '';
@@ -405,6 +438,9 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
       const lastMessage = messages[messages.length - 1] as AIMessage;
 
       if (lastMessage.tool_calls?.length) {
+        logger.debug(
+          `Detected ${lastMessage.tool_calls.length} tool calls in response, routing to tools node`
+        );
         return 'tools';
       }
       return 'end';

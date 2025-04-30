@@ -1,10 +1,6 @@
 // Simple log configuration - set DEBUG=true to enable debug logs
 const DEBUG = process.env.DEBUG === 'true';
-process.env.LOG_LEVEL = DEBUG ? 'debug' : 'info';
-process.env.DEBUG_LOGGING = DEBUG ? 'true' : 'false';
-process.env.LANGCHAIN_VERBOSE = DEBUG ? 'true' : 'false';
-// Always disable langchain tracing regardless of debug mode
-process.env.LANGCHAIN_TRACING = 'false';
+console.log(`Environment variables: DEBUG=${DEBUG}`);
 
 import inquirer from 'inquirer';
 import chalk from 'chalk';
@@ -69,6 +65,17 @@ const loadCommand = async (): Promise<CommandOptions> => {
   const agentFileName = argv['agent'] as string;
   const modelsFileName = argv['models'] as string;
   const silentLlm = argv['silent-llm'] as boolean;
+
+  // Now update all environment variables now that we have processed the command line args
+  console.log(`Environment variables after parsing: DEBUG=${DEBUG}`);
+  process.env.LOG_LEVEL = DEBUG ? 'debug' : 'info';
+  process.env.DEBUG_LOGGING = DEBUG ? 'true' : 'false';
+  process.env.LANGCHAIN_VERBOSE = DEBUG ? 'true' : 'false';
+  console.log(
+    `Final environment variables: LOG_LEVEL=${process.env.LOG_LEVEL}`
+  );
+  // Always disable langchain tracing regardless of debug mode
+  process.env.LANGCHAIN_TRACING = 'false';
 
   const findConfigPath = (
     fileName: string,

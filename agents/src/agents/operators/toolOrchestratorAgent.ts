@@ -1,4 +1,5 @@
 // agents/operators/toolsOrchestrator.ts
+console.log('📣 ToolsOrchestrator MODULE LOADED');
 import { BaseAgent, AgentType, IAgent } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
@@ -120,94 +121,111 @@ export class ToolsOrchestrator extends BaseAgent {
       }
 
       let toolCall;
+      let toolName: string;
+      let toolArgs: any;
 
+      // Extract tool information from input
       if (typeof input === 'string') {
         try {
           toolCall = JSON.parse(input);
+          toolName = toolCall.name;
+          toolArgs = toolCall.args;
+          logger.debug(
+            `ToolsOrchestrator: Processing tool call for "${toolName}"`
+          );
         } catch (e) {
           throw new Error(
             `ToolsOrchestrator: Input could not be parsed as a tool call: ${e}`
           );
         }
       } else if (input instanceof BaseMessage) {
-        // @ts-ignore: BaseMessage TypeScript definition may not include tool_calls yet
-        if (!input.tool_calls || input.tool_calls.length === 0) {
+        if (
+          !(input as any).tool_calls ||
+          (input as any).tool_calls.length === 0
+        ) {
           throw new Error('ToolsOrchestrator: No tool calls found in message');
         }
-        // @ts-ignore: BaseMessage TypeScript definition may not include tool_calls yet
-        toolCall = input.tool_calls[0];
+        toolCall = (input as any).tool_calls[0];
+        toolName = toolCall.name;
+        toolArgs = toolCall.args;
+        logger.debug(
+          `ToolsOrchestrator: Processing BaseMessage tool call for "${toolName}"`
+        );
       } else {
         toolCall = input;
+        toolName = toolCall.name;
+        toolArgs = toolCall.args;
+        logger.debug(
+          `ToolsOrchestrator: Processing generic object tool call for "${toolName}"`
+        );
       }
 
-      if (!toolCall.name || toolCall.args === undefined) {
+      if (!toolName || toolArgs === undefined) {
         throw new Error('ToolsOrchestrator: Invalid tool call format');
       }
 
-      const tool = this.tools.find((t) => t.name === toolCall.name);
+      const tool = this.tools.find((t) => t.name === toolName);
       if (!tool) {
-        throw new Error(`ToolsOrchestrator: Tool "${toolCall.name}" not found`);
+        logger.warn(
+          `ToolsOrchestrator: Tool "${toolName}" was requested but not found in available tools`
+        );
+        throw new Error(`ToolsOrchestrator: Tool "${toolName}" not found`);
       }
 
-      logger.debug(`ToolsOrchestrator: Executing tool "${toolCall.name}"`);
+      logger.debug(
+        `ToolsOrchestrator: Executing tool "${toolName}" with args: ${JSON.stringify(toolArgs).substring(0, 100)}...`
+      );
 
-      // Get the appropriate model for this tool execution
+      // Get the appropriate model if needed
       let modelForToolExecution = null;
       if (this.modelSelectionAgent) {
-        // Determine which model to use for this tool execution
-        const modelType =
-          config?.modelType ||
-          (await this.modelSelectionAgent.selectModelForMessages([
-            // Create a context for the tool execution
-            new HumanMessage({
-              content: `Execute tool: ${toolCall.name} with args: ${JSON.stringify(toolCall.args)}`,
-            }),
-          ]));
-
-        logger.debug(
-          `ToolsOrchestrator: Selected model type for tool execution: ${modelType}`
-        );
+        const modelType = config?.modelType || 'fast'; // Default to fast for tools
         modelForToolExecution = await this.modelSelectionAgent.getModelForTask(
           [],
           modelType
         );
       }
 
-      // Dynamically create a tool node with the appropriate model if available
+      // Create a tool node with the appropriate model if available
       let execToolNode = this.toolNode;
       if (
         modelForToolExecution &&
         typeof modelForToolExecution.bindTools === 'function'
       ) {
-        // Create a new ToolNode with the selected model
         logger.debug(
           `ToolsOrchestrator: Creating new ToolNode with selected model`
         );
-        // @ts-ignore: Understand that bindTools will return compatible tools for ToolNode
         const boundTools = modelForToolExecution.bindTools(this.tools);
-        // Force type to be compatible with ToolNode constructor
         execToolNode = new ToolNode(boundTools as any);
       }
 
       const state = {
         messages: [
-          // @ts-ignore: HumanMessage TypeScript definition may not include tool_calls yet
           new HumanMessage({
             content: 'Execute tool',
             tool_calls: [toolCall],
-          }),
+          } as any),
         ],
       };
 
+      const startTime = Date.now();
       const result = await execToolNode.invoke(state, config);
+      const executionTime = Date.now() - startTime;
+      logger.debug(
+        `ToolsOrchestrator: Tool "${toolName}" execution completed in ${executionTime}ms`
+      );
 
       if (result && result.messages && result.messages.length > 0) {
-        return result.messages[result.messages.length - 1].content;
+        const resultContent =
+          result.messages[result.messages.length - 1].content;
+        return resultContent;
       }
 
       return 'Tool execution completed without result';
     } catch (error) {
-      logger.error(`ToolsOrchestrator: Execution error: ${error}`);
+      logger.error(
+        `ToolsOrchestrator: Execution error for tool call: ${error}`
+      );
       throw error;
     }
   }
