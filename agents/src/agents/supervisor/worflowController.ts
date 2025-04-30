@@ -695,23 +695,14 @@ export class WorkflowController {
 
     // For simple human messages, go directly to starknet
     if (lastMessage instanceof HumanMessage) {
-      const content =
-        typeof lastMessage.content === 'string' ? lastMessage.content : '';
-      if (
-        content.trim().length < 30 ||
-        content.startsWith('/') ||
-        content.startsWith('!') ||
-        content.endsWith('?')
-      ) {
-        logger.debug(
-          `WorkflowController[Exec:${execId}]: Router - Direct routing to starknet for simple query`
-        );
-        if ('starknet' in this.agents) return 'starknet';
-        logger.warn(
-          `WorkflowController[Exec:${execId}]: Router - Starknet agent not found for simple query, ending.`
-        );
-        return END;
-      }
+      logger.debug(
+        `WorkflowController[Exec:${execId}]: Router - Direct routing to starknet for human message`
+      );
+      if ('starknet' in this.agents) return 'starknet';
+      logger.warn(
+        `WorkflowController[Exec:${execId}]: Router - Starknet agent not found for human message, ending.`
+      );
+      return END;
     }
 
     // If already at starknet, end workflow
@@ -789,18 +780,8 @@ export class WorkflowController {
         `WorkflowController[Exec:${this.executionId}]: Using thread ID: ${threadId}`
       );
 
-      // Determine initial agent
-      const initialAgent =
-        this.useConditionalEntryPoint && this.entryPointSelector
-          ? this.entryPointSelector({
-              messages: [message],
-              currentAgent: '',
-              metadata: { threadId },
-              toolCalls: [],
-              error: undefined,
-              iterationCount: 0,
-            })
-          : this.entryPoint;
+      // Determine initial agent - always use starknet directly
+      const initialAgent = 'starknet';
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Determined initial agent: ${initialAgent}`
       );

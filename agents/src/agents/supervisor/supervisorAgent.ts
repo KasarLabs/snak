@@ -208,8 +208,7 @@ export class SupervisorAgent extends BaseAgent {
       );
 
       // Determine ideal entry point based on configuration
-      const entryPoint =
-        'model-selector' in allAgents ? 'model-selector' : 'starknet';
+      const entryPoint = 'starknet'; // Always use starknet directly instead of model-selector
       logger.debug(`SupervisorAgent: Using '${entryPoint}' as entry point`);
 
       // Create and initialize controller
