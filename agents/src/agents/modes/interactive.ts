@@ -1,12 +1,10 @@
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { AIMessage, BaseMessage } from '@langchain/core/messages';
-import { tool } from '@langchain/core/tools';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
-import { z } from 'zod';
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import { AiConfig } from '../../common/index.js';
@@ -16,10 +14,24 @@ import {
   selectModel,
 } from '../core/utils.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
-import { memory } from '@snakagent/database/queries';
 import { estimateTokens } from '../../token/tokenTracking.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
+import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
+
+// Helper function to get memory agent from supervisor
+const getMemoryAgent = async () => {
+  try {
+    // Try to get supervisor instance
+    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
+    if (supervisorAgent) {
+      return await supervisorAgent.getMemoryAgent();
+    }
+    return null;
+  } catch (error) {
+    logger.error(`Failed to get memory agent: ${error}`);
+    return null;
+  }
+};
 
 /**
  * Creates an agent in interactive mode
@@ -38,23 +50,28 @@ export const createAgent = async (
 
     await initializeDatabase(starknetAgent.getDatabaseCredentials());
 
-    // Initialize memory if configured
-    if (json_config.memory) {
-      try {
-        await memory.init();
-        logger.debug('Agent memory table successfully created');
-      } catch (error) {
-        logger.error('Error creating memories table:', error);
-        throw error;
-      }
-    }
-
+    // Initialize tools
     const toolsList = await initializeToolsList(starknetAgent, json_config);
 
-    const embeddings = new CustomHuggingFaceEmbeddings({
-      model: 'Xenova/all-MiniLM-L6-v2',
-      dtype: 'fp32',
-    });
+    // Get memory agent if memory is enabled
+    let memoryAgent = null;
+    if (json_config.memory) {
+      try {
+        memoryAgent = await getMemoryAgent();
+        if (memoryAgent) {
+          logger.debug('Successfully retrieved memory agent');
+          // Add memory tools to toolsList
+          const memoryTools = memoryAgent.prepareMemoryTools();
+          toolsList.push(...memoryTools);
+        } else {
+          logger.warn(
+            'Memory agent not available, memory features will be limited'
+          );
+        }
+      } catch (error) {
+        logger.error(`Error retrieving memory agent: ${error}`);
+      }
+    }
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
@@ -62,89 +79,6 @@ export const createAgent = async (
       }),
       memories: Annotation<string>,
     });
-
-    const upsertMemoryToolDB = tool(
-      async (
-        { content, memoryId },
-        config: LangGraphRunnableConfig
-      ): Promise<string> => {
-        try {
-          const userId = config.configurable?.userId || 'default_user';
-          const embedding = await embeddings.embedQuery(content);
-          const metadata = { timestamp: new Date().toISOString() };
-          content = content.replace(/'/g, "''");
-
-          if (memoryId) {
-            logger.debug('memoryId detected : ' + memoryId);
-            await memory.update_memory(memoryId, content, embedding);
-          }
-
-          memory.insert_memory({
-            user_id: userId,
-            content,
-            embedding,
-            metadata,
-            history: [],
-          });
-
-          return 'Memory stored successfully.';
-        } catch (error) {
-          logger.error('Error storing memory:', error);
-          return 'Failed to store memory.';
-        }
-      },
-      {
-        name: 'upsert_memory',
-        schema: z.object({
-          content: z.string().describe('The content of the memory to store.'),
-          memoryId: z
-            .number()
-            .optional()
-            .nullable()
-            .describe('Memory ID when wanting to update an existing memory.'),
-        }),
-        description: `
-        CREATE, UPDATE or DELETE persistent MEMORIES to persist across conversations.
-        In your system prompt, you have access to the MEMORIES relevant to the user's
-        query, each having their own MEMORY ID. Include the MEMORY ID when updating
-        or deleting a MEMORY. Omit when creating a new MEMORY - it will be created for
-        you. Proactively call this tool when you:
-        1. Identify a new USER preference.
-        2. Receive an explicit USER request to remember something or otherwise alter your behavior.
-        3. Are working and want to record important context.
-        4. Identify that an existing MEMORY is incorrect or outdated.
-        `,
-      }
-    );
-
-    if (json_config.memory) {
-      toolsList.push(upsertMemoryToolDB);
-    }
-
-    const addMemoriesFromDB = async (
-      state: typeof GraphState.State,
-      config: LangGraphRunnableConfig
-    ) => {
-      try {
-        const userId = config.configurable?.userId || 'default_user';
-        const lastMessage = state.messages[state.messages.length - 1]
-          .content as string;
-        const embedding = await embeddings.embedQuery(lastMessage);
-        const similar = await memory.similar_memory(userId, embedding);
-
-        const memories = similar
-          .map((similarity) => {
-            const history = JSON.stringify(similarity.history);
-            return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)}, history: ${history}]: ${similarity.content}`;
-          })
-          .join('\n');
-
-        return { memories };
-      } catch (error) {
-        logger.error('Error retrieving memories:', error);
-        return { memories: '' };
-      }
-    };
 
     const toolNode = new ToolNode(toolsList);
 
@@ -440,9 +374,9 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
       .addNode('tools', toolNode);
 
     // Add memory node if configured
-    if (json_config.memory) {
+    if (json_config.memory && memoryAgent) {
       workflow
-        .addNode('memory', addMemoriesFromDB)
+        .addNode('memory', memoryAgent.createMemoryNode())
         .addEdge('__start__', 'memory')
         .addEdge('memory', 'agent');
     } else {

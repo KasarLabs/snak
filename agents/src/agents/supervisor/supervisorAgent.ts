@@ -54,9 +54,22 @@ export class SupervisorAgent extends BaseAgent {
   private checkpointEnabled: boolean = false;
   // Store the original config as a static property
   private static originalConfigCapture: any = null;
+  // Static instance for singleton pattern
+  private static instance: SupervisorAgent | null = null;
+
+  /**
+   * Get the singleton instance of SupervisorAgent
+   * @returns The SupervisorAgent instance or null if not initialized
+   */
+  public static getInstance(): SupervisorAgent | null {
+    return SupervisorAgent.instance;
+  }
 
   constructor(configObject: SupervisorAgentConfig) {
     super('supervisor', AgentType.SUPERVISOR);
+
+    // Store instance for singleton pattern
+    SupervisorAgent.instance = this;
 
     // Directly assign the provided config object
     this.config = {

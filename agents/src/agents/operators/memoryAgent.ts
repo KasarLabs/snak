@@ -5,6 +5,8 @@ import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { memory, Postgres } from '@snakagent/database/queries';
 import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
+import { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
 
 /**
  * Configuration for the memory agent
@@ -187,6 +189,102 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
+   * Prepare memory tools for the interactive agent
+   */
+  public prepareMemoryTools(): any[] {
+    if (!this.initialized) {
+      logger.warn(
+        'MemoryAgent: Trying to get memory tools before initialization'
+      );
+      this.createMemoryTools();
+    }
+
+    // Create the upsert memory tool for the interactive agent
+    const upsertMemoryToolDB = tool(
+      async (
+        { content, memoryId },
+        config: LangGraphRunnableConfig
+      ): Promise<string> => {
+        try {
+          const userId = config.configurable?.userId || 'default_user';
+          const embedding = await this.embeddings.embedQuery(content);
+          const metadata = { timestamp: new Date().toISOString() };
+          content = content.replace(/'/g, "''");
+
+          if (memoryId) {
+            logger.debug('memoryId detected : ' + memoryId);
+            await memory.update_memory(memoryId, content, embedding);
+          }
+
+          memory.insert_memory({
+            user_id: userId,
+            content,
+            embedding,
+            metadata,
+            history: [],
+          });
+
+          return 'Memory stored successfully.';
+        } catch (error) {
+          logger.error('Error storing memory:', error);
+          return 'Failed to store memory.';
+        }
+      },
+      {
+        name: 'upsert_memory',
+        schema: z.object({
+          content: z.string().describe('The content of the memory to store.'),
+          memoryId: z
+            .number()
+            .optional()
+            .nullable()
+            .describe('Memory ID when wanting to update an existing memory.'),
+        }),
+        description: `
+        CREATE, UPDATE or DELETE persistent MEMORIES to persist across conversations.
+        In your system prompt, you have access to the MEMORIES relevant to the user's
+        query, each having their own MEMORY ID. Include the MEMORY ID when updating
+        or deleting a MEMORY. Omit when creating a new MEMORY - it will be created for
+        you. Proactively call this tool when you:
+        1. Identify a new USER preference.
+        2. Receive an explicit USER request to remember something or otherwise alter your behavior.
+        3. Are working and want to record important context.
+        4. Identify that an existing MEMORY is incorrect or outdated.
+        `,
+      }
+    );
+
+    return [upsertMemoryToolDB];
+  }
+
+  /**
+   * Create a memory node for the graph
+   */
+  public createMemoryNode(): any {
+    return async (state: any, config: LangGraphRunnableConfig) => {
+      try {
+        const userId = config.configurable?.userId || 'default_user';
+        const lastMessage = state.messages[state.messages.length - 1]
+          .content as string;
+        const embedding = await this.embeddings.embedQuery(lastMessage);
+        const similar = await memory.similar_memory(userId, embedding);
+
+        const memories = similar
+          .map((similarity) => {
+            const history = JSON.stringify(similarity.history);
+            return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)}, history: ${history}]: ${similarity.content}`;
+          })
+          .join('\n');
+
+        return { memories };
+      } catch (error) {
+        logger.error('Error retrieving memories:', error);
+        return { memories: '' };
+      }
+    };
+  }
+
+  /**
    * Retrieve relevant memories for a message
    * @param message The message to retrieve memories for
    * @param userId The user ID
@@ -231,6 +329,43 @@ export class MemoryAgent extends BaseAgent {
       .join('\n\n');
 
     return `### User Memory Context ###\n${formattedMemories}\n\n`;
+  }
+
+  /**
+   * Enrich a prompt with memory context
+   */
+  public async enrichPromptWithMemories(
+    prompt: ChatPromptTemplate,
+    message: string | BaseMessage,
+    userId: string = 'default_user'
+  ): Promise<ChatPromptTemplate> {
+    try {
+      if (!this.initialized) {
+        logger.warn('MemoryAgent: Not initialized for memory enrichment');
+        return prompt;
+      }
+
+      const memories = await this.retrieveRelevantMemories(message, userId);
+      if (!memories || memories.length === 0) {
+        logger.debug('MemoryAgent: No relevant memories found for enrichment');
+        return prompt;
+      }
+
+      const memoryContext = this.formatMemoriesForContext(memories);
+      logger.debug(
+        `MemoryAgent: Found ${memories.length} relevant memories for context enrichment`
+      );
+
+      // We don't modify the original prompt, we return a new prompt with memories partial applied
+      return prompt.partial({
+        memories: memoryContext,
+      });
+    } catch (error) {
+      logger.error(
+        `MemoryAgent: Error enriching prompt with memories: ${error}`
+      );
+      return prompt;
+    }
   }
 
   /**
@@ -331,5 +466,12 @@ export class MemoryAgent extends BaseAgent {
    */
   public getMemoryTools(): any[] {
     return [...this.memoryTools];
+  }
+
+  /**
+   * Gets the embeddings instance
+   */
+  public getEmbeddings(): CustomHuggingFaceEmbeddings {
+    return this.embeddings;
   }
 }
