@@ -266,12 +266,6 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
           memories: state.memories || '',
         });
 
-        if (aiConfig.langchainVerbose) {
-          logger.debug(
-            `Formatted prompt for LLM: ${JSON.stringify(formattedPrompt, null, 2)}`
-          );
-        }
-
         // Estimate message size and check limit
         const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
         if (estimatedTokens > 90000) {

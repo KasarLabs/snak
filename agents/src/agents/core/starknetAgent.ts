@@ -37,16 +37,6 @@ export interface StarknetAgentConfig {
 }
 
 /**
- * Logging options
- */
-export interface LoggingOptions {
-  langchainVerbose?: boolean;
-  tokenLogging?: boolean;
-  disabled?: boolean;
-  modelSelectionDebug?: boolean;
-}
-
-/**
  * Main agent for interacting with the Starknet blockchain
  */
 export class StarknetAgent extends BaseAgent implements IModelAgent {
@@ -61,32 +51,9 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   private currentMode: string;
   private agentReactExecutor: any;
   private modelSelector: ModelSelectionAgent | null = null;
-  private loggingOptions: LoggingOptions = {
-    langchainVerbose: false,
-    tokenLogging: true,
-    disabled: false,
-    modelSelectionDebug: false,
-  };
-  private originalLoggerFunctions: Record<string, any> = {};
 
   constructor(config: StarknetAgentConfig) {
-    super('starknet', AgentType.MAIN);
-
-    // Logging configuration
-    const disableLogging = process.env.DISABLE_LOGGING === 'true';
-    const enableDebugLogging =
-      process.env.DEBUG_LOGGING === 'true' ||
-      process.env.LOG_LEVEL === 'debug' ||
-      process.env.NODE_ENV === 'development';
-
-    if (disableLogging) {
-      this.disableLogging();
-    } else if (enableDebugLogging) {
-      this.loggingOptions.disabled = false;
-      this.loggingOptions.modelSelectionDebug = true;
-    } else {
-      this.disableLogging();
-    }
+    super('starknet', AgentType.SNAK);
 
     // Initialize properties
     this.provider = config.provider;
@@ -156,65 +123,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Disable logging by replacing logger methods with no-ops
-   */
-  private disableLogging(): void {
-    if (!this.originalLoggerFunctions.info) {
-      this.originalLoggerFunctions = {
-        info: logger.info,
-        debug: logger.debug,
-        warn: logger.warn,
-        error: logger.error,
-      };
-    }
-
-    const noop = (message: any, ...meta: any[]): any => logger;
-    logger.info = noop;
-    logger.debug = noop;
-    logger.warn = noop;
-    logger.error = noop;
-
-    this.loggingOptions.disabled = true;
-  }
-
-  /**
-   * Restore original logging functions
-   */
-  public enableLogging(): void {
-    logger.info = this.originalLoggerFunctions.info;
-    logger.debug = this.originalLoggerFunctions.debug;
-    logger.warn = this.originalLoggerFunctions.warn;
-    logger.error = this.originalLoggerFunctions.error;
-
-    this.loggingOptions.disabled = false;
-  }
-
-  /**
-   * Set logging options for the agent
-   */
-  public setLoggingOptions(options: LoggingOptions): void {
-    this.loggingOptions = { ...this.loggingOptions, ...options };
-
-    if (options.disabled === true && !this.loggingOptions.disabled) {
-      this.disableLogging();
-      return;
-    } else if (options.disabled === false && this.loggingOptions.disabled) {
-      this.enableLogging();
-    }
-
-    if (this.modelSelector && options.modelSelectionDebug !== undefined) {
-      const useMetaSelection = this.agentconfig?.mode?.metaSelection === true;
-      logger.debug(
-        `Updated ModelSelectionAgent: debug mode=${this.loggingOptions.modelSelectionDebug}, meta selection=${useMetaSelection}`
-      );
-    }
-
-    if (!this.loggingOptions.disabled && this.agentReactExecutor) {
-      this.applyLoggerVerbosityToExecutor();
-    }
-  }
-
-  /**
    * Create agent executor based on current mode
    */
   private async createAgentReactExecutor(): Promise<void> {
@@ -247,7 +155,10 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       }
 
       const tempAiConfig = {
-        langchainVerbose: this.loggingOptions.langchainVerbose,
+        // Use environment variable to determine verbosity instead of a separate flag
+        langchainVerbose:
+          process.env.LOG_LEVEL === 'debug' ||
+          process.env.NODE_ENV === 'development',
         aiProvider: 'anthropic',
         aiModel: 'claude-3-5-sonnet-latest',
         aiProviderApiKey: process.env.ANTHROPIC_API_KEY,
@@ -292,7 +203,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         );
       }
 
-      this.applyLoggerVerbosityToExecutor();
+      this.applyVerbosityToExecutor();
     } catch (error) {
       logger.error(
         `StarknetAgent: Failed to create Agent React Executor: ${error}`
@@ -305,19 +216,24 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Apply logger verbosity settings to the agent executor
+   * Apply verbosity settings to the agent executor based on environment variables
    */
-  private applyLoggerVerbosityToExecutor(): void {
+  private applyVerbosityToExecutor(): void {
     if (!this.agentReactExecutor) return;
 
+    // Derive verbosity directly from environment
+    const isVerbose =
+      process.env.LOG_LEVEL === 'debug' ||
+      process.env.NODE_ENV === 'development';
+
+    // Apply to LLM if available
     if (this.agentReactExecutor.agent?.llm) {
-      this.agentReactExecutor.agent.llm.verbose =
-        this.loggingOptions.langchainVerbose === true;
+      this.agentReactExecutor.agent.llm.verbose = isVerbose;
     }
 
+    // Apply to graph nodes if available
     if (this.agentReactExecutor.graph?._nodes?.agent?.data?.model) {
-      this.agentReactExecutor.graph._nodes.agent.data.model.verbose =
-        this.loggingOptions.langchainVerbose === true;
+      this.agentReactExecutor.graph._nodes.agent.data.model.verbose = isVerbose;
     }
   }
 

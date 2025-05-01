@@ -326,12 +326,10 @@ export class SupervisorAgent extends BaseAgent {
       input !== null &&
       'content' in input
     ) {
-      // It's an AgentMessage
       logger.debug(`${depthIndent}SupervisorAgent: Input is an AgentMessage`);
       if (typeof input.content === 'string') {
         message = new HumanMessage(input.content);
       } else {
-        // Handle non-string content (e.g., structured data)
         try {
           const contentStr = JSON.stringify(input.content);
           message = new HumanMessage(contentStr);
@@ -347,7 +345,6 @@ export class SupervisorAgent extends BaseAgent {
       message = new HumanMessage('Unrecognized input format');
     }
 
-    // If we have model type in config, pass it along and log it
     if (config?.modelType) {
       logger.debug(
         `SupervisorAgent: Using provided model type: ${config.modelType}`

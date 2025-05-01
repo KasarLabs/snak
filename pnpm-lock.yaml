@@ -493,9 +493,6 @@ importers:
       '@snakagent/core':
         specifier: workspace:*
         version: link:../../core
-      starknet:
-        specifier: ^6.23.1
-        version: 6.24.1(encoding@0.1.13)
 
   plugins/scarb:
     dependencies:

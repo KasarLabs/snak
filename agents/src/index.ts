@@ -1,8 +1,5 @@
 // Main exports
-export type {
-  StarknetAgentConfig,
-  LoggingOptions,
-} from './agents/core/starknetAgent.js';
+export type { StarknetAgentConfig } from './agents/core/starknetAgent.js';
 export { StarknetAgent } from './agents/core/starknetAgent.js';
 
 // Agent-related exports

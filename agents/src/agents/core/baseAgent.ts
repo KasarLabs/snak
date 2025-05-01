@@ -34,7 +34,7 @@ export interface IAgent {
 export enum AgentType {
   SUPERVISOR = 'supervisor',
   OPERATOR = 'operator',
-  MAIN = 'main',
+  SNAK = 'snak',
 }
 
 /**
