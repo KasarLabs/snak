@@ -37,7 +37,7 @@ export interface JsonConfig {
 export interface ModeConfig {
   interactive: boolean;
   autonomous: boolean;
-  recursionLimit: number;
+  maxIteration: number;
   metaSelection?: boolean;
 }
 
@@ -56,7 +56,7 @@ export const updateModeConfig = async (
     // Ensure the mode object exists
     if (!json.mode) {
       json.mode = {
-        recursionLimit: 15,
+        maxIteration: 15,
       };
     }
 
@@ -153,10 +153,10 @@ export const validateConfig = (config: JsonConfig) => {
 
   // Ensure recursion limit is valid
   if (
-    typeof config.mode.recursionLimit !== 'number' ||
-    config.mode.recursionLimit < 0
+    typeof config.mode.maxIteration !== 'number' ||
+    config.mode.maxIteration < 0
   ) {
-    config.mode.recursionLimit = 15;
+    config.mode.maxIteration = 15;
   }
 
   // Validate mcpServers if present
@@ -261,9 +261,9 @@ const checkParseJson = async (
       modeConfig = {
         interactive: json.mode.interactive !== false, // default to true if not specified
         autonomous: json.mode.autonomous === true, // default to false if not specified
-        recursionLimit:
-          typeof json.mode.recursionLimit === 'number'
-            ? json.mode.recursionLimit
+        maxIteration:
+          typeof json.mode.maxIteration === 'number'
+            ? json.mode.maxIteration
             : 15, // default to 15 if not specified
       };
     } else {
@@ -271,7 +271,7 @@ const checkParseJson = async (
       modeConfig = {
         interactive: true,
         autonomous: false,
-        recursionLimit: 15,
+        maxIteration: 15,
       };
     }
 

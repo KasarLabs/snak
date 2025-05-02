@@ -773,7 +773,7 @@ export class WorkflowController {
         configurable: {
           thread_id: threadId,
         },
-        recursionLimit: this.maxIterations * 2, // More generous recursion limit
+        maxIteration: this.maxIterations * 2, // More generous recursion limit
         ...(config || {}), // Merge with provided configuration
       };
       logger.debug(

@@ -28,7 +28,7 @@
   "mode": {
     "interactive": false,
     "autonomous": true,
-    "recursionLimit": 20
+    "maxIteration": 20
   },
   "memory": {
     "enabled": true,

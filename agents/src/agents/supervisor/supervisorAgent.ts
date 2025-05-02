@@ -109,7 +109,7 @@ export class SupervisorAgent extends BaseAgent {
         logger.debug('SupervisorAgent: Initializing MemoryAgent...');
         this.memoryAgent = new MemoryAgent({
           shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
-          recursionLimit: agentConfig?.memory?.recursionLimit,
+          maxIteration: agentConfig?.memory?.maxIteration,
           embeddingModel: agentConfig?.memory?.embeddingModel,
         });
         await this.memoryAgent.init();

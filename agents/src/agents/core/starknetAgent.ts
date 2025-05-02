@@ -146,8 +146,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           `Failed to create agent executor for mode ${this.currentMode}: result is null/undefined`
         );
       }
-
-      this.applyVerbosityToExecutor();
     } catch (error) {
       logger.error(
         `StarknetAgent: Failed to create Agent React Executor: ${error}`
@@ -156,28 +154,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         logger.error(`Stack trace: ${error.stack}`);
       }
       throw error;
-    }
-  }
-
-  /**
-   * Apply verbosity settings to the agent executor based on environment variables
-   */
-  private applyVerbosityToExecutor(): void {
-    if (!this.agentReactExecutor) return;
-
-    // Derive verbosity directly from environment
-    const isVerbose =
-      process.env.LOG_LEVEL === 'debug' ||
-      process.env.NODE_ENV === 'development';
-
-    // Apply to LLM if available
-    if (this.agentReactExecutor.agent?.llm) {
-      this.agentReactExecutor.agent.llm.verbose = isVerbose;
-    }
-
-    // Apply to graph nodes if available
-    if (this.agentReactExecutor.graph?._nodes?.agent?.data?.model) {
-      this.agentReactExecutor.graph._nodes.agent.data.model.verbose = isVerbose;
     }
   }
 
@@ -283,12 +259,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
     try {
       logger.debug(`StarknetAgent executing with mode: ${this.currentMode}`);
-
-      // Extract model type from config if available
-      const modelType = config?.modelType || null;
-      logger.debug(
-        `StarknetAgent: Using model type from config: ${modelType || 'not specified'}`
-      );
 
       // Retrieve the original user query if it exists in config metadata
       let originalUserQuery = null;
@@ -535,12 +505,9 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         return this.executeSimpleFallback(input); // Using fallback for execution errors too
       }
 
-      // Format response if needed (e.g., removing backticks)
-      const finalResponse = this.formatResponseForDisplay(responseContent);
-
       // Always return a properly formatted AIMessage with required metadata
       return new AIMessage({
-        content: finalResponse,
+        content: responseContent,
         additional_kwargs: {
           from: 'starknet',
           final: true,
@@ -618,38 +585,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Format agent response for display
-   */
-  private formatResponseForDisplay(response: string | any): string | any {
-    if (typeof response !== 'string') {
-      // If it's already an AIMessage or object, return as is
-      if (
-        response instanceof AIMessage ||
-        (typeof response === 'object' && response !== null)
-      ) {
-        return response;
-      }
-      // Otherwise, try to stringify
-      try {
-        return JSON.stringify(response);
-      } catch {
-        return String(response); // Fallback to basic string conversion
-      }
-    }
-
-    // If it's a string, format bullet points
-    const lines = response.split('\n');
-    const formattedLines = lines.map((line: string) => {
-      if (line.trim().startsWith('•')) {
-        // Check for trimmed line start
-        return `  ${line.trim()}`;
-      }
-      return line;
-    });
-    return formattedLines.join('\n');
-  }
-
-  /**
    * Check if an error is token-related
    */
   private isTokenRelatedError(error: any): boolean {
@@ -684,25 +619,25 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       // Add message pruning if memory is enabled
       if (this.memory.enabled !== false) {
-        // Use mode.recursionLimit if available, otherwise fall back to memory config
-        const recursionLimit =
-          this.agentconfig?.mode?.recursionLimit !== undefined
-            ? this.agentconfig.mode.recursionLimit
-            : this.memory.recursionLimit !== undefined
-              ? this.memory.recursionLimit
+        // Use mode.maxIteration if available, otherwise fall back to memory config
+        const maxIteration =
+          this.agentconfig?.mode?.maxIteration !== undefined
+            ? this.agentconfig.mode.maxIteration
+            : this.memory.maxIteration !== undefined
+              ? this.memory.maxIteration
               : this.memory.shortTermMemorySize || 15;
 
         // Only apply recursion limit if it's not null (0 means no limit)
-        if (recursionLimit !== 0) {
-          invokeOptions.recursionLimit = recursionLimit;
+        if (maxIteration !== 0) {
+          invokeOptions.maxIteration = maxIteration;
           invokeOptions.messageHandler = (messages: any[]) => {
-            if (messages.length > recursionLimit) {
+            if (messages.length > maxIteration) {
               logger.debug(
-                `Call data - message pruning: ${messages.length} messages exceeds limit ${recursionLimit}`
+                `Call data - message pruning: ${messages.length} messages exceeds limit ${maxIteration}`
               );
               const prunedMessages = [
                 messages[0],
-                ...messages.slice(-(recursionLimit - 1)),
+                ...messages.slice(-(maxIteration - 1)),
               ];
               logger.debug(
                 `Call data - pruned from ${messages.length} to ${prunedMessages.length} messages`
@@ -712,7 +647,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
             return messages;
           };
           logger.debug(
-            `Execute call data: configured with recursionLimit=${recursionLimit}`
+            `Execute call data: configured with maxIteration=${maxIteration}`
           );
         } else {
           logger.debug(`Execute call data: running without recursion limit`);
@@ -774,11 +709,25 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Execute in autonomous mode continuously
+   * Execute in autonomous mode with a structure similar to execute()
+   * @returns Result of the autonomous execution
    */
   public async execute_autonomous(): Promise<unknown> {
+    let responseContent: string | any;
+    let errorCount = 0;
+    let maxErrors = 3;
+    let fallbackAttempted = false;
+    let originalMode = this.currentMode;
+    let iterationCount = 0;
+    let lastNextSteps: string | null = null;
+    let conversationHistory: BaseMessage[] = [];
+
     try {
-      // Validate that we're in autonomous mode
+      logger.debug(
+        `StarknetAgent executing autonomous mode: ${this.currentMode}`
+      );
+
+      // Verify we are in autonomous mode
       if (this.currentMode !== 'auto') {
         if (this.agentconfig?.mode?.autonomous) {
           logger.info(
@@ -792,174 +741,285 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         }
       }
 
+      // Ensure executor is created
       if (!this.agentReactExecutor) {
-        await this.createAgentReactExecutor();
-        if (!this.agentReactExecutor) {
-          throw new Error(
-            'Agent executor is not initialized for autonomous execution'
+        logger.debug(
+          'StarknetAgent: No executor exists, attempting to create one...'
+        );
+        try {
+          await this.createAgentReactExecutor();
+        } catch (initError) {
+          logger.error(
+            `StarknetAgent: Initial attempt to initialize executor failed: ${initError}`
           );
+          errorCount++;
+
+          // Check if we should retry or use fallback
+          if (errorCount >= maxErrors) {
+            logger.warn(
+              'StarknetAgent: Maximum initialization attempts reached, using fallback mode'
+            );
+            fallbackAttempted = true;
+            return this.executeSimpleFallback(
+              'Autonomous execution initialization failed'
+            );
+          } else {
+            return new AIMessage({
+              content: `I cannot process autonomous execution at this time because the agent failed to initialize properly. Error: ${initError}`,
+              additional_kwargs: {
+                from: 'starknet',
+                final: true,
+                error: 'initialization_failed',
+              },
+            });
+          }
         }
       }
 
-      // Use autonomous implementation from original file
-      const result = await this._executeAutonomous();
-      return result;
-    } catch (error) {
-      return {
-        status: 'failure',
-        error: `Autonomous execution error: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
-  }
-
-  /**
-   * Internal implementation of autonomous execution
-   */
-  private async _executeAutonomous(): Promise<any> {
-    try {
-      let iterationCount = 0;
-      let consecutiveErrorCount = 0;
-      let tokensErrorCount = 0;
-      let lastNextSteps: string | null = null;
-      const MAX_ITERATIONS = 50;
-
-      // Keep complete conversation history for invoking the graph
-      let conversationHistory: BaseMessage[] = [];
-
-      // Add initial system prompt if available in configuration
-      if (
-        this.agentReactExecutor &&
-        this.agentReactExecutor.agent &&
-        this.agentconfig?.prompt?.content
-      ) {
-        // Ensure content is a string
-        const systemPromptContent =
-          typeof this.agentconfig.prompt.content === 'string'
-            ? this.agentconfig.prompt.content
-            : JSON.stringify(this.agentconfig.prompt.content);
-        const systemPrompt = new SystemMessage(systemPromptContent);
-        conversationHistory.push(systemPrompt);
+      // Retry logic identical to execute()
+      while (!this.agentReactExecutor && errorCount < maxErrors) {
+        errorCount++;
+        logger.warn(
+          `StarknetAgent: Attempt ${errorCount} to initialize executor failed, trying again...`
+        );
+        try {
+          await this.createAgentReactExecutor();
+        } catch (retryError) {
+          logger.error(
+            `StarknetAgent: Retry attempt ${errorCount} failed: ${retryError}`
+          );
+        }
+        if (this.agentReactExecutor) {
+          logger.debug(
+            `StarknetAgent: Executor successfully created on attempt ${errorCount}`
+          );
+          break;
+        }
       }
 
-      // Main autonomous loop
-      while (iterationCount < MAX_ITERATIONS) {
-        iterationCount++;
+      // If still no executor after retries, use fallback
+      if (
+        !this.agentReactExecutor &&
+        errorCount >= maxErrors &&
+        !fallbackAttempted
+      ) {
+        logger.warn(
+          'StarknetAgent: Maximum initialization attempts reached after retries, using fallback mode'
+        );
+        fallbackAttempted = true;
+        return this.executeSimpleFallback(
+          'Autonomous execution initialization failed after retries'
+        );
+      }
 
-        try {
-          // Determine input message for THIS iteration
-          let currentTurnInput: BaseMessage;
+      // Ensure we have a valid executor
+      if (!this.agentReactExecutor) {
+        logger.error(
+          'StarknetAgent: Failed to create a valid executor after attempts'
+        );
+        return new AIMessage({
+          content:
+            'Failed to initialize autonomous execution agent after multiple attempts. Please try again or contact an administrator.',
+          additional_kwargs: {
+            from: 'starknet',
+            final: true,
+            error: 'executor_creation_failed_retries',
+          },
+        });
+      }
 
-          if (lastNextSteps) {
-            logger.debug(
-              `Using previous NEXT STEPS as prompt: "${lastNextSteps}"`
-            );
-            // Use NEXT STEPS as user input for this turn
-            currentTurnInput = new HumanMessage({
-              content: `Execute the following planned action based on the previous turn: "${lastNextSteps}". Ensure it's a single, simple action.`,
-              name: 'Planner',
-            });
-          } else {
-            logger.debug(
-              'No previous NEXT STEPS found, generating adaptive prompt.'
-            );
-            // Fall back to general adaptive prompt
-            const promptMessage =
-              'Based on your objectives and the recent conversation history, determine the next best action to take.';
-            currentTurnInput = new HumanMessage(promptMessage);
+      // ----- Main autonomous execution logic starts here -----
+      // The agentReactExecutor now holds { app, json_config, maxIteration }
+      if (!this.agentReactExecutor?.app) {
+        logger.error(
+          'StarknetAgent: Autonomous executor created, but app is missing.'
+        );
+        return new AIMessage({
+          content: 'Failed to initialize autonomous execution agent structure.',
+          additional_kwargs: {
+            from: 'starknet',
+            final: true,
+            error: 'executor_app_missing',
+          },
+        });
+      }
+
+      const app = this.agentReactExecutor.app;
+      const agentJsonConfig = this.agentReactExecutor.json_config; // Config from agent creator
+      const maxIteration = this.agentReactExecutor.maxIteration; // Max iterations from agent creator
+
+      // Setup initial conversation state - requires an initial input message
+      // We need a starting point for the autonomous agent. Let's use a generic starter message.
+      // If a specific goal/task is needed, it should be passed into this function in the future.
+      const initialHumanMessage = new HumanMessage({
+        content:
+          agentJsonConfig?.prompt?.initial_goal || // Use a configured initial goal if available
+          'Start executing the primary objective defined in your system prompt.',
+      });
+      conversationHistory = [initialHumanMessage]; // Start history with the initial prompt
+
+      // Define the thread configuration for stateful execution
+      const threadConfig = {
+        configurable: {
+          thread_id: agentJsonConfig?.chat_id || 'autonomous_session',
+        },
+      };
+
+      logger.info(
+        `Starting autonomous execution with max iterations: ${maxIteration}`
+      );
+
+      // Main autonomous loop using graph streaming
+      try {
+        let finalState: any = null;
+        // Use stream to get intermediate steps if needed, or invoke for final result
+        // stream allows better insight and potentially stopping criteria during execution
+        const stream = app.stream(
+          { messages: conversationHistory }, // Initial input to the graph
+          { ...threadConfig, recursionLimit: maxIteration } // Pass thread and recursion limit
+        );
+
+        for await (const event of stream) {
+          // Log events or check state here if necessary
+          // Example: Log node completions
+          const eventKeys = Object.keys(event || {});
+          if (eventKeys.length === 1) {
+            const nodeName = eventKeys[0];
+            logger.debug(`Autonomous Agent: Completed node '${nodeName}'`);
+            // Store the latest state
+            finalState = event[nodeName];
           }
 
-          // Add input for this turn to history
-          conversationHistory.push(currentTurnInput);
+          // Check for explicit errors in the state (e.g., token limit error from callModel)
+          if (finalState?.messages?.length > 0) {
+            const lastMsg = finalState.messages[finalState.messages.length - 1];
+            if (
+              lastMsg instanceof AIMessage &&
+              lastMsg.additional_kwargs?.error
+            ) {
+              logger.error(
+                `Autonomous Agent: Error detected in graph state: ${lastMsg.additional_kwargs.error}`
+              );
+              responseContent =
+                lastMsg.content ||
+                `Execution stopped due to error: ${lastMsg.additional_kwargs.error}`;
+              // Mark as final to prevent further processing
+              if (!lastMsg.additional_kwargs.final)
+                lastMsg.additional_kwargs.final = true;
+              break; // Stop the loop on detected error
+            }
+          }
 
-          // Prepare invocation options
-          const agentConfig = this.agentReactExecutor.agentConfig || {
-            configurable: { thread_id: 'autonomous_session' },
-          };
-
-          logger.debug(
-            `Autonomous iteration ${iterationCount}: invoking graph with ${conversationHistory.length} messages`
-          );
-
-          // Invoke graph with current complete history
-          const result = await this.agentReactExecutor.agent.invoke(
-            { messages: conversationHistory },
-            agentConfig
-          );
-
-          logger.debug(
-            `Autonomous iteration ${iterationCount}: graph invocation complete`
-          );
-
-          // Process graph result
-          if (!result || !result.messages || result.messages.length === 0) {
-            logger.warn(
-              'Graph returned empty or invalid state, stopping loop.'
+          // Check if the graph has naturally reached the end state (indicated by __end__ existing)
+          if (finalState?.__end__) {
+            logger.info(
+              'Autonomous Agent: Graph execution reached __end__ node.'
             );
+            break; // Stop loop when graph finishes
+          }
+
+          iterationCount++; // Increment iteration count based on stream events (approximation)
+          if (iterationCount >= maxIteration) {
+            logger.warn(
+              `Autonomous Agent: Reached max iteration limit (${maxIteration}). Stopping.`
+            );
+            // Capture the last known state as the result
+            responseContent =
+              finalState?.messages?.[finalState.messages.length - 1]?.content ||
+              'Execution stopped due to maximum iterations.';
             break;
           }
+        }
 
-          // result.messages contains state *after* graph has completed.
-          // The last message(s) should be agent response or tool results.
-          conversationHistory = result.messages;
+        logger.info(
+          `Autonomous session finished after approximately ${iterationCount} steps.`
+        );
 
-          // Find the very last message added by graph execution (should be AIMessage or ToolMessage)
-          const lastMessageFromGraph =
-            conversationHistory[conversationHistory.length - 1];
-
-          if (lastMessageFromGraph instanceof AIMessage) {
-            // Process and display AI response
-            lastNextSteps = this.extractNextSteps(lastMessageFromGraph.content);
-
-            // Check if agent reported a final answer
-            if (
-              typeof lastMessageFromGraph.content === 'string' &&
-              lastMessageFromGraph.content
-                .toUpperCase()
-                .includes('FINAL ANSWER')
-            ) {
-              logger.info('Detected FINAL ANSWER. Ending autonomous session.');
-              break;
+        // Extract final response from the last state
+        if (
+          finalState &&
+          finalState.messages &&
+          finalState.messages.length > 0
+        ) {
+          const lastMessage =
+            finalState.messages[finalState.messages.length - 1];
+          if (lastMessage instanceof AIMessage) {
+            responseContent = lastMessage.content;
+            // Ensure metadata includes final=true if it came from __end__ implicitly
+            if (!lastMessage.additional_kwargs?.final) {
+              if (!lastMessage.additional_kwargs)
+                lastMessage.additional_kwargs = {};
+              lastMessage.additional_kwargs.final = true;
             }
           } else {
-            // Handle other unexpected message types
             logger.warn(
-              `Graph ended with unexpected message type: ${lastMessageFromGraph.constructor.name}`
+              `Autonomous execution ended with non-AI message: ${lastMessage._getType()}`
             );
-            lastNextSteps = null;
-            break;
+            responseContent =
+              responseContent || // Use content from loop break if available
+              'Autonomous execution finished, but the final message was not from the AI.';
           }
-        } catch (loopError) {
-          // Handle errors in autonomous execution
-          logger.error(
-            `Error in autonomous iteration ${iterationCount}: ${loopError}`
-          );
-
-          consecutiveErrorCount++;
-          if (this.isTokenRelatedError(loopError)) {
-            tokensErrorCount += 2;
-          }
-
-          if (consecutiveErrorCount > 3) {
-            logger.error(
-              'Too many consecutive errors. Stopping autonomous execution.'
-            );
-            break;
-          }
-
-          // Wait before next attempt
-          const waitTime = Math.min(2000 + consecutiveErrorCount * 1000, 10000);
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        } else {
+          responseContent =
+            responseContent || // Use content from loop break if available
+            'Autonomous execution completed, but no final state or messages were found.';
         }
+      } catch (graphExecError) {
+        logger.error(
+          `Error during autonomous graph execution: ${graphExecError}`
+        );
+        // Decide if fallback is needed based on error type
+        if (this.isTokenRelatedError(graphExecError)) {
+          responseContent =
+            'Error: Token limit likely exceeded during autonomous execution.';
+        } else {
+          responseContent = `Error during autonomous execution: ${graphExecError instanceof Error ? graphExecError.message : graphExecError}`;
+        }
+        // Use fallback for graph execution errors as well?
+        logger.error(
+          `StarknetAgent: Catastrophic error in autonomous execute, using fallback: ${graphExecError}`
+        );
+        return this.executeSimpleFallback(
+          'Autonomous execution failed during graph processing'
+        );
       }
 
-      logger.info('Autonomous session finished.');
-      return { status: 'success', iterations: iterationCount };
-    } catch (error) {
-      logger.error(`Fatal error in autonomous execution: ${error}`);
-      return {
-        status: 'failure',
-        error: error instanceof Error ? error.message : String(error),
-      };
+      // Return a formatted message
+      return new AIMessage({
+        content: responseContent,
+        additional_kwargs: {
+          from: 'starknet',
+          final: true,
+          agent_mode: this.currentMode,
+          iterations: iterationCount,
+        },
+      });
+    } catch (error: any) {
+      logger.error(`StarknetAgent autonomous execution failed: ${error}`);
+
+      // In case of catastrophic error, use fallback
+      if (!fallbackAttempted) {
+        logger.error(
+          `StarknetAgent: Catastrophic error in autonomous execute, using fallback: ${error}`
+        );
+        return this.executeSimpleFallback('Autonomous execution failed');
+      }
+
+      // If fallback was already attempted, create error message
+      return new AIMessage({
+        content: `Autonomous execution error: ${error.message}`,
+        additional_kwargs: {
+          from: 'starknet',
+          final: true,
+          error: 'autonomous_execution_error',
+        },
+      });
+    } finally {
+      // Restore original mode
+      if (this.currentMode !== originalMode) {
+        logger.debug(`Restoring original agent mode: ${originalMode}`);
+        this.currentMode = originalMode;
+      }
     }
   }
 

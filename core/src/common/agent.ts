@@ -33,7 +33,7 @@ export interface SignatureTool<P = any> {
 export interface ModeConfig {
   interactive: boolean;
   autonomous: boolean;
-  recursionLimit: number;
+  maxIteration: number;
 }
 
 /**

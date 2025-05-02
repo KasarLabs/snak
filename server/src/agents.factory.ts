@@ -52,7 +52,7 @@ export class AgentFactory {
         mode: {
           interactive: true,
           autonomous: json.autonomous || false,
-          recursionLimit: 15,
+          maxIteration: 15,
         },
         plugins: Array.isArray(json.plugins)
           ? json.plugins.map((tool: string) => tool.toLowerCase())

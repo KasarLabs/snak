@@ -20,9 +20,9 @@
   ],
   "interval": 15000,
   "mode": {
-    "interactive": true,
-    "autonomous": false,
-    "recursionLimit": 15,
+    "interactive": false,
+    "autonomous": true,
+    "maxIteration": 15,
     "metaSelection": true
   },
   "memory": {
@@ -30,7 +30,5 @@
     "shortTermMemorySize": 15
   },
   "chat_id": "ethereum_rpc",
-  "plugins": [
-    "rpc"
-  ]
+  "plugins": ["rpc"]
 }
