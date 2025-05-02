@@ -69,7 +69,7 @@ export class AgentFactory {
 
   async createAgent(
     signature: string,
-    agentMode: string = 'agent'
+    agentMode: string = 'autonomous'
   ): Promise<StarknetAgent> {
     if (!this.initialized) {
       await this.initPromise;

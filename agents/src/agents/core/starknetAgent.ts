@@ -60,7 +60,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       config.agentMode === 'auto' ||
       config.agentconfig?.mode?.autonomous === true
         ? 'auto'
-        : config.agentMode || 'agent';
+        : 'interactive';
     this.agentconfig = config.agentconfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
@@ -134,10 +134,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           this,
           this.modelSelector
         );
-      } else if (
-        this.currentMode === 'interactive' ||
-        this.currentMode === 'agent'
-      ) {
+      } else if (this.currentMode === 'interactive') {
         logger.debug('StarknetAgent: Creating interactive agent executor...');
         this.agentReactExecutor = await createAgent(this, this.modelSelector);
       } else {
@@ -317,8 +314,12 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       // Check if we need to temporarily adjust mode for this execution
       const requestedMode = config?.agentMode;
 
-      // Temporarily change mode if needed for this execution
-      if (requestedMode && requestedMode !== this.currentMode) {
+      // Temporarily change mode if requested, valid, and different from current
+      if (
+        requestedMode &&
+        (requestedMode === 'interactive' || requestedMode === 'auto') &&
+        requestedMode !== this.currentMode
+      ) {
         logger.debug(
           `Temporarily switching mode from ${this.currentMode} to ${requestedMode} for this execution`
         );
@@ -667,9 +668,10 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
    */
   public async execute_call_data(input: string): Promise<unknown> {
     try {
-      if (this.currentMode !== 'agent') {
+      // Check if in interactive mode now
+      if (this.currentMode !== 'interactive') {
         throw new Error(
-          `Need to be in agent mode to execute_call_data (current mode: ${this.currentMode})`
+          `Need to be in interactive mode to execute_call_data (current mode: ${this.currentMode})`
         );
       }
 
@@ -717,32 +719,53 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         }
       }
 
-      logger.debug('Execute call data: invoking agent');
-      const aiMessage = await this.agentReactExecutor.invoke(
+      // Invoke with 'messages' key as expected by Langchain standard interfaces
+      logger.debug('Execute call data: invoking agent with input message');
+      const result = await this.agentReactExecutor.invoke(
         {
-          messages: input,
+          // Ensure the input is wrapped correctly if it's just a string
+          messages: [new HumanMessage({ content: input })],
         },
         invokeOptions
       );
       logger.debug('Execute call data: agent invocation complete');
 
       try {
-        if (!aiMessage.messages || aiMessage.messages.length < 2) {
+        // Process the result - Assuming result structure includes 'messages'
+        if (!result || !result.messages || result.messages.length === 0) {
+          throw new Error('No messages returned from call data execution');
+        }
+
+        // Find the last AIMessage content which should contain the observation
+        const lastAiMessage = result.messages
+          .slice()
+          .reverse()
+          .find((m: BaseMessage) => m instanceof AIMessage);
+
+        if (!lastAiMessage || typeof lastAiMessage.content !== 'string') {
           throw new Error(
-            'Insufficient messages returned from call data execution'
+            'Could not find valid AIMessage content in the result.'
           );
         }
 
-        const messageContent =
-          aiMessage.messages[aiMessage.messages.length - 2].content;
+        const messageContent = lastAiMessage.content;
+
+        // Attempt to parse the JSON content
         return JSON.parse(messageContent);
       } catch (parseError) {
+        // More specific error handling for parsing issues
+        const lastMessageContent =
+          result?.messages?.[result.messages.length - 1]?.content;
+        logger.error(
+          `Failed to parse observation JSON: ${parseError}. Content was: ${lastMessageContent}`
+        );
         return {
           status: 'failure',
-          error: `Failed to parse observation: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+          error: `Failed to parse observation: ${parseError instanceof Error ? parseError.message : String(parseError)}. Raw content: ${lastMessageContent}`,
         };
       }
     } catch (error) {
+      logger.error(`Execute call data error: ${error}`);
       return {
         status: 'failure',
         error: `Execution error: ${error instanceof Error ? error.message : String(error)}`,
