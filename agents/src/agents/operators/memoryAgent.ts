@@ -1,17 +1,18 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import { BaseMessage, HumanMessage } from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
-import { memory, Postgres } from '@snakagent/database/queries';
+import { memory } from '@snakagent/database/queries';
 import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 
 /**
- * Configuration for the memory agent
+ * Memory configuration for the agent
  */
-export interface MemoryAgentConfig {
+export interface MemoryConfig {
+  enabled?: boolean;
   shortTermMemorySize?: number;
   recursionLimit?: number;
   embeddingModel?: string;
@@ -21,12 +22,12 @@ export interface MemoryAgentConfig {
  * Operator agent that manages memory and knowledge
  */
 export class MemoryAgent extends BaseAgent {
-  private config: MemoryAgentConfig;
+  private config: MemoryConfig;
   private embeddings: CustomHuggingFaceEmbeddings;
   private memoryTools: any[] = [];
   private initialized: boolean = false;
 
-  constructor(config: MemoryAgentConfig) {
+  constructor(config: MemoryConfig) {
     super('memory-agent', AgentType.OPERATOR);
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,

@@ -1,6 +1,5 @@
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
-import { AiConfig } from '../../common/index.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { MemorySaver } from '@langchain/langgraph';
@@ -11,20 +10,17 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { selectModel } from '../core/utils.js';
 import { BaseMessage, SystemMessage } from '@langchain/core/messages';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 
 /**
  * Creates an agent in autonomous mode
  * @param starknetAgent The Starknet agent instance
- * @param aiConfig AI configuration
- * @param modelSelector Optional model selector
+ * @param modelSelector Model selector instance
  */
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig,
-  modelSelector?: ModelSelectionAgent | null
+  modelSelector: ModelSelectionAgent | null
 ) => {
   try {
     const json_config = starknetAgent.getAgentConfig();
@@ -60,8 +56,18 @@ export const createAutonomousAgent = async (
       }
     }
 
-    // Select the model
-    const model = selectModel(aiConfig);
+    // Select the model using ModelSelectionAgent
+    if (!modelSelector) {
+      logger.error(
+        'ModelSelectionAgent is required for autonomous mode but was not provided.'
+      );
+      throw new Error('ModelSelectionAgent is required for autonomous mode.');
+    }
+    // Use a default 'smart' model type for initial setup, similar to interactive fallback
+    const model = await modelSelector.getModelForTask([], 'smart');
+    logger.debug(
+      `Selected initial model type for autonomous agent: ${model._modelType || 'unknown'}`
+    );
 
     // Create autonomous agent system prompt
     let systemPrompt = '';
@@ -144,6 +150,8 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
           };
 
           try {
+            // Attempt retry with the same initially selected model for now
+            // TODO: Potentially select a different model type (e.g., 'fast') for retry if needed later
             return await originalAgentInvoke(continueInput, config);
           } catch (secondError) {
             logger.error(`Failed simplified action attempt: ${secondError}`);

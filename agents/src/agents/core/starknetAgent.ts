@@ -11,15 +11,9 @@ import {
 } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
-
-/**
- * Memory configuration for the agent
- */
-export interface MemoryConfig {
-  enabled?: boolean;
-  shortTermMemorySize?: number;
-  recursionLimit?: number;
-}
+import { MemoryConfig } from 'agents/operators/memoryAgent.js';
+import { createAgent } from '../modes/interactive.js';
+import { createAutonomousAgent } from '../modes/autonomous.js';
 
 /**
  * Configuration for StarknetAgent
@@ -132,50 +126,12 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           this.currentMode
       );
 
-      let createAgentFunc, createAutonomousAgentFunc;
-
-      try {
-        const interactiveModule = await import('../modes/interactive.js');
-        createAgentFunc = interactiveModule.createAgent;
-      } catch (importError) {
-        logger.error(
-          `StarknetAgent: Failed to import interactive module: ${importError}`
-        );
-        throw new Error(`Failed to import interactive module: ${importError}`);
-      }
-
-      try {
-        const autonomousModule = await import('../modes/autonomous.js');
-        createAutonomousAgentFunc = autonomousModule.createAutonomousAgent;
-      } catch (importError) {
-        logger.error(
-          `StarknetAgent: Failed to import autonomous module: ${importError}`
-        );
-        throw new Error(`Failed to import autonomous module: ${importError}`);
-      }
-
-      const tempAiConfig = {
-        // Use environment variable to determine verbosity instead of a separate flag
-        langchainVerbose:
-          process.env.LOG_LEVEL === 'debug' ||
-          process.env.NODE_ENV === 'development',
-        aiProvider: 'anthropic',
-        aiModel: 'claude-3-5-sonnet-latest',
-        aiProviderApiKey: process.env.ANTHROPIC_API_KEY,
-      };
-
       logger.debug(`StarknetAgent: Using current mode: ${this.currentMode}`);
 
       if (this.currentMode === 'auto') {
         logger.debug('StarknetAgent: Creating autonomous agent executor...');
-        if (!createAutonomousAgentFunc) {
-          throw new Error(
-            'Autonomous agent creation function is not available'
-          );
-        }
-        this.agentReactExecutor = await createAutonomousAgentFunc(
+        this.agentReactExecutor = await createAutonomousAgent(
           this,
-          tempAiConfig,
           this.modelSelector
         );
       } else if (
@@ -183,16 +139,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         this.currentMode === 'agent'
       ) {
         logger.debug('StarknetAgent: Creating interactive agent executor...');
-        if (!createAgentFunc) {
-          throw new Error(
-            'Interactive agent creation function is not available'
-          );
-        }
-        this.agentReactExecutor = await createAgentFunc(
-          this,
-          tempAiConfig,
-          this.modelSelector
-        );
+        this.agentReactExecutor = await createAgent(this, this.modelSelector);
       } else {
         throw new Error(`Invalid mode: ${this.currentMode}`);
       }

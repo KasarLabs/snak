@@ -38,8 +38,7 @@ const getMemoryAgent = async () => {
  */
 export const createAgent = async (
   starknetAgent: StarknetAgentInterface,
-  aiConfig: AiConfig,
-  modelSelector?: ModelSelectionAgent | null
+  modelSelector: ModelSelectionAgent | null
 ) => {
   try {
     const json_config = starknetAgent.getAgentConfig();
@@ -113,8 +112,6 @@ export const createAgent = async (
 
       return result;
     };
-
-    const modelSelected = selectModel(aiConfig).bindTools(toolsList);
 
     const configPrompt = json_config.prompt?.content || '';
     const memoryPrompt = ``;
@@ -216,7 +213,7 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
             memories: state.memories || '',
           });
 
-          // Use dynamic model selection if available
+          // Use model selection agent if available
           if (modelSelector) {
             // Get modelType from state if available
             const stateModelType =
@@ -244,9 +241,33 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
             const result = await boundModel.invoke(truncatedPrompt);
             return formatAIMessageResult(result);
           } else {
-            // Fallback to predefined model
-            const result = await modelSelected.invoke(truncatedPrompt);
-            return formatAIMessageResult(result);
+            // Use existing model selector or create a new one if needed
+            logger.debug('Using existing model selector with smart model');
+            const existingModelSelector = ModelSelectionAgent.getInstance();
+
+            // If we have a model selector available, use it
+            if (existingModelSelector) {
+              const smartModel = await existingModelSelector.getModelForTask(
+                truncatedMessages,
+                'smart'
+              );
+
+              const boundSmartModel =
+                typeof smartModel.bindTools === 'function'
+                  ? smartModel.bindTools(toolsList)
+                  : smartModel;
+
+              const result = await boundSmartModel.invoke(truncatedPrompt);
+              return formatAIMessageResult(result);
+            } else {
+              // Fallback to creating direct model with specific provider
+              logger.warn(
+                'No model selector available, using direct provider selection'
+              );
+              throw new Error(
+                'Model selection requires a configured ModelSelectionAgent'
+              );
+            }
           }
         }
 
@@ -278,9 +299,13 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
           const result = await boundModel.invoke(formattedPrompt);
           return formatAIMessageResult(result);
         } else {
-          // Fallback to predefined model
-          const result = await modelSelected.invoke(formattedPrompt);
-          return formatAIMessageResult(result);
+          // Fallback to creating direct model with specific provider
+          logger.warn(
+            'No model selector available, using direct provider selection'
+          );
+          throw new Error(
+            'Model selection requires a configured ModelSelectionAgent'
+          );
         }
       } catch (error) {
         // Handle token limit errors specifically
@@ -296,15 +321,35 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
           const minimalMessages = state.messages.slice(-2);
 
           try {
-            // Try with a minimal prompt
+            // Try with a minimal prompt using smart model
             const emergencyPrompt = await prompt.formatMessages({
               tool_names: toolsList.map((tool) => tool.name).join(', '),
               messages: minimalMessages,
               memories: '',
             });
 
-            const result = await modelSelected.invoke(emergencyPrompt);
-            return formatAIMessageResult(result);
+            // Try to use an existing model selector first
+            const existingModelSelector = ModelSelectionAgent.getInstance();
+            if (existingModelSelector) {
+              const emergencyModel =
+                await existingModelSelector.getModelForTask(
+                  minimalMessages,
+                  'smart'
+                );
+
+              const boundEmergencyModel =
+                typeof emergencyModel.bindTools === 'function'
+                  ? emergencyModel.bindTools(toolsList)
+                  : emergencyModel;
+
+              const result = await boundEmergencyModel.invoke(emergencyPrompt);
+              return formatAIMessageResult(result);
+            } else {
+              // No model selector available
+              throw new Error(
+                'Model selection requires a configured ModelSelectionAgent'
+              );
+            }
           } catch (emergencyError) {
             // If even the emergency prompt fails, return a formatted error message
             return {

@@ -1,9 +1,6 @@
 import { RpcProvider } from 'starknet';
 import { JsonConfig } from '../config/jsonConfig.js';
 
-// Import the ModelSelectionAgent type
-import { ModelSelectionAgent } from '../agents/operators/modelSelectionAgent.js';
-
 /**
  * Configuration for AI models used by agents
  */
