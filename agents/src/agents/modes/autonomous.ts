@@ -299,20 +299,8 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
     }
 
     // --- Graph Edges ---
-    function shouldContinue(
-      state: typeof GraphState.State
-    ): 'tools' | '__end__' {
+    function shouldContinue(state: typeof GraphState.State): 'tools' | 'agent' {
       const lastMessage = state.messages[state.messages.length - 1];
-
-      // Check for explicit "FINAL ANSWER"
-      if (
-        lastMessage instanceof AIMessage &&
-        typeof lastMessage.content === 'string' &&
-        lastMessage.content.includes('FINAL ANSWER:')
-      ) {
-        logger.debug("Detected 'FINAL ANSWER'. Routing to __end__.");
-        return '__end__';
-      }
 
       // Check for tool calls only if it's an AIMessage
       if (lastMessage instanceof AIMessage && lastMessage.tool_calls?.length) {
@@ -322,12 +310,12 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
         return 'tools';
       }
 
-      // If no tool calls (on AIMessage) and no final answer, route to end.
+      // If no tool calls, always loop back to the agent to force continuation.
+      // Termination is handled by the external recursion limit in execute_autonomous.
       logger.debug(
-        'No tool calls and no FINAL ANSWER detected. Routing to __end__.'
+        'No tool calls detected. Routing back to agent for next iteration.'
       );
-      return '__end__';
-      // Alternatively, could route back to 'agent' to force it to try again, but that risks infinite loops.
+      return 'agent'; // Force loop back to agent
     }
 
     // --- Build Workflow ---
@@ -337,9 +325,11 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
 
     workflow.setEntryPoint('agent');
 
+    // Modify conditional edges: only 'tools' or 'agent' targets
     workflow.addConditionalEdges('agent', shouldContinue, {
       tools: 'tools',
-      __end__: '__end__',
+      agent: 'agent', // Route back to agent if shouldContinue returns 'agent'
+      // __end__: '__end__', // REMOVED __end__ route
     });
 
     workflow.addEdge('tools', 'agent'); // Always loop back to agent after tools

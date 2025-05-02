@@ -264,12 +264,16 @@ const localRun = async (): Promise<void> => {
         name: 'mode',
         message: 'Select operation mode:',
         choices: [
-          { name: `Interactive Mode`, value: 'agent', short: 'Interactive' },
+          {
+            name: `Interactive Mode`,
+            value: 'interactive',
+            short: 'Interactive',
+          },
           { name: `Autonomous Mode`, value: 'autonomous', short: 'Autonomous' },
         ],
       },
     ]);
-    const agentMode = mode === 'agent' ? 'interactive' : 'autonomous';
+    const agentMode = mode;
 
     clearScreen();
     console.log(logo);
@@ -279,8 +283,7 @@ const localRun = async (): Promise<void> => {
     try {
       spinner.stop();
 
-      const modeToUpdate =
-        agentMode === 'interactive' ? 'interactive' : 'autonomous';
+      const modeToUpdate = agentMode;
       const updateSpinner = createSpinner(
         `Updating configuration to ${modeToUpdate} mode`
       ).start();

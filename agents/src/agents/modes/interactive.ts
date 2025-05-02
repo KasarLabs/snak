@@ -7,13 +7,7 @@ import {
 } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
-import { AiConfig } from '../../common/index.js';
-import {
-  initializeToolsList,
-  initializeDatabase,
-  selectModel,
-} from '../core/utils.js';
-import { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { initializeToolsList, initializeDatabase } from '../core/utils.js';
 import { estimateTokens } from '../../token/tokenTracking.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
@@ -358,7 +352,7 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
                   content:
                     'The conversation has become too long and exceeds token limits. Please start a new conversation.',
                   additional_kwargs: {
-                    from: 'starknet',
+                    from: 'snak',
                     final: true,
                     error: 'token_limit_exceeded',
                   },
@@ -383,14 +377,14 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
               ? finalResult.content
               : JSON.stringify(finalResult.content),
           additional_kwargs: {
-            from: 'starknet',
+            from: 'snak',
             final: true,
           },
         });
       } else if (!finalResult.additional_kwargs) {
-        finalResult.additional_kwargs = { from: 'starknet', final: true };
+        finalResult.additional_kwargs = { from: 'snak', final: true };
       } else if (!finalResult.additional_kwargs.from) {
-        finalResult.additional_kwargs.from = 'starknet';
+        finalResult.additional_kwargs.from = 'snak';
         finalResult.additional_kwargs.final = true;
       }
 

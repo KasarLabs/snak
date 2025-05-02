@@ -178,7 +178,7 @@ export class SupervisorAgent extends BaseAgent {
 
       // Add all agents with verification
       if (this.starknetAgent) {
-        allAgents['starknet'] = this.starknetAgent;
+        allAgents['snak'] = this.starknetAgent;
         logger.debug(
           `SupervisorAgent: Added starknet agent: ${!!this.starknetAgent}`
         );
@@ -206,7 +206,7 @@ export class SupervisorAgent extends BaseAgent {
       }
 
       // Check that we have at least the required agents
-      if (Object.keys(allAgents).length < 2 || !allAgents['starknet']) {
+      if (Object.keys(allAgents).length < 2 || !allAgents['snak']) {
         throw new Error(
           'Workflow requires at least supervisor and starknet execution agent'
         );
@@ -221,7 +221,7 @@ export class SupervisorAgent extends BaseAgent {
       );
 
       // Determine ideal entry point based on configuration
-      const entryPoint = 'starknet'; // Always use starknet directly instead of model-selector
+      const entryPoint = 'snak';
       logger.debug(`SupervisorAgent: Using '${entryPoint}' as entry point`);
 
       // Create and initialize controller

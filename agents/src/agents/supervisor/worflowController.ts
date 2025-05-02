@@ -607,7 +607,7 @@ export class WorkflowController {
       }
 
       // Case 2: Response from starknet - always assume it's final to avoid loops
-      if (lastMessage.additional_kwargs?.from === 'starknet') {
+      if (lastMessage.additional_kwargs?.from === 'snak') {
         logger.debug(
           `WorkflowController[Exec:${execId}]: Router - Response from starknet, treating as final and ending workflow`
         );
@@ -638,7 +638,7 @@ export class WorkflowController {
         logger.warn(
           `WorkflowController[Exec:${execId}]: Router - Supervisor called multiple times, routing directly to starknet`
         );
-        if ('starknet' in this.agents) return 'starknet';
+        if ('snak' in this.agents) return 'snak';
         logger.warn(
           `WorkflowController[Exec:${execId}]: Router - Starknet agent not found after supervisor loop detection, ending.`
         );
@@ -670,8 +670,8 @@ export class WorkflowController {
         );
       }
 
-      if ('starknet' in this.agents) {
-        return 'starknet';
+      if ('snak' in this.agents) {
+        return 'snak';
       }
       logger.warn(
         `WorkflowController[Exec:${execId}]: Router - Starknet agent not found after model-selector, ending.`
@@ -698,7 +698,7 @@ export class WorkflowController {
       logger.debug(
         `WorkflowController[Exec:${execId}]: Router - Direct routing to starknet for human message`
       );
-      if ('starknet' in this.agents) return 'starknet';
+      if ('snak' in this.agents) return 'snak';
       logger.warn(
         `WorkflowController[Exec:${execId}]: Router - Starknet agent not found for human message, ending.`
       );
@@ -706,7 +706,7 @@ export class WorkflowController {
     }
 
     // If already at starknet, end workflow
-    if (state.currentAgent === 'starknet') {
+    if (state.currentAgent === 'snak') {
       logger.debug(
         `WorkflowController[Exec:${execId}]: Router - Current agent is starknet, ending workflow.`
       );
@@ -781,7 +781,7 @@ export class WorkflowController {
       );
 
       // Determine initial agent - always use starknet directly
-      const initialAgent = 'starknet';
+      const initialAgent = 'snak';
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Determined initial agent: ${initialAgent}`
       );

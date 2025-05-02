@@ -557,7 +557,7 @@ ${analysisContent}`
         content: 'Selected model type: smart (default due to empty input)',
         additional_kwargs: {
           modelType: 'smart',
-          nextAgent: 'starknet',
+          nextAgent: 'snak',
           from: 'model-selector',
           final: false,
           originalUserQuery: '',
@@ -575,7 +575,7 @@ ${analysisContent}`
       : '';
 
     const modelType = await this.selectModelForMessages(messages);
-    const nextAgent = 'starknet';
+    const nextAgent = 'snak';
 
     if (this.debugMode) {
       logger.debug(

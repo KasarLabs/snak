@@ -47,7 +47,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   private modelSelector: ModelSelectionAgent | null = null;
 
   constructor(config: StarknetAgentConfig) {
-    super('starknet', AgentType.SNAK);
+    super('snak', AgentType.SNAK);
 
     // Initialize properties
     this.provider = config.provider;
@@ -312,7 +312,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           const errorMessage = new AIMessage({
             content: `I cannot process your request at this time because the agent failed to initialize properly. Error: ${initError}`,
             additional_kwargs: {
-              from: 'starknet',
+              from: 'snak',
               final: true,
               error: 'initialization_failed',
             },
@@ -375,7 +375,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           content:
             'Failed to initialize execution agent after multiple attempts. Please try again or contact an administrator.',
           additional_kwargs: {
-            from: 'starknet',
+            from: 'snak',
             final: true,
             error: 'executor_creation_failed_retries',
           },
@@ -406,7 +406,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           return new AIMessage({
             content: `Unable to change agent mode to "${requestedMode}". Error: ${modeChangeError}`,
             additional_kwargs: {
-              from: 'starknet',
+              from: 'snak',
               final: true,
               error: 'mode_change_failed',
             },
@@ -426,7 +426,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         return new AIMessage({
           content: 'Unsupported input type.',
           additional_kwargs: {
-            from: 'starknet',
+            from: 'snak',
             final: true,
             error: 'unsupported_input_type',
           },
@@ -509,7 +509,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       return new AIMessage({
         content: responseContent,
         additional_kwargs: {
-          from: 'starknet',
+          from: 'snak',
           final: true,
           agent_mode: this.currentMode,
         },
@@ -528,7 +528,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       return new AIMessage({
         content: `Error: ${error.message}`,
         additional_kwargs: {
-          from: 'starknet',
+          from: 'snak',
           final: true,
           error: 'execution_error',
         },
@@ -577,7 +577,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     return new AIMessage({
       content: responseMessage,
       additional_kwargs: {
-        from: 'starknet',
+        from: 'snak',
         final: true,
         error: 'fallback_mode_activated',
       },
@@ -767,7 +767,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
             return new AIMessage({
               content: `I cannot process autonomous execution at this time because the agent failed to initialize properly. Error: ${initError}`,
               additional_kwargs: {
-                from: 'starknet',
+                from: 'snak',
                 final: true,
                 error: 'initialization_failed',
               },
@@ -821,7 +821,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           content:
             'Failed to initialize autonomous execution agent after multiple attempts. Please try again or contact an administrator.',
           additional_kwargs: {
-            from: 'starknet',
+            from: 'snak',
             final: true,
             error: 'executor_creation_failed_retries',
           },
@@ -837,7 +837,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         return new AIMessage({
           content: 'Failed to initialize autonomous execution agent structure.',
           additional_kwargs: {
-            from: 'starknet',
+            from: 'snak',
             final: true,
             error: 'executor_app_missing',
           },
@@ -872,67 +872,39 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       // Main autonomous loop using graph streaming
       try {
         let finalState: any = null;
-        // Use stream to get intermediate steps if needed, or invoke for final result
-        // stream allows better insight and potentially stopping criteria during execution
-        const stream = app.stream(
+
+        // Use invoke instead of stream. The recursionLimit handles max iterations.
+        finalState = await app.invoke(
           { messages: conversationHistory }, // Initial input to the graph
           { ...threadConfig, recursionLimit: maxIteration } // Pass thread and recursion limit
         );
 
-        for await (const event of stream) {
-          // Log events or check state here if necessary
-          // Example: Log node completions
-          const eventKeys = Object.keys(event || {});
-          if (eventKeys.length === 1) {
-            const nodeName = eventKeys[0];
-            logger.debug(`Autonomous Agent: Completed node '${nodeName}'`);
-            // Store the latest state
-            finalState = event[nodeName];
-          }
+        logger.debug('Autonomous graph invocation complete.');
+        iterationCount = finalState?.iterations || iterationCount; // Try to get iteration count if available in final state
 
-          // Check for explicit errors in the state (e.g., token limit error from callModel)
-          if (finalState?.messages?.length > 0) {
-            const lastMsg = finalState.messages[finalState.messages.length - 1];
-            if (
-              lastMsg instanceof AIMessage &&
-              lastMsg.additional_kwargs?.error
-            ) {
-              logger.error(
-                `Autonomous Agent: Error detected in graph state: ${lastMsg.additional_kwargs.error}`
-              );
-              responseContent =
-                lastMsg.content ||
-                `Execution stopped due to error: ${lastMsg.additional_kwargs.error}`;
-              // Mark as final to prevent further processing
-              if (!lastMsg.additional_kwargs.final)
-                lastMsg.additional_kwargs.final = true;
-              break; // Stop the loop on detected error
-            }
-          }
-
-          // Check if the graph has naturally reached the end state (indicated by __end__ existing)
-          if (finalState?.__end__) {
-            logger.info(
-              'Autonomous Agent: Graph execution reached __end__ node.'
+        // Check for explicit errors in the final state (e.g., token limit error from callModel)
+        if (finalState?.messages?.length > 0) {
+          const lastMsg = finalState.messages[finalState.messages.length - 1];
+          if (
+            lastMsg instanceof AIMessage &&
+            lastMsg.additional_kwargs?.error
+          ) {
+            logger.error(
+              `Autonomous Agent: Error detected in final graph state: ${lastMsg.additional_kwargs.error}`
             );
-            break; // Stop loop when graph finishes
-          }
-
-          iterationCount++; // Increment iteration count based on stream events (approximation)
-          if (iterationCount >= maxIteration) {
-            logger.warn(
-              `Autonomous Agent: Reached max iteration limit (${maxIteration}). Stopping.`
-            );
-            // Capture the last known state as the result
             responseContent =
-              finalState?.messages?.[finalState.messages.length - 1]?.content ||
-              'Execution stopped due to maximum iterations.';
-            break;
+              lastMsg.content ||
+              `Execution stopped due to error: ${lastMsg.additional_kwargs.error}`;
+            // Mark as final if needed
+            if (!lastMsg.additional_kwargs.final) {
+              if (!lastMsg.additional_kwargs) lastMsg.additional_kwargs = {};
+              lastMsg.additional_kwargs.final = true;
+            }
           }
         }
 
         logger.info(
-          `Autonomous session finished after approximately ${iterationCount} steps.`
+          `Autonomous session finished. Iteration count might not be accurate with invoke.`
         );
 
         // Extract final response from the last state
@@ -988,7 +960,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       return new AIMessage({
         content: responseContent,
         additional_kwargs: {
-          from: 'starknet',
+          from: 'snak',
           final: true,
           agent_mode: this.currentMode,
           iterations: iterationCount,
@@ -1009,7 +981,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       return new AIMessage({
         content: `Autonomous execution error: ${error.message}`,
         additional_kwargs: {
-          from: 'starknet',
+          from: 'snak',
           final: true,
           error: 'autonomous_execution_error',
         },
