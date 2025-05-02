@@ -1,9 +1,3 @@
-import { ChatAnthropic } from '@langchain/anthropic';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { ChatOllama } from '@langchain/ollama';
-import { ChatDeepSeek } from '@langchain/deepseek';
-import { AiConfig } from '../../common/index.js';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { createSignatureTools } from '../../tools/signatureTools.js';
@@ -18,79 +12,6 @@ import {
   DynamicStructuredTool,
   StructuredTool,
 } from '@langchain/core/tools';
-import { configureModelWithTracking } from '../../token/tokenTracking.js';
-
-/**
- * Selects and configures an AI model based on the provided configuration
- */
-export function selectModel(aiConfig: AiConfig) {
-  let model;
-
-  switch (aiConfig.aiProvider) {
-    case 'anthropic':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid Anthropic api key is required https://docs.anthropic.com/en/api/admin-api/apikeys/get-api-key'
-        );
-      }
-      model = new ChatAnthropic({
-        modelName: aiConfig.aiModel,
-        anthropicApiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    case 'openai':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid OpenAI api key is required https://platform.openai.com/api-keys'
-        );
-      }
-      model = new ChatOpenAI({
-        modelName: aiConfig.aiModel,
-        openAIApiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    case 'gemini':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error(
-          'Valid Gemini api key is required https://ai.google.dev/gemini-api/docs/api-key'
-        );
-      }
-      model = new ChatGoogleGenerativeAI({
-        modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    case 'deepseek':
-      if (!aiConfig.aiProviderApiKey) {
-        throw new Error('Valid DeepSeek api key is required');
-      }
-      model = new ChatDeepSeek({
-        modelName: aiConfig.aiModel,
-        apiKey: aiConfig.aiProviderApiKey,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    case 'ollama':
-      model = new ChatOllama({
-        model: aiConfig.aiModel,
-        verbose: aiConfig.langchainVerbose === true,
-      });
-      break;
-    default:
-      throw new Error(`Unsupported AI provider: ${aiConfig.aiProvider}`);
-  }
-
-  // Add token tracking with configurable limits
-  return configureModelWithTracking(model, {
-    tokenLogging: aiConfig.langchainVerbose !== false,
-    maxInputTokens: aiConfig.maxInputTokens || 50000,
-    maxCompletionTokens: aiConfig.maxCompletionTokens || 50000,
-    maxTotalTokens: aiConfig.maxTotalTokens || 100000,
-  });
-}
 
 /**
  * Initializes the list of tools for the agent

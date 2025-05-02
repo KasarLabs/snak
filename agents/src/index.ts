@@ -6,7 +6,7 @@ export { StarknetAgent } from './agents/core/starknetAgent.js';
 // Interactive agent exports
 export { createAgent } from './agents/modes/interactive.js';
 
-export { selectModel, initializeToolsList } from './agents/core/utils.js';
+export { initializeToolsList } from './agents/core/utils.js';
 
 // Autonomous agent exports
 export { createAutonomousAgent } from './agents/modes/autonomous.js';
