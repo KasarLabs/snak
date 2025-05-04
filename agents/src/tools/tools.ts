@@ -4,7 +4,14 @@ import { JsonConfig } from '../config/jsonConfig.js';
 import { logger } from '@snakagent/core';
 import { metrics } from '@snakagent/core';
 import { DatabaseCredentials } from './types/database.js';
-
+import {
+  getBalance,
+  getBalanceSchema,
+} from '../../../plugins/wallet/src/actions/getBalance.js';
+import {
+  verifyProof,
+  verifyProofSchema,
+} from '../../../plugins/avs/src/actions/verifyProof.js';
 /**
  * @interface StarknetAgentInterface
  * @description Interface for the Starknet agent
@@ -176,5 +183,21 @@ export const createAllowedTools = async (
   }
   return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
 };
+
+StarknetToolRegistry.registerTool({
+  name:"getBalance",
+  plugins:"wallet",
+  description:"Retrieve the balance of a Starkent address",
+  schema:getBalanceSchema,
+  execute:getBalance,
+})
+
+StarknetToolRegistry.registerTool({
+  name: 'verifyProof',
+  plugins: 'avs',
+  description: 'Verify a STARK proof for Starknet block data using the verifier contract. Returns whether the proof is valid along with block information.',
+  schema: verifyProofSchema,
+  execute: verifyProof,
+});
 
 export default StarknetToolRegistry;
