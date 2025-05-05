@@ -5,8 +5,6 @@
     <!-- Default image for light mode -->
     <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-full-black-alpha.png?raw=true" width="150" alt="Snak Logo">
   </picture>
-  
-  <h1>Snak (alpha)</h1>
 
 <p>
 <a href="https://www.npmjs.com/package/starknet-agent-kit">
