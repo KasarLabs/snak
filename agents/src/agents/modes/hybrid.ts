@@ -271,6 +271,31 @@ export const createHybridAgent = async (
         });
       }
 
+      // Log AI output for monitoring
+      const contentToCheck =
+        typeof resultMessage.content === 'string'
+          ? resultMessage.content.trim()
+          : JSON.stringify(resultMessage.content || '');
+
+      if (contentToCheck && contentToCheck !== '') {
+        logger.info(
+          `Hybrid agent: AI output: ${
+            typeof resultMessage.content === 'string'
+              ? resultMessage.content.substring(0, 1000) +
+                (resultMessage.content.length > 1000 ? '...' : '')
+              : JSON.stringify(resultMessage.content).substring(0, 1000) + '...'
+          }`
+        );
+      }
+
+      if (resultMessage.tool_calls && resultMessage.tool_calls.length > 0) {
+        logger.info(
+          `Hybrid agent: Tool calls: ${resultMessage.tool_calls.length} calls - [${resultMessage.tool_calls
+            .map((call) => call.name)
+            .join(', ')}]`
+        );
+      }
+
       // Vérifier si nous devons attendre l'entrée humaine
       const content =
         typeof resultMessage.content === 'string' ? resultMessage.content : '';

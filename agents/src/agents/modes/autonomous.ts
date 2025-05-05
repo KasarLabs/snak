@@ -264,6 +264,39 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
           }
         });
 
+        // Log AI output for monitoring purposes
+        const lastMessage = finalResultMessages[finalResultMessages.length - 1];
+        if (lastMessage) {
+          const contentToCheck =
+            typeof lastMessage.content === 'string'
+              ? lastMessage.content.trim()
+              : JSON.stringify(lastMessage.content || '');
+
+          if (contentToCheck && contentToCheck !== '') {
+            const contentPreview =
+              typeof lastMessage.content === 'string'
+                ? lastMessage.content.substring(0, 1000) +
+                  (lastMessage.content.length > 1000 ? '...' : '')
+                : JSON.stringify(lastMessage.content).substring(0, 1000) +
+                  '...';
+
+            logger.info(`Autonomous agent: AI output: ${contentPreview}`);
+          }
+
+          if (
+            lastMessage instanceof AIMessage &&
+            lastMessage.tool_calls &&
+            lastMessage.tool_calls.length > 0
+          ) {
+            const toolNames = lastMessage.tool_calls
+              .map((call) => call.name)
+              .join(', ');
+            logger.info(
+              `Autonomous agent: Tool calls: ${lastMessage.tool_calls.length} calls - [${toolNames}]`
+            );
+          }
+        }
+
         return { messages: finalResultMessages };
       } catch (error) {
         logger.error(`Error calling model in autonomous agent: ${error}`);

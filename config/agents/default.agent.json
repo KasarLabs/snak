@@ -26,9 +26,10 @@
   ],
   "interval": 30000,
   "mode": {
-    "interactive": true,
-    "autonomous": false,
-    "maxIteration": 0
+    "interactive": false,
+    "autonomous": true,
+    "maxIteration": 0,
+    "hybrid": true
   },
   "memory": {
     "enabled": true,
