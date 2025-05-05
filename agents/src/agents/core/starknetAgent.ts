@@ -42,7 +42,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   private currentMode: string;
   private agentReactExecutor: any;
   private modelSelector: ModelSelectionAgent | null = null;
-  private hybridMode: boolean = false;
 
   constructor(config: StarknetAgentConfig) {
     super('snak', AgentType.SNAK);
@@ -108,7 +107,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       ) {
         logger.debug('StarknetAgent: Setting default mode to hybrid');
         this.currentMode = 'hybrid';
-        this.hybridMode = true;
       }
 
       try {
@@ -244,7 +242,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
    */
   public getAgent() {
     return {
-      agentMode: this.hybridMode ? 'hybrid' : this.currentMode,
+      agentMode: this.currentMode,
     };
   }
 
@@ -324,13 +322,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
           `Temporarily switching mode from ${this.currentMode} to ${requestedMode} for this execution`
         );
         this.currentMode = requestedMode;
-
-        // Update hybridMode flag if necessary
-        if (requestedMode === 'hybrid') {
-          this.hybridMode = true;
-        } else {
-          this.hybridMode = false;
-        }
       }
 
       // Ensure executor is created for current mode
@@ -575,13 +566,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       if (config?.agentMode && this.currentMode !== originalMode) {
         logger.debug(`Restoring original agent mode: ${originalMode}`);
         this.currentMode = originalMode;
-
-        // Reset hybrid flag if necessary
-        if (originalMode === 'hybrid') {
-          this.hybridMode = true;
-        } else {
-          this.hybridMode = false;
-        }
       }
     }
   }
@@ -1034,13 +1018,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       if (this.currentMode !== originalMode) {
         logger.debug(`Restoring original agent mode: ${originalMode}`);
         this.currentMode = originalMode;
-
-        // Reset hybrid flag if necessary
-        if (originalMode === 'hybrid') {
-          this.hybridMode = true;
-        } else {
-          this.hybridMode = false;
-        }
       }
     }
   }
@@ -1061,7 +1038,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       logger.debug(`StarknetAgent executing hybrid mode`);
 
       // Set mode to hybrid
-      this.hybridMode = true;
       this.currentMode = 'hybrid';
 
       // Create hybrid agent executor if needed
@@ -1200,7 +1176,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         logger.debug(`Restoring original agent mode: ${originalMode}`);
         this.currentMode = originalMode;
       }
-      this.hybridMode = false;
     }
   }
 
