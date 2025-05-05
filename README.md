@@ -1,9 +1,9 @@
 <div align="center">
   <picture>
     <!-- For users in dark mode, load a white logo -->
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-white-no-bg.png?raw=true">
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-full-white-alpha.png?raw=true">
     <!-- Default image for light mode -->
-    <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-logo-black-no-bg.png?raw=true" width="150" alt="Snak Logo">
+    <img src="https://github.com/KasarLabs/brand/blob/main/projects/snak/snak-full-black-alpha.png?raw=true" width="150" alt="Snak Logo">
   </picture>
   
   <h1>Snak (alpha)</h1>
@@ -44,35 +44,69 @@ pnpm install
 
 ### Configuration
 
-1. Create a `.env` file:
+1.  Create a `.env` file by copying `.env.example`:
+    ```bash
+    cp .env.example .env
+    ```
+    Then, fill in the necessary values in your `.env` file:
 
 ```env
-# Starknet configuration (mandatory)
+# --- Starknet configuration (mandatory) ---
 STARKNET_PUBLIC_ADDRESS="YOUR_STARKNET_PUBLIC_ADDRESS"
 STARKNET_PRIVATE_KEY="YOUR_STARKNET_PRIVATE_KEY"
 STARKNET_RPC_URL="YOUR_STARKNET_RPC_URL"
 
-# AI Provider configuration (mandatory)
-AI_PROVIDER_API_KEY="YOUR_AI_PROVIDER_API_KEY"
-AI_MODEL="YOUR_AI_MODEL"
-AI_PROVIDER="YOUR_AI_PROVIDER"
+# --- AI Model API Keys (mandatory) ---
+# Add the API keys for the specific AI providers you use in config/models/default.models.json
+# The agent will automatically load the correct key based on the provider name.
 
-# NestJS server configuration
-SERVER_API_KEY="YOUR_SERVER_API_KEY"
-SERVER_PORT="YOUR_SERVER_PORT"
+# Example for OpenAI:
+OPENAI_API_KEY="YOUR_OPENAI_API_KEY" # (e.g., sk-...)
 
-#Node Configuration # optional by default : production
-NODE_ENV="YOUR_NODE_ENV"
-# Agent additional configuration
+# Example for Anthropic:
+ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY" # (e.g., sk-ant-...)
 
-POSTGRES_USER="YOUR_POSTGRES_USER"
-POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD"
-POSTGRES_ROOT_DB="YOUR_POSTGRES_ROOT_DB"
-POSTGRES_HOST="YOUR_POSTGRES_HOST"
-POSTGRES_PORT="YOUR_POSTGRES_PORT"
+# Example for Google Gemini:
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+
+# Example for DeepSeek:
+DEEPSEEK_API_KEY="YOUR_DEEPSEEK_API_KEY"
+
+# Note: You do not need an API key if using a local Ollama model.
+
+# --- General Agent Configuration (mandatory) ---
+SERVER_API_KEY="YOUR_SERVER_API_KEY" # A secret key for your agent server API
+SERVER_PORT="3001" # Default port is 3001
+
+# --- PostgreSQL Database Configuration (mandatory) ---
+POSTGRES_USER="admin"
+POSTGRES_PASSWORD="admin"
+POSTGRES_ROOT_DB="postgres" # Database used to create/manage the application database
+POSTGRES_HOST="localhost"
+POSTGRES_PORT="5432"
+# The application database name (often the same as your agent config name, e.g., "default") will be created automatically.
+
+# --- LangSmith Tracing (Optional) ---
+# Set LANGSMITH_TRACING=true to enable tracing
+LANGSMITH_TRACING=false
+LANGSMITH_ENDPOINT="https://api.smith.langchain.com"
+LANGSMITH_API_KEY="YOUR_LANGSMITH_API_KEY" # (Only needed if LANGSMITH_TRACING=true)
+LANGSMITH_PROJECT="Snak" # (Optional project name for LangSmith)
+
+# --- Cairo Generation Service (Optional) ---
+# CAIRO_GENERATION_API_URL="YOUR_CAIRO_GENERATION_API_ENDPOINT"
+# PATH_UPLOAD_DIR="./cairo_test" # Directory for generated Cairo code
+
+# --- Node Environment ---
+NODE_ENV="development" # "development" or "production"
 ```
 
-2. Create your agent.config.json
+2.  Configure AI Models (Optional):
+    The `config/models/default.models.json` file defines the default AI models used for different tasks (`fast`, `smart`, `cheap`). You can customize this file or create new model configurations (e.g., `my_models.json`) and specify them when running the agent. See `config/models/example.models.json` for the structure.
+
+    The agent uses the `provider` field in the model configuration to determine which API key to load from the `.env` file (e.g., if `provider` is `openai`, it loads `OPENAI_API_KEY`).
+
+3.  Create your agent configuration file (e.g., `default.agent.json` or `my_agent.json`) in the `config/agents/` directory:
 
 ```json
 {
@@ -120,7 +154,7 @@ Run the promt:
 pnpm run start
 
 # start with your custom configuration
-pnpm run start --agent="name_of_your_config.json"
+pnpm run start --agent="name_of_your_config.json" --models="name_of_your_config.json"
 ```
 
 ### Server Mode
@@ -132,7 +166,7 @@ Run the server :
 pnpm run start:server
 
 # start with your custom configuration
-pnpm run start:server --agent="name_of_your_config.json"
+pnpm run start:server --agent="name_of_your_config.json" --models="name_of_your_config.json"
 ```
 
 #### Available Modes
@@ -140,7 +174,7 @@ pnpm run start:server --agent="name_of_your_config.json"
 |             | Interactive Mode | Autonomous Mode |
 | ----------- | ---------------- | --------------- |
 | Prompt Mode | ✅               | ✅              |
-| Server Mode | ✅               | ❌              |
+| Server Mode | ✅               | ✅              |
 
 ### Implement Snak in your project
 

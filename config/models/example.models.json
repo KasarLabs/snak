@@ -1,0 +1,17 @@
+{
+  "fast": {
+    "provider": "The name of the provider",
+    "model_name": "The name of the model",
+    "description": "A description of the model"
+  },
+  "smart": {
+    "provider": "The name of the provider",
+    "model_name": "The name of the model",
+    "description": "A description of the model"
+  },
+  "cheap": {
+    "provider": "The name of the provider",
+    "model_name": "The name of the model",
+    "description": "A description of the model"
+  }
+}
