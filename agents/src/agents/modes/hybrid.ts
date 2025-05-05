@@ -73,6 +73,19 @@ export const createHybridAgent = async (
         const result = await originalToolNodeInvoke(state, config);
         const executionTime = Date.now() - startTime;
 
+        // Debug the structure of the result to help troubleshoot truncation issues
+        if (result) {
+          logger.debug(
+            `Hybrid agent: Tool execution result structure: ${
+              Array.isArray(result)
+                ? 'Array[' + result.length + ']'
+                : typeof result === 'object' && result.messages
+                  ? 'Object with messages[' + result.messages.length + ']'
+                  : typeof result
+            }`
+          );
+        }
+
         // Use truncateToolResults function to handle result truncation
         const truncatedResult = truncateToolResults(result, 5000);
 

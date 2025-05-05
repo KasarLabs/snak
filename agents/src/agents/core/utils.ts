@@ -73,6 +73,7 @@ export function truncateToolResults(
   result: any,
   maxLength: number = 5000
 ): any {
+  // Handle case when result is an array (typical in interactive mode)
   if (Array.isArray(result)) {
     for (const msg of result) {
       // Vérifier si c'est un ToolMessage et si le contenu est une chaîne
@@ -93,5 +94,41 @@ export function truncateToolResults(
       }
     }
   }
+
+  // Handle case when result is an object with messages array (hybrid mode structure)
+  if (result && typeof result === 'object' && Array.isArray(result.messages)) {
+    for (const msg of result.messages) {
+      // Check for tool messages in any format
+      if (typeof msg.content === 'string') {
+        const originalLength = msg.content.length;
+        if (originalLength > maxLength) {
+          msg.content =
+            msg.content.substring(0, maxLength) +
+            `... [truncated ${originalLength - maxLength} chars]`;
+          logger.debug(
+            `Tool result content truncated from ${originalLength} to ${maxLength} characters.`
+          );
+        }
+      }
+
+      // Also check for content in tool_calls_results if it exists
+      if (Array.isArray(msg.tool_calls_results)) {
+        for (const toolResult of msg.tool_calls_results) {
+          if (typeof toolResult.content === 'string') {
+            const originalLength = toolResult.content.length;
+            if (originalLength > maxLength) {
+              toolResult.content =
+                toolResult.content.substring(0, maxLength) +
+                `... [truncated ${originalLength - maxLength} chars]`;
+              logger.debug(
+                `Tool result content truncated from ${originalLength} to ${maxLength} characters.`
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
   return result;
 }
