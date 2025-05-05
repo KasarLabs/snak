@@ -3,6 +3,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "declaration": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,

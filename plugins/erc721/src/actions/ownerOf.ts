@@ -2,7 +2,7 @@ import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import { validateAndFormatTokenId } from '../utils/utils.js';
-import { bigint, z } from 'zod';
+import { z } from 'zod';
 import { ownerOfSchema } from '../schemas/schema.js';
 import { bigintToHex } from '../utils/utils.js';
 import { validateAndParseAddress } from 'starknet';

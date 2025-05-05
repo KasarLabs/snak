@@ -1,11 +1,8 @@
-import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import { StarknetTool } from '@snakagent/core';
 import { placePixel } from '../actions/placePixel.js';
 import { placePixelSchema } from '../schema/index.js';
 
-export const registerTools = (
-  StarknetToolRegistry: StarknetTool[],
-  agent?: StarknetAgentInterface
-) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'place_pixel',
     plugins: 'art-peace',

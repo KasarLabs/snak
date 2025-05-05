@@ -64,33 +64,6 @@ export class WithdrawEarnService {
   }
 
   /**
-   * Retrieves and updates pool assets with their prices
-   * @private
-   * @param {IPool['id']} poolId - Pool identifier
-   * @param {IPool['extensionContractAddress']} poolExtensionContractAddress - Extension contract address
-   * @param {IPoolAsset[]} poolAssets - Array of pool assets
-   * @returns {Promise<IPoolAsset[]>} Updated pool assets with prices
-   */
-  private async getPoolAssetsPrice(
-    poolId: IPool['id'],
-    poolExtensionContractAddress: IPool['extensionContractAddress'],
-    poolAssets: IPoolAsset[]
-  ): Promise<IPoolAsset[]> {
-    return await Promise.all(
-      poolAssets.map(async (asset) => {
-        const [usdPrice] = await Promise.all([
-          this.getTokenPrice(asset, poolId, poolExtensionContractAddress),
-        ]);
-
-        return {
-          ...asset,
-          usdPrice,
-        };
-      })
-    );
-  }
-
-  /**
    * Retrieves and updates pool assets with prices and risk metrics
    * @private
    * @param {IPool['id']} poolId - Pool identifier
@@ -105,10 +78,11 @@ export class WithdrawEarnService {
   ): Promise<IPoolAsset[]> {
     return await Promise.all(
       poolAssets.map(async (asset) => {
-        const [usdPrice, riskMdx] = await Promise.all([
-          this.getTokenPrice(asset, poolId, poolExtensionContractAddress),
-          Promise.resolve(undefined),
-        ]);
+        const usdPrice = await this.getTokenPrice(
+          asset,
+          poolId,
+          poolExtensionContractAddress
+        );
 
         return {
           ...asset,
@@ -156,7 +130,7 @@ export class WithdrawEarnService {
     return await tokenContract
       .balanceOf(walletAddress)
       .then(toBN)
-      .catch((err: unknown) => {
+      .catch(() => {
         console.error(
           new Error(`Failed to get balance of ${baseToken.address}`)
         );

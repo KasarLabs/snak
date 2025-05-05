@@ -3,12 +3,7 @@ import { RpcProvider } from 'starknet';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { logger, metrics } from '@snakagent/core';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import {
-  BaseMessage,
-  HumanMessage,
-  AIMessage,
-  SystemMessage,
-} from '@langchain/core/messages';
+import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
@@ -719,7 +714,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     let fallbackAttempted = false;
     let originalMode = this.currentMode;
     let iterationCount = 0;
-    let lastNextSteps: string | null = null;
     let conversationHistory: BaseMessage[] = [];
 
     try {
@@ -993,21 +987,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         this.currentMode = originalMode;
       }
     }
-  }
-
-  /**
-   * Extract "NEXT STEPS" section from content
-   */
-  private extractNextSteps(content: string | any): string | null {
-    if (typeof content !== 'string') {
-      return null;
-    }
-
-    const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
-    if (nextStepsMatch && nextStepsMatch[1]) {
-      return nextStepsMatch[1].trim();
-    }
-    return null;
   }
 
   /**

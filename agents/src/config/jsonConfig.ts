@@ -1,7 +1,6 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { createBox, getTerminalWidth } from '../prompt/formatting.js';
 import chalk from 'chalk';
-import * as path from 'path';
+import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { logger } from '@snakagent/core';

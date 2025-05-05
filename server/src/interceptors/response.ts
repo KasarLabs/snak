@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { json } from 'stream/consumers';
 
 interface ResponseData {
   status: string;
@@ -26,7 +25,6 @@ export class AgentResponseInterceptor implements NestInterceptor {
       map((data) => {
         const request = context.switchToHttp().getRequest().body?.request || '';
 
-        let responseText: string;
         if (data?.data?.output) {
           return data.data;
         }

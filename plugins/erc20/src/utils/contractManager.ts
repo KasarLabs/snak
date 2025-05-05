@@ -2,13 +2,11 @@ import {
   Account,
   CallData,
   RawArgs,
-  hash,
   CompiledSierra,
   CompiledSierraCasm,
   Abi,
 } from 'starknet';
 import { ContractDeployResult } from '../types/types.js';
-import * as fs from 'fs';
 import { getV3DetailsPayload } from './utils.js';
 
 /**

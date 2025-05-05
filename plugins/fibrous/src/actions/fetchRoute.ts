@@ -1,10 +1,9 @@
-import { StarknetAgentInterface } from '@snakagent/core';
 import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter, RouteResponse } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
 import { RouteSchemaType } from '../schema/index.js';
 
-interface RouteResult {
+export interface RouteResult {
   status: 'success' | 'failure';
   route?: RouteResponse | null;
   error?: string;
@@ -69,7 +68,6 @@ export class RouteFetchService {
 }
 
 export const getRouteFibrous = async (
-  agent: StarknetAgentInterface,
   params: RouteSchemaType
 ): Promise<RouteResult> => {
   try {

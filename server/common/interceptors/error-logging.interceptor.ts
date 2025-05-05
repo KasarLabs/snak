@@ -12,7 +12,7 @@ import { catchError } from 'rxjs/operators';
 export class ErrorLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(ErrorLoggingInterceptor.name);
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(_context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       catchError((error) => {
         this.logger.error('Error caught in interceptor:', {

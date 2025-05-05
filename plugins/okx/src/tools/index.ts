@@ -1,19 +1,16 @@
 import { wrapAccountCreationResponse } from '../utils/AccountManager.js';
 import { accountDetailsSchema } from '../schemas/schema.js';
-import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import { StarknetTool } from '@snakagent/core';
 import { DeployOKXAccount } from '../actions/deployAccount.js';
 import { CreateOKXAccount } from '../actions/createAccount.js';
 
-export const registerTools = (
-  StarknetToolRegistry: StarknetTool[],
-  agent?: StarknetAgentInterface
-) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'create_new_okx_account',
     description:
       'Create a new OKX account and return the privateKey/publicKey/contractAddress',
     plugins: 'okx',
-    execute: async (agent: StarknetAgentInterface) => {
+    execute: async () => {
       const response = await CreateOKXAccount();
       return wrapAccountCreationResponse(response);
     },

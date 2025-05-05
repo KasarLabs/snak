@@ -1,4 +1,4 @@
-import { uint256, num, RPC } from 'starknet';
+import { uint256 } from 'starknet';
 import { ExecuteV3Args } from '../types/types.js';
 
 /**

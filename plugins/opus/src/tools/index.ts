@@ -1,4 +1,4 @@
-import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import { StarknetTool } from '@snakagent/core';
 import {
   borrowTroveSchema,
   collateralActionSchema,
@@ -18,10 +18,7 @@ import { withdrawTrove } from '../actions/withdrawTrove.js';
 import { borrowTrove } from '../actions/borrowTrove.js';
 import { repayTrove } from '../actions/repayTrove.js';
 
-export const registerTools = (
-  StarknetToolRegistry: StarknetTool[],
-  agent?: StarknetAgentInterface
-) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'open_trove',
     plugins: 'opus',

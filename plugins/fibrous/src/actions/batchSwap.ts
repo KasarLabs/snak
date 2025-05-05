@@ -21,7 +21,7 @@ export class BatchSwapService {
     routerInstance?: FibrousRouter
   ) {
     this.tokenService = new TokenService();
-    this.approvalService = new ApprovalService(agent);
+    this.approvalService = new ApprovalService();
     this.router = routerInstance || new FibrousRouter();
   }
 

@@ -5,8 +5,6 @@ import { HSV, RGB } from '../types/ColorType.js';
  * @class ColorAnalyzer
  */
 export class ColorAnalyzer {
-  private static LIGHT_THRESHOLD = 0.7;
-  private static DARK_THRESHOLD = 0.3;
   private static WHITE_THRESHOLD = 245;
   private static BLACK_THRESHOLD = 10;
   private static GRAY_DIFFERENCE_THRESHOLD = 15;

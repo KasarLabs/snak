@@ -26,7 +26,6 @@ const { Pool } = pg;
 
 import { DatabaseError } from './error.js';
 
-const DEFAULT_PORT = '5454';
 /**
  * We rely on the default postgress environment variables to establish a
  * connection.

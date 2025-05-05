@@ -1,4 +1,4 @@
-import { Account, CallData, RawArgs, Uint256 } from 'starknet';
+import { Account, CallData, Uint256 } from 'starknet';
 import { FACTORY_ADDRESS } from '../constants/index.js';
 import { StarknetAgentInterface } from '@snakagent/core';
 import { RpcProvider } from 'starknet';

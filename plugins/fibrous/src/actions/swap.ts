@@ -21,7 +21,7 @@ export class SwapService {
     private router: FibrousRouter
   ) {
     this.tokenService = new TokenService();
-    this.approvalService = new ApprovalService(agent);
+    this.approvalService = new ApprovalService();
     this.router = new FibrousRouter();
   }
 

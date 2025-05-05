@@ -1,5 +1,4 @@
 import { ATLANTIC_URL, DASHBOARD_URL } from '../constants/atlantic.js';
-import { StarknetAgentInterface } from '@snakagent/core';
 import { AtlanticParam, AtlanticRes } from '../types/Atlantic.js';
 import { promises as fs } from 'fs';
 import { validateZip } from '../utils/validateZip.js';
@@ -13,9 +12,8 @@ import { getFilename } from '../utils/getFilename.js';
  * @returns A Promise that resolves to a JSON string containing the status and URL or an error message.
  */
 export const getProofService = async (
-  agent: StarknetAgentInterface,
   param: AtlanticParam
-) => {
+): Promise<string> => {
   try {
     const filename = param.filename;
     if (!filename) {

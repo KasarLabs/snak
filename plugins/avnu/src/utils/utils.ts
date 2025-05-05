@@ -1,4 +1,4 @@
-import { num, RPC, Call, Account } from 'starknet';
+import { Call, Account } from 'starknet';
 
 /**
  * V3 transaction execution arguments

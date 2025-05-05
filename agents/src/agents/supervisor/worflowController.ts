@@ -1,12 +1,6 @@
 // agents/supervisor/workflowController.ts
 import { MemorySaver, StateGraph, END, START } from '@langchain/langgraph';
-import {
-  BaseMessage,
-  AIMessage,
-  HumanMessage,
-  SystemMessage,
-  ToolMessage,
-} from '@langchain/core/messages';
+import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
 import { IAgent } from '../core/baseAgent.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -31,7 +25,6 @@ interface WorkflowState {
 export interface WorkflowControllerConfig {
   agents: Record<string, IAgent>;
   entryPoint: string;
-  useConditionalEntryPoint?: boolean;
   checkpointEnabled?: boolean;
   debug?: boolean;
   maxIterations?: number; // Maximum iterations before forcing end
@@ -52,9 +45,6 @@ export class WorkflowController {
   private workflowTimeout: number;
   private executionId: string | null = null;
   private checkpointEnabled: boolean;
-  private entryPointSelector: ((state: WorkflowState) => string) | null = null;
-  private useConditionalEntryPoint: boolean;
-  private iterationCount: number = 0;
   private timeoutId: NodeJS.Timeout | null = null;
 
   constructor(config: WorkflowControllerConfig) {
@@ -65,7 +55,6 @@ export class WorkflowController {
     this.maxIterations = config.maxIterations || 10; // Default 10 iterations
     this.workflowTimeout = config.workflowTimeout || 60000; // Default 60 seconds
     this.checkpointEnabled = config.checkpointEnabled ?? false;
-    this.useConditionalEntryPoint = config.useConditionalEntryPoint ?? false;
 
     // Validate required agents exist
     this.validateAgents();

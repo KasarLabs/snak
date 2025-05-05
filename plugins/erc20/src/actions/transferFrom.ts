@@ -16,9 +16,7 @@ import {
   transferFromSchema,
   transferFromSignatureSchema,
 } from '../schemas/schema.js';
-import { validToken } from '../types/types.js';
 import { RpcProvider } from 'starknet';
-import { StringSelectMenuBuilder } from 'discord.js';
 
 /**
  * Transfers tokens from one address to another using an allowance.

@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { StarknetTool } from '@snakagent/core';
 import {
   simulateInvokeTransactionSchema,
   simulateDeployAccountTransactionSchema,
@@ -12,10 +12,7 @@ import {
   simulateDeclareTransaction,
 } from '../actions/simulateTransaction.js';
 
-export const registerTools = (
-  StarknetToolRegistry: StarknetTool[],
-  agent?: StarknetAgentInterface
-) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   // Simulate transactions
   StarknetToolRegistry.push({
     name: 'simulate_transaction',

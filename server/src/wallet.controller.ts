@@ -53,7 +53,7 @@ export class WalletController implements OnModuleInit {
 
   @Post('upload_large_file')
   @UseGuards(new FileTypeGuard(['image/jpeg', 'image/png']))
-  async uploadFile(@Req() req: FastifyRequest) {
+  async uploadFile(@Req() _req: FastifyRequest) {
     const logger = new Logger('Upload service');
     logger.debug({ message: 'The file has been uploaded' });
     return {

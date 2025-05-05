@@ -68,17 +68,6 @@ async function metricsRegister(): Promise<void> {
       labelNames: ['query'] as const,
       buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
     });
-
-    dbCountError = new client.Counter({
-      name: 'db_count_error',
-      help: 'Number of database-related errors since server startup',
-      labelNames: ['query'] as const,
-    });
-
-    dbCountConnections = new client.Counter({
-      name: 'db_count_connections',
-      help: 'Number of active database connections',
-    });
   }
 }
 
@@ -195,8 +184,6 @@ export function metricsAgentToolUseCount(
 
 // TODO:not implementing this until db refactor
 let dbQueryTime: undefined | client.Histogram;
-let dbCountError: undefined | client.Counter;
-let dbCountConnections: undefined | client.Counter;
 
 export async function metricsDbResponseTime<T>(
   query: string,

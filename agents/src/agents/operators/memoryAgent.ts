@@ -138,11 +138,7 @@ export class MemoryAgent extends BaseAgent {
 
     // Tool for retrieving similar memories
     const retrieveMemoriesTool = tool(
-      async ({
-        query,
-        userId = 'default_user',
-        limit = 5,
-      }): Promise<string> => {
+      async ({ query, userId = 'default_user' }): Promise<string> => {
         try {
           const embedding = await this.embeddings.embedQuery(query);
           const similar = await memory.similar_memory(userId, embedding);
@@ -293,8 +289,7 @@ export class MemoryAgent extends BaseAgent {
    */
   public async retrieveRelevantMemories(
     message: string | BaseMessage,
-    userId: string = 'default_user',
-    limit: number = 5
+    userId: string = 'default_user'
   ): Promise<any[]> {
     try {
       if (!this.initialized) {

@@ -65,33 +65,6 @@ export class DepositEarnService {
   }
 
   /**
-   * Retrieves and updates pool assets with their prices
-   * @private
-   * @param {IPool['id']} poolId - Pool identifier
-   * @param {IPool['extensionContractAddress']} poolExtensionContractAddress - Extension contract address
-   * @param {IPoolAsset[]} poolAssets - Array of pool assets
-   * @returns {Promise<IPoolAsset[]>} Updated pool assets with prices
-   */
-  private async getPoolAssetsPrice(
-    poolId: IPool['id'],
-    poolExtensionContractAddress: IPool['extensionContractAddress'],
-    poolAssets: IPoolAsset[]
-  ): Promise<IPoolAsset[]> {
-    return await Promise.all(
-      poolAssets.map(async (asset) => {
-        const [usdPrice] = await Promise.all([
-          this.getTokenPrice(asset, poolId, poolExtensionContractAddress),
-        ]);
-
-        return {
-          ...asset,
-          usdPrice,
-        };
-      })
-    );
-  }
-
-  /**
    * Retrieves and updates pool assets with prices and risk metrics
    * @private
    * @param {IPool['id']} poolId - Pool identifier
@@ -106,10 +79,11 @@ export class DepositEarnService {
   ): Promise<IPoolAsset[]> {
     return await Promise.all(
       poolAssets.map(async (asset) => {
-        const [usdPrice, riskMdx] = await Promise.all([
-          this.getTokenPrice(asset, poolId, poolExtensionContractAddress),
-          Promise.resolve(undefined),
-        ]);
+        const usdPrice = await this.getTokenPrice(
+          asset,
+          poolId,
+          poolExtensionContractAddress
+        );
 
         return {
           ...asset,
@@ -214,14 +188,7 @@ export class DepositEarnService {
           account.address
         );
 
-      const credentials = agent.getAccountCredentials();
       const provider = agent.getProvider();
-
-      const wallet = new Account(
-        provider,
-        credentials.accountPublicKey,
-        credentials.accountPrivateKey
-      );
 
       const tx = await account.execute([
         {

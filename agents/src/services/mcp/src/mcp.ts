@@ -1,11 +1,6 @@
 import { StructuredTool } from '@langchain/core/tools';
 import { MultiServerMCPClient } from 'snak-mcps';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { logger } from '@snakagent/core';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * @class MCP_CONTROLLER
@@ -31,33 +26,6 @@ export class MCP_CONTROLLER {
     logger.info('Initializing MCP_CONTROLLER with provided servers config');
     this.client = new MultiServerMCPClient(mcpServers);
     logger.info('MCP_CONTROLLER initialized');
-  }
-
-  /**
-   * @private
-   * @function silenceConsoleLogs
-   * @description Temporarily silences console logs for MCP servers
-   */
-  private silenceConsoleLogs() {
-    const originalConsoleLog = console.log;
-    const originalConsoleError = console.error;
-
-    // Override console methods
-    console.log = (...args) => {
-      // Only filter MCP-related logs
-      const message = args.join(' ');
-      if (!message.includes('MCP') && !message.includes('server')) {
-        originalConsoleLog(...args);
-      }
-    };
-
-    console.error = (...args) => {
-      // Only filter MCP-related logs
-      const message = args.join(' ');
-      if (!message.includes('MCP') && !message.includes('server')) {
-        originalConsoleError(...args);
-      }
-    };
   }
 
   /**
@@ -147,4 +115,17 @@ export class MCP_CONTROLLER {
       throw new Error(`Error closing connections: ${error}`);
     }
   };
+
+  /**
+   * @public
+   * @async
+   * @function shutdown
+   * @description Shuts down the MCP and all its adapters.
+   * @returns {Promise<void>}
+   */
+  public async shutdown() {
+    logger.info('MCP shutting down...');
+    await this.close();
+    logger.info('MCP shutdown complete.');
+  }
 }

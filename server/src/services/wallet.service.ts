@@ -7,7 +7,6 @@ import {
 import { IAgent } from '../interfaces/agent.interface.js';
 import { AgentRequestDTO } from '../dto/agents.js';
 import { IWalletService } from '../interfaces/wallet-service.inferface.js';
-import Anthropic from '@anthropic-ai/sdk';
 
 @Injectable()
 export class WalletService implements IWalletService {

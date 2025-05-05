@@ -1,14 +1,15 @@
-import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import { StarknetTool } from '@snakagent/core';
 import { swapSchema } from '../schema/index.js';
 import { swapTokensFibrous } from '../actions/swap.js';
-import { batchSwapSchema, routeSchema } from '../schema/index.js';
+import {
+  batchSwapSchema,
+  routeSchema,
+  RouteSchemaType,
+} from '../schema/index.js';
 import { batchSwapTokens } from '../actions/batchSwap.js';
 import { getRouteFibrous } from '../actions/fetchRoute.js';
 
-export const registerTools = (
-  StarknetToolRegistry: StarknetTool[],
-  agent?: StarknetAgentInterface
-) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'fibrous_swap',
     plugins: 'fibrous',
@@ -30,6 +31,8 @@ export const registerTools = (
     plugins: 'fibrous',
     description: 'Get a specific route for swapping tokens',
     schema: routeSchema,
-    execute: getRouteFibrous,
+    execute: async (params) => {
+      return getRouteFibrous(params as unknown as RouteSchemaType);
+    },
   });
 };

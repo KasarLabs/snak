@@ -1,19 +1,16 @@
 import { wrapAccountCreationResponse } from '../utils/AccountManager.js';
 import { accountDetailsSchema } from '../schemas/schema.js';
-import { StarknetAgentInterface, StarknetTool } from '@snakagent/core';
+import { StarknetTool } from '@snakagent/core';
 import { DeployOZAccount } from '../actions/deployAccount.js';
 import { CreateOZAccount } from '../actions/createAccount.js';
 
-export const registerTools = (
-  StarknetToolRegistry: StarknetTool[],
-  agent?: StarknetAgentInterface
-) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'create_new_openzeppelin_account',
     description:
       'Create a new Open Zeppelin account and return the privateKey/publicKey/contractAddress',
     plugins: 'openzeppelin',
-    execute: async (agent: StarknetAgentInterface) => {
+    execute: async () => {
       const response = await CreateOZAccount();
       return wrapAccountCreationResponse(response);
     },

@@ -1,11 +1,6 @@
 import { checkScarbInstalled } from './install.js';
 import { initProject } from './workspace.js';
-import {
-  ScarbBaseParams,
-  TomlSection,
-  Dependency,
-  CairoProgram,
-} from '../types/index.js';
+import { ScarbBaseParams, TomlSection, CairoProgram } from '../types/index.js';
 import {
   addSeveralDependancies as addSeveralDependencies,
   isProjectInitialized,

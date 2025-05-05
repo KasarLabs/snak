@@ -11,16 +11,8 @@ import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
 import { WorkflowController } from './worflowController.js';
 import { logger, metrics } from '@snakagent/core';
-import { StateGraph, MemorySaver, END } from '@langchain/langgraph';
-import {
-  HumanMessage,
-  AIMessage,
-  SystemMessage,
-  ToolMessage,
-  BaseMessage,
-} from '@langchain/core/messages';
+import { HumanMessage, BaseMessage } from '@langchain/core/messages';
 import { Tool } from '@langchain/core/tools';
-import { DatabaseCredentials } from '../../tools/types/database.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
 
 /**
@@ -53,7 +45,6 @@ export class SupervisorAgent extends BaseAgent {
   private executionDepth: number = 0; // Track execution depth
   private checkpointEnabled: boolean = false;
   // Store the original config as a static property
-  private static originalConfigCapture: any = null;
   // Static instance for singleton pattern
   private static instance: SupervisorAgent | null = null;
 
@@ -150,7 +141,7 @@ export class SupervisorAgent extends BaseAgent {
 
       // 5. Initialize workflow controller
       logger.debug('SupervisorAgent: Initializing WorkflowController...');
-      await this.initializeWorkflowController(agentConfig);
+      await this.initializeWorkflowController();
       logger.debug('SupervisorAgent: WorkflowController initialized');
 
       // 6. Enable metrics
@@ -166,9 +157,7 @@ export class SupervisorAgent extends BaseAgent {
   /**
    * Initializes the workflow controller
    */
-  private async initializeWorkflowController(
-    agentConfig: JsonConfig | null | undefined
-  ): Promise<void> {
+  private async initializeWorkflowController(): Promise<void> {
     logger.debug('SupervisorAgent: Entering initializeWorkflowController');
     try {
       // Gather all available agents
@@ -228,7 +217,6 @@ export class SupervisorAgent extends BaseAgent {
       this.workflowController = new WorkflowController({
         agents: allAgents,
         entryPoint,
-        useConditionalEntryPoint: true,
         checkpointEnabled: this.checkpointEnabled,
         debug: this.debug,
         maxIterations,
@@ -564,7 +552,7 @@ export class SupervisorAgent extends BaseAgent {
         'SupervisorAgent: Resetting and re-initializing workflow controller due to mode change...'
       );
       await this.workflowController.reset();
-      await this.initializeWorkflowController(this.config.agentConfig);
+      await this.initializeWorkflowController();
       logger.debug('SupervisorAgent: Workflow controller re-initialized.');
     } else {
       logger.debug('SupervisorAgent: No workflow controller to reconfigure.');

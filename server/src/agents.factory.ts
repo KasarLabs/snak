@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
-import { StarknetAgent, JsonConfig, load_json_config } from '@snakagent/agents';
+import { StarknetAgent, JsonConfig } from '@snakagent/agents';
 
 @Injectable()
 export class AgentFactory {
@@ -92,14 +92,6 @@ export class AgentFactory {
         return agentSignature;
       }
 
-      const path = await import('path');
-      const projectRoot = path.resolve(process.cwd());
-      const modelsConfigPath = path.join(
-        projectRoot,
-        'config',
-        'models',
-        'default.models.json'
-      );
       const database = {
         database: process.env.POSTGRES_DB as string,
         host: process.env.POSTGRES_HOST as string,

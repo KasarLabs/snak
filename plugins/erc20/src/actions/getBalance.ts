@@ -1,7 +1,5 @@
-import { Account, Contract, RpcProvider } from 'starknet';
+import { Contract } from 'starknet';
 import { StarknetAgentInterface } from '@snakagent/core';
-import { OLD_ERC20_ABI } from '../abis/old.js';
-import { NEW_ERC20_ABI_MAINNET } from '../abis/new.js';
 import { detectAbiType } from '../utils/utils.js';
 import { formatBalance, validateToken } from '../utils/utils.js';
 import { validToken } from '../types/types.js';

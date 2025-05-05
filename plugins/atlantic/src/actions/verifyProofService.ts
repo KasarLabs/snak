@@ -1,10 +1,10 @@
-import { StarknetAgentInterface } from '@snakagent/core';
 import { AtlanticRes, VerifierParam } from '../types/Atlantic.js';
 import { ATLANTIC_URL, DASHBOARD_URL } from '../constants/atlantic.js';
 import { promises as fs } from 'fs';
 import { ValidationError, NotFoundError } from '../utils/error_handling.js';
 import { validateJson } from '../utils/validateJson.js';
 import { getFilename } from '../utils/getFilename.js';
+
 /**
  * Verifies a proof using the Atlantic service.
  *
@@ -13,9 +13,8 @@ import { getFilename } from '../utils/getFilename.js';
  * @returns A Promise that resolves to a JSON string containing the status and URL or error message.
  */
 export const verifyProofService = async (
-  agent: StarknetAgentInterface,
   param: VerifierParam
-) => {
+): Promise<string> => {
   try {
     const filename = param.filename;
     if (!filename) {

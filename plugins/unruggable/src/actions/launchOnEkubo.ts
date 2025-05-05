@@ -63,7 +63,6 @@ export const launchOnEkubo = async (
 ) => {
   try {
     const provider = agent.getProvider();
-    const accountCredentials = agent.getAccountCredentials();
 
     const contract = new Contract(FACTORY_ABI, FACTORY_ADDRESS, provider);
 

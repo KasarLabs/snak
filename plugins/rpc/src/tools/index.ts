@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { StarknetTool } from '@snakagent/core';
 import { getSpecVersion } from '../actions/getSpecVersion.js';
 import { getBlockWithTxHashes } from '../actions/getBlockWithTxHashes.js';
 import { getBlockWithReceipts } from '../actions/getBlockWithReceipts.js';
@@ -20,10 +20,7 @@ import {
   transactionHashSchema,
 } from '../schema/index.js';
 
-export const registerTools = (
-  StarknetToolRegistry: StarknetTool[],
-  agenet: StarknetAgentInterface
-) => {
+export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
   StarknetToolRegistry.push({
     name: 'get_chain_id',
     plugins: 'rpc',

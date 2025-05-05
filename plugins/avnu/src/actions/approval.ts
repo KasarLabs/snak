@@ -1,4 +1,4 @@
-import { Account, uint256, CallData } from 'starknet';
+import { Account, uint256 } from 'starknet';
 import { StarknetAgentInterface } from '@snakagent/core';
 import { ERC20_ABI } from '../abi/erc20Abi.js';
 import { ContractInteractor } from '../utils/contractInteractor.js';
@@ -24,7 +24,7 @@ export class ApprovalService {
   private safeStringify(obj: unknown): string {
     return JSON.stringify(
       obj,
-      (key, value) => (typeof value === 'bigint' ? value.toString() : value),
+      (_, value) => (typeof value === 'bigint' ? value.toString() : value),
       2
     );
   }
@@ -79,11 +79,6 @@ export class ApprovalService {
       const requiredAmount = BigInt(amount);
 
       if (currentAllowance < requiredAmount) {
-        const calldata = CallData.compile({
-          spender: spenderAddress,
-          amount: uint256.bnToUint256(amount),
-        });
-
         contract.connect(account);
         const approveCall = await contract.approve(
           spenderAddress,

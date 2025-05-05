@@ -1,6 +1,5 @@
 import { Postgres } from '../../database.js';
 import { Id } from '../common.js';
-import { DatabaseError } from 'pg';
 import pg from 'pg';
 
 export namespace memory {

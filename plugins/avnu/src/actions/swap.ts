@@ -39,20 +39,6 @@ export class SwapService {
   }
 
   /**
-   * Safely stringifies objects containing BigInt values
-   * @private
-   * @param {unknown} obj - Object to stringify
-   * @returns {string} JSON string with BigInt values converted to strings
-   */
-  private safeStringify(obj: unknown): string {
-    return JSON.stringify(
-      obj,
-      (key, value) => (typeof value === 'bigint' ? value.toString() : value),
-      2
-    );
-  }
-
-  /**
    * Extracts spender address from a quote
    * @private
    * @param {Quote} quote - The quote containing route information
@@ -73,10 +59,7 @@ export class SwapService {
    * @param {StarknetAgentInterface} agent - The Starknet agent
    * @returns {Promise<SwapResult>} The result of the swap operation
    */
-  async executeSwapTransaction(
-    params: SwapParams,
-    agent: StarknetAgentInterface
-  ): Promise<SwapResult> {
+  async executeSwapTransaction(params: SwapParams): Promise<SwapResult> {
     try {
       await this.initialize();
       const provider = this.agent.getProvider();
@@ -202,7 +185,7 @@ export const swapTokens = async (
 
   try {
     const swapService = createSwapService(agent, accountAddress);
-    const result = await swapService.executeSwapTransaction(params, agent);
+    const result = await swapService.executeSwapTransaction(params);
     return JSON.stringify(result);
   } catch (error) {
     return JSON.stringify({

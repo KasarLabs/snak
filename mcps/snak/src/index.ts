@@ -6,7 +6,6 @@ import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { logger, ApiKeys, metrics } from '@snakagent/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,6 +68,7 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
         tool.name,
         tool.description,
         tool.schema.shape,
+        // @ts-ignore - Ignoring unused 'extra' parameter for now
         async (params: any, extra: any) => {
           const result = await tool.execute(agent, params);
           return {

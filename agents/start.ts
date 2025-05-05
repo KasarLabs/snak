@@ -24,7 +24,6 @@ import { dirname } from 'path';
 import { logger } from '@snakagent/core';
 import { DatabaseCredentials } from './src/tools/types/database.js';
 
-// Import our new agent system architecture
 import { AgentSystem, AgentSystemConfig } from './src/agents/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -139,34 +138,6 @@ const logo = `${chalk.cyan(`
 ${chalk.dim('v0.0.11 by ')}${createLink('Kasar', 'https://kasar.io')}`)}`;
 
 /**
- * Gets the available terminal width
- */
-const getTerminalWidth = (): number => {
-  return Math.min(process.stdout.columns || 80, 100);
-};
-
-/**
- * Wraps text to fit within a maximum width
- */
-const wrapText = (text: string, maxWidth: number): string[] => {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  words.forEach((word) => {
-    if ((currentLine + ' ' + word).length <= maxWidth) {
-      currentLine += (currentLine ? ' ' : '') + word;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  });
-
-  if (currentLine) lines.push(currentLine);
-  return lines;
-};
-
-/**
  * Charge les variables d'environnement depuis le fichier .env
  * Les variables définies en ligne de commande ont priorité
  */
@@ -232,7 +203,7 @@ const localRun = async (): Promise<void> => {
 
   try {
     // Load command line args
-    const { agentPath, modelsConfigPath, silentLlm } = await loadCommand();
+    const { agentPath, modelsConfigPath } = await loadCommand();
 
     // Load initial agent config
     let json_config: JsonConfig | undefined = await load_json_config(agentPath);
