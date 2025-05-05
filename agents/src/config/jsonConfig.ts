@@ -36,6 +36,7 @@ export interface JsonConfig {
 export interface ModeConfig {
   interactive: boolean;
   autonomous: boolean;
+  hybrid?: boolean;
   maxIteration: number;
   metaSelection?: boolean;
 }
@@ -45,7 +46,7 @@ export interface ModeConfig {
  */
 export const updateModeConfig = async (
   configPath: string,
-  mode: 'interactive' | 'autonomous'
+  mode: 'interactive' | 'autonomous' | 'hybrid'
 ): Promise<boolean> => {
   try {
     // Read the current JSON file
@@ -63,9 +64,15 @@ export const updateModeConfig = async (
     if (mode === 'interactive') {
       json.mode.interactive = true;
       json.mode.autonomous = false;
+      json.mode.hybrid = false;
     } else if (mode === 'autonomous') {
       json.mode.interactive = false;
       json.mode.autonomous = true;
+      json.mode.hybrid = false;
+    } else if (mode === 'hybrid') {
+      json.mode.interactive = false;
+      json.mode.autonomous = true;
+      json.mode.hybrid = true;
     }
 
     // Write the updated JSON back to the file

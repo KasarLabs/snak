@@ -17,6 +17,7 @@ import {
 } from '@langchain/core/prompts';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { truncateToolResults } from '../core/utils.js';
 
 /**
  * Creates an agent in autonomous mode using StateGraph
@@ -112,18 +113,22 @@ export const createAutonomousAgent = async (
       try {
         const result = await originalToolNodeInvoke(state, config);
         const executionTime = Date.now() - startTime;
+
+        // Use truncateToolResults function instead of manual logging
+        const truncatedResult = truncateToolResults(result, 5000);
+
         // Langchain ToolNode result is directly the ToolMessages, not wrapped in { messages: [...] }
-        if (Array.isArray(result)) {
+        if (Array.isArray(truncatedResult)) {
           logger.debug(
-            `Tool execution completed in ${executionTime}ms with ${result.length} results.`
+            `Tool execution completed in ${executionTime}ms with ${truncatedResult.length} results.`
           );
         } else {
           logger.debug(
-            `Tool execution completed in ${executionTime}ms. Result type: ${typeof result}`
+            `Tool execution completed in ${executionTime}ms. Result type: ${typeof truncatedResult}`
           );
         }
-        // ToolNode is expected to return the ToolMessages directly for the graph state
-        return result;
+        // Return the truncated result
+        return truncatedResult;
       } catch (error) {
         const executionTime = Date.now() - startTime;
         logger.error(

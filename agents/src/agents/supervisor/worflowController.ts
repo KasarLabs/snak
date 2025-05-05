@@ -17,6 +17,8 @@ interface WorkflowState {
   error?: string;
   iterationCount: number; // Counter to avoid infinite loops
   modelType?: string; // Add this to track the selected model type
+  mode?: string;
+  waiting_for_input?: boolean;
 }
 
 /**
@@ -509,6 +511,9 @@ export class WorkflowController {
         // Add END as a possible destination
         routingMap[END] = END;
 
+        // Add hybrid_pause as a possible destination
+        routingMap['hybrid_pause'] = 'hybrid_pause';
+
         // Add conditional transitions
         logger.debug(
           `WorkflowController: Adding conditional edges from "${agentId}" with router function`
@@ -520,6 +525,13 @@ export class WorkflowController {
           routingMap as Record<string, string | typeof END> // Explicit cast added
         );
       }
+
+      // Add a special node for hybrid mode pauses
+      workflow.addNode('hybrid_pause', async (state: WorkflowState) => {
+        // This node just returns the current state
+        // The actual pause happens at the higher level when hybrid_pause is returned
+        return {};
+      });
 
       // Compile workflow
       logger.debug('WorkflowController: Compiling workflow');
@@ -565,6 +577,17 @@ export class WorkflowController {
       logger.debug(
         `  - Updated agent history: ${(state.metadata.agentHistory || []).join(' → ')}`
       );
+    }
+
+    // Check if this is a hybrid mode interrupt
+    if (
+      state.metadata.mode === 'hybrid' &&
+      state.metadata.waiting_for_input === true
+    ) {
+      logger.debug(
+        `WorkflowController[Exec:${execId}]: Router - Hybrid mode waiting for input, pausing workflow`
+      );
+      return 'hybrid_pause';
     }
 
     // Check max iterations
@@ -616,6 +639,20 @@ export class WorkflowController {
           `WorkflowController[Exec:${execId}]: Router - Empty response detected, ending workflow`
         );
         return END;
+      }
+
+      // Added for hybrid mode - check for waiting for input
+      if (
+        lastMessage.additional_kwargs?.wait_for_input === true ||
+        (typeof lastMessage.content === 'string' &&
+          lastMessage.content.includes('WAITING_FOR_HUMAN_INPUT:'))
+      ) {
+        logger.debug(
+          `WorkflowController[Exec:${execId}]: Router - Detected request for human input in hybrid mode`
+        );
+        state.metadata.waiting_for_input = true;
+        state.metadata.mode = 'hybrid';
+        return 'hybrid_pause';
       }
     }
 

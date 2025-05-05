@@ -9,6 +9,8 @@ import { JsonConfig } from '../../config/jsonConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
 import { createAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
+import { createHybridAgent } from '../modes/hybrid.js';
+import { Command } from '@langchain/langgraph';
 
 /**
  * Configuration for StarknetAgent
@@ -40,6 +42,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   private currentMode: string;
   private agentReactExecutor: any;
   private modelSelector: ModelSelectionAgent | null = null;
+  private hybridMode: boolean = false;
 
   constructor(config: StarknetAgentConfig) {
     super('snak', AgentType.SNAK);
@@ -82,6 +85,30 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         logger.warn(
           'StarknetAgent: No ModelSelectionAgent provided, functionality will be limited'
         );
+      }
+
+      // Ensure agentconfig has necessary properties
+      if (this.agentconfig) {
+        // Ensure plugins array exists
+        if (!this.agentconfig.plugins) {
+          logger.debug(
+            'StarknetAgent: Initializing empty plugins array in config'
+          );
+          this.agentconfig.plugins = [];
+        }
+      } else {
+        logger.warn('StarknetAgent: No agent configuration available');
+      }
+
+      // Set default mode to hybrid if configuration allows
+      if (
+        this.agentconfig?.mode?.hybrid !== false &&
+        (this.agentMode === 'auto' ||
+          this.agentconfig?.mode?.autonomous === true)
+      ) {
+        logger.debug('StarknetAgent: Setting default mode to hybrid');
+        this.currentMode = 'hybrid';
+        this.hybridMode = true;
       }
 
       try {
@@ -132,6 +159,12 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       } else if (this.currentMode === 'interactive') {
         logger.debug('StarknetAgent: Creating interactive agent executor...');
         this.agentReactExecutor = await createAgent(this, this.modelSelector);
+      } else if (this.currentMode === 'hybrid') {
+        logger.debug('StarknetAgent: Creating hybrid agent executor...');
+        this.agentReactExecutor = await createHybridAgent(
+          this,
+          this.modelSelector
+        );
       } else {
         throw new Error(`Invalid mode: ${this.currentMode}`);
       }
@@ -211,7 +244,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
    */
   public getAgent() {
     return {
-      agentMode: this.currentMode,
+      agentMode: this.hybridMode ? 'hybrid' : this.currentMode,
     };
   }
 
@@ -282,13 +315,22 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       // Temporarily change mode if requested, valid, and different from current
       if (
         requestedMode &&
-        (requestedMode === 'interactive' || requestedMode === 'auto') &&
+        (requestedMode === 'interactive' ||
+          requestedMode === 'auto' ||
+          requestedMode === 'hybrid') &&
         requestedMode !== this.currentMode
       ) {
         logger.debug(
           `Temporarily switching mode from ${this.currentMode} to ${requestedMode} for this execution`
         );
         this.currentMode = requestedMode;
+
+        // Update hybridMode flag if necessary
+        if (requestedMode === 'hybrid') {
+          this.hybridMode = true;
+        } else {
+          this.hybridMode = false;
+        }
       }
 
       // Ensure executor is created for current mode
@@ -533,6 +575,13 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       if (config?.agentMode && this.currentMode !== originalMode) {
         logger.debug(`Restoring original agent mode: ${originalMode}`);
         this.currentMode = originalMode;
+
+        // Reset hybrid flag if necessary
+        if (originalMode === 'hybrid') {
+          this.hybridMode = true;
+        } else {
+          this.hybridMode = false;
+        }
       }
     }
   }
@@ -985,7 +1034,214 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       if (this.currentMode !== originalMode) {
         logger.debug(`Restoring original agent mode: ${originalMode}`);
         this.currentMode = originalMode;
+
+        // Reset hybrid flag if necessary
+        if (originalMode === 'hybrid') {
+          this.hybridMode = true;
+        } else {
+          this.hybridMode = false;
+        }
       }
+    }
+  }
+
+  /**
+   * Execute in hybrid mode
+   * @param initialInput The initial input to start the autonomous execution
+   * @returns Result of the hybrid execution
+   */
+  public async execute_hybrid(initialInput: string): Promise<unknown> {
+    let errorCount = 0;
+    let maxErrors = 3;
+    let fallbackAttempted = false;
+    let originalMode = this.currentMode;
+    let threadId = `hybrid_${Date.now()}`;
+
+    try {
+      logger.debug(`StarknetAgent executing hybrid mode`);
+
+      // Set mode to hybrid
+      this.hybridMode = true;
+      this.currentMode = 'hybrid';
+
+      // Create hybrid agent executor if needed
+      if (!this.agentReactExecutor || this.currentMode !== 'hybrid') {
+        logger.debug('Creating hybrid agent executor...');
+        try {
+          // Validate agent configuration
+          const agentConfig = this.getAgentConfig();
+          if (!agentConfig) {
+            logger.warn(
+              'StarknetAgent: No agent configuration available for hybrid mode'
+            );
+            throw new Error('Agent configuration is required for hybrid mode');
+          }
+
+          // Ensure required configurations are available
+          if (!agentConfig.name) {
+            logger.warn(
+              'StarknetAgent: Agent name is missing in configuration'
+            );
+          }
+
+          if (!(agentConfig as any).bio) {
+            logger.warn('StarknetAgent: Agent bio is missing in configuration');
+          }
+
+          if (
+            !Array.isArray((agentConfig as any).objectives) ||
+            (agentConfig as any).objectives.length === 0
+          ) {
+            logger.warn(
+              'StarknetAgent: Agent objectives are missing or empty in configuration'
+            );
+          }
+
+          if (
+            !Array.isArray((agentConfig as any).knowledge) ||
+            (agentConfig as any).knowledge.length === 0
+          ) {
+            logger.warn(
+              'StarknetAgent: Agent knowledge is missing or empty in configuration'
+            );
+          }
+
+          // Ensure plugins array exists
+          if (!agentConfig.plugins) {
+            logger.warn(
+              'StarknetAgent: No plugins configured in agent configuration'
+            );
+            agentConfig.plugins = [];
+          }
+
+          this.agentReactExecutor = await createHybridAgent(
+            this,
+            this.modelSelector
+          );
+
+          if (!this.agentReactExecutor) {
+            throw new Error(
+              'Failed to create hybrid agent executor: returned null/undefined'
+            );
+          }
+        } catch (initError) {
+          logger.error(`Failed to initialize hybrid executor: ${initError}`);
+          errorCount++;
+
+          if (errorCount >= maxErrors) {
+            logger.warn(
+              'Maximum initialization attempts reached, using fallback mode'
+            );
+            fallbackAttempted = true;
+            return this.executeSimpleFallback(
+              'Hybrid execution initialization failed'
+            );
+          }
+        }
+      }
+
+      if (!this.agentReactExecutor?.app) {
+        logger.error('Hybrid executor created, but app is missing.');
+        return new AIMessage({
+          content: 'Failed to initialize hybrid execution agent structure.',
+          additional_kwargs: {
+            from: 'snak',
+            final: true,
+            error: 'executor_app_missing',
+          },
+        });
+      }
+
+      const app = this.agentReactExecutor.app;
+      const threadConfig = {
+        configurable: {
+          thread_id: threadId,
+        },
+      };
+
+      // Start with an initial message
+      const initialHumanMessage = new HumanMessage({
+        content: initialInput || 'Start executing the primary objective.',
+      });
+
+      // Initial invocation to start the process
+      logger.info(`Starting hybrid execution with thread ID: ${threadId}`);
+      let state = await app.invoke(
+        { messages: [initialHumanMessage] },
+        threadConfig
+      );
+
+      logger.debug('Initial hybrid invocation complete.');
+
+      // Return the state for the caller to manage further interactions
+      return {
+        state,
+        threadId,
+      };
+    } catch (error) {
+      logger.error(`StarknetAgent hybrid execution failed: ${error}`);
+
+      if (!fallbackAttempted) {
+        logger.error(`Catastrophic error in hybrid execute, using fallback`);
+        return this.executeSimpleFallback('Hybrid execution failed');
+      }
+
+      return new AIMessage({
+        content: `Hybrid execution error: ${error instanceof Error ? error.message : String(error)}`,
+        additional_kwargs: {
+          from: 'snak',
+          final: true,
+          error: 'hybrid_execution_error',
+        },
+      });
+    } finally {
+      // Restore original mode
+      if (this.currentMode !== originalMode) {
+        logger.debug(`Restoring original agent mode: ${originalMode}`);
+        this.currentMode = originalMode;
+      }
+      this.hybridMode = false;
+    }
+  }
+
+  /**
+   * Resume hybrid execution with human input
+   * @param input The human input to provide
+   * @param threadId The thread ID of the paused execution
+   * @returns Updated state after resuming execution
+   */
+  public async resume_hybrid(
+    input: string,
+    threadId: string
+  ): Promise<unknown> {
+    try {
+      logger.debug(`Resuming hybrid execution with thread ID: ${threadId}`);
+
+      if (!this.agentReactExecutor?.app) {
+        throw new Error('Hybrid agent not initialized');
+      }
+
+      const app = this.agentReactExecutor.app;
+      const threadConfig = {
+        configurable: {
+          thread_id: threadId,
+        },
+      };
+
+      // Resume execution with the Command containing human input
+      const state = await app.invoke(
+        new Command({ resume: input }),
+        threadConfig
+      );
+
+      logger.debug('Hybrid execution resumed successfully');
+      return {
+        state,
+        threadId,
+      };
+    } catch (error) {
+      logger.error(`Error resuming hybrid execution: ${error}`);
+      throw error;
     }
   }
 

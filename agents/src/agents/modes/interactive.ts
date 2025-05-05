@@ -7,7 +7,11 @@ import {
 } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
-import { initializeToolsList, initializeDatabase } from '../core/utils.js';
+import {
+  initializeToolsList,
+  initializeDatabase,
+  truncateToolResults,
+} from '../core/utils.js';
 import { estimateTokens } from '../../token/tokenTracking.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
@@ -96,31 +100,23 @@ export const createAgent = async (
       const result = await originalInvoke(state, config);
       const executionTime = Date.now() - startTime;
 
-      // Log the result and truncate if necessary
-      if (result && result.messages && result.messages.length > 0) {
-        const resultMessage = result.messages[result.messages.length - 1];
-        // Check if it's a ToolMessage and if content is a string
-        if (
-          resultMessage._getType &&
-          resultMessage._getType() === 'tool' &&
-          typeof resultMessage.content === 'string'
-        ) {
-          const originalLength = resultMessage.content.length;
-          if (originalLength > 5000) {
-            resultMessage.content =
-              resultMessage.content.substring(0, 5000) +
-              `... [truncated ${originalLength - 5000} chars]`;
-            logger.debug(
-              `Tool result content truncated from ${originalLength} to 5000 characters.`
-            );
-          }
-        }
+      // Use truncateToolResults function to handle result truncation
+      const truncatedResult = truncateToolResults(result, 5000);
+
+      // Log the execution completion
+      if (
+        truncatedResult &&
+        truncatedResult.messages &&
+        truncatedResult.messages.length > 0
+      ) {
+        const resultMessage =
+          truncatedResult.messages[truncatedResult.messages.length - 1];
         logger.debug(
           `Tool execution completed in ${executionTime}ms with result type: ${resultMessage._getType?.() || typeof resultMessage}`
         );
       }
 
-      return result;
+      return truncatedResult;
     };
 
     const configPrompt = json_config.prompt?.content || '';

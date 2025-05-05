@@ -89,10 +89,16 @@ export class StarknetToolRegistry {
    */
   static async createAllowedTools(
     agent: StarknetAgentInterface,
-    allowed_tools: string[]
+    allowed_tools: string[] = []
   ) {
     // Clear existing tools before registering new ones
     this.clearTools();
+
+    if (!allowed_tools || allowed_tools.length === 0) {
+      logger.warn('StarknetToolRegistry: No tools allowed');
+      return [];
+    }
+
     await registerTools(agent, allowed_tools, this.tools);
     return this.tools.map(({ name, description, schema, execute }) =>
       tool(async (params: any) => execute(agent, params), {
@@ -115,42 +121,61 @@ export class StarknetToolRegistry {
  */
 export const registerTools = async (
   agent: StarknetAgentInterface,
-  allowed_tools: string[],
+  allowed_tools: string[] = [],
   tools: StarknetTool[]
 ): Promise<void> => {
   try {
+    if (!allowed_tools || allowed_tools.length === 0) {
+      logger.warn('registerTools: No tools to register');
+      return;
+    }
+
     let index = 0;
     await Promise.all(
       allowed_tools.map(async (tool) => {
-        index = index + 1;
-
-        const imported_tool = await import(
-          `@snakagent/plugin-${tool}/dist/index.js`
-        );
-        if (typeof imported_tool.registerTools !== 'function') {
+        if (!tool) {
+          logger.warn(
+            `registerTools: Skipping undefined tool at index ${index}`
+          );
           return false;
         }
-        const tools_new = new Array<StarknetTool>();
-        await imported_tool.registerTools(tools_new, agent);
 
-        for (const tool of tools_new) {
-          metrics.metricsAgentToolUseCount(
-            agent.getAgentConfig()?.name ?? 'agent',
-            'tools', // TODO: refactored agent interface to allow this
-            tool.name
+        index = index + 1;
+
+        try {
+          const imported_tool = await import(
+            `@snakagent/plugin-${tool}/dist/index.js`
           );
+          if (typeof imported_tool.registerTools !== 'function') {
+            logger.warn(
+              `Plugin ${tool} does not export a registerTools function`
+            );
+            return false;
+          }
+          const tools_new = new Array<StarknetTool>();
+          await imported_tool.registerTools(tools_new, agent);
+
+          for (const tool of tools_new) {
+            metrics.metricsAgentToolUseCount(
+              agent.getAgentConfig()?.name ?? 'agent',
+              'tools', // TODO: refactored agent interface to allow this
+              tool.name
+            );
+          }
+
+          tools.push(...tools_new);
+          return true;
+        } catch (error) {
+          logger.error(`Error loading plugin ${tool}: ${error}`);
+          return false;
         }
-
-        tools.push(...tools_new);
-
-        return true;
       })
     );
     if (tools.length === 0) {
       logger.warn('No tools registered');
     }
   } catch (error) {
-    logger.error(error);
+    logger.error(`Error registering tools: ${error}`);
   }
 };
 
@@ -164,10 +189,11 @@ export const registerTools = async (
  */
 export const createAllowedTools = async (
   agent: StarknetAgentInterface,
-  allowed_tools: string[]
+  allowed_tools: string[] = []
 ): Promise<DynamicStructuredTool<any>[]> => {
-  if (allowed_tools.length === 0) {
+  if (!allowed_tools || allowed_tools.length === 0) {
     logger.warn('No tools allowed');
+    return [];
   }
   return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
 };

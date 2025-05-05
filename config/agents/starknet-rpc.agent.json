@@ -20,10 +20,11 @@
   ],
   "interval": 15000,
   "mode": {
-    "interactive": true,
-    "autonomous": false,
+    "interactive": false,
+    "autonomous": true,
     "maxIteration": 15,
-    "metaSelection": true
+    "metaSelection": true,
+    "hybrid": true
   },
   "memory": {
     "enabled": true,

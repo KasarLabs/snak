@@ -62,3 +62,36 @@ export const initializeDatabase = async (db: DatabaseCredentials) => {
     throw error;
   }
 };
+
+/**
+ * Tronque le contenu de la réponse d'un outil à une longueur maximale spécifiée
+ * @param result Le résultat de l'invocation de l'outil
+ * @param maxLength Longueur maximale (défaut: 5000 caractères)
+ * @returns Le résultat avec contenu tronqué si nécessaire
+ */
+export function truncateToolResults(
+  result: any,
+  maxLength: number = 5000
+): any {
+  if (Array.isArray(result)) {
+    for (const msg of result) {
+      // Vérifier si c'est un ToolMessage et si le contenu est une chaîne
+      if (
+        msg._getType &&
+        msg._getType() === 'tool' &&
+        typeof msg.content === 'string'
+      ) {
+        const originalLength = msg.content.length;
+        if (originalLength > maxLength) {
+          msg.content =
+            msg.content.substring(0, maxLength) +
+            `... [truncated ${originalLength - maxLength} chars]`;
+          logger.debug(
+            `Tool result content truncated from ${originalLength} to ${maxLength} characters.`
+          );
+        }
+      }
+    }
+  }
+  return result;
+}

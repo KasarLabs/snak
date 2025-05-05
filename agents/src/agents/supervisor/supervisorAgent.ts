@@ -643,4 +643,133 @@ export class SupervisorAgent extends BaseAgent {
       return message; // In case of error, return original message
     }
   }
+
+  /**
+   * Start a hybrid execution
+   * @param initialInput Initial input to start the process
+   * @returns Initial state and thread ID
+   */
+  public async startHybridExecution(
+    initialInput: string
+  ): Promise<{ state: any; threadId: string }> {
+    logger.debug('SupervisorAgent: Starting hybrid execution');
+
+    if (!this.starknetAgent) {
+      throw new Error('Starknet agent is not available');
+    }
+
+    const result = await this.starknetAgent.execute_hybrid(initialInput);
+
+    if (!result || typeof result !== 'object' || !result.threadId) {
+      throw new Error('Failed to start hybrid execution: invalid result');
+    }
+
+    return result;
+  }
+
+  /**
+   * Provide input to a paused hybrid execution
+   * @param input Human input to provide
+   * @param threadId Thread ID of the paused execution
+   * @returns Updated state
+   */
+  public async provideHybridInput(
+    input: string,
+    threadId: string
+  ): Promise<any> {
+    logger.debug(
+      `SupervisorAgent: Providing input to hybrid execution (thread: ${threadId})`
+    );
+
+    if (!this.starknetAgent) {
+      throw new Error('Starknet agent is not available');
+    }
+
+    return await this.starknetAgent.resume_hybrid(input, threadId);
+  }
+
+  /**
+   * Utility to check if execution is waiting for input
+   * @param state Current execution state
+   * @returns Whether the execution is waiting for input
+   */
+  public isWaitingForInput(state: any): boolean {
+    if (
+      !state ||
+      !state.messages ||
+      !Array.isArray(state.messages) ||
+      state.messages.length === 0
+    ) {
+      return false;
+    }
+
+    const lastMessage = state.messages[state.messages.length - 1];
+
+    // Check direct state flag
+    if (state.waiting_for_input === true) {
+      return true;
+    }
+
+    // Check message content for waiting marker
+    if (
+      lastMessage &&
+      lastMessage.content &&
+      typeof lastMessage.content === 'string'
+    ) {
+      if (lastMessage.content.includes('WAITING_FOR_HUMAN_INPUT:')) {
+        return true;
+      }
+    }
+
+    // Check additional_kwargs
+    if (
+      lastMessage &&
+      lastMessage.additional_kwargs &&
+      lastMessage.additional_kwargs.wait_for_input === true
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Utility to check if execution is complete
+   * @param state Current execution state
+   * @returns Whether the execution is complete
+   */
+  public isExecutionComplete(state: any): boolean {
+    if (
+      !state ||
+      !state.messages ||
+      !Array.isArray(state.messages) ||
+      state.messages.length === 0
+    ) {
+      return false;
+    }
+
+    const lastMessage = state.messages[state.messages.length - 1];
+
+    // Check message content for final marker
+    if (
+      lastMessage &&
+      lastMessage.content &&
+      typeof lastMessage.content === 'string'
+    ) {
+      if (lastMessage.content.includes('FINAL ANSWER:')) {
+        return true;
+      }
+    }
+
+    // Check additional_kwargs
+    if (
+      lastMessage &&
+      lastMessage.additional_kwargs &&
+      lastMessage.additional_kwargs.final === true
+    ) {
+      return true;
+    }
+
+    return false;
+  }
 }

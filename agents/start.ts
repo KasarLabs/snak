@@ -240,7 +240,16 @@ const localRun = async (): Promise<void> => {
             value: 'interactive',
             short: 'Interactive',
           },
-          { name: `Autonomous Mode`, value: 'autonomous', short: 'Autonomous' },
+          {
+            name: `Autonomous Mode`,
+            value: 'autonomous',
+            short: 'Autonomous',
+          },
+          {
+            name: `Hybrid Mode (Autonomous with interruptions)`,
+            value: 'hybrid',
+            short: 'Hybrid',
+          },
         ],
       },
     ]);
@@ -318,8 +327,7 @@ const localRun = async (): Promise<void> => {
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY!,
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS!,
       modelsConfigPath, // Already loaded
-      agentMode:
-        json_config?.mode?.autonomous === true ? 'autonomous' : 'interactive', // Use autonomous flag or default to interactive
+      agentMode: mode, // Utiliser directement la valeur de mode sélectionnée
       signature: '', // TODO: Implement signature handling
       databaseCredentials: database,
       agentConfigPath: agentPath, // Pass the PATH to the agent config file
@@ -461,6 +469,189 @@ const localRun = async (): Promise<void> => {
       } catch (error) {
         console.error(chalk.red('Error in autonomous mode'));
         logger.error(
+          createBox(error.message, { title: 'Error', isError: true })
+        );
+      }
+    } else if (agentMode === 'hybrid') {
+      console.log(chalk.dim('\nStarting hybrid session...\n'));
+      console.log(
+        chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
+      );
+      console.log(chalk.yellow('Running hybrid mode...\n'));
+
+      try {
+        // Vérifier que l'agent system est initialisé
+        if (!agentSystem) {
+          throw new Error('Agent system not initialized');
+        }
+
+        // Demander l'instruction initiale
+        const { initialPrompt } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'initialPrompt',
+            message: chalk.green(
+              'Initial instruction for autonomous execution:'
+            ),
+            default: 'Start executing your primary objective.',
+            validate: (value) =>
+              value.trim() ? true : 'Please enter a valid instruction',
+          },
+        ]);
+
+        console.log(chalk.yellow('\nStarting hybrid execution...\n'));
+
+        // Démarrer l'exécution hybride
+        const { state, threadId } =
+          await agentSystem.startHybridExecution(initialPrompt);
+        console.log(
+          chalk.green(`Hybrid execution started with thread ID: ${threadId}`)
+        );
+
+        // État de l'exécution
+        let currentState = state;
+        let isRunning = true;
+
+        // Fonction pour afficher le dernier message
+        const displayLastMessage = () => {
+          if (currentState.messages && currentState.messages.length > 0) {
+            const lastMessage =
+              currentState.messages[currentState.messages.length - 1];
+            const content =
+              typeof lastMessage.content === 'string'
+                ? lastMessage.content
+                : JSON.stringify(lastMessage.content);
+
+            // Format and print the response box
+            const boxContent = createBox(
+              'Agent Response',
+              formatAgentResponse(content)
+            );
+            // Add token information to the box
+            const boxWithTokens = addTokenInfoToBox(boxContent);
+            process.stdout.write(boxWithTokens);
+          }
+        };
+
+        // Boucle principale d'interaction
+        while (isRunning) {
+          // Afficher le dernier message
+          displayLastMessage();
+
+          // Vérifier si l'agent attend une entrée
+          if (agentSystem.isWaitingForInput(currentState)) {
+            console.log(chalk.yellow('\nAgent is waiting for input.\n'));
+
+            // Demander l'entrée utilisateur
+            const { userInput } = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'userInput',
+                message: chalk.green('Your response:'),
+                validate: (value) => {
+                  if (!value.trim()) return 'Please enter a valid response';
+                  if (value.toLowerCase() === 'exit') return true;
+                  return true;
+                },
+              },
+            ]);
+
+            // Sortir si l'utilisateur tape "exit"
+            if (userInput.toLowerCase() === 'exit') {
+              console.log(chalk.blue('\nExiting hybrid mode...\n'));
+              isRunning = false;
+              break;
+            }
+
+            console.log(chalk.yellow('\nProcessing your input...\n'));
+
+            // Fournir l'entrée à l'agent et continuer l'exécution
+            try {
+              const result = await agentSystem.provideHybridInput(
+                userInput,
+                threadId
+              );
+              currentState = result.state;
+            } catch (inputError) {
+              console.error(chalk.red('Error processing your input:'));
+              console.error(
+                createBox(inputError.message, { title: 'Error', isError: true })
+              );
+            }
+          }
+          // Vérifier si l'exécution est terminée
+          else if (agentSystem.isExecutionComplete(currentState)) {
+            console.log(chalk.green('\nHybrid execution completed.\n'));
+            isRunning = false;
+          }
+          // Si l'agent est encore en train de travailler, attendre un peu
+          else {
+            console.log(
+              chalk.dim(
+                '\nAgent is working autonomously. Press Ctrl+C to exit.\n'
+              )
+            );
+
+            // Option pour continuer ou interrompre
+            const { action } = await inquirer.prompt([
+              {
+                type: 'list',
+                name: 'action',
+                message: 'What would you like to do?',
+                choices: [
+                  { name: 'Wait for next update', value: 'wait' },
+                  { name: 'Force provide input', value: 'input' },
+                  { name: 'Exit hybrid mode', value: 'exit' },
+                ],
+              },
+            ]);
+
+            if (action === 'exit') {
+              console.log(chalk.blue('\nExiting hybrid mode...\n'));
+              isRunning = false;
+            } else if (action === 'input') {
+              // Permettre à l'utilisateur de fournir une entrée même si l'agent n'en a pas demandé
+              const { userInput } = await inquirer.prompt([
+                {
+                  type: 'input',
+                  name: 'userInput',
+                  message: chalk.green('Your input (forced interruption):'),
+                  validate: (value) =>
+                    value.trim() ? true : 'Please enter a valid input',
+                },
+              ]);
+
+              console.log(
+                chalk.yellow('\nInterrupting agent with your input...\n')
+              );
+
+              try {
+                const result = await agentSystem.provideHybridInput(
+                  userInput,
+                  threadId
+                );
+                currentState = result.state;
+              } catch (inputError) {
+                console.error(chalk.red('Error processing your interrupt:'));
+                console.error(
+                  createBox(inputError.message, {
+                    title: 'Error',
+                    isError: true,
+                  })
+                );
+              }
+            } else {
+              // Attendre et vérifier l'état à nouveau
+              console.log(chalk.dim('Waiting for update...'));
+              // Vous pourriez implémenter une attente plus sophistiquée ici
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+          }
+        }
+      } catch (error) {
+        console.error(chalk.red('Error in hybrid mode'));
+        logger.error('Hybrid mode error:', error);
+        console.error(
           createBox(error.message, { title: 'Error', isError: true })
         );
       }
