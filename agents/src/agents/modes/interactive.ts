@@ -96,9 +96,25 @@ export const createAgent = async (
       const result = await originalInvoke(state, config);
       const executionTime = Date.now() - startTime;
 
-      // Log the result
+      // Log the result and truncate if necessary
       if (result && result.messages && result.messages.length > 0) {
         const resultMessage = result.messages[result.messages.length - 1];
+        // Check if it's a ToolMessage and if content is a string
+        if (
+          resultMessage._getType &&
+          resultMessage._getType() === 'tool' &&
+          typeof resultMessage.content === 'string'
+        ) {
+          const originalLength = resultMessage.content.length;
+          if (originalLength > 5000) {
+            resultMessage.content =
+              resultMessage.content.substring(0, 5000) +
+              `... [truncated ${originalLength - 5000} chars]`;
+            logger.debug(
+              `Tool result content truncated from ${originalLength} to 5000 characters.`
+            );
+          }
+        }
         logger.debug(
           `Tool execution completed in ${executionTime}ms with result type: ${resultMessage._getType?.() || typeof resultMessage}`
         );

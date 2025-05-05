@@ -11,7 +11,7 @@ import {
 } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { JsonConfig } from '../../config/jsonConfig.js';
-import { MemoryConfig } from 'agents/operators/memoryAgent.js';
+import { MemoryConfig } from '../operators/memoryAgent.js';
 import { createAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
 

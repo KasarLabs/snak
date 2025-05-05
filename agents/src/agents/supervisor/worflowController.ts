@@ -525,9 +525,10 @@ export class WorkflowController {
           `WorkflowController: Adding conditional edges from "${agentId}" with router function`
         );
         workflow.addConditionalEdges(
+          // @ts-expect-error - The type definition expects "__start__" but routing from agentId is intended here
           agentId, // Source node is current agent
           (state: WorkflowState) => this.router(state), // Decision function
-          routingMap // Mapping of decisions to target nodes
+          routingMap as Record<string, string | typeof END> // Explicit cast added
         );
       }
 
@@ -773,7 +774,7 @@ export class WorkflowController {
         configurable: {
           thread_id: threadId,
         },
-        maxIteration: this.maxIterations * 2, // More generous recursion limit
+        recursionLimit: this.maxIterations * 2, // More generous recursion limit
         ...(config || {}), // Merge with provided configuration
       };
       logger.debug(
@@ -913,71 +914,15 @@ export class WorkflowController {
   }
 
   /**
-   * Checks if workflow is initialized
-   */
-  public isInitialized(): boolean {
-    return this.initialized;
-  }
-
-  /**
-   * Gets current workflow state
-   */
-  public async getState(): Promise<any> {
-    logger.debug('WorkflowController: Getting state');
-    if (!this.checkpointer) {
-      logger.debug('WorkflowController: No checkpointer, returning null state');
-      return null;
-    }
-
-    try {
-      // Retrieve state from checkpointer
-      logger.debug('WorkflowController: Retrieving state from checkpointer');
-      const state = await this.checkpointer.get({
-        configurable: { thread_id: 'dummy_thread_for_get_state' },
-      });
-      logger.debug('WorkflowController: State retrieved successfully');
-      return state;
-    } catch (error) {
-      logger.error(
-        `WorkflowController: Error getting workflow state: ${error}`
-      );
-      return null;
-    }
-  }
-
-  /**
-   * Sets maximum iterations
-   */
-  public setMaxIterations(maxIterations: number): void {
-    logger.debug(
-      `WorkflowController: Setting maxIterations to ${maxIterations}`
-    );
-    if (maxIterations < 1) {
-      logger.warn(
-        `Invalid maxIterations value: ${maxIterations}. Must be at least 1.`
-      );
-      return;
-    }
-    this.maxIterations = maxIterations;
-  }
-
-  /**
-   * Sets a conditional entry point for the workflow
-   */
-  public setConditionalEntryPoint(
-    entryPointSelector: (state: WorkflowState) => string
-  ): void {
-    logger.debug('WorkflowController: Setting up conditional entry point');
-    this.entryPointSelector = entryPointSelector;
-  }
-
-  /**
    * Extracts original user query from workflow state or messages
    */
   private extractOriginalUserQuery(state: WorkflowState): string | null {
     // First try to extract from metadata
     if (state.metadata && state.metadata.originalUserQuery) {
-      return state.metadata.originalUserQuery;
+      // Ensure it's a string before returning
+      if (typeof state.metadata.originalUserQuery === 'string') {
+        return state.metadata.originalUserQuery;
+      }
     }
 
     // Otherwise, look in messages
@@ -985,11 +930,14 @@ export class WorkflowController {
       // First look in message metadata
       for (const msg of state.messages) {
         if (msg.additional_kwargs?.originalUserQuery) {
-          return msg.additional_kwargs.originalUserQuery;
+          // Ensure it's a string before returning
+          if (typeof msg.additional_kwargs.originalUserQuery === 'string') {
+            return msg.additional_kwargs.originalUserQuery;
+          }
         }
       }
 
-      // If not found, look for a user message (HumanMessage)
+      // If not found in metadata, look for the first user message (HumanMessage)
       for (const msg of state.messages) {
         if (msg instanceof HumanMessage && typeof msg.content === 'string') {
           return msg.content;
@@ -997,6 +945,6 @@ export class WorkflowController {
       }
     }
 
-    return null;
+    return null; // Return null if not found
   }
 }

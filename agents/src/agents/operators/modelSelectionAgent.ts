@@ -266,7 +266,7 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
       }
 
       const prompt = new HumanMessage(
-        `Analyze this content and determine which AI model should handle it.
+        `Analyze this User Input and determine which AI model should handle it.
 ${nextStepsSection ? "Focus primarily on the 'Next planned actions' which represents upcoming tasks." : ''}
 Select 'fast' for simple, focused tasks that involve a single action or basic operations.
 Select 'smart' for complex reasoning, creativity, or tasks that might take multiple steps to complete.
@@ -277,6 +277,7 @@ If the task is properly broken down into one simple step, prefer 'fast' or 'chea
 
 Respond with only one word: 'fast', 'smart', or 'cheap'.
 
+User Input:
 ${analysisContent}`
       );
 
