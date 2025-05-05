@@ -346,7 +346,37 @@ export const createHybridAgent = async (
         return 'tools';
       }
 
-      // Vérifier si c'est un message final
+      // Vérifier si le message contient "FINAL ANSWER" dans son contenu
+      if (
+        lastMessage instanceof AIMessage &&
+        typeof lastMessage.content === 'string' &&
+        lastMessage.content.includes('FINAL ANSWER:')
+      ) {
+        logger.debug(
+          `Hybrid agent: Detected "FINAL ANSWER" in message content`
+        );
+
+        // Capture the FINAL ANSWER content
+        const finalAnswer = lastMessage.content;
+
+        // Create a new message instructing the agent to continue
+        const continuationMessage = new AIMessage({
+          content: `I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.`,
+          additional_kwargs: {
+            from: 'hybrid-agent',
+          },
+        });
+
+        // Add the continuation message to the state
+        state.messages.push(continuationMessage);
+
+        logger.debug(
+          `Hybrid agent: Added continuation prompt to encourage further exploration`
+        );
+        return 'agent';
+      }
+
+      // Vérifier si c'est un message final (basé sur les métadonnées)
       if (
         lastMessage instanceof AIMessage &&
         lastMessage.additional_kwargs?.final === true

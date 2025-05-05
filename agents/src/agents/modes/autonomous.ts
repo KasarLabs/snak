@@ -343,7 +343,35 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
         return 'tools';
       }
 
-      // If no tool calls, always loop back to the agent to force continuation.
+      // Check if the message contains "FINAL ANSWER"
+      if (
+        lastMessage instanceof AIMessage &&
+        typeof lastMessage.content === 'string' &&
+        lastMessage.content.includes('FINAL ANSWER:')
+      ) {
+        logger.debug('Detected "FINAL ANSWER" in message');
+
+        // Capture the FINAL ANSWER content
+        const finalAnswer = lastMessage.content;
+
+        // Create a new message instructing the agent to continue
+        const continuationMessage = new AIMessage({
+          content: `I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.`,
+          additional_kwargs: {
+            from: 'starknet-autonomous',
+          },
+        });
+
+        // Add the continuation message to the state
+        state.messages.push(continuationMessage);
+
+        logger.debug(
+          'Added continuation prompt to encourage further exploration'
+        );
+        return 'agent';
+      }
+
+      // If no tool calls and no FINAL ANSWER, always loop back to the agent to force continuation.
       // Termination is handled by the external recursion limit in execute_autonomous.
       logger.debug(
         'No tool calls detected. Routing back to agent for next iteration.'
