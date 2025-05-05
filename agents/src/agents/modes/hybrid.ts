@@ -14,6 +14,25 @@ import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import { initializeToolsList, truncateToolResults } from '../core/utils.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
+import { createBox } from '../../prompt/formatting.js';
+import { addTokenInfoToBox } from '../../token/tokenTracking.js';
+
+/**
+ * Format agent response for display
+ */
+const formatAgentResponse = (response: string): string => {
+  if (typeof response !== 'string') return response;
+
+  return response
+    .split('\n')
+    .map((line) => {
+      if (line.includes('•')) {
+        return `  ${line.trim()}`;
+      }
+      return line;
+    })
+    .join('\n');
+};
 
 export const createHybridAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -160,6 +179,41 @@ export const createHybridAgent = async (
         };
       }
 
+      // Check if we need to respond to a FINAL ANSWER
+      const lastMessage = state.messages[state.messages.length - 1];
+      if (
+        lastMessage instanceof AIMessage &&
+        lastMessage.additional_kwargs?.final_answer === true
+      ) {
+        // Create a continuation message in response to FINAL ANSWER
+        const finalAnswer = lastMessage.content;
+        logger.debug(`Hybrid agent: Processing final answer continuation`);
+
+        // Clear the final_answer flag to prevent reprocessing
+        delete lastMessage.additional_kwargs.final_answer;
+
+        // Extract just the FINAL ANSWER content to avoid keeping "FINAL ANSWER:" text
+        let finalAnswerContent = finalAnswer;
+        if (typeof finalAnswerContent === 'string') {
+          const match = finalAnswerContent.match(/FINAL ANSWER:(.*?)$/s);
+          if (match && match[1]) {
+            finalAnswerContent = match[1].trim();
+          }
+        }
+
+        return {
+          messages: [
+            new AIMessage({
+              content: `I've received your final answer: "${finalAnswerContent}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.`,
+              additional_kwargs: {
+                from: 'hybrid-agent',
+              },
+            }),
+          ],
+          iterations: currentIteration + 1,
+        };
+      }
+
       // Validate required configuration fields
       if (!json_config?.name) {
         logger.warn('Agent name is missing in configuration');
@@ -278,14 +332,23 @@ export const createHybridAgent = async (
           : JSON.stringify(resultMessage.content || '');
 
       if (contentToCheck && contentToCheck !== '') {
-        logger.info(
-          `Hybrid agent: AI output: ${
-            typeof resultMessage.content === 'string'
-              ? resultMessage.content.substring(0, 1000) +
-                (resultMessage.content.length > 1000 ? '...' : '')
-              : JSON.stringify(resultMessage.content).substring(0, 1000) + '...'
-          }`
+        // Format and display the output with the standard box format
+        const content =
+          typeof resultMessage.content === 'string'
+            ? resultMessage.content
+            : JSON.stringify(resultMessage.content);
+
+        // Format and print the response box
+        const boxContent = createBox(
+          'Agent Response',
+          formatAgentResponse(content)
         );
+        // Add token information to the box
+        const boxWithTokens = addTokenInfoToBox(boxContent);
+        process.stdout.write(boxWithTokens);
+
+        // Also log to the logger for records
+        logger.debug(`Hybrid agent: AI output logged with formatted box`);
       }
 
       if (resultMessage.tool_calls && resultMessage.tool_calls.length > 0) {
@@ -350,28 +413,23 @@ export const createHybridAgent = async (
       if (
         lastMessage instanceof AIMessage &&
         typeof lastMessage.content === 'string' &&
-        lastMessage.content.includes('FINAL ANSWER:')
+        lastMessage.content.includes('FINAL ANSWER:') &&
+        !lastMessage.additional_kwargs?.processed_final_answer
       ) {
         logger.debug(
           `Hybrid agent: Detected "FINAL ANSWER" in message content`
         );
 
-        // Capture the FINAL ANSWER content
-        const finalAnswer = lastMessage.content;
+        // Mark message for processing in callModel and add a flag to prevent reprocessing
+        if (!lastMessage.additional_kwargs) {
+          lastMessage.additional_kwargs = {};
+        }
 
-        // Create a new message instructing the agent to continue
-        const continuationMessage = new AIMessage({
-          content: `I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.`,
-          additional_kwargs: {
-            from: 'hybrid-agent',
-          },
-        });
-
-        // Add the continuation message to the state
-        state.messages.push(continuationMessage);
+        lastMessage.additional_kwargs.final_answer = true;
+        lastMessage.additional_kwargs.processed_final_answer = true;
 
         logger.debug(
-          `Hybrid agent: Added continuation prompt to encourage further exploration`
+          `Hybrid agent: Marked message with final_answer flag for processing`
         );
         return 'agent';
       }

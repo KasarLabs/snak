@@ -18,6 +18,25 @@ import {
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults } from '../core/utils.js';
+import { createBox } from '../../prompt/formatting.js';
+import { addTokenInfoToBox } from '../../token/tokenTracking.js';
+
+/**
+ * Format agent response for display
+ */
+const formatAgentResponse = (response: string): string => {
+  if (typeof response !== 'string') return response;
+
+  return response
+    .split('\n')
+    .map((line) => {
+      if (line.includes('•')) {
+        return `  ${line.trim()}`;
+      }
+      return line;
+    })
+    .join('\n');
+};
 
 /**
  * Creates an agent in autonomous mode using StateGraph
@@ -273,14 +292,25 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
               : JSON.stringify(lastMessage.content || '');
 
           if (contentToCheck && contentToCheck !== '') {
-            const contentPreview =
+            // Format and display the output with the standard box format
+            const content =
               typeof lastMessage.content === 'string'
-                ? lastMessage.content.substring(0, 1000) +
-                  (lastMessage.content.length > 1000 ? '...' : '')
-                : JSON.stringify(lastMessage.content).substring(0, 1000) +
-                  '...';
+                ? lastMessage.content
+                : JSON.stringify(lastMessage.content);
 
-            logger.info(`Autonomous agent: AI output: ${contentPreview}`);
+            // Format and print the response box
+            const boxContent = createBox(
+              'Agent Response',
+              formatAgentResponse(content)
+            );
+            // Add token information to the box
+            const boxWithTokens = addTokenInfoToBox(boxContent);
+            process.stdout.write(boxWithTokens);
+
+            // Also log to the logger for records
+            logger.debug(
+              `Autonomous agent: AI output logged with formatted box`
+            );
           }
 
           if (

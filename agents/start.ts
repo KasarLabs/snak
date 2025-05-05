@@ -485,21 +485,12 @@ const localRun = async (): Promise<void> => {
           throw new Error('Agent system not initialized');
         }
 
-        // Demander l'instruction initiale
-        const { initialPrompt } = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'initialPrompt',
-            message: chalk.green(
-              'Initial instruction for autonomous execution:'
-            ),
-            default: 'Start executing your primary objective.',
-            validate: (value) =>
-              value.trim() ? true : 'Please enter a valid instruction',
-          },
-        ]);
+        // Use a predefined prompt instead of asking the user
+        const initialPrompt = 'Start executing your primary objective.';
 
-        console.log(chalk.yellow('\nStarting hybrid execution...\n'));
+        console.log(
+          chalk.yellow('\nStarting hybrid execution automatically...\n')
+        );
 
         // Démarrer l'exécution hybride
         const { state, threadId } =
@@ -547,7 +538,7 @@ const localRun = async (): Promise<void> => {
               {
                 type: 'input',
                 name: 'userInput',
-                message: chalk.green('Your response:'),
+                message: chalk.green('User:'),
                 validate: (value) => {
                   if (!value.trim()) return 'Please enter a valid response';
                   if (value.toLowerCase() === 'exit') return true;
