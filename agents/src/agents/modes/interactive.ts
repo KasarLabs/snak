@@ -16,6 +16,7 @@ import {
 import { estimateTokens } from '../../token/tokenTracking.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
+import { baseSystemPrompt, interactiveRules } from 'prompt/prompts.js';
 
 // Helper function to get memory agent from supervisor
 const getMemoryAgent = async () => {
@@ -155,21 +156,13 @@ export const createAgent = async (
         throw new Error('Agent knowledge is required in configuration');
       }
 
-      const systemPromptContent = `
-Your name: ${json_config.name}
-Your bio: ${(json_config as any).bio}
+      const interactiveSystemPrompt = `
+        ${baseSystemPrompt(json_config)}
 
-Your objectives:
-${((json_config as any).objectives as string[]).map((obj: string) => `- ${obj}`).join('\n')}
-
-Your knowledge:
-${((json_config as any).knowledge as string[]).map((k: string) => `- ${k}`).join('\n')}
-
-You have access to Starknet RPC tools that allow you to interact with the blockchain.
-Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
-
-When analyzing blockchain data, be thorough and use the appropriate RPC tools.
-  `.trim();
+        ${interactiveRules}
+           
+        Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
+      `;
 
       const prompt = ChatPromptTemplate.fromMessages([
         [
@@ -177,7 +170,7 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
           `${finalPrompt.trim()}
         ${state.memories ? '\nUser Memory Context:\n' + state.memories : ''}
         ${state.memories ? '\n' : ''}
-        ${systemPromptContent}`.trim(),
+        ${interactiveSystemPrompt}`.trim(),
         ],
         new MessagesPlaceholder('messages'),
       ]);

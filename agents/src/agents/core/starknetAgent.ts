@@ -268,6 +268,21 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   }
 
   /**
+   * Validates the user request before execution
+   * @param request The user's request string
+   * @returns Promise<boolean> indicating if request is valid
+   * @throws AgentValidationError if validation fails
+   */
+  public async validateRequest(request: string): Promise<boolean> {
+    // Basic validation - check if request is not empty
+    if (!request || request.trim() === '') {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Execute the agent with the given input
    * @param input The input message or string
    * @param config Optional configuration for execution, can include `agentMode` to temporarily change mode
@@ -1157,13 +1172,33 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     } catch (error) {
       logger.error(`StarknetAgent hybrid execution failed: ${error}`);
 
+      // Détection spécifique des erreurs de format API
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (
+        errorMsg.includes('trailing whitespace') ||
+        errorMsg.includes('invalid_request_error')
+      ) {
+        logger.warn('Detected API format error: trailing whitespace issue');
+
+        return new AIMessage({
+          content:
+            'An error occurred with the AI communication. Please try again with different wording.',
+          additional_kwargs: {
+            from: 'snak',
+            final: true,
+            error: 'api_format_error',
+          },
+        });
+      }
+
       if (!fallbackAttempted) {
         logger.error(`Catastrophic error in hybrid execute, using fallback`);
         return this.executeSimpleFallback('Hybrid execution failed');
       }
 
+      // If fallback was already attempted, create error message
       return new AIMessage({
-        content: `Hybrid execution error: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Hybrid execution error: ${error.message}`,
         additional_kwargs: {
           from: 'snak',
           final: true,
@@ -1218,53 +1253,5 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       logger.error(`Error resuming hybrid execution: ${error}`);
       throw error;
     }
-  }
-
-  /**
-   * Get memory configuration
-   */
-  public getMemoryConfig(): MemoryConfig {
-    return this.memory;
-  }
-
-  /**
-   * Set memory configuration
-   */
-  public setMemoryConfig(config: MemoryConfig): void {
-    this.memory = { ...this.memory, ...config };
-  }
-
-  /**
-   * Validates the user request before execution
-   * @param request The user's request string
-   * @returns Promise<boolean> indicating if request is valid
-   */
-  public async validateRequest(request: string): Promise<boolean> {
-    logger.debug(`Validating request (currently always true): ${request}`);
-    return true;
-  }
-
-  public async getModelForCurrentTask(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<BaseChatModel> {
-    if (!this.modelSelector) {
-      logger.warn(
-        'StarknetAgent: No ModelSelectionAgent available, using default model'
-      );
-      throw new Error(
-        'ModelSelectionAgent is not available and no default model is configured'
-      );
-    }
-
-    // Use the model selector to determine the best model
-    const selectedModelType =
-      forceModelType ||
-      (await this.modelSelector.selectModelForMessages(messages));
-
-    logger.debug(
-      `StarknetAgent: Selected model type for current task: ${selectedModelType}`
-    );
-    return this.modelSelector.getModelForTask(messages, selectedModelType);
   }
 }

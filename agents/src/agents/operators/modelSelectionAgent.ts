@@ -6,6 +6,7 @@ import { loadModelsConfig, ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { modelSelectorRules } from 'prompt/prompts.js';
 
 /**
  * Criteria for model selection
@@ -266,19 +267,7 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
       }
 
       const prompt = new HumanMessage(
-        `Analyze this User Input and determine which AI model should handle it.
-${nextStepsSection ? "Focus primarily on the 'Next planned actions' which represents upcoming tasks." : ''}
-Select 'fast' for simple, focused tasks that involve a single action or basic operations.
-Select 'smart' for complex reasoning, creativity, or tasks that might take multiple steps to complete.
-Select 'cheap' for non-urgent, simple tasks that don't require sophisticated reasoning.
-
-Priority is on simplicity - if the task appears to be trying to do too much at once, select 'smart'.
-If the task is properly broken down into one simple step, prefer 'fast' or 'cheap'.
-
-Respond with only one word: 'fast', 'smart', or 'cheap'.
-
-User Input:
-${analysisContent}`
+        modelSelectorRules(nextStepsSection, analysisContent)
       );
 
       if (this.debugMode) {

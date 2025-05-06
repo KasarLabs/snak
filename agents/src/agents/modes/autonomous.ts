@@ -18,6 +18,7 @@ import {
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
+import { autonomousRules, baseSystemPrompt } from 'prompt/prompts.js';
 
 /**
  * Creates an agent in autonomous mode using StateGraph
@@ -152,34 +153,13 @@ export const createAutonomousAgent = async (
         throw new Error('ModelSelectionAgent is required but not available');
       }
 
-      // --- Prepare Autonomous System Prompt ---
-      let baseSystemPrompt = '';
-      if (json_config.prompt && json_config.prompt.content) {
-        if (typeof json_config.prompt.content === 'string') {
-          baseSystemPrompt = json_config.prompt.content;
-        } else {
-          logger.warn(
-            'System prompt content has an unexpected type, using default.'
-          );
-          // Default prompt or handle differently
-        }
-      }
+      const autonomousSystemPrompt = `
+        ${baseSystemPrompt(json_config)}
 
-      const autonomousSystemPrompt = `${baseSystemPrompt}
+        ${autonomousRules}
 
-You are now operating in AUTONOMOUS MODE. This means:
-
-1.  You must complete tasks step-by-step without requiring user input.
-2.  Work towards the GOAL defined in the initial messages using the tools available to you.
-3.  Break down complex tasks into manageable steps.
-4.  Think step-by-step about your plan and reasoning before deciding on an action (tool call) or providing a final answer.
-5.  For each response that is not the final answer, briefly explain your reasoning and the next action you plan to take via a tool call.
-6.  When your task is complete and you have the final result, respond with "FINAL ANSWER: <your conclusion>" at the very end of your message. Do not call any tools in the same message as the FINAL ANSWER.
-
-Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
-
-Remember to be methodical, efficient, and provide clear reasoning for your actions. Adhere strictly to the autonomous operation guidelines.
-`;
+        Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
+      `;
 
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', autonomousSystemPrompt],

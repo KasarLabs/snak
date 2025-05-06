@@ -18,6 +18,7 @@ import {
   formatAgentResponse,
 } from '../core/utils.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
+import { hybridRules, baseSystemPrompt } from 'prompt/prompts.js';
 
 export const createHybridAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -201,60 +202,41 @@ export const createHybridAgent = async (
 
       // Validate required configuration fields
       if (!json_config?.name) {
-        logger.warn('Agent name is missing in configuration');
+        throw new Error('Agent name is missing in configuration');
       }
 
       if (!(json_config as any)?.bio) {
-        logger.warn('Agent bio is missing in configuration');
+        throw new Error('Agent bio is missing in configuration');
+      }
+
+      if (
+        !Array.isArray((json_config as any)?.lore) ||
+        (json_config as any)?.lore.length === 0
+      ) {
+        throw new Error('Agent lore is missing or empty in configuration');
       }
 
       if (
         !Array.isArray((json_config as any)?.objectives) ||
         (json_config as any)?.objectives.length === 0
       ) {
-        logger.warn('Agent objectives are missing or empty in configuration');
+        throw new Error(
+          'Agent objectives are missing or empty in configuration'
+        );
       }
 
       if (
         !Array.isArray((json_config as any)?.knowledge) ||
         (json_config as any)?.knowledge.length === 0
       ) {
-        logger.warn('Agent knowledge is missing or empty in configuration');
+        throw new Error('Agent knowledge is missing or empty in configuration');
       }
 
       // Prompt système avec instructions hybrides
       const hybridSystemPrompt = `
-        ${json_config?.prompt?.content || ''}
+        ${baseSystemPrompt(json_config)}
 
-        Your name: ${json_config?.name || 'Assistant'}
-        Your bio: ${(json_config as any)?.bio || 'An AI assistant specialized in Starknet blockchain operations.'}
-
-        Your objectives:
-        ${
-          Array.isArray((json_config as any)?.objectives)
-            ? ((json_config as any).objectives as string[])
-                .map((obj: string) => `- ${obj}`)
-                .join('\n')
-            : '- Assist users with Starknet blockchain operations\n- Provide accurate information about blockchain data'
-        }
-
-        Your knowledge:
-        ${
-          Array.isArray((json_config as any)?.knowledge)
-            ? ((json_config as any).knowledge as string[])
-                .map((k: string) => `- ${k}`)
-                .join('\n')
-            : '- Starknet blockchain operations\n- Smart contract interactions'
-        }
-
-        You are now operating in HYBRID MODE. This means:
-        
-        1. You can work autonomously to complete tasks step by step.
-        2. Break down complex tasks into manageable steps.
-        3. Think step-by-step about your plan and reasoning.
-        4. When you need human input, explicitly say "WAITING_FOR_HUMAN_INPUT: [your question]"
-           at the end of your message.
-        5. When your task is complete, respond with "FINAL ANSWER: [your conclusion]"
+        ${hybridRules}
            
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
       `;
@@ -268,6 +250,20 @@ export const createHybridAgent = async (
       const formattedPrompt = await prompt.formatMessages({
         messages: state.messages,
       });
+
+      // Nettoyer les espaces en fin de chaîne pour éviter l'erreur d'API Claude
+      for (const message of formattedPrompt) {
+        if (typeof message.content === 'string') {
+          message.content = message.content.trimEnd();
+        } else if (Array.isArray(message.content)) {
+          // Pour les messages avec contenu en format array
+          for (const part of message.content) {
+            if (part.type === 'text' && typeof part.text === 'string') {
+              part.text = part.text.trimEnd();
+            }
+          }
+        }
+      }
 
       const selectedModelType = modelSelector
         ? await modelSelector.selectModelForMessages(state.messages)
