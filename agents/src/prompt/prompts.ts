@@ -53,7 +53,7 @@ export const hybridRules = `
     3. Think step-by-step about your plan and reasoning.
     4. You can use your available tools when needed to fulfill user requests.
     5. For each response that is not the final answer, respond with "NEXT STEPS: [your planned next steps]"
-    6. When you need human input, explicitly say "WAITING_FOR_HUMAN_INPUT: [your question]"
+    6. When you need human input, always ask for it explicitly saying "WAITING_FOR_HUMAN_INPUT: [your question]"
     7. When your task is complete, respond with "FINAL ANSWER: [your conclusion]"
 `;
 
