@@ -11,6 +11,7 @@ import {
   initializeToolsList,
   initializeDatabase,
   truncateToolResults,
+  formatAgentResponse,
 } from '../core/utils.js';
 import { estimateTokens } from '../../token/tokenTracking.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
@@ -89,7 +90,7 @@ export const createAgent = async (
       if (toolCalls.length > 0) {
         logger.debug(`Tool execution starting: ${toolCalls.length} calls`);
         for (const call of toolCalls) {
-          logger.debug(
+          logger.info(
             `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
           );
         }
@@ -398,6 +399,29 @@ When analyzing blockchain data, be thorough and use the appropriate RPC tools.
       } else if (!finalResult.additional_kwargs.from) {
         finalResult.additional_kwargs.from = 'snak';
         finalResult.additional_kwargs.final = true;
+      }
+
+      // Use truncateToolResults function to handle result truncation
+      const truncatedResult = truncateToolResults(finalResult, 5000);
+
+      // Log the AI response with formatAgentResponse to ensure consistency across modes
+      const finalResultToLog = truncatedResult || finalResult;
+
+      if (
+        finalResultToLog instanceof AIMessage ||
+        (finalResultToLog &&
+          typeof finalResultToLog === 'object' &&
+          'content' in finalResultToLog)
+      ) {
+        const content =
+          typeof finalResultToLog.content === 'string'
+            ? finalResultToLog.content
+            : JSON.stringify(finalResultToLog.content || '');
+
+        if (content && content.trim() !== '') {
+          // Format and log the response consistently with other modes
+          logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
+        }
       }
 
       return {

@@ -12,27 +12,12 @@ import {
 } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
 import { StarknetAgentInterface } from '../../tools/tools.js';
-import { initializeToolsList, truncateToolResults } from '../core/utils.js';
+import {
+  initializeToolsList,
+  truncateToolResults,
+  formatAgentResponse,
+} from '../core/utils.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
-import { createBox } from '../../prompt/formatting.js';
-import { addTokenInfoToBox } from '../../token/tokenTracking.js';
-
-/**
- * Format agent response for display
- */
-const formatAgentResponse = (response: string): string => {
-  if (typeof response !== 'string') return response;
-
-  return response
-    .split('\n')
-    .map((line) => {
-      if (line.includes('•')) {
-        return `  ${line.trim()}`;
-      }
-      return line;
-    })
-    .join('\n');
-};
 
 export const createHybridAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -81,7 +66,7 @@ export const createHybridAgent = async (
           `Hybrid agent: Tool execution starting: ${toolCalls.length} calls`
         );
         for (const call of toolCalls) {
-          logger.debug(
+          logger.info(
             `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
           );
         }
@@ -338,17 +323,11 @@ export const createHybridAgent = async (
             ? resultMessage.content
             : JSON.stringify(resultMessage.content);
 
-        // Format and print the response box
-        const boxContent = createBox(
-          'Agent Response',
-          formatAgentResponse(content)
-        );
-        // Add token information to the box
-        const boxWithTokens = addTokenInfoToBox(boxContent);
-        process.stdout.write(boxWithTokens);
+        // Replace box display with simple log
+        logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
 
         // Also log to the logger for records
-        logger.debug(`Hybrid agent: AI output logged with formatted box`);
+        logger.debug(`Hybrid agent: AI output logged`);
       }
 
       if (resultMessage.tool_calls && resultMessage.tool_calls.length > 0) {

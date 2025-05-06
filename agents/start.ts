@@ -14,7 +14,6 @@ import {
   JsonConfig,
 } from './src/config/jsonConfig.js';
 import { createBox } from './src/prompt/formatting.js';
-import { addTokenInfoToBox } from './src/token/tokenTracking.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as fs from 'fs';
@@ -23,6 +22,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { logger } from '@snakagent/core';
 import { DatabaseCredentials } from './src/tools/types/database.js';
+import { formatAgentResponse } from './src/agents/core/utils.js';
 
 import { AgentSystem, AgentSystemConfig } from './src/agents/index.js';
 
@@ -168,23 +168,6 @@ function loadEnvVars(): Record<string, string> | undefined {
     console.log('.env file loaded successfully');
   return result.parsed;
 }
-
-/**
- * Formats agent response for display
- */
-const formatAgentResponse = (response: string): string => {
-  if (typeof response !== 'string') return response;
-
-  return response
-    .split('\n')
-    .map((line) => {
-      if (line.includes('•')) {
-        return `  ${line.trim()}`;
-      }
-      return line;
-    })
-    .join('\n');
-};
 
 /**
  * Main function to run the application
@@ -379,59 +362,10 @@ const localRun = async (): Promise<void> => {
 
         try {
           // Execute through the supervisor agent which will route appropriately
-          const result = await agentSystem.execute(user);
+          await agentSystem.execute(user);
 
-          // Extract the response from the result
-          let aiResponse;
-          if (result && result.messages && result.messages.length > 0) {
-            aiResponse = result.messages[result.messages.length - 1].content;
-          } else {
-            aiResponse = String(result);
-          }
-
-          if (typeof aiResponse === 'string') {
-            let mainResponse = aiResponse;
-            let nextStepsContent: string | null = null;
-            // Use a more robust regex to split, accounting for whitespace and case
-            const nextStepsMarkerRegex = /\\s*NEXT\\s+STEPS:\\s*/i;
-            const parts = aiResponse.split(nextStepsMarkerRegex);
-
-            if (parts.length > 1) {
-              // If split produces more than one part, the marker was found
-              mainResponse = parts[0].trim(); // Everything before the marker
-              nextStepsContent = parts[1].trim(); // Everything after the marker
-            } else {
-              // Marker not found, the whole response is the main response
-              mainResponse = aiResponse.trim();
-            }
-
-            // Format and print the main response box
-            const mainBoxContent = createBox(
-              'Agent Response',
-              formatAgentResponse(mainResponse) // Format only the main part
-            );
-            // Add token information to the main box
-            const mainBoxWithTokens = addTokenInfoToBox(mainBoxContent);
-            process.stdout.write(mainBoxWithTokens);
-
-            // Format and print the "Next Steps" box if it exists and is not empty
-            if (nextStepsContent && nextStepsContent.length > 0) {
-              const nextStepsBoxContent = createBox(
-                'Agent Next Steps',
-                formatAgentResponse(nextStepsContent) // Format only the next steps part
-              );
-              // Do not add token info here, it's part of the main generation stats
-              process.stdout.write(nextStepsBoxContent);
-            }
-          } else {
-            logger.error('Invalid response type received:', aiResponse);
-            console.log(
-              createBox('Received invalid response type from agent system.', {
-                title: 'Error',
-                isError: true,
-              })
-            );
-          }
+          // Removing duplicate response formatting and logging since it's now handled
+          // consistently in all mode files (interactive.ts, autonomous.ts, hybrid.ts)
         } catch (error: any) {
           console.error(chalk.red('Error processing request'));
           logger.error('Error during agent execution:', error);
@@ -513,14 +447,8 @@ const localRun = async (): Promise<void> => {
                 ? lastMessage.content
                 : JSON.stringify(lastMessage.content);
 
-            // Format and print the response box
-            const boxContent = createBox(
-              'Agent Response',
-              formatAgentResponse(content)
-            );
-            // Add token information to the box
-            const boxWithTokens = addTokenInfoToBox(boxContent);
-            process.stdout.write(boxWithTokens);
+            // Replace box display with simple log
+            logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
           }
         };
 

@@ -132,3 +132,130 @@ export function truncateToolResults(
 
   return result;
 }
+
+/**
+ * Format agent response for display by handling various formats including JSON structures
+ * @param response The agent response which can be a string, object, or array
+ * @returns Formatted string for display
+ */
+export const formatAgentResponse = (response: any): string => {
+  // Handle JSON string (needs parsing)
+  if (typeof response === 'string') {
+    try {
+      // Try to parse as JSON if it looks like a JSON array or object
+      if (
+        (response.startsWith('[') && response.endsWith(']')) ||
+        (response.startsWith('{') && response.endsWith('}'))
+      ) {
+        const parsed = JSON.parse(response);
+        return formatAgentResponse(parsed); // Process the parsed object
+      }
+
+      // Regular string formatting
+      return response
+        .split('\n')
+        .map((line) => {
+          if (line.includes('•')) {
+            return `  ${line.trim()}`;
+          }
+          return line;
+        })
+        .join('\n');
+    } catch (e) {
+      // If JSON parsing fails, treat as regular string
+      return response;
+    }
+  }
+
+  // Handle array of objects (like tool response array)
+  if (Array.isArray(response)) {
+    let result = '';
+    for (const item of response) {
+      if (typeof item === 'object' && item !== null) {
+        // Handle structured objects from the model
+        if (item.type === 'text' && item.text) {
+          result += item.text + '\n';
+        } else if (item.content) {
+          result += item.content + '\n';
+        } else {
+          // Generic object
+          result += JSON.stringify(item) + '\n';
+        }
+      } else if (item !== null) {
+        result += String(item) + '\n';
+      }
+    }
+    return result.trim();
+  }
+
+  // Handle single object
+  if (typeof response === 'object' && response !== null) {
+    if (response.type === 'text' && response.text) {
+      return response.text;
+    } else if (response.content && typeof response.content === 'string') {
+      return response.content;
+    }
+  }
+
+  // Fallback: convert to string
+  return String(response);
+};
+
+/**
+ * Process structured content before wrapping in AIMessage
+ * Helper function for formatAIMessageResult
+ */
+export const processMessageContent = (content: any): string => {
+  // Handle string content
+  if (typeof content === 'string') {
+    try {
+      // Check if it's a JSON string
+      if (
+        (content.startsWith('[') && content.endsWith(']')) ||
+        (content.startsWith('{') && content.endsWith('}'))
+      ) {
+        // Try to parse it
+        const parsed = JSON.parse(content);
+        return processMessageContent(parsed); // Recursively process the parsed object
+      }
+      // Regular string
+      return content;
+    } catch (e) {
+      // Not valid JSON, return as is
+      return content;
+    }
+  }
+
+  // Handle array of objects (common when the model returns structured data)
+  if (Array.isArray(content)) {
+    let result = '';
+    for (const item of content) {
+      if (typeof item === 'object' && item !== null) {
+        // Handle structured objects with type/text format
+        if (item.type === 'text' && item.text) {
+          result += item.text + '\n';
+        } else if (item.content) {
+          result += item.content + '\n';
+        } else {
+          // Generic object
+          result += JSON.stringify(item) + '\n';
+        }
+      } else if (item !== null) {
+        result += String(item) + '\n';
+      }
+    }
+    return result.trim();
+  }
+
+  // Handle single object
+  if (typeof content === 'object' && content !== null) {
+    if (content.type === 'text' && content.text) {
+      return content.text;
+    } else if (content.content && typeof content.content === 'string') {
+      return content.content;
+    }
+  }
+
+  // Fallback - stringify the content
+  return typeof content === 'string' ? content : JSON.stringify(content);
+};

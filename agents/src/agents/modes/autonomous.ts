@@ -17,26 +17,7 @@ import {
 } from '@langchain/core/prompts';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { truncateToolResults } from '../core/utils.js';
-import { createBox } from '../../prompt/formatting.js';
-import { addTokenInfoToBox } from '../../token/tokenTracking.js';
-
-/**
- * Format agent response for display
- */
-const formatAgentResponse = (response: string): string => {
-  if (typeof response !== 'string') return response;
-
-  return response
-    .split('\n')
-    .map((line) => {
-      if (line.includes('•')) {
-        return `  ${line.trim()}`;
-      }
-      return line;
-    })
-    .join('\n');
-};
+import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
 
 /**
  * Creates an agent in autonomous mode using StateGraph
@@ -118,7 +99,7 @@ export const createAutonomousAgent = async (
       if (toolCalls.length > 0) {
         logger.debug(`Tool execution starting: ${toolCalls.length} calls`);
         for (const call of toolCalls) {
-          logger.debug(
+          logger.info(
             `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
           );
         }
@@ -298,19 +279,11 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
                 ? lastMessage.content
                 : JSON.stringify(lastMessage.content);
 
-            // Format and print the response box
-            const boxContent = createBox(
-              'Agent Response',
-              formatAgentResponse(content)
-            );
-            // Add token information to the box
-            const boxWithTokens = addTokenInfoToBox(boxContent);
-            process.stdout.write(boxWithTokens);
+            // Replace box display with simple log
+            logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
 
             // Also log to the logger for records
-            logger.debug(
-              `Autonomous agent: AI output logged with formatted box`
-            );
+            logger.debug(`Autonomous agent: AI output logged`);
           }
 
           if (
