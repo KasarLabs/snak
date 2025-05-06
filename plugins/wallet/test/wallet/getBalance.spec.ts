@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { getBalance } from '../../src/actions/getBalance';
+import { getBalance } from '../../src/actions/getBalance.ts';
 import { RpcProvider, Contract } from 'starknet';
 
 type MockedRpcProvider = jest.Mocked<InstanceType<typeof RpcProvider>>;

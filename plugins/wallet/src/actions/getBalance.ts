@@ -1,12 +1,7 @@
-import { StarknetAgentInterface } from '../../../../agents/src/index';
+import { getBalanceSchema } from '@/schema/index.ts';
+import { StarknetAgentInterface } from '../../../../agents/src/index.ts';
 import { RpcProvider, Contract } from 'starknet';
-import { z } from 'zod';
-
-export const getBalanceSchema = z.object({
-  address: z.string().describe('Starknet wallet address to query balance for'),
-});
-
-export type GetBalanceInput = z.infer<typeof getBalanceSchema>;
+import { GetBalanceInput } from '@/types/index.ts';
 
 export async function getBalance(
   agent: StarknetAgentInterface,

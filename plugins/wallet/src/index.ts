@@ -1,4 +1,4 @@
-import * as actions from './actions/getBalance';
+import * as actions from './actions/getBalance.ts';
 
 export const plugin = {
   name: 'wallet',

@@ -1,5 +1,4 @@
 import { jest } from '@jest/globals';
-import type { ProofVerifier } from '../../src/actions/verifyProof';
 let contractCallMock: jest.Mock;
 
 jest.mock('starknet', () => {
@@ -21,8 +20,9 @@ jest.mock('starknet', () => {
   };
 });
 
-import { verifyProof } from '../../src/actions/verifyProof';
 import { RpcProvider } from 'starknet';
+import { ProofVerifier } from '../../src/types/index.ts';
+import { verifyProof } from '../../src/actions/verifyProof.ts';
 
 const mockData = {} as any;
 
@@ -118,7 +118,7 @@ describe('verifyProof action', () => {
       },
     };
 
-    const result = await verifyProof(mockData, proofData,fakeVerifier);
+    const result = await verifyProof(mockData, proofData, fakeVerifier);
 
     expect(result.isValid).toBe(false);
     expect(result.blockHash).toBe(proofData.blockHash);

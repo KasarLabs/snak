@@ -1,4 +1,4 @@
-import * as actions from './actions/verifyProof';
+import * as actions from './actions/verifyProof.ts';
 
 export const plugin = {
   name: 'avs',

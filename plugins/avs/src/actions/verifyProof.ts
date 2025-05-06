@@ -1,85 +1,8 @@
-import { z } from 'zod';
 import { RpcProvider, Contract, CallData } from 'starknet';
-import { StarknetAgentInterface } from '../../../../agents/src/index';
-export type ProofVerifier = (data: VerifyProofInput) => Promise<boolean>;
-export const verifyProofSchema = z.object({
-  blockHash: z
-    .string()
-    .startsWith('0x')
-    .describe('The Starknet block hash to verify'),
-  proof: z
-    .object({
-      programOutput: z
-        .array(z.string())
-        .describe('Program output for the STARK proof'),
-      publicInput: z
-        .array(z.string())
-        .describe('Public inputs for verification'),
-      proofParams: z
-        .object({
-          securityLevel: z.number().describe('Security level of the proof'),
-          numQueries: z.number().describe('Number of queries in the proof'),
-          blowupFactor: z
-            .number()
-            .describe('Blowup factor used in the proof generation'),
-        })
-        .describe('Parameters used in generating the proof'),
-    })
-    .describe('The STARK proof data'),
-});
-
-export type VerifyProofInput = z.infer<typeof verifyProofSchema>;
-
-const STARK_VERIFIER_CONTRACT_ADDRESS =
-  process.env.STARK_VERIFIER_CONTRACT_ADDRESS ||
-  '0x041A78091D3F9A73AeFdE217E5C073C36AB3F0A76E82AEC4C99B5B0C61D793CC';
-
-const verifierABI = [
-  {
-    inputs: [
-      {
-        name: 'block_hash',
-        type: 'felt',
-      },
-      {
-        name: 'program_outputs_len',
-        type: 'felt',
-      },
-      {
-        name: 'program_outputs',
-        type: 'felt*',
-      },
-      {
-        name: 'public_inputs_len',
-        type: 'felt',
-      },
-      {
-        name: 'public_inputs',
-        type: 'felt*',
-      },
-      {
-        name: 'security_level',
-        type: 'felt',
-      },
-      {
-        name: 'num_queries',
-        type: 'felt',
-      },
-      {
-        name: 'blowup_factor',
-        type: 'felt',
-      },
-    ],
-    name: 'verify_proof',
-    outputs: [
-      {
-        name: 'is_valid',
-        type: 'felt',
-      },
-    ],
-    type: 'function',
-  },
-];
+import { StarknetAgentInterface } from '../../../../agents/src/index.ts';
+import { verifierABI } from '../abis/verifierABI.ts';
+import { ProofVerifier, VerifyProofInput } from '../types/index.ts';
+import { STARK_VERIFIER_CONTRACT_ADDRESS } from '../constants/index.ts';
 
 async function verifyStarkProof(data: VerifyProofInput): Promise<boolean> {
   const provider = new RpcProvider({
