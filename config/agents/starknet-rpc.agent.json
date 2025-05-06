@@ -22,9 +22,9 @@
   "mode": {
     "interactive": false,
     "autonomous": true,
+    "hybrid": true,
     "maxIteration": 15,
-    "metaSelection": true,
-    "hybrid": true
+    "metaSelection": true
   },
   "memory": {
     "enabled": true,

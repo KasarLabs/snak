@@ -25,6 +25,7 @@ import { DatabaseCredentials } from './src/tools/types/database.js';
 import { formatAgentResponse } from './src/agents/core/utils.js';
 
 import { AgentSystem, AgentSystemConfig } from './src/agents/index.js';
+import { hybridInitialPrompt } from 'prompt/prompts.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -420,7 +421,7 @@ const localRun = async (): Promise<void> => {
         }
 
         // Use a predefined prompt instead of asking the user
-        const initialPrompt = 'Start executing your primary objective.';
+        const initialPrompt = hybridInitialPrompt;
 
         console.log(
           chalk.yellow('\nStarting hybrid execution automatically...\n')
@@ -442,6 +443,12 @@ const localRun = async (): Promise<void> => {
           if (currentState.messages && currentState.messages.length > 0) {
             const lastMessage =
               currentState.messages[currentState.messages.length - 1];
+
+            // Skip logging if message has already been logged by the hybrid agent
+            if (lastMessage.additional_kwargs?.logged === true) {
+              return;
+            }
+
             const content =
               typeof lastMessage.content === 'string'
                 ? lastMessage.content
@@ -449,6 +456,12 @@ const localRun = async (): Promise<void> => {
 
             // Replace box display with simple log
             logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
+
+            // Mark message as logged to prevent duplicate logging
+            if (!lastMessage.additional_kwargs) {
+              lastMessage.additional_kwargs = {};
+            }
+            lastMessage.additional_kwargs.logged = true;
           }
         };
 

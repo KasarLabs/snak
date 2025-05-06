@@ -328,6 +328,12 @@ export const createHybridAgent = async (
 
         // Also log to the logger for records
         logger.debug(`Hybrid agent: AI output logged`);
+
+        // Mark message as logged to prevent duplicate logging in start.ts
+        if (!resultMessage.additional_kwargs) {
+          resultMessage.additional_kwargs = {};
+        }
+        resultMessage.additional_kwargs.logged = true;
       }
 
       if (resultMessage.tool_calls && resultMessage.tool_calls.length > 0) {

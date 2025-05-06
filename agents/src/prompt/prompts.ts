@@ -1,7 +1,4 @@
-import {
-  MessageContent,
-  MessageContentComplex,
-} from '@langchain/core/messages';
+import { MessageContent } from '@langchain/core/messages';
 import { JsonConfig } from 'config/jsonConfig.js';
 
 export const baseSystemPrompt = (json_config: JsonConfig): string => {
@@ -61,6 +58,8 @@ export const hybridRules = `
     7. When your task is complete, respond with "FINAL ANSWER: [your conclusion]"
 `;
 
+export const hybridInitialPrompt = `Start executing your primary objective.`;
+
 export const modelSelectorRules = (
   nextStepsSection: string,
   analysisContent: string
@@ -84,6 +83,6 @@ export const modelSelectorRules = (
 
 export const finalAnswerRules = (finalAnswer: MessageContent) => {
   return `
-    I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.
+    I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, decide what to do next. You can either continue with another task or refine your previous solution.
   `;
 };
