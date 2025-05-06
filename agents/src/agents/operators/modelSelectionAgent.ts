@@ -23,7 +23,7 @@ export interface ModelSelectionCriteria {
  */
 export interface ModelSelectionOptions {
   debugMode?: boolean;
-  useMetaSelection?: boolean;
+  useModelSelector?: boolean;
   modelsConfigPath: string;
 }
 
@@ -33,7 +33,7 @@ export interface ModelSelectionOptions {
 export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   private models: Record<string, BaseChatModel> = {};
   private debugMode: boolean;
-  private useMetaSelection: boolean;
+  private useModelSelector: boolean;
   private modelsConfig: ModelsConfig | null = null;
   private apiKeys: ApiKeys = {};
   private modelsConfigPath: string;
@@ -44,7 +44,7 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   constructor(options: ModelSelectionOptions) {
     super('model-selector', AgentType.OPERATOR);
     this.debugMode = options.debugMode || false;
-    this.useMetaSelection = options.useMetaSelection || false;
+    this.useModelSelector = options.useModelSelector || false;
     this.modelsConfigPath = options.modelsConfigPath;
 
     // Set this instance as the global instance for singleton access
@@ -54,7 +54,7 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
       logger.debug(
         `ModelSelectionAgent initialized with options: ${JSON.stringify({
           debugMode: options.debugMode,
-          useMetaSelection: options.useMetaSelection,
+          useModelSelector: options.useModelSelector,
         })}`
       );
     }
@@ -194,7 +194,7 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
 
     if (this.debugMode) {
       logger.debug(
-        `ModelSelectionAgent initialized with models: ${Object.keys(this.models).join(', ')} (Meta selection: ${this.useMetaSelection ? 'enabled' : 'disabled'})`
+        `ModelSelectionAgent initialized with models: ${Object.keys(this.models).join(', ')} (Meta selection: ${this.useModelSelector ? 'enabled' : 'disabled'})`
       );
     }
   }
@@ -207,7 +207,7 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
   public async selectModelForMessages(
     messages: BaseMessage[]
   ): Promise<string> {
-    if (!this.useMetaSelection) {
+    if (!this.useModelSelector) {
       if (this.debugMode) {
         logger.debug('Meta-selection disabled, using smart model');
       }

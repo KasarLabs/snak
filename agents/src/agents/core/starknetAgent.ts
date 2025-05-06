@@ -5,7 +5,7 @@ import { logger, metrics } from '@snakagent/core';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
-import { JsonConfig } from '../../config/jsonConfig.js';
+import { AgentConfig, AgentMode } from '../../config/jsonConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
 import { createAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
@@ -21,7 +21,7 @@ export interface StarknetAgentConfig {
   accountPrivateKey: string;
   signature: string;
   db_credentials: DatabaseCredentials;
-  agentConfig?: JsonConfig;
+  agentConfig?: AgentConfig;
   memory?: MemoryConfig;
   modelSelector?: ModelSelectionAgent;
 }
@@ -35,7 +35,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   private readonly accountPublicKey: string;
   private readonly signature: string;
   private readonly agentMode: string;
-  private readonly agentconfig?: JsonConfig;
+  private readonly agentconfig?: AgentConfig;
   private readonly db_credentials: DatabaseCredentials;
   private memory: MemoryConfig;
   private currentMode: string;
@@ -50,12 +50,19 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     this.accountPrivateKey = config.accountPrivateKey;
     this.accountPublicKey = config.accountPublicKey;
     this.signature = config.signature;
-    this.agentMode = config.agentConfig?.mode?.autonomous
-      ? 'autonomous'
-      : 'interactive';
+    this.agentMode =
+      config.agentConfig?.mode === AgentMode.AUTONOMOUS
+        ? 'autonomous'
+        : config.agentConfig?.mode === AgentMode.HYBRID
+          ? 'hybrid'
+          : 'interactive';
     this.db_credentials = config.db_credentials;
     this.currentMode =
-      config.agentConfig?.mode?.autonomous === true ? 'auto' : 'interactive';
+      config.agentConfig?.mode === AgentMode.AUTONOMOUS
+        ? 'autonomous'
+        : config.agentConfig?.mode === AgentMode.HYBRID
+          ? 'hybrid'
+          : 'interactive';
     this.agentconfig = config.agentConfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
@@ -67,7 +74,9 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
     metrics.metricsAgentConnect(
       config.agentConfig?.name ?? 'agent',
-      config.agentConfig?.mode?.autonomous ? 'autonomous' : 'interactive'
+      config.agentConfig?.mode === AgentMode.AUTONOMOUS
+        ? 'autonomous'
+        : 'interactive'
     );
   }
 
@@ -99,9 +108,9 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       // Set default mode to hybrid if configuration allows
       if (
-        this.agentconfig?.mode?.hybrid !== false &&
-        (this.agentMode === 'auto' ||
-          this.agentconfig?.mode?.autonomous === true)
+        this.agentconfig?.mode === AgentMode.HYBRID ||
+        (this.agentMode === 'autonomous' &&
+          this.agentconfig?.mode === AgentMode.AUTONOMOUS)
       ) {
         logger.debug('StarknetAgent: Setting default mode to hybrid');
         this.currentMode = 'hybrid';
@@ -146,7 +155,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       logger.debug(`StarknetAgent: Using current mode: ${this.currentMode}`);
 
-      if (this.currentMode === 'auto') {
+      if (this.currentMode === 'autonomous') {
         logger.debug('StarknetAgent: Creating autonomous agent executor...');
         this.agentReactExecutor = await createAutonomousAgent(
           this,
@@ -247,7 +256,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   /**
    * Get agent configuration
    */
-  public getAgentConfig(): JsonConfig | undefined {
+  public getAgentConfig(): AgentConfig | undefined {
     return this.agentconfig;
   }
 
@@ -327,7 +336,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       if (
         requestedMode &&
         (requestedMode === 'interactive' ||
-          requestedMode === 'auto' ||
+          requestedMode === 'autonomous' ||
           requestedMode === 'hybrid') &&
         requestedMode !== this.currentMode
       ) {
@@ -660,10 +669,10 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       // Add message pruning if memory is enabled
       if (this.memory.enabled !== false) {
-        // Use mode.maxIteration if available, otherwise fall back to memory config
+        // Use maxIteration if available, otherwise fall back to memory config
         const maxIteration =
-          this.agentconfig?.mode?.maxIteration !== undefined
-            ? this.agentconfig.mode.maxIteration
+          this.agentconfig?.maxIteration !== undefined
+            ? this.agentconfig.maxIteration
             : this.memory.maxIteration !== undefined
               ? this.memory.maxIteration
               : this.memory.shortTermMemorySize || 15;
@@ -767,13 +776,12 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         `StarknetAgent executing autonomous mode: ${this.currentMode}`
       );
 
-      // Verify we are in autonomous mode
-      if (this.currentMode !== 'auto') {
-        if (this.agentconfig?.mode?.autonomous) {
+      if (this.currentMode !== 'autonomous') {
+        if (this.agentconfig?.mode === AgentMode.AUTONOMOUS) {
           logger.info(
-            `Overriding mode to 'auto' based on config settings (autonomous=${this.agentconfig?.mode?.autonomous})`
+            `Overriding mode to 'autonomous' based on config settings (autonomous=${this.agentconfig?.mode === AgentMode.AUTONOMOUS})`
           );
-          this.currentMode = 'auto';
+          this.currentMode = 'autonomous';
         } else {
           throw new Error(
             `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
@@ -1146,7 +1154,10 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         configurable: {
           thread_id: threadId,
         },
+        recursionLimit: this.agentReactExecutor.maxIteration,
       };
+
+      console.log('threadConfig', threadConfig);
 
       // Start with an initial message
       const initialHumanMessage = new HumanMessage({
@@ -1234,6 +1245,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         configurable: {
           thread_id: threadId,
         },
+        recursionLimit: this.agentReactExecutor.maxIteration,
       };
 
       // Resume execution with the Command containing human input

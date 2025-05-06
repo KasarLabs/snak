@@ -1,6 +1,6 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, JsonConfig } from '@snakagent/core';
+import { StarknetAgentInterface, AgentConfig } from '@snakagent/core';
 import { SystemMessage } from '@langchain/core/messages';
 
 setupTestEnvironment();
@@ -16,7 +16,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     password: 'test_password',
     port: 5432,
   };
-  const json_config: JsonConfig = {
+  const json_config: AgentConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
     interval: 1000,
@@ -57,7 +57,7 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     password: 'test_password',
     port: 5432,
   };
-  const json_config: JsonConfig = {
+  const json_config: AgentConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
     interval: 1000,

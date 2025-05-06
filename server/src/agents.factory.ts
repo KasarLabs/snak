@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
-import { StarknetAgent, JsonConfig } from '@snakagent/agents';
+import { StarknetAgent, AgentConfig, AgentMode } from '@snakagent/agents';
 
 @Injectable()
 export class AgentFactory {
-  private json_config: JsonConfig;
+  private json_config: AgentConfig;
   private agentInstances: Map<string, StarknetAgent> = new Map();
   private initialized: boolean = false;
   private initPromise: Promise<void>;
@@ -49,15 +49,12 @@ export class AgentFactory {
         name: json.name,
         interval: json.interval || 30000,
         chat_id: json.chat_id || 'default',
-        mode: {
-          interactive: true,
-          autonomous: json.autonomous || false,
-          maxIteration: 15,
-        },
+        mode: json.mode as AgentMode,
         plugins: Array.isArray(json.plugins)
           ? json.plugins.map((tool: string) => tool.toLowerCase())
           : [],
         memory: json.memory || false,
+        maxIteration: json.maxIteration || 10,
       };
 
       this.initialized = true;

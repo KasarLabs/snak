@@ -1,6 +1,6 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
-import { JsonConfig } from '../config/jsonConfig.js';
+import { AgentConfig } from '../config/jsonConfig.js';
 import { logger } from '@snakagent/core';
 import { metrics } from '@snakagent/core';
 import { DatabaseCredentials } from './types/database.js';
@@ -11,7 +11,7 @@ import { DatabaseCredentials } from './types/database.js';
  * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
  * @property {() => { signature: string; }} getSignature - Function to get the signature
  * @property {() => RpcProvider} getProvider - Function to get the provider
- * @property {() => JsonConfig} getAgentConfig - Function to get the agent configuration
+ * @property {() => AgentConfig} getAgentConfig - Function to get the agent configuration
  * @property {() => PostgresAdaptater[]} getDatabase - Function to get the database
  * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
  * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
@@ -28,7 +28,7 @@ export interface StarknetAgentInterface {
     signature: string;
   };
   getProvider: () => RpcProvider;
-  getAgentConfig: () => JsonConfig | undefined;
+  getAgentConfig: () => AgentConfig | undefined;
 }
 
 /**

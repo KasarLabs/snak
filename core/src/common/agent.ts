@@ -30,16 +30,19 @@ export interface SignatureTool<P = any> {
   execute: (params: P) => Promise<unknown>;
 }
 
-export interface ModeConfig {
-  interactive: boolean;
-  autonomous: boolean;
-  maxIteration: number;
+/**
+ * Enum for the mode of operation of the agent
+ */
+export enum AgentMode {
+  INTERACTIVE = 'interactive',
+  AUTONOMOUS = 'autonomous',
+  HYBRID = 'hybrid',
 }
 
 /**
  * Interface for the JSON configuration object
  */
-export interface JsonConfig {
+export interface AgentConfig {
   name: string;
   bio?: string;
   objectives?: string[];
@@ -50,7 +53,7 @@ export interface JsonConfig {
   plugins: string[];
   memory: boolean;
   mcpServers?: Record<string, any>;
-  mode: ModeConfig;
+  mode: AgentMode;
 }
 
 export interface DatabaseCredentials {
@@ -68,7 +71,7 @@ export interface DatabaseCredentials {
  * @property {() => DatabaseCredentials} getDatabaseCredentials - Function to get the database credentials
  * @property {() => { signature: string; }} getSignature - Function to get the signature
  * @property {() => RpcProvider} getProvider - Function to get the provider
- * @property {() => JsonConfig} getAgentConfig - Function to get the agent configuration
+ * @property {() => AgentConfig} getAgentConfig - Function to get the agent configuration
  * @property {() => PostgresAdaptater[]} getDatabase - Function to get the database
  * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
  * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
@@ -84,5 +87,5 @@ export interface StarknetAgentInterface {
     signature: string;
   };
   getProvider: () => RpcProvider;
-  getAgentConfig: () => JsonConfig | undefined;
+  getAgentConfig: () => AgentConfig | undefined;
 }

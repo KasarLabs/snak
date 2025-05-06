@@ -199,7 +199,7 @@ const agent = new StarknetAgent({
   aiProvider: process.env.AI_PROVIDER,
   aiProviderApiKey: process.env.AI_PROVIDER_API_KEY,
   signature: 'key',
-  agentMode: 'auto',
+  agentMode: 'interactive',
   agentconfig: y,
 });
 

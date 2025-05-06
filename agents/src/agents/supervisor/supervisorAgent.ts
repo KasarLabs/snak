@@ -13,7 +13,7 @@ import { WorkflowController } from './worflowController.js';
 import { DatabaseCredentials, logger, metrics } from '@snakagent/core';
 import { HumanMessage, BaseMessage } from '@langchain/core/messages';
 import { Tool } from '@langchain/core/tools';
-import { JsonConfig } from '../../config/jsonConfig.js';
+import { AgentConfig, AgentMode } from '../../config/jsonConfig.js';
 import { RpcProvider } from 'starknet';
 
 /**
@@ -90,7 +90,7 @@ export class SupervisorAgent extends BaseAgent {
       logger.debug('SupervisorAgent: Initializing ModelSelectionAgent...');
       this.modelSelectionAgent = new ModelSelectionAgent({
         debugMode: this.debug,
-        useMetaSelection: true,
+        useModelSelector: true,
         modelsConfigPath: this.config.modelsConfigPath,
       });
       await this.modelSelectionAgent.init();
@@ -240,16 +240,18 @@ export class SupervisorAgent extends BaseAgent {
   /**
    * Initializes metrics
    */
-  private initializeMetrics(agentConfig: JsonConfig | null | undefined): void {
+  private initializeMetrics(agentConfig: AgentConfig | null | undefined): void {
     logger.debug('SupervisorAgent: Initializing metrics');
     if (!this.starknetAgent) return;
 
     const agentName = agentConfig?.name || 'agent';
     metrics.metricsAgentConnect(
       agentName,
-      this.config.starknetConfig.agentConfig?.mode?.autonomous
+      this.config.starknetConfig.agentConfig?.mode === AgentMode.AUTONOMOUS
         ? 'autonomous'
-        : 'interactive'
+        : this.config.starknetConfig.agentConfig?.mode === AgentMode.HYBRID
+          ? 'hybrid'
+          : 'interactive'
     );
   }
 
@@ -547,19 +549,18 @@ export class SupervisorAgent extends BaseAgent {
   /**
    * Updates supervisor operation mode
    */
-  public async updateMode(mode: 'interactive' | 'autonomous'): Promise<void> {
+  public async updateMode(mode: AgentMode): Promise<void> {
     logger.debug(`SupervisorAgent: Entering updateMode with mode: ${mode}`);
 
     // Get the current config
     const agentConfig = this.config.starknetConfig.agentConfig;
 
     // Safely update the mode if agentConfig exists
-    if (agentConfig && agentConfig.mode) {
-      agentConfig.mode.interactive = mode === 'interactive';
-      agentConfig.mode.autonomous = mode === 'autonomous';
+    if (agentConfig) {
+      agentConfig.mode = mode; // Directly assign the enum value
     } else {
       logger.warn(
-        `SupervisorAgent: Unable to update mode - agentConfig or mode not initialized`
+        `SupervisorAgent: Unable to update mode - agentConfig not initialized`
       );
     }
 
@@ -679,11 +680,31 @@ export class SupervisorAgent extends BaseAgent {
 
     const result = await this.starknetAgent.execute_hybrid(initialInput);
 
-    if (!result || typeof result !== 'object' || !result.threadId) {
+    // Handle different result formats
+    if (!result || typeof result !== 'object') {
       throw new Error('Failed to start hybrid execution: invalid result');
     }
 
-    return result;
+    // Extract state and threadId from the result
+    const resultObj = result as any;
+    if (!resultObj.threadId) {
+      // If threadId is missing, try to create a standardized response
+      const threadId = `hybrid_${Date.now()}`;
+      logger.warn(
+        `ThreadId missing in hybrid execution result, generated: ${threadId}`
+      );
+
+      return {
+        state: resultObj, // Use the entire result as state
+        threadId,
+      };
+    }
+
+    // Return the properly structured result
+    return {
+      state: resultObj.state || resultObj,
+      threadId: resultObj.threadId,
+    };
   }
 
   /**

@@ -14,13 +14,10 @@
     "Les messages précédents doivent être comparés pour déduire la cohérence.",
     "Les pertes de mémoire peuvent provenir de la limite imposée"
   ],
-  "interval": 1000,
-  "chat_id": "memory_selfcheck_session_01",
-  "mode": {
-    "interactive": false,
-    "autonomous": true,
-    "maxIteration": 0
-  },
+  "interval": 15000,
+  "maxIteration": 15,
+  "mode": "hybrid",
+  "chat_id": "memory",
   "memory": {
     "enabled": true,
     "shortTermMemorySize": 5

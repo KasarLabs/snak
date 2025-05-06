@@ -4,7 +4,7 @@ import {
 } from './supervisor/supervisorAgent.js';
 import { RpcProvider } from 'starknet';
 import { logger } from '@snakagent/core';
-import { JsonConfig } from '../config/jsonConfig.js';
+import { AgentConfig, AgentMode } from '../config/jsonConfig.js';
 
 /**
  * Configuration for the agent system initialization
@@ -14,7 +14,7 @@ export interface AgentSystemConfig {
   accountPrivateKey: string;
   accountPublicKey: string;
   modelsConfigPath: string;
-  agentMode: 'interactive' | 'autonomous';
+  agentMode: AgentMode;
   signature: string;
   databaseCredentials: any;
   agentConfigPath?: string;
@@ -27,7 +27,7 @@ export interface AgentSystemConfig {
 export class AgentSystem {
   private supervisorAgent: SupervisorAgent | null = null;
   private config: AgentSystemConfig;
-  private agentConfig: JsonConfig | null = null;
+  private agentConfig: AgentConfig | null = null;
 
   constructor(config: AgentSystemConfig) {
     this.config = config;
@@ -92,7 +92,7 @@ export class AgentSystem {
   /**
    * Load agent configuration from the specified path
    */
-  private async loadAgentConfig(configPath: string): Promise<JsonConfig> {
+  private async loadAgentConfig(configPath: string): Promise<AgentConfig> {
     try {
       const fs = await import('fs/promises');
       const configContent = await fs.readFile(configPath, 'utf-8');

@@ -10,8 +10,8 @@ import { config } from 'dotenv';
 import { Postgres } from '@snakagent/database';
 import {
   load_json_config,
-  updateModeConfig,
-  JsonConfig,
+  AgentMode,
+  AgentConfig,
 } from './src/config/jsonConfig.js';
 import { createBox } from './src/prompt/formatting.js';
 import yargs from 'yargs';
@@ -190,7 +190,8 @@ const localRun = async (): Promise<void> => {
     const { agentPath, modelsConfigPath } = await loadCommand();
 
     // Load initial agent config
-    let json_config: JsonConfig | undefined = await load_json_config(agentPath);
+    let json_config: AgentConfig | undefined =
+      await load_json_config(agentPath);
     if (!json_config) {
       throw new Error(`Failed to load agent configuration from ${agentPath}`);
     }
@@ -212,68 +213,12 @@ const localRun = async (): Promise<void> => {
       );
     }
 
-    // Ask for mode
-    const { mode } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'mode',
-        message: 'Select operation mode:',
-        choices: [
-          {
-            name: `Interactive Mode`,
-            value: 'interactive',
-            short: 'Interactive',
-          },
-          {
-            name: `Autonomous Mode`,
-            value: 'autonomous',
-            short: 'Autonomous',
-          },
-          {
-            name: `Hybrid Mode (Autonomous with interruptions)`,
-            value: 'hybrid',
-            short: 'Hybrid',
-          },
-        ],
-      },
-    ]);
-    const agentMode = mode;
+    // Use the mode from agent configuration
+    const agentMode = json_config.mode;
 
     clearScreen();
     console.log(logo);
     const spinner = createSpinner('Initializing Agent System').start();
-
-    // Update config file on disk if needed
-    try {
-      spinner.stop();
-
-      const modeToUpdate = agentMode;
-      const updateSpinner = createSpinner(
-        `Updating configuration to ${modeToUpdate} mode`
-      ).start();
-
-      const updateSuccess = await updateModeConfig(agentPath, modeToUpdate);
-      if (updateSuccess) {
-        updateSpinner.success({
-          text: `Configuration updated to ${modeToUpdate} mode`,
-        });
-
-        // Reload config from disk
-        json_config = await load_json_config(agentPath);
-        if (!json_config) {
-          throw new Error(
-            `Failed to reload agent configuration after update from ${agentPath}`
-          );
-        }
-      } else {
-        updateSpinner.warn({
-          text: `Failed to update configuration, continuing with current settings`,
-        });
-      }
-    } catch (updateError) {
-      spinner.error({ text: `Failed to update configuration: ${updateError}` });
-      logger.warn('Continuing with potentially outdated mode configuration.');
-    }
 
     // Setup database credentials from environment variables
     const database: DatabaseCredentials = {
@@ -311,7 +256,7 @@ const localRun = async (): Promise<void> => {
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY!,
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS!,
       modelsConfigPath, // Already loaded
-      agentMode: mode, // Utiliser directement la valeur de mode sélectionnée
+      agentMode: agentMode,
       signature: '', // TODO: Implement signature handling
       databaseCredentials: database,
       agentConfigPath: agentPath, // Pass the PATH to the agent config file
@@ -387,7 +332,7 @@ const localRun = async (): Promise<void> => {
 
       try {
         // Verify autonomous mode is enabled in the configuration
-        if (!json_config?.mode?.autonomous) {
+        if (json_config?.mode !== AgentMode.AUTONOMOUS) {
           throw new Error('Autonomous mode is disabled in agent configuration');
         }
 
@@ -415,7 +360,6 @@ const localRun = async (): Promise<void> => {
       console.log(chalk.yellow('Running hybrid mode...\n'));
 
       try {
-        // Vérifier que l'agent system est initialisé
         if (!agentSystem) {
           throw new Error('Agent system not initialized');
         }

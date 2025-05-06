@@ -1,7 +1,7 @@
 import { MessageContent } from '@langchain/core/messages';
-import { JsonConfig } from 'config/jsonConfig.js';
+import { AgentConfig } from 'config/jsonConfig.js';
 
-export const baseSystemPrompt = (json_config: JsonConfig): string => {
+export const baseSystemPrompt = (json_config: AgentConfig): string => {
   return `
         ${json_config?.prompt?.content || ''}
 

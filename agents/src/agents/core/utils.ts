@@ -3,7 +3,7 @@ import { createAllowedTools } from '../../tools/tools.js';
 import { createSignatureTools } from '../../tools/signatureTools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { logger } from '@snakagent/core';
-import { JsonConfig } from '../../config/jsonConfig.js';
+import { AgentConfig } from '../../config/jsonConfig.js';
 import { Postgres } from '@snakagent/database/queries';
 import { memory } from '@snakagent/database/queries';
 import { DatabaseCredentials } from '@snakagent/database';
@@ -18,7 +18,7 @@ import {
  */
 export async function initializeToolsList(
   starknetAgent: StarknetAgentInterface,
-  jsonConfig: JsonConfig
+  jsonConfig: AgentConfig
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const isSignature = starknetAgent.getSignature().signature === 'wallet';

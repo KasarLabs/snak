@@ -150,7 +150,7 @@ export const createHybridAgent = async (
     async function callModel(state: typeof GraphState.State) {
       // Suivre les itérations pour éviter les boucles infinies
       const currentIteration = state.iterations || 0;
-      const maxIterations = json_config?.mode?.maxIteration || 50;
+      const maxIterations = json_config?.maxIteration || 50;
 
       if (currentIteration >= maxIterations) {
         logger.warn(`Hybrid agent: Max iterations reached (${maxIterations})`);
@@ -459,7 +459,7 @@ export const createHybridAgent = async (
     return {
       app,
       json_config,
-      maxIteration: json_config.mode?.maxIteration || 50,
+      maxIteration: json_config.maxIteration || 50,
     };
   } catch (error) {
     logger.error('Failed to create hybrid agent:', error);

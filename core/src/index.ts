@@ -1,5 +1,5 @@
 export type {
-  JsonConfig,
+  AgentConfig,
   StarknetAgentInterface,
   StarknetTool,
   SignatureTool,
