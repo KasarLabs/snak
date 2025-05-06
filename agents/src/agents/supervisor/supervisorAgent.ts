@@ -6,23 +6,22 @@ import {
   IAgent,
 } from '../core/baseAgent.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
-import { StarknetAgent } from '../core/starknetAgent.js';
+import { StarknetAgent, StarknetAgentConfig } from '../core/starknetAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
 import { WorkflowController } from './worflowController.js';
-import { logger, metrics } from '@snakagent/core';
+import { DatabaseCredentials, logger, metrics } from '@snakagent/core';
 import { HumanMessage, BaseMessage } from '@langchain/core/messages';
 import { Tool } from '@langchain/core/tools';
 import { JsonConfig } from '../../config/jsonConfig.js';
+import { RpcProvider } from 'starknet';
 
 /**
  * Configuration for the supervisor agent
  */
 export interface SupervisorAgentConfig {
   modelsConfigPath: string;
-  starknetConfig: any; // Configuration for Starknet agent
-  agentMode: 'interactive' | 'autonomous';
-  agentConfig?: any; // Additional configuration
+  starknetConfig: StarknetAgentConfig;
   debug?: boolean;
 }
 
@@ -37,8 +36,13 @@ export class SupervisorAgent extends BaseAgent {
   private workflowController: WorkflowController | null = null;
   private config: SupervisorAgentConfig = {
     modelsConfigPath: '',
-    starknetConfig: {},
-    agentMode: 'interactive',
+    starknetConfig: {
+      provider: {} as RpcProvider,
+      accountPublicKey: '',
+      accountPrivateKey: '',
+      signature: '',
+      db_credentials: {} as DatabaseCredentials,
+    },
   };
   private operators: Map<string, IAgent> = new Map();
   private debug: boolean = false;
@@ -66,8 +70,6 @@ export class SupervisorAgent extends BaseAgent {
     this.config = {
       modelsConfigPath: configObject.modelsConfigPath || '',
       starknetConfig: configObject.starknetConfig || {},
-      agentMode: configObject.agentMode || 'interactive',
-      agentConfig: configObject.agentConfig,
       debug: !!configObject.debug,
     };
 
@@ -80,7 +82,7 @@ export class SupervisorAgent extends BaseAgent {
    * Initializes the supervisor and all agents under its control
    */
   public async init(): Promise<void> {
-    const agentConfig = this.config.agentConfig;
+    const agentConfig = this.config.starknetConfig.agentConfig;
     logger.debug('SupervisorAgent: Starting initialization');
 
     try {
@@ -120,9 +122,8 @@ export class SupervisorAgent extends BaseAgent {
         accountPrivateKey: this.config.starknetConfig.accountPrivateKey,
         signature: this.config.starknetConfig.signature,
         modelSelector: this.modelSelectionAgent,
-        memory: this.config.agentConfig?.memory,
-        agentconfig: this.config.agentConfig,
-        agentMode: this.config.agentMode,
+        memory: this.config.starknetConfig.agentConfig?.memory,
+        agentConfig: this.config.starknetConfig.agentConfig,
         db_credentials: this.config.starknetConfig.db_credentials,
       });
       await this.starknetAgent.init();
@@ -244,7 +245,12 @@ export class SupervisorAgent extends BaseAgent {
     if (!this.starknetAgent) return;
 
     const agentName = agentConfig?.name || 'agent';
-    metrics.metricsAgentConnect(agentName, this.config.agentMode);
+    metrics.metricsAgentConnect(
+      agentName,
+      this.config.starknetConfig.agentConfig?.mode?.autonomous
+        ? 'autonomous'
+        : 'interactive'
+    );
   }
 
   /**
@@ -354,7 +360,7 @@ export class SupervisorAgent extends BaseAgent {
 
     // Enrich with memory context if enabled
     if (
-      this.config.agentConfig?.memory?.enabled !== false &&
+      this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
       this.memoryAgent
     ) {
       logger.debug(
@@ -543,8 +549,21 @@ export class SupervisorAgent extends BaseAgent {
    */
   public async updateMode(mode: 'interactive' | 'autonomous'): Promise<void> {
     logger.debug(`SupervisorAgent: Entering updateMode with mode: ${mode}`);
-    this.config.agentMode = mode;
-    logger.debug(`SupervisorAgent: Set agentMode to ${this.config.agentMode}`);
+
+    // Get the current config
+    const agentConfig = this.config.starknetConfig.agentConfig;
+
+    // Safely update the mode if agentConfig exists
+    if (agentConfig && agentConfig.mode) {
+      agentConfig.mode.interactive = mode === 'interactive';
+      agentConfig.mode.autonomous = mode === 'autonomous';
+    } else {
+      logger.warn(
+        `SupervisorAgent: Unable to update mode - agentConfig or mode not initialized`
+      );
+    }
+
+    logger.debug(`SupervisorAgent: Set agentMode to ${mode}`);
 
     // Reconfigure workflow
     if (this.workflowController) {
@@ -608,7 +627,7 @@ export class SupervisorAgent extends BaseAgent {
       logger.debug('SupervisorAgent: Retrieving relevant memories...');
       const memories = await this.memoryAgent.retrieveRelevantMemories(
         message,
-        this.config.agentConfig?.userId || 'default_user'
+        this.config.starknetConfig.agentConfig?.chat_id || 'default_user'
       );
       logger.debug(`SupervisorAgent: Retrieved ${memories.length} memories.`);
 

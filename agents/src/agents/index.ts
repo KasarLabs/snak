@@ -65,17 +65,14 @@ export class AgentSystem {
       // Create the config object for SupervisorAgent
       const supervisorConfigObject: SupervisorAgentConfig = {
         modelsConfigPath: this.config.modelsConfigPath,
-        agentMode: this.config.agentMode,
         debug: this.config.debug,
-        agentConfig: this.agentConfig || undefined,
         starknetConfig: {
           provider: this.config.starknetProvider,
           accountPrivateKey: this.config.accountPrivateKey,
           accountPublicKey: this.config.accountPublicKey,
           signature: this.config.signature,
-          agentMode: this.config.agentMode,
+          agentConfig: this.agentConfig || undefined,
           db_credentials: this.config.databaseCredentials,
-          agentconfig: this.agentConfig || undefined,
         },
       };
 

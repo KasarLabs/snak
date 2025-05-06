@@ -20,9 +20,8 @@ export interface StarknetAgentConfig {
   accountPublicKey: string;
   accountPrivateKey: string;
   signature: string;
-  agentMode: string;
   db_credentials: DatabaseCredentials;
-  agentconfig?: JsonConfig;
+  agentConfig?: JsonConfig;
   memory?: MemoryConfig;
   modelSelector?: ModelSelectionAgent;
 }
@@ -51,14 +50,13 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     this.accountPrivateKey = config.accountPrivateKey;
     this.accountPublicKey = config.accountPublicKey;
     this.signature = config.signature;
-    this.agentMode = config.agentMode;
+    this.agentMode = config.agentConfig?.mode?.autonomous
+      ? 'autonomous'
+      : 'interactive';
     this.db_credentials = config.db_credentials;
     this.currentMode =
-      config.agentMode === 'auto' ||
-      config.agentconfig?.mode?.autonomous === true
-        ? 'auto'
-        : 'interactive';
-    this.agentconfig = config.agentconfig;
+      config.agentConfig?.mode?.autonomous === true ? 'auto' : 'interactive';
+    this.agentconfig = config.agentConfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
 
@@ -68,8 +66,8 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     }
 
     metrics.metricsAgentConnect(
-      config.agentconfig?.name ?? 'agent',
-      config.agentMode
+      config.agentConfig?.name ?? 'agent',
+      config.agentConfig?.mode?.autonomous ? 'autonomous' : 'interactive'
     );
   }
 

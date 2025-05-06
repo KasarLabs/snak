@@ -31,7 +31,7 @@ export class WalletController implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      this.agent = await this.agentFactory.createAgent('wallet', 'agent');
+      this.agent = await this.agentFactory.createAgent('wallet');
       await this.agent.init();
     } catch (error) {
       console.error('Failed to initialize WalletController:', error);
