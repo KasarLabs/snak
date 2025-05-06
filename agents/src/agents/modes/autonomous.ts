@@ -337,9 +337,9 @@ Remember to be methodical, efficient, and provide clear reasoning for your actio
 
     // Return the compiled app and potentially other config needed by StarknetAgent
     return {
-      app, // The compiled LangGraph app
-      json_config, // Pass config along if needed
-      maxIteration: json_config.mode?.maxIteration || 50, // Default max iterations for autonomous mode
+      app,
+      json_config,
+      maxIteration: json_config.mode?.maxIteration,
     };
   } catch (error) {
     logger.error('Failed to create autonomous agent graph:', error);

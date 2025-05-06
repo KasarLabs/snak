@@ -8,6 +8,13 @@ import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
 import { promises as fs } from 'fs';
 import path, { join } from 'path';
+import '@fastify/multipart';
+
+// Extend FastifyRequest to include multipart methods
+interface MultipartRequest extends FastifyRequest {
+  isMultipart(): boolean;
+  parts(): AsyncIterableIterator<MultipartFile>;
+}
 
 interface FileSignature {
   mime: string;
@@ -54,7 +61,7 @@ export class FileTypeGuard implements CanActivate {
     const path = process.env.PATH_UPLOAD_DIR;
     if (typeof path === 'string') this.uploadDir = path;
 
-    const request = context.switchToHttp().getRequest<FastifyRequest>();
+    const request = context.switchToHttp().getRequest<MultipartRequest>();
 
     if (!request.isMultipart()) {
       throw new ForbiddenException('The request must be multipart');

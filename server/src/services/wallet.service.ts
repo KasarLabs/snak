@@ -45,10 +45,10 @@ export class WalletService implements IWalletService {
       // Check if the AI provider API keys are configured
       let apiKeyValid = false;
       try {
-        this.config.ai;
-        apiKeyValid = true;
+        const aiConfig = this.config.ai;
+        apiKeyValid = Boolean(aiConfig && aiConfig.apiKey);
       } catch (error) {
-        this.logger.debug('AI API key validation failed', error);
+        this.logger.debug('AI API key verification failed', error);
       }
 
       return {

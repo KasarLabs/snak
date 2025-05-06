@@ -67,10 +67,7 @@ export class AgentFactory {
     }
   }
 
-  async createAgent(
-    signature: string,
-    agentMode: string = 'autonomous'
-  ): Promise<StarknetAgent> {
+  async createAgent(signature: string): Promise<StarknetAgent> {
     if (!this.initialized) {
       await this.initPromise;
     }
@@ -104,10 +101,9 @@ export class AgentFactory {
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
-        agentconfig: this.json_config,
+        agentConfig: this.json_config,
         db_credentials: database,
         signature: signature,
-        agentMode: agentMode,
       });
 
       // Store for later reuse
