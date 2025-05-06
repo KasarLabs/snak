@@ -18,7 +18,11 @@ import {
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
-import { autonomousRules, baseSystemPrompt } from 'prompt/prompts.js';
+import {
+  autonomousRules,
+  baseSystemPrompt,
+  finalAnswerRules,
+} from 'prompt/prompts.js';
 
 /**
  * Creates an agent in autonomous mode using StateGraph
@@ -151,6 +155,40 @@ export const createAutonomousAgent = async (
       if (!modelSelector) {
         // This check might be redundant due to the initial check
         throw new Error('ModelSelectionAgent is required but not available');
+      }
+
+      // Check if we need to respond to a FINAL ANSWER
+      const lastMessage = state.messages[state.messages.length - 1];
+      if (
+        lastMessage instanceof AIMessage &&
+        lastMessage.additional_kwargs?.final_answer === true
+      ) {
+        // Create a continuation message in response to FINAL ANSWER
+        const finalAnswer = lastMessage.content;
+        logger.debug(`Autonomous agent: Processing final answer continuation`);
+
+        // Clear the final_answer flag to prevent reprocessing
+        delete lastMessage.additional_kwargs.final_answer;
+
+        // Extract just the FINAL ANSWER content to avoid keeping "FINAL ANSWER:" text
+        let finalAnswerContent = finalAnswer;
+        if (typeof finalAnswerContent === 'string') {
+          const match = finalAnswerContent.match(/FINAL ANSWER:(.*?)$/s);
+          if (match && match[1]) {
+            finalAnswerContent = match[1].trim();
+          }
+        }
+
+        return {
+          messages: [
+            new AIMessage({
+              content: finalAnswerRules(finalAnswerContent),
+              additional_kwargs: {
+                from: 'starknet-autonomous',
+              },
+            }),
+          ],
+        };
       }
 
       const autonomousSystemPrompt = `
@@ -330,27 +368,20 @@ export const createAutonomousAgent = async (
       if (
         lastMessage instanceof AIMessage &&
         typeof lastMessage.content === 'string' &&
-        lastMessage.content.includes('FINAL ANSWER:')
+        lastMessage.content.includes('FINAL ANSWER:') &&
+        !lastMessage.additional_kwargs?.processed_final_answer
       ) {
         logger.debug('Detected "FINAL ANSWER" in message');
 
-        // Capture the FINAL ANSWER content
-        const finalAnswer = lastMessage.content;
+        // Mark message for processing in callModel and add a flag to prevent reprocessing
+        if (!lastMessage.additional_kwargs) {
+          lastMessage.additional_kwargs = {};
+        }
 
-        // Create a new message instructing the agent to continue
-        const continuationMessage = new AIMessage({
-          content: `I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.`,
-          additional_kwargs: {
-            from: 'starknet-autonomous',
-          },
-        });
+        lastMessage.additional_kwargs.final_answer = true;
+        lastMessage.additional_kwargs.processed_final_answer = true;
 
-        // Add the continuation message to the state
-        state.messages.push(continuationMessage);
-
-        logger.debug(
-          'Added continuation prompt to encourage further exploration'
-        );
+        logger.debug('Marked message with final_answer flag for processing');
         return 'agent';
       }
 

@@ -1,3 +1,7 @@
+import {
+  MessageContent,
+  MessageContentComplex,
+} from '@langchain/core/messages';
 import { JsonConfig } from 'config/jsonConfig.js';
 
 export const baseSystemPrompt = (json_config: JsonConfig): string => {
@@ -76,4 +80,10 @@ export const modelSelectorRules = (
 
     User Input:
     ${analysisContent}`;
+};
+
+export const finalAnswerRules = (finalAnswer: MessageContent) => {
+  return `
+    I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.
+  `;
 };

@@ -18,7 +18,11 @@ import {
   formatAgentResponse,
 } from '../core/utils.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
-import { hybridRules, baseSystemPrompt } from 'prompt/prompts.js';
+import {
+  hybridRules,
+  baseSystemPrompt,
+  finalAnswerRules,
+} from 'prompt/prompts.js';
 
 export const createHybridAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -190,7 +194,7 @@ export const createHybridAgent = async (
         return {
           messages: [
             new AIMessage({
-              content: `I've received your final answer: "${finalAnswerContent}"\n\nBased on the history of your actions and your objectives, what would you like to do next? You can either continue with another task or refine your previous solution.`,
+              content: finalAnswerRules(finalAnswerContent),
               additional_kwargs: {
                 from: 'hybrid-agent',
               },
