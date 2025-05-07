@@ -41,9 +41,9 @@ jobs:
 
       - name: Ensure database dependencies
         run: |
-        echo "Adding explicit pg dependencies"
-        pnpm add -D @types/pg@8.11.13 --filter @snakagent/database
-        pnpm add pg@8.14.1 --filter @snakagent/database
+          echo "Adding explicit pg dependencies"
+          pnpm add -D @types/pg@8.11.13 --filter @snakagent/database
+          pnpm add pg@8.14.1 --filter @snakagent/database
 
       - name: Install dependencies
         run: pnpm install --force
