@@ -4,7 +4,6 @@ import { JsonConfig } from '../config/jsonConfig.js';
 import { logger } from '@snakagent/core';
 import { metrics } from '@snakagent/core';
 import { DatabaseCredentials } from './types/database.js';
-
 /**
  * @interface StarknetAgentInterface
  * @description Interface for the Starknet agent
@@ -171,5 +170,6 @@ export const createAllowedTools = async (
   }
   return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
 };
+
 
 export default StarknetToolRegistry;

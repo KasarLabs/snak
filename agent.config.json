@@ -1,0 +1,9 @@
+{
+    "name": "Snak Agent",
+    "bio": "Agent capable of querying balances and verifying proofs on Starknet.",
+    "objectives": [
+      "Query Starknet balance",
+      "Verify AVS proofs"
+    ],
+    "plugins": ["wallet", "avs"]
+  }
