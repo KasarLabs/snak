@@ -11,6 +11,7 @@ import {
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
+import { AgentConfig } from '../../config/jsonConfig.js';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import {
   initializeToolsList,
@@ -28,14 +29,16 @@ export const createHybridAgent = async (
   starknetAgent: StarknetAgentInterface,
   modelSelector: ModelSelectionAgent | null
 ) => {
+  let agent_config: AgentConfig | undefined = undefined;
+
   try {
-    const json_config = starknetAgent.getAgentConfig();
-    if (!json_config) {
+    agent_config = starknetAgent.getAgentConfig();
+    if (!agent_config) {
       throw new Error('Agent configuration is required');
     }
 
     // Initialize tools with the full configuration
-    const toolsList = await initializeToolsList(starknetAgent, json_config);
+    const toolsList = await initializeToolsList(starknetAgent, agent_config);
 
     // Définition de l'état du graphe
     const GraphState = Annotation.Root({
@@ -146,11 +149,16 @@ export const createHybridAgent = async (
       };
     }
 
-    // Nœud d'agent principal
+    /**
+ * Processes the current state and generates the next agent response
+ * @param state Current graph state containing conversation history and status flags
+ * @returns Updated state with new agent message and updated status flags
+ * @throws Error if model invocation fails or exceeds maximum iterations
+ */
     async function callModel(state: typeof GraphState.State) {
       // Suivre les itérations pour éviter les boucles infinies
       const currentIteration = state.iterations || 0;
-      const maxIterations = json_config?.maxIteration || 50;
+      const maxIterations = agent_config?.maxIteration || 50;
 
       if (currentIteration >= maxIterations) {
         logger.warn(`Hybrid agent: Max iterations reached (${maxIterations})`);
@@ -205,24 +213,24 @@ export const createHybridAgent = async (
       }
 
       // Validate required configuration fields
-      if (!json_config?.name) {
+      if (!agent_config?.name) {
         throw new Error('Agent name is missing in configuration');
       }
 
-      if (!(json_config as any)?.bio) {
+      if (!(agent_config as any)?.bio) {
         throw new Error('Agent bio is missing in configuration');
       }
 
       if (
-        !Array.isArray((json_config as any)?.lore) ||
-        (json_config as any)?.lore.length === 0
+        !Array.isArray((agent_config as any)?.lore) ||
+        (agent_config as any)?.lore.length === 0
       ) {
         throw new Error('Agent lore is missing or empty in configuration');
       }
 
       if (
-        !Array.isArray((json_config as any)?.objectives) ||
-        (json_config as any)?.objectives.length === 0
+        !Array.isArray((agent_config as any)?.objectives) ||
+        (agent_config as any)?.objectives.length === 0
       ) {
         throw new Error(
           'Agent objectives are missing or empty in configuration'
@@ -230,15 +238,15 @@ export const createHybridAgent = async (
       }
 
       if (
-        !Array.isArray((json_config as any)?.knowledge) ||
-        (json_config as any)?.knowledge.length === 0
+        !Array.isArray((agent_config as any)?.knowledge) ||
+        (agent_config as any)?.knowledge.length === 0
       ) {
         throw new Error('Agent knowledge is missing or empty in configuration');
       }
 
       // Prompt système avec instructions hybrides
       const hybridSystemPrompt = `
-        ${baseSystemPrompt(json_config)}
+        ${baseSystemPrompt(agent_config)}
 
         ${hybridRules}
            
@@ -290,7 +298,7 @@ export const createHybridAgent = async (
         `Hybrid agent: Invoking model (${selectedModelType}) with ${state.messages.length} messages (iteration ${currentIteration + 1})`
       );
 
-      const result = await boundModel.invoke(formattedPrompt);
+      const result = await boundModel.invoke(formattedPrompt) as AIMessage;
       logger.debug(`Hybrid agent: Model invocation complete`);
 
       // Traiter le résultat pour vérifier si on attend une entrée
@@ -458,11 +466,22 @@ export const createHybridAgent = async (
 
     return {
       app,
-      json_config,
-      maxIteration: json_config.maxIteration || 50,
+      agent_config,
+      maxIteration: agent_config.maxIteration || 50,
     };
   } catch (error) {
-    logger.error('Failed to create hybrid agent:', error);
-    throw error;
+    logger.error('Failed to create hybrid agent:', error, {
+      agentName: agent_config?.name || 'unknown',
+      errorDetails: error instanceof Error ? error.stack : undefined,
+    });
+
+    const enhancedError = new Error(
+      `Failed to create hybrid agent: ${error instanceof Error ? error.message : String(error)}`
+    );
+
+    if (error instanceof Error) {
+      (enhancedError as any).cause = error;
+    }
+    throw enhancedError;
   }
 };

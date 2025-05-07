@@ -34,8 +34,8 @@ export const createAutonomousAgent = async (
   modelSelector: ModelSelectionAgent | null
 ) => {
   try {
-    const json_config = starknetAgent.getAgentConfig();
-    if (!json_config) {
+    const agent_config = starknetAgent.getAgentConfig();
+    if (!agent_config) {
       throw new Error('Agent configuration is required');
     }
 
@@ -49,15 +49,15 @@ export const createAutonomousAgent = async (
       | StructuredTool
       | Tool
       | DynamicStructuredTool<AnyZodObject>
-    )[] = await createAllowedTools(starknetAgent, json_config.plugins);
+    )[] = await createAllowedTools(starknetAgent, agent_config.plugins);
 
     // Initialize MCP tools if configured
     if (
-      json_config.mcpServers &&
-      Object.keys(json_config.mcpServers).length > 0
+      agent_config.mcpServers &&
+      Object.keys(agent_config.mcpServers).length > 0
     ) {
       try {
-        const mcp = MCP_CONTROLLER.fromJsonConfig(json_config);
+        const mcp = MCP_CONTROLLER.fromJsonConfig(agent_config);
         await mcp.initializeConnections();
         const mcpTools = mcp.getTools();
         logger.info(
@@ -148,7 +148,7 @@ export const createAutonomousAgent = async (
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
       // Ensure return type matches graph expectation
-      if (!json_config) {
+      if (!agent_config) {
         // This check might be redundant due to the initial check, but good practice
         throw new Error('Agent configuration is required but not available');
       }
@@ -192,7 +192,7 @@ export const createAutonomousAgent = async (
       }
 
       const autonomousSystemPrompt = `
-        ${baseSystemPrompt(json_config)}
+        ${baseSystemPrompt(agent_config)}
 
         ${autonomousRules}
 
@@ -418,8 +418,8 @@ export const createAutonomousAgent = async (
     // Return the compiled app and potentially other config needed by StarknetAgent
     return {
       app,
-      json_config,
-      maxIteration: json_config.maxIteration,
+      agent_config,
+      maxIteration: agent_config.maxIteration,
     };
   } catch (error) {
     logger.error('Failed to create autonomous agent graph:', error);

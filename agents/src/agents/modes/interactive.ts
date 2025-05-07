@@ -36,25 +36,25 @@ const getMemoryAgent = async () => {
 /**
  * Creates an agent in interactive mode
  */
-export const createAgent = async (
+export const createInteractiveAgent = async (
   starknetAgent: StarknetAgentInterface,
   modelSelector: ModelSelectionAgent | null
 ) => {
   try {
-    const json_config = starknetAgent.getAgentConfig();
-    logger.debug('json_config', json_config);
-    if (!json_config) {
+    const agent_config = starknetAgent.getAgentConfig();
+    logger.debug('agent_config', agent_config);
+    if (!agent_config) {
       throw new Error('Agent configuration is required');
     }
 
     await initializeDatabase(starknetAgent.getDatabaseCredentials());
 
     // Initialize tools
-    const toolsList = await initializeToolsList(starknetAgent, json_config);
+    const toolsList = await initializeToolsList(starknetAgent, agent_config);
 
     // Get memory agent if memory is enabled
     let memoryAgent = null;
-    if (json_config.memory) {
+    if (agent_config.memory) {
       try {
         memoryAgent = await getMemoryAgent();
         if (memoryAgent) {
@@ -121,43 +121,43 @@ export const createAgent = async (
       return truncatedResult;
     };
 
-    const configPrompt = json_config.prompt?.content || '';
+    const configPrompt = agent_config.prompt?.content || '';
     const memoryPrompt = ``;
-    const finalPrompt = json_config.memory
+    const finalPrompt = agent_config.memory
       ? `${configPrompt}\n${memoryPrompt}`
       : `${configPrompt}`;
 
     async function callModel(
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
-      if (!json_config) {
+      if (!agent_config) {
         throw new Error('Agent configuration is required but not available');
       }
 
-      if (!json_config.name) {
+      if (!agent_config.name) {
         throw new Error('Agent name is required in configuration');
       }
 
-      if (!(json_config as any).bio) {
+      if (!(agent_config as any).bio) {
         throw new Error('Agent bio is required in configuration');
       }
 
       if (
-        !Array.isArray((json_config as any).objectives) ||
-        (json_config as any).objectives.length === 0
+        !Array.isArray((agent_config as any).objectives) ||
+        (agent_config as any).objectives.length === 0
       ) {
         throw new Error('Agent objectives are required in configuration');
       }
 
       if (
-        !Array.isArray((json_config as any).knowledge) ||
-        (json_config as any).knowledge.length === 0
+        !Array.isArray((agent_config as any).knowledge) ||
+        (agent_config as any).knowledge.length === 0
       ) {
         throw new Error('Agent knowledge is required in configuration');
       }
 
       const interactiveSystemPrompt = `
-        ${baseSystemPrompt(json_config)}
+        ${baseSystemPrompt(agent_config)}
 
         ${interactiveRules}
            
@@ -296,7 +296,7 @@ export const createAgent = async (
               ? modelForThisTask.bindTools(toolsList)
               : modelForThisTask;
 
-          const result = await boundModel.invoke(formattedPrompt);
+          const result = await boundModel.invoke(formattedPrompt) as AIMessage;
           return formatAIMessageResult(result);
         } else {
           // Fallback to creating direct model with specific provider
@@ -442,7 +442,7 @@ export const createAgent = async (
       .addNode('tools', toolNode);
 
     // Add memory node if configured
-    if (json_config.memory && memoryAgent) {
+    if (agent_config.memory && memoryAgent) {
       workflow
         .addNode('memory', memoryAgent.createMemoryNode())
         .addEdge('__start__', 'memory')
@@ -459,7 +459,7 @@ export const createAgent = async (
     // Compile the workflow
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
-      ...(json_config.memory
+      ...(agent_config.memory
         ? {
             checkpointer: checkpointer,
             configurable: {},

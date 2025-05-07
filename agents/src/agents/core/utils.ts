@@ -202,60 +202,79 @@ export const formatAgentResponse = (response: any): string => {
 };
 
 /**
+ * Process string content and handle potential JSON strings
+ */
+export const processStringContent = (content: string): string => {
+  try {
+    // Check if it's a JSON string
+    if (
+      (content.startsWith('[') && content.endsWith(']')) ||
+      (content.startsWith('{') && content.endsWith('}'))
+    ) {
+      // Try to parse it
+      const parsed = JSON.parse(content);
+      return processMessageContent(parsed); // Recursively process the parsed object
+    }
+    // Regular string
+    return content;
+  } catch (e) {
+    // Not valid JSON, return as is
+    return content;
+  }
+};
+
+/**
+ * Process array content by iterating through items
+ */
+export const processArrayContent = (content: any[]): string => {
+  let result = '';
+  for (const item of content) {
+    if (typeof item === 'object' && item !== null) {
+      // Handle structured objects with type/text format
+      if (item.type === 'text' && item.text) {
+        result += item.text + '\n';
+      } else if (item.content) {
+        result += item.content + '\n';
+      } else {
+        // Generic object
+        result += JSON.stringify(item) + '\n';
+      }
+    } else if (item !== null) {
+      result += String(item) + '\n';
+    }
+  }
+  return result.trim();
+};
+
+/**
+ * Process object content based on its structure
+ */
+export const processObjectContent = (content: Record<string, any>): string => {
+  if (content.type === 'text' && content.text) {
+    return content.text;
+  } else if (content.content && typeof content.content === 'string') {
+    return content.content;
+  }
+  // Fallback - stringify the content
+  return JSON.stringify(content);
+};
+
+/**
  * Process structured content before wrapping in AIMessage
  * Helper function for formatAIMessageResult
  */
 export const processMessageContent = (content: any): string => {
-  // Handle string content
   if (typeof content === 'string') {
-    try {
-      // Check if it's a JSON string
-      if (
-        (content.startsWith('[') && content.endsWith(']')) ||
-        (content.startsWith('{') && content.endsWith('}'))
-      ) {
-        // Try to parse it
-        const parsed = JSON.parse(content);
-        return processMessageContent(parsed); // Recursively process the parsed object
-      }
-      // Regular string
-      return content;
-    } catch (e) {
-      // Not valid JSON, return as is
-      return content;
-    }
+    return processStringContent(content);
   }
-
-  // Handle array of objects (common when the model returns structured data)
+  
   if (Array.isArray(content)) {
-    let result = '';
-    for (const item of content) {
-      if (typeof item === 'object' && item !== null) {
-        // Handle structured objects with type/text format
-        if (item.type === 'text' && item.text) {
-          result += item.text + '\n';
-        } else if (item.content) {
-          result += item.content + '\n';
-        } else {
-          // Generic object
-          result += JSON.stringify(item) + '\n';
-        }
-      } else if (item !== null) {
-        result += String(item) + '\n';
-      }
-    }
-    return result.trim();
+    return processArrayContent(content);
   }
-
-  // Handle single object
+  
   if (typeof content === 'object' && content !== null) {
-    if (content.type === 'text' && content.text) {
-      return content.text;
-    } else if (content.content && typeof content.content === 'string') {
-      return content.content;
-    }
+    return processObjectContent(content);
   }
-
-  // Fallback - stringify the content
-  return typeof content === 'string' ? content : JSON.stringify(content);
+  
+  return String(content);
 };

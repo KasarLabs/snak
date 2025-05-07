@@ -11,7 +11,7 @@ import {
   AGENT_MODES,
 } from '../../config/jsonConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
-import { createAgent } from '../modes/interactive.js';
+import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
 import { createHybridAgent } from '../modes/hybrid.js';
 import { Command } from '@langchain/langgraph';
@@ -159,7 +159,10 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         );
       } else if (this.currentMode === AGENT_MODES[AgentMode.INTERACTIVE]) {
         logger.debug('StarknetAgent: Creating interactive agent executor...');
-        this.agentReactExecutor = await createAgent(this, this.modelSelector);
+        this.agentReactExecutor = await createInteractiveAgent(
+          this,
+          this.modelSelector
+        );
       } else if (this.currentMode === AGENT_MODES[AgentMode.HYBRID]) {
         logger.debug('StarknetAgent: Creating hybrid agent executor...');
         this.agentReactExecutor = await createHybridAgent(
@@ -1155,8 +1158,6 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         },
         recursionLimit: this.agentReactExecutor.maxIteration,
       };
-
-      console.log('threadConfig', threadConfig);
 
       // Start with an initial message
       const initialHumanMessage = new HumanMessage({

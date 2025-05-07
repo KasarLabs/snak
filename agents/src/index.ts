@@ -4,7 +4,7 @@ export { StarknetAgent } from './agents/core/starknetAgent.js';
 
 // Agent-related exports
 // Interactive agent exports
-export { createAgent } from './agents/modes/interactive.js';
+export { createInteractiveAgent } from './agents/modes/interactive.js';
 
 export { initializeToolsList } from './agents/core/utils.js';
 
