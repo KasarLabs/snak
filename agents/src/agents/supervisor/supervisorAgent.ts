@@ -21,7 +21,7 @@ import {
 import { RpcProvider } from 'starknet';
 
 /**
- * Configuration for the supervisor agent
+ * Configuration for the SupervisorAgent.
  */
 export interface SupervisorAgentConfig {
   modelsConfigPath: string;
@@ -30,7 +30,11 @@ export interface SupervisorAgentConfig {
 }
 
 /**
- * Supervisor agent that manages orchestration of all system agents
+ * SupervisorAgent manages the orchestration of all system agents.
+ * It acts as a central coordinator, initializing and managing the lifecycle
+ * of various operator agents like ModelSelectionAgent, StarknetAgent,
+ * ToolsOrchestrator, and MemoryAgent. It also handles the execution flow
+ * through a WorkflowController.
  */
 export class SupervisorAgent extends BaseAgent {
   private modelSelectionAgent: ModelSelectionAgent | null = null;
@@ -38,59 +42,58 @@ export class SupervisorAgent extends BaseAgent {
   private toolsOrchestrator: ToolsOrchestrator | null = null;
   private memoryAgent: MemoryAgent | null = null;
   private workflowController: WorkflowController | null = null;
-  private config: SupervisorAgentConfig = {
-    modelsConfigPath: '',
-    starknetConfig: {
-      provider: {} as RpcProvider,
-      accountPublicKey: '',
-      accountPrivateKey: '',
-      signature: '',
-      db_credentials: {} as DatabaseCredentials,
-    },
-  };
+  private config: SupervisorAgentConfig;
   private operators: Map<string, IAgent> = new Map();
   private debug: boolean = false;
-  private executionDepth: number = 0; // Track execution depth
-  private checkpointEnabled: boolean = false;
-  // Store the original config as a static property
-  // Static instance for singleton pattern
+  private executionDepth: number = 0;
+  private checkpointEnabled: boolean = false; // TODO: This seems unused, consider removing or implementing its functionality.
+
   private static instance: SupervisorAgent | null = null;
 
   /**
-   * Get the singleton instance of SupervisorAgent
-   * @returns The SupervisorAgent instance or null if not initialized
+   * Gets the singleton instance of SupervisorAgent.
+   * @returns The SupervisorAgent instance, or null if not initialized.
    */
   public static getInstance(): SupervisorAgent | null {
     return SupervisorAgent.instance;
   }
 
+  /**
+   * Constructs a new SupervisorAgent.
+   * @param configObject The configuration for the supervisor agent.
+   */
   constructor(configObject: SupervisorAgentConfig) {
     super('supervisor', AgentType.SUPERVISOR);
-
-    // Store instance for singleton pattern
     SupervisorAgent.instance = this;
 
-    // Directly assign the provided config object
     this.config = {
       modelsConfigPath: configObject.modelsConfigPath || '',
-      starknetConfig: configObject.starknetConfig || {},
+      starknetConfig: configObject.starknetConfig || {
+        provider: {} as RpcProvider, // Default empty provider
+        accountPublicKey: '',
+        accountPrivateKey: '',
+        signature: '',
+        db_credentials: {} as DatabaseCredentials,
+      },
       debug: !!configObject.debug,
     };
 
-    // Set debug flag
     this.debug = !!this.config.debug;
     logger.debug('SupervisorAgent: Initializing');
   }
 
   /**
-   * Initializes the supervisor and all agents under its control
+   * Initializes the supervisor and all agents under its control.
+   * This method sets up the model selection agent, memory agent (if enabled),
+   * the main Starknet agent, the tools orchestrator, and the workflow controller.
+   * It also initializes metrics.
+   * @throws Will throw an error if initialization of any critical component fails.
    */
   public async init(): Promise<void> {
     const agentConfig = this.config.starknetConfig.agentConfig;
-    logger.debug('SupervisorAgent: Starting initialization');
+    logger.info('SupervisorAgent: Starting initialization');
 
     try {
-      // 1. Initialize model selection agent
       logger.debug('SupervisorAgent: Initializing ModelSelectionAgent...');
       this.modelSelectionAgent = new ModelSelectionAgent({
         debugMode: this.debug,
@@ -101,7 +104,6 @@ export class SupervisorAgent extends BaseAgent {
       this.operators.set(this.modelSelectionAgent.id, this.modelSelectionAgent);
       logger.debug('SupervisorAgent: ModelSelectionAgent initialized');
 
-      // 2. Initialize memory agent if needed
       if (agentConfig?.memory?.enabled !== false) {
         logger.debug('SupervisorAgent: Initializing MemoryAgent...');
         this.memoryAgent = new MemoryAgent({
@@ -113,12 +115,11 @@ export class SupervisorAgent extends BaseAgent {
         this.operators.set(this.memoryAgent.id, this.memoryAgent);
         logger.debug('SupervisorAgent: MemoryAgent initialized');
       } else {
-        logger.debug(
+        logger.info(
           'SupervisorAgent: MemoryAgent initialization skipped (disabled in config)'
         );
       }
 
-      // 3. Initialize main agent (Starknet)
       logger.debug('SupervisorAgent: Initializing StarknetAgent...');
       this.starknetAgent = new StarknetAgent({
         provider: this.config.starknetConfig.provider,
@@ -133,7 +134,6 @@ export class SupervisorAgent extends BaseAgent {
       await this.starknetAgent.init();
       logger.debug('SupervisorAgent: StarknetAgent initialized');
 
-      // 4. Initialize tools orchestrator
       logger.debug('SupervisorAgent: Initializing ToolsOrchestrator...');
       this.toolsOrchestrator = new ToolsOrchestrator({
         starknetAgent: this.starknetAgent,
@@ -144,12 +144,10 @@ export class SupervisorAgent extends BaseAgent {
       this.operators.set(this.toolsOrchestrator.id, this.toolsOrchestrator);
       logger.debug('SupervisorAgent: ToolsOrchestrator initialized');
 
-      // 5. Initialize workflow controller
       logger.debug('SupervisorAgent: Initializing WorkflowController...');
       await this.initializeWorkflowController();
       logger.debug('SupervisorAgent: WorkflowController initialized');
 
-      // 6. Enable metrics
       this.initializeMetrics(agentConfig);
 
       logger.info('SupervisorAgent: All agents initialized successfully');
@@ -160,65 +158,56 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Initializes the workflow controller
+   * Initializes the WorkflowController with all available agents.
+   * It gathers all initialized operator agents and the supervisor itself
+   * to be managed by the workflow controller.
+   * @throws Will throw an error if essential agents like the Starknet agent are missing.
    */
   private async initializeWorkflowController(): Promise<void> {
-    logger.debug('SupervisorAgent: Entering initializeWorkflowController');
+    logger.debug('SupervisorAgent: Initializing WorkflowController components');
     try {
-      // Gather all available agents
       const allAgents: Record<string, IAgent> = {
         supervisor: this,
       };
 
-      // Add all agents with verification
       if (this.starknetAgent) {
         allAgents['snak'] = this.starknetAgent;
-        logger.debug(
-          `SupervisorAgent: Added starknet agent: ${!!this.starknetAgent}`
-        );
       } else {
-        logger.warn('SupervisorAgent: starknetAgent is not initialized');
+        logger.warn(
+          'SupervisorAgent: StarknetAgent is not initialized and will not be available to the WorkflowController.'
+        );
       }
 
       if (this.modelSelectionAgent) {
         allAgents['model-selector'] = this.modelSelectionAgent;
-        logger.debug(
-          `SupervisorAgent: Added model-selector agent: ${!!this.modelSelectionAgent}`
-        );
       } else {
-        logger.warn('SupervisorAgent: modelSelectionAgent is not initialized');
+        logger.warn(
+          'SupervisorAgent: ModelSelectionAgent is not initialized and will not be available to the WorkflowController.'
+        );
       }
 
       if (this.memoryAgent) {
         allAgents['memory'] = this.memoryAgent;
-        logger.debug('SupervisorAgent: Added memory agent');
       }
 
       if (this.toolsOrchestrator) {
         allAgents['tools'] = this.toolsOrchestrator;
-        logger.debug('SupervisorAgent: Added tools orchestrator');
       }
 
-      // Check that we have at least the required agents
-      if (Object.keys(allAgents).length < 2 || !allAgents['snak']) {
+      if (!allAgents['snak']) {
         throw new Error(
-          'Workflow requires at least supervisor and starknet execution agent'
+          'WorkflowController requires at least the Starknet execution agent (snak).'
         );
       }
 
-      // Improved configuration
-      const maxIterations = 15; // Use default directly
-      const workflowTimeout = 60000; // Use default directly
+      const maxIterations = 15;
+      const workflowTimeout = 60000; // 60 seconds
+      const entryPoint = 'snak'; // Default entry point
 
       logger.debug(
-        `SupervisorAgent: WorkflowController will be configured with maxIterations=${maxIterations}, timeout=${workflowTimeout}ms`
+        `SupervisorAgent: WorkflowController configured with maxIterations=${maxIterations}, timeout=${workflowTimeout}ms, entryPoint='${entryPoint}'`
       );
 
-      // Determine ideal entry point based on configuration
-      const entryPoint = 'snak';
-      logger.debug(`SupervisorAgent: Using '${entryPoint}' as entry point`);
-
-      // Create and initialize controller
       this.workflowController = new WorkflowController({
         agents: allAgents,
         entryPoint,
@@ -242,28 +231,41 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Initializes metrics
+   * Initializes metrics collection for the agent.
+   * @param agentConfig The configuration of the agent, used to determine agent name and mode for metrics.
    */
   private initializeMetrics(agentConfig: AgentConfig | null | undefined): void {
-    logger.debug('SupervisorAgent: Initializing metrics');
-    if (!this.starknetAgent) return;
+    if (!this.starknetAgent) {
+      logger.warn(
+        'SupervisorAgent: StarknetAgent not available, skipping metrics initialization.'
+      );
+      return;
+    }
 
     const agentName = agentConfig?.name || 'agent';
-    metrics.metricsAgentConnect(
-      agentName,
-      this.config.starknetConfig.agentConfig?.mode === AgentMode.AUTONOMOUS
+    const agentMode =
+      agentConfig?.mode === AgentMode.AUTONOMOUS
         ? AGENT_MODES[AgentMode.AUTONOMOUS]
-        : this.config.starknetConfig.agentConfig?.mode === AgentMode.HYBRID
+        : agentConfig?.mode === AgentMode.HYBRID
           ? AGENT_MODES[AgentMode.HYBRID]
-          : AGENT_MODES[AgentMode.INTERACTIVE]
+          : AGENT_MODES[AgentMode.INTERACTIVE];
+
+    metrics.metricsAgentConnect(agentName, agentMode);
+    logger.debug(
+      `SupervisorAgent: Metrics initialized for agent '${agentName}' in mode '${agentMode}'`
     );
   }
 
   /**
-   * Executes the task requested by the user
-   * @param input User input
-   * @param config Execution configuration
-   * @returns Final agent response
+   * Executes a task based on the provided input.
+   * This method manages the execution flow, including depth checking to prevent
+   * infinite loops, input processing, memory context enrichment, and invoking
+   * the WorkflowController. If execution depth is exceeded, it attempts a direct
+   * execution via StarknetAgent.
+   * @param input The user input, which can be a string, AgentMessage, or BaseMessage.
+   * @param config Optional execution configuration.
+   * @returns The final agent response.
+   * @throws Will throw an error if the WorkflowController is not initialized.
    */
   public async execute(
     input: string | AgentMessage | BaseMessage,
@@ -272,21 +274,15 @@ export class SupervisorAgent extends BaseAgent {
     this.executionDepth++;
     const depthIndent = '  '.repeat(this.executionDepth);
     logger.debug(
-      `${depthIndent}SupervisorAgent[Depth:${this.executionDepth}]: Entering execute`
+      `${depthIndent}SupervisorAgent[Depth:${this.executionDepth}]: Executing task`
     );
 
-    // Limit execution depth to prevent infinite loops
     if (this.executionDepth > 3) {
       logger.warn(
-        `${depthIndent}SupervisorAgent: Maximum execution depth (${this.executionDepth}) reached, forcing direct execution`
+        `${depthIndent}SupervisorAgent: Maximum execution depth (${this.executionDepth}) reached. Attempting direct execution via StarknetAgent.`
       );
-
       try {
-        // Force direct execution with starknet, bypassing workflow
         if (this.starknetAgent) {
-          logger.debug(
-            `${depthIndent}SupervisorAgent: Forcing direct execution with StarknetAgent`
-          );
           const result = await this.starknetAgent.execute(
             typeof input === 'string'
               ? input
@@ -295,65 +291,51 @@ export class SupervisorAgent extends BaseAgent {
                 : (input as AgentMessage).content,
             config
           );
-
-          // Wrap result and mark as final
           const finalResult =
             result instanceof BaseMessage
               ? result.content
               : typeof result === 'string'
                 ? result
                 : JSON.stringify(result);
-
-          logger.debug(
-            `${depthIndent}SupervisorAgent: Leaving execute with direct execution result`
-          );
           this.executionDepth--;
           return finalResult;
         }
-
-        // If no starknetAgent, return error message
         this.executionDepth--;
-        return 'Maximum recursion depth reached. Please try again with a simpler query.';
+        return 'Maximum recursion depth reached. StarknetAgent not available for direct execution. Please try a simpler query.';
       } catch (error) {
         logger.error(
-          `${depthIndent}SupervisorAgent: Error in direct execution: ${error}`
+          `${depthIndent}SupervisorAgent: Error in direct execution attempt: ${error}`
         );
         this.executionDepth--;
-        return `Error occurred during forced direct execution: ${error instanceof Error ? error.message : String(error)}`;
+        return `Error during forced direct execution: ${error instanceof Error ? error.message : String(error)}`;
       }
     }
 
-    logger.debug(`${depthIndent}SupervisorAgent: Processing input...`);
-    let message: string | HumanMessage;
-
+    let message: BaseMessage;
     if (typeof input === 'string') {
-      logger.debug(`${depthIndent}SupervisorAgent: Input is a string`);
       message = new HumanMessage(input);
     } else if (input instanceof BaseMessage) {
-      logger.debug(
-        `${depthIndent}SupervisorAgent: Input is a BaseMessage: ${input.constructor.name}`
-      );
       message = input;
     } else if (
       typeof input === 'object' &&
       input !== null &&
-      'content' in input
+      'content' in input // AgentMessage like
     ) {
-      logger.debug(`${depthIndent}SupervisorAgent: Input is an AgentMessage`);
       if (typeof input.content === 'string') {
         message = new HumanMessage(input.content);
       } else {
         try {
-          const contentStr = JSON.stringify(input.content);
-          message = new HumanMessage(contentStr);
+          message = new HumanMessage(JSON.stringify(input.content));
         } catch (e) {
-          message = new HumanMessage('Unparseable content');
-          logger.warn(`Error parsing agent message content: ${e}`);
+          message = new HumanMessage('Unparseable structured content');
+          logger.warn(
+            `${depthIndent}SupervisorAgent: Error parsing AgentMessage content: ${e}`
+          );
         }
       }
     } else {
       logger.warn(
-        `${depthIndent}SupervisorAgent: Unrecognized input type: ${typeof input}`
+        `${depthIndent}SupervisorAgent: Unrecognized input type: ${typeof input}. Wrapping as HumanMessage.`
       );
       message = new HumanMessage('Unrecognized input format');
     }
@@ -364,82 +346,58 @@ export class SupervisorAgent extends BaseAgent {
       );
     }
 
-    // Enrich with memory context if enabled
     if (
       this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
       this.memoryAgent
     ) {
       logger.debug(
-        `${depthIndent}SupervisorAgent: Enriching message with memory context`
+        `${depthIndent}SupervisorAgent: Enriching message with memory context.`
       );
       message = await this.enrichWithMemoryContext(message);
-    } else {
-      logger.debug(
-        `${depthIndent}SupervisorAgent: Memory enrichment skipped (disabled or agent unavailable)`
-      );
     }
 
-    // Check if workflowController is initialized
     if (!this.workflowController) {
       logger.error(
-        `${depthIndent}SupervisorAgent: Workflow controller not initialized`
+        `${depthIndent}SupervisorAgent: WorkflowController not initialized.`
       );
       this.executionDepth--;
-      throw new Error('WorkflowController not initialized');
+      throw new Error('WorkflowController not initialized for execution.');
     }
 
-    // Execute workflow
-    logger.debug(
-      `${depthIndent}SupervisorAgent: Invoking workflow controller...`
-    );
+    logger.debug(`${depthIndent}SupervisorAgent: Invoking WorkflowController.`);
     try {
       const result = await this.workflowController.execute(message, config);
       logger.debug(
-        `${depthIndent}SupervisorAgent: Workflow controller execution finished`
+        `${depthIndent}SupervisorAgent: WorkflowController execution finished.`
       );
 
-      // Extract message content or format response
-      let formattedResponse;
-      if (result instanceof BaseMessage) {
-        // Directly extract message content
-        formattedResponse = result.content;
-      } else {
-        // For other response types, try to format if possible
-        try {
-          formattedResponse = this.formatResponse(result);
-        } catch (formatError) {
-          logger.warn(
-            `Error formatting response: ${formatError}. Returning raw response.`
-          );
-          formattedResponse =
-            typeof result === 'string' ? result : JSON.stringify(result);
-        }
-      }
+      let formattedResponse =
+        result instanceof BaseMessage
+          ? result.content
+          : this.formatResponse(result);
 
       logger.debug(
-        `${depthIndent}SupervisorAgent: Formatted response ready to return`
+        `${depthIndent}SupervisorAgent: Execution complete. Returning formatted response.`
       );
-
-      // Return formatted response
-      logger.debug(`${depthIndent}SupervisorAgent: Leaving execute normally`);
       this.executionDepth--;
       return formattedResponse;
     } catch (error) {
       logger.error(
-        `${depthIndent}SupervisorAgent: Error during workflow execution: ${error}`
+        `${depthIndent}SupervisorAgent: Error during WorkflowController execution: ${error}`
       );
       this.executionDepth--;
-
-      // Return simple error message instead of AIMessage object
       return `An error occurred during processing: ${error instanceof Error ? error.message : String(error)}. Please try again.`;
     }
   }
 
   /**
-   * Formats a response for logging
+   * Formats a response, primarily for logging and ensuring string output.
+   * If the response is an object with a string `content` property, that content is formatted.
+   * Otherwise, strings are returned as is, and other types are stringified.
+   * @param response The response to format.
+   * @returns The formatted response.
    */
-  private formatResponse(response: any): any {
-    // Check if response is a string
+  private formatResponse(response: any): string {
     if (typeof response === 'string') {
       return response
         .split('\n')
@@ -447,159 +405,173 @@ export class SupervisorAgent extends BaseAgent {
         .join('\n');
     }
 
-    // If it's an AIMessage or other object, return as is
     if (response && typeof response === 'object') {
-      // If object has a content property that's a string, format that content
       if (response.content && typeof response.content === 'string') {
+        // Format content if it's a string
         response.content = response.content
           .split('\n')
           .map((line: string) =>
             line.includes('•') ? `  ${line.trim()}` : line
           )
           .join('\n');
+        return response.content; // Return the formatted content string
       }
-      return response;
+      // For other objects, or if content is not a string, stringify the whole object
+      try {
+        return JSON.stringify(response);
+      } catch (e) {
+        logger.warn(`Error stringifying response object: ${e}`);
+        return 'Unparseable object response';
+      }
     }
-
-    // Fallback for any other type
-    return response;
+    // Fallback for other types (null, undefined, number, boolean)
+    return String(response);
   }
 
   /**
-   * Executes a request in autonomous mode
+   * Executes a task in autonomous mode using the StarknetAgent.
+   * @returns The result of the autonomous execution.
+   * @throws Will throw an error if the StarknetAgent is not available.
    */
   public async executeAutonomous(): Promise<any> {
-    logger.debug('SupervisorAgent: Entering executeAutonomous');
+    logger.debug('SupervisorAgent: Entering autonomous execution mode.');
     if (!this.starknetAgent) {
       logger.error(
-        'SupervisorAgent: Starknet agent is not available for autonomous execution.'
+        'SupervisorAgent: StarknetAgent is not available for autonomous execution.'
       );
-      throw new Error('Starknet agent is not available');
+      throw new Error(
+        'StarknetAgent is not available for autonomous execution.'
+      );
     }
-    logger.debug('SupervisorAgent: Calling starknetAgent.execute_autonomous()');
     const result = await this.starknetAgent.execute_autonomous();
-    logger.debug('SupervisorAgent: Leaving executeAutonomous');
+    logger.debug('SupervisorAgent: Autonomous execution finished.');
     return result;
   }
 
   /**
-   * Gets an operator by ID
+   * Gets an operator agent by its ID.
+   * @param id The ID of the operator agent.
+   * @returns The agent if found, otherwise undefined.
    */
   public getOperator(id: string): IAgent | undefined {
     return this.operators.get(id);
   }
 
   /**
-   * Gets the Starknet agent
+   * Gets the StarknetAgent instance.
+   * @returns The StarknetAgent instance, or null if not initialized.
    */
   public getStarknetAgent(): StarknetAgent | null {
     return this.starknetAgent;
   }
 
   /**
-   * Gets the tools orchestrator
+   * Gets the ToolsOrchestrator instance.
+   * @returns The ToolsOrchestrator instance, or null if not initialized.
    */
   public getToolsOrchestrator(): ToolsOrchestrator | null {
     return this.toolsOrchestrator;
   }
 
   /**
-   * Gets the memory agent
+   * Gets the MemoryAgent instance.
+   * @returns The MemoryAgent instance, or null if not initialized.
    */
   public getMemoryAgent(): MemoryAgent | null {
     return this.memoryAgent;
   }
 
   /**
-   * Gets the model selection agent
+   * Gets the ModelSelectionAgent instance.
+   * @returns The ModelSelectionAgent instance, or null if not initialized.
    */
   public getModelSelectionAgent(): ModelSelectionAgent | null {
     return this.modelSelectionAgent;
   }
 
   /**
-   * Gets all available tools
+   * Gets all available tools from the ToolsOrchestrator and MemoryAgent.
+   * @returns An array of Tool instances.
    */
   public getAllTools(): Tool[] {
     const tools: Tool[] = [];
-
     if (this.toolsOrchestrator) {
       tools.push(...(this.toolsOrchestrator.getTools() as Tool[]));
     }
-
     if (this.memoryAgent) {
       tools.push(...(this.memoryAgent.getMemoryTools() as Tool[]));
     }
-
     return tools;
   }
 
   /**
-   * Resets the supervisor and its agents
+   * Resets the SupervisorAgent and its components.
+   * This includes resetting the WorkflowController and the execution depth counter.
    */
   public async reset(): Promise<void> {
-    logger.debug('SupervisorAgent: Entering reset');
+    logger.debug('SupervisorAgent: Resetting...');
     if (this.workflowController) {
-      logger.debug('SupervisorAgent: Resetting workflow controller...');
       await this.workflowController.reset();
-      logger.debug('SupervisorAgent: Workflow controller reset complete.');
-    } else {
-      logger.debug('SupervisorAgent: No workflow controller to reset.');
+      logger.debug('SupervisorAgent: WorkflowController reset.');
     }
-    this.executionDepth = 0; // Reset execution depth
-    logger.debug('SupervisorAgent: Leaving reset');
+    this.executionDepth = 0;
+    logger.debug('SupervisorAgent: Reset complete.');
   }
 
   /**
-   * Updates supervisor operation mode
+   * Updates the operational mode of the SupervisorAgent.
+   * This involves updating the agent's configuration and re-initializing
+   * the WorkflowController to reflect the mode change.
+   * @param mode The new AgentMode to set.
    */
   public async updateMode(mode: AgentMode): Promise<void> {
-    logger.debug(`SupervisorAgent: Entering updateMode with mode: ${mode}`);
+    logger.debug(`SupervisorAgent: Updating mode to: ${AGENT_MODES[mode]}`);
 
-    // Get the current config
     const agentConfig = this.config.starknetConfig.agentConfig;
-
-    // Safely update the mode if agentConfig exists
     if (agentConfig) {
-      agentConfig.mode = mode; // Directly assign the enum value
+      agentConfig.mode = mode;
     } else {
       logger.warn(
-        `SupervisorAgent: Unable to update mode - agentConfig not initialized`
+        `SupervisorAgent: Unable to update mode - agentConfig not found in starknetConfig.`
       );
+      // Potentially initialize agentConfig here if it's a valid scenario
+      // this.config.starknetConfig.agentConfig = { mode: mode, name: 'default', ... };
     }
 
-    logger.debug(`SupervisorAgent: Set agentMode to ${mode}`);
-
-    // Reconfigure workflow
     if (this.workflowController) {
       logger.debug(
-        'SupervisorAgent: Resetting and re-initializing workflow controller due to mode change...'
+        'SupervisorAgent: Re-initializing WorkflowController due to mode change.'
       );
-      await this.workflowController.reset();
-      await this.initializeWorkflowController();
-      logger.debug('SupervisorAgent: Workflow controller re-initialized.');
+      // It's important that initializeWorkflowController correctly uses the updated mode.
+      // If WorkflowController's behavior depends on agentConfig.mode, this should be sufficient.
+      // Consider if WorkflowController itself needs an updateMode method or if re-initialization is the correct approach.
+      await this.workflowController.reset(); // Reset existing state
+      await this.initializeWorkflowController(); // Re-initialize with new mode context
+      logger.debug('SupervisorAgent: WorkflowController re-initialized.');
     } else {
-      logger.debug('SupervisorAgent: No workflow controller to reconfigure.');
+      // If there's no workflowController, the mode change might be less impactful
+      // or it might indicate an incomplete setup.
+      logger.warn(
+        'SupervisorAgent: Mode updated, but no WorkflowController was present to reconfigure.'
+      );
     }
-    logger.debug('SupervisorAgent: Leaving updateMode');
+    logger.debug(
+      `SupervisorAgent: Mode update to ${AGENT_MODES[mode]} complete.`
+    );
   }
 
   /**
-   * Releases resources
+   * Releases resources held by the SupervisorAgent and its components.
+   * This involves resetting the WorkflowController and nullifying references
+   * to all operator agents.
    */
   public async dispose(): Promise<void> {
-    logger.debug('SupervisorAgent: Entering dispose');
-
-    // Reset workflow
+    logger.debug('SupervisorAgent: Disposing...');
     if (this.workflowController) {
-      logger.debug(
-        'SupervisorAgent: Resetting workflow controller during dispose...'
-      );
-      await this.workflowController.reset();
-      logger.debug('SupervisorAgent: Workflow controller reset complete.');
+      await this.workflowController.reset(); // Ensure graceful shutdown of workflow
+      logger.debug('SupervisorAgent: WorkflowController reset during dispose.');
     }
 
-    // Other cleanup operations if needed
     this.modelSelectionAgent = null;
     this.starknetAgent = null;
     this.toolsOrchestrator = null;
@@ -607,115 +579,115 @@ export class SupervisorAgent extends BaseAgent {
     this.workflowController = null;
     this.operators.clear();
     logger.debug(
-      'SupervisorAgent: Cleared agent references and operators map.'
+      'SupervisorAgent: Cleared agent references and operator map. Dispose complete.'
     );
-
-    logger.debug('SupervisorAgent: Leaving dispose');
   }
 
   /**
-   * Retrieves and enriches memory context
+   * Enriches a message with relevant memory context if the MemoryAgent is enabled.
+   * It retrieves memories relevant to the message and appends them to the message's
+   * `additional_kwargs.memory_context`.
+   * @param message The BaseMessage to enrich.
+   * @returns The enriched message, or the original message if MemoryAgent is unavailable or no memories are found.
    */
   private async enrichWithMemoryContext(
     message: BaseMessage
   ): Promise<BaseMessage> {
-    logger.debug('SupervisorAgent: Entering enrichWithMemoryContext');
     if (!this.memoryAgent) {
       logger.debug(
-        'SupervisorAgent: Memory agent not available, skipping enrichment.'
+        'SupervisorAgent: MemoryAgent not available, skipping context enrichment.'
       );
       return message;
     }
 
     try {
-      // Retrieve relevant memories
-      logger.debug('SupervisorAgent: Retrieving relevant memories...');
       const memories = await this.memoryAgent.retrieveRelevantMemories(
         message,
-        this.config.starknetConfig.agentConfig?.chat_id || 'default_user'
+        this.config.starknetConfig.agentConfig?.chat_id || 'default_chat'
       );
-      logger.debug(`SupervisorAgent: Retrieved ${memories.length} memories.`);
 
       if (memories.length === 0) {
-        logger.debug('SupervisorAgent: No relevant memories found.');
-        return message; // No relevant memories
+        logger.debug(
+          'SupervisorAgent: No relevant memories found for context.'
+        );
+        return message;
       }
 
-      // Format memories for context
       const memoryContext = this.memoryAgent.formatMemoriesForContext(memories);
       logger.debug(
-        `SupervisorAgent: Formatted memory context: "${memoryContext.substring(0, 100)}..."`
+        `SupervisorAgent: Formatted memory context (first 100 chars): "${memoryContext.substring(0, 100)}..."`
       );
 
-      // Create new message with memory context
       const originalContent =
         typeof message.content === 'string'
           ? message.content
           : JSON.stringify(message.content);
 
-      const newMessage = new HumanMessage({
+      return new HumanMessage({
         content: originalContent,
         additional_kwargs: {
           ...message.additional_kwargs,
           memory_context: memoryContext,
         },
       });
-      logger.debug('SupervisorAgent: Created new message with memory context.');
-      return newMessage;
     } catch (error) {
-      logger.error(`Error enriching with memory context: ${error}`);
-      return message; // In case of error, return original message
+      logger.error(
+        `SupervisorAgent: Error enriching message with memory context: ${error}`
+      );
+      return message; // Return original message on error
     }
   }
 
   /**
-   * Start a hybrid execution
-   * @param initialInput Initial input to start the process
-   * @returns Initial state and thread ID
+   * Starts a hybrid execution flow with an initial input.
+   * This delegates to the StarknetAgent's hybrid execution capabilities.
+   * @param initialInput The initial input string to start the hybrid process.
+   * @returns An object containing the initial state and the thread ID for the execution.
+   * @throws Will throw an error if the StarknetAgent is not available or if the execution fails to start.
    */
   public async startHybridExecution(
     initialInput: string
   ): Promise<{ state: any; threadId: string }> {
-    logger.debug('SupervisorAgent: Starting hybrid execution');
-
+    logger.debug('SupervisorAgent: Starting hybrid execution.');
     if (!this.starknetAgent) {
-      throw new Error('Starknet agent is not available');
+      logger.error(
+        'SupervisorAgent: StarknetAgent is not available for hybrid execution.'
+      );
+      throw new Error('StarknetAgent is not available for hybrid execution.');
     }
 
     const result = await this.starknetAgent.execute_hybrid(initialInput);
 
-    // Handle different result formats
     if (!result || typeof result !== 'object') {
-      throw new Error('Failed to start hybrid execution: invalid result');
-    }
-
-    // Extract state and threadId from the result
-    const resultObj = result as any;
-    if (!resultObj.threadId) {
-      // If threadId is missing, try to create a standardized response
-      const threadId = `hybrid_${Date.now()}`;
-      logger.warn(
-        `ThreadId missing in hybrid execution result, generated: ${threadId}`
+      logger.error(
+        'SupervisorAgent: Failed to start hybrid execution - invalid result from StarknetAgent.'
       );
-
-      return {
-        state: resultObj, // Use the entire result as state
-        threadId,
-      };
+      throw new Error(
+        'Failed to start hybrid execution: received invalid result from StarknetAgent.'
+      );
     }
 
-    // Return the properly structured result
+    const resultObj = result as any;
+    const threadId = resultObj.threadId || `hybrid_fallback_${Date.now()}`;
+    if (!resultObj.threadId) {
+      logger.warn(
+        `SupervisorAgent: ThreadId missing in hybrid execution result, generated fallback: ${threadId}`
+      );
+    }
+
     return {
-      state: resultObj.state || resultObj,
-      threadId: resultObj.threadId,
+      state: resultObj.state || resultObj, // Use the whole result as state if 'state' property is missing
+      threadId,
     };
   }
 
   /**
-   * Provide input to a paused hybrid execution
-   * @param input Human input to provide
-   * @param threadId Thread ID of the paused execution
-   * @returns Updated state
+   * Provides subsequent input to a paused hybrid execution.
+   * This delegates to the StarknetAgent to resume the hybrid flow.
+   * @param input The human input string to provide to the paused execution.
+   * @param threadId The thread ID of the paused hybrid execution.
+   * @returns The updated state after processing the input.
+   * @throws Will throw an error if the StarknetAgent is not available.
    */
   public async provideHybridInput(
     input: string,
@@ -724,50 +696,52 @@ export class SupervisorAgent extends BaseAgent {
     logger.debug(
       `SupervisorAgent: Providing input to hybrid execution (thread: ${threadId})`
     );
-
     if (!this.starknetAgent) {
-      throw new Error('Starknet agent is not available');
+      logger.error(
+        'SupervisorAgent: StarknetAgent is not available to provide hybrid input.'
+      );
+      throw new Error(
+        'StarknetAgent is not available to provide hybrid input.'
+      );
     }
-
-    return await this.starknetAgent.resume_hybrid(input, threadId);
+    return this.starknetAgent.resume_hybrid(input, threadId);
   }
 
   /**
-   * Utility to check if execution is waiting for input
-   * @param state Current execution state
-   * @returns Whether the execution is waiting for input
+   * Checks if the current state of a hybrid execution is waiting for human input.
+   * It examines the state object, specifically looking for flags or markers in messages
+   * that indicate a waiting state.
+   * @param state The current execution state object.
+   * @returns True if the execution is waiting for input, false otherwise.
    */
   public isWaitingForInput(state: any): boolean {
     if (
       !state ||
-      !state.messages ||
       !Array.isArray(state.messages) ||
       state.messages.length === 0
     ) {
       return false;
     }
 
-    const lastMessage = state.messages[state.messages.length - 1];
-
-    // Check direct state flag
+    // Direct flag check
     if (state.waiting_for_input === true) {
       return true;
     }
 
-    // Check message content for waiting marker
+    const lastMessage = state.messages[state.messages.length - 1];
+    if (!lastMessage) return false;
+
+    // Check message content for specific markers
     if (
-      lastMessage &&
       lastMessage.content &&
-      typeof lastMessage.content === 'string'
+      typeof lastMessage.content === 'string' &&
+      lastMessage.content.includes('WAITING_FOR_HUMAN_INPUT:')
     ) {
-      if (lastMessage.content.includes('WAITING_FOR_HUMAN_INPUT:')) {
-        return true;
-      }
+      return true;
     }
 
-    // Check additional_kwargs
+    // Check additional_kwargs for a waiting flag
     if (
-      lastMessage &&
       lastMessage.additional_kwargs &&
       lastMessage.additional_kwargs.wait_for_input === true
     ) {
@@ -778,14 +752,15 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Utility to check if execution is complete
-   * @param state Current execution state
-   * @returns Whether the execution is complete
+   * Checks if the current state of a hybrid execution indicates completion.
+   * It examines the state object, looking for markers in messages that signify
+   * the end of the execution.
+   * @param state The current execution state object.
+   * @returns True if the execution is complete, false otherwise.
    */
   public isExecutionComplete(state: any): boolean {
     if (
       !state ||
-      !state.messages ||
       !Array.isArray(state.messages) ||
       state.messages.length === 0
     ) {
@@ -793,21 +768,19 @@ export class SupervisorAgent extends BaseAgent {
     }
 
     const lastMessage = state.messages[state.messages.length - 1];
+    if (!lastMessage) return false;
 
-    // Check message content for final marker
+    // Check message content for final answer marker
     if (
-      lastMessage &&
       lastMessage.content &&
-      typeof lastMessage.content === 'string'
+      typeof lastMessage.content === 'string' &&
+      lastMessage.content.includes('FINAL ANSWER:')
     ) {
-      if (lastMessage.content.includes('FINAL ANSWER:')) {
-        return true;
-      }
+      return true;
     }
 
-    // Check additional_kwargs
+    // Check additional_kwargs for a final flag
     if (
-      lastMessage &&
       lastMessage.additional_kwargs &&
       lastMessage.additional_kwargs.final === true
     ) {
