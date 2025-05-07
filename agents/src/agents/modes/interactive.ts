@@ -16,7 +16,7 @@ import {
 import { estimateTokens } from '../../token/tokenTracking.js';
 import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
-import { baseSystemPrompt, interactiveRules } from 'prompt/prompts.js';
+import { baseSystemPrompt, interactiveRules } from '../../prompt/prompts.js';
 
 /**
  * Retrieves the memory agent instance from the SupervisorAgent.

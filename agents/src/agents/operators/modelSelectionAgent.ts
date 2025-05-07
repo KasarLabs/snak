@@ -6,7 +6,7 @@ import { loadModelsConfig, ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { modelSelectorRules } from 'prompt/prompts.js';
+import { modelSelectorRules } from '../../prompt/prompts.js';
 
 /**
  * Criteria for model selection.

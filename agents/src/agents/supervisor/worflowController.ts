@@ -528,7 +528,7 @@ export class WorkflowController {
       }
 
       // Add a special node for hybrid mode pauses
-      workflow.addNode('hybrid_pause', async (state: WorkflowState) => {
+      workflow.addNode('hybrid_pause', async () => {
         // This node just returns the current state
         // The actual pause happens at the higher level when hybrid_pause is returned
         return {};

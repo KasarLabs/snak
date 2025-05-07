@@ -1,25 +1,25 @@
 import { MessageContent } from '@langchain/core/messages';
-import { AgentConfig } from 'config/jsonConfig.js';
+import { AgentConfig } from '../config/jsonConfig.js';
 
-export const baseSystemPrompt = (json_config: AgentConfig): string => {
+export const baseSystemPrompt = (agent_config: AgentConfig): string => {
   return `
-        ${json_config?.prompt?.content || ''}
+        ${agent_config?.prompt?.content || ''}
 
-        Your name: ${json_config?.name}
-        Your bio: ${(json_config as any)?.bio}
+        Your name: ${agent_config?.name}
+        Your bio: ${(agent_config as any)?.bio}
 
         Your Lore:
-        ${((json_config as any).lore as string[])
+        ${((agent_config as any).lore as string[])
           .map((lore: string) => `- ${lore}`)
           .join('\n')}
 
         Your objectives:
-        ${((json_config as any).objectives as string[])
+        ${((agent_config as any).objectives as string[])
           .map((obj: string) => `- ${obj}`)
           .join('\n')}
 
         Your knowledge:
-        ${((json_config as any).knowledge as string[])
+        ${((agent_config as any).knowledge as string[])
           .map((k: string) => `- ${k}`)
           .join('\n')}
     `;

@@ -22,7 +22,7 @@ import {
   autonomousRules,
   baseSystemPrompt,
   finalAnswerRules,
-} from 'prompt/prompts.js';
+} from '../../prompt/prompts.js';
 
 /**
  * @typedef {Object} GraphStateShape

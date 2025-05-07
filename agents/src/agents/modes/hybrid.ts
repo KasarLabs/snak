@@ -23,7 +23,7 @@ import {
   hybridRules,
   baseSystemPrompt,
   finalAnswerRules,
-} from 'prompt/prompts.js';
+} from '../../prompt/prompts.js';
 
 /**
  * Creates and configures a hybrid agent that can use tools, interact with humans,

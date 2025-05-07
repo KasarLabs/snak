@@ -26,7 +26,7 @@ import { DatabaseCredentials } from './src/tools/types/database.js';
 import { formatAgentResponse } from './src/agents/core/utils.js';
 
 import { AgentSystem, AgentSystemConfig } from './src/agents/index.js';
-import { hybridInitialPrompt } from 'prompt/prompts.js';
+import { hybridInitialPrompt } from './src/prompt/prompts.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
