@@ -8,34 +8,50 @@ import crypto from 'crypto';
 import { AgentMode, AGENT_MODES } from '../../config/jsonConfig.js';
 
 /**
- * Represents the state of the multi-agent workflow
+ * Represents the state of the multi-agent workflow.
  */
 interface WorkflowState {
+  /** The sequence of messages in the workflow. */
   messages: BaseMessage[];
+  /** The identifier of the current agent to execute. */
   currentAgent: string;
+  /** Arbitrary metadata associated with the workflow state. */
   metadata: Record<string, any>;
+  /** Tool calls to be executed. */
   toolCalls: any[];
+  /** Optional error message if an error occurred. */
   error?: string;
-  iterationCount: number; // Counter to avoid infinite loops
-  modelType?: string; // Add this to track the selected model type
+  /** Counter to track the number of iterations to prevent infinite loops. */
+  iterationCount: number;
+  /** Optional field to track the selected model type. */
+  modelType?: string;
+  /** The current operational mode of the agent (e.g., autonomous, hybrid). */
   mode?: string;
+  /** Flag indicating if the workflow is paused, waiting for user input in hybrid mode. */
   waiting_for_input?: boolean;
 }
 
 /**
- * Configuration for the workflow controller
+ * Configuration for the WorkflowController.
  */
 export interface WorkflowControllerConfig {
+  /** A record of agent instances, keyed by their unique identifiers. */
   agents: Record<string, IAgent>;
+  /** The identifier of the agent that serves as the entry point for the workflow. */
   entryPoint: string;
+  /** Optional. Enables checkpointing of the workflow state if true. Defaults to false. */
   checkpointEnabled?: boolean;
+  /** Optional. Enables detailed debug logging if true. Defaults to false. */
   debug?: boolean;
-  maxIterations?: number; // Maximum iterations before forcing end
-  workflowTimeout?: number; // Timeout in milliseconds
+  /** Optional. The maximum number of iterations the workflow can run before being forced to end. Defaults to 10. */
+  maxIterations?: number;
+  /** Optional. The timeout in milliseconds for workflow execution. Defaults to 60000 (60 seconds). */
+  workflowTimeout?: number;
 }
 
 /**
- * Controller that manages workflow between different agents
+ * Controller that manages the workflow execution and transitions between different agents.
+ * It uses a state graph to define and run the sequence of operations.
  */
 export class WorkflowController {
   private agents: Record<string, IAgent>;
@@ -50,16 +66,19 @@ export class WorkflowController {
   private checkpointEnabled: boolean;
   private timeoutId: NodeJS.Timeout | null = null;
 
+  /**
+   * Constructs a new WorkflowController.
+   * @param config The configuration object for the workflow controller.
+   */
   constructor(config: WorkflowControllerConfig) {
     this.agents = config.agents;
     this.entryPoint = config.entryPoint;
     this.checkpointer = new MemorySaver();
     this.debug = config.debug || false;
-    this.maxIterations = config.maxIterations || 10; // Default 10 iterations
-    this.workflowTimeout = config.workflowTimeout || 60000; // Default 60 seconds
+    this.maxIterations = config.maxIterations || 10;
+    this.workflowTimeout = config.workflowTimeout || 60000;
     this.checkpointEnabled = config.checkpointEnabled ?? false;
 
-    // Validate required agents exist
     this.validateAgents();
 
     if (this.debug) {
@@ -75,23 +94,19 @@ export class WorkflowController {
   }
 
   /**
-   * Validates that necessary agents exist
+   * Validates that necessary agents, like the entry point, exist.
+   * @throws Error if the entry point agent is not found.
    */
   private validateAgents(): void {
     if (!this.agents[this.entryPoint]) {
       throw new Error(`Entry point agent "${this.entryPoint}" does not exist`);
     }
-
-    if (this.debug) {
-      logger.debug(
-        `WorkflowController: Initialized with agents: ${Object.keys(this.agents).join(', ')}`
-      );
-      logger.debug(`WorkflowController: Entry point is "${this.entryPoint}"`);
-    }
   }
 
   /**
-   * Initializes the workflow
+   * Initializes the workflow graph, defining nodes for each agent and the transitions between them.
+   * This method must be called before executing the workflow.
+   * @throws Error if initialization fails.
    */
   public async init(): Promise<void> {
     logger.debug('WorkflowController: Starting initialization');
@@ -126,7 +141,7 @@ export class WorkflowController {
             default: () => undefined,
           },
           iterationCount: {
-            value: (x, _) => (x || 0) + 1, // Increment each pass
+            value: (x, _) => (x || 0) + 1,
             default: () => 0,
           },
         },
@@ -143,27 +158,8 @@ export class WorkflowController {
                 .slice(-3)
                 .join(' → ');
               logger.debug(
-                `WorkflowController[Exec:${execId}]: Node[${agentId}] - START (Iteration: ${state.iterationCount})`
+                `WorkflowController[Exec:${execId}]: Node[${agentId}] - START (Iteration: ${state.iterationCount}, Prev: ${lastAgents || 'none'}, Msgs: ${state.messages.length})`
               );
-              logger.debug(`  - Last agents: ${lastAgents || 'none'}`);
-              logger.debug(`  - Messages: ${state.messages.length}`);
-              logger.debug(
-                `  - Current agent state value: ${state.currentAgent}`
-              );
-
-              if (state.messages.length > 0) {
-                const lastMsg = state.messages[state.messages.length - 1];
-                logger.debug(`  - Last message type: ${lastMsg?._getType()}`);
-                logger.debug(
-                  `  - Last message from agent: ${lastMsg?.additional_kwargs?.from || 'unknown'}`
-                );
-                logger.debug(
-                  `  - Last message is final: ${lastMsg?.additional_kwargs?.final ? 'yes' : 'no'}`
-                );
-                logger.debug(
-                  `  - Last message content snippet: "${String(lastMsg?.content).substring(0, 100)}..."`
-                );
-              }
             }
 
             try {
@@ -369,9 +365,8 @@ export class WorkflowController {
               }
 
               // If current agent is supervisor and no next agent specified,
-              // force end to avoid loops
+              // and it's the second consecutive supervisor call, force end.
               if (agentId === 'supervisor' && !nextAgent && !isFinal) {
-                // Check if this is the second consecutive time
                 const history = state.metadata.agentHistory || [];
                 if (
                   history.length >= 2 &&
@@ -433,22 +428,8 @@ export class WorkflowController {
 
               if (this.debug) {
                 logger.debug(
-                  `WorkflowController[Exec:${execId}]: Node[${agentId}] - END`
+                  `WorkflowController[Exec:${execId}]: Node[${agentId}] - END. Next: ${outputState.currentAgent || 'router_decision'}, Final: ${isFinal}, New Msgs: ${outputState.messages?.length || 0}`
                 );
-                logger.debug(
-                  `  - Returning next agent: ${outputState.currentAgent || 'router_decision'}`
-                );
-                logger.debug(`  - Is final: ${isFinal ? 'yes' : 'no'}`);
-                logger.debug(
-                  `  - New messages: ${outputState.messages?.length || 0}`
-                );
-                if (outputState.messages && outputState.messages.length > 0) {
-                  const newLastMsg =
-                    outputState.messages[outputState.messages.length - 1];
-                  logger.debug(
-                    `  - Last new message type: ${newLastMsg._getType()}, from: ${newLastMsg.additional_kwargs?.from || agentId}, final: ${newLastMsg.additional_kwargs?.final ? 'yes' : 'no'}`
-                  );
-                }
               }
 
               return outputState;
@@ -552,35 +533,34 @@ export class WorkflowController {
   }
 
   /**
-   * Routes to next agent or terminates workflow
+   * Determines the next agent to execute or ends the workflow based on the current state.
+   * This function is used as the decision logic for conditional edges in the workflow graph.
+   * @param state The current workflow state.
+   * @returns The identifier of the next agent, 'hybrid_pause', or END.
    */
   private router(state: WorkflowState): string | typeof END {
     const execId = this.executionId || 'unknown';
-    logger.debug(`WorkflowController[Exec:${execId}]: Router - START`);
-    logger.debug(`  - Current state agent: ${state.currentAgent}`);
-    logger.debug(`  - Iteration count: ${state.iterationCount}`);
+    logger.debug(
+      `WorkflowController[Exec:${execId}]: Router - Iteration: ${state.iterationCount}, Current Agent: ${state.currentAgent}`
+    );
 
-    // Preserve model type if available in metadata
     if (state.metadata.modelType) {
       logger.debug(
         `WorkflowController[Exec:${execId}]: Router - Preserved model type: "${state.metadata.modelType}"`
       );
     }
 
-    // Maintain agent history
     if (!state.metadata.agentHistory) {
       state.metadata.agentHistory = [];
     }
 
-    // Add current agent to history if not already at END
     if (state.currentAgent && state.currentAgent !== END) {
       state.metadata.agentHistory.push(state.currentAgent);
       logger.debug(
-        `  - Updated agent history: ${(state.metadata.agentHistory || []).join(' → ')}`
+        `  - Agent history: ${(state.metadata.agentHistory || []).join(' → ')}`
       );
     }
 
-    // Check if this is a hybrid mode interrupt
     if (
       state.metadata.mode === AGENT_MODES[AgentMode.HYBRID] &&
       state.metadata.waiting_for_input === true
@@ -591,7 +571,6 @@ export class WorkflowController {
       return 'hybrid_pause';
     }
 
-    // Check max iterations
     if (state.iterationCount >= this.maxIterations) {
       logger.warn(
         `WorkflowController[Exec:${execId}]: Router - Max iterations (${this.maxIterations}) reached, forcing END`
@@ -599,7 +578,6 @@ export class WorkflowController {
       return END;
     }
 
-    // Ensure we have messages
     if (!state.messages || state.messages.length === 0) {
       logger.warn(
         `WorkflowController[Exec:${execId}]: Router - No messages in state, forcing END`
@@ -610,9 +588,7 @@ export class WorkflowController {
     const lastMessage = state.messages[state.messages.length - 1];
     const history = state.metadata.agentHistory || [];
 
-    // Check if last message contains final response
     if (lastMessage instanceof AIMessage) {
-      // Case 1: Explicit final response via metadata
       if (lastMessage.additional_kwargs?.final === true) {
         logger.debug(
           `WorkflowController[Exec:${execId}]: Router - Message marked as final, ending workflow`
@@ -620,15 +596,14 @@ export class WorkflowController {
         return END;
       }
 
-      // Case 2: Response from starknet - always assume it's final to avoid loops
+      // Responses from 'snak' agent are treated as final to prevent loops.
       if (lastMessage.additional_kwargs?.from === 'snak') {
         logger.debug(
-          `WorkflowController[Exec:${execId}]: Router - Response from starknet, treating as final and ending workflow`
+          `WorkflowController[Exec:${execId}]: Router - Response from 'snak' agent, treating as final and ending workflow`
         );
         return END;
       }
 
-      // Case 3: Empty content or other signs conversation should end
       if (
         !lastMessage.content ||
         (Array.isArray(lastMessage.content) &&
@@ -642,7 +617,7 @@ export class WorkflowController {
         return END;
       }
 
-      // Added for hybrid mode - check for waiting for input
+      // Check for hybrid mode input request
       if (
         lastMessage.additional_kwargs?.wait_for_input === true ||
         (typeof lastMessage.content === 'string' &&
@@ -657,30 +632,27 @@ export class WorkflowController {
       }
     }
 
-    // Check for cycles involving supervisor
     if (state.currentAgent === 'supervisor') {
       const supervisorCount = history.filter(
         (agent: string) => agent === 'supervisor'
       ).length;
       if (supervisorCount > 1) {
         logger.warn(
-          `WorkflowController[Exec:${execId}]: Router - Supervisor called multiple times, routing directly to starknet`
+          `WorkflowController[Exec:${execId}]: Router - Supervisor called multiple times (${supervisorCount}), routing directly to 'snak' to prevent loop.`
         );
         if ('snak' in this.agents) return 'snak';
         logger.warn(
-          `WorkflowController[Exec:${execId}]: Router - Starknet agent not found after supervisor loop detection, ending.`
+          `WorkflowController[Exec:${execId}]: Router - 'snak' agent not found after supervisor loop detection, ending.`
         );
         return END;
       }
     }
 
-    // Direct routing from model-selector to starknet
     if (lastMessage.additional_kwargs?.from === 'model-selector') {
       logger.debug(
-        `WorkflowController[Exec:${execId}]: Router - Message from model-selector, routing directly to starknet`
+        `WorkflowController[Exec:${execId}]: Router - Message from model-selector, routing directly to 'snak'`
       );
 
-      // Preserve the original user query in the state
       if (lastMessage.additional_kwargs?.originalUserQuery) {
         state.metadata.originalUserQuery =
           lastMessage.additional_kwargs.originalUserQuery;
@@ -689,7 +661,6 @@ export class WorkflowController {
         );
       }
 
-      // Add this to preserve model type selection
       if (lastMessage.additional_kwargs?.modelType) {
         state.metadata.modelType = lastMessage.additional_kwargs
           .modelType as string;
@@ -702,12 +673,11 @@ export class WorkflowController {
         return 'snak';
       }
       logger.warn(
-        `WorkflowController[Exec:${execId}]: Router - Starknet agent not found after model-selector, ending.`
+        `WorkflowController[Exec:${execId}]: Router - 'snak' agent not found after model-selector, ending.`
       );
       return END;
     }
 
-    // Handle tool calls
     if (
       lastMessage instanceof AIMessage &&
       lastMessage.tool_calls &&
@@ -715,49 +685,49 @@ export class WorkflowController {
     ) {
       if ('tools' in this.agents) {
         logger.debug(
-          `WorkflowController[Exec:${execId}]: Router - Routing to tools agent.`
+          `WorkflowController[Exec:${execId}]: Router - Routing to 'tools' agent due to tool calls.`
         );
         return 'tools';
       }
     }
 
-    // For simple human messages, go directly to starknet
     if (lastMessage instanceof HumanMessage) {
       logger.debug(
-        `WorkflowController[Exec:${execId}]: Router - Direct routing to starknet for human message`
+        `WorkflowController[Exec:${execId}]: Router - Direct routing to 'snak' for human message`
       );
       if ('snak' in this.agents) return 'snak';
       logger.warn(
-        `WorkflowController[Exec:${execId}]: Router - Starknet agent not found for human message, ending.`
+        `WorkflowController[Exec:${execId}]: Router - 'snak' agent not found for human message, ending.`
       );
       return END;
     }
 
-    // If already at starknet, end workflow
     if (state.currentAgent === 'snak') {
       logger.debug(
-        `WorkflowController[Exec:${execId}]: Router - Current agent is starknet, ending workflow.`
+        `WorkflowController[Exec:${execId}]: Router - Current agent is 'snak', ending workflow.`
       );
       return END;
     }
 
-    // Only route to supervisor for complex coordination needs
     if (state.currentAgent !== 'supervisor' && 'supervisor' in this.agents) {
       logger.debug(
-        `WorkflowController[Exec:${execId}]: Router - Routing to supervisor for coordination.`
+        `WorkflowController[Exec:${execId}]: Router - Routing to 'supervisor' for coordination.`
       );
       return 'supervisor';
     }
 
-    // If can't determine next agent, end workflow
     logger.warn(
-      `WorkflowController[Exec:${execId}]: Router - Could not determine next agent, forcing END.`
+      `WorkflowController[Exec:${execId}]: Router - Could not determine next agent, forcing END. Last message from: ${lastMessage?.additional_kwargs?.from}, Current Agent: ${state.currentAgent}`
     );
     return END;
   }
 
   /**
-   * Executes the workflow with the given input
+   * Executes the workflow with the given input.
+   * @param input The initial input for the workflow, can be a string or a BaseMessage.
+   * @param config Optional configuration for the run, including `threadId`.
+   * @returns The final message or result from the workflow execution.
+   * @throws Error if the workflow is not initialized, times out, or encounters an unhandled error.
    */
   public async execute(
     input: string | BaseMessage,
@@ -768,7 +738,6 @@ export class WorkflowController {
       `WorkflowController[Exec:${this.executionId}]: Starting execution`
     );
 
-    // If a previous timeout is still active, clear it
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
@@ -788,39 +757,35 @@ export class WorkflowController {
         `WorkflowController[Exec:${this.executionId}]: Workflow initialized, proceeding...`
       );
 
-      // Convert input to BaseMessage if string
       const message =
         typeof input === 'string' ? new HumanMessage(input) : input;
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Input message type: ${message._getType()}`
       );
 
-      // Configure thread ID if available
       const threadId = config?.threadId || this.executionId;
       const runConfig: RunnableConfig = {
         configurable: {
           thread_id: threadId,
         },
-        recursionLimit: this.maxIterations * 2, // More generous recursion limit
-        ...(config || {}), // Merge with provided configuration
+        recursionLimit: this.maxIterations * 2,
+        ...(config || {}),
       };
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Using thread ID: ${threadId}`
       );
 
-      // Determine initial agent - always use starknet directly
-      const initialAgent = 'snak';
+      const initialAgent = 'snak'; // All executions now start directly with the 'snak' agent.
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Determined initial agent: ${initialAgent}`
       );
 
-      // Add improved timeout with proper cleanup
       const timeoutPromise = new Promise((_, reject) => {
         this.timeoutId = setTimeout(() => {
           logger.warn(
             `WorkflowController[Exec:${this.executionId}]: Workflow execution TIMED OUT after ${this.workflowTimeout}ms`
           );
-          this.timeoutId = null; // Clear timeout ID *before* rejecting
+          this.timeoutId = null; // Important: Clear timeoutId before rejecting
           reject(
             new Error(
               `Workflow execution timed out after ${this.workflowTimeout}ms`
@@ -829,7 +794,6 @@ export class WorkflowController {
         }, this.workflowTimeout);
       });
 
-      // Execute workflow with timeout
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Invoking workflow with initial state`
       );
@@ -837,7 +801,7 @@ export class WorkflowController {
         {
           messages: [message],
           currentAgent: initialAgent,
-          metadata: { threadId }, // Include threadId in initial metadata
+          metadata: { threadId },
           toolCalls: [],
           error: undefined,
           iterationCount: 0,
@@ -845,10 +809,8 @@ export class WorkflowController {
         runConfig
       );
 
-      // Wait for result or timeout
       const result = await Promise.race([workflowPromise, timeoutPromise]);
 
-      // Clean up timeout if workflow finishes before
       if (this.timeoutId) {
         clearTimeout(this.timeoutId);
         this.timeoutId = null;
@@ -861,7 +823,6 @@ export class WorkflowController {
         `WorkflowController[Exec:${this.executionId}]: Workflow invocation completed. Result keys: ${Object.keys(result || {}).join(', ')}`
       );
 
-      // Extract final messages
       const finalMessages = result?.messages || [];
       const lastMessage =
         finalMessages.length > 0
@@ -872,7 +833,6 @@ export class WorkflowController {
         `WorkflowController[Exec:${this.executionId}]: Final message type: ${lastMessage?._getType()}, From: ${lastMessage?.additional_kwargs?.from}, Final: ${lastMessage?.additional_kwargs?.final}`
       );
 
-      // If last message is a system error message, throw it
       if (
         lastMessage instanceof AIMessage &&
         lastMessage.additional_kwargs?.error
@@ -880,20 +840,19 @@ export class WorkflowController {
         logger.error(
           `WorkflowController[Exec:${this.executionId}]: Workflow finished with error state: ${lastMessage.additional_kwargs.error}`
         );
-        // Try to return more useful message than just the error
+        // Provide a more specific message if it's a max iteration error.
         if (
           lastMessage.content &&
           typeof lastMessage.content === 'string' &&
           lastMessage.content.includes('Maximum workflow iterations')
         ) {
-          return lastMessage; // Return specific error message
+          return lastMessage;
         }
         throw new Error(
           `Workflow error: ${lastMessage.additional_kwargs.error} - ${lastMessage.content}`
         );
       }
 
-      // Return last message if available, otherwise raw result
       return lastMessage || result;
     } catch (error: any) {
       logger.error(
@@ -902,7 +861,6 @@ export class WorkflowController {
       if (error.stack) {
         logger.error(`Stack trace: ${error.stack}`);
       }
-      // Ensure timeout is cleaned up even in case of error
       if (this.timeoutId) {
         clearTimeout(this.timeoutId);
         this.timeoutId = null;
@@ -910,27 +868,29 @@ export class WorkflowController {
           `WorkflowController[Exec:${this.executionId}]: Cleared timeout due to error.`
         );
       }
-      throw error; // Propagate error
+      throw error;
     } finally {
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Execution finished`
       );
-      this.executionId = null; // Clear execution ID
+      this.executionId = null;
     }
   }
 
   /**
-   * Resets the workflow
+   * Resets the workflow's state, primarily by clearing any persisted checkpoint data.
+   * This allows for a fresh execution of the workflow.
+   * @throws Error if resetting fails.
    */
   public async reset(): Promise<void> {
     logger.debug('WorkflowController: Starting reset');
     try {
       if (this.checkpointer) {
-        // Reset checkpointer
         logger.debug(
           'WorkflowController: Resetting in-memory checkpointer by creating a new instance.'
         );
-        this.checkpointer = new MemorySaver(); // Re-instantiate instead of clear
+        // Re-instantiating MemorySaver effectively clears its state.
+        this.checkpointer = new MemorySaver();
       }
 
       logger.debug('WorkflowController: Reset finished');
@@ -941,30 +901,31 @@ export class WorkflowController {
   }
 
   /**
-   * Extracts original user query from workflow state or messages
+   * Extracts the original user query from the workflow state.
+   * It first checks the metadata, then iterates through messages for
+   * `originalUserQuery` in `additional_kwargs`, and finally falls back
+   * to the content of the first HumanMessage.
+   * @param state The current workflow state.
+   * @returns The original user query as a string, or null if not found.
    */
   private extractOriginalUserQuery(state: WorkflowState): string | null {
-    // First try to extract from metadata
-    if (state.metadata && state.metadata.originalUserQuery) {
-      // Ensure it's a string before returning
-      if (typeof state.metadata.originalUserQuery === 'string') {
-        return state.metadata.originalUserQuery;
-      }
+    if (
+      state.metadata &&
+      typeof state.metadata.originalUserQuery === 'string'
+    ) {
+      return state.metadata.originalUserQuery;
     }
 
-    // Otherwise, look in messages
     if (state.messages && state.messages.length > 0) {
-      // First look in message metadata
       for (const msg of state.messages) {
-        if (msg.additional_kwargs?.originalUserQuery) {
-          // Ensure it's a string before returning
-          if (typeof msg.additional_kwargs.originalUserQuery === 'string') {
-            return msg.additional_kwargs.originalUserQuery;
-          }
+        if (
+          msg.additional_kwargs &&
+          typeof msg.additional_kwargs.originalUserQuery === 'string'
+        ) {
+          return msg.additional_kwargs.originalUserQuery;
         }
       }
 
-      // If not found in metadata, look for the first user message (HumanMessage)
       for (const msg of state.messages) {
         if (msg instanceof HumanMessage && typeof msg.content === 'string') {
           return msg.content;
@@ -972,6 +933,6 @@ export class WorkflowController {
       }
     }
 
-    return null; // Return null if not found
+    return null;
   }
 }
