@@ -12,6 +12,7 @@ import {
   load_json_config,
   AgentMode,
   AgentConfig,
+  AGENT_MODES,
 } from './src/config/jsonConfig.js';
 import { createBox } from './src/prompt/formatting.js';
 import yargs from 'yargs';
@@ -274,7 +275,7 @@ const localRun = async (): Promise<void> => {
     });
 
     // --- Execution Logic based on mode ---
-    if (agentMode === 'interactive') {
+    if (agentMode === AGENT_MODES[AgentMode.INTERACTIVE]) {
       console.log(chalk.dim('\nStarting interactive session...\n'));
       console.log(
         chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
@@ -323,7 +324,7 @@ const localRun = async (): Promise<void> => {
           );
         }
       }
-    } else if (agentMode === 'autonomous') {
+    } else if (agentMode === AGENT_MODES[AgentMode.AUTONOMOUS]) {
       console.log(chalk.dim('\nStarting autonomous session...\n'));
       console.log(
         chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
@@ -352,7 +353,7 @@ const localRun = async (): Promise<void> => {
           createBox(error.message, { title: 'Error', isError: true })
         );
       }
-    } else if (agentMode === 'hybrid') {
+    } else if (agentMode === AGENT_MODES[AgentMode.HYBRID]) {
       console.log(chalk.dim('\nStarting hybrid session...\n'));
       console.log(
         chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)

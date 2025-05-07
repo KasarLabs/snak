@@ -5,7 +5,11 @@ import { logger, metrics } from '@snakagent/core';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
-import { AgentConfig, AgentMode } from '../../config/jsonConfig.js';
+import {
+  AgentConfig,
+  AgentMode,
+  AGENT_MODES,
+} from '../../config/jsonConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
 import { createAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
@@ -51,18 +55,10 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     this.accountPublicKey = config.accountPublicKey;
     this.signature = config.signature;
     this.agentMode =
-      config.agentConfig?.mode === AgentMode.AUTONOMOUS
-        ? 'autonomous'
-        : config.agentConfig?.mode === AgentMode.HYBRID
-          ? 'hybrid'
-          : 'interactive';
+      AGENT_MODES[config.agentConfig?.mode || AgentMode.INTERACTIVE];
     this.db_credentials = config.db_credentials;
     this.currentMode =
-      config.agentConfig?.mode === AgentMode.AUTONOMOUS
-        ? 'autonomous'
-        : config.agentConfig?.mode === AgentMode.HYBRID
-          ? 'hybrid'
-          : 'interactive';
+      AGENT_MODES[config.agentConfig?.mode || AgentMode.INTERACTIVE];
     this.agentconfig = config.agentConfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
@@ -75,8 +71,8 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     metrics.metricsAgentConnect(
       config.agentConfig?.name ?? 'agent',
       config.agentConfig?.mode === AgentMode.AUTONOMOUS
-        ? 'autonomous'
-        : 'interactive'
+        ? AGENT_MODES[AgentMode.AUTONOMOUS]
+        : AGENT_MODES[AgentMode.INTERACTIVE]
     );
   }
 
@@ -109,11 +105,11 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       // Set default mode to hybrid if configuration allows
       if (
         this.agentconfig?.mode === AgentMode.HYBRID ||
-        (this.agentMode === 'autonomous' &&
+        (this.agentMode === AGENT_MODES[AgentMode.AUTONOMOUS] &&
           this.agentconfig?.mode === AgentMode.AUTONOMOUS)
       ) {
         logger.debug('StarknetAgent: Setting default mode to hybrid');
-        this.currentMode = 'hybrid';
+        this.currentMode = AGENT_MODES[AgentMode.HYBRID];
       }
 
       try {
@@ -155,16 +151,16 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       logger.debug(`StarknetAgent: Using current mode: ${this.currentMode}`);
 
-      if (this.currentMode === 'autonomous') {
+      if (this.currentMode === AGENT_MODES[AgentMode.AUTONOMOUS]) {
         logger.debug('StarknetAgent: Creating autonomous agent executor...');
         this.agentReactExecutor = await createAutonomousAgent(
           this,
           this.modelSelector
         );
-      } else if (this.currentMode === 'interactive') {
+      } else if (this.currentMode === AGENT_MODES[AgentMode.INTERACTIVE]) {
         logger.debug('StarknetAgent: Creating interactive agent executor...');
         this.agentReactExecutor = await createAgent(this, this.modelSelector);
-      } else if (this.currentMode === 'hybrid') {
+      } else if (this.currentMode === AGENT_MODES[AgentMode.HYBRID]) {
         logger.debug('StarknetAgent: Creating hybrid agent executor...');
         this.agentReactExecutor = await createHybridAgent(
           this,
@@ -335,9 +331,9 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       // Temporarily change mode if requested, valid, and different from current
       if (
         requestedMode &&
-        (requestedMode === 'interactive' ||
-          requestedMode === 'autonomous' ||
-          requestedMode === 'hybrid') &&
+        (requestedMode === AGENT_MODES[AgentMode.INTERACTIVE] ||
+          requestedMode === AGENT_MODES[AgentMode.AUTONOMOUS] ||
+          requestedMode === AGENT_MODES[AgentMode.HYBRID]) &&
         requestedMode !== this.currentMode
       ) {
         logger.debug(
@@ -654,7 +650,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   public async execute_call_data(input: string): Promise<unknown> {
     try {
       // Check if in interactive mode now
-      if (this.currentMode !== 'interactive') {
+      if (this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE]) {
         throw new Error(
           `Need to be in interactive mode to execute_call_data (current mode: ${this.currentMode})`
         );
@@ -776,12 +772,12 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         `StarknetAgent executing autonomous mode: ${this.currentMode}`
       );
 
-      if (this.currentMode !== 'autonomous') {
+      if (this.currentMode !== AGENT_MODES[AgentMode.AUTONOMOUS]) {
         if (this.agentconfig?.mode === AgentMode.AUTONOMOUS) {
           logger.info(
-            `Overriding mode to 'autonomous' based on config settings (autonomous=${this.agentconfig?.mode === AgentMode.AUTONOMOUS})`
+            `Overriding mode to '${AGENT_MODES[AgentMode.AUTONOMOUS]}' based on config settings (autonomous=${this.agentconfig?.mode === AgentMode.AUTONOMOUS})`
           );
-          this.currentMode = 'autonomous';
+          this.currentMode = AGENT_MODES[AgentMode.AUTONOMOUS];
         } else {
           throw new Error(
             `Need to be in autonomous mode to execute_autonomous (current mode: ${this.currentMode})`
@@ -1059,10 +1055,13 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       logger.debug(`StarknetAgent executing hybrid mode`);
 
       // Set mode to hybrid
-      this.currentMode = 'hybrid';
+      this.currentMode = AGENT_MODES[AgentMode.HYBRID];
 
       // Create hybrid agent executor if needed
-      if (!this.agentReactExecutor || this.currentMode !== 'hybrid') {
+      if (
+        !this.agentReactExecutor ||
+        this.currentMode !== AGENT_MODES[AgentMode.HYBRID]
+      ) {
         logger.debug('Creating hybrid agent executor...');
         try {
           // Validate agent configuration

@@ -27,6 +27,15 @@ export enum AgentMode {
 }
 
 /**
+ * Maps mode values to their string representations
+ */
+export const AGENT_MODES = {
+  [AgentMode.AUTONOMOUS]: 'autonomous',
+  [AgentMode.HYBRID]: 'hybrid',
+  [AgentMode.INTERACTIVE]: 'interactive',
+};
+
+/**
  * Interface for the JSON configuration object
  */
 export interface AgentConfig {

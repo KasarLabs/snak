@@ -13,7 +13,11 @@ import { WorkflowController } from './worflowController.js';
 import { DatabaseCredentials, logger, metrics } from '@snakagent/core';
 import { HumanMessage, BaseMessage } from '@langchain/core/messages';
 import { Tool } from '@langchain/core/tools';
-import { AgentConfig, AgentMode } from '../../config/jsonConfig.js';
+import {
+  AgentConfig,
+  AgentMode,
+  AGENT_MODES,
+} from '../../config/jsonConfig.js';
 import { RpcProvider } from 'starknet';
 
 /**
@@ -248,10 +252,10 @@ export class SupervisorAgent extends BaseAgent {
     metrics.metricsAgentConnect(
       agentName,
       this.config.starknetConfig.agentConfig?.mode === AgentMode.AUTONOMOUS
-        ? 'autonomous'
+        ? AGENT_MODES[AgentMode.AUTONOMOUS]
         : this.config.starknetConfig.agentConfig?.mode === AgentMode.HYBRID
-          ? 'hybrid'
-          : 'interactive'
+          ? AGENT_MODES[AgentMode.HYBRID]
+          : AGENT_MODES[AgentMode.INTERACTIVE]
     );
   }
 

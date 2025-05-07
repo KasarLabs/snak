@@ -5,6 +5,7 @@ import { logger } from '@snakagent/core';
 import { IAgent } from '../core/baseAgent.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import crypto from 'crypto';
+import { AgentMode, AGENT_MODES } from '../../config/jsonConfig.js';
 
 /**
  * Represents the state of the multi-agent workflow
@@ -581,7 +582,7 @@ export class WorkflowController {
 
     // Check if this is a hybrid mode interrupt
     if (
-      state.metadata.mode === 'hybrid' &&
+      state.metadata.mode === AGENT_MODES[AgentMode.HYBRID] &&
       state.metadata.waiting_for_input === true
     ) {
       logger.debug(
@@ -651,7 +652,7 @@ export class WorkflowController {
           `WorkflowController[Exec:${execId}]: Router - Detected request for human input in hybrid mode`
         );
         state.metadata.waiting_for_input = true;
-        state.metadata.mode = 'hybrid';
+        state.metadata.mode = AGENT_MODES[AgentMode.HYBRID];
         return 'hybrid_pause';
       }
     }
