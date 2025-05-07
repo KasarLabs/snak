@@ -64,10 +64,35 @@ export const initializeDatabase = async (db: DatabaseCredentials) => {
 };
 
 /**
- * Tronque le contenu de la réponse d'un outil à une longueur maximale spécifiée
- * @param result Le résultat de l'invocation de l'outil
- * @param maxLength Longueur maximale (défaut: 5000 caractères)
- * @returns Le résultat avec contenu tronqué si nécessaire
+ * Helper function to truncate a string if its length exceeds maxLength.
+ * Logs the truncation action.
+ * @param content The string content to truncate.
+ * @param maxLength The maximum allowed length for the string.
+ * @returns The truncated string (with an ellipsis and a note) or the original string if it's within the limit.
+ */
+const truncateStringContentHelper = (
+  content: string,
+  maxLength: number
+): string => {
+  const originalLength = content.length;
+  if (originalLength > maxLength) {
+    logger.debug(
+      `Content truncated from ${originalLength} to ${maxLength} characters.`
+    );
+    return (
+      content.substring(0, maxLength) +
+      `... [truncated ${originalLength - maxLength} characters]`
+    );
+  }
+  return content;
+};
+
+/**
+ * Truncates the content of a tool's response to a specified maximum length.
+ * This function handles results that are arrays of messages or objects containing message arrays.
+ * @param result The result of the tool invocation.
+ * @param maxLength Maximum length for the content (default: 5000 characters).
+ * @returns The result with its content strings truncated if necessary.
  */
 export function truncateToolResults(
   result: any,
@@ -76,21 +101,12 @@ export function truncateToolResults(
   // Handle case when result is an array (typical in interactive mode)
   if (Array.isArray(result)) {
     for (const msg of result) {
-      // Vérifier si c'est un ToolMessage et si le contenu est une chaîne
       if (
         msg._getType &&
         msg._getType() === 'tool' &&
         typeof msg.content === 'string'
       ) {
-        const originalLength = msg.content.length;
-        if (originalLength > maxLength) {
-          msg.content =
-            msg.content.substring(0, maxLength) +
-            `... [truncated ${originalLength - maxLength} chars]`;
-          logger.debug(
-            `Tool result content truncated from ${originalLength} to ${maxLength} characters.`
-          );
-        }
+        msg.content = truncateStringContentHelper(msg.content, maxLength);
       }
     }
   }
@@ -100,30 +116,17 @@ export function truncateToolResults(
     for (const msg of result.messages) {
       // Check for tool messages in any format
       if (typeof msg.content === 'string') {
-        const originalLength = msg.content.length;
-        if (originalLength > maxLength) {
-          msg.content =
-            msg.content.substring(0, maxLength) +
-            `... [truncated ${originalLength - maxLength} chars]`;
-          logger.debug(
-            `Tool result content truncated from ${originalLength} to ${maxLength} characters.`
-          );
-        }
+        msg.content = truncateStringContentHelper(msg.content, maxLength);
       }
 
       // Also check for content in tool_calls_results if it exists
       if (Array.isArray(msg.tool_calls_results)) {
         for (const toolResult of msg.tool_calls_results) {
           if (typeof toolResult.content === 'string') {
-            const originalLength = toolResult.content.length;
-            if (originalLength > maxLength) {
-              toolResult.content =
-                toolResult.content.substring(0, maxLength) +
-                `... [truncated ${originalLength - maxLength} chars]`;
-              logger.debug(
-                `Tool result content truncated from ${originalLength} to ${maxLength} characters.`
-              );
-            }
+            toolResult.content = truncateStringContentHelper(
+              toolResult.content,
+              maxLength
+            );
           }
         }
       }
@@ -267,14 +270,14 @@ export const processMessageContent = (content: any): string => {
   if (typeof content === 'string') {
     return processStringContent(content);
   }
-  
+
   if (Array.isArray(content)) {
     return processArrayContent(content);
   }
-  
+
   if (typeof content === 'object' && content !== null) {
     return processObjectContent(content);
   }
-  
+
   return String(content);
 };

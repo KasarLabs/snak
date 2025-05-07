@@ -25,6 +25,15 @@ import {
   finalAnswerRules,
 } from 'prompt/prompts.js';
 
+/**
+ * Creates and configures a hybrid agent that can use tools, interact with humans,
+ * and select models dynamically based on the context.
+ *
+ * @param starknetAgent - The Starknet agent interface providing tools and configuration.
+ * @param modelSelector - An optional model selection agent to dynamically choose LLMs.
+ * @returns An object containing the compiled LangGraph app, agent configuration, and max iteration count.
+ * @throws Error if agent configuration is missing or invalid, or if model initialization fails.
+ */
 export const createHybridAgent = async (
   starknetAgent: StarknetAgentInterface,
   modelSelector: ModelSelectionAgent | null
@@ -37,10 +46,9 @@ export const createHybridAgent = async (
       throw new Error('Agent configuration is required');
     }
 
-    // Initialize tools with the full configuration
     const toolsList = await initializeToolsList(starknetAgent, agent_config);
 
-    // Définition de l'état du graphe
+    // Define the graph state
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
@@ -55,7 +63,6 @@ export const createHybridAgent = async (
       }),
     });
 
-    // Création du nœud d'outil
     const toolNode = new ToolNode(toolsList);
 
     // Add wrapper to log tool executions and truncate results
@@ -64,7 +71,6 @@ export const createHybridAgent = async (
       const lastMessage = state.messages[state.messages.length - 1];
       let toolCalls: Array<{ name: string; args: Record<string, any> }> = [];
 
-      // Check if lastMessage is an AIMessage before accessing tool_calls
       if (lastMessage instanceof AIMessage && lastMessage.tool_calls) {
         toolCalls = lastMessage.tool_calls;
       }
@@ -85,7 +91,6 @@ export const createHybridAgent = async (
         const result = await originalToolNodeInvoke(state, config);
         const executionTime = Date.now() - startTime;
 
-        // Debug the structure of the result to help troubleshoot truncation issues
         if (result) {
           logger.debug(
             `Hybrid agent: Tool execution result structure: ${
@@ -98,7 +103,6 @@ export const createHybridAgent = async (
           );
         }
 
-        // Use truncateToolResults function to handle result truncation
         const truncatedResult = truncateToolResults(result, 5000);
 
         logger.debug(
@@ -114,14 +118,18 @@ export const createHybridAgent = async (
       }
     };
 
-    // Nœud d'entrée humaine qui utilise interrupt
+    /**
+     * Node that handles human input by interrupting the graph execution.
+     * It waits for external input and then adds it as a HumanMessage to the state.
+     * @param state - The current state of the graph.
+     * @returns An object with the new human message and reset waiting_for_input flag, or an empty object if not waiting.
+     */
     async function humanInputNode(state: typeof GraphState.State) {
-      // Interrompre seulement quand explicitement demandé
+      // Interrupt only when explicitly requested
       if (!state.waiting_for_input) {
-        return {}; // Pas de changement d'état, continuer
+        return {}; // No state change, continue
       }
 
-      // Obtenir le dernier message pour le montrer à l'humain
       const lastMessage = state.messages[state.messages.length - 1];
       const messageToShow = lastMessage.content;
 
@@ -129,7 +137,7 @@ export const createHybridAgent = async (
         `Hybrid agent: Interrupting for human input. Last message: ${typeof messageToShow === 'string' ? messageToShow.substring(0, 100) + '...' : '[complex content]'}`
       );
 
-      // Interrompre l'exécution et attendre l'entrée humaine
+      // Interrupt execution and wait for human input
       const humanInput = interrupt({
         message: messageToShow,
         state_summary: {
@@ -142,21 +150,21 @@ export const createHybridAgent = async (
         `Hybrid agent: Received human input: ${typeof humanInput === 'string' ? humanInput.substring(0, 100) + '...' : JSON.stringify(humanInput).substring(0, 100) + '...'}`
       );
 
-      // Ajouter le message humain à la conversation
+      // Add the human message to the conversation
       return {
         messages: [new HumanMessage(humanInput)],
-        waiting_for_input: false, // Réinitialiser le drapeau
+        waiting_for_input: false, // Reset the flag
       };
     }
 
     /**
- * Processes the current state and generates the next agent response
- * @param state Current graph state containing conversation history and status flags
- * @returns Updated state with new agent message and updated status flags
- * @throws Error if model invocation fails or exceeds maximum iterations
- */
+     * Processes the current state and generates the next agent response using an LLM.
+     * It handles iteration limits, final answer processing, and model selection.
+     * @param state - Current graph state containing conversation history and status flags.
+     * @returns Updated state with new agent message and updated status flags.
+     * @throws Error if model invocation fails or exceeds maximum iterations, or if config is missing.
+     */
     async function callModel(state: typeof GraphState.State) {
-      // Suivre les itérations pour éviter les boucles infinies
       const currentIteration = state.iterations || 0;
       const maxIterations = agent_config?.maxIteration || 50;
 
@@ -177,20 +185,16 @@ export const createHybridAgent = async (
         };
       }
 
-      // Check if we need to respond to a FINAL ANSWER
       const lastMessage = state.messages[state.messages.length - 1];
       if (
         lastMessage instanceof AIMessage &&
         lastMessage.additional_kwargs?.final_answer === true
       ) {
-        // Create a continuation message in response to FINAL ANSWER
         const finalAnswer = lastMessage.content;
         logger.debug(`Hybrid agent: Processing final answer continuation`);
 
-        // Clear the final_answer flag to prevent reprocessing
         delete lastMessage.additional_kwargs.final_answer;
 
-        // Extract just the FINAL ANSWER content to avoid keeping "FINAL ANSWER:" text
         let finalAnswerContent = finalAnswer;
         if (typeof finalAnswerContent === 'string') {
           const match = finalAnswerContent.match(/FINAL ANSWER:(.*?)$/s);
@@ -212,22 +216,18 @@ export const createHybridAgent = async (
         };
       }
 
-      // Validate required configuration fields
       if (!agent_config?.name) {
         throw new Error('Agent name is missing in configuration');
       }
-
       if (!(agent_config as any)?.bio) {
         throw new Error('Agent bio is missing in configuration');
       }
-
       if (
         !Array.isArray((agent_config as any)?.lore) ||
         (agent_config as any)?.lore.length === 0
       ) {
         throw new Error('Agent lore is missing or empty in configuration');
       }
-
       if (
         !Array.isArray((agent_config as any)?.objectives) ||
         (agent_config as any)?.objectives.length === 0
@@ -236,7 +236,6 @@ export const createHybridAgent = async (
           'Agent objectives are missing or empty in configuration'
         );
       }
-
       if (
         !Array.isArray((agent_config as any)?.knowledge) ||
         (agent_config as any)?.knowledge.length === 0
@@ -244,7 +243,7 @@ export const createHybridAgent = async (
         throw new Error('Agent knowledge is missing or empty in configuration');
       }
 
-      // Prompt système avec instructions hybrides
+      // System prompt with hybrid instructions
       const hybridSystemPrompt = `
         ${baseSystemPrompt(agent_config)}
 
@@ -258,17 +257,16 @@ export const createHybridAgent = async (
         new MessagesPlaceholder('messages'),
       ]);
 
-      // Formater le prompt et invoquer le modèle
       const formattedPrompt = await prompt.formatMessages({
         messages: state.messages,
       });
 
-      // Nettoyer les espaces en fin de chaîne pour éviter l'erreur d'API Claude
+      // Trim trailing spaces to avoid Claude API error
       for (const message of formattedPrompt) {
         if (typeof message.content === 'string') {
           message.content = message.content.trimEnd();
         } else if (Array.isArray(message.content)) {
-          // Pour les messages avec contenu en format array
+          // For messages with array content
           for (const part of message.content) {
             if (part.type === 'text' && typeof part.text === 'string') {
               part.text = part.text.trimEnd();
@@ -298,46 +296,41 @@ export const createHybridAgent = async (
         `Hybrid agent: Invoking model (${selectedModelType}) with ${state.messages.length} messages (iteration ${currentIteration + 1})`
       );
 
-      const result = await boundModel.invoke(formattedPrompt) as AIMessage;
+      const result: BaseMessage = await boundModel.invoke(formattedPrompt);
       logger.debug(`Hybrid agent: Model invocation complete`);
 
-      // Traiter le résultat pour vérifier si on attend une entrée
       let resultMessage: AIMessage;
       if (result instanceof AIMessage) {
         resultMessage = result;
       } else {
+        // If result is not an AIMessage, it's some other BaseMessage.
+        // It will have 'content'. It won't have 'tool_calls' in the AIMessage specific way.
         resultMessage = new AIMessage({
           content:
             typeof result.content === 'string'
               ? result.content
               : JSON.stringify(result.content),
-          tool_calls: result.tool_calls,
+          tool_calls: undefined, // AIMessage constructor handles optional tool_calls
           additional_kwargs: {
             from: 'hybrid-agent',
+            ...(result.additional_kwargs || {}), // Preserve other kwargs
           },
         });
       }
 
-      // Log AI output for monitoring
       const contentToCheck =
         typeof resultMessage.content === 'string'
           ? resultMessage.content.trim()
           : JSON.stringify(resultMessage.content || '');
 
       if (contentToCheck && contentToCheck !== '') {
-        // Format and display the output with the standard box format
         const content =
           typeof resultMessage.content === 'string'
             ? resultMessage.content
             : JSON.stringify(resultMessage.content);
 
-        // Replace box display with simple log
         logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
 
-        // Also log to the logger for records
-        logger.debug(`Hybrid agent: AI output logged`);
-
-        // Mark message as logged to prevent duplicate logging in start.ts
         if (!resultMessage.additional_kwargs) {
           resultMessage.additional_kwargs = {};
         }
@@ -352,12 +345,12 @@ export const createHybridAgent = async (
         );
       }
 
-      // Vérifier si nous devons attendre l'entrée humaine
+      // Check if we need to wait for human input
       const content =
         typeof resultMessage.content === 'string' ? resultMessage.content : '';
       const waitForInput = content.includes('WAITING_FOR_HUMAN_INPUT:');
 
-      // Vérifier si c'est une réponse finale
+      // Check if it's a final answer
       const isFinal = content.includes('FINAL ANSWER:');
 
       if (waitForInput) {
@@ -383,12 +376,14 @@ export const createHybridAgent = async (
       };
     }
 
-    // Fonction de routage d'état
+    /**
+     * Determines the next step in the agent's workflow based on the last message and current state.
+     * @param state - The current state of the graph.
+     * @returns A string indicating the next node to transition to: 'human_input', 'tools', 'agent', or 'end'.
+     */
     function shouldContinue(state: typeof GraphState.State) {
-      // Obtenir le dernier message
       const lastMessage = state.messages[state.messages.length - 1];
 
-      // Vérifier si nous devons attendre l'entrée humaine
       if (state.waiting_for_input) {
         logger.debug(
           `Hybrid agent: Waiting for human input, routing to human_input node`
@@ -396,13 +391,11 @@ export const createHybridAgent = async (
         return 'human_input';
       }
 
-      // Vérifier si le message a des appels d'outils
       if (lastMessage instanceof AIMessage && lastMessage.tool_calls?.length) {
         logger.debug(`Hybrid agent: Routing to tools node`);
         return 'tools';
       }
 
-      // Vérifier si le message contient "FINAL ANSWER" dans son contenu
       if (
         lastMessage instanceof AIMessage &&
         typeof lastMessage.content === 'string' &&
@@ -413,7 +406,6 @@ export const createHybridAgent = async (
           `Hybrid agent: Detected "FINAL ANSWER" in message content`
         );
 
-        // Mark message for processing in callModel and add a flag to prevent reprocessing
         if (!lastMessage.additional_kwargs) {
           lastMessage.additional_kwargs = {};
         }
@@ -427,7 +419,6 @@ export const createHybridAgent = async (
         return 'agent';
       }
 
-      // Vérifier si c'est un message final (basé sur les métadonnées)
       if (
         lastMessage instanceof AIMessage &&
         lastMessage.additional_kwargs?.final === true
@@ -436,12 +427,11 @@ export const createHybridAgent = async (
         return 'end';
       }
 
-      // Si c'est un message humain ou un message AI non final, retourner à l'agent
       logger.debug(`Hybrid agent: Routing back to agent node`);
       return 'agent';
     }
 
-    // Construire le flux de travail
+    // Build the workflow
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
       .addNode('tools', toolNode)
@@ -449,18 +439,18 @@ export const createHybridAgent = async (
 
     workflow.setEntryPoint('agent');
 
-    // Connecter les nœuds
+    // Connect the nodes
     workflow.addConditionalEdges('agent', shouldContinue, {
       tools: 'tools',
       human_input: 'human_input',
-      agent: 'agent',
+      agent: 'agent', // Allows re-prompting or continuing if no tools/human input
       end: '__end__',
     });
 
     workflow.addEdge('tools', 'agent');
     workflow.addEdge('human_input', 'agent');
 
-    // Compiler avec checkpointer pour le support d'interruption
+    // Compile with checkpointer for interruption support
     const checkpointer = new MemorySaver();
     const app = workflow.compile({ checkpointer });
 

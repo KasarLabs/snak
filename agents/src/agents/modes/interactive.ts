@@ -18,7 +18,10 @@ import { ModelSelectionAgent } from '../operators/modelSelectionAgent.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
 import { baseSystemPrompt, interactiveRules } from 'prompt/prompts.js';
 
-// Helper function to get memory agent from supervisor
+/**
+ * Retrieves the memory agent instance from the SupervisorAgent.
+ * @returns A promise that resolves to the memory agent instance or null if not found or an error occurs.
+ */
 const getMemoryAgent = async () => {
   try {
     // Try to get supervisor instance
@@ -34,7 +37,11 @@ const getMemoryAgent = async () => {
 };
 
 /**
- * Creates an agent in interactive mode
+ * Creates and configures an interactive agent.
+ * @param starknetAgent - The StarknetAgentInterface instance.
+ * @param modelSelector - An optional ModelSelectionAgent instance for dynamic model selection.
+ * @returns A promise that resolves to the compiled agent application.
+ * @throws Will throw an error if agent configuration is missing or invalid.
  */
 export const createInteractiveAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -42,24 +49,20 @@ export const createInteractiveAgent = async (
 ) => {
   try {
     const agent_config = starknetAgent.getAgentConfig();
-    logger.debug('agent_config', agent_config);
     if (!agent_config) {
       throw new Error('Agent configuration is required');
     }
 
     await initializeDatabase(starknetAgent.getDatabaseCredentials());
 
-    // Initialize tools
     const toolsList = await initializeToolsList(starknetAgent, agent_config);
 
-    // Get memory agent if memory is enabled
     let memoryAgent = null;
     if (agent_config.memory) {
       try {
         memoryAgent = await getMemoryAgent();
         if (memoryAgent) {
           logger.debug('Successfully retrieved memory agent');
-          // Add memory tools to toolsList
           const memoryTools = memoryAgent.prepareMemoryTools();
           toolsList.push(...memoryTools);
         } else {
@@ -84,12 +87,10 @@ export const createInteractiveAgent = async (
     // Add wrapper to log tool executions
     const originalInvoke = toolNode.invoke.bind(toolNode);
     toolNode.invoke = async (state, config) => {
-      // Log the tool call request
       const lastMessage = state.messages[state.messages.length - 1];
       const toolCalls = lastMessage?.tool_calls || [];
 
       if (toolCalls.length > 0) {
-        logger.debug(`Tool execution starting: ${toolCalls.length} calls`);
         for (const call of toolCalls) {
           logger.info(
             `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
@@ -97,20 +98,13 @@ export const createInteractiveAgent = async (
         }
       }
 
-      // Execute the original method
       const startTime = Date.now();
       const result = await originalInvoke(state, config);
       const executionTime = Date.now() - startTime;
 
-      // Use truncateToolResults function to handle result truncation
       const truncatedResult = truncateToolResults(result, 5000);
 
-      // Log the execution completion
-      if (
-        truncatedResult &&
-        truncatedResult.messages &&
-        truncatedResult.messages.length > 0
-      ) {
+      if (truncatedResult?.messages?.length > 0) {
         const resultMessage =
           truncatedResult.messages[truncatedResult.messages.length - 1];
         logger.debug(
@@ -122,45 +116,41 @@ export const createInteractiveAgent = async (
     };
 
     const configPrompt = agent_config.prompt?.content || '';
-    const memoryPrompt = ``;
     const finalPrompt = agent_config.memory
-      ? `${configPrompt}\n${memoryPrompt}`
+      ? `${configPrompt}
+User Memory Context:
+{memories}
+`
       : `${configPrompt}`;
 
+    /**
+     * Calls the appropriate language model with the current state and tools.
+     * @param state - The current state of the graph.
+     * @returns A promise that resolves to an object containing the model's response messages.
+     * @throws Will throw an error if agent configuration is incomplete or if model invocation fails.
+     */
     async function callModel(
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
       if (!agent_config) {
         throw new Error('Agent configuration is required but not available');
       }
-
-      if (!agent_config.name) {
-        throw new Error('Agent name is required in configuration');
-      }
-
-      if (!(agent_config as any).bio) {
-        throw new Error('Agent bio is required in configuration');
-      }
-
       if (
+        !agent_config.name ||
+        !(agent_config as any).bio ||
         !Array.isArray((agent_config as any).objectives) ||
-        (agent_config as any).objectives.length === 0
-      ) {
-        throw new Error('Agent objectives are required in configuration');
-      }
-
-      if (
+        (agent_config as any).objectives.length === 0 ||
         !Array.isArray((agent_config as any).knowledge) ||
         (agent_config as any).knowledge.length === 0
       ) {
-        throw new Error('Agent knowledge is required in configuration');
+        throw new Error(
+          'Agent configuration is incomplete (name, bio, objectives, or knowledge missing)'
+        );
       }
 
       const interactiveSystemPrompt = `
         ${baseSystemPrompt(agent_config)}
-
         ${interactiveRules}
-           
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
       `;
 
@@ -168,15 +158,12 @@ export const createInteractiveAgent = async (
         [
           'system',
           `${finalPrompt.trim()}
-        ${state.memories ? '\nUser Memory Context:\n' + state.memories : ''}
-        ${state.memories ? '\n' : ''}
         ${interactiveSystemPrompt}`.trim(),
         ],
         new MessagesPlaceholder('messages'),
       ]);
 
       try {
-        // Filter model-selector messages from history
         const filteredMessages = state.messages.filter(
           (msg) =>
             !(
@@ -185,95 +172,29 @@ export const createInteractiveAgent = async (
             )
         );
 
-        if (filteredMessages.length !== state.messages.length) {
-          logger.debug(
-            `Filtered out ${state.messages.length - filteredMessages.length} model-selector messages from history`
-          );
-        }
-
         const formattedPrompt = await prompt.formatMessages({
           tool_names: toolsList.map((tool) => tool.name).join(', '),
           messages: filteredMessages,
           memories: state.memories || '',
         });
 
-        // Estimate message size and check limit
         const estimatedTokens = estimateTokens(JSON.stringify(formattedPrompt));
+        let currentMessages = filteredMessages;
+        let currentFormattedPrompt = formattedPrompt;
+
         if (estimatedTokens > 90000) {
           logger.warn(
             `Prompt exceeds safe token limit: ${estimatedTokens} tokens. Truncating messages...`
           );
-
-          // Only keep the last 4 messages
-          const truncatedMessages = state.messages.slice(-4);
-
-          const truncatedPrompt = await prompt.formatMessages({
+          currentMessages = state.messages.slice(-4);
+          currentFormattedPrompt = await prompt.formatMessages({
             tool_names: toolsList.map((tool) => tool.name).join(', '),
-            messages: truncatedMessages,
+            messages: currentMessages,
             memories: state.memories || '',
           });
-
-          // Use model selection agent if available
-          if (modelSelector) {
-            // Get modelType from state if available
-            const stateModelType =
-              typeof state.memories === 'object' && state.memories
-                ? (state.memories as any).modelType
-                : null;
-
-            const selectedModelType =
-              stateModelType ||
-              (await modelSelector.selectModelForMessages(filteredMessages));
-
-            logger.debug(
-              `Using dynamically selected model: ${selectedModelType}`
-            );
-            const modelForThisTask = await modelSelector.getModelForTask(
-              filteredMessages,
-              selectedModelType
-            );
-
-            const boundModel =
-              typeof modelForThisTask.bindTools === 'function'
-                ? modelForThisTask.bindTools(toolsList)
-                : modelForThisTask;
-
-            const result = await boundModel.invoke(truncatedPrompt);
-            return formatAIMessageResult(result);
-          } else {
-            // Use existing model selector or create a new one if needed
-            logger.debug('Using existing model selector with smart model');
-            const existingModelSelector = ModelSelectionAgent.getInstance();
-
-            // If we have a model selector available, use it
-            if (existingModelSelector) {
-              const smartModel = await existingModelSelector.getModelForTask(
-                truncatedMessages,
-                'smart'
-              );
-
-              const boundSmartModel =
-                typeof smartModel.bindTools === 'function'
-                  ? smartModel.bindTools(toolsList)
-                  : smartModel;
-
-              const result = await boundSmartModel.invoke(truncatedPrompt);
-              return formatAIMessageResult(result);
-            } else {
-              // Fallback to creating direct model with specific provider
-              logger.warn(
-                'No model selector available, using direct provider selection'
-              );
-              throw new Error(
-                'Model selection requires a configured ModelSelectionAgent'
-              );
-            }
-          }
         }
 
-        // If we're below the limit, use the full prompt with dynamic model selection
         if (modelSelector) {
-          // Get modelType from state if available
           const stateModelType =
             typeof state.memories === 'object' && state.memories
               ? (state.memories as any).modelType
@@ -281,13 +202,13 @@ export const createInteractiveAgent = async (
 
           const selectedModelType =
             stateModelType ||
-            (await modelSelector.selectModelForMessages(filteredMessages));
+            (await modelSelector.selectModelForMessages(currentMessages));
 
           logger.debug(
             `Using dynamically selected model: ${selectedModelType}`
           );
           const modelForThisTask = await modelSelector.getModelForTask(
-            filteredMessages,
+            currentMessages,
             selectedModelType
           );
 
@@ -296,19 +217,32 @@ export const createInteractiveAgent = async (
               ? modelForThisTask.bindTools(toolsList)
               : modelForThisTask;
 
-          const result = await boundModel.invoke(formattedPrompt) as AIMessage;
+          const result = await boundModel.invoke(currentFormattedPrompt);
           return formatAIMessageResult(result);
         } else {
-          // Fallback to creating direct model with specific provider
-          logger.warn(
-            'No model selector available, using direct provider selection'
-          );
-          throw new Error(
-            'Model selection requires a configured ModelSelectionAgent'
-          );
+          const existingModelSelector = ModelSelectionAgent.getInstance();
+          if (existingModelSelector) {
+            logger.debug('Using existing model selector with smart model');
+            const smartModel = await existingModelSelector.getModelForTask(
+              currentMessages,
+              'smart'
+            );
+            const boundSmartModel =
+              typeof smartModel.bindTools === 'function'
+                ? smartModel.bindTools(toolsList)
+                : smartModel;
+            const result = await boundSmartModel.invoke(currentFormattedPrompt);
+            return formatAIMessageResult(result);
+          } else {
+            logger.warn(
+              'No model selector available, using direct provider selection is not supported without a ModelSelectionAgent.'
+            );
+            throw new Error(
+              'Model selection requires a configured ModelSelectionAgent'
+            );
+          }
         }
       } catch (error) {
-        // Handle token limit errors specifically
         if (
           error instanceof Error &&
           (error.message.includes('token limit') ||
@@ -316,19 +250,15 @@ export const createInteractiveAgent = async (
             error.message.includes('context length'))
         ) {
           logger.error(`Token limit error: ${error.message}`);
-
-          // Create a very reduced version with only the last message
           const minimalMessages = state.messages.slice(-2);
 
           try {
-            // Try with a minimal prompt using smart model
             const emergencyPrompt = await prompt.formatMessages({
               tool_names: toolsList.map((tool) => tool.name).join(', '),
               messages: minimalMessages,
               memories: '',
             });
 
-            // Try to use an existing model selector first
             const existingModelSelector = ModelSelectionAgent.getInstance();
             if (existingModelSelector) {
               const emergencyModel =
@@ -336,44 +266,44 @@ export const createInteractiveAgent = async (
                   minimalMessages,
                   'smart'
                 );
-
               const boundEmergencyModel =
                 typeof emergencyModel.bindTools === 'function'
                   ? emergencyModel.bindTools(toolsList)
                   : emergencyModel;
-
               const result = await boundEmergencyModel.invoke(emergencyPrompt);
               return formatAIMessageResult(result);
             } else {
-              // No model selector available
               throw new Error(
-                'Model selection requires a configured ModelSelectionAgent'
+                'Model selection requires a configured ModelSelectionAgent for emergency fallback.'
               );
             }
           } catch (emergencyError) {
-            // If even the emergency prompt fails, return a formatted error message
+            logger.error(`Emergency prompt failed: ${emergencyError}`);
             return {
               messages: [
                 new AIMessage({
                   content:
-                    'The conversation has become too long and exceeds token limits. Please start a new conversation.',
+                    'The conversation has become too long and exceeds token limits, even for a minimal recovery attempt. Please start a new conversation.',
                   additional_kwargs: {
                     from: 'snak',
                     final: true,
-                    error: 'token_limit_exceeded',
+                    error: 'token_limit_exceeded_emergency_failed',
                   },
                 }),
               ],
             };
           }
         }
-
-        // For other types of errors, propagate them
         throw error;
       }
     }
 
-    // Helper function to ensure consistent AI message formatting
+    /**
+     * Formats the result from an AI model call into a consistent AIMessage structure.
+     * Also truncates the message content if it's too long and logs the response.
+     * @param result - The raw result from the AI model.
+     * @returns An object containing an array with a single formatted AIMessage.
+     */
     function formatAIMessageResult(result: any): { messages: BaseMessage[] } {
       let finalResult = result;
       if (!(finalResult instanceof AIMessage)) {
@@ -394,26 +324,25 @@ export const createInteractiveAgent = async (
         finalResult.additional_kwargs.final = true;
       }
 
-      // Use truncateToolResults function to handle result truncation
-      const truncatedResult = truncateToolResults(finalResult, 5000);
+      const truncatedResultInstance = truncateToolResults(finalResult, 5000);
 
-      // Log the AI response with formatAgentResponse to ensure consistency across modes
-      const finalResultToLog = truncatedResult || finalResult;
+      const resultToLog = truncatedResultInstance || finalResult;
 
       if (
-        finalResultToLog instanceof AIMessage ||
-        (finalResultToLog &&
-          typeof finalResultToLog === 'object' &&
-          'content' in finalResultToLog)
+        resultToLog instanceof AIMessage ||
+        (resultToLog &&
+          typeof resultToLog === 'object' &&
+          'content' in resultToLog)
       ) {
         const content =
-          typeof finalResultToLog.content === 'string'
-            ? finalResultToLog.content
-            : JSON.stringify(finalResultToLog.content || '');
+          typeof resultToLog.content === 'string'
+            ? resultToLog.content
+            : JSON.stringify(resultToLog.content || '');
 
-        if (content && content.trim() !== '') {
-          // Format and log the response consistently with other modes
-          logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
+        if (content?.trim()) {
+          logger.info(`Agent Response:
+
+${formatAgentResponse(content)}`);
         }
       }
 
@@ -422,26 +351,30 @@ export const createInteractiveAgent = async (
       };
     }
 
-    // Decides whether to continue with tools or end execution
+    /**
+     * Determines the next step in the workflow based on the last message.
+     * If the last message contains tool calls, it routes to the 'tools' node.
+     * Otherwise, it ends the execution.
+     * @param state - The current state of the graph.
+     * @returns 'tools' if tool calls are present, otherwise 'end'.
+     */
     function shouldContinue(state: typeof GraphState.State) {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
 
       if (lastMessage.tool_calls?.length) {
         logger.debug(
-          `Detected ${lastMessage.tool_calls.length} tool calls in response, routing to tools node`
+          `Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`
         );
         return 'tools';
       }
       return 'end';
     }
 
-    // Build the workflow graph
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
-    // Add memory node if configured
     if (agent_config.memory && memoryAgent) {
       workflow
         .addNode('memory', memoryAgent.createMemoryNode())
@@ -451,12 +384,10 @@ export const createInteractiveAgent = async (
       workflow.addEdge('__start__', 'agent');
     }
 
-    // Complete the graph connections
     workflow
       .addConditionalEdges('agent', shouldContinue)
       .addEdge('tools', 'agent');
 
-    // Compile the workflow
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
       ...(agent_config.memory

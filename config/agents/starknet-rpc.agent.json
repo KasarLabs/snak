@@ -20,7 +20,7 @@
   ],
   "interval": 15000,
   "maxIteration": 15,
-  "mode": "hybrid",
+  "mode": "interactive",
   "memory": {
     "enabled": true,
     "shortTermMemorySize": 15

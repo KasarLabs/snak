@@ -10,7 +10,7 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import { AIMessage, BaseMessage, ToolMessage } from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -25,9 +25,38 @@ import {
 } from 'prompt/prompts.js';
 
 /**
- * Creates an agent in autonomous mode using StateGraph
- * @param starknetAgent The Starknet agent instance
- * @param modelSelector Model selector instance
+ * @typedef {Object} GraphStateShape
+ * @property {BaseMessage[]} messages - The list of messages in the current state.
+ * @property {number} [iterations] - Optional: Number of iterations an agent has performed.
+ */
+
+/**
+ * Defines the state structure for the autonomous agent graph.
+ */
+const GraphState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: (
+      x: BaseMessage[],
+      y: BaseMessage | BaseMessage[]
+    ): BaseMessage[] => x.concat(y),
+    default: (): BaseMessage[] => [],
+  }),
+  // Example: Add other state properties if needed for autonomous control later
+  // iterations: Annotation<number>({
+  //   reducer: (x: number, y: number): number => x + y,
+  //   default: (): number => 0,
+  // }),
+});
+
+/**
+ * Creates and configures an autonomous agent using a StateGraph.
+ * This agent can use tools, interact with models, and follow a defined workflow.
+ *
+ * @param {StarknetAgentInterface} starknetAgent - The Starknet agent instance, providing configuration and context.
+ * @param {ModelSelectionAgent | null} modelSelector - The model selection agent, responsible for choosing the appropriate LLM for tasks.
+ * @returns {Promise<Object>} A promise that resolves to an object containing the compiled LangGraph app,
+ *                            agent configuration, and maximum iteration count.
+ * @throws {Error} If agent configuration or model selector is missing, or if MCP tool initialization fails critically.
  */
 export const createAutonomousAgent = async (
   starknetAgent: StarknetAgentInterface,
@@ -36,22 +65,22 @@ export const createAutonomousAgent = async (
   try {
     const agent_config = starknetAgent.getAgentConfig();
     if (!agent_config) {
-      throw new Error('Agent configuration is required');
+      throw new Error('Agent configuration is required.');
     }
 
-    // Check if autonomous mode is explicitly disabled in config (redundant check, StarknetAgent likely handles this)
-    // if (json_config.mode && json_config.mode.autonomous === false) {
-    //   throw new Error('Autonomous mode is disabled in agent configuration');
-    // }
+    if (!modelSelector) {
+      logger.error(
+        'ModelSelectionAgent is required for autonomous mode but was not provided.'
+      );
+      throw new Error('ModelSelectionAgent is required for autonomous mode.');
+    }
 
-    // --- Tool Initialization ---
     let toolsList: (
       | StructuredTool
       | Tool
       | DynamicStructuredTool<AnyZodObject>
     )[] = await createAllowedTools(starknetAgent, agent_config.plugins);
 
-    // Initialize MCP tools if configured
     if (
       agent_config.mcpServers &&
       Object.keys(agent_config.mcpServers).length > 0
@@ -61,169 +90,130 @@ export const createAutonomousAgent = async (
         await mcp.initializeConnections();
         const mcpTools = mcp.getTools();
         logger.info(
-          `Added ${mcpTools.length} MCP tools to the autonomous agent`
+          `Initialized ${mcpTools.length} MCP tools for the autonomous agent.`
         );
         toolsList = [...toolsList, ...mcpTools];
       } catch (error) {
         logger.error(`Failed to initialize MCP tools: ${error}`);
-        // Consider if this should throw or just warn
+        // Depending on criticality, this could throw an error to stop agent creation.
       }
     }
 
-    // --- Model Selection Check ---
-    if (!modelSelector) {
-      logger.error(
-        'ModelSelectionAgent is required for autonomous mode but was not provided.'
-      );
-      throw new Error('ModelSelectionAgent is required for autonomous mode.');
-    }
-
-    // --- State Definition ---
-    const GraphState = Annotation.Root({
-      messages: Annotation<BaseMessage[]>({
-        reducer: (x, y) => x.concat(y),
-      }),
-      // Add other state properties if needed for autonomous control later (e.g., iteration count)
-    });
-
-    // --- Tool Node with Logging ---
     const toolNode = new ToolNode(toolsList);
     const originalToolNodeInvoke = toolNode.invoke.bind(toolNode);
+
+    /**
+     * Custom invoker for the ToolNode to add logging around tool executions.
+     * @param {typeof GraphState.State} state - The current graph state.
+     * @param {LangGraphRunnableConfig} [config] - Optional LangGraph runnable configuration.
+     * @returns {Promise<ToolMessage | ToolMessage[] | null>} The result of the tool invocation, truncated.
+     */
     toolNode.invoke = async (
       state: typeof GraphState.State,
       config?: LangGraphRunnableConfig
-    ) => {
+    ): Promise<ToolMessage | ToolMessage[] | null> => {
       const lastMessage = state.messages[state.messages.length - 1];
-      let toolCalls: any[] = []; // Initialize toolCalls
-
-      // Check if lastMessage is an AIMessage before accessing tool_calls
-      if (lastMessage instanceof AIMessage && lastMessage.tool_calls) {
-        toolCalls = lastMessage.tool_calls;
-      }
+      const toolCalls =
+        lastMessage instanceof AIMessage && lastMessage.tool_calls
+          ? lastMessage.tool_calls
+          : [];
 
       if (toolCalls.length > 0) {
-        logger.debug(`Tool execution starting: ${toolCalls.length} calls`);
-        for (const call of toolCalls) {
+        toolCalls.forEach((call) => {
           logger.info(
             `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
           );
-        }
-      } else {
-        logger.debug(
-          'ToolNode invoked, but no tool calls found in the last message.'
-        );
+        });
       }
 
       const startTime = Date.now();
       try {
         const result = await originalToolNodeInvoke(state, config);
         const executionTime = Date.now() - startTime;
+        const truncatedResult = truncateToolResults(result, 5000); // Max 5000 chars for tool output
 
-        // Use truncateToolResults function instead of manual logging
-        const truncatedResult = truncateToolResults(result, 5000);
-
-        // Langchain ToolNode result is directly the ToolMessages, not wrapped in { messages: [...] }
-        if (Array.isArray(truncatedResult)) {
-          logger.debug(
-            `Tool execution completed in ${executionTime}ms with ${truncatedResult.length} results.`
-          );
-        } else {
-          logger.debug(
-            `Tool execution completed in ${executionTime}ms. Result type: ${typeof truncatedResult}`
-          );
-        }
-        // Return the truncated result
+        logger.debug(
+          `Tool execution completed in ${executionTime}ms. Results: ${Array.isArray(truncatedResult) ? truncatedResult.length : typeof truncatedResult}`
+        );
         return truncatedResult;
       } catch (error) {
         const executionTime = Date.now() - startTime;
         logger.error(
           `Tool execution failed after ${executionTime}ms: ${error}`
         );
-        throw error; // Re-throw error to be handled by the graph/caller
+        throw error;
       }
     };
 
-    // --- Agent Node (callModel) ---
+    /**
+     * Represents a node in the graph that calls the language model.
+     * It formats the prompt, invokes the selected model, and processes the response.
+     *
+     * @async
+     * @param {typeof GraphState.State} state - The current state of the graph, containing messages.
+     * @returns {Promise<{ messages: BaseMessage[] }>} An object containing the list of new messages generated by the model.
+     * @throws {Error} If agent configuration or model selector is not available during execution.
+     */
     async function callModel(
       state: typeof GraphState.State
     ): Promise<{ messages: BaseMessage[] }> {
-      // Ensure return type matches graph expectation
-      if (!agent_config) {
-        // This check might be redundant due to the initial check, but good practice
-        throw new Error('Agent configuration is required but not available');
-      }
-      if (!modelSelector) {
-        // This check might be redundant due to the initial check
-        throw new Error('ModelSelectionAgent is required but not available');
+      if (!agent_config || !modelSelector) {
+        throw new Error(
+          'Agent configuration and ModelSelectionAgent are required.'
+        );
       }
 
-      // Check if we need to respond to a FINAL ANSWER
       const lastMessage = state.messages[state.messages.length - 1];
       if (
         lastMessage instanceof AIMessage &&
         lastMessage.additional_kwargs?.final_answer === true
       ) {
-        // Create a continuation message in response to FINAL ANSWER
-        const finalAnswer = lastMessage.content;
-        logger.debug(`Autonomous agent: Processing final answer continuation`);
+        logger.debug('Autonomous agent: Processing final answer continuation.');
+        delete lastMessage.additional_kwargs.final_answer; // Prevent reprocessing
 
-        // Clear the final_answer flag to prevent reprocessing
-        delete lastMessage.additional_kwargs.final_answer;
-
-        // Extract just the FINAL ANSWER content to avoid keeping "FINAL ANSWER:" text
-        let finalAnswerContent = finalAnswer;
+        let finalAnswerContent = lastMessage.content;
         if (typeof finalAnswerContent === 'string') {
           const match = finalAnswerContent.match(/FINAL ANSWER:(.*?)$/s);
-          if (match && match[1]) {
-            finalAnswerContent = match[1].trim();
-          }
+          finalAnswerContent =
+            match && match[1] ? match[1].trim() : finalAnswerContent;
         }
 
         return {
           messages: [
             new AIMessage({
               content: finalAnswerRules(finalAnswerContent),
-              additional_kwargs: {
-                from: 'starknet-autonomous',
-              },
+              additional_kwargs: { from: 'starknet-autonomous' },
             }),
           ],
         };
       }
 
       const autonomousSystemPrompt = `
-        ${baseSystemPrompt(agent_config)}
+      ${baseSystemPrompt(agent_config)}
 
-        ${autonomousRules}
+      ${autonomousRules}
 
-        Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
-      `;
+      Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
 
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', autonomousSystemPrompt],
         new MessagesPlaceholder('messages'),
       ]);
 
-      // Filter messages if needed (e.g., remove internal system messages)
-      const filteredMessages = state.messages; // Apply filtering if necessary
+      const filteredMessages = state.messages;
 
       try {
         const formattedPrompt = await prompt.formatMessages({
           messages: filteredMessages,
         });
 
-        // TODO: Implement robust token limit handling for autonomous mode
-        // This might involve summarizing older messages or using a different strategy
-        // than just truncating like in interactive mode. For now, proceed without explicit limit handling.
-
         const selectedModelType =
-          await modelSelector.selectModelForMessages(filteredMessages); // Default to dynamic selection
+          await modelSelector.selectModelForMessages(filteredMessages);
         const modelForThisTask = await modelSelector.getModelForTask(
           filteredMessages,
           selectedModelType
         );
 
-        // Ensure the model is bound with tools if the capability exists
         const boundModel =
           typeof modelForThisTask.bindTools === 'function'
             ? modelForThisTask.bindTools(toolsList)
@@ -232,11 +222,8 @@ export const createAutonomousAgent = async (
         logger.debug(
           `Autonomous agent invoking model (${selectedModelType}) with ${filteredMessages.length} messages.`
         );
-        // Use 'unknown' and type guards for safer result handling
         const result: unknown = await boundModel.invoke(formattedPrompt);
-        logger.debug(`Autonomous agent model invocation complete.`);
 
-        // Ensure result is BaseMessage[]
         let finalResultMessages: BaseMessage[];
 
         if (result instanceof AIMessage) {
@@ -245,7 +232,6 @@ export const createAutonomousAgent = async (
           Array.isArray(result) &&
           result.every((m): m is BaseMessage => m instanceof BaseMessage)
         ) {
-          // Use type guard in .every()
           finalResultMessages = result;
         } else if (
           typeof result === 'object' &&
@@ -253,11 +239,9 @@ export const createAutonomousAgent = async (
           'content' in result &&
           typeof result.content === 'string'
         ) {
-          // Check if it's an object with a string 'content' property (basic check)
           finalResultMessages = [
             new AIMessage({
               content: result.content,
-              // Safely access tool_calls if it exists
               tool_calls:
                 'tool_calls' in result && Array.isArray(result.tool_calls)
                   ? result.tool_calls
@@ -265,73 +249,64 @@ export const createAutonomousAgent = async (
             }),
           ];
         } else {
-          logger.error(`Unexpected model result type: ${typeof result}`);
-          // Create a fallback error message
+          logger.error(
+            `Unexpected model result type: ${typeof result}. Full result: ${JSON.stringify(result)}`
+          );
           finalResultMessages = [
             new AIMessage(
-              'Error: Received unexpected response format from language model.'
+              'Error: Received unexpected response format from the language model.'
             ),
           ];
         }
 
-        // Add standard 'from' metadata for consistency if missing
         finalResultMessages.forEach((msg) => {
-          if (msg instanceof AIMessage && !msg.additional_kwargs?.from) {
-            if (!msg.additional_kwargs) msg.additional_kwargs = {};
-            msg.additional_kwargs.from = 'starknet-autonomous'; // Differentiate source
+          if (msg instanceof AIMessage) {
+            msg.additional_kwargs = {
+              ...msg.additional_kwargs,
+              from: msg.additional_kwargs?.from || 'starknet-autonomous',
+            };
           }
         });
 
-        // Log AI output for monitoring purposes
-        const lastMessage = finalResultMessages[finalResultMessages.length - 1];
-        if (lastMessage) {
-          const contentToCheck =
-            typeof lastMessage.content === 'string'
-              ? lastMessage.content.trim()
-              : JSON.stringify(lastMessage.content || '');
+        const responseMessage =
+          finalResultMessages[finalResultMessages.length - 1];
+        if (responseMessage) {
+          const contentToLog =
+            typeof responseMessage.content === 'string'
+              ? responseMessage.content
+              : JSON.stringify(responseMessage.content);
 
-          if (contentToCheck && contentToCheck !== '') {
-            // Format and display the output with the standard box format
-            const content =
-              typeof lastMessage.content === 'string'
-                ? lastMessage.content
-                : JSON.stringify(lastMessage.content);
-
-            // Replace box display with simple log
-            logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
-
-            // Also log to the logger for records
-            logger.debug(`Autonomous agent: AI output logged`);
+          if (contentToLog && contentToLog.trim() !== '') {
+            logger.info(
+              `Agent Response:\n\n${formatAgentResponse(contentToLog)}`
+            );
           }
 
           if (
-            lastMessage instanceof AIMessage &&
-            lastMessage.tool_calls &&
-            lastMessage.tool_calls.length > 0
+            responseMessage instanceof AIMessage &&
+            responseMessage.tool_calls &&
+            responseMessage.tool_calls.length > 0
           ) {
-            const toolNames = lastMessage.tool_calls
+            const toolNames = responseMessage.tool_calls
               .map((call) => call.name)
               .join(', ');
             logger.info(
-              `Autonomous agent: Tool calls: ${lastMessage.tool_calls.length} calls - [${toolNames}]`
+              `Autonomous agent: Requested ${responseMessage.tool_calls.length} tool calls: [${toolNames}]`
             );
           }
         }
 
         return { messages: finalResultMessages };
-      } catch (error) {
+      } catch (error: any) {
         logger.error(`Error calling model in autonomous agent: ${error}`);
-        // Handle token limit errors specifically if they occur
         if (
-          error instanceof Error &&
-          (error.message.includes('token limit') ||
-            error.message.includes('tokens exceed') ||
-            error.message.includes('context length'))
+          error.message?.includes('token limit') ||
+          error.message?.includes('tokens exceed') ||
+          error.message?.includes('context length')
         ) {
           logger.error(
             `Token limit error during autonomous callModel: ${error.message}`
           );
-          // Return an error message that the main loop can use
           return {
             messages: [
               new AIMessage({
@@ -339,24 +314,40 @@ export const createAutonomousAgent = async (
                   'Error: The conversation history has grown too large, exceeding token limits. Cannot proceed.',
                 additional_kwargs: {
                   error: 'token_limit_exceeded',
-                  final: true,
-                }, // Signal error and potential final state
+                  final: true, // Signal error and potential final state
+                },
               }),
             ],
           };
         }
-        // Propagate other errors as AIMessage
         return {
-          messages: [new AIMessage(`Error during model execution: ${error}`)],
+          messages: [
+            new AIMessage(
+              `Error during model execution: ${error.message || String(error)}`
+            ),
+          ],
         };
       }
     }
 
-    // --- Graph Edges ---
+    /**
+     * Determines the next step in the agent's workflow based on the last message.
+     *
+     * @param {typeof GraphState.State} state - The current state of the graph.
+     * @returns {'tools' | 'agent'} A string indicating whether to proceed to tool execution ('tools')
+     *                              or back to the agent node ('agent').
+     */
     function shouldContinue(state: typeof GraphState.State): 'tools' | 'agent' {
       const lastMessage = state.messages[state.messages.length - 1];
 
-      // Check for tool calls only if it's an AIMessage
+      if (!lastMessage) {
+        // Should not happen if state.messages has a default [] and is always appended to
+        logger.warn(
+          'shouldContinue called with no messages in state. Defaulting to agent.'
+        );
+        return 'agent';
+      }
+
       if (lastMessage instanceof AIMessage && lastMessage.tool_calls?.length) {
         logger.debug(
           `Detected ${lastMessage.tool_calls.length} tool calls. Routing to tools node.`
@@ -364,65 +355,55 @@ export const createAutonomousAgent = async (
         return 'tools';
       }
 
-      // Check if the message contains "FINAL ANSWER"
       if (
         lastMessage instanceof AIMessage &&
         typeof lastMessage.content === 'string' &&
         lastMessage.content.includes('FINAL ANSWER:') &&
-        !lastMessage.additional_kwargs?.processed_final_answer
+        !lastMessage.additional_kwargs?.processed_final_answer // Ensure it's not already processed
       ) {
-        logger.debug('Detected "FINAL ANSWER" in message');
-
-        // Mark message for processing in callModel and add a flag to prevent reprocessing
-        if (!lastMessage.additional_kwargs) {
-          lastMessage.additional_kwargs = {};
-        }
-
-        lastMessage.additional_kwargs.final_answer = true;
-        lastMessage.additional_kwargs.processed_final_answer = true;
-
-        logger.debug('Marked message with final_answer flag for processing');
-        return 'agent';
+        logger.debug(
+          'Detected "FINAL ANSWER" in message. Routing to agent for processing.'
+        );
+        // Mark message for processing in callModel
+        lastMessage.additional_kwargs = {
+          ...(lastMessage.additional_kwargs || {}),
+          final_answer: true,
+          processed_final_answer: true, // Mark as processed to avoid re-entry for the same message
+        };
+        return 'agent'; // Route to agent to handle the FINAL ANSWER logic
       }
 
-      // If no tool calls and no FINAL ANSWER, always loop back to the agent to force continuation.
-      // Termination is handled by the external recursion limit in execute_autonomous.
+      // If no tool calls and no unprocessed FINAL ANSWER, loop back to the agent.
+      // Termination is handled by the external recursion limit in StarknetAgent.execute_autonomous.
       logger.debug(
-        'No tool calls detected. Routing back to agent for next iteration.'
+        'No tool calls or unprocessed FINAL ANSWER. Routing back to agent for next iteration.'
       );
-      return 'agent'; // Force loop back to agent
+      return 'agent';
     }
 
-    // --- Build Workflow ---
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
     workflow.setEntryPoint('agent');
 
-    // Modify conditional edges: only 'tools' or 'agent' targets
     workflow.addConditionalEdges('agent', shouldContinue, {
       tools: 'tools',
-      agent: 'agent', // Route back to agent if shouldContinue returns 'agent'
-      // __end__: '__end__', // REMOVED __end__ route
+      agent: 'agent',
     });
 
-    workflow.addEdge('tools', 'agent'); // Always loop back to agent after tools
+    workflow.addEdge('tools', 'agent');
 
-    // --- Compile ---
-    // Use MemorySaver for potential state persistence if needed across separate executions,
-    // but the main loop control will be external in StarknetAgent.execute_autonomous.
-    const checkpointer = new MemorySaver();
+    const checkpointer = new MemorySaver(); // For potential state persistence
     const app = workflow.compile({ checkpointer });
 
-    // Return the compiled app and potentially other config needed by StarknetAgent
     return {
       app,
       agent_config,
       maxIteration: agent_config.maxIteration,
     };
   } catch (error) {
-    logger.error('Failed to create autonomous agent graph:', error);
+    logger.error(`Failed to create autonomous agent graph: ${error}`);
     throw error;
   }
 };

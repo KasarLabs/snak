@@ -16,7 +16,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
     password: 'test_password',
     port: 5432,
   };
-  const json_config: AgentConfig = {
+  const agent_config: AgentConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
     interval: 1000,
@@ -57,7 +57,7 @@ export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
     password: 'test_password',
     port: 5432,
   };
-  const json_config: AgentConfig = {
+  const agent_config: AgentConfig = {
     name: 'MockAgent',
     prompt: mockSystemMessage,
     interval: 1000,

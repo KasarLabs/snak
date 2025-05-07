@@ -35,30 +35,31 @@ export class AgentSystem {
   }
 
   /**
-   * Initialize the agent system
+   * Initializes the agent system.
+   * This involves loading the agent configuration (if provided) and setting up the supervisor agent.
    */
   public async init(): Promise<void> {
     try {
-      logger.debug('AgentSystem: Starting initialization');
-
       // Load agent configuration if path is provided
       if (this.config.agentConfigPath) {
         logger.debug(
-          `AgentSystem: Loading config from: ${this.config.agentConfigPath}`
+          `AgentSystem: Loading agent configuration from: ${this.config.agentConfigPath}`
         );
         try {
           this.agentConfig = await this.loadAgentConfig(
             this.config.agentConfigPath
           );
-          logger.debug('AgentSystem: Successfully loaded agent configuration');
         } catch (loadError) {
           logger.error(
-            `AgentSystem: Error during config loading: ${loadError}`
+            `AgentSystem: Failed to load agent configuration: ${loadError}`
           );
+          // Continue without agentConfig if loading fails
           this.agentConfig = null;
         }
       } else {
-        logger.warn('AgentSystem: No agentConfigPath provided');
+        logger.warn(
+          'AgentSystem: No agentConfigPath provided, proceeding without agent-specific configuration.'
+        );
         this.agentConfig = null;
       }
 
@@ -90,7 +91,10 @@ export class AgentSystem {
   }
 
   /**
-   * Load agent configuration from the specified path
+   * Loads agent configuration from the specified file path.
+   * @param configPath The path to the agent configuration file.
+   * @returns A promise that resolves with the parsed AgentConfig.
+   * @throws Will throw an error if the configuration file cannot be read or parsed.
    */
   private async loadAgentConfig(configPath: string): Promise<AgentConfig> {
     try {
@@ -106,7 +110,11 @@ export class AgentSystem {
   }
 
   /**
-   * Execute a command with the agent system
+   * Executes a command using the agent system.
+   * @param input The input string for the command.
+   * @param config Optional configuration for the execution.
+   * @returns A promise that resolves with the execution result.
+   * @throws Will throw an error if the agent system is not initialized or if execution fails.
    */
   public async execute(
     input: string,
@@ -125,14 +133,17 @@ export class AgentSystem {
   }
 
   /**
-   * Get the supervisor agent
+   * Retrieves the supervisor agent instance.
+   * @returns The SupervisorAgent instance, or null if not initialized.
    */
   public getSupervisor(): SupervisorAgent | null {
     return this.supervisorAgent;
   }
 
   /**
-   * Get the Starknet agent (main agent)
+   * Retrieves the Starknet agent (main agent).
+   * @returns The Starknet agent instance.
+   * @throws Will throw an error if the agent system is not initialized.
    */
   public getStarknetAgent(): any {
     if (!this.supervisorAgent) {
@@ -142,7 +153,10 @@ export class AgentSystem {
   }
 
   /**
-   * Get an operator by ID
+   * Retrieves an operator by its ID.
+   * @param id The ID of the operator to retrieve.
+   * @returns The operator instance.
+   * @throws Will throw an error if the agent system is not initialized.
    */
   public getOperator(id: string): any {
     if (!this.supervisorAgent) {
@@ -152,7 +166,8 @@ export class AgentSystem {
   }
 
   /**
-   * Release agent system resources
+   * Releases resources used by the agent system.
+   * Sets the supervisor agent to null.
    */
   public async dispose(): Promise<void> {
     logger.debug('AgentSystem: Disposing resources');
@@ -161,9 +176,10 @@ export class AgentSystem {
   }
 
   /**
-   * Start a hybrid execution
-   * @param initialInput Initial input to start autonomous execution
-   * @returns Initial state and thread ID for further interaction
+   * Starts a hybrid execution flow.
+   * @param initialInput The initial input to begin the autonomous execution.
+   * @returns A promise that resolves with the initial state and a thread ID for further interaction.
+   * @throws Will throw an error if the agent system is not initialized.
    */
   public async startHybridExecution(
     initialInput: string
@@ -176,10 +192,11 @@ export class AgentSystem {
   }
 
   /**
-   * Provide input to a paused hybrid execution
-   * @param input Human input to provide
-   * @param threadId Thread ID of the paused execution
-   * @returns Updated state
+   * Provides input to a paused hybrid execution.
+   * @param input The human input to provide to the execution.
+   * @param threadId The thread ID of the paused execution.
+   * @returns A promise that resolves with the updated state of the execution.
+   * @throws Will throw an error if the agent system is not initialized.
    */
   public async provideHybridInput(
     input: string,
@@ -193,9 +210,10 @@ export class AgentSystem {
   }
 
   /**
-   * Check if a hybrid execution is waiting for input
-   * @param state Current execution state
-   * @returns Whether the execution is waiting for input
+   * Checks if a hybrid execution is currently waiting for user input.
+   * @param state The current execution state.
+   * @returns True if the execution is waiting for input, false otherwise.
+   * @throws Will throw an error if the agent system is not initialized.
    */
   public isWaitingForInput(state: any): boolean {
     if (!this.supervisorAgent) {
@@ -206,9 +224,10 @@ export class AgentSystem {
   }
 
   /**
-   * Check if a hybrid execution is complete
-   * @param state Current execution state
-   * @returns Whether the execution is complete
+   * Checks if a hybrid execution has completed.
+   * @param state The current execution state.
+   * @returns True if the execution is complete, false otherwise.
+   * @throws Will throw an error if the agent system is not initialized.
    */
   public isExecutionComplete(state: any): boolean {
     if (!this.supervisorAgent) {
@@ -220,7 +239,9 @@ export class AgentSystem {
 }
 
 /**
- * Helper function to create an agent system
+ * Helper function to create and initialize an instance of the AgentSystem.
+ * @param config The configuration for the agent system.
+ * @returns A promise that resolves with the initialized AgentSystem instance.
  */
 export async function createAgentSystem(
   config: AgentSystemConfig
