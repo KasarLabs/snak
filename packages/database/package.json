@@ -54,7 +54,8 @@
     "pg": "^8.14.1"
   },
   "devDependencies": {
-    "typescript": "latest"
+    "typescript": "latest",
+    "@types/pg": "^8.11.11"
   },
   "gitHead": "01d96634bbdf479afb73b2378f57688da907feb9"
 }
