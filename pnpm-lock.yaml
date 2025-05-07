@@ -233,7 +233,7 @@ importers:
         version: 12.5.2(@types/node@22.14.1)
       langchain:
         specifier: ^0.3.10
-        version: 0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1)
+        version: 0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4(debug@4.4.0))(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1)
       mem0ai:
         specifier: ^2.1.9
         version: 2.1.18(@anthropic-ai/sdk@0.37.0(encoding@0.1.13))(@google/genai@0.7.0(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@mistralai/mistralai@1.6.0(zod@3.24.3))(@qdrant/js-client-rest@1.13.0(typescript@5.8.3))(@supabase/supabase-js@2.49.4)(@types/jest@29.5.14)(@types/pg@8.11.13)(@types/sqlite3@3.1.11)(encoding@0.1.13)(groq-sdk@0.3.0(encoding@0.1.13))(neo4j-driver@5.28.1)(ollama@0.5.15)(pg@8.14.1)(redis@4.7.0)(sqlite3@5.1.7)(ws@8.18.1)
@@ -242,7 +242,7 @@ importers:
         version: 1.2.2
       snak-mcps:
         specifier: ^0.1.2
-        version: 0.1.2(@modelcontextprotocol/sdk@1.10.1)(encoding@0.1.13)(langchain@0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1))(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(react@19.1.0)(ws@8.18.1)(zod-to-json-schema@3.24.5(zod@3.24.3))(zod@3.24.3)
+        version: 0.1.2(@modelcontextprotocol/sdk@1.10.1)(encoding@0.1.13)(langchain@0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4(debug@4.4.0))(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1))(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(react@19.1.0)(ws@8.18.1)(zod-to-json-schema@3.24.5(zod@3.24.3))(zod@3.24.3)
 
   client:
     dependencies:
@@ -381,6 +381,9 @@ importers:
         specifier: ^8.14.1
         version: 8.14.1
     devDependencies:
+      '@types/pg':
+        specifier: ^8.11.13
+        version: 8.11.13
       typescript:
         specifier: latest
         version: 5.8.3
@@ -6881,6 +6884,7 @@ packages:
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
+    deprecated: Use your platform's native DOMException instead
 
   node-emoji@1.11.0:
     resolution: {integrity: sha512-wo2DpQkQp7Sjm2A0cq+sN7EHKO6Sl0ctXeBdFZrL9T9+UywORbufTcTZxom8YqpLQt/FqNMUkOpkZrJVYSKD3A==}
@@ -10379,7 +10383,7 @@ snapshots:
       flat: 5.0.2
       ibm-cloud-sdk-core: 5.3.2
       js-yaml: 4.1.0
-      langchain: 0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1)
+      langchain: 0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4(debug@4.4.0))(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1)
       langsmith: 0.3.18(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))
       openai: 4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)
       uuid: 10.0.0
@@ -13434,7 +13438,7 @@ snapshots:
       '@typescript-eslint/parser': 8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3)
       eslint: 9.24.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7))
+      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
       eslint-plugin-import: 2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.0)(eslint@9.24.0(jiti@1.21.7))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.24.0(jiti@1.21.7))
       eslint-plugin-react: 7.37.5(eslint@9.24.0(jiti@1.21.7))
@@ -13458,7 +13462,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7)):
+  eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.0
@@ -13473,14 +13477,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0)(eslint@9.24.0(jiti@1.21.7)):
+  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       '@typescript-eslint/parser': 8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3)
       eslint: 9.24.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0)(eslint@9.24.0(jiti@1.21.7))
+      eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
     transitivePeerDependencies:
       - supports-color
 
@@ -13495,7 +13499,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.24.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0)(eslint@9.24.0(jiti@1.21.7))
+      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0(eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.30.1(eslint@9.24.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7)))(eslint@9.24.0(jiti@1.21.7))
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -14535,7 +14539,7 @@ snapshots:
       isstream: 0.1.2
       jsonwebtoken: 9.0.2
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.8.4)
+      retry-axios: 2.6.0(axios@1.8.4(debug@4.4.0))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -15413,7 +15417,7 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1):
+  langchain@0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4(debug@4.4.0))(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1):
     dependencies:
       '@langchain/core': 0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))
       '@langchain/openai': 0.3.17(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1)
@@ -17380,7 +17384,7 @@ snapshots:
 
   ret@0.5.0: {}
 
-  retry-axios@2.6.0(axios@1.8.4):
+  retry-axios@2.6.0(axios@1.8.4(debug@4.4.0)):
     dependencies:
       axios: 1.8.4(debug@4.4.0)
 
@@ -17761,7 +17765,7 @@ snapshots:
 
   smart-buffer@4.2.0: {}
 
-  snak-mcps@0.1.2(@modelcontextprotocol/sdk@1.10.1)(encoding@0.1.13)(langchain@0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1))(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(react@19.1.0)(ws@8.18.1)(zod-to-json-schema@3.24.5(zod@3.24.3))(zod@3.24.3):
+  snak-mcps@0.1.2(@modelcontextprotocol/sdk@1.10.1)(encoding@0.1.13)(langchain@0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4(debug@4.4.0))(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1))(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(react@19.1.0)(ws@8.18.1)(zod-to-json-schema@3.24.5(zod@3.24.3))(zod@3.24.3):
     dependencies:
       '@langchain/core': 0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))
       '@langchain/google-genai': 0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3)
@@ -17769,7 +17773,7 @@ snapshots:
       '@langchain/openai': 0.4.9(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1)
       '@modelcontextprotocol/sdk': 1.10.1
       dotenv: 16.5.0
-      langchain: 0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1)
+      langchain: 0.3.22(@langchain/anthropic@0.3.18(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13))(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(@langchain/deepseek@0.0.1(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(encoding@0.1.13)(ws@8.18.1))(@langchain/google-genai@0.1.12(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3)))(zod@3.24.3))(@langchain/ollama@0.1.6(@langchain/core@0.3.45(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))))(axios@1.8.4(debug@4.4.0))(encoding@0.1.13)(handlebars@4.7.8)(openai@4.95.0(encoding@0.1.13)(ws@8.18.1)(zod@3.24.3))(ws@8.18.1)
       winston: 3.17.0
     optionalDependencies:
       extended-eventsource: 1.7.0
