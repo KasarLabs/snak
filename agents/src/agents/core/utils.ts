@@ -3,7 +3,7 @@ import { createAllowedTools } from '../../tools/tools.js';
 import { createSignatureTools } from '../../tools/signatureTools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { logger } from '@snakagent/core';
-import { AgentConfig } from '../../config/jsonConfig.js';
+import { AgentConfig } from '../../config/agentConfig.js';
 import { Postgres } from '@snakagent/database/queries';
 import { memory } from '@snakagent/database/queries';
 import { DatabaseCredentials } from '@snakagent/database';
@@ -18,24 +18,27 @@ import {
  */
 export async function initializeToolsList(
   starknetAgent: StarknetAgentInterface,
-  jsonConfig: AgentConfig
+  agentConfig: AgentConfig
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const isSignature = starknetAgent.getSignature().signature === 'wallet';
 
   if (isSignature) {
-    toolsList = await createSignatureTools(jsonConfig.plugins);
+    toolsList = await createSignatureTools(agentConfig.plugins);
   } else {
     const allowedTools = await createAllowedTools(
       starknetAgent,
-      jsonConfig.plugins
+      agentConfig.plugins
     );
     toolsList = [...allowedTools];
   }
 
-  if (jsonConfig.mcpServers && Object.keys(jsonConfig.mcpServers).length > 0) {
+  if (
+    agentConfig.mcpServers &&
+    Object.keys(agentConfig.mcpServers).length > 0
+  ) {
     try {
-      const mcp = MCP_CONTROLLER.fromJsonConfig(jsonConfig);
+      const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
       await mcp.initializeConnections();
 
       const mcpTools = mcp.getTools();
@@ -208,22 +211,21 @@ export const formatAgentResponse = (response: any): string => {
  * Process string content and handle potential JSON strings
  */
 export const processStringContent = (content: string): string => {
-  try {
-    // Check if it's a JSON string
-    if (
-      (content.startsWith('[') && content.endsWith(']')) ||
-      (content.startsWith('{') && content.endsWith('}'))
-    ) {
-      // Try to parse it
-      const parsed = JSON.parse(content);
+  const trimmedContent = content.trim();
+  if (
+    (trimmedContent.startsWith('[') && trimmedContent.endsWith(']')) ||
+    (trimmedContent.startsWith('{') && trimmedContent.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(trimmedContent);
       return processMessageContent(parsed); // Recursively process the parsed object
+    } catch (e) {
+      // Parsing failed, return original content
+      return content;
     }
-    // Regular string
-    return content;
-  } catch (e) {
-    // Not valid JSON, return as is
-    return content;
   }
+  // Not a string that looks like JSON (after trimming), return original content
+  return content;
 };
 
 /**

@@ -4,7 +4,7 @@ import {
 } from './supervisor/supervisorAgent.js';
 import { RpcProvider } from 'starknet';
 import { logger } from '@snakagent/core';
-import { AgentConfig, AgentMode } from '../config/jsonConfig.js';
+import { AgentConfig, AgentMode } from '../config/agentConfig.js';
 
 /**
  * Configuration for the agent system initialization
@@ -27,7 +27,7 @@ export interface AgentSystemConfig {
 export class AgentSystem {
   private supervisorAgent: SupervisorAgent | null = null;
   private config: AgentSystemConfig;
-  private agentConfig: AgentConfig | null = null;
+  private agentConfig: AgentConfig;
 
   constructor(config: AgentSystemConfig) {
     this.config = config;
@@ -72,7 +72,7 @@ export class AgentSystem {
           accountPrivateKey: this.config.accountPrivateKey,
           accountPublicKey: this.config.accountPublicKey,
           signature: this.config.signature,
-          agentConfig: this.agentConfig || undefined,
+          agentConfig: this.agentConfig,
           db_credentials: this.config.databaseCredentials,
         },
       };

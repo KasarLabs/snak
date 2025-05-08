@@ -85,7 +85,7 @@ export class ToolsOrchestrator extends BaseAgent {
         Object.keys(this.agentConfig.mcpServers).length > 0
       ) {
         try {
-          const mcp = MCP_CONTROLLER.fromJsonConfig(this.agentConfig);
+          const mcp = MCP_CONTROLLER.fromAgentConfig(this.agentConfig);
           await mcp.initializeConnections();
 
           const mcpTools = mcp.getTools();

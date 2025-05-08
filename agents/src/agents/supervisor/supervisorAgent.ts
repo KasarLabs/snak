@@ -17,7 +17,7 @@ import {
   AgentConfig,
   AgentMode,
   AGENT_MODES,
-} from '../../config/jsonConfig.js';
+} from '../../config/agentConfig.js';
 import { RpcProvider } from 'starknet';
 
 /**
@@ -234,7 +234,7 @@ export class SupervisorAgent extends BaseAgent {
    * Initializes metrics collection for the agent.
    * @param agentConfig The configuration of the agent, used to determine agent name and mode for metrics.
    */
-  private initializeMetrics(agentConfig: AgentConfig | null | undefined): void {
+  private initializeMetrics(agentConfig: AgentConfig): void {
     if (!this.starknetAgent) {
       logger.warn(
         'SupervisorAgent: StarknetAgent not available, skipping metrics initialization.'

@@ -9,7 +9,7 @@ import {
   AgentConfig,
   AgentMode,
   AGENT_MODES,
-} from '../../config/jsonConfig.js';
+} from '../../config/agentConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
@@ -25,7 +25,7 @@ export interface StarknetAgentConfig {
   accountPrivateKey: string;
   signature: string;
   db_credentials: DatabaseCredentials;
-  agentConfig?: AgentConfig;
+  agentConfig: AgentConfig;
   memory?: MemoryConfig;
   modelSelector?: ModelSelectionAgent;
 }
@@ -39,7 +39,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
   private readonly accountPublicKey: string;
   private readonly signature: string;
   private readonly agentMode: string;
-  private readonly agentconfig?: AgentConfig;
+  private readonly agentConfig: AgentConfig;
   private readonly db_credentials: DatabaseCredentials;
   private memory: MemoryConfig;
   private currentMode: string;
@@ -59,7 +59,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     this.db_credentials = config.db_credentials;
     this.currentMode =
       AGENT_MODES[config.agentConfig?.mode || AgentMode.INTERACTIVE];
-    this.agentconfig = config.agentConfig;
+    this.agentConfig = config.agentConfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
 
@@ -89,18 +89,18 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
         );
       }
 
-      // Ensure agentconfig and its plugins property are initialized
-      if (this.agentconfig) {
-        this.agentconfig.plugins = this.agentconfig.plugins || [];
+      // Ensure agentConfig and its plugins property are initialized
+      if (this.agentConfig) {
+        this.agentConfig.plugins = this.agentConfig.plugins || [];
       } else {
         logger.warn('StarknetAgent: No agent configuration available.');
       }
 
       // Set default mode to hybrid if configuration allows
       if (
-        this.agentconfig?.mode === AgentMode.HYBRID ||
+        this.agentConfig?.mode === AgentMode.HYBRID ||
         (this.agentMode === AGENT_MODES[AgentMode.AUTONOMOUS] &&
-          this.agentconfig?.mode === AgentMode.AUTONOMOUS)
+          this.agentConfig?.mode === AgentMode.AUTONOMOUS)
       ) {
         this.currentMode = AGENT_MODES[AgentMode.HYBRID];
       }
@@ -243,8 +243,8 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
    * Get agent configuration.
    * @returns The agent configuration object, or undefined if not set.
    */
-  public getAgentConfig(): AgentConfig | undefined {
-    return this.agentconfig;
+  public getAgentConfig(): AgentConfig {
+    return this.agentConfig;
   }
 
   /**
@@ -625,7 +625,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       if (this.memory.enabled !== false) {
         const maxIteration =
-          this.agentconfig?.maxIteration ??
+          this.agentConfig?.maxIteration ??
           this.memory.maxIteration ??
           this.memory.shortTermMemorySize ??
           15;
@@ -721,7 +721,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       );
 
       if (this.currentMode !== AGENT_MODES[AgentMode.AUTONOMOUS]) {
-        if (this.agentconfig?.mode === AgentMode.AUTONOMOUS) {
+        if (this.agentConfig?.mode === AgentMode.AUTONOMOUS) {
           logger.info(
             `Overriding current mode to '${AGENT_MODES[AgentMode.AUTONOMOUS]}' based on agent configuration for autonomous execution.`
           );
@@ -981,7 +981,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       if (
         !this.agentReactExecutor ||
-        this.agentconfig?.mode !== AgentMode.HYBRID // Assuming re-creation if config implies hybrid but executor isn't set for it
+        this.agentConfig?.mode !== AgentMode.HYBRID // Assuming re-creation if config implies hybrid but executor isn't set for it
       ) {
         logger.debug(
           'StarknetAgent: Creating or re-creating hybrid agent executor.'

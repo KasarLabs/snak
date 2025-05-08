@@ -86,7 +86,7 @@ export const createAutonomousAgent = async (
       Object.keys(agent_config.mcpServers).length > 0
     ) {
       try {
-        const mcp = MCP_CONTROLLER.fromJsonConfig(agent_config);
+        const mcp = MCP_CONTROLLER.fromAgentConfig(agent_config);
         await mcp.initializeConnections();
         const mcpTools = mcp.getTools();
         logger.info(

@@ -5,7 +5,7 @@ import { logger } from '@snakagent/core';
 import { IAgent } from '../core/baseAgent.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import crypto from 'crypto';
-import { AgentMode, AGENT_MODES } from '../../config/jsonConfig.js';
+import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 
 /**
  * Represents the state of the multi-agent workflow.

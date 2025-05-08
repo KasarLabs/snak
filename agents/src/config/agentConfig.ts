@@ -214,7 +214,7 @@ export const validateConfig = (config: AgentConfig) => {
  */
 const checkParseJson = async (
   agent_config_name: string
-): Promise<AgentConfig | undefined> => {
+): Promise<AgentConfig> => {
   try {
     // Try multiple possible locations for the config file
     const possiblePaths = [
@@ -283,7 +283,7 @@ const checkParseJson = async (
     }
 
     // Create config object
-    const jsonconfig: AgentConfig = {
+    const agentConfig: AgentConfig = {
       prompt: systemMessagefromjson,
       name: json.name,
       interval: json.interval,
@@ -304,11 +304,11 @@ const checkParseJson = async (
             : 10,
     };
 
-    if (jsonconfig.plugins.length === 0) {
+    if (agentConfig.plugins.length === 0) {
       logger.warn("No plugins specified in agent's config");
     }
-    validateConfig(jsonconfig);
-    return jsonconfig;
+    validateConfig(agentConfig);
+    return agentConfig;
   } catch (error) {
     logger.error(
       chalk.red(
@@ -316,7 +316,7 @@ const checkParseJson = async (
       )
     );
     logger.error('Failed to parse config : ', error);
-    return undefined;
+    throw error;
   }
 };
 
@@ -325,7 +325,7 @@ const checkParseJson = async (
  */
 export const load_json_config = async (
   agent_config_name: string
-): Promise<AgentConfig | undefined> => {
+): Promise<AgentConfig> => {
   try {
     const json = await checkParseJson(agent_config_name);
     if (!json) {
@@ -334,6 +334,6 @@ export const load_json_config = async (
     return json;
   } catch (error) {
     logger.error(error);
-    return undefined;
+    throw new Error('Failed to load JSON config');
   }
 };

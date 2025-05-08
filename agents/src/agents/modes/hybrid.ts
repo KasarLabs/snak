@@ -11,7 +11,7 @@ import {
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
-import { AgentConfig } from '../../config/jsonConfig.js';
+import { AgentConfig } from '../../config/agentConfig.js';
 import { StarknetAgentInterface } from '../../tools/tools.js';
 import {
   initializeToolsList,
@@ -38,14 +38,12 @@ export const createHybridAgent = async (
   starknetAgent: StarknetAgentInterface,
   modelSelector: ModelSelectionAgent | null
 ) => {
-  let agent_config: AgentConfig | undefined = undefined;
+  const agent_config = starknetAgent.getAgentConfig();
+  if (!agent_config) {
+    throw new Error('Agent configuration is required');
+  }
 
   try {
-    agent_config = starknetAgent.getAgentConfig();
-    if (!agent_config) {
-      throw new Error('Agent configuration is required');
-    }
-
     const toolsList = await initializeToolsList(starknetAgent, agent_config);
 
     // Define the graph state
@@ -166,7 +164,7 @@ export const createHybridAgent = async (
      */
     async function callModel(state: typeof GraphState.State) {
       const currentIteration = state.iterations || 0;
-      const maxIterations = agent_config?.maxIteration || 50;
+      const maxIterations = agent_config.maxIteration || 50;
 
       if (currentIteration >= maxIterations) {
         logger.warn(`Hybrid agent: Max iterations reached (${maxIterations})`);
@@ -214,33 +212,6 @@ export const createHybridAgent = async (
           ],
           iterations: currentIteration + 1,
         };
-      }
-
-      if (!agent_config?.name) {
-        throw new Error('Agent name is missing in configuration');
-      }
-      if (!(agent_config as any)?.bio) {
-        throw new Error('Agent bio is missing in configuration');
-      }
-      if (
-        !Array.isArray((agent_config as any)?.lore) ||
-        (agent_config as any)?.lore.length === 0
-      ) {
-        throw new Error('Agent lore is missing or empty in configuration');
-      }
-      if (
-        !Array.isArray((agent_config as any)?.objectives) ||
-        (agent_config as any)?.objectives.length === 0
-      ) {
-        throw new Error(
-          'Agent objectives are missing or empty in configuration'
-        );
-      }
-      if (
-        !Array.isArray((agent_config as any)?.knowledge) ||
-        (agent_config as any)?.knowledge.length === 0
-      ) {
-        throw new Error('Agent knowledge is missing or empty in configuration');
       }
 
       // System prompt with hybrid instructions
@@ -345,12 +316,20 @@ export const createHybridAgent = async (
         );
       }
 
-      // Check if we need to wait for human input
-      const content =
-        typeof resultMessage.content === 'string' ? resultMessage.content : '';
-      const waitForInput = content.includes('WAITING_FOR_HUMAN_INPUT:');
+      if (
+        typeof resultMessage.content !== 'string' ||
+        resultMessage.content === ''
+      ) {
+        return {
+          messages: [resultMessage],
+          waiting_for_input: false,
+          iterations: currentIteration + 1,
+        };
+      }
 
-      // Check if it's a final answer
+      // At this point, resultMessage.content is a non-empty string.
+      const content = resultMessage.content;
+      const waitForInput = content.includes('WAITING_FOR_HUMAN_INPUT:');
       const isFinal = content.includes('FINAL ANSWER:');
 
       if (waitForInput) {

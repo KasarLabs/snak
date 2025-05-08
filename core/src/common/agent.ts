@@ -87,5 +87,5 @@ export interface StarknetAgentInterface {
     signature: string;
   };
   getProvider: () => RpcProvider;
-  getAgentConfig: () => AgentConfig | undefined;
+  getAgentConfig: () => AgentConfig;
 }

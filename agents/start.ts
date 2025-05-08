@@ -13,7 +13,7 @@ import {
   AgentMode,
   AgentConfig,
   AGENT_MODES,
-} from './src/config/jsonConfig.js';
+} from './src/config/agentConfig.js';
 import { createBox } from './src/prompt/formatting.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -191,8 +191,7 @@ const localRun = async (): Promise<void> => {
     const { agentPath, modelsConfigPath } = await loadCommand();
 
     // Load initial agent config
-    let json_config: AgentConfig | undefined =
-      await load_json_config(agentPath);
+    let json_config: AgentConfig = await load_json_config(agentPath);
     if (!json_config) {
       throw new Error(`Failed to load agent configuration from ${agentPath}`);
     }

@@ -1,6 +1,6 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
-import { AgentConfig } from '../config/jsonConfig.js';
+import { AgentConfig } from '../config/agentConfig.js';
 import { logger } from '@snakagent/core';
 import { metrics } from '@snakagent/core';
 import { DatabaseCredentials } from './types/database.js';
@@ -28,7 +28,7 @@ export interface StarknetAgentInterface {
     signature: string;
   };
   getProvider: () => RpcProvider;
-  getAgentConfig: () => AgentConfig | undefined;
+  getAgentConfig: () => AgentConfig;
 }
 
 /**

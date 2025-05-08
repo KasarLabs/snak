@@ -26,8 +26,8 @@ export type {
 } from './tools/signatureTools.js';
 
 // Config exports
-export type { AgentConfig } from './config/jsonConfig.js';
-export { load_json_config, AgentMode } from './config/jsonConfig.js';
+export type { AgentConfig } from './config/agentConfig.js';
+export { load_json_config, AgentMode } from './config/agentConfig.js';
 
 // Common exports
 export type { IAgent, AiConfig } from './common/index.js';

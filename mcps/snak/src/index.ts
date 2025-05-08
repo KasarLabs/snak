@@ -1,16 +1,35 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgent, registerTools, StarknetTool } from '@snakagent/agents';
+import {
+  StarknetAgent,
+  registerTools,
+  StarknetTool,
+  AgentConfig,
+} from '@snakagent/agents';
 import path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
+
+const defaultAgentConfigPath = path.join(
+  __dirname,
+  '../../../config/agent/default.agent.json'
+);
+let defaultAgentConfig = {};
+try {
+  const configData = fs.readFileSync(defaultAgentConfigPath, 'utf8');
+  defaultAgentConfig = JSON.parse(configData);
+  console.error('Agent config loaded from:', defaultAgentConfigPath);
+} catch (error) {
+  console.error('Warning: Could not load default agent config:', error.message);
+}
 
 const server = new McpServer({
   name: 'snak',
@@ -43,7 +62,7 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
     signature: 'key',
     db_credentials: database,
-    agentConfig: undefined,
+    agentConfig: defaultAgentConfig as AgentConfig,
   });
   await agent.init();
 
