@@ -38,11 +38,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Ensure database dependencies
+      - name: Ensure database and server dependencies
         run: |
           echo "Adding explicit pg dependencies"
           pnpm add -D @types/pg@8.11.13 --filter @snakagent/database
           pnpm add pg@8.14.1 --filter @snakagent/database
+          pnpm add -D @types/pg@8.11.13 --filter @snakagent/server
+          pnpm add pg@8.14.1 --filter @snakagent/server
 
       - name: Install dependencies
         run: pnpm install --force
@@ -109,11 +111,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Ensure database dependencies
+      - name: Ensure database and server dependencies
         run: |
           echo "Adding explicit pg dependencies"
           pnpm add -D @types/pg@8.11.13 --filter @snakagent/database
           pnpm add pg@8.14.1 --filter @snakagent/database
+          pnpm add -D @types/pg@8.11.13 --filter @snakagent/server
+          pnpm add pg@8.14.1 --filter @snakagent/server
 
       - name: Install dependencies
         run: pnpm install --force
