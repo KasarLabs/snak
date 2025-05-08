@@ -46,6 +46,7 @@
     "lint:plugins": "lerna run lint --scope \"@snakagent/plugins-*\"",
     "lint:agents": "lerna run lint --scope \"@snakagent/agents\"",
     "prettier:all": "lerna run format",
+    "start:server:dev": "pnpm run build && lerna run start --scope \"@snakagent/server\"",
     "node:server": "node ./mcps/snak/dist/index.js"
   },
   "dependencies": {

@@ -100,7 +100,6 @@ export class AgentFactory {
         accountPublicKey: this.config.starknet.publicKey,
         agentConfig: this.json_config,
         db_credentials: database,
-        signature: signature,
       });
 
       // Store for later reuse

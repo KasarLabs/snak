@@ -8,11 +8,11 @@ import { IAgent } from '../interfaces/agent.interface.js';
 import { AgentRequestDTO } from '../dto/agents.js';
 import {
   AgentValidationError,
-  AgentCredentialsError,
   AgentExecutionError,
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
+import { AgentSystem } from '@snakagent/agents';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -21,7 +21,7 @@ export class AgentService implements IAgentService {
   constructor(private readonly config: ConfigurationService) {}
 
   async handleUserRequest(
-    agent: IAgent,
+    agent: AgentSystem,
     userRequest: AgentRequestDTO
   ): Promise<AgentExecutionResponse> {
     this.logger.debug({
@@ -30,14 +30,14 @@ export class AgentService implements IAgentService {
     });
 
     try {
-      const status = await this.getAgentStatus(agent);
-      if (!status.isReady) {
-        throw new AgentCredentialsError('Agent is not properly configured');
-      }
+      // const status = await this.getAgentStatus(agent);
+      // if (!status.isReady) {
+      //   throw new AgentCredentialsError('Agent is not properly configured');
+      // }
 
-      if (!(await agent.validateRequest(userRequest.request))) {
-        throw new AgentValidationError('Invalid request format or parameters');
-      }
+      // if (!(await agent.validateRequest(userRequest.request))) {
+      //   throw new AgentValidationError('Invalid request format or parameters');
+      // }
 
       const result = await agent.execute(userRequest.request);
 

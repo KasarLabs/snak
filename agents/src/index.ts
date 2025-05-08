@@ -27,7 +27,10 @@ export type {
 
 // Config exports
 export type { AgentConfig } from './config/agentConfig.js';
-export { load_json_config, AgentMode } from './config/agentConfig.js';
+export { load_json_config, AgentMode, createContextFromJson } from './config/agentConfig.js';
 
 // Common exports
 export type { IAgent, AiConfig } from './common/index.js';
+
+export type { AgentSystemConfig } from './agents/index.js';
+export { AgentSystem } from './agents/index.js';

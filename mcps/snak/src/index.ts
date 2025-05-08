@@ -60,7 +60,6 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-    signature: 'key',
     db_credentials: database,
     agentConfig: defaultAgentConfig as AgentConfig,
   });

@@ -52,8 +52,12 @@ export class ConfigurationService {
     // Resolve and load models config
     this.modelsConfigPath = path.resolve(
       process.cwd(),
+      '..',
       this.config.AI_MODELS_CONFIG_PATH
     );
+
+    console.log(process.env.POSTGRES_USER);
+    console.log('Models config path:', process.cwd());
     try {
       const modelsFileContent = fs.readFileSync(this.modelsConfigPath, 'utf-8');
       this.modelsConfig = JSON.parse(modelsFileContent);

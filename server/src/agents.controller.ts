@@ -4,54 +4,101 @@ import {
   Get,
   Logger,
   NotFoundException,
-  OnModuleInit,
   Post,
+  Req,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { AgentRequestDTO } from './dto/agents.js';
-import { StarknetAgent } from '@snakagent/agents';
+import {
+  AgentAddRequestDTO,
+  AgentDeleteRequestDTO,
+  AgentRequestDTO,
+} from './dto/agents.js';
 import { AgentService } from './services/agent.service.js';
 import { AgentResponseInterceptor } from './interceptors/response.js';
 import { FileTypeGuard } from './guard/file-validator.guard.js';
 import { promises as fs } from 'fs';
 import { getFilename } from './utils/index.js';
-import { AgentFactory } from './agents.factory.js';
+import { AgentStorage } from './agents.storage.js';
 import { metrics } from '@snakagent/core';
 import { Reflector } from '@nestjs/core';
+import errorMap from './utils/error.js';
+import { FastifyRequest } from 'fastify';
+// import { Postgres } from '@snakagent/database';
 
-@Controller('key')
+export class ServerError extends Error {
+  errorCode: string;
+  statusCode: number;
+  constructor(errorCode: string) {
+    const errorMessage = errorMap.get(errorCode) || 'Unknown error';
+    super(errorMessage);
+    this.name = 'ServerError';
+    this.errorCode = errorCode;
+    this.statusCode = 500;
+    Object.setPrototypeOf(this, ServerError.prototype);
+  }
+}
+
+@Controller('agents')
 @UseInterceptors(AgentResponseInterceptor)
-export class AgentsController implements OnModuleInit {
-  private agent: StarknetAgent;
+export class AgentsController {
   constructor(
     private readonly agentService: AgentService,
-    private readonly agentFactory: AgentFactory,
+    private readonly agentFactory: AgentStorage,
     private readonly reflector: Reflector
   ) {}
 
-  async onModuleInit() {
+  @Post('request')
+  async handleUserRequest(@Body() userRequest: AgentRequestDTO) {
     try {
-      this.agent = await this.agentFactory.createAgent('key');
-      await this.agent.init();
+      const route = this.reflector.get('path', this.handleUserRequest);
+      const agent = this.agentFactory.getAgent(userRequest.agent);
+      if (!agent) {
+        throw new ServerError('E01TA400');
+      }
+      const action = this.agentService.handleUserRequest(agent, userRequest);
+      return await metrics.metricsAgentResponseTime(
+        userRequest.agent,
+        'key',
+        route,
+        action
+      );
     } catch (error) {
-      console.error('Failed to initialize AgentsController:', error);
-      throw error;
+      console.log(process.env.POSTGRES_USER);
+      console.log('Error in handleUserRequest:', error);
+      throw new ServerError('E03TA100');
     }
   }
 
-  @Post('request')
-  async handleUserRequest(@Body() userRequest: AgentRequestDTO) {
-    const agent = this.agent.getAgentConfig()?.name ?? 'agent';
-    const mode = this.agent.getAgentMode();
-    const route = this.reflector.get('path', this.handleUserRequest);
-    const action = this.agentService.handleUserRequest(this.agent, userRequest);
-    return await metrics.metricsAgentResponseTime(agent, mode, route, action);
+  @Post('delete_agent')
+  async deleteAgent(@Body() userRequest: AgentDeleteRequestDTO) {
+    try {
+      const agent = this.agentFactory.getAgent(userRequest.agent);
+      if (!agent) {
+        throw new ServerError('E01TA400');
+      }
+      await this.agentFactory.deleteAgent(userRequest.agent);
+      console.log('Agent deleted:', userRequest.agent);
+      return { status: 'success', data: 'Agent deleted' };
+    } catch (error) {
+      throw new ServerError('E04TA100');
+    }
   }
 
-  @Get('status')
-  async getAgentStatus() {
-    return await this.agentService.getAgentStatus(this.agent);
+  @Post('add_agent')
+  async addAgent(@Body() userRequest: AgentAddRequestDTO) {
+    try {
+      await this.agentFactory.addAgent(userRequest.agent);
+      return { status: 'success', data: 'Agent added' };
+    } catch (error) {
+      console.log('Error in addAgent:', error);
+      throw new ServerError('E02TA200');
+    }
+  }
+
+  @Get('health')
+  async getAgentHealth() {
+    return { status: 'success', data: 'Agent is healthy' };
   }
 
   @Post('upload_large_file')
@@ -63,11 +110,15 @@ export class AgentsController implements OnModuleInit {
       'image/png',
     ])
   )
-  async uploadFile() {
+
+  async uploadFile(@Req() req: FastifyRequest) {
     const logger = new Logger('Upload service');
+    req.log.info('File upload request received');
     logger.debug({ message: 'The file has been uploaded' });
     return { status: 'success', data: 'The file has been uploaded.' };
   }
+
+  
 
   @Post('delete_large_file')
   async deleteUploadFile(@Body() filename: { filename: string }) {

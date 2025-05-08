@@ -125,7 +125,6 @@ export class SupervisorAgent extends BaseAgent {
         provider: this.config.starknetConfig.provider,
         accountPublicKey: this.config.starknetConfig.accountPublicKey,
         accountPrivateKey: this.config.starknetConfig.accountPrivateKey,
-        signature: this.config.starknetConfig.signature,
         modelSelector: this.modelSelectionAgent,
         memory: this.config.starknetConfig.agentConfig?.memory,
         agentConfig: this.config.starknetConfig.agentConfig,
