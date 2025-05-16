@@ -368,14 +368,15 @@ ${formatAgentResponse(content)}`);
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
       ...(agent_config.memory
-        ? {
-            checkpointer: checkpointer,
-            configurable: {},
-          }
+        ? { checkpointer: checkpointer, configurable: {} }
         : {}),
     });
 
-    return app;
+    return {
+      app,
+      json_config: agent_config,
+      maxIteration: agent_config.maxIteration || 10,
+    };
   } catch (error) {
     logger.error('Failed to create an interactive agent:', error);
     throw error;

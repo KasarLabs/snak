@@ -437,22 +437,11 @@ export const createHybridAgent = async (
 
     return {
       app,
-      agent_config,
+      json_config: agent_config,
       maxIteration: agent_config.maxIteration || 50,
     };
   } catch (error) {
-    logger.error('Failed to create hybrid agent:', error, {
-      agentName: agent_config?.name || 'unknown',
-      errorDetails: error instanceof Error ? error.stack : undefined,
-    });
-
-    const enhancedError = new Error(
-      `Failed to create hybrid agent: ${error instanceof Error ? error.message : String(error)}`
-    );
-
-    if (error instanceof Error) {
-      (enhancedError as any).cause = error;
-    }
-    throw enhancedError;
+    logger.error('Failed to create hybrid agent:', error);
+    throw error;
   }
 };

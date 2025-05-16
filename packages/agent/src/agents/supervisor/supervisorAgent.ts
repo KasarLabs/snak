@@ -790,4 +790,165 @@ export class SupervisorAgent extends BaseAgent {
 
     return false;
   }
+
+  /**
+   * Stream les réponses de l'agent
+   * @param input L'entrée utilisateur
+   * @param config Configuration optionnelle incluant streamMode
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async stream(
+    input: string | AgentMessage | BaseMessage,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    this.executionDepth++;
+    const depthIndent = '  '.repeat(this.executionDepth);
+    logger.debug(
+      `${depthIndent}SupervisorAgent[Depth:${this.executionDepth}]: Streaming task`
+    );
+
+    // Protection contre la récursion infinie
+    if (this.executionDepth > 3) {
+      this.executionDepth--;
+      throw new Error('Maximum execution depth reached for streaming');
+    }
+
+    try {
+      // Convertir l'entrée en BaseMessage
+      let message: BaseMessage;
+      if (typeof input === 'string') {
+        message = new HumanMessage(input);
+      } else if (input instanceof BaseMessage) {
+        message = input;
+      } else if (
+        typeof input === 'object' &&
+        input !== null &&
+        'content' in input
+      ) {
+        if (typeof input.content === 'string') {
+          message = new HumanMessage(input.content);
+        } else {
+          try {
+            message = new HumanMessage(JSON.stringify(input.content));
+          } catch (e) {
+            message = new HumanMessage('Unparseable structured content');
+          }
+        }
+      } else {
+        throw new Error(`Unsupported input type: ${typeof input}`);
+      }
+
+      // Enrichir avec le contexte mémoire si disponible
+      if (
+        this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
+        this.memoryAgent
+      ) {
+        logger.debug(
+          `${depthIndent}SupervisorAgent: Enriching message with memory context for streaming.`
+        );
+        message = await this.enrichWithMemoryContext(message);
+      }
+
+      if (!this.workflowController) {
+        throw new Error('WorkflowController not initialized for streaming');
+      }
+
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Streaming via WorkflowController.`
+      );
+
+      // Créer un wrapper pour gérer la profondeur d'exécution à la fin du stream
+      const stream = await this.workflowController.stream(message, config);
+      const self = this;
+
+      return {
+        [Symbol.asyncIterator]() {
+          const iterator = stream[Symbol.asyncIterator]();
+          return {
+            async next() {
+              try {
+                const result = await iterator.next();
+                if (result.done) {
+                  self.executionDepth--;
+                  logger.debug(
+                    `${depthIndent}SupervisorAgent: Streaming finished, depth now ${self.executionDepth}`
+                  );
+                }
+                return result;
+              } catch (error) {
+                self.executionDepth--;
+                logger.error(
+                  `${depthIndent}SupervisorAgent: Streaming error: ${error}`
+                );
+                throw error;
+              }
+            },
+          };
+        },
+      };
+    } catch (error) {
+      this.executionDepth--;
+      logger.error(
+        `${depthIndent}SupervisorAgent: Error setting up streaming: ${error}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Stream en mode autonome
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async streamAutonomous(
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    logger.debug('SupervisorAgent: Entering autonomous streaming mode.');
+    if (!this.starknetAgent) {
+      throw new Error(
+        'StarknetAgent is not available for autonomous streaming.'
+      );
+    }
+    return this.starknetAgent.stream_autonomous(config);
+  }
+
+  /**
+   * Commence un stream en mode hybride
+   * @param initialInput L'entrée initiale
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async startHybridStream(
+    initialInput: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    logger.debug('SupervisorAgent: Starting hybrid streaming.');
+    if (!this.starknetAgent) {
+      throw new Error('StarknetAgent is not available for hybrid streaming.');
+    }
+    return this.starknetAgent.stream_hybrid(initialInput, config);
+  }
+
+  /**
+   * Reprend un stream en mode hybride
+   * @param input L'entrée utilisateur
+   * @param threadId L'ID du thread à reprendre
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async resumeHybridStream(
+    input: string,
+    threadId: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    logger.debug(
+      `SupervisorAgent: Resuming hybrid streaming for thread ${threadId}.`
+    );
+    if (!this.starknetAgent) {
+      throw new Error(
+        'StarknetAgent is not available to resume hybrid streaming.'
+      );
+    }
+    return this.starknetAgent.stream_resume_hybrid(input, threadId, config);
+  }
 }

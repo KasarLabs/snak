@@ -345,6 +345,70 @@ export class AgentSystem {
 
     return this.supervisorAgent.isExecutionComplete(state);
   }
+
+  /**
+   * Stream les réponses de l'agent
+   * @param input L'entrée utilisateur
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async stream(
+    input: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    if (!this.supervisorAgent) {
+      throw new Error('Agent system not initialized. Call init() first.');
+    }
+    return this.supervisorAgent.stream(input, config);
+  }
+
+  /**
+   * Stream en mode autonome
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async streamAutonomous(
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    if (!this.supervisorAgent) {
+      throw new Error('Agent system not initialized. Call init() first.');
+    }
+    return this.supervisorAgent.streamAutonomous(config);
+  }
+
+  /**
+   * Commence un stream en mode hybride
+   * @param initialInput L'entrée initiale
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async startHybridStream(
+    initialInput: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    if (!this.supervisorAgent) {
+      throw new Error('Agent system not initialized. Call init() first.');
+    }
+    return this.supervisorAgent.startHybridStream(initialInput, config);
+  }
+
+  /**
+   * Reprend un stream en mode hybride
+   * @param input L'entrée utilisateur
+   * @param threadId L'ID du thread à reprendre
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async resumeHybridStream(
+    input: string,
+    threadId: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    if (!this.supervisorAgent) {
+      throw new Error('Agent system not initialized. Call init() first.');
+    }
+    return this.supervisorAgent.resumeHybridStream(input, threadId, config);
+  }
 }
 
 /**

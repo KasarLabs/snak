@@ -935,4 +935,98 @@ export class WorkflowController {
 
     return null;
   }
+
+  /**
+   * Stream l'exécution du workflow, retournant les résultats progressivement
+   * @param input L'entrée initiale pour le workflow
+   * @param config Configuration optionnelle, incluant streamMode
+   * @returns Un itérable asynchrone des chunks du workflow
+   */
+  public async stream(
+    input: string | BaseMessage,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    this.executionId = crypto.randomUUID().substring(0, 8);
+    logger.debug(
+      `WorkflowController[Exec:${this.executionId}]: Starting streaming`
+    );
+
+    if (!this.initialized) {
+      throw new Error('WorkflowController is not initialized');
+    }
+
+    const message = typeof input === 'string' ? new HumanMessage(input) : input;
+    const threadId = config?.threadId || this.executionId;
+    const streamMode = config?.streamMode || 'values';
+
+    logger.debug(
+      `WorkflowController[Exec:${this.executionId}]: Using thread ID: ${threadId}, streamMode: ${streamMode}`
+    );
+
+    const initialAgent = 'snak'; // Tous les flux commencent avec l'agent 'snak'
+
+    const runConfig = {
+      configurable: { thread_id: threadId },
+      recursionLimit: this.maxIterations * 2,
+      streamMode,
+      ...(config || {}),
+    };
+
+    logger.debug(
+      `WorkflowController[Exec:${this.executionId}]: Starting stream with initial agent: ${initialAgent}`
+    );
+
+    return this.workflow.stream(
+      {
+        messages: [message],
+        currentAgent: initialAgent,
+        metadata: { threadId },
+        toolCalls: [],
+        error: undefined,
+        iterationCount: 0,
+      },
+      runConfig
+    );
+  }
+
+  /**
+   * Stream les événements du workflow, pour un accès plus granulaire aux données
+   * @param input L'entrée initiale pour le workflow
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des événements du workflow
+   */
+  public async streamEvents(
+    input: string | BaseMessage,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    this.executionId = crypto.randomUUID().substring(0, 8);
+    logger.debug(
+      `WorkflowController[Exec:${this.executionId}]: Starting streamEvents`
+    );
+
+    if (!this.initialized) {
+      throw new Error('WorkflowController is not initialized');
+    }
+
+    const message = typeof input === 'string' ? new HumanMessage(input) : input;
+    const threadId = config?.threadId || this.executionId;
+
+    const runConfig = {
+      configurable: { thread_id: threadId },
+      recursionLimit: this.maxIterations * 2,
+      ...(config || {}),
+    };
+
+    return this.workflow.streamEvents(
+      {
+        messages: [message],
+        currentAgent: 'snak',
+        metadata: { threadId },
+        toolCalls: [],
+        error: undefined,
+        iterationCount: 0,
+      },
+      runConfig
+    );
+  }
 }
