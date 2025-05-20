@@ -1,6 +1,10 @@
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  BaseMessage,
+  AIMessageChunk,
+} from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -84,7 +88,7 @@ export const createInteractiveAgent = async (
 
     const toolNode = new ToolNode(toolsList);
 
-    // Add wrapper to log tool executions
+    // Add wrapper to log tool executions and handle streamCallbacks
     const originalInvoke = toolNode.invoke.bind(toolNode);
     toolNode.invoke = async (state, config) => {
       const lastMessage = state.messages[state.messages.length - 1];
@@ -99,8 +103,18 @@ export const createInteractiveAgent = async (
       }
 
       const startTime = Date.now();
+      const streamCallbacks = (config?.configurable as any)?.streamCallbacks;
+
+      if (streamCallbacks?.onToolStart) {
+        await streamCallbacks.onToolStart(toolCalls);
+      }
+      
       const result = await originalInvoke(state, config);
       const executionTime = Date.now() - startTime;
+
+      if (streamCallbacks?.onToolEnd) {
+        await streamCallbacks.onToolEnd(result, executionTime);
+      }
 
       const truncatedResult = truncateToolResults(result, 5000);
 
@@ -166,6 +180,27 @@ User Memory Context:
           memories: state.memories || '',
         });
 
+        // Helper function to aggregate chunks
+        const aggregateChunks = (chunks: AIMessageChunk[]): AIMessage => {
+          if (chunks.length === 0) {
+            return new AIMessage({ content: "" });
+          }
+          // Use reduce if available and correctly implemented by AIMessageChunk
+          // otherwise, manual aggregation
+          let finalChunk = chunks[0];
+          for (let i = 1; i < chunks.length; i++) {
+            finalChunk = finalChunk.concat(chunks[i]);
+          }
+          return new AIMessage({
+            content: finalChunk.content,
+            tool_calls: finalChunk.tool_calls, // tool_calls should be formed from tool_call_chunks
+            invalid_tool_calls: finalChunk.invalid_tool_calls,
+            usage_metadata: finalChunk.usage_metadata,
+            id: finalChunk.id,
+            additional_kwargs: finalChunk.additional_kwargs,
+          });
+        };
+        
         if (modelSelector) {
           const stateModelType =
             typeof state.memories === 'object' && state.memories
@@ -189,32 +224,55 @@ User Memory Context:
               ? modelForThisTask.bindTools(toolsList)
               : modelForThisTask;
 
-          const result = await boundModel.invoke(currentFormattedPrompt);
+          let result: AIMessage;
+          if (process.env.ENABLE_STREAMING === "true") {
+            const chunks: AIMessageChunk[] = [];
+            const stream = await boundModel.stream(currentFormattedPrompt);
+            for await (const chunk of stream) {
+              if (chunk instanceof AIMessageChunk) {
+                chunks.push(chunk);
+              }
+            }
+            result = aggregateChunks(chunks);
+          } else {
+            result = (await boundModel.invoke(currentFormattedPrompt)) as AIMessage;
+          }
 
           TokenTracker.trackCall(result, selectedModelType);
           return formatAIMessageResult(result);
         } else {
-          const existingModelSelector = ModelSelectionAgent.getInstance();
-          if (existingModelSelector) {
+          // This is the existingModelSelector path
+          const existingModelSelectorInstance = ModelSelectionAgent.getInstance();
+          if (existingModelSelectorInstance) {
             logger.debug('Using existing model selector with smart model');
-            const smartModel = await existingModelSelector.getModelForTask(
+            const smartModel = await existingModelSelectorInstance.getModelForTask(
               currentMessages,
-              'smart'
+              'smart' // Assuming 'smart' is a valid type
             );
             const boundSmartModel =
               typeof smartModel.bindTools === 'function'
                 ? smartModel.bindTools(toolsList)
                 : smartModel;
-            const result = await boundSmartModel.invoke(currentFormattedPrompt);
+            
+            let result: AIMessage;
+            if (process.env.ENABLE_STREAMING === "true") {
+              const chunks: AIMessageChunk[] = [];
+              const stream = await boundSmartModel.stream(currentFormattedPrompt);
+              for await (const chunk of stream) {
+                 if (chunk instanceof AIMessageChunk) {
+                    chunks.push(chunk);
+                  }
+              }
+              result = aggregateChunks(chunks);
+            } else {
+              result = (await boundSmartModel.invoke(currentFormattedPrompt)) as AIMessage;
+            }
             TokenTracker.trackCall(result, 'smart');
             return formatAIMessageResult(result);
           } else {
-            logger.warn(
-              'No model selector available, using direct provider selection is not supported without a ModelSelectionAgent.'
-            );
-            throw new Error(
-              'Model selection requires a configured ModelSelectionAgent'
-            );
+            // Fallback or error if existingModelSelectorInstance is not available
+            logger.error("Existing model selector instance not found.");
+            throw new Error("Existing model selector instance not found.");
           }
         }
       } catch (error) {
@@ -367,15 +425,16 @@ ${formatAgentResponse(content)}`);
 
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
-      ...(agent_config.memory
-        ? {
-            checkpointer: checkpointer,
-            configurable: {},
-          }
-        : {}),
+      checkpointer
     });
 
-    return app;
+    logger.debug('Interactive agent compiled successfully');
+
+    return {
+      app,
+      json_config: agent_config,
+      maxIteration: agent_config.maxIteration || 10,
+    };
   } catch (error) {
     logger.error('Failed to create an interactive agent:', error);
     throw error;

@@ -462,7 +462,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
 
       let result: any;
       try {
-        result = await this.agentReactExecutor.invoke(
+        result = await this.agentReactExecutor.app.invoke(
           { messages: currentMessages },
           { configurable: { thread_id: 'default' } }
         );
@@ -649,7 +649,7 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
       }
 
       logger.debug('execute_call_data: Invoking agent with input message.');
-      const result = await this.agentReactExecutor.invoke(
+      const result = await this.agentReactExecutor.app.invoke(
         {
           messages: [new HumanMessage({ content: input })],
         },
@@ -1165,6 +1165,202 @@ export class StarknetAgent extends BaseAgent implements IModelAgent {
     } catch (error) {
       logger.error(`Error resuming hybrid execution: ${error}`);
       throw error; // Re-throw the error to be handled by the caller
+    }
+  }
+
+  /**
+   * Stream les réponses de l'agent en mode interactif
+   * @param input L'entrée utilisateur (string ou BaseMessage)
+   * @param config Configuration optionnelle incluant streamMode
+   * @returns Un itérable asynchrone de chunks selon le streamMode
+   */
+  public async stream(
+    input: string | BaseMessage | any,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    try {
+      logger.debug(`StarknetAgent streaming with mode: ${this.currentMode}`);
+
+      if (!this.agentReactExecutor) {
+        logger.debug(
+          'StarknetAgent: No executor exists, attempting to create one.'
+        );
+        try {
+          await this.createAgentReactExecutor();
+        } catch (initError) {
+          logger.error(
+            `StarknetAgent: Failed to initialize executor for streaming: ${initError}`
+          );
+          throw initError;
+        }
+      }
+
+      if (!this.agentReactExecutor?.app) {
+        throw new Error('Agent executor app is not initialized');
+      }
+
+      let currentMessages: BaseMessage[];
+      if (input instanceof BaseMessage) {
+        currentMessages = [input];
+      } else if (typeof input === 'string') {
+        currentMessages = [new HumanMessage({ content: input })];
+      } else {
+        throw new Error(`Unsupported input type: ${typeof input}`);
+      }
+
+      // La valeur par défaut du mode de streaming est "messages" pour voir le texte token par token
+      const streamMode = config?.streamMode || 'messages';
+
+      return this.agentReactExecutor.app.stream(
+        { messages: currentMessages },
+        {
+          configurable: { thread_id: config?.threadId || 'default' },
+          streamMode,
+        }
+      );
+    } catch (error) {
+      logger.error(`StarknetAgent streaming error: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Stream les réponses de l'agent en mode autonome
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone de chunks selon le streamMode
+   */
+  public async stream_autonomous(
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    try {
+      logger.debug('StarknetAgent: Starting autonomous streaming');
+
+      if (!this.agentReactExecutor) {
+        logger.debug(
+          'StarknetAgent: No executor exists, attempting to create one.'
+        );
+        try {
+          await this.createAgentReactExecutor();
+        } catch (initError) {
+          logger.error(
+            `StarknetAgent: Failed to initialize executor for autonomous streaming: ${initError}`
+          );
+          throw initError;
+        }
+      }
+
+      if (!this.agentReactExecutor?.app) {
+        throw new Error('Agent executor app is not initialized');
+      }
+
+      const initialHumanMessage = new HumanMessage({
+        content:
+          this.agentReactExecutor.json_config?.prompt?.initial_goal ||
+          'Start executing the primary objective defined in your system prompt.',
+      });
+
+      const streamMode = config?.streamMode || 'messages';
+
+      return this.agentReactExecutor.app.stream(
+        { messages: [initialHumanMessage] },
+        {
+          configurable: { thread_id: config?.threadId || 'autonomous_session' },
+          recursionLimit: this.agentReactExecutor.maxIteration,
+          streamMode,
+        }
+      );
+    } catch (error) {
+      logger.error(`StarknetAgent autonomous streaming error: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Démarre un stream en mode hybride
+   * @param initialInput L'entrée initiale
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone de chunks selon le streamMode
+   */
+  public async stream_hybrid(
+    initialInput: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    try {
+      logger.debug('StarknetAgent: Starting hybrid streaming');
+
+      this.currentMode = AGENT_MODES[AgentMode.HYBRID];
+
+      if (
+        !this.agentReactExecutor ||
+        this.agentConfig?.mode !== AgentMode.HYBRID
+      ) {
+        logger.debug(
+          'StarknetAgent: Creating or re-creating hybrid agent executor.'
+        );
+        try {
+          await this.createAgentReactExecutor();
+        } catch (initError) {
+          logger.error(
+            `StarknetAgent: Failed to initialize executor for hybrid streaming: ${initError}`
+          );
+          throw initError;
+        }
+      }
+
+      if (!this.agentReactExecutor?.app) {
+        throw new Error('Hybrid agent app is not initialized');
+      }
+
+      const initialHumanMessage = new HumanMessage({ content: initialInput });
+      const threadId = config?.threadId || `hybrid_${Date.now()}`;
+      const streamMode = config?.streamMode || 'values';
+
+      return this.agentReactExecutor.app.stream(
+        { messages: [initialHumanMessage] },
+        {
+          configurable: { thread_id: threadId },
+          recursionLimit: this.agentReactExecutor.maxIteration,
+          streamMode,
+        }
+      );
+    } catch (error) {
+      logger.error(`StarknetAgent hybrid streaming error: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Reprend un stream en mode hybride quand il attend une entrée utilisateur
+   * @param input L'entrée utilisateur
+   * @param threadId L'ID du thread à reprendre
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone de chunks selon le streamMode
+   */
+  public async stream_resume_hybrid(
+    input: string,
+    threadId: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    try {
+      logger.debug(`Resuming hybrid streaming with thread ID: ${threadId}`);
+
+      if (!this.agentReactExecutor?.app) {
+        throw new Error('Hybrid agent app is not initialized');
+      }
+
+      const streamMode = config?.streamMode || 'values';
+
+      return this.agentReactExecutor.app.stream(
+        new Command({ resume: input }),
+        {
+          configurable: { thread_id: threadId },
+          recursionLimit: this.agentReactExecutor.maxIteration,
+          streamMode,
+        }
+      );
+    } catch (error) {
+      logger.error(`Error resuming hybrid streaming: ${error}`);
+      throw error;
     }
   }
 }

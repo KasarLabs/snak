@@ -6,6 +6,8 @@ import { RpcProvider } from 'starknet';
 import { logger, AgentConfig, ModelsConfig } from '@snakagent/core';
 import { AgentMode } from '../config/agentConfig.js';
 import { Postgres } from '@snakagent/database';
+import { AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage, ChatMessage } from '@langchain/core/messages';
+
 export interface Conversation {
   conversation_name: string;
 }
@@ -344,6 +346,172 @@ export class AgentSystem {
     }
 
     return this.supervisorAgent.isExecutionComplete(state);
+  }
+
+  /**
+   * Stream les réponses de l'agent
+   * @param input L'entrée utilisateur
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async stream(
+    input: string | BaseMessage | any,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    try {
+      // @ts-ignore TODO: Resolve currentMode type if it's a class property
+      logger.debug(`StarknetAgent streaming with mode: ${this.currentMode}`);
+
+      // @ts-ignore TODO: Resolve agentReactExecutor type if it's a class property
+      if (!this.agentReactExecutor) {
+        logger.debug(
+          'StarknetAgent: No executor exists, attempting to create one.'
+        );
+        try {
+          // @ts-ignore TODO: Resolve createAgentReactExecutor if it's a class method
+          await this.createAgentReactExecutor();
+        } catch (initError) {
+          logger.error(
+            `StarknetAgent: Failed to initialize executor for streaming: ${initError}`
+          );
+          throw initError;
+        }
+      }
+
+      // @ts-ignore TODO: Resolve agentReactExecutor.app type
+      if (!this.agentReactExecutor?.app) {
+        throw new Error('Agent executor app is not initialized');
+      }
+
+      let currentMessages: BaseMessage[];
+      if (input instanceof BaseMessage) {
+        currentMessages = [input];
+      } else if (typeof input === 'string') {
+        currentMessages = [new HumanMessage({ content: input })];
+      } else if (Array.isArray(input) && input.every(item => item instanceof BaseMessage)) {
+        currentMessages = input;
+      } else {
+        if (typeof input === 'object' && input !== null && Array.isArray(input.messages)) {
+          currentMessages = input.messages.map((msg: any) => {
+            const content = msg.content;
+            const additional_kwargs = msg.additional_kwargs || {};
+            const id = msg.id;
+            const name = msg.name;
+
+            switch (msg.type || msg._getType?.()) {
+              case 'human':
+                return new HumanMessage({ content, additional_kwargs, id, name });
+              case 'ai':
+                return new AIMessage({ content, additional_kwargs, id, name, tool_calls: msg.tool_calls, invalid_tool_calls: msg.invalid_tool_calls, usage_metadata: msg.usage_metadata });
+              case 'system':
+                return new SystemMessage({ content, additional_kwargs, id, name });
+              case 'tool':
+                return new ToolMessage({ content, additional_kwargs, id, name, tool_call_id: msg.tool_call_id });
+              default:
+                // Fallback to ChatMessage if role is known, otherwise log error or throw
+                const role = typeof msg.role === 'string' ? msg.role : 'unknown'; 
+                if (role === 'unknown') {
+                    logger.warn(`Unknown message type encountered during reconstruction: ${JSON.stringify(msg)}`);
+                    // Optionally, could throw an error here or return a default message type
+                    return new ChatMessage({ role: 'system', content: "Error: Unknown message type encountered" });
+                }
+                return new ChatMessage({ content, additional_kwargs, id, name, role });
+            }
+          });
+        } else {
+          logger.error(`StarknetAgent: Unsupported input type for streaming: ${typeof input}`);
+          throw new Error(`Unsupported input type: ${typeof input}`);
+        }
+      }
+
+      const streamMode = config?.streamMode || 'values'; 
+      // @ts-ignore TODO: Resolve getThreadId if it's a class method
+      const threadId = config?.configurable?.thread_id || config?.threadId || this.getThreadId();
+
+      const streamCallbacks = {
+        onToolStart: async (toolCalls: any[]) => {
+          logger.debug(`StarknetAgent: Streaming tool execution start: ${toolCalls.length} calls, thread: ${threadId}`);
+        },
+        onToolEnd: async (executionTime: number) => {
+          logger.debug(`StarknetAgent: Streaming tool execution end (${executionTime}ms), thread: ${threadId}`);
+        }
+      };
+
+      const streamConfig = {
+        ...config,
+        configurable: {
+          ...(config?.configurable || {}),
+          thread_id: threadId,
+          streamCallbacks, 
+        },
+        streamMode,
+      };
+      
+      const inputStream = this.agentReactExecutor.app.stream(
+        { messages: currentMessages }, 
+        streamConfig
+      );
+      
+      async function* loggedStream() {
+        for await (const event of inputStream) {
+          yield event;
+        }
+      }
+  
+      return loggedStream();
+
+    } catch (error) {
+      logger.error(`StarknetAgent streaming error: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Stream en mode autonome
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async streamAutonomous(
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    if (!this.supervisorAgent) {
+      throw new Error('Agent system not initialized. Call init() first.');
+    }
+    return this.supervisorAgent.streamAutonomous(config);
+  }
+
+  /**
+   * Commence un stream en mode hybride
+   * @param initialInput L'entrée initiale
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async startHybridStream(
+    initialInput: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    if (!this.supervisorAgent) {
+      throw new Error('Agent system not initialized. Call init() first.');
+    }
+    return this.supervisorAgent.startHybridStream(initialInput, config);
+  }
+
+  /**
+   * Reprend un stream en mode hybride
+   * @param input L'entrée utilisateur
+   * @param threadId L'ID du thread à reprendre
+   * @param config Configuration optionnelle
+   * @returns Un itérable asynchrone des chunks
+   */
+  public async resumeHybridStream(
+    input: string,
+    threadId: string,
+    config?: Record<string, any>
+  ): Promise<AsyncIterable<any>> {
+    if (!this.supervisorAgent) {
+      throw new Error('Agent system not initialized. Call init() first.');
+    }
+    return this.supervisorAgent.resumeHybridStream(input, threadId, config);
   }
 }
 

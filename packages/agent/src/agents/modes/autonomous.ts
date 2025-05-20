@@ -396,12 +396,12 @@ export const createAutonomousAgent = async (
 
     workflow.addEdge('tools', 'agent');
 
-    const checkpointer = new MemorySaver(); // For potential state persistence
+    const checkpointer = new MemorySaver();
     const app = workflow.compile({ checkpointer });
 
     return {
       app,
-      agent_config,
+      json_config: agent_config,
       maxIteration: agent_config.maxIteration,
     };
   } catch (error) {

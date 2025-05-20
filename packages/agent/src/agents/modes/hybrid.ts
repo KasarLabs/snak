@@ -64,14 +64,15 @@ export const createHybridAgent = async (
 
     const toolNode = new ToolNode(toolsList);
 
-    // Add wrapper to log tool executions and truncate results
+    // Add wrapper to log tool executions and truncate results, and handle streamCallbacks
     const originalToolNodeInvoke = toolNode.invoke.bind(toolNode);
     toolNode.invoke = async (state, config) => {
       const lastMessage = state.messages[state.messages.length - 1];
-      let toolCalls: Array<{ name: string; args: Record<string, any> }> = [];
+      let toolCalls: Array<{ name: string; args: Record<string, any>; id?: string }> = []; // Added id for completeness
 
       if (lastMessage instanceof AIMessage && lastMessage.tool_calls) {
-        toolCalls = lastMessage.tool_calls;
+        // Ensure tool_calls is correctly typed if it comes from AIMessage
+        toolCalls = lastMessage.tool_calls.map(tc => ({ name: tc.name, args: tc.args, id: tc.id }));
       }
 
       if (toolCalls.length > 0) {
@@ -86,9 +87,19 @@ export const createHybridAgent = async (
       }
 
       const startTime = Date.now();
+      const streamCallbacks = (config?.configurable as any)?.streamCallbacks;
+
       try {
+        if (streamCallbacks?.onToolStart) {
+          await streamCallbacks.onToolStart(toolCalls);
+        }
+
         const result = await originalToolNodeInvoke(state, config);
         const executionTime = Date.now() - startTime;
+
+        if (streamCallbacks?.onToolEnd) {
+          await streamCallbacks.onToolEnd(result, executionTime);
+        }
 
         if (result) {
           logger.debug(
@@ -433,26 +444,21 @@ export const createHybridAgent = async (
 
     // Compile with checkpointer for interruption support
     const checkpointer = new MemorySaver();
-    const app = workflow.compile({ checkpointer });
+    const app = workflow.compile({
+      checkpointer,
+      // stream_options removed as it's not a direct compile-time option for StateGraph
+      // Streaming modes are requested at runtime via the stream() method's config
+      interruptBefore: ['human_input'], 
+      interruptAfter: ['human_input'],  
+    });
 
     return {
       app,
-      agent_config,
+      json_config: agent_config,
       maxIteration: agent_config.maxIteration || 50,
     };
   } catch (error) {
-    logger.error('Failed to create hybrid agent:', error, {
-      agentName: agent_config?.name || 'unknown',
-      errorDetails: error instanceof Error ? error.stack : undefined,
-    });
-
-    const enhancedError = new Error(
-      `Failed to create hybrid agent: ${error instanceof Error ? error.message : String(error)}`
-    );
-
-    if (error instanceof Error) {
-      (enhancedError as any).cause = error;
-    }
-    throw enhancedError;
+    logger.error('Failed to create hybrid agent:', error);
+    throw error;
   }
 };
