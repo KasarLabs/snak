@@ -1,0 +1,12 @@
+{
+  "agents": [
+    {
+      "type": "your-agent-type",
+      "count": "the number of agents of that type"
+    },
+    {
+      "type": "another-agent-type",
+      "count": "the number of agents of that type"
+    }
+  ]
+}

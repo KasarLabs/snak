@@ -19,8 +19,9 @@ import { dirname } from 'path';
 import { logger, AgentConfig, ModelsConfig } from '@snakagent/core';
 import { DatabaseCredentials } from './src/tools/types/database.js';
 import { formatAgentResponse } from './src/agents/core/utils.js';
-import { AgentSystem, AgentSystemConfig, Message } from './src/agents/index.js';
+import { AgentSystem, AgentSystemConfig } from './src/agents/index.js';
 import { hybridInitialPrompt } from './src/prompt/prompts.js';
+import { launchMultiAgent } from './src/multi-agent/multiAgentLauncher.js';
 import { TokenTracker } from './src/token/tokenTracking.js';
 
 const DEBUG = process.env.DEBUG === 'true';
@@ -138,6 +139,34 @@ process.on('unhandledRejection', (reason) => {
   gracefulShutdown('unhandledRejection');
 });
 
+async function loadMulti(
+  agentPath: string,
+  modelsConfigPath: string,
+  modelsConfig: ModelsConfig
+) {
+  console.log(chalk.dim('\nStarting multi-agent session...\n'));
+  console.log(chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`));
+  console.log(
+    chalk.dim(`- Models: ${chalk.bold(path.basename(modelsConfigPath))}\n`)
+  );
+  const spinner = createSpinner('Initializing Multi-Agent System').start();
+
+  try {
+    const terminateAgents = await launchMultiAgent(agentPath, modelsConfig);
+    console.log(chalk.green('\nAll agents have been launched successfully.'));
+    process.on('SIGINT', async () => {
+      console.log('\nGracefully shutting down from SIGINT (Ctrl+C)');
+      await terminateAgents();
+      process.exit(0);
+    });
+    await new Promise(() => {});
+  } catch (error) {
+    spinner.error({ text: 'Failed to initialize multi-agent launcher' });
+    logger.error('Error during multi-agent launch:', error);
+    throw error;
+  }
+}
+
 // Modified localRun to use our askQuestion wrapper
 const localRun = async (): Promise<void> => {
   clearScreen();
@@ -154,20 +183,8 @@ const localRun = async (): Promise<void> => {
     TokenTracker.resetSessionCounters();
 
     // Load command line args
-    const { agentPath, modelsConfigPath } = await loadCommand();
+    const { agentPath, modelsConfigPath, multi } = await loadCommand();
 
-    // Load initial agent config
-    let agent_config: AgentConfig = await load_json_config(agentPath);
-    if (!agent_config) {
-      throw new Error(`Failed to load agent configuration from ${agentPath}`);
-    }
-    const modelData = await fs.promises.readFile(modelsConfigPath, 'utf8');
-    const modelsConfig: ModelsConfig = JSON.parse(modelData) as ModelsConfig;
-    if (!modelsConfig) {
-      throw new Error(
-        `Failed to load models configuration from ${modelsConfig}`
-      );
-    }
     // Load environment variables
     loadEnvVars();
 
@@ -184,271 +201,351 @@ const localRun = async (): Promise<void> => {
         `Missing required environment variables: ${missing.join(', ')}`
       );
     }
-
-    // Use the mode from agent configuration
-    const agentMode = agent_config.mode;
-
-    clearScreen();
-    console.log(logo);
-    const spinner = createSpinner('Initializing Agent System').start();
-
-    // Setup database credentials from environment variables
-    const database: DatabaseCredentials = {
-      database: process.env.POSTGRES_DB as string,
-      host: process.env.POSTGRES_HOST as string,
-      user: process.env.POSTGRES_USER as string,
-      password: process.env.POSTGRES_PASSWORD as string,
-      port: parseInt(process.env.POSTGRES_PORT as string),
-    };
-
-    // Initialize Database Connection Pool FIRST
-    try {
-      await Postgres.connect(database);
-      spinner.update({ text: 'Database connection pool initialized' });
-      logger.info('Database connection pool initialized successfully.');
-    } catch (dbError) {
-      spinner.error({ text: 'Failed to initialize database connection pool' });
-      logger.error('Database initialization failed:', dbError);
-      throw new Error(`Failed to initialize database: ${dbError.message}`);
-    }
-
-    const nodeUrl = process.env.STARKNET_RPC_URL;
-    if (!nodeUrl) {
+    // Load models configuration
+    const modelData = await fs.promises.readFile(modelsConfigPath, 'utf8');
+    const modelsConfig: ModelsConfig = JSON.parse(modelData) as ModelsConfig;
+    if (!modelsConfig) {
       throw new Error(
-        'STARKNET_RPC_URL is not defined in environment variables'
+        `Failed to load models configuration from ${modelsConfigPath}`
       );
     }
 
-    // Prepare RPC Provider
-    const provider = new RpcProvider({ nodeUrl: `${nodeUrl}` });
-
-    // Prepare Agent System configuration ACCORDING TO THE DEFINITION IN agents/src/agents/index.ts
-    const agentSystemConfig: AgentSystemConfig = {
-      starknetProvider: provider,
-      accountPrivateKey: process.env.STARKNET_PRIVATE_KEY!,
-      accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS!,
-      modelsConfig: modelsConfig, // Already loaded
-      agentMode: agentMode,
-      databaseCredentials: database,
-      agentConfigPath: agent_config, // Pass the PATH to the agent config file
-      debug: DEBUG,
-    };
-
-    // Create and initialize the agent system
-    const agentSystem = new AgentSystem(agentSystemConfig);
-    // Store reference for shutdown handling
-    globalAgentSystem = agentSystem;
-
-    await agentSystem.init();
-
-    spinner.success({
-      text: chalk.black(
-        `Agent System "${chalk.cyan(agent_config?.name || 'Unknown')}" initialized successfully`
-      ),
-    });
-
-    // --- Execution Logic based on mode ---
-    if (agentMode === AGENT_MODES[AgentMode.INTERACTIVE]) {
-      console.log(chalk.dim('\nStarting interactive session...\n'));
-      console.log(
-        chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
-      );
-      console.log(
-        chalk.dim(`- Models: ${chalk.bold(path.basename(modelsConfigPath))}\n`)
-      );
-
-      while (true) {
-        const { user } = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'user',
-            message: chalk.green('User'),
-            validate: (value: string) => {
-              const trimmed = value.trim();
-              if (!trimmed) return 'Please enter a valid message';
-              if (trimmed.toLowerCase() === 'exit') return true;
-              return true;
-            },
-          },
-        ]);
-
-        if (user.toLowerCase() === 'exit') {
-          console.log(chalk.blue('Exiting interactive mode...'));
-          break;
-        }
-
-        // Start with a message instead of a spinner to allow log display
-        console.log(chalk.yellow('Processing request...'));
-
-        try {
-          // Execute through the supervisor agent which will route appropriately
-          await agentSystem.execute(user);
-
-          // Removing duplicate response formatting and logging since it's now handled
-          // consistently in all mode files (interactive.ts, autonomous.ts, hybrid.ts)
-        } catch (error: any) {
-          console.error(chalk.red('Error processing request'));
-          logger.error('Error during agent execution:', error);
-          console.log(
-            createBox(
-              error.message || 'An unknown error occurred during processing.',
-              { title: 'Error', isError: true }
-            )
-          );
-        }
+    if (multi) {
+      loadMulti(agentPath, modelsConfigPath, modelsConfig);
+    } else {
+      // Load agent configuration
+      let agent_config: AgentConfig = await load_json_config(agentPath);
+      if (!agent_config) {
+        throw new Error(`Failed to load agent configuration from ${agentPath}`);
       }
-    } else if (agentMode === AGENT_MODES[AgentMode.AUTONOMOUS]) {
-      console.log(chalk.dim('\nStarting autonomous session...\n'));
-      console.log(
-        chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
-      );
-      console.log(chalk.yellow('Running autonomous mode...'));
+      const agentMode = agent_config.mode;
+      clearScreen();
+      console.log(logo);
+      const spinner = createSpinner('Initializing Agent System').start();
 
+      // Setup database credentials from environment variables
+      const database: DatabaseCredentials = {
+        database: process.env.POSTGRES_DB as string,
+        host: process.env.POSTGRES_HOST as string,
+        user: process.env.POSTGRES_USER as string,
+        password: process.env.POSTGRES_PASSWORD as string,
+        port: parseInt(process.env.POSTGRES_PORT as string),
+      };
+
+      // Initialize Database Connection Pool FIRST
       try {
-        // Verify autonomous mode is enabled in the configuration
-        if (agent_config?.mode !== AgentMode.AUTONOMOUS) {
-          throw new Error('Autonomous mode is disabled in agent configuration');
-        }
+        await Postgres.connect(database);
+        spinner.update({ text: 'Database connection pool initialized' });
+        logger.info('Database connection pool initialized successfully.');
+      } catch (dbError) {
+        spinner.error({
+          text: 'Failed to initialize database connection pool',
+        });
+        logger.error('Database initialization failed:', dbError);
+        throw new Error(`Failed to initialize database: ${dbError.message}`);
+      }
 
-        // Get the Starknet Agent and execute in autonomous mode
-        const starknetAgent = agentSystem.getStarknetAgent();
-        if (!starknetAgent) {
-          throw new Error('Failed to get StarknetAgent from the agent system');
-        }
-
-        // For backwards compatibility, still accessing execute_autonomous directly
-        // In future versions, this should be handled by the SupervisorAgent
-        await starknetAgent.execute_autonomous();
-        console.log(chalk.green('Autonomous execution completed'));
-      } catch (error) {
-        console.error(chalk.red('Error in autonomous mode'));
-        logger.error(
-          createBox(error.message, { title: 'Error', isError: true })
+      const nodeUrl = process.env.STARKNET_RPC_URL;
+      if (!nodeUrl) {
+        throw new Error(
+          'STARKNET_RPC_URL is not defined in environment variables'
         );
       }
-    } else if (agentMode === AGENT_MODES[AgentMode.HYBRID]) {
-      console.log(chalk.dim('\nStarting hybrid session...\n'));
-      console.log(
-        chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
-      );
-      console.log(chalk.yellow('Running hybrid mode...\n'));
 
-      try {
-        if (!agentSystem) {
-          throw new Error('Agent system not initialized');
-        }
+      // Prepare RPC Provider
+      const provider = new RpcProvider({ nodeUrl: `${nodeUrl}` });
 
-        // Use a predefined prompt instead of asking the user
-        const initialPrompt = hybridInitialPrompt;
+      // Prepare Agent System configuration ACCORDING TO THE DEFINITION IN agents/src/agents/index.ts
+      const agentSystemConfig: AgentSystemConfig = {
+        starknetProvider: provider,
+        accountPrivateKey: process.env.STARKNET_PRIVATE_KEY!,
+        accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS!,
+        modelsConfig: modelsConfig, // Already loaded object
+        agentMode: agentMode,
+        databaseCredentials: database,
+        agentConfigPath: agent_config, // Pass the actual config object
+        debug: DEBUG,
+      };
 
+      // Create and initialize the agent system
+      const agentSystem = new AgentSystem(agentSystemConfig);
+      // Store reference for shutdown handling
+      globalAgentSystem = agentSystem;
+
+      await agentSystem.init();
+
+      spinner.success({
+        text: chalk.black(
+          `Agent System "${chalk.cyan(agent_config?.name || 'Unknown')}" initialized successfully`
+        ),
+      });
+
+      // --- Execution Logic based on mode ---
+      if (agentMode === AGENT_MODES[AgentMode.INTERACTIVE]) {
+        console.log(chalk.dim('\nStarting interactive session...\n'));
         console.log(
-          chalk.yellow('\nStarting hybrid execution automatically...\n')
+          chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
+        );
+        console.log(
+          chalk.dim(
+            `- Models: ${chalk.bold(path.basename(modelsConfigPath))}\n`
+          )
         );
 
-        // Start hybrid execution
-        const { state, threadId } =
-          await agentSystem.startHybridExecution(initialPrompt);
-        console.log(
-          chalk.green(`Hybrid execution started with thread ID: ${threadId}`)
-        );
-
-        // Execution state
-        let currentState = state;
-        let isRunning = true;
-
-        // Function to display the last message
-        const displayLastMessage = () => {
-          if (currentState.messages && currentState.messages.length > 0) {
-            const lastMessage =
-              currentState.messages[currentState.messages.length - 1];
-
-            // Skip logging if message has already been logged by the hybrid agent
-            if (lastMessage.additional_kwargs?.logged === true) {
-              return;
-            }
-
-            const content =
-              typeof lastMessage.content === 'string'
-                ? lastMessage.content
-                : JSON.stringify(lastMessage.content);
-
-            // Replace box display with simple log
-            logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
-
-            // Mark message as logged to prevent duplicate logging
-            if (!lastMessage.additional_kwargs) {
-              lastMessage.additional_kwargs = {};
-            }
-            lastMessage.additional_kwargs.logged = true;
-          }
-        };
-
-        // Main interaction loop
-        while (isRunning) {
-          // Display the last message
-          displayLastMessage();
-
-          // Check if the agent is waiting for input
-          if (agentSystem.isWaitingForInput(currentState)) {
-            console.log(chalk.yellow('\nAgent is waiting for input.\n'));
-
-            // Ask for user input
-            const { userInput } = await inquirer.prompt([
-              {
-                type: 'input',
-                name: 'userInput',
-                message: chalk.green('User:'),
-                validate: (value: string) => {
-                  if (!value.trim()) return 'Please enter a valid response';
-                  if (value.toLowerCase() === 'exit') return true;
-                  return true;
-                },
+        while (true) {
+          const { user } = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'user',
+              message: chalk.green('User'),
+              validate: (value: string) => {
+                const trimmed = value.trim();
+                if (!trimmed) return 'Please enter a valid message';
+                if (trimmed.toLowerCase() === 'exit') return true;
+                return true;
               },
-            ]);
+            },
+          ]);
 
-            // Exit if the user types "exit"
-            if (userInput.toLowerCase() === 'exit') {
-              console.log(chalk.blue('\nExiting hybrid mode...\n'));
-              isRunning = false;
-            }
-
-            console.log(chalk.yellow('\nProcessing your input...\n'));
-
-            // Provide input to the agent and continue execution
-            try {
-              const result = await agentSystem.provideHybridInput(
-                userInput,
-                threadId
-              );
-              currentState = result.state;
-            } catch (inputError) {
-              console.error(chalk.red('Error processing your input:'));
-              console.error(
-                createBox(inputError.message, { title: 'Error', isError: true })
-              );
-            }
-          } else if (agentSystem.isExecutionComplete(currentState)) {
-            console.log(chalk.green('\nHybrid execution completed.\n'));
-            isRunning = false;
+          if (user.toLowerCase() === 'exit') {
+            console.log(chalk.blue('Exiting interactive mode...'));
+            break;
           }
-          // If the agent is still working, wait a bit
-          else {
+
+          // Start with a message instead of a spinner to allow log display
+          console.log(chalk.yellow('Processing request...'));
+
+          try {
+            // Execute through the supervisor agent which will route appropriately
+            await agentSystem.execute(user);
+
+            // Removing duplicate response formatting and logging since it's now handled
+            // consistently in all mode files (interactive.ts, autonomous.ts, hybrid.ts)
+          } catch (error: any) {
+            console.error(chalk.red('Error processing request'));
+            logger.error('Error during agent execution:', error);
             console.log(
-              chalk.dim(
-                '\nAgent is working autonomously. Press Ctrl+C to exit.\n'
+              createBox(
+                error.message || 'An unknown error occurred during processing.',
+                { title: 'Error', isError: true }
               )
             );
-            // Wait and check the status again
-            console.log(chalk.dim('Waiting for update...'));
-            await new Promise((resolve) => setTimeout(resolve, 2000));
           }
         }
-      } catch (error) {
-        console.error(chalk.red('Error in hybrid mode'));
-        logger.error('Hybrid mode error:', error);
-        console.error(
-          createBox(error.message, { title: 'Error', isError: true })
+      } else if (agentMode === AGENT_MODES[AgentMode.AUTONOMOUS]) {
+        console.log(chalk.dim('\nStarting autonomous session...\n'));
+        console.log(
+          chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
         );
+        console.log(chalk.yellow('Running autonomous mode...'));
+
+        try {
+          // Verify autonomous mode is enabled in the configuration
+          if (agent_config?.mode !== AgentMode.AUTONOMOUS) {
+            throw new Error(
+              'Autonomous mode is disabled in agent configuration'
+            );
+          }
+
+          // Get the Starknet Agent and execute in autonomous mode
+          const starknetAgent = agentSystem.getStarknetAgent();
+          if (!starknetAgent) {
+            throw new Error(
+              'Failed to get StarknetAgent from the agent system'
+            );
+          }
+
+          // For backwards compatibility, still accessing execute_autonomous directly
+          // In future versions, this should be handled by the SupervisorAgent
+          await starknetAgent.execute_autonomous();
+          console.log(chalk.green('Autonomous execution completed'));
+        } catch (error) {
+          console.error(chalk.red('Error in autonomous mode'));
+          logger.error(
+            createBox(error.message, { title: 'Error', isError: true })
+          );
+        }
+      } else if (agentMode === AGENT_MODES[AgentMode.HYBRID]) {
+        console.log(chalk.dim('\nStarting hybrid session...\n'));
+        console.log(
+          chalk.dim(`- Config: ${chalk.bold(path.basename(agentPath))}`)
+        );
+        console.log(chalk.yellow('Running hybrid mode...\n'));
+
+        try {
+          if (!agentSystem) {
+            throw new Error('Agent system not initialized');
+          }
+
+          // Use a predefined prompt instead of asking the user
+          const initialPrompt = hybridInitialPrompt;
+
+          console.log(
+            chalk.yellow('\nStarting hybrid execution automatically...\n')
+          );
+
+          // Start hybrid execution
+          const { state, threadId } =
+            await agentSystem.startHybridExecution(initialPrompt);
+          console.log(
+            chalk.green(`Hybrid execution started with thread ID: ${threadId}`)
+          );
+
+          // Execution state
+          let currentState = state;
+          let isRunning = true;
+
+          // Function to display the last message
+          const displayLastMessage = () => {
+            if (currentState.messages && currentState.messages.length > 0) {
+              const lastMessage =
+                currentState.messages[currentState.messages.length - 1];
+
+              // Skip logging if message has already been logged by the hybrid agent
+              if (lastMessage.additional_kwargs?.logged === true) {
+                return;
+              }
+
+              const content =
+                typeof lastMessage.content === 'string'
+                  ? lastMessage.content
+                  : JSON.stringify(lastMessage.content);
+
+              // Replace box display with simple log
+              logger.info(`Agent Response:\n\n${formatAgentResponse(content)}`);
+
+              // Mark message as logged to prevent duplicate logging
+              if (!lastMessage.additional_kwargs) {
+                lastMessage.additional_kwargs = {};
+              }
+              lastMessage.additional_kwargs.logged = true;
+            }
+          };
+
+          // Main interaction loop
+          while (isRunning) {
+            // Display the last message
+            displayLastMessage();
+
+            // Check if the agent is waiting for input
+            if (agentSystem.isWaitingForInput(currentState)) {
+              console.log(chalk.yellow('\nAgent is waiting for input.\n'));
+
+              // Ask for user input
+              const { userInput } = await inquirer.prompt([
+                {
+                  type: 'input',
+                  name: 'userInput',
+                  message: chalk.green('User:'),
+                  validate: (value: string) => {
+                    if (!value.trim()) return 'Please enter a valid response';
+                    if (value.toLowerCase() === 'exit') return true;
+                    return true;
+                  },
+                },
+              ]);
+
+              // Exit if the user types "exit"
+              if (userInput.toLowerCase() === 'exit') {
+                console.log(chalk.blue('\nExiting hybrid mode...\n'));
+                isRunning = false;
+                break;
+              }
+
+              console.log(chalk.yellow('\nProcessing your input...\n'));
+
+              // Provide input to the agent and continue execution
+              try {
+                const result = await agentSystem.provideHybridInput(
+                  userInput,
+                  threadId
+                );
+                currentState = result.state;
+              } catch (inputError) {
+                console.error(chalk.red('Error processing your input:'));
+                console.error(
+                  createBox(inputError.message, {
+                    title: 'Error',
+                    isError: true,
+                  })
+                );
+              }
+            }
+            // Check if execution is complete
+            else if (agentSystem.isExecutionComplete(currentState)) {
+              console.log(chalk.green('\nHybrid execution completed.\n'));
+              isRunning = false;
+            }
+            // If the agent is still working, provide options
+            else {
+              console.log(
+                chalk.dim(
+                  '\nAgent is working autonomously. Press Ctrl+C to exit.\n'
+                )
+              );
+
+              // Option for continue or interrupt
+              const { action } = await inquirer.prompt([
+                {
+                  type: 'list',
+                  name: 'action',
+                  message: 'What would you like to do?',
+                  choices: [
+                    { name: 'Wait for next update', value: 'wait' },
+                    { name: 'Force provide input', value: 'input' },
+                    { name: 'Exit hybrid mode', value: 'exit' },
+                  ],
+                },
+              ]);
+
+              if (action === 'exit') {
+                console.log(chalk.blue('\nExiting hybrid mode...\n'));
+                isRunning = false;
+              } else if (action === 'input') {
+                // Allow user to provide input even if agent hasn't requested it
+                const { userInput } = await inquirer.prompt([
+                  {
+                    type: 'input',
+                    name: 'userInput',
+                    message: chalk.green('Your input (forced interruption):'),
+                    validate: (value) =>
+                      value.trim() ? true : 'Please enter a valid input',
+                  },
+                ]);
+
+                console.log(
+                  chalk.yellow('\nInterrupting agent with your input...\n')
+                );
+
+                try {
+                  const result = await agentSystem.provideHybridInput(
+                    userInput,
+                    threadId
+                  );
+                  currentState = result.state;
+                } catch (inputError) {
+                  console.error(chalk.red('Error processing your interrupt:'));
+                  console.error(
+                    createBox(inputError.message, {
+                      title: 'Error',
+                      isError: true,
+                    })
+                  );
+                }
+              } else {
+                // Wait and check status again
+                console.log(chalk.dim('Waiting for update...'));
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+              }
+            }
+          }
+        } catch (error) {
+          console.error(chalk.red('Error in hybrid mode'));
+          logger.error('Hybrid mode error:', error);
+          console.error(
+            createBox(error.message, { title: 'Error', isError: true })
+          );
+        }
       }
     }
   } catch (error: any) {
@@ -488,6 +585,7 @@ interface CommandOptions {
   agentPath: string;
   modelsConfigPath: string;
   silentLlm: boolean;
+  multi: boolean; // Add the multi flag
 }
 
 /**
@@ -497,13 +595,14 @@ const loadCommand = async (): Promise<CommandOptions> => {
   const argv = await yargs(hideBin(process.argv))
     .option('agent', {
       alias: 'a',
-      describe: 'Your agent config file name (e.g., default.agent.json)',
+      describe:
+        'Agent config file name (e.g., default.agent.json or default.multi-agent.json)',
       type: 'string',
       default: 'default.agent.json',
     })
     .option('models', {
       alias: 'm',
-      describe: 'Your models config file name (e.g., default.models.json)',
+      describe: 'Models config file name (e.g., default.models.json)',
       type: 'string',
       default: 'default.models.json',
     })
@@ -513,12 +612,18 @@ const loadCommand = async (): Promise<CommandOptions> => {
       type: 'boolean',
       default: true,
     })
+    .option('multi', {
+      describe: 'Run in multi-agent mode',
+      type: 'boolean',
+      default: false,
+    })
     .strict()
     .parse();
 
   const agentFileName = argv['agent'] as string;
   const modelsFileName = argv['models'] as string;
   const silentLlm = argv['silent-llm'] as boolean;
+  const multi = argv['multi'] as boolean;
 
   // Now update all environment variables now that we have processed the command line args
   console.log(`Environment variables after parsing: DEBUG=${DEBUG}`);
@@ -533,7 +638,7 @@ const loadCommand = async (): Promise<CommandOptions> => {
 
   const findConfigPath = (
     fileName: string,
-    configType: 'agents' | 'models'
+    configType: 'agents' | 'models' | 'multi-agents'
   ): string => {
     const possibleBasePaths = [
       process.cwd(),
@@ -563,10 +668,17 @@ const loadCommand = async (): Promise<CommandOptions> => {
     throw new Error(`Configuration file ${fileName} not found.`);
   };
 
-  const agentPath = findConfigPath(agentFileName, 'agents');
+  // Determine which config directory to use based on multi flag
+  let agentPath;
+  if (multi) {
+    agentPath = findConfigPath(agentFileName, 'multi-agents');
+  } else {
+    agentPath = findConfigPath(agentFileName, 'agents');
+  }
+
   const modelsConfigPath = findConfigPath(modelsFileName, 'models');
 
-  return { agentPath, modelsConfigPath, silentLlm };
+  return { agentPath, modelsConfigPath, silentLlm, multi };
 };
 
 /**
