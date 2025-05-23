@@ -1,5 +1,5 @@
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { AccountManager } from '../utils/AccountManager.js';
 import { z } from 'zod';
 import { accountDetailsSchema } from '../schemas/schema.js';
@@ -13,13 +13,13 @@ import {
  * Deploys a Braavos account using a Starknet agent.
  * @async
  * @function DeployBraavosAccount
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {z.infer<typeof accountDetailsSchema>} params - Account details
  * @returns {Promise<string>} JSON string with deployment status and transaction details
  * @throws {Error} If deployment fails
  */
 export const DeployBraavosAccount = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof accountDetailsSchema>
 ) => {
   try {

@@ -6,7 +6,7 @@ import {
   GetTransactionReceiptResponse,
 } from 'starknet';
 import { formatUnits, parseUnits } from 'ethers';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import {
   BorrowTroveResult,
   DepositTroveResult,
@@ -58,7 +58,7 @@ export class TroveManager {
   yangs: bigint[];
 
   constructor(
-    private agent: StarknetAgentInterface,
+    private agent: SnakAgentInterface,
     private walletAddress: string
   ) {}
 
@@ -296,12 +296,12 @@ export class TroveManager {
    * Opens a new trove with specified collateral and borrow amount
    * @async
    * @param {OpenTroveParams} params - Parameters for opening trove
-   * @param {StarknetAgentInterface} agent - Starknet agent interface
+   * @param {SnakAgentInterface} agent - Starknet agent interface
    * @returns {Promise<OpenTroveResult>} Transaction result including trove ID and fees
    */
   async openTroveTransaction(
     params: OpenTroveParams,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<OpenTroveResult> {
     await this.initialize();
     try {
@@ -378,12 +378,12 @@ export class TroveManager {
    * Deposits additional collateral to an existing trove
    * @async
    * @param {DepositTroveParams} params - Parameters for deposit
-   * @param {StarknetAgentInterface} agent - Starknet agent interface
+   * @param {SnakAgentInterface} agent - Starknet agent interface
    * @returns {Promise<DepositTroveResult>} Transaction result including health metrics
    */
   async depositTransaction(
     params: DepositTroveParams,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<DepositTroveResult> {
     await this.initialize();
     try {
@@ -452,12 +452,12 @@ export class TroveManager {
    * Withdraws collateral from an existing trove
    * @async
    * @param {WithdrawTroveParams} params - Parameters for withdrawal
-   * @param {StarknetAgentInterface} agent - Starknet agent interface
+   * @param {SnakAgentInterface} agent - Starknet agent interface
    * @returns {Promise<WithdrawTroveResult>} Transaction result including health metrics
    */
   async withdrawTransaction(
     params: WithdrawTroveParams,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<WithdrawTroveResult> {
     await this.initialize();
     try {
@@ -524,12 +524,12 @@ export class TroveManager {
    * Borrows additional tokens from an existing trove
    * @async
    * @param {BorrowTroveParams} params - Parameters for borrowing
-   * @param {StarknetAgentInterface} agent - Starknet agent interface
+   * @param {SnakAgentInterface} agent - Starknet agent interface
    * @returns {Promise<BorrowTroveResult>} Transaction result including borrowed amount and fees
    */
   async borrowTransaction(
     params: BorrowTroveParams,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<BorrowTroveResult> {
     await this.initialize();
     try {
@@ -606,12 +606,12 @@ export class TroveManager {
    * Repays debt for an existing trove
    * @async
    * @param {RepayTroveParams} params - Parameters for repayment
-   * @param {StarknetAgentInterface} agent - Starknet agent interface
+   * @param {SnakAgentInterface} agent - Starknet agent interface
    * @returns {Promise<RepayTroveResult>} Transaction result including updated debt metrics
    */
   async repayTransaction(
     params: RepayTroveParams,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<RepayTroveResult> {
     await this.initialize();
     try {
@@ -677,13 +677,13 @@ export class TroveManager {
 
 /**
  * Creates a new TroveManager instance
- * @param {StarknetAgentInterface} agent - Starknet agent interface
+ * @param {SnakAgentInterface} agent - Starknet agent interface
  * @param {string} [walletAddress] - Optional wallet address
  * @returns {TroveManager} New TroveManager instance
  * @throws {Error} If wallet address is not provided
  */
 export const createTroveManager = (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   walletAddress?: string
 ): TroveManager => {
   if (!walletAddress) {

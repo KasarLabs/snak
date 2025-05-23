@@ -1,5 +1,5 @@
 import { Account, shortString } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { ContractManager } from '../utils/contractManager.js';
 import {
   ERC721_CLASSHASH_SEPOLIA,
@@ -14,12 +14,12 @@ import { z } from 'zod';
 
 /**
  * Deploys an ERC721 contract.
- * @param agent - A StarknetAgentInterface instance.
+ * @param agent - A SnakAgentInterface instance.
  * @param params - An object containing the contract's name, symbol, base URI, and total supply.
  * @returns A stringified JSON object containing the status, transaction hash, and contract address.
  */
 export const deployERC721Contract = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof deployERC721Schema>
 ) => {
   try {

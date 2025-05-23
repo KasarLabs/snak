@@ -1,12 +1,12 @@
 import { setupTestEnvironment } from '../utils/helper.js';
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface, AgentConfig } from '@snakagent/core';
+import { SnakAgentInterface, AgentConfig } from '@snakagent/core';
 import { SystemMessage } from '@langchain/core/messages';
 import { AgentMode } from '@core/src/common/agent.js';
 
 setupTestEnvironment();
 
-export const createMockStarknetAgent = (): StarknetAgentInterface => {
+export const createMockSnakAgent = (): SnakAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 
@@ -43,7 +43,7 @@ export const createMockStarknetAgent = (): StarknetAgentInterface => {
   };
 };
 
-export const createMockInvalidStarknetAgent = (): StarknetAgentInterface => {
+export const createMockInvalidSnakAgent = (): SnakAgentInterface => {
   const provider = new RpcProvider({ nodeUrl: 'http://127.0.0.1:5050' });
   const mockSystemMessage = new SystemMessage('Default system prompt');
 

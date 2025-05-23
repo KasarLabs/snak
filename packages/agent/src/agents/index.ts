@@ -6,6 +6,8 @@ import { RpcProvider } from 'starknet';
 import { logger, AgentConfig, ModelsConfig } from '@snakagent/core';
 import { AgentMode } from '../config/agentConfig.js';
 import { Postgres } from '@snakagent/database';
+import { SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
+
 export interface Conversation {
   conversation_name: string;
 }
@@ -73,6 +75,7 @@ export class AgentSystem {
   private supervisorAgent: SupervisorAgent | null = null;
   private config: AgentSystemConfig;
   private agentConfig: AgentConfig;
+  private snakAgent: SnakAgent | null = null;
 
   constructor(config: AgentSystemConfig) {
     this.config = config;
@@ -133,10 +136,72 @@ export class AgentSystem {
       // Initialize the supervisor, which will initialize all other agents
       await this.supervisorAgent.init();
 
-      logger.info('AgentSystem: Initialization complete');
+      // Create and register a SnakAgent with the SupervisorAgent
+      await this.createAndRegisterSnakAgent();
+
+      logger.debug('AgentSystem: Initialization complete');
     } catch (error) {
       logger.error(`AgentSystem: Initialization failed: ${error}`);
       throw new Error(`Failed to initialize agent system: ${error}`);
+    }
+  }
+
+  /**
+   * Creates a SnakAgent and registers it with the SupervisorAgent
+   */
+  private async createAndRegisterSnakAgent(): Promise<void> {
+    try {
+      logger.debug('AgentSystem: Creating and registering SnakAgent...');
+
+      // Get the ModelSelectionAgent from the supervisor
+      const modelSelector = this.supervisorAgent?.getOperator(
+        'model-selector'
+      ) as any;
+
+      // Create SnakAgent configuration
+      const snakAgentConfig: SnakAgentConfig = {
+        provider: this.config.starknetProvider,
+        accountPrivateKey: this.config.accountPrivateKey,
+        accountPublicKey: this.config.accountPublicKey,
+        db_credentials: this.config.databaseCredentials,
+        agentConfig: this.agentConfig,
+        memory: this.agentConfig.memory,
+        modelSelector: modelSelector,
+      };
+
+      // Create the SnakAgent
+      this.snakAgent = new SnakAgent(snakAgentConfig);
+      await this.snakAgent.init();
+
+      // Register the SnakAgent with the SupervisorAgent
+      if (this.supervisorAgent) {
+        // Ensure the agent ID starts with 'snak-' for WorkflowController validation
+        const baseId = this.agentConfig.id || 'main-agent';
+        const agentId = baseId.startsWith('snak-') ? baseId : `snak-${baseId}`;
+        const metadata = {
+          name: this.agentConfig.name || 'Main SnakAgent',
+          description: `Main Starknet agent for ${this.agentConfig.name || 'the system'}`,
+          group: this.agentConfig.group || 'starknet',
+        };
+
+        this.supervisorAgent.registerSnakAgent(
+          agentId,
+          this.snakAgent,
+          metadata
+        );
+
+        // Refresh the workflow controller to include the new agent
+        await this.supervisorAgent.refreshWorkflowController();
+
+        logger.debug(`AgentSystem: SnakAgent registered with ID: ${agentId}`);
+      } else {
+        throw new Error('SupervisorAgent not initialized');
+      }
+    } catch (error) {
+      logger.error(
+        `AgentSystem: Failed to create and register SnakAgent: ${error}`
+      );
+      throw error;
     }
   }
 
@@ -229,11 +294,11 @@ export class AgentSystem {
    * @returns The Starknet agent instance.
    * @throws Will throw an error if the agent system is not initialized.
    */
-  public getStarknetAgent(): any {
+  public getSnakAgent(): any {
     if (!this.supervisorAgent) {
       throw new Error('Agent system not initialized. Call init() first.');
     }
-    return this.supervisorAgent.getStarknetAgent();
+    return this.snakAgent;
   }
 
   /**
@@ -255,6 +320,17 @@ export class AgentSystem {
    */
   public async dispose(): Promise<void> {
     logger.debug('AgentSystem: Disposing resources');
+
+    // Dispose the SnakAgent if it exists
+    if (this.snakAgent) {
+      try {
+        await this.snakAgent.dispose();
+      } catch (error) {
+        logger.error('AgentSystem: Error disposing SnakAgent:', error);
+      }
+      this.snakAgent = null;
+    }
+
     this.supervisorAgent = null;
     logger.info('AgentSystem: Resources disposed');
   }

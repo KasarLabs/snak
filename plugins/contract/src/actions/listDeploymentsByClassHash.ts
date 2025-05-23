@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { listDeploymentsByClassHashSchema } from '../schemas/schema.js';
 import { contract } from '@snakagent/database/queries';
@@ -10,7 +10,7 @@ import { contract } from '@snakagent/database/queries';
  * @returns The result of the operation
  */
 export const listDeploymentsByClassHash = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof listDeploymentsByClassHashSchema>
 ): Promise<string> => {
   try {

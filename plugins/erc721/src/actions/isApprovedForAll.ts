@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import { validateAndParseAddress } from 'starknet';
 import { z } from 'zod';
@@ -7,12 +7,12 @@ import { isApprovedForAllSchema } from '../schemas/schema.js';
 
 /**
  * Checks if an operator is approved to manage all tokens of an owner.
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {z.infer<typeof isApprovedForAllSchema>} params - Approval check parameters
  * @returns {Promise<string>} JSON string with approval status
  */
 export const isApprovedForAll = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof isApprovedForAllSchema>
 ): Promise<string> => {
   try {

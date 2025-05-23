@@ -1,8 +1,8 @@
 import { GetTransactionByBlockIdAndIndexParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 export const getTransactionByBlockIdAndIndex = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: GetTransactionByBlockIdAndIndexParams
 ) => {
   const provider = agent.getProvider();

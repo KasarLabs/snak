@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import { validateAndFormatTokenId } from '../utils/utils.js';
 import { z } from 'zod';
@@ -8,12 +8,12 @@ import { validateAndParseAddress } from 'starknet';
 
 /**
  * Get the address that has been approved to transfer the token.
- * @param agent The StarknetAgentInterface instance.
+ * @param agent The SnakAgentInterface instance.
  * @param params The parameters for the getApproved function.
  * @returns A stringified JSON object with the status and the approved address.
  */
 export const getApproved = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getApprovedSchema>
 ): Promise<string> => {
   try {

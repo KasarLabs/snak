@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { listProjectsSchema } from '../schema/schema.js';
 import { scarb } from '@snakagent/database/queries';
@@ -10,7 +10,7 @@ import { scarb } from '@snakagent/database/queries';
  * @returns JSON string with all projects information
  */
 export const listProjects = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   _params: z.infer<typeof listProjectsSchema>
 ) => {
   try {

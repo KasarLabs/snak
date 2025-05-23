@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { registerProjectSchema } from '../schema/schema.js';
 import { scarb } from '@snakagent/database/queries';
@@ -14,7 +14,7 @@ import { resolveContractPath } from '../utils/path.js';
  * @returns The registration result
  */
 export const registerProject = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof registerProjectSchema>
 ) => {
   try {

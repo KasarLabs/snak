@@ -1,9 +1,9 @@
 import { insertChatIntructionParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { chat } from '@snakagent/database/queries';
 
 export const insertChatInstruction = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: insertChatIntructionParams
 ) => {
   try {
@@ -15,7 +15,7 @@ export const insertChatInstruction = async (
   }
 };
 
-export const readChatPool = async (_agent: StarknetAgentInterface) => {
+export const readChatPool = async (_agent: SnakAgentInterface) => {
   try {
     return JSON.stringify({
       status: 'success',

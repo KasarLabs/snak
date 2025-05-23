@@ -1,8 +1,8 @@
 {
   "agents": [
     {
-    "type": "starknet-rpc",
-    "count": 2
+      "type": "starknet-rpc",
+      "count": 2
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { ContractAddressParams } from '../schema/index.js';
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { FACTORY_ABI } from '../abis/unruggableFactory.js';
 import { FACTORY_ADDRESS } from '../constants/index.js';
 
@@ -10,7 +10,7 @@ import { FACTORY_ADDRESS } from '../constants/index.js';
  * This function verifies whether a contract at the specified address was deployed
  * through the Unruggable Factory and implements the required memecoin interface.
  *
- * @param {StarknetAgentInterface} agent - Starknet agent interface
+ * @param {SnakAgentInterface} agent - Starknet agent interface
  * @param {ContractAddressParams} params - Object containing the contract address to check
  * @returns {Promise<string>} JSON string containing either success response with boolean result
  *                           or error response with error message
@@ -47,7 +47,7 @@ import { FACTORY_ADDRESS } from '../constants/index.js';
  * - Can be used to verify token authenticity before trading
  */
 export const isMemecoin = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: ContractAddressParams
 ): Promise<string> => {
   try {

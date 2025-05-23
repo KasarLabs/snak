@@ -1,6 +1,6 @@
 export type {
   AgentConfig,
-  StarknetAgentInterface,
+  SnakAgentInterface,
   StarknetTool,
   SignatureTool,
   DatabaseCredentials,

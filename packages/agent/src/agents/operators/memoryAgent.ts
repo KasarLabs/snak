@@ -58,17 +58,35 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
-   * Initialize the memory database
+   * Initialize the memory database with retry logic
    */
   private async initializeMemoryDB(): Promise<void> {
-    try {
-      await memory.init();
-      logger.debug('MemoryAgent: Memory database initialized');
-    } catch (error) {
-      logger.error(
-        `MemoryAgent: Failed to initialize memory database: ${error}`
-      );
-      throw error;
+    const maxRetries = 3;
+    let attempt = 1;
+
+    while (attempt <= maxRetries) {
+      try {
+        logger.debug(
+          `MemoryAgent: Memory database initialization attempt ${attempt}/${maxRetries}`
+        );
+        await memory.init();
+        logger.debug('MemoryAgent: Memory database initialized');
+        return;
+      } catch (error) {
+        logger.error(
+          `MemoryAgent: Failed to initialize memory database (attempt ${attempt}/${maxRetries}): ${error}`
+        );
+
+        if (attempt === maxRetries) {
+          throw error;
+        }
+
+        // Wait before retrying (exponential backoff)
+        const waitTime = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+        logger.debug(`MemoryAgent: Waiting ${waitTime}ms before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        attempt++;
+      }
     }
   }
 

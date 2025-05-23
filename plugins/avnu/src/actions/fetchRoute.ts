@@ -1,5 +1,5 @@
 import { fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { TokenService } from './fetchTokens.js';
 import { RouteSchemaType } from '../schema/index.js';
 import { RouteResult } from '../interfaces/index.js';
@@ -30,12 +30,12 @@ export class RouteFetchService {
   /**
    * Fetches a trading route based on provided parameters
    * @param {RouteSchemaType} params - The route parameters
-   * @param {StarknetAgentInterface} agent - The Starknet agent interface
+   * @param {SnakAgentInterface} agent - The Starknet agent interface
    * @returns {Promise<RouteResult>} The route fetch result
    */
   async fetchRoute(
     params: RouteSchemaType,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<RouteResult> {
     const accountAddress = agent.getAccountCredentials()?.accountPublicKey;
 
@@ -99,12 +99,12 @@ export class RouteFetchService {
 
 /**
  * Utility function to fetch a trading route
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {RouteSchemaType} params - The route parameters
  * @returns {Promise<RouteResult>} The route fetch result
  */
 export const getRoute = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: RouteSchemaType
 ): Promise<RouteResult> => {
   try {

@@ -1,13 +1,13 @@
 import { setTimeout } from 'timers/promises';
 import {
-  createMockInvalidStarknetAgent,
-  createMockStarknetAgent,
+  createMockInvalidSnakAgent,
+  createMockSnakAgent,
 } from '../jest/setEnvVars.js';
 import { swapTokens } from '../../src/actions/swap.js';
 import { SwapParams } from '../../src/types/index.js';
 
-const agent = createMockStarknetAgent();
-const wrong_agent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrong_agent = createMockInvalidSnakAgent();
 
 describe('Swap Token with avnu-sdk', () => {
   describe('With perfect match inputs', () => {

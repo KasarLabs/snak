@@ -1,7 +1,7 @@
 import { getBalance } from '../../src/actions/balanceOf.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
+const agent = createMockSnakAgent();
 const NFT_ADDRESS =
   '0x00ab5ac5f575da7abb70657a3ce4ef8cc4064b365d7d998c09d1e007c1e12921';
 

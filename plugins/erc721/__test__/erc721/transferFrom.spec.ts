@@ -1,11 +1,11 @@
 import { transferFrom } from '../../src/actions/transferFrom.js';
 import {
-  createMockStarknetAgent,
-  createMockInvalidStarknetAgent,
+  createMockSnakAgent,
+  createMockInvalidSnakAgent,
 } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
-const wrong_agent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrong_agent = createMockInvalidSnakAgent();
 const NFT_ADDRESS =
   '0x00ab5ac5f575da7abb70657a3ce4ef8cc4064b365d7d998c09d1e007c1e12921';
 

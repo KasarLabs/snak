@@ -1,9 +1,9 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { WithdrawTroveParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 
 export const withdrawTrove = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: WithdrawTroveParams
 ): Promise<string> => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;

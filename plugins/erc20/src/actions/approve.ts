@@ -1,5 +1,5 @@
 import { Account, Contract, RpcProvider, constants } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import {
   validateAndFormatParams,
   executeV3Transaction,
@@ -12,13 +12,13 @@ import { validToken } from '../types/types.js';
 
 /**
  * Approves token spending
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {ApproveParams} params - Approval parameters
  * @returns {Promise<string>} JSON string with transaction result
  * @throws {Error} If approval fails
  */
 export const approve = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof approveSchema>
 ): Promise<string> => {
   try {

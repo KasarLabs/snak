@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { addProgramSchema, addDependencySchema } from '../schema/schema.js';
 import { extractFile } from '../utils/utils.js';
 import path from 'path';
@@ -14,7 +14,7 @@ import { Id } from '@snakagent/database/common';
  * @returns The result of the operation
  */
 export const addProgramAction = async (
-  _angent: StarknetAgentInterface,
+  _angent: SnakAgentInterface,
   params: z.infer<typeof addProgramSchema>
 ) => {
   try {
@@ -59,7 +59,7 @@ export const addProgramAction = async (
  * @returns The result of the operation
  */
 export const addDependencyAction = async (
-  _angent: StarknetAgentInterface,
+  _angent: SnakAgentInterface,
   params: z.infer<typeof addDependencySchema>
 ) => {
   try {

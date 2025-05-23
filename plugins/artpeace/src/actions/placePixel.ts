@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { Account, constants, Contract } from 'starknet';
 import { artpeaceAbi } from '../abis/artpeaceAbi.js';
 import { artpeaceAddr } from '../constants/artpeace.js';
@@ -13,7 +13,7 @@ import { Checker } from '../utils/checker.js';
  * @returns JSON string with transaction status and hash(es)
  */
 export const placePixel = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   input: { params: placePixelParam[] }
 ) => {
   try {

@@ -1,5 +1,5 @@
 import { RpcProvider } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { ARGENT_CLASS_HASH } from '../constant/contract.js';
 import { AccountManager } from '../utils/AccountManager.js';
 import { z } from 'zod';
@@ -9,13 +9,13 @@ import { accountDetailsSchema } from '../schemas/schema.js';
  * Deploys an Argent account using Starknet agent.
  * @async
  * @function DeployArgentAccount
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {z.infer<typeof accountDetailsSchema>} params - Account details
  * @returns {Promise<string>} JSON string with deployment result
  * @throws {Error} If deployment fails
  */
 export const DeployArgentAccount = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof accountDetailsSchema>
 ) => {
   try {

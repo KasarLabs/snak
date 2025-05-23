@@ -5,7 +5,7 @@ import { createBox } from '../prompt/formatting.js';
 import { load_json_config } from '../index.js';
 import { DatabaseCredentials, logger, ModelsConfig } from '@snakagent/core';
 import { EventEmitter } from 'events';
-import { StarknetAgent } from '../index.js';
+import { SnakAgent } from '../index.js';
 import { RpcProvider } from 'starknet';
 import { ModelSelectionAgent } from '../agents/operators/modelSelectionAgent.js';
 import { deepCopyAgentConfig } from 'config/agentConfig.js';
@@ -21,6 +21,66 @@ interface AgentConfig {
 }
 export const agentEventBus = new EventEmitter();
 agentEventBus.setMaxListeners(100); // MAX NB OF AGENTS
+
+// Registre pour stocker les références aux agents initialisés
+const initializedAgentRegistry = new Map<string, any>();
+
+// Fonction pour exposer les agents initialisés
+export function getInitializedAgents(): Map<string, any> {
+  return initializedAgentRegistry;
+}
+
+// Fonction explicite pour enregistrer les agents auprès du superviseur
+export function registerAgentsWithSupervisor(supervisor: any): void {
+  if (!supervisor || typeof supervisor.registerSnakAgent !== 'function') {
+    logger.error('Invalid supervisor provided for agent registration');
+    return;
+  }
+
+  logger.info(
+    `Registering ${initializedAgentRegistry.size} agents with supervisor`
+  );
+
+  initializedAgentRegistry.forEach((agentData, chatId) => {
+    try {
+      if (!agentData.agent) {
+        logger.warn(
+          `Agent data for ${chatId} does not contain a valid agent instance`
+        );
+        return;
+      }
+
+      // Créer un ID d'agent approprié
+      const agentId = chatId;
+
+      // Enregistrer l'agent auprès du superviseur
+      supervisor.registerSnakAgent(agentId, agentData.agent, {
+        name:
+          agentData.config.name ||
+          `${agentData.type.charAt(0).toUpperCase() + agentData.type.slice(1)} Agent ${agentData.id}`,
+        description:
+          agentData.config.description || `A ${agentData.type} agent instance`,
+        group: agentData.config.group || agentData.type,
+      });
+
+      logger.debug(`Successfully registered agent ${chatId} with supervisor`);
+    } catch (error) {
+      logger.error(
+        `Failed to register agent ${chatId} with supervisor: ${error.message}`
+      );
+    }
+  });
+
+  // Forcer la mise à jour du registre de l'agent de sélection
+  if (typeof supervisor.updateAgentSelectionAgentRegistry === 'function') {
+    supervisor.updateAgentSelectionAgentRegistry();
+    logger.info('Updated agent selection registry');
+  } else {
+    logger.warn(
+      'Supervisor does not have updateAgentSelectionAgentRegistry method'
+    );
+  }
+}
 
 /**
  * Locates the agent configuration file based on agent name
@@ -66,11 +126,10 @@ async function launchAgentAsync(
       throw new Error(`Invalid configuration for agent type: ${agentType}`);
     }
 
-    if (!agentConfig) {
-      throw new Error(`Failed to load agent configuration from ${agentPath}`);
-    }
     const agentConfigCopy = deepCopyAgentConfig(agentConfig);
     agentConfigCopy.chatId = `${agentConfigCopy.chatId || agentType}_${agentId}`;
+    const agentSpecificEventName = `execute-agent-${agentConfigCopy.chatId}`;
+
     const modelSelectionAgent = new ModelSelectionAgent({
       useModelSelector: true,
       modelsConfig: modelsConfig,
@@ -85,7 +144,7 @@ async function launchAgentAsync(
       port: parseInt(process.env.POSTGRES_PORT as string),
     };
 
-    const agent = new StarknetAgent({
+    const agent = new SnakAgent({
       provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
@@ -95,40 +154,117 @@ async function launchAgentAsync(
     });
     await agent.init();
 
-    // Custom logging function
+    // Store the agent in the registry with its unique chat ID
+    initializedAgentRegistry.set(agentConfigCopy.chatId, {
+      agent: agent,
+      type: agentType,
+      config: agentConfigCopy,
+      id: agentId,
+    });
+
     const agentLog = (message: string) => {
-      console.log(chalk.blue(`[${agentType}-${agentId}] `) + message);
+      console.log(chalk.blue(`[${agentConfigCopy.chatId}] `) + message);
     };
-    agentLog(`Agent initialized. Starting autonomous execution...`);
+    agentLog(
+      `Agent initialized. Mode: ${agentConfigCopy.mode}. Listening for events on "${agentSpecificEventName}"`
+    );
+
+    // Also register to general user-input for broadcast messages
+    const userInputListener = async (userInput: string) => {
+      if (abortController.signal.aborted) return;
+      agentLog(
+        `Received broadcast message: "${userInput}". Forwarding to AgentSystem.`
+      );
+      try {
+        // Create a thread_id for this execution
+        const threadId = `thread-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        await agent.execute(userInput, {
+          configurable: { thread_id: threadId },
+        });
+      } catch (error) {
+        logger.error(
+          `Error in agent ${agentConfigCopy.chatId} during broadcast execution: ${error.message}`
+        );
+      }
+    };
+
+    // Register for targeted executions from the supervisor/agent selection system
+    const targetedExecutionListener = async (payload: {
+      input: string;
+      config: any;
+      agentId?: string;
+    }) => {
+      if (abortController.signal.aborted) {
+        agentLog('Execution requested, but agent is stopping.');
+        return;
+      }
+
+      // Check if this message is intended for this agent
+      if (payload.agentId && payload.agentId !== agentConfigCopy.chatId) {
+        return; // Not for this agent
+      }
+
+      const input = payload.input;
+      const config = payload.config || {};
+
+      agentLog(
+        `Received targeted execution request. Input: "${input.substring(0, 50)}..."`
+      );
+      try {
+        const result = await agent.execute(input, config);
+        agentLog('Execution complete.');
+
+        // Emit the result back to the event bus for the supervisor to collect
+        agentEventBus.emit('agent-response', {
+          agentId: agentConfigCopy.chatId,
+          result,
+          originalInput: input,
+          config,
+        });
+      } catch (error) {
+        logger.error(
+          `Error in agent ${agentConfigCopy.chatId} during targeted execution: ${error.message}`
+        );
+        agentLog(`Error during execution: ${error.message}`);
+
+        // Emit error back to event bus
+        agentEventBus.emit('agent-error', {
+          agentId: agentConfigCopy.chatId,
+          error: error.message,
+          originalInput: input,
+          config,
+        });
+      }
+    };
+
+    // Listen for both broadcast messages and targeted executions
+    agentEventBus.on('user-input', userInputListener);
+    agentEventBus.on(agentSpecificEventName, targetedExecutionListener);
+
     const signalListener = () => {
-      agentLog(`Stopping agent execution...`);
+      agentLog('Stop signal received. Cleaning up...');
+      agentEventBus.off('user-input', userInputListener);
+      agentEventBus.off(agentSpecificEventName, targetedExecutionListener);
     };
     abortController.signal.addEventListener('abort', signalListener);
 
-    // Start agent in non-blocking async mode
-    const executePromise = agent.execute_autonomous().catch((error) => {
-      logger.error(`Error in agent ${agentType}-${agentId}: ${error.message}`);
-    });
-
-    // Return a stop function that can be called to terminate this agent
     return {
       stop: async () => {
-        abortController.abort();
-        try {
-          // Wait for execution with a timeout
-          await Promise.race([
-            executePromise,
-            new Promise((resolve) => setTimeout(resolve, 5000)), // 5s timeout
-          ]);
-          agentLog(`Successfully stopped.`);
-        } catch (e) {
-          agentLog(`Error during shutdown: ${e.message}`);
+        agentLog('Executing stop function...');
+        if (!abortController.signal.aborted) {
+          abortController.abort();
         }
+        agentEventBus.off('user-input', userInputListener);
+        agentEventBus.off(agentSpecificEventName, targetedExecutionListener);
+        initializedAgentRegistry.delete(agentConfigCopy.chatId);
+        agentLog(
+          `Successfully stopped listening for inputs for ${agentConfigCopy.chatId}.`
+        );
       },
     };
   } catch (error) {
     logger.error(
-      `Failed to launch agent ${agentType}-${agentId}: ${error.message}`
+      `Failed to launch agent ${agentType}-${agentId} (chatId: ${agentType}_${agentId}): ${error.message}`
     );
     throw error;
   }
@@ -290,3 +426,8 @@ export async function launchMultiAgent(
     throw error;
   }
 }
+
+// Ajouter un événement pour enregistrer les agents auprès du superviseur
+agentEventBus.on('register-with-supervisor', (supervisor) => {
+  registerAgentsWithSupervisor(supervisor);
+});

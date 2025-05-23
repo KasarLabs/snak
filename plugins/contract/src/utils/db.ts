@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { scarb } from '@snakagent/database/queries';
 
 /**
@@ -38,7 +38,7 @@ export const writeJsonToFile = (
  * @returns The compilation files
  */
 export const retrieveCompilationFileByName = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   projectName: string,
   contractName: string
 ): Promise<{ sierra: JSON; casm: JSON }> => {
@@ -65,7 +65,7 @@ export const retrieveCompilationFileByName = async (
 };
 
 export const getSierraCasmFromDB = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   projectName: string,
   contractName: string
 ): Promise<{ sierraPath: string; casmPath: string }> => {

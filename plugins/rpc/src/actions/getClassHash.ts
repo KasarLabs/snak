@@ -1,9 +1,9 @@
 import { BlockIdAndContractAddressParams } from '../schema/index.js';
 import { BlockNumber } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 export const getClassHashAt = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: BlockIdAndContractAddressParams
 ) => {
   const provider = agent.getProvider();

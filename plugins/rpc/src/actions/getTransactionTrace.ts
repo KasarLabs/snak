@@ -1,8 +1,8 @@
 import { TransactionHashParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 export const getTransactionTrace = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: TransactionHashParams
 ) => {
   const provider = agent.getProvider();

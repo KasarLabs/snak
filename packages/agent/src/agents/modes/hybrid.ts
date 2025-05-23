@@ -5,13 +5,14 @@ import {
   Annotation,
 } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
+import { Command } from '@langchain/langgraph';
 import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
-import { StarknetAgentInterface } from '../../tools/tools.js';
+import { SnakAgentInterface } from '../../tools/tools.js';
 import {
   initializeToolsList,
   truncateToolResults,
@@ -25,22 +26,22 @@ import { TokenTracker } from '../../token/tokenTracking.js';
  * Creates and configures a hybrid agent that can use tools, interact with humans,
  * and select models dynamically based on the context.
  *
- * @param starknetAgent - The Starknet agent interface providing tools and configuration.
+ * @param snakAgent - The Starknet agent interface providing tools and configuration.
  * @param modelSelector - An optional model selection agent to dynamically choose LLMs.
  * @returns An object containing the compiled LangGraph app, agent configuration, and max iteration count.
  * @throws Error if agent configuration is missing or invalid, or if model initialization fails.
  */
 export const createHybridAgent = async (
-  starknetAgent: StarknetAgentInterface,
+  snakAgent: SnakAgentInterface,
   modelSelector: ModelSelectionAgent | null
 ) => {
-  const agent_config = starknetAgent.getAgentConfig();
+  const agent_config = snakAgent.getAgentConfig();
   if (!agent_config) {
     throw new Error('Agent configuration is required');
   }
 
   try {
-    const toolsList = await initializeToolsList(starknetAgent, agent_config);
+    const toolsList = await initializeToolsList(snakAgent, agent_config);
 
     // Define the graph state
     const GraphState = Annotation.Root({
@@ -210,6 +211,16 @@ export const createHybridAgent = async (
         };
       }
 
+      // Extract originalUserQuery from first HumanMessage if available
+      const originalUserMessage = state.messages.find(
+        (msg): msg is HumanMessage => msg instanceof HumanMessage
+      );
+      const originalUserQuery = originalUserMessage
+        ? typeof originalUserMessage.content === 'string'
+          ? originalUserMessage.content
+          : JSON.stringify(originalUserMessage.content)
+        : '';
+
       // System prompt with hybrid instructions
       const hybridSystemPrompt = `
         ${agent_config.prompt.content}
@@ -243,7 +254,9 @@ export const createHybridAgent = async (
       }
 
       const selectedModelType = modelSelector
-        ? await modelSelector.selectModelForMessages(state.messages)
+        ? await modelSelector.selectModelForMessages(state.messages, {
+            originalUserQuery,
+          })
         : 'smart';
 
       const modelForThisTask = modelSelector

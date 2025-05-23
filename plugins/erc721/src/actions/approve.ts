@@ -4,7 +4,7 @@ import {
   constants,
   validateAndParseAddress,
 } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import {
   validateAndFormatTokenId,
@@ -16,12 +16,12 @@ import { TransactionResult } from '../types/types.js';
 
 /**
  * Approves an address for NFT transfer
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {z.infer<typeof approveSchema>} params - Approval parameters
  * @returns {Promise<string>} JSON string with transaction result
  */
 export const approve = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof approveSchema>
 ): Promise<string> => {
   try {

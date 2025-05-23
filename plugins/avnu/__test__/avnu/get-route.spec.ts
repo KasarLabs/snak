@@ -1,13 +1,13 @@
 import { setTimeout } from 'timers/promises';
 import {
-  createMockInvalidStarknetAgent,
-  createMockStarknetAgent,
+  createMockInvalidSnakAgent,
+  createMockSnakAgent,
 } from '../jest/setEnvVars.js';
 import { getRoute } from '../../src/actions/fetchRoute.js';
 import { RouteSchemaType } from '../../src/schema/index.js';
 
-const agent = createMockStarknetAgent();
-const wrong_agent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrong_agent = createMockInvalidSnakAgent();
 
 describe('Get Route with avnu-sdk', () => {
   describe('With valid inputs', () => {

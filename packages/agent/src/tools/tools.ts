@@ -6,7 +6,7 @@ import { DatabaseCredentials } from './types/database.js';
 import { z as Zod } from 'zod';
 
 /**
- * @interface StarknetAgentInterface
+ * @interface SnakAgentInterface
  * @description Interface for the Starknet agent
  * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
  * @property {() => { signature: string; }} getSignature - Function to get the signature
@@ -18,7 +18,7 @@ import { z as Zod } from 'zod';
  * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
  */
 
-export interface StarknetAgentInterface {
+export interface SnakAgentInterface {
   getAccountCredentials: () => {
     accountPublicKey: string;
     accountPrivateKey: string;
@@ -39,7 +39,7 @@ export interface StarknetAgentInterface {
  * @property {string} description - The description of the tool
  * @property {Zod.AnyZodObject} schema - The schema for the tool
  * @property {string} responseFormat - The response format for the tool
- * @property {(agent: StarknetAgentInterface, params: any, plugins_manager?: any) => Promise<unknown>} execute - Function to execute the tool
+ * @property {(agent: SnakAgentInterface, params: any, plugins_manager?: any) => Promise<unknown>} execute - Function to execute the tool
  */
 export interface StarknetTool<P = unknown> {
   name: string;
@@ -48,7 +48,7 @@ export interface StarknetTool<P = unknown> {
   schema?: Zod.AnyZodObject;
   responseFormat?: string;
   execute: (
-    agent: StarknetAgentInterface,
+    agent: SnakAgentInterface,
     params: P,
     plugins_manager?: any
   ) => Promise<unknown>;
@@ -83,12 +83,12 @@ export class StarknetToolRegistry {
    * @async
    * @function createAllowedTools
    * @description Creates allowed tools
-   * @param {StarknetAgentInterface} agent - The Starknet agent
+   * @param {SnakAgentInterface} agent - The Starknet agent
    * @param {string[]} allowed_tools - The allowed tools
    * @returns {Promise<StarknetTool[]>} The allowed tools
    */
   static async createAllowedTools(
-    agent: StarknetAgentInterface,
+    agent: SnakAgentInterface,
     allowed_tools: string[] = []
   ) {
     // Clear existing tools before registering new ones
@@ -114,13 +114,13 @@ export class StarknetToolRegistry {
  * @async
  * @function registerTools
  * @description Registers tools
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {string[]} allowed_tools - The allowed tools
  * @param {StarknetTool[]} tools - The tools
  * @throws {Error} Throws an error if the tools cannot be registered
  */
 export const registerTools = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   allowed_tools: string[] = [],
   tools: StarknetTool[]
 ): Promise<void> => {
@@ -183,12 +183,12 @@ export const registerTools = async (
  * @async
  * @function createAllowedTools
  * @description Creates allowed tools
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {string[]} allowed_tools - The allowed tools
  * @throws {Error} Throws an error if the allowed tools cannot be created
  */
 export const createAllowedTools = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   allowed_tools: string[] = []
 ): Promise<DynamicStructuredTool<any>[]> => {
   if (!allowed_tools || allowed_tools.length === 0) {

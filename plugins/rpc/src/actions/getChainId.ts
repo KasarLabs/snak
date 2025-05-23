@@ -1,6 +1,6 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
-export const getChainId = async (agent: StarknetAgentInterface) => {
+export const getChainId = async (agent: SnakAgentInterface) => {
   const provider = agent.getProvider();
 
   try {

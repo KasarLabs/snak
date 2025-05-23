@@ -1,9 +1,9 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { DepositTroveParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 
 export const depositTrove = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: DepositTroveParams
 ): Promise<string> => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;

@@ -1,6 +1,6 @@
 // __test__/scarb/compile.spec.ts
 import { compileContract } from '../../src/actions/buildContract.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -10,7 +10,7 @@ import { getWorkspacePath } from '../../src/utils/path.js';
 const execAsync = promisify(exec);
 
 describe('Tests de la fonction compileContract', () => {
-  const agent = createMockStarknetAgent();
+  const agent = createMockSnakAgent();
 
   afterAll(async () => {
     try {

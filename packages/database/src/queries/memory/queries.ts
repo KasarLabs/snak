@@ -2,6 +2,10 @@ import { Postgres } from '../../database.js';
 import { Id } from '../common.js';
 import pg from 'pg';
 
+// Global lock to prevent concurrent initialization
+let initPromise: Promise<void> | null = null;
+let isInitialized = false;
+
 export namespace memory {
   /**
    * Initializes the { @see Memory } table and some helper functions.
@@ -9,6 +13,33 @@ export namespace memory {
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function init() {
+    // Return immediately if already initialized
+    if (isInitialized) {
+      return;
+    }
+
+    // If initialization is already in progress, wait for it to complete
+    if (initPromise) {
+      return await initPromise;
+    }
+
+    // Start initialization and store the promise
+    initPromise = performInit();
+
+    try {
+      await initPromise;
+      isInitialized = true;
+    } catch (error) {
+      // Reset on failure so we can retry
+      initPromise = null;
+      throw error;
+    }
+  }
+
+  /**
+   * Performs the actual initialization
+   */
+  async function performInit(): Promise<void> {
     const t = [
       new Postgres.Query(`CREATE EXTENSION IF NOT EXISTS vector;`),
       new Postgres.Query(

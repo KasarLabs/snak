@@ -1,9 +1,9 @@
 import { BlockNumber } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { GetClassAtParams } from '../schema/index.js';
 
 export const getClassAt = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: GetClassAtParams
 ) => {
   const provider = agent.getProvider();

@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { StarknetTool, SnakAgentInterface } from '@snakagent/core';
 import {
   declareContractSchema,
   deployContractSchema,
@@ -16,7 +16,7 @@ import { deleteContractByClassHashAction } from '../actions/deleteContractByClas
 import { contract } from '@snakagent/database/queries';
 
 export const initializeTools = async (
-  _agent: StarknetAgentInterface
+  _agent: SnakAgentInterface
 ): Promise<void> => {
   try {
     await contract.init();
@@ -27,7 +27,7 @@ export const initializeTools = async (
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
-  agent: StarknetAgentInterface
+  agent: SnakAgentInterface
 ) => {
   await initializeTools(agent);
 

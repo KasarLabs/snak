@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import { validateAndFormatTokenId } from '../utils/utils.js';
 import { z } from 'zod';
@@ -9,12 +9,12 @@ import { validateAndParseAddress } from 'starknet';
 
 /**
  * Get the owner of the token.
- * @param agent The StarknetAgentInterface instance.
+ * @param agent The SnakAgentInterface instance.
  * @param params The parameters for the getOwner function.
  * @returns A stringified JSON object with the status and the owner address.
  */
 export const getOwner = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof ownerOfSchema>
 ): Promise<string> => {
   try {

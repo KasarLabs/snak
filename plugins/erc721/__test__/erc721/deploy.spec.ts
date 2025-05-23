@@ -1,10 +1,10 @@
 import { deployERC721Contract } from '../../src/actions/deployERC721.js';
 import {
-  createMockStarknetAgent,
-  createMockInvalidStarknetAgent,
+  createMockSnakAgent,
+  createMockInvalidSnakAgent,
 } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
+const agent = createMockSnakAgent();
 
 describe('Deploy NFT Contract', () => {
   describe('With perfect match inputs', () => {

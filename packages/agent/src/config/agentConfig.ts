@@ -47,11 +47,6 @@ export const createContextFromJson = (json: any): string => {
 
   const contextParts: string[] = [];
 
-  // Objectives Section
-  if (Array.isArray(json.objectives)) {
-    contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
-  }
-
   // Identity Section
   const identityParts: string[] = [];
   if (json.name) {
@@ -61,6 +56,11 @@ export const createContextFromJson = (json: any): string => {
   if (json.bio) {
     identityParts.push(`Bio: ${json.bio}`);
     contextParts.push(`Your Bio : [${json.bio}]`);
+  }
+
+  // Objectives Section
+  if (Array.isArray(json.objectives)) {
+    contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
   }
 
   // Check for autonomous mode
@@ -98,6 +98,7 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
     id: config.id,
     group: config.group,
     name: config.name,
+    description: config.description,
     prompt: promptCopy,
     interval: config.interval,
     chatId: config.chatId,
@@ -301,6 +302,7 @@ const checkParseJson = async (
       id: uuidv4(),
       name: json.name,
       group: json.group,
+      description: json.bio,
       prompt: systemMessagefromjson,
       interval: json.interval,
       chatId: json.chatId,

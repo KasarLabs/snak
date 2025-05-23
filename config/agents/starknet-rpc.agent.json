@@ -21,11 +21,11 @@
   ],
   "interval": 15000,
   "maxIterations": 15,
-  "mode": "interactive",
+  "mode": "hybrid",
   "memory": {
     "enabled": true,
     "shortTermMemorySize": 15
   },
-  "chatId": "ethereum_rpc",
+  "chatId": "starknet_rpc",
   "plugins": ["rpc"]
 }

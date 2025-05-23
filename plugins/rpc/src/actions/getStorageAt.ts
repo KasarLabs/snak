@@ -1,8 +1,8 @@
 import { GetStorageParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 export const getStorageAt = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: GetStorageParams
 ) => {
   const provider = agent.getProvider();

@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { proveProject, cleanProject } from '../utils/workspace.js';
 import { proveProgramSchema } from '../schema/schema.js';
 import { executeProgram } from './executeProgram.js';
@@ -16,7 +16,7 @@ import { z } from 'zod';
  * @returns The proof results
  */
 export const proveProgram = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof proveProgramSchema>
 ) => {
   let projectDir = '';

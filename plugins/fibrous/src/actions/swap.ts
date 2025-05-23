@@ -1,7 +1,7 @@
 import { Account, Call, constants } from 'starknet';
 
 import { ApprovalService } from './approval.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { SLIPPAGE_PERCENTAGE } from '../constants/index.js';
 import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter } from 'fibrous-router-sdk';
@@ -16,7 +16,7 @@ export class SwapService {
   private approvalService: ApprovalService;
 
   constructor(
-    private agent: StarknetAgentInterface,
+    private agent: SnakAgentInterface,
     private walletAddress: string,
     private router: FibrousRouter
   ) {
@@ -138,7 +138,7 @@ export class SwapService {
 }
 
 export const createSwapService = (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   walletAddress?: string
 ): SwapService => {
   if (!walletAddress) {
@@ -149,7 +149,7 @@ export const createSwapService = (
 };
 
 export const swapTokensFibrous = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: SwapParams
 ) => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;

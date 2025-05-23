@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { generateCairoCodeSchema } from '../schema/schema.js';
 import {
@@ -14,7 +14,7 @@ import { scarb } from '@snakagent/database/queries';
  * @returns {Promise<string>} JSON string with the generated code or error
  */
 export const generateCairoCode = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof generateCairoCodeSchema>
 ): Promise<string> => {
   try {

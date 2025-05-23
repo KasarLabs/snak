@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { formatBalance, validateToken, detectAbiType } from '../utils/utils.js';
 import { z } from 'zod';
 import {
@@ -10,13 +10,13 @@ import {
 
 /**
  * Gets the amount of tokens that a spender is allowed to spend on behalf of an owner.
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {AllowanceParams} params - The owner, spender and token addresses
  * @returns {Promise<string>} JSON string with allowance amount
  * @throws {Error} If operation fails
  */
 export const getAllowance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getAllowanceSchema>
 ): Promise<string> => {
   try {
@@ -53,13 +53,13 @@ export const getAllowance = async (
 
 /**
  * Gets allowances granted by the current user
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {MyGivenAllowanceParams} params - The spender and token addresses
  * @returns {Promise<string>} JSON string with allowance amount
  * @throws {Error} If operation fails
  */
 export const getMyGivenAllowance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getMyGivenAllowanceSchema>
 ): Promise<string> => {
   try {
@@ -97,13 +97,13 @@ export const getMyGivenAllowance = async (
 
 /**
  * Gets allowances granted to the current user
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {AllowanceGivenToMeParams} params - The owner and token addresses
  * @returns {Promise<string>} JSON string with allowance amount
  * @throws {Error} If operation fails
  */
 export const getAllowanceGivenToMe = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getAllowanceGivenToMeSchema>
 ): Promise<string> => {
   try {

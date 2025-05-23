@@ -1,5 +1,5 @@
 import { Account, Contract, RpcProvider } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { tokenAddresses } from '../constants/erc20.js';
 import { GetBalanceParams, GetOwnBalanceParams } from '../types/balance.js';
 import { ERC20_ABI } from '../abis/erc20Abi.js';
@@ -73,12 +73,12 @@ const validateTokenAddress = (symbol: string): string => {
 
 /**
  * Gets token balance for authenticated account
- * @param {StarknetAgentInterface} agent - Starknet agent
+ * @param {SnakAgentInterface} agent - Starknet agent
  * @param {GetOwnBalanceParams} params - Balance request parameters
  * @returns {Promise<string>} JSON string with balance or error
  */
 export const getOwnBalance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: GetOwnBalanceParams
 ): Promise<string> => {
   try {
@@ -126,12 +126,12 @@ export const getOwnBalance = async (
 
 /**
  * Gets token balance for any account
- * @param {StarknetAgentInterface} agent - Starknet agent
+ * @param {SnakAgentInterface} agent - Starknet agent
  * @param {GetBalanceParams} params - Balance request parameters
  * @returns {Promise<string>} JSON string with balance or error
  */
 export const getBalance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: GetBalanceParams
 ): Promise<string> => {
   try {

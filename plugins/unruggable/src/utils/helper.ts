@@ -1,6 +1,6 @@
 import { Account, CallData, Uint256 } from 'starknet';
 import { FACTORY_ADDRESS } from '../constants/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { RpcProvider } from 'starknet';
 
 /**
@@ -27,7 +27,7 @@ import { RpcProvider } from 'starknet';
  */
 export const execute = async (
   method: string,
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   calldata: (string | Uint256)[],
   provider: RpcProvider
 ) => {

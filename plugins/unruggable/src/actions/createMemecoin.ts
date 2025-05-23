@@ -1,7 +1,7 @@
 import { CreateMemecoinParams } from '../schema/index.js';
 import { stark, uint256 } from 'starknet';
 import { execute, decimalsScale } from '../utils/helper.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 /**
  * Creates a new memecoin using the Unruggable Factory.
@@ -56,7 +56,7 @@ import { StarknetAgentInterface } from '@snakagent/core';
  * - Name and symbol should follow token naming conventions
  */
 export const createMemecoin = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: CreateMemecoinParams
 ) => {
   try {

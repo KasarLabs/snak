@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { validateToken, formatBalance, detectAbiType } from '../utils/utils.js';
 import { validToken } from '../types/types.js';
 import { z } from 'zod';
@@ -7,13 +7,13 @@ import { getTotalSupplySchema } from '../schemas/schema.js';
 
 /**
  * Gets the total supply of a token
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {GetTotalSupplyParams} params - Total supply parameters
  * @returns {Promise<string>} JSON string with total supply amount
  * @throws {Error} If operation fails
  */
 export const getTotalSupply = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getTotalSupplySchema>
 ): Promise<string> => {
   try {

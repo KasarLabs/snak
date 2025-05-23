@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { Account } from 'starknet';
@@ -7,12 +7,12 @@ import { getSierraCasmFromDB } from '../utils/db.js';
 
 /**
  * Retrieves the constructor parameters for a contract
- * @param {StarknetAgentInterface} agent - Starknet agent interface
+ * @param {SnakAgentInterface} agent - Starknet agent interface
  * @param {z.infer<typeof getConstructorParamsSchema>} params - Parameters to retrieve constructor info
  * @returns {Promise<string>} JSON string with ordered constructor parameter names
  */
 export const getConstructorParams = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getConstructorParamsSchema>
 ): Promise<string> => {
   try {

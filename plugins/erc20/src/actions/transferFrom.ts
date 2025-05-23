@@ -4,7 +4,7 @@ import {
   validateAndParseAddress,
   constants,
 } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import {
   validateAndFormatParams,
   executeV3Transaction,
@@ -20,13 +20,13 @@ import { RpcProvider } from 'starknet';
 
 /**
  * Transfers tokens from one address to another using an allowance.
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {TransferFromParams} params - Transfer parameters
  * @returns {Promise<string>} JSON string with transaction result
  * @throws {Error} If transfer fails
  */
 export const transferFrom = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof transferFromSchema>
 ): Promise<string> => {
   try {

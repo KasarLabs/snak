@@ -9,18 +9,18 @@ import {
   SimulateDeclareTransactionAccountParams,
   Invocation_Declare,
 } from '../types/simulateTransactionTypes.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { TransactionReponseFormat } from '../utils/outputSimulateTransaction.js';
 import { DEFAULT_NONCE } from '../constant/index.js';
 
 /**
  * Simulates invoke transaction
- * @param {StarknetAgentInterface} agent - Starknet agent
+ * @param {SnakAgentInterface} agent - Starknet agent
  * @param {SimulateInvokeTransactionParams} params - Transaction parameters
  * @returns {Promise<string>} JSON string with simulation result
  */
 export const simulateInvokeTransaction = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: SimulateInvokeTransactionParams
 ) => {
   try {
@@ -63,12 +63,12 @@ export const simulateInvokeTransaction = async (
 
 /**
  * Simulates deploy account transaction
- * @param {StarknetAgentInterface} agent - Starknet agent
+ * @param {SnakAgentInterface} agent - Starknet agent
  * @param {SimulateDeployTransactionAccountParams} params - Deploy account parameters
  * @returns {Promise<string>} JSON string with simulation result
  */
 export const simulateDeployAccountTransaction = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: SimulateDeployTransactionAccountParams
 ) => {
   try {
@@ -121,12 +121,12 @@ export const simulateDeployAccountTransaction = async (
 
 /**
  * Simulates deploy transaction
- * @param {StarknetAgentInterface} agent - Starknet agent
+ * @param {SnakAgentInterface} agent - Starknet agent
  * @param {SimulateDeployTransactionParams} params - Deploy parameters
  * @returns {Promise<string>} JSON string with simulation result
  */
 export const simulateDeployTransaction = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: SimulateDeployTransactionParams
 ) => {
   try {
@@ -168,12 +168,12 @@ export const simulateDeployTransaction = async (
 
 /**
  * Simulates declare transaction
- * @param {StarknetAgentInterface} agent - Starknet agent
+ * @param {SnakAgentInterface} agent - Starknet agent
  * @param {SimulateDeclareTransactionAccountParams} params - Declare parameters
  * @returns {Promise<string>} JSON string with simulation result
  */
 export const simulateDeclareTransaction = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: SimulateDeclareTransactionAccountParams
 ) => {
   try {

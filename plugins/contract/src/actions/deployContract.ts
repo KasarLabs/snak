@@ -1,5 +1,5 @@
 import { Account, constants } from 'starknet';
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { ContractManager } from '../utils/contractManager.js';
 import { deployContractSchema } from '../schemas/schema.js';
 import { getSierraCasmFromDB } from '../utils/db.js';
@@ -8,12 +8,12 @@ import { contract } from '@snakagent/database/queries';
 
 /**
  * Deploys a contract on StarkNet using an existing class hash
- * @param {StarknetAgentInterface} agent - Starknet agent interface
+ * @param {SnakAgentInterface} agent - Starknet agent interface
  * @param {z.infer<typeof deployContractSchema>} params - Contract deployment parameters
  * @returns {Promise<string>} JSON string with deployment result or error
  */
 export const deployContract = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof deployContractSchema>
 ): Promise<string> => {
   try {

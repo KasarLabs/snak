@@ -5,7 +5,7 @@ import {
   deleteProjectSchema,
 } from '../schema/schema.js';
 import { scarb } from '@snakagent/database/queries';
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 
 /**
  * Delete several programs from a project
@@ -15,7 +15,7 @@ import { logger, StarknetAgentInterface } from '@snakagent/core';
  * @returns The deletion result
  */
 export const deleteProgramAction = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof deleteProgramSchema>
 ) => {
   try {
@@ -55,7 +55,7 @@ export const deleteProgramAction = async (
  * @returns The deletion result
  */
 export const deleteDependencyAction = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof deleteDependencySchema>
 ) => {
   try {
@@ -96,7 +96,7 @@ export const deleteDependencyAction = async (
  * @returns The deletion result
  */
 export const deleteProjectAction = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof deleteProjectSchema>
 ) => {
   try {

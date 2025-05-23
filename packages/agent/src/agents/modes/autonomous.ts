@@ -1,5 +1,5 @@
 import { logger } from '@snakagent/core';
-import { StarknetAgentInterface } from '../../tools/tools.js';
+import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
@@ -10,7 +10,12 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { AIMessage, BaseMessage, ToolMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  BaseMessage,
+  ToolMessage,
+  HumanMessage,
+} from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -49,18 +54,18 @@ const GraphState = Annotation.Root({
  * Creates and configures an autonomous agent using a StateGraph.
  * This agent can use tools, interact with models, and follow a defined workflow.
  *
- * @param {StarknetAgentInterface} starknetAgent - The Starknet agent instance, providing configuration and context.
+ * @param {SnakAgentInterface} snakAgent - The Starknet agent instance, providing configuration and context.
  * @param {ModelSelectionAgent | null} modelSelector - The model selection agent, responsible for choosing the appropriate LLM for tasks.
  * @returns {Promise<Object>} A promise that resolves to an object containing the compiled LangGraph app,
  *                            agent configuration, and maximum iteration count.
  * @throws {Error} If agent configuration or model selector is missing, or if MCP tool initialization fails critically.
  */
 export const createAutonomousAgent = async (
-  starknetAgent: StarknetAgentInterface,
+  snakAgent: SnakAgentInterface,
   modelSelector: ModelSelectionAgent | null
 ) => {
   try {
-    const agent_config = starknetAgent.getAgentConfig();
+    const agent_config = snakAgent.getAgentConfig();
     if (!agent_config) {
       throw new Error('Agent configuration is required.');
     }
@@ -76,7 +81,7 @@ export const createAutonomousAgent = async (
       | StructuredTool
       | Tool
       | DynamicStructuredTool<AnyZodObject>
-    )[] = await createAllowedTools(starknetAgent, agent_config.plugins);
+    )[] = await createAllowedTools(snakAgent, agent_config.plugins);
 
     if (
       agent_config.mcpServers &&
@@ -204,8 +209,20 @@ export const createAutonomousAgent = async (
           messages: filteredMessages,
         });
 
-        const selectedModelType =
-          await modelSelector.selectModelForMessages(filteredMessages);
+        // Extract originalUserQuery from first HumanMessage if available
+        const originalUserMessage = filteredMessages.find(
+          (msg): msg is HumanMessage => msg instanceof HumanMessage
+        );
+        const originalUserQuery = originalUserMessage
+          ? typeof originalUserMessage.content === 'string'
+            ? originalUserMessage.content
+            : JSON.stringify(originalUserMessage.content)
+          : '';
+
+        const selectedModelType = await modelSelector.selectModelForMessages(
+          filteredMessages,
+          { originalUserQuery }
+        );
         const modelForThisTask = await modelSelector.getModelForTask(
           filteredMessages,
           selectedModelType
@@ -372,7 +389,7 @@ export const createAutonomousAgent = async (
       }
 
       // If no tool calls and no unprocessed FINAL ANSWER, loop back to the agent.
-      // Termination is handled by the external recursion limit in StarknetAgent.execute_autonomous.
+      // Termination is handled by the external recursion limit in SnakAgent.execute_autonomous.
       logger.debug(
         'No tool calls or unprocessed FINAL ANSWER. Routing back to agent for next iteration.'
       );

@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { deleteContractByClassHashSchema } from '../schemas/schema.js';
 import { contract } from '@snakagent/database/queries';
@@ -9,7 +9,7 @@ import { contract } from '@snakagent/database/queries';
  * @returns The result of the operation
  */
 export const deleteContractByClassHashAction = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof deleteContractByClassHashSchema>
 ): Promise<string> => {
   try {

@@ -1,6 +1,6 @@
 // __test__/scarb/prove.spec.ts
 import { proveProgram } from '../../src/actions/proveProgram.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getWorkspacePath } from '../../src/utils/path.js';
@@ -8,7 +8,7 @@ import { getWorkspacePath } from '../../src/utils/path.js';
 const execAsync = promisify(exec);
 
 describe('Prove Program Tests', () => {
-  const agent = createMockStarknetAgent();
+  const agent = createMockSnakAgent();
   const baseProjectName = 'prove_test';
   let testCounter = 1;
 

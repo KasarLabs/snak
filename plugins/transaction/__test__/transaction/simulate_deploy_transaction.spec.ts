@@ -1,12 +1,12 @@
 import { simulateDeployTransaction } from '../../src/actions/simulateTransaction.js';
 import * as C from '../utils/constant.js';
 import {
-  createMockInvalidStarknetAgent,
-  createMockStarknetAgent,
+  createMockInvalidSnakAgent,
+  createMockSnakAgent,
 } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
-const wrong_agent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrong_agent = createMockInvalidSnakAgent();
 describe('Simulate Deploy Transaction ', () => {
   describe('With perfect match inputs', () => {
     it('should simulate deploy transaction with valid payload[classHash]', async () => {
@@ -143,7 +143,7 @@ describe('Simulate Deploy Transaction ', () => {
   describe('With invalid params', () => {
     it('should fail reason : invalid private_key', async () => {
       // Arrange
-      const invalidAgent = createMockInvalidStarknetAgent();
+      const invalidAgent = createMockInvalidSnakAgent();
 
       const params = {
         accountAddress: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,

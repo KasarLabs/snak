@@ -1,9 +1,9 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { GetTroveHealthParams, GetUserTrovesParams } from '../schemas/index.js';
 import { createTroveManager } from '../utils/troveManager.js';
 
 export const getUserTroves = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: GetUserTrovesParams
 ): Promise<string> => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;
@@ -24,7 +24,7 @@ export const getUserTroves = async (
 };
 
 export const getTroveHealth = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: GetTroveHealthParams
 ): Promise<string> => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;
@@ -45,7 +45,7 @@ export const getTroveHealth = async (
 };
 
 export const getBorrowFee = async (
-  agent: StarknetAgentInterface
+  agent: SnakAgentInterface
 ): Promise<string> => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;
 

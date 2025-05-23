@@ -26,13 +26,13 @@ Import and register the Argent tools in your application:
 
 ```javascript
 import { registerTools } from '@snakagent/argent-plugins';
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { StarknetTool, SnakAgentInterface } from '@snakagent/core';
 
 // Initialize your tools registry
 const StarknetToolRegistry = [];
 
 // Optional: Your agent implementation
-const agent = yourStarknetAgent;
+const agent = yourSnakAgent;
 
 // Register the Argent tools
 registerTools(StarknetToolRegistry, agent);

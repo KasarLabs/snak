@@ -1,22 +1,28 @@
-import { Injectable } from '@nestjs/common';
+// packages/server/src/agents.storage.ts
+import {
+  Injectable,
+  Inject,
+  forwardRef,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
-import {
-  AgentMode,
-  AgentSystem,
-  AgentSystemConfig,
-  createContextFromJson,
-} from '@snakagent/agents';
+import { DatabaseService } from './services/database.service.js';
+import { SupervisorService } from './services/supervisor.service.js';
 import { Postgres } from '@snakagent/database';
-import { SystemMessage } from '@langchain/core/messages';
-import { AgentPromptSQL, AgentConfigSQL } from './interfaces/sql_interfaces.js';
 import {
-  logger,
   AgentConfig,
   ModelsConfig,
-  ModelLevelConfig,
   ModelProviders,
+  ModelLevelConfig,
 } from '@snakagent/core';
+import { AgentConfigSQL, AgentPromptSQL } from './interfaces/sql_interfaces.js';
+import { AgentSystemConfig, AgentSystem, AgentMode } from '@snakagent/agents';
+import { createContextFromJson } from '@snakagent/agents';
+import { SystemMessage } from '@langchain/core/messages';
 import DatabaseStorage from '../common/database/database.js';
+
+const logger = new Logger('AgentStorage');
 
 export interface AgentConfigJson {
   name: string;
@@ -31,13 +37,20 @@ export interface AgentConfigJson {
 }
 
 @Injectable()
-export class AgentStorage {
+export class AgentStorage implements OnModuleInit {
   private agentConfigs: AgentConfigSQL[] = [];
   private agentInstances: Map<string, AgentSystem> = new Map();
   private initialized: boolean = false;
-  private initPromise: Promise<void>;
-  constructor(private readonly config: ConfigurationService) {
-    this.initPromise = this.initialize();
+
+  constructor(
+    private readonly config: ConfigurationService,
+    private readonly databaseService: DatabaseService,
+    @Inject(forwardRef(() => SupervisorService))
+    private readonly supervisorService: SupervisorService
+  ) {}
+
+  async onModuleInit() {
+    await this.initialize();
   }
 
   // TODO : this function should don't exist when the models_config will be in the configuration form if this app
@@ -96,12 +109,43 @@ export class AgentStorage {
       if (this.initialized) {
         return;
       }
+
+      // Wait for database to be initialized with retry logic
+      if (!this.databaseService.isInitialized()) {
+        logger.log('Waiting for database initialization...');
+        let attempts = 0;
+        const maxAttempts = 10;
+        const waitTime = 500; // 500ms
+
+        while (
+          !this.databaseService.isInitialized() &&
+          attempts < maxAttempts
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+          attempts++;
+          logger.debug(
+            `Database initialization attempt ${attempts}/${maxAttempts}`
+          );
+        }
+
+        if (!this.databaseService.isInitialized()) {
+          throw new Error(
+            `Database not initialized after ${maxAttempts} attempts`
+          );
+        }
+      }
+
+      // Add a small delay to ensure database is fully ready
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       await DatabaseStorage.connect();
       await this.init_models_config();
       await this.init_agents_config();
       this.initialized = true;
     } catch (error) {
       logger.error('Error during agents_controller initialisation:', error);
+      // Mark as not initialized so we can retry
+      this.initialized = false;
       throw error;
     }
   }
@@ -137,6 +181,7 @@ export class AgentStorage {
     };
     return AgentPrompt;
   }
+
   private async init_agents_config() {
     try {
       logger.debug('Initializing agents configuration');
@@ -149,10 +194,14 @@ export class AgentStorage {
       logger.debug(
         `Agents configuration loaded: ${JSON.stringify(this.agentConfigs)}`
       );
+
+      // Create agent instances but don't register with supervisor yet
+      // (SupervisorService will handle this during its initialization)
       for (const agentConfig of this.agentConfigs) {
-        await this.createAgent(agentConfig);
-        logger.debug(`Agent created: ${JSON.stringify(agentConfig)}`);
+        await this.createAgentInstance(agentConfig);
+        logger.debug(`Agent instance created: ${JSON.stringify(agentConfig)}`);
       }
+
       return q_res;
     } catch (error) {
       logger.error('Error during agents_controller initialisation:', error);
@@ -183,7 +232,7 @@ export class AgentStorage {
     }
   }
 
-  private async createAgent(
+  private async createAgentInstance(
     agent_config: AgentConfigSQL
   ): Promise<AgentSystem> {
     try {
@@ -196,7 +245,7 @@ export class AgentStorage {
       };
 
       logger.debug(
-        `Creating agent with config: ${JSON.stringify(agent_config)}`
+        `Creating agent instance with config: ${JSON.stringify(agent_config)}`
       );
       const systemMessagefromjson = new SystemMessage(
         createContextFromJson(agent_config.prompt)
@@ -212,7 +261,7 @@ export class AgentStorage {
           enabled: agent_config.memory.enabled,
           shortTermMemorySize: agent_config.memory.short_term_memory_size,
         },
-        chatId: 'snak_guide',
+        chatId: `agent_${agent_config.id}`,
         maxIterations: 15,
         mode: AgentMode.INTERACTIVE,
       };
@@ -229,8 +278,8 @@ export class AgentStorage {
       };
 
       const agent = new AgentSystem(config);
-
       await agent.init();
+
       // Store for later reuse
       if (this.agentInstances.has(agent_config.id)) {
         logger.debug(
@@ -242,7 +291,43 @@ export class AgentStorage {
         }
         throw new Error('AgentExecutor not found in instances map');
       }
+
       this.agentInstances.set(agent_config.id, agent);
+      return agent;
+    } catch (error) {
+      console.error('Error creating agent instance:', error);
+      throw error;
+    }
+  }
+
+  private async createAgent(
+    agent_config: AgentConfigSQL
+  ): Promise<AgentSystem> {
+    try {
+      // Create the agent instance
+      const agent = await this.createAgentInstance(agent_config);
+
+      // Register with supervisor if available
+      if (this.supervisorService.isInitialized()) {
+        const metadata = {
+          name: agent_config.name,
+          description: `Agent from group: ${agent_config.group}`,
+          group: agent_config.group,
+        };
+
+        await this.supervisorService.registerAgentWithSupervisor(
+          agent_config.id,
+          agent,
+          metadata
+        );
+
+        logger.debug(`Agent ${agent_config.id} registered with supervisor`);
+      } else {
+        logger.warn(
+          `Supervisor not initialized, agent ${agent_config.id} not registered with supervisor`
+        );
+      }
+
       return agent;
     } catch (error) {
       console.error('Error creating agent:', error);
@@ -253,7 +338,7 @@ export class AgentStorage {
   public async addAgent(agent_config: AgentConfigJson): Promise<void> {
     logger.debug(`Adding agent with config: ${JSON.stringify(agent_config)}`);
     if (!this.initialized) {
-      await this.initPromise;
+      await this.initialize();
     }
 
     const baseName = agent_config.name;
@@ -276,7 +361,7 @@ export class AgentStorage {
       } else {
         const escapedBaseName = baseName.replace(/[.*+?^${}()|[\\]]/g, '\\$&');
         const suffixMatch = existingName.match(
-          new RegExp(`^${escapedBaseName}-(\d+)$`)
+          new RegExp(`^${escapedBaseName}-(\\d+)$`)
         );
         if (suffixMatch && suffixMatch[1]) {
           const lastIndex = parseInt(suffixMatch[1], 10);
@@ -315,7 +400,13 @@ export class AgentStorage {
         ...newAgentDbRecord,
         prompt: this.parseAgentPrompt(newAgentDbRecord.prompt as any),
       };
+
+      // Create agent and register with supervisor
       await this.createAgent(agentToCreate);
+
+      logger.debug(
+        `Agent ${newAgentDbRecord.id} created and registered with supervisor`
+      );
     } else {
       logger.error('Failed to add agent to database, no record returned.');
       throw new Error('Failed to add agent to database.');
@@ -340,16 +431,62 @@ export class AgentStorage {
   // Add ResponseDTO for Error Handling in any public function
   public async deleteAgent(id: string): Promise<void> {
     if (!this.initialized) {
-      await this.initPromise;
+      await this.initialize();
     }
+
+    // Remove from database
     const q = new Postgres.Query(
       `DELETE FROM agents WHERE id = $1 RETURNING *`,
       [id]
     );
     const q_res = await Postgres.query<AgentConfigSQL>(q);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
+
+    // Remove from local instances
     if (this.agentInstances.has(id)) {
+      const agent = this.agentInstances.get(id);
+
+      // Dispose of the agent properly
+      if (agent) {
+        try {
+          await agent.dispose();
+        } catch (error) {
+          logger.error(`Error disposing agent ${id}:`, error);
+        }
+      }
+
       this.agentInstances.delete(id);
     }
+
+    // Unregister from supervisor
+    if (this.supervisorService.isInitialized()) {
+      try {
+        await this.supervisorService.unregisterAgentFromSupervisor(id);
+        logger.debug(`Agent ${id} unregistered from supervisor`);
+      } catch (error) {
+        logger.error(`Error unregistering agent ${id} from supervisor:`, error);
+      }
+    }
+  }
+
+  /**
+   * Get supervisor service instance
+   */
+  public getSupervisorService(): SupervisorService {
+    return this.supervisorService;
+  }
+
+  /**
+   * Execute a request through the supervisor
+   */
+  public async executeRequestThroughSupervisor(
+    input: string,
+    config?: Record<string, any>
+  ): Promise<any> {
+    if (!this.supervisorService.isInitialized()) {
+      throw new Error('Supervisor service not initialized');
+    }
+
+    return await this.supervisorService.executeRequest(input, config);
   }
 }

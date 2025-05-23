@@ -1,8 +1,8 @@
 import { transfer } from '../../src/actions/transfer.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 import { setupTestEnvironment } from '../utils/helper.js';
 
-const agent = createMockStarknetAgent();
+const agent = createMockSnakAgent();
 
 setupTestEnvironment();
 

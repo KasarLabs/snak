@@ -2,9 +2,9 @@ import {
   createTroveManager,
   TroveManager,
 } from '../../src/utils/troveManager.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
+const agent = createMockSnakAgent();
 
 describe('TroveManager', () => {
   let troveManager: TroveManager;

@@ -1,8 +1,8 @@
 // __test__/scarb/simple-init-test.spec.ts
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { initializeProjectData } from '../../src/utils/db.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
+import { SnakAgentInterface } from '@snakagent/core';
 import { PostgresAdaptater } from '@snakagent/core';
 
 // Define a type for our mocks that matches the expected structure
@@ -16,7 +16,7 @@ type MockDB = {
 
 describe('Simple initializeProjectData Test', () => {
   // Create the agent and mocks
-  let agent: StarknetAgentInterface;
+  let agent: SnakAgentInterface;
   let mockDb: MockDB;
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe('Simple initializeProjectData Test', () => {
     jest.clearAllMocks();
 
     // Create the agent
-    agent = createMockStarknetAgent();
+    agent = createMockSnakAgent();
 
     // Create mocks for the Postgres adapter
     mockDb = {

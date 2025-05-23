@@ -1,4 +1,4 @@
-import { StarknetTool, StarknetAgentInterface } from '@snakagent/core';
+import { StarknetTool, SnakAgentInterface } from '@snakagent/core';
 import {
   generateCairoCodeSchema,
   fixCairoCodeSchema,
@@ -23,7 +23,7 @@ import { listProjects } from '../actions/listProjects.js';
 import { scarb } from '@snakagent/database/queries';
 
 export const initializeTools = async (
-  _agent: StarknetAgentInterface
+  _agent: SnakAgentInterface
 ): Promise<void> => {
   try {
     await scarb.init();
@@ -34,7 +34,7 @@ export const initializeTools = async (
 
 export const registerTools = async (
   StarknetToolRegistry: StarknetTool[],
-  _agent: StarknetAgentInterface
+  _agent: SnakAgentInterface
 ) => {
   StarknetToolRegistry.push({
     name: 'cairocoder_generate_code',

@@ -1,12 +1,12 @@
 import { simulateDeclareTransaction } from '../../src/actions/simulateTransaction.js';
 import * as C from '../utils/constant.js';
 import {
-  createMockInvalidStarknetAgent,
-  createMockStarknetAgent,
+  createMockInvalidSnakAgent,
+  createMockSnakAgent,
 } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
-const wrong_agent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrong_agent = createMockInvalidSnakAgent();
 
 describe('Simulate Declare Transaction ', () => {
   describe('With perfect match inputs', () => {
@@ -299,7 +299,7 @@ describe('Simulate Declare Transaction ', () => {
         },
       };
 
-      const invalidAgent = createMockInvalidStarknetAgent();
+      const invalidAgent = createMockInvalidSnakAgent();
 
       // Act
       const result = await simulateDeclareTransaction(wrong_agent, params);

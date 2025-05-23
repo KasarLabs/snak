@@ -1,5 +1,5 @@
 import { Account, Call } from 'starknet';
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { parseUnits } from 'ethers';
 import {
@@ -31,11 +31,11 @@ import {
 export class DepositEarnService {
   /**
    * Creates an instance of DepositEarnService
-   * @param {StarknetAgentInterface} agent - The Starknet agent for blockchain interactions
+   * @param {SnakAgentInterface} agent - The Starknet agent for blockchain interactions
    * @param {string} walletAddress - The wallet address executing the deposits
    */
   constructor(
-    private agent: StarknetAgentInterface,
+    private agent: SnakAgentInterface,
     private walletAddress: string
   ) {}
 
@@ -141,12 +141,12 @@ export class DepositEarnService {
   /**
    * Executes a deposit transaction
    * @param {DepositParams} params - Deposit parameters
-   * @param {StarknetAgentInterface} agent - Starknet agent
+   * @param {SnakAgentInterface} agent - Starknet agent
    * @returns {Promise<DepositResult>} Result of the deposit operation
    */
   async depositEarnTransaction(
     params: DepositParams,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<DepositResult> {
     try {
       const account = new Account(
@@ -232,13 +232,13 @@ export class DepositEarnService {
 
 /**
  * Creates a new DepositEarnService instance
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {string} [walletAddress] - The wallet address
  * @returns {DepositEarnService} A new DepositEarnService instance
  * @throws {Error} If wallet address is not provided
  */
 export const createDepositEarnService = (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   walletAddress?: string
 ): DepositEarnService => {
   if (!walletAddress) {
@@ -250,12 +250,12 @@ export const createDepositEarnService = (
 
 /**
  * Utility function to execute a deposit operation
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {DepositParams} params - The deposit parameters
  * @returns {Promise<string>} JSON string containing the deposit result
  */
 export const depositEarnPosition = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: DepositParams
 ) => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;

@@ -1,7 +1,7 @@
 import { Account, Call, constants } from 'starknet';
 
 import { ApprovalService } from './approval.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { TokenService } from './fetchTokens.js';
 import { Router as FibrousRouter, RouteSuccess } from 'fibrous-router-sdk';
 import { BigNumber } from '@ethersproject/bignumber';
@@ -16,7 +16,7 @@ export class BatchSwapService {
   private router: FibrousRouter;
 
   constructor(
-    private agent: StarknetAgentInterface,
+    private agent: SnakAgentInterface,
     private walletAddress: string,
     routerInstance?: FibrousRouter
   ) {
@@ -156,7 +156,7 @@ export class BatchSwapService {
 }
 
 export const createSwapService = (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   walletAddress?: string
 ): BatchSwapService => {
   if (!walletAddress) {
@@ -167,7 +167,7 @@ export const createSwapService = (
 };
 
 export const batchSwapTokens = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: BatchSwapParams
 ) => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;

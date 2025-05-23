@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { detectAbiType } from '../utils/utils.js';
 import { formatBalance, validateToken } from '../utils/utils.js';
 import { validToken } from '../types/types.js';
@@ -8,13 +8,13 @@ import { getBalanceSchema, getOwnBalanceSchema } from '../schemas/schema.js';
 
 /**
  * Gets own token balance
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {OwnBalanceParams} params - Balance parameters
  * @returns {Promise<string>} JSON string with balance amount
  * @throws {Error} If operation fails
  */
 export const getOwnBalance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getOwnBalanceSchema>
 ): Promise<string> => {
   try {
@@ -57,13 +57,13 @@ export const getOwnBalance = async (
 
 /**
  * Gets token balance for an address
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {BalanceParams} params - Balance parameters
  * @returns {Promise<string>} JSON string with balance amount
  * @throws {Error} If operation fails
  */
 export const getBalance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getBalanceSchema>
 ): Promise<string> => {
   try {

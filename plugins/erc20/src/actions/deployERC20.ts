@@ -1,5 +1,5 @@
 import { Account, shortString, cairo } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { ContractManager } from '../utils/contractManager.js';
 import { deployERC20Schema } from '../schemas/schema.js';
 import {
@@ -11,13 +11,13 @@ import { z } from 'zod';
 
 /**
  * Deploys a new ERC20 token contract on StarkNet
- * @param {StarknetAgentInterface} agent - StarkNet agent interface providing access to provider and credentials
+ * @param {SnakAgentInterface} agent - StarkNet agent interface providing access to provider and credentials
  * @param {z.infer<typeof deployERC20Schema>} params - ERC20 deployment parameters validated by Zod schema
  * @returns {Promise<string>} JSON stringified response with deployment status and contract details
  * @throws {Error} If deployment fails
  */
 export const deployERC20Contract = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof deployERC20Schema>
 ) => {
   try {

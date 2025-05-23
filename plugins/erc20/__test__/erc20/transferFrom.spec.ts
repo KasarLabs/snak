@@ -1,19 +1,19 @@
 import { Mock } from 'node:test';
 import { approve } from '../../src/actions/approve.js';
 import { transferFrom } from '../../src/actions/transferFrom.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 import { setupTestEnvironment } from '../utils/helper.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 describe('TransferFrom with prior approval', () => {
   const approvalAmount = '1.0';
-  let agent: StarknetAgentInterface;
-  let approverAgent: StarknetAgentInterface;
+  let agent: SnakAgentInterface;
+  let approverAgent: SnakAgentInterface;
 
   beforeEach(async () => {
     setupTestEnvironment();
 
-    approverAgent = createMockStarknetAgent();
+    approverAgent = createMockSnakAgent();
     approverAgent.getAccountCredentials = () => ({
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS_2 as string,
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY_2 as string,
@@ -27,7 +27,7 @@ describe('TransferFrom with prior approval', () => {
 
     await approve(approverAgent, approveParams);
 
-    agent = createMockStarknetAgent();
+    agent = createMockSnakAgent();
     agent.getAccountCredentials = () => ({
       accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS,
       accountPrivateKey: process.env.STARKNET_PRIVATE_KEY,

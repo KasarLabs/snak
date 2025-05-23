@@ -1,8 +1,8 @@
 import { getProofService } from '../../src/actions/getProofService.js';
 import { AtlanticParam } from '../../src/types/Atlantic.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
+const agent = createMockSnakAgent();
 
 describe('getProofService', () => {
   const OLD_ENV = process.env;

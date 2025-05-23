@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { verifyProject, cleanProject } from '../utils/workspace.js';
 import { verifyProgramSchema } from '../schema/schema.js';
 import { setupScarbProject } from '../utils/common.js';
@@ -13,7 +13,7 @@ import { scarb } from '@snakagent/database/queries';
  * @returns The verification results
  */
 export const verifyProgram = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof verifyProgramSchema>
 ) => {
   let projectDir = '';

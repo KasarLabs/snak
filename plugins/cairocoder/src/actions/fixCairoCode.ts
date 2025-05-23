@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { fixCairoCodeSchema } from '../schema/schema.js';
 import { callCairoGenerationAPI, extractCairoCode } from '../utils/utils.js';
 import { z } from 'zod';
@@ -6,12 +6,12 @@ import { scarb } from '@snakagent/database/queries';
 
 /**
  * Fix Cairo code using AI via API and update it in the database
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {FixCairoCodeSchema} params - The parameters for code fixing
  * @returns {Promise<string>} JSON string with the fixed code or error
  */
 export const fixCairoCode = async (
-  _angent: StarknetAgentInterface,
+  _angent: SnakAgentInterface,
   params: z.infer<typeof fixCairoCodeSchema>
 ): Promise<string> => {
   try {

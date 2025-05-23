@@ -26,6 +26,11 @@ export interface IAgent {
    * @param config Optional configuration
    */
   execute(input: any, config?: Record<string, any>): Promise<any>;
+
+  /**
+   * Optional method to clean up resources used by the agent.
+   */
+  dispose?: () => Promise<void>;
 }
 
 /**
@@ -80,4 +85,13 @@ export abstract class BaseAgent implements IAgent {
 
   abstract init(): Promise<void>;
   abstract execute(input: any, config?: Record<string, any>): Promise<any>;
+
+  /**
+   * Default dispose method. Subclasses should override this if they
+   * need to perform specific cleanup tasks.
+   */
+  public async dispose(): Promise<void> {
+    // Default implementation does nothing
+    return Promise.resolve();
+  }
 }

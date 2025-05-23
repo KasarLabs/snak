@@ -1,5 +1,5 @@
 import { Account, Contract, constants } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import {
   validateAndFormatTokenId,
@@ -12,12 +12,12 @@ import { validateAndParseAddress } from 'starknet';
 
 /**
  * Safely transfers a token from one address to another.
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {z.infer<typeof safeTransferFromSchema>} params - Safe transfer parameters
  * @returns {Promise<string>} JSON string with transaction result
  */
 export const safeTransferFrom = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof safeTransferFromSchema>
 ): Promise<string> => {
   try {

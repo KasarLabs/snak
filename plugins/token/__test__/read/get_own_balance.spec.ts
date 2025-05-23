@@ -1,11 +1,11 @@
 import { getOwnBalance } from '../../src/actions/getBalances.js';
 import {
-  createMockInvalidStarknetAgent,
-  createMockStarknetAgent,
+  createMockInvalidSnakAgent,
+  createMockSnakAgent,
 } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
-const wrong_agent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrong_agent = createMockInvalidSnakAgent();
 
 describe('getOwnBlance', () => {
   describe('With perfect match inputs', () => {
@@ -42,7 +42,7 @@ describe('getOwnBlance', () => {
       const params = {
         symbol: 'ETH',
       };
-      const invalidAgent = createMockInvalidStarknetAgent();
+      const invalidAgent = createMockInvalidSnakAgent();
 
       // Act
       const result = await getOwnBalance(wrong_agent, params);

@@ -1,8 +1,8 @@
 import { BlockIdParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 export const getBlockWithReceipts = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: BlockIdParams
 ) => {
   try {

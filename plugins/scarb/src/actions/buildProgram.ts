@@ -1,4 +1,4 @@
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { buildProject, cleanProject } from '../utils/workspace.js';
 import { setupScarbProject, setupToml, setupSrc } from '../utils/common.js';
 import { getGeneratedContractFiles } from '../utils/preparation.js';
@@ -16,7 +16,7 @@ import { extractModuleFromArtifact } from '../utils/utils.js';
  * @returns The compilation results
  */
 export const compileContract = async (
-  _agent: StarknetAgentInterface,
+  _agent: SnakAgentInterface,
   params: z.infer<typeof compileContractSchema>
 ) => {
   let projectDir = '';

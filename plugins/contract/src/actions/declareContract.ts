@@ -1,5 +1,5 @@
 import { Account, constants } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import { ContractManager } from '../utils/contractManager.js';
 import { declareContractSchema } from '../schemas/schema.js';
@@ -9,12 +9,12 @@ import { contract } from '@snakagent/database/queries';
 
 /**
  * Declares a contract on StarkNet
- * @param {StarknetAgentInterface} agent - Starknet agent interface
+ * @param {SnakAgentInterface} agent - Starknet agent interface
  * @param {z.infer<typeof declareContractSchema>} params - Contract declaration parameters
  * @returns {Promise<string>} JSON string with declaration result or error
  */
 export const declareContract = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof declareContractSchema>
 ): Promise<string> => {
   try {

@@ -1,5 +1,5 @@
 import { Account, Call } from 'starknet';
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 import { z } from 'zod';
 import {
   Address,
@@ -30,11 +30,11 @@ import {
 export class WithdrawEarnService {
   /**
    * Creates an instance of WithdrawEarnService
-   * @param {StarknetAgentInterface} agent - The Starknet agent for blockchain interactions
+   * @param {SnakAgentInterface} agent - The Starknet agent for blockchain interactions
    * @param {string} walletAddress - The wallet address executing the withdrawals
    */
   constructor(
-    private agent: StarknetAgentInterface,
+    private agent: SnakAgentInterface,
     private walletAddress: string
   ) {}
 
@@ -163,12 +163,12 @@ export class WithdrawEarnService {
   /**
    * Executes a withdrawal transaction
    * @param {WithdrawParams} params - Withdrawal parameters
-   * @param {StarknetAgentInterface} agent - Starknet agent
+   * @param {SnakAgentInterface} agent - Starknet agent
    * @returns {Promise<WithdrawResult>} Result of the withdrawal operation
    */
   async withdrawEarnTransaction(
     params: WithdrawParams,
-    agent: StarknetAgentInterface
+    agent: SnakAgentInterface
   ): Promise<WithdrawResult> {
     try {
       const account = new Account(
@@ -252,13 +252,13 @@ export class WithdrawEarnService {
 
 /**
  * Creates a new WithdrawEarnService instance
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {string} [walletAddress] - The wallet address
  * @returns {WithdrawEarnService} A new WithdrawEarnService instance
  * @throws {Error} If wallet address is not provided
  */
 export const withdrawService = (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   walletAddress?: string
 ): WithdrawEarnService => {
   if (!walletAddress) {
@@ -270,12 +270,12 @@ export const withdrawService = (
 
 /**
  * Utility function to execute a withdrawal operation
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {WithdrawParams} params - The withdrawal parameters
  * @returns {Promise<string>} JSON string containing the withdrawal result
  */
 export const withdrawEarnPosition = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: WithdrawParams
 ) => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;

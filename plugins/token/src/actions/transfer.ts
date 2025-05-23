@@ -1,6 +1,6 @@
 import { Account, uint256 } from 'starknet';
 import { tokenAddresses } from '../constants/erc20.js';
-import { logger, StarknetAgentInterface } from '@snakagent/core';
+import { logger, SnakAgentInterface } from '@snakagent/core';
 
 /**
  * Configuration interface for transfer operations
@@ -57,7 +57,7 @@ const formatTokenAmount = (amount: string, decimals: number): string => {
  * @returns Result of the transfer operation
  */
 export const transfer = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   payloads: transferPayloads
 ): Promise<string> => {
   try {

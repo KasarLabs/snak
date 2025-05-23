@@ -1,11 +1,11 @@
 import { placePixel } from '../../src/actions/placePixel.js';
 import {
-  createMockInvalidStarknetAgent,
-  createMockStarknetAgent,
+  createMockInvalidSnakAgent,
+  createMockSnakAgent,
 } from '../jest/setEnvVars.js';
 
-const agent = createMockStarknetAgent();
-const wrongAgent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrongAgent = createMockInvalidSnakAgent();
 
 describe('place_pixel', () => {
   describe('With perfect match inputs', () => {

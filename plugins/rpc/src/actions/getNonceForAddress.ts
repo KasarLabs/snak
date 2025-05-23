@@ -1,9 +1,9 @@
 import { BlockIdAndContractAddressParams } from '../schema/index.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { BlockNumber } from 'starknet';
 
 export const getNonceForAddress = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: BlockIdAndContractAddressParams
 ) => {
   const provider = agent.getProvider();

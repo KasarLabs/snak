@@ -1,5 +1,5 @@
 import { Account, constants, Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import {
   validateAndFormatParams,
   executeV3Transaction,
@@ -14,13 +14,13 @@ import { RpcProvider } from 'starknet';
 
 /**
  * Transfers ERC20 tokens on Starknet
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {TransferParams} params - Transfer parameters
  * @returns {Promise<string>} JSON string with transaction result
  * @throws {Error} If transfer fails
  */
 export const transfer = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof transferSchema>
 ): Promise<string> => {
   try {

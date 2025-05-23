@@ -2,7 +2,7 @@
 import { proveProgram } from '../../src/actions/proveProgram.js';
 import { executeProgram } from '../../src/actions/executeProgram.js';
 import { verifyProgram } from '../../src/actions/verifyProgram.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getWorkspacePath } from '../../src/utils/path.js';
@@ -10,7 +10,7 @@ import { getWorkspacePath } from '../../src/utils/path.js';
 const execAsync = promisify(exec);
 
 describe('Verify Program Tests', () => {
-  const agent = createMockStarknetAgent();
+  const agent = createMockSnakAgent();
   const baseProjectName = 'verify_test';
   let testCounter = 1;
 

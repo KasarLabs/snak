@@ -1,5 +1,5 @@
-import { TransactionResponse } from '@/interfaces/starknetagents';
-import { InvokeTransaction } from '@/types/starknetAgents';
+import { TransactionResponse } from '@/interfaces/snakagents';
+import { InvokeTransaction } from '@/types/snakAgents';
 
 export const handleInvokeTransactions = (
   response: TransactionResponse

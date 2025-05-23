@@ -2,7 +2,7 @@ import { executeSwap, fetchQuotes, QuoteRequest, Quote } from '@avnu/avnu-sdk';
 import { Account, constants } from 'starknet';
 
 import { ApprovalService } from './approval.js';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { SwapParams, SwapResult } from '../types/index.js';
 import { DEFAULT_QUOTE_SIZE, SLIPPAGE_PERCENTAGE } from '../constants/index.js';
 import { TokenService } from './fetchTokens.js';
@@ -19,11 +19,11 @@ export class SwapService {
 
   /**
    * Creates an instance of SwapService
-   * @param {StarknetAgentInterface} agent - The Starknet agent for blockchain interactions
+   * @param {SnakAgentInterface} agent - The Starknet agent for blockchain interactions
    * @param {string} walletAddress - The wallet address executing the swaps
    */
   constructor(
-    private agent: StarknetAgentInterface,
+    private agent: SnakAgentInterface,
     private walletAddress: string
   ) {
     this.tokenService = new TokenService();
@@ -56,7 +56,7 @@ export class SwapService {
   /**
    * Executes a token swap transaction
    * @param {SwapParams} params - The swap parameters
-   * @param {StarknetAgentInterface} agent - The Starknet agent
+   * @param {SnakAgentInterface} agent - The Starknet agent
    * @returns {Promise<SwapResult>} The result of the swap operation
    */
   async executeSwapTransaction(params: SwapParams): Promise<SwapResult> {
@@ -161,13 +161,13 @@ export class SwapService {
 
 /**
  * Creates a new SwapService instance
- * @param {StarknetAgentInterface} agent - The Starknet agent
+ * @param {SnakAgentInterface} agent - The Starknet agent
  * @param {string} [walletAddress] - The wallet address
  * @returns {SwapService} A new SwapService instance
  * @throws {Error} If wallet address is not provided
  */
 export const createSwapService = (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   walletAddress?: string
 ): SwapService => {
   if (!walletAddress) {
@@ -178,7 +178,7 @@ export const createSwapService = (
 };
 
 export const swapTokens = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: SwapParams
 ) => {
   const accountAddress = agent.getAccountCredentials()?.accountPublicKey;

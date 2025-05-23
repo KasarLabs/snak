@@ -1,6 +1,6 @@
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
-export const getSpecVersion = async (agent: StarknetAgentInterface) => {
+export const getSpecVersion = async (agent: SnakAgentInterface) => {
   try {
     const provider = agent.getProvider();
     const specVersion = await provider.getSpecVersion();

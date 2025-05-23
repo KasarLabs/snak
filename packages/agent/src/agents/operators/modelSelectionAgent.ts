@@ -219,10 +219,12 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
    * If `useModelSelector` is true, it uses the 'fast' model to analyze the messages.
    * Otherwise, it defaults to 'smart' or uses heuristics if the 'fast' model fails.
    * @param {BaseMessage[]} messages - The messages to analyze for model selection.
+   * @param {Record<string, any>} [config] - Optional configuration containing additional context like originalUserQuery.
    * @returns {Promise<string>} The selected model type.
    */
   public async selectModelForMessages(
-    messages: BaseMessage[]
+    messages: BaseMessage[],
+    config?: Record<string, any>
   ): Promise<string> {
     if (!this.useModelSelector) {
       if (this.debugMode) {
@@ -254,33 +256,53 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
         return 'smart';
       }
 
-      const lastMessage = messages[messages.length - 1];
-      if (!lastMessage) {
-        logger.warn(
-          'ModelSelectionAgent: Could not get the last message; defaulting to "smart".'
-        );
-        return 'smart';
+      // Determine content to analyze based on config or last message
+      let analysisContent = '';
+
+      if (
+        config?.originalUserQuery &&
+        typeof config.originalUserQuery === 'string'
+      ) {
+        // Use originalUserQuery from config if available
+        analysisContent = config.originalUserQuery;
+        if (this.debugMode) {
+          logger.debug(
+            `Using originalUserQuery for model selection: "${analysisContent.substring(0, 100)}..."`
+          );
+        }
+      } else {
+        // Fall back to using the last message
+        const lastMessage = messages[messages.length - 1];
+        if (!lastMessage) {
+          logger.warn(
+            'ModelSelectionAgent: Could not get the last message; defaulting to "smart".'
+          );
+          return 'smart';
+        }
+
+        const content =
+          lastMessage.content != null
+            ? typeof lastMessage.content === 'string'
+              ? lastMessage.content
+              : JSON.stringify(lastMessage.content)
+            : '';
+
+        analysisContent = content;
       }
 
-      const content =
-        lastMessage.content != null
-          ? typeof lastMessage.content === 'string'
-            ? lastMessage.content
-            : JSON.stringify(lastMessage.content)
-          : '';
-
-      let analysisContent = content;
       let nextStepsSection = '';
 
       // Extract "NEXT STEPS" section for more focused analysis if present
-      const nextStepsMatch = content.match(/NEXT STEPS:(.*?)($|(?=\n\n))/s);
+      const nextStepsMatch = analysisContent.match(
+        /NEXT STEPS:(.*?)($|(?=\n\n))/s
+      );
       if (nextStepsMatch && nextStepsMatch[1]) {
         nextStepsSection = nextStepsMatch[1].trim();
         if (this.debugMode) {
           logger.debug(`Extracted NEXT STEPS section: "${nextStepsSection}"`);
         }
         // Prioritize NEXT STEPS for analysis, with some context
-        const truncatedContext = content.substring(0, 300) + '...';
+        const truncatedContext = analysisContent.substring(0, 300) + '...';
         analysisContent = `Next planned actions: ${nextStepsSection}\n\nContext: ${truncatedContext}`;
       }
 
@@ -585,10 +607,15 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
 
   /**
    * Main execution entry point for the agent. Selects a model and returns an AIMessage with the selection.
-   * @param {any} input - Can be a single message, a string (converted to HumanMessage), or an array of BaseMessages.
+   * @param {string | BaseMessage | BaseMessage[]} input - Can be a single message, a string (converted to HumanMessage), or an array of BaseMessages.
+   * @param {Record<string, any>} [config] - Optional. Additional configuration options.
    * @returns {Promise<AIMessage>} An AIMessage indicating the selected model type and other relevant metadata.
    */
-  public async execute(input: any): Promise<AIMessage> {
+  public async execute(
+    input: string | BaseMessage | BaseMessage[],
+    config?: Record<string, any>
+  ): Promise<AIMessage> {
+    // Determine messages array from input
     const messages: BaseMessage[] = Array.isArray(input)
       ? input
       : [typeof input === 'string' ? new HumanMessage(input) : input];
@@ -609,28 +636,45 @@ export class ModelSelectionAgent extends BaseAgent implements IModelAgent {
       });
     }
 
-    // Attempt to find the original user query from HumanMessages
-    const originalUserMessage = messages.find(
-      (msg): msg is HumanMessage => msg instanceof HumanMessage // Type guard
-    );
-    const originalQuery = originalUserMessage
-      ? typeof originalUserMessage.content === 'string'
-        ? originalUserMessage.content
-        : JSON.stringify(originalUserMessage.content)
-      : '';
+    // Extract original user query from config if it exists
+    let originalQuery = '';
 
-    const modelType = await this.selectModelForMessages(messages);
+    if (
+      config?.originalUserQuery &&
+      typeof config.originalUserQuery === 'string'
+    ) {
+      // Use the original user query from config if available
+      originalQuery = config.originalUserQuery;
+      if (this.debugMode) {
+        logger.debug(
+          `ModelSelectionAgent: Using originalUserQuery from config for model selection: "${originalQuery.substring(0, 100)}..."`
+        );
+      }
+    } else {
+      // Otherwise, attempt to find the original user query from HumanMessages
+      const originalUserMessage = messages.find(
+        (msg): msg is HumanMessage => msg instanceof HumanMessage
+      );
+      originalQuery = originalUserMessage
+        ? typeof originalUserMessage.content === 'string'
+          ? originalUserMessage.content
+          : JSON.stringify(originalUserMessage.content)
+        : '';
+
+      if (this.debugMode && originalQuery) {
+        logger.debug(
+          `ModelSelectionAgent: No originalUserQuery in config, extracted from messages: "${originalQuery.substring(0, 100)}..."`
+        );
+      }
+    }
+
+    const modelType = await this.selectModelForMessages(messages, config);
     const nextAgent = 'snak'; // Define the typical next agent
 
     if (this.debugMode) {
       logger.debug(
         `ModelSelectionAgent selected model: ${modelType}, routing to: ${nextAgent}.`
       );
-      if (originalQuery) {
-        logger.debug(
-          `ModelSelectionAgent preserved original query: "${originalQuery.substring(0, 100)}..."` // Log a snippet
-        );
-      }
     }
 
     return new AIMessage({

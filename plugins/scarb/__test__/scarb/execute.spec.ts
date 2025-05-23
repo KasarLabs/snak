@@ -1,6 +1,6 @@
 // __test__/scarb/execute.spec.ts
 import { executeProgram } from '../../src/actions/executeProgram.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -11,7 +11,7 @@ import { resolveContractPath } from '../../src/utils/path.js';
 const execAsync = promisify(exec);
 
 describe('Execute Program Tests', () => {
-  const agent = createMockStarknetAgent();
+  const agent = createMockSnakAgent();
 
   afterAll(async () => {
     try {

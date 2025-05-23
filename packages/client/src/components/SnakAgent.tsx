@@ -10,13 +10,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { WalletAccount } from 'starknet';
 import { connectWallet } from '@/app/wallet/wallet';
 import { AiOutlineSignature, AiFillSignature } from 'react-icons/ai';
-import {
-  AgentResponse,
-  TransactionResponse,
-} from '@/interfaces/starknetagents';
+import { AgentResponse, TransactionResponse } from '@/interfaces/snakagents';
 import { handleInvokeTransactions } from '@/transactions/InvokeTransactions';
 import { ACCOUNT } from '@/interfaces/accout';
-import { InvokeTransaction } from '@/types/starknetAgents';
+import { InvokeTransaction } from '@/types/snakAgents';
 import { handleDeployTransactions } from '@/transactions/DeployAccountTransactions';
 import {
   Select,
@@ -29,7 +26,7 @@ import {
 import { FileInfo } from '../interfaces/fileInfo';
 import UploadFile from './ui/uploadFile';
 
-const StarknetAgent = () => {
+const SnakAgent = () => {
   const [input, setInput] = useState('');
   const [currentResponse, setCurrentResponse] = useState<AgentResponse | null>(
     null
@@ -626,4 +623,4 @@ const StarknetAgent = () => {
   );
 };
 
-export default StarknetAgent;
+export default SnakAgent;

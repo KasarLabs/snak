@@ -2,7 +2,7 @@ import { LaunchOnEkuboParams } from '../schema/index.js';
 import { FACTORY_ABI } from '../abis/unruggableFactory.js';
 import { FACTORY_ADDRESS } from '../constants/index.js';
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 
 /**
  * Launches a memecoin on the Ekubo DEX with concentrated liquidity.
@@ -58,7 +58,7 @@ import { StarknetAgentInterface } from '@snakagent/core';
  * - Bound parameter sets the concentrated liquidity range
  */
 export const launchOnEkubo = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: LaunchOnEkuboParams
 ) => {
   try {

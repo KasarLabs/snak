@@ -1,5 +1,5 @@
 import { Contract } from 'starknet';
-import { StarknetAgentInterface } from '@snakagent/core';
+import { SnakAgentInterface } from '@snakagent/core';
 import { INTERACT_ERC721_ABI } from '../abis/interact.js';
 import { validateAndParseAddress } from 'starknet';
 import { z } from 'zod';
@@ -7,12 +7,12 @@ import { getBalanceSchema, getOwnBalanceSchema } from '../schemas/schema.js';
 
 /**
  * Gets ERC721 token balance
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {z.infer<typeof getBalanceSchema>} params - Balance check parameters
  * @returns {Promise<string>} JSON string with balance result
  */
 export const getBalance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getBalanceSchema>
 ): Promise<string> => {
   try {
@@ -47,12 +47,12 @@ export const getBalance = async (
 
 /**
  * Gets own ERC721 token balance
- * @param {StarknetAgentInterface} agent - The Starknet agent interface
+ * @param {SnakAgentInterface} agent - The Starknet agent interface
  * @param {z.infer<typeof getBalanceSchema>} params - Balance check parameters
  * @returns {Promise<string>} JSON string with balance result
  */
 export const getOwnBalance = async (
-  agent: StarknetAgentInterface,
+  agent: SnakAgentInterface,
   params: z.infer<typeof getOwnBalanceSchema>
 ): Promise<string> => {
   try {

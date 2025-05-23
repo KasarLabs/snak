@@ -15,12 +15,12 @@ Place your tests in `test/unit-test/method/` using appropriate subdirectories (e
 ```typescript
 import { yourTool } from 'path/to/your/tool';
 import {
-  createMockStarknetAgent,
-  createMockInvalidStarknetAgent,
+  createMockSnakAgent,
+  createMockInvalidSnakAgent,
 } from 'test/jest/setEnvVars';
 
-const agent = createMockStarknetAgent();
-const wrong_agent = createMockInvalidStarknetAgent();
+const agent = createMockSnakAgent();
+const wrong_agent = createMockInvalidSnakAgent();
 
 describe('Your Tool Tests', () => {
   // Success cases
@@ -49,8 +49,8 @@ describe('Your Tool Tests', () => {
 
 ### Mock Agents
 
-- `createMockStarknetAgent()`: For successful test cases
-- `createMockInvalidStarknetAgent()`: For authentication error cases
+- `createMockSnakAgent()`: For successful test cases
+- `createMockInvalidSnakAgent()`: For authentication error cases
 
 ### Required Test Cases
 

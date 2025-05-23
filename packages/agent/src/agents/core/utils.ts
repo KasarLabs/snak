@@ -1,4 +1,4 @@
-import { StarknetAgentInterface } from '../../tools/tools.js';
+import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { createSignatureTools } from '../../tools/signatureTools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
@@ -12,21 +12,25 @@ import {
   StructuredTool,
 } from '@langchain/core/tools';
 
+// Global tracking to prevent duplicate connections
+let databaseConnectionPromise: Promise<void> | null = null;
+let isConnected = false;
+
 /**
  * Initializes the list of tools for the agent
  */
 export async function initializeToolsList(
-  starknetAgent: StarknetAgentInterface,
+  snakAgent: SnakAgentInterface,
   agentConfig: AgentConfig
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-  const isSignature = starknetAgent.getSignature().signature === 'wallet';
+  const isSignature = snakAgent.getSignature().signature === 'wallet';
 
   if (isSignature) {
     toolsList = await createSignatureTools(agentConfig.plugins);
   } else {
     const allowedTools = await createAllowedTools(
-      starknetAgent,
+      snakAgent,
       agentConfig.plugins
     );
     toolsList = [...allowedTools];
@@ -56,11 +60,37 @@ export async function initializeToolsList(
  */
 export const initializeDatabase = async (db: DatabaseCredentials) => {
   try {
-    await Postgres.connect(db);
+    // If already connected, just initialize memory
+    if (isConnected) {
+      await memory.init();
+      logger.debug(
+        'Agent memory table successfully initialized (connection exists)'
+      );
+      return;
+    }
+
+    // If connection is in progress, wait for it
+    if (databaseConnectionPromise) {
+      await databaseConnectionPromise;
+      await memory.init();
+      logger.debug(
+        'Agent memory table successfully initialized (waited for connection)'
+      );
+      return;
+    }
+
+    // Start connection process
+    databaseConnectionPromise = Postgres.connect(db);
+    await databaseConnectionPromise;
+    isConnected = true;
+
     await memory.init();
     logger.debug('Agent memory table successfully created');
   } catch (error) {
     logger.error('Error creating memories table:', error);
+    // Reset connection state on failure
+    databaseConnectionPromise = null;
+    isConnected = false;
     throw error;
   }
 };

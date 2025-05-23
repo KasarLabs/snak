@@ -1,7 +1,7 @@
 // __test__/scarb/install.spec.ts
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { installScarb } from '../../src/actions/installScarb.js';
-import { createMockStarknetAgent } from '../jest/setEnvVars.js';
+import { createMockSnakAgent } from '../jest/setEnvVars.js';
 import * as environmentModule from '../../src/utils/install.js';
 
 // Mock child_process module
@@ -42,7 +42,7 @@ jest.mock('util', () => ({
 }));
 
 describe('Scarb Installation Tests', () => {
-  const agent = createMockStarknetAgent();
+  const agent = createMockSnakAgent();
 
   beforeEach(() => {
     // Reset mocks before each test
