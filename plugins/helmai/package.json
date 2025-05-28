@@ -1,0 +1,55 @@
+{
+  "name": "@snakagent/plugin-helmai",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ],
+  "scripts": {
+    "test": "jest --passWithNoTests",
+    "build": "tsup",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"./**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run build",
+    "prepack": "npm run build",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "@snakagent/core": "workspace:*",
+    "axios": "^1.6.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "tsup": "^8.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "jest": "^29.0.0"
+  },
+  "keywords": [
+    "healthcare",
+    "whatsapp",
+    "agent",
+    "plugin",
+    "snak",
+    "medical",
+    "patient-management",
+    "helmai"
+  ],
+  "author": "HealMAI Team",
+  "license": "ISC",
+  "description": "Snak plugin for healthcare communication via WhatsApp with comprehensive patient management, task creation, and medical assistance capabilities."
+} 

@@ -6,12 +6,15 @@ import { ConfigModule } from './config/config.module.js';
 import { CleanupModule } from './common/cleanup/cleanup.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GatewayModule } from './src/gateway.module.js';
+import { TwilioWebhookModule } from '@snakagent/plugin-twilio';
 
 @Module({
   imports: [
+    AgentsModule,
     GatewayModule,
     ConfigModule,
     CleanupModule,
+    TwilioWebhookModule,
     ThrottlerModule.forRoot({
       throttlers: [
         {

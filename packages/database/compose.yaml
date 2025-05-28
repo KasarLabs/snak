@@ -1,4 +1,4 @@
-name: postgresql
+# name: postgresql
 
 services:
   init-logs:
@@ -22,6 +22,11 @@ services:
       - ./initdb:/docker-entrypoint-initdb.d
     depends_on:
       - init-logs
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-snak}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     command: >
       postgres
         -c logging_collector=on

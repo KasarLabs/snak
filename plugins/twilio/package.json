@@ -1,0 +1,45 @@
+{
+  "name": "@snakagent/plugin-twilio",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "jest --passWithNoTests",
+    "build": "tsup",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run build",
+    "prepack": "npm run build",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^7.7.0",
+    "@snakagent/core": "workspace:*",
+    "@types/node": "^22.15.22",
+    "dotenv": "^16.3.1",
+    "twilio": "^4.23.0"
+  },
+  "keywords": [
+    "twilio",
+    "sms",
+    "email",
+    "whatsapp",
+    "communication"
+  ],
+  "author": "helmai",
+  "license": "MIT",
+  "description": "Snak plugin for Twilio communication services, enabling SMS, WhatsApp, and Email messaging."
+}

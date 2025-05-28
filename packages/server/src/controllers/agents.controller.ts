@@ -26,6 +26,8 @@ export interface SupervisorRequestDTO {
   request: {
     content: string;
     agentId?: string;
+    userId?: string;
+    threadId?: string;
   };
 }
 
@@ -102,6 +104,12 @@ export class AgentsController {
       const config: Record<string, any> = {};
       if (userRequest.request.agentId) {
         config.agentId = userRequest.request.agentId;
+      }
+      if (userRequest.request.userId) {
+        config.userId = userRequest.request.userId;
+      }
+      if (userRequest.request.threadId) {
+        config.threadId = userRequest.request.threadId;
       }
 
       const result = await this.supervisorService.executeRequest(

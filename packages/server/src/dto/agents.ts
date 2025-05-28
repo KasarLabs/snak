@@ -20,6 +20,14 @@ export class SupervisorRequest {
   @IsOptional()
   @IsString()
   agentId?: string; // Optional: specify which agent to use
+
+  @IsOptional()
+  @IsString()
+  userId?: string; // Optional: specify user ID for memory continuity
+
+  @IsOptional()
+  @IsString()
+  threadId?: string; // Optional: specify thread ID for conversation continuity
 }
 
 export class SupervisorRequestDTO {

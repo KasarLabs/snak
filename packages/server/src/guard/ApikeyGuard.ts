@@ -12,6 +12,13 @@ export class ApiKeyGuard implements CanActivate {
     context: ExecutionContext
   ): boolean | Promise<boolean> | Observable<boolean> {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
+    
+    // Skip API key validation for Twilio webhook endpoints
+    const url = request.url;
+    if (url?.includes('/twilio/webhook/')) {
+      return true;
+    }
+    
     const apiKey = request.headers['x-api-key'] as string;
 
     if (!apiKey) {

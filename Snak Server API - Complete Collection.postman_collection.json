@@ -1,0 +1,460 @@
+{
+	"info": {
+		"_postman_id": "43b4c008-fe16-48de-af3d-4becca177a34",
+		"name": "Snak Server API - Complete Collection",
+		"description": "Collection complète pour toutes les routes du serveur Snak",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45026349",
+		"_collection_link": "https://antiyro-8843015.postman.co/workspace/Antiyro's-Workspace~96b599eb-2501-4099-8b09-c290798baee0/collection/45026349-43b4c008-fe16-48de-af3d-4becca177a34?action=share&source=collection_link&creator=45026349"
+	},
+	"item": [
+		{
+			"name": "Agents Controller",
+			"item": [
+				{
+					"name": "Agent Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"agent_id\": \"1\",\n    \"request\": {\n        \"agent_id\": \"3a6b5703-3d24-47f3-9f36-7944038080f8\",\n        \"sender_type\": \"user\",\n        \"content\": \"Hello, how can you help me?\",\n        \"status\": \"pending\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/request",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"request"
+							]
+						},
+						"description": "Traite les requêtes utilisateur pour un agent spécifique"
+					},
+					"response": []
+				},
+				{
+					"name": "Supervisor Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"request\": {\n        \"content\": \"What can you tell me about the available agents?\",\n        \"agentId\": \"1\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/supervisor/request",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"supervisor",
+								"request"
+							]
+						},
+						"description": "Traite les requêtes via le superviseur"
+					},
+					"response": []
+				},
+				{
+					"name": "Initialize Agent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"agent\": {\n        \"name\": \"Starknet RPC Agent\",\n        \"group\": \"starknet\",\n        \"bio\": \"I specialize in interacting with the Starknet blockchain through RPC calls, enabling real-time data access, smart contract interactions, and deep network analysis.\",\n        \"lore\": [\n            \"I was created as a cutting-edge Snak Agent to showcase advanced interactions with the Starknet blockchain.\",\n            \"Born from a need to explore and analyze Starknet at scale, I bring precision and speed to on-chain operations.\",\n            \"My purpose is to bridge developers and Starknet data, automating complex queries and streamlining insights.\"\n        ],\n        \"objectives\": [\n            \"Perform efficient and reliable RPC calls to the Starknet network.\",\n            \"Retrieve and analyze on-chain data such as transactions, blocks, and smart contract states.\",\n            \"Support real-time monitoring and diagnostics of Starknet activity.\",\n            \"Serve as an autonomous backend service for blockchain-powered applications.\"\n        ],\n        \"knowledge\": [\n            \"I have comprehensive knowledge of the Starknet RPC API specification.\",\n            \"I understand Starknet architecture, including Cairo contracts and sequencer behavior.\",\n            \"I can parse and respond to complex JSON-RPC requests and format outputs appropriately.\",\n            \"I stay updated with the evolving Starknet protocol and RPC standards.\"\n        ],\n        \"interval\": 15000,\n        \"maxIterations\": 15,\n        \"mode\": \"hybrid\",\n        \"memory\": {\n            \"enabled\": true,\n            \"shortTermMemorySize\": 15\n        },\n        \"chatId\": \"starknet_rpc\",\n        \"plugins\": [\n            \"rpc\"\n        ]\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/init_agent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"init_agent"
+							]
+						},
+						"description": "Ajoute/initialise un nouvel agent"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Agent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"agent_id\": \"1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/delete_agent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"delete_agent"
+							]
+						},
+						"description": "Supprime un agent spécifique"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Multiple Agents",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"agent_id\": [\"1\", \"2\", \"3\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/delete_agents",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"delete_agents"
+							]
+						},
+						"description": "Supprime plusieurs agents"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Messages from Agent ID",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"agent_id\": \"1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/get_messages_from_agents_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"get_messages_from_agents_id"
+							]
+						},
+						"description": "Récupère les messages d'un agent par son ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Legacy Supervisor Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"agent_id\": \"1\",\n    \"request\": \"What are the available functionalities?\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/requestSupervisor",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"requestSupervisor"
+							]
+						},
+						"description": "Route legacy pour les requêtes superviseur"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Agents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents/get_agents",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"get_agents"
+							]
+						},
+						"description": "Récupère tous les agents"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Supervisor Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents/supervisor/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"supervisor",
+								"status"
+							]
+						},
+						"description": "Vérifie le statut du superviseur"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Agent Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents/get_agent_status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"get_agent_status"
+							]
+						},
+						"description": "Récupère le statut des agents"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Agent Thread",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents/get_agent_thread",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"get_agent_thread"
+							]
+						},
+						"description": "Récupère les threads des agents"
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"health"
+							]
+						},
+						"description": "Vérification de santé du service agents"
+					},
+					"response": []
+				}
+			],
+			"description": "Toutes les routes du contrôleur Agents"
+		},
+		{
+			"name": "Metrics Controller",
+			"item": [
+				{
+					"name": "Get Metrics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/metrics",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"metrics"
+							]
+						},
+						"description": "Récupère les métriques du système (format Prometheus)"
+					},
+					"response": []
+				}
+			],
+			"description": "Routes pour les métriques système"
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3002/api",
+			"type": "string"
+		},
+		{
+			"key": "apiKey",
+			"value": "test",
+			"type": "string"
+		}
+	]
+}

@@ -278,18 +278,6 @@ export class WorkflowController {
                 response = Array.isArray(result.messages)
                   ? result.messages.map((msg: any) => {
                       if (msg instanceof BaseMessage) {
-                        if (
-                          !msg.additional_kwargs ||
-                          !msg.additional_kwargs.from
-                        ) {
-                          return new AIMessage({
-                            content: msg.content,
-                            additional_kwargs: {
-                              ...(msg.additional_kwargs || {}),
-                              from: agentId,
-                            },
-                          });
-                        }
                         return msg;
                       }
                       return new AIMessage({
@@ -299,32 +287,43 @@ export class WorkflowController {
                     })
                   : [
                       new AIMessage({
-                        content: String(result),
+                        content: String(result.messages),
                         additional_kwargs: { from: agentId },
                       }),
                     ];
-              } else if (result instanceof BaseMessage) {
-                if (
-                  !result.additional_kwargs ||
-                  !result.additional_kwargs.from
-                ) {
-                  response = [
-                    new AIMessage({
-                      content: result.content,
-                      additional_kwargs: {
-                        ...(result.additional_kwargs || {}),
-                        from: agentId,
-                      },
-                    }),
-                  ];
-                } else {
-                  response = [result];
-                }
               } else {
                 response = [
                   new AIMessage({
                     content: String(result),
                     additional_kwargs: { from: agentId },
+                  }),
+                ];
+              }
+
+              // Filter out empty AI messages to prevent API errors
+              response = response.filter((msg) => {
+                if (msg instanceof AIMessage) {
+                  const content = typeof msg.content === 'string' ? msg.content.trim() : '';
+                  if (!content && !msg.tool_calls?.length) {
+                    logger.debug(
+                      `WorkflowController[Exec:${execId}]: Node[${agentId}] - Filtering out empty AIMessage`
+                    );
+                    return false;
+                  }
+                }
+                return true;
+              });
+
+              // If all messages were filtered out and there were tool calls, keep at least one message
+              if (response.length === 0 && result instanceof AIMessage && result.tool_calls?.length) {
+                response = [
+                  new AIMessage({
+                    content: 'Tool execution completed',
+                    additional_kwargs: {
+                      from: agentId,
+                      ...(result.additional_kwargs || {}),
+                    },
+                    tool_calls: result.tool_calls,
                   }),
                 ];
               }
