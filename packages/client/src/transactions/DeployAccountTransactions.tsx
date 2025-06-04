@@ -36,7 +36,7 @@ export const handleDeployTransactions = async (
     const response: string =
       tx_result.status === 'failure'
         ? tx_result.status
-        : `✅ Your ${wallet_type} account has been succesfully deploy at ${tx_result.contract_address} transaction_hash : ${tx_result.transaction_hash}, Private key : ${private_key}`;
+        : `Your ${wallet_type} account has been succesfully deploy at ${tx_result.contract_address} transaction_hash : ${tx_result.transaction_hash}, Private key : ${private_key}`;
     console.log(response);
     return response;
   } catch (error) {

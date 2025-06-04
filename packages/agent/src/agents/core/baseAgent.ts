@@ -14,6 +14,7 @@ export interface IAgent {
    * Type of agent
    */
   readonly type: AgentType;
+  readonly description?: string;
 
   /**
    * Initializes the agent
@@ -77,10 +78,12 @@ export interface IModelAgent extends IAgent {
 export abstract class BaseAgent implements IAgent {
   readonly id: string;
   readonly type: AgentType;
+  readonly description: string;
 
-  constructor(id: string, type: AgentType) {
+  constructor(id: string, type: AgentType, description?: string) {
     this.id = id;
     this.type = type;
+    this.description = description || 'No description';
   }
 
   abstract init(): Promise<void>;

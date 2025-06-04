@@ -2,6 +2,7 @@ import { MessageContent } from '@langchain/core/messages';
 import { AgentConfig } from '@snakagent/core';
 
 export * from './agentSelectorPrompts.js';
+export * from './configAgentPrompts.js';
 
 export const baseSystemPrompt = (agent_config: AgentConfig): string => {
   return agent_config.prompt.content.toString();
