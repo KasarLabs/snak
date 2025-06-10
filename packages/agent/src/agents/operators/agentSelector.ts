@@ -116,6 +116,17 @@ export class AgentSelector extends BaseAgent {
         info.metadata = { ...metadata };
       }
 
+      // Also check for direct properties on the agent
+      if (!info.name && (agent as any).name) {
+        info.name = (agent as any).name;
+      }
+      if (!info.group && (agent as any).group) {
+        info.group = (agent as any).group;
+      }
+      if (!info.description && (agent as any).description) {
+        info.description = (agent as any).description;
+      }
+
       this.agentInfo[id] = info;
     });
 
@@ -204,6 +215,8 @@ export class AgentSelector extends BaseAgent {
    * - Combined group+name patterns
    */
   private checkForExplicitAgentMention(query: string): AgentInfo | null {
+    // First check for configuration-related queries
+
     const idPattern = /agent(?:\s+id)?\s+(\d+|[a-zA-Z_-]+)/i;
     const namePattern = /agent (?:named|called) ["']?([a-zA-Z_-]+)["']?/i;
     const groupPattern =
@@ -293,11 +306,13 @@ export class AgentSelector extends BaseAgent {
           const name = info.name || id;
           const group = info.group || 'No group';
           const description = info.description || 'No description available';
+          const type = info.type || 'No type available';
           return `  {
     "id": "${id}",
     "name": "${name}",
     "group": "${group}",
-    "description": "${description}"
+    "description": "${description}",
+	"type": "${type}"
   }`;
         })
         .join(',\n');

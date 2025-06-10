@@ -22,6 +22,8 @@ import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { RpcProvider } from 'starknet';
 import { AgentSelector } from '../operators/agentSelector.js';
 import { OperatorRegistry } from '../operators/operatorRegistry.js';
+import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
+import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 
 /**
  * Represents an agent to be registered
@@ -52,6 +54,8 @@ export class SupervisorAgent extends BaseAgent {
   private toolsOrchestrator: ToolsOrchestrator | null = null;
   private memoryAgent: MemoryAgent | null = null;
   private workflowController: WorkflowController | null = null;
+  private configAgent: ConfigurationAgent | null = null;
+  private mcpAgent: MCPAgent | null = null;
   private config: SupervisorAgentConfig;
   private operators: Map<string, IAgent> = new Map();
   private debug: boolean = false;
@@ -114,6 +118,8 @@ export class SupervisorAgent extends BaseAgent {
       await this.initializeAgentSelector();
 
       this.updateAgentSelectorRegistry();
+      await this.initializeConfigAgent();
+      await this.initializeMCPAgent();
 
       await this.initializeWorkflowController(true);
 
@@ -126,6 +132,20 @@ export class SupervisorAgent extends BaseAgent {
       logger.error(`SupervisorAgent: Initialization failed: ${error}`);
       throw new Error(`SupervisorAgent initialization failed: ${error}`);
     }
+  }
+
+  private async initializeConfigAgent(): Promise<void> {
+    logger.debug('SupervisorAgent: Initializing ConfigAgent...');
+    this.configAgent = new ConfigurationAgent({ debug: this.debug });
+    await this.configAgent.init();
+    this.operators.set(this.configAgent.id, this.configAgent);
+  }
+
+  private async initializeMCPAgent(): Promise<void> {
+    logger.debug('SupervisorAgent: Initializing MCPAgent...');
+    this.mcpAgent = new MCPAgent({ debug: this.debug });
+    await this.mcpAgent.init();
+    this.operators.set(this.mcpAgent.id, this.mcpAgent);
   }
 
   /**
@@ -691,6 +711,13 @@ export class SupervisorAgent extends BaseAgent {
     let toolCallsFromSelection: any[] | undefined = undefined;
     let needsClarification = false;
 
+    // Extract and preserve the original user query
+    const originalUserQuery =
+      config?.originalUserQuery ||
+      (typeof currentMessage.content === 'string'
+        ? currentMessage.content
+        : JSON.stringify(currentMessage.content));
+
     const preSelectedAgent = config?.selectedSnakAgent;
     if (preSelectedAgent && this.snakAgents[preSelectedAgent]) {
       logger.debug(
@@ -706,14 +733,15 @@ export class SupervisorAgent extends BaseAgent {
       this.executionDepth--;
       return new AIMessage({
         content: responseContent,
-        additional_kwargs: { from: 'supervisor', next_agent: nextAgent },
+        additional_kwargs: {
+          from: 'supervisor',
+          next_agent: nextAgent,
+          originalUserQuery: originalUserQuery, // Preserve original query
+        },
       });
     }
 
-    const queryForSelection = (config?.originalUserQuery ||
-      (typeof currentMessage.content === 'string'
-        ? currentMessage.content
-        : JSON.stringify(currentMessage.content))) as string;
+    const queryForSelection = originalUserQuery;
 
     if (this.agentSelector) {
       try {
@@ -790,6 +818,7 @@ export class SupervisorAgent extends BaseAgent {
       content: responseContent,
       additional_kwargs: {
         from: 'supervisor',
+        originalUserQuery: originalUserQuery, // Always preserve original user query
         ...(nextAgent && { next_agent: nextAgent }),
         ...(isFinal && !nextAgent && { final: true }),
         ...(needsClarification && { needsClarification: true }),
@@ -802,7 +831,7 @@ export class SupervisorAgent extends BaseAgent {
     }
 
     logger.debug(
-      `${depthIndent}SupervisorAgent (${callPath}): Returning directive: ${JSON.stringify(directiveMessage.toJSON())}`
+      `${depthIndent}SupervisorAgent (${callPath}): Returning directive with preserved originalUserQuery: ${JSON.stringify(directiveMessage.toJSON())}`
     );
     return directiveMessage;
   }
