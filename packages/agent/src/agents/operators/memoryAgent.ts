@@ -8,7 +8,7 @@ import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 
-
+// TODO: env -> config/agents
 const SIMILARITY_THRESHOLD = parseFloat(
   process.env.MEMORY_SIMILARITY_THRESHOLD || '0.75'
 );
