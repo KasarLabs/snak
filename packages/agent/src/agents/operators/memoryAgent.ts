@@ -8,6 +8,10 @@ import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 
+
+const SIMILARITY_THRESHOLD = parseFloat(
+  process.env.MEMORY_SIMILARITY_THRESHOLD || '0.75'
+);
 /**
  * Memory configuration for the agent
  */
@@ -160,18 +164,21 @@ export class MemoryAgent extends BaseAgent {
         try {
           const embedding = await this.embeddings.embedQuery(query);
           const similar = await memory.similar_memory(userId, embedding);
+          const filtered = similar.filter(
+            (s) => s.similarity >= SIMILARITY_THRESHOLD
+          );
 
-          if (similar.length === 0) {
+          if (filtered.length === 0) {
             return 'No relevant memories found.';
           }
 
-          const memories = similar
+          const memories = filtered
             .map((similarity) => {
               return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)}]: ${similarity.content}`;
             })
             .join('\n\n');
 
-          return `Retrieved ${similar.length} memories:\n\n${memories}`;
+          return `Retrieved ${filtered.length} memories:\n\n${memories}`;
         } catch (error) {
           logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
           return `Failed to retrieve memories: ${error}`;
@@ -283,15 +290,12 @@ export class MemoryAgent extends BaseAgent {
           .content as string;
         const embedding = await this.embeddings.embedQuery(lastMessage);
         const similar = await memory.similar_memory(userId, embedding);
+        const filtered = similar.filter(
+          (s) => s.similarity >= SIMILARITY_THRESHOLD
+        );
+        const memoryContext = this.formatMemoriesForContext(filtered);
 
-        const memories = similar
-          .map((similarity) => {
-            const history = JSON.stringify(similarity.history);
-            return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)}, history: ${history}]: ${similarity.content}`;
-          })
-          .join('\n');
-
-        return { memories };
+        return { memories: memoryContext };
       } catch (error) {
         logger.error('Error retrieving memories:', error);
         return { memories: '' };
@@ -320,7 +324,7 @@ export class MemoryAgent extends BaseAgent {
       const embedding = await this.embeddings.embedQuery(query);
       const memories = await memory.similar_memory(userId, embedding);
 
-      return memories;
+      return memories.filter((m) => m.similarity >= SIMILARITY_THRESHOLD);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
@@ -338,11 +342,19 @@ export class MemoryAgent extends BaseAgent {
 
     const formattedMemories = memories
       .map((mem) => {
-        return `Memory [id: ${mem.id}, relevance: ${mem.similarity.toFixed(4)}]: ${mem.content}`;
+        const lastHist = Array.isArray(mem.history) && mem.history.length > 0
+          ? mem.history[mem.history.length - 1]
+          : null;
+        const ts = lastHist?.timestamp || 'unknown';
+        return `Memory [id: ${mem.id}, relevance: ${mem.similarity.toFixed(4)}, last_updated: ${ts}]: ${mem.content}`;
       })
       .join('\n\n');
 
-    return `### User Memory Context ###\n${formattedMemories}\n\n`;
+    return (
+      '### User Memory Context (reference only - always verify dynamic info using tools) ###\n' +
+      formattedMemories +
+      '\n\n'
+    );
   }
 
   /**
@@ -463,12 +475,14 @@ export class MemoryAgent extends BaseAgent {
     try {
       const embedding = await this.embeddings.embedQuery(content);
       const memories = await memory.similar_memory(userId, embedding);
-
-      if (memories.length === 0) {
+      const filtered = memories.filter(
+        (m) => m.similarity >= SIMILARITY_THRESHOLD
+      );
+      if (filtered.length === 0) {
         return 'No relevant memories found.';
       }
 
-      return this.formatMemoriesForContext(memories);
+      return this.formatMemoriesForContext(filtered);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
       return `Failed to retrieve memories: ${error}`;

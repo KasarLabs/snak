@@ -135,14 +135,25 @@ export const createInteractiveAgent = async (
         ${interactiveRules}
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
       `;
-      const prompt = ChatPromptTemplate.fromMessages([
-        [
-          'system',
-          `${finalPrompt.trim()}
-        ${interactiveSystemPrompt}`.trim(),
-        ],
-        new MessagesPlaceholder('messages'),
-      ]);
+      const systemPrompt = `${finalPrompt.trim()}
+        ${interactiveSystemPrompt}`.trim();
+
+      const memoryContent =
+        typeof state.memories === 'string'
+          ? state.memories
+          : (state.memories as any)?.memories;
+
+      const promptMessages: Array<any> = [];
+
+      promptMessages.push(['system', systemPrompt]);
+
+      if (memoryContent && memoryContent.trim().length > 0) {
+        promptMessages.push(['system', memoryContent.trim()]);
+      }
+
+      promptMessages.push(new MessagesPlaceholder('messages'));
+
+      const prompt = ChatPromptTemplate.fromMessages(promptMessages);
 
       try {
         const filteredMessages = state.messages.filter(
