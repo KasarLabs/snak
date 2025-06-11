@@ -24,7 +24,6 @@
     "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
     "pgvector": "../scripts/pgvector.sh",
-    "start": "npx tsx -r tsconfig-paths/register ./start.ts ",
     "lint": "eslint \"src/**/*.ts\""
   },
   "keywords": [],
