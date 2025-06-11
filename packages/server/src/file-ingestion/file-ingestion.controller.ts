@@ -5,8 +5,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
   Get,
-  Param,
-  Delete,
+  Param
 } from '@nestjs/common';
 import { FileIngestionService } from './file-ingestion.service.js';
 import { FileContent } from './file-content.interface.js';
@@ -55,7 +54,7 @@ export class FileIngestionController {
     return this.service.getFile(id);
   }
 
-  @Delete(':id')
+  @Post('delete/:id')
   async deleteFile(@Param('id') id: string) {
     await this.service.deleteFile(id);
     return { deleted: true };
