@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { promises as fs } from 'fs';
-import * as path from 'path';
 import { fileTypeFromBuffer } from 'file-type';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
@@ -14,24 +12,18 @@ import { VectorStoreService } from '../vector-store/vector-store.service.js';
 @Injectable()
 export class FileIngestionService {
   private readonly logger = new Logger(FileIngestionService.name);
-  private readonly uploadDir =
-    process.env.PATH_UPLOAD_DIR || path.join(process.cwd(), 'uploads');
 
   constructor(
     private readonly chunkingService: ChunkingService,
     private readonly embeddingsService: EmbeddingsService,
     private readonly vectorStore: VectorStoreService,
-  ) {}
+  ) { }
 
   async saveFile(buffer: Buffer, originalName: string) {
-    await fs.mkdir(this.uploadDir, { recursive: true });
     const filename = `${Date.now()}-${originalName}`;
-    const filePath = path.join(this.uploadDir, filename);
-    await fs.writeFile(filePath, buffer);
-    const { size } = await fs.stat(filePath);
     const fileType = await fileTypeFromBuffer(buffer);
     const mimeType = fileType?.mime || 'application/octet-stream';
-    return { id: filename, path: filePath, mimeType, size, originalName };
+    return { id: filename, path: '', mimeType, size: buffer.length, originalName };
   }
 
   private cleanText(text: string) {
@@ -101,12 +93,36 @@ export class FileIngestionService {
     return this.cleanText(text);
   }
 
+  private computeChunkParams(size: number) {
+    const chunkSize =
+      size > 1_000_000
+        ? 500
+        : size > 500_000
+          ? 400
+          : size > 100_000
+            ? 300
+            : size > 50_000
+              ? 200
+              : 100;
+    const overlap = Math.round(chunkSize * (chunkSize <= 300 ? 0.2 : 0.1));
+    return { chunkSize, overlap };
+  }
+
   async process(buffer: Buffer, originalName: string): Promise<FileContent> {
     const meta = await this.saveFile(buffer, originalName);
     const text = await this.extractRawText(buffer, meta.mimeType);
+    const strategy =
+      meta.mimeType === 'text/csv' ||
+        meta.mimeType === 'application/csv' ||
+        meta.mimeType === 'application/json' ||
+        meta.mimeType === 'text/json'
+        ? 'structured'
+        : 'adaptive';
+    const { chunkSize, overlap } = this.computeChunkParams(meta.size);
     const chunks = await this.chunkingService.chunkText(meta.id, text, {
-      chunkSize: 500,
-      overlap: 50,
+      chunkSize,
+      overlap,
+      strategy,
     });
 
     try {
@@ -148,52 +164,44 @@ export class FileIngestionService {
   }
 
   async listFiles(): Promise<StoredFile[]> {
-    await fs.mkdir(this.uploadDir, { recursive: true });
-    const entries = await fs.readdir(this.uploadDir);
-    const files: StoredFile[] = [];
-
-    for (const entry of entries) {
-      const filePath = path.join(this.uploadDir, entry);
-      const stat = await fs.stat(filePath);
-      if (!stat.isFile()) continue;
-      const buffer = await fs.readFile(filePath);
-      const type = (await fileTypeFromBuffer(buffer))?.mime || 'application/octet-stream';
-      const originalName = entry.substring(entry.indexOf('-') + 1) || entry;
-      const timestamp = Number(entry.split('-')[0]);
-      files.push({
-        id: entry,
-        originalName,
-        mimeType: type,
-        size: stat.size,
-        uploadDate: new Date(timestamp || stat.birthtimeMs).toISOString(),
-      });
-    }
-    return files;
+    const docs = await this.vectorStore.listDocuments();
+    return docs.map((d) => ({
+      id: d.document_id,
+      originalName: d.original_name,
+      mimeType: d.mime_type,
+      size: d.size,
+      uploadDate: new Date(Number(d.document_id.split('-')[0]) || Date.now()).toISOString(),
+    }));
   }
 
   async getFile(id: string): Promise<FileContent> {
-    const filePath = path.join(this.uploadDir, id);
-    const stat = await fs.stat(filePath);
-    const buffer = await fs.readFile(filePath);
-    const mimeType = (await fileTypeFromBuffer(buffer))?.mime || 'application/octet-stream';
-    const originalName = id.substring(id.indexOf('-') + 1) || id;
-    const text = await this.extractRawText(buffer, mimeType);
-    const chunks = await this.chunkingService.chunkText(id, text, {
-      chunkSize: 500,
-      overlap: 50,
-    });
+    const rows = await this.vectorStore.getDocument(id);
+    if (!rows.length) {
+      throw new Error('Document not found');
+    }
+    const chunks = rows.map((r) => ({
+      id: r.id,
+      text: r.content,
+      metadata: {
+        documentId: id,
+        chunkIndex: r.chunk_index,
+        startToken: 0,
+        endToken: 0,
+      },
+    }));
+    const size = rows.reduce((acc, r) => acc + r.content.length, 0);
     return {
       chunks,
       metadata: {
-        originalName,
-        mimeType,
-        size: stat.size,
+        originalName: rows[0].original_name,
+        mimeType: rows[0].mime_type,
+        size,
       },
     };
+
   }
 
   async deleteFile(id: string) {
-    const filePath = path.join(this.uploadDir, id);
-    await fs.unlink(filePath);
+    await this.vectorStore.deleteDocument(id);
   }
 }

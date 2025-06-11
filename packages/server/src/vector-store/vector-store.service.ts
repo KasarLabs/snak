@@ -68,4 +68,42 @@ export class VectorStoreService implements OnModuleInit {
       await Postgres.transaction(queries);
     }
   }
+  async listDocuments(): Promise<{
+    document_id: string;
+    original_name: string;
+    mime_type: string;
+    size: number;
+  }[]> {
+    const q = new Postgres.Query(
+      `SELECT document_id, MAX(original_name) AS original_name, MAX(mime_type) AS mime_type, SUM(LENGTH(content)) AS size
+       FROM document_vectors
+       GROUP BY document_id`,
+    );
+    return await Postgres.query(q);
+  }
+
+  async getDocument(documentId: string): Promise<{
+    id: string;
+    chunk_index: number;
+    content: string;
+    original_name: string;
+    mime_type: string;
+  }[]> {
+    const q = new Postgres.Query(
+      `SELECT id, chunk_index, content, original_name, mime_type
+       FROM document_vectors
+       WHERE document_id = $1
+       ORDER BY chunk_index ASC`,
+      [documentId],
+    );
+    return await Postgres.query(q);
+  }
+
+  async deleteDocument(documentId: string): Promise<void> {
+    const q = new Postgres.Query(
+      `DELETE FROM document_vectors WHERE document_id = $1`,
+      [documentId],
+    );
+    await Postgres.query(q);
+  }
 }
