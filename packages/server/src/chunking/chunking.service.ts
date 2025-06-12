@@ -93,10 +93,12 @@ export class ChunkingService {
 
     const flush = () => {
       if (!currentTokens.length) return;
-      const endToken = startToken + currentTokens.length;
+      const end = Math.min(chunkSize, currentTokens.length);
+      const chunkTokens = currentTokens.slice(0, end);
+      const endToken = startToken + chunkTokens.length;
       chunks.push({
         id: `${documentId}-${index}`,
-        text: currentTokens.join(' '),
+        text: chunkTokens.join(' '),
         metadata: {
           documentId,
           chunkIndex: index++,
@@ -104,8 +106,9 @@ export class ChunkingService {
           endToken,
         },
       });
+      const overlapTokens = chunkTokens.slice(Math.max(0, end - overlap));
+      currentTokens = overlapTokens.concat(currentTokens.slice(end));
       startToken = endToken - overlap;
-      currentTokens = currentTokens.slice(Math.max(0, currentTokens.length - overlap));
     };
 
     for (const seg of segments) {
@@ -149,10 +152,12 @@ export class ChunkingService {
 
     const flush = () => {
       if (!currentTokens.length) return;
-      const endToken = startToken + currentTokens.length;
+      const end = Math.min(chunkSize, currentTokens.length);
+      const chunkTokens = currentTokens.slice(0, end);
+      const endToken = startToken + chunkTokens.length;
       chunks.push({
         id: `${documentId}-${index}`,
-        text: currentTokens.join(' '),
+        text: chunkTokens.join(' '),
         metadata: {
           documentId,
           chunkIndex: index++,
@@ -160,10 +165,9 @@ export class ChunkingService {
           endToken,
         },
       });
+      const overlapTokens = chunkTokens.slice(Math.max(0, end - overlap));
+      currentTokens = overlapTokens.concat(currentTokens.slice(end));
       startToken = endToken - overlap;
-      currentTokens = currentTokens.slice(
-        Math.max(0, currentTokens.length - overlap),
-      );
     };
 
     for (const line of lines) {

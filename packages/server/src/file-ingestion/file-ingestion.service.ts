@@ -23,7 +23,7 @@ export class FileIngestionService {
     const filename = `${Date.now()}-${originalName}`;
     const fileType = await fileTypeFromBuffer(buffer);
     const mimeType = fileType?.mime || 'application/octet-stream';
-    return { id: filename, path: '', mimeType, size: buffer.length, originalName };
+    return { id: filename, mimeType, size: buffer.length, originalName };
   }
 
   private cleanText(text: string) {
@@ -94,6 +94,7 @@ export class FileIngestionService {
   }
 
   private computeChunkParams(size: number) {
+    console.log(size);
     const chunkSize =
       size > 1_000_000
         ? 500

@@ -34,7 +34,9 @@ export class FileIngestionController {
       if (part.type === 'file') {
         const buffer = await part.toBuffer();
         try {
-          return await this.service.process(buffer, part.filename);
+          const result = await this.service.process(buffer, part.filename);
+          result.chunks.forEach((c) => delete c.metadata.embedding);
+          return result;
         } catch (err: any) {
           throw new InternalServerErrorException(
             `Embedding failed: ${err.message}`,

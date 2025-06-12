@@ -279,7 +279,7 @@ export class MemoryAgent extends BaseAgent {
     return async (state: any, config: LangGraphRunnableConfig) => {
       try {
         const userId = config.configurable?.userId || 'default_user';
-        const lastMessage = state.messages[state.messages.length - 1]
+        const lastMessage = state.messages[0]
           .content as string;
         const embedding = await this.embeddings.embedQuery(lastMessage);
         const similar = await memory.similar_memory(userId, embedding);
