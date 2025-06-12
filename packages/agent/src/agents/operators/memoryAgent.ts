@@ -1,16 +1,17 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import { BaseMessage } from '@langchain/core/messages';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { memory } from '@snakagent/database/queries';
 import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { RunnableSequence } from '@langchain/core/runnables';
 
 // TODO: env -> config/agents
 const SIMILARITY_THRESHOLD = parseFloat(
-  process.env.MEMORY_SIMILARITY_THRESHOLD || '0.75'
+  process.env.MEMORY_SIMILARITY_THRESHOLD || '0'
 );
 /**
  * Memory configuration for the agent
@@ -283,24 +284,49 @@ export class MemoryAgent extends BaseAgent {
    * Create a memory node for the graph
    */
   public createMemoryNode(): any {
+    const chain = this.createMemoryChain();
     return async (state: any, config: LangGraphRunnableConfig) => {
       try {
-        const userId = config.configurable?.userId || 'default_user';
-        const firstMessage = state.messages[0]
-          .content as string;
-        const embedding = await this.embeddings.embedQuery(firstMessage);
-        const similar = await memory.similar_memory(userId, embedding);
-        const filtered = similar.filter(
-          (s) => s.similarity >= SIMILARITY_THRESHOLD
-        );
-        const memoryContext = this.formatMemoriesForContext(filtered);
-
-        return { memories: memoryContext };
+        return await chain.invoke(state, config);
       } catch (error) {
         logger.error('Error retrieving memories:', error);
         return { memories: '' };
       }
     };
+  }
+
+  /**
+   * Creates a LangGraph chain to fetch relevant memories using the last
+   * user message. This mirrors the chain used for documents so LangSmith
+   * can trace memory retrieval.
+   */
+  public createMemoryChain(): any {
+    const buildQuery = (state: any) => {
+      const lastUser = [...state.messages]
+        .reverse()
+        .find((msg: BaseMessage) => msg instanceof HumanMessage);
+      return lastUser
+        ? typeof lastUser.content === 'string'
+          ? lastUser.content
+          : JSON.stringify(lastUser.content)
+        : (state.messages[0]?.content as string);
+    };
+
+    const fetchMemories = async (query: string, config: LangGraphRunnableConfig) => {
+      const userId = config.configurable?.userId || 'default_user';
+      const embedding = await this.embeddings.embedQuery(query);
+      const similar = await memory.similar_memory(userId, embedding);
+      const filtered = similar.filter(
+        (s) => s.similarity >= SIMILARITY_THRESHOLD
+      );
+      return this.formatMemoriesForContext(filtered);
+    };
+
+    return RunnableSequence.from([
+      buildQuery,
+      fetchMemories,
+      (context: string) => ({ memories: context }),
+    ]).withConfig({ runName: 'MemoryContextChain' });
   }
 
   /**

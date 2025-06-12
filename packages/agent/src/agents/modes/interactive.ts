@@ -1,6 +1,11 @@
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -32,6 +37,19 @@ const getMemoryAgent = async () => {
     return null;
   } catch (error) {
     logger.error(`Failed to get memory agent: ${error}`);
+    return null;
+  }
+};
+
+const getFileAgent = async () => {
+  try {
+    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
+    if (supervisorAgent) {
+      return await supervisorAgent.getFileAgent();
+    }
+    return null;
+  } catch (error) {
+    logger.error(`Failed to get file agent: ${error}`);
     return null;
   }
 };
@@ -75,11 +93,24 @@ export const createInteractiveAgent = async (
       }
     }
 
+    let fileAgent = null;
+    //if (agent_config.documents) {
+      try {
+        fileAgent = await getFileAgent();
+        if (!fileAgent) {
+          logger.warn('File agent not available, document context will be skipped');
+        }
+      } catch (error) {
+        logger.error(`Error retrieving file agent: ${error}`);
+      }
+    //}
+
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
       }),
       memories: Annotation<string>,
+      documents: Annotation<string>,
     });
 
     const toolNode = new ToolNode(toolsList);
@@ -143,6 +174,11 @@ export const createInteractiveAgent = async (
           ? state.memories
           : (state.memories as any)?.memories;
 
+      const documentsContent =
+        typeof state.documents === 'string'
+          ? state.documents
+          : (state.documents as any)?.documents;
+
       const promptMessages: Array<any> = [];
 
       promptMessages.push(['system', systemPrompt]);
@@ -151,20 +187,49 @@ export const createInteractiveAgent = async (
         promptMessages.push(['system', memoryContent.trim()]);
       }
 
+      if (documentsContent && documentsContent.trim().length > 0) {
+        promptMessages.push(['system', documentsContent.trim()]);
+      }
+
+      const filteredMessages = state.messages.filter(
+        (msg) =>
+          !(
+            msg instanceof AIMessage &&
+            msg.additional_kwargs?.from === 'model-selector'
+          )
+      );
+
+      let idx = 0;
+      while (
+        idx < filteredMessages.length &&
+        filteredMessages[idx] instanceof SystemMessage
+      ) {
+        const sys = filteredMessages[idx];
+        const content =
+          typeof sys.content === 'string'
+            ? sys.content
+            : JSON.stringify(sys.content);
+        promptMessages.push(['system', content]);
+        idx++;
+      }
+
       promptMessages.push(new MessagesPlaceholder('messages'));
 
       const prompt = ChatPromptTemplate.fromMessages(promptMessages);
 
       try {
-        const filteredMessages = state.messages.filter(
-          (msg) =>
-            !(
-              msg instanceof AIMessage &&
-              msg.additional_kwargs?.from === 'model-selector'
-            )
+        let currentMessages = filteredMessages.slice(idx);
+        const removedSystemMsgs = currentMessages.filter(
+          (msg) => msg instanceof SystemMessage,
         );
-
-        const currentMessages = filteredMessages;
+        if (removedSystemMsgs.length > 0) {
+          logger.debug(
+            `Removed ${removedSystemMsgs.length} system messages from conversation to comply with OpenAI role order`,
+          );
+          currentMessages = currentMessages.filter(
+            (msg) => !(msg instanceof SystemMessage),
+          );
+        }
         const currentFormattedPrompt = await prompt.formatMessages({
           tool_names: toolsList.map((tool) => tool.name).join(', '),
           messages: currentMessages,
@@ -363,17 +428,29 @@ ${formatAgentResponse(content)}`);
       return 'end';
     }
 
-    const workflow = new StateGraph(GraphState)
+    let workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
     if (agent_config.memory && memoryAgent) {
-      workflow
+      workflow = (workflow as any)
         .addNode('memory', memoryAgent.createMemoryNode())
-        .addEdge('__start__', 'memory')
-        .addEdge('memory', 'agent');
+        .addEdge('__start__', 'memory');
+      if (fileAgent) {
+        workflow = (workflow as any)
+          .addNode('docsNode', fileAgent.createDocumentNode())
+          .addEdge('memory', 'docsNode')
+          .addEdge('docsNode', 'agent');
+      } else {
+        workflow = (workflow as any).addEdge('memory', 'agent');
+      }
+    } else if (fileAgent) {
+      workflow = (workflow as any)
+        .addNode('docsNode', fileAgent.createDocumentNode())
+        .addEdge('__start__', 'docsNode')
+        .addEdge('docsNode', 'agent');
     } else {
-      workflow.addEdge('__start__', 'agent');
+      workflow = (workflow as any).addEdge('__start__', 'agent');
     }
 
     workflow

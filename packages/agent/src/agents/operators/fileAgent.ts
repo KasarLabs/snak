@@ -1,9 +1,11 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import { BaseMessage } from '@langchain/core/messages';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
 import { documents } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { RunnableSequence } from '@langchain/core/runnables';
 
 export interface FileAgentConfig {
   topK?: number;
@@ -92,5 +94,41 @@ export class FileAgent extends BaseAgent {
     }
 
     return this.formatDocumentsForContext(results);
+  }
+
+  public createDocumentChain(): any {
+    const buildQuery = (state: any) => {
+      const lastUser = [...state.messages]
+        .reverse()
+        .find((msg: BaseMessage) => msg instanceof HumanMessage);
+      return lastUser
+        ? typeof lastUser.content === 'string'
+          ? lastUser.content
+          : JSON.stringify(lastUser.content)
+        : (state.messages[0]?.content as string);
+    };
+
+    const retrieve = async (query: string) => {
+      const docs = await this.retrieveRelevantDocuments(query, this.topK);
+      return this.formatDocumentsForContext(docs);
+    };
+
+    return RunnableSequence.from([
+      buildQuery,
+      retrieve,
+      (context: string) => ({ documents: context }),
+    ]).withConfig({ runName: 'FileContextChain' });
+  }
+
+  public createDocumentNode(): any {
+    const chain = this.createDocumentChain();
+    return async (state: any, _config: LangGraphRunnableConfig) => {
+      try {
+        return await chain.invoke(state);
+      } catch (error) {
+        logger.error('Error retrieving documents:', error);
+        return { documents: '' };
+      }
+    };
   }
 }
