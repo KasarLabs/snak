@@ -4,6 +4,8 @@
 **/.turbo
 .env
 
+**/log_iterations.json
+
 # Client
 packages/client/.next
 packages/client/node_modules

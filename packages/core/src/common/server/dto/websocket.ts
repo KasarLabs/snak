@@ -27,6 +27,16 @@ export class WebsocketGetAgentsConfigRequestDTO {
   socket_id: string;
 }
 
+export class WebsocketSupervisorRequestDTO {
+  @IsNotEmpty()
+  request: {
+    content: string;
+    agentId?: string;
+  };
+  @IsNotEmpty()
+  socket_id: string;
+}
+
 export class WebsocketGetMessagesRequestDTO {
   @IsNotEmpty()
   agent_id: string;

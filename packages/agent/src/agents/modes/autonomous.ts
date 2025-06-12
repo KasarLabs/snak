@@ -215,7 +215,7 @@ export const createAutonomousAgent = async (
         logger.debug(
           `Autonomous agent invoking model (${selectedModelType}) with ${filteredMessages.length} messages.`
         );
-        const result = await boundModel.invoke(formattedPrompt);
+        const result = await boundModel.stream(formattedPrompt);
         TokenTracker.trackCall(result, selectedModelType);
 
         let finalResultMessages: BaseMessage[];

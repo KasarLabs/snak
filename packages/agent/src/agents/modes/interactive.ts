@@ -83,7 +83,6 @@ export const createInteractiveAgent = async (
     });
 
     const toolNode = new ToolNode(toolsList);
-
     // Add wrapper to log tool executions
     const originalInvoke = toolNode.invoke.bind(toolNode);
     toolNode.invoke = async (state, config) => {
@@ -194,8 +193,8 @@ export const createInteractiveAgent = async (
               ? modelForThisTask.bindTools(toolsList)
               : modelForThisTask;
 
-          const result = await boundModel.invoke(currentFormattedPrompt);
-
+          const result = await boundModel.invoke(currentMessages);
+          logger.debug(result);
           TokenTracker.trackCall(result, selectedModelType);
           return formatAIMessageResult(result);
         } else {
@@ -326,9 +325,8 @@ export const createInteractiveAgent = async (
 ${formatAgentResponse(content)}`);
         }
       }
-
       return {
-        messages: [finalResult],
+        messages: [result],
       };
     }
 
@@ -342,7 +340,6 @@ ${formatAgentResponse(content)}`);
     function shouldContinue(state: typeof GraphState.State) {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
-
       if (lastMessage.tool_calls?.length) {
         logger.debug(
           `Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`

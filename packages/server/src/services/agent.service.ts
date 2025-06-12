@@ -38,36 +38,77 @@ export class AgentService implements IAgentService {
       message: 'Processing agent request',
       request: userRequest.user_request,
     });
-
     try {
-      let result: Promise<unknown>;
+      let result: any;
 
       if (agent && typeof agent.execute === 'function') {
-        const executeMethod = agent.execute;
-        const isAgentSystem =
-          'getSnakAgent' in agent &&
-          typeof (agent as AgentSystem).getSnakAgent === 'function';
-
-        if (isAgentSystem) {
-          result = (agent as AgentSystem).execute(userRequest);
+        if ('getSnakAgent' in agent) {
+          result = await agent.execute(userRequest);
         } else {
-          result = (agent as IAgent).execute(userRequest.user_request);
+          result = await agent.execute(userRequest.user_request);
         }
       } else {
         throw new Error('Invalid agent: missing execute method');
       }
 
-      const resolvedResult = await result;
-
       this.logger.debug({
         message: 'Agent request processed successfully',
-        result: resolvedResult,
+        result: result,
       });
 
       return {
         status: 'success',
-        data: resolvedResult,
+        data: result,
       };
+    } catch (error: any) {
+      this.logger.error('Error processing agent request', {
+        error: {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+        },
+        request: userRequest.user_request,
+      });
+
+      if (error instanceof AgentValidationError) {
+        throw error;
+      }
+
+      if (error.message?.includes('transaction')) {
+        throw new StarknetTransactionError('Failed to execute transaction', {
+          originalError: error.message,
+          cause: error,
+        });
+      }
+
+      throw new AgentExecutionError('Failed to process agent request', {
+        originalError: error.message,
+        cause: error,
+      });
+    }
+  }
+
+  async *handleUserRequestWebsocket(
+    agent: AgentSystem | any,
+    userRequest: MessageRequest
+  ): AsyncGenerator<any> {
+    this.logger.debug({
+      message: 'Processing agent request',
+      request: userRequest.user_request,
+    });
+    try {
+      let result: any;
+
+      for await (const chunk of agent.executeAsyncGenerator(
+        userRequest.user_request
+      )) {
+        if (chunk.final === true) {
+          this.logger.debug('SupervisorService: Execution completed');
+          yield chunk;
+          return;
+        }
+        yield chunk;
+      }
     } catch (error: any) {
       this.logger.error('Error processing agent request', {
         error: {
