@@ -181,14 +181,14 @@ export const createInteractiveAgent = async (
 
       const promptMessages: Array<any> = [];
 
-      promptMessages.push(['system', systemPrompt]);
+      const systemParts: string[] = [systemPrompt];
 
       if (memoryContent && memoryContent.trim().length > 0) {
-        promptMessages.push(['system', memoryContent.trim()]);
+        systemParts.push(memoryContent.trim());
       }
 
       if (documentsContent && documentsContent.trim().length > 0) {
-        promptMessages.push(['system', documentsContent.trim()]);
+        systemParts.push(documentsContent.trim());
       }
 
       const filteredMessages = state.messages.filter(
@@ -209,9 +209,10 @@ export const createInteractiveAgent = async (
           typeof sys.content === 'string'
             ? sys.content
             : JSON.stringify(sys.content);
-        promptMessages.push(['system', content]);
+        systemParts.push(content);
         idx++;
       }
+      promptMessages.push(['system', systemParts.join('\n')]);
 
       promptMessages.push(new MessagesPlaceholder('messages'));
 
