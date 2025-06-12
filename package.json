@@ -34,7 +34,6 @@
     "docker-setup": "docker compose -f ./packages/database/compose.yaml up -d",
     "docker-teardown": "docker compose -f ./packages/database/compose.yaml rm -fsv",
     "start": "pnpm run docker-setup && ./scripts/start.sh ; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
-    "start:normal": "pnpm run build && pnpm run docker-setup && lerna run --scope @snakagent/agents start -- ; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
     "start:server": "pnpm run build && pnpm run docker-setup && lerna run start --scope \"@snakagent/server\"; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
     "start:test": "turbo test",
     "test": "./scripts/run_all_test.sh",

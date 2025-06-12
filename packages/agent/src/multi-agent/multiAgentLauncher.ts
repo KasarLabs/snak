@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import chalk from 'chalk';
-import { createBox } from '../prompt/formatting.js';
 import { load_json_config } from '../index.js';
 import { DatabaseCredentials, logger, ModelsConfig } from '@snakagent/core';
 import { EventEmitter } from 'events';
@@ -392,9 +391,6 @@ export async function launchMultiAgent(
       continue;
     }
   }
-
-  const successMessage = `Successfully launched ${totalAgentsLaunched} agent instances across ${multiAgentConfig.agents.length} agent types`;
-  console.log(createBox('Multi-Agent Launcher', successMessage));
 
   return async () => {
     console.log('\nShutting down all agents...');
