@@ -330,7 +330,7 @@ export class AgentSelector extends BaseAgent {
         content: agentSelectionPrompt(query),
       });
 
-      const model = await this.modelSelector.getModelForTask([], 'fast');
+      const model = await this.modelSelector.getModelForTask([], 'smart');
       const result = await model.invoke([systemPrompt, humanPrompt]);
       const content =
         typeof result.content === 'string'
