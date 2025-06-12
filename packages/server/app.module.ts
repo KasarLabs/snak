@@ -6,12 +6,14 @@ import { ConfigModule } from './config/config.module.js';
 import { CleanupModule } from './common/cleanup/cleanup.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GatewayModule } from './src/gateway.module.js';
+import { FileIngestionModule } from './src/file-ingestion/file-ingestion.module.js';
 
 @Module({
   imports: [
     GatewayModule,
     ConfigModule,
     CleanupModule,
+    FileIngestionModule,
     ThrottlerModule.forRoot({
       throttlers: [
         {
