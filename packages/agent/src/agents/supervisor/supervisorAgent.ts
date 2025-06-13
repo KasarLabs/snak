@@ -8,7 +8,7 @@ import { ModelSelector } from '../operators/modelSelector.js';
 import { SnakAgent, SnakAgentConfig } from '../core/snakAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
-import { FileAgent } from '../operators/fileAgent.js';
+import { DocumentAgent } from '../operators/documentAgent.js';
 import { WorkflowController } from './workflowController.js';
 import {
   DatabaseCredentials,
@@ -56,7 +56,7 @@ export class SupervisorAgent extends BaseAgent {
   private snakAgent: SnakAgent | null = null;
   private toolsOrchestrator: ToolsOrchestrator | null = null;
   private memoryAgent: MemoryAgent | null = null;
-  private fileAgent: FileAgent | null = null;
+  private documentAgent: DocumentAgent | null = null;
   private workflowController: WorkflowController | null = null;
   private configAgent: ConfigurationAgent | null = null;
   private mcpAgent: MCPAgent | null = null;
@@ -118,7 +118,7 @@ export class SupervisorAgent extends BaseAgent {
     try {
       await this.initializeModelSelector();
       await this.initializeMemoryAgent(agentConfig);
-      await this.initializeFileAgent(agentConfig);
+      await this.initializeDocumentAgent(agentConfig);
       await this.initializeToolsOrchestrator(agentConfig);
       await this.initializeAgentSelector();
 
@@ -195,28 +195,28 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Initializes the FileAgent component if enabled
+   * Initializes the DocumentAgent component if enabled
    * @param agentConfig - Agent configuration
    * @private
    */
-  private async initializeFileAgent(
+  private async initializeDocumentAgent(
     agentConfig: AgentConfig | undefined,
   ): Promise<void> {
     const docCfg = (agentConfig as any)?.documents;
     if (docCfg?.enabled === false) {
       logger.info(
-        'SupervisorAgent: FileAgent initialization skipped (disabled in config)',
+        'SupervisorAgent: DocumentAgent initialization skipped (disabled in config)',
       );
       return;
     }
-    logger.debug('SupervisorAgent: Initializing FileAgent...');
-    this.fileAgent = new FileAgent({
+    logger.debug('SupervisorAgent: Initializing DocumentAgent...');
+    this.documentAgent = new DocumentAgent({
       topK: docCfg?.topK,
       embeddingModel: docCfg?.embeddingModel,
     });
-    await this.fileAgent.init();
-    this.operators.set(this.fileAgent.id, this.fileAgent);
-    logger.debug('SupervisorAgent: FileAgent initialized');
+    await this.documentAgent.init();
+    this.operators.set(this.documentAgent.id, this.documentAgent);
+    logger.debug('SupervisorAgent: DocumentAgent initialized');
   }
   /**
    * Initializes the ToolsOrchestrator component
@@ -548,11 +548,11 @@ export class SupervisorAgent extends BaseAgent {
       memoryResults = memRes.memories;
     }
 
-    if (this.fileAgent) {
+    if (this.documentAgent) {
       logger.debug(
-        `${depthIndent}SupervisorAgent: Enriching message with file context for ${callPath}.`,
+        `${depthIndent}SupervisorAgent: Enriching message with document context for ${callPath}.`,
       );
-      const docRes = await this.enrichWithFileContext(enriched);
+      const docRes = await this.enrichWithDocumentContext(enriched);
       enriched = docRes.message;
       documentResults = docRes.documents;
     }
@@ -1274,11 +1274,11 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Gets the FileAgent instance
-   * @returns The FileAgent instance, or null if not initialized
+   * Gets the DocumentAgent instance
+   * @returns The DocumentAgent instance, or null if not initialized
    */
-  public getFileAgent(): FileAgent | null {
-    return this.fileAgent;
+  public getDocumentAgent(): DocumentAgent | null {
+    return this.documentAgent;
   }
 
   /**
@@ -1359,7 +1359,7 @@ export class SupervisorAgent extends BaseAgent {
     const agentsToDispose = [
       this.modelSelector,
       this.memoryAgent,
-      this.fileAgent,
+      this.documentAgent,
       this.toolsOrchestrator,
       this.workflowController,
     ];
@@ -1374,7 +1374,7 @@ export class SupervisorAgent extends BaseAgent {
     this.snakAgent = null;
     this.toolsOrchestrator = null;
     this.memoryAgent = null;
-    this.fileAgent = null;
+    this.documentAgent = null;
     this.agentSelector = null;
     this.workflowController = null;
     this.operators.clear();
@@ -1444,30 +1444,30 @@ export class SupervisorAgent extends BaseAgent {
     }
   }
 
-  private async enrichWithFileContext(
+  private async enrichWithDocumentContext(
     message: BaseMessage,
   ): Promise<{ message: BaseMessage; documents: documents.SearchResult[] }> {
-    if (!this.fileAgent) {
+    if (!this.documentAgent) {
       logger.debug(
-        'SupervisorAgent: FileAgent not available, skipping context enrichment.',
+        'SupervisorAgent: DocumentAgent not available, skipping context enrichment.',
       );
       return { message, documents: [] };
     }
 
     try {
-      const docs = await this.fileAgent.retrieveRelevantDocuments(
+      const docs = await this.documentAgent.retrieveRelevantDocuments(
         message,
         (this.config.starknetConfig.agentConfig as any)?.documents?.topK,
       );
 
       if (!docs.length) {
-        logger.debug('SupervisorAgent: No relevant file chunks found for context.');
+        logger.debug('SupervisorAgent: No relevant document chunks found for context.');
         return { message, documents: [] };
       }
 
-      const docContext = this.fileAgent.formatDocumentsForContext(docs);
+      const docContext = this.documentAgent.formatDocumentsForContext(docs);
       logger.debug(
-        `SupervisorAgent: Formatted file context (first 100 chars): "${docContext.substring(0, 100)}..."`,
+        `SupervisorAgent: Formatted document context (first 100 chars): "${docContext.substring(0, 100)}..."`,
       );
 
       const originalContent =
@@ -1479,14 +1479,14 @@ export class SupervisorAgent extends BaseAgent {
         content: originalContent,
         additional_kwargs: {
           ...message.additional_kwargs,
-          file_context: docContext,
+          document_context: docContext,
         },
       });
 
       return { message: enriched, documents: docs };
     } catch (error) {
       logger.error(
-        `SupervisorAgent: Error enriching message with file context: ${error}`,
+        `SupervisorAgent: Error enriching message with document context: ${error}`,
       );
       return { message, documents: [] };
     }

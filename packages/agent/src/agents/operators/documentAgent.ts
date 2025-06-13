@@ -7,18 +7,18 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { RunnableSequence } from '@langchain/core/runnables';
 
-export interface FileAgentConfig {
+export interface DocumentAgentConfig {
   topK?: number;
   embeddingModel?: string;
 }
 
-export class FileAgent extends BaseAgent {
+export class DocumentAgent extends BaseAgent {
   private embeddings: CustomHuggingFaceEmbeddings;
   private topK: number;
   private initialized = false;
 
-  constructor(config: FileAgentConfig = {}) {
-    super('file-agent', AgentType.OPERATOR);
+  constructor(config: DocumentAgentConfig = {}) {
+    super('document-agent', AgentType.OPERATOR);
     this.topK = config.topK ?? 4;
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
@@ -36,7 +36,7 @@ export class FileAgent extends BaseAgent {
     k: number = this.topK,
   ): Promise<documents.SearchResult[]> {
     if (!this.initialized) {
-      throw new Error('FileAgent: Not initialized');
+      throw new Error('DocumentAgent: Not initialized');
     }
     const query = typeof message === 'string' ? message : String(message.content);
     const embedding = await this.embeddings.embedQuery(query);
@@ -81,7 +81,7 @@ export class FileAgent extends BaseAgent {
     config?: Record<string, any>,
   ): Promise<any> {
     if (!this.initialized) {
-      throw new Error('FileAgent: Not initialized');
+      throw new Error('DocumentAgent: Not initialized');
     }
 
     const query =
@@ -91,7 +91,7 @@ export class FileAgent extends BaseAgent {
           ? String(input.content)
           : JSON.stringify(input);
 
-    logger.debug(`FileAgent: Searching documents for query "${query}"`);
+    logger.debug(`DocumentAgent: Searching documents for query "${query}"`);
 
     const k = config?.topK ?? this.topK;
     const results = await this.retrieveRelevantDocuments(query, k);
@@ -124,7 +124,7 @@ export class FileAgent extends BaseAgent {
       buildQuery,
       retrieve,
       (context: string) => ({ documents: context }),
-    ]).withConfig({ runName: 'FileContextChain' });
+    ]).withConfig({ runName: 'DocumentContextChain' });
   }
 
   public createDocumentNode(): any {

@@ -41,15 +41,15 @@ const getMemoryAgent = async () => {
   }
 };
 
-const getFileAgent = async () => {
+const getDocumentAgent = async () => {
   try {
     const supervisorAgent = SupervisorAgent.getInstance?.() || null;
     if (supervisorAgent) {
-      return await supervisorAgent.getFileAgent();
+      return await supervisorAgent.getDocumentAgent();
     }
     return null;
   } catch (error) {
-    logger.error(`Failed to get file agent: ${error}`);
+    logger.error(`Failed to get document agent: ${error}`);
     return null;
   }
 };
@@ -93,15 +93,15 @@ export const createInteractiveAgent = async (
       }
     }
 
-    let fileAgent = null;
+    let documentAgent = null;
     //if (agent_config.documents) {
       try {
-        fileAgent = await getFileAgent();
-        if (!fileAgent) {
-          logger.warn('File agent not available, document context will be skipped');
+        documentAgent = await getDocumentAgent();
+        if (!documentAgent) {
+          logger.warn('Document agent not available, document context will be skipped');
         }
       } catch (error) {
-        logger.error(`Error retrieving file agent: ${error}`);
+        logger.error(`Error retrieving document agent: ${error}`);
       }
     //}
 
@@ -437,17 +437,17 @@ ${formatAgentResponse(content)}`);
       workflow = (workflow as any)
         .addNode('memory', memoryAgent.createMemoryNode())
         .addEdge('__start__', 'memory');
-      if (fileAgent) {
+      if (documentAgent) {
         workflow = (workflow as any)
-          .addNode('docsNode', fileAgent.createDocumentNode())
+          .addNode('docsNode', documentAgent.createDocumentNode())
           .addEdge('memory', 'docsNode')
           .addEdge('docsNode', 'agent');
       } else {
         workflow = (workflow as any).addEdge('memory', 'agent');
       }
-    } else if (fileAgent) {
+    } else if (documentAgent) {
       workflow = (workflow as any)
-        .addNode('docsNode', fileAgent.createDocumentNode())
+        .addNode('docsNode', documentAgent.createDocumentNode())
         .addEdge('__start__', 'docsNode')
         .addEdge('docsNode', 'agent');
     } else {
