@@ -54,6 +54,11 @@ export namespace memory {
           history JSONB NOT NULL
         );`
       ),
+      new Postgres.Query(
+        `CREATE INDEX IF NOT EXISTS agent_memories_embedding_idx
+           ON agent_memories USING ivfflat (embedding vector_cosine_ops);`
+      ),
+      new Postgres.Query(`ANALYZE agent_memories;`),
       new Postgres.Query(`
         CREATE OR REPLACE FUNCTION insert_memory(
           id integer,

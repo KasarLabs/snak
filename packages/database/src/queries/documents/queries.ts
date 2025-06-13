@@ -13,6 +13,9 @@ export namespace documents {
         original_name TEXT,
         mime_type TEXT
       );
+      CREATE INDEX IF NOT EXISTS document_vectors_embedding_idx
+        ON document_vectors USING ivfflat (embedding vector_cosine_ops);
+      ANALYZE document_vectors;
     `);
     await Postgres.query(q);
   }
