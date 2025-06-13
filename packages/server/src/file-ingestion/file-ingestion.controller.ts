@@ -47,17 +47,17 @@ export class FileIngestionController {
     throw new BadRequestException('No file found in request');
   }
 
-  @Get()
+  @Get('list')
   async listFiles() {
     return this.service.listFiles();
   }
 
-  @Get(':id')
+  @Get('get')
   async getFile(@Param('id') id: string) {
     return this.service.getFile(id);
   }
 
-  @Post()
+  @Post('delete')
   async deleteFile(@Body('id') id: string) {
     await this.service.deleteFile(id);
     return { deleted: true };
