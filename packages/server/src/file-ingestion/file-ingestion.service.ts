@@ -94,7 +94,6 @@ export class FileIngestionService {
   }
 
   private computeChunkParams(size: number) {
-    console.log(size);
     const chunkSize =
       size > 1_000_000
         ? 500

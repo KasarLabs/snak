@@ -51,7 +51,14 @@ export class FileAgent extends BaseAgent {
           `Document [id: ${r.document_id}, chunk: ${r.chunk_index}, similarity: ${r.similarity.toFixed(4)}]: ${r.content}`,
       )
       .join('\n\n');
-    return `### Document Context ###\n${formatted}\n\n`;
+    return `### Document Context (use the following snippets if relevant to the question) \n\
+  Format:
+    Document [id: <file>, chunk: <index>, similarity: <score>]: <text excerpt>
+  Instructions:
+    1. Scan all snippets to find those relevant to the query.
+    2. When an excerpt adds useful information, quote or integrate it.
+    3. Do not skip these snippets for the sake of brevity.
+###\n${formatted}\n\n`;
   }
 
   public async enrichPromptWithDocuments(

@@ -377,7 +377,12 @@ export class MemoryAgent extends BaseAgent {
       .join('\n\n');
 
     return (
-      '### User Memory Context (reference only - always verify dynamic info using tools) ###\n' +
+      '### User Memory Context (reference only - always verify dynamic info using tools)\n\
+  Format:\
+    Memory [id: <number>, relevance: <score>, last_updated: <date or “unknown”>]: <description>\
+  Instruction: 1.Always read every entry in the Memory Context before composing your answer.\n\
+    2. When description adds useful information quote or integrate it.\
+###\n' +
       formattedMemories +
       '\n\n'
     );
