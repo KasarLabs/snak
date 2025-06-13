@@ -54,11 +54,6 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const route = this.reflector.get('path', this.handleUserRequest);
-
-      if (!userRequest.request.agent_id) {
-        throw new ServerError('E01TA400');
-      }
-
       const agent = this.supervisorService.getAgentInstance(
         userRequest.request.agent_id
       );
@@ -88,54 +83,6 @@ export class AgentsController {
       return response;
     } catch (error) {
       logger.error('Error in handleUserRequest:', error);
-      throw new ServerError('E03TA100');
-    }
-  }
-
-  /**
-   * Handle supervisor request with optional agent specification
-   * @param userRequest - The supervisor request containing content and optional agent ID
-   * @returns Promise<AgentResponse> - Response with status and data
-   */
-  @Post('supervisor/request')
-  async handleSupervisorRequest(
-    @Body() userRequest: SupervisorRequestDTO
-  ): Promise<AgentResponse> {
-    try {
-      if (!this.supervisorService.isInitialized()) {
-        throw new ServerError('E07TA110');
-      }
-
-      const route = this.reflector.get('path', this.handleSupervisorRequest);
-
-      const config: Record<string, any> = {};
-      if (userRequest.request.agentId) {
-        config.agentId = userRequest.request.agentId;
-      }
-
-      const result = await this.supervisorService.executeRequest(
-        userRequest.request.content,
-        config
-      );
-
-      await metrics.metricsAgentResponseTime(
-        'supervisor',
-        'key',
-        route,
-        Promise.resolve(result)
-      );
-
-      const response: AgentResponse = {
-        status: 'success',
-        data: result,
-      };
-
-      logger.debug(
-        `Supervisor request processed successfully: ${JSON.stringify(result)}`
-      );
-      return response;
-    } catch (error) {
-      logger.error('Error in handleSupervisorRequest:', error);
       throw new ServerError('E03TA100');
     }
   }
@@ -352,33 +299,6 @@ export class AgentsController {
     } catch (error) {
       logger.error('Error in getSupervisorStatus:', error);
       throw new ServerError('E07TA100');
-    }
-  }
-
-  /**
-   * Handle legacy supervisor request (deprecated)
-   * @param userRequest - Legacy format request
-   * @returns Promise<AgentResponse> - Response from supervisor
-   */
-  @Post('requestSupervisor')
-  async handleLegacySupervisorRequest(
-    @Body() userRequest: AgentRequestDTO
-  ): Promise<AgentResponse> {
-    try {
-      const supervisorRequest: SupervisorRequestDTO = {
-        request: {
-          content:
-            typeof userRequest.request === 'string'
-              ? userRequest.request
-              : userRequest.request.content,
-          agentId: userRequest.request.agent_id,
-        },
-      };
-
-      return await this.handleSupervisorRequest(supervisorRequest);
-    } catch (error) {
-      logger.error('Error in handleLegacySupervisorRequest:', error);
-      throw new ServerError('E03TA100');
     }
   }
 

@@ -1,4 +1,4 @@
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
@@ -39,10 +39,15 @@ const GraphState = Annotation.Root({
   }),
 });
 
+export interface AgentReturn {
+  app: any;
+  agent_config: AgentConfig;
+}
+
 /**
  * Creates and configures an autonomous agent using a StateGraph.
  * This agent can use tools, interact with models, and follow a defined workflow.
- *
+ * @async
  * @param {SnakAgentInterface} snakAgent - The Starknet agent instance providing configuration and context
  * @param {ModelSelector | null} modelSelector - The model selection agent for choosing appropriate LLMs
  * @returns {Promise<Object>} Promise resolving to compiled LangGraph app, agent config, and max iterations
@@ -51,8 +56,11 @@ const GraphState = Annotation.Root({
 export const createAutonomousAgent = async (
   snakAgent: SnakAgentInterface,
   modelSelector: ModelSelector | null
-) => {
+): Promise<AgentReturn> => {
   try {
+    console.log(
+      'Staarknet Autonomous Agent: Initializing autonomous agent graph...'
+    );
     const agent_config = snakAgent.getAgentConfig();
     if (!agent_config) {
       throw new Error('Agent configuration is required.');
@@ -204,7 +212,7 @@ export const createAutonomousAgent = async (
         );
         const modelForThisTask = await modelSelector.getModelForTask(
           filteredMessages,
-          selectedModelType
+          selectedModelType.model
         );
 
         const boundModel =
@@ -216,41 +224,16 @@ export const createAutonomousAgent = async (
           `Autonomous agent invoking model (${selectedModelType}) with ${filteredMessages.length} messages.`
         );
         const result = await boundModel.invoke(formattedPrompt);
-        TokenTracker.trackCall(result, selectedModelType);
+        TokenTracker.trackCall(result, selectedModelType.model);
 
         let finalResultMessages: BaseMessage[];
 
         if (result instanceof AIMessage) {
           finalResultMessages = [result];
-        } else if (
-          Array.isArray(result) &&
-          result.every((m): m is BaseMessage => m instanceof BaseMessage)
-        ) {
-          finalResultMessages = result;
-        } else if (
-          typeof result === 'object' &&
-          result !== null &&
-          'content' in result &&
-          typeof result.content === 'string'
-        ) {
-          finalResultMessages = [
-            new AIMessage({
-              content: result.content,
-              tool_calls:
-                'tool_calls' in result && Array.isArray(result.tool_calls)
-                  ? result.tool_calls
-                  : undefined,
-            }),
-          ];
         } else {
-          logger.error(
-            `Unexpected model result type: ${typeof result}. Full result: ${JSON.stringify(result)}`
+          throw new Error(
+            `Unexpected model response type: ${typeof result}. Expected AIMessage.`
           );
-          finalResultMessages = [
-            new AIMessage(
-              'Error: Received unexpected response format from the language model.'
-            ),
-          ];
         }
 
         finalResultMessages.forEach((msg) => {
@@ -258,13 +241,21 @@ export const createAutonomousAgent = async (
             msg.additional_kwargs = {
               ...msg.additional_kwargs,
               from: msg.additional_kwargs?.from || 'starknet-autonomous',
+              token_model_selector: selectedModelType.token,
             };
+          } else {
+            throw new Error(
+              `Unexpected message type: ${typeof msg}. Expected AIMessage.`
+            );
           }
         });
 
         const responseMessage =
           finalResultMessages[finalResultMessages.length - 1];
         if (responseMessage) {
+          console.log(
+            `ResponseMessage: ${JSON.stringify(responseMessage, null, 2)}`
+          );
           const contentToLog =
             typeof responseMessage.content === 'string'
               ? responseMessage.content
@@ -389,10 +380,20 @@ export const createAutonomousAgent = async (
     const checkpointer = new MemorySaver(); // For potential state persistence
     const app = workflow.compile({ checkpointer });
 
+    //     CompiledStateGraph<StateType<{
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }>, UpdateType<{
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }>, "__start__" | ... 1 more ... | "tools", {
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }, {
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }, StateDefinition>
+
+    console.log(JSON.stringify(agent_config));
     return {
       app,
       agent_config,
-      maxIterations: agent_config.maxIterations,
     };
   } catch (error) {
     logger.error(`Failed to create autonomous agent graph: ${error}`);

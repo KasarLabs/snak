@@ -17,6 +17,7 @@ import { ModelSelector } from '../operators/modelSelector.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
 import { interactiveRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
+import { AgentReturn } from './autonomous.js';
 
 /**
  * Retrieves the memory agent instance from the SupervisorAgent.
@@ -46,7 +47,7 @@ const getMemoryAgent = async () => {
 export const createInteractiveAgent = async (
   snakAgent: SnakAgentInterface,
   modelSelector: ModelSelector | null
-) => {
+): Promise<AgentReturn> => {
   try {
     const agent_config: AgentConfig = snakAgent.getAgentConfig();
     if (!agent_config) {
@@ -83,7 +84,6 @@ export const createInteractiveAgent = async (
     });
 
     const toolNode = new ToolNode(toolsList);
-
     // Add wrapper to log tool executions
     const originalInvoke = toolNode.invoke.bind(toolNode);
     toolNode.invoke = async (state, config) => {
@@ -160,11 +160,6 @@ export const createInteractiveAgent = async (
         });
 
         if (modelSelector) {
-          const stateModelType =
-            typeof state.memories === 'object' && state.memories
-              ? (state.memories as any).modelType
-              : null;
-
           // Extract originalUserQuery from first HumanMessage if available
           const originalUserMessage = currentMessages.find(
             (msg): msg is HumanMessage => msg instanceof HumanMessage
@@ -175,18 +170,17 @@ export const createInteractiveAgent = async (
               : JSON.stringify(originalUserMessage.content)
             : '';
 
-          const selectedModelType =
-            stateModelType ||
-            (await modelSelector.selectModelForMessages(currentMessages, {
-              originalUserQuery,
-            }));
+          const selectedModelType = await modelSelector.selectModelForMessages(
+            filteredMessages,
+            { originalUserQuery }
+          );
 
           logger.debug(
             `Using dynamically selected model: ${selectedModelType}`
           );
           const modelForThisTask = await modelSelector.getModelForTask(
             currentMessages,
-            selectedModelType
+            selectedModelType.model
           );
 
           const boundModel =
@@ -194,9 +188,9 @@ export const createInteractiveAgent = async (
               ? modelForThisTask.bindTools(toolsList)
               : modelForThisTask;
 
-          const result = await boundModel.invoke(currentFormattedPrompt);
-
-          TokenTracker.trackCall(result, selectedModelType);
+          const result = await boundModel.invoke(currentMessages);
+          logger.debug(result);
+          TokenTracker.trackCall(result, selectedModelType.model);
           return formatAIMessageResult(result);
         } else {
           const existingModelSelector = ModelSelector.getInstance();
@@ -326,9 +320,8 @@ export const createInteractiveAgent = async (
 ${formatAgentResponse(content)}`);
         }
       }
-
       return {
-        messages: [finalResult],
+        messages: [result],
       };
     }
 
@@ -342,7 +335,6 @@ ${formatAgentResponse(content)}`);
     function shouldContinue(state: typeof GraphState.State) {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1] as AIMessage;
-
       if (lastMessage.tool_calls?.length) {
         logger.debug(
           `Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`
@@ -378,7 +370,10 @@ ${formatAgentResponse(content)}`);
           }
         : {}),
     });
-    return app;
+    return {
+      app,
+      agent_config,
+    };
   } catch (error) {
     logger.error('Failed to create an interactive agent:', error);
     throw error;

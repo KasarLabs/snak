@@ -26,8 +26,15 @@ export interface IAgent {
    * @param input Input to process
    * @param config Optional configuration
    */
-  execute(input: any, config?: Record<string, any>): Promise<any>;
+  execute(
+    input: any,
+    config?: Record<string, any>
+  ): Promise<any> | AsyncGenerator<any>;
 
+  executeAsyncGenerator?(
+    input: BaseMessage[] | any,
+    config?: Record<string, any>
+  ): AsyncGenerator<any>;
   /**
    * Optional method to clean up resources used by the agent.
    */
@@ -87,7 +94,14 @@ export abstract class BaseAgent implements IAgent {
   }
 
   abstract init(): Promise<void>;
-  abstract execute(input: any, config?: Record<string, any>): Promise<any>;
+  abstract execute(
+    input: any,
+    config?: Record<string, any>
+  ): AsyncGenerator<any> | Promise<any>;
+  executeAsyncGenerator?(
+    input: BaseMessage[] | any,
+    config?: Record<string, any>
+  ): AsyncGenerator<any>;
 
   /**
    * Default dispose method. Subclasses should override this if they
