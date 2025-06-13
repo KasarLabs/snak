@@ -30,7 +30,7 @@ A Agent Engine for creating powerful and secure AI Agents powered by Starknet. A
 
 - Starknet wallet (recommended: [Argent X](https://www.argent.xyz/argent-x))
 - AI provider API key (Anthropic/OpenAI/Google Gemini/Ollama)
-- Node.js and pnpm installed
+- Docker (version >= 28) installed
 
 ### Installation
 
@@ -82,8 +82,8 @@ SERVER_PORT="3001"
 POSTGRES_USER="admin"
 POSTGRES_PASSWORD="admin"
 POSTGRES_ROOT_DB="postgres" # Database used to create/manage the application database
-POSTGRES_HOST="localhost"
-POSTGRES_PORT="5454"
+POSTGRES_HOST="postgres"
+POSTGRES_PORT="5432"
 
 # --- LangSmith Tracing (Optional) ---
 # Set LANGSMITH_TRACING=true to enable tracing
@@ -148,7 +148,7 @@ You can simply create your own agent configuration using our tool on [snakagent]
 
 ### Prompt Mode
 
-Run the promt:
+Run the prompt:
 
 ```bash
 # start with the default.agent.json
@@ -160,7 +160,7 @@ pnpm run start --agent="name_of_your_config.json" --models="name_of_your_config.
 
 ### Server Mode
 
-Run the server :
+Run the server:
 
 ```bash
 # start with the default.agent.json
