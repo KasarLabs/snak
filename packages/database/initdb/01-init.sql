@@ -5,16 +5,18 @@ CREATE TYPE memory AS (
     short_term_memory_size INTEGER
 );
 
+CREATE TYPE documents AS (
+    enabled BOOLEAN,
+    embedding_model TEXT
+);
+
 CREATE TYPE model AS (
               provider TEXT,
               model_name TEXT,
               description TEXT
           );
 
-CREATE TYPE IF NOT EXISTS documents AS (
-    enabled BOOLEAN,
-    embedding_model TEXT
-);
+
 
 CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
