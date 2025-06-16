@@ -179,15 +179,27 @@ export const createInteractiveAgent = async (
           ? state.documents
           : (state.documents as any)?.documents;
 
+      const memoryAvailable =
+        memoryContent && memoryContent.trim().length > 0;
+      const documentsAvailable =
+        documentsContent && documentsContent.trim().length > 0;
+
       const promptMessages: Array<any> = [];
 
       const systemParts: string[] = [systemPrompt];
 
-      if (memoryContent && memoryContent.trim().length > 0) {
+      if (memoryAvailable || documentsAvailable) {
+        const sources: string[] = [];
+        if (memoryAvailable) sources.push('MEMORY');
+        if (documentsAvailable) sources.push('DOCUMENT');
+        systemParts.push(`Sources of information: ${sources.join(', ')}\n\n`);
+      }
+
+      if (memoryAvailable) {
         systemParts.push(memoryContent.trim());
       }
 
-      if (documentsContent && documentsContent.trim().length > 0) {
+      if (documentsAvailable) {
         systemParts.push(documentsContent.trim());
       }
 
