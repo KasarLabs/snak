@@ -12,7 +12,8 @@ const SIMILARITY_THRESHOLD = parseFloat(
   process.env.DOCUMENT_SIMILARITY_THRESHOLD || '0.5'
 );
 
-export interface DocumentAgentConfig {
+export interface DocumentConfig {
+  enabled?: boolean;
   topK?: number;
   embeddingModel?: string;
 }
@@ -22,7 +23,7 @@ export class DocumentAgent extends BaseAgent {
   private topK: number;
   private initialized = false;
 
-  constructor(config: DocumentAgentConfig = {}) {
+  constructor(config: DocumentConfig = {}) {
     super('document-agent', AgentType.OPERATOR);
     this.topK = config.topK ?? 4;
     this.embeddings = new CustomHuggingFaceEmbeddings({

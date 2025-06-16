@@ -11,6 +11,11 @@ CREATE TYPE model AS (
               description TEXT
           );
 
+CREATE TYPE IF NOT EXISTS documents AS (
+    enabled BOOLEAN,
+    embedding_model TEXT
+);
+
 CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -23,6 +28,7 @@ CREATE TABLE IF NOT EXISTS agents (
     interval INTEGER NOT NULL DEFAULT 5,
     plugins TEXT[] NOT NULL DEFAULT '{}',
     memory memory NOT NULL DEFAULT ROW(false, 5)::memory,
+    documents documents NOT NULL DEFAULT ROW(false, NULL)::documents,
     mode VARCHAR(50) NOT NULL DEFAULT 'interactive',
     max_iterations INTEGER NOT NULL DEFAULT 15,
     "mcpServers" JSONB DEFAULT '{}'::jsonb

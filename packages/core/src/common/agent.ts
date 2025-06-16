@@ -54,6 +54,7 @@ export interface RawAgentConfig {
   interval: number;
   plugins: string[];
   memory: MemoryConfig;
+  documents?: DocumentConfig;
   mcpServers?: Record<string, any>;
   mode: AgentMode;
 }
@@ -67,6 +68,7 @@ export interface MemoryConfig {
 
 export interface DocumentConfig {
   enabled?: boolean;
+  topK?: number;
   embeddingModel?: string;
 }
 
