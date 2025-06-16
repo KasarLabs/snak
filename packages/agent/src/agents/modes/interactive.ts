@@ -94,7 +94,7 @@ export const createInteractiveAgent = async (
     }
 
     let documentAgent = null;
-    //if (agent_config.documents) {
+    if (agent_config.documents?.enabled !== false) {
       try {
         documentAgent = await getDocumentAgent();
         if (!documentAgent) {
@@ -103,7 +103,7 @@ export const createInteractiveAgent = async (
       } catch (error) {
         logger.error(`Error retrieving document agent: ${error}`);
       }
-    //}
+    }
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
