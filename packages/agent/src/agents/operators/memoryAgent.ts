@@ -11,7 +11,7 @@ import { RunnableSequence } from '@langchain/core/runnables';
 
 // TODO: env -> config/agents
 const SIMILARITY_THRESHOLD = parseFloat(
-  process.env.MEMORY_SIMILARITY_THRESHOLD || '0'
+  process.env.MEMORY_SIMILARITY_THRESHOLD || '0.5'
 );
 /**
  * Memory configuration for the agent

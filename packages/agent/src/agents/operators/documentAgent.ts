@@ -7,6 +7,11 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { RunnableSequence } from '@langchain/core/runnables';
 
+
+const SIMILARITY_THRESHOLD = parseFloat(
+  process.env.DOCUMENT_SIMILARITY_THRESHOLD || '0.5'
+);
+
 export interface DocumentAgentConfig {
   topK?: number;
   embeddingModel?: string;
@@ -40,7 +45,8 @@ export class DocumentAgent extends BaseAgent {
     }
     const query = typeof message === 'string' ? message : String(message.content);
     const embedding = await this.embeddings.embedQuery(query);
-    return await documents.search(embedding, k);
+    const results = await documents.search(embedding, k);
+    return results.filter((r) => r.similarity >= SIMILARITY_THRESHOLD);
   }
 
   public formatDocumentsForContext(results: documents.SearchResult[]): string {
