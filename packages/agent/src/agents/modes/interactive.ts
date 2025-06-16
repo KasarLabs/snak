@@ -192,7 +192,7 @@ export const createInteractiveAgent = async (
         const sources: string[] = [];
         if (memoryAvailable) sources.push('User Memory Context');
         if (documentsAvailable) sources.push('Document Context');
-        systemParts.push(`Sources of information: ${sources.join(', ')}\n\n`);
+        systemParts.push(`\nSources of information: ${sources.join(', ')}\n`);
       }
 
       if (memoryAvailable) {
