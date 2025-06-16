@@ -1,7 +1,7 @@
 import { AgentConfig, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
-import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
+import { StateGraph, MemorySaver, Annotation, END } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import {
@@ -23,7 +23,7 @@ import {
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
-import { autonomousRules, finalAnswerRules } from '../../prompt/prompts.js';
+import { autonomousRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 
 /**
@@ -153,31 +153,6 @@ export const createAutonomousAgent = async (
         throw new Error('Agent configuration and ModelSelector are required.');
       }
 
-      const lastMessage = state.messages[state.messages.length - 1];
-      if (
-        lastMessage instanceof AIMessage &&
-        lastMessage.additional_kwargs?.final_answer === true
-      ) {
-        logger.debug('Autonomous agent: Processing final answer continuation.');
-        delete lastMessage.additional_kwargs.final_answer;
-
-        let finalAnswerContent = lastMessage.content;
-        if (typeof finalAnswerContent === 'string') {
-          const match = finalAnswerContent.match(/FINAL ANSWER:(.*?)$/s);
-          finalAnswerContent =
-            match && match[1] ? match[1].trim() : finalAnswerContent;
-        }
-
-        return {
-          messages: [
-            new AIMessage({
-              content: finalAnswerRules(finalAnswerContent),
-              additional_kwargs: { from: 'starknet-autonomous' },
-            }),
-          ],
-        };
-      }
-
       const autonomousSystemPrompt = `
       ${agent_config.prompt.content}
 
@@ -197,6 +172,8 @@ export const createAutonomousAgent = async (
           messages: filteredMessages,
         });
 
+
+        // Is it use to get the HumanMessage from the messages array in id[]
         const originalUserMessage = filteredMessages.find(
           (msg): msg is HumanMessage => msg instanceof HumanMessage
         );
@@ -205,11 +182,16 @@ export const createAutonomousAgent = async (
             ? originalUserMessage.content
             : JSON.stringify(originalUserMessage.content)
           : '';
-
+        console.log(
+          `Original user query: ${originalUserQuery.substring(0, 100)}${
+            originalUserQuery.length > 100 ? '...' : ''
+          }`
+        );
         const selectedModelType = await modelSelector.selectModelForMessages(
           filteredMessages,
-          { originalUserQuery }
         );
+
+
         const modelForThisTask = await modelSelector.getModelForTask(
           filteredMessages,
           selectedModelType.model
@@ -321,7 +303,9 @@ export const createAutonomousAgent = async (
      * @param {typeof GraphState.State} state - Current graph state
      * @returns {'tools' | 'agent'} Next node to execute
      */
-    function shouldContinue(state: typeof GraphState.State): 'tools' | 'agent' {
+    function shouldContinue(
+      state: typeof GraphState.State
+    ): 'tools' | 'agent' | 'end' {
       const lastMessage = state.messages[state.messages.length - 1];
 
       if (!lastMessage) {
@@ -353,11 +337,9 @@ export const createAutonomousAgent = async (
           final_answer: true,
           processed_final_answer: true, // Mark as processed to avoid re-entry for the same message
         };
-        return 'agent'; // Route to agent to handle the FINAL ANSWER logic
+        return 'end'; // Route to agent to handle the FINAL ANSWER logic
       }
 
-      // If no tool calls and no unprocessed FINAL ANSWER, loop back to the agent.
-      // Termination is handled by the external recursion limit in SnakAgent.execute_autonomous.
       logger.debug(
         'No tool calls or unprocessed FINAL ANSWER. Routing back to agent for next iteration.'
       );
@@ -373,6 +355,7 @@ export const createAutonomousAgent = async (
     workflow.addConditionalEdges('agent', shouldContinue, {
       tools: 'tools',
       agent: 'agent',
+      end : END
     });
 
     workflow.addEdge('tools', 'agent');

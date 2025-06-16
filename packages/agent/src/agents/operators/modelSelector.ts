@@ -19,7 +19,7 @@ import { TokenTracker } from '../../token/tokenTracking.js';
  */
 
 export interface ModelSelectorReturn {
-  model: string;
+  model :BaseChatModel ;
   token?: {
     intput_token: number;
     output_token: number;
@@ -241,58 +241,28 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
     config?: Record<string, any>
   ): Promise<ModelSelectorReturn> {
     try {
-      // if (!this.useModelSelector) {
-      //   if (this.debugMode) {
-      //     logger.debug('Meta-selection disabled, using smart model by default.');
-      //   }
-      //   return {model : 'smart'};
-      // }
-
-      // if (!messages || messages.length === 0) {
-      //   if (this.debugMode) {
-      //     logger.debug(
-      //       'No messages provided for model selection; defaulting to "smart".'
-      //     );
-      //   }
-      //   return 'smart';
-      // }
-
-      // try {
-      //   if (this.debugMode) {
-      //     logger.debug(
-      //       'Meta-selection enabled. Analyzing messages with the "fast" model.'
-      //     );
-      //   }
-
-      //   if (!this.models.fast) {
-      //     logger.error(
-      //       'Meta-selection is enabled, but the "fast" model is not available. Defaulting to "smart".'
-      //     );
-      //     return 'smart';
-      //   }
-
-      //   // Determine content to analyze based on config or last message
       let analysisContent = '';
-
       if (
         config?.originalUserQuery &&
         typeof config.originalUserQuery === 'string'
       ) {
         // Use originalUserQuery from config if available
         analysisContent = config.originalUserQuery;
+        console.log(analysisContent);
         if (this.debugMode) {
           logger.debug(
             `Using originalUserQuery for model selection: "${analysisContent.substring(0, 100)}..."`
           );
         }
       } else {
+        // TODO Never reach need to had something to know if we are in autonomous mode to use this instead of this
         // Fall back to using the last message
         const lastMessage = messages[messages.length - 1];
         if (!lastMessage) {
           logger.warn(
             'ModelSelector: Could not get the last message; defaulting to "smart".'
           );
-          return { model: 'smart' };
+          return { this.models['smart'] };
         }
 
         const content =
@@ -307,19 +277,20 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
 
       let nextStepsSection = '';
 
+      // TODO add this when its autonomous mode
       // Extract "NEXT STEPS" section for more focused analysis if present
-      const nextStepsMatch = analysisContent.match(
-        /NEXT STEPS:(.*?)($|(?=\n\n))/s
-      );
-      if (nextStepsMatch && nextStepsMatch[1]) {
-        nextStepsSection = nextStepsMatch[1].trim();
-        if (this.debugMode) {
-          logger.debug(`Extracted NEXT STEPS section: "${nextStepsSection}"`);
-        }
-        // Prioritize NEXT STEPS for analysis, with some context
-        const truncatedContext = analysisContent.substring(0, 300) + '...';
-        analysisContent = `Next planned actions: ${nextStepsSection}\n\nContext: ${truncatedContext}`;
-      }
+      // const nextStepsMatch = analysisContent.match(
+      //   /NEXT STEPS:(.*?)($|(?=\n\n))/s
+      // );
+      // if (nextStepsMatch && nextStepsMatch[1]) {
+      //   nextStepsSection = nextStepsMatch[1].trim();
+      //   if (this.debugMode) {
+      //     logger.debug(`Extracted NEXT STEPS section: "${nextStepsSection}"`);
+      //   }
+      //   // Prioritize NEXT STEPS for analysis, with some context
+      //   const truncatedContext = analysisContent.substring(0, 300) + '...';
+      //   analysisContent = `Next planned actions: ${nextStepsSection}\n\nContext: ${truncatedContext}`;
+      // }
 
       const systemPrompt = new SystemMessage(
         modelSelectorSystemPrompt(nextStepsSection)
@@ -371,7 +342,6 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
     }
   }
 
-
   /**
    * Gets the appropriate model instance for a given task, based on messages or a forced type.
    * @param {BaseMessage[]} messages - The messages to analyze for model selection.
@@ -415,7 +385,7 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
     forceModelType?: string
   ): Promise<any> {
     const modelType =
-      forceModelType || ((await this.selectModelForMessages(messages)).model);
+      forceModelType || (await this.selectModelForMessages(messages)).model;
 
     let selectedModel = this.models[modelType];
 

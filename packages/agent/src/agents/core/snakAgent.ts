@@ -505,7 +505,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
 
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphIterations = 5;
+      const maxGraphIterations = 10;
 
       console.log(JSON.stringify(agentJsonConfig, null, 2));
       const initialHumanMessage = new HumanMessage(
