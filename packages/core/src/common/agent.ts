@@ -61,6 +61,7 @@ export interface RawAgentConfig {
 export interface MemoryConfig {
   enabled?: boolean;
   shortTermMemorySize?: number;
+  maxIterations?: number;
   embeddingModel?: string;
 }
 
