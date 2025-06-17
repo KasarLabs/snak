@@ -1,0 +1,4 @@
+{
+  "maxAgentSize": 10000000,
+  "maxProcessSize": 50000000
+}

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
+import { documents } from '@snakagent/database/queries';
 
 @Injectable()
 export class VectorStoreService implements OnModuleInit {
@@ -12,20 +13,8 @@ export class VectorStoreService implements OnModuleInit {
 
   private async init() {
     if (this.initialized) return;
-    const q = new Postgres.Query(`
-      CREATE EXTENSION IF NOT EXISTS vector;
-      CREATE TABLE IF NOT EXISTS document_vectors(
-        id VARCHAR PRIMARY KEY,
-        document_id VARCHAR NOT NULL,
-        chunk_index INTEGER NOT NULL,
-        embedding vector(384) NOT NULL,
-        content TEXT NOT NULL,
-        original_name TEXT,
-        mime_type TEXT
-      );
-    `);
     try {
-      await Postgres.query(q);
+      await documents.init();
       this.initialized = true;
     } catch (err) {
       this.logger.error('Failed to initialize vector table', err);
@@ -33,7 +22,7 @@ export class VectorStoreService implements OnModuleInit {
     }
   }
 
-  async upsert(
+  async upsert(agentId: string,
     entries: {
       id: string;
       vector: number[];
@@ -49,12 +38,13 @@ export class VectorStoreService implements OnModuleInit {
     const queries = entries.map(
       (e) =>
         new Postgres.Query(
-          `INSERT INTO document_vectors(id, document_id, chunk_index, embedding, content, original_name, mime_type)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)
+          `INSERT INTO document_vectors(id, agent_id, document_id, chunk_index, embedding, content, original_name, mime_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
            ON CONFLICT (id) DO UPDATE
-           SET embedding = $4, content=$5, original_name=$6, mime_type=$7`,
+           SET embedding = $5, content=$6, original_name=$7, mime_type=$8`,
           [
             e.id,
+            agentId,
             e.metadata.documentId,
             e.metadata.chunkIndex,
             JSON.stringify(e.vector),
@@ -68,7 +58,7 @@ export class VectorStoreService implements OnModuleInit {
       await Postgres.transaction(queries);
     }
   }
-  async listDocuments(): Promise<
+  async listDocuments(agentId: string): Promise<
     {
       document_id: string;
       original_name: string;
@@ -79,12 +69,14 @@ export class VectorStoreService implements OnModuleInit {
     const q = new Postgres.Query(
       `SELECT document_id, MAX(original_name) AS original_name, MAX(mime_type) AS mime_type, SUM(LENGTH(content)) AS size
        FROM document_vectors
-       GROUP BY document_id`
+        WHERE agent_id = $1
+       GROUP BY document_id`,
+       [agentId],
     );
     return await Postgres.query(q);
   }
 
-  async getDocument(documentId: string): Promise<
+  async getDocument(agentId: string, documentId: string): Promise<
     {
       id: string;
       chunk_index: number;
@@ -96,18 +88,26 @@ export class VectorStoreService implements OnModuleInit {
     const q = new Postgres.Query(
       `SELECT id, chunk_index, content, original_name, mime_type
        FROM document_vectors
-       WHERE document_id = $1
+       WHERE agent_id = $1 AND document_id = $2
        ORDER BY chunk_index ASC`,
-      [documentId]
+      [agentId, documentId],
     );
     return await Postgres.query(q);
   }
 
-  async deleteDocument(documentId: string): Promise<void> {
+  async deleteDocument(agentId: string, documentId: string): Promise<void> {
     const q = new Postgres.Query(
-      `DELETE FROM document_vectors WHERE document_id = $1`,
-      [documentId]
+      `DELETE FROM document_vectors WHERE agent_id = $1 AND document_id = $2`,
+      [agentId, documentId],
     );
     await Postgres.query(q);
+  }
+
+  async getAgentSize(agentId: string): Promise<number> {
+    return documents.totalSizeForAgent(agentId);
+  }
+
+  async getTotalSize(): Promise<number> {
+    return documents.totalSize();
   }
 }

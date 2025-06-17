@@ -551,7 +551,10 @@ export class SupervisorAgent extends BaseAgent {
       logger.debug(
         `${depthIndent}SupervisorAgent: Enriching message with document context for ${callPath}.`
       );
-      const docRes = await this.enrichWithDocumentContext(enriched);
+      const docRes = await this.enrichWithDocumentContext(
+        enriched,
+        config?.selectedSnakAgent || config?.agentId,
+      );
       enriched = docRes.message;
       documentResults = docRes.documents;
     }
@@ -1445,7 +1448,8 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   private async enrichWithDocumentContext(
-    message: BaseMessage
+    message: BaseMessage,
+    agentId?: string,
   ): Promise<{ message: BaseMessage; documents: documents.SearchResult[] }> {
     if (!this.documentAgent) {
       logger.debug(
@@ -1457,7 +1461,8 @@ export class SupervisorAgent extends BaseAgent {
     try {
       const docs = await this.documentAgent.retrieveRelevantDocuments(
         message,
-        (this.config.starknetConfig.agentConfig as any)?.documents?.topK
+        (this.config.starknetConfig.agentConfig as any)?.documents?.topK,
+        agentId || ''
       );
 
       if (!docs.length) {

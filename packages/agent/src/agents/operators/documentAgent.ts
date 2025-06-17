@@ -38,7 +38,8 @@ export class DocumentAgent extends BaseAgent {
 
   public async retrieveRelevantDocuments(
     message: string | BaseMessage,
-    k: number = this.topK
+    k: number = this.topK,
+    agentId: string = '',
   ): Promise<documents.SearchResult[]> {
     if (!this.initialized) {
       throw new Error('DocumentAgent: Not initialized');
@@ -46,7 +47,7 @@ export class DocumentAgent extends BaseAgent {
     const query =
       typeof message === 'string' ? message : String(message.content);
     const embedding = await this.embeddings.embedQuery(query);
-    const results = await documents.search(embedding, k);
+    const results = await documents.search(embedding, agentId, k);
     return results.filter((r) => r.similarity >= SIMILARITY_THRESHOLD);
   }
 
@@ -71,9 +72,10 @@ export class DocumentAgent extends BaseAgent {
   public async enrichPromptWithDocuments(
     prompt: ChatPromptTemplate,
     message: string | BaseMessage,
-    k: number = this.topK
+    k: number = this.topK,
+    agentId: string,
   ): Promise<ChatPromptTemplate> {
-    const docs = await this.retrieveRelevantDocuments(message, k);
+    const docs = await this.retrieveRelevantDocuments(message, k, agentId);
     if (!docs.length) return prompt;
     const context = this.formatDocumentsForContext(docs);
     return prompt.partial({ documents: context });
@@ -101,7 +103,8 @@ export class DocumentAgent extends BaseAgent {
     logger.debug(`DocumentAgent: Searching documents for query "${query}"`);
 
     const k = config?.topK ?? this.topK;
-    const results = await this.retrieveRelevantDocuments(query, k);
+    const agentId = config?.agentId;
+    const results = await this.retrieveRelevantDocuments(query, k, agentId);
 
     if (config?.raw) {
       return results;
@@ -110,7 +113,7 @@ export class DocumentAgent extends BaseAgent {
     return this.formatDocumentsForContext(results);
   }
 
-  public createDocumentChain(): any {
+  public createDocumentChain(agentId: string): any {
     const buildQuery = (state: any) => {
       const lastUser = [...state.messages]
         .reverse()
@@ -123,7 +126,7 @@ export class DocumentAgent extends BaseAgent {
     };
 
     const retrieve = async (query: string) => {
-      const docs = await this.retrieveRelevantDocuments(query, this.topK);
+      const docs = await this.retrieveRelevantDocuments(query, this.topK, agentId);
       return this.formatDocumentsForContext(docs);
     };
 
@@ -134,8 +137,8 @@ export class DocumentAgent extends BaseAgent {
     ]).withConfig({ runName: 'DocumentContextChain' });
   }
 
-  public createDocumentNode(): any {
-    const chain = this.createDocumentChain();
+  public createDocumentNode(agentId: string): any {
+    const chain = this.createDocumentChain(agentId);
     return async (state: any, _config: LangGraphRunnableConfig) => {
       try {
         return await chain.invoke(state);
