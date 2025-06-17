@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
   Get,
   Param,
-  Body
+  Body,
 } from '@nestjs/common';
 import { FileIngestionService } from './file-ingestion.service.js';
 import { FileContent } from './file-content.interface.js';
@@ -39,7 +39,7 @@ export class FileIngestionController {
           return result;
         } catch (err: any) {
           throw new InternalServerErrorException(
-            `Embedding failed: ${err.message}`,
+            `Embedding failed: ${err.message}`
           );
         }
       }

@@ -16,8 +16,8 @@ export class FileIngestionService {
   constructor(
     private readonly chunkingService: ChunkingService,
     private readonly embeddingsService: EmbeddingsService,
-    private readonly vectorStore: VectorStoreService,
-  ) { }
+    private readonly vectorStore: VectorStoreService
+  ) {}
 
   async saveFile(buffer: Buffer, originalName: string) {
     const filename = `${Date.now()}-${originalName}`;
@@ -27,7 +27,10 @@ export class FileIngestionService {
   }
 
   private cleanText(text: string) {
-    return text.replace(/\r\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{2,}/g, '\n')
+      .trim();
   }
 
   private async parseCsv(buffer: Buffer) {
@@ -65,7 +68,8 @@ export class FileIngestionService {
   }
 
   private async extractRawText(buffer: Buffer, mimeType?: string) {
-    const type = mimeType || (await fileTypeFromBuffer(buffer))?.mime || 'text/plain';
+    const type =
+      mimeType || (await fileTypeFromBuffer(buffer))?.mime || 'text/plain';
 
     if (type === 'application/pdf') {
       return this.extractPdf(buffer);
@@ -113,9 +117,9 @@ export class FileIngestionService {
     const text = await this.extractRawText(buffer, meta.mimeType);
     const strategy =
       meta.mimeType === 'text/csv' ||
-        meta.mimeType === 'application/csv' ||
-        meta.mimeType === 'application/json' ||
-        meta.mimeType === 'text/json'
+      meta.mimeType === 'application/csv' ||
+      meta.mimeType === 'application/json' ||
+      meta.mimeType === 'text/json'
         ? 'structured'
         : 'adaptive';
     const { chunkSize, overlap } = this.computeChunkParams(meta.size);
@@ -170,7 +174,9 @@ export class FileIngestionService {
       originalName: d.original_name,
       mimeType: d.mime_type,
       size: d.size,
-      uploadDate: new Date(Number(d.document_id.split('-')[0]) || Date.now()).toISOString(),
+      uploadDate: new Date(
+        Number(d.document_id.split('-')[0]) || Date.now()
+      ).toISOString(),
     }));
   }
 
@@ -198,7 +204,6 @@ export class FileIngestionService {
         size,
       },
     };
-
   }
 
   async deleteFile(id: string) {

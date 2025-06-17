@@ -312,7 +312,10 @@ export class MemoryAgent extends BaseAgent {
         : (state.messages[0]?.content as string);
     };
 
-    const fetchMemories = async (query: string, config: LangGraphRunnableConfig) => {
+    const fetchMemories = async (
+      query: string,
+      config: LangGraphRunnableConfig
+    ) => {
       const userId = config.configurable?.userId || 'default_user';
       const embedding = await this.embeddings.embedQuery(query);
       const similar = await memory.similar_memory(userId, embedding);
@@ -368,9 +371,10 @@ export class MemoryAgent extends BaseAgent {
 
     const formattedMemories = memories
       .map((mem) => {
-        const lastHist = Array.isArray(mem.history) && mem.history.length > 0
-          ? mem.history[mem.history.length - 1]
-          : null;
+        const lastHist =
+          Array.isArray(mem.history) && mem.history.length > 0
+            ? mem.history[mem.history.length - 1]
+            : null;
         const ts = lastHist?.timestamp || 'unknown';
         return `Memory [id: ${mem.id}, relevance: ${mem.similarity.toFixed(4)}, last_updated: ${ts}]: ${mem.content}`;
       })

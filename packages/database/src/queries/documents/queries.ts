@@ -32,7 +32,7 @@ export namespace documents {
 
   export async function search(
     embedding: number[],
-    limit = 4,
+    limit = 4
   ): Promise<SearchResult[]> {
     const q = new Postgres.Query(
       `SELECT id, document_id, chunk_index, content, original_name, mime_type,
@@ -40,7 +40,7 @@ export namespace documents {
        FROM document_vectors
        ORDER BY similarity DESC
        LIMIT $2`,
-      [JSON.stringify(embedding), limit],
+      [JSON.stringify(embedding), limit]
     );
     return await Postgres.query(q);
   }

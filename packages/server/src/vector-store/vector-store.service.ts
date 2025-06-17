@@ -44,7 +44,7 @@ export class VectorStoreService implements OnModuleInit {
         originalName: string;
         mimeType: string;
       };
-    }[],
+    }[]
   ) {
     const queries = entries.map(
       (e) =>
@@ -61,40 +61,44 @@ export class VectorStoreService implements OnModuleInit {
             e.content,
             e.metadata.originalName,
             e.metadata.mimeType,
-          ],
-        ),
+          ]
+        )
     );
     if (queries.length) {
       await Postgres.transaction(queries);
     }
   }
-  async listDocuments(): Promise<{
-    document_id: string;
-    original_name: string;
-    mime_type: string;
-    size: number;
-  }[]> {
+  async listDocuments(): Promise<
+    {
+      document_id: string;
+      original_name: string;
+      mime_type: string;
+      size: number;
+    }[]
+  > {
     const q = new Postgres.Query(
       `SELECT document_id, MAX(original_name) AS original_name, MAX(mime_type) AS mime_type, SUM(LENGTH(content)) AS size
        FROM document_vectors
-       GROUP BY document_id`,
+       GROUP BY document_id`
     );
     return await Postgres.query(q);
   }
 
-  async getDocument(documentId: string): Promise<{
-    id: string;
-    chunk_index: number;
-    content: string;
-    original_name: string;
-    mime_type: string;
-  }[]> {
+  async getDocument(documentId: string): Promise<
+    {
+      id: string;
+      chunk_index: number;
+      content: string;
+      original_name: string;
+      mime_type: string;
+    }[]
+  > {
     const q = new Postgres.Query(
       `SELECT id, chunk_index, content, original_name, mime_type
        FROM document_vectors
        WHERE document_id = $1
        ORDER BY chunk_index ASC`,
-      [documentId],
+      [documentId]
     );
     return await Postgres.query(q);
   }
@@ -102,7 +106,7 @@ export class VectorStoreService implements OnModuleInit {
   async deleteDocument(documentId: string): Promise<void> {
     const q = new Postgres.Query(
       `DELETE FROM document_vectors WHERE document_id = $1`,
-      [documentId],
+      [documentId]
     );
     await Postgres.query(q);
   }

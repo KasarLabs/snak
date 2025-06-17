@@ -38,12 +38,13 @@ export class DocumentAgent extends BaseAgent {
 
   public async retrieveRelevantDocuments(
     message: string | BaseMessage,
-    k: number = this.topK,
+    k: number = this.topK
   ): Promise<documents.SearchResult[]> {
     if (!this.initialized) {
       throw new Error('DocumentAgent: Not initialized');
     }
-    const query = typeof message === 'string' ? message : String(message.content);
+    const query =
+      typeof message === 'string' ? message : String(message.content);
     const embedding = await this.embeddings.embedQuery(query);
     const results = await documents.search(embedding, k);
     return results.filter((r) => r.similarity >= SIMILARITY_THRESHOLD);
@@ -54,7 +55,7 @@ export class DocumentAgent extends BaseAgent {
     const formatted = results
       .map(
         (r) =>
-          `Document [id: ${r.document_id}, chunk: ${r.chunk_index}, similarity: ${r.similarity.toFixed(4)}]: ${r.content}`,
+          `Document [id: ${r.document_id}, chunk: ${r.chunk_index}, similarity: ${r.similarity.toFixed(4)}]: ${r.content}`
       )
       .join('\n\n');
     return `### Document Context (use the following snippets if relevant to the question) \n\
@@ -70,7 +71,7 @@ export class DocumentAgent extends BaseAgent {
   public async enrichPromptWithDocuments(
     prompt: ChatPromptTemplate,
     message: string | BaseMessage,
-    k: number = this.topK,
+    k: number = this.topK
   ): Promise<ChatPromptTemplate> {
     const docs = await this.retrieveRelevantDocuments(message, k);
     if (!docs.length) return prompt;
@@ -84,7 +85,7 @@ export class DocumentAgent extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | any,
-    config?: Record<string, any>,
+    config?: Record<string, any>
   ): Promise<any> {
     if (!this.initialized) {
       throw new Error('DocumentAgent: Not initialized');
