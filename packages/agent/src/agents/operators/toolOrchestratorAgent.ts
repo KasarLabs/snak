@@ -209,10 +209,8 @@ export class ToolsOrchestrator extends BaseAgent {
     }
 
     const modelType = config?.modelType || 'fast';
-    const modelForToolExecution = await this.modelSelector.getModelForTask(
-      [],
-      modelType
-    );
+    const modelForToolExecution =
+      await this.modelSelector.getModels()[modelType];
 
     if (
       modelForToolExecution &&

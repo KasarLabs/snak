@@ -57,7 +57,7 @@ export class MCPAgent extends BaseAgent {
         throw new Error('ModelSelector is not initialized');
       }
 
-      this.llm = await modelSelector.getModelForTask([], this.modelType);
+      this.llm = modelSelector.getModels()[this.modelType];
 
       this.reactAgent = createReactAgent({
         llm: this.llm,

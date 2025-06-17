@@ -127,6 +127,7 @@ export class AgentSystem {
           accountPublicKey: this.config.accountPublicKey,
           agentConfig: this.agentConfig,
           db_credentials: this.config.databaseCredentials,
+          modelSelector: null,
         },
       };
 

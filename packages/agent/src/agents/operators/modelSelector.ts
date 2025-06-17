@@ -209,38 +209,6 @@ export class ModelSelector extends BaseAgent {
   }
 
   /**
-   * Gets the appropriate model instance for a given task, based on messages or a forced type.
-   * @param {BaseMessage[]} messages - The messages to analyze for model selection.
-   * @param {string} [forceModelType] - Optional. If provided, this model type will be used, bypassing selection logic.
-   * @returns {Promise<BaseChatModel>} The selected model instance. Falls back to 'smart' or the first available model if the selection is invalid.
-   */
-  public async getModelForTask(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<BaseChatModel> {
-    const modelType: string =
-      forceModelType ||
-      (await this.selectModelForMessages(messages)).model_name;
-
-    if (this.models[modelType]) {
-      return this.models[modelType];
-    } else {
-      logger.warn(
-        `Selected model "${modelType}" is not available. Falling back to "smart" or the first available model.`
-      );
-      // Fallback logic: try 'smart', then the first model in the list, or throw error if none.
-      if (this.models['smart']) {
-        return this.models['smart'];
-      }
-      const availableModels = Object.values(this.models);
-      if (availableModels.length > 0) {
-        return availableModels[0];
-      }
-      throw new Error('No models available in ModelSelector.');
-    }
-  }
-
-  /**
    * Verifies that all required models ('fast', 'smart', 'cheap') are initialized.
    * Logs a warning if any required models are missing.
    */
