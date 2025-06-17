@@ -15,9 +15,15 @@ import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
 import { ConfigurationService } from '../../config/configuration.js';
 
+interface MultipartField {
+  type: 'field';
+  fieldname: string;
+  value: unknown;
+}
+
 interface MultipartRequest extends FastifyRequest {
   isMultipart: () => boolean;
-  parts: () => AsyncIterableIterator<MultipartFile>;
+  parts: () => AsyncIterableIterator<MultipartFile | MultipartField>;
 }
 
 @Controller('files')
@@ -28,38 +34,42 @@ export class FileIngestionController {
   ) {}
 
   @Post('upload')
-  async upload(
-    @Body('agentId') agentId: string,
-    @Req() request: FastifyRequest
-  ): Promise<FileContent> {
+  async upload(@Req() request: FastifyRequest): Promise<FileContent> {
     const req = request as unknown as MultipartRequest;
     if (!req.isMultipart || !req.isMultipart()) {
       throw new BadRequestException('Multipart request expected');
     }
 
+    let agentId = '';
+    let fileBuffer: Buffer | undefined;
+    let fileName = '';
+
     const parts = req.parts();
     for await (const part of parts) {
-      if (part.type === 'file') {
+      if (part.type === 'field' && part.fieldname === 'agentId') {
+        agentId = String(part.value);
+      } else if (part.type === 'file') {
         const buffer = await part.toBuffer();
         if (buffer.length > this.config.documents.maxDocumentSize) {
           throw new ForbiddenException('File size exceeds limit');
         }
-        try {
-          const result = await this.service.process(
-            agentId,
-            buffer,
-            part.filename
-          );
-          result.chunks.forEach((c) => delete c.metadata.embedding);
-          return result;
-        } catch (err: any) {
-          throw new InternalServerErrorException(
-            `Embedding failed: ${err.message}`
-          );
-        }
+        fileBuffer = buffer;
+        fileName = part.filename;
       }
     }
-    throw new BadRequestException('No file found in request');
+    if (!fileBuffer) {
+      throw new BadRequestException('No file found in request');
+    }
+
+    try {
+      const result = await this.service.process(agentId, fileBuffer, fileName);
+      result.chunks.forEach((c) => delete c.metadata.embedding);
+      return result;
+    } catch (err: any) {
+      throw new InternalServerErrorException(
+        `Embedding failed: ${err.message}`
+      );
+    }
   }
 
   @Post('list')
