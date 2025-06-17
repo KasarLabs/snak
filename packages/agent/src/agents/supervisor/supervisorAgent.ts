@@ -553,7 +553,7 @@ export class SupervisorAgent extends BaseAgent {
       );
       const docRes = await this.enrichWithDocumentContext(
         enriched,
-        config?.selectedSnakAgent || config?.agentId,
+        config?.selectedSnakAgent || config?.agentId
       );
       enriched = docRes.message;
       documentResults = docRes.documents;
@@ -1449,7 +1449,7 @@ export class SupervisorAgent extends BaseAgent {
 
   private async enrichWithDocumentContext(
     message: BaseMessage,
-    agentId?: string,
+    agentId?: string
   ): Promise<{ message: BaseMessage; documents: documents.SearchResult[] }> {
     if (!this.documentAgent) {
       logger.debug(

@@ -452,7 +452,10 @@ ${formatAgentResponse(content)}`);
         .addEdge('__start__', 'memory');
       if (documentAgent) {
         workflow = (workflow as any)
-          .addNode('docsNode', documentAgent.createDocumentNode(agent_config.id))
+          .addNode(
+            'docsNode',
+            documentAgent.createDocumentNode(agent_config.id)
+          )
           .addEdge('memory', 'docsNode')
           .addEdge('docsNode', 'agent');
       } else {

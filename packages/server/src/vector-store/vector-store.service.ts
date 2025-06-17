@@ -22,7 +22,8 @@ export class VectorStoreService implements OnModuleInit {
     }
   }
 
-  async upsert(agentId: string,
+  async upsert(
+    agentId: string,
     entries: {
       id: string;
       vector: number[];
@@ -71,12 +72,15 @@ export class VectorStoreService implements OnModuleInit {
        FROM document_vectors
         WHERE agent_id = $1
        GROUP BY document_id`,
-       [agentId],
+      [agentId]
     );
     return await Postgres.query(q);
   }
 
-  async getDocument(agentId: string, documentId: string): Promise<
+  async getDocument(
+    agentId: string,
+    documentId: string
+  ): Promise<
     {
       id: string;
       chunk_index: number;
@@ -90,7 +94,7 @@ export class VectorStoreService implements OnModuleInit {
        FROM document_vectors
        WHERE agent_id = $1 AND document_id = $2
        ORDER BY chunk_index ASC`,
-      [agentId, documentId],
+      [agentId, documentId]
     );
     return await Postgres.query(q);
   }
@@ -98,7 +102,7 @@ export class VectorStoreService implements OnModuleInit {
   async deleteDocument(agentId: string, documentId: string): Promise<void> {
     const q = new Postgres.Query(
       `DELETE FROM document_vectors WHERE agent_id = $1 AND document_id = $2`,
-      [agentId, documentId],
+      [agentId, documentId]
     );
     await Postgres.query(q);
   }

@@ -39,7 +39,7 @@ export class DocumentAgent extends BaseAgent {
   public async retrieveRelevantDocuments(
     message: string | BaseMessage,
     k: number = this.topK,
-    agentId: string = '',
+    agentId: string = ''
   ): Promise<documents.SearchResult[]> {
     if (!this.initialized) {
       throw new Error('DocumentAgent: Not initialized');
@@ -73,7 +73,7 @@ export class DocumentAgent extends BaseAgent {
     prompt: ChatPromptTemplate,
     message: string | BaseMessage,
     k: number = this.topK,
-    agentId: string,
+    agentId: string
   ): Promise<ChatPromptTemplate> {
     const docs = await this.retrieveRelevantDocuments(message, k, agentId);
     if (!docs.length) return prompt;
@@ -126,7 +126,11 @@ export class DocumentAgent extends BaseAgent {
     };
 
     const retrieve = async (query: string) => {
-      const docs = await this.retrieveRelevantDocuments(query, this.topK, agentId);
+      const docs = await this.retrieveRelevantDocuments(
+        query,
+        this.topK,
+        agentId
+      );
       return this.formatDocumentsForContext(docs);
     };
 

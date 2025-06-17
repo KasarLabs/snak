@@ -45,7 +45,7 @@ export namespace documents {
        WHERE agent_id = $2
        ORDER BY similarity DESC
        LIMIT $3`,
-      [JSON.stringify(embedding), agentId, limit],
+      [JSON.stringify(embedding), agentId, limit]
     );
     return await Postgres.query(q);
   }
@@ -53,7 +53,7 @@ export namespace documents {
   export async function totalSizeForAgent(agentId: string): Promise<number> {
     const q = new Postgres.Query(
       `SELECT COALESCE(SUM(LENGTH(content)),0) AS size FROM document_vectors WHERE agent_id = $1`,
-      [agentId],
+      [agentId]
     );
     const res = await Postgres.query<{ size: string }>(q);
     return parseInt(res[0]?.size || '0', 10);
@@ -61,7 +61,7 @@ export namespace documents {
 
   export async function totalSize(): Promise<number> {
     const q = new Postgres.Query(
-      `SELECT COALESCE(SUM(LENGTH(content)),0) AS size FROM document_vectors`,
+      `SELECT COALESCE(SUM(LENGTH(content)),0) AS size FROM document_vectors`
     );
     const res = await Postgres.query<{ size: string }>(q);
     return parseInt(res[0]?.size || '0', 10);

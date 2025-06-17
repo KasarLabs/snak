@@ -3,7 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import * as path from 'path';
-import { ModelsConfig, ModelLevelConfig, DocumentsConfig } from '@snakagent/core'; // Assuming core exports these types
+import {
+  ModelsConfig,
+  ModelLevelConfig,
+  DocumentsConfig,
+} from '@snakagent/core'; // Assuming core exports these types
 import { readFileSync } from 'fs';
 
 @Injectable()
@@ -36,7 +40,9 @@ export class ConfigurationService {
       ANTHROPIC_API_KEY: this.configService.get<string>('ANTHROPIC_API_KEY'),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
-      DOCUMENTS_CONFIG_PATH: this.configService.get<string>('DOCUMENTS_CONFIG_PATH'),
+      DOCUMENTS_CONFIG_PATH: this.configService.get<string>(
+        'DOCUMENTS_CONFIG_PATH'
+      ),
       // Add others if needed
     };
 
@@ -61,7 +67,7 @@ export class ConfigurationService {
     this.documentsConfigPath = path.resolve(
       process.cwd(),
       '..',
-      this.config.DOCUMENTS_CONFIG_PATH,
+      this.config.DOCUMENTS_CONFIG_PATH
     );
     try {
       const content = readFileSync(this.documentsConfigPath, 'utf-8');
@@ -69,9 +75,13 @@ export class ConfigurationService {
     } catch (err) {
       this.logger.error(
         `Failed to load documents config from ${this.documentsConfigPath}:`,
-        err as any,
+        err as any
       );
-      this.documentsConfig = { maxAgentSize: 10_000_000, maxProcessSize: 50_000_000 };
+      this.documentsConfig = {
+        maxAgentSize: 10_000_000,
+        maxProcessSize: 50_000_000,
+        maxDocumentSize: 10_000_000,
+      };
     }
   }
 

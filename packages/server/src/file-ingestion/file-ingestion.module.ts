@@ -9,7 +9,13 @@ import { ConfigModule } from '../../config/config.module.js';
 import { ConfigurationService } from '../../config/configuration.js';
 
 @Module({
-  imports: [AgentsModule, ChunkingModule, EmbeddingsModule, VectorStoreModule, ConfigModule],
+  imports: [
+    AgentsModule,
+    ChunkingModule,
+    EmbeddingsModule,
+    VectorStoreModule,
+    ConfigModule,
+  ],
   controllers: [FileIngestionController],
   providers: [FileIngestionService, ConfigurationService],
   exports: [FileIngestionService],

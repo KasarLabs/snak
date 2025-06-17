@@ -18,7 +18,7 @@ export class FileIngestionService {
     private readonly chunkingService: ChunkingService,
     private readonly embeddingsService: EmbeddingsService,
     private readonly vectorStore: VectorStoreService,
-    private readonly config: ConfigurationService,
+    private readonly config: ConfigurationService
   ) {}
 
   async saveFile(buffer: Buffer, originalName: string) {
@@ -114,7 +114,11 @@ export class FileIngestionService {
     return { chunkSize, overlap };
   }
 
-  async process(agentId: string, buffer: Buffer, originalName: string): Promise<FileContent> {
+  async process(
+    agentId: string,
+    buffer: Buffer,
+    originalName: string
+  ): Promise<FileContent> {
     const meta = await this.saveFile(buffer, originalName);
     const agentSize = await this.vectorStore.getAgentSize(agentId);
     const totalSize = await this.vectorStore.getTotalSize();
