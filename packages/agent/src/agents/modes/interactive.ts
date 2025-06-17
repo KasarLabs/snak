@@ -175,38 +175,25 @@ export const createInteractiveAgent = async (
             { originalUserQuery }
           );
 
-          logger.debug(
-            `Using dynamically selected model: ${selectedModelType}`
-          );
-          const modelForThisTask = await modelSelector.getModelForTask(
-            currentMessages,
-            selectedModelType.model
-          );
-
           const boundModel =
-            typeof modelForThisTask.bindTools === 'function'
-              ? modelForThisTask.bindTools(toolsList)
-              : modelForThisTask;
+            typeof selectedModelType.model.bindTools === 'function'
+              ? selectedModelType.model.bindTools(toolsList)
+              : selectedModelType.model;
 
           const result = await boundModel.invoke(currentMessages);
           logger.debug(result);
-          TokenTracker.trackCall(result, selectedModelType.model);
+          TokenTracker.trackCall(result, selectedModelType.model_name);
           return formatAIMessageResult(result);
         } else {
           const existingModelSelector = ModelSelector.getInstance();
           if (existingModelSelector) {
             logger.debug('Using existing model selector with smart model');
-            const smartModel = await existingModelSelector.getModelForTask(
-              currentMessages,
-              'smart'
-            );
-            const boundSmartModel =
-              typeof smartModel.bindTools === 'function'
-                ? smartModel.bindTools(toolsList)
-                : smartModel;
-            const result = await boundSmartModel.invoke(currentFormattedPrompt);
+            console.log(currentFormattedPrompt);
+            const result = 'Hello';
             TokenTracker.trackCall(result, 'smart');
-            return formatAIMessageResult(result);
+            throw new Error(
+              'Model selection requires a configured ModelSelector'
+            );
           } else {
             logger.warn(
               'No model selector available, using direct provider selection is not supported without a ModelSelector.'
@@ -224,51 +211,11 @@ export const createInteractiveAgent = async (
             error.message.includes('context length'))
         ) {
           logger.error(`Token limit error: ${error.message}`);
-          const minimalMessages = state.messages.slice(-2);
 
-          try {
-            const emergencyPrompt = await prompt.formatMessages({
-              tool_names: toolsList.map((tool) => tool.name).join(', '),
-              messages: minimalMessages,
-            });
-
-            const existingModelSelector = ModelSelector.getInstance();
-            if (existingModelSelector) {
-              const emergencyModel =
-                await existingModelSelector.getModelForTask(
-                  minimalMessages,
-                  'smart'
-                );
-              const boundEmergencyModel =
-                typeof emergencyModel.bindTools === 'function'
-                  ? emergencyModel.bindTools(toolsList)
-                  : emergencyModel;
-              const result = await boundEmergencyModel.invoke(emergencyPrompt);
-              TokenTracker.trackCall(result, 'smart_emergency');
-              return formatAIMessageResult(result);
-            } else {
-              throw new Error(
-                'Model selection requires a configured ModelSelector for emergency fallback.'
-              );
-            }
-          } catch (emergencyError) {
-            logger.error(`Emergency prompt failed: ${emergencyError}`);
-            return {
-              messages: [
-                new AIMessage({
-                  content:
-                    'The conversation has become too long and exceeds token limits, even for a minimal recovery attempt. Please start a new conversation.',
-                  additional_kwargs: {
-                    from: 'snak',
-                    final: true,
-                    error: 'token_limit_exceeded_emergency_failed',
-                  },
-                }),
-              ],
-            };
-          }
+          logger.error(`Model invocation failed: ${error}`);
+          throw error;
         }
-        logger.error(`Model invocation failed: ${error}`);
+        // For any other error, rethrow to ensure function never returns undefined
         throw error;
       }
     }

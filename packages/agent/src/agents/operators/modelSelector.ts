@@ -2,11 +2,10 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   BaseMessage,
   HumanMessage,
-  AIMessage,
   SystemMessage,
 } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
-import { BaseAgent, AgentType, IModelAgent } from '../core/baseAgent.js';
+import { AgentType, BaseAgent } from '../core/baseAgent.js';
 import { ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
@@ -14,12 +13,14 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { modelSelectorSystemPrompt } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 
+// CLEAN-UP Need to put in private every function who check the validity of the model selection instead of what we do now
 /**
  * Criteria for model selection.
  */
 
 export interface ModelSelectorReturn {
-  model :BaseChatModel ;
+  model: BaseChatModel;
+  model_name: string;
   token?: {
     intput_token: number;
     output_token: number;
@@ -45,7 +46,7 @@ export interface ModelSelectionOptions {
 /**
  * Represents an operator agent responsible for selecting the appropriate model for different tasks.
  */
-export class ModelSelector extends BaseAgent implements IModelAgent {
+export class ModelSelector extends BaseAgent {
   private models: Record<string, BaseChatModel> = {};
   private debugMode: boolean;
   private useModelSelector: boolean;
@@ -208,6 +209,38 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
   }
 
   /**
+   * Gets the appropriate model instance for a given task, based on messages or a forced type.
+   * @param {BaseMessage[]} messages - The messages to analyze for model selection.
+   * @param {string} [forceModelType] - Optional. If provided, this model type will be used, bypassing selection logic.
+   * @returns {Promise<BaseChatModel>} The selected model instance. Falls back to 'smart' or the first available model if the selection is invalid.
+   */
+  public async getModelForTask(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<BaseChatModel> {
+    const modelType: string =
+      forceModelType ||
+      (await this.selectModelForMessages(messages)).model_name;
+
+    if (this.models[modelType]) {
+      return this.models[modelType];
+    } else {
+      logger.warn(
+        `Selected model "${modelType}" is not available. Falling back to "smart" or the first available model.`
+      );
+      // Fallback logic: try 'smart', then the first model in the list, or throw error if none.
+      if (this.models['smart']) {
+        return this.models['smart'];
+      }
+      const availableModels = Object.values(this.models);
+      if (availableModels.length > 0) {
+        return availableModels[0];
+      }
+      throw new Error('No models available in ModelSelector.');
+    }
+  }
+
+  /**
    * Verifies that all required models ('fast', 'smart', 'cheap') are initialized.
    * Logs a warning if any required models are missing.
    */
@@ -262,7 +295,7 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
           logger.warn(
             'ModelSelector: Could not get the last message; defaulting to "smart".'
           );
-          return { this.models['smart'] };
+          return { model: this.models['smart'], model_name: 'smart' };
         }
 
         const content =
@@ -283,7 +316,7 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
       //   /NEXT STEPS:(.*?)($|(?=\n\n))/s
       // );
       // if (nextStepsMatch && nextStepsMatch[1]) {
-      //   nextStepsSection = nextStepsMatch[1].trim();
+      //   nextStepsSection = nextStepsMatch[1].trim()~;
       //   if (this.debugMode) {
       //     logger.debug(`Extracted NEXT STEPS section: "${nextStepsSection}"`);
       //   }
@@ -321,7 +354,8 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
           logger.debug(`Meta-selection chose model: ${modelChoice}`);
         }
         return {
-          model: modelChoice,
+          model: this.models[modelChoice],
+          model_name: modelChoice,
           token: {
             intput_token: token.promptTokens,
             output_token: token.responseTokens,
@@ -332,7 +366,7 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
         logger.warn(
           `Invalid model selection response: "${modelChoice}". Defaulting to "smart".`
         );
-        return { model: 'smart' };
+        return { model: this.models['smart'], model_name: 'smart' };
       }
     } catch (error) {
       logger.warn(
@@ -343,49 +377,13 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
   }
 
   /**
-   * Gets the appropriate model instance for a given task, based on messages or a forced type.
-   * @param {BaseMessage[]} messages - The messages to analyze for model selection.
-   * @param {string} [forceModelType] - Optional. If provided, this model type will be used, bypassing selection logic.
-   * @returns {Promise<BaseChatModel>} The selected model instance. Falls back to 'smart' or the first available model if the selection is invalid.
-   */
-  public async getModelForTask(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<BaseChatModel> {
-    const modelType: string =
-      forceModelType || (await this.selectModelForMessages(messages)).model;
-
-    if (this.models[modelType]) {
-      return this.models[modelType];
-    } else {
-      logger.warn(
-        `Selected model "${modelType}" is not available. Falling back to "smart" or the first available model.`
-      );
-      // Fallback logic: try 'smart', then the first model in the list, or throw error if none.
-      if (this.models['smart']) {
-        return this.models['smart'];
-      }
-      const availableModels = Object.values(this.models);
-      if (availableModels.length > 0) {
-        return availableModels[0];
-      }
-      throw new Error('No models available in ModelSelector.');
-    }
-  }
-
-  /**
    * Directly invokes a model, performing selection logic if a model type is not forced.
    * @param {BaseMessage[]} messages - The messages to process.
-   * @param {string} [forceModelType] - Optional. If provided, forces the use of a specific model type.
    * @returns {Promise<any>} The model's response.
    * @throws {Error} If the selected or fallback model is unavailable or fails to invoke.
    */
-  public async invokeModel(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<any> {
-    const modelType =
-      forceModelType || (await this.selectModelForMessages(messages)).model;
+  public async execute(input: BaseMessage[]): Promise<any> {
+    const modelType = (await this.selectModelForMessages(input)).model_name;
 
     let selectedModel = this.models[modelType];
 
@@ -408,94 +406,10 @@ export class ModelSelector extends BaseAgent implements IModelAgent {
 
     if (this.debugMode) {
       logger.debug(
-        `Invoking model: ${modelType} (Forced: ${Boolean(forceModelType)}, Actual: ${selectedModel === this.models.smart ? 'smart (fallback)' : modelType})`
+        `Executing model: ${modelType} Actual: ${selectedModel === this.models.smart ? 'smart (fallback)' : modelType})`
       );
     }
-    return selectedModel.invoke(messages);
-  }
-
-  /**
-   * Main execution entry point for the agent. Selects a model and returns an AIMessage with the selection.
-   * @param {string | BaseMessage | BaseMessage[]} input - Can be a single message, a string (converted to HumanMessage), or an array of BaseMessages.
-   * @param {Record<string, any>} [config] - Optional. Additional configuration options.
-   * @returns {Promise<AIMessage>} An AIMessage indicating the selected model type and other relevant metadata.
-   */
-  public async execute(
-    input: string | BaseMessage | BaseMessage[],
-    config?: Record<string, any>
-  ): Promise<AIMessage> {
-    // Determine messages array from input
-    const messages: BaseMessage[] = Array.isArray(input)
-      ? input
-      : [typeof input === 'string' ? new HumanMessage(input) : input];
-
-    if (messages.length === 0) {
-      logger.warn(
-        'ModelSelector received an empty message array. Defaulting to "smart" model.'
-      );
-      return new AIMessage({
-        content: 'Selected model type: smart (default due to empty input)',
-        additional_kwargs: {
-          modelType: 'smart',
-          nextAgent: 'snak', // Assuming 'snak' is the default next agent
-          from: 'model-selector',
-          final: false,
-          originalUserQuery: '',
-        },
-      });
-    }
-
-    // Extract original user query from config if it exists
-    let originalQuery = '';
-
-    if (
-      config?.originalUserQuery &&
-      typeof config.originalUserQuery === 'string'
-    ) {
-      // Use the original user query from config if available
-      originalQuery = config.originalUserQuery;
-      if (this.debugMode) {
-        logger.debug(
-          `ModelSelector: Using originalUserQuery from config for model selection: "${originalQuery.substring(0, 100)}..."`
-        );
-      }
-    } else {
-      // Otherwise, attempt to find the original user query from HumanMessages
-      const originalUserMessage = messages.find(
-        (msg): msg is HumanMessage => msg instanceof HumanMessage
-      );
-      originalQuery = originalUserMessage
-        ? typeof originalUserMessage.content === 'string'
-          ? originalUserMessage.content
-          : JSON.stringify(originalUserMessage.content)
-        : '';
-
-      if (this.debugMode && originalQuery) {
-        logger.debug(
-          `ModelSelector: No originalUserQuery in config, extracted from messages: "${originalQuery.substring(0, 100)}..."`
-        );
-      }
-    }
-
-    const modelType = await this.selectModelForMessages(messages, config);
-    const nextAgent = 'snak'; // Define the typical next agent
-
-    if (this.debugMode) {
-      logger.debug(
-        `ModelSelector selected model: ${modelType}, routing to: ${nextAgent}.`
-      );
-    }
-
-    return new AIMessage({
-      content: `Selected model type: ${modelType}`,
-      additional_kwargs: {
-        modelType,
-        nextAgent,
-        from: 'model-selector',
-        final: false, // This agent typically precedes another
-        originalUserQuery: originalQuery,
-      },
-    });
+    return selectedModel.invoke(input);
   }
 
   /**

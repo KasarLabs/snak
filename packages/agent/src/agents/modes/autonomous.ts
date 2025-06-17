@@ -1,7 +1,13 @@
 import { AgentConfig, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
-import { StateGraph, MemorySaver, Annotation, END } from '@langchain/langgraph';
+import {
+  StateGraph,
+  MemorySaver,
+  Annotation,
+  END,
+  START,
+} from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import {
@@ -172,7 +178,6 @@ export const createAutonomousAgent = async (
           messages: filteredMessages,
         });
 
-
         // Is it use to get the HumanMessage from the messages array in id[]
         const originalUserMessage = filteredMessages.find(
           (msg): msg is HumanMessage => msg instanceof HumanMessage
@@ -187,26 +192,19 @@ export const createAutonomousAgent = async (
             originalUserQuery.length > 100 ? '...' : ''
           }`
         );
-        const selectedModelType = await modelSelector.selectModelForMessages(
-          filteredMessages,
-        );
-
-
-        const modelForThisTask = await modelSelector.getModelForTask(
-          filteredMessages,
-          selectedModelType.model
-        );
+        const selectedModelType =
+          await modelSelector.selectModelForMessages(filteredMessages);
 
         const boundModel =
-          typeof modelForThisTask.bindTools === 'function'
-            ? modelForThisTask.bindTools(toolsList)
-            : modelForThisTask;
+          typeof selectedModelType.model.bindTools === 'function'
+            ? selectedModelType.model.bindTools(toolsList)
+            : selectedModelType.model;
 
         logger.debug(
           `Autonomous agent invoking model (${selectedModelType}) with ${filteredMessages.length} messages.`
         );
         const result = await boundModel.invoke(formattedPrompt);
-        TokenTracker.trackCall(result, selectedModelType.model);
+        TokenTracker.trackCall(result, selectedModelType.model_name);
 
         let finalResultMessages: BaseMessage[];
 
@@ -350,12 +348,12 @@ export const createAutonomousAgent = async (
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
-    workflow.setEntryPoint('agent');
+    workflow.addEdge(START, 'agent');
 
     workflow.addConditionalEdges('agent', shouldContinue, {
       tools: 'tools',
       agent: 'agent',
-      end : END
+      end: END,
     });
 
     workflow.addEdge('tools', 'agent');

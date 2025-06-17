@@ -224,7 +224,7 @@ const truncateStringContentHelper = (
  */
 export function truncateToolResults(
   result: any,
-  maxLength: number = 5000
+  maxLength: number = 5000 // CLEAN-UP We don't have to cut the result is not a good idea
 ): any {
   if (Array.isArray(result)) {
     for (const msg of result) {

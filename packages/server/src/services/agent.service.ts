@@ -44,8 +44,14 @@ export class AgentService implements IAgentService {
       if (agent && typeof agent.execute === 'function') {
         const executionResult = agent.execute(userRequest.user_request);
 
-        function isAsyncGenerator(obj: any): obj is AsyncGenerator<any, any, any> {
-          return obj && typeof obj === 'object' && typeof obj[Symbol.asyncIterator] === 'function';
+        function isAsyncGenerator(
+          obj: any
+        ): obj is AsyncGenerator<any, any, any> {
+          return (
+            obj &&
+            typeof obj === 'object' &&
+            typeof obj[Symbol.asyncIterator] === 'function'
+          );
         }
 
         if (isAsyncGenerator(executionResult)) {

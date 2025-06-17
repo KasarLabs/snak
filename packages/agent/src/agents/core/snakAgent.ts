@@ -1,15 +1,13 @@
-import { BaseAgent, AgentType, IModelAgent } from './baseAgent.js';
+import { AgentType, BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { logger, metrics, AgentConfig } from '@snakagent/core';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
-import { createHybridAgent } from '../modes/hybrid.js';
 import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
 /**
@@ -81,14 +79,14 @@ export interface SnakAgentConfig {
   db_credentials: DatabaseCredentials;
   agentConfig: AgentConfig;
   memory?: MemoryConfig;
-  modelSelector?: ModelSelector;
+  modelSelector?: ModelSelector; // CLEAN-UP Need to be mandatory
 }
 
 /**
  * Main agent for interacting with the Starknet blockchain
  * Supports multiple execution modes: interactive, autonomous, and hybrid
  */
-export class SnakAgent extends BaseAgent implements IModelAgent {
+export class SnakAgent extends BaseAgent {
   private readonly provider: RpcProvider;
   private readonly accountPrivateKey: string;
   private readonly accountPublicKey: string;
@@ -111,7 +109,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     this.db_credentials = config.db_credentials;
     this.currentMode = AGENT_MODES[config.agentConfig.mode];
     this.agentConfig = config.agentConfig;
-    this.modelSelector = config.modelSelector || null;
+    this.modelSelector = config.modelSelector || null; // CLEAN-UP
 
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
@@ -219,40 +217,6 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       }
       throw error;
     }
-  }
-
-  /**
-   * Get appropriate model for a task based on messages
-   * @param messages - Array of messages to analyze
-   * @param forceModelType - Optional model type to force
-   * @returns Promise resolving to the selected chat model
-   * @throws {Error} If ModelSelector is not available
-   */
-  public async getModelForTask(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<BaseChatModel> {
-    if (!this.modelSelector) {
-      throw new Error('ModelSelector not available');
-    }
-    return this.modelSelector.getModelForTask(messages, forceModelType);
-  }
-
-  /**
-   * Invoke model with appropriate selection logic
-   * @param messages - Array of messages to process
-   * @param forceModelType - Optional model type to force
-   * @returns Promise resolving to the model response
-   * @throws {Error} If ModelSelector is not available
-   */
-  public async invokeModel(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<any> {
-    if (!this.modelSelector) {
-      throw new Error('ModelSelector not available');
-    }
-    return this.modelSelector.invokeModel(messages, forceModelType);
   }
 
   /**
@@ -579,172 +543,172 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     }
   }
 
-  /**
-   * Executes the agent in hybrid mode
-   * Hybrid mode typically involves an initial autonomous phase followed by interactive steps
-   * @param initialInput - The initial input string to start the hybrid execution
-   * @returns Promise resolving to an object containing the execution state and thread ID
-   */
-  public async execute_hybrid(initialInput: string): Promise<unknown> {
-    let errorCount = 0;
-    const maxErrors = 3;
-    let fallbackAttempted = false;
-    let originalMode = this.currentMode;
-    const threadId = `hybrid_${Date.now()}`;
+  // /**
+  //  * Executes the agent in hybrid mode
+  //  * Hybrid mode typically involves an initial autonomous phase followed by interactive steps
+  //  * @param initialInput - The initial input string to start the hybrid execution
+  //  * @returns Promise resolving to an object containing the execution state and thread ID
+  //  */
+  // public async execute_hybrid(initialInput: string): Promise<unknown> {
+  //   let errorCount = 0;
+  //   const maxErrors = 3;
+  //   let fallbackAttempted = false;
+  //   let originalMode = this.currentMode;
+  //   const threadId = `hybrid_${Date.now()}`;
 
-    try {
-      logger.debug('SnakAgent: Starting hybrid mode execution.');
+  //   try {
+  //     logger.debug('SnakAgent: Starting hybrid mode execution.');
 
-      this.currentMode = AGENT_MODES[AgentMode.HYBRID];
+  //     this.currentMode = AGENT_MODES[AgentMode.HYBRID];
 
-      if (
-        !this.agentReactExecutor ||
-        this.agentConfig?.mode !== AgentMode.HYBRID
-      ) {
-        logger.debug(
-          'SnakAgent: Creating or re-creating hybrid agent executor.'
-        );
-        try {
-          const agentConfig = this.getAgentConfig();
-          if (!agentConfig) {
-            logger.warn(
-              'SnakAgent (hybrid): Agent configuration is missing, which is required for hybrid mode.'
-            );
-            throw new Error('Agent configuration is required for hybrid mode.');
-          }
+  //     if (
+  //       !this.agentReactExecutor ||
+  //       this.agentConfig?.mode !== AgentMode.HYBRID
+  //     ) {
+  //       logger.debug(
+  //         'SnakAgent: Creating or re-creating hybrid agent executor.'
+  //       );
+  //       try {
+  //         const agentConfig = this.getAgentConfig();
+  //         if (!agentConfig) {
+  //           logger.warn(
+  //             'SnakAgent (hybrid): Agent configuration is missing, which is required for hybrid mode.'
+  //           );
+  //           throw new Error('Agent configuration is required for hybrid mode.');
+  //         }
 
-          if (!agentConfig.name) {
-            logger.warn(
-              'SnakAgent (hybrid): Agent name is missing in configuration.'
-            );
-          }
-          if (!(agentConfig as any).description) {
-            logger.warn(
-              'SnakAgent (hybrid): Agent description is missing in configuration.'
-            );
-          }
-          if (
-            !Array.isArray((agentConfig as any).objectives) ||
-            (agentConfig as any).objectives.length === 0
-          ) {
-            logger.warn(
-              'SnakAgent (hybrid): Agent objectives are missing or empty.'
-            );
-          }
+  //         if (!agentConfig.name) {
+  //           logger.warn(
+  //             'SnakAgent (hybrid): Agent name is missing in configuration.'
+  //           );
+  //         }
+  //         if (!(agentConfig as any).description) {
+  //           logger.warn(
+  //             'SnakAgent (hybrid): Agent description is missing in configuration.'
+  //           );
+  //         }
+  //         if (
+  //           !Array.isArray((agentConfig as any).objectives) ||
+  //           (agentConfig as any).objectives.length === 0
+  //         ) {
+  //           logger.warn(
+  //             'SnakAgent (hybrid): Agent objectives are missing or empty.'
+  //           );
+  //         }
 
-          agentConfig.plugins = agentConfig.plugins || [];
+  //         agentConfig.plugins = agentConfig.plugins || [];
 
-          this.agentReactExecutor = await createHybridAgent(
-            this,
-            this.modelSelector
-          );
+  //         this.agentReactExecutor = await createHybridAgent(
+  //           this,
+  //           this.modelSelector
+  //         );
 
-          if (!this.agentReactExecutor) {
-            throw new Error(
-              'Failed to create hybrid agent executor: creation returned null or undefined.'
-            );
-          }
-        } catch (initError) {
-          logger.error(`Failed to initialize hybrid executor: ${initError}`);
-          errorCount++;
+  //         if (!this.agentReactExecutor) {
+  //           throw new Error(
+  //             'Failed to create hybrid agent executor: creation returned null or undefined.'
+  //           );
+  //         }
+  //       } catch (initError) {
+  //         logger.error(`Failed to initialize hybrid executor: ${initError}`);
+  //         errorCount++;
 
-          if (errorCount >= maxErrors) {
-            logger.warn(
-              'SnakAgent (hybrid): Maximum initialization attempts reached, using fallback mode.'
-            );
-            fallbackAttempted = true;
-            // return this.executeSimpleFallback(
-            //   'Hybrid execution initialization failed'
-            // );
-          } else {
-            throw initError;
-          }
-        }
-      }
+  //         if (errorCount >= maxErrors) {
+  //           logger.warn(
+  //             'SnakAgent (hybrid): Maximum initialization attempts reached, using fallback mode.'
+  //           );
+  //           fallbackAttempted = true;
+  //           // return this.executeSimpleFallback(
+  //           //   'Hybrid execution initialization failed'
+  //           // );
+  //         } else {
+  //           throw initError;
+  //         }
+  //       }
+  //     }
 
-      if (!this.agentReactExecutor?.app) {
-        logger.error(
-          'SnakAgent (hybrid): Executor created, but app is missing.'
-        );
-        return new AIMessage({
-          content:
-            'Failed to initialize hybrid execution: agent structure is incomplete.',
-          additional_kwargs: {
-            from: 'snak',
-            final: true,
-            error: 'executor_app_missing_hybrid',
-          },
-        });
-      }
+  //     if (!this.agentReactExecutor?.app) {
+  //       logger.error(
+  //         'SnakAgent (hybrid): Executor created, but app is missing.'
+  //       );
+  //       return new AIMessage({
+  //         content:
+  //           'Failed to initialize hybrid execution: agent structure is incomplete.',
+  //         additional_kwargs: {
+  //           from: 'snak',
+  //           final: true,
+  //           error: 'executor_app_missing_hybrid',
+  //         },
+  //       });
+  //     }
 
-      const app = this.agentReactExecutor.app;
-      const threadConfig = {
-        configurable: {
-          thread_id: threadId,
-        },
-        recursionLimit: this.agentReactExecutor.agent_config.maxIterations,
-      };
+  //     const app = this.agentReactExecutor.app;
+  //     const threadConfig = {
+  //       configurable: {
+  //         thread_id: threadId,
+  //       },
+  //       recursionLimit: this.agentReactExecutor.agent_config.maxIterations,
+  //     };
 
-      const initialHumanMessage = new HumanMessage({
-        content: initialInput || 'Start executing the primary objective.',
-      });
+  //     const initialHumanMessage = new HumanMessage({
+  //       content: initialInput || 'Start executing the primary objective.',
+  //     });
 
-      logger.info(`Starting hybrid execution with thread ID: ${threadId}.`);
-      let state = await app.invoke(
-        { messages: [initialHumanMessage] },
-        threadConfig
-      );
+  //     logger.info(`Starting hybrid execution with thread ID: ${threadId}.`);
+  //     let state = await app.invoke(
+  //       { messages: [initialHumanMessage] },
+  //       threadConfig
+  //     );
 
-      logger.debug('Initial hybrid invocation complete.');
+  //     logger.debug('Initial hybrid invocation complete.');
 
-      return {
-        state,
-        threadId,
-      };
-    } catch (error: any) {
-      logger.error(`SnakAgent hybrid execution failed: ${error}`);
+  //     return {
+  //       state,
+  //       threadId,
+  //     };
+  //   } catch (error: any) {
+  //     logger.error(`SnakAgent hybrid execution failed: ${error}`);
 
-      const errorMsg = error.message || String(error);
-      if (
-        errorMsg.includes('trailing whitespace') ||
-        errorMsg.includes('invalid_request_error')
-      ) {
-        logger.warn(
-          'SnakAgent (hybrid): Detected API format error (e.g., trailing whitespace).'
-        );
-        return new AIMessage({
-          content:
-            'An error occurred with the AI communication (possible formatting issue). Please try rephrasing your request.',
-          additional_kwargs: {
-            from: 'snak',
-            final: true,
-            error: 'api_format_error',
-          },
-        });
-      }
+  //     const errorMsg = error.message || String(error);
+  //     if (
+  //       errorMsg.includes('trailing whitespace') ||
+  //       errorMsg.includes('invalid_request_error')
+  //     ) {
+  //       logger.warn(
+  //         'SnakAgent (hybrid): Detected API format error (e.g., trailing whitespace).'
+  //       );
+  //       return new AIMessage({
+  //         content:
+  //           'An error occurred with the AI communication (possible formatting issue). Please try rephrasing your request.',
+  //         additional_kwargs: {
+  //           from: 'snak',
+  //           final: true,
+  //           error: 'api_format_error',
+  //         },
+  //       });
+  //     }
 
-      if (!fallbackAttempted) {
-        logger.error(
-          `SnakAgent (hybrid): Catastrophic error, using fallback: ${error}`
-        );
-        // return this.executeSimpleFallback('Hybrid execution failed');
-      }
+  //     if (!fallbackAttempted) {
+  //       logger.error(
+  //         `SnakAgent (hybrid): Catastrophic error, using fallback: ${error}`
+  //       );
+  //       // return this.executeSimpleFallback('Hybrid execution failed');
+  //     }
 
-      return new AIMessage({
-        content: `Hybrid execution error: ${error.message}`,
-        additional_kwargs: {
-          from: 'snak',
-          final: true,
-          error: 'hybrid_execution_error',
-        },
-      });
-    } finally {
-      if (this.currentMode !== originalMode) {
-        logger.debug(`Restoring original agent mode: ${originalMode}`);
-        this.currentMode = originalMode;
-      }
-    }
-  }
+  //     return new AIMessage({
+  //       content: `Hybrid execution error: ${error.message}`,
+  //       additional_kwargs: {
+  //         from: 'snak',
+  //         final: true,
+  //         error: 'hybrid_execution_error',
+  //       },
+  //     });
+  //   } finally {
+  //     if (this.currentMode !== originalMode) {
+  //       logger.debug(`Restoring original agent mode: ${originalMode}`);
+  //       this.currentMode = originalMode;
+  //     }
+  //   }
+  // }
 
   /**
    * Resumes a paused hybrid execution with new human input

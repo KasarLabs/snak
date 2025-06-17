@@ -1,5 +1,5 @@
 import { BaseMessage } from '@langchain/core/messages';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+// import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 /**
  * Base interface for all agents in the system
@@ -66,14 +66,6 @@ export interface AgentMessage {
  */
 export interface IModelAgent extends IAgent {
   /**
-   * Gets the appropriate model for a task
-   */
-  getModelForTask(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<BaseChatModel>;
-
-  /**
    * Invokes a model with appropriate selection
    */
   invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any>;
@@ -88,6 +80,7 @@ export abstract class BaseAgent implements IAgent {
   readonly description: string;
 
   constructor(id: string, type: AgentType, description?: string) {
+    // CLEAN-UP Don't think the description is very usefull and more don't think that the super() constructor is not necessary because of no utilisation of different fields
     this.id = id;
     this.type = type;
     this.description = description || 'No description';
