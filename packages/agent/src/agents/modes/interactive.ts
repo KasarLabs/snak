@@ -94,7 +94,7 @@ export const createInteractiveAgent = async (
     }
 
     let documentAgent = null;
-    //if (agent_config.documents) {
+    if (agent_config.documents?.enabled !== false) {
       try {
         documentAgent = await getDocumentAgent();
         if (!documentAgent) {
@@ -103,7 +103,8 @@ export const createInteractiveAgent = async (
       } catch (error) {
         logger.error(`Error retrieving document agent: ${error}`);
       }
-    //}
+    }
+
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
@@ -179,15 +180,27 @@ export const createInteractiveAgent = async (
           ? state.documents
           : (state.documents as any)?.documents;
 
+      const memoryAvailable =
+        memoryContent && memoryContent.trim().length > 0;
+      const documentsAvailable =
+        documentsContent && documentsContent.trim().length > 0;
+
       const promptMessages: Array<any> = [];
 
       const systemParts: string[] = [systemPrompt];
 
-      if (memoryContent && memoryContent.trim().length > 0) {
+      if (memoryAvailable || documentsAvailable) {
+        const sources: string[] = [];
+        if (memoryAvailable) sources.push('User Memory Context');
+        if (documentsAvailable) sources.push('Document Context');
+        systemParts.push(`\nSources of information: ${sources.join(', ')}\n`);
+      }
+
+      if (memoryAvailable) {
         systemParts.push(memoryContent.trim());
       }
 
-      if (documentsContent && documentsContent.trim().length > 0) {
+      if (documentsAvailable) {
         systemParts.push(documentsContent.trim());
       }
 
