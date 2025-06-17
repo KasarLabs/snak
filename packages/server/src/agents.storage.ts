@@ -9,9 +9,7 @@ import {
   ModelLevelConfig,
   RawAgentConfig,
 } from '@snakagent/core';
-import { AgentConfigSQL, AgentMemorySQL } from './interfaces/sql_interfaces.js';
-import { AgentSystemConfig, AgentSystem, AgentMode } from '@snakagent/agents';
-import { SystemMessage } from '@langchain/core/messages';
+import { AgentConfigSQL } from './interfaces/sql_interfaces.js';
 import DatabaseStorage from '../common/database/database.js';
 
 const logger = new Logger('AgentStorage');
@@ -55,8 +53,8 @@ export class AgentStorage implements OnModuleInit {
           description: 'Optimized for speed and simple tasks.',
         };
         const smart: ModelLevelConfig = {
-          provider: ModelProviders.Anthropic,
-          model_name: 'claude-3-5-sonnet-latest',
+          provider: ModelProviders.OpenAI,
+          model_name: 'gpt-4o-mini',
           description: 'Optimized for complex reasoning.',
         };
         const cheap: ModelLevelConfig = {

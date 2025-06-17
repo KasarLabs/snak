@@ -1,7 +1,13 @@
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
-import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
+import {
+  StateGraph,
+  MemorySaver,
+  Annotation,
+  END,
+  START,
+} from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import {
@@ -23,7 +29,7 @@ import {
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
-import { autonomousRules, finalAnswerRules } from '../../prompt/prompts.js';
+import { autonomousRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 
 /**
@@ -39,10 +45,15 @@ const GraphState = Annotation.Root({
   }),
 });
 
+export interface AgentReturn {
+  app: any;
+  agent_config: AgentConfig;
+}
+
 /**
  * Creates and configures an autonomous agent using a StateGraph.
  * This agent can use tools, interact with models, and follow a defined workflow.
- *
+ * @async
  * @param {SnakAgentInterface} snakAgent - The Starknet agent instance providing configuration and context
  * @param {ModelSelector | null} modelSelector - The model selection agent for choosing appropriate LLMs
  * @returns {Promise<Object>} Promise resolving to compiled LangGraph app, agent config, and max iterations
@@ -51,8 +62,11 @@ const GraphState = Annotation.Root({
 export const createAutonomousAgent = async (
   snakAgent: SnakAgentInterface,
   modelSelector: ModelSelector | null
-) => {
+): Promise<AgentReturn> => {
   try {
+    console.log(
+      'Staarknet Autonomous Agent: Initializing autonomous agent graph...'
+    );
     const agent_config = snakAgent.getAgentConfig();
     if (!agent_config) {
       throw new Error('Agent configuration is required.');
@@ -145,31 +159,6 @@ export const createAutonomousAgent = async (
         throw new Error('Agent configuration and ModelSelector are required.');
       }
 
-      const lastMessage = state.messages[state.messages.length - 1];
-      if (
-        lastMessage instanceof AIMessage &&
-        lastMessage.additional_kwargs?.final_answer === true
-      ) {
-        logger.debug('Autonomous agent: Processing final answer continuation.');
-        delete lastMessage.additional_kwargs.final_answer;
-
-        let finalAnswerContent = lastMessage.content;
-        if (typeof finalAnswerContent === 'string') {
-          const match = finalAnswerContent.match(/FINAL ANSWER:(.*?)$/s);
-          finalAnswerContent =
-            match && match[1] ? match[1].trim() : finalAnswerContent;
-        }
-
-        return {
-          messages: [
-            new AIMessage({
-              content: finalAnswerRules(finalAnswerContent),
-              additional_kwargs: { from: 'starknet-autonomous' },
-            }),
-          ],
-        };
-      }
-
       const autonomousSystemPrompt = `
       ${agent_config.prompt.content}
 
@@ -189,6 +178,7 @@ export const createAutonomousAgent = async (
           messages: filteredMessages,
         });
 
+        // Is it use to get the HumanMessage from the messages array in id[]
         const originalUserMessage = filteredMessages.find(
           (msg): msg is HumanMessage => msg instanceof HumanMessage
         );
@@ -197,60 +187,33 @@ export const createAutonomousAgent = async (
             ? originalUserMessage.content
             : JSON.stringify(originalUserMessage.content)
           : '';
-
-        const selectedModelType = await modelSelector.selectModelForMessages(
-          filteredMessages,
-          { originalUserQuery }
+        console.log(
+          `Original user query: ${originalUserQuery.substring(0, 100)}${
+            originalUserQuery.length > 100 ? '...' : ''
+          }`
         );
-        const modelForThisTask = await modelSelector.getModelForTask(
-          filteredMessages,
-          selectedModelType
-        );
+        const selectedModelType =
+          await modelSelector.selectModelForMessages(filteredMessages);
 
         const boundModel =
-          typeof modelForThisTask.bindTools === 'function'
-            ? modelForThisTask.bindTools(toolsList)
-            : modelForThisTask;
+          typeof selectedModelType.model.bindTools === 'function'
+            ? selectedModelType.model.bindTools(toolsList)
+            : selectedModelType.model;
 
         logger.debug(
           `Autonomous agent invoking model (${selectedModelType}) with ${filteredMessages.length} messages.`
         );
         const result = await boundModel.invoke(formattedPrompt);
-        TokenTracker.trackCall(result, selectedModelType);
+        TokenTracker.trackCall(result, selectedModelType.model_name);
 
         let finalResultMessages: BaseMessage[];
 
         if (result instanceof AIMessage) {
           finalResultMessages = [result];
-        } else if (
-          Array.isArray(result) &&
-          result.every((m): m is BaseMessage => m instanceof BaseMessage)
-        ) {
-          finalResultMessages = result;
-        } else if (
-          typeof result === 'object' &&
-          result !== null &&
-          'content' in result &&
-          typeof result.content === 'string'
-        ) {
-          finalResultMessages = [
-            new AIMessage({
-              content: result.content,
-              tool_calls:
-                'tool_calls' in result && Array.isArray(result.tool_calls)
-                  ? result.tool_calls
-                  : undefined,
-            }),
-          ];
         } else {
-          logger.error(
-            `Unexpected model result type: ${typeof result}. Full result: ${JSON.stringify(result)}`
+          throw new Error(
+            `Unexpected model response type: ${typeof result}. Expected AIMessage.`
           );
-          finalResultMessages = [
-            new AIMessage(
-              'Error: Received unexpected response format from the language model.'
-            ),
-          ];
         }
 
         finalResultMessages.forEach((msg) => {
@@ -258,13 +221,21 @@ export const createAutonomousAgent = async (
             msg.additional_kwargs = {
               ...msg.additional_kwargs,
               from: msg.additional_kwargs?.from || 'starknet-autonomous',
+              token_model_selector: selectedModelType.token,
             };
+          } else {
+            throw new Error(
+              `Unexpected message type: ${typeof msg}. Expected AIMessage.`
+            );
           }
         });
 
         const responseMessage =
           finalResultMessages[finalResultMessages.length - 1];
         if (responseMessage) {
+          console.log(
+            `ResponseMessage: ${JSON.stringify(responseMessage, null, 2)}`
+          );
           const contentToLog =
             typeof responseMessage.content === 'string'
               ? responseMessage.content
@@ -330,7 +301,9 @@ export const createAutonomousAgent = async (
      * @param {typeof GraphState.State} state - Current graph state
      * @returns {'tools' | 'agent'} Next node to execute
      */
-    function shouldContinue(state: typeof GraphState.State): 'tools' | 'agent' {
+    function shouldContinue(
+      state: typeof GraphState.State
+    ): 'tools' | 'agent' | 'end' {
       const lastMessage = state.messages[state.messages.length - 1];
 
       if (!lastMessage) {
@@ -362,11 +335,9 @@ export const createAutonomousAgent = async (
           final_answer: true,
           processed_final_answer: true, // Mark as processed to avoid re-entry for the same message
         };
-        return 'agent'; // Route to agent to handle the FINAL ANSWER logic
+        return 'end'; // Route to agent to handle the FINAL ANSWER logic
       }
 
-      // If no tool calls and no unprocessed FINAL ANSWER, loop back to the agent.
-      // Termination is handled by the external recursion limit in SnakAgent.execute_autonomous.
       logger.debug(
         'No tool calls or unprocessed FINAL ANSWER. Routing back to agent for next iteration.'
       );
@@ -377,11 +348,12 @@ export const createAutonomousAgent = async (
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
-    workflow.setEntryPoint('agent');
+    workflow.addEdge(START, 'agent');
 
     workflow.addConditionalEdges('agent', shouldContinue, {
       tools: 'tools',
       agent: 'agent',
+      end: END,
     });
 
     workflow.addEdge('tools', 'agent');
@@ -389,10 +361,20 @@ export const createAutonomousAgent = async (
     const checkpointer = new MemorySaver(); // For potential state persistence
     const app = workflow.compile({ checkpointer });
 
+    //     CompiledStateGraph<StateType<{
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }>, UpdateType<{
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }>, "__start__" | ... 1 more ... | "tools", {
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }, {
+    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    // }, StateDefinition>
+
+    console.log(JSON.stringify(agent_config));
     return {
       app,
       agent_config,
-      maxIterations: agent_config.maxIterations,
     };
   } catch (error) {
     logger.error(`Failed to create autonomous agent graph: ${error}`);

@@ -29,10 +29,14 @@ import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
  * Represents an agent to be registered
  */
 interface AgentRegistration {
+  id: string;
   agent: SnakAgent;
   metadata?: any;
 }
 
+/**
+ * Helper class for managing batch registration sessions
+ */
 /**
  * Configuration interface for the SupervisorAgent
  * @interface SupervisorAgentConfig
@@ -477,10 +481,10 @@ export class SupervisorAgent extends BaseAgent {
    * @returns The final agent response or directive message for the workflow
    * @throws {Error} Will throw an error if WorkflowController is not initialized when needed
    */
-  public async execute(
+  public async *execute(
     input: string | AgentMessage | BaseMessage | BaseMessage[],
     config?: Record<string, any>
-  ): Promise<any> {
+  ): AsyncGenerator<any> {
     this.executionDepth++;
     const depthIndent = '  '.repeat(this.executionDepth);
     const isNodeCall = !!config?.isWorkflowNodeCall || this.executionDepth > 1;
@@ -511,22 +515,34 @@ export class SupervisorAgent extends BaseAgent {
       );
       const enrichedMessage =
         await this.enrichWithMemoryContext(currentMessage);
-      return await this.executeWithMessage(
+      for await (const chunk of this.executeWithMessage(
         enrichedMessage,
         config,
         isNodeCall,
         callPath,
         depthIndent
-      );
-    }
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
+        }
+        yield chunk;
+      }
 
-    return await this.executeWithMessage(
-      currentMessage,
-      config,
-      isNodeCall,
-      callPath,
-      depthIndent
-    );
+      for await (const chunk of this.executeWithMessage(
+        currentMessage,
+        config,
+        isNodeCall,
+        callPath,
+        depthIndent
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
+        }
+        yield chunk;
+      }
+    }
   }
 
   /**
@@ -647,7 +663,7 @@ export class SupervisorAgent extends BaseAgent {
     }
 
     logger.warn(
-      `${depthIndent}SupervisorAgent: Unrecognized input type for ${callPath}: ${typeof input}. Wrapping as HumanMessage 'Unrecognized input format'.`
+      `${depthIndent}SupervisorAgent: Unrecognized input type for ${callPath}: ${typeof input}. Wrapping as HumanMessage '  '.`
     );
     return new HumanMessage('Unrecognized input format');
   }
@@ -662,13 +678,13 @@ export class SupervisorAgent extends BaseAgent {
    * @returns Execution result
    * @private
    */
-  private async executeWithMessage(
+  private async *executeWithMessage(
     currentMessage: BaseMessage,
     config: Record<string, any> | undefined,
     isNodeCall: boolean,
     callPath: string,
     depthIndent: string
-  ): Promise<any> {
+  ): AsyncGenerator<any> {
     if (isNodeCall) {
       return await this.handleNodeCall(
         currentMessage,
@@ -677,12 +693,18 @@ export class SupervisorAgent extends BaseAgent {
         depthIndent
       );
     } else {
-      return await this.handleExternalCall(
+      for await (const chunk of this.handleExternalCall(
         currentMessage,
         config,
         callPath,
         depthIndent
-      );
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
+        }
+        yield chunk;
+      }
     }
   }
 
@@ -845,12 +867,12 @@ export class SupervisorAgent extends BaseAgent {
    * @returns Final execution result
    * @private
    */
-  private async handleExternalCall(
+  private async *handleExternalCall(
     currentMessage: BaseMessage,
     config: Record<string, any> | undefined,
     callPath: string,
     depthIndent: string
-  ): Promise<any> {
+  ): AsyncGenerator<any> {
     logger.debug(
       `${depthIndent}SupervisorAgent (${callPath}): Initiating workflow with WorkflowController.`
     );
@@ -883,42 +905,16 @@ export class SupervisorAgent extends BaseAgent {
           workflowConfig.originalUserQuery;
       }
 
-      const result = await this.workflowController.execute(
+      for await (const chunk of this.workflowController.execute(
         initialMessagesForWorkflow[0],
         workflowConfig
-      );
-
-      if (
-        result?.metadata?.requiresClarification === true &&
-        result.metadata.clarificationMessage
-      ) {
-        logger.debug(
-          `${depthIndent}SupervisorAgent (${callPath}): Agent requires clarification. Ending workflow and returning clarification message directly.`
-        );
-        this.executionDepth--;
-        return result.metadata.clarificationMessage.content;
-      }
-
-      if (result?.messages?.length > 0) {
-        const lastMessage = result.messages[result.messages.length - 1];
-        if (
-          lastMessage instanceof AIMessage &&
-          lastMessage.additional_kwargs?.needsClarification === true
-        ) {
-          logger.debug(
-            `${depthIndent}SupervisorAgent (${callPath}): Found clarification request in final message from ${lastMessage.additional_kwargs?.from || 'unknown agent'}.`
-          );
-          this.executionDepth--;
-          return lastMessage.content;
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
         }
+        yield chunk;
       }
-
-      const finalUserResponse = this.extractFinalResponse(result);
-      logger.debug(
-        `${depthIndent}SupervisorAgent (${callPath}): Workflow finished. Final response (truncated): "${finalUserResponse.substring(0, 200)}..."`
-      );
-      this.executionDepth--;
-      return finalUserResponse;
     } catch (error: any) {
       logger.error(
         `${depthIndent}SupervisorAgent (${callPath}): Error during WorkflowController execution: ${error.message || error}`
@@ -1097,7 +1093,7 @@ export class SupervisorAgent extends BaseAgent {
    * @returns Formatted final response string
    * @private
    */
-  private extractFinalResponse(result: any): string {
+  public extractFinalResponse(result: any): string {
     let finalUserResponse = 'Workflow completed.';
 
     if (
@@ -1376,105 +1372,105 @@ export class SupervisorAgent extends BaseAgent {
     }
   }
 
-  /**
-   * Starts a hybrid execution flow with an initial input
-   * Delegates to the SnakAgent's hybrid execution capabilities
-   * @param initialInput - The initial input string to start the hybrid process
-   * @returns An object containing the initial state and the thread ID for the execution
-   * @throws {Error} Will throw an error if the SnakAgent is not available or if execution fails to start
-   */
-  public async startHybridExecution(
-    initialInput: string
-  ): Promise<{ state: any; threadId: string }> {
-    logger.debug('SupervisorAgent: Starting hybrid execution.');
-    if (!this.snakAgent) {
-      logger.error(
-        'SupervisorAgent: SnakAgent is not available for hybrid execution.'
-      );
-      throw new Error('SnakAgent is not available for hybrid execution.');
-    }
+  // /**
+  //  * Starts a hybrid execution flow with an initial input
+  //  * Delegates to the SnakAgent's hybrid execution capabilities
+  //  * @param initialInput - The initial input string to start the hybrid process
+  //  * @returns An object containing the initial state and the thread ID for the execution
+  //  * @throws {Error} Will throw an error if the SnakAgent is not available or if execution fails to start
+  //  */
+  // public async startHybridExecution(
+  //   initialInput: string
+  // ): Promise<{ state: any; threadId: string }> {
+  //   logger.debug('SupervisorAgent: Starting hybrid execution.');
+  //   if (!this.snakAgent) {
+  //     logger.error(
+  //       'SupervisorAgent: SnakAgent is not available for hybrid execution.'
+  //     );
+  //     throw new Error('SnakAgent is not available for hybrid execution.');
+  //   }
 
-    const result = await this.snakAgent.execute_hybrid(initialInput);
+  //   // const result = await this.snakAgent.execute_hybrid(initialInput);
 
-    if (!result || typeof result !== 'object') {
-      logger.error(
-        'SupervisorAgent: Failed to start hybrid execution - invalid result from SnakAgent.'
-      );
-      throw new Error(
-        'Failed to start hybrid execution: received invalid result from SnakAgent.'
-      );
-    }
+  //   if (!result || typeof result !== 'object') {
+  //     logger.error(
+  //       'SupervisorAgent: Failed to start hybrid execution - invalid result from SnakAgent.'
+  //     );
+  //     throw new Error(
+  //       'Failed to start hybrid execution: received invalid result from SnakAgent.'
+  //     );
+  //   }
 
-    const resultObj = result as any;
-    const threadId = resultObj.threadId || `hybrid_fallback_${Date.now()}`;
-    if (!resultObj.threadId) {
-      logger.warn(
-        `SupervisorAgent: ThreadId missing in hybrid execution result, generated fallback: ${threadId}`
-      );
-    }
+  //   const resultObj = result as any;
+  //   const threadId = resultObj.threadId || `hybrid_fallback_${Date.now()}`;
+  //   if (!resultObj.threadId) {
+  //     logger.warn(
+  //       `SupervisorAgent: ThreadId missing in hybrid execution result, generated fallback: ${threadId}`
+  //     );
+  //   }
 
-    return {
-      state: resultObj.state || resultObj,
-      threadId,
-    };
-  }
+  //   return {
+  //     state: resultObj.state || resultObj,
+  //     threadId,
+  //   };
+  // }
 
-  /**
-   * Provides subsequent input to a paused hybrid execution
-   * Delegates to the SnakAgent to resume the hybrid flow
-   * @param input - The human input string to provide to the paused execution
-   * @param threadId - The thread ID of the paused hybrid execution
-   * @returns The updated state after processing the input
-   * @throws {Error} Will throw an error if the SnakAgent is not available
-   */
-  public async provideHybridInput(
-    input: string,
-    threadId: string
-  ): Promise<any> {
-    logger.debug(
-      `SupervisorAgent: Providing input to hybrid execution (thread: ${threadId})`
-    );
-    if (!this.snakAgent) {
-      logger.error(
-        'SupervisorAgent: SnakAgent is not available to provide hybrid input.'
-      );
-      throw new Error('SnakAgent is not available to provide hybrid input.');
-    }
-    return this.snakAgent.resume_hybrid(input, threadId);
-  }
+  // /**
+  //  * Provides subsequent input to a paused hybrid execution
+  //  * Delegates to the SnakAgent to resume the hybrid flow
+  //  * @param input - The human input string to provide to the paused execution
+  //  * @param threadId - The thread ID of the paused hybrid execution
+  //  * @returns The updated state after processing the input
+  //  * @throws {Error} Will throw an error if the SnakAgent is not available
+  //  */
+  // public async provideHybridInput(
+  //   input: string,
+  //   threadId: string
+  // ): Promise<any> {
+  //   logger.debug(
+  //     `SupervisorAgent: Providing input to hybrid execution (thread: ${threadId})`
+  //   );
+  //   if (!this.snakAgent) {
+  //     logger.error(
+  //       'SupervisorAgent: SnakAgent is not available to provide hybrid input.'
+  //     );
+  //     throw new Error('SnakAgent is not available to provide hybrid input.');
+  //   }
+  //   return this.snakAgent.resume_hybrid(input, threadId);
+  // }
 
-  /**
-   * Checks if the current state of a hybrid execution is waiting for human input
-   * Examines the state object for flags or markers in messages indicating waiting state
-   * @param state - The current execution state object
-   * @returns True if the execution is waiting for input, false otherwise
-   */
-  public isWaitingForInput(state: any): boolean {
-    if (
-      !state ||
-      !Array.isArray(state.messages) ||
-      state.messages.length === 0
-    ) {
-      return false;
-    }
+  // /**
+  //  * Checks if the current state of a hybrid execution is waiting for human input
+  //  * Examines the state object for flags or markers in messages indicating waiting state
+  //  * @param state - The current execution state object
+  //  * @returns True if the execution is waiting for input, false otherwise
+  //  */
+  // public isWaitingForInput(state: any): boolean {
+  //   if (
+  //     !state ||
+  //     !Array.isArray(state.messages) ||
+  //     state.messages.length === 0
+  //   ) {
+  //     return false;
+  //   }
 
-    if (state.waiting_for_input === true) {
-      return true;
-    }
+  //   if (state.waiting_for_input === true) {
+  //     return true;
+  //   }
 
-    const lastMessage = state.messages[state.messages.length - 1];
-    if (!lastMessage) return false;
+  //   const lastMessage = state.messages[state.messages.length - 1];
+  //   if (!lastMessage) return false;
 
-    if (
-      lastMessage.content &&
-      typeof lastMessage.content === 'string' &&
-      lastMessage.content.includes('WAITING_FOR_HUMAN_INPUT:')
-    ) {
-      return true;
-    }
+  //   if (
+  //     lastMessage.content &&
+  //     typeof lastMessage.content === 'string' &&
+  //     lastMessage.content.includes('WAITING_FOR_HUMAN_INPUT:')
+  //   ) {
+  //     return true;
+  //   }
 
-    return lastMessage.additional_kwargs?.wait_for_input === true;
-  }
+  //   return lastMessage.additional_kwargs?.wait_for_input === true;
+  // }
 
   /**
    * Checks if the current state of a hybrid execution indicates completion

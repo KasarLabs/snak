@@ -209,30 +209,6 @@ export class AgentSystem {
   }
 
   /**
-   * Inserts a message into the database
-   * @param message The message request to insert
-   * @param iteration The agent iteration data
-   * @throws {Error} When database insertion fails
-   */
-  private async insert_message_into_db(
-    message: MessageRequest,
-    iteration: any
-  ): Promise<void> {
-    try {
-      logger.debug('Inserting message into DB:', message);
-      const message_q = new Postgres.Query(
-        `INSERT INTO message (agent_id, user_request, agent_iteration) VALUES ($1, $2, $3) RETURNING id`,
-        [message.agent_id, message.user_request, iteration]
-      );
-      const message_q_res = await Postgres.query<string>(message_q);
-      logger.debug('Message inserted into DB:', message_q_res);
-    } catch (error) {
-      logger.error(error);
-      throw error;
-    }
-  }
-
-  /**
    * Executes a command using the agent system
    * @param message The input message or string for the command
    * @param config Optional configuration for the execution
@@ -251,18 +227,14 @@ export class AgentSystem {
       Postgres.connect(this.config.databaseCredentials);
       const content =
         typeof message === 'string' ? message : message.user_request;
-      const response = await this.supervisorAgent.execute(content, config);
-      logger.debug(JSON.stringify(response));
-      logger.debug('AgentSystem: Execution result:', JSON.stringify(response));
-
-      if (typeof message === 'string') {
-        logger.info('The request has not been saved in the database');
-        return response;
-      } else {
-        logger.info('The request has been saved in the database');
-        await this.insert_message_into_db(message, response);
+      let result;
+      for await (const chunk of this.supervisorAgent.execute(content, config)) {
+        if (chunk.final === true) {
+          result = chunk.chunk;
+        }
       }
-      return this.supervisorAgent.formatResponse(response);
+
+      return this.supervisorAgent.formatResponse(result);
     } catch (error) {
       logger.error(`AgentSystem: Execution error: ${error}`);
       throw error;
@@ -321,21 +293,21 @@ export class AgentSystem {
     logger.info('AgentSystem: Resources disposed');
   }
 
-  /**
-   * Starts a hybrid execution flow
-   * @param initialInput The initial input to begin the autonomous execution
-   * @returns A promise that resolves with the initial state and a thread ID for further interaction
-   * @throws {Error} When the agent system is not initialized
-   */
-  public async startHybridExecution(
-    initialInput: string
-  ): Promise<{ state: any; threadId: string }> {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
+  // /**
+  //  * Starts a hybrid execution flow
+  //  * @param initialInput The initial input to begin the autonomous execution
+  //  * @returns A promise that resolves with the initial state and a thread ID for further interaction
+  //  * @throws {Error} When the agent system is not initialized
+  //  */
+  // public async startHybridExecution(
+  //   initialInput: string
+  // ): Promise<{ state: any; threadId: string }> {
+  //   if (!this.supervisorAgent) {
+  //     throw new Error('Agent system not initialized. Call init() first.');
+  //   }
 
-    return await this.supervisorAgent.startHybridExecution(initialInput);
-  }
+  //   return await this.supervisorAgent.startHybridExecution(initialInput);
+  // }
 
   /**
    * Provides input to a paused hybrid execution
@@ -344,30 +316,30 @@ export class AgentSystem {
    * @returns A promise that resolves with the updated state of the execution
    * @throws {Error} When the agent system is not initialized
    */
-  public async provideHybridInput(
-    input: string,
-    threadId: string
-  ): Promise<any> {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
+  // public async provideHybridInput(
+  //   input: string,
+  //   threadId: string
+  // ): Promise<any> {
+  //   if (!this.supervisorAgent) {
+  //     throw new Error('Agent system not initialized. Call init() first.');
+  //   }
 
-    return await this.supervisorAgent.provideHybridInput(input, threadId);
-  }
+  //   return await this.supervisorAgent.provideHybridInput(input, threadId);
+  // }
 
-  /**
-   * Checks if a hybrid execution is currently waiting for user input
-   * @param state The current execution state
-   * @returns True if the execution is waiting for input, false otherwise
-   * @throws {Error} When the agent system is not initialized
-   */
-  public isWaitingForInput(state: any): boolean {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
+  // /**
+  //  * Checks if a hybrid execution is currently waiting for user input
+  //  * @param state The current execution state
+  //  * @returns True if the execution is waiting for input, false otherwise
+  //  * @throws {Error} When the agent system is not initialized
+  //  */
+  // public isWaitingForInput(state: any): boolean {
+  //   if (!this.supervisorAgent) {
+  //     throw new Error('Agent system not initialized. Call init() first.');
+  //   }
 
-    return this.supervisorAgent.isWaitingForInput(state);
-  }
+  //   return this.supervisorAgent.isWaitingForInput(state);
+  // }
 
   /**
    * Checks if a hybrid execution has completed

@@ -1,5 +1,5 @@
 import { BaseMessage } from '@langchain/core/messages';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+// import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 /**
  * Base interface for all agents in the system
@@ -26,8 +26,15 @@ export interface IAgent {
    * @param input Input to process
    * @param config Optional configuration
    */
-  execute(input: any, config?: Record<string, any>): Promise<any>;
+  execute(
+    input: any,
+    config?: Record<string, any>
+  ): Promise<any> | AsyncGenerator<any>;
 
+  executeAsyncGenerator?(
+    input: BaseMessage[] | any,
+    config?: Record<string, any>
+  ): AsyncGenerator<any>;
   /**
    * Optional method to clean up resources used by the agent.
    */
@@ -59,14 +66,6 @@ export interface AgentMessage {
  */
 export interface IModelAgent extends IAgent {
   /**
-   * Gets the appropriate model for a task
-   */
-  getModelForTask(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<BaseChatModel>;
-
-  /**
    * Invokes a model with appropriate selection
    */
   invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any>;
@@ -81,13 +80,21 @@ export abstract class BaseAgent implements IAgent {
   readonly description: string;
 
   constructor(id: string, type: AgentType, description?: string) {
+    // CLEAN-UP Don't think the description is very usefull and more don't think that the super() constructor is not necessary because of no utilisation of different fields
     this.id = id;
     this.type = type;
     this.description = description || 'No description';
   }
 
   abstract init(): Promise<void>;
-  abstract execute(input: any, config?: Record<string, any>): Promise<any>;
+  abstract execute(
+    input: any,
+    config?: Record<string, any>
+  ): AsyncGenerator<any> | Promise<any>;
+  executeAsyncGenerator?(
+    input: BaseMessage[] | any,
+    config?: Record<string, any>
+  ): AsyncGenerator<any>;
 
   /**
    * Default dispose method. Subclasses should override this if they
