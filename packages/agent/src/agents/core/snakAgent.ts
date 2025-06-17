@@ -15,6 +15,13 @@ import { FormatChunkIteration, ToolsChunk } from './utils.js';
 /**
  * Configuration interface for SnakAgent initialization
  */
+
+export interface StreamChunk {
+  chunk: any;
+  iteration_number: number;
+  final: boolean;
+}
+
 export interface FormattedOnChatModelStream {
   chunk: {
     content: string;
@@ -108,10 +115,14 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     this.accountPrivateKey = config.accountPrivateKey;
     this.accountPublicKey = config.accountPublicKey;
     this.agentMode =
-      AGENT_MODES[config.agentConfig?.mode || AgentMode.INTERACTIVE];
+      AGENT_MODES[
+        (config.agentConfig.mode as AgentMode) || AgentMode.INTERACTIVE
+      ];
     this.db_credentials = config.db_credentials;
     this.currentMode =
-      AGENT_MODES[config.agentConfig?.mode || AgentMode.INTERACTIVE];
+      AGENT_MODES[
+        (config.agentConfig.mode as AgentMode) || AgentMode.INTERACTIVE
+      ];
     this.agentConfig = config.agentConfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
@@ -338,7 +349,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
   public async *executeAsyncGenerator(
     input: BaseMessage[] | any,
     config?: Record<string, any>
-  ): AsyncGenerator<any> {
+  ): AsyncGenerator<StreamChunk> {
     logger.debug(`SnakAgent executing with mode: ${this.currentMode}`);
     if (!this.agentReactExecutor) {
       logger.warn(

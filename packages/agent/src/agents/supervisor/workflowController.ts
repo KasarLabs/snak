@@ -5,7 +5,6 @@ import { IAgent } from '../core/baseAgent.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import crypto from 'crypto';
 import { AgentType } from '../core/baseAgent.js';
-import fs from 'fs';
 import { FormatChunkIteration } from '../../agents/core/utils.js';
 import {
   AgentIterationEvent,
