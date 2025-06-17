@@ -13,7 +13,7 @@ import { FileIngestionService } from './file-ingestion.service.js';
 import { FileContent } from './file-content.interface.js';
 import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
-import { ConfigurationService } from '@/config/configuration.js';
+import { ConfigurationService } from '../../config/configuration.js';
 
 interface MultipartRequest extends FastifyRequest {
   isMultipart: () => boolean;
