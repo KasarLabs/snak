@@ -126,6 +126,7 @@ export class SupervisorService implements OnModuleInit {
             group: 'system',
             mode: AgentMode.INTERACTIVE,
             memory: { enabled: true, shortTermMemorySize: 15 },
+            documents: {enabled: true},
             chatId: 'supervisor_chat',
             maxIterations: 15,
           } as AgentConfig,
