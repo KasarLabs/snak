@@ -7,6 +7,7 @@ import {
   Annotation,
   END,
   START,
+  Graph,
 } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
@@ -33,6 +34,9 @@ import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
 import { autonomousRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import fs from 'fs';
+import { queryObjects } from 'v8';
+import { RunnableConfig } from '@langchain/core/runnables';
+import { start } from 'repl';
 /**
  * Defines the state structure for the autonomous agent graph.
  */
@@ -188,13 +192,61 @@ export const createAutonomousAgent = async (
       }
     }
     async function callModel(
-      state: typeof GraphState.State
+      state: typeof GraphState.State,
+      config?: RunnableConfig
     ): Promise<{ messages: BaseMessage[] }> {
       if (!agent_config || !modelSelector) {
         throw new Error('Agent configuration and ModelSelector are required.');
       }
 
+      console.log(
+        config?.configurable?.config.max_graph_steps,
+        config?.configurable?.config.short_term_memory
+      );
+      let startIteration: number = 0;
+      if ((config?.metadata?.langgraph_step as number) === 1) {
+        startIteration = 1;
+      }
+      if (
+        Array.isArray(config?.metadata?.langgraph_triggers) &&
+        typeof config.metadata.langgraph_triggers[0] === 'string' &&
+        config.metadata.langgraph_triggers[0] === '__start__:agent'
+      ) {
+        logger.info('Autonomous agent callModel invoked at start node.');
+        // Initialize the step counter in metadata
+        startIteration = config?.metadata?.langgraph_step as number;
+      } else {
+        const lastAiMessage = getLatestMessageForMessage(
+          state.messages,
+          AIMessageChunk
+        );
+        if (!lastAiMessage) {
+          throw new Error('Error trying to get latest AI Message Chunk');
+        }
+        startIteration = lastAiMessage.additional_kwargs
+          .start_iteration as number;
+      }
+
+      logger.info(`startIteration: ${startIteration}`);
+      if (
+        (config?.metadata?.langgraph_step as number) >=
+        config?.configurable?.config.max_graph_steps + startIteration
+      ) {
+        return {
+          messages: [
+            new AIMessageChunk({
+              content: `Reaching maximum iterations for autonomous agent. Ending workflow.`,
+              additional_kwargs: {
+                final: true,
+                start_iteration: startIteration,
+              },
+            }),
+          ],
+        };
+      }
+
       logger.info('Autonomous agent callModel invoked.');
+      const state2 = GraphState.Node;
 
       const autonomousSystemPrompt = `
         ${agent_config.prompt.content}
@@ -273,6 +325,7 @@ export const createAutonomousAgent = async (
           ...result.additional_kwargs,
           from: 'autonomous-agent',
           final: false,
+          start_iteration: startIteration,
           iteration_number: iteration_number,
         };
         const finalMessage = { messages: [result] };
@@ -305,7 +358,7 @@ export const createAutonomousAgent = async (
             new AIMessageChunk({
               content: `Error: An unexpected error occurred while processing the request. Error : ${error} `,
               additional_kwargs: {
-                error: 'token_limit_exceeded',
+                error: 'unexpected_error',
                 final: true,
               },
             }),
@@ -321,11 +374,11 @@ export const createAutonomousAgent = async (
      * @returns {'tools' | 'agent'} Next node to execute
      */
     function shouldContinue(
-      state: typeof GraphState.State
+      state: typeof GraphState.State,
+      config?: RunnableConfig
     ): 'tools' | 'agent' | 'end' {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1];
-
       console.log('Object : ', Object.getPrototypeOf(lastMessage));
       if (lastMessage instanceof AIMessageChunk) {
         if (
@@ -352,10 +405,13 @@ export const createAutonomousAgent = async (
           throw new Error('Error trying to get last AIMessageChunk');
         }
 
-        logger.info(
-          `Last AI Message Chunk: ${lastAiMessage.additional_kwargs.iteration_number}`
-        );
-        if ((lastAiMessage.additional_kwargs.iteration_number as number) >= 5) {
+        const startIteration = lastAiMessage.additional_kwargs
+          .start_iteration as number;
+
+        if (
+          (config?.metadata?.langgraph_step as number) >=
+          config?.configurable?.config.max_graph_steps + startIteration
+        ) {
           logger.info(
             `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
           );
@@ -371,8 +427,23 @@ export const createAutonomousAgent = async (
       return 'agent';
     }
 
+    async function updateMemorySize(
+      state: typeof GraphState.State,
+      config?: RunnableConfig
+    ): Promise<void> {
+      const messages = state.messages;
+      const lastMessage = messages[messages.length - 1];
+
+      state.messages[state.messages.length - 1].content = 'caca';
+      console.log(
+        'Updating memory size..., last message: ',
+        state.messages[state.messages.length - 1].content
+      );
+    }
+
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
+      // .addNode('agent', updateMemorySize)
       .addNode('tools', toolNode);
 
     workflow.addEdge(START, 'agent');

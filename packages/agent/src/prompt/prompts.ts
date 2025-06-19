@@ -21,12 +21,13 @@ export const interactiveRules = `
 export const autonomousRules = `
     You are now operating in AUTONOMOUS MODE. This means:
 
+    0. You need to call tools in every response never break this rules.
     1. You must complete tasks step-by-step without requiring user input.
     2. Work towards the GOAL defined in the initial messages using the tools available to you.
     3. Break down complex tasks into manageable steps.
     4. Think step-by-step about your plan and reasoning before deciding on an action (tool call) or providing a final answer.
     5. For each response that is not the final answer, respond with "NEXT STEPS: [your planned next steps]"
-    6. When your task is complete, respond with "FINAL ANSWER: [your conclusion]"
+    6. Never stop calling tools event if you aldreay called this tools in the past.
 `;
 
 export const hybridRules = `

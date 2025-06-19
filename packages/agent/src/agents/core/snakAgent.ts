@@ -15,6 +15,7 @@ import { createInteractiveAgent } from '../modes/interactive.js';
 import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
 // import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
+import { RunnableConfig } from '@langchain/core/runnables';
 /**
  * Configuration interface for SnakAgent initialization
  */
@@ -467,7 +468,7 @@ export class SnakAgent extends BaseAgent {
 
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphIterations = 5;
+      const maxGraphIterations = 10;
 
       console.log(JSON.stringify(agentJsonConfig, null, 2));
       const initialHumanMessage = new HumanMessage(
@@ -481,6 +482,10 @@ export class SnakAgent extends BaseAgent {
       const threadConfig = {
         configurable: {
           thread_id: agentJsonConfig?.chatId || 'autonomous_session',
+          config: {
+            max_graph_steps: maxGraphIterations,
+            short_term_memory: 10,
+          },
         },
       };
 
@@ -491,12 +496,16 @@ export class SnakAgent extends BaseAgent {
         let finalState: any = null;
         let chunk_to_save;
         let iteration_number = 0;
+
         for await (const chunk of await app.streamEvents(
           { messages: conversationHistory },
-          { ...threadConfig, version: 'v2' }
+          {
+            ...threadConfig,
+            recursionLimit: 500,
+            version: 'v2',
+          }
         )) {
           if (chunk.event === 'on_chat_model_stream') {
-            console.log('GETTING ITEARITON');
             iteration_number = chunk.metadata.langgraph_step;
           }
           if (
@@ -510,7 +519,6 @@ export class SnakAgent extends BaseAgent {
             `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
           );
           if (
-            chunk.event === 'on_chat_model_stream' ||
             chunk.event === 'on_chat_model_start' ||
             chunk.event === 'on_chat_model_end'
           ) {
