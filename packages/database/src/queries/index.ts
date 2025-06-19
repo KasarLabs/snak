@@ -5,4 +5,4 @@ import { contract } from './contract/queries.js';
 import { documents } from './documents/queries.js';
 import { Postgres } from '../database.js';
 
-export { scarb, chat, memory, contract, documents, Postgres }
+export { scarb, chat, memory, contract, documents, Postgres };

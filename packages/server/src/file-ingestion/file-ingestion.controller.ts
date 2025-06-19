@@ -6,21 +6,32 @@ import {
   InternalServerErrorException,
   Get,
   Param,
-  Body
+  Body,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileIngestionService } from './file-ingestion.service.js';
 import { FileContent } from './file-content.interface.js';
 import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
+import { ConfigurationService } from '../../config/configuration.js';
+
+interface MultipartField {
+  type: 'field';
+  fieldname: string;
+  value: unknown;
+}
 
 interface MultipartRequest extends FastifyRequest {
   isMultipart: () => boolean;
-  parts: () => AsyncIterableIterator<MultipartFile>;
+  parts: () => AsyncIterableIterator<MultipartFile | MultipartField>;
 }
 
 @Controller('files')
 export class FileIngestionController {
-  constructor(private readonly service: FileIngestionService) {}
+  constructor(
+    private readonly service: FileIngestionService,
+    private readonly config: ConfigurationService
+  ) {}
 
   @Post('upload')
   async upload(@Req() request: FastifyRequest): Promise<FileContent> {
@@ -29,37 +40,57 @@ export class FileIngestionController {
       throw new BadRequestException('Multipart request expected');
     }
 
+    let agentId = '';
+    let fileBuffer: Buffer | undefined;
+    let fileName = '';
+
     const parts = req.parts();
     for await (const part of parts) {
-      if (part.type === 'file') {
+      if (part.type === 'field' && part.fieldname === 'agentId') {
+        agentId = String(part.value);
+      } else if (part.type === 'file') {
         const buffer = await part.toBuffer();
-        try {
-          const result = await this.service.process(buffer, part.filename);
-          result.chunks.forEach((c) => delete c.metadata.embedding);
-          return result;
-        } catch (err: any) {
-          throw new InternalServerErrorException(
-            `Embedding failed: ${err.message}`,
-          );
+        if (buffer.length > this.config.documents.maxDocumentSize) {
+          throw new ForbiddenException('File size exceeds limit');
         }
+        fileBuffer = buffer;
+        fileName = part.filename;
       }
     }
-    throw new BadRequestException('No file found in request');
+    if (!fileBuffer) {
+      throw new BadRequestException('No file found in request');
+    }
+
+    try {
+      const result = await this.service.process(agentId, fileBuffer, fileName);
+      result.chunks.forEach((c) => delete c.metadata.embedding);
+      return result;
+    } catch (err: any) {
+      throw new InternalServerErrorException(
+        `Embedding failed: ${err.message}`
+      );
+    }
   }
 
-  @Get('list')
-  async listFiles() {
-    return this.service.listFiles();
+  @Post('list')
+  async listFiles(@Body('agentId') agentId: string) {
+    return this.service.listFiles(agentId);
   }
 
-  @Get('get')
-  async getFile(@Param('id') id: string) {
-    return this.service.getFile(id);
+  @Post('get')
+  async getFile(
+    @Body('agentId') agentId: string,
+    @Body('fileId') fileId: string
+  ) {
+    return this.service.getFile(agentId, fileId);
   }
 
   @Post('delete')
-  async deleteFile(@Body('id') id: string) {
-    await this.service.deleteFile(id);
+  async deleteFile(
+    @Body('agentId') agentId: string,
+    @Body('fileId') fileId: string
+  ) {
+    await this.service.deleteFile(agentId, fileId);
     return { deleted: true };
   }
 }

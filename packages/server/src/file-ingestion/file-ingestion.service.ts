@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigurationService } from '../../config/configuration.js';
 import { fileTypeFromBuffer } from 'file-type';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
@@ -17,7 +18,8 @@ export class FileIngestionService {
     private readonly chunkingService: ChunkingService,
     private readonly embeddingsService: EmbeddingsService,
     private readonly vectorStore: VectorStoreService,
-  ) { }
+    private readonly config: ConfigurationService
+  ) {}
 
   async saveFile(buffer: Buffer, originalName: string) {
     const filename = `${Date.now()}-${originalName}`;
@@ -27,7 +29,10 @@ export class FileIngestionService {
   }
 
   private cleanText(text: string) {
-    return text.replace(/\r\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{2,}/g, '\n')
+      .trim();
   }
 
   private async parseCsv(buffer: Buffer) {
@@ -65,7 +70,8 @@ export class FileIngestionService {
   }
 
   private async extractRawText(buffer: Buffer, mimeType?: string) {
-    const type = mimeType || (await fileTypeFromBuffer(buffer))?.mime || 'text/plain';
+    const type =
+      mimeType || (await fileTypeFromBuffer(buffer))?.mime || 'text/plain';
 
     if (type === 'application/pdf') {
       return this.extractPdf(buffer);
@@ -108,14 +114,28 @@ export class FileIngestionService {
     return { chunkSize, overlap };
   }
 
-  async process(buffer: Buffer, originalName: string): Promise<FileContent> {
+  async process(
+    agentId: string,
+    buffer: Buffer,
+    originalName: string
+  ): Promise<FileContent> {
     const meta = await this.saveFile(buffer, originalName);
+    const agentSize = await this.vectorStore.getAgentSize(agentId);
+    const totalSize = await this.vectorStore.getTotalSize();
+    const { maxAgentSize, maxProcessSize } = this.config.documents;
+
+    if (agentSize + meta.size > maxAgentSize) {
+      throw new Error('Agent document storage limit exceeded');
+    }
+    if (totalSize + meta.size > maxProcessSize) {
+      throw new Error('Process document storage limit exceeded');
+    }
     const text = await this.extractRawText(buffer, meta.mimeType);
     const strategy =
       meta.mimeType === 'text/csv' ||
-        meta.mimeType === 'application/csv' ||
-        meta.mimeType === 'application/json' ||
-        meta.mimeType === 'text/json'
+      meta.mimeType === 'application/csv' ||
+      meta.mimeType === 'application/json' ||
+      meta.mimeType === 'text/json'
         ? 'structured'
         : 'adaptive';
     const { chunkSize, overlap } = this.computeChunkParams(meta.size);
@@ -147,7 +167,7 @@ export class FileIngestionService {
           mimeType: meta.mimeType,
         },
       }));
-      await this.vectorStore.upsert(upsertPayload);
+      await this.vectorStore.upsert(agentId, upsertPayload);
     } catch (err) {
       this.logger.error('Embedding failed', err as any);
       throw err;
@@ -163,19 +183,21 @@ export class FileIngestionService {
     };
   }
 
-  async listFiles(): Promise<StoredFile[]> {
-    const docs = await this.vectorStore.listDocuments();
+  async listFiles(agentId: string): Promise<StoredFile[]> {
+    const docs = await this.vectorStore.listDocuments(agentId);
     return docs.map((d) => ({
       id: d.document_id,
       originalName: d.original_name,
       mimeType: d.mime_type,
       size: d.size,
-      uploadDate: new Date(Number(d.document_id.split('-')[0]) || Date.now()).toISOString(),
+      uploadDate: new Date(
+        Number(d.document_id.split('-')[0]) || Date.now()
+      ).toISOString(),
     }));
   }
 
-  async getFile(id: string): Promise<FileContent> {
-    const rows = await this.vectorStore.getDocument(id);
+  async getFile(agentId: string, id: string): Promise<FileContent> {
+    const rows = await this.vectorStore.getDocument(agentId, id);
     if (!rows.length) {
       throw new Error('Document not found');
     }
@@ -198,10 +220,9 @@ export class FileIngestionService {
         size,
       },
     };
-
   }
 
-  async deleteFile(id: string) {
-    await this.vectorStore.deleteDocument(id);
+  async deleteFile(agentId: string, id: string) {
+    await this.vectorStore.deleteDocument(agentId, id);
   }
 }

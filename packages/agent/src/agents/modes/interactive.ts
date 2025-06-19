@@ -98,13 +98,14 @@ export const createInteractiveAgent = async (
       try {
         documentAgent = await getDocumentAgent();
         if (!documentAgent) {
-          logger.warn('Document agent not available, document context will be skipped');
+          logger.warn(
+            'Document agent not available, document context will be skipped'
+          );
         }
       } catch (error) {
         logger.error(`Error retrieving document agent: ${error}`);
       }
     }
-
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
@@ -180,8 +181,7 @@ export const createInteractiveAgent = async (
           ? state.documents
           : (state.documents as any)?.documents;
 
-      const memoryAvailable =
-        memoryContent && memoryContent.trim().length > 0;
+      const memoryAvailable = memoryContent && memoryContent.trim().length > 0;
       const documentsAvailable =
         documentsContent && documentsContent.trim().length > 0;
 
@@ -234,14 +234,14 @@ export const createInteractiveAgent = async (
       try {
         let currentMessages = filteredMessages.slice(idx);
         const removedSystemMsgs = currentMessages.filter(
-          (msg) => msg instanceof SystemMessage,
+          (msg) => msg instanceof SystemMessage
         );
         if (removedSystemMsgs.length > 0) {
           logger.debug(
-            `Removed ${removedSystemMsgs.length} system messages from conversation to comply with OpenAI role order`,
+            `Removed ${removedSystemMsgs.length} system messages from conversation to comply with OpenAI role order`
           );
           currentMessages = currentMessages.filter(
-            (msg) => !(msg instanceof SystemMessage),
+            (msg) => !(msg instanceof SystemMessage)
           );
         }
         const currentFormattedPrompt = await prompt.formatMessages({
@@ -452,7 +452,10 @@ ${formatAgentResponse(content)}`);
         .addEdge('__start__', 'memory');
       if (documentAgent) {
         workflow = (workflow as any)
-          .addNode('docsNode', documentAgent.createDocumentNode())
+          .addNode(
+            'docsNode',
+            documentAgent.createDocumentNode(agent_config.id)
+          )
           .addEdge('memory', 'docsNode')
           .addEdge('docsNode', 'agent');
       } else {
@@ -460,7 +463,7 @@ ${formatAgentResponse(content)}`);
       }
     } else if (documentAgent) {
       workflow = (workflow as any)
-        .addNode('docsNode', documentAgent.createDocumentNode())
+        .addNode('docsNode', documentAgent.createDocumentNode(agent_config.id))
         .addEdge('__start__', 'docsNode')
         .addEdge('docsNode', 'agent');
     } else {

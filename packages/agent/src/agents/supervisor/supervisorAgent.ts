@@ -27,7 +27,6 @@ import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { documents } from '@snakagent/database/queries';
 
-
 /**
  * Represents an agent to be registered
  */
@@ -200,12 +199,12 @@ export class SupervisorAgent extends BaseAgent {
    * @private
    */
   private async initializeDocumentAgent(
-    agentConfig: AgentConfig | undefined,
+    agentConfig: AgentConfig | undefined
   ): Promise<void> {
     const docCfg = (agentConfig as any)?.documents;
     if (!docCfg || docCfg.enabled !== true) {
       logger.info(
-        'SupervisorAgent: DocumentAgent initialization skipped (disabled or not configured in config)',
+        'SupervisorAgent: DocumentAgent initialization skipped (disabled or not configured in config)'
       );
       return;
     }
@@ -550,9 +549,12 @@ export class SupervisorAgent extends BaseAgent {
 
     if (this.documentAgent) {
       logger.debug(
-        `${depthIndent}SupervisorAgent: Enriching message with document context for ${callPath}.`,
+        `${depthIndent}SupervisorAgent: Enriching message with document context for ${callPath}.`
       );
-      const docRes = await this.enrichWithDocumentContext(enriched);
+      const docRes = await this.enrichWithDocumentContext(
+        enriched,
+        config?.selectedSnakAgent || config?.agentId
+      );
       enriched = docRes.message;
       documentResults = docRes.documents;
     }
@@ -560,7 +562,7 @@ export class SupervisorAgent extends BaseAgent {
     const globalContext = this.formatGlobalContext(
       memoryResults,
       documentResults,
-      (this.config.starknetConfig.agentConfig as any)?.globalContextTopK ?? 6,
+      (this.config.starknetConfig.agentConfig as any)?.globalContextTopK ?? 6
     );
 
     if (globalContext) {
@@ -575,7 +577,6 @@ export class SupervisorAgent extends BaseAgent {
           global_context: globalContext,
         },
       });
-      
     }
 
     return await this.executeWithMessage(
@@ -1397,7 +1398,7 @@ export class SupervisorAgent extends BaseAgent {
    * @private
    */
   private async enrichWithMemoryContext(
-    message: BaseMessage,
+    message: BaseMessage
   ): Promise<{ message: BaseMessage; memories: any[] }> {
     if (!this.memoryAgent) {
       logger.debug(
@@ -1413,7 +1414,9 @@ export class SupervisorAgent extends BaseAgent {
       );
 
       if (memories.length === 0) {
-        logger.debug('SupervisorAgent: No relevant memories found for context.');
+        logger.debug(
+          'SupervisorAgent: No relevant memories found for context.'
+        );
         return { message, memories: [] };
       }
 
@@ -1446,10 +1449,11 @@ export class SupervisorAgent extends BaseAgent {
 
   private async enrichWithDocumentContext(
     message: BaseMessage,
+    agentId?: string
   ): Promise<{ message: BaseMessage; documents: documents.SearchResult[] }> {
     if (!this.documentAgent) {
       logger.debug(
-        'SupervisorAgent: DocumentAgent not available, skipping context enrichment.',
+        'SupervisorAgent: DocumentAgent not available, skipping context enrichment.'
       );
       return { message, documents: [] };
     }
@@ -1458,16 +1462,19 @@ export class SupervisorAgent extends BaseAgent {
       const docs = await this.documentAgent.retrieveRelevantDocuments(
         message,
         (this.config.starknetConfig.agentConfig as any)?.documents?.topK,
+        agentId || ''
       );
 
       if (!docs.length) {
-        logger.debug('SupervisorAgent: No relevant document chunks found for context.');
+        logger.debug(
+          'SupervisorAgent: No relevant document chunks found for context.'
+        );
         return { message, documents: [] };
       }
 
       const docContext = this.documentAgent.formatDocumentsForContext(docs);
       logger.debug(
-        `SupervisorAgent: Formatted document context (first 100 chars): "${docContext.substring(0, 100)}..."`,
+        `SupervisorAgent: Formatted document context (first 100 chars): "${docContext.substring(0, 100)}..."`
       );
 
       const originalContent =
@@ -1486,7 +1493,7 @@ export class SupervisorAgent extends BaseAgent {
       return { message: enriched, documents: docs };
     } catch (error) {
       logger.error(
-        `SupervisorAgent: Error enriching message with document context: ${error}`,
+        `SupervisorAgent: Error enriching message with document context: ${error}`
       );
       return { message, documents: [] };
     }
@@ -1495,7 +1502,7 @@ export class SupervisorAgent extends BaseAgent {
   private formatGlobalContext(
     memories: any[],
     docs: documents.SearchResult[],
-    topK = 6,
+    topK = 6
   ): string {
     const combined = [
       ...memories.map((m) => ({
@@ -1522,7 +1529,7 @@ export class SupervisorAgent extends BaseAgent {
       .map((item) =>
         item.type === 'memory'
           ? `Memory [id: ${item.id}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
-          : `Document [id: ${item.document_id}, chunk: ${item.chunk_index}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`,
+          : `Document [id: ${item.document_id}, chunk: ${item.chunk_index}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
       )
       .join('\n\n');
 

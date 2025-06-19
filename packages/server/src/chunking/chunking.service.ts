@@ -12,7 +12,7 @@ export class ChunkingService {
   async chunkText(
     documentId: string,
     text: string,
-    options: ChunkOptions,
+    options: ChunkOptions
   ): Promise<Chunk[]> {
     const { chunkSize, overlap, strategy = 'adaptive' } = options;
     if (strategy === 'whitespace') {
@@ -28,7 +28,7 @@ export class ChunkingService {
     documentId: string,
     text: string,
     chunkSize: number,
-    overlap: number,
+    overlap: number
   ): Chunk[] {
     const tokens = text.split(/\s+/);
     const chunks: Chunk[] = [];
@@ -58,7 +58,7 @@ export class ChunkingService {
     documentId: string,
     text: string,
     chunkSize: number,
-    overlap: number,
+    overlap: number
   ): Chunk[] {
     const lines = text.split(/\n/);
     const segments: { text: string; heading: boolean }[] = [];
@@ -142,7 +142,7 @@ export class ChunkingService {
     documentId: string,
     text: string,
     chunkSize: number,
-    overlap: number,
+    overlap: number
   ): Chunk[] {
     const lines = text.split(/\n/);
     const chunks: Chunk[] = [];
