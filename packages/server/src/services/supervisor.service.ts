@@ -8,6 +8,7 @@ import {
   AgentMode,
   SnakAgent,
   SnakAgentConfig,
+  SupervisorAgentConfig,
 } from '@snakagent/agents';
 import { Postgres } from '@snakagent/database';
 import { AgentConfig, ModelsConfig, ModelLevelConfig } from '@snakagent/core';
@@ -107,13 +108,12 @@ export class SupervisorService implements OnModuleInit {
 
       const modelsConfig = await this.getModelsConfig();
 
-      const supervisorConfig = {
+      const supervisorConfig: SupervisorAgentConfig = {
         modelsConfig: modelsConfig,
         starknetConfig: {
           provider: this.config.starknet.provider,
           accountPrivateKey: this.config.starknet.privateKey,
           accountPublicKey: this.config.starknet.publicKey,
-          signature: '',
           db_credentials: {
             database: process.env.POSTGRES_DB as string,
             host: process.env.POSTGRES_HOST as string,
@@ -129,6 +129,7 @@ export class SupervisorService implements OnModuleInit {
             chatId: 'supervisor_chat',
             maxIterations: 15,
           } as AgentConfig,
+          modelSelector: null, // TODO : implement model selector
         },
         debug: process.env.DEBUG === 'true',
       };

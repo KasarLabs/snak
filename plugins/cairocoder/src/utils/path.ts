@@ -46,12 +46,12 @@ export function getRepoRoot() {
  * @returns The full path of the contract file
  */
 export async function resolveContractPath(fileName: string): Promise<string> {
-  let uploadDir = process.env.CAIRO_UPLOAD_DIR;
+  const uploadDir = process.env.CAIRO_UPLOAD_DIR;
   if (!uploadDir) {
     throw new Error('CAIRO_UPLOAD_DIR is not defined');
   }
 
-  let repoRoot = getRepoRoot();
+  const repoRoot = getRepoRoot();
 
   const filePath = path.join(repoRoot, uploadDir, fileName);
 

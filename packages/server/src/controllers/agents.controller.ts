@@ -15,7 +15,6 @@ import {
   logger,
   metrics,
   MessageFromAgentIdDTO,
-  AgentsDeleteRequestDTO,
   AgentAddRequestDTO,
 } from '@snakagent/core';
 

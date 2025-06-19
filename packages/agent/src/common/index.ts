@@ -32,22 +32,6 @@ export interface IAgent {
   execute_call_data(input: string): Promise<unknown>;
 
   /**
-   * Executes agent autonomous the user request and returns the result
-   * @param input The user's request string
-   * @returns Promise resolving to the execution result
-   * @throws AgentExecutionError if execution fails
-   */
-  execute_autonomous(): Promise<unknown>;
-
-  /**
-   * Validates the user request before execution
-   * @param request The user's request string
-   * @returns Promise<boolean> indicating if request is valid
-   * @throws AgentValidationError if validation fails
-   */
-  validateRequest(request: string): Promise<boolean>;
-
-  /**
    * Returns the agent's Starknet account credentials
    * @returns Starknet account credentials
    */

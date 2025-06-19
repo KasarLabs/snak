@@ -23,7 +23,9 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
-    "lint": "eslint \"src/**/*.ts\""
+    "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix"
+
   },
   "keywords": [],
   "author": "KasarLabs",

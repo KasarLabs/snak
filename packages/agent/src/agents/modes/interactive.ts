@@ -1,6 +1,6 @@
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
+import { AIMessage, AIMessageChunk, BaseMessage, HumanMessage } from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -148,7 +148,7 @@ export const createInteractiveAgent = async (
         const filteredMessages = state.messages.filter(
           (msg) =>
             !(
-              msg instanceof AIMessage &&
+              msg instanceof AIMessageChunk &&
               msg.additional_kwargs?.from === 'model-selector'
             )
         );
@@ -181,8 +181,8 @@ export const createInteractiveAgent = async (
               : selectedModelType.model;
 
           const result = await boundModel.invoke(currentMessages);
-          logger.debug(result);
           TokenTracker.trackCall(result, selectedModelType.model_name);
+          console.log("End :", JSON.stringify(formatAIMessageResult(result), null, 2));
           return formatAIMessageResult(result);
         } else {
           const existingModelSelector = ModelSelector.getInstance();

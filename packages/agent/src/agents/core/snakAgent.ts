@@ -2,7 +2,12 @@ import { AgentType, BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { logger, metrics, AgentConfig } from '@snakagent/core';
-import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  AIMessage,
+  AIMessageChunk,
+} from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
@@ -408,9 +413,13 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else if (this.currentMode == AGENT_MODES[AgentMode.AUTONOMOUS]) {
-        const response = await this.execute_autonomous();
-        yield response;
-        return;
+        for await (const chunk of this.execute_autonomous()) {
+          if (chunk.final) {
+            yield chunk;
+            return;
+          }
+          yield chunk;
+        }
       } else {
         return 'Hybrid mode is not supported in this method. Please use execute_hybrid() instead.';
       }
@@ -441,10 +450,8 @@ export class SnakAgent extends BaseAgent {
    * This mode allows the agent to operate continuously based on an initial goal or prompt
    * @returns Promise resolving to the result of the autonomous execution
    */
-  public async execute_autonomous(): Promise<unknown> {
+  public async *execute_autonomous(): AsyncGenerator<any> {
     let responseContent: string | any;
-    // let errorCount = 0;
-    // const maxErrors = 3;
     let fallbackAttempted = false;
     let originalMode = this.currentMode;
     let iterationCount = 0;
@@ -460,7 +467,7 @@ export class SnakAgent extends BaseAgent {
 
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphIterations = 10;
+      const maxGraphIterations = 5;
 
       console.log(JSON.stringify(agentJsonConfig, null, 2));
       const initialHumanMessage = new HumanMessage(
@@ -468,6 +475,9 @@ export class SnakAgent extends BaseAgent {
       );
       let conversationHistory: BaseMessage[] = [initialHumanMessage];
 
+      logger.info(
+        `Thread ID: , ${agentJsonConfig?.chatId || 'autonomous_session'}`
+      );
       const threadConfig = {
         configurable: {
           thread_id: agentJsonConfig?.chatId || 'autonomous_session',
@@ -479,14 +489,63 @@ export class SnakAgent extends BaseAgent {
       );
       try {
         let finalState: any = null;
-
-        finalState = await app.invoke(
+        let chunk_to_save;
+        let iteration_number = 0;
+        for await (const chunk of await app.streamEvents(
           { messages: conversationHistory },
-          { ...threadConfig, recursionLimit: maxGraphIterations }
-        );
+          { ...threadConfig, version: 'v2' }
+        )) {
+          if (chunk.event === 'on_chat_model_stream') {
+            console.log('GETTING ITEARITON');
+            iteration_number = chunk.metadata.langgraph_step;
+          }
+          if (
+            chunk.name === 'Branch<tools,tools,agent,end>' &&
+            chunk.event === 'on_chain_end'
+          ) {
+            chunk_to_save = chunk;
+          }
+
+          logger.debug(
+            `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
+          );
+          if (
+            chunk.event === 'on_chat_model_stream' ||
+            chunk.event === 'on_chat_model_start' ||
+            chunk.event === 'on_chat_model_end'
+          ) {
+            const formatted = FormatChunkIteration(chunk);
+            if (!formatted) {
+              throw new Error(
+                `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk, null, 2)}`
+              );
+            }
+            const formattedChunk: IterationResponse = {
+              event: chunk.event as AgentIterationEvent,
+              kwargs: formatted,
+            };
+            yield {
+              chunk: formattedChunk,
+              iteration_number: iteration_number,
+              final: false,
+            };
+          }
+        }
         logger.debug('Autonomous graph invocation complete.');
         iterationCount = finalState?.iterations || iterationCount;
         console.log('iterationCount : ', iterationCount);
+        logger.info(`Chunk to save ${JSON.stringify(chunk_to_save, null, 2)}`);
+        yield {
+          chunk: {
+            event: chunk_to_save.event,
+            kwargs: {
+              iteration: chunk_to_save,
+            },
+          },
+          iteration_number: iteration_number,
+          final: true,
+        };
+        return;
       } catch (graphExecError: any) {
         logger.error(
           `Error during autonomous graph execution: ${graphExecError}`
