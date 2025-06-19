@@ -66,7 +66,7 @@ export class ConfigurationService {
     );
     this.documentsConfigPath = path.resolve(
       process.cwd(),
-      '..',
+      '../..',
       this.config.DOCUMENTS_CONFIG_PATH
     );
     try {
