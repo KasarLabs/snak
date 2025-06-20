@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: 'postgresql'
+    shm_size: 2g # before: 128m
+    networks:
+      - network
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - ./packages/database/initdb:/docker-entrypoint-initdb.d
+    command: >
+      postgres
+        -c logging_collector=on
+        -c log_directory=/etc/postgresql/log
+        -c log_file_mode=0664
+        -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: snak_server
+    networks:
+      - network
+    ports:
+      - "3002:3002"
+    volumes:
+      - .:/snak:cached
+      # - /snak/node_modules
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    restart: on-failure
+
+  # prisma-studio:
+  #   container_name: prisma-studio
+  #   build:
+  #     context: packages/database
+  #     dockerfile: Dockerfile.studio
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "5555:5555"
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - network
+  #   restart: unless-stopped
+
+networks:
+  network:
+    driver: bridge

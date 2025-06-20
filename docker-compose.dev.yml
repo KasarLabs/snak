@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: 'postgresql'
+    shm_size: 2g # before: 128m
+    networks:
+      - network
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - ./packages/database/initdb:/docker-entrypoint-initdb.d
+    command: >
+      postgres
+        -c logging_collector=on
+        -c log_directory=/etc/postgresql/log
+        -c log_file_mode=0664
+        -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
+    restart: unless-stopped
+
+networks:
+  network:
+    driver: bridge
