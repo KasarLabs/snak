@@ -68,7 +68,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ) {
     try {
-      const data = await req.file();
+      const data = await (req as any).file();
 
       if (!data) {
         throw new BadRequestException('No file uploaded');
