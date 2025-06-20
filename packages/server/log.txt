@@ -1,0 +1,1164 @@
+{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_k4rv32N6O9ylql3ZNUah4lDJ",
+    "name": "get_syncing_status",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "I have successfully retrieved the essential network information. \n\n1. **Chain ID**: `0x534e5f4d41494e` (this identifies the Starknet network).\n2. **Syncing Status**: `false` (indicating that the Starknet node is not currently syncing).\n\nNEXT STEPS: I will proceed to obtain the current specification version of the Starknet RPC provider to further assess the network's setup.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "iteration_number": 1
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 918,
+        "completion_tokens": 90,
+        "total_tokens": 1008,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BjnzRMQ0crcvcJrSLB8crChKPHNvQ",
+    "usage_metadata": {
+      "input_tokens": 918,
+      "output_tokens": 90,
+      "total_tokens": 1008,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_760McekFJJElWf1BaspkdELl",
+    "name": "get_syncing_status",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"blockNumber\":1501170}",
+    "tool_call_id": "call_QD0K8GBRyw3kl3IPGi8g9W3X",
+    "name": "get_block_number",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "67",
+    "tool_call_id": "call_soEAzhm2AnGB6xGKZV6rEgAa",
+    "name": "get_block_transaction_count",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"specVersion\":\"0.7.1\"}",
+    "tool_call_id": "call_RzNkJWDno9RZ9lHqskCWo3V2",
+    "name": "get_spec_version",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "I have successfully gathered the necessary data for my initial objective. Here are the details:\n\n1. **Chain ID**: `0x534e5f4d41494e`\n2. **Syncing Status**: The node is not currently syncing (status: false).\n3. **Current Block Number**: `1501170`\n4. **Block Hash**: `0x761c7d5bc9ec1ce9b449cdfc1c954cc117ba7220fd987088ec7461986f2c8df`\n5. **Transaction Count in Block**: `67`\n6. **Starknet Version**: `0.13.5`\n7. **Spec Version**: `0.7.1`\n\n**Notable Transaction Receipt**: \nThe block contains transactions, one of which has the following notable status:\n- **Transaction Hash**: `0x5f7317a918fc80578defe710b4ffd72a52544102dd378b9747d0d3be4f0ce3c`\n- **Execution Status**: **Reverted** (Execution failed due to insufficient tokens).\n- **Revert Reason**: \"Insufficient tokens received\".\n\nNEXT STEPS: I will now proceed to analyze the details of any specific transactions or blocks as needed for further testing or validation.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "iteration_number": 1
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 6481,
+        "completion_tokens": 283,
+        "total_tokens": 6764,
+        "prompt_tokens_details": {
+          "cached_tokens": 3712,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-Bjo4T6Vv4GJ3wSthT2TPfyPJYB3ZO",
+    "usage_metadata": {
+      "input_tokens": 6481,
+      "output_tokens": 283,
+      "total_tokens": 6764,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 3712
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"transactionStatus\":{\"execution_status\":\"REVERTED\",\"finality_status\":\"ACCEPTED_ON_L2\"}}",
+    "tool_call_id": "call_IwNaos3yGfed23VBPpBqaxJN",
+    "name": "get_transaction_status",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"block\":{\"block_hash\":\"0x761c7d5bc9ec1ce9b449cdfc1c954cc117ba7220fd987088ec7461986f2c8df\",\"block_number\":1501170,\"l1_da_mode\":\"BLOB\",\"l1_data_gas_price\":{\"price_in_fri\":\"0xbf8\",\"price_in_wei\":\"0x1\"},\"l1_gas_price\":{\"price_in_fri\":\"0x4e822d333505\",\"price_in_wei\":\"0xe2b1ad64\"},\"new_root\":\"0x6c788759c082c5ecf50dc7789c91eade97f0eda3e02635dc7ea485e13f9573\",\"parent_hash\":\"0x7621bab2a943254872bffcf5d33e68d6258556d016175379089f34f57732ae4\",\"sequencer_address\":\"0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8\",\"starknet_version\":\"0.13.5\",\"status\":\"ACCEPTED_ON_L2\",\"timestamp\":1750256885,\"transactions\":[\"0x5f7317a918fc80578defe710b4ffd72a52544102dd378b9747d0d3be4f0ce3c\",\"0x4612ec0d4779ccd53ee1e27da393f5e0497c9faf3a4f1a206ea7ca1a6e29ad7\",\"0xb1b9942ba444933e2123568031a1bf7bc7104ce5f4905cf1687cea10221b11\",\"0x2e056ce3c09b33efe6bc4dffe9b4243ff024e7f8ec86fdf5191ecf8ca7f7046\",\"0x578bfbb43e7e97799ae7109fe3f299d959f6117dc61908b57deee7fd0d6dda2\",\"0x20f15eeef0b74699054572f019fb7a0cde5617edbd9c436b7502ed650034c2\",\"0x13b4846a83310624300c71fa24e6b9fbb481d1bf67769f9e5af61426d4329c9\",\"0x23ae83bad55fe3af79a4c86217747ebbdb168352cc0775ea5dff71fd9c21cdc\",\"0x47a052dba571985129be88ef9d05467abc0feef399139e37236802739559398\",\"0x3f222a39ba5691711d33c3db96fda55e2c3eeb6469e0134f4f0c5263469ed74\",\"0x5a92a278ce79e1288653f1908663c6fbc5dbe87f4ee6a9940b1122bb98c3f3e\",\"0x30d503ccd163109ce69fc29b316c2072b078126e37ba4133226ec290532cd50\",\"0x70003eced366c3a37e1f9a4d49c6d6e87a939a6324d0d3b6a9692bed85f69b3\",\"0x7e8b9e226fcb1980c0b37a434b05c898850ff76d22c3b73afbbaea2b1115ad2\",\"0x6987b997f080be370c9b18f8eeceaa2267a78d70cdfa9acb3a4c68455a46eba\",\"0xf63ec3611fe7130ad70df707da2f5562f7785068da236183679b3ef00b6339\",\"0x4cd1c66c91f97cfa3e27899de8a95b6e811d3674e7aa1abfede374251213b9b\",\"0x79157e7c4e35f2cd5bec58c843ed8c5bc565d91014e196171818b1aa599e0b6\",\"0x1bffd216fdba7815ce566e76a8bdc86bdfaa964c348e533469c3de9640e5f0d\",\"0x26f71446e65637ad26e93b50c780b9abfe85057f9e2ce9174b0cd07c1183e53\",\"0x2c92d1da3763010fe4480c264beef1cdd91e22792084b87a96e5564ee269c61\",\"0x59095fc8da452f38d9e04df373bef97ecaad17fc2210c17ea4ecea812e30cb2\",\"0x76a210075094942a7a2329794385bd42a6bb43d6f5f53a314dbaf898da3f003\",\"0x1e4a65ba2c32fbfc9133a0e643812fb5b034457e959d4b4755ec5ead100eecf\",\"0x59033637ccc99d715a0853a869f21b44ebec3c246627f1c6ede4061d61593c4\",\"0x7ad9351a29669ef5d9cb33526f7d0254b28e3508cc32d3bb60099108db69ffc\",\"0x2e907a2f5697f7f21577cf31d847e1eec52b426f2b9d00c21804c98c9c885f4\",\"0x4972e7a54ad898fa3ecce66cef589b60180107a14c475ce57a185bfe522b130\",\"0x55822d74df478d5acebc2b2b40e603e1f857188c86ca14c1b4ab95f44a44538\",\"0x5f5589e71fbb5cfa3b1fe2df44e46568ee8fe98d8769d8a5fec918ce3e1c200\",\"0x4bc4facbe49b497543ca72219656983cce1e6325c5d086476af963454453e38\",\"0x2bd8e07a8df5bfeb2d20fdd22d5af5a41d949738475dc0420b61ebada77ecfb\",\"0x462e60a2678b89c9a0657ea2a61e887c91b2f9ec70cf7a6d57ad34c632ece63\",\"0x29a30afd4cbf9c89ee36b6e2230cde4902c5287cd973995a7a3c5b878b7e0ad\",\"0x5d6f7efd669699b7fed1462badf2875497b7edb46e5e1b0e9126be8dcedd1ff\",\"0x77341159961741739a56973bd7a3a160ae258e92be3de17eefec87bd32776c3\",\"0x52b4b2f68b4d5fd190e65dd00ed6fe1e1c77acceafccef012e0e46808e7f796\",\"0x565245cd00b0d66d6d25b606a74eff88d9cc79b39fbcc87b2ba24f4cfa4c0be\",\"0xd9fb47a4ecc78d130ab13261cce378effc17d701adde73cb6af014bd77b1\",\"0xbacec03348d6bec966300249f1db33b3dac25989e20346dfb0768034929ed4\",\"0x63870092b91ffe10ba2dfc95b0d3990cff510bbf014dd143267f64eed57e64f\",\"0x7c98174f06ba1b20489c0b67391c9bc3a65beac94fe88658d0fb8ad85ba95df\",\"0x6c167d4fab5133a240321691490ad8648d4ac7a1f7ca0cd22fc28bbac3ce06e\",\"0x2801f4a139e2fff7bc86e67ca78b5a0ed01f492f7eb2bcf97981510bfe9d1f1\",\"0x61207e6d652c56e0015363c6f4f8374b82dbedce2f5682eba1a08a2d33dd5ae\",\"0x1a4e6843a6d940de5ae6f30c59d855b6be74841105cc9bfb036f1f8ce172b97\",\"0x7835c6df37e4ce86b1ce138e84fc97b557e7ace04a8c04e3d30a7c5e8c94a7e\",\"0x724cd8f198e38c2b6d8bd9241b9fea7c402e35b97989c115aea6ecf4dc0259e\",\"0x51ee360151a14de2a7a0b56a4d010969083ccb965892a7ede6b059cfcdc15d2\",\"0xa340ef55c894ee2b6ff287d821516f08528f6bac9c17d1eafc58a98f17437a\",\"0x571ed2b7df7a61ddb1aca28906dd06fc03d87da045437a446b5864c60be4231\",\"0x2ee71e3b8d59e0c633b65fb64cce4dd959ae02351fbbe57283821d9e46ef201\",\"0x783972e3480ac33ad87a1e06e3b42b96491cea6cded0baf2afc437c54b0a9f0\",\"0x5819709938440f0e2753200ebdec0cbd80168082ad99661e3884bbb2f3cb903\",\"0x60105f705931ae8a542563a7473edbdde0443210ee24afd86fc8ac45540dcad\",\"0x73949b699e88e468ae5b3da9089c905bd894c7f0dc96fc519b47245c28cd712\",\"0x1795e529125ed8493bd270b3676ee91caf147a8d577641afe9b1a91b1665d14\",\"0x3e560971351890c677a7b7d4f613b2dc48adfba435fc80df4413cca6115af71\",\"0x60161ea5a35523c400486019401cf4f9ebcef7df290ed924fccc60e2ae923f1\",\"0x7fec4ea551efe2753dd58adb1232f9ef096339c360a869a239992f99ea5bb53\",\"0xe8fcc958b4b1e38b3b04dd8cad8f82c0ea348787c1e12273ade989d2e51546\",\"0x2116963b65e4d8b64fd5aa213296e33c25407ccb01580e0239074e6ff956f4f\",\"0x1ac893fa15aa124a5803010299ea396e62881bf56030e56a3510659c7822b41\",\"0xe340c92d62e2f7e468f1d2d16bc95e6771f647eb997f070b4146122fc3a6e1\",\"0x57933d498a73ac6208... [truncated 185 characters]",
+    "tool_call_id": "call_4Gw7bM26gO7yxVQkK5iiuJpi",
+    "name": "get_block_with_tx_hashes",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}
+  }{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"blockNumber\":1506219}",
+    "tool_call_id": "call_I92ReGIrAOkinxBy0CLRUT7L",
+    "name": "get_block_number",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 1
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "The primary objective has been executed, and the following information has been retrieved:\n\n1. **Chain ID:** `0x534e5f4d41494e`\n2. **Current Block Number:** `1506219`\n\nNEXT STEPS: I will check the syncing status of the Starknet node to see if it is in sync with the network. ",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 2
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 958,
+        "completion_tokens": 74,
+        "total_tokens": 1032,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkSImyFUwbJ2uU6RyZ78p9ZmOU8GK",
+    "usage_metadata": {
+      "input_tokens": 958,
+      "output_tokens": 74,
+      "total_tokens": 1032,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_TP67v1FcUT2IiJrZrdfLf3L3",
+    "name": "get_syncing_status",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 3
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "The syncing status of the Starknet node indicates that the node is currently **in sync** with the network.\n\nNEXT STEPS: If you have any specific requests or additional information you'd like me to check, please provide the details! WAITING_FOR_HUMAN_INPUT: What would you like to do next?",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 4
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 962,
+        "completion_tokens": 63,
+        "total_tokens": 1025,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkSIqSOX9AFaORLKfjqO5lZMi6iSY",
+    "usage_metadata": {
+      "input_tokens": 962,
+      "output_tokens": 63,
+      "total_tokens": 1025,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "WAITING_FOR_HUMAN_INPUT: What would you like to do next?",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 5
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 951,
+        "completion_tokens": 17,
+        "total_tokens": 968,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkSIue8PB8SCo1v5e1fDUpoEbuywA",
+    "usage_metadata": {
+      "input_tokens": 951,
+      "output_tokens": 17,
+      "total_tokens": 968,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "WAITING_FOR_HUMAN_INPUT: What would you like to do next?",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 6
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 934,
+        "completion_tokens": 17,
+        "total_tokens": 951,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkSIx8pPJZcHvKhi50kBaWelybafg",
+    "usage_metadata": {
+      "input_tokens": 934,
+      "output_tokens": 17,
+      "total_tokens": 951,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "WAITING_FOR_HUMAN_INPUT: What would you like to do next?",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 7
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 888,
+        "completion_tokens": 17,
+        "total_tokens": 905,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkSIyxesaRTZfIWBuDgrav0VmOo9c",
+    "usage_metadata": {
+      "input_tokens": 888,
+      "output_tokens": 17,
+      "total_tokens": 905,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_3L9kwcYPnmE9Sk3ACByHIZ53",
+    "name": "get_syncing_status",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 1
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "I have successfully retrieved the initial information regarding the Starknet network:\n\n1. **Chain ID:** 0x534e5f4d41494e\n2. **Syncing Status:** The node is not syncing (i.e., it is up to date).\n\nNEXT STEPS: I will now check the current specification version and the current block number of the Starknet network.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 2
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 957,
+        "completion_tokens": 78,
+        "total_tokens": 1035,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkSVcQ7iJORuqBb1iqypTe6WY1Nqc",
+    "usage_metadata": {
+      "input_tokens": 957,
+      "output_tokens": 78,
+      "total_tokens": 1035,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"blockNumber\":1506245}",
+    "tool_call_id": "call_XR2p3CWHdGH1B03qQrAKbibP",
+    "name": "get_block_number",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 3
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_WoDa3WFy28kDIfiZuQZEh319",
+    "name": "get_syncing_status",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 1
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "I have successfully retrieved the following information:\n\n1. **Chain ID**: 0x534e5f4d41494e\n2. **Current Block Number**: 1506267\n3. **Syncing Status**: The node is not currently syncing.\n\nNEXT STEPS: I will proceed to gather more detailed information about the current block, including transaction hashes and transaction count.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 2
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 987,
+        "completion_tokens": 81,
+        "total_tokens": 1068,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkSgWPGBVqrEG4TC9wKyPKfbUPn2d",
+    "usage_metadata": {
+      "input_tokens": 987,
+      "output_tokens": 81,
+      "total_tokens": 1068,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "62",
+    "tool_call_id": "call_kFdI4INEIyRDsaonVadO7Yfh",
+    "name": "get_block_transaction_count",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 3
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"specVersion\":\"0.7.1\"}",
+    "tool_call_id": "call_QJma12yWurkastJYPFX7T8Ye",
+    "name": "get_spec_version",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 1
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "I have successfully executed the initial checks.\n\n1. **Chain ID**: 0x534e5f4d41494e\n2. **Syncing Status**: Not syncing (the node is fully synced)\n3. **Spec Version**: 0.7.1\n\nNEXT STEPS: I will now retrieve the current block number and transaction count for the latest block to gather more information about the network state.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 2
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 990,
+        "completion_tokens": 88,
+        "total_tokens": 1078,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkTAa6L1CfSVmPoDuJv8V3ZbbQPlo",
+    "usage_metadata": {
+      "input_tokens": 990,
+      "output_tokens": 88,
+      "total_tokens": 1078,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"block\":{\"block_hash\":\"0x76c750b3600ad6cff3d77bf2fc6ff1656a04f3a3d4b61fd5898db5558b71378\",\"block_number\":1506328,\"l1_da_mode\":\"BLOB\",\"l1_data_gas_price\":{\"price_in_fri\":\"0xbda\",\"price_in_wei\":\"0x1\"},\"l1_gas_price\":{\"price_in_fri\":\"0x24a79ddcf743\",\"price_in_wei\":\"0x6ae2fac2\"},\"new_root\":\"0x7629af5f1f9a5b8ad5cd8933f8bf6757f306f0e7e49f3a56395e663af13fbdd\",\"parent_hash\":\"0x6ed312c11e3ae776f88d221b98fd47cd4e54095e00792c319262ddc35692f9e\",\"sequencer_address\":\"0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8\",\"starknet_version\":\"0.13.5\",\"status\":\"ACCEPTED_ON_L2\",\"timestamp\":1750414855,\"transactions\":[\"0x6ef5df0eae88cbeff81b7b0f4c45026ccf78b41f8d9e6b33bda5c8166857276\",\"0x6ef750ae6ff1d931fb37a523e9bb388105c8ec5a6d0d0ebc3b5891ef96cca51\",\"0x748e4dd2c9c3cc43cc69b9bd142399b7692d73c004ad0b30ed32e0af996dbbd\",\"0x7c7a05f93d3ac6989a1a810b881a29796f21e3b6c55dcf11b98724c3aa5b996\",\"0xb36cc1f757c6ad59fcc399b730115cd512ae354574f23c8efb048c4883756b\",\"0x2be3f6e1b914c34e75eb60aebb7feb0450bf7930a6dd63f5b898ec2bb1b4a70\",\"0x66bef99d91150f2a1e050211c84866c38fef2563a64ee3ad281ee8e444f49e6\",\"0x6c68377835dad1144981e81c95574eb74a3916ef7b38f1c9824bd0f62425ce2\",\"0x4453a35eac720734daf661206e11ce735e6fdedb689c4e06a085d88748e73d3\",\"0x487520c552683a13449d8c4278ae06d3d38f95324697d0edb310549cc231813\",\"0x3efe6e29bc84c70a1fda32ae7b364fcc2d785ab720c88f34a1e3d3724168c0c\",\"0x734b2d19033b4d1e4cdcb51b48a93680d6135a9e7f3379a8d6f4ac68fa033c2\",\"0x610d6e34ab99efeeba00ed47c1f72275e6bc7f8588becf4a9266d53e5ae01f1\",\"0x7c261f4da69bcb35c5bbf3d82c7789c30bb99ff88aa6de527411ee597aae571\",\"0x2663234f68ffb41dbfa3655cbe44d59929db3b68a4666f45cb30ed2d9965b2a\",\"0x3c8b0f1189a18f640cbf83a37463be88774604d812f3bb065285114295cca3\",\"0x48331a4dd32cbeab3f4a4ea86c6e6ab6edb7fbfc1eb762978336041d341ecf3\",\"0x405f96a314195b2f3ad29383c723a00ab9b228ee38a555f3d3967b2fa9d46b2\",\"0x4dda4c76feb083ead4bf3a18a43d96796b23e54b874590c47a13051b757a0a1\",\"0x27a4d6578a1b1f73c1b639a17af90936e9125159842c5b0a42a091b7fdc24b3\",\"0x1eeb693ff13ad6d989c9a98c9b5f0f18bbb960db6def67f0c415228e535e3c1\",\"0x393a1a888b60324991cec23e9925ed58d979017f1b8f0b6aa6d3754fc78166f\",\"0x35b5bcfc6c064ef38a5306a745098f9867caa86205b356e966d3eae369daf84\",\"0x67be2c3cf3dc3cca713a27bacba11ff11a660cab3131f795afbf79e8d06c769\",\"0x7eb2f6e90822301fde71cab43604cac23637a9fcecfaadbaee931ee93378976\",\"0x40e2c7b5c9459962a8429689599735ee70bf4e65fe8cbe74d678bfd63aafc3a\",\"0x6d75ff617fa23d416e1a92d6adb5c6b2dd524c19160c6d8b54af5500bda261b\",\"0x5a4e87772509739535d6f44f0d5d1cc23c88d424368c51f1b0e5eb2d463009d\",\"0x741ca075e676cd126458caa9e8def811c72985ac655ce32a6a8dedee5e2488e\",\"0x5f9a447d7a5aa0648d7ed3f473fdfe59b56621ca04bdacb8e997776a3b8d548\",\"0x52444f283ad37f8b6b965d4bb2a1824904ff4646f8dab0780383414c4b03fce\",\"0x24e40e9e63bc99b3cf9e6a44fe468343e47cc73bc8e66fa96ae010159704abd\",\"0x1448f036778950b3532833d644f7c8ac97784d10239df8d24cd9c55474da54c\",\"0xd7569beed3c6aac1e1527dea72766999af1d19be56423fc253821c8a40cee6\",\"0x35464b7731c5699b940c13aa80d13064521d678cf6803c87c2eb4ed0095b8b8\",\"0x11eab7426c5057fa7bc2d3bd0296d7fe9d6699eab85a3d87e83f891a0e74093\",\"0x61fb9a8833e0fc34507f9bdf42f2a4602cea528bf9ef451aa45e234822cf0bf\",\"0xebfcf6bcec1c11dec080c79d987652e5adc9723c0374f361fdf091bb56f3a4\",\"0x6bb81b07291b528299338a943a9fbddb6490c438ba1c73b5d94e46d281efd74\",\"0x56b9c8ceb9bd17b8daf03b149becc5232d4e3175098ee0f2c3b654c2111b9f0\",\"0x633e93855d47da1a3874a294a9f13320c64d15d03460ee1dbd96a6ad53676ce\",\"0x6c43d6293812f1242c19df1a72049d22df2c99bda41266f77c3d24a4591feae\",\"0x5676168aa862dce2395c35cab1b101a5e38bfef0f2d5b86c5607c2571d39936\"]}}",
+    "tool_call_id": "call_L6EmxaiJFBPZa6xaJneExE8N",
+    "name": "get_block_with_tx_hashes",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 3
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "To initiate the primary objective of testing the Starknet RPC functionality, I will begin by retrieving the current chain ID to verify that I can interface with the Starknet network correctly.\n\nNEXT STEPS: I will execute the function `get_chain_id` to retrieve the unique identifier of the Starknet network.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 1
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 863,
+        "completion_tokens": 61,
+        "total_tokens": 924,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkTb2wPCQp5QMTLGnJ191g34gV26k",
+    "usage_metadata": {
+      "input_tokens": 863,
+      "output_tokens": 61,
+      "total_tokens": 924,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"chainId\":\"0x534e5f4d41494e\"}",
+    "tool_call_id": "call_O0ZKVGlWsugMcJsEvYe3fogv",
+    "name": "get_chain_id",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 2
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "I have successfully retrieved the chain ID of the Starknet network, which is \"0x534e5f4d41494e\".\n\nNEXT STEPS: The next step is to check the syncing status of the Starknet node to ensure it is up to date and responsive. I will execute the `get_syncing_status` function.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 3
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 971,
+        "completion_tokens": 69,
+        "total_tokens": 1040,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkTb7svwr5rl6PbK8cV5JUp2R65iv",
+    "usage_metadata": {
+      "input_tokens": 971,
+      "output_tokens": 69,
+      "total_tokens": 1040,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_aN9esNvDLvO3gEULAnxZceYR",
+    "name": "get_syncing_status",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 4
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "The syncing status of the Starknet node indicates that it is not currently syncing and is fully up to date.\n\nNEXT STEPS: Next, I will retrieve the current block number from the Starknet network to understand the latest state of the blockchain. I will execute the `get_block_number` function.",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "start_iteration": 1,
+      "iteration_number": 5
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 1080,
+        "completion_tokens": 61,
+        "total_tokens": 1141,
+        "prompt_tokens_details": {
+          "cached_tokens": 1024,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    "tool_call_chunks": [],
+    "id": "chatcmpl-BkTbCg0CRQB9Z9BTIChjP0RjEUiUe",
+    "usage_metadata": {
+      "input_tokens": 1080,
+      "output_tokens": 61,
+      "total_tokens": 1141,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 1024
+      },
+      "output_token_details": {
+        "audio": 0,
+        "reasoning": 0
+      }
+    },
+    "tool_calls": [],
+    "invalid_tool_calls": []
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"blockNumber\":1506382}",
+    "tool_call_id": "call_jksqUw13XtiicRwgMK2Rx8mQ",
+    "name": "get_block_number",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 6
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "Start executing the primary objective defined in your system prompt.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_T7B06FxCxpygD9kHJLTS2bgi",
+    "name": "get_syncing_status",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 1
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"chainId\":\"0x534e5f4d41494e\"}",
+    "tool_call_id": "call_P1VPfIsLThKdqEgDijami1jl",
+    "name": "get_chain_id",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 2
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"block\":{\"block_hash\":\"0x66a828065178f3941b03347d43c0e4b662022422ddd4e31c436559726174a29\",\"block_number\":1506618,\"l1_da_mode\":\"BLOB\",\"l1_data_gas_price\":{\"price_in_fri\":\"0xbe3\",\"price_in_wei\":\"0x1\"},\"l1_gas_price\":{\"price_in_fri\":\"0x22465506e0fa\",\"price_in_wei\":\"0x63ac7ff2\"},\"new_root\":\"0x4a6227d1a5b39924b3a8ca96a145cfc71c3488adca1ab229d1e58a4eee8839c\",\"parent_hash\":\"0x35b400a751b5694af27b9d7f559a4f5519ed2fe554ce8a1b53b59901955e084\",\"sequencer_address\":\"0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8\",\"starknet_version\":\"0.13.5\",\"status\":\"ACCEPTED_ON_L2\",\"timestamp\":1750423727,\"transactions\":[{\"receipt\":{\"actual_fee\":{\"amount\":\"0x2a70727d6a\",\"unit\":\"WEI\"},\"events\":[{\"data\":[\"0x0\",\"0x57eff7df66d30659812e459c6b1bff82b4fe9d5066463d6b9cda0886e4b275a\"],\"from_address\":\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"keys\":[\"0x302b4aa3237648863fc569a648f3625780753ababf66d86fd6f7e7bbc648c63\",\"0x1d0c51698a879be164257fa8f770ebf6871481295f7541f54c4edfe91ceafca\"]},{\"data\":[\"0x0\",\"0x1560fa5d2153bc2e2c43e1f2d47ccc1dc2e2cd4bfe027b25c397235efa4ad0b\"],\"from_address\":\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"keys\":[\"0x302b4aa3237648863fc569a648f3625780753ababf66d86fd6f7e7bbc648c63\",\"0x62def8741dc30f4286d1da5eb7e0dbf21a17f29e841b05f4224f14e22907586\"]},{\"data\":[\"0x1560fa5d2153bc2e2c43e1f2d47ccc1dc2e2cd4bfe027b25c397235efa4ad0b\"],\"from_address\":\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"keys\":[\"0x1d9ca8a89626bead91b5cb4275a622219e9443975b34f3fdbc683e8621231a9\",\"0x57eff7df66d30659812e459c6b1bff82b4fe9d5066463d6b9cda0886e4b275a\"]},{\"data\":[\"0x62def8741dc30f4286d1da5eb7e0dbf21a17f29e841b05f4224f14e22907586\"],\"from_address\":\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"keys\":[\"0x20609eed4f18b29b5ad13e483b8ab69924632ea4816a40dd30e75437a096abd\",\"0x1d0c51698a879be164257fa8f770ebf6871481295f7541f54c4edfe91ceafca\"]},{\"data\":[\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"0x40c94eed22c9a80383136565cb19cb8c05e6397c47a83a3f4bbea6b1c129f7f\",\"0x0\",\"0x36078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f\",\"0x5\",\"0x0\",\"0x57eff7df66d30659812e459c6b1bff82b4fe9d5066463d6b9cda0886e4b275a\",\"0x0\",\"0x0\",\"0x1560fa5d2153bc2e2c43e1f2d47ccc1dc2e2cd4bfe027b25c397235efa4ad0b\",\"0x57eff7df66d30659812e459c6b1bff82b4fe9d5066463d6b9cda0886e4b275a\"],\"from_address\":\"0x41a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02bf\",\"keys\":[\"0x26b160f10156dea0639bec90696772c640b9706a47f5b8c52ea1abe5858b34d\"]},{\"data\":[],\"from_address\":\"0x377c2d65debb3978ea81904e7d59740da1f07412e30d01c5ded1c5d6f1ddc43\",\"keys\":[\"0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9\",\"0x0\",\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"0x13ad225cbc9e45248bfefd791de4ed19\",\"0x0\"]},{\"data\":[],\"from_address\":\"0x377c2d65debb3978ea81904e7d59740da1f07412e30d01c5ded1c5d6f1ddc43\",\"keys\":[\"0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9\",\"0x0\",\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"0xfc0a6d745bab43c489a59ace752f3b69\",\"0x0\"]},{\"data\":[\"0x2\",\"0x0\",\"0x0\"],\"from_address\":\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"keys\":[\"0x1dcde06aabdbca2f80aa51392b345d7549d7757aa855f7e37f5d335ac8243b1\",\"0x78cb2ad5961fba6834f27b904a307b2847c1a93b06548aa2489840764de4186\"]},{\"data\":[\"0x2\",\"0x1\",\"0x6471ab45d3b6b701ba9ae20654624ca6375fb1f273ad469217e23fc7de5e298\",\"0x1\",\"0x1\"],\"from_address\":\"0x40c94eed22c9a80383136565cb19cb8c05e6397c47a83a3f4bbea6b1c129f7f\",\"keys\":[\"0x1dcde06aabdbca2f80aa51392b345d7549d7757aa855f7e37f5d335ac8243b1\",\"0x61e90a11247fe1f03469d8122dff59eb13b8f61e90ca41745f815b47bd6e1af\"]},{\"data\":[\"0x40c94eed22c9a80383136565cb19cb8c05e6397c47a83a3f4bbea6b1c129f7f\",\"0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8\",\"0x2a70727d6a\",\"0x0\"],\"from_address\":\"0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7\",\"keys\":[\"0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9\"]}],\"execution_resources\":{\"data_availability\":{\"l1_data_gas\":672,\"l1_gas\":0},\"ec_op_builtin_applications\":21,\"pedersen_builtin_applications\":120,\"poseidon_builtin_applications\":47,\"range_check_builtin_applications\":1057,\"steps\":36540},\"execution_status\":\"SUCCEEDED\",\"finality_status\":\"ACCEPTED_ON_L2\",\"messages_sent\":[],\"transaction_hash\":\"0x61e90a11247fe1f03469d8122dff59eb13b8f61e90ca41745f815b47bd6e1af\",\"type\":\"INVOKE\"},\"transaction\":{\"calldata\":[\"0x2\",\"0x41a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02bf\",\"0x1987cbd17808b9a23693d4de7e246a443cfe37e6e7fbaeabd7d7e6532b07c3d\",\"0x9\",\"0x36078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f\",\"0x57eff7df66d30659812e459c6b1bff82b4fe9d5066463d6b9cda0886e4b275a\",\"0x0\",\"0x5\",\"0x0\",\"0x57eff7df66d30659812e459c6b1bff82b4fe9d5066463d6b9cda0886e4b275a\",\"0x0\",\"0x0\",\"0x1560fa5d2153bc2e2c43e1f2d47ccc1dc2e2cd4bfe027b25c397235efa4ad0b\",\"0x127021a1b5a52d3174c2ab077c2b043c80369250d29428... [truncated 455655 characters]",
+    "tool_call_id": "call_pbDPyMOzLTRDFbmrjKW8Rhmz",
+    "name": "get_block_with_receipts",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 3
+    },
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "HELLO",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}

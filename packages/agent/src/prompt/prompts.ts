@@ -31,8 +31,9 @@ export const autonomousRules = `
 `;
 
 export const hybridRules = `
-    You are now operating in HYBRID MODE. This means:
-        
+    You are now operating in HYBRID testMODE. This means:
+    
+    0. You need to execute the 6th rules the most of the time(WAITING_FOR_HUMAN_INPUT).
     1. You can work autonomously to complete tasks step by step.
     2. Break down complex tasks into manageable steps.
     3. Think step-by-step about your plan and reasoning.

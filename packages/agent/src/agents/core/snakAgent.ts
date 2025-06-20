@@ -16,6 +16,7 @@ import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
 // import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
 import { RunnableConfig } from '@langchain/core/runnables';
+import { Command } from '@langchain/langgraph';
 /**
  * Configuration interface for SnakAgent initialization
  */
@@ -302,7 +303,7 @@ export class SnakAgent extends BaseAgent {
         `SnakAgent: Input type is ${typeof input}, checking conversion.`
       );
 
-      const graphState = {
+      let graphState = {
         messages: [new HumanMessage(input)],
       };
 
@@ -333,44 +334,77 @@ export class SnakAgent extends BaseAgent {
       const app = this.agentReactExecutor.app;
       let chunk_to_save;
       let iteration_number = 0;
+      let isInterrupted = false;
+      let command: Command | undefined;
+      while (-1) {
+        let userInput = !isInterrupted ? graphState : command;
 
-      for await (const chunk of await app.streamEvents(
-        graphState,
-        runnableConfig
-      )) {
-        if (
-          chunk.name === 'Branch<agent>' &&
-          chunk.event === 'on_chain_start'
-        ) {
-          iteration_number++;
-        }
-        if (chunk.name === 'Branch<agent>' && chunk.event === 'on_chain_end') {
-          chunk_to_save = chunk;
-        }
-
-        logger.debug(
-          `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
-        );
-        if (
-          chunk.event === 'on_chat_model_stream' ||
-          chunk.event === 'on_chat_model_start' ||
-          chunk.event === 'on_chat_model_end'
-        ) {
-          const formatted = FormatChunkIteration(chunk);
-          if (!formatted) {
-            throw new Error(
-              `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk)}`
-            );
+        for await (const chunk of await app.streamEvents(
+          graphState,
+          runnableConfig
+        )) {
+          if (
+            chunk.name === 'Branch<agent>' &&
+            chunk.event === 'on_chain_start'
+          ) {
+            iteration_number++;
           }
-          const formattedChunk: IterationResponse = {
-            event: chunk.event as AgentIterationEvent,
-            kwargs: formatted,
-          };
-          yield {
-            chunk: formattedChunk,
-            iteration_number: iteration_number,
-            final: false,
-          };
+          if (
+            chunk.name === 'Branch<agent>' &&
+            chunk.event === 'on_chain_end'
+          ) {
+            chunk_to_save = chunk;
+          }
+
+          logger.debug(
+            `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
+          );
+          if (
+            chunk.event === 'on_chat_model_stream' ||
+            chunk.event === 'on_chat_model_start' ||
+            chunk.event === 'on_chat_model_end'
+          ) {
+            const formatted = FormatChunkIteration(chunk);
+            if (!formatted) {
+              throw new Error(
+                `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk)}`
+              );
+            }
+            const formattedChunk: IterationResponse = {
+              event: chunk.event as AgentIterationEvent,
+              kwargs: formatted,
+            };
+            yield {
+              chunk: formattedChunk,
+              iteration_number: iteration_number,
+              final: false,
+            };
+          }
+        }
+
+        const state = await app.getState({
+          configurable: {
+            thread_id: threadId || 'default',
+          },
+          recursionLimit: 500,
+          version: 'v2',
+        });
+
+        if (state.tasks[0].interrupts) {
+          logger.debug(
+            `SnakAgent: Graph interrupted, checking for next steps.`
+          );
+          if (state.tasks[0].interrupts.length > 0) {
+            logger.debug(`SnakAgent: Interrupts found, continuing execution.`);
+            isInterrupted = true;
+            command = new Command({
+              resume: 'Can you tell me whats is your objectives ?',
+            });
+            continue;
+          } else {
+            logger.debug(`SnakAgent: No interrupts found, ending execution.`);
+            break;
+          }
         }
       }
       yield {
@@ -484,7 +518,8 @@ export class SnakAgent extends BaseAgent {
           thread_id: agentJsonConfig?.chatId || 'autonomous_session',
           config: {
             max_graph_steps: maxGraphIterations,
-            short_term_memory: 2,
+            short_term_memory: 5,
+            human_in_the_loop: true,
           },
         },
       };
@@ -496,53 +531,80 @@ export class SnakAgent extends BaseAgent {
         let finalState: any = null;
         let chunk_to_save;
         let iteration_number = 0;
-
-        for await (const chunk of await app.streamEvents(
-          { messages: conversationHistory },
-          {
-            ...threadConfig,
-            recursionLimit: 500,
-            version: 'v2',
-          }
-        )) {
-          if (chunk.event === 'on_chat_model_stream') {
-            iteration_number = chunk.metadata.langgraph_step;
-          }
-          if (
-            chunk.name === 'Branch<tools,tools,agent,end>' &&
-            chunk.event === 'on_chain_end'
-          ) {
-            chunk_to_save = chunk;
-          }
-
-          logger.debug(
-            `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
-          );
-          if (
-            chunk.event === 'on_chat_model_start' ||
-            chunk.event === 'on_chat_model_end'
-          ) {
-            const formatted = FormatChunkIteration(chunk);
-            if (!formatted) {
-              throw new Error(
-                `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk, null, 2)}`
-              );
+        let isInterrupted = false;
+        let command: Command | undefined;
+        let graphState = { messages: conversationHistory };
+        let config = {
+          ...threadConfig,
+          recursionLimit: 500,
+          version: 'v2',
+        };
+        while (-1) {
+          let userInput = !isInterrupted ? graphState : command;
+          for await (const chunk of await app.streamEvents(userInput, config)) {
+            if (chunk.event === 'on_chat_model_stream') {
+              iteration_number = chunk.metadata.langgraph_step;
             }
-            const formattedChunk: IterationResponse = {
-              event: chunk.event as AgentIterationEvent,
-              kwargs: formatted,
-            };
-            yield {
-              chunk: formattedChunk,
-              iteration_number: iteration_number,
-              final: false,
-            };
+            if (
+              chunk.name === 'Branch<tools,tools,agent,end>' &&
+              chunk.event === 'on_chain_end'
+            ) {
+              chunk_to_save = chunk;
+            }
+
+            logger.debug(
+              `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
+            );
+            if (
+              chunk.event === 'on_chat_model_start' ||
+              chunk.event === 'on_chat_model_end'
+            ) {
+              const formatted = FormatChunkIteration(chunk);
+              if (!formatted) {
+                throw new Error(
+                  `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk, null, 2)}`
+                );
+              }
+              const formattedChunk: IterationResponse = {
+                event: chunk.event as AgentIterationEvent,
+                kwargs: formatted,
+              };
+              yield {
+                chunk: formattedChunk,
+                iteration_number: iteration_number,
+                final: false,
+              };
+            }
+          }
+          console.log('--- GRAPH INTERRUPTED ---');
+
+          const state = await app.getState(config);
+
+          console.log(JSON.stringify(state, null, 2));
+          if (state.tasks[0].interrupts) {
+            logger.debug(
+              `SnakAgent: Graph interrupted, checking for next steps.`
+            );
+            if (state.tasks[0].interrupts.length > 0) {
+              logger.debug(
+                `SnakAgent: Interrupts found, continuing execution.`
+              );
+              isInterrupted = true;
+              command = new Command({
+                resume: 'Can you tell me whats is your objectives ?',
+              });
+              continue;
+            } else {
+              logger.debug(`SnakAgent: No interrupts found, ending execution.`);
+              break;
+            }
           }
         }
+
         logger.debug('Autonomous graph invocation complete.');
         iterationCount = finalState?.iterations || iterationCount;
         console.log('iterationCount : ', iterationCount);
-        logger.info(`Chunk to save ${JSON.stringify(chunk_to_save, null, 2)}`);
+        // logger.info(`Chunk to save ${JSON.stringify(chunk_to_save, null, 2)}`);
         yield {
           chunk: {
             event: chunk_to_save.event,

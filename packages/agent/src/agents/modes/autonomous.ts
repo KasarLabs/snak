@@ -8,6 +8,9 @@ import {
   END,
   START,
   Graph,
+  interrupt,
+  Command,
+  MessagesAnnotation,
 } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
@@ -31,7 +34,7 @@ import {
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
-import { autonomousRules } from '../../prompt/prompts.js';
+import { autonomousRules, hybridRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import fs from 'fs';
 import { queryObjects } from 'v8';
@@ -272,7 +275,7 @@ export const createAutonomousAgent = async (
       const autonomousSystemPrompt = `
         ${agent_config.prompt.content}
 
-        ${autonomousRules}
+        ${hybridRules}
 
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
       const messages = state.messages;
@@ -468,23 +471,123 @@ export const createAutonomousAgent = async (
       return 'agent';
     }
 
-    const workflow = new StateGraph(GraphState)
-      .addNode('agent', callModel)
-      .addNode('tools', toolNode);
+    function shouldContinueHybrid(
+      state: typeof GraphState.State,
+      config?: RunnableConfig
+    ): 'tools' | 'agent' | 'end' | 'human' {
+      const messages = state.messages;
+      const lastMessage = messages[messages.length - 1];
+      console.log('Object : ', Object.getPrototypeOf(lastMessage));
+      if (lastMessage instanceof AIMessageChunk) {
+        if (
+          lastMessage.content.toString().includes('WAITING_FOR_HUMAN_INPUT')
+        ) {
+          return 'human';
+        }
+        if (
+          lastMessage.additional_kwargs.final === true ||
+          lastMessage.content.toString().includes('FINAL ANSWER')
+        ) {
+          logger.info(
+            `Final message received, routing to end node. Message: ${lastMessage.content}`
+          );
+          return 'end';
+        }
+        if (lastMessage.tool_calls?.length) {
+          logger.debug(
+            `Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`
+          );
+          return 'tools';
+        }
+      } else if (lastMessage instanceof ToolMessage) {
+        const lastAiMessage = getLatestMessageForMessage(
+          messages,
+          AIMessageChunk
+        );
+        if (!lastAiMessage) {
+          throw new Error('Error trying to get last AIMessageChunk');
+        }
 
-    workflow.addEdge(START, 'agent');
+        const startIteration = lastAiMessage.additional_kwargs
+          .start_iteration as number;
 
-    workflow.addConditionalEdges('agent', shouldContinue, {
-      tools: 'tools',
-      agent: 'agent',
-      end: END,
-    });
+        if (
+          (config?.metadata?.langgraph_step as number) >=
+          config?.configurable?.config.max_graph_steps + startIteration
+        ) {
+          logger.info(
+            `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
+          );
+          return 'end';
+        }
 
-    workflow.addConditionalEdges('tools', shouldContinue, {
-      tools: 'tools',
-      agent: 'agent',
-      end: END,
-    });
+        logger.debug(
+          `Received ToolMessage, routing back to agent node. Message: ${lastMessage.content}`
+        );
+        return 'agent';
+      }
+      logger.info('Routing to AgentMode');
+      return 'agent';
+    }
+
+    async function humanNode(
+      state: typeof MessagesAnnotation.State
+    ): Promise<{ messages: BaseMessage[] }> {
+      const lastMessage = state.messages[
+        state.messages.length - 1
+      ] as AIMessage;
+      // const toolCallId = lastMessage.tool_calls?.[0].id;
+      const location: string = interrupt('Please provide your location:');
+
+      return {
+        messages: [
+          new AIMessageChunk({
+            content: location,
+          }),
+        ],
+      };
+    }
+    const human_in_the_loop = true;
+    let workflow;
+    if (!human_in_the_loop) {
+      workflow = new StateGraph(GraphState)
+                                                  .addNode('agent', callModel)
+        .addNode('tools', toolNode);
+
+      workflow.addEdge(START, 'agent');
+
+      workflow.addConditionalEdges('agent', shouldContinue, {
+        tools: 'tools',
+        agent: 'agent',
+        end: END,
+      });
+
+      workflow.addConditionalEdges('tools', shouldContinue, {
+        tools: 'tools',
+        agent: 'agent',
+        end: END,
+      });
+    } else {
+      workflow = new StateGraph(GraphState)
+        .addNode('agent', callModel)
+        .addNode('tools', toolNode)
+        .addNode('human', humanNode);
+
+      workflow.addEdge(START, 'agent');
+      workflow.addEdge('human', 'agent');
+      workflow.addConditionalEdges('agent', shouldContinueHybrid, {
+        tools: 'tools',
+        agent: 'agent',
+        human: 'human',
+        end: END,
+      });
+
+      workflow.addConditionalEdges('tools', shouldContinueHybrid, {
+        tools: 'tools',
+        agent: 'agent',
+        end: END,
+      });
+    }
 
     const checkpointer = new MemorySaver(); // For potential state persistence
     const app = workflow.compile({ checkpointer });
