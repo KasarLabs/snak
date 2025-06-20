@@ -26,7 +26,10 @@
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "db:pull": "dotenv -e ../../.env -- prisma db pull",
+    "db:generate": "dotenv -e ../../.env -- prisma generate",
+    "db:studio": "dotenv -e ../../.env -- prisma studio"
   },
   "exports": {
     ".": "./dist/database.js",
@@ -51,11 +54,14 @@
     }
   },
   "dependencies": {
-    "pg": "^8.14.1",
-    "@snakagent/core": "workspace:*"
+    "@prisma/client": "^6.10.1",
+    "@snakagent/core": "workspace:*",
+    "pg": "^8.14.1"
   },
   "devDependencies": {
     "@types/pg": "^8.11.13",
+    "dotenv-cli": "^8.0.0",
+    "prisma": "^6.10.1",
     "typescript": "latest"
   },
   "gitHead": "01d96634bbdf479afb73b2378f57688da907feb9"
