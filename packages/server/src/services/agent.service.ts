@@ -139,7 +139,19 @@ export class AgentService implements IAgentService {
 
   async getAllAgents(): Promise<AgentConfigSQL[]> {
     try {
-      const q = new Postgres.Query(`SELECT * FROM agents`);
+      const q = new Postgres.Query(`
+			SELECT
+			  id, name, "group", description, lore, objectives, knowledge,
+			  system_prompt, interval, plugins, memory, mode, max_iterations,
+			  "mcpServers",
+			  CASE
+				WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
+				THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
+				ELSE NULL
+			  END as "avatarUrl",
+			  avatar_mime_type
+			FROM agents
+		  `);
       const res = await Postgres.query<AgentConfigSQL>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
