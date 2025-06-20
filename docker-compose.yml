@@ -1,38 +1,16 @@
 services:
-  # init-logs:
-  #   image: alpine
-  #   container_name: 'init-logs'
-  #   networks:
-  #     - snak_network
-  #   volumes:
-  #     - ./packages/database/log:/etc/postgresql/log
-  #   command: chmod 777 /etc/postgresql/log
-
-  # init-data:
-  #   image: alpine
-  #   container_name: 'init-data'
-  #   networks:
-  #     - snak_network
-  #   volumes:
-  #     - ./packages/database/data:/var/lib/postgresql/data
-  #   command: chmod 777 /var/lib/postgresql/data
   postgres:
     image: pgvector/pgvector:pg17
     container_name: 'postgresql'
     shm_size: 2g # before: 128m
     networks:
-      - snak_network
+      - network
     ports:
       - "5432:5432"
     env_file:
       - .env
     volumes:
-      - ./packages/database/log:/etc/postgresql/log
-      - ./packages/database/data:/var/lib/postgresql/data
       - ./packages/database/initdb:/docker-entrypoint-initdb.d
-    # depends_on:
-    #   - init-logs
-    #   - init-data
     command: >
       postgres
         -c logging_collector=on
@@ -40,25 +18,40 @@ services:
         -c log_file_mode=0664
         -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
     restart: unless-stopped
+
   server:
     build:
       context: .
-      dockerfile: packages/server/Dockerfile.dev
+      dockerfile: packages/server/Dockerfile
     container_name: snak_server
     networks:
-      - snak_network
+      - network
     ports:
       - "3002:3002"
     volumes:
-      - .:/app
-      - /app/node_modules
+      - .:/snak:cached
+      # - /snak/node_modules
     env_file:
       - .env
     depends_on:
       - postgres
     restart: on-failure
 
+  # prisma-studio:
+  #   container_name: prisma-studio
+  #   build:
+  #     context: packages/database
+  #     dockerfile: Dockerfile.studio
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "5555:5555"
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - network
+  #   restart: unless-stopped
 
 networks:
-  snak_network:
+  network:
     driver: bridge
