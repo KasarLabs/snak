@@ -1,2 +1,12 @@
 packages/database/data
 packages/database/log
+
+node_modules
+*.log
+dist
+packages/**/node_modules
+packages/**/dist
+
+.git
+.turbo
+.github
