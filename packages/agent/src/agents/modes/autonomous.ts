@@ -226,9 +226,34 @@ export const createAutonomousAgent = async (
         config?.configurable?.config.max_graph_steps,
         config?.configurable?.config.short_term_memory
       );
+      let iteration_number = 0;
 
       const maxGraphSteps = config?.configurable?.config.max_graph_steps;
       const shortTermMemory = config?.configurable?.config.short_term_memory;
+      const messages = state.messages;
+      const lastMessage = messages[messages.length - 1];
+      const lastMessageAi = getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      );
+
+      console.log('Messages Lenght', messages.length);
+      if (lastMessage instanceof ToolMessage) {
+        logger.debug('ToolMessage Detected');
+
+        if (!lastMessageAi) {
+          throw new Error('Error trying to get latest AI Message Chunk');
+        }
+        // logger.info(
+        //   `Last Message AI ${JSON.stringify(lastMessageAi, null, 2)}`
+        // );
+        iteration_number =
+          (lastMessageAi.additional_kwargs.iteration_number as number) || 0;
+      } else if (lastMessage instanceof AIMessageChunk) {
+        iteration_number =
+          (lastMessage.additional_kwargs.iteration_number as number) || 0;
+      }
+      iteration_number++;
       let startIteration: number = 0;
       if ((config?.metadata?.langgraph_step as number) === 1) {
         startIteration = 1;
@@ -252,10 +277,8 @@ export const createAutonomousAgent = async (
       }
 
       logger.info(`startIteration: ${startIteration}`);
-      if (
-        (config?.metadata?.langgraph_step as number) >=
-        config?.configurable?.config.max_graph_steps + startIteration
-      ) {
+      console.log('iteration_number', iteration_number);
+      if (maxGraphSteps <= iteration_number) {
         return {
           messages: [
             new AIMessageChunk({
@@ -278,33 +301,8 @@ export const createAutonomousAgent = async (
         ${hybridRules}
 
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
-      const messages = state.messages;
-      const lastMessage = messages[messages.length - 1];
-
-      let iteration_number = 0;
 
       fs.appendFileSync('log.txt', JSON.stringify(lastMessage, null, 2));
-      const lastMessageAi = getLatestMessageForMessage(
-        state.messages,
-        AIMessageChunk
-      );
-      console.log('Messages Lenght', messages.length);
-      if (lastMessage instanceof ToolMessage) {
-        logger.debug('ToolMessage Detected');
-
-        if (!lastMessageAi) {
-          throw new Error('Error trying to get latest AI Message Chunk');
-        }
-        // logger.info(
-        //   `Last Message AI ${JSON.stringify(lastMessageAi, null, 2)}`
-        // );
-        iteration_number =
-          (lastMessageAi.additional_kwargs.iteration_number as number) || 0;
-      } else if (lastMessage instanceof AIMessageChunk) {
-        iteration_number =
-          (lastMessage.additional_kwargs.iteration_number as number) || 0;
-      }
-      iteration_number++;
       logger.debug(
         `Autonomous agent callModel: Iteration number is ${iteration_number}`
       );
@@ -319,9 +317,9 @@ export const createAutonomousAgent = async (
         const filteredMessages = [];
         for (let i = state.messages.length - 1; i >= 0; i--) {
           const msg = state.messages[i];
-          logger.debug(
-            `Adding message to filteredMessages: ${JSON.stringify(msg)}`
-          );
+          // logger.debug(
+          //   `Adding message to filteredMessages: ${JSON.stringify(msg)}`
+          // );
           if (
             !(
               (msg instanceof AIMessageChunk || msg instanceof ToolMessage) &&
@@ -344,10 +342,12 @@ export const createAutonomousAgent = async (
           }
         }
 
-        console.log(JSON.stringify(filteredMessages, null, 2));
+        // console.log(JSON.stringify(prompt, null, 2));
+        // console.log(JSON.stringify(filteredMessages, null, 2));
         const formattedPrompt = await prompt.formatMessages({
           messages: filteredMessages,
         });
+        console.log(JSON.stringify(formattedPrompt, null, 2));
 
         const selectedModelType =
           await modelSelector.selectModelForMessages(filteredMessages);
@@ -479,11 +479,7 @@ export const createAutonomousAgent = async (
       const lastMessage = messages[messages.length - 1];
       console.log('Object : ', Object.getPrototypeOf(lastMessage));
       if (lastMessage instanceof AIMessageChunk) {
-        if (
-          lastMessage.content.toString().includes('WAITING_FOR_HUMAN_INPUT')
-        ) {
-          return 'human';
-        }
+        // logger.debug(JSON.stringify(lastMessage, null, 2));
         if (
           lastMessage.additional_kwargs.final === true ||
           lastMessage.content.toString().includes('FINAL ANSWER')
@@ -492,6 +488,11 @@ export const createAutonomousAgent = async (
             `Final message received, routing to end node. Message: ${lastMessage.content}`
           );
           return 'end';
+        }
+        if (
+          lastMessage.content.toString().includes('WAITING_FOR_HUMAN_INPUT')
+        ) {
+          return 'human';
         }
         if (lastMessage.tool_calls?.length) {
           logger.debug(
@@ -510,11 +511,13 @@ export const createAutonomousAgent = async (
 
         const startIteration = lastAiMessage.additional_kwargs
           .start_iteration as number;
+        const graphMaxSteps = config?.configurable?.config
+          .max_graph_steps as number;
 
-        if (
-          (config?.metadata?.langgraph_step as number) >=
-          config?.configurable?.config.max_graph_steps + startIteration
-        ) {
+        const iteration = lastMessage.additional_kwargs
+          ?.iteration_number as number;
+        console.log("Iteration Tools: ", iteration);
+        if (graphMaxSteps <= iteration) {
           logger.info(
             `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
           );
@@ -533,16 +536,25 @@ export const createAutonomousAgent = async (
     async function humanNode(
       state: typeof MessagesAnnotation.State
     ): Promise<{ messages: BaseMessage[] }> {
-      const lastMessage = state.messages[
-        state.messages.length - 1
-      ] as AIMessage;
-      // const toolCallId = lastMessage.tool_calls?.[0].id;
-      const location: string = interrupt('Please provide your location:');
+      console.log('Hello from humanNode');
+      const lastAiMessage = getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      );
+      const input = interrupt(lastAiMessage?.content);
 
+      console.log('Bye from humanNode');
       return {
         messages: [
           new AIMessageChunk({
-            content: location,
+            content: input,
+            additional_kwargs: {
+              from: 'human',
+              final: false,
+              iteration_number:
+                (lastAiMessage?.additional_kwargs.iteration_number as number) ||
+                0,
+            },
           }),
         ],
       };
@@ -551,7 +563,7 @@ export const createAutonomousAgent = async (
     let workflow;
     if (!human_in_the_loop) {
       workflow = new StateGraph(GraphState)
-                                                  .addNode('agent', callModel)
+        .addNode('agent', callModel)
         .addNode('tools', toolNode);
 
       workflow.addEdge(START, 'agent');
@@ -588,7 +600,6 @@ export const createAutonomousAgent = async (
         end: END,
       });
     }
-
     const checkpointer = new MemorySaver(); // For potential state persistence
     const app = workflow.compile({ checkpointer });
 

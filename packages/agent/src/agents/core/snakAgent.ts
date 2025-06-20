@@ -20,6 +20,15 @@ import { Command } from '@langchain/langgraph';
 /**
  * Configuration interface for SnakAgent initialization
  */
+
+import readline from 'readline';
+
+// Créez l'interface readline une seule fois au début de votre fichier
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
 export interface FormattedOnChatModelStream {
   chunk: {
     content: string;
@@ -502,7 +511,7 @@ export class SnakAgent extends BaseAgent {
 
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphIterations = 10;
+      const maxGraphIterations = 20;
 
       console.log(JSON.stringify(agentJsonConfig, null, 2));
       const initialHumanMessage = new HumanMessage(
@@ -545,6 +554,7 @@ export class SnakAgent extends BaseAgent {
             if (chunk.event === 'on_chat_model_stream') {
               iteration_number = chunk.metadata.langgraph_step;
             }
+            isInterrupted = false;
             if (
               chunk.name === 'Branch<tools,tools,agent,end>' &&
               chunk.event === 'on_chain_end'
@@ -552,9 +562,9 @@ export class SnakAgent extends BaseAgent {
               chunk_to_save = chunk;
             }
 
-            logger.debug(
-              `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
-            );
+            // logger.debug(
+            //   `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
+            // );
             if (
               chunk.event === 'on_chat_model_start' ||
               chunk.event === 'on_chat_model_end'
@@ -579,25 +589,32 @@ export class SnakAgent extends BaseAgent {
           console.log('--- GRAPH INTERRUPTED ---');
 
           const state = await app.getState(config);
-
-          console.log(JSON.stringify(state, null, 2));
-          if (state.tasks[0].interrupts) {
+          console.log(JSON.stringify(state.tasks.length, null, 2));
+          if (state.tasks.length > 0 && state.tasks[0]?.interrupts) {
             logger.debug(
               `SnakAgent: Graph interrupted, checking for next steps.`
             );
             if (state.tasks[0].interrupts.length > 0) {
               logger.debug(
-                `SnakAgent: Interrupts found, continuing execution.`
+                `SnakAgent: Interrupts found, waiting for user input.`
               );
               isInterrupted = true;
+
+              // Demander l'input à l'utilisateur
+              const userInput = await new Promise((resolve) => {
+                rl.question(state.tasks[0].interrupts[0].value, (answer) => {
+                  resolve(answer);
+                });
+              });
+
               command = new Command({
-                resume: 'Can you tell me whats is your objectives ?',
+                resume: userInput || 'Continue exploration',
               });
               continue;
-            } else {
-              logger.debug(`SnakAgent: No interrupts found, ending execution.`);
-              break;
             }
+          } else {
+            logger.debug(`SnakAgent: No interrupts found, ending execution.`);
+            break;
           }
         }
 
