@@ -484,7 +484,7 @@ export class SnakAgent extends BaseAgent {
           thread_id: agentJsonConfig?.chatId || 'autonomous_session',
           config: {
             max_graph_steps: maxGraphIterations,
-            short_term_memory: 10,
+            short_term_memory: 2,
           },
         },
       };

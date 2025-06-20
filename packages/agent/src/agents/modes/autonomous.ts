@@ -116,8 +116,12 @@ export const createAutonomousAgent = async (
     toolNode.invoke = async (
       state: typeof GraphState.State,
       config?: LangGraphRunnableConfig
-    ): Promise<ToolMessage | ToolMessage[] | null> => {
+    ): Promise<{ messages: BaseMessage[] } | null> => {
       const lastMessage = state.messages[state.messages.length - 1];
+      const lastIterationNumber = getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      )?.additional_kwargs.iteration_number;
       const toolCalls =
         lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
           ? lastMessage.tool_calls
@@ -135,11 +139,27 @@ export const createAutonomousAgent = async (
       try {
         const result = await originalToolNodeInvoke(state, config);
         const executionTime = Date.now() - startTime;
-        const truncatedResult: ToolMessage | ToolMessage[] =
+        const truncatedResult: { messages: [ToolMessage] } =
           truncateToolResults(result, 5000); // Max 5000 chars for tool output
 
         logger.debug(
           `Tool execution completed in ${executionTime}ms. Results: ${Array.isArray(truncatedResult) ? truncatedResult.length : typeof truncatedResult}`
+        );
+
+        truncatedResult.messages.forEach((res) => {
+          res.additional_kwargs = {
+            from: 'tools',
+            final: false,
+            iteration_number: lastIterationNumber,
+          };
+        });
+
+        console.log(
+          `Tool invocation result: ${JSON.stringify(
+            truncatedResult as any,
+            null,
+            2
+          )}`
         );
         return truncatedResult;
       } catch (error) {
@@ -203,6 +223,9 @@ export const createAutonomousAgent = async (
         config?.configurable?.config.max_graph_steps,
         config?.configurable?.config.short_term_memory
       );
+
+      const maxGraphSteps = config?.configurable?.config.max_graph_steps;
+      const shortTermMemory = config?.configurable?.config.short_term_memory;
       let startIteration: number = 0;
       if ((config?.metadata?.langgraph_step as number) === 1) {
         startIteration = 1;
@@ -212,8 +235,6 @@ export const createAutonomousAgent = async (
         typeof config.metadata.langgraph_triggers[0] === 'string' &&
         config.metadata.langgraph_triggers[0] === '__start__:agent'
       ) {
-        logger.info('Autonomous agent callModel invoked at start node.');
-        // Initialize the step counter in metadata
         startIteration = config?.metadata?.langgraph_step as number;
       } else {
         const lastAiMessage = getLatestMessageForMessage(
@@ -260,13 +281,14 @@ export const createAutonomousAgent = async (
       let iteration_number = 0;
 
       fs.appendFileSync('log.txt', JSON.stringify(lastMessage, null, 2));
-
+      const lastMessageAi = getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      );
+      console.log('Messages Lenght', messages.length);
       if (lastMessage instanceof ToolMessage) {
         logger.debug('ToolMessage Detected');
-        const lastMessageAi = getLatestMessageForMessage(
-          state.messages,
-          AIMessageChunk
-        );
+
         if (!lastMessageAi) {
           throw new Error('Error trying to get latest AI Message Chunk');
         }
@@ -288,19 +310,38 @@ export const createAutonomousAgent = async (
         new MessagesPlaceholder('messages'),
       ]);
 
+      let lastIterationCount = iteration_number - 1;
+      let s_temp = shortTermMemory;
       try {
-        const filteredMessages = state.messages.filter(
-          (msg) =>
+        const filteredMessages = [];
+        for (let i = state.messages.length - 1; i >= 0; i--) {
+          const msg = state.messages[i];
+          logger.debug(
+            `Adding message to filteredMessages: ${JSON.stringify(msg)}`
+          );
+          if (
             !(
-              msg instanceof AIMessageChunk &&
+              (msg instanceof AIMessageChunk || msg instanceof ToolMessage) &&
               msg.additional_kwargs?.from === 'model-selector'
             )
-        );
+          ) {
+            if (lastIterationCount != msg.additional_kwargs?.iteration_number) {
+              console.log(
+                `Skipping message with different iteration number: ${msg.additional_kwargs?.iteration_number}`
+              );
+              lastIterationCount =
+                (msg.additional_kwargs?.iteration_number as number) || 0;
+              s_temp--;
+            }
+            if (s_temp === 0) {
+              break;
+            }
 
-        // console.log(
-        //   `Filtered messages for model selection: ${JSON.stringify(filteredMessages, null, 2)}`
-        // );
+            filteredMessages.unshift(msg);
+          }
+        }
 
+        console.log(JSON.stringify(filteredMessages, null, 2));
         const formattedPrompt = await prompt.formatMessages({
           messages: filteredMessages,
         });
@@ -427,23 +468,8 @@ export const createAutonomousAgent = async (
       return 'agent';
     }
 
-    async function updateMemorySize(
-      state: typeof GraphState.State,
-      config?: RunnableConfig
-    ): Promise<void> {
-      const messages = state.messages;
-      const lastMessage = messages[messages.length - 1];
-
-      state.messages[state.messages.length - 1].content = 'caca';
-      console.log(
-        'Updating memory size..., last message: ',
-        state.messages[state.messages.length - 1].content
-      );
-    }
-
     const workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
-      // .addNode('agent', updateMemorySize)
       .addNode('tools', toolNode);
 
     workflow.addEdge(START, 'agent');

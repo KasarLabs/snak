@@ -17,6 +17,7 @@ import {
   FormattedOnChatModelStart,
   FormattedOnChatModelStream,
 } from './snakAgent.js';
+import { ToolMessage } from '@langchain/core/messages';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
@@ -225,7 +226,7 @@ const truncateStringContentHelper = (
 export function truncateToolResults(
   result: any,
   maxLength: number = 5000 // CLEAN-UP We don't have to cut the result is not a good idea
-): any {
+): { messages: [ToolMessage] } {
   if (Array.isArray(result)) {
     for (const msg of result) {
       if (
@@ -234,6 +235,7 @@ export function truncateToolResults(
         typeof msg.content === 'string'
       ) {
         msg.content = truncateStringContentHelper(msg.content, maxLength);
+        msg;
       }
     }
   }
