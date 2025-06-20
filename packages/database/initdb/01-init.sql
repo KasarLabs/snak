@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS agents (
     memory memory NOT NULL DEFAULT ROW(false, 5)::memory,
     mode VARCHAR(50) NOT NULL DEFAULT 'interactive',
     max_iterations INTEGER NOT NULL DEFAULT 15,
-    "mcpServers" JSONB DEFAULT '{}'::jsonb
+    "mcpServers" JSONB DEFAULT '{}'::jsonb,
+    avatar_image BYTEA, -- Binary data for the agent's avatar image
+    avatar_mime_type VARCHAR(50) -- Store the MIME type of the image (e.g., 'image/jpeg', 'image/png')
 );
 
 CREATE TABLE IF NOT EXISTS agent_iterations (
