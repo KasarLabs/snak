@@ -81,3 +81,11 @@ export class UpdateModelConfigDTO {
   @IsNotEmpty()
   description: string;
 }
+
+export class AgentAvatarResponseDTO {
+  @IsNotEmpty()
+  agent_id: string;
+
+  @IsNotEmpty()
+  avatar_mime_type: string;
+}
