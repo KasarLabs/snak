@@ -2,6 +2,7 @@ packages/database/data
 packages/database/log
 
 node_modules
+pnmp-lock.yaml
 *.log
 dist
 packages/**/node_modules
