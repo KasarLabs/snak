@@ -584,32 +584,31 @@ export class SupervisorAgent extends BaseAgent {
     }
 
     for await (const chunk of this.executeWithMessage(
-        enrichedMessage,
-        config,
-        isNodeCall,
-        callPath,
-        depthIndent
-      )) {
-        if (chunk.final === true) {
-          yield chunk;
-          return;
-        }
+      enriched,
+      config,
+      isNodeCall,
+      callPath,
+      depthIndent
+    )) {
+      if (chunk.final === true) {
         yield chunk;
+        return;
       }
+      yield chunk;
+    }
 
-      for await (const chunk of this.executeWithMessage(
-        currentMessage,
-        config,
-        isNodeCall,
-        callPath,
-        depthIndent
-      )) {
-        if (chunk.final === true) {
-          yield chunk;
-          return;
-        }
+    for await (const chunk of this.executeWithMessage(
+      currentMessage,
+      config,
+      isNodeCall,
+      callPath,
+      depthIndent
+    )) {
+      if (chunk.final === true) {
         yield chunk;
+        return;
       }
+      yield chunk;
     }
   }
 

@@ -86,7 +86,9 @@ export namespace iterations {
     return await Postgres.query(q);
   }
 
-  export async function delete_oldest_iteration(agentId: string): Promise<void> {
+  export async function delete_oldest_iteration(
+    agentId: string
+  ): Promise<void> {
     const q = new Postgres.Query(
       `DELETE FROM iterations
          WHERE id = (

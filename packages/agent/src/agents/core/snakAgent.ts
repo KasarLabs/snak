@@ -809,7 +809,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     );
   }
 
-   /**
+  /**
    * Capture the latest user question for pairing with the next assistant answer
    * @param content - User question content
    */
