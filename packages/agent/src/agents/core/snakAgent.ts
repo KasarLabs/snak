@@ -419,6 +419,9 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       runnableConfig.configurable = { thread_id: threadId };
     }
 
+    if (!runnableConfig.configurable) runnableConfig.configurable = {};
+    runnableConfig.configurable.agentId = this.agentConfig.id;
+
     if (config?.recursionLimit) {
       runnableConfig.recursionLimit = config.recursionLimit;
     }
@@ -859,6 +862,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       const threadConfig = {
         configurable: {
           thread_id: agentJsonConfig?.chatId || 'autonomous_session',
+          agentId: agentJsonConfig?.id ?? this.agentConfig.id,
         },
       };
 
@@ -1078,6 +1082,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       const threadConfig = {
         configurable: {
           thread_id: threadId,
+          agentId: this.agentConfig.id,
         },
         recursionLimit: this.agentReactExecutor.maxIterations,
       };
@@ -1165,6 +1170,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       const threadConfig = {
         configurable: {
           thread_id: threadId,
+          agentId: this.agentConfig.id,
         },
         recursionLimit: this.agentReactExecutor.maxIterations,
       };

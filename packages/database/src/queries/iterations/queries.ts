@@ -70,9 +70,6 @@ export namespace iterations {
         iteration.created_at,
       ]
     );
-    console.log("Agent id:", iteration.agent_id);
-    console.log("question:", iteration.question);
-    console.log("answer:", iteration.answer);
     await Postgres.query(q);
   }
 
@@ -107,5 +104,31 @@ export namespace iterations {
     );
     const res = await Postgres.query<{ count: number }>(q);
     return res[0]?.count || 0;
+  }
+
+  export interface IterationSimilarity {
+    id: number;
+    question: string;
+    answer: string;
+    similarity: number;
+  }
+
+  export async function similar_iterations(
+    agentId: string,
+    embedding: number[]
+  ): Promise<IterationSimilarity[]> {
+    const q = new Postgres.Query(
+      `SELECT id, question, answer,
+              GREATEST(
+                1 - (question_embedding <=> $1::vector),
+                1 - (answer_embedding <=> $1::vector)
+              ) AS similarity
+         FROM iterations
+         WHERE agent_id = $2
+         ORDER BY similarity DESC
+         LIMIT 4;`,
+      [JSON.stringify(embedding), agentId]
+    );
+    return await Postgres.query(q);
   }
 }
