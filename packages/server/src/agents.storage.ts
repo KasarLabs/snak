@@ -335,8 +335,8 @@ export class AgentStorage implements OnModuleInit {
 
     console.log(agent_config);
     const q = new Postgres.Query(
-      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, mode, max_iterations, "mcpServers")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), $12, $13, $14) RETURNING *`,
+      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, documents, mode, max_iterations, "mcpServers")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15, $16) RETURNING *`,
       [
         finalName,
         group,
@@ -349,6 +349,8 @@ export class AgentStorage implements OnModuleInit {
         agent_config.plugins,
         agent_config.memory.enabled || false,
         agent_config.memory.shortTermMemorySize || 5,
+        agent_config.documents?.enabled || false,
+        agent_config.documents?.embeddingModel || null,
         agent_config.mode,
         15,
         agent_config.mcpServers || '{}',
