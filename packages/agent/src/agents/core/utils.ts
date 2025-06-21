@@ -4,7 +4,7 @@ import { createSignatureTools } from '../../tools/signatureTools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { logger, AgentConfig } from '@snakagent/core';
 import { Postgres } from '@snakagent/database/queries';
-import { memory } from '@snakagent/database/queries';
+import { memory, iterations } from '@snakagent/database/queries';
 import { DatabaseCredentials } from '@snakagent/database';
 import {
   Tool,
@@ -65,6 +65,7 @@ export const initializeDatabase = async (db: DatabaseCredentials) => {
   try {
     if (isConnected) {
       await memory.init();
+      await iterations.init();
       logger.debug(
         'Agent memory table successfully initialized (connection exists)'
       );
@@ -74,6 +75,7 @@ export const initializeDatabase = async (db: DatabaseCredentials) => {
     if (databaseConnectionPromise) {
       await databaseConnectionPromise;
       await memory.init();
+      await iterations.init();
       logger.debug(
         'Agent memory table successfully initialized (waited for connection)'
       );
@@ -85,6 +87,7 @@ export const initializeDatabase = async (db: DatabaseCredentials) => {
     isConnected = true;
 
     await memory.init();
+    await iterations.init();
     logger.debug('Agent memory table successfully created');
   } catch (error) {
     logger.error('Error creating memories table:', error);
