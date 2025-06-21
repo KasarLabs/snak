@@ -30,6 +30,7 @@ A Agent Engine for creating powerful and secure AI Agents powered by Starknet. A
 
 - Starknet wallet (recommended: [Argent X](https://www.argent.xyz/argent-x))
 - AI provider API key (Anthropic/OpenAI/Google Gemini/Ollama)
+- Docker and Docker compose installed 
 - Node.js and pnpm installed
 
 ### Installation
@@ -79,11 +80,11 @@ SERVER_API_KEY="YOUR_SERVER_API_KEY" # A secret key for your agent server API
 SERVER_PORT="3001"
 
 # --- PostgreSQL Database Configuration (mandatory) ---
-POSTGRES_USER="admin"
-POSTGRES_PASSWORD="admin"
-POSTGRES_ROOT_DB="postgres" # Database used to create/manage the application database
-POSTGRES_HOST="localhost"
-POSTGRES_PORT="5454"
+POSTGRES_USER=admin
+POSTGRES_HOST=localhost
+POSTGRES_DB=postgres
+POSTGRES_PASSWORD=admin
+POSTGRES_PORT=5432
 
 # --- LangSmith Tracing (Optional) ---
 # Set LANGSMITH_TRACING=true to enable tracing
