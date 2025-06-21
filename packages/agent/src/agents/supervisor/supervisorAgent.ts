@@ -1410,7 +1410,8 @@ export class SupervisorAgent extends BaseAgent {
     try {
       const memories = await this.memoryAgent.retrieveRelevantMemories(
         message,
-        this.config.starknetConfig.agentConfig?.chatId || 'default_chat'
+        this.config.starknetConfig.agentConfig?.chatId || 'default_chat',
+        this.config.starknetConfig.agentConfig?.id
       );
 
       if (memories.length === 0) {

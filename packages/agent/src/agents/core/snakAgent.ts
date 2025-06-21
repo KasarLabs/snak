@@ -7,6 +7,8 @@ import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
+import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
+import { iterations } from '@snakagent/database/queries';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
 import { createHybridAgent } from '../modes/hybrid.js';
@@ -41,7 +43,11 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
   private currentMode: string;
   private agentReactExecutor: any;
   private modelSelector: ModelSelector | null = null;
-
+  private iterationEmbeddings: CustomHuggingFaceEmbeddings;
+  private pendingIteration?: {
+    question: string;
+    embedding: number[];
+  };
   constructor(config: SnakAgentConfig) {
     super('snak', AgentType.SNAK);
 
@@ -56,6 +62,11 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     this.agentConfig = config.agentConfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
+    this.iterationEmbeddings = new CustomHuggingFaceEmbeddings({
+      model:
+        this.agentConfig?.memory?.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
+      dtype: 'fp32',
+    });
 
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
@@ -390,6 +401,13 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       currentMessages = [new HumanMessage(originalUserQuery)];
     }
 
+    const lastHuman = [...currentMessages]
+      .reverse()
+      .find((m): m is HumanMessage => m instanceof HumanMessage);
+    if (lastHuman && typeof lastHuman.content === 'string') {
+      await this.captureQuestion(lastHuman.content);
+    }
+
     const graphState = {
       messages: currentMessages,
     };
@@ -400,6 +418,9 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     if (threadId) {
       runnableConfig.configurable = { thread_id: threadId };
     }
+
+    if (!runnableConfig.configurable) runnableConfig.configurable = {};
+    runnableConfig.configurable.agentId = this.agentConfig.id;
 
     if (config?.recursionLimit) {
       runnableConfig.recursionLimit = config.recursionLimit;
@@ -456,7 +477,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
           "I couldn't generate a specific response for this request.";
       }
 
-      return new AIMessage({
+      const aiMsg = new AIMessage({
         content: responseContent,
         additional_kwargs: {
           from: 'snak',
@@ -464,6 +485,13 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
           agent_mode: this.currentMode,
         },
       });
+      if (typeof responseContent === 'string') {
+        await this.saveIteration(responseContent);
+      } else {
+        await this.saveIteration(JSON.stringify(responseContent));
+      }
+
+      return aiMsg;
     } catch (agentExecError: any) {
       logger.error(`SnakAgent: Agent execution failed: ${agentExecError}`);
       if (this.isTokenRelatedError(agentExecError)) {
@@ -507,7 +535,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       queryContent.substring(0, 100) + (queryContent.length > 100 ? '...' : '');
     const responseMessage = `I cannot process your request completely as I am in fallback mode. Your query was: "${truncatedQuery}"`;
 
-    return new AIMessage({
+    const aiMsg = new AIMessage({
       content: responseMessage,
       additional_kwargs: {
         from: 'snak',
@@ -515,6 +543,8 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
         error: 'fallback_mode_activated',
       },
     });
+    await this.saveIteration(responseMessage);
+    return aiMsg;
   }
 
   /**
@@ -532,6 +562,63 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       errorMessage.includes('prompt is too long') ||
       errorMessage.includes('maximum context length')
     );
+  }
+
+   /**
+   * Capture the latest user question for pairing with the next assistant answer
+   * @param content - User question content
+   */
+  private async captureQuestion(content: string) {
+    try {
+      const limit = this.memory.shortTermMemorySize ?? 15;
+      if (
+        limit <= 0 ||
+        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE]
+      ) {
+        return;
+      }
+
+      const embedding = await this.iterationEmbeddings.embedQuery(content);
+      this.pendingIteration = { question: content, embedding };
+    } catch (err) {
+      logger.error(`Failed to capture question iteration: ${err}`);
+    }
+  }
+
+  /**
+   * Save a question/answer pair and enforce FIFO limit
+   * @param answer - Assistant answer content
+   */
+  private async saveIteration(answer: string) {
+    try {
+      const limit = this.memory.shortTermMemorySize ?? 15;
+      if (
+        limit <= 0 ||
+        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
+        !this.pendingIteration
+      ) {
+        return;
+      }
+
+      const answerEmbedding = await this.iterationEmbeddings.embedQuery(answer);
+
+      await iterations.insert_iteration({
+        agent_id: this.agentConfig.id,
+        question: this.pendingIteration.question,
+        question_embedding: this.pendingIteration.embedding,
+        answer,
+        answer_embedding: answerEmbedding,
+      });
+
+      this.pendingIteration = undefined;
+
+      const count = await iterations.count_iterations(this.agentConfig.id);
+      if (count > limit) {
+        await iterations.delete_oldest_iteration(this.agentConfig.id);
+      }
+    } catch (err) {
+      logger.error(`Failed to save iteration pair: ${err}`);
+    }
   }
 
   /**
@@ -560,7 +647,6 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
           this.memory.maxIterations ??
           this.memory.shortTermMemorySize ??
           15;
-
         if (maxIterations !== 0) {
           invokeOptions.maxIterations = maxIterations;
           invokeOptions.messageHandler = (messages: BaseMessage[]) => {
@@ -776,6 +862,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       const threadConfig = {
         configurable: {
           thread_id: agentJsonConfig?.chatId || 'autonomous_session',
+          agentId: agentJsonConfig?.id ?? this.agentConfig.id,
         },
       };
 
@@ -995,6 +1082,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       const threadConfig = {
         configurable: {
           thread_id: threadId,
+          agentId: this.agentConfig.id,
         },
         recursionLimit: this.agentReactExecutor.maxIterations,
       };
@@ -1082,6 +1170,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
       const threadConfig = {
         configurable: {
           thread_id: threadId,
+          agentId: this.agentConfig.id,
         },
         recursionLimit: this.agentReactExecutor.maxIterations,
       };
