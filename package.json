@@ -31,10 +31,9 @@
     "check-types": "turbo run check-types",
     "build": "turbo build",
     "build:ci": "turbo build --scope \"@snakagent/agents\" --scope \"@snakagent/plugin-*\" --scope \"@snakagent/server\"",
-    "docker-setup": "docker compose -f ./packages/database/compose.yaml up -d",
-    "docker-teardown": "docker compose -f ./packages/database/compose.yaml rm -fsv",
-    "start": "pnpm run docker-setup && ./scripts/start.sh ; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
-    "start:server": "pnpm run build && pnpm run docker-setup && lerna run start --scope \"@snakagent/server\"; ECODE=$? ; pnpm docker-teardown ; exit $ECODE",
+    "docker-setup": "docker compose -f ./docker-compose.dev.yml up -d",
+    "start": "pnpm run docker-setup && ./scripts/start.sh ; ECODE=$? ; exit $ECODE",
+    "start:server": "pnpm run build && pnpm run docker-setup && lerna run start --scope \"@snakagent/server\"; ECODE=$? ; exit $ECODE",
     "start:test": "turbo test",
     "test": "./scripts/run_all_test.sh",
     "dev": "lerna run --scope @snakagent/agents start --",
@@ -46,7 +45,8 @@
     "lint:agents": "lerna run lint --scope \"@snakagent/agents\"",
     "prettier:all": "lerna run format",
     "start:server:dev": "pnpm run build && lerna run start --scope \"@snakagent/server\"",
-    "node:server": "node ./mcps/snak/dist/index.js"
+    "node:server": "node ./mcps/snak/dist/index.js",
+    "start:prod": "lerna run start --scope \"@snakagent/server\"; ECODE=$? ; exit $ECODE"
   },
   "dependencies": {
     "@nestjs/platform-socket.io": "^11.1.1",
