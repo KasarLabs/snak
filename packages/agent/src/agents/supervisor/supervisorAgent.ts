@@ -31,10 +31,14 @@ import { documents } from '@snakagent/database/queries';
  * Represents an agent to be registered
  */
 interface AgentRegistration {
+  id: string;
   agent: SnakAgent;
   metadata?: any;
 }
 
+/**
+ * Helper class for managing batch registration sessions
+ */
 /**
  * Configuration interface for the SupervisorAgent
  * @interface SupervisorAgentConfig
@@ -505,10 +509,10 @@ export class SupervisorAgent extends BaseAgent {
    * @returns The final agent response or directive message for the workflow
    * @throws {Error} Will throw an error if WorkflowController is not initialized when needed
    */
-  public async execute(
+  public async *execute(
     input: string | AgentMessage | BaseMessage | BaseMessage[],
     config?: Record<string, any>
-  ): Promise<any> {
+  ): AsyncGenerator<any> {
     this.executionDepth++;
     const depthIndent = '  '.repeat(this.executionDepth);
     const isNodeCall = !!config?.isWorkflowNodeCall || this.executionDepth > 1;
@@ -579,13 +583,34 @@ export class SupervisorAgent extends BaseAgent {
       });
     }
 
-    return await this.executeWithMessage(
-      enriched,
-      config,
-      isNodeCall,
-      callPath,
-      depthIndent
-    );
+    for await (const chunk of this.executeWithMessage(
+        enrichedMessage,
+        config,
+        isNodeCall,
+        callPath,
+        depthIndent
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
+        }
+        yield chunk;
+      }
+
+      for await (const chunk of this.executeWithMessage(
+        currentMessage,
+        config,
+        isNodeCall,
+        callPath,
+        depthIndent
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
+        }
+        yield chunk;
+      }
+    }
   }
 
   /**
@@ -706,7 +731,7 @@ export class SupervisorAgent extends BaseAgent {
     }
 
     logger.warn(
-      `${depthIndent}SupervisorAgent: Unrecognized input type for ${callPath}: ${typeof input}. Wrapping as HumanMessage 'Unrecognized input format'.`
+      `${depthIndent}SupervisorAgent: Unrecognized input type for ${callPath}: ${typeof input}. Wrapping as HumanMessage '  '.`
     );
     return new HumanMessage('Unrecognized input format');
   }
@@ -721,13 +746,13 @@ export class SupervisorAgent extends BaseAgent {
    * @returns Execution result
    * @private
    */
-  private async executeWithMessage(
+  private async *executeWithMessage(
     currentMessage: BaseMessage,
     config: Record<string, any> | undefined,
     isNodeCall: boolean,
     callPath: string,
     depthIndent: string
-  ): Promise<any> {
+  ): AsyncGenerator<any> {
     if (isNodeCall) {
       return await this.handleNodeCall(
         currentMessage,
@@ -736,12 +761,18 @@ export class SupervisorAgent extends BaseAgent {
         depthIndent
       );
     } else {
-      return await this.handleExternalCall(
+      for await (const chunk of this.handleExternalCall(
         currentMessage,
         config,
         callPath,
         depthIndent
-      );
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
+        }
+        yield chunk;
+      }
     }
   }
 
@@ -904,12 +935,12 @@ export class SupervisorAgent extends BaseAgent {
    * @returns Final execution result
    * @private
    */
-  private async handleExternalCall(
+  private async *handleExternalCall(
     currentMessage: BaseMessage,
     config: Record<string, any> | undefined,
     callPath: string,
     depthIndent: string
-  ): Promise<any> {
+  ): AsyncGenerator<any> {
     logger.debug(
       `${depthIndent}SupervisorAgent (${callPath}): Initiating workflow with WorkflowController.`
     );
@@ -942,42 +973,16 @@ export class SupervisorAgent extends BaseAgent {
           workflowConfig.originalUserQuery;
       }
 
-      const result = await this.workflowController.execute(
+      for await (const chunk of this.workflowController.execute(
         initialMessagesForWorkflow[0],
         workflowConfig
-      );
-
-      if (
-        result?.metadata?.requiresClarification === true &&
-        result.metadata.clarificationMessage
-      ) {
-        logger.debug(
-          `${depthIndent}SupervisorAgent (${callPath}): Agent requires clarification. Ending workflow and returning clarification message directly.`
-        );
-        this.executionDepth--;
-        return result.metadata.clarificationMessage.content;
-      }
-
-      if (result?.messages?.length > 0) {
-        const lastMessage = result.messages[result.messages.length - 1];
-        if (
-          lastMessage instanceof AIMessage &&
-          lastMessage.additional_kwargs?.needsClarification === true
-        ) {
-          logger.debug(
-            `${depthIndent}SupervisorAgent (${callPath}): Found clarification request in final message from ${lastMessage.additional_kwargs?.from || 'unknown agent'}.`
-          );
-          this.executionDepth--;
-          return lastMessage.content;
+      )) {
+        if (chunk.final === true) {
+          yield chunk;
+          return;
         }
+        yield chunk;
       }
-
-      const finalUserResponse = this.extractFinalResponse(result);
-      logger.debug(
-        `${depthIndent}SupervisorAgent (${callPath}): Workflow finished. Final response (truncated): "${finalUserResponse.substring(0, 200)}..."`
-      );
-      this.executionDepth--;
-      return finalUserResponse;
     } catch (error: any) {
       logger.error(
         `${depthIndent}SupervisorAgent (${callPath}): Error during WorkflowController execution: ${error.message || error}`
@@ -1156,7 +1161,7 @@ export class SupervisorAgent extends BaseAgent {
    * @returns Formatted final response string
    * @private
    */
-  private extractFinalResponse(result: any): string {
+  public extractFinalResponse(result: any): string {
     let finalUserResponse = 'Workflow completed.';
 
     if (

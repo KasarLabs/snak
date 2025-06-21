@@ -658,19 +658,24 @@ export class SupervisorService implements OnModuleInit {
    * @param {Record<string, any>} [config] - Optional configuration
    * @returns {Promise<any>} The execution result
    */
-  async executeRequest(
+  async *websocketExecuteRequest(
     input: string,
     config?: Record<string, any>
-  ): Promise<any> {
+  ): AsyncGenerator<any> {
     if (!this.supervisor) {
       throw new Error('Supervisor not initialized');
     }
-
     try {
       this.logger.debug(
         `SupervisorService: Executing request with config: ${JSON.stringify(config)}`
       );
-      return await this.supervisor.execute(input, config);
+      for await (const chunk of this.supervisor.execute(input, config)) {
+        if (chunk.final === true) {
+          this.logger.debug('SupervisorService: Execution completed');
+          return chunk;
+        }
+        yield chunk;
+      }
     } catch (error) {
       this.logger.error('Error executing request through supervisor:', error);
       throw error;
