@@ -19,6 +19,9 @@
     "enabled": "true or false to enable or disable memory",
     "shortTermMemorySize": "The number of messages your agent will remember"
   },
+  "documents": {
+    "enabled": "true or false to enable or disable document context"
+  },
   "plugins": ["Your first plugin", "Your second plugin"],
   "mcpServers": {
     "nxp_server_example": {

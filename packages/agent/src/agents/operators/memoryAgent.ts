@@ -1,13 +1,18 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import { BaseMessage } from '@langchain/core/messages';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
-import { memory } from '@snakagent/database/queries';
+import { memory, iterations } from '@snakagent/database/queries';
 import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { RunnableSequence } from '@langchain/core/runnables';
 
+// TODO: env -> config/agents
+const SIMILARITY_THRESHOLD = parseFloat(
+  process.env.MEMORY_SIMILARITY_THRESHOLD || '0'
+);
 /**
  * Memory configuration for the agent
  */
@@ -160,18 +165,21 @@ export class MemoryAgent extends BaseAgent {
         try {
           const embedding = await this.embeddings.embedQuery(query);
           const similar = await memory.similar_memory(userId, embedding);
+          const filtered = similar.filter(
+            (s) => s.similarity >= SIMILARITY_THRESHOLD
+          );
 
-          if (similar.length === 0) {
+          if (filtered.length === 0) {
             return 'No relevant memories found.';
           }
 
-          const memories = similar
+          const memories = filtered
             .map((similarity) => {
               return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)}]: ${similarity.content}`;
             })
             .join('\n\n');
 
-          return `Retrieved ${similar.length} memories:\n\n${memories}`;
+          return `Retrieved ${filtered.length} memories:\n\n${memories}`;
         } catch (error) {
           logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
           return `Failed to retrieve memories: ${error}`;
@@ -276,27 +284,69 @@ export class MemoryAgent extends BaseAgent {
    * Create a memory node for the graph
    */
   public createMemoryNode(): any {
+    const chain = this.createMemoryChain();
     return async (state: any, config: LangGraphRunnableConfig) => {
       try {
-        const userId = config.configurable?.userId || 'default_user';
-        const lastMessage = state.messages[state.messages.length - 1]
-          .content as string;
-        const embedding = await this.embeddings.embedQuery(lastMessage);
-        const similar = await memory.similar_memory(userId, embedding);
-
-        const memories = similar
-          .map((similarity) => {
-            const history = JSON.stringify(similarity.history);
-            return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)}, history: ${history}]: ${similarity.content}`;
-          })
-          .join('\n');
-
-        return { memories };
+        return await chain.invoke(state, config);
       } catch (error) {
         logger.error('Error retrieving memories:', error);
         return { memories: '' };
       }
     };
+  }
+
+  /**
+   * Creates a LangGraph chain to fetch relevant memories using the last
+   * user message. This mirrors the chain used for documents so LangSmith
+   * can trace memory retrieval.
+   */
+  public createMemoryChain(): any {
+    const buildQuery = (state: any) => {
+      const lastUser = [...state.messages]
+        .reverse()
+        .find((msg: BaseMessage) => msg instanceof HumanMessage);
+      return lastUser
+        ? typeof lastUser.content === 'string'
+          ? lastUser.content
+          : JSON.stringify(lastUser.content)
+        : (state.messages[0]?.content as string);
+    };
+
+    const fetchMemories = async (
+      query: string,
+      config: LangGraphRunnableConfig
+    ) => {
+      const userId = config.configurable?.userId || 'default_user';
+      const agentId = config.configurable?.agentId;
+      const embedding = await this.embeddings.embedQuery(query);
+      const memResults = await memory.similar_memory(userId, embedding);
+      let iterResults: iterations.IterationSimilarity[] = [];
+      if (agentId) {
+        iterResults = await iterations.similar_iterations(agentId, embedding);
+      }
+
+      const formattedIter = iterResults.map((it) => ({
+        id: it.id,
+        content: `Question: ${it.question}\nAnswer: ${it.answer}`,
+        history: [],
+        similarity: it.similarity,
+      }));
+
+      const filtered = [...memResults, ...formattedIter].filter(
+        (s) => s.similarity >= SIMILARITY_THRESHOLD
+      );
+      const combined = filtered
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 4);
+
+      return this.formatMemoriesForContext(combined);
+    };
+
+    return RunnableSequence.from([
+      buildQuery,
+      fetchMemories,
+      (context: string) => ({ memories: context }),
+    ]).withConfig({ runName: 'MemoryContextChain' });
   }
 
   /**
@@ -307,7 +357,8 @@ export class MemoryAgent extends BaseAgent {
    */
   public async retrieveRelevantMemories(
     message: string | BaseMessage,
-    userId: string = 'default_user'
+    userId: string = 'default_user',
+    agentId?: string
   ): Promise<any[]> {
     try {
       if (!this.initialized) {
@@ -318,9 +369,26 @@ export class MemoryAgent extends BaseAgent {
         typeof message === 'string' ? message : message.content.toString();
 
       const embedding = await this.embeddings.embedQuery(query);
-      const memories = await memory.similar_memory(userId, embedding);
+      const memResults = await memory.similar_memory(userId, embedding);
+      let iterResults: iterations.IterationSimilarity[] = [];
+      if (agentId) {
+        iterResults = await iterations.similar_iterations(agentId, embedding);
+      }
 
-      return memories;
+      const formattedIter = iterResults.map((it) => ({
+        id: it.id,
+        content: `Question: ${it.question}\nAnswer: ${it.answer}`,
+        history: [],
+        similarity: it.similarity,
+      }));
+
+      const combined = [...memResults, ...formattedIter].filter(
+        (m) => m.similarity >= SIMILARITY_THRESHOLD
+      );
+
+      return combined
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 4);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
@@ -338,11 +406,27 @@ export class MemoryAgent extends BaseAgent {
 
     const formattedMemories = memories
       .map((mem) => {
-        return `Memory [id: ${mem.id}, relevance: ${mem.similarity.toFixed(4)}]: ${mem.content}`;
+        const lastHist =
+          Array.isArray(mem.history) && mem.history.length > 0
+            ? mem.history[mem.history.length - 1]
+            : null;
+        const ts = lastHist?.timestamp || 'unknown';
+        return `Memory [id: ${mem.id}, relevance: ${mem.similarity.toFixed(4)}, last_updated: ${ts}]: ${mem.content}`;
       })
       .join('\n\n');
 
-    return `### User Memory Context ###\n${formattedMemories}\n\n`;
+    return (
+      '### User Memory Context (reference only - always verify dynamic info using tools)\n\
+  Format:\
+    Memory [id: <number>, relevance: <score>, last_updated: <date or “unknown”>]: <description>\
+    - Iteration memories may provide a "Question:" followed by its "Answer:".\
+  Instruction: 1.Always read every entry in the Memory Context before composing your answer.\n\
+    2. When description adds useful information quote or integrate it.\
+    3. Carefully analyze provided question/answer pairs before responding.\
+###\n' +
+      formattedMemories +
+      '\n\n'
+    );
   }
 
   /**
@@ -351,7 +435,8 @@ export class MemoryAgent extends BaseAgent {
   public async enrichPromptWithMemories(
     prompt: ChatPromptTemplate,
     message: string | BaseMessage,
-    userId: string = 'default_user'
+    userId: string = 'default_user',
+    agentId?: string
   ): Promise<ChatPromptTemplate> {
     try {
       if (!this.initialized) {
@@ -359,7 +444,11 @@ export class MemoryAgent extends BaseAgent {
         return prompt;
       }
 
-      const memories = await this.retrieveRelevantMemories(message, userId);
+      const memories = await this.retrieveRelevantMemories(
+        message,
+        userId,
+        agentId
+      );
       if (!memories || memories.length === 0) {
         logger.debug('MemoryAgent: No relevant memories found for enrichment');
         return prompt;
@@ -414,14 +503,16 @@ export class MemoryAgent extends BaseAgent {
       ) {
         return this.retrieveMemoriesForContent(
           content,
-          config?.userId || 'default_user'
+          config?.userId || 'default_user',
+          config?.agentId
         );
       }
 
       // Default to retrieving relevant memories
       return this.retrieveMemoriesForContent(
         content,
-        config?.userId || 'default_user'
+        config?.userId || 'default_user',
+        config?.agentId
       );
     } catch (error) {
       logger.error(`MemoryAgent: Execution error: ${error}`);
@@ -458,17 +549,33 @@ export class MemoryAgent extends BaseAgent {
    */
   private async retrieveMemoriesForContent(
     content: string,
-    userId: string
+    userId: string,
+    agentId?: string
   ): Promise<string> {
     try {
       const embedding = await this.embeddings.embedQuery(content);
-      const memories = await memory.similar_memory(userId, embedding);
+      const memResults = await memory.similar_memory(userId, embedding);
+      let iterResults: iterations.IterationSimilarity[] = [];
+      if (agentId) {
+        iterResults = await iterations.similar_iterations(agentId, embedding);
+      }
 
-      if (memories.length === 0) {
+      const formattedIter = iterResults.map((it) => ({
+        id: it.id,
+        content: `Question: ${it.question}\nAnswer: ${it.answer}`,
+        history: [],
+        similarity: it.similarity,
+      }));
+
+      const filtered = [...memResults, ...formattedIter].filter(
+        (m) => m.similarity >= SIMILARITY_THRESHOLD
+      );
+
+      if (filtered.length === 0) {
         return 'No relevant memories found.';
       }
 
-      return this.formatMemoriesForContext(memories);
+      return this.formatMemoriesForContext(filtered);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
       return `Failed to retrieve memories: ${error}`;

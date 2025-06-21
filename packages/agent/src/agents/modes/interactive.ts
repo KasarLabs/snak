@@ -1,6 +1,11 @@
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -32,6 +37,19 @@ const getMemoryAgent = async () => {
     return null;
   } catch (error) {
     logger.error(`Failed to get memory agent: ${error}`);
+    return null;
+  }
+};
+
+const getDocumentAgent = async () => {
+  try {
+    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
+    if (supervisorAgent) {
+      return await supervisorAgent.getDocumentAgent();
+    }
+    return null;
+  } catch (error) {
+    logger.error(`Failed to get document agent: ${error}`);
     return null;
   }
 };
@@ -75,11 +93,26 @@ export const createInteractiveAgent = async (
       }
     }
 
+    let documentAgent = null;
+    if (agent_config.documents?.enabled !== false) {
+      try {
+        documentAgent = await getDocumentAgent();
+        if (!documentAgent) {
+          logger.warn(
+            'Document agent not available, document context will be skipped'
+          );
+        }
+      } catch (error) {
+        logger.error(`Error retrieving document agent: ${error}`);
+      }
+    }
+
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
       }),
       memories: Annotation<string>,
+      documents: Annotation<string>,
     });
 
     const toolNode = new ToolNode(toolsList);
@@ -134,25 +167,82 @@ export const createInteractiveAgent = async (
         ${interactiveRules}
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
       `;
-      const prompt = ChatPromptTemplate.fromMessages([
-        [
-          'system',
-          `${finalPrompt.trim()}
-        ${interactiveSystemPrompt}`.trim(),
-        ],
-        new MessagesPlaceholder('messages'),
-      ]);
+      const systemPrompt = `${finalPrompt.trim()}
+        ${interactiveSystemPrompt}`.trim();
+
+      const memoryContent =
+        typeof state.memories === 'string'
+          ? state.memories
+          : (state.memories as any)?.memories;
+
+      const documentsContent =
+        typeof state.documents === 'string'
+          ? state.documents
+          : (state.documents as any)?.documents;
+
+      const memoryAvailable = memoryContent && memoryContent.trim().length > 0;
+      const documentsAvailable =
+        documentsContent && documentsContent.trim().length > 0;
+
+      const promptMessages: Array<any> = [];
+
+      const systemParts: string[] = [systemPrompt];
+
+      if (memoryAvailable || documentsAvailable) {
+        const sources: string[] = [];
+        if (memoryAvailable) sources.push('User Memory Context');
+        if (documentsAvailable) sources.push('Document Context');
+        systemParts.push(`\nSources of information: ${sources.join(', ')}\n`);
+      }
+
+      if (memoryAvailable) {
+        systemParts.push(memoryContent.trim());
+      }
+
+      if (documentsAvailable) {
+        systemParts.push(documentsContent.trim());
+      }
+
+      const filteredMessages = state.messages.filter(
+        (msg) =>
+          !(
+            msg instanceof AIMessage &&
+            msg.additional_kwargs?.from === 'model-selector'
+          )
+      );
+
+      let idx = 0;
+      while (
+        idx < filteredMessages.length &&
+        filteredMessages[idx] instanceof SystemMessage
+      ) {
+        const sys = filteredMessages[idx];
+        const content =
+          typeof sys.content === 'string'
+            ? sys.content
+            : JSON.stringify(sys.content);
+        systemParts.push(content);
+        idx++;
+      }
+      promptMessages.push(['system', systemParts.join('\n')]);
+
+      promptMessages.push(new MessagesPlaceholder('messages'));
+
+      const prompt = ChatPromptTemplate.fromMessages(promptMessages);
 
       try {
-        const filteredMessages = state.messages.filter(
-          (msg) =>
-            !(
-              msg instanceof AIMessage &&
-              msg.additional_kwargs?.from === 'model-selector'
-            )
+        let currentMessages = filteredMessages.slice(idx);
+        const removedSystemMsgs = currentMessages.filter(
+          (msg) => msg instanceof SystemMessage
         );
-
-        const currentMessages = filteredMessages;
+        if (removedSystemMsgs.length > 0) {
+          logger.debug(
+            `Removed ${removedSystemMsgs.length} system messages from conversation to comply with OpenAI role order`
+          );
+          currentMessages = currentMessages.filter(
+            (msg) => !(msg instanceof SystemMessage)
+          );
+        }
         const currentFormattedPrompt = await prompt.formatMessages({
           tool_names: toolsList.map((tool) => tool.name).join(', '),
           messages: currentMessages,
@@ -349,17 +439,32 @@ ${formatAgentResponse(content)}`);
       return 'end';
     }
 
-    const workflow = new StateGraph(GraphState)
+    let workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
     if (agent_config.memory && memoryAgent) {
-      workflow
+      workflow = (workflow as any)
         .addNode('memory', memoryAgent.createMemoryNode())
-        .addEdge('__start__', 'memory')
-        .addEdge('memory', 'agent');
+        .addEdge('__start__', 'memory');
+      if (documentAgent) {
+        workflow = (workflow as any)
+          .addNode(
+            'docsNode',
+            documentAgent.createDocumentNode(agent_config.id)
+          )
+          .addEdge('memory', 'docsNode')
+          .addEdge('docsNode', 'agent');
+      } else {
+        workflow = (workflow as any).addEdge('memory', 'agent');
+      }
+    } else if (documentAgent) {
+      workflow = (workflow as any)
+        .addNode('docsNode', documentAgent.createDocumentNode(agent_config.id))
+        .addEdge('__start__', 'docsNode')
+        .addEdge('docsNode', 'agent');
     } else {
-      workflow.addEdge('__start__', 'agent');
+      workflow = (workflow as any).addEdge('__start__', 'agent');
     }
 
     workflow
