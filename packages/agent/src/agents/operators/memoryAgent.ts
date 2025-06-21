@@ -419,8 +419,10 @@ export class MemoryAgent extends BaseAgent {
       '### User Memory Context (reference only - always verify dynamic info using tools)\n\
   Format:\
     Memory [id: <number>, relevance: <score>, last_updated: <date or “unknown”>]: <description>\
+    - Iteration memories may provide a "Question:" followed by its "Answer:".\
   Instruction: 1.Always read every entry in the Memory Context before composing your answer.\n\
     2. When description adds useful information quote or integrate it.\
+    3. Carefully analyze provided question/answer pairs before responding.\
 ###\n' +
       formattedMemories +
       '\n\n'
