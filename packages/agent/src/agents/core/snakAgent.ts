@@ -13,10 +13,76 @@ import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
 import { createHybridAgent } from '../modes/hybrid.js';
 import { Command } from '@langchain/langgraph';
-
+import { FormatChunkIteration, ToolsChunk } from './utils.js';
 /**
  * Configuration interface for SnakAgent initialization
  */
+
+export interface StreamChunk {
+  chunk: any;
+  iteration_number: number;
+  final: boolean;
+}
+
+export interface FormattedOnChatModelStream {
+  chunk: {
+    content: string;
+    tools: ToolsChunk | undefined;
+  };
+}
+
+export type MessagesLangraph = {
+  lc: number;
+  type: string;
+  id: string[];
+  kwargs: {
+    content: string;
+    additional_kwargs?: any;
+    response_metadata?: any;
+  };
+};
+
+export type ResultModelEnd = {
+  output: {
+    content: string;
+  };
+  input: {
+    messages: MessagesLangraph[][];
+  };
+};
+
+export interface FormattedOnChatModelStart {
+  iteration: {
+    name: string;
+    messages: MessagesLangraph[][];
+    metadata?: any;
+  };
+}
+
+export interface FormattedOnChatModelEnd {
+  iteration: {
+    name: string;
+    result: ResultModelEnd;
+  };
+}
+
+export enum AgentIterationEvent {
+  ON_CHAT_MODEL_STREAM = 'on_chat_model_stream',
+  ON_CHAT_MODEL_START = 'on_chat_model_start',
+  ON_CHAT_MODEL_END = 'on_chat_model_end',
+  ON_CHAIN_START = 'on_chain_start',
+  ON_CHAIN_END = 'on_chain_end',
+  ON_CHAIN_STREAM = 'on_chain_stream',
+}
+
+export interface IterationResponse {
+  event: AgentIterationEvent;
+  kwargs:
+    | FormattedOnChatModelEnd
+    | FormattedOnChatModelStart
+    | FormattedOnChatModelStream;
+}
+
 export interface SnakAgentConfig {
   provider: RpcProvider;
   accountPublicKey: string;
@@ -55,10 +121,14 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     this.accountPrivateKey = config.accountPrivateKey;
     this.accountPublicKey = config.accountPublicKey;
     this.agentMode =
-      AGENT_MODES[config.agentConfig?.mode || AgentMode.INTERACTIVE];
+      AGENT_MODES[
+        (config.agentConfig.mode as AgentMode) || AgentMode.INTERACTIVE
+      ];
     this.db_credentials = config.db_credentials;
     this.currentMode =
-      AGENT_MODES[config.agentConfig?.mode || AgentMode.INTERACTIVE];
+      AGENT_MODES[
+        (config.agentConfig.mode as AgentMode) || AgentMode.INTERACTIVE
+      ];
     this.agentConfig = config.agentConfig;
     this.memory = config.memory || {};
     this.modelSelector = config.modelSelector || null;
@@ -287,6 +357,196 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     return !(!request || request.trim() === '');
   }
 
+  public async *executeAsyncGenerator(
+    input: BaseMessage[] | any,
+    config?: Record<string, any>
+  ): AsyncGenerator<StreamChunk> {
+    logger.debug(`SnakAgent executing with mode: ${this.currentMode}`);
+    if (!this.agentReactExecutor) {
+      logger.warn(
+        'SnakAgent: Agent executor not available. Attempting to recreate.'
+      );
+      try {
+        await this.createAgentReactExecutor();
+        if (!this.agentReactExecutor) {
+          logger.error(
+            'SnakAgent: Failed to recreate agent executor. Cannot proceed.'
+          );
+          const fallbackInput =
+            Array.isArray(input) && input.length > 0
+              ? input[input.length - 1]
+              : input;
+          return this.executeSimpleFallback(
+            fallbackInput as string | BaseMessage
+          );
+        }
+      } catch (recreateError) {
+        logger.error(
+          `SnakAgent: Critical error recreating agent executor: ${recreateError}`
+        );
+        const fallbackInput =
+          Array.isArray(input) && input.length > 0
+            ? input[input.length - 1]
+            : input;
+        return this.executeSimpleFallback(
+          fallbackInput as string | BaseMessage
+        );
+      }
+    }
+
+    let messagesForGraph: BaseMessage[];
+
+    if (
+      Array.isArray(input) &&
+      input.every((msg) => msg instanceof BaseMessage)
+    ) {
+      messagesForGraph = input;
+      if (messagesForGraph.length === 0) {
+        logger.warn(
+          'SnakAgent: Received empty message array for execution. Initializing with a placeholder.'
+        );
+        messagesForGraph = [new HumanMessage('Starting interaction...')];
+      }
+    } else {
+      logger.warn(
+        `SnakAgent: Unexpected input type for 'messages'. Expected BaseMessage[], received ${typeof input}. Attempting to convert.`
+      );
+
+      if (input instanceof BaseMessage) {
+        messagesForGraph = [input];
+      } else if (typeof input === 'string') {
+        messagesForGraph = [new HumanMessage(input)];
+      } else if (
+        typeof input === 'object' &&
+        input &&
+        'content' in input &&
+        typeof input.content === 'string'
+      ) {
+        messagesForGraph = [new HumanMessage(input.content)];
+      } else {
+        logger.error(
+          'SnakAgent: Could not convert input to BaseMessage[]. Using simple fallback.'
+        );
+        let fallbackContent = 'Unprocessable input for agent execution';
+
+        try {
+          if (typeof input === 'string') fallbackContent = input;
+          else if (
+            input instanceof BaseMessage &&
+            typeof input.content === 'string'
+          )
+            fallbackContent = input.content;
+          else if (
+            input &&
+            typeof input.toString === 'function' &&
+            input.toString() !== '[object Object]'
+          )
+            fallbackContent = input.toString();
+          else if (input && input.content && typeof input.content === 'string')
+            fallbackContent = input.content;
+        } catch {}
+
+        return this.executeSimpleFallback(new HumanMessage(fallbackContent));
+      }
+    }
+
+    const originalUserQuery = config?.originalUserQuery;
+    let currentMessages = messagesForGraph;
+
+    if (
+      originalUserQuery &&
+      currentMessages.length > 0 &&
+      currentMessages[0].additional_kwargs?.from === 'model-selector'
+    ) {
+      logger.debug(
+        `SnakAgent: Using original user query "${originalUserQuery}" instead of model-selector message.`
+      );
+      currentMessages = [new HumanMessage(originalUserQuery)];
+    }
+
+    const graphState = {
+      messages: currentMessages,
+    };
+
+    const runnableConfig: Record<string, any> = {};
+    // Error no threadId
+    const threadId =
+      config?.threadId || config?.metadata?.threadId || 'default';
+
+    if (threadId) {
+      runnableConfig.configurable = { thread_id: threadId };
+    }
+
+    runnableConfig.version = 'v2';
+
+    if (config?.recursionLimit) {
+      runnableConfig.recursionLimit = config.recursionLimit;
+    }
+
+    if (config?.originalUserQuery) {
+      if (!runnableConfig.configurable) runnableConfig.configurable = {};
+      runnableConfig.configurable.originalUserQuery = config.originalUserQuery;
+    }
+
+    logger.debug(
+      `SnakAgent: Invoking agent executor with ${currentMessages.length} messages. Thread ID: ${threadId || 'N/A'}`
+    );
+
+    try {
+      const app = this.agentReactExecutor;
+      let chunk_to_save;
+      let iteration_number = 0;
+
+      for await (const chunk of await app.streamEvents(
+        graphState,
+        runnableConfig
+      )) {
+        if (
+          chunk.name === 'Branch<agent>' &&
+          chunk.event === 'on_chain_start'
+        ) {
+          iteration_number++;
+        }
+        if (chunk.name === 'Branch<agent>' && chunk.event === 'on_chain_end') {
+          chunk_to_save = chunk;
+        }
+        if (
+          chunk.event === 'on_chat_model_stream' ||
+          chunk.event === 'on_chat_model_start' ||
+          chunk.event === 'on_chat_model_end'
+        ) {
+          const formatted = FormatChunkIteration(chunk);
+          if (!formatted) {
+            throw new Error(
+              `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk)}`
+            );
+          }
+          const formattedChunk: IterationResponse = {
+            event: chunk.event as AgentIterationEvent,
+            kwargs: formatted,
+          };
+          yield {
+            chunk: formattedChunk,
+            iteration_number: iteration_number,
+            final: false,
+          };
+        }
+      }
+      yield {
+        chunk: {
+          event: chunk_to_save.event,
+          kwargs: {
+            iteration: chunk_to_save,
+          },
+        },
+        iteration_number: iteration_number,
+        final: true,
+      };
+      return;
+    } catch (agentExecError: any) {
+      throw new Error(`SnakAgent: Agent execution failed: ${agentExecError}`);
+    }
+  }
   /**
    * Execute the agent with the given input
    * @param input - The input message or string
@@ -296,7 +556,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
   public async execute(
     input: BaseMessage[] | any,
     config?: Record<string, any>
-  ): Promise<unknown> {
+  ): Promise<any> {
     logger.debug(`SnakAgent executing with mode: ${this.currentMode}`);
 
     if (!this.agentReactExecutor) {
@@ -438,23 +698,8 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     try {
       let responseContent: string | any;
 
-      if (config?.enableStreaming) {
-        try {
-          const app = this.agentReactExecutor;
-          const stream = await app.stream(graphState, runnableConfig);
-          const chunks = [];
-          for await (const chunk of stream) {
-            chunks.push(chunk);
-            logger.debug(`Stream chunk: ${chunk.content}|`);
-          }
-        } catch (streamError) {
-          logger.error(`Streaming error: ${streamError}`);
-        }
-      }
-
       const app = this.agentReactExecutor;
       const result = await app.invoke(graphState, runnableConfig);
-
       if (result?.messages?.length > 0) {
         for (let i = result.messages.length - 1; i >= 0; i--) {
           const msg = result.messages[i];
@@ -513,7 +758,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
   private async executeSimpleFallback(
     input: string | BaseMessage
   ): Promise<AIMessage> {
-    logger.warn('SnakAgent: Executing in simple fallback mode.');
+    logger.debug('SnakAgent: Using simple fallback execution.');
 
     let queryContent = 'Unavailable';
     try {
@@ -564,7 +809,7 @@ export class SnakAgent extends BaseAgent implements IModelAgent {
     );
   }
 
-   /**
+  /**
    * Capture the latest user question for pairing with the next assistant answer
    * @param content - User question content
    */

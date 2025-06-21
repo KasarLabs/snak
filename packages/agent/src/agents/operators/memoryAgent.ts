@@ -386,9 +386,7 @@ export class MemoryAgent extends BaseAgent {
         (m) => m.similarity >= SIMILARITY_THRESHOLD
       );
 
-      return combined
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 4);
+      return combined.sort((a, b) => b.similarity - a.similarity).slice(0, 4);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
