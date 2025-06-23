@@ -1,5 +1,13 @@
 // packages/server/src/agents.controller.ts
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Headers,
+} from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
 import {
@@ -18,6 +26,8 @@ import {
   AgentsDeleteRequestDTO,
   AgentAddRequestDTO,
 } from '@snakagent/core';
+import { FastifyRequest } from 'fastify';
+import { Postgres } from '@snakagent/database';
 
 export interface AgentResponse {
   status: 'success' | 'failure';
@@ -31,6 +41,11 @@ export interface SupervisorRequestDTO {
   };
 }
 
+export interface AgentAvatarResponseDTO {
+  id: string;
+  avatar_mime_type: string;
+}
+
 /**
  * Controller for handling agent-related operations
  */
@@ -42,12 +57,90 @@ export class AgentsController {
     private readonly supervisorService: SupervisorService,
     private readonly reflector: Reflector
   ) {}
-
   /**
    * Handle user request to a specific agent
    * @param userRequest - The user request containing agent ID and content
    * @returns Promise<AgentResponse> - Response with status and data
    */
+  @Post('upload-avatar')
+  async uploadAvatar(
+    @Headers('x-api-key') apiKey: string,
+    @Req() req: FastifyRequest
+  ) {
+    try {
+      const data = await (req as any).file();
+
+      if (!data) {
+        throw new BadRequestException('No file uploaded');
+      }
+
+      const buffer = await data.toBuffer();
+      const mimetype = data.mimetype;
+
+      const allowedMimeTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+      ];
+      if (!allowedMimeTypes.includes(data.mimetype)) {
+        throw new BadRequestException(
+          'Invalid file type. Only images are allowed.'
+        );
+      }
+
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (buffer.length > maxSize) {
+        throw new BadRequestException('File too large. Maximum size is 5MB.');
+      }
+
+      const agentIdField = data.fields?.agent_id;
+      let agentId: string | undefined;
+
+      if (agentIdField) {
+        if (Array.isArray(agentIdField)) {
+          const firstField = agentIdField[0];
+          if ('value' in firstField) {
+            agentId = firstField.value as string;
+          }
+        } else {
+          if ('value' in agentIdField) {
+            agentId = agentIdField.value as string;
+          }
+        }
+      }
+
+      const q = new Postgres.Query(
+        `UPDATE agents
+			 SET avatar_image = $1, avatar_mime_type = $2
+			 WHERE id = $3
+			 RETURNING id, avatar_mime_type`,
+        [buffer, mimetype, agentId]
+      );
+
+      const result = await Postgres.query<AgentAvatarResponseDTO>(q);
+
+      if (result.length === 0) {
+        throw new BadRequestException('Agent not found');
+      }
+      const avatarDataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
+
+      return {
+        status: 'success',
+        data: result[0],
+        avatarUrl: avatarDataUrl,
+      };
+    } catch (error) {
+      console.error('Error in uploadAvatar:', error);
+
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      throw new BadRequestException('Upload failed: ' + error.message);
+    }
+  }
+
   @Post('request')
   async handleUserRequest(
     @Body() userRequest: AgentRequestDTO
