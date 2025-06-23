@@ -7,9 +7,14 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { RunnableSequence } from '@langchain/core/runnables';
 
-const SIMILARITY_THRESHOLD = parseFloat(
-  process.env.DOCUMENT_SIMILARITY_THRESHOLD || '0.5'
-);
+const SIMILARITY_THRESHOLD = (() => {
+  const value = parseFloat(process.env.DOCUMENT_SIMILARITY_THRESHOLD || '0.5');
+  if (isNaN(value) || value < 0 || value > 1) {
+    logger.warn(`Invalid DOCUMENT_SIMILARITY_THRESHOLD: ${process.env.DOCUMENT_SIMILARITY_THRESHOLD}, using default 0.5`);
+    return 0.5;
+  }
+  return value;
+})();
 
 export interface DocumentConfig {
   enabled?: boolean;
