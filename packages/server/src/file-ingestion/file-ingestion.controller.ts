@@ -4,8 +4,6 @@ import {
   Req,
   BadRequestException,
   InternalServerErrorException,
-  Get,
-  Param,
   Body,
   ForbiddenException,
 } from '@nestjs/common';
@@ -49,11 +47,17 @@ export class FileIngestionController {
       if (part.type === 'field' && part.fieldname === 'agentId') {
         agentId = String(part.value);
       } else if (part.type === 'file') {
-        const buffer = await part.toBuffer();
-        if (buffer.length > this.config.documents.maxDocumentSize) {
-          throw new ForbiddenException('File size exceeds limit');
+        let size = 0;
+        const chunks: Buffer[] = [];
+        for await (const chunk of part.file) {
+          size += chunk.length;
+          if (size > this.config.documents.maxDocumentSize) {
+            part.file.destroy();
+            throw new ForbiddenException('File size exceeds limit');
+          }
+          chunks.push(chunk);
         }
-        fileBuffer = buffer;
+        fileBuffer = Buffer.concat(chunks);
         fileName = part.filename;
       }
     }

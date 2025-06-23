@@ -480,10 +480,13 @@ export class SupervisorService implements OnModuleInit {
           enabled: agentConfig.memory.enabled,
           shortTermMemorySize: agentConfig.memory.short_term_memory_size,
         },
-        documents: {
-          enabled: agentConfig.documents.enabled,
-          embeddingModel: agentConfig.documents.embedding_model || undefined,
-        },
+        documents: agentConfig.documents
+          ? {
+              enabled: agentConfig.documents.enabled,
+              embeddingModel:
+                agentConfig.documents.embedding_model || undefined,
+            }
+          : undefined,
         chatId: `agent_${agentConfig.id}`,
         maxIterations: agentConfig.max_iterations || 15,
         mode: agentConfig.mode || AgentMode.INTERACTIVE,

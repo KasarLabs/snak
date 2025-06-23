@@ -205,7 +205,7 @@ export class SupervisorAgent extends BaseAgent {
   private async initializeDocumentAgent(
     agentConfig: AgentConfig | undefined
   ): Promise<void> {
-    const docCfg = (agentConfig as any)?.documents;
+    const docCfg = agentConfig?.documents;
     if (!docCfg || docCfg.enabled !== true) {
       logger.info(
         'SupervisorAgent: DocumentAgent initialization skipped (disabled or not configured in config)'

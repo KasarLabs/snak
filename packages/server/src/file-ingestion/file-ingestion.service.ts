@@ -169,7 +169,7 @@ export class FileIngestionService {
       }));
       await this.vectorStore.upsert(agentId, upsertPayload);
     } catch (err) {
-      this.logger.error('Embedding failed', err as any);
+      this.logger.error('Embedding failed', err);
       throw err;
     }
 

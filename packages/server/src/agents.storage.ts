@@ -164,7 +164,7 @@ export class AgentStorage implements OnModuleInit {
    * @returns Parsed AgentMemorySQL
    * @private
    */
-  private parseMemoryConfig(config: any): AgentMemorySQL {
+  private parseMemoryConfig(config: string | AgentMemorySQL): AgentMemorySQL {
     try {
       if (typeof config !== 'string') {
         return config as AgentMemorySQL;
@@ -187,7 +187,9 @@ export class AgentStorage implements OnModuleInit {
    * @returns Parsed AgentDocumentsSQL
    * @private
    */
-  private parseDocumentsConfig(config: any): AgentDocumentsSQL {
+  private parseDocumentsConfig(
+    config: string | AgentDocumentsSQL
+  ): AgentDocumentsSQL {
     try {
       if (typeof config !== 'string') {
         return config as AgentDocumentsSQL;
@@ -219,8 +221,8 @@ export class AgentStorage implements OnModuleInit {
       const q_res = await Postgres.query<AgentConfigSQL>(q);
       const parsed = q_res.map((cfg) => ({
         ...cfg,
-        memory: this.parseMemoryConfig(cfg.memory as any),
-        documents: this.parseDocumentsConfig(cfg.documents as any),
+        memory: this.parseMemoryConfig(cfg.memory),
+        documents: this.parseDocumentsConfig(cfg.documents),
       }));
       this.agentConfigs = [...parsed];
 
@@ -420,8 +422,8 @@ export class AgentStorage implements OnModuleInit {
     if (q_res.length > 0) {
       const newAgentDbRecord = {
         ...q_res[0],
-        memory: this.parseMemoryConfig(q_res[0].memory as any),
-        documents: this.parseDocumentsConfig(q_res[0].documents as any),
+        memory: this.parseMemoryConfig(q_res[0].memory),
+        documents: this.parseDocumentsConfig(q_res[0].documents),
       };
       this.agentConfigs.push(newAgentDbRecord);
       logger.debug(`Agent ${newAgentDbRecord.id} added to configuration`);

@@ -173,12 +173,12 @@ export const createInteractiveAgent = async (
       const memoryContent =
         typeof state.memories === 'string'
           ? state.memories
-          : (state.memories as any)?.memories;
+          : (state.memories as { memories?: string })?.memories;
 
       const documentsContent =
         typeof state.documents === 'string'
           ? state.documents
-          : (state.documents as any)?.documents;
+          : (state.documents as { documents?: string })?.documents;
 
       const memoryAvailable = memoryContent && memoryContent.trim().length > 0;
       const documentsAvailable =
