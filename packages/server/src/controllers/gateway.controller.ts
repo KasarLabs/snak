@@ -124,6 +124,7 @@ export class MyGateway implements OnModuleInit {
         throw new ServerError('E01TA400');
       }
 
+      let response: AgentResponse;
       for await (const chunk of this.agentService.handleUserRequestWebsocket(
         agent,
         userRequest.request
@@ -146,6 +147,15 @@ export class MyGateway implements OnModuleInit {
                 'waiting_for_human_input',
               ]
             );
+            response = {
+              status: 'waiting_for_human_input',
+              data: {
+                ...chunk.chunk,
+                iteration_number: chunk.iteration_number,
+                langraphh_step: chunk.langraphh_step,
+                isLastChunk: chunk.final,
+              },
+            };
           } else {
             q = new Postgres.Query(
               'INSERT INTO message (agent_id,user_request,agent_iteration)  VALUES($1, $2, $3)',
@@ -155,19 +165,30 @@ export class MyGateway implements OnModuleInit {
                 chunk.chunk,
               ]
             );
+            response = {
+              status: 'success',
+              data: {
+                ...chunk.chunk,
+                iteration_number: chunk.iteration_number,
+                langraphh_step: chunk.langraphh_step,
+                isLastChunk: chunk.final,
+              },
+            };
           }
           await Postgres.query(q);
           logger.info('Message Saved in DB');
+        } else {
+          response = {
+            status: 'success',
+            data: {
+              ...chunk.chunk,
+              iteration_number: chunk.iteration_number,
+              langraphh_step: chunk.langraphh_step,
+              isLastChunk: chunk.final,
+            },
+          };
         }
-        const response: AgentResponse = {
-          status: 'waiting_for_human_input',
-          data: {
-            ...chunk.chunk,
-            iteration_number: chunk.iteration_number,
-            langraphh_step: chunk.langraphh_step,
-            isLastChunk: chunk.final,
-          },
-        };
+
         client.emit('onAgentRequest', response);
       }
     } catch (error) {

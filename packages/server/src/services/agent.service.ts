@@ -120,15 +120,46 @@ export class AgentService implements IAgentService {
     try {
       let result: any;
       let q = new Postgres.Query(
-        `SELECT status 
-         FROM message 
-         ORDER BY created_at DESC 
-         LIMIT 1;`
+        `SELECT status, id 
+     FROM message 
+     WHERE agent_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1;`,
+        [userRequest.agent_id]
       );
-
-      const status = await Postgres.query<string>(q);
+      console.log('test');
+      const status = await Postgres.query<{ status: string; id: string }>(q);
       logger.info(status);
-      for await (const chunk of agent.execute(userRequest.user_request)) {
+
+      if (
+        status &&
+        status.length != 0 &&
+        status[0].status === 'waiting_for_human_input'
+      ) {
+        for await (const chunk of agent.execute(
+          userRequest.user_request,
+          true
+        )) {
+          if (chunk.final === true) {
+            this.logger.debug('SupervisorService: Execution completed');
+            yield chunk;
+
+            let q = new Postgres.Query(
+              `UPDATE message 
+              SET status = $1 
+              WHERE id = $2;`,
+              ['success', status[0].id]
+            );
+            await Postgres.query(q);
+            return;
+          }
+          yield chunk;
+        }
+      }
+      for await (const chunk of agent.execute(
+        userRequest.user_request,
+        false
+      )) {
         if (chunk.final === true) {
           this.logger.debug('SupervisorService: Execution completed');
           yield chunk;
@@ -188,7 +219,7 @@ export class AgentService implements IAgentService {
         [userRequest.agent_id, limit]
       );
       const res = await Postgres.query<MessageSQL>(q);
-      this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
+      // this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
       this.logger.error(error);

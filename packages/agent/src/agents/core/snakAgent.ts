@@ -412,7 +412,7 @@ export class SnakAgent extends BaseAgent {
   ): AsyncGenerator<any> | Promise<any> {
     try {
       console.log(
-        `Execute called with input type: ${typeof input}, value: ${input}`
+        `Execute called with input type: ${typeof input}, value: ${input}, isInterrupt ${isInterrupted}`
       );
       if (!this.agentReactExecutor) {
         throw new Error('Agent executor is not initialized. Cannot execute.');
@@ -426,7 +426,10 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else if (this.currentMode == AGENT_MODES[AgentMode.AUTONOMOUS]) {
-        for await (const chunk of this.execute_autonomous()) {
+        for await (const chunk of this.execute_autonomous(
+          input,
+          isInterrupted
+        )) {
           if (chunk.final) {
             yield chunk;
             return;
@@ -464,11 +467,11 @@ export class SnakAgent extends BaseAgent {
    * @returns Promise resolving to the result of the autonomous execution
    */
   public async *execute_autonomous(
-    input?: string,
+    input: string,
+    isInterrupted: boolean = false,
     config?: RunnableConfig
   ): AsyncGenerator<any> {
     let responseContent: string | any;
-    let fallbackAttempted = false;
     let originalMode = this.currentMode;
     let iterationCount = 0;
 
@@ -485,10 +488,7 @@ export class SnakAgent extends BaseAgent {
       const agentJsonConfig = this.agentReactExecutor.agent_config;
       const maxGraphIterations = 10;
 
-      const initialHumanMessage = new HumanMessage(
-        'Start executing the primary objective defined in your system prompt.'
-      );
-      let conversationHistory: BaseMessage[] = [initialHumanMessage];
+      let userInput: BaseMessage[] = [new HumanMessage(input)];
 
       logger.info(
         `Thread ID: , ${agentJsonConfig?.chatId || 'autonomous_session'}`
@@ -511,14 +511,19 @@ export class SnakAgent extends BaseAgent {
         let finalState: any = null;
         let chunk_to_save;
         let iteration_number = 0;
-        let isInterrupted = false;
         let command: Command | undefined;
-        let graphState = { messages: conversationHistory };
+        let graphState = { messages: userInput };
         let config = {
           ...threadConfig,
           recursionLimit: 500,
           version: 'v2',
         };
+
+        if (isInterrupted) {
+          command = new Command({
+            resume: input,
+          });
+        }
         while (-1) {
           let userInput = !isInterrupted ? graphState : command;
           for await (const chunk of await app.streamEvents(userInput, config)) {
@@ -538,6 +543,10 @@ export class SnakAgent extends BaseAgent {
               // console.log(JSON.stringify(chunk, null, 2));
               // iteration_number++;
             }
+            if (chunk.event === 'on_chain_end') {
+              logger.warn('ON CHAIN END');
+              console.log(JSON.stringify(chunk));
+            }
             if (
               chunk.name === 'Branch<tools,tools,agent,end>' &&
               chunk.event === 'on_chain_end'
@@ -546,6 +555,7 @@ export class SnakAgent extends BaseAgent {
             }
             if (
               chunk.event === 'on_chat_model_start' ||
+              chunk.event === 'on_chat_model_stream' ||
               chunk.event === 'on_chat_model_end'
             ) {
               const formatted = FormatChunkIteration(chunk);
@@ -635,12 +645,6 @@ export class SnakAgent extends BaseAgent {
       });
     } catch (error: any) {
       logger.error(`SnakAgent autonomous execution failed: ${error}`);
-
-      if (!fallbackAttempted) {
-        logger.error(
-          `SnakAgent (autonomous): Catastrophic error, using fallback: ${error}`
-        );
-      }
 
       return new AIMessage({
         content: `Autonomous execution error: ${error.message}`,
