@@ -511,9 +511,8 @@ export class SnakAgent extends BaseAgent {
 
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphIterations = 20;
+      const maxGraphIterations = 5;
 
-      console.log(JSON.stringify(agentJsonConfig, null, 2));
       const initialHumanMessage = new HumanMessage(
         'Start executing the primary objective defined in your system prompt.'
       );
@@ -557,14 +556,22 @@ export class SnakAgent extends BaseAgent {
             isInterrupted = false;
             if (
               chunk.name === 'Branch<tools,tools,agent,end>' &&
+              chunk.event === 'on_chain_start'
+            ) {
+              const messages = chunk.data.input.messages;
+              iteration_number =
+                messages[messages.length - 1].additional_kwargs
+                  .iteration_number;
+              console.log('Iteration number:', iteration_number);
+              // console.log(JSON.stringify(chunk, null, 2));
+              // iteration_number++;
+            }
+            if (
+              chunk.name === 'Branch<tools,tools,agent,end>' &&
               chunk.event === 'on_chain_end'
             ) {
               chunk_to_save = chunk;
             }
-
-            // logger.debug(
-            //   `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
-            // );
             if (
               chunk.event === 'on_chat_model_start' ||
               chunk.event === 'on_chat_model_end'
@@ -582,6 +589,7 @@ export class SnakAgent extends BaseAgent {
               yield {
                 chunk: formattedChunk,
                 iteration_number: iteration_number,
+                langraphh_step: chunk.metadata.langgraph_step,
                 final: false,
               };
             }
@@ -589,7 +597,6 @@ export class SnakAgent extends BaseAgent {
           console.log('--- GRAPH INTERRUPTED ---');
 
           const state = await app.getState(config);
-          console.log(JSON.stringify(state.tasks.length, null, 2));
           if (state.tasks.length > 0 && state.tasks[0]?.interrupts) {
             logger.debug(
               `SnakAgent: Graph interrupted, checking for next steps.`
@@ -598,6 +605,17 @@ export class SnakAgent extends BaseAgent {
               logger.debug(
                 `SnakAgent: Interrupts found, waiting for user input.`
               );
+              yield {
+                chunk: {
+                  event: 'on_graph_interrupted',
+                  formatted: {
+                    content: state.tasks[0].interrupts[0].value,
+                  },
+                },
+                iteration_number: iteration_number,
+                langraphh_step: 0,
+                final: false,
+              };
               isInterrupted = true;
 
               // Demander l'input à l'utilisateur
@@ -621,7 +639,6 @@ export class SnakAgent extends BaseAgent {
         logger.debug('Autonomous graph invocation complete.');
         iterationCount = finalState?.iterations || iterationCount;
         console.log('iterationCount : ', iterationCount);
-        // logger.info(`Chunk to save ${JSON.stringify(chunk_to_save, null, 2)}`);
         yield {
           chunk: {
             event: chunk_to_save.event,
@@ -630,6 +647,7 @@ export class SnakAgent extends BaseAgent {
             },
           },
           iteration_number: iteration_number,
+          langraphh_step: chunk_to_save.metadata.langgraph_step,
           final: true,
         };
         return;

@@ -156,14 +156,6 @@ export const createAutonomousAgent = async (
             iteration_number: lastIterationNumber,
           };
         });
-
-        console.log(
-          `Tool invocation result: ${JSON.stringify(
-            truncatedResult as any,
-            null,
-            2
-          )}`
-        );
         return truncatedResult;
       } catch (error) {
         const executionTime = Date.now() - startTime;
@@ -222,43 +214,51 @@ export const createAutonomousAgent = async (
         throw new Error('Agent configuration and ModelSelector are required.');
       }
 
-      console.log(
-        config?.configurable?.config.max_graph_steps,
-        config?.configurable?.config.short_term_memory
-      );
-      let iteration_number = 0;
-
+      // Configuration extraction
       const maxGraphSteps = config?.configurable?.config.max_graph_steps;
       const shortTermMemory = config?.configurable?.config.short_term_memory;
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1];
-      const lastMessageAi = getLatestMessageForMessage(
-        state.messages,
-        AIMessageChunk
-      );
 
-      console.log('Messages Lenght', messages.length);
+      // Determine iteration number
+      let iteration_number = 0;
       if (lastMessage instanceof ToolMessage) {
         logger.debug('ToolMessage Detected');
-
+        const lastMessageAi = getLatestMessageForMessage(
+          state.messages,
+          AIMessageChunk
+        );
         if (!lastMessageAi) {
           throw new Error('Error trying to get latest AI Message Chunk');
         }
-        // logger.info(
-        //   `Last Message AI ${JSON.stringify(lastMessageAi, null, 2)}`
-        // );
         iteration_number =
           (lastMessageAi.additional_kwargs.iteration_number as number) || 0;
       } else if (lastMessage instanceof AIMessageChunk) {
         iteration_number =
           (lastMessage.additional_kwargs.iteration_number as number) || 0;
       }
+
+      if (maxGraphSteps <= iteration_number) {
+        return {
+          messages: [
+            new AIMessageChunk({
+              content: `Reaching maximum iterations for autonomous agent. Ending workflow.`,
+              additional_kwargs: {
+                final: true,
+                iteration_number: iteration_number,
+              },
+            }),
+          ],
+        };
+      }
+
       iteration_number++;
-      let startIteration: number = 0;
+
+      // Determine start iteration
+      let startIteration = 0;
       if ((config?.metadata?.langgraph_step as number) === 1) {
         startIteration = 1;
-      }
-      if (
+      } else if (
         Array.isArray(config?.metadata?.langgraph_triggers) &&
         typeof config.metadata.langgraph_triggers[0] === 'string' &&
         config.metadata.langgraph_triggers[0] === '__start__:agent'
@@ -276,82 +276,70 @@ export const createAutonomousAgent = async (
           .start_iteration as number;
       }
 
-      logger.info(`startIteration: ${startIteration}`);
-      console.log('iteration_number', iteration_number);
-      if (maxGraphSteps <= iteration_number) {
-        return {
-          messages: [
-            new AIMessageChunk({
-              content: `Reaching maximum iterations for autonomous agent. Ending workflow.`,
-              additional_kwargs: {
-                final: true,
-                start_iteration: startIteration,
-              },
-            }),
-          ],
-        };
-      }
+      logger.info(
+        `startIteration: ${startIteration}, iteration: ${iteration_number}`
+      );
+
+      // Check max iterations
 
       logger.info('Autonomous agent callModel invoked.');
-      const state2 = GraphState.Node;
 
+      // Build system prompt
       const autonomousSystemPrompt = `
-        ${agent_config.prompt.content}
+    ${agent_config.prompt.content}
 
-        ${hybridRules}
+    ${hybridRules}
 
-        Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
+    Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
 
+      // Debug logging
       fs.appendFileSync('log.txt', JSON.stringify(lastMessage, null, 2));
       logger.debug(
         `Autonomous agent callModel: Iteration number is ${iteration_number}`
       );
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', autonomousSystemPrompt],
-        new MessagesPlaceholder('messages'),
-      ]);
 
-      let lastIterationCount = iteration_number - 1;
-      let s_temp = shortTermMemory;
       try {
+        // Filter messages based on short-term memory
         const filteredMessages = [];
+        let lastIterationCount = iteration_number - 1;
+        let s_temp = shortTermMemory;
+
         for (let i = state.messages.length - 1; i >= 0; i--) {
           const msg = state.messages[i];
-          // logger.debug(
-          //   `Adding message to filteredMessages: ${JSON.stringify(msg)}`
-          // );
-          if (
-            !(
-              (msg instanceof AIMessageChunk || msg instanceof ToolMessage) &&
-              msg.additional_kwargs?.from === 'model-selector'
-            )
-          ) {
-            if (lastIterationCount != msg.additional_kwargs?.iteration_number) {
-              console.log(
-                `Skipping message with different iteration number: ${msg.additional_kwargs?.iteration_number}`
-              );
-              lastIterationCount =
-                (msg.additional_kwargs?.iteration_number as number) || 0;
-              s_temp--;
-            }
-            if (s_temp === 0) {
-              break;
-            }
 
-            filteredMessages.unshift(msg);
+          // Skip model-selector messages
+          if (
+            (msg instanceof AIMessageChunk || msg instanceof ToolMessage) &&
+            msg.additional_kwargs?.from === 'model-selector'
+          ) {
+            continue;
           }
+
+          // Handle iteration filtering
+          if (lastIterationCount !== msg.additional_kwargs?.iteration_number) {
+            lastIterationCount =
+              (msg.additional_kwargs?.iteration_number as number) || 0;
+            s_temp--;
+          }
+
+          if (s_temp === 0) break;
+
+          filteredMessages.unshift(msg);
         }
 
-        // console.log(JSON.stringify(prompt, null, 2));
-        // console.log(JSON.stringify(filteredMessages, null, 2));
+        // Create and format prompt
+        const prompt = ChatPromptTemplate.fromMessages([
+          ['system', autonomousSystemPrompt],
+          new MessagesPlaceholder('messages'),
+        ]);
+
         const formattedPrompt = await prompt.formatMessages({
           messages: filteredMessages,
         });
-        console.log(JSON.stringify(formattedPrompt, null, 2));
 
+        // Model selection and invocation
         const selectedModelType =
           await modelSelector.selectModelForMessages(filteredMessages);
-
         const boundModel =
           typeof selectedModelType.model.bindTools === 'function'
             ? selectedModelType.model.bindTools(toolsList)
@@ -360,11 +348,11 @@ export const createAutonomousAgent = async (
         logger.debug(
           `Autonomous agent invoking model (${selectedModelType.model_name}) with ${filteredMessages.length} messages.`
         );
+
         const result = await boundModel.invoke(formattedPrompt);
         TokenTracker.trackCall(result, selectedModelType.model_name);
 
-        console.log('About to check instanceof');
-        console.log(`Result type: ${Object.getPrototypeOf(result)}`);
+        // Add metadata to result
         result.additional_kwargs = {
           ...result.additional_kwargs,
           from: 'autonomous-agent',
@@ -372,10 +360,12 @@ export const createAutonomousAgent = async (
           start_iteration: startIteration,
           iteration_number: iteration_number,
         };
-        const finalMessage = { messages: [result] };
-        return finalMessage;
+
+        return { messages: [result] };
       } catch (error: any) {
         logger.error(`Error calling model in autonomous agent: ${error}`);
+
+        // Handle token limit errors
         if (
           error.message?.includes('token limit') ||
           error.message?.includes('tokens exceed') ||
@@ -397,10 +387,12 @@ export const createAutonomousAgent = async (
             ],
           };
         }
+
+        // Handle other errors
         return {
           messages: [
             new AIMessageChunk({
-              content: `Error: An unexpected error occurred while processing the request. Error : ${error} `,
+              content: `Error: An unexpected error occurred while processing the request. Error : ${error}`,
               additional_kwargs: {
                 error: 'unexpected_error',
                 final: true,
@@ -423,7 +415,6 @@ export const createAutonomousAgent = async (
     ): 'tools' | 'agent' | 'end' {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1];
-      console.log('Object : ', Object.getPrototypeOf(lastMessage));
       if (lastMessage instanceof AIMessageChunk) {
         if (
           lastMessage.additional_kwargs.final === true ||
@@ -448,14 +439,13 @@ export const createAutonomousAgent = async (
         if (!lastAiMessage) {
           throw new Error('Error trying to get last AIMessageChunk');
         }
+        const graphMaxSteps = config?.configurable?.config
+          .max_graph_steps as number;
 
-        const startIteration = lastAiMessage.additional_kwargs
-          .start_iteration as number;
-
-        if (
-          (config?.metadata?.langgraph_step as number) >=
-          config?.configurable?.config.max_graph_steps + startIteration
-        ) {
+        const iteration = lastMessage.additional_kwargs
+          ?.iteration_number as number;
+        console.log('Iteration Tools: ', iteration);
+        if (graphMaxSteps <= iteration) {
           logger.info(
             `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
           );
@@ -477,9 +467,7 @@ export const createAutonomousAgent = async (
     ): 'tools' | 'agent' | 'end' | 'human' {
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1];
-      console.log('Object : ', Object.getPrototypeOf(lastMessage));
       if (lastMessage instanceof AIMessageChunk) {
-        // logger.debug(JSON.stringify(lastMessage, null, 2));
         if (
           lastMessage.additional_kwargs.final === true ||
           lastMessage.content.toString().includes('FINAL ANSWER')
@@ -508,15 +496,12 @@ export const createAutonomousAgent = async (
         if (!lastAiMessage) {
           throw new Error('Error trying to get last AIMessageChunk');
         }
-
-        const startIteration = lastAiMessage.additional_kwargs
-          .start_iteration as number;
         const graphMaxSteps = config?.configurable?.config
           .max_graph_steps as number;
 
         const iteration = lastMessage.additional_kwargs
           ?.iteration_number as number;
-        console.log("Iteration Tools: ", iteration);
+        console.log('Iteration Tools: ', iteration);
         if (graphMaxSteps <= iteration) {
           logger.info(
             `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`

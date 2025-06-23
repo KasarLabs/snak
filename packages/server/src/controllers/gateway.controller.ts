@@ -140,15 +140,31 @@ export class MyGateway implements OnModuleInit {
           await Postgres.query(q);
           logger.info('Message Saved in DB');
         }
-        const response: AgentResponse = {
-          status: 'success',
-          data: {
-            ...chunk.chunk,
-            iteration_number: chunk.iteration_number,
-            isLastChunk: chunk.final,
-          },
-        };
-        client.emit('onAgentRequest', response);
+        if (chunk.chunk.event === 'on_graph_interrupted') {
+          const response: AgentResponse = {
+            status: 'waiting_user_input',
+            data: {
+              ...chunk.chunk,
+              iteration_number: chunk.iteration_number,
+              langraphh_step: chunk.langraphh_step,
+              isLastChunk: chunk.final,
+            },
+          };
+          client.emit('onAgentRequest', response, (response: any) => {
+            logger.debug('Response sent to client:', response);
+          });
+        } else {
+          const response: AgentResponse = {
+            status: 'success',
+            data: {
+              ...chunk.chunk,
+              iteration_number: chunk.iteration_number,
+              langraphh_step: chunk.langraphh_step,
+              isLastChunk: chunk.final,
+            },
+          };
+          client.emit('onAgentRequest', response);
+        }
       }
     } catch (error) {
       const client = this.clients.get(userRequest.socket_id);

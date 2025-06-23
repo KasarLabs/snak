@@ -19,7 +19,7 @@ import {
 } from '@snakagent/core';
 
 export interface AgentResponse {
-  status: 'success' | 'failure';
+  status: 'success' | 'failure' | 'waiting_user_input';
   data?: unknown;
 }
 
