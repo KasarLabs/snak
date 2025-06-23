@@ -218,6 +218,7 @@ export class AgentSystem {
    */
   public async execute(
     message: MessageRequest | string,
+    isInterrupted: boolean = false,
     config?: Record<string, any>
   ): Promise<any> {
     if (!this.supervisorAgent) {
@@ -229,7 +230,11 @@ export class AgentSystem {
       const content =
         typeof message === 'string' ? message : message.user_request;
       let result;
-      for await (const chunk of this.supervisorAgent.execute(content, config)) {
+      for await (const chunk of this.supervisorAgent.execute(
+        content,
+        false,
+        config
+      )) {
         if (chunk.final === true) {
           result = chunk.chunk;
         }

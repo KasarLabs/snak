@@ -483,6 +483,7 @@ export class SupervisorAgent extends BaseAgent {
    */
   public async *execute(
     input: string | AgentMessage | BaseMessage | BaseMessage[],
+    isInterrupted: boolean = false,
     config?: Record<string, any>
   ): AsyncGenerator<any> {
     this.executionDepth++;
@@ -570,6 +571,7 @@ export class SupervisorAgent extends BaseAgent {
             : input instanceof BaseMessage
               ? input
               : (input as AgentMessage).content,
+          false,
           config
         );
 
@@ -769,6 +771,7 @@ export class SupervisorAgent extends BaseAgent {
       try {
         const selectionOutcome = await this.agentSelector.execute(
           new HumanMessage(queryForSelection),
+          false,
           {
             ...(config || {}),
             originalUserQuery: queryForSelection,

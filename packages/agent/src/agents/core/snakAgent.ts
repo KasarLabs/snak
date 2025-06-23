@@ -312,7 +312,7 @@ export class SnakAgent extends BaseAgent {
         `SnakAgent: Input type is ${typeof input}, checking conversion.`
       );
 
-      let graphState = {
+      const graphState = {
         messages: [new HumanMessage(input)],
       };
 
@@ -343,77 +343,44 @@ export class SnakAgent extends BaseAgent {
       const app = this.agentReactExecutor.app;
       let chunk_to_save;
       let iteration_number = 0;
-      let isInterrupted = false;
-      let command: Command | undefined;
-      while (-1) {
-        let userInput = !isInterrupted ? graphState : command;
 
-        for await (const chunk of await app.streamEvents(
-          graphState,
-          runnableConfig
-        )) {
-          if (
-            chunk.name === 'Branch<agent>' &&
-            chunk.event === 'on_chain_start'
-          ) {
-            iteration_number++;
-          }
-          if (
-            chunk.name === 'Branch<agent>' &&
-            chunk.event === 'on_chain_end'
-          ) {
-            chunk_to_save = chunk;
-          }
-
-          logger.debug(
-            `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
-          );
-          if (
-            chunk.event === 'on_chat_model_stream' ||
-            chunk.event === 'on_chat_model_start' ||
-            chunk.event === 'on_chat_model_end'
-          ) {
-            const formatted = FormatChunkIteration(chunk);
-            if (!formatted) {
-              throw new Error(
-                `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk)}`
-              );
-            }
-            const formattedChunk: IterationResponse = {
-              event: chunk.event as AgentIterationEvent,
-              kwargs: formatted,
-            };
-            yield {
-              chunk: formattedChunk,
-              iteration_number: iteration_number,
-              final: false,
-            };
-          }
+      for await (const chunk of await app.streamEvents(
+        graphState,
+        runnableConfig
+      )) {
+        if (
+          chunk.name === 'Branch<agent>' &&
+          chunk.event === 'on_chain_start'
+        ) {
+          iteration_number++;
+        }
+        if (chunk.name === 'Branch<agent>' && chunk.event === 'on_chain_end') {
+          chunk_to_save = chunk;
         }
 
-        const state = await app.getState({
-          configurable: {
-            thread_id: threadId || 'default',
-          },
-          recursionLimit: 500,
-          version: 'v2',
-        });
-
-        if (state.tasks[0].interrupts) {
-          logger.debug(
-            `SnakAgent: Graph interrupted, checking for next steps.`
-          );
-          if (state.tasks[0].interrupts.length > 0) {
-            logger.debug(`SnakAgent: Interrupts found, continuing execution.`);
-            isInterrupted = true;
-            command = new Command({
-              resume: 'Can you tell me whats is your objectives ?',
-            });
-            continue;
-          } else {
-            logger.debug(`SnakAgent: No interrupts found, ending execution.`);
-            break;
+        logger.debug(
+          `SnakAgent : ${chunk.event}, iteration : ${iteration_number}`
+        );
+        if (
+          chunk.event === 'on_chat_model_stream' ||
+          chunk.event === 'on_chat_model_start' ||
+          chunk.event === 'on_chat_model_end'
+        ) {
+          const formatted = FormatChunkIteration(chunk);
+          if (!formatted) {
+            throw new Error(
+              `SnakAgent: Failed to format chunk: ${JSON.stringify(chunk)}`
+            );
           }
+          const formattedChunk: IterationResponse = {
+            event: chunk.event as AgentIterationEvent,
+            kwargs: formatted,
+          };
+          yield {
+            chunk: formattedChunk,
+            iteration_number: iteration_number,
+            final: false,
+          };
         }
       }
       yield {
@@ -431,6 +398,7 @@ export class SnakAgent extends BaseAgent {
       console.error('ExecuteAsyncGenerator :', error);
     }
   }
+
   /**
    * Execute the agent with the given input
    * @param input - The input message or string
@@ -439,6 +407,7 @@ export class SnakAgent extends BaseAgent {
    */
   public async *execute(
     input: string,
+    isInterrupted: boolean = false,
     config?: Record<string, any>
   ): AsyncGenerator<any> | Promise<any> {
     try {
@@ -494,7 +463,10 @@ export class SnakAgent extends BaseAgent {
    * This mode allows the agent to operate continuously based on an initial goal or prompt
    * @returns Promise resolving to the result of the autonomous execution
    */
-  public async *execute_autonomous(): AsyncGenerator<any> {
+  public async *execute_autonomous(
+    input?: string,
+    config?: RunnableConfig
+  ): AsyncGenerator<any> {
     let responseContent: string | any;
     let fallbackAttempted = false;
     let originalMode = this.currentMode;
@@ -511,7 +483,7 @@ export class SnakAgent extends BaseAgent {
 
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphIterations = 5;
+      const maxGraphIterations = 10;
 
       const initialHumanMessage = new HumanMessage(
         'Start executing the primary objective defined in your system prompt.'
@@ -608,27 +580,15 @@ export class SnakAgent extends BaseAgent {
               yield {
                 chunk: {
                   event: 'on_graph_interrupted',
-                  formatted: {
-                    content: state.tasks[0].interrupts[0].value,
+                  kwargs: {
+                    iteration: chunk_to_save || 'Hello',
                   },
                 },
                 iteration_number: iteration_number,
                 langraphh_step: 0,
-                final: false,
+                final: true,
               };
-              isInterrupted = true;
-
-              // Demander l'input à l'utilisateur
-              const userInput = await new Promise((resolve) => {
-                rl.question(state.tasks[0].interrupts[0].value, (answer) => {
-                  resolve(answer);
-                });
-              });
-
-              command = new Command({
-                resume: userInput || 'Continue exploration',
-              });
-              continue;
+              return;
             }
           } else {
             logger.debug(`SnakAgent: No interrupts found, ending execution.`);

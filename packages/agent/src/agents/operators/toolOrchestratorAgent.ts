@@ -118,6 +118,7 @@ export class ToolsOrchestrator extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | any,
+    isInterrupted?: boolean,
     config?: Record<string, any>
   ): Promise<any> {
     if (!this.toolNode) {

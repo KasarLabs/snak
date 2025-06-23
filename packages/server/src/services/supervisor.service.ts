@@ -665,7 +665,7 @@ export class SupervisorService implements OnModuleInit {
       this.logger.debug(
         `SupervisorService: Executing request with config: ${JSON.stringify(config)}`
       );
-      for await (const chunk of this.supervisor.execute(input, config)) {
+      for await (const chunk of this.supervisor.execute(input,false, config)) {
         if (chunk.final === true) {
           this.logger.debug('SupervisorService: Execution completed');
           return chunk;

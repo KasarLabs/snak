@@ -6,6 +6,7 @@ import {
 } from '../interfaces/agent-service.interface.js';
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
+  logger,
   MessageFromAgentIdDTO,
   MessageRequest,
   UpdateModelConfigDTO,
@@ -118,7 +119,15 @@ export class AgentService implements IAgentService {
     });
     try {
       let result: any;
+      let q = new Postgres.Query(
+        `SELECT status 
+         FROM message 
+         ORDER BY created_at DESC 
+         LIMIT 1;`
+      );
 
+      const status = await Postgres.query<string>(q);
+      logger.info(status);
       for await (const chunk of agent.execute(userRequest.user_request)) {
         if (chunk.final === true) {
           this.logger.debug('SupervisorService: Execution completed');

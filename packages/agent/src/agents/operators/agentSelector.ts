@@ -148,6 +148,7 @@ export class AgentSelector extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage,
+    isInterrupted?: boolean,
     _config?: Record<string, any>
   ): Promise<AIMessage> {
     const queryString = this.extractQueryString(input);

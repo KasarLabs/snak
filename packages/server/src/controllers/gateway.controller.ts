@@ -129,42 +129,46 @@ export class MyGateway implements OnModuleInit {
         userRequest.request
       )) {
         if (chunk.final === true) {
-          const q = new Postgres.Query(
-            'INSERT INTO message (agent_id,user_request,agent_iteration)  VALUES($1, $2, $3)',
-            [
-              userRequest.request.agent_id,
-              userRequest.request.user_request,
-              chunk.chunk,
-            ]
-          );
+          let q;
+
+          console.log(JSON.stringify(chunk));
+          console.log(chunk.chunk.event);
+          if (chunk.chunk.event === 'on_graph_interrupted') {
+            logger.info(
+              'Graph interrupted, saving message with status waiting_for_human_input'
+            );
+            q = new Postgres.Query(
+              'INSERT INTO message (agent_id,user_request,agent_iteration,status)  VALUES($1, $2, $3, $4)',
+              [
+                userRequest.request.agent_id,
+                userRequest.request.user_request,
+                chunk.chunk,
+                'waiting_for_human_input',
+              ]
+            );
+          } else {
+            q = new Postgres.Query(
+              'INSERT INTO message (agent_id,user_request,agent_iteration)  VALUES($1, $2, $3)',
+              [
+                userRequest.request.agent_id,
+                userRequest.request.user_request,
+                chunk.chunk,
+              ]
+            );
+          }
           await Postgres.query(q);
           logger.info('Message Saved in DB');
         }
-        if (chunk.chunk.event === 'on_graph_interrupted') {
-          const response: AgentResponse = {
-            status: 'waiting_user_input',
-            data: {
-              ...chunk.chunk,
-              iteration_number: chunk.iteration_number,
-              langraphh_step: chunk.langraphh_step,
-              isLastChunk: chunk.final,
-            },
-          };
-          client.emit('onAgentRequest', response, (response: any) => {
-            logger.debug('Response sent to client:', response);
-          });
-        } else {
-          const response: AgentResponse = {
-            status: 'success',
-            data: {
-              ...chunk.chunk,
-              iteration_number: chunk.iteration_number,
-              langraphh_step: chunk.langraphh_step,
-              isLastChunk: chunk.final,
-            },
-          };
-          client.emit('onAgentRequest', response);
-        }
+        const response: AgentResponse = {
+          status: 'waiting_for_human_input',
+          data: {
+            ...chunk.chunk,
+            iteration_number: chunk.iteration_number,
+            langraphh_step: chunk.langraphh_step,
+            isLastChunk: chunk.final,
+          },
+        };
+        client.emit('onAgentRequest', response);
       }
     } catch (error) {
       const client = this.clients.get(userRequest.socket_id);

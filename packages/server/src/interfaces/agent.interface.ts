@@ -1,9 +1,9 @@
 import { RpcProvider } from 'starknet';
 
 export interface IAgent {
-
   execute(
     input: string,
+    isInterrupted?: boolean,
     config?: Record<string, any>
   ): Promise<unknown> | AsyncGenerator<any>;
 

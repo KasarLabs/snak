@@ -34,6 +34,16 @@ CREATE TABLE IF NOT EXISTS agent_iterations (
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+
+CREATE TABLE IF NOT EXISTS thread_id (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            agent_id UUID NOT NULL,
+            name TEXT NOT NULL DEFAULT 'default_conversation',
+            thread_id TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+        );
+
 CREATE TABLE IF NOT EXISTS message (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             agent_id UUID NOT NULL,

@@ -28,6 +28,7 @@ export interface IAgent {
    */
   execute(
     input: any,
+    isInterrupted?: boolean,
     config?: Record<string, any>
   ): Promise<any> | AsyncGenerator<any>;
 
@@ -89,6 +90,7 @@ export abstract class BaseAgent implements IAgent {
   abstract init(): Promise<void>;
   abstract execute(
     input: any,
+    isInterrupted?: boolean,
     config?: Record<string, any>
   ): AsyncGenerator<any> | Promise<any>;
   executeAsyncGenerator?(

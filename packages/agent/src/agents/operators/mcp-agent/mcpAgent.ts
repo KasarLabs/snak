@@ -86,6 +86,7 @@ export class MCPAgent extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | BaseMessage[],
+    isInterrupted: boolean = false,
     config?: Record<string, any>
   ): Promise<AIMessage> {
     try {

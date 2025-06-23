@@ -90,6 +90,7 @@ export class ConfigurationAgent extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | BaseMessage[],
+    isInterrupted?: boolean,
     config?: ExecuteConfig
   ): Promise<AIMessage> {
     try {
