@@ -52,6 +52,14 @@ const CreateAgentSchema = z.object({
     .optional()
     .nullable()
     .describe('Optional list of plugins to enable for this agent'),
+  memory: z
+    .object({
+      enabled: z.boolean().optional().nullable(),
+      shortTermMemorySize: z.number().optional().nullable(),
+    })
+    .optional()
+    .nullable()
+    .describe('Optional memory configuration'),
   documents: z
     .object({
       enabled: z.boolean().optional().nullable(),
@@ -101,10 +109,8 @@ export const createAgentTool = new DynamicStructuredTool({
           input.system_prompt || null,
           input.interval || 5,
           input.plugins || null,
-          JSON.stringify({
-            enabled: true,
-            shortTermMemorySize: 5,
-          }),
+          input.memory?.enabled || false,
+          input.memory?.shortTermMemorySize || 5,
           input.documents?.enabled || false,
           input.documents?.embeddingModel || null,
           input.mode || 'interactive',
