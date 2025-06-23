@@ -468,7 +468,6 @@ export class SupervisorService implements OnModuleInit {
         });
 
       const systemMessage = new SystemMessage(systemPrompt);
-
       const jsonConfig: AgentConfig = {
         id: agentConfig.id,
         name: agentConfig.name,
@@ -478,12 +477,12 @@ export class SupervisorService implements OnModuleInit {
         plugins: agentConfig.plugins,
         interval: agentConfig.interval,
         memory: {
-          enabled: agentConfig.memory.enabled, // Always undefined
-          shortTermMemorySize: agentConfig.memory.short_term_memory_size, // Always undefined
+          enabled: agentConfig.memory.enabled,
+          shortTermMemorySize: agentConfig.memory.short_term_memory_size,
         },
         documents: {
-          enabled: agentConfig.documents.enabled, // Always undefined
-          embeddingModel: agentConfig.documents.embedding_model || undefined, // Always undefined
+          enabled: agentConfig.documents.enabled,
+          embeddingModel: agentConfig.documents.embedding_model || undefined,
         },
         chatId: `agent_${agentConfig.id}`,
         maxIterations: agentConfig.max_iterations || 15,

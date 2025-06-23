@@ -9,7 +9,7 @@ import {
   ModelLevelConfig,
   RawAgentConfig,
 } from '@snakagent/core';
-import { AgentConfigSQL } from './interfaces/sql_interfaces.js';
+import { AgentConfigSQL, AgentDocumentsSQL, AgentMemorySQL } from './interfaces/sql_interfaces.js';
 import DatabaseStorage from '../common/database/database.js';
 
 const logger = new Logger('AgentStorage');
@@ -155,6 +155,56 @@ export class AgentStorage implements OnModuleInit {
   }
 
   /**
+   * Parse memory configuration from composite type string
+   * @param config - Raw memory config string e.g. "(true,5)"
+   * @returns Parsed AgentMemorySQL
+   * @private
+   */
+  private parseMemoryConfig(config: any): AgentMemorySQL {
+    try {
+      if (typeof config !== 'string') {
+        return config as AgentMemorySQL;
+      }
+      const content = config.trim().slice(1, -1);
+      const parts = content.split(',');
+      return {
+        enabled: parts[0] === 't' || parts[0] === 'true',
+        short_term_memory_size: parseInt(parts[1], 10),
+      };
+    } catch (error) {
+      logger.error('Error parsing memory config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Parse documents configuration from composite type string
+   * @param config - Raw documents config string e.g. "(false,my-model)"
+   * @returns Parsed AgentDocumentsSQL
+   * @private
+   */
+  private parseDocumentsConfig(config: any): AgentDocumentsSQL {
+    try {
+      if (typeof config !== 'string') {
+        return config as AgentDocumentsSQL;
+      }
+      const content = config.trim().slice(1, -1);
+      const parts = content.split(',');
+      const embedding = parts[1]?.replace(/^"|"$/g, '') || null;
+      return {
+        enabled: parts[0] === 't' || parts[0] === 'true',
+        embedding_model:
+          embedding === '' || embedding?.toLowerCase() === 'null'
+            ? null
+            : embedding,
+      };
+    } catch (error) {
+      logger.error('Error parsing documents config:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Initialize agents configuration from database
    * @private
    */
@@ -163,12 +213,17 @@ export class AgentStorage implements OnModuleInit {
       logger.debug('Initializing agents configuration');
       const q = new Postgres.Query(`SELECT * FROM agents`);
       const q_res = await Postgres.query<AgentConfigSQL>(q);
-      this.agentConfigs = [...q_res];
+      const parsed = q_res.map((cfg) => ({
+        ...cfg,
+        memory: this.parseMemoryConfig(cfg.memory as any),
+        documents: this.parseDocumentsConfig(cfg.documents as any),
+      }));
+      this.agentConfigs = [...parsed];
 
       logger.debug(
         `Agents configuration loaded: ${this.agentConfigs.length} agents`
       );
-      return q_res;
+      return parsed;
     } catch (error) {
       logger.error('Error during agents configuration initialization:', error);
       throw error;
@@ -333,7 +388,6 @@ export class AgentStorage implements OnModuleInit {
       knowledge: agent_config.knowledge,
     });
 
-    console.log(agent_config);
     const q = new Postgres.Query(
       `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, documents, mode, max_iterations, "mcpServers")
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15, $16) RETURNING *`,
@@ -360,7 +414,11 @@ export class AgentStorage implements OnModuleInit {
     logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
-      const newAgentDbRecord = q_res[0];
+      const newAgentDbRecord = {
+        ...q_res[0],
+        memory: this.parseMemoryConfig(q_res[0].memory as any),
+        documents: this.parseDocumentsConfig(q_res[0].documents as any),
+      };
       this.agentConfigs.push(newAgentDbRecord);
       logger.debug(`Agent ${newAgentDbRecord.id} added to configuration`);
       return newAgentDbRecord;
