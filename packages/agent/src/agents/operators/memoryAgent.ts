@@ -10,9 +10,16 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 
 // TODO: env -> config/agents
-const SIMILARITY_THRESHOLD = parseFloat(
-  process.env.MEMORY_SIMILARITY_THRESHOLD || '0'
-);
+const SIMILARITY_THRESHOLD = (() => {
+  const value = parseFloat(process.env.MEMORY_SIMILARITY_THRESHOLD || '0');
+  if (isNaN(value) || value < 0 || value > 1) {
+    logger.warn(
+      `Invalid MEMORY_SIMILARITY_THRESHOLD: ${process.env.MEMORY_SIMILARITY_THRESHOLD}, using default 0`
+    );
+    return 0;
+  }
+  return value;
+})();
 /**
  * Memory configuration for the agent
  */
