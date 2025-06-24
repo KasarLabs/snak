@@ -86,6 +86,29 @@ export class AgentsController {
     }
   }
 
+  @Post('stop_agent')
+  async stopAgent(
+    @Body() userRequest: { agent_id: string }
+  ): Promise<AgentResponse> {
+    try {
+      const agentConfig = this.supervisorService.getAgentInstanceWithSignal(
+        userRequest.agent_id
+      );
+      if (!agentConfig) {
+        throw new ServerError('E01TA400');
+      }
+
+      agentConfig.signal.abort();
+      const response: AgentResponse = {
+        status: 'success',
+        data: `Agent ${userRequest.agent_id} stopped and unregistered from supervisor`,
+      };
+      return response;
+    } catch (error) {
+      logger.error('Error in stopAgent:', error);
+      throw new ServerError('E05TA100');
+    }
+  }
   /**
    * Initialize and add a new agent
    * @param userRequest - Request containing agent configuration

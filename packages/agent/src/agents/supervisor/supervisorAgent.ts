@@ -1582,6 +1582,11 @@ export class SupervisorAgent extends BaseAgent {
     agents.forEach(({ agent, metadata }) => {
       try {
         const agentConfig = agent.getAgentConfig();
+        if (!agentConfig) {
+          throw new Error(
+            'Agent configuration is missing or invalid. Cannot register agent.'
+          );
+        }
         const id = agentConfig.id;
 
         if (!id || id.trim() === '') {
