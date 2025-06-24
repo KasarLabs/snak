@@ -67,24 +67,14 @@ export class ToolsOrchestrator extends BaseAgent {
         );
         this.tools = [];
       } else {
-        const isSignature =
-          this.snakAgent.getSignature().signature === 'wallet';
-
-        if (isSignature) {
-          this.tools = await createSignatureTools(this.agentConfig.plugins);
-          logger.debug(
-            `ToolsOrchestrator: Initialized signature tools (${this.tools.length})`
-          );
-        } else {
-          const allowedTools = await createAllowedTools(
-            this.snakAgent,
-            this.agentConfig.plugins
-          );
-          this.tools = [...allowedTools];
-          logger.debug(
-            `ToolsOrchestrator: Initialized allowed tools (${this.tools.length})`
-          );
-        }
+        const allowedTools = await createAllowedTools(
+          this.snakAgent,
+          this.agentConfig.plugins
+        );
+        this.tools = [...allowedTools];
+        logger.debug(
+          `ToolsOrchestrator: Initialized allowed tools (${this.tools.length})`
+        );
       }
 
       if (

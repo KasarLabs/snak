@@ -24,9 +24,6 @@ export interface SnakAgentInterface {
     accountPrivateKey: string;
   };
   getDatabaseCredentials: () => DatabaseCredentials;
-  getSignature: () => {
-    signature: string;
-  };
   getProvider: () => RpcProvider;
   getAgentConfig: () => AgentConfig;
 }

@@ -1184,7 +1184,7 @@ export class SupervisorAgent extends BaseAgent {
       );
       throw new Error('SnakAgent is not available for autonomous execution.');
     }
-    const result = await this.snakAgent.execute_autonomous(
+    const result = await this.snakAgent.executeAutonomousAsyncGenerator(
       'Autonomous execution initiated by SupervisorAgent.',
       false
     ); // TODO change this

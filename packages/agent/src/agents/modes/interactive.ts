@@ -159,10 +159,6 @@ export const createInteractiveAgent = async (
         );
 
         const currentMessages = filteredMessages;
-        const currentFormattedPrompt = await prompt.formatMessages({
-          tool_names: toolsList.map((tool) => tool.name).join(', '),
-          messages: currentMessages,
-        });
 
         if (modelSelector) {
           // Extract originalUserQuery from first HumanMessage if available
@@ -191,10 +187,6 @@ export const createInteractiveAgent = async (
         } else {
           const existingModelSelector = ModelSelector.getInstance();
           if (existingModelSelector) {
-            logger.debug('Using existing model selector with smart model');
-            console.log(currentFormattedPrompt);
-            const result = 'Hello';
-            TokenTracker.trackCall(result, 'smart');
             throw new Error(
               'Model selection requires a configured ModelSelector'
             );

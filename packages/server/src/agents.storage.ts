@@ -32,7 +32,6 @@ export class AgentStorage implements OnModuleInit {
     await this.initialize();
   }
 
-
   /**
    * Initialize models configuration with default values if not exists
    * @private

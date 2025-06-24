@@ -72,9 +72,6 @@ export const createAutonomousAgent = async (
   modelSelector: ModelSelector | null
 ): Promise<AgentReturn> => {
   try {
-    console.log(
-      'Staarknet Autonomous Agent: Initializing autonomous agent graph...'
-    );
     const agent_config = snakAgent.getAgentConfig();
     if (!agent_config) {
       throw new Error('Agent configuration is required.');
@@ -293,9 +290,9 @@ export const createAutonomousAgent = async (
     Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
 
       // Debug logging
-      fs.appendFileSync('log.txt', JSON.stringify(lastMessage, null, 2));
-      logger.debug(
-        `Autonomous agent callModel: Iteration number is ${iteration_number}`
+      fs.appendFileSync(
+        'log_autonomous.txt',
+        JSON.stringify(lastMessage, null, 2)
       );
 
       try {
@@ -444,7 +441,6 @@ export const createAutonomousAgent = async (
 
         const iteration = lastMessage.additional_kwargs
           ?.iteration_number as number;
-        console.log('Iteration Tools: ', iteration);
         if (graphMaxSteps <= iteration) {
           logger.info(
             `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
@@ -501,7 +497,6 @@ export const createAutonomousAgent = async (
 
         const iteration = lastMessage.additional_kwargs
           ?.iteration_number as number;
-        console.log('Iteration Tools: ', iteration);
         if (graphMaxSteps <= iteration) {
           logger.info(
             `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
@@ -521,14 +516,12 @@ export const createAutonomousAgent = async (
     async function humanNode(
       state: typeof MessagesAnnotation.State
     ): Promise<{ messages: BaseMessage[] }> {
-      console.log('Hello from humanNode');
       const lastAiMessage = getLatestMessageForMessage(
         state.messages,
         AIMessageChunk
       );
       const input = interrupt(lastAiMessage?.content);
 
-      console.log('Bye from humanNode');
       return {
         messages: [
           new AIMessageChunk({
@@ -544,7 +537,7 @@ export const createAutonomousAgent = async (
         ],
       };
     }
-    const human_in_the_loop = true;
+    const human_in_the_loop = true; // TODO Need to had it into the agent config
     let workflow;
     if (!human_in_the_loop) {
       workflow = new StateGraph(GraphState)
@@ -588,17 +581,6 @@ export const createAutonomousAgent = async (
     const checkpointer = new MemorySaver(); // For potential state persistence
     const app = workflow.compile({ checkpointer });
 
-    //     CompiledStateGraph<StateType<{
-    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
-    // }>, UpdateType<{
-    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
-    // }>, "__start__" | ... 1 more ... | "tools", {
-    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
-    // }, {
-    //     messages: BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
-    // }, StateDefinition>
-
-    console.log(JSON.stringify(agent_config));
     return {
       app,
       agent_config,

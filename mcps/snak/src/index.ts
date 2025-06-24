@@ -52,18 +52,14 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     port: parseInt(process.env.POSTGRES_PORT as string),
   };
 
-  const controller = new AbortController();
-  const agent = new SnakAgent(
-    {
-      provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
-      accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
-      accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-      db_credentials: database,
-      agentConfig: defaultAgentConfig as AgentConfig,
-      modelSelector: null,
-    },
-    controller
-  );
+  const agent = new SnakAgent({
+    provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
+    accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
+    accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
+    db_credentials: database,
+    agentConfig: defaultAgentConfig as AgentConfig,
+    modelSelector: null,
+  });
   await agent.init();
 
   const tools: StarknetTool[] = [];

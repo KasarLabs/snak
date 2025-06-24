@@ -535,7 +535,7 @@ export class SupervisorService implements OnModuleInit {
         modelSelector: modelSelector,
       };
 
-      const snakAgent = new SnakAgent(snakAgentConfig, signal);
+      const snakAgent = new SnakAgent(snakAgentConfig);
       await snakAgent.init();
 
       return snakAgent;
@@ -639,7 +639,7 @@ export class SupervisorService implements OnModuleInit {
         snakAgent = agent;
       }
 
-      await this.supervisor.registerSnakAgent(snakAgent, metadata);
+      this.supervisor.registerSnakAgent(snakAgent, metadata);
       await this.supervisor.refreshWorkflowController();
 
       this.logger.log(

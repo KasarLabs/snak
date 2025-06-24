@@ -33,17 +33,9 @@ export async function initializeToolsList(
   agentConfig: AgentConfig
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-  const isSignature = snakAgent.getSignature().signature === 'wallet';
 
-  if (isSignature) {
-    toolsList = await createSignatureTools(agentConfig.plugins);
-  } else {
-    const allowedTools = await createAllowedTools(
-      snakAgent,
-      agentConfig.plugins
-    );
-    toolsList = [...allowedTools];
-  }
+  const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
+  toolsList = [...allowedTools];
   if (
     agentConfig.mcpServers &&
     Object.keys(agentConfig.mcpServers).length > 0

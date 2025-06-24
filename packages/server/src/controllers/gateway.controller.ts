@@ -264,39 +264,6 @@ export class MyGateway implements OnModuleInit {
     }
   }
 
-  @SubscribeMessage('stop_agent')
-  async stopAgent(
-    @MessageBody() userRequest: WebsocketAgentDeleteRequestDTO
-  ): Promise<void> {
-    try {
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
-        throw new ServerError('E01TA400');
-      }
-
-      const agentConfig = this.supervisorService.getAgentInstanceWithSignal(
-        userRequest.agent_id
-      );
-      if (!agentConfig) {
-        throw new ServerError('E01TA400');
-      }
-
-      agentConfig.signal.abort('Agent stopped by user request');
-
-      const response: AgentResponse = {
-        status: 'success',
-        data: `Agent ${userRequest.agent_id} stopped`,
-      };
-      client.emit('onStopAgentRequest', response);
-    } catch (error) {
-      if (error instanceof ServerError) {
-        throw error;
-      }
-      throw new ServerError('E02TA300');
-    }
-  }
-
   @SubscribeMessage('delete_agent')
   async deleteAgent(
     @MessageBody() userRequest: WebsocketAgentDeleteRequestDTO
