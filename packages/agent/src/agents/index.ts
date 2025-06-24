@@ -164,7 +164,8 @@ export class AgentSystem {
         modelSelector: modelSelector,
       };
 
-      this.snakAgent = new SnakAgent(snakAgentConfig);
+      const controller = new AbortController();
+      this.snakAgent = new SnakAgent(snakAgentConfig, controller);
       await this.snakAgent.init();
 
       if (this.supervisorAgent) {

@@ -114,8 +114,8 @@ export class SnakAgent extends BaseAgent {
   private currentMode: string;
   private agentReactExecutor: AgentReturn;
   private modelSelector: ModelSelector | null = null;
-
-  constructor(config: SnakAgentConfig) {
+  private readonly signal: AbortController;
+  constructor(config: SnakAgentConfig, signal: AbortController) {
     super('snak', AgentType.SNAK);
 
     this.provider = config.provider;
@@ -126,7 +126,7 @@ export class SnakAgent extends BaseAgent {
     this.currentMode = AGENT_MODES[config.agentConfig.mode];
     this.agentConfig = config.agentConfig;
     this.modelSelector = config.modelSelector;
-
+    this.signal = signal;
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
@@ -279,6 +279,7 @@ export class SnakAgent extends BaseAgent {
    * @returns The agent configuration object
    */
   public getAgentConfig(): AgentConfig {
+    console.log(JSON.stringify(this.agentConfig, null, 2));
     return this.agentConfig;
   }
 
@@ -515,6 +516,7 @@ export class SnakAgent extends BaseAgent {
         let graphState = { messages: userInput };
         let config = {
           ...threadConfig,
+          signal: this.signal.signal,
           recursionLimit: 500,
           version: 'v2',
         };
