@@ -22980,7 +22980,11 @@
     "HumanMessage"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "start automously",
+=======
+    "content": "start",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {},
     "response_metadata": {}
   }
@@ -22993,6 +22997,7 @@
     "HumanMessage"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "start automously",
     "additional_kwargs": {},
     "response_metadata": {}
@@ -23258,6 +23263,9 @@
   ],
   "kwargs": {
     "content": "start automously",
+=======
+    "content": "Start",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {},
     "response_metadata": {}
   }
@@ -23290,7 +23298,11 @@
     "AIMessageChunk"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "start autonomously ",
+=======
+    "content": "start automously ",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {
       "from": "human",
       "final": false,
@@ -23307,6 +23319,7 @@
   "id": [
     "langchain_core",
     "messages",
+<<<<<<< HEAD
     "HumanMessage"
   ],
   "kwargs": {
@@ -23492,6 +23505,14 @@
     "content": "{\"status\":\"success\",\"specVersion\":\"0.7.1\"}",
     "tool_call_id": "call_E7FqXAnnQQvm5kyN5QkS7aqi",
     "name": "get_spec_version",
+=======
+    "ToolMessage"
+  ],
+  "kwargs": {
+    "content": "{\"status\":\"success\",\"blockNumber\":1515532}",
+    "tool_call_id": "call_m7fzImrMXto48N01uzA6T3al",
+    "name": "get_block_number",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {
       "from": "tools",
       "final": false,
@@ -23508,20 +23529,35 @@
     "AIMessageChunk"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "I have gathered additional information:\n\n1. **Current Block Number:** 1518136\n2. **Spec Version:** 0.7.1\n\nNEXT STEPS: I will now retrieve details of the latest block including transaction hashes and receipts.",
     "additional_kwargs": {
       "from": "autonomous-agent",
       "final": false,
       "start_iteration": 4,
+=======
+    "content": "I have successfully started the autonomous testing. Here are the initial results:\n\n- **Chain ID**: 0x534e5f4d41494e\n- **Current Block Number**: 1515532\n\nNEXT STEPS: I will now check the syncing status of the Starknet node. Would you like to proceed with that?",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
       "iteration_number": 4
     },
     "response_metadata": {
       "usage": {
+<<<<<<< HEAD
         "prompt_tokens": 1126,
         "completion_tokens": 51,
         "total_tokens": 1177,
         "prompt_tokens_details": {
           "cached_tokens": 1024,
+=======
+        "prompt_tokens": 1041,
+        "completion_tokens": 71,
+        "total_tokens": 1112,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
           "audio_tokens": 0
         },
         "completion_tokens_details": {
@@ -23533,6 +23569,7 @@
       }
     },
     "tool_call_chunks": [],
+<<<<<<< HEAD
     "id": "chatcmpl-BlzDjiNGgZfJsw9oI7tBmOjzjbe16",
     "usage_metadata": {
       "input_tokens": 1126,
@@ -23541,6 +23578,16 @@
       "input_token_details": {
         "audio": 0,
         "cache_read": 1024
+=======
+    "id": "chatcmpl-BleR7jHazQaZne3CBErmLGx8FQU63",
+    "usage_metadata": {
+      "input_tokens": 1041,
+      "output_tokens": 71,
+      "total_tokens": 1112,
+      "input_token_details": {
+        "audio": 0,
+        "cache_read": 0
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
       },
       "output_token_details": {
         "audio": 0,
@@ -23559,9 +23606,15 @@
     "ToolMessage"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "{\"status\":\"success\",\"block\":{\"block_hash\":\"0x37b21624e307e9abcce7826c3fa1af152f61491718c179fb8fb52a71a8862c2\",\"block_number\":1518136,\"l1_da_mode\":\"BLOB\",\"l1_data_gas_price\":{\"price_in_fri\":\"0xb23\",\"price_in_wei\":\"0x1\"},\"l1_gas_price\":{\"price_in_fri\":\"0xbae0f4c99f8c\",\"price_in_wei\":\"0x24417a948\"},\"new_root\":\"0x2b219452c527e59c49a7882a600e4af9cb71b74020c8e73e35613ccd61944\",\"parent_hash\":\"0x1e60b918a67664bd05eefc112ffd17bff2fbc4214f9336b27d0ba72cf46c4b1\",\"sequencer_address\":\"0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8\",\"starknet_version\":\"0.13.5\",\"status\":\"ACCEPTED_ON_L2\",\"timestamp\":1750776392,\"transactions\":[{\"receipt\":{\"actual_fee\":{\"amount\":\"0x504ca92ec82448\",\"unit\":\"FRI\"},\"events\":[{\"data\":[\"0x0\",\"0x54ccd4504d2e3ca39d4959da3d450bb4e8b872b7e9cada34cc150163a16cbf4\"],\"from_address\":\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"keys\":[\"0x302b4aa3237648863fc569a648f3625780753ababf66d86fd6f7e7bbc648c63\",\"0x3d371b699eed70e22e4d03a8f65f1fb249e57677e6a0cae112058d6385c8562\"]},{\"data\":[\"0x0\",\"0x370c42ba4ac39ce852037374cbf152f3f05533f92f0c07876da6cf2ab8e3c05\"],\"from_address\":\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"keys\":[\"0x302b4aa3237648863fc569a648f3625780753ababf66d86fd6f7e7bbc648c63\",\"0x5c72791bd26b1cbebf2ec5541a3dfc16930ec0bda50c25775c1947735a31e0a\"]},{\"data\":[\"0x370c42ba4ac39ce852037374cbf152f3f05533f92f0c07876da6cf2ab8e3c05\"],\"from_address\":\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"keys\":[\"0x1d9ca8a89626bead91b5cb4275a622219e9443975b34f3fdbc683e8621231a9\",\"0x54ccd4504d2e3ca39d4959da3d450bb4e8b872b7e9cada34cc150163a16cbf4\"]},{\"data\":[\"0x5c72791bd26b1cbebf2ec5541a3dfc16930ec0bda50c25775c1947735a31e0a\"],\"from_address\":\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"keys\":[\"0x20609eed4f18b29b5ad13e483b8ab69924632ea4816a40dd30e75437a096abd\",\"0x3d371b699eed70e22e4d03a8f65f1fb249e57677e6a0cae112058d6385c8562\"]},{\"data\":[\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"0xed260a2d0a05a706822e43b3b10c4435b524f7bdb13b44c4c9c6bbcf16a6fb\",\"0x0\",\"0x36078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f\",\"0x5\",\"0x0\",\"0x54ccd4504d2e3ca39d4959da3d450bb4e8b872b7e9cada34cc150163a16cbf4\",\"0x0\",\"0x0\",\"0x370c42ba4ac39ce852037374cbf152f3f05533f92f0c07876da6cf2ab8e3c05\",\"0x54ccd4504d2e3ca39d4959da3d450bb4e8b872b7e9cada34cc150163a16cbf4\"],\"from_address\":\"0x41a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02bf\",\"keys\":[\"0x26b160f10156dea0639bec90696772c640b9706a47f5b8c52ea1abe5858b34d\"]},{\"data\":[],\"from_address\":\"0x377c2d65debb3978ea81904e7d59740da1f07412e30d01c5ded1c5d6f1ddc43\",\"keys\":[\"0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9\",\"0x0\",\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"0x6129e88e6c9646b39bcd0ee2a964524a\",\"0x0\"]},{\"data\":[],\"from_address\":\"0x377c2d65debb3978ea81904e7d59740da1f07412e30d01c5ded1c5d6f1ddc43\",\"keys\":[\"0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9\",\"0x0\",\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"0x2653d6b304ea47b88a5e8208c1c14bfa\",\"0x0\"]},{\"data\":[\"0x2\",\"0x0\",\"0x0\"],\"from_address\":\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"keys\":[\"0x1dcde06aabdbca2f80aa51392b345d7549d7757aa855f7e37f5d335ac8243b1\",\"0x4789279dec41049d0d12c60fc1c3fbae5809b334bcfd57282bcbbd91fd6ec9c\"]},{\"data\":[\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"0x1\",\"0x1e8ad5efb5efdbd97f9f5ce49e5efb6279b5e05bb79b488edd836ce614e2ef4\"],\"from_address\":\"0x127021a1b5a52d3174c2ab077c2b043c80369250d29428cee956d76ee51584f\",\"keys\":[\"0x2495e87dbfae534a775dc432ffb2b4c64cd5b8e42a9dd1984ee7f424e46feb9\"]},{\"data\":[\"0x2\",\"0x1\",\"0x429f181b68a56ec2998a09c92893416bab4c0cd3ad2a6b17d4e874a51c76636\",\"0x1\",\"0x1\"],\"from_address\":\"0xed260a2d0a05a706822e43b3b10c4435b524f7bdb13b44c4c9c6bbcf16a6fb\",\"keys\":[\"0x1dcde06aabdbca2f80aa51392b345d7549d7757aa855f7e37f5d335ac8243b1\",\"0x464a36c4bfeb2ac9e2031caa85470d2e420bd0f5c839c7dbf036a3fe8ae858c\"]},{\"data\":[\"0xed260a2d0a05a706822e43b3b10c4435b524f7bdb13b44c4c9c6bbcf16a6fb\",\"0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8\",\"0x504ca92ec82448\",\"0x0\"],\"from_address\":\"0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d\",\"keys\":[\"0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9\"]}],\"execution_resources\":{\"data_availability\":{\"l1_data_gas\":672,\"l1_gas\":0},\"ec_op_builtin_applications\":21,\"pedersen_builtin_applications\":122,\"poseidon_builtin_applications\":47,\"range_check_builtin_applications\":1066,\"steps\":36957},\"execution_status\":\"SUCCEEDED\",\"finality_status\":\"ACCEPTED_ON_L2\",\"messages_sent\":[],\"transaction_hash\":\"0x464a36c4bfeb2ac9e2031caa85470d2e420bd0f5c839c7dbf036a3fe8ae858c\",\"type\":\"INVOKE\"},\"transaction\":{\"account_deployment_data\":[],\"calldata\":[\"0x2\",\"0x41a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02bf\",\"0x1987cbd17808b9a23693d4de7e246a443cfe37e6e7fbaeabd7d7e6532b07c3d\",\"0x9\",\"0x36... [truncated 195085 characters]",
     "tool_call_id": "call_OBgzRXynEZUYD5PcZAucjng0",
     "name": "get_block_with_receipts",
+=======
+    "content": "{\"status\":\"success\",\"syncingStats\":false}",
+    "tool_call_id": "call_LTvVOoXjeyMne7ehdxWtUS1h",
+    "name": "get_syncing_status",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {
       "from": "tools",
       "final": false,
@@ -23578,6 +23631,7 @@
     "AIMessageChunk"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "start_autonomously",
     "additional_kwargs": {
       "from": "human",
@@ -23779,6 +23833,19 @@
         "prompt_tokens": 1029,
         "completion_tokens": 63,
         "total_tokens": 1092,
+=======
+    "content": "The syncing status of the Starknet node has been retrieved successfully:\n\n- **Syncing Status**: Not syncing (fully synced)\n\nNEXT STEPS: I can proceed to gather details about the latest block, including transaction hashes. Would you like me to do that?",
+    "additional_kwargs": {
+      "from": "autonomous-agent",
+      "final": false,
+      "iteration_number": 6
+    },
+    "response_metadata": {
+      "usage": {
+        "prompt_tokens": 1147,
+        "completion_tokens": 54,
+        "total_tokens": 1201,
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
         "prompt_tokens_details": {
           "cached_tokens": 0,
           "audio_tokens": 0
@@ -23792,6 +23859,7 @@
       }
     },
     "tool_call_chunks": [],
+<<<<<<< HEAD
     "id": "chatcmpl-BlzKfmgEdXgMjtjvb2gwxSlISxmW2",
     "usage_metadata": {
       "input_tokens": 1029,
@@ -23932,6 +24000,13 @@
       "input_tokens": 996,
       "output_tokens": 261,
       "total_tokens": 1257,
+=======
+    "id": "chatcmpl-BleRDQ6HqV29aUtikPKxDhngSewo7",
+    "usage_metadata": {
+      "input_tokens": 1147,
+      "output_tokens": 54,
+      "total_tokens": 1201,
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
       "input_token_details": {
         "audio": 0,
         "cache_read": 0
@@ -23953,6 +24028,7 @@
     "ToolMessage"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "{\"status\":\"success\",\"specVersion\":\"0.7.1\"}",
     "tool_call_id": "call_mgco5ZVA0iLQXctm0DZb2dQ5",
     "name": "get_spec_version",
@@ -24171,6 +24247,16 @@
       "final": false,
       "iteration_number": 8
     },
+=======
+    "content": "{\"status\":\"success\",\"block\":{\"block_hash\":\"0x222ad38d3fd284ddfc704502083b58dba556bb76c082db6bf272a7c77ad33b5\",\"block_number\":1515532,\"l1_da_mode\":\"BLOB\",\"l1_data_gas_price\":{\"price_in_fri\":\"0xb57\",\"price_in_wei\":\"0x1\"},\"l1_gas_price\":{\"price_in_fri\":\"0xc5e649684e89\",\"price_in_wei\":\"0x25b4d1914\"},\"new_root\":\"0x4a6ff9da1df97c33e316d8917667a92d320879865d39180eb57ae662ad2bad9\",\"parent_hash\":\"0x147e51a8be8ce4b859bdc4af7ac166e6fa901396240eb07d4a5a6af9759072a\",\"sequencer_address\":\"0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8\",\"starknet_version\":\"0.13.5\",\"status\":\"ACCEPTED_ON_L2\",\"timestamp\":1750696488,\"transactions\":[\"0x337db43b1c63701beac0504e01d662edd52f9d4b53326685171fc2f51ac722d\",\"0x7a110e016446f68e66a1cbf72744115c9a5f41fcf8095fa3714ef77c8e8d6a1\",\"0x33cbc0280263c311fc45cd193e1060638bf8b810f992f6306acb85c9ac0dbeb\",\"0x32c389781184e70f998f0323bb1b20f5671e091996e81ab55b0a724e909b91\",\"0xc5c015a1575be7c70c1c9483ce6debafe14d1b1eaad63565b1f3d241d8abc3\",\"0x128a801e978e51657486d2e497efa322c52d7d3fdc54772a4e8df5d93fec29c\",\"0x35c89f96053f90c81f6f34283ab9819101befda58d12f468eea0ed1239e2dfb\",\"0x16af1fa8bdf4c371c2b705e62e8895db3a3faea13483ccec881e58b9717954f\",\"0x6df3cf2b7d87abf4408b179b0f90a746ebf7fe945a022125449339610a7a263\",\"0x6e9f5fd1663ef1db6864218990d2271bd8c9c6d98df4b1b4ce93791594a122d\",\"0x2961cea5c26f6e5e46ae4a4b4321bcc3718e6015a122f340df56974b83ab37\",\"0xbe79d70e027cb0d8f09d388cfc38572e4199a2f7c9d7c7a0ba72cc0c6b700a\",\"0x5a92795416efa6fee26009deba8a128842aa5479ab46bd858b63f5436c2fab1\",\"0x569e0f5e9c700d09e44b3ad5be63a0d638d799a37ff95b51cd3d66a7be7f282\",\"0x21dbbd42af25123d3766bf4f0a71aa81a5f616e5e77b652a0d4b280bf8153da\",\"0x3f0c4fcb851dace7bf6326bff47b978efbc2ac57a3bbef8dafff3ae03c09d07\",\"0x7449029c19dd88dd2e1716df728050b490f1ccffd0a2fba5870010984a1276a\",\"0x641fd6206f5a66c6a82922916fdfa51c747410d0bf03fe9c222fc29444f48e1\",\"0x398b37349faf8303d109483907860f9713ea588a254d363c95fd9810e297118\",\"0x3237c9aa04e3fe6f7723912e560782b228f23ab35947f1deb63f84619cf45a1\",\"0x51baf93073dacde35c13a3b71b16d08b99359ba61a3619f687a729eac04bd5f\",\"0x6fd823cfd38f9d51bb926516d60f83d4ba345059b0c3771a69a3c763f53704b\",\"0x1dd9c894c07f0b58b831eef8f045e29a0edbaea306d9b476b912f876b7b5bdf\",\"0x74e394eb506529ab4cfe212544f747136ce020d10737c2f2d09568291c1e81f\",\"0x6d2743e530930f462bcf9d76d95e70fc10dab539ac6f2d927884aecf3cdfef1\",\"0x37bab377d5202296dd89cc4afcf59d4a22c8e867416758d23110f40a4ca727b\",\"0x341c6638ac13b04fefad5e87fc591c87dfff7cf0c1f9fcd25ceb447e8ed7dc1\",\"0xd8abfdb3d5df746a877c78931adeb16ec51dc5560013f3ea07bf1458051283\",\"0x27d85b8880e81ee2d73dd8e5703cb6ae09d3ef3e67afbea9252898a7ceeb200\",\"0x167c3061bb636f3a6daae5fcf9e02541b1095a55d73231bbffe89a4991f742e\",\"0x2581702ee40b1c9650eb1b55ccb6672006b1b2ffea59b50406c5be365baea51\",\"0xe69250d30bcb6973cef3db6b701546d33e25037fae8c851c21da290fac2415\",\"0x282fe5e073476bbbed2c0335202e1c24bacf0403d90cafda4715f37aeb9663f\",\"0xc5fc82a6857cb71dabda0de5885978515f045e31437bc0afa00abc4dd3bd11\",\"0x2f569e1d838ae56489019483c29f03819c45b6c625f669d73b893ead86845e8\",\"0x72ce5b42010406edef7e147a6b150f816d599ae569a22064f8c054cb29bf05a\",\"0x31abddb2facb732040ed7c7b0d09827ac22e7dfccbb0fe9d53aa778fd9a4913\",\"0x21d37ac8f99e2a90ec8e2544305f65b65364809deb6a088144bdd42477def60\",\"0x68073d20f8442f9253d6db26d369dac08dac55224e08cb303b733a2cfdb3bbd\",\"0x1e3e63635c7b5b767a301aaea0e7bc063d654d222411b857f5331fbe0c06895\",\"0x5003fa98e8754ab7723b75435bc8fad5c7ff4fcb6189c45b82d4ed07b0c16be\",\"0x2baf2a7b3caa34f6dfbbcd6bc1a9167c03ab0c6aabc363b98c92191c920435e\",\"0x3df766c1cfe4b9824857bbae2ff5a2228845fada0b8ae8b9c0f56f2446a5ef9\",\"0x2bb14620d0d56064cd1547ee623dd37a6c598a43a84ab07bd4247dfd1e1b9e4\",\"0x481e15f2f733a82c638ca6a58828a8ce81029594eb9eff5db2e8e383140a020\",\"0x6ae041515f11146ef0f6e666fdcfa9facf282a130d72411505b948f54ecb0d\",\"0x6b5a2f3387cefdc49104bdd5337e70877e8bbdb35881b82f1f48cf893d251b1\",\"0xb5528be6b221d250fcfbde7dac86da334ba207919a1d9cab27cefa4d5928e2\",\"0x38b253965a096ae0b724f8692972084de2fe3d61849f9fcfd7974fd164654d0\",\"0x452422aa529d2c44db2057ab8e20f47cd90d4b853d4a7635decadc75079f013\",\"0x405248d41f04baaa6b05e5cf25e9c04b6ee3e9b5dcc015f1e7b17eaa150135e\",\"0x74f5351e785e09338ffad475355bc7c3377e46709f312a2f9ead9f76b5f949b\",\"0xefe31222c64bdf54a8138e03db2d92ab3b3cfd4b42330e9a0578e4057599c7\",\"0x6b27f84d3ebb09eb17abc921df541885f6b7e8625ac37486856de97b63b468f\",\"0x3a69ca80c74e6ffdac5a56187855ec98da58913c41a163fe4d24d8114de7fe8\",\"0x4a0b002972019e78ccf6add593f78783843c87d98ddcb4cb230e5ef72cff98d\",\"0x14e0a30b3926231e0e8b26e40bc22be483eb819b47961d2d5225bad18027072\",\"0x5045558d6c06fdfc90c84b36caa3a324ee2e05b225997ac2ac52b093f23f64c\",\"0x55feaf27836624be90868ca1e5bb4d214d35efb627f221a63dd0e6dfaf9537d\",\"0x55eef7bde23fbcf79a81acb2c38bb40476611a78802c51f41afe5bf81a14d17\",\"0x5c93d9d0fa60db4f6c85bd2caf86b6bc7021abb2e5aed14c58933f4563eed\",\"0x2a1eec50abcae145c74aa81b0233f71f13ba1838c97bc377db6599974bd4d74\",\"0x25108d90f5b01c62bfeda7866deb85b4fb260a5d1603a94f2d449e3d4de2661\",\"0x8e320fdf0567133a1477c7fa8aaa948a669f3cef6c20d4d791a5c9980150c6\",\"0x628acc10bfc79697e75... [truncated 1337 characters]",
+    "tool_call_id": "call_zYwQmpcqpZ7VTLwUJze6j9xU",
+    "name": "get_block_with_tx_hashes",
+    "additional_kwargs": {
+      "from": "tools",
+      "final": false,
+      "iteration_number": 7
+    },
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "response_metadata": {}
   }
 }{
@@ -24182,6 +24268,7 @@
     "HumanMessage"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "start_automopusly",
     "additional_kwargs": {},
     "response_metadata": {}
@@ -24209,6 +24296,9 @@
   ],
   "kwargs": {
     "content": "send automomously ",
+=======
+    "content": "Hello ",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {},
     "response_metadata": {}
   }
@@ -24221,7 +24311,11 @@
     "AIMessageChunk"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "start autonomously execute rpc call and after explain cairo",
+=======
+    "content": "caca",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {
       "from": "human",
       "final": false,
@@ -24241,6 +24335,7 @@
     "HumanMessage"
   ],
   "kwargs": {
+<<<<<<< HEAD
     "content": "start autonomously execute rpc call and after explain cairo 2",
     "additional_kwargs": {},
     "response_metadata": {}
@@ -24612,7 +24707,28 @@
     "HumanMessage"
   ],
   "kwargs": {
+=======
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "content": "test",
+    "additional_kwargs": {},
+    "response_metadata": {}
+  }
+}{
+  "lc": 1,
+  "type": "constructor",
+  "id": [
+    "langchain_core",
+    "messages",
+<<<<<<< HEAD
+    "AIMessageChunk"
+  ],
+  "kwargs": {
+    "content": "start_autonomously making rpc call and after explain starknet ecosystem and cairo never ask me something",
+=======
+    "HumanMessage"
+  ],
+  "kwargs": {
+    "content": "fsaf",
     "additional_kwargs": {},
     "response_metadata": {}
   }
@@ -24625,7 +24741,8 @@
     "AIMessageChunk"
   ],
   "kwargs": {
-    "content": "start_autonomously making rpc call and after explain starknet ecosystem and cairo never ask me something",
+    "content": "Go automously",
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
     "additional_kwargs": {
       "from": "human",
       "final": false,
@@ -24636,6 +24753,7 @@
     "tool_call_chunks": [],
     "response_metadata": {}
   }
+<<<<<<< HEAD
 }{
   "lc": 1,
   "type": "constructor",
@@ -25695,4 +25813,6 @@
     "tool_calls": [],
     "invalid_tool_calls": []
   }
+=======
+>>>>>>> fa476d91cb09c832c858e9cafe053403b8ee663c
 }

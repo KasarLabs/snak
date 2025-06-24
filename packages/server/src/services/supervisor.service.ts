@@ -32,7 +32,10 @@ export class SupervisorService implements OnModuleInit {
   private readonly logger = new Logger(SupervisorService.name);
   private supervisor: SupervisorAgent | null = null;
   private initialized: boolean = false;
-  private agentInstances: Map<string, SnakAgent> = new Map();
+  private agentInstances: Map<
+    string,
+    { agent: SnakAgent; signal: AbortController }
+  > = new Map();
 
   constructor(
     private readonly config: ConfigurationService,
@@ -227,8 +230,17 @@ export class SupervisorService implements OnModuleInit {
 
       const creationPromises = agentConfigs.map(async (agentConfig) => {
         try {
-          const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
-          this.agentInstances.set(agentConfig.id, snakAgent);
+          const signal = new AbortController();
+
+          const snakAgent = await this.createSnakAgentFromConfig(
+            agentConfig,
+            signal
+          );
+
+          this.agentInstances.set(agentConfig.id, {
+            agent: snakAgent,
+            signal: signal,
+          });
 
           this.logger.debug(
             `Created SnakAgent: ${agentConfig.name} (${agentConfig.id})`
@@ -300,10 +312,11 @@ export class SupervisorService implements OnModuleInit {
 
           agentsToRegister.push({
             id: agentConfig.id,
-            agent: snakAgent,
+            agent: snakAgent.agent,
             metadata: metadata,
           });
 
+          console.log(JSON.stringify(agentsToRegister));
           this.logger.debug(
             `Prepared agent for batch registration: ${agentConfig.name} (${agentConfig.id})`
           );
@@ -316,10 +329,7 @@ export class SupervisorService implements OnModuleInit {
 
       // Register all agents at once (without automatic refresh)
       if (agentsToRegister.length > 0) {
-        (this.supervisor as any).registerMultipleSnakAgents(agentsToRegister, {
-          updateRegistryAfter: true,
-          refreshWorkflowAfter: false,
-        });
+        this.supervisor.registerMultipleSnakAgents(agentsToRegister, false);
 
         this.logger.log(
           `Batch registered ${agentsToRegister.length} agents with supervisor`
@@ -363,6 +373,13 @@ export class SupervisorService implements OnModuleInit {
    * @returns {SnakAgent | undefined} The agent instance or undefined if not found
    */
   public getAgentInstance(id: string): SnakAgent | undefined {
+    const instance = this.agentInstances.get(id);
+    return instance ? instance.agent : undefined;
+  }
+
+  public getAgentInstanceWithSignal(
+    id: string
+  ): { agent: SnakAgent; signal: AbortController } | undefined {
     return this.agentInstances.get(id);
   }
 
@@ -371,7 +388,9 @@ export class SupervisorService implements OnModuleInit {
    * @returns {SnakAgent[]} Array of all agent instances
    */
   public getAllAgentInstances(): SnakAgent[] {
-    return Array.from(this.agentInstances.values());
+    return Array.from(this.agentInstances.values()).map(
+      (instance) => instance.agent
+    );
   }
 
   /**
@@ -384,7 +403,11 @@ export class SupervisorService implements OnModuleInit {
     agentConfig: AgentConfigSQL
   ): Promise<void> {
     try {
-      const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
+      const controller = new AbortController();
+      const snakAgent = await this.createSnakAgentFromConfig(
+        agentConfig,
+        controller
+      );
 
       if (this.supervisor) {
         const metadata = {
@@ -396,13 +419,20 @@ export class SupervisorService implements OnModuleInit {
         await this.supervisor.registerSnakAgent(snakAgent, metadata);
         await this.supervisor.refreshWorkflowController();
 
-        this.agentInstances.set(agentId, snakAgent);
+        this.agentInstances.set(agentId, {
+          agent: snakAgent,
+          signal: controller,
+        });
 
         this.logger.log(
           `Added and registered agent: ${agentConfig.name} (${agentId})`
         );
       } else {
-        this.agentInstances.set(agentId, snakAgent);
+        const controller = new AbortController();
+        this.agentInstances.set(agentId, {
+          agent: snakAgent,
+          signal: controller,
+        });
       }
     } catch (error) {
       this.logger.error(`Failed to add agent instance ${agentId}:`, error);
@@ -446,7 +476,8 @@ export class SupervisorService implements OnModuleInit {
    * @returns {Promise<any>} The created SnakAgent instance
    */
   private async createSnakAgentFromConfig(
-    agentConfig: AgentConfigSQL
+    agentConfig: AgentConfigSQL,
+    signal: AbortController
   ): Promise<any> {
     try {
       const database = {
@@ -504,7 +535,7 @@ export class SupervisorService implements OnModuleInit {
         modelSelector: modelSelector,
       };
 
-      const snakAgent = new SnakAgent(snakAgentConfig);
+      const snakAgent = new SnakAgent(snakAgentConfig, signal);
       await snakAgent.init();
 
       return snakAgent;
@@ -665,7 +696,7 @@ export class SupervisorService implements OnModuleInit {
       this.logger.debug(
         `SupervisorService: Executing request with config: ${JSON.stringify(config)}`
       );
-      for await (const chunk of this.supervisor.execute(input,false, config)) {
+      for await (const chunk of this.supervisor.execute(input, false, config)) {
         if (chunk.final === true) {
           this.logger.debug('SupervisorService: Execution completed');
           return chunk;
