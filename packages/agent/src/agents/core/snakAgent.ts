@@ -22,6 +22,7 @@ import { Command } from '@langchain/langgraph';
  */
 
 import readline from 'readline';
+import { abort } from 'process';
 
 // Créez l'interface readline une seule fois au début de votre fichier
 const rl = readline.createInterface({
@@ -114,7 +115,7 @@ export class SnakAgent extends BaseAgent {
   private currentMode: string;
   private agentReactExecutor: AgentReturn;
   private modelSelector: ModelSelector | null = null;
-
+  private controller: AbortController;
   constructor(config: SnakAgentConfig) {
     super('snak', AgentType.SNAK);
 
@@ -126,7 +127,6 @@ export class SnakAgent extends BaseAgent {
     this.currentMode = AGENT_MODES[config.agentConfig.mode];
     this.agentConfig = config.agentConfig;
     this.modelSelector = config.modelSelector;
-
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
@@ -298,6 +298,10 @@ export class SnakAgent extends BaseAgent {
     return this.provider;
   }
 
+  public getController(): AbortController {
+    return this.controller;
+  }
+
   public async *executeAsyncGenerator(
     input: string,
     config?: Record<string, any>
@@ -335,6 +339,9 @@ export class SnakAgent extends BaseAgent {
         runnableConfig.configurable.originalUserQuery =
           config.originalUserQuery;
       }
+      this.controller = new AbortController();
+
+      runnableConfig.signal = this.controller.signal;
 
       logger.debug(
         `SnakAgent: Invoking agent executor with ${graphState.messages.length} messages. Thread ID: ${threadId || 'N/A'}`
@@ -383,6 +390,8 @@ export class SnakAgent extends BaseAgent {
           };
         }
       }
+
+      console.log(JSON.stringify(chunk_to_save, null, 2));
       yield {
         chunk: {
           event: chunk_to_save.event,
@@ -444,6 +453,16 @@ export class SnakAgent extends BaseAgent {
     }
   }
 
+  public stop(): void {
+    logger.debug('Stopping SnakAgent execution...');
+    if (this.controller) {
+      this.controller.abort();
+      logger.debug('SnakAgent execution stopped.');
+    } else {
+      logger.warn('No controller found to stop SnakAgent execution.');
+    }
+  }
+
   /**
    * Check if an error is token-related
    * @private
@@ -487,7 +506,7 @@ export class SnakAgent extends BaseAgent {
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
       const maxGraphIterations = 10;
-
+      this.controller = new AbortController();
       let userInput: BaseMessage[] = [new HumanMessage(input)];
 
       logger.info(
@@ -507,14 +526,15 @@ export class SnakAgent extends BaseAgent {
       logger.info(
         `Starting autonomous graph execution with max iterations: ${maxGraphIterations}.`
       );
+      let chunk_to_save;
       try {
         let finalState: any = null;
-        let chunk_to_save;
         let iteration_number = 0;
         let command: Command | undefined;
         let graphState = { messages: userInput };
         let config = {
           ...threadConfig,
+          signal: this.controller.signal,
           recursionLimit: 500,
           version: 'v2',
         };
@@ -543,12 +563,9 @@ export class SnakAgent extends BaseAgent {
               // console.log(JSON.stringify(chunk, null, 2));
               // iteration_number++;
             }
-            if (chunk.event === 'on_chain_end') {
-              logger.warn('ON CHAIN END');
-              console.log(JSON.stringify(chunk));
-            }
             if (
-              chunk.name === 'Branch<tools,tools,agent,end>' &&
+              (chunk.name === 'Branch<tools,tools,agent,end>' ||
+                chunk.name === 'Branch<agent,tools,agent,human,end>') &&
               chunk.event === 'on_chain_end'
             ) {
               chunk_to_save = chunk;
@@ -591,7 +608,7 @@ export class SnakAgent extends BaseAgent {
                 chunk: {
                   event: 'on_graph_interrupted',
                   kwargs: {
-                    iteration: chunk_to_save || 'Hello',
+                    iteration: chunk_to_save,
                   },
                 },
                 iteration_number: iteration_number,
@@ -622,6 +639,26 @@ export class SnakAgent extends BaseAgent {
         };
         return;
       } catch (graphExecError: any) {
+        if (graphExecError?.message?.includes('Abort')) {
+          logger.info('Abort error detected, handling gracefully');
+          if (chunk_to_save) {
+            logger.info(
+              `Graph execution aborted at iteration ${iterationCount}, saving state.`
+            );
+            yield {
+              chunk: {
+                event: 'on_graph_aborted',
+                kwargs: {
+                  iteration: chunk_to_save,
+                },
+              },
+              iteration_number: iterationCount,
+              langraphh_step: 0,
+              final: true,
+            };
+          }
+          return; // ou autre traitement spécifique
+        }
         logger.error(
           `Error during autonomous graph execution: ${graphExecError}`
         );

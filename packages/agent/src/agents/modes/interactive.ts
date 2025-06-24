@@ -1,6 +1,11 @@
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { AIMessage, AIMessageChunk, BaseMessage, HumanMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  AIMessageChunk,
+  BaseMessage,
+  HumanMessage,
+} from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -182,7 +187,6 @@ export const createInteractiveAgent = async (
 
           const result = await boundModel.invoke(currentMessages);
           TokenTracker.trackCall(result, selectedModelType.model_name);
-          console.log("End :", JSON.stringify(formatAIMessageResult(result), null, 2));
           return formatAIMessageResult(result);
         } else {
           const existingModelSelector = ModelSelector.getInstance();

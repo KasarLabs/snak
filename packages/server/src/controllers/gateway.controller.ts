@@ -203,6 +203,36 @@ export class MyGateway implements OnModuleInit {
     }
   }
 
+  @SubscribeMessage('stop_agent')
+  async stopAgent(
+    @MessageBody() userRequest: { agent_id: string; socket_id: string }
+  ): Promise<void> {
+    try {
+      logger.info('stop_agent called');
+      const client = this.clients.get(userRequest.socket_id);
+      if (!client) {
+        logger.error('Client not found');
+        throw new ServerError('E01TA400');
+      }
+      const agent = this.supervisorService.getAgentInstance(
+        userRequest.agent_id
+      );
+      if (!agent) {
+        throw new ServerError('E01TA400');
+      }
+
+      agent.stop();
+      const response: AgentResponse = {
+        status: 'success',
+        data: `Agent ${userRequest.agent_id} stopped`,
+      };
+      client.emit('onStopAgentRequest', response);
+    } catch (error) {
+      logger.error('Error in stopAgent:', error);
+      throw new ServerError('E02TA100');
+    }
+  }
+
   @SubscribeMessage('init_agent')
   async addAgent(
     @MessageBody() userRequest: WebsocketAgentAddRequestDTO

@@ -1,5 +1,5 @@
 // packages/server/src/agents.controller.ts
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
 import {
@@ -17,6 +17,7 @@ import {
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
 } from '@snakagent/core';
+import { Postgres } from '@snakagent/database';
 
 export interface AgentResponse {
   status: 'success' | 'failure' | 'waiting_for_human_input';
@@ -47,6 +48,7 @@ export class AgentsController {
    * @param userRequest - The user request containing agent ID and content
    * @returns Promise<AgentResponse> - Response with status and data
    */
+
   @Post('request')
   async handleUserRequest(
     @Body() userRequest: AgentRequestDTO
@@ -253,6 +255,35 @@ export class AgentsController {
     } catch (error) {
       logger.error('Error in getMessageFromAgentsId:', error);
       throw new ServerError('E04TA100');
+    }
+  }
+
+  @Delete('clear_message')
+  async clearMessage(
+    @Body() userRequest: getMessagesFromAgentsDTO
+  ): Promise<AgentResponse> {
+    try {
+      const agentConfig = this.agentFactory.getAgentConfig(
+        userRequest.agent_id
+      );
+      if (!agentConfig) {
+        logger.warn(`Agent ${userRequest.agent_id} not found`);
+
+        throw new ServerError('E01TA400');
+      }
+
+      const q = new Postgres.Query(`DELETE FROM message WHERE agent_id = $1`, [
+        userRequest.agent_id,
+      ]);
+      await Postgres.query(q);
+      const response: AgentResponse = {
+        status: 'success',
+        data: `Messages cleared for agent ${userRequest.agent_id}`,
+      };
+      return response;
+    } catch (error) {
+      logger.error('Error in clearMessage:', error);
+      throw error;
     }
   }
 

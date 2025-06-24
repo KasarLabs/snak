@@ -155,17 +155,18 @@ export class AgentService implements IAgentService {
           }
           yield chunk;
         }
-      }
-      for await (const chunk of agent.execute(
-        userRequest.user_request,
-        false
-      )) {
-        if (chunk.final === true) {
-          this.logger.debug('SupervisorService: Execution completed');
+      } else {
+        for await (const chunk of agent.execute(
+          userRequest.user_request,
+          false
+        )) {
+          if (chunk.final === true) {
+            this.logger.debug('SupervisorService: Execution completed');
+            yield chunk;
+            return;
+          }
           yield chunk;
-          return;
         }
-        yield chunk;
       }
     } catch (error: any) {
       this.logger.error('Error processing agent request', {
