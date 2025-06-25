@@ -338,6 +338,7 @@ export class SnakAgent extends BaseAgent {
           yield {
             chunk: formattedChunk,
             iteration_number: iterationNumber,
+            langgraph_step: chunk.metadata.langgraph_step,
             final: false,
           };
         }
@@ -351,6 +352,7 @@ export class SnakAgent extends BaseAgent {
           },
         },
         iteration_number: iterationNumber,
+        langgraph_step: lastChunkToSave.metadata.langgraph_step,
         final: true,
       };
       return;
@@ -508,13 +510,11 @@ export class SnakAgent extends BaseAgent {
             executionInput,
             executionConfig
           )) {
-            if (chunk.event === 'on_chat_model_stream') {
-              currentIterationNumber = chunk.metadata.langgraph_step;
-            }
             isInterrupted = false;
 
             if (
-              chunk.name === 'Branch<tools,tools,agent,end>' &&
+              (chunk.name === 'Branch<tools,tools,agent,end>' ||
+                chunk.name === 'Branch<agent,tools,agent,human,end>') &&
               chunk.event === 'on_chain_start'
             ) {
               const messages = chunk.data.input.messages;
@@ -550,7 +550,7 @@ export class SnakAgent extends BaseAgent {
               yield {
                 chunk: formattedChunk,
                 iteration_number: currentIterationNumber,
-                langraph_step: chunk.metadata.langgraph_step,
+                langgraph_step: chunk.metadata.langgraph_step,
                 final: false,
               };
             }
@@ -568,7 +568,7 @@ export class SnakAgent extends BaseAgent {
                   },
                 },
                 iteration_number: currentIterationNumber,
-                langraph_step: 0,
+                langgraph_step: lastChunkToSave?.metadata.langgraph_step || -1,
                 final: true,
               };
               return;
@@ -580,7 +580,6 @@ export class SnakAgent extends BaseAgent {
         }
 
         totalIterationCount = currentIterationNumber;
-
         yield {
           chunk: {
             event: lastChunkToSave.event,
@@ -589,7 +588,7 @@ export class SnakAgent extends BaseAgent {
             },
           },
           iteration_number: currentIterationNumber,
-          langraph_step: lastChunkToSave.metadata.langgraph_step,
+          langgraph_step: lastChunkToSave.metadata.langgraph_step,
           final: true,
         };
         return;
@@ -605,7 +604,7 @@ export class SnakAgent extends BaseAgent {
                 },
               },
               iteration_number: totalIterationCount,
-              langraph_step: 0,
+              langgraph_step: lastChunkToSave.metadata.langgraph_step,
               final: true,
             };
           }

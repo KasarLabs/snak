@@ -31,7 +31,7 @@ import {
 } from '@langchain/core/prompts';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
+import { truncateToolResults } from '../core/utils.js';
 import { autonomousRules, hybridRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { RunnableConfig } from '@langchain/core/runnables';

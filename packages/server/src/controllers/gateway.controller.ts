@@ -149,7 +149,7 @@ export class MyGateway implements OnModuleInit {
               data: {
                 ...chunk.chunk,
                 iteration_number: chunk.iteration_number,
-                langraphh_step: chunk.langraphh_step,
+                langgraph_step: chunk.langgraph_step,
                 isLastChunk: chunk.final,
               },
             };
@@ -167,7 +167,7 @@ export class MyGateway implements OnModuleInit {
               data: {
                 ...chunk.chunk,
                 iteration_number: chunk.iteration_number,
-                langraphh_step: chunk.langraphh_step,
+                langgraph_step: chunk.langgraph_step,
                 isLastChunk: chunk.final,
               },
             };
@@ -180,7 +180,7 @@ export class MyGateway implements OnModuleInit {
             data: {
               ...chunk.chunk,
               iteration_number: chunk.iteration_number,
-              langraphh_step: chunk.langraphh_step,
+              langgraph_step: chunk.langgraph_step,
               isLastChunk: chunk.final,
             },
           };
