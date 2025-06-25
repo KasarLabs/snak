@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
-import { documents } from '@snakagent/database/queries';
+import { rag } from '@snakagent/database/queries';
 
 @Injectable()
 export class VectorStoreService implements OnModuleInit {
@@ -14,7 +14,7 @@ export class VectorStoreService implements OnModuleInit {
   private async init() {
     if (this.initialized) return;
     try {
-      await documents.init();
+      await rag.init();
       this.initialized = true;
     } catch (err) {
       this.logger.error('Failed to initialize vector table', err);
@@ -108,10 +108,10 @@ export class VectorStoreService implements OnModuleInit {
   }
 
   async getAgentSize(agentId: string): Promise<number> {
-    return documents.totalSizeForAgent(agentId);
+    return rag.totalSizeForAgent(agentId);
   }
 
   async getTotalSize(): Promise<number> {
-    return documents.totalSize();
+    return rag.totalSize();
   }
 }

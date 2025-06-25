@@ -6,7 +6,7 @@ import * as path from 'path';
 import {
   ModelsConfig,
   ModelLevelConfig,
-  DocumentsConfig,
+  RagConfig,
 } from '@snakagent/core'; // Assuming core exports these types
 import { readFileSync } from 'fs';
 
@@ -16,8 +16,8 @@ export class ConfigurationService {
   private readonly config: EnvConfig;
   private readonly modelsConfig: ModelsConfig;
   private readonly modelsConfigPath: string;
-  private readonly documentsConfig: DocumentsConfig;
-  private readonly documentsConfigPath: string;
+  private readonly ragConfig: RagConfig;
+  private readonly ragConfigPath: string;
 
   constructor(private configService: ConfigService) {
     // Collect all env variables specified in the schema
@@ -40,8 +40,8 @@ export class ConfigurationService {
       ANTHROPIC_API_KEY: this.configService.get<string>('ANTHROPIC_API_KEY'),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
-      DOCUMENTS_CONFIG_PATH: this.configService.get<string>(
-        'DOCUMENTS_CONFIG_PATH'
+      RAG_CONFIG_PATH: this.configService.get<string>(
+        'RAG_CONFIG_PATH'
       ),
       // Add others if needed
     };
@@ -64,23 +64,23 @@ export class ConfigurationService {
       '..',
       this.config.AI_MODELS_CONFIG_PATH
     );
-    this.documentsConfigPath = path.resolve(
+    this.ragConfigPath = path.resolve(
       process.cwd(),
       '../..',
-      this.config.DOCUMENTS_CONFIG_PATH
+      this.config.RAG_CONFIG_PATH
     );
     try {
-      const content = readFileSync(this.documentsConfigPath, 'utf-8');
-      this.documentsConfig = JSON.parse(content) as DocumentsConfig;
+      const content = readFileSync(this.ragConfigPath, 'utf-8');
+      this.ragConfig = JSON.parse(content) as RagConfig;
     } catch (err) {
       this.logger.error(
-        `Failed to load documents config from ${this.documentsConfigPath}:`,
+        `Failed to load rag config from ${this.ragConfigPath}:`,
         err as any
       );
-      this.documentsConfig = {
+      this.ragConfig = {
         maxAgentSize: 10_000_000,
         maxProcessSize: 50_000_000,
-        maxDocumentSize: 10_000_000,
+        maxRagSize: 10_000_000,
       };
     }
   }
@@ -158,8 +158,8 @@ export class ConfigurationService {
     };
   }
 
-  get documents() {
-    return this.documentsConfig;
+  get rag() {
+    return this.ragConfig;
   }
 
   get isDevelopment(): boolean {

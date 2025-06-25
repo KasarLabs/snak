@@ -143,9 +143,9 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
     ? JSON.parse(JSON.stringify(config.memory))
     : config.memory;
 
-  const documentsCopy = config.documents
-    ? JSON.parse(JSON.stringify(config.documents))
-    : config.documents;
+  const ragCopy = config.rag
+    ? JSON.parse(JSON.stringify(config.rag))
+    : config.rag;
 
   const configCopy: AgentConfig = {
     id: config.id,
@@ -157,7 +157,7 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
     chatId: config.chatId,
     plugins: [...config.plugins],
     memory: memoryCopy,
-    documents: documentsCopy,
+    rag: ragCopy,
     mcpServers: mcpServersCopy,
     mode: config.mode,
     maxIterations: config.maxIterations,
@@ -275,18 +275,18 @@ export const validateConfig = (config: AgentConfig) => {
     }
   }
 
-  if (config.documents) {
+  if (config.rag) {
     if (
-      config.documents.enabled !== undefined &&
-      typeof config.documents.enabled !== 'boolean'
+      config.rag.enabled !== undefined &&
+      typeof config.rag.enabled !== 'boolean'
     ) {
-      throw new Error('documents.enabled must be a boolean');
+      throw new Error('rag.enabled must be a boolean');
     }
     if (
-      config.documents.embeddingModel !== undefined &&
-      typeof config.documents.embeddingModel !== 'string'
+      config.rag.embeddingModel !== undefined &&
+      typeof config.rag.embeddingModel !== 'string'
     ) {
-      throw new Error('documents.embeddingModel must be a string');
+      throw new Error('rag.embeddingModel must be a string');
     }
   }
 };
@@ -374,7 +374,7 @@ const checkParseJson = async (
         ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
       memory: json.memory || false,
-      documents: json.documents || false,
+      rag: json.rag || false,
       mcpServers: json.mcpServers || {},
       maxIterations:
         typeof json.maxIterations === 'number'

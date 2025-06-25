@@ -2,35 +2,35 @@ import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
-import { documents } from '@snakagent/database/queries';
+import { rag } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { RunnableSequence } from '@langchain/core/runnables';
 
 const SIMILARITY_THRESHOLD = (() => {
-  const value = parseFloat(process.env.DOCUMENT_SIMILARITY_THRESHOLD || '0.5');
+  const value = parseFloat(process.env.RAG_SIMILARITY_THRESHOLD || '0.5');
   if (isNaN(value) || value < 0 || value > 1) {
     logger.warn(
-      `Invalid DOCUMENT_SIMILARITY_THRESHOLD: ${process.env.DOCUMENT_SIMILARITY_THRESHOLD}, using default 0.5`
+      `Invalid RAG_SIMILARITY_THRESHOLD: ${process.env.RAG_SIMILARITY_THRESHOLD}, using default 0.5`
     );
     return 0.5;
   }
   return value;
 })();
 
-export interface DocumentConfig {
+export interface RagConfig {
   enabled?: boolean;
   topK?: number;
   embeddingModel?: string;
 }
 
-export class DocumentAgent extends BaseAgent {
+export class RagAgent extends BaseAgent {
   private embeddings: CustomHuggingFaceEmbeddings;
   private topK: number;
   private initialized = false;
 
-  constructor(config: DocumentConfig = {}) {
-    super('document-agent', AgentType.OPERATOR);
+  constructor(config: RagConfig = {}) {
+    super('rag-agent', AgentType.OPERATOR);
     this.topK = config.topK ?? 4;
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
@@ -39,36 +39,36 @@ export class DocumentAgent extends BaseAgent {
   }
 
   public async init(): Promise<void> {
-    await documents.init();
+    await rag.init();
     this.initialized = true;
   }
 
-  public async retrieveRelevantDocuments(
+  public async retrieveRelevantRag(
     message: string | BaseMessage,
     k: number = this.topK,
     agentId: string = ''
-  ): Promise<documents.SearchResult[]> {
+  ): Promise<rag.SearchResult[]> {
     if (!this.initialized) {
-      throw new Error('DocumentAgent: Not initialized');
+      throw new Error('RagAgent: Not initialized');
     }
     const query =
       typeof message === 'string' ? message : String(message.content);
     const embedding = await this.embeddings.embedQuery(query);
-    const results = await documents.search(embedding, agentId, k);
+    const results = await rag.search(embedding, agentId, k);
     return results.filter((r) => r.similarity >= SIMILARITY_THRESHOLD);
   }
 
-  public formatDocumentsForContext(results: documents.SearchResult[]): string {
+  public formatRagForContext(results: rag.SearchResult[]): string {
     if (!results.length) return '';
     const formatted = results
       .map(
         (r) =>
-          `Document [id: ${r.document_id}, chunk: ${r.chunk_index}, similarity: ${r.similarity.toFixed(4)}]: ${r.content}`
+          `Rag [id: ${r.document_id}, chunk: ${r.chunk_index}, similarity: ${r.similarity.toFixed(4)}]: ${r.content}`
       )
       .join('\n\n');
-    return `### Document Context (use the following snippets if relevant to the question) \n\
+    return `### Rag Context (use the following snippets if relevant to the question) \n\
   Format:
-    Document [id: <file>, chunk: <index>, similarity: <score>]: <text excerpt>
+    Rag [id: <file>, chunk: <index>, similarity: <score>]: <text excerpt>
   Instructions:
     1. Scan all snippets to find those relevant to the query.
     2. When an excerpt adds useful information, quote or integrate it.
@@ -76,16 +76,16 @@ export class DocumentAgent extends BaseAgent {
 ###\n${formatted}\n\n`;
   }
 
-  public async enrichPromptWithDocuments(
+  public async enrichPromptWithRag(
     prompt: ChatPromptTemplate,
     message: string | BaseMessage,
     k: number = this.topK,
     agentId: string
   ): Promise<ChatPromptTemplate> {
-    const docs = await this.retrieveRelevantDocuments(message, k, agentId);
+    const docs = await this.retrieveRelevantRag(message, k, agentId);
     if (!docs.length) return prompt;
-    const context = this.formatDocumentsForContext(docs);
-    return prompt.partial({ documents: context });
+    const context = this.formatRagForContext(docs);
+    return prompt.partial({ rag: context });
   }
 
   /**
@@ -97,7 +97,7 @@ export class DocumentAgent extends BaseAgent {
     config?: Record<string, any>
   ): Promise<any> {
     if (!this.initialized) {
-      throw new Error('DocumentAgent: Not initialized');
+      throw new Error('RagAgent: Not initialized');
     }
 
     const query =
@@ -107,20 +107,20 @@ export class DocumentAgent extends BaseAgent {
           ? String(input.content)
           : JSON.stringify(input);
 
-    logger.debug(`DocumentAgent: Searching documents for query "${query}"`);
+    logger.debug(`RagAgent: Searching rag for query "${query}"`);
 
     const k = config?.topK ?? this.topK;
     const agentId = config?.agentId;
-    const results = await this.retrieveRelevantDocuments(query, k, agentId);
+    const results = await this.retrieveRelevantRag(query, k, agentId);
 
     if (config?.raw) {
       return results;
     }
 
-    return this.formatDocumentsForContext(results);
+    return this.formatRagForContext(results);
   }
 
-  public createDocumentChain(agentId: string): any {
+  public createRagChain(agentId: string): any {
     const buildQuery = (state: any) => {
       const lastUser = [...state.messages]
         .reverse()
@@ -133,29 +133,29 @@ export class DocumentAgent extends BaseAgent {
     };
 
     const retrieve = async (query: string) => {
-      const docs = await this.retrieveRelevantDocuments(
+      const docs = await this.retrieveRelevantRag(
         query,
         this.topK,
         agentId
       );
-      return this.formatDocumentsForContext(docs);
+      return this.formatRagForContext(docs);
     };
 
     return RunnableSequence.from([
       buildQuery,
       retrieve,
-      (context: string) => ({ documents: context }),
-    ]).withConfig({ runName: 'DocumentContextChain' });
+      (context: string) => ({ rag: context }),
+    ]).withConfig({ runName: 'RagContextChain' });
   }
 
-  public createDocumentNode(agentId: string): any {
-    const chain = this.createDocumentChain(agentId);
+  public createRagNode(agentId: string): any {
+    const chain = this.createRagChain(agentId);
     return async (state: any, _config: LangGraphRunnableConfig) => {
       try {
         return await chain.invoke(state);
       } catch (error) {
-        logger.error('Error retrieving documents:', error);
-        return { documents: '' };
+        logger.error('Error retrieving rag:', error);
+        return { rag: '' };
       }
     };
   }

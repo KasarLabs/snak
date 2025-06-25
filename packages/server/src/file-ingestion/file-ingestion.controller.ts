@@ -51,7 +51,7 @@ export class FileIngestionController {
         const chunks: Buffer[] = [];
         for await (const chunk of part.file) {
           size += chunk.length;
-          if (size > this.config.documents.maxDocumentSize) {
+          if (size > this.config.rag.maxRagSize) {
             part.file.destroy();
             throw new ForbiddenException('File size exceeds limit');
           }

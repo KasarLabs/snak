@@ -10,9 +10,9 @@ export interface AgentMemory {
 }
 
 /**
- * Configuration for agent document settings
+ * Configuration for agent rag settings
  */
-export interface AgentDocuments {
+export interface AgentRag {
   enabled: boolean;
   embedding_model: string | null;
 }
@@ -31,7 +31,7 @@ export interface AgentConfigDatabase {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
-  documents: AgentDocuments;
+  rag: AgentRag;
   mode: AgentMode;
   max_iterations: number;
 }
@@ -75,7 +75,7 @@ export class AgentInitializationDTO {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
-  documents: AgentDocuments;
+  rag: AgentRag;
   mode: AgentMode;
   max_iterations: number;
 }

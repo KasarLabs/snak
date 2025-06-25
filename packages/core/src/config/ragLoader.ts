@@ -1,10 +1,10 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { DocumentsConfig } from '../types/documents/documentsConfig.js';
+import { RagConfig } from '../types/rag/ragConfig.js';
 
-export async function loadDocumentsConfig(
+export async function loadRagConfig(
   configPath: string
-): Promise<DocumentsConfig> {
+): Promise<RagConfig> {
   const absolutePath = path.resolve(configPath);
   try {
     const fileContent = await fs.readFile(absolutePath, 'utf-8');
@@ -12,14 +12,14 @@ export async function loadDocumentsConfig(
     if (
       typeof config.maxAgentSize !== 'number' ||
       typeof config.maxProcessSize !== 'number' ||
-      typeof config.maxDocumentSize !== 'number'
+      typeof config.maxRagSize !== 'number'
     ) {
       throw new Error('Invalid configuration: missing size limits');
     }
-    return config as DocumentsConfig;
+    return config as RagConfig;
   } catch (error: any) {
     console.error(
-      `Error loading documents configuration from ${absolutePath}:`,
+      `Error loading rag configuration from ${absolutePath}:`,
       error.message
     );
     if (error.code === 'ENOENT') {

@@ -1,5 +1,5 @@
 import { Postgres } from '../../../database.js';
-import { documents } from '../queries.js';
+import { rag } from '../queries.js';
 
 const db_credentials = {
   host: process.env.POSTGRES_HOST as string,
@@ -19,7 +19,7 @@ afterAll(async () => {
 
 describe('Document vectors', () => {
   it('Should search after index creation', async () => {
-    await documents.init();
+    await rag.init();
     const insert = new Postgres.Query(
       `INSERT INTO document_vectors (id, agent_id, document_id, chunk_index, embedding, content, original_name, mime_type)
        VALUES ('1', 'agent1', 'doc1', 0, $1::vector, 'hello', 'orig', 'text/plain')
@@ -28,7 +28,7 @@ describe('Document vectors', () => {
     );
     await Postgres.query(insert);
 
-    const results = await documents.search([...Array(384).keys()], 'agent1');
+    const results = await rag.search([...Array(384).keys()], 'agent1');
     expect(results.length).toBeGreaterThan(0);
   });
 });
