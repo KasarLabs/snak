@@ -1,7 +1,34 @@
 import { Postgres } from '../../database.js';
 
+let initPromise: Promise<void> | null = null;
+let isInitialized = false;
+
 export namespace rag {
-  export async function init() {
+export async function init(): Promise<void> {
+    // Return immediately if already initialized
+    if (isInitialized) {
+      return;
+    }
+
+    // If initialization is already in progress, wait for it to complete
+    if (initPromise) {
+      return await initPromise;
+    }
+
+    // Start initialization and store the promise
+    initPromise = performInit();
+
+    try {
+      await initPromise;
+      isInitialized = true;
+    } catch (error) {
+      // Reset on failure so we can retry
+      initPromise = null;
+      throw error;
+    }
+  }
+
+  async function performInit(): Promise<void> {
     const q = new Postgres.Query(`
       CREATE EXTENSION IF NOT EXISTS vector;
       CREATE TABLE IF NOT EXISTS document_vectors(
