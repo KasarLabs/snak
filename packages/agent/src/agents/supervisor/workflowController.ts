@@ -483,7 +483,6 @@ export class WorkflowController {
         }
 
         routingMap[END] = END;
-        routingMap['hybrid_pause'] = 'hybrid_pause';
 
         logger.debug(
           `WorkflowController: Adding conditional edges from "${agentId}" with router function`
@@ -499,10 +498,6 @@ export class WorkflowController {
           routingMap as Record<string, string | typeof END>
         );
       }
-
-      workflow.addNode('hybrid_pause', async () => {
-        return {};
-      });
 
       logger.debug('WorkflowController: Compiling workflow');
       this.workflow = workflow.compile({

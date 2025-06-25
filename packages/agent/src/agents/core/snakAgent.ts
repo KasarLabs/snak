@@ -18,6 +18,7 @@ import { FormatChunkIteration, ToolsChunk } from './utils.js';
 export interface StreamChunk {
   chunk: any;
   iteration_number: number;
+  langgraph_step: number;
   final: boolean;
 }
 
@@ -117,7 +118,6 @@ export class SnakAgent extends BaseAgent {
     this.currentMode = AGENT_MODES[config.agentConfig.mode];
     this.agentConfig = config.agentConfig;
     this.modelSelector = config.modelSelector;
-
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
@@ -260,14 +260,18 @@ export class SnakAgent extends BaseAgent {
     return this.provider;
   }
 
-  public getController(): AbortController {
+  public getController(): AbortController | undefined {
+    if (!this.controller) {
+      logger.warn('Controller is not initialized');
+      return undefined;
+    }
     return this.controller;
   }
 
   public async *executeAsyncGenerator(
     input: string,
     config?: Record<string, any>
-  ): AsyncGenerator<any> {
+  ): AsyncGenerator<StreamChunk> {
     try {
       if (!this.agentReactExecutor) {
         throw new Error('Agent executor is not initialized');
@@ -372,7 +376,7 @@ export class SnakAgent extends BaseAgent {
     input: string,
     isInterrupted: boolean = false,
     config?: Record<string, any>
-  ): AsyncGenerator<any> {
+  ): AsyncGenerator<StreamChunk> {
     try {
       logger.debug(
         `Execute called - mode: ${this.currentMode}, interrupted: ${isInterrupted}`
@@ -405,7 +409,7 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else {
-        return 'Hybrid mode is not supported in this method. Please use execute_hybrid() instead.';
+        return `The mode : ${this.currentMode} is not supported in this method.`;
       }
     } catch (error) {
       logger.error('Execute failed:', error);
@@ -448,7 +452,7 @@ export class SnakAgent extends BaseAgent {
     input: string,
     isInterrupted: boolean = false,
     runnableConfig?: RunnableConfig
-  ): AsyncGenerator<any> {
+  ): AsyncGenerator<StreamChunk> {
     let autonomousResponseContent: string | any;
     const originalMode = this.currentMode;
     let totalIterationCount = 0;

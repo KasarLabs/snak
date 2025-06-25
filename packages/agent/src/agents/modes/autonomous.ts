@@ -338,6 +338,11 @@ export const createAutonomousAgent = async (
         );
 
         const result = await boundModel.invoke(formattedPrompt);
+        if (!result) {
+          throw new Error(
+            'Model invocation returned no result. Please check the model configuration.'
+          );
+        }
         TokenTracker.trackCall(result, selectedModelType.model_name);
 
         // Add metadata to result
