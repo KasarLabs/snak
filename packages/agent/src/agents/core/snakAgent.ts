@@ -7,7 +7,7 @@ import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
-import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
+import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { iterations } from '@snakagent/database/queries';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';

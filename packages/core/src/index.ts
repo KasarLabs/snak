@@ -26,3 +26,7 @@ export * from './common/server/dto/agents.js';
 export * from './common/server/dto/websocket.js';
 
 export { MODELS, ModelProviders } from './types/models/models.js';
+export {
+  CustomHuggingFaceEmbeddings,
+  type CustomHuggingFaceEmbeddingsParams,
+} from './embeddings/customEmbedding.js';

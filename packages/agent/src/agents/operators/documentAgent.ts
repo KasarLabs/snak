@@ -1,7 +1,7 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
-import { CustomHuggingFaceEmbeddings } from '../../memory/customEmbedding.js';
+import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { documents } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
