@@ -56,8 +56,13 @@ export class FileIngestionService {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const pageText = (content.items as any[])
-        .map((item) => (item as any).str)
+      const pageText = content.items
+        .map((item) => {
+          if (typeof item === 'object' && item !== null && 'str' in item) {
+            return String(item.str);
+          }
+          return '';
+        })
         .join(' ');
       text += pageText + '\n';
     }

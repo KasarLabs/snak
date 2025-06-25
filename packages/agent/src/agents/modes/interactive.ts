@@ -184,7 +184,7 @@ export const createInteractiveAgent = async (
       const documentsAvailable =
         documentsContent && documentsContent.trim().length > 0;
 
-      const promptMessages: Array<any> = [];
+      const promptMessages: Array<[string, string] | MessagesPlaceholder> = [];
 
       const systemParts: string[] = [systemPrompt];
 
