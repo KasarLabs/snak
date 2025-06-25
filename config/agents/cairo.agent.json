@@ -32,6 +32,9 @@
     "enabled": true,
     "shortTermMemorySize": 15
   },
+  "rag": {
+    "enabled": true
+  },
   "chatId": "cairo_task_runner",
   "plugins": ["scarb", "cairocoder"]
 }

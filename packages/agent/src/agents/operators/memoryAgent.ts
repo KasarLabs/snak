@@ -113,7 +113,6 @@ export class MemoryAgent extends BaseAgent {
     logger.debug(`MemoryAgent: Upserting memory for user ${userId}`);
     const embedding = await this.embeddings.embedQuery(content);
     const metadata = { timestamp: new Date().toISOString() };
-    content = content.replace(/'/g, "''");
 
     if (memoryId) {
       logger.debug(`MemoryAgent: Updating memory ID ${memoryId}`);
@@ -527,7 +526,6 @@ export class MemoryAgent extends BaseAgent {
     try {
       const embedding = await this.embeddings.embedQuery(content);
       const metadata = { timestamp: new Date().toISOString() };
-      content = content.replace(/'/g, "''");
 
       await memory.insert_memory({
         user_id: userId,

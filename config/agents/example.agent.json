@@ -19,8 +19,8 @@
     "enabled": "true or false to enable or disable memory",
     "shortTermMemorySize": "The number of messages your agent will remember"
   },
-  "documents": {
-    "enabled": "true or false to enable or disable document context"
+  "rag": {
+    "enabled": "true or false to enable or disable rag context"
   },
   "plugins": ["Your first plugin", "Your second plugin"],
   "mcpServers": {
