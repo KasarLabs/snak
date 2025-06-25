@@ -164,7 +164,6 @@ export class AgentSystem {
         modelSelector: modelSelector,
       };
 
-      const controller = new AbortController();
       this.snakAgent = new SnakAgent(snakAgentConfig);
       await this.snakAgent.init();
 

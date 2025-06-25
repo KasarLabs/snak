@@ -5,7 +5,6 @@ import { IAgent } from '../core/baseAgent.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import crypto from 'crypto';
 import { AgentType } from '../core/baseAgent.js';
-import fs from 'fs';
 import { FormatChunkIteration } from '../../agents/core/utils.js';
 import {
   AgentIterationEvent,
@@ -267,7 +266,7 @@ export class WorkflowController {
               logger.debug(
                 `WorkflowController[Exec:${execId}]: Node[${agentId}] - Calling agent.execute()...`
               );
-              const result = await agent.execute(state.messages, {
+              const result = await agent.execute(state.messages, false, {
                 ...config,
                 isWorkflowNodeCall: true,
               });
@@ -502,7 +501,7 @@ export class WorkflowController {
       }
 
       workflow.addNode('hybrid_pause', async () => {
-        // WHY ???
+        // TODO clean
         return {};
       });
 
@@ -904,7 +903,6 @@ export class WorkflowController {
         `WorkflowController[Exec:${this.executionId}]: Invoking workflow with initial state`
       );
       let chunk_to_save;
-      let i_count = 0;
       let iteration_number = 0;
       for await (const chunk of await this.workflow.streamEvents(
         {
@@ -930,7 +928,6 @@ export class WorkflowController {
           chunk_to_save = chunk;
         }
 
-        i_count++;
         if (
           chunk.event === 'on_chat_model_stream' ||
           chunk.event === 'on_chat_model_start' ||

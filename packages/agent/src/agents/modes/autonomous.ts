@@ -7,9 +7,7 @@ import {
   Annotation,
   END,
   START,
-  Graph,
   interrupt,
-  Command,
   MessagesAnnotation,
 } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
@@ -34,12 +32,10 @@ import {
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
-import { autonomousRules, hybridRules } from '../../prompt/prompts.js';
+import { hybridRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import fs from 'fs';
-import { queryObjects } from 'v8';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { start } from 'repl';
 /**
  * Defines the state structure for the autonomous agent graph.
  */
@@ -186,11 +182,7 @@ export const createAutonomousAgent = async (
     function getLatestMessageForMessage(
       messages: BaseMessage[],
       MessageClass: typeof HumanMessage
-    ): HumanMessage | null;
-    function getLatestMessageForMessage(
-      messages: BaseMessage[],
-      MessageClass: any
-    ): any {
+    ): HumanMessage | null {
       try {
         for (let i = messages.length - 1; i >= 0; i--) {
           if (messages[i] instanceof MessageClass) {

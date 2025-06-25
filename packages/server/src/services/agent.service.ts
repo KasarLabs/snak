@@ -118,8 +118,7 @@ export class AgentService implements IAgentService {
       request: userRequest.user_request,
     });
     try {
-      let result: any;
-      let q = new Postgres.Query(
+      const q = new Postgres.Query(
         `SELECT status, id 
      FROM message 
      WHERE agent_id = $1
@@ -127,10 +126,7 @@ export class AgentService implements IAgentService {
      LIMIT 1;`,
         [userRequest.agent_id]
       );
-      console.log('test');
       const status = await Postgres.query<{ status: string; id: string }>(q);
-      logger.info(status);
-
       if (
         status &&
         status.length != 0 &&
@@ -144,7 +140,7 @@ export class AgentService implements IAgentService {
             this.logger.debug('SupervisorService: Execution completed');
             yield chunk;
 
-            let q = new Postgres.Query(
+            const q = new Postgres.Query(
               `UPDATE message 
               SET status = $1 
               WHERE id = $2;`,

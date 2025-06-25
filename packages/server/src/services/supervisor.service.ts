@@ -316,7 +316,6 @@ export class SupervisorService implements OnModuleInit {
             metadata: metadata,
           });
 
-          console.log(JSON.stringify(agentsToRegister));
           this.logger.debug(
             `Prepared agent for batch registration: ${agentConfig.name} (${agentConfig.id})`
           );

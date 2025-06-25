@@ -108,7 +108,6 @@ export class MyGateway implements OnModuleInit {
   ): Promise<void> {
     try {
       logger.info('handleUserRequest called');
-      const route = this.reflector.get('path', this.handleUserRequest);
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
       const agent = this.supervisorService.getAgentInstance(
@@ -132,8 +131,6 @@ export class MyGateway implements OnModuleInit {
         if (chunk.final === true) {
           let q;
 
-          console.log(JSON.stringify(chunk));
-          console.log(chunk.chunk.event);
           if (chunk.chunk.event === 'on_graph_interrupted') {
             logger.info(
               'Graph interrupted, saving message with status waiting_for_human_input'

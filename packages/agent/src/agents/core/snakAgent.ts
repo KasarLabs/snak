@@ -11,13 +11,6 @@ import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
-import readline from 'readline';
-
-const readlineInterface = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
 export interface FormattedOnChatModelStream {
   chunk: {
     content: string;
@@ -361,7 +354,7 @@ export class SnakAgent extends BaseAgent {
     input: string,
     isInterrupted: boolean = false,
     config?: Record<string, any>
-  ): AsyncGenerator<any> | Promise<any> {
+  ): AsyncGenerator<any> {
     try {
       logger.debug(
         `Execute called - mode: ${this.currentMode}, interrupted: ${isInterrupted}`
@@ -472,7 +465,7 @@ export class SnakAgent extends BaseAgent {
       try {
         let currentIterationNumber = 0;
         let command: Command | undefined;
-        let graphState = { messages: initialMessages };
+        const graphState = { messages: initialMessages };
         const executionConfig = {
           ...threadConfig,
           signal: this.controller.signal,

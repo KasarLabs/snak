@@ -306,7 +306,7 @@ export class AgentsController {
       return response;
     } catch (error) {
       logger.error('Error in clearMessage:', error);
-      throw error;
+      throw new ServerError('E04TA100');
     }
   }
 

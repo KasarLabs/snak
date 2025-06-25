@@ -249,7 +249,6 @@ export class ModelSelector extends BaseAgent {
       ) {
         // Use originalUserQuery from config if available
         analysisContent = config.originalUserQuery;
-        console.log(analysisContent);
         if (this.debugMode) {
           logger.debug(
             `Using originalUserQuery for model selection: "${analysisContent.substring(0, 100)}..."`
@@ -277,22 +276,7 @@ export class ModelSelector extends BaseAgent {
       }
 
       let nextStepsSection = '';
-
-      // TODO add this when its autonomous mode
-      // Extract "NEXT STEPS" section for more focused analysis if present
-      // const nextStepsMatch = analysisContent.match(
-      //   /NEXT STEPS:(.*?)($|(?=\n\n))/s
-      // );
-      // if (nextStepsMatch && nextStepsMatch[1]) {
-      //   nextStepsSection = nextStepsMatch[1].trim()~;
-      //   if (this.debugMode) {
-      //     logger.debug(`Extracted NEXT STEPS section: "${nextStepsSection}"`);
-      //   }
-      //   // Prioritize NEXT STEPS for analysis, with some context
-      //   const truncatedContext = analysisContent.substring(0, 300) + '...';
-      //   analysisContent = `Next planned actions: ${nextStepsSection}\n\nContext: ${truncatedContext}`;
-      // }
-
+      
       const systemPrompt = new SystemMessage(
         modelSelectorSystemPrompt(nextStepsSection)
       );

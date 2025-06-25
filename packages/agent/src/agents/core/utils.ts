@@ -227,7 +227,6 @@ export function truncateToolResults(
         typeof msg.content === 'string'
       ) {
         msg.content = truncateStringContentHelper(msg.content, maxLength);
-        msg;
       }
     }
   }
