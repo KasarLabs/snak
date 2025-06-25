@@ -861,7 +861,11 @@ export class WorkflowController {
         };
 
         try {
-          const result = await targetAgent.execute([message], agentConfig);
+          const result = await targetAgent.execute(
+            [message],
+            false,
+            agentConfig
+          );
 
           let finalResult;
           if (result && typeof result === 'object' && 'messages' in result) {
@@ -901,6 +905,19 @@ export class WorkflowController {
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Invoking workflow with initial state`
       );
+
+      const timeoutPromise = new Promise((_, reject) => {
+        this.timeoutId = setTimeout(() => {
+          logger.error(
+            `WorkflowController[Exec:${this.executionId}]: Workflow execution timed out after ${this.workflowTimeout}ms`
+          );
+          reject(
+            new Error(
+              `Workflow execution timed out after ${this.workflowTimeout}ms`
+            )
+          );
+        }, this.workflowTimeout);
+      });
       const workflowPromise = this.workflow.invoke(
         {
           messages: [message],
