@@ -24,24 +24,25 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
     "@fastify/multipart": "^9.0.3",
-    "@nestjs/common": "^11.0.7",
+    "@langchain/core": "^0.3.42",
+    "@nestjs/common": "^11.1.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.7",
     "@nestjs/platform-fastify": "^11.0.7",
     "@nestjs/schedule": "^5.0.1",
     "@nestjs/throttler": "^6.4.0",
+    "@snakagent/agents": "workspace:*",
+    "@snakagent/core": "workspace:*",
+    "@snakagent/database": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "fastify": "^5.2.1",
     "helmet": "^8.0.0",
-    "rxjs": "^7.8.1",
-    "@langchain/core": "^0.3.42",
-    "@snakagent/agents": "workspace:*",
-    "@snakagent/core": "workspace:*",
-    "@snakagent/database": "workspace:*"
+    "platform-express": "^0.0.13",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
-    "@types/pg": "^8.11.0"
+    "@types/pg": "^8.11.0",
+    "typescript": "^5.7.3"
   }
 }

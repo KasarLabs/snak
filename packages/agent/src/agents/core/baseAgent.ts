@@ -1,5 +1,6 @@
 import { BaseMessage } from '@langchain/core/messages';
-// import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { StreamChunk } from './snakAgent.js';
 
 /**
  * Base interface for all agents in the system
@@ -29,13 +30,10 @@ export interface IAgent {
   execute(
     input: any,
     isInterrupted?: boolean,
-    config?: Record<string, any>
-  ): Promise<any> | AsyncGenerator<any>;
 
-  executeAsyncGenerator?(
-    input: BaseMessage[] | any,
     config?: Record<string, any>
-  ): AsyncGenerator<any>;
+  ): Promise<any> | AsyncGenerator<StreamChunk>;
+
   /**
    * Optional method to clean up resources used by the agent.
    */
@@ -92,11 +90,11 @@ export abstract class BaseAgent implements IAgent {
     input: any,
     isInterrupted?: boolean,
     config?: Record<string, any>
-  ): AsyncGenerator<any> | Promise<any>;
+  ): AsyncGenerator<StreamChunk> | Promise<any>;
   executeAsyncGenerator?(
     input: BaseMessage[] | any,
     config?: Record<string, any>
-  ): AsyncGenerator<any>;
+  ): AsyncGenerator<StreamChunk>;
 
   /**
    * Default dispose method. Subclasses should override this if they

@@ -8,9 +8,19 @@ import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryConfig } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
-import { FormatChunkIteration, ToolsChunk } from './utils.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
+import { FormatChunkIteration, ToolsChunk } from './utils.js';
+/**
+ * Configuration interface for SnakAgent initialization
+ */
+
+export interface StreamChunk {
+  chunk: any;
+  iteration_number: number;
+  final: boolean;
+}
+
 export interface FormattedOnChatModelStream {
   chunk: {
     content: string;
