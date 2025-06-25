@@ -126,7 +126,7 @@ export class SupervisorService implements OnModuleInit {
             group: 'system',
             mode: AgentMode.INTERACTIVE,
             memory: { enabled: true, shortTermMemorySize: 15 },
-            documents: { enabled: true },
+            rag: { enabled: true },
             chatId: 'supervisor_chat',
             maxIterations: 15,
           } as AgentConfig,
@@ -480,11 +480,10 @@ export class SupervisorService implements OnModuleInit {
           enabled: agentConfig.memory.enabled,
           shortTermMemorySize: agentConfig.memory.short_term_memory_size,
         },
-        documents: agentConfig.documents
+        rag: agentConfig.rag
           ? {
-              enabled: agentConfig.documents.enabled,
-              embeddingModel:
-                agentConfig.documents.embedding_model || undefined,
+              enabled: agentConfig.rag.enabled,
+              embeddingModel: agentConfig.rag.embedding_model || undefined,
             }
           : undefined,
         chatId: `agent_${agentConfig.id}`,

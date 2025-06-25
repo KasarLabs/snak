@@ -25,6 +25,9 @@
     "enabled": true,
     "shortTermMemorySize": 10
   },
+  "rag": {
+    "enabled": true
+  },
   "plugins": [],
   "mcpServers": {}
 }

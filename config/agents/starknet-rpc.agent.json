@@ -26,6 +26,9 @@
     "enabled": true,
     "shortTermMemorySize": 15
   },
+  "rag": {
+    "enabled": true
+  },
   "chatId": "starknet_rpc",
   "plugins": ["rpc"]
 }

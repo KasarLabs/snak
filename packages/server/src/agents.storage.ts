@@ -11,7 +11,7 @@ import {
 } from '@snakagent/core';
 import {
   AgentConfigSQL,
-  AgentDocumentsSQL,
+  AgentRagSQL,
   AgentMemorySQL,
 } from './interfaces/sql_interfaces.js';
 import DatabaseStorage from '../common/database/database.js';
@@ -182,17 +182,15 @@ export class AgentStorage implements OnModuleInit {
   }
 
   /**
-   * Parse documents configuration from composite type string
-   * @param config - Raw documents config string e.g. "(false,my-model)"
-   * @returns Parsed AgentDocumentsSQL
+   * Parse rag configuration from composite type string
+   * @param config - Raw rag config string e.g. "(false,my-model)"
+   * @returns Parsed AgentRagSQL
    * @private
    */
-  private parseDocumentsConfig(
-    config: string | AgentDocumentsSQL
-  ): AgentDocumentsSQL {
+  private parseRagConfig(config: string | AgentRagSQL): AgentRagSQL {
     try {
       if (typeof config !== 'string') {
-        return config as AgentDocumentsSQL;
+        return config as AgentRagSQL;
       }
       const content = config.trim().slice(1, -1);
       const parts = content.split(',');
@@ -205,7 +203,7 @@ export class AgentStorage implements OnModuleInit {
             : embedding,
       };
     } catch (error) {
-      logger.error('Error parsing documents config:', error);
+      logger.error('Error parsing rag config:', error);
       throw error;
     }
   }
@@ -222,7 +220,7 @@ export class AgentStorage implements OnModuleInit {
       const parsed = q_res.map((cfg) => ({
         ...cfg,
         memory: this.parseMemoryConfig(cfg.memory),
-        documents: this.parseDocumentsConfig(cfg.documents),
+        rag: this.parseRagConfig(cfg.rag),
       }));
       this.agentConfigs = [...parsed];
 
@@ -395,7 +393,7 @@ export class AgentStorage implements OnModuleInit {
     });
 
     const q = new Postgres.Query(
-      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, documents, mode, max_iterations, "mcpServers")
+      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers")
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15, $16) RETURNING *`,
       [
         finalName,
@@ -409,8 +407,8 @@ export class AgentStorage implements OnModuleInit {
         agent_config.plugins,
         agent_config.memory.enabled || false,
         agent_config.memory.shortTermMemorySize || 5,
-        agent_config.documents?.enabled || false,
-        agent_config.documents?.embeddingModel || null,
+        agent_config.rag?.enabled || false,
+        agent_config.rag?.embeddingModel || null,
         agent_config.mode,
         15,
         agent_config.mcpServers || '{}',
@@ -423,7 +421,7 @@ export class AgentStorage implements OnModuleInit {
       const newAgentDbRecord = {
         ...q_res[0],
         memory: this.parseMemoryConfig(q_res[0].memory),
-        documents: this.parseDocumentsConfig(q_res[0].documents),
+        rag: this.parseRagConfig(q_res[0].rag),
       };
       this.agentConfigs.push(newAgentDbRecord);
       logger.debug(`Agent ${newAgentDbRecord.id} added to configuration`);

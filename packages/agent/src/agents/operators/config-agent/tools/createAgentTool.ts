@@ -60,14 +60,14 @@ const CreateAgentSchema = z.object({
     .optional()
     .nullable()
     .describe('Optional memory configuration'),
-  documents: z
+  rag: z
     .object({
       enabled: z.boolean().optional().nullable(),
       embeddingModel: z.string().optional().nullable(),
     })
     .optional()
     .nullable()
-    .describe('Optional document configuration'),
+    .describe('Optional rag configuration'),
   mode: z
     .string()
     .optional()
@@ -96,7 +96,7 @@ export const createAgentTool = new DynamicStructuredTool({
       const query = new Postgres.Query(
         `INSERT INTO agents (
 			    name, "group", description, lore, objectives, knowledge,
-          system_prompt, interval, plugins, memory, documents, mode, max_iterations
+          system_prompt, interval, plugins, memory, rag, mode, max_iterations
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15)
           RETURNING *`,
         [
@@ -111,8 +111,8 @@ export const createAgentTool = new DynamicStructuredTool({
           input.plugins || null,
           input.memory?.enabled || false,
           input.memory?.shortTermMemorySize || 5,
-          input.documents?.enabled || false,
-          input.documents?.embeddingModel || null,
+          input.rag?.enabled || false,
+          input.rag?.embeddingModel || null,
           input.mode || 'interactive',
           input.max_iterations || 15,
         ]

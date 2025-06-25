@@ -56,8 +56,13 @@ export class FileIngestionService {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const pageText = (content.items as any[])
-        .map((item) => (item as any).str)
+      const pageText = content.items
+        .map((item) => {
+          if (typeof item === 'object' && item !== null && 'str' in item) {
+            return String(item.str);
+          }
+          return '';
+        })
         .join(' ');
       text += pageText + '\n';
     }
@@ -122,13 +127,13 @@ export class FileIngestionService {
     const meta = await this.saveFile(buffer, originalName);
     const agentSize = await this.vectorStore.getAgentSize(agentId);
     const totalSize = await this.vectorStore.getTotalSize();
-    const { maxAgentSize, maxProcessSize } = this.config.documents;
+    const { maxAgentSize, maxProcessSize } = this.config.rag;
 
     if (agentSize + meta.size > maxAgentSize) {
-      throw new Error('Agent document storage limit exceeded');
+      throw new Error('Agent rag storage limit exceeded');
     }
     if (totalSize + meta.size > maxProcessSize) {
-      throw new Error('Process document storage limit exceeded');
+      throw new Error('Process rag storage limit exceeded');
     }
     const text = await this.extractRawText(buffer, meta.mimeType);
     const strategy =

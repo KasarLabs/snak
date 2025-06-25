@@ -54,7 +54,7 @@ export interface RawAgentConfig {
   interval: number;
   plugins: string[];
   memory: MemoryConfig;
-  documents?: DocumentConfig;
+  rag?: RagConfig;
   mcpServers?: Record<string, any>;
   mode: AgentMode;
 }
@@ -66,7 +66,7 @@ export interface MemoryConfig {
   embeddingModel?: string;
 }
 
-export interface DocumentConfig {
+export interface RagConfig {
   enabled?: boolean;
   topK?: number;
   embeddingModel?: string;
@@ -81,7 +81,7 @@ export interface AgentConfig {
   chatId: string;
   plugins: string[];
   memory: MemoryConfig;
-  documents?: DocumentConfig;
+  rag?: RagConfig;
   mcpServers?: Record<string, any>;
   mode: AgentMode;
   maxIterations: number;

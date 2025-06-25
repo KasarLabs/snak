@@ -20,33 +20,33 @@ export class CustomHuggingFaceEmbeddings extends HuggingFaceTransformersEmbeddin
       return;
     }
 
-    const fieldsCopy: Partial<HuggingFaceTransformersEmbeddingsParams> = {
-      ...fields,
-    };
+    const {
+      dtype,
+      device,
+      subfolder,
+      model_file_name,
+      use_external_data_format,
+      session_options,
+      ...baseFields
+    } = fields;
 
     const modelSpecificOptions: Record<string, unknown> = {
-      dtype: fields.dtype,
-      device: fields.device,
-      subfolder: fields.subfolder,
-      model_file_name: fields.model_file_name,
-      use_external_data_format: fields.use_external_data_format,
-      session_options: fields.session_options,
+      dtype,
+      device,
+      subfolder,
+      model_file_name,
+      use_external_data_format,
+      session_options,
     };
 
-    delete (fieldsCopy as any).dtype;
-    delete (fieldsCopy as any).device;
-    delete (fieldsCopy as any).subfolder;
-    delete (fieldsCopy as any).model_file_name;
-    delete (fieldsCopy as any).use_external_data_format;
-    delete (fieldsCopy as any).session_options;
+    baseFields.pretrainedOptions = baseFields.pretrainedOptions || {};
 
-    fieldsCopy.pretrainedOptions = fieldsCopy.pretrainedOptions || {};
     Object.entries(modelSpecificOptions).forEach(([key, value]) => {
       if (value !== undefined) {
-        (fieldsCopy.pretrainedOptions as Record<string, unknown>)[key] = value;
+        (baseFields.pretrainedOptions as Record<string, unknown>)[key] = value;
       }
     });
 
-    super(fieldsCopy);
+    super(baseFields);
   }
 }

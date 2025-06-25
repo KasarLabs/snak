@@ -37,7 +37,7 @@ interface AgentMemory {
   short_term_memory_size: number;
 }
 
-interface AgentDocuments {
+interface AgentRag {
   enabled: boolean;
   embedding_model: string | null;
 }
@@ -56,7 +56,7 @@ export class AgentInitializationDTO {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
-  documents: AgentDocuments;
+  rag: AgentRag;
 }
 
 export class InitializesRequestDTO {

@@ -1,6 +1,6 @@
 import { Postgres } from '../../database.js';
 
-export namespace documents {
+export namespace rag {
   export async function init() {
     const q = new Postgres.Query(`
       CREATE EXTENSION IF NOT EXISTS vector;

@@ -41,15 +41,15 @@ const getMemoryAgent = async () => {
   }
 };
 
-const getDocumentAgent = async () => {
+const getRagAgent = async () => {
   try {
     const supervisorAgent = SupervisorAgent.getInstance?.() || null;
     if (supervisorAgent) {
-      return await supervisorAgent.getDocumentAgent();
+      return await supervisorAgent.getRagAgent();
     }
     return null;
   } catch (error) {
-    logger.error(`Failed to get document agent: ${error}`);
+    logger.error(`Failed to get rag agent: ${error}`);
     return null;
   }
 };
@@ -93,17 +93,15 @@ export const createInteractiveAgent = async (
       }
     }
 
-    let documentAgent = null;
-    if (agent_config.documents?.enabled !== false) {
+    let ragAgent = null;
+    if (agent_config.rag?.enabled !== false) {
       try {
-        documentAgent = await getDocumentAgent();
-        if (!documentAgent) {
-          logger.warn(
-            'Document agent not available, document context will be skipped'
-          );
+        ragAgent = await getRagAgent();
+        if (!ragAgent) {
+          logger.warn('Rag agent not available, rag context will be skipped');
         }
       } catch (error) {
-        logger.error(`Error retrieving document agent: ${error}`);
+        logger.error(`Error retrieving rag agent: ${error}`);
       }
     }
 
@@ -112,7 +110,7 @@ export const createInteractiveAgent = async (
         reducer: (x, y) => x.concat(y),
       }),
       memories: Annotation<string>,
-      documents: Annotation<string>,
+      rag: Annotation<string>,
     });
 
     const toolNode = new ToolNode(toolsList);
@@ -175,23 +173,22 @@ export const createInteractiveAgent = async (
           ? state.memories
           : (state.memories as { memories?: string })?.memories;
 
-      const documentsContent =
-        typeof state.documents === 'string'
-          ? state.documents
-          : (state.documents as { documents?: string })?.documents;
+      const ragContent =
+        typeof state.rag === 'string'
+          ? state.rag
+          : (state.rag as { rag?: string })?.rag;
 
       const memoryAvailable = memoryContent && memoryContent.trim().length > 0;
-      const documentsAvailable =
-        documentsContent && documentsContent.trim().length > 0;
+      const ragAvailable = ragContent && ragContent.trim().length > 0;
 
-      const promptMessages: Array<any> = [];
+      const promptMessages: Array<[string, string] | MessagesPlaceholder> = [];
 
       const systemParts: string[] = [systemPrompt];
 
-      if (memoryAvailable || documentsAvailable) {
+      if (memoryAvailable || ragAvailable) {
         const sources: string[] = [];
         if (memoryAvailable) sources.push('User Memory Context');
-        if (documentsAvailable) sources.push('Document Context');
+        if (ragAvailable) sources.push('Rag Context');
         systemParts.push(`\nSources of information: ${sources.join(', ')}\n`);
       }
 
@@ -199,8 +196,8 @@ export const createInteractiveAgent = async (
         systemParts.push(memoryContent.trim());
       }
 
-      if (documentsAvailable) {
-        systemParts.push(documentsContent.trim());
+      if (ragAvailable) {
+        systemParts.push(ragContent.trim());
       }
 
       const filteredMessages = state.messages.filter(
@@ -447,22 +444,19 @@ ${formatAgentResponse(content)}`);
       workflow = (workflow as any)
         .addNode('memory', memoryAgent.createMemoryNode())
         .addEdge('__start__', 'memory');
-      if (documentAgent) {
+      if (ragAgent) {
         workflow = (workflow as any)
-          .addNode(
-            'docsNode',
-            documentAgent.createDocumentNode(agent_config.id)
-          )
-          .addEdge('memory', 'docsNode')
-          .addEdge('docsNode', 'agent');
+          .addNode('ragNode', ragAgent.createRagNode(agent_config.id))
+          .addEdge('memory', 'ragNode')
+          .addEdge('ragNode', 'agent');
       } else {
         workflow = (workflow as any).addEdge('memory', 'agent');
       }
-    } else if (documentAgent) {
+    } else if (ragAgent) {
       workflow = (workflow as any)
-        .addNode('docsNode', documentAgent.createDocumentNode(agent_config.id))
-        .addEdge('__start__', 'docsNode')
-        .addEdge('docsNode', 'agent');
+        .addNode('ragNode', ragAgent.createRagNode(agent_config.id))
+        .addEdge('__start__', 'ragNode')
+        .addEdge('ragNode', 'agent');
     } else {
       workflow = (workflow as any).addEdge('__start__', 'agent');
     }

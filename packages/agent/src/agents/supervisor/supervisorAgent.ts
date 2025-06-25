@@ -8,7 +8,7 @@ import { ModelSelector } from '../operators/modelSelector.js';
 import { SnakAgent, SnakAgentConfig } from '../core/snakAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
-import { DocumentAgent } from '../operators/documentAgent.js';
+import { RagAgent } from '../operators/ragAgent.js';
 import { WorkflowController } from './workflowController.js';
 import {
   DatabaseCredentials,
@@ -25,7 +25,7 @@ import { AgentSelector } from '../operators/agentSelector.js';
 import { OperatorRegistry } from '../operators/operatorRegistry.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
-import { documents } from '@snakagent/database/queries';
+import { rag } from '@snakagent/database/queries';
 
 /**
  * Represents an agent to be registered
@@ -59,7 +59,7 @@ export class SupervisorAgent extends BaseAgent {
   private snakAgent: SnakAgent | null = null;
   private toolsOrchestrator: ToolsOrchestrator | null = null;
   private memoryAgent: MemoryAgent | null = null;
-  private documentAgent: DocumentAgent | null = null;
+  private ragAgent: RagAgent | null = null;
   private workflowController: WorkflowController | null = null;
   private configAgent: ConfigurationAgent | null = null;
   private mcpAgent: MCPAgent | null = null;
@@ -121,7 +121,7 @@ export class SupervisorAgent extends BaseAgent {
     try {
       await this.initializeModelSelector();
       await this.initializeMemoryAgent(agentConfig);
-      await this.initializeDocumentAgent(agentConfig);
+      await this.initializeRagAgent(agentConfig);
       await this.initializeToolsOrchestrator(agentConfig);
       await this.initializeAgentSelector();
 
@@ -198,28 +198,28 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Initializes the DocumentAgent component if enabled
+   * Initializes the RagAgent component if enabled
    * @param agentConfig - Agent configuration
    * @private
    */
-  private async initializeDocumentAgent(
+  private async initializeRagAgent(
     agentConfig: AgentConfig | undefined
   ): Promise<void> {
-    const docCfg = agentConfig?.documents;
-    if (!docCfg || docCfg.enabled !== true) {
+    const ragCfg = agentConfig?.rag;
+    if (!ragCfg || ragCfg.enabled !== true) {
       logger.info(
-        'SupervisorAgent: DocumentAgent initialization skipped (disabled or not configured in config)'
+        'SupervisorAgent: RagAgent initialization skipped (disabled or not configured in config)'
       );
       return;
     }
-    logger.debug('SupervisorAgent: Initializing DocumentAgent...');
-    this.documentAgent = new DocumentAgent({
-      topK: docCfg?.topK,
-      embeddingModel: docCfg?.embeddingModel,
+    logger.debug('SupervisorAgent: Initializing RagAgent...');
+    this.ragAgent = new RagAgent({
+      topK: ragCfg?.topK,
+      embeddingModel: ragCfg?.embeddingModel,
     });
-    await this.documentAgent.init();
-    this.operators.set(this.documentAgent.id, this.documentAgent);
-    logger.debug('SupervisorAgent: DocumentAgent initialized');
+    await this.ragAgent.init();
+    this.operators.set(this.ragAgent.id, this.ragAgent);
+    logger.debug('SupervisorAgent: RagAgent initialized');
   }
   /**
    * Initializes the ToolsOrchestrator component
@@ -537,7 +537,7 @@ export class SupervisorAgent extends BaseAgent {
     let enriched = currentMessage;
 
     let memoryResults: any[] = [];
-    let documentResults: documents.SearchResult[] = [];
+    let ragResults: rag.SearchResult[] = [];
 
     if (
       this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
@@ -551,21 +551,21 @@ export class SupervisorAgent extends BaseAgent {
       memoryResults = memRes.memories;
     }
 
-    if (this.documentAgent) {
+    if (this.ragAgent) {
       logger.debug(
-        `${depthIndent}SupervisorAgent: Enriching message with document context for ${callPath}.`
+        `${depthIndent}SupervisorAgent: Enriching message with rag context for ${callPath}.`
       );
-      const docRes = await this.enrichWithDocumentContext(
+      const ragRes = await this.enrichWithRagContext(
         enriched,
         config?.selectedSnakAgent || config?.agentId
       );
-      enriched = docRes.message;
-      documentResults = docRes.documents;
+      enriched = ragRes.message;
+      ragResults = ragRes.rag;
     }
 
     const globalContext = this.formatGlobalContext(
       memoryResults,
-      documentResults,
+      ragResults,
       (this.config.starknetConfig.agentConfig as any)?.globalContextTopK ?? 6
     );
 
@@ -1279,11 +1279,11 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
-   * Gets the DocumentAgent instance
-   * @returns The DocumentAgent instance, or null if not initialized
+   * Gets the RagAgent instance
+   * @returns The RagAgent instance, or null if not initialized
    */
-  public getDocumentAgent(): DocumentAgent | null {
-    return this.documentAgent;
+  public getRagAgent(): RagAgent | null {
+    return this.ragAgent;
   }
 
   /**
@@ -1364,7 +1364,7 @@ export class SupervisorAgent extends BaseAgent {
     const agentsToDispose = [
       this.modelSelector,
       this.memoryAgent,
-      this.documentAgent,
+      this.ragAgent,
       this.toolsOrchestrator,
       this.workflowController,
     ];
@@ -1379,7 +1379,7 @@ export class SupervisorAgent extends BaseAgent {
     this.snakAgent = null;
     this.toolsOrchestrator = null;
     this.memoryAgent = null;
-    this.documentAgent = null;
+    this.ragAgent = null;
     this.agentSelector = null;
     this.workflowController = null;
     this.operators.clear();
@@ -1452,34 +1452,34 @@ export class SupervisorAgent extends BaseAgent {
     }
   }
 
-  private async enrichWithDocumentContext(
+  private async enrichWithRagContext(
     message: BaseMessage,
     agentId?: string
-  ): Promise<{ message: BaseMessage; documents: documents.SearchResult[] }> {
-    if (!this.documentAgent) {
+  ): Promise<{ message: BaseMessage; rag: rag.SearchResult[] }> {
+    if (!this.ragAgent) {
       logger.debug(
-        'SupervisorAgent: DocumentAgent not available, skipping context enrichment.'
+        'SupervisorAgent: RagAgent not available, skipping context enrichment.'
       );
-      return { message, documents: [] };
+      return { message, rag: [] };
     }
 
     try {
-      const docs = await this.documentAgent.retrieveRelevantDocuments(
+      const rgs = await this.ragAgent.retrieveRelevantRag(
         message,
-        (this.config.starknetConfig.agentConfig as any)?.documents?.topK,
+        (this.config.starknetConfig.agentConfig as any)?.rag?.topK,
         agentId || ''
       );
 
-      if (!docs.length) {
+      if (!rgs.length) {
         logger.debug(
           'SupervisorAgent: No relevant document chunks found for context.'
         );
-        return { message, documents: [] };
+        return { message, rag: [] };
       }
 
-      const docContext = this.documentAgent.formatDocumentsForContext(docs);
+      const ragContext = this.ragAgent.formatRagForContext(rgs);
       logger.debug(
-        `SupervisorAgent: Formatted document context (first 100 chars): "${docContext.substring(0, 100)}..."`
+        `SupervisorAgent: Formatted rag context (first 100 chars): "${ragContext.substring(0, 100)}..."`
       );
 
       const originalContent =
@@ -1491,22 +1491,22 @@ export class SupervisorAgent extends BaseAgent {
         content: originalContent,
         additional_kwargs: {
           ...message.additional_kwargs,
-          document_context: docContext,
+          rag_context: ragContext,
         },
       });
 
-      return { message: enriched, documents: docs };
+      return { message: enriched, rag: rgs };
     } catch (error) {
       logger.error(
-        `SupervisorAgent: Error enriching message with document context: ${error}`
+        `SupervisorAgent: Error enriching message with rag context: ${error}`
       );
-      return { message, documents: [] };
+      return { message, rag: [] };
     }
   }
 
   private formatGlobalContext(
     memories: any[],
-    docs: documents.SearchResult[],
+    rgs: rag.SearchResult[],
     topK = 6
   ): string {
     const combined = [
@@ -1516,12 +1516,12 @@ export class SupervisorAgent extends BaseAgent {
         content: m.content,
         id: m.id,
       })),
-      ...docs.map((d) => ({
-        type: 'document' as const,
-        similarity: d.similarity,
-        content: d.content,
-        document_id: d.document_id,
-        chunk_index: d.chunk_index,
+      ...rgs.map((r) => ({
+        type: 'rag' as const,
+        similarity: r.similarity,
+        content: r.content,
+        document_id: r.document_id,
+        chunk_index: r.chunk_index,
       })),
     ];
 
@@ -1534,7 +1534,7 @@ export class SupervisorAgent extends BaseAgent {
       .map((item) =>
         item.type === 'memory'
           ? `Memory [id: ${item.id}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
-          : `Document [id: ${item.document_id}, chunk: ${item.chunk_index}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
+          : `Rag [id: ${item.document_id}, chunk: ${item.chunk_index}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
       )
       .join('\n\n');
 
