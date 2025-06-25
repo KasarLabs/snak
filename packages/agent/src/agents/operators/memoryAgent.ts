@@ -103,6 +103,36 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
+   * Helper to insert or update a memory record
+   */
+  private async upsertMemory(
+    content: string,
+    memoryId: number | null | undefined,
+    userId: string
+  ): Promise<string> {
+    logger.debug(`MemoryAgent: Upserting memory for user ${userId}`);
+    const embedding = await this.embeddings.embedQuery(content);
+    const metadata = { timestamp: new Date().toISOString() };
+    content = content.replace(/'/g, "''");
+
+    if (memoryId) {
+      logger.debug(`MemoryAgent: Updating memory ID ${memoryId}`);
+      await memory.update_memory(memoryId, content, embedding);
+      return `Memory ${memoryId} updated successfully.`;
+    }
+
+    await memory.insert_memory({
+      user_id: userId,
+      content,
+      embedding,
+      metadata,
+      history: [],
+    });
+
+    return `Memory stored successfully.`;
+  }
+
+  /**
    * Create memory tools
    */
   private createMemoryTools(): void {
@@ -114,27 +144,7 @@ export class MemoryAgent extends BaseAgent {
         userId = 'default_user',
       }): Promise<string> => {
         try {
-          const embedding = await this.embeddings.embedQuery(content);
-          const metadata = { timestamp: new Date().toISOString() };
-          content = content.replace(/'/g, "''"); // Escape apostrophes for SQL
-
-          logger.debug(`MemoryAgent: Upserting memory for user ${userId}`);
-
-          if (memoryId) {
-            logger.debug(`MemoryAgent: Updating memory ID ${memoryId}`);
-            await memory.update_memory(memoryId, content, embedding);
-            return `Memory ${memoryId} updated successfully.`;
-          }
-
-          await memory.insert_memory({
-            user_id: userId,
-            content,
-            embedding,
-            metadata,
-            history: [],
-          });
-
-          return `Memory stored successfully.`;
+          return await this.upsertMemory(content, memoryId, userId);
         } catch (error) {
           logger.error(`MemoryAgent: Error storing memory: ${error}`);
           return `Failed to store memory: ${error}`;
@@ -168,10 +178,10 @@ export class MemoryAgent extends BaseAgent {
 
     // Tool for retrieving similar memories
     const retrieveMemoriesTool = tool(
-      async ({ query, userId = 'default_user' }): Promise<string> => {
+      async ({ query, userId = 'default_user', limit = 4 }): Promise<string> => {
         try {
           const embedding = await this.embeddings.embedQuery(query);
-          const similar = await memory.similar_memory(userId, embedding);
+          const similar = await memory.similar_memory(userId, embedding, limit);
           const filtered = similar.filter(
             (s) => s.similarity >= SIMILARITY_THRESHOLD
           );
@@ -203,6 +213,7 @@ export class MemoryAgent extends BaseAgent {
           limit: z
             .number()
             .optional()
+            .default(4)
             .describe('Maximum number of memories to retrieve.'),
         }),
         description: `
@@ -237,24 +248,7 @@ export class MemoryAgent extends BaseAgent {
       ): Promise<string> => {
         try {
           const userId = config.configurable?.userId || 'default_user';
-          const embedding = await this.embeddings.embedQuery(content);
-          const metadata = { timestamp: new Date().toISOString() };
-          content = content.replace(/'/g, "''");
-
-          if (memoryId) {
-            logger.debug('memoryId detected : ' + memoryId);
-            await memory.update_memory(memoryId, content, embedding);
-          }
-
-          memory.insert_memory({
-            user_id: userId,
-            content,
-            embedding,
-            metadata,
-            history: [],
-          });
-
-          return 'Memory stored successfully.';
+          return await this.upsertMemory(content, memoryId, userId);
         } catch (error) {
           logger.error('Error storing memory:', error);
           return 'Failed to store memory.';
@@ -307,7 +301,7 @@ export class MemoryAgent extends BaseAgent {
    * user message. This mirrors the chain used for documents so LangSmith
    * can trace memory retrieval.
    */
-  public createMemoryChain(): any {
+  public createMemoryChain(limit = 4): any {
     const buildQuery = (state: any) => {
       const lastUser = [...state.messages]
         .reverse()
@@ -326,10 +320,10 @@ export class MemoryAgent extends BaseAgent {
       const userId = config.configurable?.userId || 'default_user';
       const agentId = config.configurable?.agentId;
       const embedding = await this.embeddings.embedQuery(query);
-      const memResults = await memory.similar_memory(userId, embedding);
+      const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding);
+        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
       }
 
       const formattedIter = iterResults.map((it) => ({
@@ -344,7 +338,7 @@ export class MemoryAgent extends BaseAgent {
       );
       const combined = filtered
         .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 4);
+        .slice(0, limit);
 
       return this.formatMemoriesForContext(combined);
     };
@@ -365,7 +359,8 @@ export class MemoryAgent extends BaseAgent {
   public async retrieveRelevantMemories(
     message: string | BaseMessage,
     userId: string = 'default_user',
-    agentId?: string
+    agentId?: string,
+    limit = 4
   ): Promise<any[]> {
     try {
       if (!this.initialized) {
@@ -376,10 +371,10 @@ export class MemoryAgent extends BaseAgent {
         typeof message === 'string' ? message : message.content.toString();
 
       const embedding = await this.embeddings.embedQuery(query);
-      const memResults = await memory.similar_memory(userId, embedding);
+      const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding);
+        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
       }
 
       const formattedIter = iterResults.map((it) => ({
@@ -393,7 +388,7 @@ export class MemoryAgent extends BaseAgent {
         (m) => m.similarity >= SIMILARITY_THRESHOLD
       );
 
-      return combined.sort((a, b) => b.similarity - a.similarity).slice(0, 4);
+      return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
@@ -555,14 +550,15 @@ export class MemoryAgent extends BaseAgent {
   private async retrieveMemoriesForContent(
     content: string,
     userId: string,
-    agentId?: string
+    agentId?: string,
+    limit = 4
   ): Promise<string> {
     try {
       const embedding = await this.embeddings.embedQuery(content);
-      const memResults = await memory.similar_memory(userId, embedding);
+      const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding);
+        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
       }
 
       const formattedIter = iterResults.map((it) => ({
@@ -580,7 +576,9 @@ export class MemoryAgent extends BaseAgent {
         return 'No relevant memories found.';
       }
 
-      return this.formatMemoriesForContext(filtered);
+      return this.formatMemoriesForContext(
+        filtered.sort((a, b) => b.similarity - a.similarity).slice(0, limit)
+      );
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
       return `Failed to retrieve memories: ${error}`;

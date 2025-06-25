@@ -109,7 +109,7 @@ describe('Memory table', () => {
       similarity: 1,
     };
     await expect(
-      memory.similar_memory('default_user', embedding)
+      memory.similar_memory('default_user', embedding, 4)
     ).resolves.toMatchObject([m]);
   });
 });

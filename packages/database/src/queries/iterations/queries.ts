@@ -117,7 +117,8 @@ export namespace iterations {
 
   export async function similar_iterations(
     agentId: string,
-    embedding: number[]
+    embedding: number[],
+    limit = 4
   ): Promise<IterationSimilarity[]> {
     const q = new Postgres.Query(
       `SELECT id, question, answer,
@@ -128,8 +129,8 @@ export namespace iterations {
          FROM iterations
          WHERE agent_id = $2
          ORDER BY similarity DESC
-         LIMIT 4;`,
-      [JSON.stringify(embedding), agentId]
+         LIMIT $3;`,
+      [JSON.stringify(embedding), agentId, limit]
     );
     return await Postgres.query(q);
   }

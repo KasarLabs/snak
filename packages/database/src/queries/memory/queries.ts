@@ -315,16 +315,16 @@ export namespace memory {
    */
   export async function similar_memory(
     userId: string,
-    embedding: number[]
+    embedding: number[],
+    limit = 4
   ): Promise<Similarity[]> {
     const q = new Postgres.Query(
       `SELECT id, content, history, 1 - (embedding <=> $1::vector) AS similarity
           FROM agent_memories
           WHERE user_id = $2
           ORDER BY similarity DESC
-          LIMIT 4;
-      `,
-      [JSON.stringify(embedding), userId]
+          LIMIT $3;`,
+      [JSON.stringify(embedding), userId, limit]
     );
     return await Postgres.query(q);
   }
