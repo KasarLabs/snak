@@ -17,7 +17,8 @@ export class ChunkingService {
     const { chunkSize, overlap, strategy = 'adaptive' } = options;
     if (chunkSize <= 0) throw new Error('Chunk size must be positive');
     if (overlap < 0) throw new Error('Overlap cannot be negative');
-    if (overlap >= chunkSize) throw new Error('Overlap must be less than chunk size');
+    if (overlap >= chunkSize)
+      throw new Error('Overlap must be less than chunk size');
 
     if (strategy === 'whitespace') {
       return this.chunkByWhitespace(documentId, text, chunkSize, overlap);

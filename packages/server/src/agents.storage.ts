@@ -187,9 +187,7 @@ export class AgentStorage implements OnModuleInit {
    * @returns Parsed AgentRagSQL
    * @private
    */
-  private parseRagConfig(
-    config: string | AgentRagSQL
-  ): AgentRagSQL {
+  private parseRagConfig(config: string | AgentRagSQL): AgentRagSQL {
     try {
       if (typeof config !== 'string') {
         return config as AgentRagSQL;

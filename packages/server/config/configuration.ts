@@ -3,11 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import * as path from 'path';
-import {
-  ModelsConfig,
-  ModelLevelConfig,
-  RagConfig,
-} from '@snakagent/core'; // Assuming core exports these types
+import { ModelsConfig, ModelLevelConfig, RagConfig } from '@snakagent/core'; // Assuming core exports these types
 import { readFileSync } from 'fs';
 
 @Injectable()
@@ -40,9 +36,7 @@ export class ConfigurationService {
       ANTHROPIC_API_KEY: this.configService.get<string>('ANTHROPIC_API_KEY'),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
-      RAG_CONFIG_PATH: this.configService.get<string>(
-        'RAG_CONFIG_PATH'
-      ),
+      RAG_CONFIG_PATH: this.configService.get<string>('RAG_CONFIG_PATH'),
       // Add others if needed
     };
 

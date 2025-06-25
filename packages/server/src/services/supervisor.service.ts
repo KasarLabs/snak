@@ -483,8 +483,7 @@ export class SupervisorService implements OnModuleInit {
         rag: agentConfig.rag
           ? {
               enabled: agentConfig.rag.enabled,
-              embeddingModel:
-                agentConfig.rag.embedding_model || undefined,
+              embeddingModel: agentConfig.rag.embedding_model || undefined,
             }
           : undefined,
         chatId: `agent_${agentConfig.id}`,

@@ -23,10 +23,7 @@ export const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   DEEPSEEK_API_KEY: z.string().optional(),
   // Rag max size configuration
-  RAG_CONFIG_PATH: z
-    .string()
-    .optional()
-    .default('config/rag/default.rag.json'),
+  RAG_CONFIG_PATH: z.string().optional().default('config/rag/default.rag.json'),
   // Add other provider keys here if needed
 });
 

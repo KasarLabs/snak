@@ -13,7 +13,7 @@ export class EmbeddingsService {
       throw new Error('Input must be a non-empty array of strings');
     }
 
-    if (texts.some(text => typeof text !== 'string')) {
+    if (texts.some((text) => typeof text !== 'string')) {
       throw new Error('All input elements must be strings');
     }
     return this.embeddings.embedDocuments(texts);

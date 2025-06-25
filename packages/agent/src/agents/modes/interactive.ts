@@ -98,9 +98,7 @@ export const createInteractiveAgent = async (
       try {
         ragAgent = await getRagAgent();
         if (!ragAgent) {
-          logger.warn(
-            'Rag agent not available, rag context will be skipped'
-          );
+          logger.warn('Rag agent not available, rag context will be skipped');
         }
       } catch (error) {
         logger.error(`Error retrieving rag agent: ${error}`);
@@ -181,8 +179,7 @@ export const createInteractiveAgent = async (
           : (state.rag as { rag?: string })?.rag;
 
       const memoryAvailable = memoryContent && memoryContent.trim().length > 0;
-      const ragAvailable =
-        ragContent && ragContent.trim().length > 0;
+      const ragAvailable = ragContent && ragContent.trim().length > 0;
 
       const promptMessages: Array<[string, string] | MessagesPlaceholder> = [];
 
@@ -449,10 +446,7 @@ ${formatAgentResponse(content)}`);
         .addEdge('__start__', 'memory');
       if (ragAgent) {
         workflow = (workflow as any)
-          .addNode(
-            'ragNode',
-            ragAgent.createRagNode(agent_config.id)
-          )
+          .addNode('ragNode', ragAgent.createRagNode(agent_config.id))
           .addEdge('memory', 'ragNode')
           .addEdge('ragNode', 'agent');
       } else {

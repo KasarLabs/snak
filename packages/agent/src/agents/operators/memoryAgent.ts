@@ -177,7 +177,11 @@ export class MemoryAgent extends BaseAgent {
 
     // Tool for retrieving similar memories
     const retrieveMemoriesTool = tool(
-      async ({ query, userId = 'default_user', limit = 4 }): Promise<string> => {
+      async ({
+        query,
+        userId = 'default_user',
+        limit = 4,
+      }): Promise<string> => {
         try {
           const embedding = await this.embeddings.embedQuery(query);
           const similar = await memory.similar_memory(userId, embedding, limit);
@@ -322,7 +326,11 @@ export class MemoryAgent extends BaseAgent {
       const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
+        iterResults = await iterations.similar_iterations(
+          agentId,
+          embedding,
+          limit
+        );
       }
 
       const formattedIter = iterResults.map((it) => ({
@@ -373,7 +381,11 @@ export class MemoryAgent extends BaseAgent {
       const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
+        iterResults = await iterations.similar_iterations(
+          agentId,
+          embedding,
+          limit
+        );
       }
 
       const formattedIter = iterResults.map((it) => ({
@@ -387,7 +399,9 @@ export class MemoryAgent extends BaseAgent {
         (m) => m.similarity >= SIMILARITY_THRESHOLD
       );
 
-      return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+      return combined
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, limit);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
@@ -556,7 +570,11 @@ export class MemoryAgent extends BaseAgent {
       const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
+        iterResults = await iterations.similar_iterations(
+          agentId,
+          embedding,
+          limit
+        );
       }
 
       const formattedIter = iterResults.map((it) => ({

@@ -2,9 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { RagConfig } from '../types/rag/ragConfig.js';
 
-export async function loadRagConfig(
-  configPath: string
-): Promise<RagConfig> {
+export async function loadRagConfig(configPath: string): Promise<RagConfig> {
   const absolutePath = path.resolve(configPath);
   try {
     const fileContent = await fs.readFile(absolutePath, 'utf-8');

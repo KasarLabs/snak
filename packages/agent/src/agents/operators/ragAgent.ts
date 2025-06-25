@@ -133,11 +133,7 @@ export class RagAgent extends BaseAgent {
     };
 
     const retrieve = async (query: string) => {
-      const docs = await this.retrieveRelevantRag(
-        query,
-        this.topK,
-        agentId
-      );
+      const docs = await this.retrieveRelevantRag(query, this.topK, agentId);
       return this.formatRagForContext(docs);
     };
 
