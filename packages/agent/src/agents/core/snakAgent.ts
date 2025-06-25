@@ -177,6 +177,12 @@ export class SnakAgent extends BaseAgent {
             this.modelSelector
           );
           break;
+        case AGENT_MODES[AgentMode.HYBRID]:
+          this.agentReactExecutor = await createAutonomousAgent(
+            this,
+            this.modelSelector
+          );
+          break;
         case AGENT_MODES[AgentMode.INTERACTIVE]:
           this.agentReactExecutor = await createInteractiveAgent(
             this,
@@ -382,7 +388,10 @@ export class SnakAgent extends BaseAgent {
           }
           yield chunk;
         }
-      } else if (this.currentMode == AGENT_MODES[AgentMode.AUTONOMOUS]) {
+      } else if (
+        this.currentMode == AGENT_MODES[AgentMode.AUTONOMOUS] ||
+        this.currentMode == AGENT_MODES[AgentMode.HYBRID]
+      ) {
         for await (const chunk of this.executeAutonomousAsyncGenerator(
           input,
           isInterrupted
@@ -453,7 +462,10 @@ export class SnakAgent extends BaseAgent {
 
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphIterations = 10;
+      const maxGraphIterations = this.agentConfig.maxIterations;
+      const short_term_memory =
+        this.agentConfig.memory.shortTermMemorySize || 5;
+      const human_in_the_loop = this.agentConfig.mode === AgentMode.HYBRID;
       this.controller = new AbortController();
       const initialMessages: BaseMessage[] = [new HumanMessage(input)];
 
@@ -465,8 +477,8 @@ export class SnakAgent extends BaseAgent {
           thread_id: threadId,
           config: {
             max_graph_steps: maxGraphIterations,
-            short_term_memory: 5,
-            human_in_the_loop: true,
+            short_term_memory: short_term_memory,
+            human_in_the_loop: human_in_the_loop,
           },
         },
       };
@@ -618,7 +630,6 @@ export class SnakAgent extends BaseAgent {
       });
     } catch (error: any) {
       logger.error(`Autonomous execution failed: ${error}`);
-
       return new AIMessage({
         content: `Autonomous execution error: ${error.message}`,
         additional_kwargs: {

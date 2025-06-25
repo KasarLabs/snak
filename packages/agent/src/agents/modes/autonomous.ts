@@ -1,4 +1,4 @@
-import { AgentConfig, logger } from '@snakagent/core';
+import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import {
@@ -32,9 +32,8 @@ import {
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
-import { hybridRules } from '../../prompt/prompts.js';
+import { autonomousRules, hybridRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
-import fs from 'fs';
 import { RunnableConfig } from '@langchain/core/runnables';
 /**
  * Defines the state structure for the autonomous agent graph.
@@ -206,6 +205,7 @@ export const createAutonomousAgent = async (
       // Configuration extraction
       const maxGraphSteps = config?.configurable?.config.max_graph_steps;
       const shortTermMemory = config?.configurable?.config.short_term_memory;
+      const human_in_the_loop = config?.configurable?.config.human_in_the_loop;
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1];
 
@@ -274,18 +274,17 @@ export const createAutonomousAgent = async (
       logger.info('Autonomous agent callModel invoked.');
 
       // Build system prompt
+      let rules;
+      if (human_in_the_loop) {
+        rules = hybridRules;
+      } else {
+        rules = autonomousRules;
+      }
       const autonomousSystemPrompt = `
-    ${agent_config.prompt.content}
-
-    ${hybridRules}
-
-    Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
-
-      // Debug logging
-      fs.appendFileSync(
-        'log_autonomous.txt',
-        JSON.stringify(lastMessage, null, 2)
-      );
+        ${agent_config.prompt.content}
+        ${rules}
+          
+        Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
 
       try {
         // Filter messages based on short-term memory
@@ -529,7 +528,7 @@ export const createAutonomousAgent = async (
         ],
       };
     }
-    const human_in_the_loop = true; // TODO Need to had it into the agent config
+    const human_in_the_loop = agent_config.mode === AgentMode.HYBRID;
     let workflow;
     if (!human_in_the_loop) {
       workflow = new StateGraph(GraphState)

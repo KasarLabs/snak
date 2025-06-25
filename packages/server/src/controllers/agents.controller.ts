@@ -185,14 +185,14 @@ export class AgentsController {
     @Body() userRequest: { agent_id: string }
   ): Promise<AgentResponse> {
     try {
-      const agentConfig = this.supervisorService.getAgentInstanceWithSignal(
+      const agentConfig = this.supervisorService.getAgentInstance(
         userRequest.agent_id
       );
       if (!agentConfig) {
         throw new ServerError('E01TA400');
       }
 
-      agentConfig.signal.abort();
+      agentConfig.stop();
       const response: AgentResponse = {
         status: 'success',
         data: `Agent ${userRequest.agent_id} stopped and unregistered from supervisor`,

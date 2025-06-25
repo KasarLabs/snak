@@ -32,10 +32,7 @@ export class SupervisorService implements OnModuleInit {
   private readonly logger = new Logger(SupervisorService.name);
   private supervisor: SupervisorAgent | null = null;
   private initialized: boolean = false;
-  private agentInstances: Map<
-    string,
-    { agent: SnakAgent; signal: AbortController }
-  > = new Map();
+  private agentInstances: Map<string, SnakAgent> = new Map();
 
   constructor(
     private readonly config: ConfigurationService,
@@ -230,17 +227,9 @@ export class SupervisorService implements OnModuleInit {
 
       const creationPromises = agentConfigs.map(async (agentConfig) => {
         try {
-          const signal = new AbortController();
+          const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
 
-          const snakAgent = await this.createSnakAgentFromConfig(
-            agentConfig,
-            signal
-          );
-
-          this.agentInstances.set(agentConfig.id, {
-            agent: snakAgent,
-            signal: signal,
-          });
+          this.agentInstances.set(agentConfig.id, snakAgent);
 
           this.logger.debug(
             `Created SnakAgent: ${agentConfig.name} (${agentConfig.id})`
@@ -312,7 +301,7 @@ export class SupervisorService implements OnModuleInit {
 
           agentsToRegister.push({
             id: agentConfig.id,
-            agent: snakAgent.agent,
+            agent: snakAgent,
             metadata: metadata,
           });
 
@@ -373,13 +362,7 @@ export class SupervisorService implements OnModuleInit {
    */
   public getAgentInstance(id: string): SnakAgent | undefined {
     const instance = this.agentInstances.get(id);
-    return instance ? instance.agent : undefined;
-  }
-
-  public getAgentInstanceWithSignal(
-    id: string
-  ): { agent: SnakAgent; signal: AbortController } | undefined {
-    return this.agentInstances.get(id);
+    return instance ? instance : undefined;
   }
 
   /**
@@ -387,9 +370,7 @@ export class SupervisorService implements OnModuleInit {
    * @returns {SnakAgent[]} Array of all agent instances
    */
   public getAllAgentInstances(): SnakAgent[] {
-    return Array.from(this.agentInstances.values()).map(
-      (instance) => instance.agent
-    );
+    return Array.from(this.agentInstances.values()).map((instance) => instance);
   }
 
   /**
@@ -402,11 +383,7 @@ export class SupervisorService implements OnModuleInit {
     agentConfig: AgentConfigSQL
   ): Promise<void> {
     try {
-      const controller = new AbortController();
-      const snakAgent = await this.createSnakAgentFromConfig(
-        agentConfig,
-        controller
-      );
+      const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
 
       if (this.supervisor) {
         const metadata = {
@@ -415,23 +392,16 @@ export class SupervisorService implements OnModuleInit {
           group: agentConfig.group,
         };
 
-        await this.supervisor.registerSnakAgent(snakAgent, metadata);
+        this.supervisor.registerSnakAgent(snakAgent, metadata);
         await this.supervisor.refreshWorkflowController();
 
-        this.agentInstances.set(agentId, {
-          agent: snakAgent,
-          signal: controller,
-        });
+        this.agentInstances.set(agentId, snakAgent);
 
         this.logger.log(
           `Added and registered agent: ${agentConfig.name} (${agentId})`
         );
       } else {
-        const controller = new AbortController();
-        this.agentInstances.set(agentId, {
-          agent: snakAgent,
-          signal: controller,
-        });
+        this.agentInstances.set(agentId, snakAgent);
       }
     } catch (error) {
       this.logger.error(`Failed to add agent instance ${agentId}:`, error);
@@ -475,8 +445,7 @@ export class SupervisorService implements OnModuleInit {
    * @returns {Promise<any>} The created SnakAgent instance
    */
   private async createSnakAgentFromConfig(
-    agentConfig: AgentConfigSQL,
-    signal: AbortController
+    agentConfig: AgentConfigSQL
   ): Promise<any> {
     try {
       const database = {
