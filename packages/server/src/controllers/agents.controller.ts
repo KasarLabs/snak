@@ -7,7 +7,7 @@ import {
   Post,
   Req,
   Headers,
-  Delete
+  Delete,
 } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';

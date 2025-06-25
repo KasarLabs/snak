@@ -276,7 +276,7 @@ export class ModelSelector extends BaseAgent {
       }
 
       let nextStepsSection = '';
-      
+
       const systemPrompt = new SystemMessage(
         modelSelectorSystemPrompt(nextStepsSection)
       );
