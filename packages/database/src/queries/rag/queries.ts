@@ -4,7 +4,7 @@ let initPromise: Promise<void> | null = null;
 let isInitialized = false;
 
 export namespace rag {
-export async function init(): Promise<void> {
+  export async function init(): Promise<void> {
     // Return immediately if already initialized
     if (isInitialized) {
       return;
