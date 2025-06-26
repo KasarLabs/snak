@@ -100,7 +100,6 @@ export class RagAgent extends BaseAgent {
     if (!this.initialized) {
       throw new Error('RagAgent: Not initialized');
     }
-
     const query =
       typeof input === 'string'
         ? input
