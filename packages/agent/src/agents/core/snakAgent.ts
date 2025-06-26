@@ -1,7 +1,12 @@
 import { AgentType, BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
 import { ModelSelector } from '../operators/modelSelector.js';
-import { logger, metrics, AgentConfig } from '@snakagent/core';
+import {
+  logger,
+  metrics,
+  AgentConfig,
+  CustomHuggingFaceEmbeddings,
+} from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
@@ -11,6 +16,7 @@ import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
+import { iterations } from '@snakagent/database/queries';
 /**
  * Configuration interface for SnakAgent initialization
  */
@@ -106,6 +112,8 @@ export class SnakAgent extends BaseAgent {
   private agentReactExecutor: AgentReturn;
   private modelSelector: ModelSelector | null = null;
   private controller: AbortController;
+  private iterationEmbeddings: CustomHuggingFaceEmbeddings;
+  private pendingIteration?: { question: string; embedding: number[] };
 
   constructor(config: SnakAgentConfig) {
     super('snak', AgentType.SNAK);
@@ -128,6 +136,12 @@ export class SnakAgent extends BaseAgent {
         ? AGENT_MODES[AgentMode.AUTONOMOUS]
         : AGENT_MODES[AgentMode.INTERACTIVE]
     );
+
+    this.iterationEmbeddings = new CustomHuggingFaceEmbeddings({
+      model:
+        this.agentConfig.memory?.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
+      dtype: 'fp32',
+    });
   }
 
   /**
@@ -277,6 +291,8 @@ export class SnakAgent extends BaseAgent {
         throw new Error('Agent executor is not initialized');
       }
 
+      await this.captureQuestion(input);
+
       const graphState = {
         messages: [new HumanMessage(input)],
       };
@@ -311,6 +327,7 @@ export class SnakAgent extends BaseAgent {
       const app = this.agentReactExecutor.app;
       let lastChunkToSave;
       let iterationNumber = 0;
+      let finalAnswer = '';
 
       for await (const chunk of await app.streamEvents(
         graphState,
@@ -339,6 +356,10 @@ export class SnakAgent extends BaseAgent {
             event: chunk.event as AgentIterationEvent,
             kwargs: formatted,
           };
+          if (formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_END) {
+            finalAnswer = (formatted as FormattedOnChatModelEnd).iteration
+              .result.output.content;
+          }
           yield {
             chunk: formattedChunk,
             iteration_number: iterationNumber,
@@ -348,6 +369,9 @@ export class SnakAgent extends BaseAgent {
         }
       }
 
+      if (finalAnswer) {
+        await this.saveIteration(finalAnswer);
+      }
       yield {
         chunk: {
           event: lastChunkToSave.event,
@@ -423,6 +447,63 @@ export class SnakAgent extends BaseAgent {
       logger.info('SnakAgent execution stopped');
     } else {
       logger.warn('No controller found to stop execution');
+    }
+  }
+
+  /**
+   * Capture the latest user question for pairing with the next assistant answer
+   * @param content - User question content
+   */
+  private async captureQuestion(content: string) {
+    try {
+      const limit = this.agentConfig.memory?.shortTermMemorySize ?? 15;
+      if (
+        limit <= 0 ||
+        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE]
+      ) {
+        return;
+      }
+
+      const embedding = await this.iterationEmbeddings.embedQuery(content);
+      this.pendingIteration = { question: content, embedding };
+    } catch (err) {
+      logger.error(`Failed to capture question iteration: ${err}`);
+    }
+  }
+
+  /**
+   * Save a question/answer pair and enforce FIFO limit
+   * @param answer - Assistant answer content
+   */
+  private async saveIteration(answer: string) {
+    try {
+      const limit = this.agentConfig.memory?.shortTermMemorySize ?? 15;
+      if (
+        limit <= 0 ||
+        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
+        !this.pendingIteration
+      ) {
+        return;
+      }
+
+      const answerEmbedding = await this.iterationEmbeddings.embedQuery(answer);
+
+      await iterations.insert_iteration({
+        agent_id: this.agentConfig.id,
+        question: this.pendingIteration.question,
+        question_embedding: this.pendingIteration.embedding,
+        answer,
+        answer_embedding: answerEmbedding,
+      });
+
+      this.pendingIteration = undefined;
+
+      const count = await iterations.count_iterations(this.agentConfig.id);
+      if (count > limit) {
+        await iterations.delete_oldest_iteration(this.agentConfig.id);
+      }
+    } catch (err) {
+      logger.error(`Failed to save iteration pair: ${err}`);
     }
   }
 
