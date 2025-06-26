@@ -28,6 +28,7 @@ import {
 } from '@snakagent/core';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
+import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 
 export interface AgentResponse {
   status: 'success' | 'failure';
@@ -62,6 +63,78 @@ export class AgentsController {
    * @param userRequest - The user request containing agent ID and content
    * @returns Promise<AgentResponse> - Response with status and data
    */
+
+  @Post('update_agent_config')
+  async updateAgentConfig(
+    @Headers('x-api-key') apiKey: string,
+    @Body() config: AgentConfigSQL
+  ): Promise<any> {
+    try {
+      if (!config || !config.id) {
+        throw new BadRequestException('Agent ID is required');
+      }
+
+      const updateFields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      const updatableFields: (keyof AgentConfigSQL)[] = [
+        'name',
+        'group',
+        'description',
+        'lore',
+        'objectives',
+        'knowledge',
+        'system_prompt',
+        'interval',
+        'plugins',
+        'memory',
+        'mode',
+        'max_iterations',
+      ];
+
+      updatableFields.forEach((field) => {
+        if (config[field] !== undefined && config[field] !== null) {
+          updateFields.push(`"${String(field)}" = $${paramIndex}`);
+          values.push(config[field]);
+          paramIndex++;
+        }
+      });
+
+      if (updateFields.length === 0) {
+        throw new BadRequestException('No valid fields to update');
+      }
+
+      values.push(config.id);
+
+      const query = `
+		UPDATE agents
+		SET ${updateFields.join(', ')}
+		WHERE id = $${paramIndex}
+		RETURNING *
+	  `;
+
+      const q = new Postgres.Query(query, values);
+      const result = await Postgres.query<AgentConfigSQL>(q);
+
+      if (result.length === 0) {
+        throw new BadRequestException('Agent not found');
+      }
+
+      return {
+        status: 'success',
+        data: result[0],
+        message: 'Agent configuration updated successfully',
+      };
+    } catch (error) {
+      console.error('Error in updateAgentConfig:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Update failed: ' + error.message);
+    }
+  }
+
   @Post('upload-avatar')
   async uploadAvatar(
     @Headers('x-api-key') apiKey: string,
