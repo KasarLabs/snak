@@ -58,6 +58,7 @@ export const RegisterToolInServer = async (allowed_tools: string[]) => {
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
     db_credentials: database,
     agentConfig: defaultAgentConfig as AgentConfig,
+    modelSelector: null,
   });
   await agent.init();
 

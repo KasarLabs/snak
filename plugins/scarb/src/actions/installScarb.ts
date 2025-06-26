@@ -10,7 +10,7 @@ const execAsync = promisify(exec);
  */
 export const installScarb = async (): Promise<string> => {
   try {
-    let version = await getScarbVersion();
+    const version = await getScarbVersion();
     if (version !== 'unknown') {
       return JSON.stringify({
         status: 'success',

@@ -108,7 +108,6 @@ export class MyGateway implements OnModuleInit {
   ): Promise<void> {
     try {
       logger.info('handleUserRequest called');
-      const route = this.reflector.get('path', this.handleUserRequest);
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
       const agent = this.supervisorService.getAgentInstance(
@@ -124,30 +123,69 @@ export class MyGateway implements OnModuleInit {
         throw new ServerError('E01TA400');
       }
 
+      let response: AgentResponse;
       for await (const chunk of this.agentService.handleUserRequestWebsocket(
         agent,
         userRequest.request
       )) {
         if (chunk.final === true) {
-          const q = new Postgres.Query(
-            'INSERT INTO message (agent_id,user_request,agent_iteration)  VALUES($1, $2, $3)',
-            [
-              userRequest.request.agent_id,
-              userRequest.request.user_request,
-              chunk.chunk,
-            ]
-          );
+          let q;
+
+          if (chunk.chunk.event === 'on_graph_interrupted') {
+            logger.info(
+              'Graph interrupted, saving message with status waiting_for_human_input'
+            );
+            q = new Postgres.Query(
+              'INSERT INTO message (agent_id,user_request,agent_iteration,status)  VALUES($1, $2, $3, $4)',
+              [
+                userRequest.request.agent_id,
+                userRequest.request.user_request,
+                chunk.chunk,
+                'waiting_for_human_input',
+              ]
+            );
+            response = {
+              status: 'waiting_for_human_input',
+              data: {
+                ...chunk.chunk,
+                iteration_number: chunk.iteration_number,
+                langgraph_step: chunk.langgraph_step,
+                isLastChunk: chunk.final,
+              },
+            };
+          } else {
+            q = new Postgres.Query(
+              'INSERT INTO message (agent_id,user_request,agent_iteration)  VALUES($1, $2, $3)',
+              [
+                userRequest.request.agent_id,
+                userRequest.request.user_request,
+                chunk.chunk,
+              ]
+            );
+            response = {
+              status: 'success',
+              data: {
+                ...chunk.chunk,
+                iteration_number: chunk.iteration_number,
+                langgraph_step: chunk.langgraph_step,
+                isLastChunk: chunk.final,
+              },
+            };
+          }
           await Postgres.query(q);
           logger.info('Message Saved in DB');
+        } else {
+          response = {
+            status: 'success',
+            data: {
+              ...chunk.chunk,
+              iteration_number: chunk.iteration_number,
+              langgraph_step: chunk.langgraph_step,
+              isLastChunk: chunk.final,
+            },
+          };
         }
-        const response: AgentResponse = {
-          status: 'success',
-          data: {
-            ...chunk.chunk,
-            iteration_number: chunk.iteration_number,
-            isLastChunk: chunk.final,
-          },
-        };
+
         client.emit('onAgentRequest', response);
       }
     } catch (error) {
@@ -159,6 +197,36 @@ export class MyGateway implements OnModuleInit {
       if (error instanceof ServerError) {
         client.emit('onAgentRequest', error);
       }
+    }
+  }
+
+  @SubscribeMessage('stop_agent')
+  async stopAgent(
+    @MessageBody() userRequest: { agent_id: string; socket_id: string }
+  ): Promise<void> {
+    try {
+      logger.info('stop_agent called');
+      const client = this.clients.get(userRequest.socket_id);
+      if (!client) {
+        logger.error('Client not found');
+        throw new ServerError('E01TA400');
+      }
+      const agent = this.supervisorService.getAgentInstance(
+        userRequest.agent_id
+      );
+      if (!agent) {
+        throw new ServerError('E01TA400');
+      }
+
+      agent.stop();
+      const response: AgentResponse = {
+        status: 'success',
+        data: `Agent ${userRequest.agent_id} stopped`,
+      };
+      client.emit('onStopAgentRequest', response);
+    } catch (error) {
+      logger.error('Error in stopAgent:', error);
+      throw new ServerError('E02TA100');
     }
   }
 

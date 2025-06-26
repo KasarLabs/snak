@@ -29,13 +29,11 @@ export interface IAgent {
    */
   execute(
     input: any,
-    config?: Record<string, any>
-  ): Promise<any> | AsyncGenerator<any>;
+    isInterrupted?: boolean,
 
-  executeAsyncGenerator?(
-    input: BaseMessage[] | any,
     config?: Record<string, any>
-  ): AsyncGenerator<StreamChunk>;
+  ): Promise<any> | AsyncGenerator<StreamChunk>;
+
   /**
    * Optional method to clean up resources used by the agent.
    */
@@ -67,14 +65,6 @@ export interface AgentMessage {
  */
 export interface IModelAgent extends IAgent {
   /**
-   * Gets the appropriate model for a task
-   */
-  getModelForTask(
-    messages: BaseMessage[],
-    forceModelType?: string
-  ): Promise<BaseChatModel>;
-
-  /**
    * Invokes a model with appropriate selection
    */
   invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any>;
@@ -89,6 +79,7 @@ export abstract class BaseAgent implements IAgent {
   readonly description: string;
 
   constructor(id: string, type: AgentType, description?: string) {
+    // CLEAN-UP Don't think the description is very usefull and more don't think that the super() constructor is not necessary because of no utilisation of different fields
     this.id = id;
     this.type = type;
     this.description = description || 'No description';
@@ -97,8 +88,9 @@ export abstract class BaseAgent implements IAgent {
   abstract init(): Promise<void>;
   abstract execute(
     input: any,
+    isInterrupted?: boolean,
     config?: Record<string, any>
-  ): AsyncGenerator<any> | Promise<any>;
+  ): AsyncGenerator<StreamChunk> | Promise<any>;
   executeAsyncGenerator?(
     input: BaseMessage[] | any,
     config?: Record<string, any>

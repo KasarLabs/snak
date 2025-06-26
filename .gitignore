@@ -5,12 +5,7 @@
 .env
 
 **/log_iterations.json
-
-# Client
-packages/client/.next
-packages/client/node_modules
-packages/client/dist
-packages/client/.env.local
+**/log_autonomous.txt
 
 # Logs
 logs
