@@ -8,6 +8,7 @@ import { ModelSelector } from '../operators/modelSelector.js';
 import { SnakAgent, SnakAgentConfig } from '../core/snakAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
+import { RagAgent } from '../operators/ragAgent.js';
 import { WorkflowController } from './workflowController.js';
 import {
   DatabaseCredentials,
@@ -24,6 +25,7 @@ import { AgentSelector } from '../operators/agentSelector.js';
 import { OperatorRegistry } from '../operators/operatorRegistry.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
+import { rag } from '@snakagent/database/queries';
 
 /**
  * Represents an agent to be registered
@@ -57,6 +59,7 @@ export class SupervisorAgent extends BaseAgent {
   private snakAgent: SnakAgent | null = null;
   private toolsOrchestrator: ToolsOrchestrator | null = null;
   private memoryAgent: MemoryAgent | null = null;
+  private ragAgent: RagAgent | null = null;
   private workflowController: WorkflowController | null = null;
   private configAgent: ConfigurationAgent | null = null;
   private mcpAgent: MCPAgent | null = null;
@@ -118,6 +121,7 @@ export class SupervisorAgent extends BaseAgent {
     try {
       await this.initializeModelSelector();
       await this.initializeMemoryAgent(agentConfig);
+      await this.initializeRagAgent(agentConfig);
       await this.initializeToolsOrchestrator(agentConfig);
       await this.initializeAgentSelector();
 
@@ -193,6 +197,30 @@ export class SupervisorAgent extends BaseAgent {
     }
   }
 
+  /**
+   * Initializes the RagAgent component if enabled
+   * @param agentConfig - Agent configuration
+   * @private
+   */
+  private async initializeRagAgent(
+    agentConfig: AgentConfig | undefined
+  ): Promise<void> {
+    const ragCfg = agentConfig?.rag;
+    if (!ragCfg || ragCfg.enabled !== true) {
+      logger.info(
+        'SupervisorAgent: RagAgent initialization skipped (disabled or not configured in config)'
+      );
+      return;
+    }
+    logger.debug('SupervisorAgent: Initializing RagAgent...');
+    this.ragAgent = new RagAgent({
+      topK: ragCfg?.topK,
+      embeddingModel: ragCfg?.embeddingModel,
+    });
+    await this.ragAgent.init();
+    this.operators.set(this.ragAgent.id, this.ragAgent);
+    logger.debug('SupervisorAgent: RagAgent initialized');
+  }
   /**
    * Initializes the ToolsOrchestrator component
    * @param agentConfig - Agent configuration
@@ -507,6 +535,11 @@ export class SupervisorAgent extends BaseAgent {
       depthIndent
     );
 
+    let enriched = currentMessage;
+
+    let memoryResults: any[] = [];
+    let ragResults: rag.SearchResult[] = [];
+
     if (
       this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
       this.memoryAgent
@@ -514,35 +547,69 @@ export class SupervisorAgent extends BaseAgent {
       logger.debug(
         `${depthIndent}SupervisorAgent: Enriching message with memory context for ${callPath}.`
       );
-      const enrichedMessage =
-        await this.enrichWithMemoryContext(currentMessage);
-      for await (const chunk of this.executeWithMessage(
-        enrichedMessage,
-        config,
-        isNodeCall,
-        callPath,
-        depthIndent
-      )) {
-        if (chunk.final === true) {
-          yield chunk;
-          return;
-        }
-        yield chunk;
-      }
+      const memRes = await this.enrichWithMemoryContext(currentMessage);
+      enriched = memRes.message;
+      memoryResults = memRes.memories;
+    }
 
-      for await (const chunk of this.executeWithMessage(
-        currentMessage,
-        config,
-        isNodeCall,
-        callPath,
-        depthIndent
-      )) {
-        if (chunk.final === true) {
-          yield chunk;
-          return;
-        }
+    if (this.ragAgent) {
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Enriching message with rag context for ${callPath}.`
+      );
+      const ragRes = await this.enrichWithRagContext(
+        enriched,
+        config?.selectedSnakAgent || config?.agentId
+      );
+      enriched = ragRes.message;
+      ragResults = ragRes.rag;
+    }
+
+    const globalContext = this.formatGlobalContext(
+      memoryResults,
+      ragResults,
+      (this.config.starknetConfig.agentConfig as any)?.globalContextTopK ?? 6
+    );
+
+    if (globalContext) {
+      const originalContent =
+        typeof enriched.content === 'string'
+          ? enriched.content
+          : JSON.stringify(enriched.content);
+      enriched = new HumanMessage({
+        content: originalContent,
+        additional_kwargs: {
+          ...enriched.additional_kwargs,
+          global_context: globalContext,
+        },
+      });
+    }
+
+    for await (const chunk of this.executeWithMessage(
+      enriched,
+      config,
+      isNodeCall,
+      callPath,
+      depthIndent
+    )) {
+      if (chunk.final === true) {
         yield chunk;
+        return;
       }
+      yield chunk;
+    }
+
+    for await (const chunk of this.executeWithMessage(
+      currentMessage,
+      config,
+      isNodeCall,
+      callPath,
+      depthIndent
+    )) {
+      if (chunk.final === true) {
+        yield chunk;
+        return;
+      }
+      yield chunk;
     }
   }
 
@@ -1218,6 +1285,14 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
+   * Gets the RagAgent instance
+   * @returns The RagAgent instance, or null if not initialized
+   */
+  public getRagAgent(): RagAgent | null {
+    return this.ragAgent;
+  }
+
+  /**
    * Gets all available tools from the ToolsOrchestrator and MemoryAgent
    * @returns An array of Tool instances
    */
@@ -1295,6 +1370,7 @@ export class SupervisorAgent extends BaseAgent {
     const agentsToDispose = [
       this.modelSelector,
       this.memoryAgent,
+      this.ragAgent,
       this.toolsOrchestrator,
       this.workflowController,
     ];
@@ -1309,6 +1385,7 @@ export class SupervisorAgent extends BaseAgent {
     this.snakAgent = null;
     this.toolsOrchestrator = null;
     this.memoryAgent = null;
+    this.ragAgent = null;
     this.agentSelector = null;
     this.workflowController = null;
     this.operators.clear();
@@ -1332,25 +1409,26 @@ export class SupervisorAgent extends BaseAgent {
    */
   private async enrichWithMemoryContext(
     message: BaseMessage
-  ): Promise<BaseMessage> {
+  ): Promise<{ message: BaseMessage; memories: any[] }> {
     if (!this.memoryAgent) {
       logger.debug(
         'SupervisorAgent: MemoryAgent not available, skipping context enrichment.'
       );
-      return message;
+      return { message, memories: [] };
     }
 
     try {
       const memories = await this.memoryAgent.retrieveRelevantMemories(
         message,
-        this.config.starknetConfig.agentConfig?.chatId || 'default_chat'
+        this.config.starknetConfig.agentConfig?.chatId || 'default_chat',
+        this.config.starknetConfig.agentConfig?.id
       );
 
       if (memories.length === 0) {
         logger.debug(
           'SupervisorAgent: No relevant memories found for context.'
         );
-        return message;
+        return { message, memories: [] };
       }
 
       const memoryContext = this.memoryAgent.formatMemoriesForContext(memories);
@@ -1363,21 +1441,218 @@ export class SupervisorAgent extends BaseAgent {
           ? message.content
           : JSON.stringify(message.content);
 
-      return new HumanMessage({
+      const enriched = new HumanMessage({
         content: originalContent,
         additional_kwargs: {
           ...message.additional_kwargs,
           memory_context: memoryContext,
         },
       });
+
+      return { message: enriched, memories };
     } catch (error) {
       logger.error(
         `SupervisorAgent: Error enriching message with memory context: ${error}`
       );
-      return message;
+      return { message, memories: [] };
     }
   }
 
+  private async enrichWithRagContext(
+    message: BaseMessage,
+    agentId?: string
+  ): Promise<{ message: BaseMessage; rag: rag.SearchResult[] }> {
+    if (!this.ragAgent) {
+      logger.debug(
+        'SupervisorAgent: RagAgent not available, skipping context enrichment.'
+      );
+      return { message, rag: [] };
+    }
+
+    try {
+      const rgs = await this.ragAgent.retrieveRelevantRag(
+        message,
+        (this.config.starknetConfig.agentConfig as any)?.rag?.topK,
+        agentId || ''
+      );
+
+      if (!rgs.length) {
+        logger.debug(
+          'SupervisorAgent: No relevant document chunks found for context.'
+        );
+        return { message, rag: [] };
+      }
+
+      const ragContext = this.ragAgent.formatRagForContext(rgs);
+      logger.debug(
+        `SupervisorAgent: Formatted rag context (first 100 chars): "${ragContext.substring(0, 100)}..."`
+      );
+
+      const originalContent =
+        typeof message.content === 'string'
+          ? message.content
+          : JSON.stringify(message.content);
+
+      const enriched = new HumanMessage({
+        content: originalContent,
+        additional_kwargs: {
+          ...message.additional_kwargs,
+          rag_context: ragContext,
+        },
+      });
+
+      return { message: enriched, rag: rgs };
+    } catch (error) {
+      logger.error(
+        `SupervisorAgent: Error enriching message with rag context: ${error}`
+      );
+      return { message, rag: [] };
+    }
+  }
+
+  private formatGlobalContext(
+    memories: any[],
+    rgs: rag.SearchResult[],
+    topK = 6
+  ): string {
+    const combined = [
+      ...memories.map((m) => ({
+        type: 'memory' as const,
+        similarity: m.similarity,
+        content: m.content,
+        id: m.id,
+      })),
+      ...rgs.map((r) => ({
+        type: 'rag' as const,
+        similarity: r.similarity,
+        content: r.content,
+        document_id: r.document_id,
+        chunk_index: r.chunk_index,
+      })),
+    ];
+
+    combined.sort((a, b) => b.similarity - a.similarity);
+    const selected = combined.slice(0, topK);
+
+    if (!selected.length) return '';
+
+    const formatted = selected
+      .map((item) =>
+        item.type === 'memory'
+          ? `Memory [id: ${item.id}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
+          : `Rag [id: ${item.document_id}, chunk: ${item.chunk_index}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
+      )
+      .join('\n\n');
+
+    return `### Global Context ###\n${formatted}\n\n`;
+  }
+
+  /**
+   * Starts a hybrid execution flow with an initial input
+   * Delegates to the SnakAgent's hybrid execution capabilities
+   * @param initialInput - The initial input string to start the hybrid process
+   * @returns An object containing the initial state and the thread ID for the execution
+   * @throws {Error} Will throw an error if the SnakAgent is not available or if execution fails to start
+   */
+  public async startHybridExecution(
+    initialInput: string
+  ): Promise<{ state: any; threadId: string }> {
+    logger.debug('SupervisorAgent: Starting hybrid execution.');
+    if (!this.snakAgent) {
+      logger.error(
+        'SupervisorAgent: SnakAgent is not available for hybrid execution.'
+      );
+      throw new Error('SnakAgent is not available for hybrid execution.');
+    }
+
+    const result = await this.snakAgent.execute_hybrid(initialInput);
+
+    if (!result || typeof result !== 'object') {
+      logger.error(
+        'SupervisorAgent: Failed to start hybrid execution - invalid result from SnakAgent.'
+      );
+      throw new Error(
+        'Failed to start hybrid execution: received invalid result from SnakAgent.'
+      );
+    }
+
+    const resultObj = result as any;
+    const threadId = resultObj.threadId || `hybrid_fallback_${Date.now()}`;
+    if (!resultObj.threadId) {
+      logger.warn(
+        `SupervisorAgent: ThreadId missing in hybrid execution result, generated fallback: ${threadId}`
+      );
+    }
+
+    return {
+      state: resultObj.state || resultObj,
+      threadId,
+    };
+  }
+
+  /**
+   * Provides subsequent input to a paused hybrid execution
+   * Delegates to the SnakAgent to resume the hybrid flow
+   * @param input - The human input string to provide to the paused execution
+   * @param threadId - The thread ID of the paused hybrid execution
+   * @returns The updated state after processing the input
+   * @throws {Error} Will throw an error if the SnakAgent is not available
+   */
+  public async provideHybridInput(
+    input: string,
+    threadId: string
+  ): Promise<any> {
+    logger.debug(
+      `SupervisorAgent: Providing input to hybrid execution (thread: ${threadId})`
+    );
+    if (!this.snakAgent) {
+      logger.error(
+        'SupervisorAgent: SnakAgent is not available to provide hybrid input.'
+      );
+      throw new Error('SnakAgent is not available to provide hybrid input.');
+    }
+    return this.snakAgent.resume_hybrid(input, threadId);
+  }
+
+  /**
+   * Checks if the current state of a hybrid execution is waiting for human input
+   * Examines the state object for flags or markers in messages indicating waiting state
+   * @param state - The current execution state object
+   * @returns True if the execution is waiting for input, false otherwise
+   */
+  public isWaitingForInput(state: any): boolean {
+    if (
+      !state ||
+      !Array.isArray(state.messages) ||
+      state.messages.length === 0
+    ) {
+      return false;
+    }
+
+    if (state.waiting_for_input === true) {
+      return true;
+    }
+
+    const lastMessage = state.messages[state.messages.length - 1];
+    if (!lastMessage) return false;
+
+    if (
+      lastMessage.content &&
+      typeof lastMessage.content === 'string' &&
+      lastMessage.content.includes('WAITING_FOR_HUMAN_INPUT:')
+    ) {
+      return true;
+    }
+
+    return lastMessage.additional_kwargs?.wait_for_input === true;
+  }
+
+  /**
+   * Checks if the current state of a hybrid execution indicates completion
+   * Examines the state object for markers in messages signifying end of execution
+   * @param state - The current execution state object
+   * @returns True if the execution is complete, false otherwise
+   */
   public isExecutionComplete(state: any): boolean {
     if (
       !state ||

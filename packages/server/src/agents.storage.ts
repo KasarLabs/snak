@@ -9,7 +9,11 @@ import {
   ModelLevelConfig,
   RawAgentConfig,
 } from '@snakagent/core';
-import { AgentConfigSQL } from './interfaces/sql_interfaces.js';
+import {
+  AgentConfigSQL,
+  AgentRagSQL,
+  AgentMemorySQL,
+} from './interfaces/sql_interfaces.js';
 import DatabaseStorage from '../common/database/database.js';
 
 const logger = new Logger('AgentStorage');
@@ -155,6 +159,56 @@ export class AgentStorage implements OnModuleInit {
   }
 
   /**
+   * Parse memory configuration from composite type string
+   * @param config - Raw memory config string e.g. "(true,5)"
+   * @returns Parsed AgentMemorySQL
+   * @private
+   */
+  private parseMemoryConfig(config: string | AgentMemorySQL): AgentMemorySQL {
+    try {
+      if (typeof config !== 'string') {
+        return config as AgentMemorySQL;
+      }
+      const content = config.trim().slice(1, -1);
+      const parts = content.split(',');
+      return {
+        enabled: parts[0] === 't' || parts[0] === 'true',
+        short_term_memory_size: parseInt(parts[1], 10),
+      };
+    } catch (error) {
+      logger.error('Error parsing memory config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Parse rag configuration from composite type string
+   * @param config - Raw rag config string e.g. "(false,my-model)"
+   * @returns Parsed AgentRagSQL
+   * @private
+   */
+  private parseRagConfig(config: string | AgentRagSQL): AgentRagSQL {
+    try {
+      if (typeof config !== 'string') {
+        return config as AgentRagSQL;
+      }
+      const content = config.trim().slice(1, -1);
+      const parts = content.split(',');
+      const embedding = parts[1]?.replace(/^"|"$/g, '') || null;
+      return {
+        enabled: parts[0] === 't' || parts[0] === 'true',
+        embedding_model:
+          embedding === '' || embedding?.toLowerCase() === 'null'
+            ? null
+            : embedding,
+      };
+    } catch (error) {
+      logger.error('Error parsing rag config:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Initialize agents configuration from database
    * @private
    */
@@ -163,12 +217,17 @@ export class AgentStorage implements OnModuleInit {
       logger.debug('Initializing agents configuration');
       const q = new Postgres.Query(`SELECT * FROM agents`);
       const q_res = await Postgres.query<AgentConfigSQL>(q);
-      this.agentConfigs = [...q_res];
+      const parsed = q_res.map((cfg) => ({
+        ...cfg,
+        memory: this.parseMemoryConfig(cfg.memory),
+        rag: this.parseRagConfig(cfg.rag),
+      }));
+      this.agentConfigs = [...parsed];
 
       logger.debug(
         `Agents configuration loaded: ${this.agentConfigs.length} agents`
       );
-      return q_res;
+      return parsed;
     } catch (error) {
       logger.error('Error during agents configuration initialization:', error);
       throw error;
@@ -333,10 +392,9 @@ export class AgentStorage implements OnModuleInit {
       knowledge: agent_config.knowledge,
     });
 
-    console.log(agent_config);
     const q = new Postgres.Query(
-      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, mode, max_iterations, "mcpServers")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), $12, $13, $14) RETURNING *`,
+      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15, $16) RETURNING *`,
       [
         finalName,
         group,
@@ -349,6 +407,8 @@ export class AgentStorage implements OnModuleInit {
         agent_config.plugins,
         agent_config.memory.enabled || false,
         agent_config.memory.shortTermMemorySize || 5,
+        agent_config.rag?.enabled || false,
+        agent_config.rag?.embeddingModel || null,
         agent_config.mode,
         15,
         agent_config.mcpServers || '{}',
@@ -358,7 +418,11 @@ export class AgentStorage implements OnModuleInit {
     logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
-      const newAgentDbRecord = q_res[0];
+      const newAgentDbRecord = {
+        ...q_res[0],
+        memory: this.parseMemoryConfig(q_res[0].memory),
+        rag: this.parseRagConfig(q_res[0].rag),
+      };
       this.agentConfigs.push(newAgentDbRecord);
       logger.debug(`Agent ${newAgentDbRecord.id} added to configuration`);
       return newAgentDbRecord;

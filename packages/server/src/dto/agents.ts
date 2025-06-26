@@ -37,6 +37,11 @@ interface AgentMemory {
   short_term_memory_size: number;
 }
 
+interface AgentRag {
+  enabled: boolean;
+  embedding_model: string | null;
+}
+
 interface AgentPrompt {
   lore: string[];
   objectives: string[];
@@ -51,6 +56,7 @@ export class AgentInitializationDTO {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
+  rag: AgentRag;
 }
 
 export class InitializesRequestDTO {

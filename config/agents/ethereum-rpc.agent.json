@@ -32,6 +32,9 @@
     "enabled": true,
     "shortTermMemorySize": 15
   },
+  "rag": {
+    "enabled": true
+  },
   "chatId": "ethereum_rpc",
   "plugins": ["rpc"],
   "mcpServers": {

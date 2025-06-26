@@ -42,6 +42,19 @@ const getMemoryAgent = async () => {
   }
 };
 
+const getRagAgent = async () => {
+  try {
+    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
+    if (supervisorAgent) {
+      return await supervisorAgent.getRagAgent();
+    }
+    return null;
+  } catch (error) {
+    logger.error(`Failed to get rag agent: ${error}`);
+    return null;
+  }
+};
+
 /**
  * Creates and configures an interactive agent.
  * @param snakAgent - The SnakAgentInterface instance.
@@ -81,11 +94,24 @@ export const createInteractiveAgent = async (
       }
     }
 
+    let ragAgent = null;
+    if (agent_config.rag?.enabled !== false) {
+      try {
+        ragAgent = await getRagAgent();
+        if (!ragAgent) {
+          logger.warn('Rag agent not available, rag context will be skipped');
+        }
+      } catch (error) {
+        logger.error(`Error retrieving rag agent: ${error}`);
+      }
+    }
+
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
       }),
       memories: Annotation<string>,
+      rag: Annotation<string>,
     });
 
     const toolNode = new ToolNode(toolsList);
@@ -287,17 +313,29 @@ ${formatAgentResponse(content)}`);
       return 'end';
     }
 
-    const workflow = new StateGraph(GraphState)
+    let workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
     if (agent_config.memory && memoryAgent) {
-      workflow
+      workflow = (workflow as any)
         .addNode('memory', memoryAgent.createMemoryNode())
-        .addEdge('__start__', 'memory')
-        .addEdge('memory', 'agent');
+        .addEdge('__start__', 'memory');
+      if (ragAgent) {
+        workflow = (workflow as any)
+          .addNode('ragNode', ragAgent.createRagNode(agent_config.id))
+          .addEdge('memory', 'ragNode')
+          .addEdge('ragNode', 'agent');
+      } else {
+        workflow = (workflow as any).addEdge('memory', 'agent');
+      }
+    } else if (ragAgent) {
+      workflow = (workflow as any)
+        .addNode('ragNode', ragAgent.createRagNode(agent_config.id))
+        .addEdge('__start__', 'ragNode')
+        .addEdge('ragNode', 'agent');
     } else {
-      workflow.addEdge('__start__', 'agent');
+      workflow = (workflow as any).addEdge('__start__', 'agent');
     }
 
     workflow

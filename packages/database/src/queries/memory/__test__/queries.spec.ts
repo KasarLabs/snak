@@ -25,6 +25,16 @@ describe('Memory database initialization', () => {
   it('Should be indempotent', async () => {
     await expect(memory.init()).resolves.toBeUndefined();
   });
+
+  it('Should create embedding index', async () => {
+    await memory.init();
+    const indexes = await Postgres.query<{ indexname: string }>(
+      new Postgres.Query(
+        `SELECT indexname FROM pg_indexes WHERE tablename = 'agent_memories' AND indexname = 'agent_memories_embedding_idx'`
+      )
+    );
+    expect(indexes.length).toBe(1);
+  });
 });
 
 describe('Memory table', () => {
@@ -99,7 +109,7 @@ describe('Memory table', () => {
       similarity: 1,
     };
     await expect(
-      memory.similar_memory('default_user', embedding)
+      memory.similar_memory('default_user', embedding, 4)
     ).resolves.toMatchObject([m]);
   });
 });

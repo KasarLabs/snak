@@ -143,6 +143,10 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
     ? JSON.parse(JSON.stringify(config.memory))
     : config.memory;
 
+  const ragCopy = config.rag
+    ? JSON.parse(JSON.stringify(config.rag))
+    : config.rag;
+
   const configCopy: AgentConfig = {
     id: config.id,
     group: config.group,
@@ -153,6 +157,7 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
     chatId: config.chatId,
     plugins: [...config.plugins],
     memory: memoryCopy,
+    rag: ragCopy,
     mcpServers: mcpServersCopy,
     mode: config.mode,
     maxIterations: config.maxIterations,
@@ -269,6 +274,21 @@ export const validateConfig = (config: AgentConfig) => {
       }
     }
   }
+
+  if (config.rag) {
+    if (
+      config.rag.enabled !== undefined &&
+      typeof config.rag.enabled !== 'boolean'
+    ) {
+      throw new Error('rag.enabled must be a boolean');
+    }
+    if (
+      config.rag.embeddingModel !== undefined &&
+      typeof config.rag.embeddingModel !== 'string'
+    ) {
+      throw new Error('rag.embeddingModel must be a string');
+    }
+  }
 };
 
 /**
@@ -354,6 +374,7 @@ const checkParseJson = async (
         ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
       memory: json.memory || false,
+      rag: json.rag || false,
       mcpServers: json.mcpServers || {},
       maxIterations:
         typeof json.maxIterations === 'number'

@@ -10,6 +10,14 @@ export interface AgentMemory {
 }
 
 /**
+ * Configuration for agent rag settings
+ */
+export interface AgentRag {
+  enabled: boolean;
+  embedding_model: string | null;
+}
+
+/**
  * Unified agent configuration interface for database storage
  */
 export interface AgentConfigDatabase {
@@ -23,6 +31,7 @@ export interface AgentConfigDatabase {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
+  rag: AgentRag;
   mode: AgentMode;
   max_iterations: number;
 }
@@ -66,6 +75,7 @@ export class AgentInitializationDTO {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
+  rag: AgentRag;
   mode: AgentMode;
   max_iterations: number;
 }

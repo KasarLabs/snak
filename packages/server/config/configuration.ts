@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import * as path from 'path';
-import { ModelsConfig, ModelLevelConfig } from '@snakagent/core'; // Assuming core exports these types
+import { ModelsConfig, ModelLevelConfig, RagConfig } from '@snakagent/core'; // Assuming core exports these types
+import { readFileSync } from 'fs';
 
 @Injectable()
 export class ConfigurationService {
@@ -11,6 +12,8 @@ export class ConfigurationService {
   private readonly config: EnvConfig;
   private readonly modelsConfig: ModelsConfig;
   private readonly modelsConfigPath: string;
+  private readonly ragConfig: RagConfig;
+  private readonly ragConfigPath: string;
 
   constructor(private configService: ConfigService) {
     // Collect all env variables specified in the schema
@@ -33,6 +36,7 @@ export class ConfigurationService {
       ANTHROPIC_API_KEY: this.configService.get<string>('ANTHROPIC_API_KEY'),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
+      RAG_CONFIG_PATH: this.configService.get<string>('RAG_CONFIG_PATH'),
       // Add others if needed
     };
 
@@ -54,6 +58,25 @@ export class ConfigurationService {
       '..',
       this.config.AI_MODELS_CONFIG_PATH
     );
+    this.ragConfigPath = path.resolve(
+      process.cwd(),
+      '../..',
+      this.config.RAG_CONFIG_PATH
+    );
+    try {
+      const content = readFileSync(this.ragConfigPath, 'utf-8');
+      this.ragConfig = JSON.parse(content) as RagConfig;
+    } catch (err) {
+      this.logger.error(
+        `Failed to load rag config from ${this.ragConfigPath}:`,
+        err as any
+      );
+      this.ragConfig = {
+        maxAgentSize: 10_000_000,
+        maxProcessSize: 50_000_000,
+        maxRagSize: 10_000_000,
+      };
+    }
   }
 
   get port(): number {
@@ -127,6 +150,10 @@ export class ConfigurationService {
       apiKey,
       modelsConfigPath: this.modelsConfigPath,
     };
+  }
+
+  get rag() {
+    return this.ragConfig;
   }
 
   get isDevelopment(): boolean {
