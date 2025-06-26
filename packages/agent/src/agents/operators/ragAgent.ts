@@ -94,6 +94,7 @@ export class RagAgent extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | any,
+    _isInterrupted?: boolean,
     config?: Record<string, any>
   ): Promise<any> {
     if (!this.initialized) {
