@@ -30,7 +30,7 @@ A Agent Engine for creating powerful and secure AI Agents powered by Starknet. A
 
 - Starknet wallet (recommended: [Argent X](https://www.argent.xyz/argent-x))
 - AI provider API key (Anthropic/OpenAI/Google Gemini/Ollama)
-- Docker and Docker compose installed 
+- Docker and Docker compose installed
 - Node.js and pnpm installed
 
 ### Installation
