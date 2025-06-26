@@ -6,7 +6,7 @@ import { CreateArgentAccountSignature } from '../actions/createAccount.js';
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]
 ) => {
-  StarknetToolRegistry.push({
+  (StarknetToolRegistry.push({
     name: 'create_argent_account',
     description:
       'create argent account return the privateKey/publicKey/contractAddress',
@@ -18,5 +18,5 @@ export const registerSignatureTools = (
         'deploy argent account return the privateKey/publicKey/contractAddress',
       schema: accountDetailsSchema,
       execute: DeployArgentAccountSignature,
-    });
+    }));
 };

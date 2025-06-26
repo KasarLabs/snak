@@ -6,7 +6,7 @@ import { CreateOKXAccountSignature } from '../actions/createAccount.js';
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]
 ) => {
-  StarknetToolRegistry.push({
+  (StarknetToolRegistry.push({
     name: 'create_okx_account',
     description:
       'create okx account return the privateKey/publicKey/contractAddress',
@@ -18,5 +18,5 @@ export const registerSignatureTools = (
         'deploy okx account return the privateKey/publicKey/contractAddress',
       schema: accountDetailsSchema,
       execute: DeployOKXAccountSignature,
-    });
+    }));
 };

@@ -6,7 +6,7 @@ import { DeployBraavosAccountSignature } from '../actions/deployAccount.js';
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]
 ) => {
-  StarknetToolRegistry.push({
+  (StarknetToolRegistry.push({
     name: 'create_braavos_account',
     description:
       'create braavos account return the privateKey/publicKey/contractAddress',
@@ -18,5 +18,5 @@ export const registerSignatureTools = (
         'deploy braavos account return the privateKey/publicKey/contractAddress',
       schema: accountDetailsSchema,
       execute: DeployBraavosAccountSignature,
-    });
+    }));
 };
