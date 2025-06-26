@@ -22,8 +22,7 @@
     "clean:all": "pnpm clean && pnpm clean:dist",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run format && npm run build",
-    "prepack": "npm run build",
-    "lint": "eslint \"src/**/*.ts\" --fix"
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@avnu/avnu-sdk": "^3.0.0",

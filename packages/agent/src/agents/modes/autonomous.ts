@@ -1,7 +1,15 @@
-import { logger } from '@snakagent/core';
+import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
-import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
+import {
+  StateGraph,
+  MemorySaver,
+  Annotation,
+  END,
+  START,
+  interrupt,
+  MessagesAnnotation,
+} from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import {
@@ -15,6 +23,7 @@ import {
   BaseMessage,
   ToolMessage,
   HumanMessage,
+  AIMessageChunk,
 } from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
@@ -22,10 +31,10 @@ import {
 } from '@langchain/core/prompts';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { truncateToolResults, formatAgentResponse } from '../core/utils.js';
-import { autonomousRules, finalAnswerRules } from '../../prompt/prompts.js';
+import { truncateToolResults } from '../core/utils.js';
+import { autonomousRules, hybridRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
-
+import { RunnableConfig } from '@langchain/core/runnables';
 /**
  * Defines the state structure for the autonomous agent graph.
  */
@@ -39,10 +48,15 @@ const GraphState = Annotation.Root({
   }),
 });
 
+export interface AgentReturn {
+  app: any;
+  agent_config: AgentConfig;
+}
+
 /**
  * Creates and configures an autonomous agent using a StateGraph.
  * This agent can use tools, interact with models, and follow a defined workflow.
- *
+ * @async
  * @param {SnakAgentInterface} snakAgent - The Starknet agent instance providing configuration and context
  * @param {ModelSelector | null} modelSelector - The model selection agent for choosing appropriate LLMs
  * @returns {Promise<Object>} Promise resolving to compiled LangGraph app, agent config, and max iterations
@@ -51,7 +65,7 @@ const GraphState = Annotation.Root({
 export const createAutonomousAgent = async (
   snakAgent: SnakAgentInterface,
   modelSelector: ModelSelector | null
-) => {
+): Promise<AgentReturn> => {
   try {
     const agent_config = snakAgent.getAgentConfig();
     if (!agent_config) {
@@ -97,10 +111,14 @@ export const createAutonomousAgent = async (
     toolNode.invoke = async (
       state: typeof GraphState.State,
       config?: LangGraphRunnableConfig
-    ): Promise<ToolMessage | ToolMessage[] | null> => {
+    ): Promise<{ messages: BaseMessage[] } | null> => {
       const lastMessage = state.messages[state.messages.length - 1];
+      const lastIterationNumber = getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      )?.additional_kwargs.iteration_number;
       const toolCalls =
-        lastMessage instanceof AIMessage && lastMessage.tool_calls
+        lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
           ? lastMessage.tool_calls
           : [];
 
@@ -116,11 +134,20 @@ export const createAutonomousAgent = async (
       try {
         const result = await originalToolNodeInvoke(state, config);
         const executionTime = Date.now() - startTime;
-        const truncatedResult = truncateToolResults(result, 5000); // Max 5000 chars for tool output
+        const truncatedResult: { messages: [ToolMessage] } =
+          truncateToolResults(result, 5000); // Max 5000 chars for tool output
 
         logger.debug(
           `Tool execution completed in ${executionTime}ms. Results: ${Array.isArray(truncatedResult) ? truncatedResult.length : typeof truncatedResult}`
         );
+
+        truncatedResult.messages.forEach((res) => {
+          res.additional_kwargs = {
+            from: 'tools',
+            final: false,
+            iteration_number: lastIterationNumber,
+          };
+        });
         return truncatedResult;
       } catch (error) {
         const executionTime = Date.now() - startTime;
@@ -138,161 +165,200 @@ export const createAutonomousAgent = async (
      * @returns {Promise<{ messages: BaseMessage[] }>} Object containing new messages from the model
      * @throws {Error} If agent configuration or model selector is unavailable
      */
+
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof ToolMessage
+    ): ToolMessage | null;
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof AIMessageChunk
+    ): AIMessageChunk | null;
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof AIMessage
+    ): AIMessage | null;
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof HumanMessage
+    ): HumanMessage | null {
+      try {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i] instanceof MessageClass) {
+            return messages[i];
+          }
+        }
+        return null;
+      } catch (error: any) {
+        logger.error(error);
+        throw error;
+      }
+    }
     async function callModel(
-      state: typeof GraphState.State
+      state: typeof GraphState.State,
+      config?: RunnableConfig
     ): Promise<{ messages: BaseMessage[] }> {
       if (!agent_config || !modelSelector) {
         throw new Error('Agent configuration and ModelSelector are required.');
       }
 
-      const lastMessage = state.messages[state.messages.length - 1];
-      if (
-        lastMessage instanceof AIMessage &&
-        lastMessage.additional_kwargs?.final_answer === true
-      ) {
-        logger.debug('Autonomous agent: Processing final answer continuation.');
-        delete lastMessage.additional_kwargs.final_answer;
+      // Configuration extraction
+      const maxGraphSteps = config?.configurable?.config.max_graph_steps;
+      const shortTermMemory = config?.configurable?.config.short_term_memory;
+      const human_in_the_loop = config?.configurable?.config.human_in_the_loop;
+      const messages = state.messages;
+      const lastMessage = messages[messages.length - 1];
 
-        let finalAnswerContent = lastMessage.content;
-        if (typeof finalAnswerContent === 'string') {
-          const match = finalAnswerContent.match(/FINAL ANSWER:(.*?)$/s);
-          finalAnswerContent =
-            match && match[1] ? match[1].trim() : finalAnswerContent;
+      // Determine iteration number
+      let iteration_number = 0;
+      if (lastMessage instanceof ToolMessage) {
+        logger.debug('ToolMessage Detected');
+        const lastMessageAi = getLatestMessageForMessage(
+          state.messages,
+          AIMessageChunk
+        );
+        if (!lastMessageAi) {
+          throw new Error('Error trying to get latest AI Message Chunk');
         }
+        iteration_number =
+          (lastMessageAi.additional_kwargs.iteration_number as number) || 0;
+      } else if (lastMessage instanceof AIMessageChunk) {
+        iteration_number =
+          (lastMessage.additional_kwargs.iteration_number as number) || 0;
+      }
 
+      if (maxGraphSteps <= iteration_number) {
         return {
           messages: [
-            new AIMessage({
-              content: finalAnswerRules(finalAnswerContent),
-              additional_kwargs: { from: 'starknet-autonomous' },
+            new AIMessageChunk({
+              content: `Reaching maximum iterations for autonomous agent. Ending workflow.`,
+              additional_kwargs: {
+                final: true,
+                iteration_number: iteration_number,
+              },
             }),
           ],
         };
       }
 
+      iteration_number++;
+
+      // Determine start iteration
+      let startIteration = 0;
+      if ((config?.metadata?.langgraph_step as number) === 1) {
+        startIteration = 1;
+      } else if (
+        Array.isArray(config?.metadata?.langgraph_triggers) &&
+        typeof config.metadata.langgraph_triggers[0] === 'string' &&
+        config.metadata.langgraph_triggers[0] === '__start__:agent'
+      ) {
+        startIteration = config?.metadata?.langgraph_step as number;
+      } else {
+        const lastAiMessage = getLatestMessageForMessage(
+          state.messages,
+          AIMessageChunk
+        );
+        if (!lastAiMessage) {
+          throw new Error('Error trying to get latest AI Message Chunk');
+        }
+        startIteration = lastAiMessage.additional_kwargs
+          .start_iteration as number;
+      }
+
+      logger.info(
+        `startIteration: ${startIteration}, iteration: ${iteration_number}`
+      );
+
+      // Check max iterations
+
+      logger.info('Autonomous agent callModel invoked.');
+
+      // Build system prompt
+      let rules;
+      if (human_in_the_loop) {
+        rules = hybridRules;
+      } else {
+        rules = autonomousRules;
+      }
       const autonomousSystemPrompt = `
-      ${agent_config.prompt.content}
-
-      ${autonomousRules}
-
-      Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
-
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', autonomousSystemPrompt],
-        new MessagesPlaceholder('messages'),
-      ]);
-
-      const filteredMessages = state.messages;
+        ${agent_config.prompt.content}
+        ${rules}
+          
+        Available tools: ${toolsList.map((tool) => tool.name).join(', ')}`;
 
       try {
+        // Filter messages based on short-term memory
+        const filteredMessages = [];
+        let lastIterationCount = iteration_number - 1;
+        let s_temp = shortTermMemory;
+
+        for (let i = state.messages.length - 1; i >= 0; i--) {
+          const msg = state.messages[i];
+
+          // Skip model-selector messages
+          if (
+            (msg instanceof AIMessageChunk || msg instanceof ToolMessage) &&
+            msg.additional_kwargs?.from === 'model-selector'
+          ) {
+            continue;
+          }
+
+          // Handle iteration filtering
+          if (lastIterationCount !== msg.additional_kwargs?.iteration_number) {
+            lastIterationCount =
+              (msg.additional_kwargs?.iteration_number as number) || 0;
+            s_temp--;
+          }
+
+          if (s_temp === 0) break;
+
+          filteredMessages.unshift(msg);
+        }
+
+        // Create and format prompt
+        const prompt = ChatPromptTemplate.fromMessages([
+          ['system', autonomousSystemPrompt],
+          new MessagesPlaceholder('messages'),
+        ]);
+
         const formattedPrompt = await prompt.formatMessages({
           messages: filteredMessages,
         });
 
-        const originalUserMessage = filteredMessages.find(
-          (msg): msg is HumanMessage => msg instanceof HumanMessage
-        );
-        const originalUserQuery = originalUserMessage
-          ? typeof originalUserMessage.content === 'string'
-            ? originalUserMessage.content
-            : JSON.stringify(originalUserMessage.content)
-          : '';
-
-        const selectedModelType = await modelSelector.selectModelForMessages(
-          filteredMessages,
-          { originalUserQuery }
-        );
-        const modelForThisTask = await modelSelector.getModelForTask(
-          filteredMessages,
-          selectedModelType
-        );
-
+        // Model selection and invocation
+        const selectedModelType =
+          await modelSelector.selectModelForMessages(filteredMessages);
         const boundModel =
-          typeof modelForThisTask.bindTools === 'function'
-            ? modelForThisTask.bindTools(toolsList)
-            : modelForThisTask;
+          typeof selectedModelType.model.bindTools === 'function'
+            ? selectedModelType.model.bindTools(toolsList)
+            : selectedModelType.model;
 
         logger.debug(
-          `Autonomous agent invoking model (${selectedModelType}) with ${filteredMessages.length} messages.`
+          `Autonomous agent invoking model (${selectedModelType.model_name}) with ${filteredMessages.length} messages.`
         );
-        const result = await boundModel.stream(formattedPrompt);
-        TokenTracker.trackCall(result, selectedModelType);
 
-        let finalResultMessages: BaseMessage[];
-
-        if (result instanceof AIMessage) {
-          finalResultMessages = [result];
-        } else if (
-          Array.isArray(result) &&
-          result.every((m): m is BaseMessage => m instanceof BaseMessage)
-        ) {
-          finalResultMessages = result;
-        } else if (
-          typeof result === 'object' &&
-          result !== null &&
-          'content' in result &&
-          typeof result.content === 'string'
-        ) {
-          finalResultMessages = [
-            new AIMessage({
-              content: result.content,
-              tool_calls:
-                'tool_calls' in result && Array.isArray(result.tool_calls)
-                  ? result.tool_calls
-                  : undefined,
-            }),
-          ];
-        } else {
-          logger.error(
-            `Unexpected model result type: ${typeof result}. Full result: ${JSON.stringify(result)}`
+        const result = await boundModel.invoke(formattedPrompt);
+        if (!result) {
+          throw new Error(
+            'Model invocation returned no result. Please check the model configuration.'
           );
-          finalResultMessages = [
-            new AIMessage(
-              'Error: Received unexpected response format from the language model.'
-            ),
-          ];
         }
+        TokenTracker.trackCall(result, selectedModelType.model_name);
 
-        finalResultMessages.forEach((msg) => {
-          if (msg instanceof AIMessage) {
-            msg.additional_kwargs = {
-              ...msg.additional_kwargs,
-              from: msg.additional_kwargs?.from || 'starknet-autonomous',
-            };
-          }
-        });
+        // Add metadata to result
+        result.additional_kwargs = {
+          ...result.additional_kwargs,
+          from: 'autonomous-agent',
+          final: false,
+          start_iteration: startIteration,
+          iteration_number: iteration_number,
+        };
 
-        const responseMessage =
-          finalResultMessages[finalResultMessages.length - 1];
-        if (responseMessage) {
-          const contentToLog =
-            typeof responseMessage.content === 'string'
-              ? responseMessage.content
-              : JSON.stringify(responseMessage.content);
-
-          if (contentToLog && contentToLog.trim() !== '') {
-            logger.info(
-              `Agent Response:\n\n${formatAgentResponse(contentToLog)}`
-            );
-          }
-
-          if (
-            responseMessage instanceof AIMessage &&
-            responseMessage.tool_calls &&
-            responseMessage.tool_calls.length > 0
-          ) {
-            const toolNames = responseMessage.tool_calls
-              .map((call) => call.name)
-              .join(', ');
-            logger.info(
-              `Autonomous agent: Requested ${responseMessage.tool_calls.length} tool calls: [${toolNames}]`
-            );
-          }
-        }
-
-        return { messages: finalResultMessages };
+        return { messages: [result] };
       } catch (error: any) {
         logger.error(`Error calling model in autonomous agent: ${error}`);
+
+        // Handle token limit errors
         if (
           error.message?.includes('token limit') ||
           error.message?.includes('tokens exceed') ||
@@ -303,7 +369,7 @@ export const createAutonomousAgent = async (
           );
           return {
             messages: [
-              new AIMessage({
+              new AIMessageChunk({
                 content:
                   'Error: The conversation history has grown too large, exceeding token limits. Cannot proceed.',
                 additional_kwargs: {
@@ -314,11 +380,17 @@ export const createAutonomousAgent = async (
             ],
           };
         }
+
+        // Handle other errors
         return {
           messages: [
-            new AIMessage(
-              `Error during model execution: ${error.message || String(error)}`
-            ),
+            new AIMessageChunk({
+              content: `Error: An unexpected error occurred while processing the request. Error : ${error}`,
+              additional_kwargs: {
+                error: 'unexpected_error',
+                final: true,
+              },
+            }),
           ],
         };
       }
@@ -330,69 +402,184 @@ export const createAutonomousAgent = async (
      * @param {typeof GraphState.State} state - Current graph state
      * @returns {'tools' | 'agent'} Next node to execute
      */
-    function shouldContinue(state: typeof GraphState.State): 'tools' | 'agent' {
-      const lastMessage = state.messages[state.messages.length - 1];
+    function shouldContinue(
+      state: typeof GraphState.State,
+      config?: RunnableConfig
+    ): 'tools' | 'agent' | 'end' {
+      const messages = state.messages;
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage instanceof AIMessageChunk) {
+        if (
+          lastMessage.additional_kwargs.final === true ||
+          lastMessage.content.toString().includes('FINAL ANSWER')
+        ) {
+          logger.info(
+            `Final message received, routing to end node. Message: ${lastMessage.content}`
+          );
+          return 'end';
+        }
+        if (lastMessage.tool_calls?.length) {
+          logger.debug(
+            `Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`
+          );
+          return 'tools';
+        }
+      } else if (lastMessage instanceof ToolMessage) {
+        const lastAiMessage = getLatestMessageForMessage(
+          messages,
+          AIMessageChunk
+        );
+        if (!lastAiMessage) {
+          throw new Error('Error trying to get last AIMessageChunk');
+        }
+        const graphMaxSteps = config?.configurable?.config
+          .max_graph_steps as number;
 
-      if (!lastMessage) {
-        logger.warn(
-          'shouldContinue called with no messages in state. Defaulting to agent.'
+        const iteration = lastMessage.additional_kwargs
+          ?.iteration_number as number;
+        if (graphMaxSteps <= iteration) {
+          logger.info(
+            `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
+          );
+          return 'end';
+        }
+
+        logger.debug(
+          `Received ToolMessage, routing back to agent node. Message: ${lastMessage.content}`
         );
         return 'agent';
       }
-
-      if (lastMessage instanceof AIMessage && lastMessage.tool_calls?.length) {
-        logger.debug(
-          `Detected ${lastMessage.tool_calls.length} tool calls. Routing to tools node.`
-        );
-        return 'tools';
-      }
-
-      if (
-        lastMessage instanceof AIMessage &&
-        typeof lastMessage.content === 'string' &&
-        lastMessage.content.includes('FINAL ANSWER:') &&
-        !lastMessage.additional_kwargs?.processed_final_answer // Ensure it's not already processed
-      ) {
-        logger.debug(
-          'Detected "FINAL ANSWER" in message. Routing to agent for processing.'
-        );
-        // Mark message for processing in callModel
-        lastMessage.additional_kwargs = {
-          ...(lastMessage.additional_kwargs || {}),
-          final_answer: true,
-          processed_final_answer: true, // Mark as processed to avoid re-entry for the same message
-        };
-        return 'agent'; // Route to agent to handle the FINAL ANSWER logic
-      }
-
-      // If no tool calls and no unprocessed FINAL ANSWER, loop back to the agent.
-      // Termination is handled by the external recursion limit in SnakAgent.execute_autonomous.
-      logger.debug(
-        'No tool calls or unprocessed FINAL ANSWER. Routing back to agent for next iteration.'
-      );
+      logger.info('Routing to AgentMode');
       return 'agent';
     }
 
-    const workflow = new StateGraph(GraphState)
-      .addNode('agent', callModel)
-      .addNode('tools', toolNode);
+    function shouldContinueHybrid(
+      state: typeof GraphState.State,
+      config?: RunnableConfig
+    ): 'tools' | 'agent' | 'end' | 'human' {
+      const messages = state.messages;
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage instanceof AIMessageChunk) {
+        if (
+          lastMessage.additional_kwargs.final === true ||
+          lastMessage.content.toString().includes('FINAL ANSWER')
+        ) {
+          logger.info(
+            `Final message received, routing to end node. Message: ${lastMessage.content}`
+          );
+          return 'end';
+        }
+        if (
+          lastMessage.content.toString().includes('WAITING_FOR_HUMAN_INPUT')
+        ) {
+          return 'human';
+        }
+        if (lastMessage.tool_calls?.length) {
+          logger.debug(
+            `Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`
+          );
+          return 'tools';
+        }
+      } else if (lastMessage instanceof ToolMessage) {
+        const lastAiMessage = getLatestMessageForMessage(
+          messages,
+          AIMessageChunk
+        );
+        if (!lastAiMessage) {
+          throw new Error('Error trying to get last AIMessageChunk');
+        }
+        const graphMaxSteps = config?.configurable?.config
+          .max_graph_steps as number;
 
-    workflow.setEntryPoint('agent');
+        const iteration = lastMessage.additional_kwargs
+          ?.iteration_number as number;
+        if (graphMaxSteps <= iteration) {
+          logger.info(
+            `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
+          );
+          return 'end';
+        }
 
-    workflow.addConditionalEdges('agent', shouldContinue, {
-      tools: 'tools',
-      agent: 'agent',
-    });
+        logger.debug(
+          `Received ToolMessage, routing back to agent node. Message: ${lastMessage.content}`
+        );
+        return 'agent';
+      }
+      logger.info('Routing to AgentMode');
+      return 'agent';
+    }
 
-    workflow.addEdge('tools', 'agent');
+    async function humanNode(
+      state: typeof MessagesAnnotation.State
+    ): Promise<{ messages: BaseMessage[] }> {
+      const lastAiMessage = getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      );
+      const input = interrupt(lastAiMessage?.content);
 
+      return {
+        messages: [
+          new AIMessageChunk({
+            content: input,
+            additional_kwargs: {
+              from: 'human',
+              final: false,
+              iteration_number:
+                (lastAiMessage?.additional_kwargs.iteration_number as number) ||
+                0,
+            },
+          }),
+        ],
+      };
+    }
+    const human_in_the_loop = agent_config.mode === AgentMode.HYBRID;
+    let workflow;
+    if (!human_in_the_loop) {
+      workflow = new StateGraph(GraphState)
+        .addNode('agent', callModel)
+        .addNode('tools', toolNode);
+
+      workflow.addEdge(START, 'agent');
+
+      workflow.addConditionalEdges('agent', shouldContinue, {
+        tools: 'tools',
+        agent: 'agent',
+        end: END,
+      });
+
+      workflow.addConditionalEdges('tools', shouldContinue, {
+        tools: 'tools',
+        agent: 'agent',
+        end: END,
+      });
+    } else {
+      workflow = new StateGraph(GraphState)
+        .addNode('agent', callModel)
+        .addNode('tools', toolNode)
+        .addNode('human', humanNode);
+
+      workflow.addEdge(START, 'agent');
+      workflow.addEdge('human', 'agent');
+      workflow.addConditionalEdges('agent', shouldContinueHybrid, {
+        tools: 'tools',
+        agent: 'agent',
+        human: 'human',
+        end: END,
+      });
+
+      workflow.addConditionalEdges('tools', shouldContinueHybrid, {
+        tools: 'tools',
+        agent: 'agent',
+        end: END,
+      });
+    }
     const checkpointer = new MemorySaver(); // For potential state persistence
     const app = workflow.compile({ checkpointer });
 
     return {
       app,
       agent_config,
-      maxIterations: agent_config.maxIterations,
     };
   } catch (error) {
     logger.error(`Failed to create autonomous agent graph: ${error}`);

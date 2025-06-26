@@ -148,6 +148,7 @@ export class AgentSelector extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage,
+    isInterrupted?: boolean,
     _config?: Record<string, any>
   ): Promise<AIMessage> {
     const queryString = this.extractQueryString(input);
@@ -330,7 +331,7 @@ export class AgentSelector extends BaseAgent {
         content: agentSelectionPrompt(query),
       });
 
-      const model = await this.modelSelector.getModelForTask([], 'smart');
+      const model = this.modelSelector.getModels()['fast'];
       const result = await model.invoke([systemPrompt, humanPrompt]);
       const content =
         typeof result.content === 'string'

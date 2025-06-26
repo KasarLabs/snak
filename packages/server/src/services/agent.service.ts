@@ -6,6 +6,7 @@ import {
 } from '../interfaces/agent-service.interface.js';
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
+  logger,
   MessageFromAgentIdDTO,
   MessageRequest,
   UpdateModelConfigDTO,
@@ -42,10 +43,30 @@ export class AgentService implements IAgentService {
       let result: any;
 
       if (agent && typeof agent.execute === 'function') {
-        if ('getSnakAgent' in agent) {
-          result = await agent.execute(userRequest);
+        const executionResult = agent.execute(userRequest.user_request);
+
+        function isAsyncGenerator(
+          obj: any
+        ): obj is AsyncGenerator<any, any, any> {
+          return (
+            obj &&
+            typeof obj === 'object' &&
+            typeof obj[Symbol.asyncIterator] === 'function'
+          );
+        }
+
+        if (isAsyncGenerator(executionResult)) {
+          for await (const chunk of executionResult) {
+            if (chunk.final === true) {
+              this.logger.debug('SupervisorService: Execution completed');
+              result = chunk;
+              break;
+            }
+            result = chunk;
+          }
         } else {
-          result = await agent.execute(userRequest.user_request);
+          // If it's a Promise, just await the result
+          result = await executionResult;
         }
       } else {
         throw new Error('Invalid agent: missing execute method');
@@ -97,17 +118,51 @@ export class AgentService implements IAgentService {
       request: userRequest.user_request,
     });
     try {
-      let result: any;
+      const q = new Postgres.Query(
+        `SELECT status, id 
+     FROM message 
+     WHERE agent_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1;`,
+        [userRequest.agent_id]
+      );
+      const status = await Postgres.query<{ status: string; id: string }>(q);
+      if (
+        status &&
+        status.length != 0 &&
+        status[0].status === 'waiting_for_human_input'
+      ) {
+        for await (const chunk of agent.execute(
+          userRequest.user_request,
+          true
+        )) {
+          if (chunk.final === true) {
+            this.logger.debug('SupervisorService: Execution completed');
+            yield chunk;
 
-      for await (const chunk of agent.executeAsyncGenerator(
-        userRequest.user_request
-      )) {
-        if (chunk.final === true) {
-          this.logger.debug('SupervisorService: Execution completed');
+            const q = new Postgres.Query(
+              `UPDATE message 
+              SET status = $1 
+              WHERE id = $2;`,
+              ['success', status[0].id]
+            );
+            await Postgres.query(q);
+            return;
+          }
           yield chunk;
-          return;
         }
-        yield chunk;
+      } else {
+        for await (const chunk of agent.execute(
+          userRequest.user_request,
+          false
+        )) {
+          if (chunk.final === true) {
+            this.logger.debug('SupervisorService: Execution completed');
+            yield chunk;
+            return;
+          }
+          yield chunk;
+        }
       }
     } catch (error: any) {
       this.logger.error('Error processing agent request', {
@@ -173,7 +228,7 @@ export class AgentService implements IAgentService {
         [userRequest.agent_id, limit]
       );
       const res = await Postgres.query<MessageSQL>(q);
-      this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
+      // this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
       this.logger.error(error);

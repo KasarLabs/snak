@@ -1,6 +1,5 @@
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
-import { createSignatureTools } from '../../tools/signatureTools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { logger, AgentConfig } from '@snakagent/core';
 import { Postgres } from '@snakagent/database/queries';
@@ -17,6 +16,7 @@ import {
   FormattedOnChatModelStart,
   FormattedOnChatModelStream,
 } from './snakAgent.js';
+import { ToolMessage } from '@langchain/core/messages';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
@@ -32,17 +32,9 @@ export async function initializeToolsList(
   agentConfig: AgentConfig
 ): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-  const isSignature = snakAgent.getSignature().signature === 'wallet';
 
-  if (isSignature) {
-    toolsList = await createSignatureTools(agentConfig.plugins);
-  } else {
-    const allowedTools = await createAllowedTools(
-      snakAgent,
-      agentConfig.plugins
-    );
-    toolsList = [...allowedTools];
-  }
+  const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
+  toolsList = [...allowedTools];
   if (
     agentConfig.mcpServers &&
     Object.keys(agentConfig.mcpServers).length > 0
@@ -224,8 +216,8 @@ const truncateStringContentHelper = (
  */
 export function truncateToolResults(
   result: any,
-  maxLength: number = 5000
-): any {
+  maxLength: number = 5000 // CLEAN-UP We don't have to cut the result is not a good idea
+): { messages: [ToolMessage] } {
   if (Array.isArray(result)) {
     for (const msg of result) {
       if (

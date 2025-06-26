@@ -8,6 +8,7 @@ import {
   AgentMode,
   SnakAgent,
   SnakAgentConfig,
+  SupervisorAgentConfig,
 } from '@snakagent/agents';
 import { Postgres } from '@snakagent/database';
 import { AgentConfig, ModelsConfig, ModelLevelConfig } from '@snakagent/core';
@@ -107,13 +108,12 @@ export class SupervisorService implements OnModuleInit {
 
       const modelsConfig = await this.getModelsConfig();
 
-      const supervisorConfig = {
+      const supervisorConfig: SupervisorAgentConfig = {
         modelsConfig: modelsConfig,
         starknetConfig: {
           provider: this.config.starknet.provider,
           accountPrivateKey: this.config.starknet.privateKey,
           accountPublicKey: this.config.starknet.publicKey,
-          signature: '',
           db_credentials: {
             database: process.env.POSTGRES_DB as string,
             host: process.env.POSTGRES_HOST as string,
@@ -129,6 +129,7 @@ export class SupervisorService implements OnModuleInit {
             chatId: 'supervisor_chat',
             maxIterations: 15,
           } as AgentConfig,
+          modelSelector: null, // TODO : implement model selector
         },
         debug: process.env.DEBUG === 'true',
       };
@@ -227,6 +228,7 @@ export class SupervisorService implements OnModuleInit {
       const creationPromises = agentConfigs.map(async (agentConfig) => {
         try {
           const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
+
           this.agentInstances.set(agentConfig.id, snakAgent);
 
           this.logger.debug(
@@ -315,10 +317,7 @@ export class SupervisorService implements OnModuleInit {
 
       // Register all agents at once (without automatic refresh)
       if (agentsToRegister.length > 0) {
-        (this.supervisor as any).registerMultipleSnakAgents(agentsToRegister, {
-          updateRegistryAfter: true,
-          refreshWorkflowAfter: false,
-        });
+        this.supervisor.registerMultipleSnakAgents(agentsToRegister, false);
 
         this.logger.log(
           `Batch registered ${agentsToRegister.length} agents with supervisor`
@@ -362,7 +361,8 @@ export class SupervisorService implements OnModuleInit {
    * @returns {SnakAgent | undefined} The agent instance or undefined if not found
    */
   public getAgentInstance(id: string): SnakAgent | undefined {
-    return this.agentInstances.get(id);
+    const instance = this.agentInstances.get(id);
+    return instance ? instance : undefined;
   }
 
   /**
@@ -370,7 +370,7 @@ export class SupervisorService implements OnModuleInit {
    * @returns {SnakAgent[]} Array of all agent instances
    */
   public getAllAgentInstances(): SnakAgent[] {
-    return Array.from(this.agentInstances.values());
+    return Array.from(this.agentInstances.values()).map((instance) => instance);
   }
 
   /**
@@ -392,7 +392,7 @@ export class SupervisorService implements OnModuleInit {
           group: agentConfig.group,
         };
 
-        await this.supervisor.registerSnakAgent(snakAgent, metadata);
+        this.supervisor.registerSnakAgent(snakAgent, metadata);
         await this.supervisor.refreshWorkflowController();
 
         this.agentInstances.set(agentId, snakAgent);
@@ -607,7 +607,7 @@ export class SupervisorService implements OnModuleInit {
         snakAgent = agent;
       }
 
-      await this.supervisor.registerSnakAgent(snakAgent, metadata);
+      this.supervisor.registerSnakAgent(snakAgent, metadata);
       await this.supervisor.refreshWorkflowController();
 
       this.logger.log(
@@ -664,7 +664,7 @@ export class SupervisorService implements OnModuleInit {
       this.logger.debug(
         `SupervisorService: Executing request with config: ${JSON.stringify(config)}`
       );
-      for await (const chunk of this.supervisor.execute(input, config)) {
+      for await (const chunk of this.supervisor.execute(input, false, config)) {
         if (chunk.final === true) {
           this.logger.debug('SupervisorService: Execution completed');
           return chunk;

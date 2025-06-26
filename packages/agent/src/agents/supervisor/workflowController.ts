@@ -266,7 +266,7 @@ export class WorkflowController {
               logger.debug(
                 `WorkflowController[Exec:${execId}]: Node[${agentId}] - Calling agent.execute()...`
               );
-              const result = await agent.execute(state.messages, {
+              const result = await agent.execute(state.messages, false, {
                 ...config,
                 isWorkflowNodeCall: true,
               });
@@ -483,7 +483,6 @@ export class WorkflowController {
         }
 
         routingMap[END] = END;
-        routingMap['hybrid_pause'] = 'hybrid_pause';
 
         logger.debug(
           `WorkflowController: Adding conditional edges from "${agentId}" with router function`
@@ -499,11 +498,6 @@ export class WorkflowController {
           routingMap as Record<string, string | typeof END>
         );
       }
-
-      workflow.addNode('hybrid_pause', async () => {
-        // WHY ???
-        return {};
-      });
 
       logger.debug('WorkflowController: Compiling workflow');
       this.workflow = workflow.compile({
@@ -862,7 +856,11 @@ export class WorkflowController {
         };
 
         try {
-          const result = await targetAgent.execute([message], agentConfig);
+          const result = await targetAgent.execute(
+            [message],
+            false,
+            agentConfig
+          );
 
           let finalResult;
           if (result && typeof result === 'object' && 'messages' in result) {
@@ -902,10 +900,20 @@ export class WorkflowController {
       logger.debug(
         `WorkflowController[Exec:${this.executionId}]: Invoking workflow with initial state`
       );
-      let chunk_to_save;
-      let i_count = 0;
-      let iteration_number = 0;
-      for await (const chunk of await this.workflow.streamEvents(
+
+      const timeoutPromise = new Promise((_, reject) => {
+        this.timeoutId = setTimeout(() => {
+          logger.error(
+            `WorkflowController[Exec:${this.executionId}]: Workflow execution timed out after ${this.workflowTimeout}ms`
+          );
+          reject(
+            new Error(
+              `Workflow execution timed out after ${this.workflowTimeout}ms`
+            )
+          );
+        }, this.workflowTimeout);
+      });
+      const workflowPromise = this.workflow.invoke(
         {
           messages: [message],
           currentAgent: initialAgent,
@@ -914,55 +922,20 @@ export class WorkflowController {
           error: undefined,
           iterationCount: 0,
         },
-        {
-          ...runConfig,
-          version: 'v2' as const,
-        }
-      )) {
-        if (
-          chunk.name === 'Branch<agent>' &&
-          chunk.event === 'on_chain_start'
-        ) {
-          iteration_number++;
-        }
-        if (chunk.name === 'Branch<agent>' && chunk.event === 'on_chain_end') {
-          chunk_to_save = chunk;
-        }
+        runConfig
+      );
 
-        i_count++;
-        if (
-          chunk.event === 'on_chat_model_stream' ||
-          chunk.event === 'on_chat_model_start' ||
-          chunk.event === 'on_chat_model_end'
-        ) {
-          const formatted = FormatChunkIteration(chunk);
-          if (!formatted) {
-            throw new Error(
-              `WorkflowController: Failed to format chunk: ${JSON.stringify(chunk)}`
-            );
-          }
-          const formattedChunk: IterationResponse = {
-            event: chunk.event as AgentIterationEvent,
-            kwargs: formatted,
-          };
-          yield {
-            chunk: formattedChunk,
-            iteration_number: iteration_number,
-            final: false,
-          };
-        }
+      const result = await Promise.race([workflowPromise, timeoutPromise]);
+
+      if (this.timeoutId) {
+        clearTimeout(this.timeoutId);
+        this.timeoutId = null;
       }
-      yield {
-        chunk: {
-          event: chunk_to_save.event,
-          kwargs: {
-            iteration: chunk_to_save,
-          },
-        },
-        iteration_number: iteration_number,
-        final: true,
-      };
-      return;
+
+      logger.debug(
+        `WorkflowController[Exec:${this.executionId}]: Workflow execution completed`
+      );
+      return result;
     } catch (error) {
       logger.error(
         `WorkflowController[Exec:${this.executionId}]: Workflow execution failed: ${error}`
