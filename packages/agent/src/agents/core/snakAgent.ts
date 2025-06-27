@@ -305,6 +305,11 @@ export class SnakAgent extends BaseAgent {
         runnableConfig.configurable = { thread_id: threadId };
       }
 
+      if (!runnableConfig.configurable) runnableConfig.configurable = {};
+      runnableConfig.configurable.userId =
+        this.agentConfig.chatId || 'default_chat';
+      runnableConfig.configurable.agentId = this.agentConfig.id;
+
       runnableConfig.version = 'v2';
 
       if (config?.recursionLimit) {
