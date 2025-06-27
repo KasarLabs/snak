@@ -2,9 +2,9 @@ import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
   AIMessage,
+  AIMessageChunk,
   BaseMessage,
   HumanMessage,
-  SystemMessage,
 } from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
@@ -22,6 +22,7 @@ import { ModelSelector } from '../operators/modelSelector.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
 import { interactiveRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
+import { AgentReturn } from './autonomous.js';
 
 /**
  * Retrieves the memory agent instance from the SupervisorAgent.
@@ -64,7 +65,7 @@ const getRagAgent = async () => {
 export const createInteractiveAgent = async (
   snakAgent: SnakAgentInterface,
   modelSelector: ModelSelector | null
-) => {
+): Promise<AgentReturn> => {
   try {
     const agent_config: AgentConfig = snakAgent.getAgentConfig();
     if (!agent_config) {
@@ -228,29 +229,17 @@ export const createInteractiveAgent = async (
       const prompt = ChatPromptTemplate.fromMessages(promptMessages);
 
       try {
-        let currentMessages = filteredMessages.slice(idx);
-        const removedSystemMsgs = currentMessages.filter(
-          (msg) => msg instanceof SystemMessage
+        const filteredMessages = state.messages.filter(
+          (msg) =>
+            !(
+              msg instanceof AIMessageChunk &&
+              msg.additional_kwargs?.from === 'model-selector'
+            )
         );
-        if (removedSystemMsgs.length > 0) {
-          logger.debug(
-            `Removed ${removedSystemMsgs.length} system messages from conversation to comply with OpenAI role order`
-          );
-          currentMessages = currentMessages.filter(
-            (msg) => !(msg instanceof SystemMessage)
-          );
-        }
-        const currentFormattedPrompt = await prompt.formatMessages({
-          tool_names: toolsList.map((tool) => tool.name).join(', '),
-          messages: currentMessages,
-        });
+
+        const currentMessages = filteredMessages;
 
         if (modelSelector) {
-          const stateModelType =
-            typeof state.memories === 'object' && state.memories
-              ? (state.memories as any).modelType
-              : null;
-
           // Extract originalUserQuery from first HumanMessage if available
           const originalUserMessage = currentMessages.find(
             (msg): msg is HumanMessage => msg instanceof HumanMessage
@@ -261,44 +250,25 @@ export const createInteractiveAgent = async (
               : JSON.stringify(originalUserMessage.content)
             : '';
 
-          const selectedModelType =
-            stateModelType ||
-            (await modelSelector.selectModelForMessages(currentMessages, {
-              originalUserQuery,
-            }));
-
-          logger.debug(
-            `Using dynamically selected model: ${selectedModelType}`
-          );
-          const modelForThisTask = await modelSelector.getModelForTask(
-            currentMessages,
-            selectedModelType
+          const selectedModelType = await modelSelector.selectModelForMessages(
+            filteredMessages,
+            { originalUserQuery }
           );
 
           const boundModel =
-            typeof modelForThisTask.bindTools === 'function'
-              ? modelForThisTask.bindTools(toolsList)
-              : modelForThisTask;
+            typeof selectedModelType.model.bindTools === 'function'
+              ? selectedModelType.model.bindTools(toolsList)
+              : selectedModelType.model;
 
           const result = await boundModel.invoke(currentMessages);
-          logger.debug(result);
-          TokenTracker.trackCall(result, selectedModelType);
+          TokenTracker.trackCall(result, selectedModelType.model_name);
           return formatAIMessageResult(result);
         } else {
           const existingModelSelector = ModelSelector.getInstance();
           if (existingModelSelector) {
-            logger.debug('Using existing model selector with smart model');
-            const smartModel = await existingModelSelector.getModelForTask(
-              currentMessages,
-              'smart'
+            throw new Error(
+              'Model selection requires a configured ModelSelector'
             );
-            const boundSmartModel =
-              typeof smartModel.bindTools === 'function'
-                ? smartModel.bindTools(toolsList)
-                : smartModel;
-            const result = await boundSmartModel.invoke(currentFormattedPrompt);
-            TokenTracker.trackCall(result, 'smart');
-            return formatAIMessageResult(result);
           } else {
             logger.warn(
               'No model selector available, using direct provider selection is not supported without a ModelSelector.'
@@ -316,51 +286,11 @@ export const createInteractiveAgent = async (
             error.message.includes('context length'))
         ) {
           logger.error(`Token limit error: ${error.message}`);
-          const minimalMessages = state.messages.slice(-2);
 
-          try {
-            const emergencyPrompt = await prompt.formatMessages({
-              tool_names: toolsList.map((tool) => tool.name).join(', '),
-              messages: minimalMessages,
-            });
-
-            const existingModelSelector = ModelSelector.getInstance();
-            if (existingModelSelector) {
-              const emergencyModel =
-                await existingModelSelector.getModelForTask(
-                  minimalMessages,
-                  'smart'
-                );
-              const boundEmergencyModel =
-                typeof emergencyModel.bindTools === 'function'
-                  ? emergencyModel.bindTools(toolsList)
-                  : emergencyModel;
-              const result = await boundEmergencyModel.invoke(emergencyPrompt);
-              TokenTracker.trackCall(result, 'smart_emergency');
-              return formatAIMessageResult(result);
-            } else {
-              throw new Error(
-                'Model selection requires a configured ModelSelector for emergency fallback.'
-              );
-            }
-          } catch (emergencyError) {
-            logger.error(`Emergency prompt failed: ${emergencyError}`);
-            return {
-              messages: [
-                new AIMessage({
-                  content:
-                    'The conversation has become too long and exceeds token limits, even for a minimal recovery attempt. Please start a new conversation.',
-                  additional_kwargs: {
-                    from: 'snak',
-                    final: true,
-                    error: 'token_limit_exceeded_emergency_failed',
-                  },
-                }),
-              ],
-            };
-          }
+          logger.error(`Model invocation failed: ${error}`);
+          throw error;
         }
-        logger.error(`Model invocation failed: ${error}`);
+        // For any other error, rethrow to ensure function never returns undefined
         throw error;
       }
     }
@@ -474,7 +404,10 @@ ${formatAgentResponse(content)}`);
           }
         : {}),
     });
-    return app;
+    return {
+      app,
+      agent_config,
+    };
   } catch (error) {
     logger.error('Failed to create an interactive agent:', error);
     throw error;

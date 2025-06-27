@@ -6,7 +6,7 @@ import { DeployOZAccountSignature } from '../actions/deployAccount.js';
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]
 ) => {
-  StarknetToolRegistry.push({
+  (StarknetToolRegistry.push({
     name: 'create_open_zeppelin_account',
     description:
       'create open_zeppelin/OZ account return the privateKey/publicKey/contractAddress',
@@ -18,5 +18,5 @@ export const registerSignatureTools = (
         'deploy open_zeppelin account return the privateKey/publicKey/contractAddress',
       schema: accountDetailsSchema,
       execute: DeployOZAccountSignature,
-    });
+    }));
 };

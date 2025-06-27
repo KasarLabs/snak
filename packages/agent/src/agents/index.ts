@@ -127,6 +127,7 @@ export class AgentSystem {
           accountPublicKey: this.config.accountPublicKey,
           agentConfig: this.agentConfig,
           db_credentials: this.config.databaseCredentials,
+          modelSelector: null,
         },
       };
 
@@ -217,6 +218,7 @@ export class AgentSystem {
    */
   public async execute(
     message: MessageRequest | string,
+    isInterrupted: boolean = false,
     config?: Record<string, any>
   ): Promise<any> {
     if (!this.supervisorAgent) {
@@ -228,7 +230,11 @@ export class AgentSystem {
       const content =
         typeof message === 'string' ? message : message.user_request;
       let result;
-      for await (const chunk of this.supervisorAgent.execute(content, config)) {
+      for await (const chunk of this.supervisorAgent.execute(
+        content,
+        false,
+        config
+      )) {
         if (chunk.final === true) {
           result = chunk.chunk;
         }
@@ -293,21 +299,21 @@ export class AgentSystem {
     logger.info('AgentSystem: Resources disposed');
   }
 
-  /**
-   * Starts a hybrid execution flow
-   * @param initialInput The initial input to begin the autonomous execution
-   * @returns A promise that resolves with the initial state and a thread ID for further interaction
-   * @throws {Error} When the agent system is not initialized
-   */
-  public async startHybridExecution(
-    initialInput: string
-  ): Promise<{ state: any; threadId: string }> {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
+  // /**
+  //  * Starts a hybrid execution flow
+  //  * @param initialInput The initial input to begin the autonomous execution
+  //  * @returns A promise that resolves with the initial state and a thread ID for further interaction
+  //  * @throws {Error} When the agent system is not initialized
+  //  */
+  // public async startHybridExecution(
+  //   initialInput: string
+  // ): Promise<{ state: any; threadId: string }> {
+  //   if (!this.supervisorAgent) {
+  //     throw new Error('Agent system not initialized. Call init() first.');
+  //   }
 
-    return await this.supervisorAgent.startHybridExecution(initialInput);
-  }
+  //   return await this.supervisorAgent.startHybridExecution(initialInput);
+  // }
 
   /**
    * Provides input to a paused hybrid execution
@@ -316,30 +322,30 @@ export class AgentSystem {
    * @returns A promise that resolves with the updated state of the execution
    * @throws {Error} When the agent system is not initialized
    */
-  public async provideHybridInput(
-    input: string,
-    threadId: string
-  ): Promise<any> {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
+  // public async provideHybridInput(
+  //   input: string,
+  //   threadId: string
+  // ): Promise<any> {
+  //   if (!this.supervisorAgent) {
+  //     throw new Error('Agent system not initialized. Call init() first.');
+  //   }
 
-    return await this.supervisorAgent.provideHybridInput(input, threadId);
-  }
+  //   return await this.supervisorAgent.provideHybridInput(input, threadId);
+  // }
 
-  /**
-   * Checks if a hybrid execution is currently waiting for user input
-   * @param state The current execution state
-   * @returns True if the execution is waiting for input, false otherwise
-   * @throws {Error} When the agent system is not initialized
-   */
-  public isWaitingForInput(state: any): boolean {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
+  // /**
+  //  * Checks if a hybrid execution is currently waiting for user input
+  //  * @param state The current execution state
+  //  * @returns True if the execution is waiting for input, false otherwise
+  //  * @throws {Error} When the agent system is not initialized
+  //  */
+  // public isWaitingForInput(state: any): boolean {
+  //   if (!this.supervisorAgent) {
+  //     throw new Error('Agent system not initialized. Call init() first.');
+  //   }
 
-    return this.supervisorAgent.isWaitingForInput(state);
-  }
+  //   return this.supervisorAgent.isWaitingForInput(state);
+  // }
 
   /**
    * Checks if a hybrid execution has completed

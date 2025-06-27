@@ -207,7 +207,7 @@ export async function validateToken(
       const abi = await detectAbiType(address, provider);
       const contract = new Contract(abi, address, provider);
 
-      let rawSymbol = await contract.symbol();
+      const rawSymbol = await contract.symbol();
       symbol =
         abi == OLD_ERC20_ABI
           ? shortString.decodeShortString(rawSymbol)

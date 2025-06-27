@@ -6,7 +6,7 @@ import { getBalanceSchema, transferSignatureschema } from '../schema/index.js';
 export const registerSignatureTools = (
   StarknetToolRegistry: SignatureTool[]
 ) => {
-  StarknetToolRegistry.push({
+  (StarknetToolRegistry.push({
     name: 'transfer',
     description: 'return transfer json transaction',
     schema: transferSignatureschema,
@@ -17,5 +17,5 @@ export const registerSignatureTools = (
       description: 'return the amoumt of token at a account address',
       schema: getBalanceSchema,
       execute: getBalanceSignature,
-    });
+    }));
 };

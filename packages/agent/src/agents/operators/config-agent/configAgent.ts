@@ -61,7 +61,7 @@ export class ConfigurationAgent extends BaseAgent {
         throw new Error('ModelSelector is not initialized');
       }
 
-      this.llm = await modelSelector.getModelForTask([], this.modelType);
+      this.llm = modelSelector.getModels()[this.modelType];
 
       this.reactAgent = createReactAgent({
         llm: this.llm,
@@ -90,6 +90,7 @@ export class ConfigurationAgent extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | BaseMessage[],
+    isInterrupted?: boolean,
     config?: ExecuteConfig
   ): Promise<AIMessage> {
     try {

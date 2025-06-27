@@ -57,7 +57,7 @@ export class MCPAgent extends BaseAgent {
         throw new Error('ModelSelector is not initialized');
       }
 
-      this.llm = await modelSelector.getModelForTask([], this.modelType);
+      this.llm = modelSelector.getModels()[this.modelType];
 
       this.reactAgent = createReactAgent({
         llm: this.llm,
@@ -86,6 +86,7 @@ export class MCPAgent extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | BaseMessage[],
+    isInterrupted: boolean = false,
     config?: Record<string, any>
   ): Promise<AIMessage> {
     try {

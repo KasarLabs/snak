@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS agents (
     lore TEXT[] NOT NULL DEFAULT '{}',
     objectives TEXT[] NOT NULL DEFAULT '{}',
     knowledge TEXT[] NOT NULL DEFAULT '{}',
-    system_prompt TEXT, -- Prompt pré-construit
+    system_prompt TEXT,
     interval INTEGER NOT NULL DEFAULT 5,
     plugins TEXT[] NOT NULL DEFAULT '{}',
     memory memory NOT NULL DEFAULT ROW(false, 5)::memory,
@@ -43,11 +43,22 @@ CREATE TABLE IF NOT EXISTS agent_iterations (
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+
+CREATE TABLE IF NOT EXISTS thread_id (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            agent_id UUID NOT NULL,
+            name TEXT NOT NULL DEFAULT 'default_conversation',
+            thread_id TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+        );
+
 CREATE TABLE IF NOT EXISTS message (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             agent_id UUID NOT NULL,
             user_request TEXT NOT NULL,
             agent_iteration JSONB NOT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT 'success',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
         );

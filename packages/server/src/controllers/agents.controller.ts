@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Headers,
+  Delete,
 } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
@@ -23,21 +24,20 @@ import {
   logger,
   metrics,
   MessageFromAgentIdDTO,
-  AgentsDeleteRequestDTO,
   AgentAddRequestDTO,
 } from '@snakagent/core';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 
 export interface AgentResponse {
-  status: 'success' | 'failure';
+  status: 'success' | 'failure' | 'waiting_for_human_input';
   data?: unknown;
 }
 
 export interface SupervisorRequestDTO {
   request: {
     content: string;
-    agentId?: string;
+    agent_id?: string;
   };
 }
 
@@ -141,6 +141,32 @@ export class AgentsController {
     }
   }
 
+  @Post('supervisor_request')
+  async handleSupervisorRequest(
+    @Body() userRequest: SupervisorRequestDTO
+  ): Promise<AgentResponse> {
+    try {
+      const messageRequest = {
+        agent_id: userRequest.request.agent_id,
+        user_request: userRequest.request.content,
+      };
+
+      const action = this.supervisorService.websocketExecuteRequest(
+        messageRequest.user_request
+      );
+
+      const response: AgentResponse = {
+        status: 'success',
+        data: 'Response from supervisor request',
+      };
+      logger.warn(JSON.stringify(action));
+      return response;
+    } catch (error) {
+      logger.error('Error in handleSupervisorRequest:', error);
+      throw new ServerError('E03TA100');
+    }
+  }
+
   @Post('request')
   async handleUserRequest(
     @Body() userRequest: AgentRequestDTO
@@ -180,6 +206,29 @@ export class AgentsController {
     }
   }
 
+  @Post('stop_agent')
+  async stopAgent(
+    @Body() userRequest: { agent_id: string }
+  ): Promise<AgentResponse> {
+    try {
+      const agentConfig = this.supervisorService.getAgentInstance(
+        userRequest.agent_id
+      );
+      if (!agentConfig) {
+        throw new ServerError('E01TA400');
+      }
+
+      agentConfig.stop();
+      const response: AgentResponse = {
+        status: 'success',
+        data: `Agent ${userRequest.agent_id} stopped and unregistered from supervisor`,
+      };
+      return response;
+    } catch (error) {
+      logger.error('Error in stopAgent:', error);
+      throw new ServerError('E05TA100');
+    }
+  }
   /**
    * Initialize and add a new agent
    * @param userRequest - Request containing agent configuration
@@ -346,6 +395,35 @@ export class AgentsController {
       return response;
     } catch (error) {
       logger.error('Error in getMessageFromAgentsId:', error);
+      throw new ServerError('E04TA100');
+    }
+  }
+
+  @Delete('clear_message')
+  async clearMessage(
+    @Body() userRequest: getMessagesFromAgentsDTO
+  ): Promise<AgentResponse> {
+    try {
+      const agentConfig = this.agentFactory.getAgentConfig(
+        userRequest.agent_id
+      );
+      if (!agentConfig) {
+        logger.warn(`Agent ${userRequest.agent_id} not found`);
+
+        throw new ServerError('E01TA400');
+      }
+
+      const q = new Postgres.Query(`DELETE FROM message WHERE agent_id = $1`, [
+        userRequest.agent_id,
+      ]);
+      await Postgres.query(q);
+      const response: AgentResponse = {
+        status: 'success',
+        data: `Messages cleared for agent ${userRequest.agent_id}`,
+      };
+      return response;
+    } catch (error) {
+      logger.error('Error in clearMessage:', error);
       throw new ServerError('E04TA100');
     }
   }

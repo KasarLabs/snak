@@ -60,9 +60,9 @@ export const compileContract = async (
     if (projectData.type !== 'cairo_program') {
       const contractFiles = await getGeneratedContractFiles(projectDir);
 
-      let programNames: string[] = [];
-      let sierraFiles: string[] = [];
-      let casmFiles: string[] = [];
+      const programNames: string[] = [];
+      const sierraFiles: string[] = [];
+      const casmFiles: string[] = [];
 
       for (let i = 0; i < contractFiles.sierraFiles.length; i++) {
         const name = await extractModuleFromArtifact(

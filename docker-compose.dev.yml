@@ -3,14 +3,14 @@ services:
     image: pgvector/pgvector:pg17
     container_name: 'postgresql'
     ports:
-      - "5432:5432"
+      - '5432:5432'
     env_file:
       - .env
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./packages/database/initdb:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER}']
       interval: 10s
       timeout: 5s
       retries: 5

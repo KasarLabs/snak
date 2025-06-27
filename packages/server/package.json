@@ -13,7 +13,9 @@
     "clean:all": "pnpm clean && pnpm clean:dist",
     "format": "prettier --write \"./**/*.ts\"",
     "dev": "nest start --watch",
-    "start": "node dist/main"
+    "start": "node dist/main",
+    "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix"
   },
   "keywords": [],
   "author": "",

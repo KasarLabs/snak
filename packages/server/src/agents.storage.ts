@@ -57,8 +57,8 @@ export class AgentStorage implements OnModuleInit {
           description: 'Optimized for speed and simple tasks.',
         };
         const smart: ModelLevelConfig = {
-          provider: ModelProviders.Anthropic,
-          model_name: 'claude-3-5-sonnet-latest',
+          provider: ModelProviders.OpenAI,
+          model_name: 'gpt-4o-mini',
           description: 'Optimized for complex reasoning.',
         };
         const cheap: ModelLevelConfig = {
