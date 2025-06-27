@@ -32,6 +32,9 @@
     "enabled": true,
     "shortTermMemorySize": 5
   },
+  "rag": {
+    "enabled": true
+  },
   "chatId": "snak_guide",
   "plugins": [
     "argent",

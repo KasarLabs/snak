@@ -23,6 +23,9 @@
     "enabled": true,
     "shortTermMemorySize": 5
   },
+  "rag": {
+    "enabled": true
+  },
   "plugins": ["rpc"],
   "mcpServers": {}
 }

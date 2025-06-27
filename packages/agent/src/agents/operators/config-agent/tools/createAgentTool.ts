@@ -52,6 +52,22 @@ const CreateAgentSchema = z.object({
     .optional()
     .nullable()
     .describe('Optional list of plugins to enable for this agent'),
+  memory: z
+    .object({
+      enabled: z.boolean().optional().nullable(),
+      shortTermMemorySize: z.number().optional().nullable(),
+    })
+    .optional()
+    .nullable()
+    .describe('Optional memory configuration'),
+  rag: z
+    .object({
+      enabled: z.boolean().optional().nullable(),
+      embeddingModel: z.string().optional().nullable(),
+    })
+    .optional()
+    .nullable()
+    .describe('Optional rag configuration'),
   mode: z
     .string()
     .optional()
@@ -79,10 +95,10 @@ export const createAgentTool = new DynamicStructuredTool({
     try {
       const query = new Postgres.Query(
         `INSERT INTO agents (
-			name, "group", description, lore, objectives, knowledge,
-			system_prompt, interval, plugins, memory, mode, max_iterations
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-			RETURNING *`,
+			    name, "group", description, lore, objectives, knowledge,
+          system_prompt, interval, plugins, memory, rag, mode, max_iterations
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15)
+          RETURNING *`,
         [
           input.name,
           input.group,
@@ -93,10 +109,10 @@ export const createAgentTool = new DynamicStructuredTool({
           input.system_prompt || null,
           input.interval || 5,
           input.plugins || null,
-          JSON.stringify({
-            enabled: true,
-            shortTermMemorySize: 5,
-          }),
+          input.memory?.enabled || false,
+          input.memory?.shortTermMemorySize || 5,
+          input.rag?.enabled || false,
+          input.rag?.embeddingModel || null,
           input.mode || 'interactive',
           input.max_iterations || 15,
         ]
