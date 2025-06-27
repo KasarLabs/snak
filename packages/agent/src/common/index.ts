@@ -24,14 +24,6 @@ export interface IAgent {
   execute(input: string): Promise<unknown>;
 
   /**
-   * Executes the user request and returns the result
-   * @param input The user's request string
-   * @returns Promise resolving to the execution result
-   * @throws AgentExecutionError if execution fails
-   */
-  execute_call_data(input: string): Promise<unknown>;
-
-  /**
    * Returns the agent's Starknet account credentials
    * @returns Starknet account credentials
    */

@@ -1240,10 +1240,10 @@ export class SupervisorAgent extends BaseAgent {
 
   /**
    * Executes a task in autonomous mode using the SnakAgent
-   * @returns The result of the autonomous execution
+   * @returns An async generator that yields stream chunks
    * @throws {Error} Will throw an error if the SnakAgent is not available
    */
-  public async executeAutonomous(): Promise<any> {
+  public async *executeAutonomous(): AsyncGenerator<any> {
     logger.debug('SupervisorAgent: Entering autonomous execution mode.');
     if (!this.snakAgent) {
       logger.error(
@@ -1251,12 +1251,26 @@ export class SupervisorAgent extends BaseAgent {
       );
       throw new Error('SnakAgent is not available for autonomous execution.');
     }
-    const result = this.snakAgent.executeAutonomousAsyncGenerator(
-      'Autonomous execution initiated by SupervisorAgent.',
-      false
-    );
+
+    try {
+      for await (const chunk of this.snakAgent.executeAutonomousAsyncGenerator(
+        'Autonomous execution initiated by SupervisorAgent.',
+        false
+      )) {
+        yield chunk;
+        if (chunk.final === true) {
+          logger.debug('SupervisorAgent: Autonomous execution finished.');
+          return;
+        }
+      }
+    } catch (error) {
+      logger.error(
+        `SupervisorAgent: Error during autonomous execution: ${error}`
+      );
+      throw error;
+    }
+
     logger.debug('SupervisorAgent: Autonomous execution finished.');
-    return result;
   }
 
   /**

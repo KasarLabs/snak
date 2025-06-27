@@ -25,7 +25,6 @@
     "prepack": "npm run build",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix"
-
   },
   "keywords": [],
   "author": "KasarLabs",
