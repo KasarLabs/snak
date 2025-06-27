@@ -167,16 +167,22 @@ export const createInteractiveAgent = async (
         ${interactiveRules}
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
       `;
-      const systemMessages: (string | MessagesPlaceholder | [string, string])[] = [
+      const systemMessages: (
+        | string
+        | MessagesPlaceholder
+        | [string, string]
+      )[] = [
         [
           'system',
           `${finalPrompt.trim()}
         ${interactiveSystemPrompt}`.trim(),
         ],
-        ];
+      ];
 
       const lastUserMessage =
-        [...state.messages].reverse().find((msg) => msg instanceof HumanMessage) ||
+        [...state.messages]
+          .reverse()
+          .find((msg) => msg instanceof HumanMessage) ||
         state.messages[state.messages.length - 1];
 
       if (memoryAgent && lastUserMessage) {
@@ -187,7 +193,8 @@ export const createInteractiveAgent = async (
             agent_config.id
           );
           if (memories?.length) {
-            const memoryContext = memoryAgent.formatMemoriesForContext(memories);
+            const memoryContext =
+              memoryAgent.formatMemoriesForContext(memories);
             if (memoryContext.trim()) {
               systemMessages.push(['system', memoryContext]);
             }

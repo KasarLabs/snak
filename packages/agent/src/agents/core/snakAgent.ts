@@ -348,7 +348,7 @@ export class SnakAgent extends BaseAgent {
           lastChunkToSave = chunk;
         }
 
-               if (
+        if (
           chunk.event === 'on_chat_model_stream' ||
           chunk.event === 'on_chat_model_start' ||
           chunk.event === 'on_chat_model_end'
@@ -361,17 +361,23 @@ export class SnakAgent extends BaseAgent {
             event: chunk.event as AgentIterationEvent,
             kwargs: formatted,
           };
-          if (formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_START) {
+          if (
+            formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_START
+          ) {
             finalAnswer = '';
           }
-          if (formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_STREAM) {
-            finalAnswer += (formatted as FormattedOnChatModelStream).chunk.content;
+          if (
+            formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_STREAM
+          ) {
+            finalAnswer += (formatted as FormattedOnChatModelStream).chunk
+              .content;
           }
           if (
             formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_END &&
             !finalAnswer
           ) {
-            finalAnswer = (formatted as FormattedOnChatModelEnd).iteration.result.output.content;
+            finalAnswer = (formatted as FormattedOnChatModelEnd).iteration
+              .result.output.content;
           }
           yield {
             chunk: formattedChunk,
