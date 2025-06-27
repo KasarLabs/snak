@@ -398,7 +398,6 @@ export class MemoryAgent extends BaseAgent {
       const combined = [...memResults, ...formattedIter].filter(
         (m) => m.similarity >= SIMILARITY_THRESHOLD
       );
-
       return combined
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, limit);

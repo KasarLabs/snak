@@ -23,6 +23,8 @@ import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
 import { interactiveRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
+import { MemoryAgent } from 'agents/operators/memoryAgent.js';
+import { RagAgent } from 'agents/operators/ragAgent.js';
 
 /**
  * Retrieves the memory agent instance from the SupervisorAgent.
@@ -76,7 +78,7 @@ export const createInteractiveAgent = async (
 
     const toolsList = await initializeToolsList(snakAgent, agent_config);
 
-    let memoryAgent = null;
+    let memoryAgent: MemoryAgent | null = null;
     if (agent_config.memory) {
       try {
         memoryAgent = await getMemoryAgent();
@@ -94,7 +96,7 @@ export const createInteractiveAgent = async (
       }
     }
 
-    let ragAgent = null;
+    let ragAgent: RagAgent | null = null;
     if (agent_config.rag?.enabled !== false) {
       try {
         ragAgent = await getRagAgent();
@@ -161,72 +163,68 @@ export const createInteractiveAgent = async (
       if (!agent_config) {
         throw new Error('Agent configuration is required but not available');
       }
-
       const interactiveSystemPrompt = `
         ${interactiveRules}
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
       `;
-      const systemPrompt = `${finalPrompt.trim()}
-        ${interactiveSystemPrompt}`.trim();
+      const systemMessages: (
+        | string
+        | MessagesPlaceholder
+        | [string, string]
+      )[] = [
+        [
+          'system',
+          `${finalPrompt.trim()}
+        ${interactiveSystemPrompt}`.trim(),
+        ],
+      ];
 
-      const memoryContent =
-        typeof state.memories === 'string'
-          ? state.memories
-          : (state.memories as { memories?: string })?.memories;
+      const lastUserMessage =
+        [...state.messages]
+          .reverse()
+          .find((msg) => msg instanceof HumanMessage) ||
+        state.messages[state.messages.length - 1];
 
-      const ragContent =
-        typeof state.rag === 'string'
-          ? state.rag
-          : (state.rag as { rag?: string })?.rag;
-
-      const memoryAvailable = memoryContent && memoryContent.trim().length > 0;
-      const ragAvailable = ragContent && ragContent.trim().length > 0;
-
-      const promptMessages: Array<[string, string] | MessagesPlaceholder> = [];
-
-      const systemParts: string[] = [systemPrompt];
-
-      if (memoryAvailable || ragAvailable) {
-        const sources: string[] = [];
-        if (memoryAvailable) sources.push('User Memory Context');
-        if (ragAvailable) sources.push('Rag Context');
-        systemParts.push(`\nSources of information: ${sources.join(', ')}\n`);
+      if (memoryAgent && lastUserMessage) {
+        try {
+          const memories = await memoryAgent.retrieveRelevantMemories(
+            lastUserMessage,
+            agent_config.chatId || 'default_chat',
+            agent_config.id
+          );
+          if (memories?.length) {
+            const memoryContext =
+              memoryAgent.formatMemoriesForContext(memories);
+            if (memoryContext.trim()) {
+              systemMessages.push(['system', memoryContext]);
+            }
+          }
+        } catch (error) {
+          logger.error(`Error retrieving memory context: ${error}`);
+        }
       }
 
-      if (memoryAvailable) {
-        systemParts.push(memoryContent.trim());
+      if (ragAgent && lastUserMessage) {
+        try {
+          const docs = await ragAgent.retrieveRelevantRag(
+            lastUserMessage,
+            agent_config.rag?.topK,
+            agent_config.id
+          );
+          if (docs?.length) {
+            const ragContext = ragAgent.formatRagForContext(docs);
+            if (ragContext.trim()) {
+              systemMessages.push(['system', ragContext]);
+            }
+          }
+        } catch (error) {
+          logger.error(`Error retrieving rag context: ${error}`);
+        }
       }
 
-      if (ragAvailable) {
-        systemParts.push(ragContent.trim());
-      }
+      systemMessages.push(new MessagesPlaceholder('messages'));
 
-      const filteredMessages = state.messages.filter(
-        (msg) =>
-          !(
-            msg instanceof AIMessage &&
-            msg.additional_kwargs?.from === 'model-selector'
-          )
-      );
-
-      let idx = 0;
-      while (
-        idx < filteredMessages.length &&
-        filteredMessages[idx] instanceof SystemMessage
-      ) {
-        const sys = filteredMessages[idx];
-        const content =
-          typeof sys.content === 'string'
-            ? sys.content
-            : JSON.stringify(sys.content);
-        systemParts.push(content);
-        idx++;
-      }
-      promptMessages.push(['system', systemParts.join('\n')]);
-
-      promptMessages.push(new MessagesPlaceholder('messages'));
-
-      const prompt = ChatPromptTemplate.fromMessages(promptMessages);
+      const prompt = ChatPromptTemplate.fromMessages(systemMessages);
 
       try {
         const filteredMessages = state.messages.filter(
@@ -260,9 +258,15 @@ export const createInteractiveAgent = async (
               ? selectedModelType.model.bindTools(toolsList)
               : selectedModelType.model;
 
-          const result = await boundModel.invoke(currentMessages);
+          const formattedPrompt = await prompt.formatMessages({
+            messages: currentMessages,
+          });
+
+          const result = await boundModel.invoke(formattedPrompt);
           TokenTracker.trackCall(result, selectedModelType.model_name);
-          return formatAIMessageResult(result);
+          return {
+            messages: [...formattedPrompt, result],
+          };
         } else {
           const existingModelSelector = ModelSelector.getInstance();
           if (existingModelSelector) {

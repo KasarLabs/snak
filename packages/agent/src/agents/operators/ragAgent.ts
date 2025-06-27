@@ -94,12 +94,12 @@ export class RagAgent extends BaseAgent {
    */
   public async execute(
     input: string | BaseMessage | any,
+    _isInterrupted?: boolean,
     config?: Record<string, any>
   ): Promise<any> {
     if (!this.initialized) {
       throw new Error('RagAgent: Not initialized');
     }
-
     const query =
       typeof input === 'string'
         ? input
