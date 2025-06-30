@@ -1,8 +1,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { RagConfig } from '../types/rag/ragConfig.js';
+import { RagConfigSize } from '../types/rag/ragConfig.js';
 
-export async function loadRagConfig(configPath: string): Promise<RagConfig> {
+export async function loadRagConfig(configPath: string): Promise<RagConfigSize> {
   const absolutePath = path.resolve(configPath);
   try {
     const fileContent = await fs.readFile(absolutePath, 'utf-8');
@@ -14,7 +14,7 @@ export async function loadRagConfig(configPath: string): Promise<RagConfig> {
     ) {
       throw new Error('Invalid configuration: missing size limits');
     }
-    return config as RagConfig;
+    return config as RagConfigSize;
   } catch (error: any) {
     console.error(
       `Error loading rag configuration from ${absolutePath}:`,

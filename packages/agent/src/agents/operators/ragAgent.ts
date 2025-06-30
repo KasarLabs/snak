@@ -6,6 +6,7 @@ import { rag } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { RunnableSequence } from '@langchain/core/runnables';
+import { RagConfig } from '@snakagent/core';
 
 const SIMILARITY_THRESHOLD = (() => {
   const value = parseFloat(process.env.RAG_SIMILARITY_THRESHOLD || '0.5');
@@ -17,12 +18,6 @@ const SIMILARITY_THRESHOLD = (() => {
   }
   return value;
 })();
-
-export interface RagConfig {
-  enabled?: boolean;
-  topK?: number;
-  embeddingModel?: string;
-}
 
 export class RagAgent extends BaseAgent {
   private embeddings: CustomHuggingFaceEmbeddings;

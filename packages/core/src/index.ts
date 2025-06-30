@@ -7,7 +7,7 @@ export type {
   DatabaseCredentials,
 } from './common/agent.js';
 
-export { AgentMode } from './common/agent.js';
+export { AgentMode, RagConfig } from './common/agent.js';
 
 export { default as logger } from './logger/logger.js';
 
@@ -21,7 +21,7 @@ export type {
   ApiKeys,
   ModelLevelConfig,
 } from './types/models/modelsConfig.js';
-export type { RagConfig } from './types/rag/ragConfig.js';
+export type { RagConfigSize } from './types/rag/ragConfig.js';
 export * from './common/server/dto/agents.js';
 export * from './common/server/dto/websocket.js';
 

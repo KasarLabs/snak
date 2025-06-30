@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import * as path from 'path';
-import { ModelsConfig, ModelLevelConfig, RagConfig } from '@snakagent/core'; // Assuming core exports these types
+import { ModelsConfig, ModelLevelConfig, RagConfigSize } from '@snakagent/core'; // Assuming core exports these types
 import { readFileSync } from 'fs';
 
 @Injectable()
@@ -12,7 +12,7 @@ export class ConfigurationService {
   private readonly config: EnvConfig;
   private readonly modelsConfig: ModelsConfig;
   private readonly modelsConfigPath: string;
-  private readonly ragConfig: RagConfig;
+  private readonly ragConfig: RagConfigSize;
   private readonly ragConfigPath: string;
 
   constructor(private configService: ConfigService) {
@@ -65,7 +65,7 @@ export class ConfigurationService {
     );
     try {
       const content = readFileSync(this.ragConfigPath, 'utf-8');
-      this.ragConfig = JSON.parse(content) as RagConfig;
+      this.ragConfig = JSON.parse(content) as RagConfigSize;
     } catch (err) {
       this.logger.error(
         `Failed to load rag config from ${this.ragConfigPath}:`,
