@@ -18,6 +18,7 @@ export interface MessageSQL {
 export interface AgentMemorySQL {
   enabled: boolean;
   short_term_memory_size: number;
+  memory_size: number;
 }
 
 export interface AgentRagSQL {

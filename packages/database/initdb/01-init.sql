@@ -2,7 +2,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE memory AS (
     enabled BOOLEAN,
-    short_term_memory_size INTEGER
+    short_term_memory_size INTEGER,
+    memory_size INTEGER
 );
 
 CREATE TYPE rag AS (
@@ -28,7 +29,7 @@ CREATE TABLE IF NOT EXISTS agents (
     system_prompt TEXT,
     interval INTEGER NOT NULL DEFAULT 5,
     plugins TEXT[] NOT NULL DEFAULT '{}',
-    memory memory NOT NULL DEFAULT ROW(false, 5)::memory,
+    memory memory NOT NULL DEFAULT ROW(false, 5, 20)::memory,
     rag rag NOT NULL DEFAULT ROW(false, NULL)::rag,
     mode VARCHAR(50) NOT NULL DEFAULT 'interactive',
     max_iterations INTEGER NOT NULL DEFAULT 15,

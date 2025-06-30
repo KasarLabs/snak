@@ -24,6 +24,7 @@
   "mode": "hybrid",
   "memory": {
     "enabled": true,
+    "memorySize": 20,
     "shortTermMemorySize": 15
   },
   "rag": {

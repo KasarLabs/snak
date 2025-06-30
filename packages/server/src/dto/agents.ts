@@ -35,6 +35,7 @@ export class getMessagesFromAgentsDTO {
 interface AgentMemory {
   enabled: boolean;
   short_term_memory_size: number;
+  memory_size: number;
 }
 
 interface AgentRag {

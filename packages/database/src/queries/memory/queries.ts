@@ -328,4 +328,25 @@ export namespace memory {
     );
     return await Postgres.query(q);
   }
+
+  /**
+   * Ensures a user has at most `limit` memories stored by deleting the oldest
+   * entries beyond this limit.
+   */
+  export async function enforce_memory_limit(
+    userId: string,
+    limit: number
+  ): Promise<void> {
+    if (!limit || limit <= 0) return;
+    const q = new Postgres.Query(
+      `DELETE FROM agent_memories WHERE id IN (
+         SELECT id FROM agent_memories
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         OFFSET $2
+       );`,
+      [userId, limit]
+    );
+    await Postgres.query(q);
+  }
 }

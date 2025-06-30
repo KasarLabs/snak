@@ -56,6 +56,7 @@ const CreateAgentSchema = z.object({
     .object({
       enabled: z.boolean().optional().nullable(),
       shortTermMemorySize: z.number().optional().nullable(),
+      memorySize: z.number().optional().nullable(),
     })
     .optional()
     .nullable()
@@ -97,7 +98,7 @@ export const createAgentTool = new DynamicStructuredTool({
         `INSERT INTO agents (
 			    name, "group", description, lore, objectives, knowledge,
           system_prompt, interval, plugins, memory, rag, mode, max_iterations
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12), ROW($13, $14), $15, $16)
           RETURNING *`,
         [
           input.name,
@@ -111,6 +112,7 @@ export const createAgentTool = new DynamicStructuredTool({
           input.plugins || null,
           input.memory?.enabled || false,
           input.memory?.shortTermMemorySize || 5,
+          input.memory?.memorySize || 20,
           input.rag?.enabled || false,
           input.rag?.embeddingModel || null,
           input.mode || 'interactive',

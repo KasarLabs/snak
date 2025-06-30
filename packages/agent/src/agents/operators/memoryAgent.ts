@@ -26,6 +26,7 @@ const SIMILARITY_THRESHOLD = (() => {
 export interface MemoryConfig {
   enabled?: boolean;
   shortTermMemorySize?: number;
+  memorySize?: number;
   maxIterations?: number;
   embeddingModel?: string;
 }
@@ -43,6 +44,7 @@ export class MemoryAgent extends BaseAgent {
     super('memory-agent', AgentType.OPERATOR);
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,
+      memorySize: config.memorySize || 20,
       maxIterations: config.maxIterations,
       embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
     };
@@ -118,17 +120,23 @@ export class MemoryAgent extends BaseAgent {
       logger.debug(`MemoryAgent: Updating memory ID ${memoryId}`);
       await memory.update_memory(memoryId, content, embedding);
       return `Memory ${memoryId} updated successfully.`;
+    } else {
+      await memory.insert_memory({
+        user_id: userId,
+        content,
+        embedding,
+        metadata,
+        history: [],
+      });
     }
 
-    await memory.insert_memory({
-      user_id: userId,
-      content,
-      embedding,
-      metadata,
-      history: [],
-    });
+    if (this.config.memorySize) {
+      await memory.enforce_memory_limit(userId, this.config.memorySize);
+    }
 
-    return `Memory stored successfully.`;
+    return memoryId
+      ? `Memory ${memoryId} updated successfully.`
+      : `Memory stored successfully.`;
   }
 
   /**
@@ -551,6 +559,10 @@ export class MemoryAgent extends BaseAgent {
         metadata,
         history: [],
       });
+
+      if (this.config.memorySize) {
+        await memory.enforce_memory_limit(userId, this.config.memorySize);
+      }
 
       return `Memory stored successfully.`;
     } catch (error) {

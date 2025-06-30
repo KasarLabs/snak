@@ -7,6 +7,7 @@ import { AgentMode } from '../../agent.js';
 export interface AgentMemory {
   enabled: boolean;
   short_term_memory_size: number;
+  memory_size: number;
 }
 
 /**

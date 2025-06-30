@@ -174,6 +174,7 @@ export class AgentStorage implements OnModuleInit {
       return {
         enabled: parts[0] === 't' || parts[0] === 'true',
         short_term_memory_size: parseInt(parts[1], 10),
+        memory_size: parseInt(parts[2] || '20', 10),
       };
     } catch (error) {
       logger.error('Error parsing memory config:', error);
@@ -394,7 +395,7 @@ export class AgentStorage implements OnModuleInit {
 
     const q = new Postgres.Query(
       `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11), ROW($12, $13), $14, $15, $16) RETURNING *`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12), ROW($13, $14), $15, $16, $17) RETURNING *`,
       [
         finalName,
         group,
@@ -407,6 +408,7 @@ export class AgentStorage implements OnModuleInit {
         agent_config.plugins,
         agent_config.memory.enabled || false,
         agent_config.memory.shortTermMemorySize || 5,
+        agent_config.memory.memorySize || 20,
         agent_config.rag?.enabled || false,
         agent_config.rag?.embeddingModel || null,
         agent_config.mode,
