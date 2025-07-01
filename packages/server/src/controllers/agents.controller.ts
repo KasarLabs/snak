@@ -95,9 +95,28 @@ export class AgentsController {
 
       updatableFields.forEach((field) => {
         if (config[field] !== undefined && config[field] !== null) {
-          updateFields.push(`"${String(field)}" = $${paramIndex}`);
-          values.push(config[field]);
-          paramIndex++;
+          if (field === 'memory') {
+            const memoryData =
+              typeof config[field] === 'string'
+                ? JSON.parse(config[field])
+                : config[field];
+
+            const enabled =
+              memoryData.enabled === 'true' || memoryData.enabled === true;
+            const shortTermMemorySize = parseInt(
+              memoryData.shortTermMemorySize
+            );
+
+            updateFields.push(
+              `"memory" = ROW($${paramIndex}, $${paramIndex + 1})::memory`
+            );
+            values.push(enabled, shortTermMemorySize);
+            paramIndex += 2;
+          } else {
+            updateFields.push(`"${String(field)}" = $${paramIndex}`);
+            values.push(config[field]);
+            paramIndex++;
+          }
         }
       });
 
