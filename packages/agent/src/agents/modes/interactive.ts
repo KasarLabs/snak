@@ -17,6 +17,7 @@ import {
   initializeDatabase,
   truncateToolResults,
   formatAgentResponse,
+  wrapToolNodeInvoke,
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
@@ -117,36 +118,7 @@ export const createInteractiveAgent = async (
     });
 
     const toolNode = new ToolNode(toolsList);
-    // Add wrapper to log tool executions
-    const originalInvoke = toolNode.invoke.bind(toolNode);
-    toolNode.invoke = async (state, config) => {
-      const lastMessage = state.messages[state.messages.length - 1];
-      const toolCalls = lastMessage?.tool_calls || [];
-
-      if (toolCalls.length > 0) {
-        for (const call of toolCalls) {
-          logger.info(
-            `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
-          );
-        }
-      }
-
-      const startTime = Date.now();
-      const result = await originalInvoke(state, config);
-      const executionTime = Date.now() - startTime;
-
-      const truncatedResult = truncateToolResults(result, 5000);
-
-      if (truncatedResult?.messages?.length > 0) {
-        const resultMessage =
-          truncatedResult.messages[truncatedResult.messages.length - 1];
-        logger.debug(
-          `Tool execution completed in ${executionTime}ms with result type: ${resultMessage._getType?.() || typeof resultMessage}`
-        );
-      }
-
-      return truncatedResult;
-    };
+    wrapToolNodeInvoke(toolNode);
 
     const configPrompt = agent_config.prompt?.content || '';
     const finalPrompt = `${configPrompt}`;

@@ -17,6 +17,7 @@ import {
   FormattedOnChatModelStream,
 } from './snakAgent.js';
 import { ToolMessage } from '@langchain/core/messages';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
@@ -391,4 +392,70 @@ export const processMessageContent = (content: any): string => {
   }
 
   return String(content);
+};
+
+export interface WrapToolNodeInvokeOptions {
+  addMetadata?: boolean;
+  iterationNumberExtractor?: (state: any) => number | undefined;
+}
+
+/**
+ * Wraps a ToolNode's invoke method to log execution, truncate results and
+ * optionally append metadata to each returned ToolMessage.
+ *
+ * @param toolNode - The ToolNode to wrap.
+ * @param options - Optional behaviour configuration.
+ */
+export const wrapToolNodeInvoke = (
+  toolNode: ToolNode,
+  options?: WrapToolNodeInvokeOptions
+) => {
+  const originalInvoke = toolNode.invoke.bind(toolNode);
+
+  toolNode.invoke = async (state: any, config?: any) => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    const toolCalls = lastMessage?.tool_calls || [];
+
+    if (toolCalls.length > 0) {
+      for (const call of toolCalls) {
+        logger.info(
+          `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${
+            JSON.stringify(call.args).length > 150 ? '...' : ''
+          }`
+        );
+      }
+    }
+
+    const startTime = Date.now();
+    try {
+      const result = await originalInvoke(state, config);
+      const executionTime = Date.now() - startTime;
+      const truncatedResult = truncateToolResults(result, 5000);
+
+      logger.debug(
+        `Tool execution completed in ${executionTime}ms. Results: ${Array.isArray(truncatedResult) ? truncatedResult.length : typeof truncatedResult}`
+      );
+
+      if (options?.addMetadata && truncatedResult?.messages) {
+        const iterationNumber = options.iterationNumberExtractor
+          ? options.iterationNumberExtractor(state)
+          : undefined;
+        truncatedResult.messages.forEach((res: ToolMessage) => {
+          res.additional_kwargs = {
+            from: 'tools',
+            final: false,
+            ...(iterationNumber !== undefined
+              ? { iteration_number: iterationNumber }
+              : {}),
+          };
+        });
+      }
+
+      return truncatedResult;
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      logger.error(`Tool execution failed after ${executionTime}ms: ${error}`);
+      throw error;
+    }
+  };
 };

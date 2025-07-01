@@ -6,14 +6,18 @@ import { RpcProvider } from 'starknet';
 import { logger, AgentConfig, ModelsConfig } from '@snakagent/core';
 import { AgentMode } from '../config/agentConfig.js';
 import { Postgres } from '@snakagent/database';
-import { SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
+import { IterationResponse, SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
+import { BaseMessage } from '@langchain/core/messages';
+import { DatabaseCredentials } from 'tools/types/database.js';
+import { ModelSelector } from './operators/modelSelector.js';
+import { IAgent } from './core/baseAgent.js';
 
 export interface Conversation {
   conversation_name: string;
 }
 
 export interface AgentIterations {
-  data: any;
+  data: IterationResponse;
 }
 
 export interface MessageRequest {
@@ -57,6 +61,10 @@ export interface ServerState {
   text: string;
 }
 
+export interface ExecutionState {
+  messages: BaseMessage[];
+}
+
 /**
  * Configuration for the agent system initialization
  */
@@ -66,7 +74,7 @@ export interface AgentSystemConfig {
   accountPublicKey: string;
   modelsConfig: ModelsConfig;
   agentMode: AgentMode;
-  databaseCredentials: any;
+  databaseCredentials: DatabaseCredentials;
   agentConfigPath?: AgentConfig;
   debug?: boolean;
 }
@@ -152,7 +160,7 @@ export class AgentSystem {
 
       const modelSelector = this.supervisorAgent?.getOperator(
         'model-selector'
-      ) as any;
+      ) as ModelSelector | null;
 
       const snakAgentConfig: SnakAgentConfig = {
         provider: this.config.starknetProvider,
@@ -219,8 +227,8 @@ export class AgentSystem {
   public async execute(
     message: MessageRequest | string,
     isInterrupted: boolean = false,
-    config?: Record<string, any>
-  ): Promise<any> {
+    config?: Record<string, unknown>
+  ): Promise<string> {
     if (!this.supervisorAgent) {
       throw new Error('Agent system not initialized. Call init() first.');
     }
@@ -233,7 +241,7 @@ export class AgentSystem {
       for await (const chunk of this.supervisorAgent.execute(
         content,
         false,
-        config
+        config as Record<string, any>
       )) {
         if (chunk.final === true) {
           result = chunk.chunk;
@@ -260,7 +268,7 @@ export class AgentSystem {
    * @returns The Snak agent instance
    * @throws {Error} When the agent system is not initialized
    */
-  public getSnakAgent(): any {
+  public getSnakAgent(): SnakAgent | null {
     if (!this.supervisorAgent) {
       throw new Error('Agent system not initialized. Call init() first.');
     }
@@ -273,7 +281,7 @@ export class AgentSystem {
    * @returns The operator instance
    * @throws {Error} When the agent system is not initialized
    */
-  public getOperator(id: string): any {
+  public getOperator(id: string): IAgent | undefined {
     if (!this.supervisorAgent) {
       throw new Error('Agent system not initialized. Call init() first.');
     }
@@ -353,7 +361,7 @@ export class AgentSystem {
    * @returns True if the execution is complete, false otherwise
    * @throws {Error} When the agent system is not initialized
    */
-  public isExecutionComplete(state: any): boolean {
+  public isExecutionComplete(state: ExecutionState): boolean {
     if (!this.supervisorAgent) {
       throw new Error('Agent system not initialized. Call init() first.');
     }

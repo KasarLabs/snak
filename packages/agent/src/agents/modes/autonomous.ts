@@ -31,7 +31,7 @@ import {
 } from '@langchain/core/prompts';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { truncateToolResults } from '../core/utils.js';
+import { wrapToolNodeInvoke } from '../core/utils.js';
 import { autonomousRules, hybridRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -103,60 +103,18 @@ export const createAutonomousAgent = async (
     }
 
     const toolNode = new ToolNode(toolsList);
-    const originalToolNodeInvoke = toolNode.invoke.bind(toolNode);
-
-    /**
-     * Custom tool node invoker with logging and result truncation
-     */
-    toolNode.invoke = async (
-      state: typeof GraphState.State,
-      config?: LangGraphRunnableConfig
-    ): Promise<{ messages: BaseMessage[] } | null> => {
-      const lastMessage = state.messages[state.messages.length - 1];
-      const lastIterationNumber = getLatestMessageForMessage(
-        state.messages,
-        AIMessageChunk
-      )?.additional_kwargs.iteration_number;
-      const toolCalls =
-        lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
-          ? lastMessage.tool_calls
-          : [];
-
-      if (toolCalls.length > 0) {
-        toolCalls.forEach((call) => {
-          logger.info(
-            `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
-          );
-        });
-      }
-
-      const startTime = Date.now();
-      try {
-        const result = await originalToolNodeInvoke(state, config);
-        const executionTime = Date.now() - startTime;
-        const truncatedResult: { messages: [ToolMessage] } =
-          truncateToolResults(result, 5000); // Max 5000 chars for tool output
-
-        logger.debug(
-          `Tool execution completed in ${executionTime}ms. Results: ${Array.isArray(truncatedResult) ? truncatedResult.length : typeof truncatedResult}`
-        );
-
-        truncatedResult.messages.forEach((res) => {
-          res.additional_kwargs = {
-            from: 'tools',
-            final: false,
-            iteration_number: lastIterationNumber,
-          };
-        });
-        return truncatedResult;
-      } catch (error) {
-        const executionTime = Date.now() - startTime;
-        logger.error(
-          `Tool execution failed after ${executionTime}ms: ${error}`
-        );
-        throw error;
-      }
-    };
+    wrapToolNodeInvoke(toolNode, {
+      addMetadata: true,
+      iterationNumberExtractor: (
+        state: typeof GraphState.State
+      ): number | undefined => {
+        const num = getLatestMessageForMessage(
+          state.messages,
+          AIMessageChunk
+        )?.additional_kwargs.iteration_number;
+        return typeof num === 'number' ? num : undefined;
+      },
+    });
 
     /**
      * Language model node that formats prompts, invokes the selected model, and processes responses
