@@ -10,7 +10,7 @@ export type { AgentSystemConfig } from './agents/index.js';
 export { AgentSystem } from './agents/index.js';
 export { SupervisorAgent } from './agents/supervisor/supervisorAgent.js';
 export type { SupervisorAgentConfig } from './agents/supervisor/supervisorAgent.js';
-export type { IAgent, AiConfig } from './common/index.js';
+export type { IAgent, IExtendedAgent, AiConfig } from './common/index.js';
 
 // ---------------------
 // Tool exports
