@@ -2,8 +2,8 @@ import {
   BaseAgent,
   AgentType,
   AgentMessage,
-  IAgent,
 } from '../core/baseAgent.js';
+import { IAgent } from '../core/baseAgent.types.js';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { SnakAgent, SnakAgentConfig } from '../core/snakAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';

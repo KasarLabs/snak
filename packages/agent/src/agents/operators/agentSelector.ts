@@ -1,4 +1,5 @@
-import { BaseAgent, AgentType, IAgent } from '../core/baseAgent.js';
+import { BaseAgent, AgentType } from '../core/baseAgent.js';
+import { IAgent } from '../core/baseAgent.types.js';
 import { logger } from '@snakagent/core';
 import {
   BaseMessage,

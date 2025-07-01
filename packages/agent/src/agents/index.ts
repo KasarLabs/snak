@@ -10,7 +10,7 @@ import { SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
 import { BaseMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from 'tools/types/database.js';
 import { ModelSelector } from './operators/modelSelector.js';
-import { IAgent } from './core/baseAgent.js';
+import { IAgent } from './core/baseAgent.types.js';
 
 import type {
   Conversation,
