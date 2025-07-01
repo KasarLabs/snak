@@ -23,7 +23,7 @@ export interface IAgent {
   };
 }
 
-  export interface IExtendedAgent extends IAgent {
+export interface IExtendedAgent extends IAgent {
   /**
    * Returns the RPC provider the agent is using.
    */

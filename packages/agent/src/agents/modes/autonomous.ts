@@ -108,10 +108,8 @@ export const createAutonomousAgent = async (
       iterationNumberExtractor: (
         state: typeof GraphState.State
       ): number | undefined => {
-        const num = getLatestMessageForMessage(
-          state.messages,
-          AIMessageChunk
-        )?.additional_kwargs.iteration_number;
+        const num = getLatestMessageForMessage(state.messages, AIMessageChunk)
+          ?.additional_kwargs.iteration_number;
         return typeof num === 'number' ? num : undefined;
       },
     });
