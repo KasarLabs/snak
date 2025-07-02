@@ -8,6 +8,7 @@ import {
   ModelSelectorService,
   ModelSelectorReturn,
 } from './services/modelSelectorService.js';
+import { ExecuteConfig } from '../types.js';
 
 // CLEAN-UP Need to put in private every function who check the validity of the model selection instead of what we do now
 /**
@@ -28,11 +29,6 @@ export interface ModelSelectionOptions {
   debugMode?: boolean;
   useModelSelector?: boolean;
   modelsConfig: ModelsConfig;
-}
-
-interface ExecuteConfig {
-  originalUserQuery: string;
-  [key: string]: unknown;
 }
 
 /**

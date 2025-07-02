@@ -2,16 +2,12 @@ import { BaseAgent, AgentType } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage } from '@langchain/core/messages';
 import { MCPAgentService, MCPAgentServiceConfig } from '../services/mcpAgentService.js';
 import { OperatorRegistry } from '../operatorRegistry.js';
+import { ExecuteConfig } from '../../types.js';
 
 /**
  * Interface defining the configuration options for the MCPAgent
  */
 export interface MCPAgentConfig extends MCPAgentServiceConfig {}
-
-interface ExecuteConfig {
-  originalUserQuery: string;
-  [key: string]: unknown;
-}
 
 /**
  * Enhanced MCP Agent using LangChain Tools for intelligent MCP server and tool management

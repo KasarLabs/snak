@@ -1,18 +1,13 @@
 import { BaseAgent, AgentType } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage } from '@langchain/core/messages';
-import { logger } from '@snakagent/core';
 import { ConfigurationAgentService, ConfigurationAgentServiceConfig } from '../services/configAgentService.js';
 import { OperatorRegistry } from '../operatorRegistry.js';
+import { ExecuteConfig } from 'agents/types.js';
 
 /**
  * Interface defining the configuration options for the ConfigurationAgent
  */
 export interface ConfigurationAgentConfig extends ConfigurationAgentServiceConfig {}
-
-interface ExecuteConfig {
-  originalUserQuery: string;
-  [key: string]: unknown;
-}
 
 /**
  * Enhanced Configuration Agent using LangChain Tools for intelligent operation selection

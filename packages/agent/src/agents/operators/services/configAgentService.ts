@@ -6,16 +6,9 @@ import { Tool } from '@langchain/core/tools';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { configurationAgentSystemPrompt } from 'prompt/configAgentPrompts.js';
 import { ModelSelector } from '../modelSelector.js';
+import { ExecuteConfig, ModelServiceConfig } from 'agents/types.js';
 
-export interface ConfigurationAgentServiceConfig {
-  debug?: boolean;
-  modelType?: 'fast' | 'smart' | 'cheap';
-}
-
-interface ExecuteConfig {
-  originalUserQuery: string;
-  [key: string]: unknown;
-}
+export interface ConfigurationAgentServiceConfig extends ModelServiceConfig {}
 
 export class ConfigurationAgentService {
   private debug: boolean = false;

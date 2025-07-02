@@ -6,11 +6,9 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { mcpAgentSystemPrompt } from 'prompt/mcpAgentPrompts.js';
 import { ModelSelector } from '../modelSelector.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
+import { ExecuteConfig, ModelServiceConfig } from 'agents/types.js';
 
-export interface MCPAgentServiceConfig {
-  debug?: boolean;
-  modelType?: 'fast' | 'smart' | 'cheap';
-}
+export interface MCPAgentServiceConfig extends ModelServiceConfig {}
 
 export class MCPAgentService {
   private debug: boolean = false;
@@ -58,7 +56,7 @@ export class MCPAgentService {
   public async execute(
     input: string | BaseMessage | BaseMessage[],
     _isInterrupted: boolean = false,
-    config?: Record<string, any>
+    config?: ExecuteConfig
   ): Promise<AIMessage> {
     try {
       const content = this.extractOriginalUserContent(input, config);
@@ -118,7 +116,7 @@ export class MCPAgentService {
 
   private extractOriginalUserContent(
     input: string | BaseMessage | BaseMessage[],
-    config?: Record<string, any>
+    config?: ExecuteConfig
   ): string {
     if (
       config?.originalUserQuery &&

@@ -53,3 +53,13 @@ export interface ServerState {
 export interface ExecutionState {
   messages: BaseMessage[];
 }
+
+export interface ExecuteConfig {
+  originalUserQuery: string;
+  [key: string]: unknown;
+}
+
+export interface ModelServiceConfig {
+  debug?: boolean;
+  modelType?: 'fast' | 'smart' | 'cheap';
+}

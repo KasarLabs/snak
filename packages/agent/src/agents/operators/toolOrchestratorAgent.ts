@@ -6,16 +6,12 @@ import {
   ToolsOrchestratorService,
   ToolsOrchestratorServiceConfig,
 } from './services/toolOrchestratorService.js';
+import { ExecuteConfig } from '../types.js';
 
 /**
  * Configuration for the tools orchestrator
  */
 export interface ToolsOrchestratorConfig extends ToolsOrchestratorServiceConfig {}
-
-interface ExecuteConfig {
-  originalUserQuery: string;
-  [key: string]: unknown;
-}
 
 /**
  * Operator agent that manages tools orchestration and execution
