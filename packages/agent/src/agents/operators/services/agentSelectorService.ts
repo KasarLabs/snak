@@ -1,5 +1,5 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { logger } from '@snakagent/core';
+import { logger, AgentConfig } from '@snakagent/core';
 import { IAgent } from '../../core/baseAgent.types.js';
 import { AgentType } from '../../core/baseAgent.js';
 import { ModelSelector } from '../modelSelector.js';
@@ -25,6 +25,19 @@ export interface AgentSelectorServiceConfig {
   availableAgents: Record<string, IAgent>;
   modelSelector: ModelSelector | null;
   debug?: boolean;
+}
+
+interface ExtendedAgent extends IAgent {
+  getAgentConfig?: () => AgentConfig;
+  name?: string;
+  group?: string;
+  description?: string;
+  metadata?: {
+    name?: string;
+    group?: string;
+    description?: string;
+    [key: string]: unknown;
+  };
 }
 
 export class AgentSelectorService {
@@ -65,13 +78,14 @@ export class AgentSelectorService {
     this.agentInfo = {};
 
     Object.entries(this.availableAgents).forEach(([id, agent]) => {
+      const extAgent = agent as ExtendedAgent;
       let name: string | undefined;
       let group: string | undefined;
       let description: string | undefined;
 
-      if (typeof (agent as any).getAgentConfig === 'function') {
+      if (typeof extAgent.getAgentConfig === 'function') {
         try {
-          const agentConfig = (agent as any).getAgentConfig();
+          const agentConfig = extAgent.getAgentConfig();
           if (agentConfig) {
             name = agentConfig.name;
             group = agentConfig.group;
@@ -90,22 +104,22 @@ export class AgentSelectorService {
         description: description || '',
       };
 
-      if ((agent as any).metadata) {
-        const metadata = (agent as any).metadata;
+      if (extAgent.metadata) {
+        const metadata = extAgent.metadata;
         if (metadata.name) info.name = metadata.name;
         if (metadata.group) info.group = metadata.group;
         if (metadata.description) info.description = metadata.description;
         info.metadata = { ...metadata };
       }
 
-      if (!info.name && (agent as any).name) {
-        info.name = (agent as any).name;
+      if (!info.name && extAgent.name) {
+        info.name = extAgent.name;
       }
-      if (!info.group && (agent as any).group) {
-        info.group = (agent as any).group;
+      if (!info.group && extAgent.group) {
+        info.group = extAgent.group;
       }
-      if (!info.description && (agent as any).description) {
-        info.description = (agent as any).description;
+      if (!info.description && extAgent.description) {
+        info.description = extAgent.description;
       }
 
       this.agentInfo[id] = info;
