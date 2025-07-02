@@ -215,7 +215,7 @@ export class MemoryAgentService {
     logger.debug(`MemoryAgentService: Created ${this.memoryTools.length} memory tools`);
   }
 
-  public prepareMemoryTools(): any[] {
+  public prepareMemoryTools(): Tool[] {
     if (!this.initialized) {
       logger.warn('MemoryAgentService: Trying to get memory tools before initialization');
       this.createMemoryTools();
@@ -258,7 +258,7 @@ export class MemoryAgentService {
       }
     );
 
-    return [upsertMemoryToolDB];
+    return [upsertMemoryToolDB as any];
   }
 
   public createMemoryNode(): Runnable<MemoryNodeState, { memories: string }> {

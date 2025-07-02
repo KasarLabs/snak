@@ -1314,10 +1314,10 @@ export class SupervisorAgent extends BaseAgent {
   public getAllTools(): Tool[] {
     const tools: Tool[] = [];
     if (this.toolsOrchestrator) {
-      tools.push(...(this.toolsOrchestrator.getTools() as Tool[]));
+      tools.push(...this.toolsOrchestrator.getTools() as Tool[]);
     }
     if (this.memoryAgent) {
-      tools.push(...(this.memoryAgent.getMemoryTools() as Tool[]));
+      tools.push(...this.memoryAgent.getMemoryTools());
     }
     return tools;
   }
