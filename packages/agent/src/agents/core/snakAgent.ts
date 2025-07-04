@@ -309,6 +309,8 @@ export class SnakAgent extends BaseAgent {
       runnableConfig.configurable.userId =
         this.agentConfig.chatId || 'default_chat';
       runnableConfig.configurable.agentId = this.agentConfig.id;
+      runnableConfig.configurable.memorySize =
+        this.agentConfig.memory?.memorySize;
 
       runnableConfig.version = 'v2';
 
@@ -571,6 +573,7 @@ export class SnakAgent extends BaseAgent {
       const maxGraphIterations = this.agentConfig.maxIterations;
       const short_term_memory =
         this.agentConfig.memory.shortTermMemorySize || 5;
+      const memory_size = this.agentConfig.memory?.memorySize || 20;
       const human_in_the_loop = this.agentConfig.mode === AgentMode.HYBRID;
       this.controller = new AbortController();
       const initialMessages: BaseMessage[] = [new HumanMessage(input)];
@@ -584,6 +587,7 @@ export class SnakAgent extends BaseAgent {
           config: {
             max_graph_steps: maxGraphIterations,
             short_term_memory: short_term_memory,
+            memorySize: memory_size,
             human_in_the_loop: human_in_the_loop,
           },
         },

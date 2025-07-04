@@ -31,15 +31,6 @@ export interface MemoryConfig {
   embeddingModel?: string;
 }
 
-export interface MemoryNodeState {
-  messages: BaseMessage[];
-  [key: string]: any;
-}
-
-export interface MemoryNodeResult {
-  memories: string;
-}
-
 /**
  * Operator agent that manages memory and knowledge
  */
@@ -119,28 +110,24 @@ export class MemoryAgent extends BaseAgent {
   private async upsertMemory(
     content: string,
     memoryId: number | null | undefined,
-    userId: string
+    userId: string,
+    memorySize?: number
   ): Promise<string> {
     logger.debug(`MemoryAgent: Upserting memory for user ${userId}`);
     const embedding = await this.embeddings.embedQuery(content);
     const metadata = { timestamp: new Date().toISOString() };
+    const limit = memorySize ?? this.config.memorySize;
 
-    if (memoryId) {
-      logger.debug(`MemoryAgent: Updating memory ID ${memoryId}`);
-      await memory.update_memory(memoryId, content, embedding);
-      return `Memory ${memoryId} updated successfully.`;
-    } else {
-      await memory.insert_memory({
-        user_id: userId,
-        content,
-        embedding,
-        metadata,
-        history: [],
-      });
-    }
+    await memory.insert_memory({
+      user_id: userId,
+      content,
+      embedding,
+      metadata,
+      history: [],
+    });
 
-    if (this.config.memorySize) {
-      await memory.enforce_memory_limit(userId, this.config.memorySize);
+    if (limit) {
+      await memory.enforce_memory_limit(userId, limit);
     }
 
     return memoryId
@@ -268,7 +255,10 @@ export class MemoryAgent extends BaseAgent {
       ): Promise<string> => {
         try {
           const userId = config.configurable?.userId || 'default_user';
-          return await this.upsertMemory(content, memoryId, userId);
+          const limit =
+            config.configurable?.memorySize ??
+            config.configurable?.config?.memorySize;
+          return await this.upsertMemory(content, memoryId, userId, limit);
         } catch (error) {
           logger.error('Error storing memory:', error);
           return 'Failed to store memory.';
@@ -304,15 +294,9 @@ export class MemoryAgent extends BaseAgent {
   /**
    * Create a memory node for the graph
    */
-  public createMemoryNode(): (
-    state: MemoryNodeState,
-    config: LangGraphRunnableConfig
-  ) => Promise<MemoryNodeResult> {
+  public createMemoryNode(): any {
     const chain = this.createMemoryChain();
-    return async (
-      state: MemoryNodeState,
-      config: LangGraphRunnableConfig
-    ): Promise<MemoryNodeResult> => {
+    return async (state: any, config: LangGraphRunnableConfig) => {
       try {
         return await chain.invoke(state, config);
       } catch (error) {
@@ -562,10 +546,15 @@ export class MemoryAgent extends BaseAgent {
   /**
    * Store a memory
    */
-  private async storeMemory(content: string, userId: string): Promise<string> {
+  private async storeMemory(
+    content: string,
+    userId: string,
+    memorySize?: number
+  ): Promise<string> {
     try {
       const embedding = await this.embeddings.embedQuery(content);
       const metadata = { timestamp: new Date().toISOString() };
+      const limit = memorySize ?? this.config.memorySize;
 
       await memory.insert_memory({
         user_id: userId,
@@ -575,10 +564,9 @@ export class MemoryAgent extends BaseAgent {
         history: [],
       });
 
-      if (this.config.memorySize) {
-        await memory.enforce_memory_limit(userId, this.config.memorySize);
+      if (limit) {
+        await memory.enforce_memory_limit(userId, limit);
       }
-
       return `Memory stored successfully.`;
     } catch (error) {
       logger.error(`MemoryAgent: Error storing memory: ${error}`);
