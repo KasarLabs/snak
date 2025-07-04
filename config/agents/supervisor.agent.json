@@ -23,7 +23,11 @@
   "mode": "interactive",
   "memory": {
     "enabled": true,
+    "memorySize": 20,
     "shortTermMemorySize": 10
+  },
+  "rag": {
+    "enabled": true
   },
   "plugins": [],
   "mcpServers": {}

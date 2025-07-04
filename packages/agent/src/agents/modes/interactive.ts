@@ -23,6 +23,8 @@ import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
 import { interactiveRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
+import { MemoryAgent } from 'agents/operators/memoryAgent.js';
+import { RagAgent } from 'agents/operators/ragAgent.js';
 
 /**
  * Retrieves the memory agent instance from the SupervisorAgent.
@@ -38,6 +40,19 @@ const getMemoryAgent = async () => {
     return null;
   } catch (error) {
     logger.error(`Failed to get memory agent: ${error}`);
+    return null;
+  }
+};
+
+const getRagAgent = async () => {
+  try {
+    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
+    if (supervisorAgent) {
+      return await supervisorAgent.getRagAgent();
+    }
+    return null;
+  } catch (error) {
+    logger.error(`Failed to get rag agent: ${error}`);
     return null;
   }
 };
@@ -63,7 +78,7 @@ export const createInteractiveAgent = async (
 
     const toolsList = await initializeToolsList(snakAgent, agent_config);
 
-    let memoryAgent = null;
+    let memoryAgent: MemoryAgent | null = null;
     if (agent_config.memory) {
       try {
         memoryAgent = await getMemoryAgent();
@@ -81,11 +96,24 @@ export const createInteractiveAgent = async (
       }
     }
 
+    let ragAgent: RagAgent | null = null;
+    if (agent_config.rag?.enabled !== false) {
+      try {
+        ragAgent = await getRagAgent();
+        if (!ragAgent) {
+          logger.warn('Rag agent not available, rag context will be skipped');
+        }
+      } catch (error) {
+        logger.error(`Error retrieving rag agent: ${error}`);
+      }
+    }
+
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
         reducer: (x, y) => x.concat(y),
       }),
       memories: Annotation<string>,
+      rag: Annotation<string>,
     });
 
     const toolNode = new ToolNode(toolsList);
@@ -135,19 +163,68 @@ export const createInteractiveAgent = async (
       if (!agent_config) {
         throw new Error('Agent configuration is required but not available');
       }
-
       const interactiveSystemPrompt = `
         ${interactiveRules}
         Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
       `;
-      const prompt = ChatPromptTemplate.fromMessages([
+      const systemMessages: (
+        | string
+        | MessagesPlaceholder
+        | [string, string]
+      )[] = [
         [
           'system',
           `${finalPrompt.trim()}
         ${interactiveSystemPrompt}`.trim(),
         ],
-        new MessagesPlaceholder('messages'),
-      ]);
+      ];
+
+      const lastUserMessage =
+        [...state.messages]
+          .reverse()
+          .find((msg) => msg instanceof HumanMessage) ||
+        state.messages[state.messages.length - 1];
+
+      if (memoryAgent && lastUserMessage) {
+        try {
+          const memories = await memoryAgent.retrieveRelevantMemories(
+            lastUserMessage,
+            agent_config.chatId || 'default_chat',
+            agent_config.id
+          );
+          if (memories?.length) {
+            const memoryContext =
+              memoryAgent.formatMemoriesForContext(memories);
+            if (memoryContext.trim()) {
+              systemMessages.push(['system', memoryContext]);
+            }
+          }
+        } catch (error) {
+          logger.error(`Error retrieving memory context: ${error}`);
+        }
+      }
+
+      if (ragAgent && lastUserMessage) {
+        try {
+          const docs = await ragAgent.retrieveRelevantRag(
+            lastUserMessage,
+            agent_config.rag?.topK,
+            agent_config.id
+          );
+          if (docs?.length) {
+            const ragContext = ragAgent.formatRagForContext(docs);
+            if (ragContext.trim()) {
+              systemMessages.push(['system', ragContext]);
+            }
+          }
+        } catch (error) {
+          logger.error(`Error retrieving rag context: ${error}`);
+        }
+      }
+
+      systemMessages.push(new MessagesPlaceholder('messages'));
+
+      const prompt = ChatPromptTemplate.fromMessages(systemMessages);
 
       try {
         const filteredMessages = state.messages.filter(
@@ -181,9 +258,15 @@ export const createInteractiveAgent = async (
               ? selectedModelType.model.bindTools(toolsList)
               : selectedModelType.model;
 
-          const result = await boundModel.invoke(currentMessages);
+          const formattedPrompt = await prompt.formatMessages({
+            messages: currentMessages,
+          });
+
+          const result = await boundModel.invoke(formattedPrompt);
           TokenTracker.trackCall(result, selectedModelType.model_name);
-          return formatAIMessageResult(result);
+          return {
+            messages: [...formattedPrompt, result],
+          };
         } else {
           const existingModelSelector = ModelSelector.getInstance();
           if (existingModelSelector) {
@@ -287,17 +370,29 @@ ${formatAgentResponse(content)}`);
       return 'end';
     }
 
-    const workflow = new StateGraph(GraphState)
+    let workflow = new StateGraph(GraphState)
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
     if (agent_config.memory && memoryAgent) {
-      workflow
+      workflow = (workflow as any)
         .addNode('memory', memoryAgent.createMemoryNode())
-        .addEdge('__start__', 'memory')
-        .addEdge('memory', 'agent');
+        .addEdge('__start__', 'memory');
+      if (ragAgent) {
+        workflow = (workflow as any)
+          .addNode('ragNode', ragAgent.createRagNode(agent_config.id))
+          .addEdge('memory', 'ragNode')
+          .addEdge('ragNode', 'agent');
+      } else {
+        workflow = (workflow as any).addEdge('memory', 'agent');
+      }
+    } else if (ragAgent) {
+      workflow = (workflow as any)
+        .addNode('ragNode', ragAgent.createRagNode(agent_config.id))
+        .addEdge('__start__', 'ragNode')
+        .addEdge('ragNode', 'agent');
     } else {
-      workflow.addEdge('__start__', 'agent');
+      workflow = (workflow as any).addEdge('__start__', 'agent');
     }
 
     workflow

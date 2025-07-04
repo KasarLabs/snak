@@ -54,6 +54,11 @@ export namespace memory {
           history JSONB NOT NULL
         );`
       ),
+      new Postgres.Query(
+        `CREATE INDEX IF NOT EXISTS agent_memories_embedding_idx
+           ON agent_memories USING ivfflat (embedding vector_cosine_ops);`
+      ),
+      new Postgres.Query(`ANALYZE agent_memories;`),
       new Postgres.Query(`
         CREATE OR REPLACE FUNCTION insert_memory(
           id integer,
@@ -310,17 +315,38 @@ export namespace memory {
    */
   export async function similar_memory(
     userId: string,
-    embedding: number[]
+    embedding: number[],
+    limit = 4
   ): Promise<Similarity[]> {
     const q = new Postgres.Query(
       `SELECT id, content, history, 1 - (embedding <=> $1::vector) AS similarity
           FROM agent_memories
           WHERE user_id = $2
           ORDER BY similarity DESC
-          LIMIT 4;
-      `,
-      [JSON.stringify(embedding), userId]
+          LIMIT $3;`,
+      [JSON.stringify(embedding), userId, limit]
     );
     return await Postgres.query(q);
+  }
+
+  /**
+   * Ensures a user has at most `limit` memories stored by deleting the oldest
+   * entries beyond this limit.
+   */
+  export async function enforce_memory_limit(
+    userId: string,
+    limit: number
+  ): Promise<void> {
+    if (!limit || limit <= 0) return;
+    const q = new Postgres.Query(
+      `DELETE FROM agent_memories WHERE id IN (
+         SELECT id FROM agent_memories
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         OFFSET $2
+       );`,
+      [userId, limit]
+    );
+    await Postgres.query(q);
   }
 }

@@ -18,6 +18,12 @@ export interface MessageSQL {
 export interface AgentMemorySQL {
   enabled: boolean;
   short_term_memory_size: number;
+  memory_size: number;
+}
+
+export interface AgentRagSQL {
+  enabled: boolean;
+  embedding_model: string | null;
 }
 
 export interface AgentConfigSQL {
@@ -32,6 +38,7 @@ export interface AgentConfigSQL {
   interval: number;
   plugins: string[];
   memory: AgentMemorySQL;
+  rag: AgentRagSQL;
   mode: AgentMode;
   max_iterations: number;
 }

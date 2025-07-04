@@ -8,6 +8,7 @@ import { ModelSelector } from '../operators/modelSelector.js';
 import { SnakAgent, SnakAgentConfig } from '../core/snakAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
+import { RagAgent } from '../operators/ragAgent.js';
 import { WorkflowController } from './workflowController.js';
 import {
   DatabaseCredentials,
@@ -24,6 +25,7 @@ import { AgentSelector } from '../operators/agentSelector.js';
 import { OperatorRegistry } from '../operators/operatorRegistry.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
+import { rag } from '@snakagent/database/queries';
 
 /**
  * Represents an agent to be registered
@@ -32,6 +34,13 @@ interface AgentRegistration {
   id: string;
   agent: SnakAgent;
   metadata?: any;
+}
+
+interface MemoryResult {
+  id: number;
+  content: string;
+  history: { value: string; timestamp: string; action: 'UPDATE' }[];
+  similarity: number;
 }
 
 /**
@@ -57,6 +66,7 @@ export class SupervisorAgent extends BaseAgent {
   private snakAgent: SnakAgent | null = null;
   private toolsOrchestrator: ToolsOrchestrator | null = null;
   private memoryAgent: MemoryAgent | null = null;
+  private ragAgent: RagAgent | null = null;
   private workflowController: WorkflowController | null = null;
   private configAgent: ConfigurationAgent | null = null;
   private mcpAgent: MCPAgent | null = null;
@@ -118,6 +128,7 @@ export class SupervisorAgent extends BaseAgent {
     try {
       await this.initializeModelSelector();
       await this.initializeMemoryAgent(agentConfig);
+      await this.initializeRagAgent(agentConfig);
       await this.initializeToolsOrchestrator(agentConfig);
       await this.initializeAgentSelector();
 
@@ -180,6 +191,7 @@ export class SupervisorAgent extends BaseAgent {
       logger.debug('SupervisorAgent: Initializing MemoryAgent...');
       this.memoryAgent = new MemoryAgent({
         shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
+        memorySize: agentConfig?.memory?.memorySize || 20,
         maxIterations: agentConfig?.memory?.maxIterations,
         embeddingModel: agentConfig?.memory?.embeddingModel,
       });
@@ -193,6 +205,30 @@ export class SupervisorAgent extends BaseAgent {
     }
   }
 
+  /**
+   * Initializes the RagAgent component if enabled
+   * @param agentConfig - Agent configuration
+   * @private
+   */
+  private async initializeRagAgent(
+    agentConfig: AgentConfig | undefined
+  ): Promise<void> {
+    const ragCfg = agentConfig?.rag;
+    if (!ragCfg || ragCfg.enabled !== true) {
+      logger.info(
+        'SupervisorAgent: RagAgent initialization skipped (disabled or not configured in config)'
+      );
+      return;
+    }
+    logger.debug('SupervisorAgent: Initializing RagAgent...');
+    this.ragAgent = new RagAgent({
+      topK: ragCfg?.topK,
+      embeddingModel: ragCfg?.embeddingModel,
+    });
+    await this.ragAgent.init();
+    this.operators.set(this.ragAgent.id, this.ragAgent);
+    logger.debug('SupervisorAgent: RagAgent initialized');
+  }
   /**
    * Initializes the ToolsOrchestrator component
    * @param agentConfig - Agent configuration
@@ -507,42 +543,62 @@ export class SupervisorAgent extends BaseAgent {
       depthIndent
     );
 
-    if (
-      this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
-      this.memoryAgent
-    ) {
-      logger.debug(
-        `${depthIndent}SupervisorAgent: Enriching message with memory context for ${callPath}.`
-      );
-      const enrichedMessage =
-        await this.enrichWithMemoryContext(currentMessage);
-      for await (const chunk of this.executeWithMessage(
-        enrichedMessage,
-        config,
-        isNodeCall,
-        callPath,
-        depthIndent
-      )) {
-        if (chunk.final === true) {
-          yield chunk;
-          return;
-        }
-        yield chunk;
-      }
+    const enrichment = await this.enrichMessageWithContext(
+      currentMessage,
+      config,
+      callPath,
+      depthIndent
+    );
+    let enriched = enrichment.message;
+    const memoryResults = enrichment.memoryResults;
+    const ragResults = enrichment.ragResults;
 
-      for await (const chunk of this.executeWithMessage(
-        currentMessage,
-        config,
-        isNodeCall,
-        callPath,
-        depthIndent
-      )) {
-        if (chunk.final === true) {
-          yield chunk;
-          return;
-        }
+    const globalContext = this.formatGlobalContext(
+      memoryResults,
+      ragResults,
+      (this.config.starknetConfig.agentConfig as any)?.globalContextTopK ?? 6
+    );
+
+    if (globalContext) {
+      const originalContent =
+        typeof enriched.content === 'string'
+          ? enriched.content
+          : JSON.stringify(enriched.content);
+      enriched = new HumanMessage({
+        content: originalContent,
+        additional_kwargs: {
+          ...enriched.additional_kwargs,
+          global_context: globalContext,
+        },
+      });
+    }
+
+    for await (const chunk of this.executeWithMessage(
+      enriched,
+      config,
+      isNodeCall,
+      callPath,
+      depthIndent
+    )) {
+      if (chunk.final === true) {
         yield chunk;
+        return;
       }
+      yield chunk;
+    }
+
+    for await (const chunk of this.executeWithMessage(
+      currentMessage,
+      config,
+      isNodeCall,
+      callPath,
+      depthIndent
+    )) {
+      if (chunk.final === true) {
+        yield chunk;
+        return;
+      }
+      yield chunk;
     }
   }
 
@@ -1232,6 +1288,14 @@ export class SupervisorAgent extends BaseAgent {
   }
 
   /**
+   * Gets the RagAgent instance
+   * @returns The RagAgent instance, or null if not initialized
+   */
+  public getRagAgent(): RagAgent | null {
+    return this.ragAgent;
+  }
+
+  /**
    * Gets all available tools from the ToolsOrchestrator and MemoryAgent
    * @returns An array of Tool instances
    */
@@ -1309,6 +1373,7 @@ export class SupervisorAgent extends BaseAgent {
     const agentsToDispose = [
       this.modelSelector,
       this.memoryAgent,
+      this.ragAgent,
       this.toolsOrchestrator,
       this.workflowController,
     ];
@@ -1323,6 +1388,7 @@ export class SupervisorAgent extends BaseAgent {
     this.snakAgent = null;
     this.toolsOrchestrator = null;
     this.memoryAgent = null;
+    this.ragAgent = null;
     this.agentSelector = null;
     this.workflowController = null;
     this.operators.clear();
@@ -1346,25 +1412,26 @@ export class SupervisorAgent extends BaseAgent {
    */
   private async enrichWithMemoryContext(
     message: BaseMessage
-  ): Promise<BaseMessage> {
+  ): Promise<{ message: BaseMessage; memories: any[] }> {
     if (!this.memoryAgent) {
       logger.debug(
         'SupervisorAgent: MemoryAgent not available, skipping context enrichment.'
       );
-      return message;
+      return { message, memories: [] };
     }
 
     try {
       const memories = await this.memoryAgent.retrieveRelevantMemories(
         message,
-        this.config.starknetConfig.agentConfig?.chatId || 'default_chat'
+        this.config.starknetConfig.agentConfig?.chatId || 'default_chat',
+        this.config.starknetConfig.agentConfig?.id
       );
 
       if (memories.length === 0) {
         logger.debug(
           'SupervisorAgent: No relevant memories found for context.'
         );
-        return message;
+        return { message, memories: [] };
       }
 
       const memoryContext = this.memoryAgent.formatMemoriesForContext(memories);
@@ -1377,19 +1444,151 @@ export class SupervisorAgent extends BaseAgent {
           ? message.content
           : JSON.stringify(message.content);
 
-      return new HumanMessage({
+      const enriched = new HumanMessage({
         content: originalContent,
         additional_kwargs: {
           ...message.additional_kwargs,
           memory_context: memoryContext,
         },
       });
+
+      return { message: enriched, memories };
     } catch (error) {
       logger.error(
         `SupervisorAgent: Error enriching message with memory context: ${error}`
       );
-      return message;
+      return { message, memories: [] };
     }
+  }
+
+  private async enrichWithRagContext(
+    message: BaseMessage,
+    agentId?: string
+  ): Promise<{ message: BaseMessage; rag: rag.SearchResult[] }> {
+    if (!this.ragAgent) {
+      logger.debug(
+        'SupervisorAgent: RagAgent not available, skipping context enrichment.'
+      );
+      return { message, rag: [] };
+    }
+
+    try {
+      const rgs = await this.ragAgent.retrieveRelevantRag(
+        message,
+        (this.config.starknetConfig.agentConfig as any)?.rag?.topK,
+        agentId || ''
+      );
+
+      if (!rgs.length) {
+        logger.debug(
+          'SupervisorAgent: No relevant document chunks found for context.'
+        );
+        return { message, rag: [] };
+      }
+
+      const ragContext = this.ragAgent.formatRagForContext(rgs);
+      logger.debug(
+        `SupervisorAgent: Formatted rag context (first 100 chars): "${ragContext.substring(0, 100)}..."`
+      );
+
+      const originalContent =
+        typeof message.content === 'string'
+          ? message.content
+          : JSON.stringify(message.content);
+
+      const enriched = new HumanMessage({
+        content: originalContent,
+        additional_kwargs: {
+          ...message.additional_kwargs,
+          rag_context: ragContext,
+        },
+      });
+
+      return { message: enriched, rag: rgs };
+    } catch (error) {
+      logger.error(
+        `SupervisorAgent: Error enriching message with rag context: ${error}`
+      );
+      return { message, rag: [] };
+    }
+  }
+
+  private async enrichMessageWithContext(
+    message: BaseMessage,
+    config: Record<string, any> | undefined,
+    callPath: string,
+    depthIndent: string
+  ): Promise<{
+    message: BaseMessage;
+    memoryResults: MemoryResult[];
+    ragResults: rag.SearchResult[];
+  }> {
+    let enriched = message;
+    let memoryResults: MemoryResult[] = [];
+    let ragResults: rag.SearchResult[] = [];
+
+    if (
+      this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
+      this.memoryAgent
+    ) {
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Enriching message with memory context for ${callPath}.`
+      );
+      const memRes = await this.enrichWithMemoryContext(message);
+      enriched = memRes.message;
+      memoryResults = memRes.memories as MemoryResult[];
+    }
+
+    if (this.ragAgent) {
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Enriching message with rag context for ${callPath}.`
+      );
+      const ragRes = await this.enrichWithRagContext(
+        enriched,
+        config?.selectedSnakAgent || config?.agentId
+      );
+      enriched = ragRes.message;
+      ragResults = ragRes.rag;
+    }
+
+    return { message: enriched, memoryResults, ragResults };
+  }
+
+  private formatGlobalContext(
+    memories: MemoryResult[],
+    rgs: rag.SearchResult[],
+    topK = 6
+  ): string {
+    const combined = [
+      ...memories.map((m) => ({
+        type: 'memory' as const,
+        similarity: m.similarity,
+        content: m.content,
+        id: m.id,
+      })),
+      ...rgs.map((r) => ({
+        type: 'rag' as const,
+        similarity: r.similarity,
+        content: r.content,
+        document_id: r.document_id,
+        chunk_index: r.chunk_index,
+      })),
+    ];
+
+    combined.sort((a, b) => b.similarity - a.similarity);
+    const selected = combined.slice(0, topK);
+
+    if (!selected.length) return '';
+
+    const formatted = selected
+      .map((item) =>
+        item.type === 'memory'
+          ? `Memory [id: ${item.id}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
+          : `Rag [id: ${item.document_id}, chunk: ${item.chunk_index}, similarity: ${item.similarity.toFixed(4)}]: ${item.content}`
+      )
+      .join('\n\n');
+
+    return `### Global Context ###\n${formatted}\n\n`;
   }
 
   public isExecutionComplete(state: any): boolean {

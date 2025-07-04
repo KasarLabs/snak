@@ -35,6 +35,12 @@ export class getMessagesFromAgentsDTO {
 interface AgentMemory {
   enabled: boolean;
   short_term_memory_size: number;
+  memory_size: number;
+}
+
+interface AgentRag {
+  enabled: boolean;
+  embedding_model: string | null;
 }
 
 interface AgentPrompt {
@@ -51,6 +57,7 @@ export class AgentInitializationDTO {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
+  rag: AgentRag;
 }
 
 export class InitializesRequestDTO {

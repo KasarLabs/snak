@@ -7,6 +7,15 @@ import { AgentMode } from '../../agent.js';
 export interface AgentMemory {
   enabled: boolean;
   short_term_memory_size: number;
+  memory_size: number;
+}
+
+/**
+ * Configuration for agent rag settings
+ */
+export interface AgentRag {
+  enabled: boolean;
+  embedding_model: string | null;
 }
 
 /**
@@ -23,6 +32,7 @@ export interface AgentConfigDatabase {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
+  rag: AgentRag;
   mode: AgentMode;
   max_iterations: number;
 }
@@ -66,6 +76,7 @@ export class AgentInitializationDTO {
   interval: number;
   plugins: string[];
   memory: AgentMemory;
+  rag: AgentRag;
   mode: AgentMode;
   max_iterations: number;
 }
