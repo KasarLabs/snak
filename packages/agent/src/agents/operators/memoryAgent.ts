@@ -304,7 +304,7 @@ export class MemoryAgent extends BaseAgent {
   /**
    * Create a memory node for the graph
    */
- public createMemoryNode(): (
+  public createMemoryNode(): (
     state: MemoryNodeState,
     config: LangGraphRunnableConfig
   ) => Promise<MemoryNodeResult> {

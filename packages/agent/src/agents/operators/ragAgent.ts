@@ -123,11 +123,10 @@ export class RagAgent extends BaseAgent {
 
     return this.formatRagForContext(results);
   }
-  
-  public createRagChain(agentId: string): Runnable<
-    RagChainState,
-    RagChainResult
-  > {
+
+  public createRagChain(
+    agentId: string
+  ): Runnable<RagChainState, RagChainResult> {
     const buildQuery = (state: RagChainState) => {
       const lastUser = [...state.messages]
         .reverse()
@@ -144,19 +143,16 @@ export class RagAgent extends BaseAgent {
       return this.formatRagForContext(docs);
     };
 
-    return RunnableSequence.from<
-      RagChainState,
-      RagChainResult
-    >([
+    return RunnableSequence.from<RagChainState, RagChainResult>([
       buildQuery,
       retrieve,
       (context: string) => ({ rag: context }),
     ]).withConfig({ runName: 'RagContextChain' });
   }
 
-  public createRagNode(agentId: string): (
-    state: RagChainState
-  ) => Promise<RagChainResult> {
+  public createRagNode(
+    agentId: string
+  ): (state: RagChainState) => Promise<RagChainResult> {
     const chain = this.createRagChain(agentId);
     return async (state: RagChainState): Promise<RagChainResult> => {
       try {
