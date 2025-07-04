@@ -237,6 +237,32 @@ export class MemoryAgent extends BaseAgent {
   }
 
   /**
+   * Merge memory and iteration similarity results, then filter and rank them.
+   */
+  private mergeSimilarityResults(
+    memResults: memory.Similarity[],
+    iterResults: iterations.IterationSimilarity[],
+    limit: number
+  ): Array<{
+    id: number;
+    content: string;
+    history: any[];
+    similarity: number;
+  }> {
+    const formattedIter = iterResults.map((it) => ({
+      id: it.id,
+      content: `Question: ${it.question}\nAnswer: ${it.answer}`,
+      history: [],
+      similarity: it.similarity,
+    }));
+
+    return [...memResults, ...formattedIter]
+      .filter((m) => m.similarity >= SIMILARITY_THRESHOLD)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit);
+  }
+
+  /**
    * Prepare memory tools for the interactive agent
    */
   public prepareMemoryTools(): any[] {
@@ -340,19 +366,11 @@ export class MemoryAgent extends BaseAgent {
         );
       }
 
-      const formattedIter = iterResults.map((it) => ({
-        id: it.id,
-        content: `Question: ${it.question}\nAnswer: ${it.answer}`,
-        history: [],
-        similarity: it.similarity,
-      }));
-
-      const filtered = [...memResults, ...formattedIter].filter(
-        (s) => s.similarity >= SIMILARITY_THRESHOLD
+      const combined = this.mergeSimilarityResults(
+        memResults,
+        iterResults,
+        limit
       );
-      const combined = filtered
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, limit);
 
       return this.formatMemoriesForContext(combined);
     };
@@ -395,19 +413,7 @@ export class MemoryAgent extends BaseAgent {
         );
       }
 
-      const formattedIter = iterResults.map((it) => ({
-        id: it.id,
-        content: `Question: ${it.question}\nAnswer: ${it.answer}`,
-        history: [],
-        similarity: it.similarity,
-      }));
-
-      const combined = [...memResults, ...formattedIter].filter(
-        (m) => m.similarity >= SIMILARITY_THRESHOLD
-      );
-      return combined
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, limit);
+      return this.mergeSimilarityResults(memResults, iterResults, limit);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
@@ -595,24 +601,17 @@ export class MemoryAgent extends BaseAgent {
         );
       }
 
-      const formattedIter = iterResults.map((it) => ({
-        id: it.id,
-        content: `Question: ${it.question}\nAnswer: ${it.answer}`,
-        history: [],
-        similarity: it.similarity,
-      }));
-
-      const filtered = [...memResults, ...formattedIter].filter(
-        (m) => m.similarity >= SIMILARITY_THRESHOLD
+      const combined = this.mergeSimilarityResults(
+        memResults,
+        iterResults,
+        limit
       );
 
-      if (filtered.length === 0) {
+      if (combined.length === 0) {
         return 'No relevant memories found.';
       }
 
-      return this.formatMemoriesForContext(
-        filtered.sort((a, b) => b.similarity - a.similarity).slice(0, limit)
-      );
+      return this.formatMemoriesForContext(combined);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
       return `Failed to retrieve memories: ${error}`;
