@@ -17,7 +17,7 @@
   "mode": "The mode of your agent, can be interactive, autonomous or hybrid",
   "memory": {
     "enabled": "true or false to enable or disable memory",
-    "memorySize": "The number of pertinent messages your agent will remember",
+    "memorySize": "The number of pertinent elements your agent will remember",
     "shortTermMemorySize": "The number of messages your agent will remember"
   },
   "rag": {
