@@ -7,7 +7,16 @@ import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { RunnableSequence } from '@langchain/core/runnables';
+import { Runnable, RunnableSequence } from '@langchain/core/runnables';
+
+export interface MemoryNodeState {
+  messages: BaseMessage[];
+  [key: string]: any;
+}
+
+export interface MemoryChainResult {
+  memories: string;
+}
 
 // TODO: env -> config/agents
 const SIMILARITY_THRESHOLD = (() => {
@@ -246,13 +255,13 @@ export class MemoryAgent extends BaseAgent {
   ): Array<{
     id: number;
     content: string;
-    history: any[];
+    history: memory.History[];
     similarity: number;
   }> {
     const formattedIter = iterResults.map((it) => ({
       id: it.id,
       content: `Question: ${it.question}\nAnswer: ${it.answer}`,
-      history: [],
+      history: [] as memory.History[],
       similarity: it.similarity,
     }));
 
@@ -337,8 +346,10 @@ export class MemoryAgent extends BaseAgent {
    * user message. This mirrors the chain used for documents so LangSmith
    * can trace memory retrieval.
    */
-  public createMemoryChain(limit = 4): any {
-    const buildQuery = (state: any) => {
+  public createMemoryChain(
+    limit = 4
+  ): Runnable<MemoryNodeState, MemoryChainResult> {
+    const buildQuery = (state: MemoryNodeState) => {
       const lastUser = [...state.messages]
         .reverse()
         .find((msg: BaseMessage) => msg instanceof HumanMessage);
@@ -375,7 +386,7 @@ export class MemoryAgent extends BaseAgent {
       return this.formatMemoriesForContext(combined);
     };
 
-    return RunnableSequence.from([
+    return RunnableSequence.from<MemoryNodeState, MemoryChainResult>([
       buildQuery,
       fetchMemories,
       (context: string) => ({ memories: context }),
