@@ -5,8 +5,17 @@ import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { rag } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { RunnableSequence } from '@langchain/core/runnables';
+import { Runnable, RunnableSequence } from '@langchain/core/runnables';
 import { RagConfig } from '@snakagent/core';
+
+export interface RagChainState {
+  messages: BaseMessage[];
+  [key: string]: any;
+}
+
+export interface RagChainResult {
+  rag: string;
+}
 
 const SIMILARITY_THRESHOLD = (() => {
   const value = parseFloat(process.env.RAG_SIMILARITY_THRESHOLD || '0.5');
@@ -114,9 +123,12 @@ export class RagAgent extends BaseAgent {
 
     return this.formatRagForContext(results);
   }
-
-  public createRagChain(agentId: string): any {
-    const buildQuery = (state: any) => {
+  
+  public createRagChain(agentId: string): Runnable<
+    RagChainState,
+    RagChainResult
+  > {
+    const buildQuery = (state: RagChainState) => {
       const lastUser = [...state.messages]
         .reverse()
         .find((msg: BaseMessage) => msg instanceof HumanMessage);
@@ -132,16 +144,21 @@ export class RagAgent extends BaseAgent {
       return this.formatRagForContext(docs);
     };
 
-    return RunnableSequence.from([
+    return RunnableSequence.from<
+      RagChainState,
+      RagChainResult
+    >([
       buildQuery,
       retrieve,
       (context: string) => ({ rag: context }),
     ]).withConfig({ runName: 'RagContextChain' });
   }
 
-  public createRagNode(agentId: string): any {
+  public createRagNode(agentId: string): (
+    state: RagChainState
+  ) => Promise<RagChainResult> {
     const chain = this.createRagChain(agentId);
-    return async (state: any, _config: LangGraphRunnableConfig) => {
+    return async (state: RagChainState): Promise<RagChainResult> => {
       try {
         return await chain.invoke(state);
       } catch (error) {

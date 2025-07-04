@@ -36,6 +36,13 @@ interface AgentRegistration {
   metadata?: any;
 }
 
+interface MemoryResult {
+  id: number;
+  content: string;
+  history: { value: string; timestamp: string; action: 'UPDATE' }[];
+  similarity: number;
+}
+
 /**
  * Helper class for managing batch registration sessions
  */
@@ -536,34 +543,15 @@ export class SupervisorAgent extends BaseAgent {
       depthIndent
     );
 
-    let enriched = currentMessage;
-
-    let memoryResults: any[] = [];
-    let ragResults: rag.SearchResult[] = [];
-
-    if (
-      this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
-      this.memoryAgent
-    ) {
-      logger.debug(
-        `${depthIndent}SupervisorAgent: Enriching message with memory context for ${callPath}.`
-      );
-      const memRes = await this.enrichWithMemoryContext(currentMessage);
-      enriched = memRes.message;
-      memoryResults = memRes.memories;
-    }
-
-    if (this.ragAgent) {
-      logger.debug(
-        `${depthIndent}SupervisorAgent: Enriching message with rag context for ${callPath}.`
-      );
-      const ragRes = await this.enrichWithRagContext(
-        enriched,
-        config?.selectedSnakAgent || config?.agentId
-      );
-      enriched = ragRes.message;
-      ragResults = ragRes.rag;
-    }
+    const enrichment = await this.enrichMessageWithContext(
+      currentMessage,
+      config,
+      callPath,
+      depthIndent
+    );
+    let enriched = enrichment.message;
+    const memoryResults = enrichment.memoryResults;
+    const ragResults = enrichment.ragResults;
 
     const globalContext = this.formatGlobalContext(
       memoryResults,
@@ -1525,8 +1513,49 @@ export class SupervisorAgent extends BaseAgent {
     }
   }
 
+  private async enrichMessageWithContext(
+    message: BaseMessage,
+    config: Record<string, any> | undefined,
+    callPath: string,
+    depthIndent: string
+  ): Promise<{
+    message: BaseMessage;
+    memoryResults: MemoryResult[];
+    ragResults: rag.SearchResult[];
+  }> {
+    let enriched = message;
+    let memoryResults: MemoryResult[] = [];
+    let ragResults: rag.SearchResult[] = [];
+
+    if (
+      this.config.starknetConfig.agentConfig?.memory?.enabled !== false &&
+      this.memoryAgent
+    ) {
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Enriching message with memory context for ${callPath}.`
+      );
+      const memRes = await this.enrichWithMemoryContext(message);
+      enriched = memRes.message;
+      memoryResults = memRes.memories as MemoryResult[];
+    }
+
+    if (this.ragAgent) {
+      logger.debug(
+        `${depthIndent}SupervisorAgent: Enriching message with rag context for ${callPath}.`
+      );
+      const ragRes = await this.enrichWithRagContext(
+        enriched,
+        config?.selectedSnakAgent || config?.agentId
+      );
+      enriched = ragRes.message;
+      ragResults = ragRes.rag;
+    }
+
+    return { message: enriched, memoryResults, ragResults };
+  }
+
   private formatGlobalContext(
-    memories: any[],
+    memories: MemoryResult[],
     rgs: rag.SearchResult[],
     topK = 6
   ): string {

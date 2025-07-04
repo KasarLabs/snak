@@ -31,6 +31,15 @@ export interface MemoryConfig {
   embeddingModel?: string;
 }
 
+export interface MemoryNodeState {
+  messages: BaseMessage[];
+  [key: string]: any;
+}
+
+export interface MemoryNodeResult {
+  memories: string;
+}
+
 /**
  * Operator agent that manages memory and knowledge
  */
@@ -295,9 +304,15 @@ export class MemoryAgent extends BaseAgent {
   /**
    * Create a memory node for the graph
    */
-  public createMemoryNode(): any {
+ public createMemoryNode(): (
+    state: MemoryNodeState,
+    config: LangGraphRunnableConfig
+  ) => Promise<MemoryNodeResult> {
     const chain = this.createMemoryChain();
-    return async (state: any, config: LangGraphRunnableConfig) => {
+    return async (
+      state: MemoryNodeState,
+      config: LangGraphRunnableConfig
+    ): Promise<MemoryNodeResult> => {
       try {
         return await chain.invoke(state, config);
       } catch (error) {
