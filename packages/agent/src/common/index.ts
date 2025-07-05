@@ -31,10 +31,21 @@ export interface IAgent {
     accountPrivateKey: string;
     accountPublicKey: string;
   };
+}
 
+export interface IExtendedAgent extends IAgent {
+  /**
+   * Returns the RPC provider for the agent.
+   */
   getProvider(): RpcProvider;
 
+  /**
+   * Retrieves the agent configuration.
+   */
   getAgentConfig(): AgentConfig;
 
+  /**
+   * Returns the agent's operating mode.
+   */
   getAgentMode(): string;
 }

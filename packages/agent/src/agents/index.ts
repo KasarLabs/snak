@@ -6,64 +6,23 @@ import { RpcProvider } from 'starknet';
 import { logger, AgentConfig, ModelsConfig } from '@snakagent/core';
 import { AgentMode } from '../config/agentConfig.js';
 import { Postgres } from '@snakagent/database';
-import { IterationResponse, SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
-import { BaseMessage } from '@langchain/core/messages';
-import { DatabaseCredentials } from 'tools/types/database.js';
+import { SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
+import { DatabaseCredentials } from '../tools/types/database.js';
 import { ModelSelector } from './operators/modelSelector.js';
-import { IAgent } from './core/baseAgent.js';
+import { IAgent } from './core/baseAgent.types.js';
 
-export interface Conversation {
-  conversation_name: string;
-}
-
-export interface AgentIterations {
-  data: IterationResponse;
-}
-
-export interface MessageRequest {
-  agent_id: string;
-  user_request: string;
-}
-
-export interface Message {
-  agent_id: string;
-  user_request: string;
-  agent_iteration_id: string;
-}
-
-export interface ConversationResponse {
-  conversation_id: number;
-  conversation_name: string;
-}
-
-export interface OutputResponse {
-  index: number;
-  type: string;
-  text: string;
-}
-
-export interface Response {
-  output: Message;
-  input: Message;
-}
-
-export interface ErrorResponse {
-  statusCode: number;
-  name: string;
-  errorCode: string;
-  errorMessage: string;
-}
-
-export interface ServerState {
-  index: number;
-  type: string;
-  status: string;
-  text: string;
-}
-
-export interface ExecutionState {
-  messages: BaseMessage[];
-}
+import type {
+  Conversation,
+  AgentIterations,
+  MessageRequest,
+  Message,
+  ConversationResponse,
+  OutputResponse,
+  Response,
+  ErrorResponse,
+  ServerState,
+  ExecutionState,
+} from './types.js';
 
 /**
  * Configuration for the agent system initialization
@@ -83,13 +42,19 @@ export interface AgentSystemConfig {
  * Main class for initializing and managing the agent system
  */
 export class AgentSystem {
-  private supervisorAgent: SupervisorAgent | null = null;
-  private config: AgentSystemConfig;
-  private agentConfig: AgentConfig;
-  private snakAgent: SnakAgent | null = null;
+  private readonly supervisorAgent: SupervisorAgent;
+  private readonly config: AgentSystemConfig;
+  private readonly snakAgent: SnakAgent;
+  private agentConfig!: AgentConfig;
 
-  constructor(config: AgentSystemConfig) {
+  constructor(
+    config: AgentSystemConfig,
+    supervisorAgent: SupervisorAgent,
+    snakAgent: SnakAgent
+  ) {
     this.config = config;
+    this.supervisorAgent = supervisorAgent;
+    this.snakAgent = snakAgent;
     logger.info('Initializing Agent System\n');
   }
 
@@ -99,49 +64,11 @@ export class AgentSystem {
    */
   public async init(): Promise<void> {
     try {
-      if (this.config.agentConfigPath) {
-        logger.debug(
-          `AgentSystem: Loading agent configuration from: ${this.config.agentConfigPath}`
-        );
-        try {
-          if (typeof this.config.agentConfigPath === 'string') {
-            this.agentConfig = await this.loadAgentConfig(
-              this.config.agentConfigPath
-            );
-          } else {
-            this.agentConfig = this.config.agentConfigPath;
-          }
-        } catch (loadError) {
-          logger.error(
-            `AgentSystem: Failed to load agent configuration: ${loadError}`
-          );
-        }
-      } else {
-        logger.warn(
-          'AgentSystem: No agentConfigPath provided, proceeding without agent-specific configuration.'
-        );
-      }
-
-      if (!this.agentConfig) {
-        throw new Error('Agent configuration is required');
-      }
-
-      const supervisorConfigObject: SupervisorAgentConfig = {
-        modelsConfig: this.config.modelsConfig,
-        debug: this.config.debug,
-        starknetConfig: {
-          provider: this.config.starknetProvider,
-          accountPrivateKey: this.config.accountPrivateKey,
-          accountPublicKey: this.config.accountPublicKey,
-          agentConfig: this.agentConfig,
-          db_credentials: this.config.databaseCredentials,
-          modelSelector: null,
-        },
-      };
-
-      this.supervisorAgent = new SupervisorAgent(supervisorConfigObject);
       await this.supervisorAgent.init();
-      await this.createAndRegisterSnakAgent();
+      await this.snakAgent.init();
+      this.agentConfig = this.snakAgent.getAgentConfig();
+
+      await this.registerSnakAgent();
 
       logger.debug('AgentSystem: Initialization complete');
     } catch (error) {
@@ -154,66 +81,26 @@ export class AgentSystem {
    * Creates a SnakAgent and registers it with the SupervisorAgent
    * @throws {Error} When SnakAgent creation or registration fails
    */
-  private async createAndRegisterSnakAgent(): Promise<void> {
+  private async registerSnakAgent(): Promise<void> {
     try {
-      logger.debug('AgentSystem: Creating and registering SnakAgent...');
+      logger.debug('AgentSystem: Registering SnakAgent...');
 
-      const modelSelector = this.supervisorAgent?.getOperator(
-        'model-selector'
-      ) as ModelSelector | null;
-
-      const snakAgentConfig: SnakAgentConfig = {
-        provider: this.config.starknetProvider,
-        accountPrivateKey: this.config.accountPrivateKey,
-        accountPublicKey: this.config.accountPublicKey,
-        db_credentials: this.config.databaseCredentials,
-        agentConfig: this.agentConfig,
-        memory: this.agentConfig.memory,
-        modelSelector: modelSelector,
+      const agentId = this.agentConfig.id || 'main-agent';
+      const metadata = {
+        name: this.agentConfig.name || 'Main SnakAgent',
+        description: `Main Snak agent for ${this.agentConfig.name || 'the system'}`,
+        group: this.agentConfig.group || 'snak',
       };
 
-      this.snakAgent = new SnakAgent(snakAgentConfig);
-      await this.snakAgent.init();
+      this.supervisorAgent.registerSnakAgent(this.snakAgent, metadata);
 
-      if (this.supervisorAgent) {
-        const agentId = this.agentConfig.id || 'main-agent';
-        const metadata = {
-          name: this.agentConfig.name || 'Main SnakAgent',
-          description: `Main Snak agent for ${this.agentConfig.name || 'the system'}`,
-          group: this.agentConfig.group || 'snak',
-        };
-
-        this.supervisorAgent.registerSnakAgent(this.snakAgent, metadata);
-
-        await this.supervisorAgent.refreshWorkflowController();
-        logger.debug(`AgentSystem: SnakAgent registered with ID: ${agentId}`);
-      } else {
-        throw new Error('SupervisorAgent not initialized');
-      }
+      await this.supervisorAgent.refreshWorkflowController();
+      logger.debug(`AgentSystem: SnakAgent registered with ID: ${agentId}`);
     } catch (error) {
       logger.error(
         `AgentSystem: Failed to create and register SnakAgent: ${error}`
       );
       throw error;
-    }
-  }
-
-  /**
-   * Loads agent configuration from the specified file path
-   * @param configPath The path to the agent configuration file
-   * @returns A promise that resolves with the parsed AgentConfig
-   * @throws {Error} When the configuration file cannot be read or parsed
-   */
-  private async loadAgentConfig(configPath: string): Promise<AgentConfig> {
-    try {
-      const fs = await import('fs/promises');
-      const configContent = await fs.readFile(configPath, 'utf-8');
-      return JSON.parse(configContent);
-    } catch (error) {
-      logger.error(
-        `Failed to load agent configuration from ${configPath}: ${error}`
-      );
-      throw new Error(`Failed to load agent configuration: ${error}`);
     }
   }
 
@@ -229,37 +116,54 @@ export class AgentSystem {
     isInterrupted: boolean = false,
     config?: Record<string, unknown>
   ): Promise<string> {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
-
     try {
-      Postgres.connect(this.config.databaseCredentials);
-      const content =
-        typeof message === 'string' ? message : message.user_request;
-      let result;
-      for await (const chunk of this.supervisorAgent.execute(
-        content,
-        false,
-        config as Record<string, any>
-      )) {
-        if (chunk.final === true) {
-          result = chunk.chunk;
-        }
-      }
-
-      return this.supervisorAgent.formatResponse(result);
+      this.connectDatabase();
+      const content = this.extractContent(message);
+      const result = await this.runSupervisorExecution(content, config);
+      return this.formatExecutionResult(result);
     } catch (error) {
       logger.error(`AgentSystem: Execution error: ${error}`);
       throw error;
     }
   }
 
+  private connectDatabase(): void {
+    Postgres.connect(this.config.databaseCredentials);
+  }
+
+  private extractContent(message: MessageRequest | string): string {
+    return typeof message === 'string' ? message : message.user_request;
+  }
+
+  private async runSupervisorExecution(
+    content: string,
+    config?: Record<string, unknown>
+  ): Promise<OutputResponse | Response> {
+    let result: OutputResponse | Response | undefined;
+    for await (const chunk of this.supervisorAgent.execute(
+      content,
+      false,
+      config
+    )) {
+      if (chunk.final === true) {
+        result = chunk.chunk;
+      }
+    }
+    if (!result) {
+      throw new Error('No result received from supervisor execution');
+    }
+    return result;
+  }
+
+  private formatExecutionResult(result: OutputResponse | Response): string {
+    return this.supervisorAgent.formatResponse(result);
+  }
+
   /**
    * Retrieves the supervisor agent instance
    * @returns The SupervisorAgent instance, or null if not initialized
    */
-  public getSupervisor(): SupervisorAgent | null {
+  public getSupervisor(): SupervisorAgent {
     return this.supervisorAgent;
   }
 
@@ -268,10 +172,7 @@ export class AgentSystem {
    * @returns The Snak agent instance
    * @throws {Error} When the agent system is not initialized
    */
-  public getSnakAgent(): SnakAgent | null {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
+  public getSnakAgent(): SnakAgent {
     return this.snakAgent;
   }
 
@@ -282,9 +183,6 @@ export class AgentSystem {
    * @throws {Error} When the agent system is not initialized
    */
   public getOperator(id: string): IAgent | undefined {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
     return this.supervisorAgent.getOperator(id);
   }
 
@@ -294,16 +192,12 @@ export class AgentSystem {
   public async dispose(): Promise<void> {
     logger.debug('AgentSystem: Disposing resources');
 
-    if (this.snakAgent) {
-      try {
-        await this.snakAgent.dispose();
-      } catch (error) {
-        logger.error('AgentSystem: Error disposing SnakAgent:', error);
-      }
-      this.snakAgent = null;
+    try {
+      await this.snakAgent.dispose();
+    } catch (error) {
+      logger.error('AgentSystem: Error disposing SnakAgent:', error);
     }
 
-    this.supervisorAgent = null;
     logger.info('AgentSystem: Resources disposed');
   }
 
@@ -362,10 +256,6 @@ export class AgentSystem {
    * @throws {Error} When the agent system is not initialized
    */
   public isExecutionComplete(state: ExecutionState): boolean {
-    if (!this.supervisorAgent) {
-      throw new Error('Agent system not initialized. Call init() first.');
-    }
-
     return this.supervisorAgent.isExecutionComplete(state);
   }
 }
@@ -378,7 +268,62 @@ export class AgentSystem {
 export async function createAgentSystem(
   config: AgentSystemConfig
 ): Promise<AgentSystem> {
-  const system = new AgentSystem(config);
+  let agentConfig: AgentConfig;
+  if (config.agentConfigPath) {
+    logger.debug(
+      `AgentSystem: Loading agent configuration from: ${config.agentConfigPath}`
+    );
+    if (typeof config.agentConfigPath === 'string') {
+      try {
+        const fs = await import('fs/promises');
+        const content = await fs.readFile(config.agentConfigPath, 'utf-8');
+        agentConfig = JSON.parse(content);
+      } catch (error) {
+        throw new Error(
+          `Failed to load agent configuration from ${config.agentConfigPath}: ${error}`
+        );
+      }
+    } else {
+      agentConfig = config.agentConfigPath;
+    }
+  } else {
+    throw new Error('Agent configuration is required');
+  }
+
+  const supervisorConfig: SupervisorAgentConfig = {
+    modelsConfig: config.modelsConfig,
+    debug: config.debug,
+    starknetConfig: {
+      provider: config.starknetProvider,
+      accountPrivateKey: config.accountPrivateKey,
+      accountPublicKey: config.accountPublicKey,
+      agentConfig,
+      db_credentials: config.databaseCredentials,
+      modelSelector: null,
+    },
+  };
+
+  const supervisorAgent = new SupervisorAgent(supervisorConfig);
+  await supervisorAgent.init();
+
+  const modelSelector = supervisorAgent.getOperator(
+    'model-selector'
+  ) as ModelSelector | null;
+
+  const snakAgentConfig: SnakAgentConfig = {
+    provider: config.starknetProvider,
+    accountPrivateKey: config.accountPrivateKey,
+    accountPublicKey: config.accountPublicKey,
+    db_credentials: config.databaseCredentials,
+    agentConfig,
+    memory: agentConfig.memory,
+    modelSelector,
+  };
+
+  const snakAgent = new SnakAgent(snakAgentConfig);
+  await snakAgent.init();
+
+  const system = new AgentSystem(config, supervisorAgent, snakAgent);
   await system.init();
   return system;
 }

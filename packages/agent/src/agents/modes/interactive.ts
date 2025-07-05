@@ -4,59 +4,23 @@ import {
   AIMessage,
   AIMessageChunk,
   BaseMessage,
-  HumanMessage,
 } from '@langchain/core/messages';
-import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from '@langchain/core/prompts';
 import { logger, AgentConfig } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import {
   initializeToolsList,
   initializeDatabase,
-  truncateToolResults,
-  formatAgentResponse,
   wrapToolNodeInvoke,
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
-import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
-import { interactiveRules } from '../../prompt/prompts.js';
-import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
-import { RagAgent } from 'agents/operators/ragAgent.js';
-
-/**
- * Retrieves the memory agent instance from the SupervisorAgent.
- * @returns A promise that resolves to the memory agent instance or null if not found or an error occurs.
- */
-const getMemoryAgent = async () => {
-  try {
-    // Try to get supervisor instance
-    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
-    if (supervisorAgent) {
-      return await supervisorAgent.getMemoryAgent();
-    }
-    return null;
-  } catch (error) {
-    logger.error(`Failed to get memory agent: ${error}`);
-    return null;
-  }
-};
-
-const getRagAgent = async () => {
-  try {
-    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
-    if (supervisorAgent) {
-      return await supervisorAgent.getRagAgent();
-    }
-    return null;
-  } catch (error) {
-    logger.error(`Failed to get rag agent: ${error}`);
-    return null;
-  }
-};
+import { MemoryAgent } from '../operators/memoryAgent.js';
+import { RagAgent } from '../operators/ragAgent.js';
+import {
+  getMemoryAgent,
+  getRagAgent,
+  callModel as callModelHelper,
+} from './helpers/interactive.js';
 
 /**
  * Creates and configures an interactive agent.
@@ -81,31 +45,22 @@ export const createInteractiveAgent = async (
 
     let memoryAgent: MemoryAgent | null = null;
     if (agent_config.memory) {
-      try {
-        memoryAgent = await getMemoryAgent();
-        if (memoryAgent) {
-          logger.debug('Successfully retrieved memory agent');
-          const memoryTools = memoryAgent.prepareMemoryTools();
-          toolsList.push(...memoryTools);
-        } else {
-          logger.warn(
-            'Memory agent not available, memory features will be limited'
-          );
-        }
-      } catch (error) {
-        logger.error(`Error retrieving memory agent: ${error}`);
+      memoryAgent = await getMemoryAgent();
+      if (memoryAgent) {
+        logger.debug('Successfully retrieved memory agent');
+        toolsList.push(...memoryAgent.prepareMemoryTools());
+      } else {
+        logger.warn(
+          'Memory agent not available, memory features will be limited'
+        );
       }
     }
 
     let ragAgent: RagAgent | null = null;
     if (agent_config.rag?.enabled !== false) {
-      try {
-        ragAgent = await getRagAgent();
-        if (!ragAgent) {
-          logger.warn('Rag agent not available, rag context will be skipped');
-        }
-      } catch (error) {
-        logger.error(`Error retrieving rag agent: ${error}`);
+      ragAgent = await getRagAgent();
+      if (!ragAgent) {
+        logger.warn('Rag agent not available, rag context will be skipped');
       }
     }
 
@@ -123,205 +78,15 @@ export const createInteractiveAgent = async (
     const configPrompt = agent_config.prompt?.content || '';
     const finalPrompt = `${configPrompt}`;
 
-    /**
-     * Calls the appropriate language model with the current state and tools.
-     * @param state - The current state of the graph.
-     * @returns A promise that resolves to an object containing the model's response messages.
-     * @throws Will throw an error if agent configuration is incomplete or if model invocation fails.
-     */
-    async function callModel(
-      state: typeof GraphState.State
-    ): Promise<{ messages: BaseMessage[] }> {
-      if (!agent_config) {
-        throw new Error('Agent configuration is required but not available');
-      }
-      const interactiveSystemPrompt = `
-        ${interactiveRules}
-        Available tools: ${toolsList.map((tool) => tool.name).join(', ')}
-      `;
-      const systemMessages: (
-        | string
-        | MessagesPlaceholder
-        | [string, string]
-      )[] = [
-        [
-          'system',
-          `${finalPrompt.trim()}
-        ${interactiveSystemPrompt}`.trim(),
-        ],
-      ];
-
-      const lastUserMessage =
-        [...state.messages]
-          .reverse()
-          .find((msg) => msg instanceof HumanMessage) ||
-        state.messages[state.messages.length - 1];
-
-      if (memoryAgent && lastUserMessage) {
-        try {
-          const memories = await memoryAgent.retrieveRelevantMemories(
-            lastUserMessage,
-            agent_config.chatId || 'default_chat',
-            agent_config.id
-          );
-          if (memories?.length) {
-            const memoryContext =
-              memoryAgent.formatMemoriesForContext(memories);
-            if (memoryContext.trim()) {
-              systemMessages.push(['system', memoryContext]);
-            }
-          }
-        } catch (error) {
-          logger.error(`Error retrieving memory context: ${error}`);
-        }
-      }
-
-      if (ragAgent && lastUserMessage) {
-        try {
-          const docs = await ragAgent.retrieveRelevantRag(
-            lastUserMessage,
-            agent_config.rag?.topK,
-            agent_config.id
-          );
-          if (docs?.length) {
-            const ragContext = ragAgent.formatRagForContext(docs);
-            if (ragContext.trim()) {
-              systemMessages.push(['system', ragContext]);
-            }
-          }
-        } catch (error) {
-          logger.error(`Error retrieving rag context: ${error}`);
-        }
-      }
-
-      systemMessages.push(new MessagesPlaceholder('messages'));
-
-      const prompt = ChatPromptTemplate.fromMessages(systemMessages);
-
-      try {
-        const filteredMessages = state.messages.filter(
-          (msg) =>
-            !(
-              msg instanceof AIMessageChunk &&
-              msg.additional_kwargs?.from === 'model-selector'
-            )
-        );
-
-        const currentMessages = filteredMessages;
-
-        if (modelSelector) {
-          // Extract originalUserQuery from first HumanMessage if available
-          const originalUserMessage = currentMessages.find(
-            (msg): msg is HumanMessage => msg instanceof HumanMessage
-          );
-          const originalUserQuery = originalUserMessage
-            ? typeof originalUserMessage.content === 'string'
-              ? originalUserMessage.content
-              : JSON.stringify(originalUserMessage.content)
-            : '';
-
-          const selectedModelType = await modelSelector.selectModelForMessages(
-            filteredMessages,
-            { originalUserQuery }
-          );
-
-          const boundModel =
-            typeof selectedModelType.model.bindTools === 'function'
-              ? selectedModelType.model.bindTools(toolsList)
-              : selectedModelType.model;
-
-          const formattedPrompt = await prompt.formatMessages({
-            messages: currentMessages,
-          });
-
-          const result = await boundModel.invoke(formattedPrompt);
-          TokenTracker.trackCall(result, selectedModelType.model_name);
-          return {
-            messages: [...formattedPrompt, result],
-          };
-        } else {
-          const existingModelSelector = ModelSelector.getInstance();
-          if (existingModelSelector) {
-            throw new Error(
-              'Model selection requires a configured ModelSelector'
-            );
-          } else {
-            logger.warn(
-              'No model selector available, using direct provider selection is not supported without a ModelSelector.'
-            );
-            throw new Error(
-              'Model selection requires a configured ModelSelector'
-            );
-          }
-        }
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          (error.message.includes('token limit') ||
-            error.message.includes('tokens exceed') ||
-            error.message.includes('context length'))
-        ) {
-          logger.error(`Token limit error: ${error.message}`);
-
-          logger.error(`Model invocation failed: ${error}`);
-          throw error;
-        }
-        // For any other error, rethrow to ensure function never returns undefined
-        throw error;
-      }
-    }
-
-    /**
-     * Formats the result from an AI model call into a consistent AIMessage structure.
-     * Also truncates the message content if it's too long and logs the response.
-     * @param result - The raw result from the AI model.
-     * @returns An object containing an array with a single formatted AIMessage.
-     */
-    function formatAIMessageResult(result: any): { messages: BaseMessage[] } {
-      let finalResult = result;
-      if (!(finalResult instanceof AIMessage)) {
-        finalResult = new AIMessage({
-          content:
-            typeof finalResult.content === 'string'
-              ? finalResult.content
-              : JSON.stringify(finalResult.content),
-          additional_kwargs: {
-            from: 'snak',
-            final: true,
-          },
-        });
-      } else if (!finalResult.additional_kwargs) {
-        finalResult.additional_kwargs = { from: 'snak', final: true };
-      } else if (!finalResult.additional_kwargs.from) {
-        finalResult.additional_kwargs.from = 'snak';
-        finalResult.additional_kwargs.final = true;
-      }
-
-      const truncatedResultInstance = truncateToolResults(finalResult, 5000);
-
-      const resultToLog = truncatedResultInstance || finalResult;
-
-      if (
-        resultToLog instanceof AIMessage ||
-        (resultToLog &&
-          typeof resultToLog === 'object' &&
-          'content' in resultToLog)
-      ) {
-        const content =
-          typeof resultToLog.content === 'string'
-            ? resultToLog.content
-            : JSON.stringify(resultToLog.content || '');
-
-        if (content?.trim()) {
-          logger.info(`Agent Response:
-
-${formatAgentResponse(content)}`);
-        }
-      }
-      return {
-        messages: [result],
-      };
-    }
+    const callModel = (state: typeof GraphState.State) =>
+      callModelHelper(state, {
+        agent_config,
+        toolsList,
+        modelSelector,
+        memoryAgent,
+        ragAgent,
+        finalPrompt,
+      });
 
     /**
      * Determines the next step in the workflow based on the last message.

@@ -1,9 +1,5 @@
-import {
-  BaseAgent,
-  AgentType,
-  AgentMessage,
-  IAgent,
-} from '../core/baseAgent.js';
+import { BaseAgent, AgentType, AgentMessage } from '../core/baseAgent.js';
+import { IAgent } from '../core/baseAgent.types.js';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { SnakAgent, SnakAgentConfig } from '../core/snakAgent.js';
 import { ToolsOrchestrator } from '../operators/toolOrchestratorAgent.js';
@@ -1317,7 +1313,7 @@ export class SupervisorAgent extends BaseAgent {
       tools.push(...(this.toolsOrchestrator.getTools() as Tool[]));
     }
     if (this.memoryAgent) {
-      tools.push(...(this.memoryAgent.getMemoryTools() as Tool[]));
+      tools.push(...this.memoryAgent.getMemoryTools());
     }
     return tools;
   }

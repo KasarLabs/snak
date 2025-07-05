@@ -1,7 +1,7 @@
 import { MemorySaver, StateGraph, END, START } from '@langchain/langgraph';
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
-import { IAgent } from '../core/baseAgent.js';
+import { IAgent } from '../core/baseAgent.types.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import crypto from 'crypto';
 import { AgentType } from '../core/baseAgent.js';
