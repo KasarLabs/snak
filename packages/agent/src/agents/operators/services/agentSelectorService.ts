@@ -92,7 +92,7 @@ export class AgentSelectorService {
             description = agentConfig.description;
           }
         } catch (e) {
-          logger.debug(`Could not retrieve agent config for ${id}: ${e}`);
+          logger.warn(`Could not retrieve agent config for ${id}: ${e}`);
         }
       }
 
@@ -255,7 +255,11 @@ export class AgentSelectorService {
         content: agentSelectionPrompt(query),
       });
 
-      const model = this.modelSelector.getModels()['fast'];
+      const models = this.modelSelector.getModels();
+      const model = models['fast'];
+      if (!model) {
+        throw new Error('Fast model not available for agent selection');
+      }
       const result = await model.invoke([systemPrompt, humanPrompt]);
       const content =
         typeof result.content === 'string'
