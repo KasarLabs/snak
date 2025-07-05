@@ -1,19 +1,26 @@
 import { logger, AgentConfig } from '@snakagent/core';
-import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from '@langchain/core/prompts';
 import {
   BaseMessage,
   HumanMessage,
   AIMessageChunk,
 } from '@langchain/core/messages';
-import { ModelSelector } from 'agents/operators/modelSelector.js';
-import { interactiveRules } from 'prompt/prompts.js';
-import { TokenTracker } from 'token/tokenTracking.js';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
-import { RagAgent } from 'agents/operators/ragAgent.js';
-import { SupervisorAgent } from 'agents/supervisor/supervisorAgent.js';
-import { formatAgentResponse, truncateToolResults } from 'agents/core/utils.js';
+import { ModelSelector } from '../../operators/modelSelector.js';
+import { interactiveRules } from '../../../prompt/prompts.js';
+import { TokenTracker } from '../../../token/tokenTracking.js';
+import { MemoryAgent } from '../../operators/memoryAgent.js';
+import { RagAgent } from '../../operators/ragAgent.js';
+import { SupervisorAgent } from '../../supervisor/supervisorAgent.js';
+import { formatAgentResponse, truncateToolResults } from '../../core/utils.js';
 
-import { Tool, DynamicStructuredTool, StructuredTool } from '@langchain/core/tools';
+import {
+  Tool,
+  DynamicStructuredTool,
+  StructuredTool,
+} from '@langchain/core/tools';
 import { AIMessage } from '@langchain/core/messages';
 
 export async function getMemoryAgent(): Promise<MemoryAgent | null> {
@@ -185,7 +192,9 @@ export async function callModel<S extends { messages: BaseMessage[] }>(
   }
 }
 
-export function formatAIMessageResult(result: any): { messages: BaseMessage[] } {
+export function formatAIMessageResult(result: any): {
+  messages: BaseMessage[];
+} {
   let finalResult = result;
   if (!(finalResult instanceof AIMessage)) {
     finalResult = new AIMessage({

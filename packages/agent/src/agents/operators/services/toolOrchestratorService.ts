@@ -1,9 +1,13 @@
 import { logger } from '@snakagent/core';
-import { SnakAgentInterface } from 'tools/tools.js';
-import { createAllowedTools } from 'tools/tools.js';
-import { createSignatureTools } from 'tools/signatureTools.js';
-import { MCP_CONTROLLER } from 'services/mcp/src/mcp.js';
-import { Tool, StructuredTool, DynamicStructuredTool } from '@langchain/core/tools';
+import { SnakAgentInterface } from '../../../tools/tools.js';
+import { createAllowedTools } from '../../../tools/tools.js';
+import { createSignatureTools } from '../../../tools/signatureTools.js';
+import { MCP_CONTROLLER } from '../../../services/mcp/src/mcp.js';
+import {
+  Tool,
+  StructuredTool,
+  DynamicStructuredTool,
+} from '@langchain/core/tools';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { ModelSelector } from '../modelSelector.js';
@@ -32,7 +36,9 @@ export class ToolsOrchestratorService {
       logger.debug('ToolsOrchestrator: Starting initialization');
       await this.initializeTools();
       this.toolNode = new ToolNode(this.tools);
-      logger.debug(`ToolsOrchestrator: Initialized with ${this.tools.length} tools`);
+      logger.debug(
+        `ToolsOrchestrator: Initialized with ${this.tools.length} tools`
+      );
     } catch (error) {
       logger.error(`ToolsOrchestrator: Initialization failed: ${error}`);
       throw new Error(`ToolsOrchestrator initialization failed: ${error}`);

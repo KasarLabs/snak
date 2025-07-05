@@ -4,9 +4,9 @@ import { logger } from '@snakagent/core';
 import { getConfigAgentTools } from '../config-agent/configAgentTools.js';
 import { Tool } from '@langchain/core/tools';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { configurationAgentSystemPrompt } from 'prompt/configAgentPrompts.js';
+import { configurationAgentSystemPrompt } from '../../../prompt/configAgentPrompts.js';
 import { ModelSelector } from '../modelSelector.js';
-import { ExecuteConfig, ModelServiceConfig } from 'agents/types.js';
+import { ExecuteConfig, ModelServiceConfig } from '../../types.js';
 
 export interface ConfigurationAgentServiceConfig extends ModelServiceConfig {}
 
@@ -153,7 +153,9 @@ export class ConfigurationAgentService {
           typeof message.content === 'string'
         ) {
           if (this.debug) {
-            logger.debug(`ConfigurationAgent: Using first HumanMessage content`);
+            logger.debug(
+              `ConfigurationAgent: Using first HumanMessage content`
+            );
           }
           return message.content;
         }

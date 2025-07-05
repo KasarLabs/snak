@@ -6,22 +6,21 @@ import {
   BaseMessage,
 } from '@langchain/core/messages';
 import { logger, AgentConfig } from '@snakagent/core';
-import { SnakAgentInterface } from 'tools/tools.js';
+import { SnakAgentInterface } from '../../tools/tools.js';
 import {
   initializeToolsList,
   initializeDatabase,
   wrapToolNodeInvoke,
-} from 'agents/core/utils.js';
-import { ModelSelector } from 'agents/operators/modelSelector.js';
+} from '../core/utils.js';
+import { ModelSelector } from '../operators/modelSelector.js';
 import { AgentReturn } from './autonomous.js';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
-import { RagAgent } from 'agents/operators/ragAgent.js';
+import { MemoryAgent } from '../operators/memoryAgent.js';
+import { RagAgent } from '../operators/ragAgent.js';
 import {
   getMemoryAgent,
   getRagAgent,
   callModel as callModelHelper,
 } from './helpers/interactive.js';
-
 
 /**
  * Creates and configures an interactive agent.
@@ -51,7 +50,9 @@ export const createInteractiveAgent = async (
         logger.debug('Successfully retrieved memory agent');
         toolsList.push(...memoryAgent.prepareMemoryTools());
       } else {
-        logger.warn('Memory agent not available, memory features will be limited');
+        logger.warn(
+          'Memory agent not available, memory features will be limited'
+        );
       }
     }
 

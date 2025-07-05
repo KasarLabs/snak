@@ -1,13 +1,17 @@
 import { BaseAgent, AgentType } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage } from '@langchain/core/messages';
-import { ConfigurationAgentService, ConfigurationAgentServiceConfig } from '../services/configAgentService.js';
+import {
+  ConfigurationAgentService,
+  ConfigurationAgentServiceConfig,
+} from '../services/configAgentService.js';
 import { OperatorRegistry } from '../operatorRegistry.js';
-import { ExecuteConfig } from 'agents/types.js';
+import { ExecuteConfig } from '../../types.js';
 
 /**
  * Interface defining the configuration options for the ConfigurationAgent
  */
-export interface ConfigurationAgentConfig extends ConfigurationAgentServiceConfig {}
+export interface ConfigurationAgentConfig
+  extends ConfigurationAgentServiceConfig {}
 
 /**
  * Enhanced Configuration Agent using LangChain Tools for intelligent operation selection
@@ -49,7 +53,6 @@ export class ConfigurationAgent extends BaseAgent {
   ): Promise<AIMessage> {
     return this.service.execute(input, isInterrupted, config);
   }
-
 
   /**
    * Returns the list of available tools for the configuration agent

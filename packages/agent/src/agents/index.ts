@@ -7,8 +7,7 @@ import { logger, AgentConfig, ModelsConfig } from '@snakagent/core';
 import { AgentMode } from '../config/agentConfig.js';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
-import { BaseMessage } from '@langchain/core/messages';
-import { DatabaseCredentials } from 'tools/types/database.js';
+import { DatabaseCredentials } from '../tools/types/database.js';
 import { ModelSelector } from './operators/modelSelector.js';
 import { IAgent } from './core/baseAgent.types.js';
 
@@ -280,7 +279,9 @@ export async function createAgentSystem(
         const content = await fs.readFile(config.agentConfigPath, 'utf-8');
         agentConfig = JSON.parse(content);
       } catch (error) {
-        throw new Error(`Failed to load agent configuration from ${config.agentConfigPath}: ${error}`);
+        throw new Error(
+          `Failed to load agent configuration from ${config.agentConfigPath}: ${error}`
+        );
       }
     } else {
       agentConfig = config.agentConfigPath;

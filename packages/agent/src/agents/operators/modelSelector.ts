@@ -1,7 +1,5 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import {
-  BaseMessage,
-} from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { AgentType, BaseAgent } from '../core/baseAgent.js';
 import { ModelsConfig } from '@snakagent/core';
 import {
@@ -65,7 +63,6 @@ export class ModelSelector extends BaseAgent {
   public async init(): Promise<void> {
     await this.service.init();
   }
-
 
   /**
    * Selects a model type ('fast', 'smart', 'cheap') based on the provided messages.

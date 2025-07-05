@@ -5,7 +5,11 @@ import { z } from 'zod';
 import { tool, Tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { RunnableSequence, Runnable, RunnableLambda } from '@langchain/core/runnables';
+import {
+  RunnableSequence,
+  Runnable,
+  RunnableLambda,
+} from '@langchain/core/runnables';
 import { MemoryConfig } from '../memoryAgent.js';
 
 const SIMILARITY_THRESHOLD = (() => {
@@ -95,7 +99,9 @@ export class MemoryAgentService {
         }
 
         const waitTime = Math.pow(2, attempt - 1) * 1000;
-        logger.debug(`MemoryAgentService: Waiting ${waitTime}ms before retry...`);
+        logger.debug(
+          `MemoryAgentService: Waiting ${waitTime}ms before retry...`
+        );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         attempt++;
       }
@@ -136,7 +142,11 @@ export class MemoryAgentService {
 
   private createMemoryTools(): void {
     const upsertMemoryTool = tool(
-      async ({ content, memoryId, userId = 'default_user' }): Promise<string> => {
+      async ({
+        content,
+        memoryId,
+        userId = 'default_user',
+      }): Promise<string> => {
         try {
           return await this.upsertMemory(content, memoryId, userId);
         } catch (error) {
@@ -171,11 +181,17 @@ export class MemoryAgentService {
     );
 
     const retrieveMemoriesTool = tool(
-      async ({ query, userId = 'default_user', limit = 4 }): Promise<string> => {
+      async ({
+        query,
+        userId = 'default_user',
+        limit = 4,
+      }): Promise<string> => {
         try {
           const embedding = await this.embeddings.embedQuery(query);
           const similar = await memory.similar_memory(userId, embedding, limit);
-          const filtered = similar.filter((s) => s.similarity >= SIMILARITY_THRESHOLD);
+          const filtered = similar.filter(
+            (s) => s.similarity >= SIMILARITY_THRESHOLD
+          );
 
           if (filtered.length === 0) {
             return 'No relevant memories found.';
@@ -189,7 +205,9 @@ export class MemoryAgentService {
 
           return `Retrieved ${filtered.length} memories:\n\n${memories}`;
         } catch (error) {
-          logger.error(`MemoryAgentService: Error retrieving memories: ${error}`);
+          logger.error(
+            `MemoryAgentService: Error retrieving memories: ${error}`
+          );
           return `Failed to retrieve memories: ${error}`;
         }
       },
@@ -197,7 +215,10 @@ export class MemoryAgentService {
         name: 'retrieve_memories',
         schema: z.object({
           query: z.string().describe('The query to find similar memories for.'),
-          userId: z.string().optional().describe('The user ID to retrieve memories for.'),
+          userId: z
+            .string()
+            .optional()
+            .describe('The user ID to retrieve memories for.'),
           limit: z
             .number()
             .optional()
@@ -212,12 +233,16 @@ export class MemoryAgentService {
     );
 
     this.memoryTools = [upsertMemoryTool as any, retrieveMemoriesTool as any];
-    logger.debug(`MemoryAgentService: Created ${this.memoryTools.length} memory tools`);
+    logger.debug(
+      `MemoryAgentService: Created ${this.memoryTools.length} memory tools`
+    );
   }
 
   public prepareMemoryTools(): Tool[] {
     if (!this.initialized) {
-      logger.warn('MemoryAgentService: Trying to get memory tools before initialization');
+      logger.warn(
+        'MemoryAgentService: Trying to get memory tools before initialization'
+      );
       this.createMemoryTools();
     }
 
@@ -227,7 +252,8 @@ export class MemoryAgentService {
         config: LangGraphRunnableConfig
       ): Promise<string> => {
         try {
-          const { userId = 'default_user' } = (config.configurable ?? {}) as ExecutionConfig;
+          const { userId = 'default_user' } = (config.configurable ??
+            {}) as ExecutionConfig;
           return await this.upsertMemory(content, memoryId, userId);
         } catch (error) {
           logger.error('Error storing memory:', error);
@@ -264,10 +290,7 @@ export class MemoryAgentService {
   public createMemoryNode(): Runnable<MemoryNodeState, { memories: string }> {
     const chain = this.createMemoryChain();
     return new RunnableLambda({
-      func: async (
-        state: MemoryNodeState,
-        config: LangGraphRunnableConfig
-      ) => {
+      func: async (state: MemoryNodeState, config: LangGraphRunnableConfig) => {
         try {
           return await chain.invoke(state, config);
         } catch (error) {
@@ -296,12 +319,17 @@ export class MemoryAgentService {
       query: string,
       config: LangGraphRunnableConfig
     ) => {
-      const { userId = 'default_user', agentId } = (config.configurable ?? {}) as ExecutionConfig;
+      const { userId = 'default_user', agentId } = (config.configurable ??
+        {}) as ExecutionConfig;
       const embedding = await this.embeddings.embedQuery(query);
       const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
+        iterResults = await iterations.similar_iterations(
+          agentId,
+          embedding,
+          limit
+        );
       }
 
       const formattedIter = iterResults.map((it) => ({
@@ -346,7 +374,11 @@ export class MemoryAgentService {
       const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
+        iterResults = await iterations.similar_iterations(
+          agentId,
+          embedding,
+          limit
+        );
       }
 
       const formattedIter = iterResults.map((it) => ({
@@ -359,9 +391,13 @@ export class MemoryAgentService {
       const combined = [...memResults, ...formattedIter].filter(
         (m) => m.similarity >= SIMILARITY_THRESHOLD
       );
-      return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+      return combined
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, limit);
     } catch (error) {
-      logger.error(`MemoryAgentService: Error retrieving relevant memories: ${error}`);
+      logger.error(
+        `MemoryAgentService: Error retrieving relevant memories: ${error}`
+      );
       return [];
     }
   }
@@ -398,13 +434,21 @@ export class MemoryAgentService {
   ): Promise<ChatPromptTemplate> {
     try {
       if (!this.initialized) {
-        logger.warn('MemoryAgentService: Not initialized for memory enrichment');
+        logger.warn(
+          'MemoryAgentService: Not initialized for memory enrichment'
+        );
         return prompt;
       }
 
-      const memories = await this.retrieveRelevantMemories(message, userId, agentId);
+      const memories = await this.retrieveRelevantMemories(
+        message,
+        userId,
+        agentId
+      );
       if (!memories || memories.length === 0) {
-        logger.debug('MemoryAgentService: No relevant memories found for enrichment');
+        logger.debug(
+          'MemoryAgentService: No relevant memories found for enrichment'
+        );
         return prompt;
       }
 
@@ -417,7 +461,9 @@ export class MemoryAgentService {
         memories: memoryContext,
       });
     } catch (error) {
-      logger.error(`MemoryAgentService: Error enriching prompt with memories: ${error}`);
+      logger.error(
+        `MemoryAgentService: Error enriching prompt with memories: ${error}`
+      );
       return prompt;
     }
   }
@@ -436,8 +482,8 @@ export class MemoryAgentService {
         typeof input === 'string'
           ? input
           : input instanceof BaseMessage
-          ? input.content.toString()
-          : JSON.stringify(input);
+            ? input.content.toString()
+            : JSON.stringify(input);
 
       if (
         content.includes('store') ||
@@ -503,7 +549,11 @@ export class MemoryAgentService {
       const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
-        iterResults = await iterations.similar_iterations(agentId, embedding, limit);
+        iterResults = await iterations.similar_iterations(
+          agentId,
+          embedding,
+          limit
+        );
       }
 
       const formattedIter = iterResults.map((it) => ({

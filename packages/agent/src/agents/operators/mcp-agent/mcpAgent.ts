@@ -1,6 +1,9 @@
 import { BaseAgent, AgentType } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage } from '@langchain/core/messages';
-import { MCPAgentService, MCPAgentServiceConfig } from '../services/mcpAgentService.js';
+import {
+  MCPAgentService,
+  MCPAgentServiceConfig,
+} from '../services/mcpAgentService.js';
 import { OperatorRegistry } from '../operatorRegistry.js';
 import { ExecuteConfig } from '../../types.js';
 
@@ -49,7 +52,6 @@ export class MCPAgent extends BaseAgent {
   ): Promise<AIMessage> {
     return this.service.execute(input, isInterrupted, config);
   }
-
 
   /**
    * Returns the list of available tools for the MCP agent

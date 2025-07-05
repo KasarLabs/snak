@@ -1,4 +1,8 @@
-import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import { logger, AgentConfig } from '@snakagent/core';
 import { IAgent } from '../../core/baseAgent.types.js';
 import { AgentType } from '../../core/baseAgent.js';
@@ -355,7 +359,9 @@ export class AgentSelectorService {
       (id) =>
         content.toLowerCase().includes(id.toLowerCase()) ||
         (this.agentInfo[id]?.name &&
-          content.toLowerCase().includes(this.agentInfo[id].name!.toLowerCase()))
+          content
+            .toLowerCase()
+            .includes(this.agentInfo[id].name!.toLowerCase()))
     );
 
     if (possibleAgents.length === 1) {

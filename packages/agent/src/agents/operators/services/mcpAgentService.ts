@@ -3,10 +3,10 @@ import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
 import { getMcpAgentTools } from '../mcp-agent/mcpAgentTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { mcpAgentSystemPrompt } from 'prompt/mcpAgentPrompts.js';
+import { mcpAgentSystemPrompt } from '../../../prompt/mcpAgentPrompts.js';
 import { ModelSelector } from '../modelSelector.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { ExecuteConfig, ModelServiceConfig } from 'agents/types.js';
+import { ExecuteConfig, ModelServiceConfig } from '../../types.js';
 
 export interface MCPAgentServiceConfig extends ModelServiceConfig {}
 

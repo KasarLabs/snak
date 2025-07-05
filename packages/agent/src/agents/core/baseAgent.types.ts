@@ -15,6 +15,10 @@ export interface IAgent<Input = unknown, Output = unknown> {
   dispose?: () => Promise<void>;
 }
 
-export interface IModelAgent<Input = unknown, Output = unknown> extends IAgent<Input, Output> {
-  invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<Output>;
+export interface IModelAgent<Input = unknown, Output = unknown>
+  extends IAgent<Input, Output> {
+  invokeModel(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<Output>;
 }

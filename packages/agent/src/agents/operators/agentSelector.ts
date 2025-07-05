@@ -3,9 +3,7 @@ import { IAgent } from '../core/baseAgent.types.js';
 import { logger } from '@snakagent/core';
 import { BaseMessage, AIMessage } from '@langchain/core/messages';
 import { ModelSelector } from './modelSelector.js';
-import {
-  AgentSelectorService
-} from './services/agentSelectorService.js';
+import { AgentSelectorService } from './services/agentSelectorService.js';
 
 export interface AgentSelectionConfig {
   availableAgents: Record<string, IAgent>;
@@ -40,7 +38,6 @@ export class AgentSelector extends BaseAgent {
   public setAvailableAgents(agents: Record<string, IAgent>): void {
     this.service.setAvailableAgents(agents);
   }
-
 
   /**
    * Executes agent selection based on the input query.

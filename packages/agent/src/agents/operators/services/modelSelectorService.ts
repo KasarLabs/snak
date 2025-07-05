@@ -1,11 +1,15 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import { logger, ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { modelSelectorSystemPrompt } from 'prompt/prompts.js';
-import { TokenTracker } from 'token/tokenTracking.js';
+import { modelSelectorSystemPrompt } from '../../../prompt/prompts.js';
+import { TokenTracker } from '../../../token/tokenTracking.js';
 
 export interface ModelSelectorServiceOptions {
   debugMode?: boolean;
@@ -89,7 +93,9 @@ export class ModelSelectorService {
       logger.debug('Initializing AI models...');
     }
     if (!this.modelsConfig) {
-      logger.error('Models configuration is not loaded. Cannot initialize models.');
+      logger.error(
+        'Models configuration is not loaded. Cannot initialize models.'
+      );
       throw new Error('Models configuration is not loaded.');
     }
 
@@ -279,7 +285,9 @@ export class ModelSelectorService {
         logger.error(
           `Fallback model "smart" is also not available. Cannot invoke model.`
         );
-        throw new Error('Selected model and fallback "smart" model are unavailable.');
+        throw new Error(
+          'Selected model and fallback "smart" model are unavailable.'
+        );
       }
     }
 

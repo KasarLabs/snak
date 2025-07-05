@@ -51,7 +51,12 @@ export class MemoryAgent extends BaseAgent {
     agentId?: string,
     limit = 4
   ): Promise<memory.Similarity[]> {
-    return this.service.retrieveRelevantMemories(message, userId, agentId, limit);
+    return this.service.retrieveRelevantMemories(
+      message,
+      userId,
+      agentId,
+      limit
+    );
   }
 
   public formatMemoriesForContext(memories: memory.Similarity[]): string {
@@ -64,7 +69,12 @@ export class MemoryAgent extends BaseAgent {
     userId: string = 'default_user',
     agentId?: string
   ): Promise<ChatPromptTemplate> {
-    return this.service.enrichPromptWithMemories(prompt, message, userId, agentId);
+    return this.service.enrichPromptWithMemories(
+      prompt,
+      message,
+      userId,
+      agentId
+    );
   }
 
   public async execute(

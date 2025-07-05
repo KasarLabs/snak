@@ -1,5 +1,9 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
-import { Tool, StructuredTool, DynamicStructuredTool } from '@langchain/core/tools';
+import {
+  Tool,
+  StructuredTool,
+  DynamicStructuredTool,
+} from '@langchain/core/tools';
 import { BaseMessage } from '@langchain/core/messages';
 import { OperatorRegistry } from './operatorRegistry.js';
 import {
@@ -11,7 +15,8 @@ import { ExecuteConfig } from '../types.js';
 /**
  * Configuration for the tools orchestrator
  */
-export interface ToolsOrchestratorConfig extends ToolsOrchestratorServiceConfig {}
+export interface ToolsOrchestratorConfig
+  extends ToolsOrchestratorServiceConfig {}
 
 /**
  * Operator agent that manages tools orchestration and execution
@@ -45,7 +50,6 @@ export class ToolsOrchestrator extends BaseAgent {
   ): Promise<any> {
     return this.service.execute(input, isInterrupted, config);
   }
-
 
   /**
    * Get the list of available tools
