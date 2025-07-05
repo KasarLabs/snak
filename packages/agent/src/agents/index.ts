@@ -139,21 +139,24 @@ export class AgentSystem {
   private async runSupervisorExecution(
     content: string,
     config?: Record<string, unknown>
-  ): Promise<any> {
-    let result;
+  ): Promise<OutputResponse | Response> {
+    let result: OutputResponse | Response | undefined;
     for await (const chunk of this.supervisorAgent.execute(
       content,
       false,
-      config as Record<string, any>
+      config
     )) {
       if (chunk.final === true) {
         result = chunk.chunk;
       }
     }
+    if (!result) {
+      throw new Error('No result received from supervisor execution');
+    }
     return result;
   }
 
-  private formatExecutionResult(result: any): string {
+  private formatExecutionResult(result: OutputResponse | Response): string {
     return this.supervisorAgent.formatResponse(result);
   }
 
@@ -272,9 +275,13 @@ export async function createAgentSystem(
       `AgentSystem: Loading agent configuration from: ${config.agentConfigPath}`
     );
     if (typeof config.agentConfigPath === 'string') {
-      const fs = await import('fs/promises');
-      const content = await fs.readFile(config.agentConfigPath, 'utf-8');
-      agentConfig = JSON.parse(content);
+      try {
+        const fs = await import('fs/promises');
+        const content = await fs.readFile(config.agentConfigPath, 'utf-8');
+        agentConfig = JSON.parse(content);
+      } catch (error) {
+        throw new Error(`Failed to load agent configuration from ${config.agentConfigPath}: ${error}`);
+      }
     } else {
       agentConfig = config.agentConfigPath;
     }
