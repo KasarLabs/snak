@@ -17,7 +17,7 @@ export interface ModelSelectorReturn {
   model: BaseChatModel;
   model_name: string;
   token?: {
-    intput_token: number;
+    input_token: number;
     output_token: number;
     total_token: number;
   };
@@ -131,6 +131,12 @@ export class ModelSelectorService {
               ...commonConfig,
             });
             break;
+          case 'deepseek':
+            // TODO: Initialize DeepSeek model instance
+            logger.warn(
+              `DeepSeek provider is configured but not yet implemented for model level '${levelName}'.`
+            );
+            continue;
           default:
             logger.warn(
               `Unsupported AI provider '${provider}' for model level '${levelName}'. Skipping.`
@@ -240,7 +246,7 @@ export class ModelSelectorService {
           model: this.models[modelChoice],
           model_name: modelChoice,
           token: {
-            intput_token: token.promptTokens,
+            input_token: token.promptTokens,
             output_token: token.responseTokens,
             total_token: token.totalTokens,
           },
