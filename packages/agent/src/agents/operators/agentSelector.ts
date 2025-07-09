@@ -146,7 +146,7 @@ export class AgentSelector extends BaseAgent {
    * Executes agent selection based on the input query.
    * First checks for explicit agent mentions, then uses AI model for intelligent selection.
    */
-  public async execute(
+  public async executeInvoke(
     input: string | BaseMessage,
     isInterrupted?: boolean,
     _config?: Record<string, any>

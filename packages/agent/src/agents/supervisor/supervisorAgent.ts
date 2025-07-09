@@ -767,7 +767,7 @@ export class SupervisorAgent extends BaseAgent {
 
     const queryForSelection = originalUserQuery;
 
-    if (this.agentSelector) {
+    if (this.agentSelector && typeof this.agentSelector.execute === 'function') {
       try {
         const selectionOutcome = await this.agentSelector.execute(
           new HumanMessage(queryForSelection),
@@ -779,86 +779,25 @@ export class SupervisorAgent extends BaseAgent {
           }
         );
 
-        responseContent = String(selectionOutcome.content || '');
-
-        if (selectionOutcome.additional_kwargs?.needsClarification === true) {
-          needsClarification = true;
-          isFinal = true;
-          logger.debug(
-            `${depthIndent}SupervisorAgent (${callPath}): AgentSelector needs clarification from user. Ending workflow.`
-          );
-        } else if (selectionOutcome.additional_kwargs?.nextAgent) {
-          nextAgent = selectionOutcome.additional_kwargs.nextAgent as string;
+        for await (const chunk of this.agentSelector.execute(
+          new HumanMessage(queryForSelection),
+          false,
+          {
+            ...(config || {}),
+            originalUserQuery: queryForSelection,
+            isWorkflowNodeCall: true,
+          })) {
+          if (chunk.final === true) {
+            yield chunk;
+            break;
+          } else {
+            responseContent += chunk.content || '';
+          }
         }
 
-        if (
-          selectionOutcome.additional_kwargs?.final !== undefined &&
-          !needsClarification
-        ) {
-          isFinal = selectionOutcome.additional_kwargs.final as boolean;
-        }
-
-        if (
-          selectionOutcome instanceof AIMessage &&
-          selectionOutcome.tool_calls &&
-          selectionOutcome.tool_calls.length > 0
-        ) {
-          toolCallsFromSelection = selectionOutcome.tool_calls;
-          if (!nextAgent && this.toolsOrchestrator) nextAgent = 'tools';
-        } else if (
-          selectionOutcome.additional_kwargs?.tool_calls &&
-          selectionOutcome.additional_kwargs.tool_calls.length > 0
-        ) {
-          toolCallsFromSelection =
-            selectionOutcome.additional_kwargs.tool_calls;
-          if (!nextAgent && this.toolsOrchestrator) nextAgent = 'tools';
-        }
-
-        logger.debug(
-          `${depthIndent}SupervisorAgent (${callPath}): AgentSelector outcome - Next: ${nextAgent}, Final: ${isFinal}, Clarification: ${needsClarification}, Tools: ${toolCallsFromSelection?.length || 0}`
-        );
-      } catch (e: any) {
-        logger.error(
-          `${depthIndent}SupervisorAgent (${callPath}): Error calling AgentSelector: ${e.message}`
-        );
-        responseContent = 'Error during agent selection by Supervisor.';
-        isFinal = true;
-      }
-    } else {
-      logger.warn(
-        `${depthIndent}SupervisorAgent (${callPath}): AgentSelector not available. Defaulting to 'snak' or ending.`
-      );
-      if (this.snakAgent && queryForSelection) {
-        responseContent = `Supervisor: No AgentSelector. Routing to default Snak agent for query: "${queryForSelection.substring(0, 100)}..."`;
-        nextAgent = 'snak';
-      } else {
-        responseContent =
-          'Supervisor: AgentSelector not found, and no default action. Ending task.';
-        isFinal = true;
-      }
-    }
+       
 
     this.executionDepth--;
-    const directiveMessage = new AIMessage({
-      content: responseContent,
-      additional_kwargs: {
-        from: 'supervisor',
-        originalUserQuery: originalUserQuery, // Always preserve original user query
-        ...(nextAgent && { next_agent: nextAgent }),
-        ...(isFinal && !nextAgent && { final: true }),
-        ...(needsClarification && { needsClarification: true }),
-      },
-    });
-
-    if (toolCallsFromSelection && toolCallsFromSelection.length > 0) {
-      directiveMessage.tool_calls = toolCallsFromSelection;
-      directiveMessage.additional_kwargs.tool_calls = toolCallsFromSelection;
-    }
-
-    logger.debug(
-      `${depthIndent}SupervisorAgent (${callPath}): Returning directive with preserved originalUserQuery: ${JSON.stringify(directiveMessage.toJSON())}`
-    );
-    return directiveMessage;
   }
 
   /**

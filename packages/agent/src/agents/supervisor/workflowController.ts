@@ -844,6 +844,9 @@ export class WorkflowController {
         if (!targetAgent) {
           throw new Error(`Target agent "${initialAgent}" not found`);
         }
+        if (typeof targetAgent.execute !== 'function') {
+          throw new Error(`Target agent "${initialAgent}" does not have an execute method`);
+        }
 
         const agentConfig = {
           ...initialMetadata,
@@ -861,6 +864,14 @@ export class WorkflowController {
             false,
             agentConfig
           );
+
+
+          for await (const chunk of targetAgent.execute(
+            [message],
+            false,
+            agentConfig
+          )) {
+          }
 
           let finalResult;
           if (result && typeof result === 'object' && 'messages' in result) {

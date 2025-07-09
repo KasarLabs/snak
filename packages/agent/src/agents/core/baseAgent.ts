@@ -27,12 +27,18 @@ export interface IAgent {
    * @param input Input to process
    * @param config Optional configuration
    */
-  execute(
+  execute?(
     input: any,
     isInterrupted?: boolean,
 
     config?: Record<string, any>
-  ): Promise<any> | AsyncGenerator<StreamChunk>;
+  ): AsyncGenerator<StreamChunk>;
+
+  executeInvoke?(
+    input: any,
+    isInterrupted?: boolean,
+    config?: Record<string, any>
+  ): Promise<any>;
 
   /**
    * Optional method to clean up resources used by the agent.
@@ -86,15 +92,17 @@ export abstract class BaseAgent implements IAgent {
   }
 
   abstract init(): Promise<void>;
-  abstract execute(
+  execute?(
     input: any,
     isInterrupted?: boolean,
     config?: Record<string, any>
-  ): AsyncGenerator<StreamChunk> | Promise<any>;
-  executeAsyncGenerator?(
-    input: BaseMessage[] | any,
-    config?: Record<string, any>
   ): AsyncGenerator<StreamChunk>;
+
+  executeInvoke?(
+    input: any,
+    isInterrupted?: boolean,
+    config?: Record<string, any>
+  ): Promise<any>;
 
   /**
    * Default dispose method. Subclasses should override this if they
