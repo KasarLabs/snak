@@ -22,10 +22,10 @@ import { Reflector } from '@nestjs/core';
 import { ServerError } from '../utils/error.js';
 import {
   logger,
-  metrics,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
 } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
@@ -279,7 +279,7 @@ export class AgentsController {
 
       const action = this.agentService.handleUserRequest(agent, messageRequest);
 
-      const response_metrics = await metrics.metricsAgentResponseTime(
+      const response_metrics = await metrics.agentResponseTimeMeasure(
         userRequest.request.agent_id.toString(),
         'key',
         route,

@@ -14,7 +14,6 @@ import {
 import { Server, Socket } from 'socket.io';
 import {
   logger,
-  metrics,
   WebsocketAgentAddRequestDTO,
   WebsocketAgentDeleteRequestDTO,
   WebsocketAgentRequestDTO,
@@ -22,6 +21,7 @@ import {
   WebsocketGetMessagesRequestDTO,
   WebsocketSupervisorRequestDTO,
 } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
 @WebSocketGateway({
   cors: {

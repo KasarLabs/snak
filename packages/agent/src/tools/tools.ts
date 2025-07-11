@@ -1,7 +1,7 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { logger, AgentConfig } from '@snakagent/core';
-import { metrics } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { DatabaseCredentials } from './types/database.js';
 import { z as Zod } from 'zod';
 
@@ -152,13 +152,13 @@ export const registerTools = async (
           const tools_new = new Array<StarknetTool>();
           await imported_tool.registerTools(tools_new, agent);
 
-          for (const tool of tools_new) {
-            metrics.metricsAgentToolUseCount(
-              agent.getAgentConfig()?.name ?? 'agent',
-              'tools', // TODO: refactored agent interface to allow this
-              tool.name
-            );
-          }
+          // for (const tool of tools_new) {
+          //   metrics.agentToolUseCount(
+          //     "agent",
+          //     'tools', // TODO: refactored agent interface to allow this
+          //     tool.name
+          //   );
+          // }
 
           tools.push(...tools_new);
           return true;

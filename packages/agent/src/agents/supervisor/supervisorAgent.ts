@@ -13,10 +13,10 @@ import { WorkflowController } from './workflowController.js';
 import {
   DatabaseCredentials,
   logger,
-  metrics,
   AgentConfig,
   ModelsConfig,
 } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { HumanMessage, BaseMessage, AIMessage } from '@langchain/core/messages';
 import { Tool } from '@langchain/core/tools';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
@@ -502,7 +502,7 @@ export class SupervisorAgent extends BaseAgent {
           ? AGENT_MODES[AgentMode.HYBRID]
           : AGENT_MODES[AgentMode.INTERACTIVE];
 
-    metrics.metricsAgentConnect(agentName, agentMode);
+    metrics.agentConnect(agentName, agentMode);
     logger.debug(
       `SupervisorAgent: Metrics initialized for agent '${agentName}' in mode '${agentMode}'`
     );
