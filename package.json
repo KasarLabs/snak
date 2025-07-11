@@ -33,7 +33,7 @@
     "build:ci": "turbo build --scope \"@snakagent/agents\" --scope \"@snakagent/plugin-*\" --scope \"@snakagent/server\"",
     "docker-setup": "docker compose -f ./docker-compose.dev.yml up -d",
     "start": "pnpm run docker-setup && ./scripts/start.sh ; ECODE=$? ; exit $ECODE",
-    "start:server": "pnpm run build && pnpm run docker-setup && lerna run start --scope \"@snakagent/server\"; ECODE=$? ; exit $ECODE",
+    "start:server": "pnpm run build && pnpm run docker-setup && lerna run start --scope \"@snakagent/server\"; docker compose down ;ECODE=$? ; exit $ECODE",
     "start:test": "turbo test",
     "test": "./scripts/run_all_test.sh",
     "dev": "lerna run --scope @snakagent/agents start --",
