@@ -47,6 +47,19 @@ export interface AgentAvatarResponseDTO {
   avatar_mime_type: string;
 }
 
+interface UpdateAgentMcpDTO {
+  agent_id: string;
+  plugins: string[];
+  mcpServers: Record<string, any>;
+}
+
+interface AgentMcpResponseDTO {
+  id: string;
+  plugins: string[];
+  mcp_servers: Record<string, any>;
+  updated_at: Date;
+}
+
 /**
  * Controller for handling agent-related operations
  */
@@ -63,6 +76,53 @@ export class AgentsController {
    * @param userRequest - The user request containing agent ID and content
    * @returns Promise<AgentResponse> - Response with status and data
    */
+  @Post('update_agent_mcp')
+  async updateAgentMcp(
+    @Headers('x-api-key') apiKey: string,
+    @Body() updateData: UpdateAgentMcpDTO
+  ) {
+    try {
+      const { agent_id, mcpServers } = updateData;
+      if (!agent_id) {
+        throw new BadRequestException('Agent ID is required');
+      }
+
+      if (!mcpServers || typeof mcpServers !== 'object') {
+        throw new BadRequestException('MCP servers must be an object');
+      }
+
+      // Update agent MCP configuration in database
+      const q = new Postgres.Query(
+        `UPDATE agents
+       SET "mcpServers" = $1
+       WHERE id = $2
+       RETURNING id, "mcpServers"`,
+        [JSON.stringify(mcpServers), agent_id]
+      );
+
+      const result = await Postgres.query<AgentMcpResponseDTO>(q);
+
+      if (result.length === 0) {
+        throw new BadRequestException('Agent not found');
+      }
+      const updatedAgent = result[0];
+
+      return {
+        status: 'success',
+        data: {
+          id: updatedAgent.id,
+          // mcpServers: JSON.parse(updatedAgent.mcp_servers as string || '{}'),
+          updatedAt: updatedAgent.updated_at,
+        },
+      };
+    } catch (error) {
+      console.error('Error in updateAgentMcp:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('MCP update failed: ' + error.message);
+    }
+  }
 
   @Post('update_agent_config')
   async updateAgentConfig(
