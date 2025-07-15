@@ -48,7 +48,7 @@ export interface AgentAvatarResponseDTO {
 }
 
 interface UpdateAgentMcpDTO {
-  agent_id: string;
+  id: string;
   plugins: string[];
   mcpServers: Record<string, any>;
 }
@@ -77,8 +77,8 @@ export class AgentsController {
   @Post('update_agent_mcp')
   async updateAgentMcp(@Body() updateData: UpdateAgentMcpDTO) {
     try {
-      const { agent_id, mcpServers } = updateData;
-      if (!agent_id) {
+      const { id, mcpServers } = updateData;
+      if (!id) {
         throw new BadRequestException('Agent ID is required');
       }
 
@@ -92,7 +92,7 @@ export class AgentsController {
        SET "mcpServers" = $1
        WHERE id = $2
        RETURNING id, "mcpServers"`,
-        [JSON.stringify(mcpServers), agent_id]
+        [JSON.stringify(mcpServers), id]
       );
 
       const result = await Postgres.query<AgentMcpResponseDTO>(q);
@@ -119,10 +119,7 @@ export class AgentsController {
   }
 
   @Post('update_agent_config')
-  async updateAgentConfig(
-    @Headers('x-api-key') apiKey: string,
-    @Body() config: AgentConfigSQL
-  ): Promise<any> {
+  async updateAgentConfig(@Body() config: AgentConfigSQL): Promise<any> {
     try {
       if (!config || !config.id) {
         throw new BadRequestException('Agent ID is required');
