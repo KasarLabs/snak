@@ -273,12 +273,7 @@ export class AgentsController {
         if (!agentSelector) {
           throw new ServerError('E01TA400');
         }
-        const agent_name = (userRequest.request.agent_id =
-          await agentSelector.execute(userRequest.request.content));
-        agent = this.agentFactory.getAgentInstancesByName(agent_name);
-        if (!agent) {
-          throw new ServerError('E01TA400');
-        }
+        agent = await agentSelector.execute(userRequest.request.content);
       } else {
         agent = this.agentFactory.getAgentInstance(
           userRequest.request.agent_id
@@ -289,14 +284,14 @@ export class AgentsController {
       }
 
       const messageRequest = {
-        agent_id: userRequest.request.agent_id,
+        agent_id: agent.getAgentConfig().id.toString(),
         user_request: userRequest.request.content,
       };
 
       const action = this.agentService.handleUserRequest(agent, messageRequest);
 
       const response_metrics = await metrics.metricsAgentResponseTime(
-        userRequest.request.agent_id.toString(),
+        agent.getAgentConfig().id.toString(),
         'key',
         route,
         action

@@ -98,7 +98,7 @@ export class AgentStorage implements OnModuleInit {
     return this.agentSelector;
   }
 
-  public getAgentInstancesByName(name: string) : SnakAgent {
+  public getAgentInstancesByName(name: string): SnakAgent {
     const instance = Array.from(this.agentInstances.values()).find(
       (agent) => agent.getAgentConfig().name === name
     );
@@ -204,6 +204,10 @@ export class AgentStorage implements OnModuleInit {
       this.createSnakAgentFromConfig(newAgentDbRecord)
         .then((snakAgent) => {
           this.agentInstances.set(newAgentDbRecord.id, snakAgent);
+          this.agentSelector.updateAvailableAgents([
+            newAgentDbRecord.id,
+            snakAgent,
+          ]);
         })
         .catch((error) => {
           logger.error(
@@ -238,6 +242,7 @@ export class AgentStorage implements OnModuleInit {
 
     this.agentConfigs = this.agentConfigs.filter((config) => config.id !== id);
     this.agentInstances.delete(id);
+    this.agentSelector.removeAgent(id);
     logger.debug(`Agent ${id} removed from local configuration`);
   }
 
@@ -283,7 +288,9 @@ export class AgentStorage implements OnModuleInit {
       if (!modelConfig) {
         throw new Error('ModelConfig is not available.');
       }
-      logger.debug(`Model configuration loaded: ${JSON.stringify(modelConfig)}`);
+      logger.debug(
+        `Model configuration loaded: ${JSON.stringify(modelConfig)}`
+      );
 
       // Init Agent Selector
       const modelSelector = new ModelSelector({

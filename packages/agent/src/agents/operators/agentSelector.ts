@@ -65,14 +65,14 @@ export class AgentSelector extends BaseAgent {
     }
   }
 
-  public async removeAgent(agentName: string): Promise<void> {
-    logger.debug(`AgentSelector: Removing agent ${agentName}`);
-    if (this.availableAgents.has(agentName)) {
-      this.availableAgents.delete(agentName);
-      this.agentInfo.delete(agentName);
-      logger.debug(`AgentSelector: Agent ${agentName} removed successfully`);
+  public async removeAgent(agentId: string): Promise<void> {
+    logger.debug(`AgentSelector: Removing agent ${agentId}`);
+    if (this.availableAgents.has(agentId)) {
+      this.availableAgents.delete(agentId);
+      this.agentInfo.delete(agentId);
+      logger.debug(`AgentSelector: Agent ${agentId} removed successfully`);
     } else {
-      logger.warn(`AgentSelector: Agent ${agentName} not found`);
+      logger.warn(`AgentSelector: Agent ${agentId} not found`);
     }
   }
 
@@ -82,12 +82,12 @@ export class AgentSelector extends BaseAgent {
     logger.debug(`AgentSelector: Updating available agents with ${agent[0]}`);
     this.availableAgents.set(agent[0], agent[1]);
     this.agentInfo.set(
-      agent[0],
+      agent[1].getAgentConfig().name,
       agent[1].getAgentConfig().description || 'No description available'
     );
   }
 
-  public async execute(input: string): Promise<string> {
+  public async execute(input: string): Promise<SnakAgent> {
     try {
       const model = this.modelSelector.getModels()['fast'];
       console.log('AgentSelector model:', this.modelSelector.getModels());
@@ -96,7 +96,19 @@ export class AgentSelector extends BaseAgent {
       );
       console.log('AgentSelector result:', result);
       if (typeof result.content === 'string') {
-        return result.content.trim();
+        const r_trim = result.content.trim();
+        const agent = Array.from(this.availableAgents.values()).find(
+          (agent) => agent.getAgentConfig().name === r_trim
+        );
+        if (agent) {
+          logger.debug(`AgentSelector: Selected agent ${r_trim}`);
+          return agent;
+        } else {
+          logger.warn(
+            `AgentSelector: No matching agent found for response "${r_trim}"`
+          );
+          throw new Error('No matching agent found');
+        }
       } else {
         throw new Error('AgentSelector did not return a valid string response');
       }

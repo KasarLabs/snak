@@ -7,7 +7,6 @@ services:
     env_file:
       - .env
     volumes:
-      - pgdata:/var/lib/postgresql/data
       - ./packages/database/initdb:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER}']
@@ -21,6 +20,3 @@ services:
         -c log_file_mode=0664
         -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
     restart: unless-stopped
-
-volumes:
-  pgdata:
