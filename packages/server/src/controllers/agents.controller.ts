@@ -75,9 +75,7 @@ export class AgentsController {
    * @returns Promise<AgentResponse> - Response with status and data
    */
   @Post('update_agent_mcp')
-  async updateAgentMcp(
-    @Body() updateData: UpdateAgentMcpDTO
-  ) {
+  async updateAgentMcp(@Body() updateData: UpdateAgentMcpDTO) {
     try {
       const { agent_id, mcpServers } = updateData;
       if (!agent_id) {
