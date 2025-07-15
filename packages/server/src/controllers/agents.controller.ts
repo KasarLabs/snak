@@ -110,7 +110,7 @@ export class AgentsController {
         },
       };
     } catch (error) {
-      console.error('Error in updateAgentMcp:', error);
+      logger.error('Error in updateAgentMcp:', error);
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -200,7 +200,7 @@ export class AgentsController {
         message: 'Agent configuration updated successfully',
       };
     } catch (error) {
-      console.error('Error in updateAgentConfig:', error);
+      logger.error('Error in updateAgentConfig:', error);
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -277,7 +277,7 @@ export class AgentsController {
         avatarUrl: avatarDataUrl,
       };
     } catch (error) {
-      console.error('Error in uploadAvatar:', error);
+      logger.error('Error in uploadAvatar:', error);
 
       if (error instanceof BadRequestException) {
         throw error;
