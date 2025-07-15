@@ -87,7 +87,7 @@ export const finalAnswerRules = (finalAnswer: MessageContent) => {
   `;
 };
 
-export const agentSelectorPromptContent = (agentInfo: Map<string, string>) => {
+export const agentSelectorPromptContent = (agentInfo: Map<string, string>, input : string) => {
   return `You are an Agent Router responsible for analyzing requests and selecting the most qualified agent.
 
     ROUTING RULES:
@@ -103,6 +103,8 @@ export const agentSelectorPromptContent = (agentInfo: Map<string, string>) => {
       .map(([name, description]) => `- **${name}**: ${description}`)
       .join('\n')}
 
+    USER REQUEST:
+    ${input}
     RESPONSE FORMAT:
     response with the agent_name.
     Example of response: "agent_1"

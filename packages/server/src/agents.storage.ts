@@ -18,7 +18,12 @@ import {
 
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.js';
-import { SnakAgent, SnakAgentConfig } from '@snakagent/agents';
+import {
+  AgentSelector,
+  ModelSelector,
+  SnakAgent,
+  SnakAgentConfig,
+} from '@snakagent/agents';
 import { SystemMessage } from '@langchain/core/messages';
 
 const logger = new Logger('AgentStorage');
@@ -30,6 +35,7 @@ const logger = new Logger('AgentStorage');
 export class AgentStorage implements OnModuleInit {
   private agentConfigs: AgentConfigSQL[] = [];
   private agentInstances: Map<string, SnakAgent> = new Map();
+  private agentSelector: AgentSelector;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
 
@@ -83,6 +89,13 @@ export class AgentStorage implements OnModuleInit {
    */
   public getAllAgentInstances(): SnakAgent[] {
     return Array.from(this.agentInstances.values()).map((instance) => instance);
+  }
+
+  public getAgentSelector(): AgentSelector {
+    if (!this.agentSelector) {
+      throw new Error('AgentSelector is not initialized');
+    }
+    return this.agentSelector;
   }
 
   public isInitialized(): boolean {
@@ -255,6 +268,23 @@ export class AgentStorage implements OnModuleInit {
     // Create and store the initialization promise
     this.initializationPromise = this.performInitialize();
 
+    const modelConfig = await this.get_models_config();
+    if (!modelConfig) {
+      throw new Error('ModelConfig is not available.');
+    }
+
+    // Init Agent Selector
+    const modelSelector = new ModelSelector({
+      debugMode: false,
+      useModelSelector: false,
+      modelsConfig: modelConfig,
+    });
+
+    this.agentSelector = new AgentSelector({
+      availableAgents: this.agentInstances,
+      modelSelector: modelSelector,
+    });
+    await this.agentSelector.init();
     try {
       await this.initializationPromise;
     } catch (error) {

@@ -16,8 +16,7 @@ import {
   noValidAgentMessage,
 } from '../../prompt/agentSelectorPrompts.js';
 import { SnakAgent } from 'agents/core/snakAgent.js';
-import { agentSelectorPromptContent } from 'prompt/prompts.js';
-import { agent } from 'supertest';
+import { agentSelectorPromptContent } from '../../prompt/prompts.js';
 
 export interface AgentInfo {
   name: string;
@@ -91,7 +90,9 @@ export class AgentSelector extends BaseAgent {
   public async execute(input: string): Promise<any> {
     try {
       const model = this.modelSelector.getModels()['fast'];
-      const result = model.invoke(agentSelectorPromptContent(this.agentInfo));
+      const result = model.invoke(
+        agentSelectorPromptContent(this.agentInfo, input)
+      );
       console.log('AgentSelector result:', result);
     } catch (error) {
       throw new Error('AgentSelector execution failed: ' + error.message);

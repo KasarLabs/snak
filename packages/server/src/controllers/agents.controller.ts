@@ -263,6 +263,20 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const route = this.reflector.get('path', this.handleUserRequest);
+
+      if (userRequest.request.agent_id === undefined) {
+        logger.warn(
+          'Agent ID not provided in request, Using agent Selector to select agent'
+        );
+        const agentSelector = this.agentFactory.getAgentSelector();
+        if (!agentSelector) {
+          throw new ServerError('E01TA400');
+        }
+        userRequest.request.agent_id = await agentSelector.execute(
+          userRequest.request.content
+        );
+        userRequest.request.agent_id = 'default'; // Default agent ID if not provided
+      }
       const agent = this.agentFactory.getAgentInstance(
         userRequest.request.agent_id
       );

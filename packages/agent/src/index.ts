@@ -26,7 +26,7 @@ export type {
 } from './tools/signatureTools.js';
 
 export { ModelSelector } from './agents/operators/modelSelector.js';
-
+export { AgentSelector } from './agents/operators/agentSelector.js';
 // Config exports
 export {
   load_json_config,
