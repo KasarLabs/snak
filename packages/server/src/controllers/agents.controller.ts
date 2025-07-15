@@ -55,9 +55,7 @@ interface UpdateAgentMcpDTO {
 
 interface AgentMcpResponseDTO {
   id: string;
-  plugins: string[];
-  mcp_servers: Record<string, any>;
-  updated_at: Date;
+  mcpServers: Record<string, any>;
 }
 
 /**
@@ -111,8 +109,7 @@ export class AgentsController {
         status: 'success',
         data: {
           id: updatedAgent.id,
-          // mcpServers: JSON.parse(updatedAgent.mcp_servers as string || '{}'),
-          updatedAt: updatedAgent.updated_at,
+          mcpServers: updatedAgent.mcpServers,
         },
       };
     } catch (error) {
