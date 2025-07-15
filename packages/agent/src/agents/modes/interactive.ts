@@ -19,43 +19,12 @@ import {
   formatAgentResponse,
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
-import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
 import { interactiveRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 
-/**
- * Retrieves the memory agent instance from the SupervisorAgent.
- * @returns A promise that resolves to the memory agent instance or null if not found or an error occurs.
- */
-const getMemoryAgent = async () => {
-  try {
-    // Try to get supervisor instance
-    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
-    if (supervisorAgent) {
-      return await supervisorAgent.getMemoryAgent();
-    }
-    return null;
-  } catch (error) {
-    logger.error(`Failed to get memory agent: ${error}`);
-    return null;
-  }
-};
-
-const getRagAgent = async () => {
-  try {
-    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
-    if (supervisorAgent) {
-      return await supervisorAgent.getRagAgent();
-    }
-    return null;
-  } catch (error) {
-    logger.error(`Failed to get rag agent: ${error}`);
-    return null;
-  }
-};
 
 /**
  * Creates and configures an interactive agent.
@@ -81,7 +50,7 @@ export const createInteractiveAgent = async (
     let memoryAgent: MemoryAgent | null = null;
     if (agent_config.memory) {
       try {
-        memoryAgent = await getMemoryAgent();
+        memoryAgent = snakAgent.getMemoryAgent();
         if (memoryAgent) {
           logger.debug('Successfully retrieved memory agent');
           const memoryTools = memoryAgent.prepareMemoryTools();
@@ -99,7 +68,7 @@ export const createInteractiveAgent = async (
     let ragAgent: RagAgent | null = null;
     if (agent_config.rag?.enabled !== false) {
       try {
-        ragAgent = await getRagAgent();
+        ragAgent = snakAgent.getRagAgent();
         if (!ragAgent) {
           logger.warn('Rag agent not available, rag context will be skipped');
         }
@@ -375,7 +344,7 @@ ${formatAgentResponse(content)}`);
       .addNode('tools', toolNode);
 
     if (agent_config.memory && memoryAgent) {
-      workflow = (workflow as any)
+      workflow
         .addNode('memory', memoryAgent.createMemoryNode())
         .addEdge('__start__', 'memory');
       if (ragAgent) {

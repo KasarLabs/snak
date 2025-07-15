@@ -254,11 +254,11 @@ export class SupervisorAgent extends BaseAgent {
    */
   private async initializeAgentSelector(): Promise<void> {
     logger.debug('SupervisorAgent: Initializing AgentSelector...');
-    this.agentSelector = new AgentSelector({
-      availableAgents: {},
-      modelSelector: this.modelSelector,
-      debug: this.debug,
-    });
+    // this.agentSelector = new AgentSelector({
+    //   availableAgents: {},
+    //   modelSelector: this.modelSelector,
+    //   debug: this.debug,
+    // });
     await this.agentSelector.init();
     this.operators.set(this.agentSelector.id, this.agentSelector);
     logger.debug('SupervisorAgent: AgentSelector initialized');

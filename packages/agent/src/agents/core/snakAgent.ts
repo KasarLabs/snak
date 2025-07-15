@@ -1,6 +1,9 @@
 import { AgentType, BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
-import { ModelSelector } from '../operators/modelSelector.js';
+import {
+  ModelSelectorConfig,
+  ModelSelector,
+} from '../operators/modelSelector.js';
 import {
   logger,
   metrics,
@@ -10,13 +13,16 @@ import {
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
-import { MemoryConfig } from '../operators/memoryAgent.js';
+import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
 import { iterations } from '@snakagent/database/queries';
+import { RagAgent } from '../operators/ragAgent.js';
+import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
+import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 /**
  * Configuration interface for SnakAgent initialization
  */
@@ -94,7 +100,7 @@ export interface SnakAgentConfig {
   db_credentials: DatabaseCredentials;
   agentConfig: AgentConfig;
   memory?: MemoryConfig;
-  modelSelector: ModelSelector | null;
+  modelSelectorConfig: ModelSelectorConfig;
 }
 
 /**
@@ -108,6 +114,12 @@ export class SnakAgent extends BaseAgent {
   private readonly agentMode: string;
   private readonly agentConfig: AgentConfig;
   private readonly databaseCredentials: DatabaseCredentials;
+  private readonly modelSelectorConfig: ModelSelectorConfig;
+  private memoryAgent: MemoryAgent | null = null;
+  private ragAgent: RagAgent | null = null;
+  private mcpAgent: MCPAgent | null = null;
+  private configAgent: ConfigurationAgent | null = null;
+
   private currentMode: string;
   private agentReactExecutor: AgentReturn;
   private modelSelector: ModelSelector | null = null;
@@ -125,7 +137,7 @@ export class SnakAgent extends BaseAgent {
     this.databaseCredentials = config.db_credentials;
     this.currentMode = AGENT_MODES[config.agentConfig.mode];
     this.agentConfig = config.agentConfig;
-    this.modelSelector = config.modelSelector;
+    this.modelSelectorConfig = config.modelSelectorConfig;
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
@@ -157,6 +169,11 @@ export class SnakAgent extends BaseAgent {
       if (this.agentConfig) {
         this.agentConfig.plugins = this.agentConfig.plugins || [];
       }
+
+      this.modelSelector = new ModelSelector(this.modelSelectorConfig);
+      await this.modelSelector.init();
+      await this.initializeMemoryAgent(this.agentConfig);
+      await this.initializeRagAgent(this.agentConfig);
 
       try {
         await this.createAgentReactExecutor();
@@ -221,6 +238,72 @@ export class SnakAgent extends BaseAgent {
     }
   }
 
+  /**
+   * Initializes the MemoryAgent component if enabled
+   * @param agentConfig - Agent configuration
+   * @private
+   */
+  private async initializeMemoryAgent(
+    agentConfig: AgentConfig | undefined
+  ): Promise<void> {
+    if (agentConfig?.memory?.enabled !== false) {
+      logger.debug('SnakAgent: Initializing MemoryAgent...');
+      this.memoryAgent = new MemoryAgent({
+        shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
+        memorySize: agentConfig?.memory?.memorySize || 20,
+        maxIterations: agentConfig?.memory?.maxIterations,
+        embeddingModel: agentConfig?.memory?.embeddingModel,
+      });
+      await this.memoryAgent.init();
+      // this.operators.set(this.memoryAgent.id, this.memoryAgent);
+      logger.debug('SnakAgent: MemoryAgent initialized');
+    } else {
+      logger.info(
+        'SnakAgent: MemoryAgent initialization skipped (disabled in config)'
+      );
+    }
+  }
+
+  /**
+   * Initializes the RagAgent component if enabled
+   * @param agentConfig - Agent configuration
+   * @private
+   */
+  private async initializeRagAgent(
+    agentConfig: AgentConfig | undefined
+  ): Promise<void> {
+    const ragCfg = agentConfig?.rag;
+    if (!ragCfg || ragCfg.enabled !== true) {
+      logger.info(
+        'SnakAgent: RagAgent initialization skipped (disabled or not configured in config)'
+      );
+      return;
+    }
+    logger.debug('SnakAgent: Initializing RagAgent...');
+    this.ragAgent = new RagAgent({
+      topK: ragCfg?.topK,
+      embeddingModel: ragCfg?.embeddingModel,
+    });
+    await this.ragAgent.init();
+    // this.operators.set(this.ragAgent.id, this.ragAgent);
+    logger.debug('SnakAgent: RagAgent initialized');
+  }
+
+  public getMemoryAgent(): MemoryAgent | null {
+    if (!this.memoryAgent) {
+      logger.warn('MemoryAgent is not initialized');
+      return null;
+    }
+    return this.memoryAgent;
+  }
+
+  public getRagAgent(): RagAgent | null {
+    if (!this.ragAgent) {
+      logger.warn('RagAgent is not initialized');
+      return null;
+    }
+    return this.ragAgent;
+  }
   /**
    * Get Starknet account credentials
    * @returns Object containing the account's private and public keys

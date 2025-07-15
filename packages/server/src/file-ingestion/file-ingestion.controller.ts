@@ -19,7 +19,7 @@ interface MultipartField {
   value: unknown;
 }
 
-interface MultipartRequest extends FastifyRequest {
+interface MultipartRequest {
   isMultipart: () => boolean;
   parts: () => AsyncIterableIterator<MultipartFile | MultipartField>;
 }

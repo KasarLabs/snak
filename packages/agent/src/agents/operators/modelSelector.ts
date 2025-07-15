@@ -37,7 +37,7 @@ export interface ModelSelectionCriteria {
 /**
  * Options for the ModelSelector.
  */
-export interface ModelSelectionOptions {
+export interface ModelSelectorConfig {
   debugMode?: boolean;
   useModelSelector?: boolean;
   modelsConfig: ModelsConfig;
@@ -57,9 +57,9 @@ export class ModelSelector extends BaseAgent {
 
   /**
    * Creates an instance of ModelSelector.
-   * @param {ModelSelectionOptions} options - The options for the agent.
+   * @param {ModelSelectorConfig} options - The options for the agent.
    */
-  constructor(options: ModelSelectionOptions) {
+  constructor(options: ModelSelectorConfig) {
     super('model-selector', AgentType.OPERATOR);
     this.debugMode = options.debugMode || false;
     this.useModelSelector = options.useModelSelector || false;

@@ -29,7 +29,6 @@ export const autonomousRules = `
     5. For each response that is not the final answer, respond with "NEXT STEPS: [your planned next steps]"
     6. Never stop calling tools event if you aldreay called this tools in the past.
 `;
-
 export const hybridRules = `
     You are now operating in HYBRID testMODE. This means:
     
@@ -85,5 +84,27 @@ export const modelSelectorRules = (
 export const finalAnswerRules = (finalAnswer: MessageContent) => {
   return `
     I've received your final answer: "${finalAnswer}"\n\nBased on the history of your actions and your objectives, decide what to do next. You can either continue with another task or refine your previous solution.
+  `;
+};
+
+export const agentSelectorPromptContent = (agentInfo: Map<string, string>) => {
+  return `You are an Agent Router responsible for analyzing requests and selecting the most qualified agent.
+
+    ROUTING RULES:
+    1. Analyze the request to identify: domain, required skills, task type, and complexity.
+    2. Match request requirements with agent capabilities from their descriptions.
+    3. Select the agent with the highest alignment to the request's primary needs.
+    4. Consider specialist agents over generalists when expertise matches exactly.
+    5. For multi-domain requests, prioritize the agent covering the main objective.
+    6. Respond with the agent's name only, without additional text or formatting never break this rules.
+
+    AGENT DESCRIPTIONS:
+    ${Array.from(agentInfo)
+      .map(([name, description]) => `- **${name}**: ${description}`)
+      .join('\n')}
+
+    RESPONSE FORMAT:
+    response with the agent_name.
+    Example of response: "agent_1"
   `;
 };

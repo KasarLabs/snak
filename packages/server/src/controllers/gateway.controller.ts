@@ -1,7 +1,6 @@
 import { AgentResponse } from './agents.controller.js';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
-import { SupervisorService } from '../services/supervisor.service.js';
 import ServerError from '../utils/error.js';
 import { OnModuleInit } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -14,7 +13,6 @@ import {
 import { Server, Socket } from 'socket.io';
 import {
   logger,
-  metrics,
   WebsocketAgentAddRequestDTO,
   WebsocketAgentDeleteRequestDTO,
   WebsocketAgentRequestDTO,
@@ -33,9 +31,7 @@ import { Postgres } from '@snakagent/database';
 export class MyGateway implements OnModuleInit {
   constructor(
     private readonly agentService: AgentService,
-    private readonly agentFactory: AgentStorage,
-    private readonly supervisorService: SupervisorService,
-    private readonly reflector: Reflector
+    private readonly agentFactory: AgentStorage
   ) {
     logger.info('Gateway initialized');
   }
@@ -55,52 +51,52 @@ export class MyGateway implements OnModuleInit {
     });
   }
 
-  @SubscribeMessage('supervisor_request')
-  async handleSupervisorRequest(
-    @MessageBody() userRequest: WebsocketSupervisorRequestDTO
-  ): Promise<void> {
-    try {
-      if (!this.supervisorService.isInitialized()) {
-        throw new ServerError('E07TA110');
-      }
+  // @SubscribeMessage('supervisor_request')
+  // async handleSupervisorRequest(
+  //   @MessageBody() userRequest: WebsocketSupervisorRequestDTO
+  // ): Promise<void> {
+  //   try {
+  //     if (!this.supervisorService.isInitialized()) {
+  //       throw new ServerError('E07TA110');
+  //     }
 
-      const config: Record<string, any> = {};
-      if (userRequest.request.agentId) {
-        config.agentId = userRequest.request.agentId;
-      }
+  //     const config: Record<string, any> = {};
+  //     if (userRequest.request.agentId) {
+  //       config.agentId = userRequest.request.agentId;
+  //     }
 
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
-        throw new ServerError('E01TA400');
-      }
+  //     const client = this.clients.get(userRequest.socket_id);
+  //     if (!client) {
+  //       logger.error('Client not found');
+  //       throw new ServerError('E01TA400');
+  //     }
 
-      for await (const chunk of this.supervisorService.websocketExecuteRequest(
-        userRequest.request.content,
-        config
-      )) {
-        const response: AgentResponse = {
-          status: 'success',
-          data: {
-            ...chunk.chunk,
-            iteration_number: chunk.iteration_number,
-            isLastChunk: chunk.final,
-          },
-        };
+  //     for await (const chunk of this.supervisorService.websocketExecuteRequest(
+  //       userRequest.request.content,
+  //       config
+  //     )) {
+  //       const response: AgentResponse = {
+  //         status: 'success',
+  //         data: {
+  //           ...chunk.chunk,
+  //           iteration_number: chunk.iteration_number,
+  //           isLastChunk: chunk.final,
+  //         },
+  //       };
 
-        client.emit('onSupervisorRequest', response);
+  //       client.emit('onSupervisorRequest', response);
 
-        if (chunk.final === true) {
-          break;
-        }
-      }
+  //       if (chunk.final === true) {
+  //         break;
+  //       }
+  //     }
 
-      logger.debug(`Supervisor request processed successfully`);
-    } catch (error) {
-      logger.error('Error in handleSupervisorRequest:', error);
-      throw new ServerError('E03TA100');
-    }
-  }
+  //     logger.debug(`Supervisor request processed successfully`);
+  //   } catch (error) {
+  //     logger.error('Error in handleSupervisorRequest:', error);
+  //     throw new ServerError('E03TA100');
+  //   }
+  // }
 
   @SubscribeMessage('agents_request')
   async handleUserRequest(
@@ -110,7 +106,7 @@ export class MyGateway implements OnModuleInit {
       logger.info('handleUserRequest called');
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
-      const agent = this.supervisorService.getAgentInstance(
+      const agent = this.agentFactory.getAgentInstance(
         userRequest.request.agent_id
       );
       if (!agent) {
@@ -211,9 +207,7 @@ export class MyGateway implements OnModuleInit {
         logger.error('Client not found');
         throw new ServerError('E01TA400');
       }
-      const agent = this.supervisorService.getAgentInstance(
-        userRequest.agent_id
-      );
+      const agent = this.agentFactory.getAgentInstance(userRequest.agent_id);
       if (!agent) {
         throw new ServerError('E01TA400');
       }
@@ -241,14 +235,7 @@ export class MyGateway implements OnModuleInit {
         logger.error('Client not found');
         throw new ServerError('E01TA400');
       }
-      const newAgentConfig = await this.agentFactory.addAgent(
-        userRequest.agent
-      );
-
-      await this.supervisorService.addAgentInstance(
-        newAgentConfig.id,
-        newAgentConfig
-      );
+      await this.agentFactory.addAgent(userRequest.agent);
 
       const response: AgentResponse = {
         status: 'success',
@@ -279,7 +266,6 @@ export class MyGateway implements OnModuleInit {
         throw new ServerError('E01TA400');
       }
 
-      await this.supervisorService.removeAgentInstance(userRequest.agent_id);
       await this.agentFactory.deleteAgent(userRequest.agent_id);
 
       const response: AgentResponse = {
