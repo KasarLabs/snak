@@ -98,6 +98,16 @@ export class AgentStorage implements OnModuleInit {
     return this.agentSelector;
   }
 
+  public getAgentInstancesByName(name: string) : SnakAgent {
+    const instance = Array.from(this.agentInstances.values()).find(
+      (agent) => agent.getAgentConfig().name === name
+    );
+    if (!instance) {
+      throw new Error(`No agent found with name: ${name}`);
+    }
+    return instance;
+  }
+
   public isInitialized(): boolean {
     return this.initialized;
   }
@@ -267,26 +277,26 @@ export class AgentStorage implements OnModuleInit {
 
     // Create and store the initialization promise
     this.initializationPromise = this.performInitialize();
-
-    const modelConfig = await this.get_models_config();
-    if (!modelConfig) {
-      throw new Error('ModelConfig is not available.');
-    }
-
-    // Init Agent Selector
-    const modelSelector = new ModelSelector({
-      debugMode: false,
-      useModelSelector: false,
-      modelsConfig: modelConfig,
-    });
-
-    this.agentSelector = new AgentSelector({
-      availableAgents: this.agentInstances,
-      modelSelector: modelSelector,
-    });
-    await this.agentSelector.init();
     try {
       await this.initializationPromise;
+      const modelConfig = await this.get_models_config();
+      if (!modelConfig) {
+        throw new Error('ModelConfig is not available.');
+      }
+      logger.debug(`Model configuration loaded: ${JSON.stringify(modelConfig)}`);
+
+      // Init Agent Selector
+      const modelSelector = new ModelSelector({
+        debugMode: false,
+        useModelSelector: false,
+        modelsConfig: modelConfig,
+      });
+      await modelSelector.init();
+      this.agentSelector = new AgentSelector({
+        availableAgents: this.agentInstances,
+        modelSelector: modelSelector,
+      });
+      await this.agentSelector.init();
     } catch (error) {
       // Reset promise on failure so we can retry
       this.initializationPromise = null;

@@ -28,6 +28,7 @@ import {
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
+import { SnakAgent } from '@snakagent/agents';
 
 export interface AgentResponse {
   status: 'success' | 'failure' | 'waiting_for_human_input';
@@ -263,7 +264,7 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const route = this.reflector.get('path', this.handleUserRequest);
-
+      let agent: SnakAgent | undefined = undefined;
       if (userRequest.request.agent_id === undefined) {
         logger.warn(
           'Agent ID not provided in request, Using agent Selector to select agent'
@@ -272,14 +273,17 @@ export class AgentsController {
         if (!agentSelector) {
           throw new ServerError('E01TA400');
         }
-        userRequest.request.agent_id = await agentSelector.execute(
-          userRequest.request.content
+        const agent_name = (userRequest.request.agent_id =
+          await agentSelector.execute(userRequest.request.content));
+        agent = this.agentFactory.getAgentInstancesByName(agent_name);
+        if (!agent) {
+          throw new ServerError('E01TA400');
+        }
+      } else {
+        agent = this.agentFactory.getAgentInstance(
+          userRequest.request.agent_id
         );
-        userRequest.request.agent_id = 'default'; // Default agent ID if not provided
       }
-      const agent = this.agentFactory.getAgentInstance(
-        userRequest.request.agent_id
-      );
       if (!agent) {
         throw new ServerError('E01TA400');
       }

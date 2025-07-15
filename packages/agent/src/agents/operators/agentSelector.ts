@@ -87,13 +87,19 @@ export class AgentSelector extends BaseAgent {
     );
   }
 
-  public async execute(input: string): Promise<any> {
+  public async execute(input: string): Promise<string> {
     try {
       const model = this.modelSelector.getModels()['fast'];
-      const result = model.invoke(
+      console.log('AgentSelector model:', this.modelSelector.getModels());
+      const result = await model.invoke(
         agentSelectorPromptContent(this.agentInfo, input)
       );
       console.log('AgentSelector result:', result);
+      if (typeof result.content === 'string') {
+        return result.content.trim();
+      } else {
+        throw new Error('AgentSelector did not return a valid string response');
+      }
     } catch (error) {
       throw new Error('AgentSelector execution failed: ' + error.message);
     }
