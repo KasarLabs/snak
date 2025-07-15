@@ -76,7 +76,6 @@ export class AgentsController {
    */
   @Post('update_agent_mcp')
   async updateAgentMcp(
-    @Headers('x-api-key') apiKey: string,
     @Body() updateData: UpdateAgentMcpDTO
   ) {
     try {
