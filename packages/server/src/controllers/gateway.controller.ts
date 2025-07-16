@@ -124,6 +124,7 @@ export class MyGateway implements OnModuleInit {
       }
 
       let response: AgentResponse;
+      
       for await (const chunk of this.agentService.handleUserRequestWebsocket(
         agent,
         userRequest.request
@@ -172,6 +173,7 @@ export class MyGateway implements OnModuleInit {
               },
             };
           }
+
           await Postgres.query(q);
           logger.info('Message Saved in DB');
         } else {

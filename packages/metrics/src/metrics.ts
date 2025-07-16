@@ -16,18 +16,40 @@ import client from 'prom-client';
  * Singleton class managing Prometheus metrics.
  */
 
+  const DEFAULT_BUCKETS = [
+    0.001, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1,
+    0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120
+  ];
+
 class Metrics {
+
+/**
+ * Agent metrics 
+ */
   private agentCountActive?: client.Gauge;
-  private agentCountTotal?: client.Counter;
+  private agentCountTotal?: client.Counter; // more for debugging, and to know how many agents were created
   private agentResponseTime?: client.Histogram;
   private dbQueryTime?: client.Histogram;
   private agentToolUseCounter = new Map<string, client.Counter>();
+  private agentMsgTotal = new Map<string, client.Counter>(); // total messages sent by 1 agent
+  private agentPromptTokens?: client.Counter;
+  private agentCompletionTokens?: client.Counter;
+  private agentTotalTokens?: client.Counter;
 
-  private userAgentActive?: client.Gauge;
-  private userAgentTotal?: client.Counter;
+/**
+ * User metrics, TODO: User Management incoming 
+ */
+  private userAgentsActive?: client.Gauge;
+  private userAgentsTotal?: client.Counter;
   private userPromptTokens?: client.Counter;
   private userCompletionTokens?: client.Counter;
   private userTotalTokens?: client.Counter;
+
+/**
+ * Error metrics / or blackbox exporter ? 
+ */
+
+  private errorCount = new Map<string, client.Counter>(); // total errors by type 
 
   private registered = false;
 
@@ -51,41 +73,57 @@ class Metrics {
     if (this.registered) return;
     this.registered = true;
 
-    // client.collectDefaultMetrics({ prefix: 'snak_' });
+    client.collectDefaultMetrics({ prefix: 'snak_' });
 
     this.agentCountActive = new client.Gauge({
       name: 'agent_count_active',
       help: 'Number of currently active agents',
-      labelNames: ['agent', 'mode'] as const,
     });
 
     this.agentCountTotal = new client.Counter({
       name: 'agent_count_total',
       help: 'Number of agents created since server start',
-      labelNames: ['agent', 'mode'] as const,
     });
 
     this.agentResponseTime = new client.Histogram({
       name: 'agent_response_time_seconds',
       help: 'Time agents take to response to API requests, in seconds',
       labelNames: ['agent', 'mode', 'route'] as const,
-      buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
+      buckets: DEFAULT_BUCKETS,
     });
 
     this.dbQueryTime = new client.Histogram({
       name: 'db_response_time_seconds',
       help: 'Time the database takes to respond to queries, in seconds',
       labelNames: ['query'] as const,
-      buckets: [0.5, 1, 2, 5, 10, 15, 30, 60, 120],
+      buckets: DEFAULT_BUCKETS,
     });
 
-    this.userAgentActive = new client.Gauge({
+    this.agentPromptTokens = new client.Counter({
+      name: 'agent_prompt_tokens_total',
+      help: 'Total prompt tokens used per agent',
+      labelNames: ['agent'] as const,
+    });
+
+    this.agentCompletionTokens = new client.Counter({
+      name: 'agent_completion_tokens_total',
+      help: 'Total completion tokens generated per agent',
+      labelNames: ['agent'] as const,
+    });
+
+    this.agentTotalTokens = new client.Counter({
+      name: 'agent_tokens_total',
+      help: 'Total tokens (prompt + completion) used per agent',
+      labelNames: ['agent'] as const,
+    });
+
+    this.userAgentsActive = new client.Gauge({
       name: 'user_agent_active',
       help: 'Number of active agents per user',
       labelNames: ['user', 'agent', 'mode'] as const,
     });
 
-    this.userAgentTotal = new client.Counter({
+    this.userAgentsTotal = new client.Counter({
       name: 'user_agent_total',
       help: 'Total number of agent sessions started per user',
       labelNames: ['user', 'agent', 'mode'] as const,
@@ -110,6 +148,18 @@ class Metrics {
     });
   }
   
+
+  public agentConnect(): void {
+    if (!this.agentCountActive) this.register();
+    this.agentCountActive!.inc();
+    this.agentCountTotal!.inc();
+  }
+
+  public agentDisconnect(): void {
+    if (!this.agentCountActive) this.register();
+    this.agentCountActive!.dec();
+  }
+  
    /**
    * Measure the response time of an agent's API request.
    *
@@ -126,21 +176,72 @@ class Metrics {
     f: Promise<T>
   ): Promise<T> {
     if (!this.agentResponseTime) this.register();
-    const end = this.agentResponseTime!.startTimer();
+    const end = this.agentResponseTime!.startTimer({ agent, mode, route });
     const res = await f;
-    end({ agent, mode, route });
+    end(); // count around minus 2secs
     return res;
   }
 
-  public agentConnect(agent: string, mode: string): void {
-    if (!this.agentCountActive) this.register();
-    this.agentCountActive!.labels({ agent, mode }).inc();
-    this.agentCountTotal!.labels({ agent, mode }).inc();
+  /**
+   * Measure the response time of async chunks.
+   *
+   * @param agent  - Agent ID
+   * @param mode   - 'websocket' ...
+   * @param route  - Route 
+   * @param genFn  - function that return AsyncGenerator<T>
+   * @returns      Un AsyncGenerator<T> identique, en mesurant le temps jusqu’à la fin du flux.
+   */
+
+  public async *agentResponseTimeStream<T>(
+    agent: string,
+    mode: string,
+    route: string,
+    genFn: () => AsyncGenerator<T>
+  ): AsyncGenerator<T> {
+    if (!this.agentResponseTime) this.register();
+    const end = this.agentResponseTime!.startTimer();
+    try {
+      for await (const chunk of genFn()) {
+        yield chunk;
+      }
+    } finally {
+      end({ agent, mode, route });
+    }
   }
 
-  public agentDisconnect(agent: string, mode: string): void {
-    if (!this.agentCountActive) this.register();
-    this.agentCountActive!.labels({ agent, mode }).dec();
+  /**
+   * Measure the execution time of database request. Monitoring performance of database queries.
+   *
+   * @param query - Database query string
+   * @param f - Function that returns a Promise for the database operation
+   * @returns 
+   */
+  public async dbResponseTime<T>(
+    query: string,
+    fn: () => Promise<T>
+  ): Promise<T> {
+    if (!this.dbQueryTime) this.register();
+    const end = this.dbQueryTime!.startTimer({ query });
+    try {
+      return await fn();
+    } finally {
+      end();
+    }
+  }
+
+  public agentMsgCount(agent: string, mode: string, msgType: string): void {
+    const counter =
+      this.agentMsgTotal.get(msgType) ||
+      (() => {
+        const c = new client.Counter({
+          name: `agent_${msgType}_messages_total`,
+          help: 'Total messages sent by an agent',
+          labelNames: ['agent', 'mode'] as const,
+        });
+        this.agentMsgTotal.set(msgType, c);
+        return c;
+      })();
+    counter.labels({ agent, mode }).inc();
   }
 
   public agentToolUseCount(agent: string, mode: string, tool: string): void {
@@ -159,23 +260,44 @@ class Metrics {
     counter.labels({ agent, mode }).inc();
   }
 
-  public async dbResponseTime<T>(query: string, f: () => Promise<T>): Promise<T> {
-    if (!this.dbQueryTime) this.register();
-    const end = this.dbQueryTime!.startTimer();
-    const res = await f();
-    end({ query });
-    return res;
+
+  /**
+   * Records token usage for an agent.
+   * @param agent - Agent identifier
+   * @param promptTokens - Number of prompt tokens used
+   * @param completionTokens - Number of completion tokens generated
+   */
+  public recordAgentTokenUsage(
+    agent: string,
+    promptTokens: number,
+    completionTokens: number
+  ): void {
+    if (!this.agentPromptTokens) this.register();
+    this.agentPromptTokens!.labels(agent).inc(promptTokens);
+    this.agentCompletionTokens!.labels(agent).inc(completionTokens);
+    this.agentTotalTokens!.labels(agent).inc(promptTokens + completionTokens);
+  }
+
+  /**
+   * Sets the number of active agents for a user.
+   * @param user - User identifier
+   * @param count - Number of active agents
+   */
+
+  public setUserActiveAgents(user: string, count: number): void {
+    if (!this.userAgentsActive) this.register();
+    this.userAgentsActive!.set({ user }, count);
   }
 
   public userAgentConnect(user: string, agent: string, mode: string): void {
-    if (!this.userAgentActive) this.register();
-    this.userAgentActive!.labels({ user, agent, mode }).inc();
-    this.userAgentTotal!.labels({ user, agent, mode }).inc();
+    if (!this.userAgentsActive) this.register();
+    this.userAgentsActive!.labels({ user, agent, mode }).inc();
+    this.userAgentsTotal!.labels({ user, agent, mode }).inc();
   }
 
   public userAgentDisconnect(user: string, agent: string, mode: string): void {
-    if (!this.userAgentActive) this.register();
-    this.userAgentActive!.labels({ user, agent, mode }).dec();
+    if (!this.userAgentsActive) this.register();
+    this.userAgentsActive!.labels({ user, agent, mode }).dec();
   }
 
   public userTokenUsage(
@@ -193,6 +315,8 @@ class Metrics {
   }
 }
 
+
 const metrics = new Metrics();
 export default metrics;
 export { metrics };
+

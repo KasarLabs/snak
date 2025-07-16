@@ -502,7 +502,7 @@ export class SupervisorAgent extends BaseAgent {
           ? AGENT_MODES[AgentMode.HYBRID]
           : AGENT_MODES[AgentMode.INTERACTIVE];
 
-    metrics.agentConnect(agentName, agentMode);
+    metrics.agentConnect();
     logger.debug(
       `SupervisorAgent: Metrics initialized for agent '${agentName}' in mode '${agentMode}'`
     );

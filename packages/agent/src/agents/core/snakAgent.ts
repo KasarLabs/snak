@@ -130,13 +130,6 @@ export class SnakAgent extends BaseAgent {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
 
-    metrics.agentConnect(
-      "agent",
-      config.agentConfig?.mode === AgentMode.AUTONOMOUS
-        ? AGENT_MODES[AgentMode.AUTONOMOUS]
-        : AGENT_MODES[AgentMode.INTERACTIVE]
-    );
-
     this.iterationEmbeddings = new CustomHuggingFaceEmbeddings({
       model:
         this.agentConfig.memory?.embeddingModel || 'Xenova/all-MiniLM-L6-v2',

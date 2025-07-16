@@ -321,6 +321,7 @@ export class AgentsController {
       throw new ServerError('E05TA100');
     }
   }
+  
   /**
    * Initialize and add a new agent
    * @param userRequest - Request containing agent configuration
@@ -344,6 +345,9 @@ export class AgentsController {
         status: 'success',
         data: `Agent ${newAgentConfig.name} added and registered with supervisor`,
       };
+
+      metrics.agentConnect();
+
       return response;
     } catch (error) {
       logger.error('Error in addAgent:', error);
@@ -404,6 +408,7 @@ export class AgentsController {
         status: 'success',
         data: `Agent ${userRequest.agent_id} deleted and unregistered from supervisor`,
       };
+      metrics.agentDisconnect();
       return response;
     } catch (error) {
       logger.error('Error in deleteAgent:', error);
@@ -441,6 +446,7 @@ export class AgentsController {
             status: 'success',
             data: `Agent ${agentId} deleted and unregistered from supervisor`,
           });
+          metrics.agentDisconnect();
         } catch (error) {
           logger.error(`Error deleting agent ${agentId}:`, error);
           responses.push({
