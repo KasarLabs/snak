@@ -1,5 +1,6 @@
 import { MessageContent } from '@langchain/core/messages';
 import { AgentConfig } from '@snakagent/core';
+import { StepInfo } from 'agents/modes/interactive.js';
 
 export * from './agentSelectorPrompts.js';
 export * from './configAgentPrompts.js';
@@ -87,7 +88,10 @@ export const finalAnswerRules = (finalAnswer: MessageContent) => {
   `;
 };
 
-export const agentSelectorPromptContent = (agentInfo: Map<string, string>, input : string) => {
+export const agentSelectorPromptContent = (
+  agentInfo: Map<string, string>,
+  input: string
+) => {
   return `You are an Agent Router responsible for analyzing requests and selecting the most qualified agent.
 
     ROUTING RULES:
@@ -109,4 +113,96 @@ export const agentSelectorPromptContent = (agentInfo: Map<string, string>, input
     response with the agent_name.
     Example of response: "agent_1"
   `;
+};
+
+export const planPrompt = (input: string) => {
+  return `
+Create a SIMPLE action plan. Combine related tasks to minimize steps.
+
+RULES:
+- Maximum 5-7 steps total
+- Merge similar actions into single steps
+- Focus on essential tasks only
+- Keep the exact format below for parsing
+
+FORMAT:
+
+SOLUTION PLAN:
+
+Step 1: [Action name] - [Description of what to do]
+Step 2: [Action name] - [Description of what to do]
+Step 3: [Action name] - [Description of what to do]
+
+Checkpoints:
+- After step X: [What to verify]
+
+REQUEST: ${input}`;
+};
+
+export const PromptPlanInteractive = (
+  currentStep: StepInfo,
+  stepHistory: StepInfo[],
+  raw_plan: string
+) => {
+  return `
+You are in PLAN-EXECUTION MODE with REAL-TIME TRACKING.
+THE PLAN : 
+${raw_plan}
+CURRENT POSITION:
+- Current Step: STEP ${currentStep.stepNumber}: ${currentStep.stepName}
+- Completed Steps: 
+${stepHistory.map((step) => `  - STEP ${step.stepNumber}: ${step.stepName} (${step.status})`).join('\n')}
+
+CORE RULES:
+1. ALWAYS acknowledge your current step first: "Executing Step ${currentStep.stepNumber}: ${currentStep.stepName}"
+2. You CAN complete the current step and immediately start the next one in the SAME response
+3. NEVER skip steps - execute them in order
+4. NEVER ask questions to the user - execute each step autonomously
+5. NO RECAPS or summaries until the FINAL step
+6. Follow the plan EXACTLY - do not skip or modify steps
+
+PLAN FORMAT:
+PLAN: [Goal]
+Total Steps: [X]
+Step N: [stepName]
+  Action: [What to do]
+  Dependencies: [Previous steps or None]
+  Checkpoint: [Optional milestone name]
+
+EXECUTION FLOW:
+1. State current step: "Executing Step X: stepName"
+2. Execute the step WITHOUT asking for user input
+3. Mark completed: **STEP_COMPLETED: Step X - stepName - [Result in 1-2 words max]**
+4. IF step was quick/simple, continue: "Executing Step X+1: nextStepName"
+5. **FINAL STEP ONLY: PLAN_COMPLETED must include FULL SUMMARY of all steps and results**
+
+ERROR HANDLING:
+- If step fails: **STEP_FAILED: Step X - stepName - [Reason]**
+- If you need information: Use available tools, don't ask the user
+- If truly blocked: Mark step as failed and explain why
+
+CRITICAL FOR PLAN_COMPLETED:
+- ONLY use after completing the FINAL step
+- MUST include comprehensive summary of:
+  * What was accomplished in each step
+  * Key findings and results
+  * Final deliverables
+  * Overall outcome
+- This is the ONLY place for a detailed recap
+
+EXAMPLE (Final step with summary):
+Current Step: {{stepNumber: 3, stepName: "create_report", status: "pending"}}
+History: [{{stepNumber: 1, stepName: "collect_data", status: "completed"}}, {{stepNumber: 2, stepName: "analyze_data", status: "completed"}}]
+
+Response:
+"Executing Step 3: create_report
+[Creating report...]
+**STEP_COMPLETED: Step 3 - create_report - Done**
+**PLAN_COMPLETED: Successfully completed all tasks:
+- Step 1: Collected data from 5 RPC endpoints including block info, chain status, and transaction details
+- Step 2: Analyzed performance metrics showing 2.3s average response time and 99.9% uptime
+- Step 3: Generated comprehensive report with visualizations and recommendations
+Final outcome: Demonstrated Starknet's RPC capabilities with live examples showcasing speed, reliability, and advanced features**"
+
+Remember: Brief step completions. Full summary ONLY in PLAN_COMPLETED.`;
 };

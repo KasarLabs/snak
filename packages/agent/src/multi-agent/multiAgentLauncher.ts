@@ -162,7 +162,10 @@ async function launchAgentAsync(
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
     db_credentials: database,
     agentConfig: agentConfigCopy,
-    modelSelector: modelSelector,
+    modelSelectorConfig: {
+      useModelSelector: true,
+      modelsConfig,
+    },
   });
   await agent.init();
 
@@ -186,8 +189,9 @@ async function launchAgentAsync(
       `Received broadcast message: "${userInput}". Forwarding to AgentSystem.`
     );
     try {
+      // Need to update this for async generators
       const threadId = `thread-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      await agent.execute(userInput, {
+      await agent.execute(userInput, false, {
         configurable: { thread_id: threadId },
       });
     } catch (error) {
