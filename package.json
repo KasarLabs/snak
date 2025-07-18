@@ -48,7 +48,8 @@
     "start:server:dev": "pnpm run build && lerna run start --scope \"@snakagent/server\"",
     "node:server": "node ./mcps/snak/dist/index.js",
     "start:prod": "lerna run start --scope \"@snakagent/server\"; ECODE=$? ; exit $ECODE",
-    "test_metrics": "jest packages/metrics/src/__tests__/metrics.test.ts"
+    "test_metrics": "jest packages/metrics/src/__tests__/metrics.test.ts",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "dependencies": {
     "@nestjs/platform-socket.io": "^11.1.1",
