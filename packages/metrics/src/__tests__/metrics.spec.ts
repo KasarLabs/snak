@@ -28,12 +28,18 @@ describe('Metrics singleton', () => {
   it('agentConnect / agentDisconnect incrémente et décrémente correctement', async () => {
     metrics.agentConnect('MyAgent', 'interactive');
     let out = await metrics.metrics();
-    expect(out).toMatch(/agent_count_active\{agent="MyAgent",mode="interactive"\} 1/);
-    expect(out).toMatch(/agent_count_total\{agent="MyAgent",mode="interactive"\} 1/);
+    expect(out).toMatch(
+      /agent_count_active\{agent="MyAgent",mode="interactive"\} 1/
+    );
+    expect(out).toMatch(
+      /agent_count_total\{agent="MyAgent",mode="interactive"\} 1/
+    );
 
     metrics.agentDisconnect('MyAgent', 'interactive');
     out = await metrics.metrics();
-    expect(out).toMatch(/agent_count_active\{agent="MyAgent",mode="interactive"\} 0/);
+    expect(out).toMatch(
+      /agent_count_active\{agent="MyAgent",mode="interactive"\} 0/
+    );
   });
 
   it('agentToolUseCount crée et incrémente tool_<tool>_use_counter', async () => {
@@ -75,11 +81,17 @@ describe('Metrics singleton', () => {
   it('userAgentConnect / userAgentDisconnect gère les compteurs user_agent_active et total', async () => {
     metrics.userAgentConnect('u2', 'A2', 'web');
     let out = await metrics.metrics();
-    expect(out).toMatch(/user_agent_active\{user="u2",agent="A2",mode="web"\} 1/);
-    expect(out).toMatch(/user_agent_total\{user="u2",agent="A2",mode="web"\} 1/);
+    expect(out).toMatch(
+      /user_agent_active\{user="u2",agent="A2",mode="web"\} 1/
+    );
+    expect(out).toMatch(
+      /user_agent_total\{user="u2",agent="A2",mode="web"\} 1/
+    );
 
     metrics.userAgentDisconnect('u2', 'A2', 'web');
     out = await metrics.metrics();
-    expect(out).toMatch(/user_agent_active\{user="u2",agent="A2",mode="web"\} 0/);
+    expect(out).toMatch(
+      /user_agent_active\{user="u2",agent="A2",mode="web"\} 0/
+    );
   });
 });

@@ -153,7 +153,7 @@ export const registerTools = async (
           await imported_tool.registerTools(tools_new, agent);
           const agentId = agent.getAgentConfig().id;
           const agentMode = agent.getAgentConfig().mode;
-          
+
           if (!agentId || !agentMode) {
             logger.warn(
               `Agent ID or mode is not defined for agent: ${JSON.stringify(
@@ -164,11 +164,7 @@ export const registerTools = async (
           }
 
           for (const tool of tools_new) {
-            metrics.agentToolUseCount(
-              agentId.toString(),
-              agentMode,
-              tool.name
-            );
+            metrics.agentToolUseCount(agentId.toString(), agentMode, tool.name);
           }
 
           tools.push(...tools_new);

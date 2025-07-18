@@ -321,7 +321,7 @@ export class AgentsController {
       throw new ServerError('E05TA100');
     }
   }
-  
+
   /**
    * Initialize and add a new agent
    * @param userRequest - Request containing agent configuration

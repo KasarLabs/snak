@@ -16,16 +16,15 @@ import client from 'prom-client';
  * Singleton class managing Prometheus metrics.
  */
 
-  const DEFAULT_BUCKETS = [
-    0.001, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1,
-    0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120
-  ];
+const DEFAULT_BUCKETS = [
+  0.001, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30,
+  60, 120,
+];
 
 class Metrics {
-
-/**
- * Agent metrics 
- */
+  /**
+   * Agent metrics
+   */
   private agentCountActive?: client.Gauge;
   private agentCountTotal?: client.Counter; // more for debugging, and to know how many agents were created
   private agentResponseTime?: client.Histogram;
@@ -36,20 +35,20 @@ class Metrics {
   private agentCompletionTokens?: client.Counter;
   private agentTotalTokens?: client.Counter;
 
-/**
- * User metrics, TODO: User Management incoming 
- */
+  /**
+   * User metrics, TODO: User Management incoming
+   */
   private userAgentsActive?: client.Gauge;
   private userAgentsTotal?: client.Counter;
   private userPromptTokens?: client.Counter;
   private userCompletionTokens?: client.Counter;
   private userTotalTokens?: client.Counter;
 
-/**
- * Error metrics / or blackbox exporter ? 
- */
+  /**
+   * Error metrics / or blackbox exporter ?
+   */
 
-  private errorCount = new Map<string, client.Counter>(); // total errors by type 
+  private errorCount = new Map<string, client.Counter>(); // total errors by type
 
   private registered = false;
 
@@ -57,7 +56,7 @@ class Metrics {
     return client.register.contentType;
   }
 
-   /**
+  /**
    * Return the dump text of Prometheus metrics.
    *
    * @returns Plaintext Prometheus format.
@@ -147,7 +146,6 @@ class Metrics {
       labelNames: ['user', 'agent'] as const,
     });
   }
-  
 
   public agentConnect(): void {
     if (!this.agentCountActive) this.register();
@@ -159,8 +157,8 @@ class Metrics {
     if (!this.agentCountActive) this.register();
     this.agentCountActive!.dec();
   }
-  
-   /**
+
+  /**
    * Measure the response time of an agent's API request.
    *
    * @param agent - Agent name
@@ -187,7 +185,7 @@ class Metrics {
    *
    * @param agent  - Agent ID
    * @param mode   - 'websocket' ...
-   * @param route  - Route 
+   * @param route  - Route
    * @param genFn  - function that return AsyncGenerator<T>
    * @returns      Un AsyncGenerator<T> identique, en mesurant le temps jusqu’à la fin du flux.
    */
@@ -214,7 +212,7 @@ class Metrics {
    *
    * @param query - Database query string
    * @param f - Function that returns a Promise for the database operation
-   * @returns 
+   * @returns
    */
   public async dbResponseTime<T>(
     query: string,
@@ -259,7 +257,6 @@ class Metrics {
       })();
     counter.labels({ agent, mode }).inc();
   }
-
 
   /**
    * Records token usage for an agent.
@@ -309,14 +306,12 @@ class Metrics {
     if (!this.userPromptTokens) this.register();
     this.userPromptTokens!.labels({ user, agent }).inc(promptTokens);
     this.userCompletionTokens!.labels({ user, agent }).inc(completionTokens);
-    this.userTotalTokens!
-      .labels({ user, agent })
-      .inc(promptTokens + completionTokens);
+    this.userTotalTokens!.labels({ user, agent }).inc(
+      promptTokens + completionTokens
+    );
   }
 }
-
 
 const metrics = new Metrics();
 export default metrics;
 export { metrics };
-
