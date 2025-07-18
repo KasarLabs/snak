@@ -45,6 +45,7 @@
     "@langchain/ollama": "^0.1.4",
     "@langchain/openai": "^0.3.17",
     "@snakagent/core": "workspace:*",
+    "@snakagent/metrics": "workspace:*",
     "@snakagent/database": "workspace:*",
     "@snakagent/plugin-argent": "workspace:*",
     "@snakagent/plugin-artpeace": "workspace:*",

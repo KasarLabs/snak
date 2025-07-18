@@ -1,0 +1,32 @@
+{
+  "name": "@snakagent/metrics",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "jest",
+    "build": "tsup",
+    "clean": "rm -rf node_modules",
+    "clean:dist": "rm -rf dist",
+    "clean:all": "pnpm clean && pnpm clean:dist",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run format && npm run build",
+    "prepack": "npm run build",
+    "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix"
+  },
+  "dependencies": {
+    "prom-client": "^15.1.3"
+  }
+}

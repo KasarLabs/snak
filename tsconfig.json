@@ -31,7 +31,8 @@
       "@client/*": ["packages/client/*"],
       "@agents/*": ["packages/agents/*"],
       "@mcp/*": ["mcps/*"],
-      "@core/*": ["packages/core/*"]
-    }
+      "@core/*": ["packages/core/*"],
+      "@metrics/*": ["packages/metrics/*"]
+    },
   }
 }

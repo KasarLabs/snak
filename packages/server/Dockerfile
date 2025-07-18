@@ -35,7 +35,6 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-# compile (Turbo build, Next build, tsup…)
 RUN pnpm run build
 
 ########################################
@@ -61,6 +60,9 @@ COPY --from=builder /app/packages/database/dist            packages/database/dis
 
 COPY --from=builder /app/packages/agent/package.json    packages/agent/package.json
 COPY --from=builder /app/packages/agent/dist            packages/agent/dist
+
+COPY --from=builder /app/packages/metrics/package.json    packages/metrics/package.json
+COPY --from=builder /app/packages/metrics/dist            packages/metrics/dist
 
 ENV NODE_ENV=production
 EXPOSE 3002
