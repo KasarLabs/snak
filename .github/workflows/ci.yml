@@ -66,6 +66,9 @@ jobs:
       - name: Check TypeScript compilation (Agents)
         run: pnpm --filter @snakagent/agents tsc --noEmit -p tsconfig.json
 
+      - name: Check TypeScript compilation (Metrics)
+        run: pnpm --filter @snakagent/metrics tsc --noEmit -p tsconfig.json
+
       - name: Check TypeScript compilation (Frontend)
         run: echo "Skipping TypeScript check for client during ESM migration"
 

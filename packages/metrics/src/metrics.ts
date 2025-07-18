@@ -72,7 +72,7 @@ class Metrics {
     if (this.registered) return;
     this.registered = true;
 
-    client.collectDefaultMetrics({ prefix: 'snak_' });
+    client.collectDefaultMetrics({ prefix: 'nodejs_' });
 
     this.agentCountActive = new client.Gauge({
       name: 'agent_count_active',

@@ -4,7 +4,7 @@ import client from 'prom-client';
 
 describe('Metrics singleton', () => {
   beforeEach(() => {
-    // Réinitialise toutes les métriques entre chaque test
+    // Reset the metrics client before each test
     client.register.resetMetrics();
     // Reset internal flag so register() se relance
     // @ts-ignore
@@ -21,12 +21,11 @@ describe('Metrics singleton', () => {
     expect(out).toContain('user_prompt_tokens_total');
     expect(out).toContain('user_completion_tokens_total');
     expect(out).toContain('user_tokens_total');
-    // Vérifier qu’on a bien 5 + 7 = 12 sur user_tokens_total
     expect(out).toMatch(/user_tokens_total\{user="u1",agent="agentA"\} 12/);
   });
 
   it('agentConnect / agentDisconnect incrémente et décrémente correctement', async () => {
-    metrics.agentConnect('MyAgent', 'interactive');
+    metrics.agentConnect();
     let out = await metrics.metrics();
     expect(out).toMatch(
       /agent_count_active\{agent="MyAgent",mode="interactive"\} 1/
@@ -35,7 +34,7 @@ describe('Metrics singleton', () => {
       /agent_count_total\{agent="MyAgent",mode="interactive"\} 1/
     );
 
-    metrics.agentDisconnect('MyAgent', 'interactive');
+    metrics.agentDisconnect();
     out = await metrics.metrics();
     expect(out).toMatch(
       /agent_count_active\{agent="MyAgent",mode="interactive"\} 0/
@@ -62,9 +61,7 @@ describe('Metrics singleton', () => {
     expect(res).toBe(42);
 
     const out = await metrics.metrics();
-    // On vérifie qu’au moins un bucket est présent pour la métrique
     expect(out).toContain('agent_response_time_seconds_bucket');
-    // et que notre label apparait
     expect(out).toMatch(/agent="X",mode="m",route="\/r"/);
   });
 
