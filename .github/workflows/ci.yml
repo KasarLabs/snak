@@ -54,6 +54,7 @@ jobs:
           pnpm --filter @snakagent/database build
           pnpm --filter @snakagent/core build
           pnpm --filter @snakagent/agents build
+          pnpm --filter @snakagent/metrics build
           pnpm --filter='"@snakagent/plugin-*"' build || echo "Plugin build skipped"
 
       - name: Check TypeScript compilation (Snak MCP)
