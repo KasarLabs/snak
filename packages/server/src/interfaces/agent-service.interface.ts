@@ -22,10 +22,7 @@ export interface AgentExecutionCallDataResponse {
 }
 
 export interface IAgentService {
-  handleUserRequest(
-    agent: IAgent,
-    userRequest: MessageRequest
-  ): Promise<any>;
+  handleUserRequest(agent: IAgent, userRequest: MessageRequest): Promise<any>;
   getAgentStatus(agent: IAgent): Promise<{
     isReady: boolean;
     walletConnected: boolean;

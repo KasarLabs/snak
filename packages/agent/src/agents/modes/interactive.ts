@@ -144,9 +144,7 @@ export const createInteractiveAgent = async (
         return truncatedResult;
       } catch (error) {
         const executionTime = Date.now() - startTime;
-        logger.error(
-          `Tool execution failed after${executionTime}ms: ${error}`
-        );
+        logger.error(`Tool execution failed after${executionTime}ms: ${error}`);
         throw error;
       }
     };
