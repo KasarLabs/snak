@@ -79,7 +79,7 @@ export const createInteractiveAgent = async (
 
     const GraphState = Annotation.Root({
       messages: Annotation<BaseMessage[]>({
-        reducer: (x, y) => x.concat(y),
+        reducer: (x : BaseMessage[], y : BaseMessage) => x.concat(y),
       }),
       memories: Annotation<string>,
       rag: Annotation<string>,
@@ -197,7 +197,7 @@ export const createInteractiveAgent = async (
 
       try {
         const filteredMessages = state.messages.filter(
-          (msg) =>
+          (msg : AIMessageChunk) =>
             !(
               msg instanceof AIMessageChunk &&
               msg.additional_kwargs?.from === 'model-selector'
@@ -209,7 +209,7 @@ export const createInteractiveAgent = async (
         if (modelSelector) {
           // Extract originalUserQuery from first HumanMessage if available
           const originalUserMessage = currentMessages.find(
-            (msg): msg is HumanMessage => msg instanceof HumanMessage
+            (msg : HumanMessage): msg is HumanMessage => msg instanceof HumanMessage
           );
           const originalUserQuery = originalUserMessage
             ? typeof originalUserMessage.content === 'string'
