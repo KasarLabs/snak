@@ -20,3 +20,5 @@ services:
         -c log_file_mode=0664
         -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
     restart: unless-stopped
+
+

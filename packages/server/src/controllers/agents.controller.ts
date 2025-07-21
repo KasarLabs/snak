@@ -47,6 +47,17 @@ export interface AgentAvatarResponseDTO {
   avatar_mime_type: string;
 }
 
+interface UpdateAgentMcpDTO {
+  id: string;
+  plugins: string[];
+  mcpServers: Record<string, any>;
+}
+
+interface AgentMcpResponseDTO {
+  id: string;
+  mcpServers: Record<string, any>;
+}
+
 /**
  * Controller for handling agent-related operations
  */
@@ -62,12 +73,52 @@ export class AgentsController {
    * @param userRequest - The user request containing agent ID and content
    * @returns Promise<AgentResponse> - Response with status and data
    */
+  @Post('update_agent_mcp')
+  async updateAgentMcp(@Body() updateData: UpdateAgentMcpDTO) {
+    try {
+      const { id, mcpServers } = updateData;
+      if (!id) {
+        throw new BadRequestException('Agent ID is required');
+      }
+
+      if (!mcpServers || typeof mcpServers !== 'object') {
+        throw new BadRequestException('MCP servers must be an object');
+      }
+
+      // Update agent MCP configuration in database
+      const q = new Postgres.Query(
+        `UPDATE agents
+       SET "mcpServers" = $1
+       WHERE id = $2
+       RETURNING id, "mcpServers"`,
+        [JSON.stringify(mcpServers), id]
+      );
+
+      const result = await Postgres.query<AgentMcpResponseDTO>(q);
+
+      if (result.length === 0) {
+        throw new BadRequestException('Agent not found');
+      }
+      const updatedAgent = result[0];
+
+      return {
+        status: 'success',
+        data: {
+          id: updatedAgent.id,
+          mcpServers: updatedAgent.mcpServers,
+        },
+      };
+    } catch (error) {
+      logger.error('Error in updateAgentMcp:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('MCP update failed: ' + error.message);
+    }
+  }
 
   @Post('update_agent_config')
-  async updateAgentConfig(
-    @Headers('x-api-key') apiKey: string,
-    @Body() config: AgentConfigSQL
-  ): Promise<any> {
+  async updateAgentConfig(@Body() config: AgentConfigSQL): Promise<any> {
     try {
       if (!config || !config.id) {
         throw new BadRequestException('Agent ID is required');
@@ -145,7 +196,7 @@ export class AgentsController {
         message: 'Agent configuration updated successfully',
       };
     } catch (error) {
-      console.error('Error in updateAgentConfig:', error);
+      logger.error('Error in updateAgentConfig:', error);
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -222,7 +273,7 @@ export class AgentsController {
         avatarUrl: avatarDataUrl,
       };
     } catch (error) {
-      console.error('Error in uploadAvatar:', error);
+      logger.error('Error in uploadAvatar:', error);
 
       if (error instanceof BadRequestException) {
         throw error;
