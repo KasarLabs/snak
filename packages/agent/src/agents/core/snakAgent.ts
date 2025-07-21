@@ -418,52 +418,24 @@ export class SnakAgent extends BaseAgent {
       let lastChunkToSave;
       let iterationNumber = 0;
       let finalAnswer = '';
-      const maxGraphIterations = this.agentConfig.maxIterations;
-      const short_term_memory =
-        this.agentConfig.memory.shortTermMemorySize || 5;
-      const memory_size = this.agentConfig.memory?.memorySize || 20;
-      let currentIterationNumber = 0;
 
-      const threadConfig = {
-        configurable: {
-          thread_id: threadId,
-          config: {
-            max_graph_steps: maxGraphIterations,
-            short_term_memory: short_term_memory,
-            memorySize: memory_size,
-          },
-        },
-      };
-
-      for await (const chunk of await app.streamEvents(graphState, {
-        ...threadConfig,
-        recursionLimit: 500,
-        version: 'v2',
-      })) {
-        console.log(JSON.stringify(chunk));
-        console.log('\n\n\n');
+      for await (const chunk of await app.streamEvents(
+        graphState,
+        runnableConfig
+      )) {
         if (
-          (chunk.name === 'Branch<update_graph,tools,agent,end>' ||
-            chunk.name === 'Branch<agent,tools,agent,human,end>') &&
+          chunk.name === 'Branch<agent>' &&
           chunk.event === 'on_chain_start'
         ) {
-          const messages = chunk.data.input.messages;
-          currentIterationNumber =
-            messages[messages.length - 1].additional_kwargs.iteration_number;
-          logger.debug(`Iteration ${currentIterationNumber} started`);
+          iterationNumber++;
         }
-
-        if (
-          (chunk.name === 'Branch<update_graph,tools,agent,end>' ||
-            chunk.name === 'Branch<agent,tools,agent,human,end>') &&
-          chunk.event === 'on_chain_end'
-        ) {
+        if (chunk.name === 'Branch<agent>' && chunk.event === 'on_chain_end') {
           lastChunkToSave = chunk;
         }
 
         if (
-          chunk.event === 'on_chat_model_start' ||
           chunk.event === 'on_chat_model_stream' ||
+          chunk.event === 'on_chat_model_start' ||
           chunk.event === 'on_chat_model_end'
         ) {
           const formatted = FormatChunkIteration(chunk);
