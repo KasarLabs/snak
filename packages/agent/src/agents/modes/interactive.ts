@@ -108,7 +108,7 @@ export const createInteractiveAgent = async (
         const resultMessage =
           truncatedResult.messages[truncatedResult.messages.length - 1];
         logger.debug(
-          `Tool execution completed in ${executionTime}ms with result type: ${resultMessage._getType?.() || typeof resultMessage}`
+          `Tool execution completed in ${executionTime}ms with result type:${resultMessage._getType?.() || typeof resultMessage}`
         );
       }
 
