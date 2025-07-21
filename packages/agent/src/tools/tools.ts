@@ -4,6 +4,8 @@ import { logger, AgentConfig } from '@snakagent/core';
 import { metrics } from '@snakagent/core';
 import { DatabaseCredentials } from './types/database.js';
 import { z as Zod } from 'zod';
+import { MemoryAgent } from 'agents/operators/memoryAgent.js';
+import { RagAgent } from 'agents/operators/ragAgent.js';
 
 /**
  * @interface SnakAgentInterface
@@ -26,6 +28,8 @@ export interface SnakAgentInterface {
   getDatabaseCredentials: () => DatabaseCredentials;
   getProvider: () => RpcProvider;
   getAgentConfig: () => AgentConfig;
+  getMemoryAgent: () => MemoryAgent | null;
+  getRagAgent: () => RagAgent | null;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export interface Message {
-  agent_id: string;
+  agent_id?: string;
   sender_type: string;
   content: string;
   status: string;

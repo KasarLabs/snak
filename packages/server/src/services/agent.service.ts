@@ -6,7 +6,6 @@ import {
 } from '../interfaces/agent-service.interface.js';
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
-  logger,
   MessageFromAgentIdDTO,
   MessageRequest,
   UpdateModelConfigDTO,
@@ -17,13 +16,8 @@ import {
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
-import { AgentSystem } from '@snakagent/agents';
 import { Postgres } from '@snakagent/database';
-import {
-  AgentConfigSQL,
-  ConversationSQL,
-  MessageSQL,
-} from '../interfaces/sql_interfaces.js';
+import { AgentConfigSQL, MessageSQL } from '../interfaces/sql_interfaces.js';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -32,7 +26,7 @@ export class AgentService implements IAgentService {
   constructor(private readonly config: ConfigurationService) {}
 
   async handleUserRequest(
-    agent: AgentSystem | IAgent,
+    agent: IAgent,
     userRequest: MessageRequest
   ): Promise<AgentExecutionResponse> {
     this.logger.debug({
@@ -110,7 +104,7 @@ export class AgentService implements IAgentService {
   }
 
   async *handleUserRequestWebsocket(
-    agent: AgentSystem | any,
+    agent: any,
     userRequest: MessageRequest
   ): AsyncGenerator<any> {
     this.logger.debug({

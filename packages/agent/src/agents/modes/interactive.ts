@@ -1,10 +1,17 @@
-import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
+import {
+  StateGraph,
+  MemorySaver,
+  Annotation,
+  LangGraphRunnableConfig,
+  END,
+} from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
   AIMessage,
   AIMessageChunk,
   BaseMessage,
   HumanMessage,
+  ToolMessage,
 } from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
@@ -19,43 +26,16 @@ import {
   formatAgentResponse,
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
-import { SupervisorAgent } from '../supervisor/supervisorAgent.js';
-import { interactiveRules } from '../../prompt/prompts.js';
+import {
+  interactiveRules,
+  planPrompt,
+  PromptPlanInteractive,
+} from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
-
-/**
- * Retrieves the memory agent instance from the SupervisorAgent.
- * @returns A promise that resolves to the memory agent instance or null if not found or an error occurs.
- */
-const getMemoryAgent = async () => {
-  try {
-    // Try to get supervisor instance
-    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
-    if (supervisorAgent) {
-      return await supervisorAgent.getMemoryAgent();
-    }
-    return null;
-  } catch (error) {
-    logger.error(`Failed to get memory agent: ${error}`);
-    return null;
-  }
-};
-
-const getRagAgent = async () => {
-  try {
-    const supervisorAgent = SupervisorAgent.getInstance?.() || null;
-    if (supervisorAgent) {
-      return await supervisorAgent.getRagAgent();
-    }
-    return null;
-  } catch (error) {
-    logger.error(`Failed to get rag agent: ${error}`);
-    return null;
-  }
-};
+import { RunnableConfig } from '@langchain/core/runnables';
 
 /**
  * Creates and configures an interactive agent.
@@ -81,7 +61,7 @@ export const createInteractiveAgent = async (
     let memoryAgent: MemoryAgent | null = null;
     if (agent_config.memory) {
       try {
-        memoryAgent = await getMemoryAgent();
+        memoryAgent = snakAgent.getMemoryAgent();
         if (memoryAgent) {
           logger.debug('Successfully retrieved memory agent');
           const memoryTools = memoryAgent.prepareMemoryTools();
@@ -99,7 +79,7 @@ export const createInteractiveAgent = async (
     let ragAgent: RagAgent | null = null;
     if (agent_config.rag?.enabled !== false) {
       try {
-        ragAgent = await getRagAgent();
+        ragAgent = snakAgent.getRagAgent();
         if (!ragAgent) {
           logger.warn('Rag agent not available, rag context will be skipped');
         }
@@ -118,39 +98,87 @@ export const createInteractiveAgent = async (
 
     const toolNode = new ToolNode(toolsList);
     // Add wrapper to log tool executions
-    const originalInvoke = toolNode.invoke.bind(toolNode);
-    toolNode.invoke = async (state, config) => {
+    const originalToolNodeInvoke = toolNode.invoke.bind(toolNode);
+    toolNode.invoke = async (
+      state: typeof GraphState.State,
+      config?: LangGraphRunnableConfig
+    ): Promise<{ messages: BaseMessage[] } | null> => {
       const lastMessage = state.messages[state.messages.length - 1];
-      const toolCalls = lastMessage?.tool_calls || [];
+      const lastIterationNumber = getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      )?.additional_kwargs.iteration_number;
+      const toolCalls =
+        lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
+          ? lastMessage.tool_calls
+          : [];
 
       if (toolCalls.length > 0) {
-        for (const call of toolCalls) {
+        toolCalls.forEach((call) => {
           logger.info(
             `Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${JSON.stringify(call.args).length > 150 ? '...' : ''}`
           );
-        }
+        });
       }
 
       const startTime = Date.now();
-      const result = await originalInvoke(state, config);
-      const executionTime = Date.now() - startTime;
+      try {
+        const result = await originalToolNodeInvoke(state, config);
+        const executionTime = Date.now() - startTime;
+        const truncatedResult: { messages: [ToolMessage] } =
+          truncateToolResults(result, 5000); // Max 5000 chars for tool output
 
-      const truncatedResult = truncateToolResults(result, 5000);
-
-      if (truncatedResult?.messages?.length > 0) {
-        const resultMessage =
-          truncatedResult.messages[truncatedResult.messages.length - 1];
         logger.debug(
-          `Tool execution completed in ${executionTime}ms with result type: ${resultMessage._getType?.() || typeof resultMessage}`
+          `Tool execution completed in ${executionTime}ms. Results: ${Array.isArray(truncatedResult) ? truncatedResult.length : typeof truncatedResult}`
         );
+
+        truncatedResult.messages.forEach((res) => {
+          res.additional_kwargs = {
+            from: 'tools',
+            final: false,
+            iteration_number: lastIterationNumber,
+          };
+        });
+
+        logger.warn(JSON.stringify(truncatedResult));
+        return truncatedResult;
+      } catch (error) {
+        const executionTime = Date.now() - startTime;
+        logger.error(`Tool execution failed after${executionTime}ms: ${error}`);
+        throw error;
       }
-
-      return truncatedResult;
     };
-
     const configPrompt = agent_config.prompt?.content || '';
     const finalPrompt = `${configPrompt}`;
 
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof ToolMessage
+    ): ToolMessage | null;
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof AIMessageChunk
+    ): AIMessageChunk | null;
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof AIMessage
+    ): AIMessage | null;
+    function getLatestMessageForMessage(
+      messages: BaseMessage[],
+      MessageClass: typeof HumanMessage
+    ): HumanMessage | null {
+      try {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i] instanceof MessageClass) {
+            return messages[i];
+          }
+        }
+        return null;
+      } catch (error: any) {
+        logger.error('Failed to get latest message:', error);
+        throw error;
+      }
+    }
     /**
      * Calls the appropriate language model with the current state and tools.
      * @param state - The current state of the graph.
