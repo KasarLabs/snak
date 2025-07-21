@@ -17,6 +17,7 @@ import {
   FormattedOnChatModelStream,
 } from './snakAgent.js';
 import { ToolMessage } from '@langchain/core/messages';
+import { AnyZodObject } from 'zod';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
@@ -30,7 +31,7 @@ let isConnected = false;
 export async function initializeToolsList(
   snakAgent: SnakAgentInterface,
   agentConfig: AgentConfig
-): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
+): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
 
   const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);

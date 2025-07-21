@@ -440,8 +440,6 @@ export class SnakAgent extends BaseAgent {
         recursionLimit: 500,
         version: 'v2',
       })) {
-        console.log(JSON.stringify(chunk));
-        console.log('\n\n\n');
         if (
           (chunk.name === 'Branch<update_graph,tools,agent,end>' ||
             chunk.name === 'Branch<agent,tools,agent,human,end>') &&
