@@ -175,7 +175,7 @@ export const createInteractiveAgent = async (
         }
         return null;
       } catch (error: any) {
-        logger.error(error);
+        logger.error('Failed to get latest message:', error);
         throw error;
       }
     }

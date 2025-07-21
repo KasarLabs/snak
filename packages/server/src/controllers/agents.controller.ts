@@ -283,32 +283,6 @@ export class AgentsController {
     }
   }
 
-  // @Post('supervisor_request')
-  // async handleSupervisorRequest(
-  //   @Body() userRequest: SupervisorRequestDTO
-  // ): Promise<AgentResponse> {
-  //   try {
-  //     const messageRequest = {
-  //       agent_id: userRequest.request.agent_id,
-  //       user_request: userRequest.request.content,
-  //     };
-
-  //     const action = this.supervisorService.websocketExecuteRequest(
-  //       messageRequest.user_request
-  //     );
-
-  //     const response: AgentResponse = {
-  //       status: 'success',
-  //       data: 'Response from supervisor request',
-  //     };
-  //     logger.warn(JSON.stringify(action));
-  //     return response;
-  //   } catch (error) {
-  //     logger.error('Error in handleSupervisorRequest:', error);
-  //     throw new ServerError('E03TA100');
-  //   }
-  // }
-
   @Post('request')
   async handleUserRequest(
     @Body() userRequest: AgentRequestDTO

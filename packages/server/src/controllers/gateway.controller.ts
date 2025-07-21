@@ -2,8 +2,7 @@ import { AgentResponse } from './agents.controller.js';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import ServerError from '../utils/error.js';
-import { Controller, OnModuleInit, Post } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { OnModuleInit } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -18,7 +17,6 @@ import {
   WebsocketAgentRequestDTO,
   WebsocketGetAgentsConfigRequestDTO,
   WebsocketGetMessagesRequestDTO,
-  WebsocketSupervisorRequestDTO,
 } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 @WebSocketGateway({
@@ -50,53 +48,6 @@ export class MyGateway implements OnModuleInit {
       });
     });
   }
-
-  // @SubscribeMessage('supervisor_request')
-  // async handleSupervisorRequest(
-  //   @MessageBody() userRequest: WebsocketSupervisorRequestDTO
-  // ): Promise<void> {
-  //   try {
-  //     if (!this.supervisorService.isInitialized()) {
-  //       throw new ServerError('E07TA110');
-  //     }
-
-  //     const config: Record<string, any> = {};
-  //     if (userRequest.request.agentId) {
-  //       config.agentId = userRequest.request.agentId;
-  //     }
-
-  //     const client = this.clients.get(userRequest.socket_id);
-  //     if (!client) {
-  //       logger.error('Client not found');
-  //       throw new ServerError('E01TA400');
-  //     }
-
-  //     for await (const chunk of this.supervisorService.websocketExecuteRequest(
-  //       userRequest.request.content,
-  //       config
-  //     )) {
-  //       const response: AgentResponse = {
-  //         status: 'success',
-  //         data: {
-  //           ...chunk.chunk,
-  //           iteration_number: chunk.iteration_number,
-  //           isLastChunk: chunk.final,
-  //         },
-  //       };
-
-  //       client.emit('onSupervisorRequest', response);
-
-  //       if (chunk.final === true) {
-  //         break;
-  //       }
-  //     }
-
-  //     logger.debug(`Supervisor request processed successfully`);
-  //   } catch (error) {
-  //     logger.error('Error in handleSupervisorRequest:', error);
-  //     throw new ServerError('E03TA100');
-  //   }
-  // }
 
   @SubscribeMessage('agents_request')
   async handleUserRequest(

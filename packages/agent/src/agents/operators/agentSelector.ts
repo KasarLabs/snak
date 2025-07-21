@@ -1,21 +1,7 @@
-import { BaseAgent, AgentType, IAgent } from '../core/baseAgent.js';
+import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import {
-  BaseMessage,
-  AIMessage,
-  HumanMessage,
-  SystemMessage,
-} from '@langchain/core/messages';
 import { ModelSelector } from './modelSelector.js';
-import {
-  agentSelectionPrompt,
-  agentSelectionSystemPrompt,
-  noMatchingAgentMessage,
-  defaultClarificationMessage,
-  errorFallbackMessage,
-  noValidAgentMessage,
-} from '../../prompt/agentSelectorPrompts.js';
-import { SnakAgent } from 'agents/core/snakAgent.js';
+import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../prompt/prompts.js';
 
 export interface AgentInfo {
@@ -94,7 +80,6 @@ export class AgentSelector extends BaseAgent {
       const result = await model.invoke(
         agentSelectorPromptContent(this.agentInfo, input)
       );
-      console.log('AgentSelector result:', result);
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
         const agent = Array.from(this.availableAgents.values()).find(
@@ -113,7 +98,10 @@ export class AgentSelector extends BaseAgent {
         throw new Error('AgentSelector did not return a valid string response');
       }
     } catch (error) {
-      throw new Error('AgentSelector execution failed: ' + error.message);
+      logger.error('AgentSelector execution failed:', error);
+      throw new Error(
+        `AgentSelector execution failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }
