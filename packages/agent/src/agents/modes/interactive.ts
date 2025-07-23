@@ -26,8 +26,10 @@ import {
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
 import {
+  PLAN_VALIDATOR_SYSTEM_PROMPT,
   planPrompt,
   PromptPlanInteractive,
+  STEPS_VALIDATOR_SYSTEM_PROMPT,
 } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
@@ -39,20 +41,37 @@ import {
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { AnyZodObject } from 'zod';
+import { AnyZodObject, z } from 'zod';
+import { error } from 'console';
 
 export interface StepInfo {
   stepNumber: number;
   stepName: string;
-  checkpoint?: string;
+  description: string;
   status: 'pending' | 'completed' | 'failed';
-  metadata?: any;
 }
 
 export interface ParsedPlan {
   steps: StepInfo[];
-  checkpoints: string[];
-  rawResponse: string;
+  summary: string;
+}
+
+interface StepResponse {
+  number: number;
+  validated: boolean;
+}
+
+interface ValidatorStepResponse {
+  steps: StepResponse[];
+  nextSteps: number;
+  isFinal: boolean;
+}
+
+export enum Agent {
+  PLANNER = 'planner',
+  EXECT_VALIDATOR = 'exec_validator',
+  PLANNER_VALIDATOR = 'planner_validator',
+  EXECUTOR = 'executor',
 }
 
 /**
@@ -80,20 +99,17 @@ export class InteractiveAgent {
     messages: Annotation<BaseMessage[]>({
       reducer: (x, y) => x.concat(y),
     }),
+    agent: Annotation<Agent>,
     memories: Annotation<string>,
     rag: Annotation<string>,
     plan: Annotation<ParsedPlan>,
-    stepHistory: Annotation<StepInfo[]>({
-      reducer: (x, y) => x.concat(y),
-      default: () => [],
+    currentStepIndex: Annotation<number>({
+      reducer: (x, y) => y,
+      default: () => 0,
     }),
-    currentStep: Annotation<StepInfo>({
-      reducer: (x: StepInfo, y: StepInfo): StepInfo => y,
-      default: () => ({
-        stepNumber: 0,
-        stepName: 'initialization',
-        status: 'pending',
-      }),
+    retry: Annotation<number>({
+      reducer: (x, y) => y,
+      default: () => 0,
     }),
   });
 
@@ -180,55 +196,37 @@ export class InteractiveAgent {
 
     // Build workflow
     let workflow = new StateGraph(this.GraphState)
-      .addNode('agent', this.callModel.bind(this))
+      .addNode('executor', this.callModel.bind(this))
       .addNode('tools', toolNode)
       .addNode('plan_node', this.planExecution.bind(this))
-      .addNode('update_graph', this.updateGraph.bind(this))
-      .addEdge('__start__', 'plan_node');
+      .addNode('validator', this.validator.bind(this))
+      .addEdge('__start__', 'plan_node')
+      .addEdge('plan_node', 'validator');
 
     // Add memory and RAG nodes based on configuration
-    if (this.agent_config.memory && this.memoryAgent) {
-      console.log('Memory on');
-      workflow
-        .addNode('memory', this.memoryAgent.createMemoryNode())
-        .addEdge('plan_node', 'memory')
-        .addEdge('tools', 'memory');
 
-      if (this.ragAgent) {
-        console.log('rag agent on');
-        workflow = (workflow as any)
-          .addNode('ragNode', this.ragAgent.createRagNode(this.agent_config.id))
-          .addEdge('memory', 'ragNode')
-          .addEdge('ragNode', 'agent');
-      } else {
-        workflow = (workflow as any).addEdge('memory', 'agent');
-      }
-    } else if (this.ragAgent) {
-      console.log('rag agent on without memory');
-      workflow
-        .addNode('ragNode', this.ragAgent.createRagNode(this.agent_config.id))
-        .addEdge('plan_node', 'ragNode')
-        .addEdge('ragNode', 'agent');
-    } else {
-      console.warn(
-        'No memory or rag agent available, starting directly with the agent node.'
-      );
-      workflow.addEdge('plan_node', 'agent');
-      workflow.addEdge('tools', 'agent');
-    }
-
-    // Add final edges
-    workflow.addEdge('agent', 'update_graph');
+    // workflow.addEdge('plan_node', 'agent');
     workflow.addConditionalEdges(
-      'update_graph',
-      this.shouldContinue.bind(this),
+      'validator',
+      this.handleValidatorRouting.bind(this),
       {
-        tools: 'tools',
-        agent: 'agent',
+        re_planner: 'plan_node',
+        executor: 'executor',
         end: END,
       }
     );
+    // workflow.addEdge('tools', 'executor');
 
+    workflow.addConditionalEdges('executor', this.shouldContinue.bind(this), {
+      validator: 'validator',
+      tools: 'tools',
+      end: END,
+    });
+    workflow.addConditionalEdges('tools', this.shouldContinue.bind(this), {
+      validator: 'validator',
+      tools: 'tools',
+      end: END,
+    });
     return workflow;
   }
 
@@ -316,15 +314,344 @@ export class InteractiveAgent {
       : {};
   }
 
-  private async planExecution(state: typeof this.GraphState.State): Promise<{
-    messages: BaseMessage[];
-    plan: ParsedPlan;
+  public formatParsedPlanSimple(plan: ParsedPlan): string {
+    let formatted = `Plan Summary: ${plan.summary}\n\n`;
+    formatted += `Steps (${plan.steps.length} total):\n`;
+
+    plan.steps.forEach((step) => {
+      const status =
+        step.status === 'completed'
+          ? '✓'
+          : step.status === 'failed'
+            ? '✗'
+            : '○';
+      formatted += `${status} ${step.stepNumber}. ${step.stepName} - ${step.description}\n`;
+    });
+
+    return formatted;
+  }
+
+  private async validatorPlanner(state: typeof this.GraphState.State): Promise<{
+    messages: BaseMessage;
+    currentStepIndex: number;
+    agent: Agent;
+    retry: number;
   }> {
     try {
+      const retry: number = state.retry;
+      console.log(retry);
+      console.log(state.retry);
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
         throw new Error('Model not found in ModelSelector');
       }
+
+      const StructuredResponseValidator = z.object({
+        isValidated: z.boolean(),
+        description: z
+          .string()
+          .max(300)
+          .describe(
+            'Explain why the plan is valid or not in maximum 250 character'
+          ),
+      });
+
+      const structuredModel = model.withStructuredOutput(
+        StructuredResponseValidator
+      );
+
+      // Formater le plan
+      const planDescription = this.formatParsedPlanSimple(state.plan);
+
+      const originalUserMessage = state.messages.find(
+        (msg: BaseMessage): msg is HumanMessage => msg instanceof HumanMessage
+      );
+
+      const originalUserQuery = originalUserMessage
+        ? typeof originalUserMessage.content === 'string'
+          ? originalUserMessage.content
+          : JSON.stringify(originalUserMessage.content)
+        : '';
+
+      // Invoquer directement avec un tableau de messages
+      const structuredResult = await structuredModel.invoke([
+        {
+          role: 'system',
+          content: PLAN_VALIDATOR_SYSTEM_PROMPT,
+        },
+        {
+          role: 'user',
+          content: `USER REQUEST:\n"${originalUserQuery}"\n\nPROPOSED PLAN:\n${planDescription}\n\nValidate if this plan correctly addresses the user's request and is feasible to execute.`,
+        },
+      ]);
+
+      console.log(
+        'Structured result:',
+        JSON.stringify(structuredResult, null, 2)
+      );
+
+      // Traiter le résultat
+      if (structuredResult.isValidated) {
+        console.log('Validated');
+        const successMessage = new AIMessageChunk({
+          content: `Plan validated: ${structuredResult.description}`,
+          additional_kwargs: {
+            error: false,
+            validated: true,
+            from: Agent.PLANNER_VALIDATOR,
+          },
+        });
+        return {
+          messages: successMessage,
+          agent: Agent.PLANNER_VALIDATOR,
+          currentStepIndex: state.currentStepIndex,
+          retry: retry,
+        };
+      } else {
+        const errorMessage = new AIMessageChunk({
+          content: `Plan validation failed: ${structuredResult.description}`,
+          additional_kwargs: {
+            error: false,
+            validated: false,
+            from: Agent.PLANNER_VALIDATOR,
+          },
+        });
+        return {
+          messages: errorMessage,
+          currentStepIndex: state.currentStepIndex,
+          agent: Agent.PLANNER_VALIDATOR,
+          retry: retry + 1,
+        };
+      }
+    } catch (error) {
+      const errorMessage = new AIMessageChunk({
+        content: `Failed to validate plan: ${error.message}`,
+        additional_kwargs: {
+          error: true,
+          validated: false,
+          from: Agent.PLANNER_VALIDATOR,
+        },
+      });
+      return {
+        messages: errorMessage,
+        currentStepIndex: state.currentStepIndex,
+        agent: Agent.PLANNER_VALIDATOR,
+        retry: -1,
+      };
+    }
+  }
+
+  public formatStepsStatusCompact(response: ValidatorStepResponse): string {
+    const validated = response.steps
+      .filter((s) => s.validated)
+      .map((s) => s.number);
+    const total = response.steps.length;
+
+    if (response.isFinal) {
+      return `✅ Complete (${validated.length}/${total})`;
+    }
+
+    return `📋 Progress: [${validated.join(',')}] ➡️ Step ${response.nextSteps}`;
+  }
+  private async validatorExecutor(
+    state: typeof this.GraphState.State
+  ): Promise<{
+    messages: BaseMessage;
+    currentStepIndex: number;
+    agent: Agent;
+    retry: number;
+  }> {
+    try {
+      const retry: number = state.retry;
+      const lastMessage = state.messages[state.messages.length - 1];
+
+      const model = this.modelSelector?.getModels()['fast'];
+      if (!model) {
+        throw new Error('Model not found in ModelSelector');
+      }
+      const StructuredStepsResponseValidator = z.object({
+        validated: z
+          .boolean()
+          .describe('Whether the step was successfully completed'),
+        reason: z
+          .string()
+          .max(300)
+          .describe(
+            'If validated=false: concise explanation (<300 chars) of what was missing/incorrect to help AI retry. If validated=true: just "step validated"'
+          ),
+        isFinal: z
+          .boolean()
+          .describe('True only if this was the final step of the entire plan'),
+      });
+
+      const structuredModel = model.withStructuredOutput(
+        StructuredStepsResponseValidator
+      );
+
+      const originalUserMessage = state.messages.find(
+        (msg: BaseMessage): msg is HumanMessage => msg instanceof HumanMessage
+      );
+
+      const originalUserQuery = originalUserMessage
+        ? typeof originalUserMessage.content === 'string'
+          ? originalUserMessage.content
+          : JSON.stringify(originalUserMessage.content)
+        : '';
+
+      let content: String;
+      if (lastMessage instanceof ToolMessage) {
+        logger.info('Last Message is a tool Message');
+        content = `VALIDATION_TYPE : TOOL_EXECUTION_MODE, TOOL_CALL TO ANALYZE : ${JSON.stringify(lastMessage.content)}`;
+      } else {
+        logger.info('Last Message is a AiMessageChunk');
+        content = `VALIDATION_TYPE : AI_RESPONSE_MODE, AI_MESSAGE TO ANALYZE : ${lastMessage.content.toString()}`;
+      }
+      // Invoquer directement avec un tableau de messages
+      const structuredResult = await structuredModel.invoke([
+        {
+          role: 'system',
+          content: STEPS_VALIDATOR_SYSTEM_PROMPT,
+        },
+        {
+          role: 'assistant',
+          content: `USER REQUEST:\n"${originalUserQuery}"\n\ STEPS WHO NEED TO BE VALIDATED:\nName : ${state.plan.steps[state.currentStepIndex].stepName}, description ${state.plan.steps[state.currentStepIndex].description}\n\n ${content}`,
+        },
+      ]);
+
+      console.log(
+        'Structured result:',
+        JSON.stringify(structuredResult, null, 2)
+      );
+
+      if (structuredResult.validated === true) {
+        if (structuredResult.isFinal) {
+          const successMessage = new AIMessageChunk({
+            content: `Steps Final Reach`,
+            additional_kwargs: {
+              error: false,
+              final: true,
+              from: Agent.EXECT_VALIDATOR,
+            },
+          });
+          return {
+            messages: successMessage,
+            currentStepIndex: state.currentStepIndex + 1,
+            agent: Agent.EXECT_VALIDATOR,
+            retry: retry,
+          };
+        } else {
+          const message = new AIMessageChunk({
+            content: `Steps ${state.currentStepIndex + 1} has been validated.`,
+            additional_kwargs: {
+              error: false,
+              final: false,
+              from: Agent.EXECT_VALIDATOR,
+            },
+          });
+          return {
+            messages: message,
+            currentStepIndex: state.currentStepIndex + 1,
+            agent: Agent.EXECT_VALIDATOR,
+            retry: 0,
+          };
+        }
+      }
+      logger.warn(`NOT VALIDATE ${JSON.stringify(structuredResult)}`);
+      const notValidateMessage = new AIMessageChunk({
+        content: `Steps ${state.currentStepIndex + 1} has not been validated reason : ${structuredResult.reason}`,
+        additional_kwargs: {
+          error: false,
+          final: false,
+          from: Agent.EXECT_VALIDATOR,
+        },
+      });
+      return {
+        messages: notValidateMessage,
+        currentStepIndex: state.currentStepIndex,
+        agent: Agent.EXECT_VALIDATOR,
+        retry: retry + 1,
+      };
+    } catch (error) {
+      const errorMessage = new AIMessageChunk({
+        content: `Failed to validate plan: ${error.message}`,
+        additional_kwargs: {
+          error: true,
+          validated: false,
+          from: Agent.EXECT_VALIDATOR,
+        },
+      });
+      return {
+        messages: errorMessage,
+        currentStepIndex: state.currentStepIndex,
+        agent: Agent.EXECT_VALIDATOR,
+        retry: -1,
+      };
+    }
+  }
+
+  private async validator(state: typeof this.GraphState.State): Promise<{
+    messages: BaseMessage;
+    currentStepIndex: number;
+    agent: Agent;
+    retry: number;
+  }> {
+    if (state.agent === Agent.PLANNER) {
+      const result = await this.validatorPlanner(state);
+      return result;
+    } else {
+      const result = await this.validatorExecutor(state);
+      return result;
+    }
+  }
+
+  private async planExecution(state: typeof this.GraphState.State): Promise<{
+    messages: BaseMessage[];
+    agent: Agent;
+    plan: ParsedPlan;
+  }> {
+    try {
+      const lastAiMessage = this.getLatestMessageForMessage(
+        state.messages,
+        AIMessageChunk
+      );
+      const model = this.modelSelector?.getModels()['fast'];
+      if (!model) {
+        throw new Error('Model not found in ModelSelector');
+      }
+
+      // Définir le schéma pour UN step
+      const StepInfoSchema = z.object({
+        stepNumber: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .describe('Step number in the sequence'),
+        stepName: z
+          .string()
+          .min(1)
+          .max(200)
+          .describe('Brief name/title of the step'),
+        description: z
+          .string()
+          .describe('Detailed description of what this step does'),
+        status: z
+          .enum(['pending', 'completed', 'failed'])
+          .default('pending')
+          .describe('Current status of the step'),
+      });
+
+      // Définir le schéma pour le plan complet
+      const PlanSchema = z.object({
+        steps: z
+          .array(StepInfoSchema)
+          .min(1)
+          .max(20)
+          .describe('Array of steps to complete the task'),
+        summary: z.string().describe('Brief summary of the overall plan'),
+      });
+
+      const structuredModel = model.withStructuredOutput(PlanSchema);
 
       const filteredMessages = state.messages.filter(
         (msg) =>
@@ -344,95 +671,117 @@ export class InteractiveAgent {
           : JSON.stringify(originalUserMessage.content)
         : '';
 
+      let systemPrompt;
+      if (state.agent === Agent.PLANNER_VALIDATOR) {
+        logger.warn(lastAiMessage?.content);
+        systemPrompt = `You are a re-planning assistant. Create an improved plan based on validation feedback.
+
+CONTEXT:
+User Request: "${originalUserQuery}"
+Previous Plan: ${this.formatParsedPlanSimple(state.plan)}
+Why Rejected: ${lastAiMessage?.content}
+
+Create a NEW plan that:
+- Fixes the issues mentioned in the rejection
+- Still fulfills the user's request
+- Does NOT repeat the same mistakes
+
+Output a structured plan with numbered steps (name, description, status='pending').`;
+      }
+      systemPrompt = `You are a planning assistant. Create a detailed step-by-step plan to accomplish the user's request.
+
+IMPORTANT: This plan will be executed by an AI assistant, not by the user. Therefore:
+- Do NOT include steps that require user input or additional information from the user
+- Each step must be executable by an AI with only the information already provided
+- The plan should be self-contained and autonomous
+
+AVAILABLE TOOLS: The AI agent has access to the following tools: ${this.toolsList.map((tool) => tool.name).join(', ')}
+
+TOOL USAGE IN PLANNING:
+- If a tool is needed to accomplish the user's request, create a DEDICATED STEP for executing that tool
+- Each tool execution should be its own separate step with a clear name like "Execute [ToolName] for [Purpose]"
+- Describe exactly what the tool should do and what information it should retrieve/process
+- This allows the validator to properly track when tools have been executed
+
+Your response must be a structured plan with numbered steps. Each step should have:
+- A clear, concise name
+- A detailed description of what needs to be done
+- All steps should have 'pending' status initially
+
+Example of a step using a tool:
+Step 3: Execute web_search for current information
+Description: Use the web_search tool to find the latest information about [topic]. This will provide up-to-date data needed for the analysis.
+
+The AI will follow this plan to generate a complete response to the user's question.
+
+User request: ${originalUserQuery}`;
+
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', planPrompt(originalUserQuery)],
+        ['system', systemPrompt],
         new MessagesPlaceholder('messages'),
       ]);
 
-      const result = await model.invoke(
+      const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({ messages: filteredMessages })
       );
 
+      console.log(
+        'Structured result:',
+        JSON.stringify(structuredResult, null, 2)
+      );
+
+      // Créer un AIMessage pour l'historique
+      const aiMessage = new AIMessageChunk({
+        content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
+          .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
+          .join('\n')}`,
+        additional_kwargs: {
+          structured_output: structuredResult,
+          from: 'planner',
+        },
+      });
+
       return {
-        messages: [result],
-        plan: this.parsePlanResponse(result.content.toString()),
+        messages: [aiMessage],
+        agent: Agent.PLANNER,
+        plan: structuredResult as ParsedPlan,
       };
     } catch (error) {
       logger.error(`Error in planExecution: ${error}`);
-      throw error;
-    }
-  }
 
-  private parsePlanResponse(response: string): ParsedPlan {
-    const steps: StepInfo[] = [];
-    const checkpoints: string[] = [];
-    const cleanedResponse = response.trim();
-
-    // Extract steps section
-    const stepsMatch = cleanedResponse.match(
-      /SOLUTION PLAN:([\s\S]*?)(?=Checkpoints:|$)/i
-    );
-    const checkpointsMatch = cleanedResponse.match(/Checkpoints:([\s\S]*?)$/i);
-
-    if (stepsMatch) {
-      const stepsSection = stepsMatch[1].trim();
-      const stepRegex =
-        /Step\s+(\d+):\s*([^-]+)\s*-\s*(.+?)(?=Step\s+\d+:|$)/gis;
-      let match;
-
-      while ((match = stepRegex.exec(stepsSection)) !== null) {
-        const stepNumber = parseInt(match[1]);
-        const action = match[2].trim();
-        const description = match[3].trim();
-
-        steps.push({
-          stepNumber,
-          stepName: `${action} - ${description}`,
-          status: 'pending',
-          metadata: {
-            action,
-            description,
-            originalText: match[0],
-          },
-        });
-      }
-    }
-
-    // Parse checkpoints
-    if (checkpointsMatch) {
-      const checkpointsSection = checkpointsMatch[1].trim();
-      const checkpointLines = checkpointsSection
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.startsWith('-'))
-        .map((line) => line.substring(1).trim());
-
-      checkpoints.push(...checkpointLines);
-
-      // Associate checkpoints with steps
-      checkpointLines.forEach((checkpoint) => {
-        const stepMatch = checkpoint.match(/(?:After\s+)?step\s+(\d+):/i);
-        if (stepMatch) {
-          const stepNum = parseInt(stepMatch[1]);
-          const step = steps.find((s) => s.stepNumber === stepNum);
-          if (step) {
-            step.checkpoint = checkpoint;
-          }
-        }
+      // Retour d'erreur avec structure vide
+      const errorMessage = new AIMessageChunk({
+        content: `Failed to create plan: ${error.message}`,
+        additional_kwargs: {
+          error: true,
+          from: 'planner',
+        },
       });
-    }
 
-    return {
-      steps,
-      checkpoints,
-      rawResponse: cleanedResponse,
-    };
+      const error_plan: ParsedPlan = {
+        steps: [
+          {
+            stepNumber: 0,
+            stepName: 'Error',
+            description: 'Error trying to create the plan',
+            status: 'failed',
+          },
+        ],
+        summary: 'Error',
+      };
+
+      return {
+        messages: [errorMessage],
+        agent: Agent.PLANNER,
+        plan: error_plan,
+      };
+    }
   }
 
   private async callModel(
     state: typeof this.GraphState.State,
     config?: RunnableConfig
-  ): Promise<{ messages: BaseMessage[] }> {
+  ): Promise<{ messages: BaseMessage[]; agent: Agent }> {
     if (!this.agent_config || !this.modelSelector) {
       throw new Error('Agent configuration and ModelSelector are required.');
     }
@@ -462,7 +811,7 @@ export class InteractiveAgent {
     );
 
     // Build system prompt
-    const autonomousSystemPrompt = this.buildSystemPrompt(state);
+    const interactiveSystemPrompt = this.buildSystemPrompt(state);
 
     try {
       // Filter messages and invoke model
@@ -474,12 +823,12 @@ export class InteractiveAgent {
 
       const result = await this.invokeModelWithMessages(
         filteredMessages,
-        autonomousSystemPrompt,
+        interactiveSystemPrompt,
         startIteration,
         iteration_number
       );
 
-      return { messages: [result] };
+      return { messages: [result], agent: Agent.EXECUTOR };
     } catch (error: any) {
       return this.handleModelError(error);
     }
@@ -512,9 +861,7 @@ export class InteractiveAgent {
 
   private buildSystemPrompt(state: typeof this.GraphState.State): string {
     const rules = PromptPlanInteractive(
-      state.currentStep,
-      state.stepHistory,
-      state.plan.rawResponse
+      state.plan.steps[state.currentStepIndex]
     );
 
     return `
@@ -527,7 +874,7 @@ export class InteractiveAgent {
   private shouldContinue(
     state: typeof this.GraphState.State,
     config?: RunnableConfig
-  ): 'tools' | 'agent' | 'end' {
+  ): 'tools' | 'validator' | 'end' {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
 
@@ -549,7 +896,7 @@ export class InteractiveAgent {
     }
 
     logger.info('Routing to AgentMode');
-    return 'agent';
+    return 'validator';
   }
 
   private isTerminalMessage(message: AIMessageChunk): boolean {
@@ -560,10 +907,61 @@ export class InteractiveAgent {
     );
   }
 
+  private handleValidatorRouting(
+    state: typeof this.GraphState.State
+  ): 're_planner' | 'executor' | 'end' {
+    try {
+      logger.warn(state.agent);
+      if (state.agent === Agent.PLANNER_VALIDATOR) {
+        console.log(state.retry);
+        const lastAiMessage = state.messages[state.messages.length - 1];
+        if (lastAiMessage.additional_kwargs.from != 'planner_validator') {
+          throw new Error(
+            'ValidatorRouting : Last AI message is not from the validator make sure there is not problem with the grash edges.'
+          );
+        }
+        if (lastAiMessage.additional_kwargs.validated) {
+          return 'executor';
+        } else if (
+          lastAiMessage.additional_kwargs.validated === false &&
+          state.retry <= 3
+        ) {
+          return 're_planner';
+        }
+        return 'end';
+      }
+      if (state.agent === Agent.EXECT_VALIDATOR) {
+        console.log('Hello');
+        const lastAiMessage = this.getLatestMessageForMessage(
+          state.messages,
+          AIMessageChunk
+        );
+        if (
+          !lastAiMessage ||
+          lastAiMessage.additional_kwargs.from != 'exec_validator'
+        ) {
+          throw new Error(
+            'ValidatorRouting : Last AI message is not from the validator make sure there is not problem with the grash edges.'
+          );
+        }
+        if (lastAiMessage.additional_kwargs.isFinal === true) {
+          return 'end';
+        }
+        if (state.retry >= 3) {
+          return 'end';
+        }
+        return 'executor';
+      }
+      return 'end';
+    } catch (error) {
+      return 'end';
+    }
+  }
+
   private handleToolMessageRouting(
     messages: BaseMessage[],
     config?: RunnableConfig
-  ): 'agent' | 'end' {
+  ): 'validator' | 'end' {
     const lastAiMessage = this.getLatestMessageForMessage(
       messages,
       AIMessageChunk
@@ -583,55 +981,55 @@ export class InteractiveAgent {
     }
 
     logger.debug('Received ToolMessage, routing back to agent node.');
-    return 'agent';
+    return 'validator';
   }
 
-  private updateGraph(state: typeof this.GraphState.State): {
-    currentStep?: StepInfo;
-    stepHistory?: StepInfo[];
-  } {
-    const lastAiMessage = this.getLatestMessageForMessage(
-      state.messages,
-      AIMessageChunk
-    );
+  // private updateGraph(state: typeof this.GraphState.State): {
+  //   currentStep?: StepInfo;
+  //   stepHistory?: StepInfo[];
+  // } {
+  //   const lastAiMessage = this.getLatestMessageForMessage(
+  //     state.messages,
+  //     AIMessageChunk
+  //   );
 
-    if (!(lastAiMessage instanceof AIMessageChunk)) {
-      logger.warn(
-        'Last message is not an AIMessage, skipping graph update check.'
-      );
-      return {
-        currentStep: state.currentStep,
-        stepHistory: state.stepHistory,
-      };
-    }
+  //   if (!(lastAiMessage instanceof AIMessageChunk)) {
+  //     logger.warn(
+  //       'Last message is not an AIMessage, skipping graph update check.'
+  //     );
+  //     return {
+  //       currentStep: state.currentStep,
+  //       stepHistory: state.stepHistory,
+  //     };
+  //   }
 
-    const lastMessageContent = lastAiMessage.content.toString();
-    const currentStep = state.currentStep;
+  //   const lastMessageContent = lastAiMessage.content.toString();
+  //   const currentStep = state.currentStep;
 
-    if (lastMessageContent.includes('STEP_COMPLETED')) {
-      logger.warn(
-        `Graph State has been updated during the step ${currentStep.stepName}`
-      );
+  //   if (lastMessageContent.includes('STEP_COMPLETED')) {
+  //     logger.warn(
+  //       `Graph State has been updated during the step ${currentStep.stepName}`
+  //     );
 
-      const next_step_id = Math.min(
-        currentStep.stepNumber + 1,
-        state.plan.steps.length - 1
-      );
+  //     const next_step_id = Math.min(
+  //       currentStep.stepNumber + 1,
+  //       state.plan.steps.length - 1
+  //     );
 
-      const nextStep = state.plan.steps[next_step_id];
-      console.log(JSON.stringify(next_step_id));
+  //     const nextStep = state.plan.steps[next_step_id];
+  //     console.log(JSON.stringify(next_step_id));
 
-      return {
-        currentStep: nextStep,
-        stepHistory: [state.currentStep],
-      };
-    }
+  //     return {
+  //       currentStep: nextStep,
+  //       stepHistory: [state.currentStep],
+  //     };
+  //   }
 
-    return {
-      currentStep: state.currentStep,
-      stepHistory: [],
-    };
-  }
+  //   return {
+  //     currentStep: state.currentStep,
+  //     stepHistory: [],
+  //   };
+  // }
 
   // Overloaded method signatures for type safety
   private getLatestMessageForMessage(
@@ -729,12 +1127,12 @@ export class InteractiveAgent {
 
   private async invokeModelWithMessages(
     filteredMessages: BaseMessage[],
-    autonomousSystemPrompt: string,
+    interactiveSystemPrompt: string,
     startIteration: number,
     iteration_number: number
   ): Promise<AIMessageChunk> {
     const prompt = ChatPromptTemplate.fromMessages([
-      ['system', autonomousSystemPrompt],
+      ['system', interactiveSystemPrompt],
       new MessagesPlaceholder('messages'),
     ]);
 
@@ -765,7 +1163,7 @@ export class InteractiveAgent {
     // Add metadata to result
     result.additional_kwargs = {
       ...result.additional_kwargs,
-      from: 'autonomous-agent',
+      from: 'executor',
       final: false,
       start_iteration: startIteration,
       iteration_number: iteration_number,
@@ -776,6 +1174,7 @@ export class InteractiveAgent {
 
   private createMaxIterationsResponse(iteration_number: number): {
     messages: BaseMessage[];
+    agent: Agent;
   } {
     return {
       messages: [
@@ -787,10 +1186,14 @@ export class InteractiveAgent {
           },
         }),
       ],
+      agent: Agent.EXECUTOR,
     };
   }
 
-  private handleModelError(error: any): { messages: BaseMessage[] } {
+  private handleModelError(error: any): {
+    messages: BaseMessage[];
+    agent: Agent.EXECUTOR;
+  } {
     logger.error(`Error calling model in autonomous agent: ${error}`);
 
     if (this.isTokenLimitError(error)) {
@@ -808,6 +1211,7 @@ export class InteractiveAgent {
             },
           }),
         ],
+        agent: Agent.EXECUTOR,
       };
     }
 
@@ -821,6 +1225,7 @@ export class InteractiveAgent {
           },
         }),
       ],
+      agent: Agent.EXECUTOR,
     };
   }
 
