@@ -1,0 +1,42 @@
+{
+  "name": "argent-mcp-server",
+  "version": "0.0.1",
+  "description": "MCP server for creating and deploying Argent wallet accounts on Starknet.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "argent-mcp-server": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "clean": "rm -rf dist",
+    "test": "jest --passWithNoTests"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "argent",
+    "starknet",
+    "wallet",
+    "account",
+    "deploy"
+  ],
+  "author": "Kasar Labs",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "starknet": "^6.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
