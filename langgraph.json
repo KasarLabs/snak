@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "openai_agent": "./packages/agent/src/agents/studio/graph.ts:studio_graph"
+  },
+  "env": "./.env"
+}

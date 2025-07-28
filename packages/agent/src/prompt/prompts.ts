@@ -1,4 +1,4 @@
-import { MessageContent } from '@langchain/core/messages';
+import { BaseMessage, MessageContent } from '@langchain/core/messages';
 import { AgentConfig } from '@snakagent/core';
 import { StepInfo } from 'agents/modes/interactive.js';
 
@@ -187,6 +187,80 @@ The validator will verify:
 Remember: Step ${currentStep.stepNumber} is your ONLY focus.`;
 };
 
+export const REPLAN_EXECUTOR_SYSTEM_PROMPT = (
+  lastAiMessage: BaseMessage,
+  formatedPlan: string,
+  originalUserQuery: string
+) => {
+  return `You are a re-planning assistant. Create an improved plan based on validation feedback.
+
+CONTEXT:
+User Request: "${originalUserQuery}"
+Previous Plan: ${formatedPlan}
+Why Rejected: ${lastAiMessage?.content}
+
+Create a NEW plan that:
+- Fixes the issues mentioned in the rejection
+- Still fulfills the user's request
+- Does NOT repeat the same mistakes
+
+Output a structured plan with numbered steps (name, description, status='pending').`;
+};
+
+export const PLAN_EXECUTOR_SYSTEM_PROMPT = (
+  toolsList: any,
+  originalUserQuery: string
+) => {
+  return `You are a planning assistant. Create a detailed step-by-step plan to accomplish the user's request.
+
+IMPORTANT: This plan will be executed by an AI assistant, not by the user. Therefore:
+- Do NOT include steps that require user input or additional information from the user
+- Each step must be executable by an AI with only the information already provided
+- The plan should be self-contained and autonomous
+- Add a last step which sums up everything you've done.
+
+AVAILABLE TOOLS: The AI agent has access to the following tools: ${toolsList.map((tool: any) => tool.name).join(', ')}
+
+TOOL USAGE IN PLANNING:
+- If a tool is needed to accomplish the user's request, create a DEDICATED STEP for executing that tool
+- Each tool execution should be its own separate step with a clear name like "Execute [ToolName]"
+- Describe exactly what the tool should do and what information it should retrieve/process
+- This allows the validator to properly track when tools have been executed
+
+Your response must be a structured plan with numbered steps. Each step should have:
+- A clear, concise name
+- A detailed description of what needs to be done
+- All steps should have 'pending' status initially
+
+Example of a step using a tool:
+Step 3: Execute web_search for current information
+Description: Use the web_search tool to find the latest information about [topic].s
+
+Complete example : 
+User request: "What are the current best practices for React performance optimization?"
+
+Step 1: Execute web_search for React performance 2025
+Description: Search "React performance optimization best practices 2025" to find recent articles and guides.
+Status: pending
+
+Step 2: Execute web_search for React.memo and hooks optimization
+Description: Search "React.memo useMemo useCallback performance tips" for specific optimization techniques.
+Status: pending
+
+Step 3: Execute web_fetch for top source
+Description: Fetch full content from the most authoritative source found in previous searches.
+Status: pending
+
+Step 4: Compile performance optimization guide
+Description: Create summary with top 5 techniques, examples, and common pitfalls from all gathered information.
+Status: pending
+
+As you can see the last step is only the sums you need to follow this rules everytime.
+The AI will follow this plan to generate a complete response to the user's question.
+
+User request: ${originalUserQuery}`;
+};
+
 export const PLAN_VALIDATOR_SYSTEM_PROMPT = `You are a helpful plan validator focused on ensuring plans will successfully help users.
 
 VALIDATION APPROACH:
@@ -197,13 +271,15 @@ VALIDATION APPROACH:
 
 A plan is VALID if it:
 1. Will eventually help the user get what they need
-2. Has executable steps
-3. Makes logical sense
+2. Has executable steps with only the execution
+4. Makes logical sense
 
 A plan is INVALID only if it:
 1. Completely ignores the user's request
 2. Contains impossible or dangerous steps
 3. Has major logical flaws
+4. Executable steps got anything other than their execution(e.g.: Analyse, summary)
+ 
 
 Respond with:
 {
@@ -240,7 +316,7 @@ CRITERIA for analysis/information steps:
 
 VALIDATION:
 - validated=true if: Response thoroughly addresses step requirements
-- validated=false if: Missing analysis, superficial coverage, or off-topic
+- validated=false if: off-Analysis, superficial coverage, or off-topic
 
 REASON FIELD SPECIFICATIONS:
 - validated=true: EXACTLY "step validated"

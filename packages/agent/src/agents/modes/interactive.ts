@@ -11,24 +11,36 @@ import {
   AIMessageChunk,
   BaseMessage,
   HumanMessage,
+  SystemMessage,
   ToolMessage,
 } from '@langchain/core/messages';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
-import { logger, AgentConfig } from '@snakagent/core';
+import {
+  logger,
+  AgentConfig,
+  AgentMode,
+  ModelLevelConfig,
+  ModelProviders,
+} from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import {
   initializeToolsList,
   initializeDatabase,
   truncateToolResults,
 } from '../core/utils.js';
-import { ModelSelector } from '../operators/modelSelector.js';
 import {
+  ModelSelector,
+  ModelSelectorConfig,
+} from '../operators/modelSelector.js';
+import {
+  PLAN_EXECUTOR_SYSTEM_PROMPT,
   PLAN_VALIDATOR_SYSTEM_PROMPT,
   planPrompt,
   PromptPlanInteractive,
+  REPLAN_EXECUTOR_SYSTEM_PROMPT,
   STEPS_VALIDATOR_SYSTEM_PROMPT,
 } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
@@ -42,7 +54,6 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject, z } from 'zod';
-import { error } from 'console';
 
 export interface StepInfo {
   stepNumber: number;
@@ -94,21 +105,52 @@ export class InteractiveAgent {
   private checkpointer: MemorySaver;
   private app: any;
 
+  private ConfigurableAnnotation = Annotation.Root({
+    max_graph_steps: Annotation<number>({
+      reducer: (x, y) => y, // Remplacer par le nouvel index
+      default: () => 15,
+    }),
+    short_term_memory: Annotation<number>({
+      reducer: (x, y) => y, // Remplacer par le nouvel index
+      default: () => 15,
+    }),
+    memorySize: Annotation<number>({
+      reducer: (x, y) => y, // Remplacer par le nouvel index
+      default: () => 20,
+    }),
+  });
+
   // Define GraphState as a class property for better type safety
   private GraphState = Annotation.Root({
     messages: Annotation<BaseMessage[]>({
       reducer: (x, y) => x.concat(y),
+      default: () => [],
     }),
-    agent: Annotation<Agent>,
-    memories: Annotation<string>,
-    rag: Annotation<string>,
-    plan: Annotation<ParsedPlan>,
+    agent: Annotation<Agent>({
+      reducer: (x, y) => y, // Toujours remplacer par la nouvelle valeur
+      default: () => Agent.PLANNER,
+    }),
+    memories: Annotation<string>({
+      reducer: (x, y) => y, // Remplacer par la nouvelle valeur
+      default: () => '',
+    }),
+    rag: Annotation<string>({
+      reducer: (x, y) => y, // Remplacer par la nouvelle valeur
+      default: () => '',
+    }),
+    plan: Annotation<ParsedPlan>({
+      reducer: (x, y) => y, // Remplacer le plan entier
+      default: () => ({
+        steps: [],
+        summary: '',
+      }),
+    }),
     currentStepIndex: Annotation<number>({
-      reducer: (x, y) => y,
+      reducer: (x, y) => y, // Remplacer par le nouvel index
       default: () => 0,
     }),
     retry: Annotation<number>({
-      reducer: (x, y) => y,
+      reducer: (x, y) => y, // Remplacer par le nouveau nombre de retry
       default: () => 0,
     }),
   });
@@ -195,7 +237,7 @@ export class InteractiveAgent {
     const toolNode = this.createToolNode();
 
     // Build workflow
-    let workflow = new StateGraph(this.GraphState)
+    let workflow = new StateGraph(this.GraphState, this.ConfigurableAnnotation)
       .addNode('executor', this.callModel.bind(this))
       .addNode('tools', toolNode)
       .addNode('plan_node', this.planExecution.bind(this))
@@ -237,7 +279,7 @@ export class InteractiveAgent {
     // Override invoke method
     toolNode.invoke = async (
       state: typeof this.GraphState.State,
-      config?: LangGraphRunnableConfig
+      config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
     ): Promise<{ messages: BaseMessage[] } | null> => {
       return this.toolNodeInvoke(state, config, originalInvoke);
     };
@@ -458,6 +500,7 @@ export class InteractiveAgent {
   ): Promise<{
     messages: BaseMessage;
     currentStepIndex: number;
+    plan?: ParsedPlan;
     agent: Agent;
     retry: number;
   }> {
@@ -501,7 +544,7 @@ export class InteractiveAgent {
       let content: String;
       if (lastMessage instanceof ToolMessage) {
         logger.info('Last Message is a tool Message');
-        content = `VALIDATION_TYPE : TOOL_EXECUTION_MODE, TOOL_CALL TO ANALYZE : ${JSON.stringify(lastMessage.content)}`;
+        content = `VALIDATION_TYPE : TOOL_EXECUTION_MODE, TOOL_CALL TO ANALYZE : {response_content :${lastMessage.content}, name_of_tool_call :${lastMessage.name}, tool_call_id : ${lastMessage.tool_call_id} `;
       } else {
         logger.info('Last Message is a AiMessageChunk');
         content = `VALIDATION_TYPE : AI_RESPONSE_MODE, AI_MESSAGE TO ANALYZE : ${lastMessage.content.toString()}`;
@@ -524,12 +567,15 @@ export class InteractiveAgent {
       );
 
       if (structuredResult.validated === true) {
-        if (structuredResult.isFinal) {
+        const plan = state.plan;
+        plan.steps[state.currentStepIndex].status = 'completed';
+        if (state.currentStepIndex === state.plan.steps.length - 1) {
+          logger.warn('STEPS FINAL REACHED');
           const successMessage = new AIMessageChunk({
             content: `Steps Final Reach`,
             additional_kwargs: {
               error: false,
-              final: true,
+              isFinal: true,
               from: Agent.EXECT_VALIDATOR,
             },
           });
@@ -538,13 +584,14 @@ export class InteractiveAgent {
             currentStepIndex: state.currentStepIndex + 1,
             agent: Agent.EXECT_VALIDATOR,
             retry: retry,
+            plan: plan,
           };
         } else {
           const message = new AIMessageChunk({
             content: `Steps ${state.currentStepIndex + 1} has been validated.`,
             additional_kwargs: {
               error: false,
-              final: false,
+              isFinal: false,
               from: Agent.EXECT_VALIDATOR,
             },
           });
@@ -553,6 +600,7 @@ export class InteractiveAgent {
             currentStepIndex: state.currentStepIndex + 1,
             agent: Agent.EXECT_VALIDATOR,
             retry: 0,
+            plan: plan,
           };
         }
       }
@@ -561,7 +609,7 @@ export class InteractiveAgent {
         content: `Steps ${state.currentStepIndex + 1} has not been validated reason : ${structuredResult.reason}`,
         additional_kwargs: {
           error: false,
-          final: false,
+          isFinal: false,
           from: Agent.EXECT_VALIDATOR,
         },
       });
@@ -572,10 +620,14 @@ export class InteractiveAgent {
         retry: retry + 1,
       };
     } catch (error) {
+      const error_plan = state.plan;
+      error_plan.steps[state.currentStepIndex].status = 'failed';
+
       const errorMessage = new AIMessageChunk({
         content: `Failed to validate plan: ${error.message}`,
         additional_kwargs: {
           error: true,
+          isFinal: false,
           validated: false,
           from: Agent.EXECT_VALIDATOR,
         },
@@ -584,6 +636,7 @@ export class InteractiveAgent {
         messages: errorMessage,
         currentStepIndex: state.currentStepIndex,
         agent: Agent.EXECT_VALIDATOR,
+        plan: error_plan,
         retry: -1,
       };
     }
@@ -592,6 +645,7 @@ export class InteractiveAgent {
   private async validator(state: typeof this.GraphState.State): Promise<{
     messages: BaseMessage;
     currentStepIndex: number;
+    plan?: ParsedPlan;
     agent: Agent;
     retry: number;
   }> {
@@ -604,16 +658,29 @@ export class InteractiveAgent {
     }
   }
 
-  private async planExecution(state: typeof this.GraphState.State): Promise<{
+  private async planExecution(
+    state: typeof this.GraphState.State,
+    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+  ): Promise<{
     messages: BaseMessage[];
+
     agent: Agent;
     plan: ParsedPlan;
   }> {
     try {
+      console.log(
+        'State received in planExecution:',
+        JSON.stringify(state, null, 2)
+      );
+      console.log(
+        'Config received in planExecution:',
+        JSON.stringify(config, null, 2)
+      );
       const lastAiMessage = this.getLatestMessageForMessage(
         state.messages,
         AIMessageChunk
       );
+
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
         throw new Error('Model not found in ModelSelector');
@@ -672,49 +739,17 @@ export class InteractiveAgent {
         : '';
 
       let systemPrompt;
-      if (state.agent === Agent.PLANNER_VALIDATOR) {
-        logger.warn(lastAiMessage?.content);
-        systemPrompt = `You are a re-planning assistant. Create an improved plan based on validation feedback.
-
-CONTEXT:
-User Request: "${originalUserQuery}"
-Previous Plan: ${this.formatParsedPlanSimple(state.plan)}
-Why Rejected: ${lastAiMessage?.content}
-
-Create a NEW plan that:
-- Fixes the issues mentioned in the rejection
-- Still fulfills the user's request
-- Does NOT repeat the same mistakes
-
-Output a structured plan with numbered steps (name, description, status='pending').`;
+      if (state.agent === Agent.PLANNER_VALIDATOR && lastAiMessage) {
+        systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT(
+          lastAiMessage,
+          this.formatParsedPlanSimple(state.plan),
+          originalUserQuery
+        );
       }
-      systemPrompt = `You are a planning assistant. Create a detailed step-by-step plan to accomplish the user's request.
-
-IMPORTANT: This plan will be executed by an AI assistant, not by the user. Therefore:
-- Do NOT include steps that require user input or additional information from the user
-- Each step must be executable by an AI with only the information already provided
-- The plan should be self-contained and autonomous
-
-AVAILABLE TOOLS: The AI agent has access to the following tools: ${this.toolsList.map((tool) => tool.name).join(', ')}
-
-TOOL USAGE IN PLANNING:
-- If a tool is needed to accomplish the user's request, create a DEDICATED STEP for executing that tool
-- Each tool execution should be its own separate step with a clear name like "Execute [ToolName] for [Purpose]"
-- Describe exactly what the tool should do and what information it should retrieve/process
-- This allows the validator to properly track when tools have been executed
-
-Your response must be a structured plan with numbered steps. Each step should have:
-- A clear, concise name
-- A detailed description of what needs to be done
-- All steps should have 'pending' status initially
-
-Example of a step using a tool:
-Step 3: Execute web_search for current information
-Description: Use the web_search tool to find the latest information about [topic]. This will provide up-to-date data needed for the analysis.
-
-The AI will follow this plan to generate a complete response to the user's question.
-
-User request: ${originalUserQuery}`;
+      systemPrompt = PLAN_EXECUTOR_SYSTEM_PROMPT(
+        this.toolsList,
+        originalUserQuery
+      );
 
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', systemPrompt],
@@ -730,7 +765,6 @@ User request: ${originalUserQuery}`;
         JSON.stringify(structuredResult, null, 2)
       );
 
-      // Créer un AIMessage pour l'historique
       const aiMessage = new AIMessageChunk({
         content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
           .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
@@ -749,7 +783,6 @@ User request: ${originalUserQuery}`;
     } catch (error) {
       logger.error(`Error in planExecution: ${error}`);
 
-      // Retour d'erreur avec structure vide
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
         additional_kwargs: {
@@ -780,14 +813,15 @@ User request: ${originalUserQuery}`;
 
   private async callModel(
     state: typeof this.GraphState.State,
-    config?: RunnableConfig
+    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): Promise<{ messages: BaseMessage[]; agent: Agent }> {
     if (!this.agent_config || !this.modelSelector) {
       throw new Error('Agent configuration and ModelSelector are required.');
     }
 
-    const maxGraphSteps = config?.configurable?.config.max_graph_steps;
-    const shortTermMemory = config?.configurable?.config.short_term_memory;
+    console.log(JSON.stringify(state.plan));
+    const maxGraphSteps = config.configurable?.max_graph_steps as number;
+    const shortTermMemory = config.configurable?.short_term_memory as number;
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
 
@@ -797,9 +831,10 @@ User request: ${originalUserQuery}`;
       lastMessage
     );
 
-    if (maxGraphSteps <= iteration_number) {
-      return this.createMaxIterationsResponse(iteration_number);
-    }
+    if (maxGraphSteps)
+      if (maxGraphSteps <= iteration_number) {
+        return this.createMaxIterationsResponse(iteration_number);
+      }
 
     iteration_number++;
 
@@ -873,7 +908,7 @@ User request: ${originalUserQuery}`;
 
   private shouldContinue(
     state: typeof this.GraphState.State,
-    config?: RunnableConfig
+    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): 'tools' | 'validator' | 'end' {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
@@ -960,7 +995,7 @@ User request: ${originalUserQuery}`;
 
   private handleToolMessageRouting(
     messages: BaseMessage[],
-    config?: RunnableConfig
+    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): 'validator' | 'end' {
     const lastAiMessage = this.getLatestMessageForMessage(
       messages,
@@ -970,8 +1005,7 @@ User request: ${originalUserQuery}`;
       throw new Error('Error trying to get last AIMessageChunk');
     }
 
-    const graphMaxSteps = config?.configurable?.config
-      .max_graph_steps as number;
+    const graphMaxSteps = config?.configurable?.max_graph_steps as number;
     const iteration = this.getLatestMessageForMessage(messages, ToolMessage)
       ?.additional_kwargs?.iteration_number as number;
 
@@ -1067,13 +1101,13 @@ User request: ${originalUserQuery}`;
 
   // Helper methods for better organization
   private calculateStartIteration(
-    config: RunnableConfig | undefined,
+    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>,
     messages: BaseMessage[]
   ): number {
     if ((config?.metadata?.langgraph_step as number) === 1) {
       return 1;
     } else if (
-      Array.isArray(config?.metadata?.langgraph_triggers) &&
+      Array.isArray(config.metadata?.langgraph_triggers) &&
       typeof config.metadata.langgraph_triggers[0] === 'string' &&
       config.metadata.langgraph_triggers[0] === '__start__:agent'
     ) {
