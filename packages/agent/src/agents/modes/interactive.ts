@@ -11,7 +11,6 @@ import {
   AIMessageChunk,
   BaseMessage,
   HumanMessage,
-  SystemMessage,
   ToolMessage,
 } from '@langchain/core/messages';
 import {
@@ -21,9 +20,6 @@ import {
 import {
   logger,
   AgentConfig,
-  AgentMode,
-  ModelLevelConfig,
-  ModelProviders,
 } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import {
@@ -31,14 +27,10 @@ import {
   initializeDatabase,
   truncateToolResults,
 } from '../core/utils.js';
-import {
-  ModelSelector,
-  ModelSelectorConfig,
-} from '../operators/modelSelector.js';
+import { ModelSelector } from '../operators/modelSelector.js';
 import {
   PLAN_EXECUTOR_SYSTEM_PROMPT,
   PLAN_VALIDATOR_SYSTEM_PROMPT,
-  planPrompt,
   PromptPlanInteractive,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
   STEPS_VALIDATOR_SYSTEM_PROMPT,
@@ -233,7 +225,6 @@ export class InteractiveAgent {
   }
 
   private buildWorkflow(): any {
-    // Create tool node with custom invoke
     const toolNode = this.createToolNode();
 
     // Build workflow
@@ -394,7 +385,6 @@ export class InteractiveAgent {
         StructuredResponseValidator
       );
 
-      // Formater le plan
       const planDescription = this.formatParsedPlanSimple(state.plan);
 
       const originalUserMessage = state.messages.find(
@@ -407,7 +397,6 @@ export class InteractiveAgent {
           : JSON.stringify(originalUserMessage.content)
         : '';
 
-      // Invoquer directement avec un tableau de messages
       const structuredResult = await structuredModel.invoke([
         {
           role: 'system',
@@ -419,7 +408,6 @@ export class InteractiveAgent {
         },
       ]);
 
-      // Traiter le résultat
       if (structuredResult.isValidated) {
         const successMessage = new AIMessageChunk({
           content: `Plan validated: ${structuredResult.description}`,
@@ -661,7 +649,6 @@ export class InteractiveAgent {
         throw new Error('Model not found in ModelSelector');
       }
 
-      // Définir le schéma pour UN step
       const StepInfoSchema = z.object({
         stepNumber: z
           .number()
@@ -793,7 +780,6 @@ export class InteractiveAgent {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
 
-    // Determine iteration number
     let iteration_number = this.calculateIterationNumber(
       state.messages,
       lastMessage
@@ -806,18 +792,15 @@ export class InteractiveAgent {
 
     iteration_number++;
 
-    // Determine start iteration
     const startIteration = this.calculateStartIteration(config, state.messages);
 
     logger.info(
       `startIteration: ${startIteration}, iteration: ${iteration_number}`
     );
 
-    // Build system prompt
     const interactiveSystemPrompt = this.buildSystemPrompt(state);
 
     try {
-      // Filter messages and invoke model
       const filteredMessages = this.filterMessagesByShortTermMemory(
         state.messages,
         iteration_number,
