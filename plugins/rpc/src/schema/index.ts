@@ -24,7 +24,7 @@ export const getStorageAtSchema = blockIdAndContractAddressSchema.merge(
   z.object({
     key: z
       .string()
-      .describe('The key to the storage value for the given contract'),
+      .describe('The key to the storage value for the given contract '),
   })
 );
 
@@ -40,7 +40,7 @@ export const getClassHashAtSchema = blockIdAndContractAddressSchema.merge(
   z.object({
     key: z
       .string()
-      .describe('The class hash for the given contract at the given block'),
+      .describe('The class hash for the given contract at the given block need to be a real class hash'),
   })
 );
 

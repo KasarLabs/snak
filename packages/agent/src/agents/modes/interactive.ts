@@ -26,14 +26,14 @@ import {
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
 import {
-  PLAN_EXECUTOR_SYSTEM_PROMPT,
+  INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT,
   PLAN_VALIDATOR_SYSTEM_PROMPT,
-  PromptPlanInteractive,
+  STEP_EXECUTOR_SYSTEM_PROMPT,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
   STEPS_VALIDATOR_SYSTEM_PROMPT,
 } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
-import { AgentReturn } from './autonomous.js';
+import { AgentReturn, ParsedPlan } from './types/index.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -52,40 +52,7 @@ import {
   handleModelError,
   isTerminalMessage,
 } from './utils.js';
-
-// ============================================
-// TYPES & INTERFACES
-// ============================================
-
-export interface StepInfo {
-  stepNumber: number;
-  stepName: string;
-  description: string;
-  status: 'pending' | 'completed' | 'failed';
-}
-
-export interface ParsedPlan {
-  steps: StepInfo[];
-  summary: string;
-}
-
-interface StepResponse {
-  number: number;
-  validated: boolean;
-}
-
-export interface ValidatorStepResponse {
-  steps: StepResponse[];
-  nextSteps: number;
-  isFinal: boolean;
-}
-
-export enum Agent {
-  PLANNER = 'planner',
-  EXECT_VALIDATOR = 'exec_validator',
-  PLANNER_VALIDATOR = 'planner_validator',
-  EXECUTOR = 'executor',
-}
+import { Agent } from './types/index.js';
 
 // ============================================
 // MAIN CLASS
@@ -274,7 +241,6 @@ export class InteractiveAgent {
       {
         re_planner: 'plan_node',
         executor: 'executor',
-        validator: 'validator',
         end: 'end_graph',
       }
     );
@@ -286,7 +252,6 @@ export class InteractiveAgent {
     });
     workflow.addConditionalEdges('tools', this.shouldContinue.bind(this), {
       validator: 'validator',
-      tools: 'tools',
       end: 'end_graph',
     });
     return workflow;
@@ -360,6 +325,10 @@ export class InteractiveAgent {
           .enum(['pending', 'completed', 'failed'])
           .default('pending')
           .describe('Current status of the step'),
+        result: z
+          .string()
+          .default('')
+          .describe('Result of the step need to be empty'),
       });
 
       const PlanSchema = z.object({
@@ -401,7 +370,7 @@ export class InteractiveAgent {
         );
       } else {
         logger.debug('Planner: Creating initial plan');
-        systemPrompt = PLAN_EXECUTOR_SYSTEM_PROMPT(
+        systemPrompt = INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT(
           this.toolsList,
           originalUserQuery
         );
@@ -426,7 +395,7 @@ export class InteractiveAgent {
           .join('\n')}`,
         additional_kwargs: {
           structured_output: structuredResult,
-          from: 'planner',
+          from: Agent.PLANNER,
         },
       });
 
@@ -442,7 +411,7 @@ export class InteractiveAgent {
         content: `Failed to create plan: ${error.message}`,
         additional_kwargs: {
           error: true,
-          from: 'planner',
+          from: Agent.PLANNER,
         },
       });
 
@@ -453,6 +422,7 @@ export class InteractiveAgent {
             stepName: 'Error',
             description: 'Error trying to create the plan',
             status: 'failed',
+            result: '',
           },
         ],
         summary: 'Error',
@@ -669,13 +639,13 @@ export class InteractiveAgent {
             additional_kwargs: {
               error: false,
               isFinal: true,
-              from: Agent.EXECT_VALIDATOR,
+              from: Agent.EXEC_VALIDATOR,
             },
           });
           return {
             messages: successMessage,
             currentStepIndex: state.currentStepIndex + 1,
-            last_agent: Agent.EXECT_VALIDATOR,
+            last_agent: Agent.EXEC_VALIDATOR,
             retry: retry,
             plan: plan,
           };
@@ -688,13 +658,13 @@ export class InteractiveAgent {
             additional_kwargs: {
               error: false,
               isFinal: false,
-              from: Agent.EXECT_VALIDATOR,
+              from: Agent.EXEC_VALIDATOR,
             },
           });
           return {
             messages: message,
             currentStepIndex: state.currentStepIndex + 1,
-            last_agent: Agent.EXECT_VALIDATOR,
+            last_agent: Agent.EXEC_VALIDATOR,
             retry: 0,
             plan: plan,
           };
@@ -709,13 +679,13 @@ export class InteractiveAgent {
         additional_kwargs: {
           error: false,
           isFinal: false,
-          from: Agent.EXECT_VALIDATOR,
+          from: Agent.EXEC_VALIDATOR,
         },
       });
       return {
         messages: notValidateMessage,
         currentStepIndex: state.currentStepIndex,
-        last_agent: Agent.EXECT_VALIDATOR,
+        last_agent: Agent.EXEC_VALIDATOR,
         retry: retry + 1,
       };
     } catch (error) {
@@ -731,13 +701,13 @@ export class InteractiveAgent {
           error: true,
           isFinal: false,
           validated: false,
-          from: Agent.EXECT_VALIDATOR,
+          from: Agent.EXEC_VALIDATOR,
         },
       });
       return {
         messages: errorMessage,
         currentStepIndex: state.currentStepIndex,
-        last_agent: Agent.EXECT_VALIDATOR,
+        last_agent: Agent.EXEC_VALIDATOR,
         plan: error_plan,
         retry: -1,
       };
@@ -788,7 +758,6 @@ export class InteractiveAgent {
     try {
       const filteredMessages = filterMessagesByShortTermMemory(
         state.messages,
-        iteration_number,
         shortTermMemory
       );
 
@@ -841,7 +810,8 @@ export class InteractiveAgent {
       const executionTime = Date.now() - startTime;
       const truncatedResult: { messages: [ToolMessage] } = truncateToolResults(
         result,
-        5000
+        5000,
+        state.plan.steps[state.currentStepIndex]
       );
 
       logger.debug(
@@ -921,7 +891,7 @@ export class InteractiveAgent {
 
   private handleValidatorRouting(
     state: typeof this.GraphState.State
-  ): 're_planner' | 'executor' | 'end' | 'validator' {
+  ): 're_planner' | 'executor' | 'end' {
     try {
       logger.debug(
         `ValidatorRouter: Processing routing for ${state.last_agent}`
@@ -933,7 +903,7 @@ export class InteractiveAgent {
           logger.error(
             'ValidatorRouter: Error found in the last validator messages.'
           );
-          return 'validator';
+          return 'end';
         }
         if (lastAiMessage.additional_kwargs.from != 'planner_validator') {
           throw new Error(
@@ -956,7 +926,7 @@ export class InteractiveAgent {
         return 'end';
       }
 
-      if (state.last_agent === Agent.EXECT_VALIDATOR) {
+      if (state.last_agent === Agent.EXEC_VALIDATOR) {
         const lastAiMessage = getLatestMessageForMessage(
           state.messages,
           AIMessageChunk
@@ -1051,9 +1021,7 @@ export class InteractiveAgent {
   // TODO Sync
   // --- Prompt Building ---
   private buildSystemPrompt(state: typeof this.GraphState.State): string {
-    const rules = PromptPlanInteractive(
-      state.plan.steps[state.currentStepIndex]
-    );
+    const rules = STEPS_VALIDATOR_SYSTEM_PROMPT;
 
     return `
       ${this.agent_config.prompt.content}

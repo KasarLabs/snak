@@ -15,7 +15,7 @@ import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
-import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
+import { createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
@@ -23,6 +23,7 @@ import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
+import { AgentReturn } from 'agents/modes/types/index.js';
 /**
  * Configuration interface for SnakAgent initialization
  */
@@ -248,6 +249,9 @@ export class SnakAgent extends BaseAgent {
   ): Promise<void> {
     if (agentConfig?.memory?.enabled !== false) {
       logger.debug('SnakAgent: Initializing MemoryAgent...');
+
+      const isAutonomous =
+        this.agentConfig.mode === AgentMode.INTERACTIVE ? true : false;
       this.memoryAgent = new MemoryAgent({
         shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
         memorySize: agentConfig?.memory?.memorySize || 20,

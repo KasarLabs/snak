@@ -8,6 +8,7 @@ import {
   ModelSelectorConfig,
 } from '../operators/modelSelector.js';
 import { logger, RpcProvider } from 'starknet';
+import { AutonomousAgent } from '../modes/autonomous.js';
 
 /**
  * Build system prompt from configuration components
@@ -139,7 +140,7 @@ function parseRagConfig(config: string | AgentRagSQL): AgentRagSQL {
   }
 }
 
-export const studio_graph = async () => {
+export const studio_graph_interactive = async () => {
   await Postgres.connect({
     host: process.env.POSTGRES_HOST as string,
     user: process.env.POSTGRES_USER as string,
@@ -148,7 +149,7 @@ export const studio_graph = async () => {
     port: parseInt(process.env.POSTGRES_PORT!) as number,
   });
 
-  const id: string = '7982aaf4-b9d8-4e28-b063-ce02390570e0';
+  const id: string = '2568a969-cd0a-43ee-8ae9-c9f2e26d0f8e';
   const q = new Postgres.Query('SELECT * from agents WHERE id = $1', [id]);
   const q_res = await Postgres.query<AgentConfigSQL>(q);
   const agent_config = {
@@ -229,5 +230,99 @@ export const studio_graph = async () => {
     model_selector_instance
   );
   const graph = (await interactive_agent.initialize()).app;
+  return graph;
+};
+
+
+export const studio_graph_autonomous = async () => {
+  await Postgres.connect({
+    host: process.env.POSTGRES_HOST as string,
+    user: process.env.POSTGRES_USER as string,
+    database: process.env.POSTGRES_DB as string,
+    password: process.env.POSTGRES_PASSWORD as string,
+    port: parseInt(process.env.POSTGRES_PORT!) as number,
+  });
+
+  const id: string = '2568a969-cd0a-43ee-8ae9-c9f2e26d0f8e';
+  const q = new Postgres.Query('SELECT * from agents WHERE id = $1', [id]);
+  const q_res = await Postgres.query<AgentConfigSQL>(q);
+  const agent_config = {
+    ...q_res[0],
+    memory: parseMemoryConfig(q_res[0].memory),
+    rag: parseRagConfig(q_res[0].rag),
+  };
+
+  const system_prompt = buildSystemPromptFromConfig({
+    name: agent_config.name,
+    description: agent_config.description,
+    lore: agent_config.lore,
+    objectives: agent_config.objectives,
+    knowledge: agent_config.knowledge,
+  });
+
+  const system = new SystemMessage(system_prompt);
+  const fast: ModelLevelConfig = {
+    provider: ModelProviders.OpenAI,
+    model_name: 'gpt-4o-mini',
+    description: 'Optimized for speed and simple tasks.',
+  };
+  const smart: ModelLevelConfig = {
+    provider: ModelProviders.OpenAI,
+    model_name: 'gpt-4o-mini',
+    description: 'Optimized for complex reasoning.',
+  };
+  const cheap: ModelLevelConfig = {
+    provider: ModelProviders.OpenAI,
+    model_name: 'gpt-4o-mini',
+    description: 'Good cost-performance balance.',
+  };
+
+  const model_selector: ModelSelectorConfig = {
+    debugMode: false,
+    useModelSelector: true,
+    modelsConfig: {
+      fast,
+      cheap,
+      smart,
+    },
+  };
+  const agent = new SnakAgent({
+    provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
+    accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
+    accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
+    db_credentials: {
+      host: process.env.POSTGRES_HOST as string,
+      user: process.env.POSTGRES_USER as string,
+      database: process.env.POSTGRES_DB as string,
+      password: process.env.POSTGRES_PASSWORD as string,
+      port: parseInt(process.env.POSTGRES_PORT!) as number,
+    },
+    agentConfig: {
+      id: agent_config.id,
+      name: agent_config.name,
+      group: agent_config.group,
+      description: agent_config.description,
+      prompt: system,
+      interval: agent_config.interval,
+      maxIterations: agent_config.max_iterations,
+      mode: agent_config.mode,
+      chatId: 'test',
+      memory: agent_config.memory,
+      rag: agent_config.rag,
+      plugins: agent_config.plugins,
+      mcpServers: {},
+    },
+    modelSelectorConfig: model_selector,
+    memory: agent_config.memory,
+  });
+
+  const model_selector_instance = new ModelSelector(model_selector);
+  await model_selector_instance.init();
+  await agent.init();
+  const autonomous_agent = new AutonomousAgent(
+    agent,
+    model_selector_instance
+  );
+  const graph = (await autonomous_agent.initialize()).app;
   return graph;
 };

@@ -9,7 +9,7 @@ import {
   HumanMessage,
   ToolMessage,
 } from '@langchain/core/messages';
-import { Agent, ParsedPlan, ValidatorStepResponse } from './interactive.js';
+import { Agent, ParsedPlan, ValidatorStepResponse } from './types/index.js';
 import { logger } from 'starknet';
 
 // --- Format Functions ---
@@ -66,19 +66,18 @@ export function calculateIterationNumber(
 
 // --- Response Generators ---
 export function createMaxIterationsResponse(iteration_number: number): {
-  messages: BaseMessage[];
+  messages: BaseMessage;
   last_agent: Agent;
 } {
   return {
-    messages: [
-      new AIMessageChunk({
-        content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
-        additional_kwargs: {
-          final: true,
-          iteration_number: iteration_number,
-        },
-      }),
-    ],
+    messages: new AIMessageChunk({
+      content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
+      additional_kwargs: {
+        final: true,
+        iteration_number: iteration_number,
+      },
+    }),
+
     last_agent: Agent.EXECUTOR,
   };
 }
@@ -120,37 +119,38 @@ export function getLatestMessageForMessage(
 // --- FILTER --- ///
 export function filterMessagesByShortTermMemory(
   messages: BaseMessage[],
-  iteration_number: number,
   shortTermMemory: number
 ): BaseMessage[] {
   const filteredMessages = [];
-  let lastIterationCount = iteration_number - 1;
-  let s_temp = shortTermMemory;
-
+  const iterationAgent = [
+    Agent.EXECUTOR,
+    Agent.PLANNER,
+    Agent.ADAPTIVE_PLANNER,
+    Agent.TOOLS,
+  ];
+  const m_length = messages.length - 1;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-
-    // Skip model-selector messages
-    if (
-      (msg instanceof AIMessageChunk || msg instanceof ToolMessage) &&
-      msg.additional_kwargs?.from === 'model-selector'
-    ) {
-      continue;
-    }
-
     // Handle iteration filtering
     // TODO add checking with type of Agent
-    if (lastIterationCount !== msg.additional_kwargs?.iteration_number) {
-      lastIterationCount =
-        (msg.additional_kwargs?.iteration_number as number) || 0;
-      s_temp--;
+    if (
+      iterationAgent.includes(msg.additional_kwargs.from as Agent) ||
+      msg instanceof HumanMessage ||
+      msg instanceof ToolMessage
+    ) {
+      if (
+        (msg instanceof AIMessageChunk && msg.tool_calls?.length) ||
+        msg instanceof ToolMessage
+      ) {
+        filteredMessages.unshift(msg);
+        continue;
+      } else {
+        filteredMessages.unshift(msg);
+        shortTermMemory--;
+      }
     }
-
-    if (s_temp === 0) break;
-
-    filteredMessages.unshift(msg);
+    if (shortTermMemory <= 0) break;
   }
-
   return filteredMessages;
 }
 
@@ -173,7 +173,7 @@ export function isTokenLimitError(error: any): boolean {
 
 // --- ERROR HANDLING --- //
 export function handleModelError(error: any): {
-  messages: BaseMessage[];
+  messages: BaseMessage;
   last_agent: Agent.EXECUTOR;
 } {
   logger.error(`Executor: Error calling model - ${error}`);
@@ -183,7 +183,7 @@ export function handleModelError(error: any): {
       `Executor: Token limit error during model invocation - ${error.message}`
     );
     return {
-      messages: [
+      messages: 
         new AIMessageChunk({
           content:
             'Error: The conversation history has grown too large, exceeding token limits. Cannot proceed.',
@@ -192,21 +192,18 @@ export function handleModelError(error: any): {
             final: true,
           },
         }),
-      ],
       last_agent: Agent.EXECUTOR,
     };
   }
 
   return {
-    messages: [
-      new AIMessageChunk({
-        content: `Error: An unexpected error occurred while processing the request. Error : ${error}`,
-        additional_kwargs: {
-          error: 'unexpected_error',
-          final: true,
-        },
-      }),
-    ],
+    messages: new AIMessageChunk({
+      content: `Error: An unexpected error occurred while processing the request. Error : ${error}`,
+      additional_kwargs: {
+        error: 'unexpected_error',
+        final: true,
+      },
+    }),
     last_agent: Agent.EXECUTOR,
   };
 }

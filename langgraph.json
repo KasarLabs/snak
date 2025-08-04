@@ -1,7 +1,9 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "openai_agent": "./packages/agent/src/agents/studio/graph.ts:studio_graph"
+    "interactive": "./packages/agent/src/agents/studio/graph.ts:studio_graph_interactive",
+    "autonomous": "./packages/agent/src/agents/studio/graph.ts:studio_graph_autonomous"
+
   },
   "env": "./.env"
 }

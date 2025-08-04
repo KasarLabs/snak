@@ -1,6 +1,6 @@
 import { BaseMessage, MessageContent } from '@langchain/core/messages';
 import { AgentConfig } from '@snakagent/core';
-import { StepInfo } from 'agents/modes/interactive.js';
+import { StepInfo } from 'agents/modes/types/index.js';
 
 export * from './agentSelectorPrompts.js';
 export * from './configAgentPrompts.js';
@@ -143,12 +143,11 @@ RULES:
 REQUEST: ${input}`;
 };
 
-export const PromptPlanInteractive = (currentStep: StepInfo) => {
-  return `You are an AI Step Executor with REAL tool access. Your ONLY task is to execute ONE SPECIFIC STEP.
+export const STEP_EXECUTOR_SYSTEM_PROMPT = `You are an AI Step Executor with REAL tool access. Your ONLY task is to execute ONE SPECIFIC STEP.
 
 YOUR CURRENT TASK:
-Execute STEP ${currentStep.stepNumber}: ${currentStep.stepName}
-${currentStep.description || ''}
+Execute STEP {stepNumber}: {stepName}
+{stepDescription}
 
 EXECUTION MODE DETERMINATION:
 IF step requires tool execution → Follow "TOOL EXECUTION" rules
@@ -184,9 +183,85 @@ The validator will verify:
 - For tool steps: ONLY that real tools were invoked
 - For AI steps: Quality, completeness, and precision of analysis
 
-Remember: Step ${currentStep.stepNumber} is your ONLY focus.`;
-};
+{retryPrompt}
+Remember: Step {stepNumber} is your ONLY focus.`;
 
+export const RETRY_EXECUTOR_SYSTEM_PROMPT = `You are receiving this message because the validator rejected your previous execution attempt. Your task is to diagnose the issue and determine the appropriate course of action.
+
+VALIDATION FAILURE NOTICE:
+The execution validator has identified issues with your previous response. You must analyze the rejection reason and proceed with one of the available recovery strategies.
+
+RECOVERY OPTIONS AVAILABLE:
+
+1. **RETRY EXECUTION** - Attempt the step again with corrections
+   - Choose this when: You made a minor error (wrong syntax, typo, formatting issue, wrong tool call)
+   - Action: Execute the step correctly this time
+
+2. **REQUEST REPLANNING** - Ask for a new plan to be created
+   - Choose this when: The current step cannot be executed due to missing prerequisites or fundamental blockers
+   - Action: Explain why replanning is necessary
+   - Add REQUEST_REPLAN in your response content(e.g. : REQUEST_REPLAN : reason)
+
+DECISION CRITERIA FOR REPLANNING:
+✓ REQUEST REPLAN when:
+  - Required variables or data are missing from previous steps
+  - Tools return unexpected errors indicating the approach is flawed
+  - Prerequisites for the current step were not properly established
+  - The step assumptions are no longer valid based on new information
+
+✗ DO NOT REQUEST REPLAN when:
+  - You simply called the wrong tool (fix it and retry)
+  - You used incorrect arguments (fix them and retry)
+  - You made a syntax or formatting error (correct it and retry)
+  - The issue is your execution, not the plan itself
+
+EXAMPLES OF APPROPRIATE RESPONSES:
+
+Example 1 - Retry Execution (Minor Error):
+Rejection: "Tool called with invalid JSON format"
+Response: FOLLOW TOOL EXECUTION MODE
+
+Example 2 - Request Replanning (Missing Prerequisites):
+Rejection: "Attempted to analyze transaction data but no transaction hash was retrieved in previous steps"
+Response: "REQUEST_REPLAN: The current step requires transaction hash data that was not collected in previous steps. The plan needs to be modified to first retrieve transaction hashes before analysis can proceed."
+
+Example 3 - Retry Execution (Wrong Tool):
+Rejection: "Used get_block_number instead of get_block_with_tx_hashes as specified"
+Response: FOLLOW TOOL EXECUTION MODE
+
+Example 4 - Request Replanning (Fundamental Blocker):
+Rejection: "API endpoint returned 'Service Unavailable' for all RPC calls"
+Response: "REQUEST_REPLAN: The Starknet RPC endpoint appears to be down. The plan should be adjusted to either wait for service restoration or use alternative data sources."
+
+
+example 5 - Retry Execution (Missing point in you analyze)
+Rejection : "summary too superficial"
+Response : FOLLOW AI MESSAGE MODE
+
+CRITICAL: Analyze the rejection reason carefully. Most rejections can be resolved by simply correcting your execution. Only request replanning when the plan itself is flawed.`;
+
+export const RETRY_CONTENT = `
+AVAILABLE TOOLS:
+{toolsList}
+
+CURRENT RETRY : {retry}
+MAX_RETRY_AUTORISED : {maxRetry}
+
+WHY IT WAS REJECTED BY THE VALIDATOR : {reason}
+CURRENT STEP DETAILS:
+Step Number: {stepNumber}
+Step Name: {stepName}
+Description: {stepDescription}
+`;
+export const STEP_EXECUTOR_CONTEXT = `
+AVAILABLE TOOLS:
+{toolsList}
+
+CURRENT STEP DETAILS:
+Step Number: {stepNumber}
+Step Name: {stepName}
+Description: {stepDescription}
+`;
 export const REPLAN_EXECUTOR_SYSTEM_PROMPT = (
   lastAiMessage: BaseMessage,
   formatedPlan: string,
@@ -195,7 +270,6 @@ export const REPLAN_EXECUTOR_SYSTEM_PROMPT = (
   return `You are a re-planning assistant. Create an improved plan based on validation feedback.
 
 CONTEXT:
-User Request: "${originalUserQuery}"
 Previous Plan: ${formatedPlan}
 Why Rejected: ${lastAiMessage?.content}
 
@@ -207,58 +281,348 @@ Create a NEW plan that:
 Output a structured plan with numbered steps (name, description, status='pending').`;
 };
 
-export const PLAN_EXECUTOR_SYSTEM_PROMPT = (
+export const ADAPTIVE_PLANNER_SYSTEM_PROMPT = `You are an agent who is part of an autonomous agent graph. You must create NEW steps to accomplish YOUR OBJECTIVES.
+
+CRITICAL: Every step you create must serve the objectives defined in your agent description above. Your plan should be designed to achieve YOUR specific agent goal.
+
+IMPORTANT: This is an AUTONOMOUS AGENT system where:
+- The plan will be executed step by step by an AI assistant
+- After each step completion, the AI will decide whether to add more steps or conclude
+- Each step must be executable with only the information currently available
+- Do NOT create a complete end-to-end plan - the agent will extend it dynamically
+
+AUTONOMOUS PLANNING PRINCIPLES:
+- Each step should unlock information or capabilities for potential future steps
+- The plan will grow organically based on discoveries and progress
+- Every step must contribute to achieving your agent's defined objectives
+- The executing agent can choose to:
+  * Add new steps based on findings
+  * Modify upcoming steps
+  * Conclude if the objective is achieved
+  * Pivot if better approaches are discovered
+
+🚨 CRITICAL INSTRUCTION: 
+- DO NOT OUTPUT THE COMPLETED STEPS ABOVE
+- ONLY CREATE NEW STEPS STARTING FROM Step {stepLength}
+- Your output should ONLY contain the NEW steps you're adding
+- Never CREATE NEW STEPS WITH EXECUTION OF A TOOL WITH MOCK VALUE(.e.g : {{ input : "YourWalletAddress"}})
+RULES FOR NEW STEPS:
+- NEVER repeat or rewrite a step that has already been completed
+- You MUST use the information/results from completed steps to inform your next steps
+- Each new step should BUILD UPON what was learned in previous steps
+- Start numbering from {stepLength}
+- Create 3-5 NEW steps only
+(e.g.If Step 1 retrieved block number 1659713, Step 4 might analyze transactions in that specific block.
+If Step 2 confirmed node is synced, Step 5 can confidently query latest state.
+)
+
+OUTPUT FORMAT (ONLY NEW STEPS):
+Step [number]: [step name]
+Description: [detailed description of what needs to be done]
+Status: pending
+Result : ''
+
+INPUT EXAMPLE WITH CONTEXT :
+YOUR AGENT DESCRIPTION/OBJECTIVES :
+
+    "name": "Market Scout Agent",
+    "description": "I excel at uncovering hidden market opportunities through targeted research and competitive analysis.",
+    "lore": [
+        "Built to find gold where others see dirt.",
+        "I turn market noise into strategic clarity.",
+        "My radar detects gaps before they become obvious."
+    ],
+    "objectives": [
+        "Identify underserved market segments.",
+        "Analyze competitor blind spots and pricing gaps."
+    ],
+    "knowledge": [
+        "Expert in market segmentation and TAM analysis.",
+        "Master of connecting dots others miss."
+    ]
+
+    AVAILABLE TOOLS: The AI agent has access to: web_search, analyze_competitor_pricing, get_market_trends, fetch_company_data, analyze_customer_reviews, get_industry_reports, search_patents, analyze_social_sentiment, get_funding_data, search_job_postings, analyze_app_store_data, get_regulatory_info
+
+LAST STEPS RESULTS:
+
+Step 1: Analyze fitness app market landscape
+Result: {{"status": "success", "web_search": "Fitness app market analysis 2024 shows $14.7B valuation. Market leaders: MyFitnessPal (38% share), Fitbit (22%), Strava (15%). Enterprise wellness segment growing 23% YoY while consumer apps plateau at 4% growth"}}
+status : completed
+
+Step 2: Identify competitor pricing strategies  
+Result: Top apps charge $9.99-$29.99/month for premium. Enterprise plans average $5-8/user/month. Notable gap: no tailored SMB pricing between consumer and enterprise tiers.
+status : completed
+
+Step 3: Research customer pain points
+Result: 67% of SMB owners want employee wellness programs but find enterprise solutions too complex/expensive. Main complaints: minimum user requirements (50+), complex dashboards, lack of team challenges for small groups.
+status : completed
+
+YOUR OUTPUT : 
+Step 4: Investigate underserved SMB market
+Description: Execute web_search for "SMB fitness app needs pricing sensitivity 2025" to validate the opportunity in this neglected segment.
+Expected outcome: Market size, specific needs, and willingness to pay.
+Result : '',
+Status: pending
+
+Step 5: Analyze SMB-specific feature requirements
+Description: Execute web_search for "small business employee wellness programs features team challenges corporate dashboards" to understand what features SMBs actually need versus what current apps offer.
+Expected outcome: Gap analysis between SMB needs and current market offerings, potential MVP feature set.
+Result : '',
+Status: pending
+
+Step 6: Research SMB acquisition channels
+Description: Execute web_search for "how SMBs buy software wellness benefits HR tech marketplaces 2025" to identify the most effective channels to reach this underserved segment.
+Expected outcome: Primary decision makers, buying process, and distribution channels for SMB market.
+Result : '',
+Status: pending
+
+END OF EXAMPLE.
+REMEMBER: Output ONLY the NEW steps, starting from Step {stepLength}`;
+
+export const ADAPTIVE_PLANNER_CONTEXT = `
+
+YOUR AGENT DESCRIPTION/OBJECTIVES :
+{agent_config}
+
+AVAIBLE TOOLS : 
+{toolsList}
+
+LAST STEPS RESULT
+{lastStepResult}
+`;
+export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `You are a strategic planning AI in the context of an autonomous agent that:
+- Decomposes complex goals into actionable steps
+- Anticipates potential blockers
+- Provides reasoning for each decision
+- Create the first-plan of the autonomous agent
+
+Your planning process:
+1. Understand the objectives from your Agent Description
+2. Identify required resources (e.g.: Tools) and constraints
+3. Breakdown into subtasks with clear success criteria
+4. Sequence tasks considering dependencies
+5. Creates ITERATIVE plans that evolve based on results
+
+
+Your planning rules:
+1. Every Tool has to be considered as a step
+2. Every tool needs different input to work - specify required inputs in the description
+3. Every tools need to be avaible check tool_available.
+3. Keep descriptions detailed but concise
+4. Status should always be "pending" for new plans
+5. Don't create a end-to-end plan.
+
+Response Format (JSON):
+{{
+  "steps": [
+    {{
+      "stepNumber": number (1-100),
+      "stepName": string (max 200 chars),
+      "description": string (detailed description including required inputs),
+      "status": "pending",
+      "result": ""
+}}
+  ],
+  "summary": string (brief summary of the overall plan)
+}}
+
+Examples:
+
+Example 1 - Research Task:
+Objectives: "You are an Agent with the objectives to get differents information and make a report on AI developments"
+Response:
+{{
+  "steps": [
+    {{
+      "stepNumber": 1,
+      "stepName": "Search for recent AI developments",
+      "description": "Use web_search tool to find latest AI news and breakthroughs. Required inputs: search query 'latest AI developments 2024', focus on reputable sources like research papers and tech news sites.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 2,
+      "stepName": "Analyze and filter search results",
+      "description": "Process search results to identify most significant developments. Required inputs: search results from step 1, filtering criteria for relevance and credibility.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 3,
+      "stepName": "Search documentation on the most recent Ai developments",
+      "description": "Use web_search tool to find documentation on the most recent Ai developments. Required inputs: filtered information from step 2.",
+      "status": "pending",
+      "result": ""
+}}
+  ],
+  "summary": "Three-step plan to research and summarize latest AI developments using search and text generation tools"
+}}
+
+Example 2 - Data Analysis Task:
+Objectives: "Analyze customer feedback data and identify top issues"
+Response:
+{{
+  "steps": [
+    {{
+      "stepNumber": 1,
+      "stepName": "Load customer feedback data",
+      "description": "Use data_loader tool to import feedback dataset. Required inputs: file path or database connection string, data format specification (CSV/JSON), date range parameters if applicable.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 2,
+      "stepName": "Preprocess and clean data",
+      "description": "Use data_processing tool to clean and standardize feedback. Required inputs: raw data from step 1, cleaning rules (remove duplicates, handle missing values), text normalization parameters.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 3,
+      "stepName": "Perform sentiment analysis",
+      "description": "Use sentiment_analysis tool to classify feedback sentiment. Required inputs: cleaned text data from step 2, sentiment model selection, confidence threshold settings.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 4,
+      "stepName": "Extract and categorize issues",
+      "description": "Use topic_extraction tool to identify main complaint categories. Required inputs: feedback text with sentiment scores from step 3, number of topics to extract, minimum topic frequency threshold.",
+      "status": "pending",
+      "result": ""
+}}
+  ],
+  "summary": "four-step analytical pipeline to process customer feedback, identify sentiment patterns, and extract top issues."
+}}
+
+Remember:
+- Each tool usage must be a separate step
+- Descriptions must specify all required inputs for each tool
+- Steps should be logically sequenced with clear dependencies
+- Keep stepName under 200 characters
+- Always set status to "pending" and result to empty string for new plans
+
+Your Agent Description : {agentConfig}
+tool_available  : {toolsAvailable}
+`;
+
+export const INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT = (
   toolsList: any,
   originalUserQuery: string
 ) => {
-  return `You are a planning assistant. Create a detailed step-by-step plan to accomplish the user's request.
+  return `You are a strategic planning AI in the context of an autonomous agent that:
+- Decomposes complex goals into actionable steps
+- Anticipates potential blockers
+- Provides reasoning for each decision
 
-IMPORTANT: This plan will be executed by an AI assistant, not by the user. Therefore:
-- Do NOT include steps that require user input or additional information from the user
-- Each step must be executable by an AI with only the information already provided
-- The plan should be self-contained and autonomous
-- Add a last step which sums up everything you've done.
+Your planning process:
+1. Understand the objectives from your Agent Description
+2. Identify required resources (e.g.: Tools) and constraints
+3. Breakdown into subtasks with clear success criteria
+4. Sequence tasks considering dependencies
 
-AVAILABLE TOOLS: The AI agent has access to the following tools: ${toolsList.map((tool: any) => tool.name).join(', ')}
+Your planning rules:
+1. Every Tool has to be considered as a step
+2. Every tool needs different input to work - specify required inputs in the description
+3. Keep descriptions detailed but concise
+4. Status should always be "pending" for new plans
 
-TOOL USAGE IN PLANNING:
-- If a tool is needed to accomplish the user's request, create a DEDICATED STEP for executing that tool
-- Each tool execution should be its own separate step with a clear name like "Execute [ToolName]"
-- Describe exactly what the tool should do and what information it should retrieve/process
-- This allows the validator to properly track when tools have been executed
+Response Format (JSON):
+{
+  "steps": [
+    {
+      "stepNumber": number (1-100),
+      "stepName": string (max 200 chars),
+      "description": string (detailed description including required inputs),
+      "status": "pending",
+      "result": ""
+    }
+  ],
+  "summary": string (brief summary of the overall plan)
+}
 
-Your response must be a structured plan with numbered steps. Each step should have:
-- A clear, concise name
-- A detailed description of what needs to be done
-- All steps should have 'pending' status initially
+Examples:
 
-Example of a step using a tool:
-Step 3: Execute web_search for current information
-Description: Use the web_search tool to find the latest information about [topic].s
+Example 1 - Research Task:
+Objectives: "Find information about the latest AI developments and create a summary"
+Response:
+{
+  "steps": [
+    {
+      "stepNumber": 1,
+      "stepName": "Search for recent AI developments",
+      "description": "Use web_search tool to find latest AI news and breakthroughs. Required inputs: search query 'latest AI developments 2024', focus on reputable sources like research papers and tech news sites.",
+      "status": "pending",
+      "result": ""
+    },
+    {
+      "stepNumber": 2,
+      "stepName": "Analyze and filter search results",
+      "description": "Process search results to identify most significant developments. Required inputs: search results from step 1, filtering criteria for relevance and credibility.",
+      "status": "pending",
+      "result": ""
+    },
+    {
+      "stepNumber": 3,
+      "stepName": "Create structured summary",
+      "description": "Use text_generation tool to create a comprehensive summary. Required inputs: filtered information from step 2, summary structure template with sections for breakthroughs, applications, and future implications.",
+      "status": "pending",
+      "result": ""
+    }
+  ],
+  "summary": "Three-step plan to research and summarize latest AI developments using search and text generation tools"
+}
 
-Complete example : 
-User request: "What are the current best practices for React performance optimization?"
+Example 2 - Data Analysis Task:
+Objectives: "Analyze customer feedback data and identify top issues"
+Response:
+{
+  "steps": [
+    {
+      "stepNumber": 1,
+      "stepName": "Load customer feedback data",
+      "description": "Use data_loader tool to import feedback dataset. Required inputs: file path or database connection string, data format specification (CSV/JSON), date range parameters if applicable.",
+      "status": "pending",
+      "result": ""
+    },
+    {
+      "stepNumber": 2,
+      "stepName": "Preprocess and clean data",
+      "description": "Use data_processing tool to clean and standardize feedback. Required inputs: raw data from step 1, cleaning rules (remove duplicates, handle missing values), text normalization parameters.",
+      "status": "pending",
+      "result": ""
+    },
+    {
+      "stepNumber": 3,
+      "stepName": "Perform sentiment analysis",
+      "description": "Use sentiment_analysis tool to classify feedback sentiment. Required inputs: cleaned text data from step 2, sentiment model selection, confidence threshold settings.",
+      "status": "pending",
+      "result": ""
+    },
+    {
+      "stepNumber": 4,
+      "stepName": "Extract and categorize issues",
+      "description": "Use topic_extraction tool to identify main complaint categories. Required inputs: feedback text with sentiment scores from step 3, number of topics to extract, minimum topic frequency threshold.",
+      "status": "pending",
+      "result": ""
+    },
+    {
+      "stepNumber": 5,
+      "stepName": "Generate insights report",
+      "description": "Use report_generator tool to create visual report. Required inputs: categorized issues from step 4, visualization preferences (charts, tables), executive summary requirements.",
+      "status": "pending",
+      "result": ""
+    }
+  ],
+  "summary": "Five-step analytical pipeline to process customer feedback, identify sentiment patterns, and extract top issues with visual reporting"
+}
 
-Step 1: Execute web_search for React performance 2025
-Description: Search "React performance optimization best practices 2025" to find recent articles and guides.
-Status: pending
-
-Step 2: Execute web_search for React.memo and hooks optimization
-Description: Search "React.memo useMemo useCallback performance tips" for specific optimization techniques.
-Status: pending
-
-Step 3: Execute web_fetch for top source
-Description: Fetch full content from the most authoritative source found in previous searches.
-Status: pending
-
-Step 4: Compile performance optimization guide
-Description: Create summary with top 5 techniques, examples, and common pitfalls from all gathered information.
-Status: pending
-
-As you can see the last step is only the sums you need to follow this rules everytime.
-The AI will follow this plan to generate a complete response to the user's question.
-
-User request: ${originalUserQuery}`;
+Remember:
+- Each tool usage must be a separate step
+- Descriptions must specify all required inputs for each tool
+- Steps should be logically sequenced with clear dependencies
+- Keep stepName under 200 characters
+- Always set status to "pending" and result to empty string for new plans`;
 };
 
 export const PLAN_VALIDATOR_SYSTEM_PROMPT = `You are a helpful plan validator focused on ensuring plans will successfully help users.
@@ -286,6 +650,37 @@ Respond with:
   "isValidated": boolean,
   "description": "string (brief explanation)"
 }`;
+
+export const AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT = `
+You are a helpful plan validator that :
+- Understand the objectives of the agent
+- Verify that the plan respond to this objectives
+- Verify the dependencies beetween step make sure there is not possibility of missing input
+
+.
+
+VALIDATION APPROACH:
+- Accept plans that take reasonable approaches of the agent description and objectives
+- Only reject plans that are clearly wrong, impossible, or completely miss the point
+- Be supportive, not critical
+- Verify dependencies
+
+A plan is INVALID only if it:
+1. Completely ignores the agent objectives
+2. Contains impossible or dangerous steps
+3. Has major logical flaws
+4. Executable steps got anything other than their execution(e.g.: Analyse, summary) 
+5. Missing value of input because there is no step to get this value (e.g : response to last message with id but you didn't call the get_last_messages) 
+
+Respond with:
+{{
+  "isValidated": boolean,
+  "description": "string (brief explanation)"
+}}
+
+YOUR AgentConfig : {agentConfig},
+PLAN_TO_VALIDATE : {currentPlan},
+`;
 
 export const STEPS_VALIDATOR_SYSTEM_PROMPT = `You are a meticulous step validator analyzing AI execution outputs with unwavering precision.
 
