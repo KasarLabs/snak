@@ -16,7 +16,7 @@ import {
   FormattedOnChatModelStart,
   FormattedOnChatModelStream,
 } from './snakAgent.js';
-import { ToolMessage } from '@langchain/core/messages';
+import { BaseMessage, ToolMessage } from '@langchain/core/messages';
 import { AnyZodObject } from 'zod';
 import { ParsedPlan, StepInfo } from 'agents/modes/types/index.js';
 
@@ -223,7 +223,7 @@ export function truncateToolResults(
   result: any,
   maxLength: number = 5000,
   currentStep: StepInfo
-): { messages: [ToolMessage]; plan?: ParsedPlan } {
+): { messages: [ToolMessage]; plan?: ParsedPlan; last_message: BaseMessage } {
   console.log(JSON.stringify(result));
   for (const tool_message of result.messages) {
     const content = truncateStringContentHelper(

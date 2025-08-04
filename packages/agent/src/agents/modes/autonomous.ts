@@ -131,8 +131,11 @@ export class AutonomousAgent {
 
   private GraphState = Annotation.Root({
     messages: Annotation<BaseMessage[]>({
-      reducer: (x, y) => this.flexibleMessageReducer(x, y),
+      reducer: (x, y) => x.concat(y),
       default: () => [],
+    }),
+    last_message: Annotation<BaseMessage | BaseMessage[]>({
+      reducer: (x, y) => y,
     }),
     last_agent: Annotation<Agent>({
       reducer: (x, y) => y,
@@ -215,7 +218,7 @@ export class AutonomousAgent {
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): Promise<{
-    messages: BaseMessage;
+    last_message: BaseMessage;
     last_agent: Agent;
     plan: ParsedPlan;
     currentGraphStep: number;
@@ -323,7 +326,7 @@ export class AutonomousAgent {
       new_plan.summary = structuredResult.summary as string;
       console.log(JSON.stringify(new_plan));
       return {
-        messages: aiMessage,
+        last_message: aiMessage,
         last_agent: Agent.PLANNER,
         plan: new_plan,
         currentGraphStep: state.currentGraphStep + 1,
@@ -353,7 +356,7 @@ export class AutonomousAgent {
       };
 
       return {
-        messages: errorMessage,
+        last_message: errorMessage,
         last_agent: Agent.PLANNER,
         plan: error_plan,
         currentGraphStep: state.currentGraphStep + 1,
@@ -364,7 +367,7 @@ export class AutonomousAgent {
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): Promise<{
-    messages: BaseMessage;
+    last_message: BaseMessage;
     last_agent: Agent;
     plan: ParsedPlan;
     currentGraphStep: number;
@@ -372,10 +375,7 @@ export class AutonomousAgent {
     try {
       console.log(JSON.stringify(config));
       logger.info('Planner: Starting plan execution');
-      const lastAiMessage = getLatestMessageForMessage(
-        state.messages,
-        AIMessageChunk
-      );
+      const lastAiMessage = state.last_message as BaseMessage;
 
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
@@ -472,7 +472,7 @@ export class AutonomousAgent {
       });
 
       return {
-        messages: aiMessage,
+        last_message: aiMessage,
         last_agent: Agent.PLANNER,
         plan: structuredResult as ParsedPlan,
         currentGraphStep: state.currentGraphStep + 1,
@@ -502,7 +502,7 @@ export class AutonomousAgent {
       };
 
       return {
-        messages: errorMessage,
+        last_message: errorMessage,
         last_agent: Agent.PLANNER,
         plan: error_plan,
         currentGraphStep: state.currentGraphStep + 1,
@@ -512,7 +512,7 @@ export class AutonomousAgent {
 
   // --- VALIDATOR NODE ---
   private async validator(state: typeof this.GraphState.State): Promise<{
-    messages: BaseMessage;
+    last_message: BaseMessage;
     currentStepIndex: number;
     plan?: ParsedPlan;
     last_agent: Agent;
@@ -525,6 +525,9 @@ export class AutonomousAgent {
     if (state.last_agent === Agent.PLANNER) {
       const result = await this.validatorPlanner(state);
       return result;
+    } else if (state.last_agent === Agent.EXECUTOR) {
+      const result = await this.validatorExecutor(state);
+      return result;
     } else {
       const result = await this.validatorExecutor(state);
       return result;
@@ -532,7 +535,7 @@ export class AutonomousAgent {
   }
 
   private async validatorPlanner(state: typeof this.GraphState.State): Promise<{
-    messages: BaseMessage;
+    last_message: BaseMessage;
     currentStepIndex: number;
     last_agent: Agent;
     retry: number;
@@ -593,7 +596,7 @@ export class AutonomousAgent {
         });
         logger.info(`PlannerValidator: Plan validated successfully`);
         return {
-          messages: successMessage,
+          last_message: successMessage,
           last_agent: Agent.PLANNER_VALIDATOR,
           currentStepIndex: state.currentStepIndex,
           retry: state.retry,
@@ -612,7 +615,7 @@ export class AutonomousAgent {
           `PlannerValidator: Plan validation failed - ${structuredResult.description}`
         );
         return {
-          messages: errorMessage,
+          last_message: errorMessage,
           currentStepIndex: state.currentStepIndex,
           last_agent: Agent.PLANNER_VALIDATOR,
           retry: state.retry + 1,
@@ -632,7 +635,7 @@ export class AutonomousAgent {
         },
       });
       return {
-        messages: errorMessage,
+        last_message: errorMessage,
         currentStepIndex: state.currentStepIndex,
         last_agent: Agent.PLANNER_VALIDATOR,
         retry: state.retry + 1,
@@ -644,7 +647,7 @@ export class AutonomousAgent {
   private async validatorExecutor(
     state: typeof this.GraphState.State
   ): Promise<{
-    messages: BaseMessage;
+    last_message: BaseMessage;
     currentStepIndex: number;
     plan?: ParsedPlan;
     last_agent: Agent;
@@ -653,7 +656,7 @@ export class AutonomousAgent {
   }> {
     try {
       const retry: number = state.retry;
-      const lastMessage = state.messages[state.messages.length - 1];
+      const lastMessage = state.last_message;
 
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
@@ -690,12 +693,41 @@ export class AutonomousAgent {
         : '';
 
       let content: String;
-      if (lastMessage instanceof ToolMessage) {
+      if (
+        lastMessage instanceof ToolMessage ||
+        (Array.isArray(lastMessage) &&
+          lastMessage.every((msg) => msg instanceof ToolMessage))
+      ) {
+        let lastMessageContent = Array.isArray(lastMessage)
+          ? lastMessage.map((msg) => msg.content).join('\n')
+          : lastMessage.content;
         logger.debug('ExecutorValidator: Last Message is a ToolMessage');
-        content = `VALIDATION_TYPE : TOOL_EXECUTION_MODE,TOOL_CALL EXECUTED : ${lastMessage.name}, TOOL_CALL RESPONSE TO ANALYZE : tool_call : { response :${lastMessage.content}, name :${lastMessage.name}, tool_call_id : ${lastMessage.tool_call_id}}`;
+        content = `VALIDATION_TYPE : TOOL_EXECUTION_MODE,TOOL_CALL EXECUTED : ${
+          Array.isArray(lastMessage)
+            ? lastMessage.map((msg) => msg.name).join(', ')
+            : lastMessage.name
+        }, TOOL_CALL RESPONSE TO ANALYZE : ${
+          Array.isArray(lastMessage)
+            ? JSON.stringify(
+                lastMessage.map((msg) => ({
+                  tool_call: {
+                    response: lastMessageContent,
+                    name: msg.name,
+                    tool_call_id: msg.tool_call_id,
+                  },
+                }))
+              )
+            : JSON.stringify({
+                tool_call: {
+                  response: lastMessageContent,
+                  name: lastMessage.name,
+                  tool_call_id: lastMessage.tool_call_id,
+                },
+              })
+        }`;
       } else {
         logger.debug('ExecutorValidator: Last Message is an AIMessageChunk');
-        content = `VALIDATION_TYPE : AI_RESPONSE_MODE, AI_MESSAGE TO ANALYZE : ${lastMessage.content.toString()}`;
+        content = `VALIDATION_TYPE : AI_RESPONSE_MODE, AI_MESSAGE TO ANALYZE : ${(lastMessage as BaseMessage).content.toString()}`;
       }
 
       const structuredResult = await structuredModel.invoke([
@@ -724,7 +756,7 @@ export class AutonomousAgent {
             },
           });
           return {
-            messages: successMessage,
+            last_message: successMessage,
             currentStepIndex: state.currentStepIndex + 1,
             last_agent: Agent.EXEC_VALIDATOR,
             retry: retry,
@@ -744,7 +776,7 @@ export class AutonomousAgent {
             },
           });
           return {
-            messages: message,
+            last_message: message,
             currentStepIndex: state.currentStepIndex + 1,
             last_agent: Agent.EXEC_VALIDATOR,
             retry: 0,
@@ -766,7 +798,7 @@ export class AutonomousAgent {
         },
       });
       return {
-        messages: notValidateMessage,
+        last_message: notValidateMessage,
         currentStepIndex: state.currentStepIndex,
         last_agent: Agent.EXEC_VALIDATOR,
         retry: retry + 1,
@@ -789,7 +821,7 @@ export class AutonomousAgent {
         },
       });
       return {
-        messages: errorMessage,
+        last_message: errorMessage,
         currentStepIndex: state.currentStepIndex,
         last_agent: Agent.EXEC_VALIDATOR,
         plan: error_plan,
@@ -804,6 +836,7 @@ export class AutonomousAgent {
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): Promise<{
+    last_message: BaseMessage;
     messages: BaseMessage;
     last_agent: Agent;
     plan?: ParsedPlan;
@@ -850,12 +883,21 @@ export class AutonomousAgent {
       );
 
       if (result.tool_calls?.length) {
-        return { messages: result, last_agent: Agent.EXECUTOR };
+        return {
+          messages: result,
+          last_message: result,
+          last_agent: Agent.EXECUTOR,
+        };
       }
       const new_plan = state.plan;
       new_plan.steps[state.currentStepIndex].result =
         result.content.toLocaleString();
-      return { messages: result, last_agent: Agent.EXECUTOR, plan: new_plan };
+      return {
+        messages: result,
+        last_message: result,
+        last_agent: Agent.EXECUTOR,
+        plan: new_plan,
+      };
     } catch (error: any) {
       logger.error(
         `Executor: Error during model invocation - ${error.message}`
@@ -869,8 +911,12 @@ export class AutonomousAgent {
     state: typeof this.GraphState.State,
     config: LangGraphRunnableConfig | undefined,
     originalInvoke: Function
-  ): Promise<{ messages: BaseMessage[]; plan?: ParsedPlan } | null> {
-    const lastMessage = state.messages[state.messages.length - 1];
+  ): Promise<{
+    messages: BaseMessage[];
+    last_message: BaseMessage[];
+    last_agent: Agent;
+  } | null> {
+    const lastMessage = state.last_message;
     const lastIterationNumber = state.currentGraphStep;
 
     const toolCalls =
@@ -912,7 +958,11 @@ export class AutonomousAgent {
           final: false,
         };
       });
-      return truncatedResult;
+      return {
+        ...truncatedResult,
+        last_message: truncatedResult.messages,
+        last_agent: Agent.TOOLS,
+      };
     } catch (error) {
       const executionTime = Date.now() - startTime;
       logger.error(
@@ -1003,7 +1053,9 @@ export class AutonomousAgent {
       retryPrompt: retryPrompt,
       toolsList: toolsList,
       retry: currentRetry,
-      reason: state.messages[state.messages.length - 1].content,
+      reason: Array.isArray(state.last_message) // TODO Change Horrible
+        ? state.last_message[0].content
+        : (state.last_message as BaseMessage).content,
       maxRetry: 3,
     });
 
@@ -1049,7 +1101,11 @@ export class AutonomousAgent {
     toolNode.invoke = async (
       state: typeof this.GraphState.State,
       config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
-    ): Promise<{ messages: BaseMessage[] } | null> => {
+    ): Promise<{
+      messages: BaseMessage[];
+      last_agent: Agent;
+      last_message: BaseMessage | BaseMessage[];
+    } | null> => {
       return this.toolNodeInvoke(state, config, originalInvoke);
     };
 
@@ -1065,7 +1121,7 @@ export class AutonomousAgent {
       );
 
       if (state.last_agent === Agent.PLANNER_VALIDATOR) {
-        const lastAiMessage = state.messages[state.messages.length - 1];
+        const lastAiMessage = state.last_message as BaseMessage;
         if (lastAiMessage.additional_kwargs.error === true) {
           logger.error(
             'ValidatorRouter: Error found in the last validator messages.'
@@ -1094,10 +1150,7 @@ export class AutonomousAgent {
       }
 
       if (state.last_agent === Agent.EXEC_VALIDATOR) {
-        const lastAiMessage = getLatestMessageForMessage(
-          state.messages,
-          AIMessageChunk
-        );
+        const lastAiMessage = state.last_message as BaseMessage;
         if (
           !lastAiMessage ||
           lastAiMessage.additional_kwargs.from != 'exec_validator'
@@ -1149,27 +1202,25 @@ export class AutonomousAgent {
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): 'tools' | 'validator' | 'end' | 're_planner' {
-    const messages = state.messages;
-    const lastMessage = messages[messages.length - 1];
-
-    if (lastMessage instanceof AIMessageChunk) {
-      if (isTerminalMessage(lastMessage)) {
+    if (state.last_agent === Agent.EXECUTOR) {
+      const lastAiMessage = state.last_message as AIMessageChunk;
+      if (isTerminalMessage(lastAiMessage)) {
         logger.info(
-          `Router: Final message received, routing to end node. Message: ${lastMessage.content}`
+          `Router: Final message received, routing to end node. Message: ${lastAiMessage.content}`
         );
         return 'end';
       }
-      if (lastMessage.content.toLocaleString().includes('REQUEST_REPLAN')) {
+      if (lastAiMessage.content.toLocaleString().includes('REQUEST_REPLAN')) {
         logger.debug('Router : REQUEST_REPLAN detected routing to re_planner');
         return 're_planner';
       }
-      if (lastMessage.tool_calls?.length) {
+      if (lastAiMessage.tool_calls?.length) {
         logger.debug(
-          `Router: Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`
+          `Router: Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node.`
         );
         return 'tools';
       }
-    } else if (lastMessage instanceof ToolMessage) {
+    } else if (state.last_agent === Agent.TOOLS) {
       if (
         config.configurable?.max_graph_steps ??
         100 <= state.currentGraphStep
@@ -1184,6 +1235,7 @@ export class AutonomousAgent {
     return 'validator';
   }
 
+  // TODO Update Hybrid with last_message
   private shouldContinueHybrid(
     state: typeof this.GraphState.State,
     config?: RunnableConfig<typeof this.ConfigurableAnnotation.State>

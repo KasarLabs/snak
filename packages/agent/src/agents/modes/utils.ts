@@ -67,17 +67,19 @@ export function calculateIterationNumber(
 // --- Response Generators ---
 export function createMaxIterationsResponse(iteration_number: number): {
   messages: BaseMessage;
+  last_message: BaseMessage;
   last_agent: Agent;
 } {
+  const message = new AIMessageChunk({
+    content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
+    additional_kwargs: {
+      final: true,
+      iteration_number: iteration_number,
+    },
+  });
   return {
-    messages: new AIMessageChunk({
-      content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
-      additional_kwargs: {
-        final: true,
-        iteration_number: iteration_number,
-      },
-    }),
-
+    messages: message,
+    last_message: message,
     last_agent: Agent.EXECUTOR,
   };
 }
@@ -174,6 +176,7 @@ export function isTokenLimitError(error: any): boolean {
 // --- ERROR HANDLING --- //
 export function handleModelError(error: any): {
   messages: BaseMessage;
+  last_message: BaseMessage;
   last_agent: Agent.EXECUTOR;
 } {
   logger.error(`Executor: Error calling model - ${error}`);
@@ -182,28 +185,32 @@ export function handleModelError(error: any): {
     logger.error(
       `Executor: Token limit error during model invocation - ${error.message}`
     );
+
+    const message = new AIMessageChunk({
+      content:
+        'Error: The conversation history has grown too large, exceeding token limits. Cannot proceed.',
+      additional_kwargs: {
+        error: 'token_limit_exceeded',
+        final: true,
+      },
+    });
     return {
-      messages: 
-        new AIMessageChunk({
-          content:
-            'Error: The conversation history has grown too large, exceeding token limits. Cannot proceed.',
-          additional_kwargs: {
-            error: 'token_limit_exceeded',
-            final: true,
-          },
-        }),
+      messages: message,
+      last_message: message,
       last_agent: Agent.EXECUTOR,
     };
   }
 
+  const message = new AIMessageChunk({
+    content: `Error: An unexpected error occurred while processing the request. Error : ${error}`,
+    additional_kwargs: {
+      error: 'unexpected_error',
+      final: true,
+    },
+  });
   return {
-    messages: new AIMessageChunk({
-      content: `Error: An unexpected error occurred while processing the request. Error : ${error}`,
-      additional_kwargs: {
-        error: 'unexpected_error',
-        final: true,
-      },
-    }),
+    messages: message,
+    last_message: message,
     last_agent: Agent.EXECUTOR,
   };
 }
