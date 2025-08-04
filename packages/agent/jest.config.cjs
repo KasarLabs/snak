@@ -1,4 +1,5 @@
 // jest.config.cjs
+const path = require('path');
 /** @type {import('jest').Config} */
 module.exports = {
   // Tell Jest to look in the src directory, not dist
@@ -13,6 +14,7 @@ module.exports = {
       'ts-jest',
       {
         useESM: true,
+        tsconfig: path.resolve(__dirname, 'tsconfig.test.json'),
       },
     ],
   },
@@ -20,6 +22,7 @@ module.exports = {
   // Handle .js extensions in import paths
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@snakagent/core$': '<rootDir>/src/__mocks__/@snakagent/core.ts',
   },
 
   // Only treat TypeScript files as ESM
