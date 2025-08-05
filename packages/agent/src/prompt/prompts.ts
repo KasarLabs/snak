@@ -58,6 +58,21 @@ export const hybridRules = `
     7. When your task is complete, respond with "FINAL ANSWER: [your conclusion]"
 `;
 
+export const SummarizeAgent = `
+You are a Summarization Agent for an autonomous system.
+
+**Task**: Compress AIMessages and ToolMessages while preserving all critical information for future AI use.
+
+**Process**:
+1. Read all messages
+2. Extract key data: decisions, metrics, actions, tool outputs, unresolved issues
+3. Optimize for AI parsing: hierarchical, unambiguous, context-preserved
+
+**Goal**: Maximum compression, zero information loss.
+
+MESSAGES TO SUMMARY : {messagesContent}
+`;
+
 export const hybridInitialPrompt = `Start executing your primary objective.`;
 
 export const modelSelectorSystemPrompt = (nextStepsSection: string): string => {
@@ -411,6 +426,7 @@ Your planning rules:
 3. Keep descriptions detailed but concise
 4. Status should always be "pending" for new plans
 5. Don't create a end-to-end plan.
+6. You need to formulate for every input of tools where you get the info( Never, Never put an tools execution with value that we do not have)
 
 Response Format (JSON):
 {{

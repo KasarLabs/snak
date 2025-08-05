@@ -47,6 +47,7 @@ import {
   STEP_EXECUTOR_CONTEXT,
   RETRY_CONTENT,
   AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT,
+  SummarizeAgent,
 } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -869,12 +870,13 @@ export class AutonomousAgent {
 
     const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
 
+    console.log(state.messages);
     try {
       const filteredMessages = filterMessagesByShortTermMemory(
         state.messages,
         shortTermMemory
       );
-
+      console.log(filteredMessages);
       const result = await this.invokeModelWithMessages(
         state,
         config,
@@ -1288,6 +1290,88 @@ export class AutonomousAgent {
     return 'validator';
   }
 
+  private async summarizeMessages(
+    state: typeof this.GraphState.State,
+    config?: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+  ): Promise<{ messages?: BaseMessage[] }> {
+    if (state.messages.length < 10) {
+      logger.debug('Not enought Data to Summarize');
+      return {};
+    }
+    logger.debug(`Summarize Message`);
+    logger.debug(`${JSON.stringify(state.messages)}`);
+    const model = this.modelSelector?.getModels()['fast'];
+    if (!model) {
+      throw new Error('Planner: Model not found in ModelSelector');
+    }
+
+    let total_tokens = 0;
+    const messages = state.messages;
+    let filteredContent: Array<string> = [];
+    let iterationContent: Array<string> = [];
+    let iterationCount = 0;
+    for (let i = 0; i < state.messages.length; i++) {
+      console.log(i);
+      if (messages[i]?.response_metadata?.usage?.completion_tokens) {
+        total_tokens += messages[i].response_metadata.usage.completion_tokens;
+      } else {
+        total_tokens += 0;
+      }
+      if (messages[i].additional_kwargs.from === Agent.EXECUTOR) {
+        if (iterationCount != 0) {
+          if (total_tokens <= 11000) {
+            filteredContent = filteredContent.concat(iterationContent);
+            iterationContent = [];
+          } else {
+            break;
+          }
+        }
+        iterationContent.push(
+          `AIMessage Result:` + messages[i].content.toLocaleString()
+        );
+        iterationCount++;
+      } else if (messages[i].additional_kwargs.from === Agent.TOOLS) {
+        iterationContent.push(
+          `ToolMessage Result` + messages[i].content.toLocaleString()
+        );
+      }
+    }
+    filteredContent = filteredContent.concat(iterationContent);
+
+    let systemPrompt = SummarizeAgent;
+    console.log(filteredContent);
+    const prompt = ChatPromptTemplate.fromMessages([['system', systemPrompt]]);
+
+    const result = await model.invoke(
+      await prompt.formatMessages({
+        messagesContent: filteredContent.join('\n'),
+      })
+    );
+    console.log(JSON.stringify(result));
+    result.additional_kwargs = {
+      from: Agent.SUMMARIZE,
+      final: false,
+    };
+    const newMessages: BaseMessage[] = [];
+    for (let i = 0, y = 0; i < state.messages.length; i++) {
+      if (
+        messages[i].additional_kwargs.from === Agent.EXECUTOR ||
+        messages[i].additional_kwargs.from === Agent.TOOLS ||
+        messages[i].additional_kwargs.from === Agent.SUMMARIZE
+      ) {
+        continue;
+      } else {
+        newMessages.push(messages[i]);
+        continue;
+      }
+    }
+    newMessages.push(result);
+    console.log(messages.length);
+    console.log(filteredContent.length);
+    console.log(JSON.stringify(messages));
+    return { messages: newMessages };
+  }
+
   private getCompileOptions(): any {
     return this.agent_config.memory
       ? {
@@ -1308,6 +1392,7 @@ export class AutonomousAgent {
       .addNode('plan_node', this.planExecution.bind(this))
       .addNode('validator', this.validator.bind(this))
       .addNode('executor', this.callModel.bind(this))
+      .addNode('summarize', this.summarizeMessages.bind(this))
       .addNode('human', this.humanNode.bind(this))
       .addNode('adaptive_planner', this.adaptivePlanner.bind(this))
       .addNode('end_graph', this.end_graph.bind(this))
@@ -1341,7 +1426,20 @@ export class AutonomousAgent {
       end: 'end_graph',
     });
 
-    workflow.addEdge('memory', 'executor');
+    workflow.addConditionalEdges(
+      'memory',
+      (state: typeof this.GraphState.State) => {
+        if (state.messages.length < 10) {
+          return 'executor';
+        }
+        return 'summarize';
+      },
+      {
+        summarize: 'summarize',
+        executor: 'executor',
+      }
+    );
+    workflow.addEdge('summarize', 'executor');
     return workflow;
   }
 

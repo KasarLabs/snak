@@ -129,6 +129,7 @@ export function filterMessagesByShortTermMemory(
     Agent.PLANNER,
     Agent.ADAPTIVE_PLANNER,
     Agent.TOOLS,
+    Agent.SUMMARIZE,
   ];
   const m_length = messages.length - 1;
   for (let i = messages.length - 1; i >= 0; i--) {

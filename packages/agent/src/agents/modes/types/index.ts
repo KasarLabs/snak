@@ -47,6 +47,7 @@ export enum Agent {
   MODEL_SELECTOR = 'model_selector',
   ADAPTIVE_PLANNER = 'adaptive_planner',
   TOOLS = 'tools',
+  SUMMARIZE = 'summarize',
 }
 
 export interface AgentKwargs {
