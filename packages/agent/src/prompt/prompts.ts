@@ -703,6 +703,12 @@ Your planning rules:
 4. Keep descriptions detailed but concise
 5. Status should always be "pending" for new plans
 
+
+What Choose for the type : 
+If your step include a tools call its a 'tool'
+Else your step is a 'message
+Never input human_in_the_loop
+
 Response Format (JSON):
 {{
   "steps": [
@@ -711,6 +717,7 @@ Response Format (JSON):
       "stepName": string (max 200 chars),
       "description": string (detailed description including required inputs and expected outputs),
       "status": "pending",
+      "type" : enum('tools' | 'message')
       "result": ""
 }}
   ],
@@ -729,6 +736,7 @@ Response:
       "stepName": "Retrieve support ticket",
       "description": "Use ticket_reader tool to get next unprocessed ticket. Required inputs: ticket queue access credentials, status filter 'unprocessed'. Expected outputs: ticket ID, customer message, metadata.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -736,6 +744,7 @@ Response:
       "stepName": "Analyze ticket sentiment",
       "description": "Use sentiment_analyzer tool to assess customer emotion. Required inputs: customer message from step 1, analysis depth 'detailed'. Expected outputs: sentiment score, emotion categories, urgency level.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -743,6 +752,7 @@ Response:
       "stepName": "Classify ticket category",
       "description": "Use text_classifier tool to identify issue type. Required inputs: ticket content from step 1, classification schema (billing/technical/account). Expected outputs: category, confidence score, keywords.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -750,12 +760,14 @@ Response:
       "stepName": "Search knowledge base",
       "description": "Use knowledge_search tool to find solutions. Required inputs: category from step 3, keywords from step 3, customer tier. Expected outputs: relevant articles, solution steps, relevance scores.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
       "stepNumber": 5,
       "stepName": "Generate personalized response",
       "description": "Use response_generator tool to create reply. Required inputs: ticket data from step 1, sentiment from step 2, solutions from step 4, response tone based on urgency. Expected outputs: draft response, suggested actions.",
+      "type" : "tools",
       "status": "pending",
       "result": ""
 }},
@@ -763,6 +775,7 @@ Response:
       "stepNumber": 6,
       "stepName": "Update ticket and send response",
       "description": "Use ticket_updater tool to complete process. Required inputs: ticket ID from step 1, generated response from step 5, new status 'responded', category from step 3. Expected outputs: confirmation, response timestamp.",
+      "type" : "tools",
       "status": "pending",
       "result": ""
 }}
@@ -780,6 +793,7 @@ Response:
       "stepName": "Define research parameters",
       "description": "Use parameter_builder tool to establish scope. Required inputs: industry sector, geographic region, company size range, time period. Expected outputs: competitor list, research criteria, data sources.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -787,6 +801,7 @@ Response:
       "stepName": "Collect competitor data",
       "description": "Use web_scraper tool to gather public information. Required inputs: competitor URLs from step 1, data types (products, pricing, features), scraping depth. Expected outputs: raw competitor data, timestamps, source URLs.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -794,6 +809,7 @@ Response:
       "stepName": "Analyze market positioning",
       "description": "Use market_analyzer tool to process data. Required inputs: competitor data from step 2, analysis framework (SWOT/Porter's), comparison metrics. Expected outputs: positioning matrix, strength scores, gap analysis.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -801,6 +817,7 @@ Response:
       "stepName": "Generate insights and recommendations",
       "description": "Use insight_generator tool to create strategic recommendations. Required inputs: analysis results from step 3, company objectives, risk tolerance. Expected outputs: key insights, opportunity areas, action items.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -808,6 +825,7 @@ Response:
       "stepName": "Create visual report",
       "description": "Use report_builder tool to compile final deliverable. Required inputs: all data from steps 2-4, report template, visualization preferences. Expected outputs: PDF report, executive summary, presentation deck.",
       "status": "pending",
+       "type" : "tools",
       "result": ""
 }},
     {{
@@ -815,6 +833,7 @@ Response:
       "stepName": "Distribute report",
       "description": "Use distribution_tool to share with stakeholders. Required inputs: report files from step 5, recipient list, access permissions, delivery schedule. Expected outputs: delivery confirmations, access logs.",
       "status": "pending",
+      "type" : "tools",
       "result": ""
 }}
   ],

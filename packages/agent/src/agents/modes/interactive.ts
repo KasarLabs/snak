@@ -440,6 +440,7 @@ export class InteractiveAgent {
             stepName: 'Error',
             description: 'Error trying to create the plan',
             status: 'failed',
+            type: 'tools',
             result: '',
           },
         ],
