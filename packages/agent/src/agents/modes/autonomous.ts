@@ -63,8 +63,9 @@ import {
   handleModelError,
   isTerminalMessage,
 } from './utils.js';
+
 export class AutonomousAgent {
-  private agent_config: AgentConfig;
+  private agentConfig: AgentConfig;
   private modelSelector: ModelSelector | null;
   private toolsList: (
     | StructuredTool
@@ -77,37 +78,37 @@ export class AutonomousAgent {
   private app: any;
 
   public singleMessagesReducer = (
-    x: BaseMessage[],
-    y: BaseMessage
-  ): BaseMessage[] => x.concat(y);
+    currentMessages: BaseMessage[],
+    newMessage: BaseMessage
+  ): BaseMessage[] => currentMessages.concat(newMessage);
 
   public arrayMessagesReducer = (
-    x: BaseMessage[],
-    y: BaseMessage[]
+    currentMessages: BaseMessage[],
+    newMessages: BaseMessage[]
   ): BaseMessage[] => {
     let isToolsMessage: boolean = true;
 
-    for (const message of y) {
+    for (const message of newMessages) {
       if (message.additional_kwargs.from != Agent.TOOLS) {
         isToolsMessage = false;
         break;
       }
     }
     if (isToolsMessage) {
-      return x.concat(y);
+      return currentMessages.concat(newMessages);
     } else {
-      return x;
+      return currentMessages;
     }
   };
 
   public flexibleMessageReducer = (
-    x: BaseMessage[],
-    y: BaseMessage | BaseMessage[]
+    currentMessages: BaseMessage[],
+    newMessages: BaseMessage | BaseMessage[]
   ) => {
-    if (Array.isArray(y)) {
-      return this.arrayMessagesReducer(x, y);
+    if (Array.isArray(newMessages)) {
+      return this.arrayMessagesReducer(currentMessages, newMessages);
     } else {
-      return this.singleMessagesReducer(x, y);
+      return this.singleMessagesReducer(currentMessages, newMessages);
     }
   };
 
@@ -120,7 +121,7 @@ export class AutonomousAgent {
       reducer: (x, y) => y,
       default: () => 3,
     }),
-    memorySize: Annotation<number>({
+    memory_size: Annotation<number>({
       reducer: (x, y) => y,
       default: () => 20,
     }),
@@ -183,16 +184,16 @@ export class AutonomousAgent {
     try {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
-        logger.debug('AutonomousAgent: Successfully retrieved memory agent');
+        logger.debug('[AutonomousAgent] ✅ Memory agent retrieved successfully');
         const memoryTools = this.memoryAgent.prepareMemoryTools();
         this.toolsList.push(...memoryTools);
       } else {
         logger.warn(
-          'AutonomousAgent: Memory agent not available, memory features will be limited'
+          '[AutonomousAgent] ⚠️ Memory agent not available - memory features will be limited'
         );
       }
     } catch (error) {
-      logger.error(`AutonomousAgent: Error retrieving memory agent: ${error}`);
+      logger.error(`[AutonomousAgent] ❌ Failed to retrieve memory agent: ${error}`);
     }
   }
 
@@ -201,11 +202,11 @@ export class AutonomousAgent {
       this.ragAgent = this.snakAgent.getRagAgent();
       if (!this.ragAgent) {
         logger.warn(
-          'AutonomousAgent: Rag agent not available, rag context will be skipped'
+          '[AutonomousAgent] ⚠️ RAG agent not available - RAG context will be skipped'
         );
       }
     } catch (error) {
-      logger.error(`AutonomousAgent: Error retrieving rag agent: ${error}`);
+      logger.error(`[AutonomousAgent] ❌ Failed to retrieve RAG agent: ${error}`);
     }
   }
 
@@ -227,7 +228,7 @@ export class AutonomousAgent {
     try {
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
-        throw new Error('Planner: Model not found in ModelSelector');
+        throw new Error('Model not found in ModelSelector');
       }
 
       const StepInfoSchema = z.object({
@@ -269,17 +270,17 @@ export class AutonomousAgent {
         config.configurable?.short_term_memory ?? 10
       );
 
-      let systemPrompt = ADAPTIVE_PLANNER_SYSTEM_PROMPT;
-
+      const systemPrompt = ADAPTIVE_PLANNER_SYSTEM_PROMPT;
       const context: string = ADAPTIVE_PLANNER_CONTEXT;
-      const agent_config = this.agent_config.prompt;
-      const toolsList = this.toolsList.map((tool: any) => tool.name).join(', ');
+      const promptAgentConfig = this.agentConfig.prompt;
+      const availableTools = this.toolsList.map((tool: any) => tool.name).join(', ');
       const lastStepResult = state.plan.steps
         .map(
           (step: StepInfo) =>
-            `Step ${step.stepNumber} : ${step.stepName} Result : ${step.result} Status : ${step.status}"`
+            `Step ${step.stepNumber}: ${step.stepName} | Result: ${step.result} | Status: ${step.status}`
         )
         .join('\n');
+      
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', systemPrompt],
         ['ai', context],
@@ -289,15 +290,15 @@ export class AutonomousAgent {
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
           stepLength: state.currentStepIndex + 1,
-          agent_config: agent_config,
-          toolsList: toolsList,
+          agent_config: promptAgentConfig,
+          toolsList: availableTools,
           lastStepResult: lastStepResult,
           messages: filteredMessages,
         })
       );
 
       logger.info(
-        `AdaptivePlanner: Successfully created plan with ${structuredResult.steps.length} steps`
+        `[AdaptivePlanner] 📋 Created plan with ${structuredResult.steps.length} steps`
       );
 
       const aiMessage = new AIMessageChunk({
@@ -310,23 +311,24 @@ export class AutonomousAgent {
         },
       });
 
-      const new_plan = state.plan;
-      let stepsNumber = state.plan.steps.length + 1;
+      const updatedPlan = state.plan;
+      let nextStepNumber = state.plan.steps.length + 1;
       for (const step of structuredResult.steps) {
-        step.stepNumber = stepsNumber;
-        new_plan.steps.push(step as StepInfo);
-        stepsNumber++;
+        step.stepNumber = nextStepNumber;
+        updatedPlan.steps.push(step as StepInfo);
+        nextStepNumber++;
       }
 
-      new_plan.summary = structuredResult.summary as string;
+      updatedPlan.summary = structuredResult.summary as string;
+      
       return {
         last_message: aiMessage,
         last_agent: Agent.PLANNER,
-        plan: new_plan,
+        plan: updatedPlan,
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error) {
-      logger.error(`AdaptivePlanner: Error in planExecution - ${error}`);
+      logger.error(`[AdaptivePlanner] ❌ Plan creation failed: ${error}`);
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
@@ -336,7 +338,7 @@ export class AutonomousAgent {
         },
       });
 
-      const error_plan: ParsedPlan = {
+      const errorPlan: ParsedPlan = {
         steps: [
           {
             stepNumber: 0,
@@ -353,11 +355,12 @@ export class AutonomousAgent {
       return {
         last_message: errorMessage,
         last_agent: Agent.PLANNER,
-        plan: error_plan,
+        plan: errorPlan,
         currentGraphStep: state.currentGraphStep + 1,
       };
     }
   }
+
   private async planExecution(
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
@@ -369,12 +372,12 @@ export class AutonomousAgent {
     currentGraphStep: number;
   }> {
     try {
-      logger.info('Planner: Starting plan execution');
+      logger.info('[Planner] 🚀 Starting plan execution');
       const lastAiMessage = state.last_message as BaseMessage;
 
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
-        throw new Error('Planner: Model not found in ModelSelector');
+        throw new Error('Model not found in ModelSelector');
       }
 
       const StepInfoSchema = z.object({
@@ -418,19 +421,20 @@ export class AutonomousAgent {
 
       let systemPrompt;
       let lastContent;
+      
       if (
         lastAiMessage &&
         state.last_agent === (Agent.PLANNER_VALIDATOR || Agent.EXECUTOR) &&
         lastAiMessage
       ) {
-        logger.debug('Planner: Creating re-plan based on validator feedback');
+        logger.debug('[Planner] 🔄 Creating re-plan based on validator feedback');
         systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = lastAiMessage.content;
       } else if (config.configurable?.human_in_the_loop === true) {
         systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = '';
       } else {
-        logger.debug('Planner: Creating initial plan');
+        logger.debug('[Planner] 📝 Creating initial plan');
         systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = '';
       }
@@ -443,7 +447,7 @@ export class AutonomousAgent {
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
           messages: filteredMessages,
-          agentConfig: this.agent_config.prompt,
+          agentConfig: this.agentConfig.prompt,
           toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
           formatPlan: formatParsedPlanSimple(state.plan),
           lastAiMessage: lastContent,
@@ -451,7 +455,7 @@ export class AutonomousAgent {
       );
 
       logger.info(
-        `Planner: Successfully created plan with ${structuredResult.steps.length} steps`
+        `[Planner] ✅ Successfully created plan with ${structuredResult.steps.length} steps`
       );
 
       const aiMessage = new AIMessageChunk({
@@ -473,7 +477,7 @@ export class AutonomousAgent {
         currentStepIndex: 0,
       };
     } catch (error) {
-      logger.error(`Planner: Error in planExecution - ${error}`);
+      logger.error(`[Planner] ❌ Plan execution failed: ${error}`);
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
@@ -484,7 +488,7 @@ export class AutonomousAgent {
         },
       });
 
-      const error_plan: ParsedPlan = {
+      const errorPlan: ParsedPlan = {
         steps: [
           {
             stepNumber: 0,
@@ -501,7 +505,7 @@ export class AutonomousAgent {
       return {
         last_message: errorMessage,
         last_agent: Agent.PLANNER,
-        plan: error_plan,
+        plan: errorPlan,
         currentStepIndex: 0,
         currentGraphStep: state.currentGraphStep + 1,
       };
@@ -518,17 +522,15 @@ export class AutonomousAgent {
     currentGraphStep: number;
   }> {
     logger.debug(
-      `Validator: Processing validation for agent ${state.last_agent}`
+      `[Validator] 🔍 Processing validation for agent: ${state.last_agent}`
     );
+    
     if (state.last_agent === Agent.PLANNER) {
-      const result = await this.validatorPlanner(state);
-      return result;
+      return await this.validatorPlanner(state);
     } else if (state.last_agent === Agent.EXECUTOR) {
-      const result = await this.validatorExecutor(state);
-      return result;
+      return await this.validatorExecutor(state);
     } else {
-      const result = await this.validatorExecutor(state);
-      return result;
+      return await this.validatorExecutor(state);
     }
   }
 
@@ -542,7 +544,7 @@ export class AutonomousAgent {
     try {
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
-        throw new Error('PlannerValidator: Model not found in ModelSelector');
+        throw new Error('Model not found in ModelSelector');
       }
 
       const StructuredResponseValidator = z.object({
@@ -571,14 +573,15 @@ export class AutonomousAgent {
           : JSON.stringify(originalUserMessage.content)
         : '';
 
-      const system_prompt = AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT;
+      const systemPrompt = AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT;
 
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', system_prompt],
+        ['system', systemPrompt],
       ]);
+      
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
-          agentConfig: this.agent_config.prompt,
+          agentConfig: this.agentConfig.prompt,
           currentPlan: planDescription,
         })
       );
@@ -592,7 +595,7 @@ export class AutonomousAgent {
             from: Agent.PLANNER_VALIDATOR,
           },
         });
-        logger.info(`PlannerValidator: Plan validated successfully`);
+        logger.info(`[PlannerValidator] ✅ Plan validated successfully`);
         return {
           last_message: successMessage,
           last_agent: Agent.PLANNER_VALIDATOR,
@@ -610,7 +613,7 @@ export class AutonomousAgent {
           },
         });
         logger.warn(
-          `PlannerValidator: Plan validation failed - ${structuredResult.description}`
+          `[PlannerValidator] ⚠️ Plan validation failed: ${structuredResult.description}`
         );
         return {
           last_message: errorMessage,
@@ -622,7 +625,7 @@ export class AutonomousAgent {
       }
     } catch (error) {
       logger.error(
-        `PlannerValidator: Failed to validate plan - ${error.message}`
+        `[PlannerValidator] ❌ Failed to validate plan: ${error.message}`
       );
       const errorMessage = new AIMessageChunk({
         content: `Failed to validate plan: ${error.message}`,
@@ -658,7 +661,7 @@ export class AutonomousAgent {
 
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
-        throw new Error('ExecutorValidator: Model not found in ModelSelector');
+        throw new Error('Model not found in ModelSelector');
       }
 
       const StructuredStepsResponseValidator = z.object({
@@ -690,21 +693,25 @@ export class AutonomousAgent {
           : JSON.stringify(originalUserMessage.content)
         : '';
 
-      let content: String;
+      let validationContent: String;
       if (
         lastMessage instanceof ToolMessage ||
         (Array.isArray(lastMessage) &&
           lastMessage.every((msg) => msg instanceof ToolMessage))
       ) {
-        let lastMessageContent = Array.isArray(lastMessage)
+        const lastMessageContent = Array.isArray(lastMessage)
           ? lastMessage.map((msg) => msg.content).join('\n')
           : lastMessage.content;
-        logger.debug('ExecutorValidator: Last Message is a ToolMessage');
-        content = `VALIDATION_TYPE : TOOL_EXECUTION_MODE,TOOL_CALL EXECUTED : ${
+        
+        logger.debug('[ExecutorValidator] 🔧 Validating tool execution');
+        
+        validationContent = `VALIDATION_TYPE: TOOL_EXECUTION_MODE
+TOOL_CALL EXECUTED: ${
           Array.isArray(lastMessage)
             ? lastMessage.map((msg) => msg.name).join(', ')
             : lastMessage.name
-        }, TOOL_CALL RESPONSE TO ANALYZE : ${
+        }
+TOOL_CALL RESPONSE TO ANALYZE: ${
           Array.isArray(lastMessage)
             ? JSON.stringify(
                 lastMessage.map((msg) => ({
@@ -724,8 +731,9 @@ export class AutonomousAgent {
               })
         }`;
       } else {
-        logger.debug('ExecutorValidator: Last Message is an AIMessageChunk');
-        content = `VALIDATION_TYPE : AI_RESPONSE_MODE, AI_MESSAGE TO ANALYZE : ${(lastMessage as BaseMessage).content.toString()}`;
+        logger.debug('[ExecutorValidator] 💬 Validating AI response');
+        validationContent = `VALIDATION_TYPE: AI_RESPONSE_MODE
+AI_MESSAGE TO ANALYZE: ${(lastMessage as BaseMessage).content.toString()}`;
       }
 
       const structuredResult = await structuredModel.invoke([
@@ -735,18 +743,25 @@ export class AutonomousAgent {
         },
         {
           role: 'assistant',
-          content: `USER REQUEST:\n"${originalUserQuery}"\n\ STEPS WHO NEED TO BE VALIDATED:\nName : ${state.plan.steps[state.currentStepIndex].stepName}, description ${state.plan.steps[state.currentStepIndex].description}\n\n ${content}`,
+          content: `USER REQUEST:
+"${originalUserQuery}"
+
+STEP TO VALIDATE:
+Name: ${state.plan.steps[state.currentStepIndex].stepName}
+Description: ${state.plan.steps[state.currentStepIndex].description}
+
+${validationContent}`,
         },
       ]);
 
       if (structuredResult.validated === true) {
-        const plan = state.plan;
-        plan.steps[state.currentStepIndex].status = 'completed';
+        const updatedPlan = state.plan;
+        updatedPlan.steps[state.currentStepIndex].status = 'completed';
 
         if (state.currentStepIndex === state.plan.steps.length - 1) {
-          logger.info('ExecutorValidator: Final Step Reached - Plan completed');
+          logger.info('[ExecutorValidator] 🎯 Final step reached - Plan completed');
           const successMessage = new AIMessageChunk({
-            content: `Steps Final Reach`,
+            content: `Final step reached`,
             additional_kwargs: {
               error: false,
               final: true,
@@ -758,15 +773,15 @@ export class AutonomousAgent {
             currentStepIndex: state.currentStepIndex + 1,
             last_agent: Agent.EXEC_VALIDATOR,
             retry: retry,
-            plan: plan,
+            plan: updatedPlan,
             currentGraphStep: state.currentGraphStep + 1,
           };
         } else {
           logger.info(
-            `ExecutorValidator: Step ${state.currentStepIndex + 1} validated successfully`
+            `[ExecutorValidator] ✅ Step ${state.currentStepIndex + 1} validated successfully`
           );
           const message = new AIMessageChunk({
-            content: `Steps ${state.currentStepIndex + 1} has been validated.`,
+            content: `Step ${state.currentStepIndex + 1} has been validated`,
             additional_kwargs: {
               error: false,
               final: false,
@@ -778,17 +793,17 @@ export class AutonomousAgent {
             currentStepIndex: state.currentStepIndex + 1,
             last_agent: Agent.EXEC_VALIDATOR,
             retry: 0,
-            plan: plan,
+            plan: updatedPlan,
             currentGraphStep: state.currentGraphStep + 1,
           };
         }
       }
 
       logger.warn(
-        `ExecutorValidator: Step ${state.currentStepIndex + 1} validation failed - Reason: ${structuredResult.reason}`
+        `[ExecutorValidator] ⚠️ Step ${state.currentStepIndex + 1} validation failed - Reason: ${structuredResult.reason}`
       );
       const notValidateMessage = new AIMessageChunk({
-        content: `Steps ${state.currentStepIndex + 1} has not been validated reason : ${structuredResult.reason}`,
+        content: `Step ${state.currentStepIndex + 1} not validated - Reason: ${structuredResult.reason}`,
         additional_kwargs: {
           error: false,
           final: false,
@@ -804,10 +819,10 @@ export class AutonomousAgent {
       };
     } catch (error) {
       logger.error(
-        `ExecutorValidator: Failed to validate step - ${error.message}`
+        `[ExecutorValidator] ❌ Failed to validate step: ${error.message}`
       );
-      const error_plan = state.plan;
-      error_plan.steps[state.currentStepIndex].status = 'failed';
+      const errorPlan = state.plan;
+      errorPlan.steps[state.currentStepIndex].status = 'failed';
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to validate plan: ${error.message}`,
@@ -822,7 +837,7 @@ export class AutonomousAgent {
         last_message: errorMessage,
         currentStepIndex: state.currentStepIndex,
         last_agent: Agent.EXEC_VALIDATOR,
-        plan: error_plan,
+        plan: errorPlan,
         retry: -1,
         currentGraphStep: state.currentGraphStep + 1,
       };
@@ -840,31 +855,31 @@ export class AutonomousAgent {
     plan?: ParsedPlan;
     currentGraphStep?: number;
   }> {
-    if (!this.agent_config || !this.modelSelector) {
+    if (!this.agentConfig || !this.modelSelector) {
       throw new Error(
-        'Executor: Agent configuration and ModelSelector are required.'
+        'Agent configuration and ModelSelector are required.'
       );
     }
 
+    const currentStep = state.plan.steps[state.currentStepIndex];
     logger.info(
-      `Executor: Processing step ${state.currentStepIndex + 1} - ${state.plan.steps[state.currentStepIndex]?.stepName}`
+      `[Executor] 🔄 Processing step ${state.currentStepIndex + 1} - ${currentStep?.stepName}`
     );
 
     const maxGraphSteps = config.configurable?.max_graph_steps ?? 100;
     const shortTermMemory = config.configurable?.short_term_memory ?? 10;
-    const human_in_the_loop = config.configurable?.human_in_the_loop;
+    const humanInTheLoop = config.configurable?.human_in_the_loop;
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
 
-    let iteration_number = state.currentGraphStep;
+    const iterationNumber = state.currentGraphStep;
 
-    if (maxGraphSteps)
-      if (maxGraphSteps <= iteration_number) {
-        logger.warn(`Executor: Maximum iterations (${maxGraphSteps}) reached`);
-        return createMaxIterationsResponse(iteration_number);
-      }
+    if (maxGraphSteps && maxGraphSteps <= iterationNumber) {
+      logger.warn(`[Executor] ⚠️ Maximum iterations (${maxGraphSteps}) reached`);
+      return createMaxIterationsResponse(iterationNumber);
+    }
 
-    logger.debug(`Executor: currentGraphStep : ${state.currentGraphStep}`);
+    logger.debug(`[Executor] 📊 Current graph step: ${state.currentGraphStep}`);
 
     const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
 
@@ -888,19 +903,21 @@ export class AutonomousAgent {
           currentGraphStep: state.currentGraphStep + 1,
         };
       }
-      const new_plan = state.plan;
-      new_plan.steps[state.currentStepIndex].result =
+      
+      const updatedPlan = state.plan;
+      updatedPlan.steps[state.currentStepIndex].result =
         result.content.toLocaleString();
+      
       return {
         messages: result,
         last_message: result,
         last_agent: Agent.EXECUTOR,
-        plan: new_plan,
+        plan: updatedPlan,
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error: any) {
       logger.error(
-        `Executor: Error during model invocation - ${error.message}`
+        `[Executor] ❌ Model invocation failed: ${error.message}`
       );
       const result = handleModelError(error);
       return {
@@ -931,10 +948,10 @@ export class AutonomousAgent {
 
     if (toolCalls.length > 0) {
       toolCalls.forEach((call) => {
+        const argsPreview = JSON.stringify(call.args).substring(0, 150);
+        const hasMore = JSON.stringify(call.args).length > 150;
         logger.info(
-          `Tools: Executing tool: ${call.name} with args: ${JSON.stringify(call.args).substring(0, 150)}${
-            JSON.stringify(call.args).length > 150 ? '...' : ''
-          }`
+          `[Tools] 🔧 Executing tool: ${call.name} with args: ${argsPreview}${hasMore ? '...' : ''}`
         );
       });
     }
@@ -950,11 +967,7 @@ export class AutonomousAgent {
       );
 
       logger.debug(
-        `Tools: Tool execution completed in ${executionTime}ms. Results: ${
-          Array.isArray(truncatedResult)
-            ? truncatedResult.length
-            : typeof truncatedResult
-        }`
+        `[Tools] ✅ Tool execution completed in ${executionTime}ms`
       );
 
       truncatedResult.messages.forEach((res) => {
@@ -963,6 +976,7 @@ export class AutonomousAgent {
           final: false,
         };
       });
+      
       return {
         ...truncatedResult,
         last_message: truncatedResult.messages,
@@ -971,7 +985,7 @@ export class AutonomousAgent {
     } catch (error) {
       const executionTime = Date.now() - startTime;
       logger.error(
-        `Tools: Tool execution failed after ${executionTime}ms: ${error}`
+        `[Tools] ❌ Tool execution failed after ${executionTime}ms: ${error}`
       );
       throw error;
     }
@@ -1007,30 +1021,31 @@ export class AutonomousAgent {
     currentStepIndex: number;
     retry: number;
   } {
-    logger.info('EndGraph: Cleaning up state for graph termination');
-    const plan: ParsedPlan = {
+    logger.info('[EndGraph] 🏁 Cleaning up state for graph termination');
+    const emptyPlan: ParsedPlan = {
       steps: [],
       summary: '',
     };
     return {
-      plan: plan,
+      plan: emptyPlan,
       currentStepIndex: 0,
       retry: 0,
     };
   }
 
-  // TODO Sync
   // --- Prompt Building ---
   private buildSystemPrompt(
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): string {
     const rules = STEP_EXECUTOR_SYSTEM_PROMPT;
+    const availableTools = this.toolsList.map((tool) => tool.name).join(', ');
+    
     return `
-          ${this.agent_config.prompt.content}
+          ${this.agentConfig.prompt.content}
           ${rules}
           
-          Available tools: ${this.toolsList.map((tool) => tool.name).join(', ')}`;
+          Available tools: ${availableTools}`;
   }
 
   // --- Model Invocation ---
@@ -1042,27 +1057,29 @@ export class AutonomousAgent {
   ): Promise<AIMessageChunk> {
     const currentRetry = state.retry;
     const currentStep = state.plan.steps[state.currentStepIndex];
-    const context_prompt: string =
+    const contextPrompt: string =
       currentRetry != 0 ? RETRY_CONTENT : STEP_EXECUTOR_CONTEXT;
 
-    const system_prompt = ChatPromptTemplate.fromMessages([
+    const systemPrompt = ChatPromptTemplate.fromMessages([
       ['system', autonomousSystemPrompt],
-      ['ai', context_prompt],
+      ['ai', contextPrompt],
       new MessagesPlaceholder('messages'),
     ]);
-    const toolsList = this.toolsList.map((tool: any) => tool.name).join(', ');
+    
+    const availableTools = this.toolsList.map((tool: any) => tool.name).join(', ');
 
     const retryPrompt: string =
       currentRetry != 0 ? RETRY_EXECUTOR_SYSTEM_PROMPT : '';
-    const formattedPrompt = await system_prompt.formatMessages({
+    
+    const formattedPrompt = await systemPrompt.formatMessages({
       messages: filteredMessages,
       stepNumber: currentStep.stepNumber,
       stepName: currentStep.stepName,
       stepDescription: currentStep.description,
       retryPrompt: retryPrompt,
-      toolsList: toolsList,
+      toolsList: availableTools,
       retry: currentRetry,
-      reason: Array.isArray(state.last_message) // TODO Change Horrible
+      reason: Array.isArray(state.last_message)
         ? state.last_message[0].content
         : (state.last_message as BaseMessage).content,
       maxRetry: 3,
@@ -1077,16 +1094,17 @@ export class AutonomousAgent {
         : undefined;
 
     if (boundModel === undefined) {
-      throw new Error('Error');
+      throw new Error('Failed to bind tools to model');
     }
+    
     logger.debug(
-      `Executor: Invoking model (${selectedModelType.model_name}) with ${filteredMessages.length} messages.`
+      `[Executor] 🤖 Invoking model (${selectedModelType.model_name}) with ${filteredMessages.length} messages`
     );
 
     const result = await boundModel.invoke(formattedPrompt);
     if (!result) {
       throw new Error(
-        'Executor: Model invocation returned no result. Please check the model configuration.'
+        'Model invocation returned no result. Please check the model configuration.'
       );
     }
 
@@ -1126,35 +1144,35 @@ export class AutonomousAgent {
   ): 're_planner' | 'executor' | 'end' | 'adaptive_planner' {
     try {
       logger.debug(
-        `ValidatorRouter: Processing routing for ${state.last_agent}`
+        `[ValidatorRouter] 🚦 Processing routing for ${state.last_agent}`
       );
 
       if (state.last_agent === Agent.PLANNER_VALIDATOR) {
         const lastAiMessage = state.last_message as BaseMessage;
         if (lastAiMessage.additional_kwargs.error === true) {
           logger.error(
-            'ValidatorRouter: Error found in the last validator messages.'
+            '[ValidatorRouter] ❌ Error found in validator messages'
           );
           return 'end';
         }
         if (lastAiMessage.additional_kwargs.from != 'planner_validator') {
           throw new Error(
-            'ValidatorRouter: Last AI message is not from the planner_validator - check graph edges configuration.'
+            'Last AI message is not from planner_validator - check graph edges configuration'
           );
         }
         if (lastAiMessage.additional_kwargs.validated) {
-          logger.info('ValidatorRouter: Plan validated, routing to executor');
+          logger.info('[ValidatorRouter] ✅ Plan validated, routing to executor');
           return 'executor';
         } else if (
           lastAiMessage.additional_kwargs.validated === false &&
           state.retry <= 3
         ) {
           logger.info(
-            `ValidatorRouter: Plan validation failed (retry ${state.retry}/3), routing to re-planner`
+            `[ValidatorRouter] 🔄 Plan validation failed (retry ${state.retry}/3), routing to re-planner`
           );
           return 're_planner';
         }
-        logger.warn('ValidatorRouter: Max retries exceeded, routing to end');
+        logger.warn('[ValidatorRouter] ⚠️ Max retries exceeded, routing to end');
         return 'end';
       }
 
@@ -1165,32 +1183,32 @@ export class AutonomousAgent {
           lastAiMessage.additional_kwargs.from != 'exec_validator'
         ) {
           throw new Error(
-            'ValidatorRouter: Last AI message is not from the exec_validator - check graph edges configuration.'
+            'Last AI message is not from exec_validator - check graph edges configuration'
           );
         }
         if (lastAiMessage.additional_kwargs.final === true) {
           logger.info(
-            'ValidatorRouter: last steps of the plan reach routing to ADAPTIVE_PLANNER'
+            '[ValidatorRouter] 🎯 Last step of plan reached, routing to ADAPTIVE_PLANNER'
           );
           return 'adaptive_planner';
         }
         if (state.retry >= 3) {
           logger.warn(
-            `ValidatorRouter: Max retries (${state.retry}) exceeded for step execution, routing to end`
+            `[ValidatorRouter] ⚠️ Max retries (${state.retry}) exceeded for step execution, routing to end`
           );
           return 'end';
         }
         logger.info(
-          'ValidatorRouter: Step requires execution/retry, routing to executor'
+          '[ValidatorRouter] 🔄 Step requires execution/retry, routing to executor'
         );
         return 'executor';
       }
 
-      logger.warn('ValidatorRouter: Unknown agent state, defaulting to end');
+      logger.warn('[ValidatorRouter] ⚠️ Unknown agent state, defaulting to end');
       return 'end';
     } catch (error) {
       logger.error(
-        `ValidatorRouter: Error in routing logic - ${error.message}`
+        `[ValidatorRouter] ❌ Routing logic error: ${error.message}`
       );
       return 'end';
     }
@@ -1215,49 +1233,47 @@ export class AutonomousAgent {
       const lastAiMessage = state.last_message as AIMessageChunk;
       if (isTerminalMessage(lastAiMessage)) {
         logger.info(
-          `Router: Final message received, routing to end node. Message: ${lastAiMessage.content}`
+          `[Router] 🏁 Final message received, routing to end node`
         );
         return 'end';
       }
       if (lastAiMessage.content.toLocaleString().includes('REQUEST_REPLAN')) {
-        logger.debug('Router : REQUEST_REPLAN detected routing to re_planner');
+        logger.debug('[Router] 🔄 REQUEST_REPLAN detected, routing to re_planner');
         return 're_planner';
       }
       if (lastAiMessage.tool_calls?.length) {
         logger.debug(
-          `Router: Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node.`
+          `[Router] 🔧 Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
         );
         return 'tools';
       }
     } else if (state.last_agent === Agent.TOOLS) {
-      if (
-        config.configurable?.max_graph_steps ??
-        100 <= state.currentGraphStep
-      ) {
-        logger.warn('Router : Routing to END node.');
+      const maxSteps = config.configurable?.max_graph_steps ?? 100;
+      if (maxSteps <= state.currentGraphStep) {
+        logger.warn('[Router] ⚠️ Max graph steps reached, routing to END node');
         return 'end';
       } else {
         return 'validator';
       }
     }
-    logger.debug('Router: Routing to validator');
+    logger.debug('[Router] 🔍 Routing to validator');
     return 'validator';
   }
 
-  // TODO Update Hybrid with last_message
   private shouldContinueHybrid(
     state: typeof this.GraphState.State,
     config?: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): 'tools' | 'validator' | 'end' | 'human' {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
+    
     if (lastMessage instanceof AIMessageChunk) {
       if (
         lastMessage.additional_kwargs.final === true ||
         lastMessage.content.toString().includes('FINAL ANSWER')
       ) {
         logger.info(
-          `Final message received, routing to end node. Message: ${lastMessage.content}`
+          `[Router] 🏁 Final message received, routing to end node`
         );
         return 'end';
       }
@@ -1268,7 +1284,7 @@ export class AutonomousAgent {
       }
       if (lastMessage.tool_calls?.length) {
         logger.debug(
-          `Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node.`
+          `[Router] 🔧 Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node`
         );
         return 'tools';
       }
@@ -1285,17 +1301,17 @@ export class AutonomousAgent {
       const iteration = state.currentGraphStep;
       if (graphMaxSteps <= iteration) {
         logger.info(
-          `Tools : Final message received, routing to end node. Message: ${lastMessage.content}`
+          `[Tools] 🏁 Max steps reached, routing to end node`
         );
         return 'end';
       }
 
       logger.debug(
-        `Received ToolMessage, routing back to Validator node. Message: ${lastMessage.content}`
+        `[Router] 🔍 Received ToolMessage, routing back to validator node`
       );
       return 'validator';
     }
-    logger.info('Routing to Validator');
+    logger.info('[Router] 🔍 Routing to validator');
     return 'validator';
   }
 
@@ -1304,30 +1320,33 @@ export class AutonomousAgent {
     config?: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): Promise<{ messages?: BaseMessage[] }> {
     if (state.messages.length < 10) {
-      logger.debug('Not enought Data to Summarize');
+      logger.debug('[Summarizer] 📊 Not enough data to summarize');
       return {};
     }
-    logger.debug(`Summarize Message`);
-    logger.debug(`${JSON.stringify(state.messages)}`);
+    
+    logger.debug(`[Summarizer] 📋 Summarizing ${state.messages.length} messages`);
+    
     const model = this.modelSelector?.getModels()['fast'];
     if (!model) {
-      throw new Error('Planner: Model not found in ModelSelector');
+      throw new Error('Model not found in ModelSelector');
     }
 
-    let total_tokens = 0;
+    let totalTokens = 0;
     const messages = state.messages;
     let filteredContent: Array<string> = [];
     let iterationContent: Array<string> = [];
     let iterationCount = 0;
+    
     for (let i = 0; i < state.messages.length; i++) {
       if (messages[i]?.response_metadata?.usage?.completion_tokens) {
-        total_tokens += messages[i].response_metadata.usage.completion_tokens;
+        totalTokens += messages[i].response_metadata.usage.completion_tokens;
       } else {
-        total_tokens += 0;
+        totalTokens += 0;
       }
+      
       if (messages[i].additional_kwargs.from === Agent.EXECUTOR) {
         if (iterationCount != 0) {
-          if (total_tokens <= 11000) {
+          if (totalTokens <= 11000) {
             filteredContent = filteredContent.concat(iterationContent);
             iterationContent = [];
           } else {
@@ -1335,18 +1354,18 @@ export class AutonomousAgent {
           }
         }
         iterationContent.push(
-          `AIMessage Result:` + messages[i].content.toLocaleString()
+          `AI Message Result: ${messages[i].content.toLocaleString()}`
         );
         iterationCount++;
       } else if (messages[i].additional_kwargs.from === Agent.TOOLS) {
         iterationContent.push(
-          `ToolMessage Result` + messages[i].content.toLocaleString()
+          `Tool Message Result: ${messages[i].content.toLocaleString()}`
         );
       }
     }
     filteredContent = filteredContent.concat(iterationContent);
 
-    let systemPrompt = SummarizeAgent;
+    const systemPrompt = SummarizeAgent;
     const prompt = ChatPromptTemplate.fromMessages([['system', systemPrompt]]);
 
     const result = await model.invoke(
@@ -1354,12 +1373,14 @@ export class AutonomousAgent {
         messagesContent: filteredContent.join('\n'),
       })
     );
+    
     result.additional_kwargs = {
       from: Agent.SUMMARIZE,
       final: false,
     };
+    
     const newMessages: BaseMessage[] = [];
-    for (let i = 0, y = 0; i < state.messages.length; i++) {
+    for (let i = 0; i < state.messages.length; i++) {
       if (
         messages[i].additional_kwargs.from === Agent.EXECUTOR ||
         messages[i].additional_kwargs.from === Agent.TOOLS ||
@@ -1368,7 +1389,6 @@ export class AutonomousAgent {
         continue;
       } else {
         newMessages.push(messages[i]);
-        continue;
       }
     }
     newMessages.push(result);
@@ -1376,7 +1396,7 @@ export class AutonomousAgent {
   }
 
   private getCompileOptions(): any {
-    return this.agent_config.memory
+    return this.agentConfig.memory
       ? {
           checkpointer: this.checkpointer,
           configurable: {},
@@ -1387,8 +1407,9 @@ export class AutonomousAgent {
   private buildWorkflow(): any {
     const toolNode = this.createToolNode();
     if (!this.memoryAgent) {
-      throw new Error('MemoryAgent : Is not setup');
+      throw new Error('MemoryAgent is not setup');
     }
+    
     let workflow = new StateGraph(this.GraphState, this.ConfigurableAnnotation)
       .addNode('memory', this.memoryAgent.createMemoryNode())
       .addNode('plan_node', this.planExecution.bind(this))
@@ -1423,12 +1444,14 @@ export class AutonomousAgent {
       adaptive_planner: 'adaptive_planner',
       end: 'end_graph',
     });
+    
     workflow.addConditionalEdges('tools', this.shouldContinue.bind(this), {
       validator: 'validator',
       end: 'end_graph',
     });
 
     workflow.addEdge('human', 'validator');
+    
     workflow.addConditionalEdges(
       'memory',
       (state: typeof this.GraphState.State) => {
@@ -1442,16 +1465,18 @@ export class AutonomousAgent {
         executor: 'executor',
       }
     );
+    
     workflow.addEdge('summarize', 'executor');
+    
     return workflow;
   }
 
   async initialize(): Promise<AgentReturn> {
     try {
       // Get agent configuration
-      this.agent_config = this.snakAgent.getAgentConfig();
-      if (!this.agent_config) {
-        throw new Error('Autonomous: Agent configuration is required');
+      this.agentConfig = this.snakAgent.getAgentConfig();
+      if (!this.agentConfig) {
+        throw new Error('Agent configuration is required');
       }
 
       // Initialize database
@@ -1460,14 +1485,14 @@ export class AutonomousAgent {
       // Initialize tools
       this.toolsList = await initializeToolsList(
         this.snakAgent,
-        this.agent_config
+        this.agentConfig
       );
 
       // Initialize memory agent if enabled
       await this.initializeMemoryAgent();
 
       // Initialize RAG agent if enabled
-      if (this.agent_config.rag?.enabled !== false) {
+      if (this.agentConfig.rag?.enabled !== false) {
         await this.initializeRagAgent();
       }
 
@@ -1475,13 +1500,15 @@ export class AutonomousAgent {
       const workflow = this.buildWorkflow();
       this.app = workflow.compile(this.getCompileOptions());
 
+      logger.info('[AutonomousAgent] ✅ Successfully initialized autonomous agent');
+
       return {
         app: this.app,
-        agent_config: this.agent_config,
+        agent_config: this.agentConfig,
       };
     } catch (error) {
       logger.error(
-        'AutonomousAgent: Failed to create an autonomous agent:',
+        '[AutonomousAgent] ❌ Failed to create autonomous agent:',
         error
       );
       throw error;
