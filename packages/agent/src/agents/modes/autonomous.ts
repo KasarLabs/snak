@@ -39,7 +39,6 @@ import {
   ADAPTIVE_PLANNER_CONTEXT,
   ADAPTIVE_PLANNER_SYSTEM_PROMPT,
   AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
-  PLAN_VALIDATOR_SYSTEM_PROMPT,
   STEP_EXECUTOR_SYSTEM_PROMPT,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
   STEPS_VALIDATOR_SYSTEM_PROMPT,
@@ -435,11 +434,7 @@ export class AutonomousAgent {
         lastAiMessage
       ) {
         logger.debug('Planner: Creating re-plan based on validator feedback');
-        systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT(
-          lastAiMessage,
-          formatParsedPlanSimple(state.plan),
-          originalUserQuery
-        );
+        systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
       } else {
         logger.debug('Planner: Creating initial plan');
         systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
@@ -455,6 +450,8 @@ export class AutonomousAgent {
           messages: filteredMessages,
           agentConfig: this.agent_config.prompt,
           toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
+          fomatPlan: formatParsedPlanSimple(state.plan),
+          lastAiMessage: lastAiMessage.content.toLocaleString(),
         })
       );
 
@@ -841,6 +838,7 @@ export class AutonomousAgent {
     messages: BaseMessage;
     last_agent: Agent;
     plan?: ParsedPlan;
+    currentGraphStep?: number;
   }> {
     if (!this.agent_config || !this.modelSelector) {
       throw new Error(
@@ -889,6 +887,7 @@ export class AutonomousAgent {
           messages: result,
           last_message: result,
           last_agent: Agent.EXECUTOR,
+          currentGraphStep: state.currentGraphStep + 1,
         };
       }
       const new_plan = state.plan;
@@ -899,12 +898,18 @@ export class AutonomousAgent {
         last_message: result,
         last_agent: Agent.EXECUTOR,
         plan: new_plan,
+        currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error: any) {
       logger.error(
         `Executor: Error during model invocation - ${error.message}`
       );
-      return handleModelError(error);
+      const result = handleModelError(error);
+      return {
+        ...result,
+        last_message: result.messages,
+        currentGraphStep: state.currentGraphStep + 1,
+      };
     }
   }
 
@@ -987,7 +992,7 @@ export class AutonomousAgent {
       messages: new AIMessageChunk({
         content: input,
         additional_kwargs: {
-          from: 'human',
+          from: Agent.HUMAN,
           final: false,
         },
       }),
@@ -1386,7 +1391,6 @@ export class AutonomousAgent {
     if (!this.memoryAgent) {
       throw new Error('MemoryAgent : Is not setup');
     }
-    // Build workflow
     let workflow = new StateGraph(this.GraphState, this.ConfigurableAnnotation)
       .addNode('memory', this.memoryAgent.createMemoryNode())
       .addNode('plan_node', this.planExecution.bind(this))

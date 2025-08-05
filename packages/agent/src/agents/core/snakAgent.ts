@@ -23,7 +23,7 @@ import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
-import { AgentReturn } from 'agents/modes/types/index.js';
+import { Agent, AgentReturn } from 'agents/modes/types/index.js';
 /**
  * Configuration interface for SnakAgent initialization
  */
@@ -32,6 +32,7 @@ export interface StreamChunk {
   chunk: any;
   iteration_number: number;
   langgraph_step: number;
+  from?: Agent;
   final: boolean;
 }
 
@@ -419,7 +420,7 @@ export class SnakAgent extends BaseAgent {
       );
 
       const app = this.agentReactExecutor.app;
-      let lastChunkToSave;
+      let last_chunk;
       let iterationNumber = 0;
       let finalAnswer = '';
       const maxGraphIterations = this.agentConfig.maxIterations;
@@ -436,31 +437,30 @@ export class SnakAgent extends BaseAgent {
           memorySize: memory_size,
         },
       };
-
-      for await (const chunk of await app.streamEvents(graphState, {
+      const executionConfig = {
         ...threadConfig,
+        signal: this.controller.signal,
         recursionLimit: 500,
         version: 'v2',
-      })) {
-        if (
-          (chunk.name === 'Branch<update_graph,tools,agent,end>' ||
-            chunk.name === 'Branch<agent,tools,agent,human,end>') &&
-          chunk.event === 'on_chain_start'
-        ) {
-          const messages = chunk.data.input.messages;
-          currentIterationNumber =
-            messages[messages.length - 1].additional_kwargs.iteration_number;
-          logger.debug(`Iteration ${currentIterationNumber} started`);
-        }
+      };
 
-        if (
-          (chunk.name === 'Branch<update_graph,tools,agent,end>' ||
-            chunk.name === 'Branch<agent,tools,agent,human,end>') &&
-          chunk.event === 'on_chain_end'
-        ) {
-          lastChunkToSave = chunk;
+      let graphStep: number = 0;
+      let retry: number = 0;
+      let agent: Agent | undefined;
+      for await (const chunk of await app.streamEvents(
+        graphState,
+        executionConfig
+      )) {
+        console.log(JSON.stringify(chunk) + '\n\n\n');
+        last_chunk = chunk;
+        const state = await app.getState(executionConfig);
+        let isNewNode: boolean = false;
+        if (agent && agent != state.last_agent) {
+          isNewNode = true;
         }
-
+        graphStep = state.values.currentGraphStep;
+        retry = state.values.retry;
+        agent = state.values.last_agent as Agent;
         if (
           chunk.event === 'on_chat_model_start' ||
           chunk.event === 'on_chat_model_stream' ||
@@ -474,47 +474,31 @@ export class SnakAgent extends BaseAgent {
             event: chunk.event as AgentIterationEvent,
             kwargs: formatted,
           };
-          if (
-            formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_START
-          ) {
-            finalAnswer = '';
-          }
-          if (
-            formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_STREAM
-          ) {
-            finalAnswer += (formatted as FormattedOnChatModelStream).chunk
-              .content;
-          }
-          if (
-            formattedChunk.event === AgentIterationEvent.ON_CHAT_MODEL_END &&
-            !finalAnswer
-          ) {
-            finalAnswer = (formatted as FormattedOnChatModelEnd).iteration
-              .result.output.content;
-          }
-          yield {
+          const result_chunk = {
             chunk: formattedChunk,
-            iteration_number: iterationNumber,
+            iteration_number: graphStep,
             langgraph_step: chunk.metadata.langgraph_step,
+            from: agent,
             final: false,
           };
+          console.log(JSON.stringify(result_chunk));
+          yield result_chunk;
         }
       }
 
-      if (finalAnswer) {
-        await this.saveIteration(finalAnswer);
-      }
       yield {
         chunk: {
-          event: lastChunkToSave.event,
+          event: last_chunk.event,
           kwargs: {
-            iteration: lastChunkToSave,
+            iteration: last_chunk,
           },
         },
-        iteration_number: iterationNumber,
-        langgraph_step: lastChunkToSave.metadata.langgraph_step,
+        iteration_number: graphStep,
+        langgraph_step: last_chunk.metadata.langgraph_step,
+        from: agent,
         final: true,
       };
+      console.log('ENDING');
       return;
     } catch (error) {
       logger.error('ExecuteAsyncGenerator failed:', error);

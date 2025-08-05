@@ -177,7 +177,6 @@ export function isTokenLimitError(error: any): boolean {
 // --- ERROR HANDLING --- //
 export function handleModelError(error: any): {
   messages: BaseMessage;
-  last_message: BaseMessage;
   last_agent: Agent.EXECUTOR;
 } {
   logger.error(`Executor: Error calling model - ${error}`);
@@ -197,7 +196,6 @@ export function handleModelError(error: any): {
     });
     return {
       messages: message,
-      last_message: message,
       last_agent: Agent.EXECUTOR,
     };
   }
@@ -211,7 +209,6 @@ export function handleModelError(error: any): {
   });
   return {
     messages: message,
-    last_message: message,
     last_agent: Agent.EXECUTOR,
   };
 }

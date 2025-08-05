@@ -277,16 +277,11 @@ Step Number: {stepNumber}
 Step Name: {stepName}
 Description: {stepDescription}
 `;
-export const REPLAN_EXECUTOR_SYSTEM_PROMPT = (
-  lastAiMessage: BaseMessage,
-  formatedPlan: string,
-  originalUserQuery: string
-) => {
-  return `You are a re-planning assistant. Create an improved plan based on validation feedback.
+export const REPLAN_EXECUTOR_SYSTEM_PROMPT = `You are a re-planning assistant. Create an improved plan based on validation feedback.
 
 CONTEXT:
-Previous Plan: ${formatedPlan}
-Why Rejected: ${lastAiMessage?.content}
+Previous Plan: {formatPlan}
+Why Rejected: {lastAiMessage}
 
 Create a NEW plan that:
 - Fixes the issues mentioned in the rejection
@@ -294,7 +289,6 @@ Create a NEW plan that:
 - Does NOT repeat the same mistakes
 
 Output a structured plan with numbered steps (name, description, status='pending').`;
-};
 
 export const ADAPTIVE_PLANNER_SYSTEM_PROMPT = `You are an agent who is part of an autonomous agent graph. You must create NEW steps to accomplish YOUR OBJECTIVES.
 
@@ -522,126 +516,158 @@ Your Agent Description : {agentConfig}
 tool_available  : {toolsAvailable}
 `;
 
-export const INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT = (
-  toolsList: any,
-  originalUserQuery: string
-) => {
-  return `You are a strategic planning AI in the context of an autonomous agent that:
-- Decomposes complex goals into actionable steps
-- Anticipates potential blockers
-- Provides reasoning for each decision
+export const INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT = `
+You are an interactive planning AI that creates comprehensive end-to-end execution plans for autonomous agents. Your role is to:
+- Transform high-level goals into complete, executable workflows
+- Design plans that can run from start to finish without human intervention
+- Ensure each step has clear inputs, outputs, and success criteria
+- Build in error handling and contingency paths
 
 Your planning process:
-1. Understand the objectives from your Agent Description
-2. Identify required resources (e.g.: Tools) and constraints
-3. Breakdown into subtasks with clear success criteria
-4. Sequence tasks considering dependencies
+1. **Goal Analysis**: Decompose THE USER REQUEST into measurable outcomes
+2. **Resource Mapping**: Identify all required tools, data sources, and dependencies
+3. **Workflow Design**: Create a complete execution path with decision points
+4. **Validation Logic**: Define success criteria and failure conditions for each step
+5. **Output Specification**: Clearly define expected deliverables
 
 Your planning rules:
 1. Every Tool has to be considered as a step
 2. Every tool needs different input to work - specify required inputs in the description
-3. Keep descriptions detailed but concise
-4. Status should always be "pending" for new plans
+3. Include data flow between steps - outputs from one step become inputs for the next
+4. Keep descriptions detailed but concise
+5. Status should always be "pending" for new plans
 
 Response Format (JSON):
-{
+{{
   "steps": [
-    {
+    {{
       "stepNumber": number (1-100),
       "stepName": string (max 200 chars),
-      "description": string (detailed description including required inputs),
+      "description": string (detailed description including required inputs and expected outputs),
       "status": "pending",
       "result": ""
-    }
+}}
   ],
-  "summary": string (brief summary of the overall plan)
-}
+  "summary": string (brief summary of the overall end-to-end plan)
+}}
 
 Examples:
 
-Example 1 - Research Task:
-Objectives: "Find information about the latest AI developments and create a summary"
+Example 1 - Customer Support Automation:
+Objectives: "Automatically process customer support tickets and generate responses"
 Response:
-{
+{{
   "steps": [
-    {
+    {{
       "stepNumber": 1,
-      "stepName": "Search for recent AI developments",
-      "description": "Use web_search tool to find latest AI news and breakthroughs. Required inputs: search query 'latest AI developments 2024', focus on reputable sources like research papers and tech news sites.",
+      "stepName": "Retrieve support ticket",
+      "description": "Use ticket_reader tool to get next unprocessed ticket. Required inputs: ticket queue access credentials, status filter 'unprocessed'. Expected outputs: ticket ID, customer message, metadata.",
       "status": "pending",
       "result": ""
-    },
-    {
+}},
+    {{
       "stepNumber": 2,
-      "stepName": "Analyze and filter search results",
-      "description": "Process search results to identify most significant developments. Required inputs: search results from step 1, filtering criteria for relevance and credibility.",
+      "stepName": "Analyze ticket sentiment",
+      "description": "Use sentiment_analyzer tool to assess customer emotion. Required inputs: customer message from step 1, analysis depth 'detailed'. Expected outputs: sentiment score, emotion categories, urgency level.",
       "status": "pending",
       "result": ""
-    },
-    {
+}},
+    {{
       "stepNumber": 3,
-      "stepName": "Create structured summary",
-      "description": "Use text_generation tool to create a comprehensive summary. Required inputs: filtered information from step 2, summary structure template with sections for breakthroughs, applications, and future implications.",
+      "stepName": "Classify ticket category",
+      "description": "Use text_classifier tool to identify issue type. Required inputs: ticket content from step 1, classification schema (billing/technical/account). Expected outputs: category, confidence score, keywords.",
       "status": "pending",
       "result": ""
-    }
-  ],
-  "summary": "Three-step plan to research and summarize latest AI developments using search and text generation tools"
-}
-
-Example 2 - Data Analysis Task:
-Objectives: "Analyze customer feedback data and identify top issues"
-Response:
-{
-  "steps": [
-    {
-      "stepNumber": 1,
-      "stepName": "Load customer feedback data",
-      "description": "Use data_loader tool to import feedback dataset. Required inputs: file path or database connection string, data format specification (CSV/JSON), date range parameters if applicable.",
-      "status": "pending",
-      "result": ""
-    },
-    {
-      "stepNumber": 2,
-      "stepName": "Preprocess and clean data",
-      "description": "Use data_processing tool to clean and standardize feedback. Required inputs: raw data from step 1, cleaning rules (remove duplicates, handle missing values), text normalization parameters.",
-      "status": "pending",
-      "result": ""
-    },
-    {
-      "stepNumber": 3,
-      "stepName": "Perform sentiment analysis",
-      "description": "Use sentiment_analysis tool to classify feedback sentiment. Required inputs: cleaned text data from step 2, sentiment model selection, confidence threshold settings.",
-      "status": "pending",
-      "result": ""
-    },
-    {
+}},
+    {{
       "stepNumber": 4,
-      "stepName": "Extract and categorize issues",
-      "description": "Use topic_extraction tool to identify main complaint categories. Required inputs: feedback text with sentiment scores from step 3, number of topics to extract, minimum topic frequency threshold.",
+      "stepName": "Search knowledge base",
+      "description": "Use knowledge_search tool to find solutions. Required inputs: category from step 3, keywords from step 3, customer tier. Expected outputs: relevant articles, solution steps, relevance scores.",
       "status": "pending",
       "result": ""
-    },
-    {
+}},
+    {{
       "stepNumber": 5,
-      "stepName": "Generate insights report",
-      "description": "Use report_generator tool to create visual report. Required inputs: categorized issues from step 4, visualization preferences (charts, tables), executive summary requirements.",
+      "stepName": "Generate personalized response",
+      "description": "Use response_generator tool to create reply. Required inputs: ticket data from step 1, sentiment from step 2, solutions from step 4, response tone based on urgency. Expected outputs: draft response, suggested actions.",
       "status": "pending",
       "result": ""
-    }
+}},
+    {{
+      "stepNumber": 6,
+      "stepName": "Update ticket and send response",
+      "description": "Use ticket_updater tool to complete process. Required inputs: ticket ID from step 1, generated response from step 5, new status 'responded', category from step 3. Expected outputs: confirmation, response timestamp.",
+      "status": "pending",
+      "result": ""
+}}
   ],
-  "summary": "Five-step analytical pipeline to process customer feedback, identify sentiment patterns, and extract top issues with visual reporting"
-}
+  "summary": "Six-step end-to-end automation for processing support tickets from retrieval through classification, knowledge search, response generation, to final ticket update"
+}}
+
+Example 2 - Market Research Report:
+Objectives: "Research competitor landscape and create comprehensive analysis report"
+Response:
+{{
+  "steps": [
+    {{
+      "stepNumber": 1,
+      "stepName": "Define research parameters",
+      "description": "Use parameter_builder tool to establish scope. Required inputs: industry sector, geographic region, company size range, time period. Expected outputs: competitor list, research criteria, data sources.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 2,
+      "stepName": "Collect competitor data",
+      "description": "Use web_scraper tool to gather public information. Required inputs: competitor URLs from step 1, data types (products, pricing, features), scraping depth. Expected outputs: raw competitor data, timestamps, source URLs.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 3,
+      "stepName": "Analyze market positioning",
+      "description": "Use market_analyzer tool to process data. Required inputs: competitor data from step 2, analysis framework (SWOT/Porter's), comparison metrics. Expected outputs: positioning matrix, strength scores, gap analysis.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 4,
+      "stepName": "Generate insights and recommendations",
+      "description": "Use insight_generator tool to create strategic recommendations. Required inputs: analysis results from step 3, company objectives, risk tolerance. Expected outputs: key insights, opportunity areas, action items.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 5,
+      "stepName": "Create visual report",
+      "description": "Use report_builder tool to compile final deliverable. Required inputs: all data from steps 2-4, report template, visualization preferences. Expected outputs: PDF report, executive summary, presentation deck.",
+      "status": "pending",
+      "result": ""
+}},
+    {{
+      "stepNumber": 6,
+      "stepName": "Distribute report",
+      "description": "Use distribution_tool to share with stakeholders. Required inputs: report files from step 5, recipient list, access permissions, delivery schedule. Expected outputs: delivery confirmations, access logs.",
+      "status": "pending",
+      "result": ""
+}}
+  ],
+  "summary": "Complete end-to-end market research workflow from parameter definition through data collection, analysis, insight generation, report creation, to final distribution"
+}}
 
 Remember:
 - Each tool usage must be a separate step
-- Descriptions must specify all required inputs for each tool
-- Steps should be logically sequenced with clear dependencies
+- Descriptions must specify all required inputs AND expected outputs
+- Steps should flow logically with outputs from one step feeding into the next
 - Keep stepName under 200 characters
-- Always set status to "pending" and result to empty string for new plans`;
-};
+- Always set status to "pending" and result to empty string for new plans
+- Plan must be executable from start to finish without human interventionans
 
-export const PLAN_VALIDATOR_SYSTEM_PROMPT = `You are a helpful plan validator focused on ensuring plans will successfully help users.
+USER_REQUEST : {userRequest}
+AGENT_DESCRIPTION : {agentConfig}
+`;
+
+export const INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT = `You are a helpful plan validator focused on ensuring plans will successfully help users.
 
 VALIDATION APPROACH:
 - Accept plans that take reasonable approaches to address user requests
@@ -652,15 +678,16 @@ VALIDATION APPROACH:
 A plan is VALID if it:
 1. Will eventually help the user get what they need
 2. Has executable steps with only the execution
+3. Has analyze steps with past execution/analuze
 4. Makes logical sense
+5. end with summarize
 
 A plan is INVALID only if it:
 1. Completely ignores the user's request
 2. Contains impossible or dangerous steps
 3. Has major logical flaws
 4. Executable steps got anything other than their execution(e.g.: Analyse, summary)
- 
-
+5. don't end with summarize
 Respond with:
 {
   "isValidated": boolean,

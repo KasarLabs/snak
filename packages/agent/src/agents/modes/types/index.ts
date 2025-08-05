@@ -4,6 +4,7 @@ import {
   BaseMessage,
   HumanMessage,
 } from '@langchain/core/messages';
+import { Annotation } from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
 
 export interface AgentReturn {
@@ -48,6 +49,7 @@ export enum Agent {
   ADAPTIVE_PLANNER = 'adaptive_planner',
   TOOLS = 'tools',
   SUMMARIZE = 'summarize',
+  HUMAN = 'human',
 }
 
 export interface AgentKwargs {
@@ -79,3 +81,56 @@ export type TypedHumanMessage<
 > = HumanMessage & {
   additional_kwargs: T;
 };
+
+export const InteractiveConfigurableAnnotation = Annotation.Root({
+  max_graph_steps: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 15,
+  }),
+  short_term_memory: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 15,
+  }),
+  memorySize: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 20,
+  }),
+});
+
+export const InteractiveGraphState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: (x, y) => x.concat(y),
+    default: () => [],
+  }),
+  last_agent: Annotation<Agent>({
+    reducer: (x, y) => y,
+    default: () => Agent.PLANNER,
+  }),
+  memories: Annotation<string>({
+    reducer: (x, y) => y,
+    default: () => '',
+  }),
+  rag: Annotation<string>({
+    reducer: (x, y) => y,
+    default: () => '',
+  }),
+  plan: Annotation<ParsedPlan>({
+    reducer: (x, y) => y,
+    default: () => ({
+      steps: [],
+      summary: '',
+    }),
+  }),
+  currentStepIndex: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 0,
+  }),
+  retry: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 0,
+  }),
+  currentGraphStep: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 0,
+  }),
+});
