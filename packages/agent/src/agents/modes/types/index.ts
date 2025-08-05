@@ -21,6 +21,7 @@ export interface StepInfo {
   stepName: string;
   result: string;
   description: string;
+  type: 'tools' | 'message' | 'human_in_the_loop';
   status: 'pending' | 'completed' | 'failed';
 }
 

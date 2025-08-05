@@ -47,6 +47,7 @@ import {
   RETRY_CONTENT,
   AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT,
   SummarizeAgent,
+  HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
 } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -343,6 +344,7 @@ export class AutonomousAgent {
             stepName: 'Error',
             description: 'Error trying to create the plan',
             status: 'failed',
+            type: 'message',
           },
         ],
         summary: 'Error',
@@ -389,6 +391,9 @@ export class AutonomousAgent {
           .enum(['pending', 'completed', 'failed'])
           .default('pending')
           .describe('Current status of the step'),
+        type: z
+          .enum(['tools', 'message', 'human_in_the_loop'])
+          .describe('What type of steps is this'),
         result: z
           .string()
           .default('')
@@ -421,6 +426,9 @@ export class AutonomousAgent {
         logger.debug('Planner: Creating re-plan based on validator feedback');
         systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = lastAiMessage.content;
+      } else if (config.configurable?.human_in_the_loop === true) {
+        systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
+        lastContent = '';
       } else {
         logger.debug('Planner: Creating initial plan');
         systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
@@ -451,7 +459,8 @@ export class AutonomousAgent {
           .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
           .join('\n')}`,
         additional_kwargs: {
-          structured_output: structuredResult,
+          error: false,
+          final: false,
           from: Agent.PLANNER,
         },
       });
@@ -470,6 +479,7 @@ export class AutonomousAgent {
         content: `Failed to create plan: ${error.message}`,
         additional_kwargs: {
           error: true,
+          final: false,
           from: 'planner',
         },
       });
@@ -482,6 +492,7 @@ export class AutonomousAgent {
             description: 'Error trying to create the plan',
             status: 'failed',
             result: '',
+            type: 'message',
           },
         ],
         summary: 'Error',
@@ -660,7 +671,7 @@ export class AutonomousAgent {
           .describe(
             'If validated=false: concise explanation (<300 chars) of what was missing/incorrect to help AI retry. If validated=true: just "step validated"'
           ),
-        is_last_step: z
+        final: z
           .boolean()
           .describe('True only if this was the final step of the entire plan'),
       });
@@ -738,7 +749,7 @@ export class AutonomousAgent {
             content: `Steps Final Reach`,
             additional_kwargs: {
               error: false,
-              is_last_step: true,
+              final: true,
               from: Agent.EXEC_VALIDATOR,
             },
           });
@@ -758,7 +769,7 @@ export class AutonomousAgent {
             content: `Steps ${state.currentStepIndex + 1} has been validated.`,
             additional_kwargs: {
               error: false,
-              is_last_step: false,
+              final: false,
               from: Agent.EXEC_VALIDATOR,
             },
           });
@@ -780,7 +791,7 @@ export class AutonomousAgent {
         content: `Steps ${state.currentStepIndex + 1} has not been validated reason : ${structuredResult.reason}`,
         additional_kwargs: {
           error: false,
-          is_last_step: false,
+          final: false,
           from: Agent.EXEC_VALIDATOR,
         },
       });
@@ -802,7 +813,7 @@ export class AutonomousAgent {
         content: `Failed to validate plan: ${error.message}`,
         additional_kwargs: {
           error: true,
-          is_last_step: false,
+          final: false,
           validated: false,
           from: Agent.EXEC_VALIDATOR,
         },
@@ -841,7 +852,7 @@ export class AutonomousAgent {
 
     const maxGraphSteps = config.configurable?.max_graph_steps ?? 100;
     const shortTermMemory = config.configurable?.short_term_memory ?? 10;
-    const human_in_the_loop = config.configurable?.human_in_the_loop ?? false;
+    const human_in_the_loop = config.configurable?.human_in_the_loop;
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
 
@@ -966,23 +977,27 @@ export class AutonomousAgent {
     }
   }
 
-  public async humanNode(
-    state: typeof this.GraphState.State
-  ): Promise<{ messages: BaseMessage }> {
-    const lastAiMessage = getLatestMessageForMessage(
-      state.messages,
-      AIMessageChunk
-    );
-    const input = interrupt(lastAiMessage?.content);
+  public async humanNode(state: typeof this.GraphState.State): Promise<{
+    last_message: BaseMessage;
+    messages: BaseMessage;
+    last_agent: Agent;
+    currentGraphStep?: number;
+  }> {
+    const currentStep = state.plan.steps[state.currentStepIndex];
+    const input = interrupt(currentStep.description);
+    const message = new AIMessageChunk({
+      content: input,
+      additional_kwargs: {
+        from: Agent.HUMAN,
+        final: false,
+      },
+    });
 
     return {
-      messages: new AIMessageChunk({
-        content: input,
-        additional_kwargs: {
-          from: Agent.HUMAN,
-          final: false,
-        },
-      }),
+      messages: message,
+      last_agent: Agent.HUMAN,
+      last_message: message,
+      currentGraphStep: state.currentGraphStep + 1,
     };
   }
 
@@ -1153,7 +1168,7 @@ export class AutonomousAgent {
             'ValidatorRouter: Last AI message is not from the exec_validator - check graph edges configuration.'
           );
         }
-        if (lastAiMessage.additional_kwargs.is_last_step === true) {
+        if (lastAiMessage.additional_kwargs.final === true) {
           logger.info(
             'ValidatorRouter: last steps of the plan reach routing to ADAPTIVE_PLANNER'
           );
@@ -1246,7 +1261,9 @@ export class AutonomousAgent {
         );
         return 'end';
       }
-      if (lastMessage.content.toString().includes('WAITING_FOR_HUMAN_INPUT')) {
+      if (
+        state.plan.steps[state.currentStepIndex].type === 'human_in_the_loop'
+      ) {
         return 'human';
       }
       if (lastMessage.tool_calls?.length) {
@@ -1411,6 +1428,7 @@ export class AutonomousAgent {
       end: 'end_graph',
     });
 
+    workflow.addEdge('human', 'validator');
     workflow.addConditionalEdges(
       'memory',
       (state: typeof this.GraphState.State) => {
