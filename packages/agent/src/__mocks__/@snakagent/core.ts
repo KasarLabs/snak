@@ -3,6 +3,12 @@ export interface AgentConfig {
   description?: string;
 }
 
+export interface RagConfig {
+  enabled?: boolean;
+  topK?: number;
+  embeddingModel?: string;
+}
+
 export interface ModelLevelConfig {
   provider: string;
   model_name: string;
@@ -30,8 +36,36 @@ export const logger = {
   warn: (..._args: any[]) => {},
   error: (..._args: any[]) => {},
   debug: (..._args: any[]) => {},
+  info: (..._args: any[]) => {},
 };
 
 export const metrics = {
   metricsAgentToolUseCount: (..._args: any[]) => {},
 };
+
+// Mock CustomHuggingFaceEmbeddings for tests
+export class CustomHuggingFaceEmbeddings {
+  constructor(fields?: any) {
+    // Mock constructor
+  }
+
+  async embedQuery(query: string): Promise<number[]> {
+    // Return a mock embedding vector with 384 dimensions (default for MiniLM)
+    return Array.from({ length: 384 }, () => Math.random());
+  }
+
+  async embedDocuments(documents: string[]): Promise<number[][]> {
+    // Return mock embeddings for multiple documents
+    return documents.map(() => Array.from({ length: 384 }, () => Math.random()));
+  }
+}
+
+export interface CustomHuggingFaceEmbeddingsParams {
+  model?: string;
+  dtype?: string;
+  device?: string | Record<string, string>;
+  subfolder?: string;
+  model_file_name?: string;
+  use_external_data_format?: boolean | Record<string, boolean>;
+  session_options?: Record<string, unknown>;
+}
