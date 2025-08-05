@@ -268,13 +268,7 @@ export class AutonomousAgent {
         config.configurable?.short_term_memory ?? 10
       );
 
-      console.log(JSON.stringify(state.plan));
       let systemPrompt = ADAPTIVE_PLANNER_SYSTEM_PROMPT;
-
-      console.log(systemPrompt);
-      const originalUserMessage = filteredMessages.find(
-        (msg): msg is HumanMessage => msg instanceof HumanMessage
-      );
 
       const context: string = ADAPTIVE_PLANNER_CONTEXT;
       const agent_config = this.agent_config.prompt;
@@ -324,7 +318,6 @@ export class AutonomousAgent {
       }
 
       new_plan.summary = structuredResult.summary as string;
-      console.log(JSON.stringify(new_plan));
       return {
         last_message: aiMessage,
         last_agent: Agent.PLANNER,
@@ -370,10 +363,10 @@ export class AutonomousAgent {
     last_message: BaseMessage;
     last_agent: Agent;
     plan: ParsedPlan;
+    currentStepIndex: number;
     currentGraphStep: number;
   }> {
     try {
-      console.log(JSON.stringify(config));
       logger.info('Planner: Starting plan execution');
       const lastAiMessage = state.last_message as BaseMessage;
 
@@ -418,26 +411,20 @@ export class AutonomousAgent {
         config.configurable?.short_term_memory ?? 10
       );
 
-      const originalUserMessage = filteredMessages.find(
-        (msg): msg is HumanMessage => msg instanceof HumanMessage
-      );
-
-      const originalUserQuery = originalUserMessage
-        ? typeof originalUserMessage.content === 'string'
-          ? originalUserMessage.content
-          : JSON.stringify(originalUserMessage.content)
-        : '';
-
       let systemPrompt;
+      let lastContent;
       if (
+        lastAiMessage &&
         state.last_agent === (Agent.PLANNER_VALIDATOR || Agent.EXECUTOR) &&
         lastAiMessage
       ) {
         logger.debug('Planner: Creating re-plan based on validator feedback');
         systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
+        lastContent = lastAiMessage.content;
       } else {
         logger.debug('Planner: Creating initial plan');
         systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
+        lastContent = '';
       }
 
       const prompt = ChatPromptTemplate.fromMessages([
@@ -450,8 +437,8 @@ export class AutonomousAgent {
           messages: filteredMessages,
           agentConfig: this.agent_config.prompt,
           toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
-          fomatPlan: formatParsedPlanSimple(state.plan),
-          lastAiMessage: lastAiMessage.content.toLocaleString(),
+          formatPlan: formatParsedPlanSimple(state.plan),
+          lastAiMessage: lastContent,
         })
       );
 
@@ -474,6 +461,7 @@ export class AutonomousAgent {
         last_agent: Agent.PLANNER,
         plan: structuredResult as ParsedPlan,
         currentGraphStep: state.currentGraphStep + 1,
+        currentStepIndex: 0,
       };
     } catch (error) {
       logger.error(`Planner: Error in planExecution - ${error}`);
@@ -503,6 +491,7 @@ export class AutonomousAgent {
         last_message: errorMessage,
         last_agent: Agent.PLANNER,
         plan: error_plan,
+        currentStepIndex: 0,
         currentGraphStep: state.currentGraphStep + 1,
       };
     }
@@ -868,13 +857,11 @@ export class AutonomousAgent {
 
     const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
 
-    console.log(state.messages);
     try {
       const filteredMessages = filterMessagesByShortTermMemory(
         state.messages,
         shortTermMemory
       );
-      console.log(filteredMessages);
       const result = await this.invokeModelWithMessages(
         state,
         config,
@@ -1316,7 +1303,6 @@ export class AutonomousAgent {
     let iterationContent: Array<string> = [];
     let iterationCount = 0;
     for (let i = 0; i < state.messages.length; i++) {
-      console.log(i);
       if (messages[i]?.response_metadata?.usage?.completion_tokens) {
         total_tokens += messages[i].response_metadata.usage.completion_tokens;
       } else {
@@ -1344,7 +1330,6 @@ export class AutonomousAgent {
     filteredContent = filteredContent.concat(iterationContent);
 
     let systemPrompt = SummarizeAgent;
-    console.log(filteredContent);
     const prompt = ChatPromptTemplate.fromMessages([['system', systemPrompt]]);
 
     const result = await model.invoke(
@@ -1352,7 +1337,6 @@ export class AutonomousAgent {
         messagesContent: filteredContent.join('\n'),
       })
     );
-    console.log(JSON.stringify(result));
     result.additional_kwargs = {
       from: Agent.SUMMARIZE,
       final: false,
@@ -1371,9 +1355,6 @@ export class AutonomousAgent {
       }
     }
     newMessages.push(result);
-    console.log(messages.length);
-    console.log(filteredContent.length);
-    console.log(JSON.stringify(messages));
     return { messages: newMessages };
   }
 

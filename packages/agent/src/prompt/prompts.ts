@@ -420,8 +420,8 @@ Your planning rules:
 3. Keep descriptions detailed but concise
 4. Status should always be "pending" for new plans
 5. Don't create a end-to-end plan.
-6. You need to formulate for every input of tools where you get the info( Never, Never put an tools execution with value that we do not have)
-
+6. You need to formulate for every input of tools where you get the info( Never, Never put an tools execution with value that we do not have (e.g : Contract address need a valid contract address without you call a tool to get this))
+7. Your only source of knowledge are your state of messages/tool_response
 Response Format (JSON):
 {{
   "steps": [

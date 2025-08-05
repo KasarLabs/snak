@@ -367,6 +367,7 @@ export class InteractiveAgent {
         : '';
 
       let systemPrompt;
+      let lastContent;
       if (state.last_agent === Agent.PLANNER_VALIDATOR && lastAiMessage) {
         logger.debug('Planner: Creating re-plan based on validator feedback');
         systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;

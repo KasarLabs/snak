@@ -688,7 +688,10 @@ export class SnakAgent extends BaseAgent {
         },
       };
 
-      let lastChunkToSave;
+      let last_chunk;
+      let graphStep: number = 0;
+      let retry: number = 0;
+      let agent: Agent | undefined;
       try {
         let currentIterationNumber = 0;
         let command: Command | undefined;
@@ -705,7 +708,6 @@ export class SnakAgent extends BaseAgent {
             resume: input,
           });
         }
-
         while (true) {
           const executionInput = !isInterrupted ? graphState : command;
 
@@ -714,27 +716,15 @@ export class SnakAgent extends BaseAgent {
             executionConfig
           )) {
             isInterrupted = false;
-
-            if (
-              (chunk.name === 'Branch<tools,tools,agent,end>' ||
-                chunk.name === 'Branch<agent,tools,agent,human,end>') &&
-              chunk.event === 'on_chain_start'
-            ) {
-              const messages = chunk.data.input.messages;
-              currentIterationNumber =
-                messages[messages.length - 1].additional_kwargs
-                  .iteration_number;
-              logger.debug(`Iteration ${currentIterationNumber} started`);
+            last_chunk = chunk;
+            const state = await app.getState(executionConfig);
+            let isNewNode: boolean = false;
+            if (agent && agent != state.last_agent) {
+              isNewNode = true;
             }
-
-            if (
-              (chunk.name === 'Branch<tools,tools,agent,end>' ||
-                chunk.name === 'Branch<agent,tools,agent,human,end>') &&
-              chunk.event === 'on_chain_end'
-            ) {
-              lastChunkToSave = chunk;
-            }
-
+            graphStep = state.values.currentGraphStep;
+            retry = state.values.retry;
+            agent = state.values.last_agent as Agent;
             if (
               chunk.event === 'on_chat_model_start' ||
               chunk.event === 'on_chat_model_stream' ||
@@ -743,22 +733,24 @@ export class SnakAgent extends BaseAgent {
               const formatted = FormatChunkIteration(chunk);
               if (!formatted) {
                 throw new Error(
-                  `Failed to format chunk: ${JSON.stringify(chunk, null, 2)}`
+                  `Failed to format chunk: ${JSON.stringify(chunk)}`
                 );
               }
               const formattedChunk: IterationResponse = {
                 event: chunk.event as AgentIterationEvent,
                 kwargs: formatted,
               };
-              yield {
+              const result_chunk = {
                 chunk: formattedChunk,
-                iteration_number: currentIterationNumber,
+                iteration_number: graphStep,
                 langgraph_step: chunk.metadata.langgraph_step,
+                from: agent,
                 final: false,
               };
+              // console.log(JSON.stringify(result_chunk));
+              yield result_chunk;
             }
           }
-
           const state = await app.getState(executionConfig);
           if (state.tasks.length > 0 && state.tasks[0]?.interrupts) {
             if (state.tasks[0].interrupts.length > 0) {
@@ -767,11 +759,11 @@ export class SnakAgent extends BaseAgent {
                 chunk: {
                   event: 'on_graph_interrupted',
                   kwargs: {
-                    iteration: lastChunkToSave,
+                    iteration: last_chunk,
                   },
                 },
-                iteration_number: currentIterationNumber,
-                langgraph_step: lastChunkToSave?.metadata.langgraph_step || -1,
+                iteration_number: graphStep,
+                langgraph_step: last_chunk.metadata.langgraph_step,
                 final: true,
               };
               return;
@@ -781,33 +773,31 @@ export class SnakAgent extends BaseAgent {
             break;
           }
         }
-
-        totalIterationCount = currentIterationNumber;
         yield {
           chunk: {
-            event: lastChunkToSave.event,
+            event: last_chunk.event,
             kwargs: {
-              iteration: lastChunkToSave,
+              iteration: last_chunk,
             },
           },
-          iteration_number: currentIterationNumber,
-          langgraph_step: lastChunkToSave.metadata.langgraph_step,
+          iteration_number: graphStep,
+          langgraph_step: last_chunk.metadata.langgraph_step,
           final: true,
         };
         return;
       } catch (error: any) {
         if (error?.message?.includes('Abort')) {
           logger.info('Execution aborted by user');
-          if (lastChunkToSave) {
+          if (last_chunk) {
             yield {
               chunk: {
                 event: 'on_graph_aborted',
                 kwargs: {
-                  iteration: lastChunkToSave,
+                  iteration: last_chunk,
                 },
               },
-              iteration_number: totalIterationCount,
-              langgraph_step: lastChunkToSave.metadata.langgraph_step,
+              iteration_number: graphStep,
+              langgraph_step: last_chunk.metadata.langgraph_step,
               final: true,
             };
           }
