@@ -241,7 +241,10 @@ export class InteractiveAgent {
     const toolNode = this.createToolNode();
 
     // Build workflow
-    let workflow = new StateGraph(this.GraphState, this.ConfigurableAnnotation)
+    const workflow = new StateGraph(
+      this.GraphState,
+      this.ConfigurableAnnotation
+    )
       .addNode('plan_node', this.planExecution.bind(this))
       .addNode('validator', this.validator.bind(this))
       .addNode('executor', this.callModel.bind(this))
@@ -659,7 +662,7 @@ export class InteractiveAgent {
           : JSON.stringify(originalUserMessage.content)
         : '';
 
-      let validationContent: String;
+      let validationContent: string;
       if (lastMessage instanceof ToolMessage) {
         logger.debug('[ExecutorValidator] 🔧 Validating tool execution');
         validationContent = `VALIDATION_TYPE: TOOL_EXECUTION_MODE
@@ -864,7 +867,7 @@ ${validationContent}`,
     try {
       const result = await originalInvoke(state, config);
       const executionTime = Date.now() - startTime;
-      const truncatedResult: { messages: [ToolMessage] } = truncateToolResults(
+      const truncatedResult: { messages: ToolMessage[] } = truncateToolResults(
         result,
         5000,
         state.plan.steps[state.currentStepIndex]
@@ -953,7 +956,7 @@ ${validationContent}`,
           );
           return 'end';
         }
-        if (lastAiMessage.additional_kwargs.from != 'planner_validator') {
+        if (lastAiMessage.additional_kwargs.from != Agent.PLANNER_VALIDATOR) {
           throw new Error(
             'Last AI message is not from planner_validator - check graph edges configuration'
           );

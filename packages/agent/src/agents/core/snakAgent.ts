@@ -482,8 +482,6 @@ export class SnakAgent extends BaseAgent {
             final: false,
             retry_count: retryCount,
           };
-
-          console.log(resultChunk);
           yield resultChunk;
         }
       }

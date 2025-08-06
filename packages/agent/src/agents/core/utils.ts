@@ -223,7 +223,7 @@ export function truncateToolResults(
   result: any,
   maxLength: number = 5000,
   currentStep: StepInfo
-): { messages: [ToolMessage]; plan?: ParsedPlan; last_message: BaseMessage } {
+): { messages: ToolMessage[]; plan?: ParsedPlan; last_message: BaseMessage } {
   for (const tool_message of result.messages) {
     const content = truncateStringContentHelper(
       tool_message.content.toLocaleString(),

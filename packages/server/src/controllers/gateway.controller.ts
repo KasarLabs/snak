@@ -2,8 +2,7 @@ import { AgentResponse } from './agents.controller.js';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import ServerError from '../utils/error.js';
-import { Controller, OnModuleInit, Post } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { OnModuleInit } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -18,7 +17,6 @@ import {
   WebsocketAgentRequestDTO,
   WebsocketGetAgentsConfigRequestDTO,
   WebsocketGetMessagesRequestDTO,
-  WebsocketSupervisorRequestDTO,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';

@@ -141,6 +141,20 @@ function parseRagConfig(config: string | AgentRagSQL): AgentRagSQL {
 }
 
 export const studio_graph_interactive = async () => {
+  const requiredEnvVars = [
+    'POSTGRES_DB',
+    'POSTGRES_HOST',
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD',
+    'POSTGRES_PORT',
+  ];
+
+  for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+      throw new Error(`Required environment variable ${envVar} is not set`);
+    }
+  }
+
   await Postgres.connect({
     host: process.env.POSTGRES_HOST as string,
     user: process.env.POSTGRES_USER as string,
@@ -234,6 +248,20 @@ export const studio_graph_interactive = async () => {
 };
 
 export const studio_graph_autonomous = async () => {
+  const requiredEnvVars = [
+    'POSTGRES_DB',
+    'POSTGRES_HOST',
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD',
+    'POSTGRES_PORT',
+  ];
+
+  for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+      throw new Error(`Required environment variable ${envVar} is not set`);
+    }
+  }
+
   await Postgres.connect({
     host: process.env.POSTGRES_HOST as string,
     user: process.env.POSTGRES_USER as string,

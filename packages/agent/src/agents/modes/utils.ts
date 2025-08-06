@@ -10,7 +10,7 @@ import {
   ToolMessage,
 } from '@langchain/core/messages';
 import { Agent, ParsedPlan, ValidatorStepResponse } from './types/index.js';
-import { logger } from 'starknet';
+import { logger } from '@snakagent/core';
 
 // --- Format Functions ---
 export function formatParsedPlanSimple(plan: ParsedPlan): string {
@@ -108,11 +108,9 @@ export function filterMessagesByShortTermMemory(
     Agent.TOOLS,
     Agent.SUMMARIZE,
   ];
-  const m_length = messages.length - 1;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     // Handle iteration filtering
-    // TODO add checking with type of Agent
     if (
       iterationAgent.includes(msg.additional_kwargs.from as Agent) ||
       msg instanceof HumanMessage ||
@@ -158,7 +156,7 @@ export function handleModelError(error: any): {
 } {
   logger.error(`Executor: Error calling model - ${error}`);
 
-  if (this.isTokenLimitError(error)) {
+  if (isTokenLimitError(error)) {
     logger.error(
       `Executor: Token limit error during model invocation - ${error.message}`
     );

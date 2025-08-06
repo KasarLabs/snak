@@ -1,12 +1,6 @@
-// import {
-//   SupervisorAgent,
-//   SupervisorAgentConfig,
-// } from './supervisor/supervisorAgent.js';
 import { RpcProvider } from 'starknet';
-import { logger, AgentConfig, ModelsConfig } from '@snakagent/core';
+import { AgentConfig, ModelsConfig } from '@snakagent/core';
 import { AgentMode } from '../config/agentConfig.js';
-import { Postgres } from '@snakagent/database';
-import { SnakAgent, SnakAgentConfig } from './core/snakAgent.js';
 
 export interface Conversation {
   conversation_name: string;

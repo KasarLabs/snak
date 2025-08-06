@@ -658,7 +658,7 @@ export class AutonomousAgent {
           : JSON.stringify(originalUserMessage.content)
         : '';
 
-      let validationContent: String;
+      let validationContent: string;
       if (
         lastMessage instanceof ToolMessage ||
         (Array.isArray(lastMessage) &&
@@ -924,7 +924,7 @@ ${validationContent}`,
     try {
       const result = await originalInvoke(state, config);
       const executionTime = Date.now() - startTime;
-      const truncatedResult: { messages: [ToolMessage] } = truncateToolResults(
+      const truncatedResult: { messages: ToolMessage[] } = truncateToolResults(
         result,
         5000,
         state.plan.steps[state.currentStepIndex]
@@ -1382,7 +1382,10 @@ ${validationContent}`,
       throw new Error('MemoryAgent is not setup');
     }
 
-    let workflow = new StateGraph(this.GraphState, this.ConfigurableAnnotation)
+    const workflow = new StateGraph(
+      this.GraphState,
+      this.ConfigurableAnnotation
+    )
       .addNode('memory', this.memoryAgent.createMemoryNode())
       .addNode('plan_node', this.planExecution.bind(this))
       .addNode('validator', this.validator.bind(this))
