@@ -522,7 +522,7 @@ describe('updateAgentTool', () => {
 
       const result = await updateAgentTool.func({
         identifier: 'test-agent',
-        searchBy: 'invalid_type' as any,
+        searchBy: 'invalid_type' as 'id' | 'name',
         updates: {
           description: 'Updated description'
         }

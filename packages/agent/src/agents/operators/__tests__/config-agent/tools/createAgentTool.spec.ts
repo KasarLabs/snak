@@ -750,8 +750,8 @@ describe('createAgentTool', () => {
       const mockCreatedAgent = {
         id: 1,
         name: 'numeric-agent',
-        interval: 5, // Default value
-        max_iterations: 15, // Default value
+        interval: 5, // Default value interval
+        max_iterations: 15, // Default value max_iterations
       };
       
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
@@ -840,8 +840,8 @@ describe('createAgentTool', () => {
         name: 'negative-memory-agent',
         memory: {
           enabled: true,
-          shortTermMemorySize: 5, // Default value
-          memorySize: 20, // Default value
+          shortTermMemorySize: 5, // Default value shortTermMemorySize
+          memorySize: 20, // Default value memorySize
         },
       };
       
