@@ -404,7 +404,7 @@ export class AutonomousAgent {
         );
         systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = lastAiMessage.content;
-      } else if (config.configurable?.human_in_the_loop === true) {
+      } else if (this.agentConfig.mode === AgentMode.HYBRID) {
         systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = '';
       } else {
@@ -833,10 +833,6 @@ ${validationContent}`,
 
     const maxGraphSteps = config.configurable?.max_graph_steps ?? 100;
     const shortTermMemory = config.configurable?.short_term_memory ?? 10;
-    const humanInTheLoop = config.configurable?.human_in_the_loop;
-    const messages = state.messages;
-    const lastMessage = messages[messages.length - 1];
-
     const graphStep = state.currentGraphStep;
 
     if (maxGraphSteps && maxGraphSteps <= graphStep) {
@@ -1186,7 +1182,7 @@ ${validationContent}`,
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): 'tools' | 'validator' | 'human' | 'end' | 're_planner' {
-    if (config.configurable?.human_in_the_loop === true) {
+    if (this.agentConfig.mode === AgentMode.HYBRID) {
       return this.shouldContinueHybrid(state, config);
     } else {
       return this.shouldContinueAutonomous(state, config);
