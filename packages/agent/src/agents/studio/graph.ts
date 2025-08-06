@@ -166,6 +166,11 @@ export const studio_graph_interactive = async () => {
   const id: string = '2568a969-cd0a-43ee-8ae9-c9f2e26d0f8e';
   const q = new Postgres.Query('SELECT * from agents WHERE id = $1', [id]);
   const q_res = await Postgres.query<AgentConfigSQL>(q);
+  logger.debug(`${JSON.stringify(q_res)}`);
+
+  if (!q_res) {
+    throw new Error(`No agent find for id : ${id}`);
+  }
   const agent_config = {
     ...q_res[0],
     memory: parseMemoryConfig(q_res[0].memory),
@@ -238,6 +243,7 @@ export const studio_graph_interactive = async () => {
 
   const model_selector_instance = new ModelSelector(model_selector);
   await model_selector_instance.init();
+
   await agent.init();
   const interactive_agent = new InteractiveAgent(
     agent,
@@ -273,6 +279,9 @@ export const studio_graph_autonomous = async () => {
   const id: string = '2568a969-cd0a-43ee-8ae9-c9f2e26d0f8e';
   const q = new Postgres.Query('SELECT * from agents WHERE id = $1', [id]);
   const q_res = await Postgres.query<AgentConfigSQL>(q);
+  if (!q_res) {
+    throw new Error(`No agent find for id : ${id}`);
+  }
   const agent_config = {
     ...q_res[0],
     memory: parseMemoryConfig(q_res[0].memory),
