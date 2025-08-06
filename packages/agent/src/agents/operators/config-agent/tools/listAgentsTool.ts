@@ -36,6 +36,7 @@ const ListAgentsSchema = z.object({
     .number()
     .optional()
     .nullable()
+    .transform((val) => (val !== null && val !== undefined && val <= 0 ? null : val))
     .describe(
       'Maximum number of agents to return (use when user specifies a limit)'
     ),
@@ -43,6 +44,7 @@ const ListAgentsSchema = z.object({
     .number()
     .optional()
     .nullable()
+    .transform((val) => (val !== null && val !== undefined && val <= 0 ? null : val))
     .describe('Number of agents to skip for pagination'),
 });
 
@@ -60,17 +62,17 @@ export const listAgentsTool = new DynamicStructuredTool({
 
       // Build WHERE conditions
       if (input.filters) {
-        if (input.filters.group) {
+        if (input.filters.group !== null && input.filters.group !== undefined && input.filters.group !== '') {
           whereConditions.push(`"group" = $${paramIndex}`);
           values.push(input.filters.group);
           paramIndex++;
         }
-        if (input.filters.mode) {
+        if (input.filters.mode !== null && input.filters.mode !== undefined && input.filters.mode !== '') {
           whereConditions.push(`"mode" = $${paramIndex}`);
           values.push(input.filters.mode);
           paramIndex++;
         }
-        if (input.filters.name_contains) {
+        if (input.filters.name_contains !== null && input.filters.name_contains !== undefined && input.filters.name_contains !== '') {
           whereConditions.push(`"name" ILIKE $${paramIndex}`);
           values.push(`%${input.filters.name_contains}%`);
           paramIndex++;
@@ -85,12 +87,12 @@ export const listAgentsTool = new DynamicStructuredTool({
       queryString += ' ORDER BY name';
 
       // Add LIMIT and OFFSET
-      if (input.limit) {
+      if (input.limit !== null && input.limit !== undefined) {
         queryString += ` LIMIT $${paramIndex}`;
         values.push(input.limit);
         paramIndex++;
       }
-      if (input.offset) {
+      if (input.offset !== null && input.offset !== undefined) {
         queryString += ` OFFSET $${paramIndex}`;
         values.push(input.offset);
       }
