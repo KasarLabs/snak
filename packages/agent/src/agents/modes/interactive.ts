@@ -234,7 +234,10 @@ export class InteractiveAgent {
   // WORKFLOW BUILDING
   // ============================================
 
-  private buildWorkflow(): any {
+  private buildWorkflow(): StateGraph<
+    typeof this.GraphState.State,
+    typeof this.ConfigurableAnnotation.State
+  > {
     const toolNode = this.createToolNode();
 
     // Build workflow
@@ -269,7 +272,10 @@ export class InteractiveAgent {
       end: 'end_graph',
     });
 
-    return workflow;
+    return workflow as unknown as StateGraph<
+      typeof this.GraphState.State,
+      typeof this.ConfigurableAnnotation.State
+    >;
   }
 
   private createToolNode(): ToolNode {
@@ -287,7 +293,10 @@ export class InteractiveAgent {
     return toolNode;
   }
 
-  private getCompileOptions(): any {
+  private getCompileOptions(): {
+    checkpointer?: MemorySaver;
+    configurable?: object;
+  } {
     return this.agentConfig.memory
       ? {
           checkpointer: this.checkpointer,

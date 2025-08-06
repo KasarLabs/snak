@@ -243,9 +243,7 @@ export class AutonomousAgent {
       const systemPrompt = ADAPTIVE_PLANNER_SYSTEM_PROMPT;
       const context: string = ADAPTIVE_PLANNER_CONTEXT;
       const promptAgentConfig = this.agentConfig.prompt;
-      const availableTools = this.toolsList
-        .map((tool: any) => tool.name)
-        .join(', ');
+      const availableTools = this.toolsList.map((tool) => tool.name).join(', ');
       const lastStepResult = state.plan.steps
         .map(
           (step: StepInfo) =>
@@ -906,7 +904,6 @@ ${validationContent}`,
     last_agent: Agent;
   } | null> {
     const lastMessage = state.last_message;
-    const lastgraphStep = state.currentGraphStep;
 
     const toolCalls =
       lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
@@ -1031,9 +1028,7 @@ ${validationContent}`,
       new MessagesPlaceholder('messages'),
     ]);
 
-    const availableTools = this.toolsList
-      .map((tool: any) => tool.name)
-      .join(', ');
+    const availableTools = this.toolsList.map((tool) => tool.name).join(', ');
 
     const retryPrompt: string =
       currentRetry != 0 ? RETRY_EXECUTOR_SYSTEM_PROMPT : '';
@@ -1366,7 +1361,10 @@ ${validationContent}`,
     return { messages: newMessages };
   }
 
-  private getCompileOptions(): any {
+  private getCompileOptions(): {
+    checkpointer?: MemorySaver;
+    configurable?: object;
+  } {
     return this.agentConfig.memory
       ? {
           checkpointer: this.checkpointer,
@@ -1375,7 +1373,10 @@ ${validationContent}`,
       : {};
   }
 
-  private buildWorkflow(): any {
+  private buildWorkflow(): StateGraph<
+    typeof this.GraphState.State,
+    typeof this.ConfigurableAnnotation.State
+  > {
     const toolNode = this.createToolNode();
     if (!this.memoryAgent) {
       throw new Error('MemoryAgent is not setup');
@@ -1439,7 +1440,10 @@ ${validationContent}`,
 
     workflow.addEdge('summarize', 'executor');
 
-    return workflow;
+    return workflow as unknown as StateGraph<
+      typeof this.GraphState.State,
+      typeof this.ConfigurableAnnotation.State
+    >;
   }
 
   async initialize(): Promise<AgentReturn> {

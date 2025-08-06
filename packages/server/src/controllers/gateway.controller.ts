@@ -101,7 +101,7 @@ export class MyGateway implements OnModuleInit {
                 graph_step: chunk.graph_step,
                 langgraph_step: chunk.langgraph_step,
                 from: chunk.from,
-                retry_count: chunk.retry,
+                retry_count: chunk.retry_count,
                 final: chunk.final,
               },
             };
@@ -121,7 +121,7 @@ export class MyGateway implements OnModuleInit {
                 graph_step: chunk.graph_step,
                 langgraph_step: chunk.langgraph_step,
                 from: chunk.from,
-                retry_count: chunk.retry,
+                retry_count: chunk.retry_count,
                 final: chunk.final,
               },
             };
