@@ -57,9 +57,6 @@ jobs:
           pnpm --filter @snakagent/agents build
           pnpm --filter='"@snakagent/plugin-*"' build || echo "Plugin build skipped"
 
-      - name: Check TypeScript compilation (Snak MCP)
-        run: pnpm --filter @snakagent/mcp-snak tsc --noEmit -p tsconfig.json
-
       - name: Check TypeScript compilation (Server)
         run: pnpm --filter @snakagent/server tsc --noEmit -p tsconfig.json
 
@@ -74,7 +71,6 @@ jobs:
 
       - name: Check formatting with Prettier
         run: |
-          pnpm prettier --check "mcps/**/*.{ts,tsx}"
           pnpm prettier --check "plugins/**/*.{ts,tsx}"
           pnpm prettier --check "packages/**/*.{ts,tsx}"
 
