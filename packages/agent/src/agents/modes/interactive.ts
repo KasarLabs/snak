@@ -33,7 +33,7 @@ import {
   RETRY_EXECUTOR_SYSTEM_PROMPT,
 } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
-import { AgentReturn, ParsedPlan } from './types/index.js';
+import { AgentReturn, ParsedPlan, StepInfo } from './types/index.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -418,7 +418,9 @@ export class InteractiveAgent {
 
       const aiMessage = new AIMessageChunk({
         content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
+          .map(
+            (s: StepInfo) => `${s.stepNumber}. ${s.stepName}: ${s.description}`
+          )
           .join('\n')}`,
         additional_kwargs: {
           from: Agent.PLANNER,

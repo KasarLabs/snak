@@ -275,7 +275,9 @@ export class AutonomousAgent {
 
       const aiMessage = new AIMessageChunk({
         content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
+          .map(
+            (s: StepInfo) => `${s.stepNumber}. ${s.stepName}: ${s.description}`
+          )
           .join('\n')}`,
         additional_kwargs: {
           structured_output: structuredResult,
@@ -434,7 +436,9 @@ export class AutonomousAgent {
 
       const aiMessage = new AIMessageChunk({
         content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
+          .map(
+            (s: StepInfo) => `${s.stepNumber}. ${s.stepName}: ${s.description}`
+          )
           .join('\n')}`,
         additional_kwargs: {
           error: false,
