@@ -4,6 +4,9 @@ import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 
+const normalizePositiveNumber = (val: number | null | undefined) => 
+  (val !== null && val !== undefined && val <= 0 ? null : val);
+
 const ListAgentsSchema = z.object({
   filters: z
     .object({
@@ -36,7 +39,7 @@ const ListAgentsSchema = z.object({
     .number()
     .optional()
     .nullable()
-    .transform((val) => (val !== null && val !== undefined && val <= 0 ? null : val))
+    .transform(normalizePositiveNumber)
     .describe(
       'Maximum number of agents to return (use when user specifies a limit)'
     ),
@@ -44,7 +47,7 @@ const ListAgentsSchema = z.object({
     .number()
     .optional()
     .nullable()
-    .transform((val) => (val !== null && val !== undefined && val <= 0 ? null : val))
+    .transform(normalizePositiveNumber)
     .describe('Number of agents to skip for pagination'),
 });
 
