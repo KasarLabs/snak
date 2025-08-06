@@ -90,11 +90,11 @@ export class AgentSelector extends BaseAgent {
   public async execute(input: string): Promise<SnakAgent> {
     try {
       const model = this.modelSelector.getModels()['fast'];
-      console.log('AgentSelector model:', this.modelSelector.getModels());
+      logger.info('AgentSelector model:', this.modelSelector.getModels());
       const result = await model.invoke(
         agentSelectorPromptContent(this.agentInfo, input)
       );
-      console.log('AgentSelector result:', result);
+      logger.debug('AgentSelector result:', result);
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
         const agent = Array.from(this.availableAgents.values()).find(

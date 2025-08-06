@@ -41,31 +41,8 @@ export function formatStepsStatusCompact(
   return `📋 Progress: [${validated.join(',')}] ➡️ Step ${response.nextSteps}`;
 }
 
-// --- Iteration Management ---
-export function calculateIterationNumber(
-  messages: BaseMessage[],
-  lastMessage: BaseMessage
-): number {
-  let iteration_number = 0;
-
-  if (lastMessage instanceof ToolMessage) {
-    logger.debug('Executor: ToolMessage Detected');
-    const lastMessageAi = getLatestMessageForMessage(messages, AIMessageChunk);
-    if (!lastMessageAi) {
-      throw new Error('Executor: Error trying to get latest AI Message Chunk');
-    }
-    iteration_number =
-      (lastMessageAi.additional_kwargs.iteration_number as number) || 0;
-  } else if (lastMessage instanceof AIMessageChunk) {
-    iteration_number =
-      (lastMessage.additional_kwargs.iteration_number as number) || 0;
-  }
-
-  return iteration_number;
-}
-
 // --- Response Generators ---
-export function createMaxIterationsResponse(iteration_number: number): {
+export function createMaxIterationsResponse(graph_step: number): {
   messages: BaseMessage;
   last_message: BaseMessage;
   last_agent: Agent;
@@ -74,7 +51,7 @@ export function createMaxIterationsResponse(iteration_number: number): {
     content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
     additional_kwargs: {
       final: true,
-      iteration_number: iteration_number,
+      graph_step: graph_step,
     },
   });
   return {

@@ -50,54 +50,6 @@ export class MyGateway implements OnModuleInit {
       });
     });
   }
-
-  // @SubscribeMessage('supervisor_request')
-  // async handleSupervisorRequest(
-  //   @MessageBody() userRequest: WebsocketSupervisorRequestDTO
-  // ): Promise<void> {
-  //   try {
-  //     if (!this.supervisorService.isInitialized()) {
-  //       throw new ServerError('E07TA110');
-  //     }
-
-  //     const config: Record<string, any> = {};
-  //     if (userRequest.request.agentId) {
-  //       config.agentId = userRequest.request.agentId;
-  //     }
-
-  //     const client = this.clients.get(userRequest.socket_id);
-  //     if (!client) {
-  //       logger.error('Client not found');
-  //       throw new ServerError('E01TA400');
-  //     }
-
-  //     for await (const chunk of this.supervisorService.websocketExecuteRequest(
-  //       userRequest.request.content,
-  //       config
-  //     )) {
-  //       const response: AgentResponse = {
-  //         status: 'success',
-  //         data: {
-  //           ...chunk.chunk,
-  //           iteration_number: chunk.iteration_number,
-  //           isLastChunk: chunk.final,
-  //         },
-  //       };
-
-  //       client.emit('onSupervisorRequest', response);
-
-  //       if (chunk.final === true) {
-  //         break;
-  //       }
-  //     }
-
-  //     logger.debug(`Supervisor request processed successfully`);
-  //   } catch (error) {
-  //     logger.error('Error in handleSupervisorRequest:', error);
-  //     throw new ServerError('E03TA100');
-  //   }
-  // }
-
   @SubscribeMessage('agents_request')
   async handleUserRequest(
     @MessageBody() userRequest: WebsocketAgentRequestDTO
@@ -144,9 +96,11 @@ export class MyGateway implements OnModuleInit {
               status: 'waiting_for_human_input',
               data: {
                 ...chunk.chunk,
-                iteration_number: chunk.iteration_number,
+                graph_step: chunk.graph_step,
                 langgraph_step: chunk.langgraph_step,
-                isLastChunk: chunk.final,
+                from: chunk.from,
+                retry_count: chunk.retry,
+                final: chunk.final,
               },
             };
           } else {
@@ -162,9 +116,11 @@ export class MyGateway implements OnModuleInit {
               status: 'success',
               data: {
                 ...chunk.chunk,
-                iteration_number: chunk.iteration_number,
+                graph_step: chunk.graph_step,
                 langgraph_step: chunk.langgraph_step,
-                isLastChunk: chunk.final,
+                from: chunk.from,
+                retry_count: chunk.retry,
+                final: chunk.final,
               },
             };
           }
@@ -175,9 +131,11 @@ export class MyGateway implements OnModuleInit {
             status: 'success',
             data: {
               ...chunk.chunk,
-              iteration_number: chunk.iteration_number,
+              graph_step: chunk.graph_step,
               langgraph_step: chunk.langgraph_step,
-              isLastChunk: chunk.final,
+              from: chunk.from,
+              retry_count: chunk.retry_count,
+              final: chunk.final,
             },
           };
         }

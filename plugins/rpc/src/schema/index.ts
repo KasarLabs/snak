@@ -40,7 +40,9 @@ export const getClassHashAtSchema = blockIdAndContractAddressSchema.merge(
   z.object({
     key: z
       .string()
-      .describe('The class hash for the given contract at the given block need to be a real class hash'),
+      .describe(
+        'The class hash for the given contract at the given block need to be a real class hash'
+      ),
   })
 );
 

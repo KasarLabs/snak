@@ -233,7 +233,6 @@ export const studio_graph_interactive = async () => {
   return graph;
 };
 
-
 export const studio_graph_autonomous = async () => {
   await Postgres.connect({
     host: process.env.POSTGRES_HOST as string,
@@ -319,10 +318,7 @@ export const studio_graph_autonomous = async () => {
   const model_selector_instance = new ModelSelector(model_selector);
   await model_selector_instance.init();
   await agent.init();
-  const autonomous_agent = new AutonomousAgent(
-    agent,
-    model_selector_instance
-  );
+  const autonomous_agent = new AutonomousAgent(agent, model_selector_instance);
   const graph = (await autonomous_agent.initialize()).app;
   return graph;
 };

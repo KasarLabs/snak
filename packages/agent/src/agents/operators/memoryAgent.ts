@@ -341,7 +341,7 @@ export class MemoryAgent extends BaseAgent {
     return async (state: any, config: LangGraphRunnableConfig) => {
       try {
         const result = await chain.invoke(state, config);
-        console.log(JSON.stringify(result));
+        // console.log(JSON.stringify(result));
         return result;
       } catch (error) {
         logger.error('Error retrieving memories:', error);

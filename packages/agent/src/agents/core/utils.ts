@@ -224,14 +224,12 @@ export function truncateToolResults(
   maxLength: number = 5000,
   currentStep: StepInfo
 ): { messages: [ToolMessage]; plan?: ParsedPlan; last_message: BaseMessage } {
-  console.log(JSON.stringify(result));
   for (const tool_message of result.messages) {
     const content = truncateStringContentHelper(
       tool_message.content.toLocaleString(),
       maxLength
     );
     tool_message.content = content;
-    console.log(JSON.stringify(currentStep));
     if (currentStep.result) {
       currentStep.result = currentStep.result.concat(content);
     } else {
