@@ -6,10 +6,10 @@ import {
 } from '../operators/modelSelector.js';
 import {
   logger,
-  metrics,
   AgentConfig,
   CustomHuggingFaceEmbeddings,
 } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
@@ -145,13 +145,6 @@ export class SnakAgent extends BaseAgent {
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
-
-    metrics.metricsAgentConnect(
-      config.agentConfig?.name ?? 'agent',
-      config.agentConfig?.mode === AgentMode.AUTONOMOUS
-        ? AGENT_MODES[AgentMode.AUTONOMOUS]
-        : AGENT_MODES[AgentMode.INTERACTIVE]
-    );
 
     this.iterationEmbeddings = new CustomHuggingFaceEmbeddings({
       model:

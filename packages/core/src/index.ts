@@ -11,9 +11,6 @@ export { AgentMode, RagConfig } from './common/agent.js';
 
 export { default as logger } from './logger/logger.js';
 
-import * as metrics from './metrics/metrics.js';
-export { metrics };
-
 export { loadModelsConfig } from './config/modelsLoader.js';
 export { loadRagConfig } from './config/ragLoader.js';
 export type {
