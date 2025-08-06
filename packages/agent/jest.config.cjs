@@ -13,7 +13,8 @@ module.exports = {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        useESM: true,
+        useESM: false,
+        isolatedModules: true,
         tsconfig: path.resolve(__dirname, 'tsconfig.test.json'),
       },
     ],
@@ -23,6 +24,7 @@ module.exports = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@snakagent/core$': '<rootDir>/src/__mocks__/@snakagent/core.ts',
+    '^@snakagent/database$': '<rootDir>/src/__mocks__/@snakagent/database.ts',
   },
 
   // Only treat TypeScript files as ESM

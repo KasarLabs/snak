@@ -1,6 +1,25 @@
 export interface AgentConfig {
+  id?: number;
   name: string;
   description?: string;
+  group?: string;
+  lore?: string[];
+  objectives?: string[];
+  knowledge?: string[];
+  system_prompt?: string;
+  interval?: number;
+  plugins?: string[];
+  memory?: {
+    enabled?: boolean;
+    shortTermMemorySize?: number;
+    memorySize?: number;
+  };
+  rag?: {
+    enabled?: boolean;
+    embeddingModel?: string;
+  };
+  mode?: string;
+  max_iterations?: number;
 }
 
 export interface RagConfig {

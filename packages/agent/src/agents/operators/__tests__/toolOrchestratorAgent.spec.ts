@@ -54,7 +54,6 @@ jest.mock('@langchain/langgraph/prebuilt', () => ({
 
 import { ToolsOrchestrator, ToolsOrchestratorConfig } from '../toolOrchestratorAgent.js';
 import { HumanMessage } from '@langchain/core/messages';
-import { ModelSelector } from '../modelSelector.js';
 
 // Get the mocked modules for testing
 const mockLogger = jest.requireMock('@snakagent/core').logger;
@@ -84,6 +83,18 @@ describe('ToolsOrchestrator', () => {
         invoke: jest.fn().mockResolvedValue('Tool 2 result')
       }
     ]);
+
+    // Reset MCP controller mock to default implementation
+    mockMCPController.fromAgentConfig.mockReturnValue({
+      initializeConnections: jest.fn().mockResolvedValue(undefined),
+      getTools: jest.fn().mockReturnValue([
+        {
+          name: 'mcp_tool_1',
+          description: 'MCP tool 1',
+          invoke: jest.fn().mockResolvedValue('MCP tool 1 result')
+        }
+      ])
+    });
 
     mockSnakAgent = {
       name: 'test-agent',
@@ -345,6 +356,10 @@ describe('ToolsOrchestrator', () => {
       expect(tools.length).toBeGreaterThanOrEqual(2);
       expect(tools[0].name).toBe('test_tool_1');
       expect(tools[1].name).toBe('test_tool_2');
+      
+      // Check if MCP tools were added by verifying the mock was called
+      expect(mockMCPController.fromAgentConfig).toHaveBeenCalledWith(mockConfig.agentConfig);
+      
       // Explicitly check for MCP tool presence by searching for the tool name
       const mcpTool = tools.find(tool => tool.name === 'mcp_tool_1');
       expect(mcpTool).toBeDefined();
