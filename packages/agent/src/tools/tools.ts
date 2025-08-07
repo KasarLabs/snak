@@ -1,7 +1,7 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { RpcProvider } from 'starknet';
 import { logger, AgentConfig } from '@snakagent/core';
-import { metrics } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { DatabaseCredentials } from './types/database.js';
 import { z as Zod } from 'zod';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
@@ -155,13 +155,20 @@ export const registerTools = async (
           }
           const tools_new = new Array<StarknetTool>();
           await imported_tool.registerTools(tools_new, agent);
+          const agentId = agent.getAgentConfig().id;
+          const agentMode = agent.getAgentConfig().mode;
+
+          if (!agentId || !agentMode) {
+            logger.warn(
+              `Agent ID or mode is not defined for agent: ${JSON.stringify(
+                agent.getAgentConfig()
+              )}`
+            );
+            return false;
+          }
 
           for (const tool of tools_new) {
-            metrics.metricsAgentToolUseCount(
-              agent.getAgentConfig()?.name ?? 'agent',
-              'tools', // TODO: refactored agent interface to allow this
-              tool.name
-            );
+            metrics.agentToolUseCount(agentId.toString(), agentMode, tool.name);
           }
 
           tools.push(...tools_new);

@@ -18,6 +18,7 @@ import {
   WebsocketGetAgentsConfigRequestDTO,
   WebsocketGetMessagesRequestDTO,
 } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
 @WebSocketGateway({
   cors: {
@@ -71,6 +72,7 @@ export class MyGateway implements OnModuleInit {
       }
 
       let response: AgentResponse;
+
       for await (const chunk of this.agentService.handleUserRequestWebsocket(
         agent,
         userRequest.request
@@ -119,6 +121,7 @@ export class MyGateway implements OnModuleInit {
               },
             };
           }
+
           await Postgres.query(q);
           logger.info('Message Saved in DB');
         } else {

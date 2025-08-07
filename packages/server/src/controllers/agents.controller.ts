@@ -21,10 +21,10 @@ import { Reflector } from '@nestjs/core';
 import { ServerError } from '../utils/error.js';
 import {
   logger,
-  metrics,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
 } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
@@ -315,8 +315,8 @@ export class AgentsController {
 
       const action = this.agentService.handleUserRequest(agent, messageRequest);
 
-      const response_metrics = await metrics.metricsAgentResponseTime(
-        agent.getAgentConfig().id.toString(),
+      const response_metrics = await metrics.agentResponseTimeMeasure(
+        messageRequest.agent_id.toString(),
         'key',
         route,
         action
@@ -357,6 +357,7 @@ export class AgentsController {
       throw new ServerError('E05TA100');
     }
   }
+
   /**
    * Initialize and add a new agent
    * @param userRequest - Request containing agent configuration
@@ -375,6 +376,9 @@ export class AgentsController {
         status: 'success',
         data: `Agent ${newAgentConfig.name} added and registered with supervisor`,
       };
+
+      metrics.agentConnect();
+
       return response;
     } catch (error) {
       logger.error('Error in addAgent:', error);
@@ -434,6 +438,7 @@ export class AgentsController {
         status: 'success',
         data: `Agent ${userRequest.agent_id} deleted and unregistered from supervisor`,
       };
+      metrics.agentDisconnect();
       return response;
     } catch (error) {
       logger.error('Error in deleteAgent:', error);
@@ -470,6 +475,7 @@ export class AgentsController {
             status: 'success',
             data: `Agent ${agentId} deleted and unregistered from supervisor`,
           });
+          metrics.agentDisconnect();
         } catch (error) {
           logger.error(`Error deleting agent ${agentId}:`, error);
           responses.push({
