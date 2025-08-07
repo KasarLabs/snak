@@ -76,7 +76,6 @@ jest.mock('../../../../prompt/configAgentPrompts.js', () => ({
 describe('ConfigurationAgent', () => {
   let agent: ConfigurationAgent;
   let mockLogger: any;
-  let mockOperatorRegistry: any;
   let mockModelSelector: any;
   let mockCreateReactAgent: any;
   let mockReactAgent: any;
@@ -85,7 +84,6 @@ describe('ConfigurationAgent', () => {
     jest.clearAllMocks();
     
     mockLogger = require('@snakagent/core').logger;
-    mockOperatorRegistry = require('../../operatorRegistry.js').OperatorRegistry;
     mockModelSelector = require('../../modelSelector.js').ModelSelector;
     mockCreateReactAgent = require('@langchain/langgraph/prebuilt').createReactAgent;
     

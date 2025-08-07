@@ -42,7 +42,6 @@ describe('configAgentTools', () => {
         expect(tool).toHaveProperty('name');
         expect(tool).toHaveProperty('description');
         expect(tool).toHaveProperty('schema');
-        // Check if tool has func property (DynamicStructuredTool) or invoke method (Tool)
         expect(
           tool.hasOwnProperty('func') || tool.hasOwnProperty('invoke')
         ).toBe(true);
@@ -94,10 +93,8 @@ describe('configAgentTools', () => {
         ...configToolCategories.list,
       ];
       
-      // listAgentsTool appears in both read and list categories, so we expect 6 total
       expect(allTools.length).toBe(6);
       
-      // Verify that listAgentsTool appears twice (in read and list categories)
       const listAgentsToolCount = allTools.filter(tool => tool === listAgentsTool).length;
       expect(listAgentsToolCount).toBe(2);
     });
