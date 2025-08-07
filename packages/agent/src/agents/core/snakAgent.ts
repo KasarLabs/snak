@@ -122,7 +122,7 @@ export class SnakAgent extends BaseAgent {
   private ragAgent: RagAgent | null = null;
   private mcpAgent: MCPAgent | null = null;
   private configAgent: ConfigurationAgent | null = null;
-  
+
   private currentMode: string;
   private agentReactExecutor: AgentReturn;
   private modelSelector: ModelSelector | null = null;
