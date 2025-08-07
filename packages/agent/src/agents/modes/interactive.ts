@@ -59,7 +59,7 @@ export const createInteractiveAgent = async (
     const toolsList = await initializeToolsList(snakAgent, agent_config);
 
     let memoryAgent: MemoryAgent | null = null;
-    if (agent_config.memory) {
+    if (agent_config.memory?.enabled) {
       try {
         memoryAgent = snakAgent.getMemoryAgent();
         if (memoryAgent) {
@@ -402,7 +402,7 @@ ${formatAgentResponse(content)}`);
       .addNode('agent', callModel)
       .addNode('tools', toolNode);
 
-    if (agent_config.memory && memoryAgent) {
+    if (agent_config.memory?.enabled && memoryAgent) {
       workflow = (workflow as any)
         .addNode('memory', memoryAgent.createMemoryNode())
         .addEdge('__start__', 'memory');
@@ -429,7 +429,7 @@ ${formatAgentResponse(content)}`);
 
     const checkpointer = new MemorySaver();
     const app = workflow.compile({
-      ...(agent_config.memory
+      ...(agent_config.memory?.enabled
         ? {
             checkpointer: checkpointer,
             configurable: {},
