@@ -122,7 +122,7 @@ export class SnakAgent extends BaseAgent {
   private ragAgent: RagAgent | null = null;
   private mcpAgent: MCPAgent | null = null;
   private configAgent: ConfigurationAgent | null = null;
-
+  
   private currentMode: string;
   private agentReactExecutor: AgentReturn;
   private modelSelector: ModelSelector | null = null;
@@ -168,6 +168,11 @@ export class SnakAgent extends BaseAgent {
       if (this.agentConfig) {
         this.agentConfig.plugins = this.agentConfig.plugins || [];
       }
+
+      this.modelSelector = new ModelSelector(this.modelSelectorConfig);
+      await this.modelSelector.init();
+      await this.initializeMemoryAgent(this.agentConfig);
+      await this.initializeRagAgent(this.agentConfig);
 
       this.modelSelector = new ModelSelector(this.modelSelectorConfig);
       await this.modelSelector.init();
