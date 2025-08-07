@@ -24,14 +24,6 @@ import {
   truncateToolResults,
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
-import {
-  INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT,
-  INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT,
-  STEP_EXECUTOR_SYSTEM_PROMPT,
-  REPLAN_EXECUTOR_SYSTEM_PROMPT,
-  STEPS_VALIDATOR_SYSTEM_PROMPT,
-  RETRY_EXECUTOR_SYSTEM_PROMPT,
-} from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn, ParsedPlan, StepInfo } from './types/index.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
@@ -52,6 +44,16 @@ import {
   isTerminalMessage,
 } from './utils.js';
 import { Agent } from './types/index.js';
+import { REPLAN_EXECUTOR_SYSTEM_PROMPT } from '../../prompt/planner_prompt.js';
+import {
+  INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  RETRY_EXECUTOR_SYSTEM_PROMPT,
+  STEP_EXECUTOR_SYSTEM_PROMPT,
+} from '../../prompt/executor_prompts.js';
+import {
+  INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT,
+  STEPS_VALIDATOR_SYSTEM_PROMPT,
+} from '../../prompt/validator_prompt.js';
 
 // ============================================
 // MAIN CLASS

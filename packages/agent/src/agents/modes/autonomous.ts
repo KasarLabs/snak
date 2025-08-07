@@ -35,20 +35,6 @@ import {
   initializeToolsList,
   truncateToolResults,
 } from '../core/utils.js';
-import {
-  ADAPTIVE_PLANNER_CONTEXT,
-  ADAPTIVE_PLANNER_SYSTEM_PROMPT,
-  AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
-  STEP_EXECUTOR_SYSTEM_PROMPT,
-  REPLAN_EXECUTOR_SYSTEM_PROMPT,
-  STEPS_VALIDATOR_SYSTEM_PROMPT,
-  RETRY_EXECUTOR_SYSTEM_PROMPT,
-  STEP_EXECUTOR_CONTEXT,
-  RETRY_CONTENT,
-  AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT,
-  SummarizeAgent,
-  HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
-} from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
@@ -62,6 +48,24 @@ import {
   handleModelError,
   isTerminalMessage,
 } from './utils.js';
+import {
+  ADAPTIVE_PLANNER_CONTEXT,
+  ADAPTIVE_PLANNER_SYSTEM_PROMPT,
+  REPLAN_EXECUTOR_SYSTEM_PROMPT,
+} from '../../prompt/planner_prompt.js';
+import {
+  AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  RETRY_CONTENT,
+  RETRY_EXECUTOR_SYSTEM_PROMPT,
+  STEP_EXECUTOR_CONTEXT,
+  STEP_EXECUTOR_SYSTEM_PROMPT,
+} from '../../prompt/executor_prompts.js';
+import {
+  AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT,
+  STEPS_VALIDATOR_SYSTEM_PROMPT,
+} from '../../prompt/validator_prompt.js';
+import { SUMMARIZE_AGENT } from '../../prompt/summary_prompts.js';
 
 export class AutonomousAgent {
   private agentConfig: AgentConfig;
@@ -1327,7 +1331,7 @@ ${validationContent}`,
     }
     filteredContent = filteredContent.concat(iterationContent);
 
-    const systemPrompt = SummarizeAgent;
+    const systemPrompt = SUMMARIZE_AGENT;
     const prompt = ChatPromptTemplate.fromMessages([['system', systemPrompt]]);
 
     const result = await model.invoke(
