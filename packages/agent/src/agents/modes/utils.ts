@@ -9,8 +9,14 @@ import {
   HumanMessage,
   ToolMessage,
 } from '@langchain/core/messages';
-import { Agent, ParsedPlan, ValidatorStepResponse } from './types/index.js';
+import {
+  Agent,
+  ParsedPlan,
+  StepInfo,
+  ValidatorStepResponse,
+} from './types/index.js';
 import { logger } from '@snakagent/core';
+import { z } from 'zod';
 
 // --- Format Functions ---
 export function formatParsedPlanSimple(plan: ParsedPlan): string {
@@ -199,3 +205,114 @@ export function estimateTokens(text: string): number {
 
   return estimatedTokens;
 }
+
+export function calculateTotalTokenFromSteps(steps: StepInfo[]): number {
+  try {
+    let total_tokens: number = 0;
+    for (const step of steps) {
+      if (step.status === 'completed') {
+        if (step.type === 'tools') {
+          total_tokens += step.result.tokens;
+        } else {
+          total_tokens;
+        }
+        total_tokens += estimateTokens(step.description);
+        total_tokens += estimateTokens(step.stepName);
+      }
+    }
+    return total_tokens;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export function generateShortTermMemoryMesage(plan: ParsedPlan): string {
+  try {
+    const result = plan.steps.map((s: StepInfo) => {
+      if (s.status != 'completed') {
+        return "";
+      }
+      `Q:`
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
+export const tools_call = z.object({
+  description: z
+    .string()
+    .describe(
+      'Tool execution details: what it does, parameters used, and configuration'
+    ),
+  required: z
+    .string()
+    .describe(
+      'Required inputs and their sources (e.g., "user query, step 2 filters")'
+    ),
+  expected_result: z.string().describe('Expected output data.'),
+});
+
+export const resultSchema = z.object({
+  content: z
+    .string()
+    .describe(
+      'Output content placeholder - empty during planning, populated during execution'
+    )
+    .default(''),
+  token: z
+    .number()
+    .describe('Ouput Token Count - empty during planning')
+    .default(0),
+});
+
+export const StepInfoSchema = z.object({
+  stepNumber: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .describe('Execution order (1-100)'),
+  stepName: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe('Action-oriented step title under 200 chars'),
+  description: z
+    .string()
+    .describe(
+      'Full step details: objective, inputs/sources, methodology, outputs, success criteria'
+    ),
+  type: z
+    .enum(['tools', 'message', 'human_in_the_loop'])
+    .describe(
+      'Step type: tools (automated), message (AI processing), human_in_the_loop (human input)'
+    ),
+
+  tools: z
+    .array(tools_call)
+    .optional()
+    .describe(
+      'Parallel tool executions (only for type="tools"). Must be independent'
+    ),
+  status: z
+    .enum(['pending', 'completed', 'failed'])
+    .default('pending')
+    .describe('Execution state of this step'),
+  result: resultSchema
+    .describe(
+      'Output placeholder - empty during planning, populated during execution'
+    )
+    .default({ content: '', token: 0 }),
+});
+
+export const PlanSchema = z.object({
+  steps: z
+    .array(StepInfoSchema)
+    .min(1)
+    .max(20)
+    .describe('Executable workflow steps (1-20) with clear dependencies'),
+  summary: z
+    .string()
+    .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
+});

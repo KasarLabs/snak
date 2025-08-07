@@ -41,16 +41,21 @@ import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 import { Agent, AgentReturn, ParsedPlan, StepInfo } from './types/index.js';
 import {
+  calculateTotalTokenFromSteps,
   createMaxIterationsResponse,
+  estimateTokens,
   filterMessagesByShortTermMemory,
   formatParsedPlanSimple,
   getLatestMessageForMessage,
   handleModelError,
   isTerminalMessage,
+  PlanSchema,
 } from './utils.js';
 import {
   ADAPTIVE_PLANNER_CONTEXT,
   ADAPTIVE_PLANNER_SYSTEM_PROMPT,
+  AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
 } from '../../prompt/planner_prompt.js';
 import {
@@ -194,7 +199,7 @@ export class AutonomousAgent {
   ): Promise<{
     last_message: BaseMessage;
     last_agent: Agent;
-    plan: ParsedPlan;
+    plan?: ParsedPlan;
     currentGraphStep: number;
   }> {
     try {
@@ -202,38 +207,6 @@ export class AutonomousAgent {
       if (!model) {
         throw new Error('Model not found in ModelSelector');
       }
-
-      const StepInfoSchema = z.object({
-        stepNumber: z.number().int().min(1).max(100).describe('Step number'),
-        stepName: z
-          .string()
-          .min(1)
-          .max(200)
-          .describe('Brief name/title of the step'),
-        description: z
-          .string()
-          .describe('Detailed description of what this step does'),
-        status: z
-          .enum(['pending', 'completed', 'failed'])
-          .default('pending')
-          .describe('Current status of the step'),
-        result: z
-          .string()
-          .default('')
-          .describe('Result of the tools need to be empty'),
-      });
-
-      const PlanSchema = z.object({
-        steps: z
-          .array(StepInfoSchema)
-          .min(1)
-          .max(20)
-          .describe('Array of steps to complete the task'),
-        summary: z
-          .string()
-          .describe('Brief summary of the overall plan')
-          .default(''),
-      });
 
       const structuredModel = model.withStructuredOutput(PlanSchema);
 
@@ -275,9 +248,7 @@ export class AutonomousAgent {
 
       const aiMessage = new AIMessageChunk({
         content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map(
-            (s: StepInfo) => `${s.stepNumber}. ${s.stepName}: ${s.description}`
-          )
+          .map((s: StepInfo) => `${s.stepNumber}. ${s.stepName}:`)
           .join('\n')}`,
         additional_kwargs: {
           structured_output: structuredResult,
@@ -312,24 +283,9 @@ export class AutonomousAgent {
         },
       });
 
-      const errorPlan: ParsedPlan = {
-        steps: [
-          {
-            stepNumber: 0,
-            result: '',
-            stepName: 'Error',
-            description: 'Error trying to create the plan',
-            status: 'failed',
-            type: 'message',
-          },
-        ],
-        summary: 'Error',
-      };
-
       return {
         last_message: errorMessage,
         last_agent: Agent.PLANNER,
-        plan: errorPlan,
         currentGraphStep: state.currentGraphStep + 1,
       };
     }
@@ -341,7 +297,7 @@ export class AutonomousAgent {
   ): Promise<{
     last_message: BaseMessage;
     last_agent: Agent;
-    plan: ParsedPlan;
+    plan?: ParsedPlan;
     currentStepIndex: number;
     currentGraphStep: number;
   }> {
@@ -353,38 +309,6 @@ export class AutonomousAgent {
       if (!model) {
         throw new Error('Model not found in ModelSelector');
       }
-
-      const StepInfoSchema = z.object({
-        stepNumber: z.number().int().min(1).max(100).describe('Step number'),
-        stepName: z
-          .string()
-          .min(1)
-          .max(200)
-          .describe('Brief name/title of the step'),
-        description: z
-          .string()
-          .describe('Detailed description of what this step does'),
-        status: z
-          .enum(['pending', 'completed', 'failed'])
-          .default('pending')
-          .describe('Current status of the step'),
-        type: z
-          .enum(['tools', 'message', 'human_in_the_loop'])
-          .describe('What type of steps is this'),
-        result: z
-          .string()
-          .default('')
-          .describe('Result of the tools need to be empty'),
-      });
-
-      const PlanSchema = z.object({
-        steps: z
-          .array(StepInfoSchema)
-          .min(1)
-          .max(20)
-          .describe('Array of steps to complete the task'),
-        summary: z.string().describe('Brief summary of the overall plan'),
-      });
 
       const structuredModel = model.withStructuredOutput(PlanSchema);
 
@@ -450,7 +374,6 @@ export class AutonomousAgent {
       return {
         last_message: aiMessage,
         last_agent: Agent.PLANNER,
-        plan: structuredResult as ParsedPlan,
         currentGraphStep: state.currentGraphStep + 1,
         currentStepIndex: 0,
       };
@@ -466,24 +389,9 @@ export class AutonomousAgent {
         },
       });
 
-      const errorPlan: ParsedPlan = {
-        steps: [
-          {
-            stepNumber: 0,
-            stepName: 'Error',
-            description: 'Error trying to create the plan',
-            status: 'failed',
-            result: '',
-            type: 'message',
-          },
-        ],
-        summary: 'Error',
-      };
-
       return {
         last_message: errorMessage,
         last_agent: Agent.PLANNER,
-        plan: errorPlan,
         currentStepIndex: 0,
         currentGraphStep: state.currentGraphStep + 1,
       };
@@ -869,9 +777,16 @@ ${validationContent}`,
         };
       }
 
+      const content = result.content.toLocaleString();
       const updatedPlan = state.plan;
-      updatedPlan.steps[state.currentStepIndex].result =
-        result.content.toLocaleString();
+      const tokens =
+        currentStep.type === 'tools'
+          ? result.response_metadata?.usage?.completion_tokens
+          : estimateTokens(content);
+      updatedPlan.steps[state.currentStepIndex].result = {
+        content: content,
+        tokens: tokens,
+      };
 
       return {
         messages: result,
@@ -1428,10 +1343,12 @@ ${validationContent}`,
     workflow.addConditionalEdges(
       'memory',
       (state: typeof this.GraphState.State) => {
-        if (state.messages.length < 10) {
-          return 'executor';
+        const total_tokens = calculateTotalTokenFromSteps(state.plan.steps);
+        logger.debug(`[SummarizeAgent] : TotalTokens : ${total_tokens}`);
+        if (total_tokens >= 100000) {
+          return 'summarize';
         }
-        return 'summarize';
+        return 'executor';
       },
       {
         summarize: 'summarize',

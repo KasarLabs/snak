@@ -19,9 +19,19 @@ export interface AgentReturn {
 export interface StepInfo {
   stepNumber: number;
   stepName: string;
-  result: string;
   description: string;
   type: 'tools' | 'message' | 'human_in_the_loop';
+  tools?: [
+    {
+      description: string;
+      required: string;
+      expected_result: string;
+    },
+  ];
+  result: {
+    content: string;
+    tokens: number;
+  };
   status: 'pending' | 'completed' | 'failed';
 }
 
