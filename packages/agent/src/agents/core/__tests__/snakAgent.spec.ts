@@ -360,6 +360,12 @@ describe('SnakAgent', () => {
 
       const generator = snakAgent.execute('Test input');
       expect(generator).toBeDefined();
+      const results = [];
+      for await (const result of generator) {
+        results.push(result);
+        if (results.length >= 2) break; // Limit to avoid infinite loops
+      }
+      expect(results.length).toBeGreaterThan(0);
     });
 
     it('should handle execution errors', async () => {
