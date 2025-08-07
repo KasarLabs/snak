@@ -187,3 +187,15 @@ export function handleModelError(error: any): {
     last_agent: Agent.EXECUTOR,
   };
 }
+
+// --- TOKEN CALCULATE --- //
+
+export function estimateTokens(text: string): number {
+  const charCount = text.length;
+
+  const wordCount = text.split(/\s+/).filter((word) => word.length > 0).length;
+
+  const estimatedTokens = Math.ceil((charCount / 4 + wordCount) / 2);
+
+  return estimatedTokens;
+}
