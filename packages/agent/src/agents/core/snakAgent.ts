@@ -9,7 +9,6 @@ import {
   AgentConfig,
   CustomHuggingFaceEmbeddings,
 } from '@snakagent/core';
-import { metrics } from '@snakagent/metrics';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
@@ -168,11 +167,6 @@ export class SnakAgent extends BaseAgent {
       if (this.agentConfig) {
         this.agentConfig.plugins = this.agentConfig.plugins || [];
       }
-
-      this.modelSelector = new ModelSelector(this.modelSelectorConfig);
-      await this.modelSelector.init();
-      await this.initializeMemoryAgent(this.agentConfig);
-      await this.initializeRagAgent(this.agentConfig);
 
       this.modelSelector = new ModelSelector(this.modelSelectorConfig);
       await this.modelSelector.init();

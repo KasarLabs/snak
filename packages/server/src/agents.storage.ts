@@ -561,7 +561,6 @@ export class AgentStorage implements OnModuleInit {
       return snakAgent;
     } catch (error) {
       logger.error(`Error creating SnakAgent from config:`, error);
-      logger.error(`Error creating SnakAgent from config:`, error);
       throw error;
     }
   }
