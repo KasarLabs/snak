@@ -166,7 +166,7 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
   return configCopy;
 };
 
-export const normalizeMemoryAndRag = (memory: any, rag: any) => {
+const normalizeMemoryAndRag = (memory: any, rag: any) => {
   const normalizedMemory = typeof memory === 'object' && memory !== null ? memory : { enabled: false };
   const normalizedRag = typeof rag === 'object' && rag !== null ? rag : { enabled: false };
   

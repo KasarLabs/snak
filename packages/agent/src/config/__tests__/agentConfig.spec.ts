@@ -1,5 +1,3 @@
-import { normalizeMemoryAndRag } from "config/agentConfig.js";
-
 // Mock external dependencies before imports
 const MockSystemMessage = jest.fn().mockImplementation((content) => ({
   content,
@@ -174,6 +172,13 @@ const parseAgentMode = (modeConfig: string | { mode?: string; maxIterations?: nu
     `Could not determine agent mode - defaulting to "${AgentMode.INTERACTIVE}"`
   );
   return AgentMode.INTERACTIVE;
+};
+
+const normalizeMemoryAndRag = (memory: { enabled: boolean } | false, rag: { enabled?: boolean; embeddingModel?: string } | false) => {
+  const normalizedMemory = typeof memory === 'object' ? memory : { enabled: false };
+  const normalizedRag = typeof rag === 'object' ? rag : { enabled: false };
+  
+  return { memory: normalizedMemory, rag: normalizedRag };
 };
 
 const validateConfig = (config: AgentConfig) => {
