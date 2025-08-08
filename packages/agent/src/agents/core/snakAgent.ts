@@ -6,10 +6,10 @@ import {
 } from '../operators/modelSelector.js';
 import {
   logger,
+  metrics,
   AgentConfig,
   CustomHuggingFaceEmbeddings,
 } from '@snakagent/core';
-import { metrics } from '@snakagent/metrics';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
@@ -141,6 +141,13 @@ export class SnakAgent extends BaseAgent {
     if (!config.accountPrivateKey) {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
+
+    metrics.metricsAgentConnect(
+      config.agentConfig?.name ?? 'agent',
+      config.agentConfig?.mode === AgentMode.AUTONOMOUS
+        ? AGENT_MODES[AgentMode.AUTONOMOUS]
+        : AGENT_MODES[AgentMode.INTERACTIVE]
+    );
 
     this.iterationEmbeddings = new CustomHuggingFaceEmbeddings({
       model:
@@ -411,11 +418,17 @@ export class SnakAgent extends BaseAgent {
       let lastChunkToSave;
       let iterationNumber = 0;
       let finalAnswer = '';
+      let lastKnownLangGraphStep = 0;
 
       for await (const chunk of await app.streamEvents(
         graphState,
         runnableConfig
       )) {
+        // Track the last known langgraph_step from any chunk that has it
+        if (chunk.metadata?.langgraph_step !== undefined) {
+          lastKnownLangGraphStep = chunk.metadata.langgraph_step;
+        }
+
         if (
           chunk.name === 'Branch<agent>' &&
           chunk.event === 'on_chain_start'
@@ -469,17 +482,33 @@ export class SnakAgent extends BaseAgent {
       if (finalAnswer) {
         await this.saveIteration(finalAnswer);
       }
-      yield {
-        chunk: {
-          event: lastChunkToSave.event,
-          kwargs: {
-            iteration: lastChunkToSave,
+      
+      if (lastChunkToSave) {
+        yield {
+          chunk: {
+            event: lastChunkToSave.event,
+            kwargs: {
+              iteration: lastChunkToSave,
+            },
           },
-        },
-        iteration_number: iterationNumber,
-        langgraph_step: lastChunkToSave.metadata.langgraph_step,
-        final: true,
-      };
+          iteration_number: iterationNumber,
+          langgraph_step: lastChunkToSave.metadata.langgraph_step,
+          final: true,
+        };
+      } else {
+        // Fallback if no on_chain_end chunk was found
+        yield {
+          chunk: {
+            event: 'on_chain_end',
+            kwargs: {
+              iteration: { name: 'Branch<agent>', event: 'on_chain_end' },
+            },
+          },
+          iteration_number: iterationNumber,
+          langgraph_step: lastKnownLangGraphStep,
+          final: true,
+        };
+      }
       return;
     } catch (error) {
       logger.error('ExecuteAsyncGenerator failed:', error);
@@ -530,7 +559,7 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else {
-        return `The mode : ${this.currentMode} is not supported in this method.`;
+        throw new Error(`The mode : ${this.currentMode} is not supported in this method.`);
       }
     } catch (error) {
       logger.error('Execute failed:', error);
