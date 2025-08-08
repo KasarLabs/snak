@@ -1,3 +1,5 @@
+import { normalizeMemoryAndRag } from "config/agentConfig.js";
+
 // Mock external dependencies before imports
 const MockSystemMessage = jest.fn().mockImplementation((content) => ({
   content,
@@ -133,68 +135,6 @@ const createContextFromJson = (json: RawAgentConfig): string => {
   return contextParts.join('\n');
 };
 
-const buildSystemPrompt = (promptComponents: {
-  name?: string;
-  description?: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
-  mode?: AgentMode;
-}): string => {
-  const contextParts: string[] = [];
-
-  if (promptComponents.name) {
-    contextParts.push(`Your name : [${promptComponents.name}]`);
-  }
-  if (promptComponents.description) {
-    contextParts.push(`Your Description : [${promptComponents.description}]`);
-  }
-
-  addArrayPropertyToContext(contextParts, promptComponents.lore, 'lore', true);
-  addArrayPropertyToContext(contextParts, promptComponents.objectives, 'objectives', true);
-  addArrayPropertyToContext(contextParts, promptComponents.knowledge, 'knowledge', true);
-
-  return contextParts.join('\n');
-};
-
-const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
-  if (!config) {
-    throw new Error('Cannot copy null or undefined config');
-  }
-
-  const promptCopy = new SystemMessage(config.prompt.content as string);
-
-  const mcpServersCopy = config.mcpServers
-    ? JSON.parse(JSON.stringify(config.mcpServers))
-    : undefined;
-
-  const memoryCopy = config.memory
-    ? JSON.parse(JSON.stringify(config.memory))
-    : config.memory;
-
-  const ragCopy = config.rag
-    ? JSON.parse(JSON.stringify(config.rag))
-    : config.rag;
-
-  const configCopy = {
-    id: config.id,
-    group: config.group,
-    name: config.name,
-    description: config.description,
-    prompt: promptCopy,
-    interval: config.interval,
-    chatId: config.chatId,
-    plugins: [...config.plugins],
-    memory: memoryCopy,
-    rag: ragCopy,
-    mcpServers: mcpServersCopy,
-    mode: config.mode,
-    maxIterations: config.maxIterations,
-  };
-
-  return configCopy;
-};
-
 const parseAgentMode = (modeConfig: string | { mode?: string; maxIterations?: number; interactive?: boolean; autonomous?: boolean; hybrid?: boolean }): AgentMode => {
   if (typeof modeConfig === 'string') {
     const mode = modeConfig.toLowerCase();
@@ -234,13 +174,6 @@ const parseAgentMode = (modeConfig: string | { mode?: string; maxIterations?: nu
     `Could not determine agent mode - defaulting to "${AgentMode.INTERACTIVE}"`
   );
   return AgentMode.INTERACTIVE;
-};
-
-const normalizeMemoryAndRag = (memory: { enabled: boolean } | false, rag: { enabled?: boolean; embeddingModel?: string } | false) => {
-  const normalizedMemory = typeof memory === 'object' ? memory : { enabled: false };
-  const normalizedRag = typeof rag === 'object' ? rag : { enabled: false };
-  
-  return { memory: normalizedMemory, rag: normalizedRag };
 };
 
 const validateConfig = (config: AgentConfig) => {
