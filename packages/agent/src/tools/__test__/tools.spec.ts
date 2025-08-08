@@ -9,15 +9,18 @@ jest.mock(
       error: jest.fn(),
       debug: jest.fn(),
     },
-    metrics: {
-      metricsAgentToolUseCount: jest.fn(),
-    },
   }),
   { virtual: true }
 );
 
+jest.mock('@snakagent/metrics', () => ({
+  metrics: {
+    agentToolUseCount: jest.fn(),
+  },
+}), { virtual: true });
+
 // Mock plugins
-const mockPluginRegister = jest.fn(async (tools: StarknetTool[]) => {
+const mockPluginRegister = jest.fn(async (tools: StarknetTool[], agent: any) => {
   tools.push({
     name: 'mockTool',
     plugins: 'mock',
@@ -26,11 +29,12 @@ const mockPluginRegister = jest.fn(async (tools: StarknetTool[]) => {
   });
 });
 
+// Mock dynamic imports for plugins
 jest.mock('@snakagent/plugin-mock/dist/index.js', () => ({
   registerTools: mockPluginRegister,
 }), { virtual: true });
 
-const otherPluginRegister = jest.fn(async (tools: StarknetTool[]) => {
+const otherPluginRegister = jest.fn(async (tools: StarknetTool[], agent: any) => {
   tools.push({
     name: 'otherTool',
     plugins: 'other',
@@ -43,12 +47,21 @@ jest.mock('@snakagent/plugin-other/dist/index.js', () => ({
   registerTools: otherPluginRegister,
 }), { virtual: true });
 
+// Mock the dynamic import function
+jest.doMock('@snakagent/plugin-mock/dist/index.js', () => ({
+  registerTools: mockPluginRegister,
+}));
+
+jest.doMock('@snakagent/plugin-other/dist/index.js', () => ({
+  registerTools: otherPluginRegister,
+}));
+
 // Minimal agent stub
 const agentStub: SnakAgentInterface = {
   getAccountCredentials: () => ({ accountPublicKey: '0x0', accountPrivateKey: '0x1' }),
   getDatabaseCredentials: () => ({ user: '', password: '', host: '', port: 0, database: '' }),
   getProvider: () => ({} as any),
-  getAgentConfig: () => ({ name: 'agent' } as any),
+  getAgentConfig: () => ({ name: 'agent', id: 'test-agent', mode: 'interactive' } as any),
   getMemoryAgent: () => null,
   getRagAgent: () => null,
 };

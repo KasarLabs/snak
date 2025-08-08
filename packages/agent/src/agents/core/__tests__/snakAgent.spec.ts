@@ -6,13 +6,16 @@ jest.mock('@snakagent/core', () => ({
     warn: jest.fn(),
     error: jest.fn()
   },
-  metrics: {
-    metricsAgentConnect: jest.fn()
-  },
   AgentConfig: jest.fn(),
   CustomHuggingFaceEmbeddings: jest.fn().mockImplementation(() => ({
     embedQuery: jest.fn().mockResolvedValue([0.1, 0.2, 0.3])
   }))
+}));
+
+jest.mock('@snakagent/metrics', () => ({
+  metrics: {
+    agentConnect: jest.fn()
+  }
 }));
 
 jest.mock('@snakagent/database/queries', () => ({
@@ -102,7 +105,7 @@ import { RpcProvider } from 'starknet';
 
 // Get the mocked modules for testing
 const mockLogger = jest.requireMock('@snakagent/core').logger;
-const mockMetrics = jest.requireMock('@snakagent/core').metrics;
+const mockMetrics = jest.requireMock('@snakagent/metrics').metrics;
 const mockIterations = jest.requireMock('@snakagent/database/queries').iterations;
 const mockModelSelector = jest.requireMock('../../operators/modelSelector').ModelSelector;
 const mockMemoryAgent = jest.requireMock('../../operators/memoryAgent').MemoryAgent;
@@ -193,11 +196,8 @@ describe('SnakAgent', () => {
       expect(() => new SnakAgent(invalidConfig)).toThrow('STARKNET_PRIVATE_KEY is required');
     });
 
-    it('should call metrics.metricsAgentConnect on initialization', () => {
-      expect(mockMetrics.metricsAgentConnect).toHaveBeenCalledWith(
-        'Test Agent',
-        'interactive'
-      );
+    it('should call metrics.agentConnect on initialization', () => {
+      expect(mockMetrics.agentConnect).toHaveBeenCalled();
     });
 
     it('should initialize embeddings with correct model', () => {

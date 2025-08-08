@@ -58,10 +58,6 @@ export const logger = {
   info: (..._args: any[]) => {},
 };
 
-export const metrics = {
-  metricsAgentToolUseCount: (..._args: any[]) => {},
-};
-
 // Mock CustomHuggingFaceEmbeddings for tests
 export class CustomHuggingFaceEmbeddings {
   constructor(fields?: any) {
