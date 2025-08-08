@@ -1,6 +1,11 @@
 import { MessageContent } from '@langchain/core/messages';
 import { AgentConfig } from '@snakagent/core';
-import { StepInfo } from 'agents/modes/interactive.js';
+
+interface StepInfo {
+  stepNumber: number;
+  stepName: string;
+  status: string;
+}
 
 export * from './agentSelectorPrompts.js';
 export * from './configAgentPrompts.js';
@@ -31,7 +36,7 @@ export const autonomousRules = `
     6. Never stop calling tools event if you aldreay called this tools in the past.
 `;
 export const hybridRules = `
-    You are now operating in HYBRID testMODE. This means:
+    You are now operating in HYBRID MODE. This means:
     
     0. You need to execute the 6th rules the most of the time(WAITING_FOR_HUMAN_INPUT).
     1. You can work autonomously to complete tasks step by step.

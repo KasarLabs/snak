@@ -5,7 +5,7 @@ import { logger } from '@snakagent/core';
  * Registry for managing available operator agents
  */
 export class OperatorRegistry {
-  private static instance: OperatorRegistry;
+  private static instance: OperatorRegistry | undefined;
   private registry: Map<string, IAgent> = new Map();
 
   private constructor() {}
@@ -15,6 +15,16 @@ export class OperatorRegistry {
       OperatorRegistry.instance = new OperatorRegistry();
     }
     return OperatorRegistry.instance;
+  }
+
+  /**
+   * Reset the singleton instance for testing purposes
+   * Only works when NODE_ENV is 'test'
+   */
+  public static resetForTesting(): void {
+    if (process.env.NODE_ENV === 'test') {
+      OperatorRegistry.instance = undefined;
+    }
   }
 
   /**

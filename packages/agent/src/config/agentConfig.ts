@@ -166,6 +166,13 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
   return configCopy;
 };
 
+const normalizeMemoryAndRag = (memory: any, rag: any) => {
+  const normalizedMemory = typeof memory === 'object' && memory !== null ? memory : { enabled: false };
+  const normalizedRag = typeof rag === 'object' && rag !== null ? rag : { enabled: false };
+  
+  return { memory: normalizedMemory, rag: normalizedRag };
+};
+
 /**
  * Parses agent mode from various input formats
  * @param modeConfig - Mode configuration (string or object)
@@ -275,7 +282,7 @@ export const validateConfig = (config: AgentConfig) => {
     }
   }
 
-  if (config.rag) {
+  if (config.rag && typeof config.rag === 'object') {
     if (
       config.rag.enabled !== undefined &&
       typeof config.rag.enabled !== 'boolean'
@@ -362,6 +369,8 @@ const checkParseJson = async (
       );
     }
 
+    const { memory, rag } = normalizeMemoryAndRag(json.memory || false, json.rag || false);
+    
     const agentConfig: AgentConfig = {
       id: uuidv4(),
       name: json.name,
@@ -373,8 +382,8 @@ const checkParseJson = async (
       plugins: Array.isArray(json.plugins)
         ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
-      memory: json.memory || false,
-      rag: json.rag || false,
+      memory,
+      rag,
       mcpServers: json.mcpServers || {},
       maxIterations:
         typeof json.maxIterations === 'number'

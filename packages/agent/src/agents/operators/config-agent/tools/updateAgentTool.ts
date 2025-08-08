@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
+import { normalizeNumericValues } from './normalizeAgentValues.js';
 
 const UpdateAgentSchema = z.object({
   identifier: z
@@ -72,6 +73,16 @@ const UpdateAgentSchema = z.object({
         .optional()
         .nullable()
         .describe('New plugins list'),
+      memory: z
+        .any()
+        .optional()
+        .nullable()
+        .describe('New memory configuration object'),
+      rag: z
+        .any()
+        .optional()
+        .nullable()
+        .describe('New RAG configuration object'),
       mode: z
         .string()
         .optional()
@@ -96,10 +107,16 @@ export const updateAgentTool = new DynamicStructuredTool({
       // First, find the agent
       let findQuery: Postgres.Query;
       const searchBy = input.searchBy || 'name';
+      
       if (searchBy === 'id') {
-        findQuery = new Postgres.Query('SELECT * FROM agents WHERE id = $1', [
-          input.identifier,
-        ]);
+        const id = parseInt(input.identifier);
+        if (isNaN(id)) {
+          return JSON.stringify({
+            success: false,
+            message: `Invalid ID format: ${input.identifier}`,
+          });
+        }
+        findQuery = new Postgres.Query('SELECT * FROM agents WHERE id = $1', [id]);
       } else {
         findQuery = new Postgres.Query('SELECT * FROM agents WHERE name = $1', [
           input.identifier,
@@ -117,13 +134,14 @@ export const updateAgentTool = new DynamicStructuredTool({
       const agent = existingAgent[0];
       const updates = input.updates;
 
-      // Build dynamic update query
+      const { normalizedConfig: normalizedUpdates, appliedDefaults } = normalizeNumericValues(updates);
+
       const updateFields: string[] = [];
       const updateValues: any[] = [];
       let paramIndex = 1;
 
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value !== undefined) {
+      Object.entries(normalizedUpdates).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
           updateFields.push(`"${key}" = $${paramIndex}`);
           updateValues.push(value);
           paramIndex++;
@@ -137,9 +155,17 @@ export const updateAgentTool = new DynamicStructuredTool({
         });
       }
 
-      updateValues.push(agent.id);
+      let whereClause: string;
+      if (searchBy === 'id') {
+        whereClause = `WHERE id = $${paramIndex}`;
+        updateValues.push(parseInt(input.identifier));
+      } else {
+        whereClause = `WHERE name = $${paramIndex}`;
+        updateValues.push(input.identifier);
+      }
+
       const updateQuery = new Postgres.Query(
-        `UPDATE agents SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        `UPDATE agents SET ${updateFields.join(', ')} ${whereClause} RETURNING *`,
         updateValues
       );
 
@@ -147,9 +173,15 @@ export const updateAgentTool = new DynamicStructuredTool({
 
       if (result.length > 0) {
         logger.info(`Updated agent "${agent.name}" successfully`);
+        
+        let message = `Agent "${agent.name}" updated successfully`;
+        if (appliedDefaults.length > 0) {
+          message += `. Note: ${appliedDefaults.join('; ')}`;
+        }
+        
         return JSON.stringify({
           success: true,
-          message: `Agent "${agent.name}" updated successfully`,
+          message: message,
           data: result[0],
         });
       } else {
