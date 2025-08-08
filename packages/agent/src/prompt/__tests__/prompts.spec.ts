@@ -5,9 +5,10 @@ const MockSystemMessage = jest.fn().mockImplementation((content: string) => ({
   toString: () => content,
 }));
 
-jest.mock('@langchain/core/messages', () => ({
-  SystemMessage: MockSystemMessage,
-}));
+jest.mock('@langchain/core/messages', () => {
+  const actual = jest.requireActual('@langchain/core/messages');
+  return { ...actual, SystemMessage: MockSystemMessage };
+});
 
 jest.mock('@snakagent/core', () => ({
   AgentConfig: jest.fn(),

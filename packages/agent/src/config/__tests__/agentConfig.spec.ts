@@ -45,10 +45,52 @@ const mockFs = require('fs/promises');
 const { logger } = require('@snakagent/core');
 const { SystemMessage } = require('@langchain/core/messages');
 
+// Type for agent prompt messages
+type AgentPromptMessage = typeof SystemMessage | { type: 'system'; content: string };
+
 enum AgentMode {
   INTERACTIVE = 'interactive',
   AUTONOMOUS = 'autonomous',
   HYBRID = 'hybrid',
+}
+
+interface McpServerConfig {
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
+interface RawAgentConfig {
+  name?: string;
+  group?: string;
+  description?: string;
+  lore?: string[];
+  objectives?: string[];
+  knowledge?: string[];
+  interval?: number;
+  chatId?: string;
+  plugins?: string[];
+  memory?: { enabled: boolean };
+  rag?: { enabled?: boolean; embeddingModel?: string };
+  mcpServers?: Record<string, McpServerConfig>;
+  mode?: string | { mode?: string; maxIterations?: number; interactive?: boolean; autonomous?: boolean; hybrid?: boolean };
+  maxIterations?: number;
+}
+
+interface AgentConfig {
+  id: string;
+  name?: string;
+  group?: string;
+  description?: string;
+  interval?: number;
+  chatId?: string;
+  plugins: string[];
+  memory: { enabled: boolean };
+  rag: { enabled?: boolean; embeddingModel?: string };
+  mcpServers: Record<string, McpServerConfig>;
+  mode: AgentMode;
+  maxIterations: number;
+  prompt: AgentPromptMessage;
 }
 
 const AGENT_MODES = {
@@ -57,7 +99,18 @@ const AGENT_MODES = {
   [AgentMode.INTERACTIVE]: 'interactive',
 };
 
-const createContextFromJson = (json: any): string => {
+const addArrayPropertyToContext = (
+  contextParts: string[],
+  property: unknown,
+  label: string,
+  requireNonEmpty: boolean = false
+): void => {
+  if (Array.isArray(property) && (!requireNonEmpty || property.length > 0)) {
+    contextParts.push(`Your ${label} : [${property.join(']\n[')}]`);
+  }
+};
+
+const createContextFromJson = (json: RawAgentConfig): string => {
   if (!json) {
     throw new Error(
       'Error while trying to parse your context from the config file.'
@@ -73,17 +126,9 @@ const createContextFromJson = (json: any): string => {
     contextParts.push(`Your Description : [${json.description}]`);
   }
 
-  if (Array.isArray(json.lore)) {
-    contextParts.push(`Your lore : [${json.lore.join(']\n[')}]`);
-  }
-
-  if (Array.isArray(json.objectives)) {
-    contextParts.push(`Your objectives : [${json.objectives.join(']\n[')}]`);
-  }
-
-  if (Array.isArray(json.knowledge)) {
-    contextParts.push(`Your knowledge : [${json.knowledge.join(']\n[')}]`);
-  }
+  addArrayPropertyToContext(contextParts, json.lore, 'lore');
+  addArrayPropertyToContext(contextParts, json.objectives, 'objectives');
+  addArrayPropertyToContext(contextParts, json.knowledge, 'knowledge');
 
   return contextParts.join('\n');
 };
@@ -105,35 +150,14 @@ const buildSystemPrompt = (promptComponents: {
     contextParts.push(`Your Description : [${promptComponents.description}]`);
   }
 
-  if (
-    Array.isArray(promptComponents.lore) &&
-    promptComponents.lore.length > 0
-  ) {
-    contextParts.push(`Your lore : [${promptComponents.lore.join(']\n[')}]`);
-  }
-
-  if (
-    Array.isArray(promptComponents.objectives) &&
-    promptComponents.objectives.length > 0
-  ) {
-    contextParts.push(
-      `Your objectives : [${promptComponents.objectives.join(']\n[')}]`
-    );
-  }
-
-  if (
-    Array.isArray(promptComponents.knowledge) &&
-    promptComponents.knowledge.length > 0
-  ) {
-    contextParts.push(
-      `Your knowledge : [${promptComponents.knowledge.join(']\n[')}]`
-    );
-  }
+  addArrayPropertyToContext(contextParts, promptComponents.lore, 'lore', true);
+  addArrayPropertyToContext(contextParts, promptComponents.objectives, 'objectives', true);
+  addArrayPropertyToContext(contextParts, promptComponents.knowledge, 'knowledge', true);
 
   return contextParts.join('\n');
 };
 
-const deepCopyAgentConfig = (config: any): any => {
+const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
   if (!config) {
     throw new Error('Cannot copy null or undefined config');
   }
@@ -171,7 +195,7 @@ const deepCopyAgentConfig = (config: any): any => {
   return configCopy;
 };
 
-const parseAgentMode = (modeConfig: any): AgentMode => {
+const parseAgentMode = (modeConfig: string | { mode?: string; maxIterations?: number; interactive?: boolean; autonomous?: boolean; hybrid?: boolean }): AgentMode => {
   if (typeof modeConfig === 'string') {
     const mode = modeConfig.toLowerCase();
     if (Object.values(AgentMode).includes(mode as AgentMode)) {
@@ -212,7 +236,7 @@ const parseAgentMode = (modeConfig: any): AgentMode => {
   return AgentMode.INTERACTIVE;
 };
 
-const validateConfig = (config: any) => {
+const validateConfig = (config: AgentConfig) => {
   const requiredFields = [
     'name',
     'interval',
@@ -229,7 +253,7 @@ const validateConfig = (config: any) => {
   }
 
   if (!(config.prompt instanceof SystemMessage) && !(config.prompt && config.prompt.type === 'system')) {
-    throw new Error('prompt must be an instance of SystemMessage');
+    throw new Error('prompt must be a SystemMessage-compatible object');
   }
 
   if (!Object.values(AgentMode).includes(config.mode)) {
@@ -252,7 +276,7 @@ const validateConfig = (config: any) => {
     for (const [serverName, serverConfig] of Object.entries(
       config.mcpServers
     )) {
-      const server = serverConfig as any;
+      const server = serverConfig as McpServerConfig;
       if (!server.command || typeof server.command !== 'string') {
         throw new Error(
           `mcpServers.${serverName} must have a valid command string`
@@ -287,7 +311,7 @@ const validateConfig = (config: any) => {
   }
 };
 
-const load_json_config = async (agent_config_name: string): Promise<any> => {
+const load_json_config = async (agent_config_name: string): Promise<AgentConfig> => {
   try {
     await mockFs.access(agent_config_name);
     
@@ -295,9 +319,6 @@ const load_json_config = async (agent_config_name: string): Promise<any> => {
     
     // Parse JSON content
     const json = JSON.parse(fileContent);
-    if (!json) {
-      throw new Error('Failed to parse JSON');
-    }
     if (!json) {
       throw new Error('Failed to parse JSON');
     }
