@@ -46,7 +46,7 @@ const { logger } = require('@snakagent/core');
 const { SystemMessage } = require('@langchain/core/messages');
 
 // Type for agent prompt messages
-type AgentPromptMessage = typeof SystemMessage | { type: 'system'; content: string };
+type AgentPromptMessage = InstanceType<typeof SystemMessage> | { type: 'system'; content: string };
 
 enum AgentMode {
   INTERACTIVE = 'interactive',
@@ -236,6 +236,13 @@ const parseAgentMode = (modeConfig: string | { mode?: string; maxIterations?: nu
   return AgentMode.INTERACTIVE;
 };
 
+const normalizeMemoryAndRag = (memory: { enabled: boolean } | false, rag: { enabled?: boolean; embeddingModel?: string } | false) => {
+  const normalizedMemory = typeof memory === 'object' ? memory : { enabled: false };
+  const normalizedRag = typeof rag === 'object' ? rag : { enabled: false };
+  
+  return { memory: normalizedMemory, rag: normalizedRag };
+};
+
 const validateConfig = (config: AgentConfig) => {
   const requiredFields = [
     'name',
@@ -333,6 +340,8 @@ const load_json_config = async (agent_config_name: string): Promise<AgentConfig>
       );
     }
 
+    const { memory, rag } = normalizeMemoryAndRag(json.memory || false, json.rag || false);
+    
     const agentConfig = {
       id: 'test-uuid-123',
       name: json.name,
@@ -344,8 +353,8 @@ const load_json_config = async (agent_config_name: string): Promise<AgentConfig>
       plugins: Array.isArray(json.plugins)
         ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
-      memory: json.memory || false,
-      rag: json.rag || false,
+      memory,
+      rag,
       mcpServers: json.mcpServers || {},
       maxIterations:
         typeof json.maxIterations === 'number'
