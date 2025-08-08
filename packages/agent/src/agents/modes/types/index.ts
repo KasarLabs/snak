@@ -26,6 +26,7 @@ export interface StepInfo {
       description: string;
       required: string;
       expected_result: string;
+      result: string;
     },
   ];
   result: {
@@ -33,6 +34,11 @@ export interface StepInfo {
     tokens: number;
   };
   status: 'pending' | 'completed' | 'failed';
+}
+
+export interface validatorResponse {
+  success: boolean;
+  results: string[];
 }
 
 export interface ParsedPlan {

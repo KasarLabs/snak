@@ -18,7 +18,8 @@ import {
 } from './snakAgent.js';
 import { BaseMessage, ToolMessage } from '@langchain/core/messages';
 import { AnyZodObject } from 'zod';
-import { ParsedPlan, StepInfo } from 'agents/modes/types/index.js';
+import { ParsedPlan, StepInfo } from '../../agents/modes/types/index.js';
+import { estimateTokens } from '../../agents/modes/utils.js';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
@@ -231,9 +232,12 @@ export function truncateToolResults(
     );
     tool_message.content = content;
     if (currentStep.result) {
-      currentStep.result = currentStep.result.concat(content);
+      currentStep.result.content = currentStep.result.content.concat(content);
     } else {
-      currentStep.result = content;
+      currentStep.result = {
+        content: content,
+        tokens: estimateTokens(content),
+      };
     }
   }
   logger.debug(`ToolMessage Result : ${currentStep.result}`);

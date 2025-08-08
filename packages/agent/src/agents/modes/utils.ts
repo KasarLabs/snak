@@ -17,6 +17,91 @@ import {
 } from './types/index.js';
 import { logger } from '@snakagent/core';
 import { z } from 'zod';
+import { Tool } from '@langchain/core/tools';
+
+export const tools_call = z.object({
+  description: z
+    .string()
+    .describe(
+      'Tool execution details: what it does, parameters used, and configuration'
+    ),
+  required: z
+    .string()
+    .describe(
+      'Required inputs and their sources (e.g., "user query, step 2 filters")'
+    ),
+  expected_result: z.string().describe('Expected output data.'),
+  result: z.string().describe('should be empty'),
+});
+
+export const resultSchema = z.object({
+  content: z
+    .string()
+    .describe(
+      'Output content placeholder - empty during planning, populated during execution'
+    )
+    .default(''),
+  token: z
+    .number()
+    .describe('Ouput Token Count - empty during planning')
+    .default(0),
+});
+
+export const StepInfoSchema = z.object({
+  stepNumber: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .describe('Execution order (1-100)'),
+  stepName: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe('Action-oriented step title under 200 chars'),
+  description: z
+    .string()
+    .describe(
+      'Full step details: objective, inputs/sources, methodology, outputs, success criteria'
+    ),
+  type: z
+    .enum(['tools', 'message', 'human_in_the_loop'])
+    .describe(
+      'Step type: tools (automated), message (AI processing), human_in_the_loop (human input)'
+    ),
+
+  tools: z
+    .array(tools_call)
+    .optional()
+    .describe(
+      'Parallel tool executions (only for type="tools"). Must be independent'
+    ),
+  status: z
+    .enum(['pending', 'completed', 'failed'])
+    .default('pending')
+    .describe('Execution state of this step'),
+  result: resultSchema
+    .describe(
+      'Output placeholder - empty during planning, populated during execution'
+    )
+    .default({ content: '', token: 0 }),
+});
+
+export const PlanSchema = z.object({
+  steps: z
+    .array(StepInfoSchema)
+    .min(1)
+    .max(20)
+    .describe('Executable workflow steps (1-20) with clear dependencies'),
+  summary: z
+    .string()
+    .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
+});
+
+export const ValidatorResponseSchema = z.object({
+  success: z.boolean().describe('true if sucess | false if failure'),
+  results: z.array(z.string()).describe('The results of the validator'),
+});
 
 // --- Format Functions ---
 export function formatParsedPlanSimple(plan: ParsedPlan): string {
@@ -24,9 +109,22 @@ export function formatParsedPlanSimple(plan: ParsedPlan): string {
   formatted += `Steps (${plan.steps.length} total):\n`;
 
   plan.steps.forEach((step) => {
-    const status =
-      step.status === 'completed' ? '✓' : step.status === 'failed' ? '✗' : '○';
-    formatted += `${status} ${step.stepNumber}. ${step.stepName} - ${step.description}\n`;
+    // Format principal de l'étape
+    formatted += `${step.stepNumber}. ${step.stepName} [${step.type}] - ${step.status}\n`;
+    formatted += `   Description: ${step.description}\n`;
+
+    // Si c'est une étape tools, afficher les détails des outils
+    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+      formatted += `   Tools:\n`;
+      step.tools.forEach((tool, index) => {
+        formatted += `   - Tool ${index + 1}:\n`;
+        formatted += `     • Description: ${tool.description}\n`;
+        formatted += `     • Required: ${tool.required}\n`;
+        formatted += `     • Expected Result: ${tool.expected_result}\n`;
+      });
+    }
+
+    formatted += '\n';
   });
 
   return formatted;
@@ -226,93 +324,124 @@ export function calculateTotalTokenFromSteps(steps: StepInfo[]): number {
   }
 }
 
-export function generateShortTermMemoryMesage(plan: ParsedPlan): string {
+export function formatShortMemoryMessage(plan: ParsedPlan): string {
   try {
-    const result = plan.steps.map((s: StepInfo) => {
-      if (s.status != 'completed') {
-        return "";
-      }
-      `Q:`
-    });
+    const result = plan.steps
+      .map((step: StepInfo) => {
+        if (step.status != 'completed') {
+          return '';
+        }
+        const format_response: string[] = [];
+        format_response.push(`Q: [STEP_${step.stepNumber}] ${step.stepName}`);
+        format_response.push(`Type: ${step.type}`);
+        format_response.push(`Description : ${step.description}`);
+        if (step.type === 'tools') {
+          if (step.tools && step.tools.length > 0) {
+            step.tools.forEach((tool, index) => {
+              const tool_desc: string = `Tools Description: [TOOLS_${index}] ${tool.description}`;
+              format_response.push(tool_desc);
+              const tool_result: string = `Tools Result : ${tool.result}`;
+              format_response.push(tool_result);
+            });
+          }
+        } else {
+          const tool_result: string = `Message Result : ${step.result}`;
+          format_response.push(tool_result);
+        }
+        return format_response;
+      })
+      .concat()
+      .join('\n');
+    return result;
   } catch (error) {
     throw error;
   }
 }
 
-export const tools_call = z.object({
-  description: z
-    .string()
-    .describe(
-      'Tool execution details: what it does, parameters used, and configuration'
-    ),
-  required: z
-    .string()
-    .describe(
-      'Required inputs and their sources (e.g., "user query, step 2 filters")'
-    ),
-  expected_result: z.string().describe('Expected output data.'),
-});
+export function formatExecutionMessage(step: StepInfo): string {
+  try {
+    const format_response: string[] = [];
+    format_response.push(`Q: [STEP_${step.stepNumber}] ${step.stepName}`);
+    format_response.push(`Type: ${step.type}`);
+    format_response.push(`Description : ${step.description}`);
+    if (step.type === 'tools') {
+      if (step.tools && step.tools.length > 0) {
+        step.tools.forEach((tool, index) => {
+          const tool_desc: string = `Tools Description: [TOOLS_${index}] ${tool.description}`;
+          format_response.push(tool_desc);
+          const tool_required = `Tools Required Input: ${tool.required}`;
+          format_response.push(tool_required);
+          const tool_result = `Tool Exepected Result: ${tool.expected_result}`;
+          format_response.push(tool_result);
+        });
+      }
+    }
+    return format_response.join('\n');
+  } catch (error) {
+    throw new error();
+  }
+}
 
-export const resultSchema = z.object({
-  content: z
-    .string()
-    .describe(
-      'Output content placeholder - empty during planning, populated during execution'
-    )
-    .default(''),
-  token: z
-    .number()
-    .describe('Ouput Token Count - empty during planning')
-    .default(0),
-});
+export function formatToolResponse(
+  messages: ToolMessage | ToolMessage[],
+  step: StepInfo
+): StepInfo {
+  try {
+    console.log(messages);
+    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+      if (!Array.isArray(messages)) {
+        step.tools[0].result = `tool_name: ${messages.name}, tool_call_id : ${messages.id}, raw_result : ${messages.content.toLocaleString()}`;
+      } else {
+        if (step.tools && step.tools.length > 0) {
+          messages.forEach((msg: ToolMessage, index: number) => {
+            if (step.tools && step.tools[index]) {
+              step.tools[index].result =
+                `tool_name: ${msg.name}, tool_call_id : ${msg.id}, raw_result : ${msg.content.toLocaleString()}`;
+            }
+          });
+        }
+      }
+      console.log(step);
+      return step;
+    } else {
+      throw new Error('Wrong Message Tool to format!');
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+export function formatValidatorToolsExecutor(step: StepInfo): string {
+  try {
+    const format_response: string[] = [];
 
-export const StepInfoSchema = z.object({
-  stepNumber: z
-    .number()
-    .int()
-    .min(1)
-    .max(100)
-    .describe('Execution order (1-100)'),
-  stepName: z
-    .string()
-    .min(1)
-    .max(200)
-    .describe('Action-oriented step title under 200 chars'),
-  description: z
-    .string()
-    .describe(
-      'Full step details: objective, inputs/sources, methodology, outputs, success criteria'
-    ),
-  type: z
-    .enum(['tools', 'message', 'human_in_the_loop'])
-    .describe(
-      'Step type: tools (automated), message (AI processing), human_in_the_loop (human input)'
-    ),
+    // Header section
+    format_response.push(`Q: [STEP_${step.stepNumber}] ${step.stepName}`);
+    format_response.push(`Type: ${step.type}`);
+    format_response.push(`Description: ${step.description}`);
 
-  tools: z
-    .array(tools_call)
-    .optional()
-    .describe(
-      'Parallel tool executions (only for type="tools"). Must be independent'
-    ),
-  status: z
-    .enum(['pending', 'completed', 'failed'])
-    .default('pending')
-    .describe('Execution state of this step'),
-  result: resultSchema
-    .describe(
-      'Output placeholder - empty during planning, populated during execution'
-    )
-    .default({ content: '', token: 0 }),
-});
+    if (step.type === 'tools') {
+      if (step.tools && step.tools.length > 0) {
+        // Tools requirements section
+        format_response.push(`\n=== TOOLS REQUIREMENTS ===`);
 
-export const PlanSchema = z.object({
-  steps: z
-    .array(StepInfoSchema)
-    .min(1)
-    .max(20)
-    .describe('Executable workflow steps (1-20) with clear dependencies'),
-  summary: z
-    .string()
-    .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
-});
+        step.tools.forEach((tool, index) => {
+          format_response.push(`\n[TOOL_${index}]`);
+          format_response.push(`Description: ${tool.description}`);
+          format_response.push(
+            `Required Input: ${tool.required || '<NO INPUT REQUIRED>'}`
+          );
+          format_response.push(`Expected Result: ${tool.expected_result}`);
+        });
+
+        // Actual response section
+        format_response.push(`\n=== ACTUAL RESPONSE ===`);
+        format_response.push(step.result.content);
+      }
+    }
+
+    console.log(format_response.join('\n'));
+    return format_response.join('\n');
+  } catch (error) {
+    throw error;
+  }
+}
