@@ -52,3 +52,6 @@ plugins/scarb/src/workspace/
 # Database
 packages/database/data
 packages/database/data/pg_wal/
+
+# LangGraph API
+.langgraph_api

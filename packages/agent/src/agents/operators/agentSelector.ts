@@ -1,7 +1,7 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { ModelSelector } from './modelSelector.js';
-import { SnakAgent } from '../core/snakAgent.js';
+import { SnakAgent } from 'agents/core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../prompt/prompts.js';
 
 export interface AgentInfo {
@@ -76,10 +76,11 @@ export class AgentSelector extends BaseAgent {
   public async execute(input: string): Promise<SnakAgent> {
     try {
       const model = this.modelSelector.getModels()['fast'];
-      console.log('AgentSelector model:', this.modelSelector.getModels());
+      logger.info('AgentSelector model:', this.modelSelector.getModels());
       const result = await model.invoke(
         agentSelectorPromptContent(this.agentInfo, input)
       );
+      logger.debug('AgentSelector result:', result);
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
         const agent = Array.from(this.availableAgents.values()).find(
@@ -98,10 +99,7 @@ export class AgentSelector extends BaseAgent {
         throw new Error('AgentSelector did not return a valid string response');
       }
     } catch (error) {
-      logger.error('AgentSelector execution failed:', error);
-      throw new Error(
-        `AgentSelector execution failed: ${error instanceof Error ? error.message : String(error)}`
-      );
+      throw new Error('AgentSelector execution failed: ' + error.message);
     }
   }
 }
