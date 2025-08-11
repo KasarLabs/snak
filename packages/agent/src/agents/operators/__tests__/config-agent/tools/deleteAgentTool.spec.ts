@@ -36,7 +36,7 @@ describe('deleteAgentTool', () => {
     mockLogger.info.mockClear();
     
     // Configure Postgres.Query to return a mock query object
-    mockPostgres.Query.mockImplementation((query: string, params: any[]) => {
+    mockPostgres.Query.mockImplementation((query: string, params: unknown[]) => {
       return { query, params };
     });
   });

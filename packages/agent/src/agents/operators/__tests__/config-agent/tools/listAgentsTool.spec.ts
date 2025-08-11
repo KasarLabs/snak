@@ -29,12 +29,6 @@ describe('listAgentsTool', () => {
     mockPostgres = jest.mocked(Postgres);
     mockLogger = jest.mocked(logger);
     
-    // Reset mock implementations
-    mockPostgres.Query.mockClear();
-    mockPostgres.query.mockClear();
-    mockLogger.error.mockClear();
-    mockLogger.info.mockClear();
-    
     // Configure Postgres.Query to return a mock query object
     mockPostgres.Query.mockImplementation((query: string, params: unknown[]) => {
       return { query, params };
