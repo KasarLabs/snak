@@ -49,7 +49,10 @@ const { CustomHuggingFaceEmbeddings: MockEmbeddings } = jest.requireMock('@snaka
 
 describe('RagAgent', () => {
   let ragAgent: RagAgent;
-  let mockEmbeddings: any;
+  interface MockEmbeddings {
+    embedQuery: jest.Mock<Promise<number[]>, [string]>;
+  }
+  let mockEmbeddings: MockEmbeddings;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -410,34 +413,34 @@ describe('RagAgent', () => {
       process.env = originalEnv;
     });
 
-    it('should use default similarity threshold when env var is not set', () => {
+    it('should use default similarity threshold when env var is not set', async () => {
       delete process.env.RAG_SIMILARITY_THRESHOLD;
       
       // Re-import to trigger the threshold calculation
       jest.resetModules();
-      const { RagAgent } = require('../ragAgent.js');
+      const { RagAgent } = await import('../ragAgent.js');
       
       const agent = new RagAgent();
       expect(agent).toBeDefined();
     });
 
-    it('should use custom similarity threshold from env var', () => {
+    it('should use custom similarity threshold from env var', async () => {
       process.env.RAG_SIMILARITY_THRESHOLD = '0.7';
       
       // Re-import to trigger the threshold calculation
       jest.resetModules();
-      const { RagAgent } = require('../ragAgent.js');
+      const { RagAgent } = await import('../ragAgent.js');
       
       const agent = new RagAgent();
       expect(agent).toBeDefined();
     });
 
-    it('should handle invalid similarity threshold gracefully', () => {
+    it('should handle invalid similarity threshold gracefully', async () => {
       process.env.RAG_SIMILARITY_THRESHOLD = 'invalid';
       
       // Re-import to trigger the threshold calculation
       jest.resetModules();
-      const { RagAgent } = require('../ragAgent.js');
+      const { RagAgent } = await import('../ragAgent.js');
       
       const agent = new RagAgent();
       expect(agent).toBeDefined();

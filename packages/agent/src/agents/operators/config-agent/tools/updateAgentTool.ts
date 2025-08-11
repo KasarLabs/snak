@@ -74,12 +74,12 @@ const UpdateAgentSchema = z.object({
         .nullable()
         .describe('New plugins list'),
       memory: z
-        .any()
+        .unknown()
         .optional()
         .nullable()
         .describe('New memory configuration object'),
       rag: z
-        .any()
+        .unknown()
         .optional()
         .nullable()
         .describe('New RAG configuration object'),
@@ -134,7 +134,7 @@ export const updateAgentTool = new DynamicStructuredTool({
       const agent = existingAgent[0];
       const updates = input.updates;
 
-      const { normalizedConfig: normalizedUpdates, appliedDefaults } = normalizeNumericValues(updates);
+      const { normalizedConfig: normalizedUpdates, appliedDefaults } = normalizeNumericValues(updates as AgentConfig);
 
       const updateFields: string[] = [];
       const updateValues: any[] = [];
