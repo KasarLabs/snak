@@ -25,26 +25,30 @@ describe('readAgentTool', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockPostgres = jest.mocked(Postgres);
     mockLogger = jest.mocked(logger);
-    
+
     // Reset mock implementations
     mockPostgres.Query.mockClear();
     mockPostgres.query.mockClear();
     mockLogger.error.mockClear();
     mockLogger.info.mockClear();
-    
+
     // Configure Postgres.Query to return a mock query object
-    mockPostgres.Query.mockImplementation((query: string, params: unknown[]) => {
-      return { query, params };
-    });
+    mockPostgres.Query.mockImplementation(
+      (query: string, params: unknown[]) => {
+        return { query, params };
+      }
+    );
   });
 
   describe('tool configuration', () => {
     it('should have correct name and description', () => {
       expect(readAgentTool.name).toBe('read_agent');
-      expect(readAgentTool.description).toContain('Get/retrieve/show/view/find details');
+      expect(readAgentTool.description).toContain(
+        'Get/retrieve/show/view/find details'
+      );
     });
 
     it('should have proper schema validation', () => {
@@ -56,10 +60,10 @@ describe('readAgentTool', () => {
 
     it('should validate schema structure', () => {
       const schema = readAgentTool.schema;
-      
+
       // Identifier should be required
       expect(schema.shape.identifier._def.typeName).toBe('ZodString');
-      
+
       // SearchBy should be optional with nullable
       expect(schema.shape.searchBy._def.typeName).toBe('ZodNullable');
     });
@@ -72,17 +76,34 @@ describe('readAgentTool', () => {
 
     it('should validate searchBy enum values correctly', () => {
       const schema = readAgentTool.schema;
-      
+
       // Valid values should pass
-      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 'name' })).not.toThrow();
-      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 'id' })).not.toThrow();
-      expect(() => schema.parse({ identifier: 'test-agent', searchBy: null })).not.toThrow();
-      expect(() => schema.parse({ identifier: 'test-agent', searchBy: undefined })).not.toThrow();
-      
+      expect(() =>
+        schema.parse({ identifier: 'test-agent', searchBy: 'name' })
+      ).not.toThrow();
+      expect(() =>
+        schema.parse({ identifier: 'test-agent', searchBy: 'id' })
+      ).not.toThrow();
+      expect(() =>
+        schema.parse({ identifier: 'test-agent', searchBy: null })
+      ).not.toThrow();
+      expect(() =>
+        schema.parse({ identifier: 'test-agent', searchBy: undefined })
+      ).not.toThrow();
+
       // Invalid values should fail
-      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 'invalid_type' as any })).toThrow();
-      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 123 as any })).toThrow();
-      expect(() => schema.parse({ identifier: 'test-agent', searchBy: {} as any })).toThrow();
+      expect(() =>
+        schema.parse({
+          identifier: 'test-agent',
+          searchBy: 'invalid_type' as any,
+        })
+      ).toThrow();
+      expect(() =>
+        schema.parse({ identifier: 'test-agent', searchBy: 123 as any })
+      ).toThrow();
+      expect(() =>
+        schema.parse({ identifier: 'test-agent', searchBy: {} as any })
+      ).toThrow();
     });
   });
 
@@ -104,12 +125,12 @@ describe('readAgentTool', () => {
         mode: 'interactive',
         max_iterations: 10,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
         identifier: 'test-agent',
-        searchBy: 'name'
+        searchBy: 'name',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -117,10 +138,12 @@ describe('readAgentTool', () => {
         ['test-agent']
       );
       expect(mockPostgres.query).toHaveBeenCalled();
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe('Agent configuration retrieved successfully');
+      expect(parsedResult.message).toBe(
+        'Agent configuration retrieved successfully'
+      );
       expect(parsedResult.data).toEqual(mockAgent);
     });
 
@@ -131,19 +154,19 @@ describe('readAgentTool', () => {
         description: 'Test agent description',
         group: 'trading',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
         identifier: '1',
-        searchBy: 'id'
+        searchBy: 'id',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE id = $1',
         ['1']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgent);
@@ -155,18 +178,18 @@ describe('readAgentTool', () => {
         name: 'test-agent',
         description: 'Test agent description',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
-        identifier: 'test-agent'
+        identifier: 'test-agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['test-agent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -188,18 +211,18 @@ describe('readAgentTool', () => {
         mode: null,
         max_iterations: null,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
-        identifier: 'minimal-agent'
+        identifier: 'minimal-agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['minimal-agent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgent);
@@ -222,18 +245,18 @@ describe('readAgentTool', () => {
           customConfig: { threshold: 0.8, maxResults: 100 },
         },
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
-        identifier: 'complex-agent'
+        identifier: 'complex-agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['complex-agent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgent);
@@ -249,18 +272,18 @@ describe('readAgentTool', () => {
         knowledge: largeArray,
         plugins: largeArray,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
-        identifier: 'large-arrays-agent'
+        identifier: 'large-arrays-agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['large-arrays-agent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgent);
@@ -272,17 +295,19 @@ describe('readAgentTool', () => {
       mockPostgres.query.mockResolvedValue([]);
 
       const result = await readAgentTool.func({
-        identifier: 'non-existent-agent'
+        identifier: 'non-existent-agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['non-existent-agent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with name: non-existent-agent');
+      expect(parsedResult.message).toBe(
+        'Agent not found with name: non-existent-agent'
+      );
     });
 
     it('should handle agent not found by ID', async () => {
@@ -290,14 +315,14 @@ describe('readAgentTool', () => {
 
       const result = await readAgentTool.func({
         identifier: '999',
-        searchBy: 'id'
+        searchBy: 'id',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE id = $1',
         ['999']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Agent not found with id: 999');
@@ -308,11 +333,13 @@ describe('readAgentTool', () => {
       mockPostgres.query.mockRejectedValue(dbError);
 
       const result = await readAgentTool.func({
-        identifier: 'test-agent'
+        identifier: 'test-agent',
       });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error reading agent: Error: Database connection failed');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error reading agent: Error: Database connection failed'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to read agent configuration');
@@ -323,11 +350,13 @@ describe('readAgentTool', () => {
       mockPostgres.query.mockRejectedValue('String error');
 
       const result = await readAgentTool.func({
-        identifier: 'test-agent'
+        identifier: 'test-agent',
       });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error reading agent: String error');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error reading agent: String error'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to read agent configuration');
@@ -340,11 +369,13 @@ describe('readAgentTool', () => {
       });
 
       const result = await readAgentTool.func({
-        identifier: 'test-agent'
+        identifier: 'test-agent',
       });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error reading agent: Error: Invalid query syntax');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error reading agent: Error: Invalid query syntax'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to read agent configuration');
@@ -356,7 +387,7 @@ describe('readAgentTool', () => {
 
       const result = await readAgentTool.func({
         identifier: 'test-agent',
-        searchBy: 'invalid_type' as any
+        searchBy: 'invalid_type' as any,
       });
 
       // Should use fallback 'name' instead of 'invalid_type'
@@ -364,10 +395,12 @@ describe('readAgentTool', () => {
         'SELECT * FROM agents WHERE name = $1',
         ['test-agent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with name: test-agent');
+      expect(parsedResult.message).toBe(
+        'Agent not found with name: test-agent'
+      );
     });
   });
 
@@ -378,18 +411,18 @@ describe('readAgentTool', () => {
         name: 'agent-with-dashes_and_underscores',
         description: 'Special characters agent',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
-        identifier: 'agent-with-dashes_and_underscores'
+        identifier: 'agent-with-dashes_and_underscores',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['agent-with-dashes_and_underscores']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgent);
@@ -402,18 +435,18 @@ describe('readAgentTool', () => {
         name: longName,
         description: 'Long name agent',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
-        identifier: longName
+        identifier: longName,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         [longName]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -425,19 +458,19 @@ describe('readAgentTool', () => {
         name: 'large-id-agent',
         description: 'Large ID agent',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
         identifier: largeId,
-        searchBy: 'id'
+        searchBy: 'id',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE id = $1',
         [largeId]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -446,14 +479,14 @@ describe('readAgentTool', () => {
       mockPostgres.query.mockResolvedValue([]);
 
       const result = await readAgentTool.func({
-        identifier: ''
+        identifier: '',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Agent not found with name: ');
@@ -463,14 +496,14 @@ describe('readAgentTool', () => {
       mockPostgres.query.mockResolvedValue([]);
 
       const result = await readAgentTool.func({
-        identifier: '   '
+        identifier: '   ',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['   ']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Agent not found with name:    ');
@@ -482,18 +515,18 @@ describe('readAgentTool', () => {
         name: 'TestAgent',
         description: 'Case sensitive agent',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
-        identifier: 'TestAgent'
+        identifier: 'TestAgent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['TestAgent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -503,18 +536,18 @@ describe('readAgentTool', () => {
         { id: 1, name: 'duplicate-agent', description: 'First agent' },
         { id: 2, name: 'duplicate-agent', description: 'Second agent' },
       ];
-      
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await readAgentTool.func({
-        identifier: 'duplicate-agent'
+        identifier: 'duplicate-agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['duplicate-agent']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgents[0]); // Should return first agent
@@ -528,19 +561,19 @@ describe('readAgentTool', () => {
         name: 'numeric-id-agent',
         description: 'Numeric ID agent',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockAgent]);
 
       const result = await readAgentTool.func({
         identifier: '123',
-        searchBy: 'id'
+        searchBy: 'id',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE id = $1',
         ['123']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -550,17 +583,19 @@ describe('readAgentTool', () => {
 
       const result = await readAgentTool.func({
         identifier: 'not-a-number',
-        searchBy: 'id'
+        searchBy: 'id',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE id = $1',
         ['not-a-number']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with id: not-a-number');
+      expect(parsedResult.message).toBe(
+        'Agent not found with id: not-a-number'
+      );
     });
 
     it('should handle zero ID', async () => {
@@ -568,14 +603,14 @@ describe('readAgentTool', () => {
 
       const result = await readAgentTool.func({
         identifier: '0',
-        searchBy: 'id'
+        searchBy: 'id',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE id = $1',
         ['0']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Agent not found with id: 0');
@@ -586,17 +621,17 @@ describe('readAgentTool', () => {
 
       const result = await readAgentTool.func({
         identifier: '-1',
-        searchBy: 'id'
+        searchBy: 'id',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE id = $1',
         ['-1']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Agent not found with id: -1');
     });
   });
-}); 
+});

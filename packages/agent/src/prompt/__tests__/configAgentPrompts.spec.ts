@@ -21,15 +21,9 @@ describe('configAgentPrompts', () => {
     });
 
     it('should include all core operations', () => {
-      const operations = [
-        'CREATE',
-        'READ', 
-        'UPDATE',
-        'DELETE',
-        'LIST'
-      ];
+      const operations = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'LIST'];
 
-      operations.forEach(operation => {
+      operations.forEach((operation) => {
         expect(prompt).toContain(operation);
       });
     });
@@ -85,7 +79,9 @@ describe('configAgentPrompts', () => {
     });
 
     it('should include update operation guidance', () => {
-      expect(prompt).toContain('For updates: map user intent to specific fields');
+      expect(prompt).toContain(
+        'For updates: map user intent to specific fields'
+      );
       expect(prompt).toContain('name, description, group');
     });
 
@@ -95,7 +91,9 @@ describe('configAgentPrompts', () => {
     });
 
     it('should include confirmation and feedback guidance', () => {
-      expect(prompt).toContain('Always confirm what operation you\'re performing');
+      expect(prompt).toContain(
+        "Always confirm what operation you're performing"
+      );
       expect(prompt).toContain('provide clear feedback about results');
     });
 
@@ -145,9 +143,11 @@ describe('configAgentPrompts', () => {
 
       it('should use consistent formatting for operation descriptions', () => {
         const operations = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'LIST'];
-        
-        operations.forEach(operation => {
-          const operationPattern = new RegExp(`- ${operation}: Use [a-z_]+ for`);
+
+        operations.forEach((operation) => {
+          const operationPattern = new RegExp(
+            `- ${operation}: Use [a-z_]+ for`
+          );
           expect(prompt).toMatch(operationPattern);
         });
       });
@@ -163,21 +163,27 @@ describe('configAgentPrompts', () => {
       it('should cover all CRUD operations plus listing', () => {
         const crudOperations = ['CREATE', 'READ', 'UPDATE', 'DELETE'];
         const allOperations = [...crudOperations, 'LIST'];
-        
-        allOperations.forEach(operation => {
+
+        allOperations.forEach((operation) => {
           expect(prompt).toContain(operation);
         });
       });
 
       it('should include both tool names and user-friendly keywords', () => {
-        const toolNames = ['create_agent', 'read_agent', 'update_agent', 'delete_agent', 'list_agents'];
+        const toolNames = [
+          'create_agent',
+          'read_agent',
+          'update_agent',
+          'delete_agent',
+          'list_agents',
+        ];
         const keywords = ['create', 'get', 'modify', 'delete', 'list'];
-        
-        toolNames.forEach(tool => {
+
+        toolNames.forEach((tool) => {
           expect(prompt).toContain(tool);
         });
-        
-        keywords.forEach(keyword => {
+
+        keywords.forEach((keyword) => {
           expect(prompt).toContain(keyword);
         });
       });

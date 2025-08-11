@@ -74,12 +74,14 @@ describe('mcpAgentTools', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockLogger = require('@snakagent/core').logger;
-    mockMcpController = require('../../../../services/mcp/src/mcp.js').MCP_CONTROLLER;
+    mockMcpController =
+      require('../../../../services/mcp/src/mcp.js').MCP_CONTROLLER;
     mockPostgres = require('@snakagent/database').Postgres;
-    mockOperatorRegistry = require('../../operatorRegistry.js').OperatorRegistry;
-    
+    mockOperatorRegistry =
+      require('../../operatorRegistry.js').OperatorRegistry;
+
     // Reset mock implementations
     mockLogger.error.mockClear();
     mockLogger.debug.mockClear();
@@ -89,7 +91,7 @@ describe('mcpAgentTools', () => {
     mockMcpController.mockClear();
     mockPostgres.Query.mockClear();
     mockPostgres.query.mockClear();
-    
+
     mockPostgres.Query.mockImplementation((query: string, params: any[]) => {
       return { query, params };
     });
@@ -99,22 +101,22 @@ describe('mcpAgentTools', () => {
     // Clean up remaining timers
     jest.clearAllTimers();
     jest.useRealTimers();
-    
+
     global.fetch = mockFetch;
   });
 
   describe('getMcpAgentTools', () => {
     it('should return an array of tools', () => {
       const tools = getMcpAgentTools();
-      
+
       expect(Array.isArray(tools)).toBe(true);
       expect(tools.length).toBe(5);
     });
 
     it('should include all expected tools', () => {
       const tools = getMcpAgentTools();
-      const toolNames = tools.map(tool => tool.name);
-      
+      const toolNames = tools.map((tool) => tool.name);
+
       expect(toolNames).toContain('search_mcp_server');
       expect(toolNames).toContain('install_mcp_server');
       expect(toolNames).toContain('list_mcp_servers');
@@ -124,8 +126,8 @@ describe('mcpAgentTools', () => {
 
     it('should return tools with proper structure', () => {
       const tools = getMcpAgentTools();
-      
-      tools.forEach(tool => {
+
+      tools.forEach((tool) => {
         expect(tool).toHaveProperty('name');
         expect(tool).toHaveProperty('description');
         expect(tool).toHaveProperty('schema');
@@ -137,21 +139,29 @@ describe('mcpAgentTools', () => {
 
     it('should have correct tool descriptions', () => {
       const tools = getMcpAgentTools();
-      
-      const searchTool = tools.find(t => t.name === 'search_mcp_server');
-      expect(searchTool?.description).toContain('Search for MCP servers on Smithery');
-      
-      const installTool = tools.find(t => t.name === 'install_mcp_server');
+
+      const searchTool = tools.find((t) => t.name === 'search_mcp_server');
+      expect(searchTool?.description).toContain(
+        'Search for MCP servers on Smithery'
+      );
+
+      const installTool = tools.find((t) => t.name === 'install_mcp_server');
       expect(installTool?.description).toContain('Install an MCP server');
-      
-      const listTool = tools.find(t => t.name === 'list_mcp_servers');
-      expect(listTool?.description).toContain('List all MCP servers configured for a specific agent');
-      
-      const refreshTool = tools.find(t => t.name === 'refresh_mcp_server');
-      expect(refreshTool?.description).toContain('Restart an agent with its MCP servers');
-      
-      const deleteTool = tools.find(t => t.name === 'delete_mcp_server');
-      expect(deleteTool?.description).toContain('Delete an MCP server configuration');
+
+      const listTool = tools.find((t) => t.name === 'list_mcp_servers');
+      expect(listTool?.description).toContain(
+        'List all MCP servers configured for a specific agent'
+      );
+
+      const refreshTool = tools.find((t) => t.name === 'refresh_mcp_server');
+      expect(refreshTool?.description).toContain(
+        'Restart an agent with its MCP servers'
+      );
+
+      const deleteTool = tools.find((t) => t.name === 'delete_mcp_server');
+      expect(deleteTool?.description).toContain(
+        'Delete an MCP server configuration'
+      );
     });
   });
 
@@ -160,7 +170,7 @@ describe('mcpAgentTools', () => {
 
     beforeEach(() => {
       const tools = getMcpAgentTools();
-      searchTool = tools.find(t => t.name === 'search_mcp_server');
+      searchTool = tools.find((t) => t.name === 'search_mcp_server');
     });
 
     it('should have correct schema validation', () => {
@@ -174,9 +184,9 @@ describe('mcpAgentTools', () => {
 
     it('should validate required fields', () => {
       const schema = searchTool.schema;
-      
+
       expect(schema.shape.query._def.typeName).toBe('ZodString');
-      
+
       expect(schema.shape.limit._def.typeName).toBe('ZodOptional');
       expect(schema.shape.deployedOnly._def.typeName).toBe('ZodOptional');
       expect(schema.shape.verifiedOnly._def.typeName).toBe('ZodOptional');
@@ -186,14 +196,16 @@ describe('mcpAgentTools', () => {
       // Remove the API key from environment
       const originalApiKey = process.env.SMITHERY_API_KEY;
       delete process.env.SMITHERY_API_KEY;
-      
+
       try {
-        await expect(searchTool.func({
-          query: 'test search',
-          limit: 10,
-          deployedOnly: false,
-          verifiedOnly: false,
-        })).rejects.toThrow('SMITHERY_API_KEY environment variable is required');
+        await expect(
+          searchTool.func({
+            query: 'test search',
+            limit: 10,
+            deployedOnly: false,
+            verifiedOnly: false,
+          })
+        ).rejects.toThrow('SMITHERY_API_KEY environment variable is required');
       } finally {
         // Restore the API key
         if (originalApiKey) {
@@ -205,7 +217,7 @@ describe('mcpAgentTools', () => {
     it('should handle successful search with results', async () => {
       // Set up environment
       process.env.SMITHERY_API_KEY = 'test-api-key';
-      
+
       const mockResponse = {
         ok: true,
         status: 200,
@@ -230,14 +242,14 @@ describe('mcpAgentTools', () => {
         }),
       };
       mockFetch.mockResolvedValue(mockResponse);
-      
+
       const result = await searchTool.func({
         query: 'test search',
         limit: 10,
         deployedOnly: false,
         verifiedOnly: false,
       });
-      
+
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('https://registry.smithery.ai/servers'),
         expect.objectContaining({
@@ -247,7 +259,7 @@ describe('mcpAgentTools', () => {
           },
         })
       );
-      
+
       expect(result).toContain('test-server');
       expect(result).toContain('Test Server');
     });
@@ -255,7 +267,7 @@ describe('mcpAgentTools', () => {
     it('should handle search with no results', async () => {
       // Set up environment
       process.env.SMITHERY_API_KEY = 'test-api-key';
-      
+
       // Mock successful fetch response with no servers
       const mockResponse = {
         ok: true,
@@ -271,21 +283,21 @@ describe('mcpAgentTools', () => {
         }),
       };
       mockFetch.mockResolvedValue(mockResponse);
-      
+
       const result = await searchTool.func({
         query: 'nonexistent search',
         limit: 10,
         deployedOnly: false,
         verifiedOnly: false,
       });
-      
+
       expect(result).toContain('No MCP servers found matching your query');
     });
 
     it('should handle API errors', async () => {
       // Set up environment
       process.env.SMITHERY_API_KEY = 'test-api-key';
-      
+
       // Mock failed fetch response
       const mockResponse = {
         ok: false,
@@ -293,13 +305,15 @@ describe('mcpAgentTools', () => {
         statusText: 'Unauthorized',
       };
       mockFetch.mockResolvedValue(mockResponse);
-      
-      await expect(searchTool.func({
-        query: 'test search',
-        limit: 10,
-        deployedOnly: false,
-        verifiedOnly: false,
-      })).rejects.toThrow('Invalid Smithery API key');
+
+      await expect(
+        searchTool.func({
+          query: 'test search',
+          limit: 10,
+          deployedOnly: false,
+          verifiedOnly: false,
+        })
+      ).rejects.toThrow('Invalid Smithery API key');
     });
   });
 
@@ -308,7 +322,7 @@ describe('mcpAgentTools', () => {
 
     beforeEach(() => {
       const tools = getMcpAgentTools();
-      installTool = tools.find(t => t.name === 'install_mcp_server');
+      installTool = tools.find((t) => t.name === 'install_mcp_server');
     });
 
     it('should have correct schema validation', () => {
@@ -321,26 +335,28 @@ describe('mcpAgentTools', () => {
 
     it('should validate required fields', () => {
       const schema = installTool.schema;
-      
+
       expect(schema.shape.agentId._def.typeName).toBe('ZodString');
       expect(schema.shape.qualifiedName._def.typeName).toBe('ZodString');
-      
+
       expect(schema.shape.config._def.typeName).toBe('ZodOptional');
     });
 
     it('should handle successful installation', async () => {
-      mockPostgres.query.mockResolvedValue([{
-        id: 'test-agent',
-        name: 'Test Agent',
-        mcpServers: {}
-      }]);
-      
+      mockPostgres.query.mockResolvedValue([
+        {
+          id: 'test-agent',
+          name: 'Test Agent',
+          mcpServers: {},
+        },
+      ]);
+
       const result = await installTool.func({
         agentId: 'test-agent',
         qualifiedName: 'test-server',
         config: { someConfig: 'value' },
       });
-      
+
       expect(mockPostgres.query).toHaveBeenCalled();
       expect(result).toContain('test-server');
       expect(result).toContain('test-agent');
@@ -348,12 +364,14 @@ describe('mcpAgentTools', () => {
 
     it('should handle installation errors', async () => {
       mockPostgres.query.mockRejectedValue(new Error('Database error'));
-      
-      await expect(installTool.func({
-        agentId: 'test-agent',
-        qualifiedName: 'test-server',
-        config: { someConfig: 'value' },
-      })).rejects.toThrow('Failed to install MCP server');
+
+      await expect(
+        installTool.func({
+          agentId: 'test-agent',
+          qualifiedName: 'test-server',
+          config: { someConfig: 'value' },
+        })
+      ).rejects.toThrow('Failed to install MCP server');
     });
   });
 
@@ -362,7 +380,7 @@ describe('mcpAgentTools', () => {
 
     beforeEach(() => {
       const tools = getMcpAgentTools();
-      listTool = tools.find(t => t.name === 'list_mcp_servers');
+      listTool = tools.find((t) => t.name === 'list_mcp_servers');
     });
 
     it('should have correct schema validation', () => {
@@ -373,22 +391,24 @@ describe('mcpAgentTools', () => {
 
     it('should validate required fields', () => {
       const schema = listTool.schema;
-      
+
       expect(schema.shape.agentId._def.typeName).toBe('ZodString');
     });
 
     it('should handle successful listing', async () => {
-      mockPostgres.query.mockResolvedValue([{
-        id: 'test-agent',
-        name: 'Test Agent',
-        mcpServers: {
-          'server1': { config: 'value1' },
-          'server2': { config: 'value2' }
-        }
-      }]);
-      
+      mockPostgres.query.mockResolvedValue([
+        {
+          id: 'test-agent',
+          name: 'Test Agent',
+          mcpServers: {
+            server1: { config: 'value1' },
+            server2: { config: 'value2' },
+          },
+        },
+      ]);
+
       const result = await listTool.func({ agentId: 'test-agent' });
-      
+
       expect(mockPostgres.query).toHaveBeenCalled();
       expect(result).toContain('test-agent');
       expect(result).toContain('Test Agent');
@@ -398,8 +418,10 @@ describe('mcpAgentTools', () => {
 
     it('should handle listing errors', async () => {
       mockPostgres.query.mockResolvedValue([]);
-      
-      await expect(listTool.func({ agentId: 'test-agent' })).rejects.toThrow('Agent not found');
+
+      await expect(listTool.func({ agentId: 'test-agent' })).rejects.toThrow(
+        'Agent not found'
+      );
     });
   });
 
@@ -408,7 +430,7 @@ describe('mcpAgentTools', () => {
 
     beforeEach(() => {
       const tools = getMcpAgentTools();
-      refreshTool = tools.find(t => t.name === 'refresh_mcp_server');
+      refreshTool = tools.find((t) => t.name === 'refresh_mcp_server');
     });
 
     it('should have correct schema validation', () => {
@@ -420,57 +442,62 @@ describe('mcpAgentTools', () => {
 
     it('should validate required fields', () => {
       const schema = refreshTool.schema;
-      
+
       expect(schema.shape.agentId._def.typeName).toBe('ZodString');
-      
+
       expect(schema.shape.timeout._def.typeName).toBe('ZodOptional');
     });
 
     it('should handle successful refresh', async () => {
       // Use fake timers to avoid real setTimeout
       jest.useFakeTimers();
-      
-      mockPostgres.query.mockResolvedValue([{
-        mcpServers: {
-          'server1': { config: 'value1' },
-          'server2': { config: 'value2' }
-        }
-      }]);
-      
+
+      mockPostgres.query.mockResolvedValue([
+        {
+          mcpServers: {
+            server1: { config: 'value1' },
+            server2: { config: 'value2' },
+          },
+        },
+      ]);
+
       const mockMcpInstance = {
         initializeConnections: jest.fn().mockResolvedValue(undefined),
-        getTools: jest.fn().mockReturnValue([
-          { name: 'tool1' },
-          { name: 'tool2' }
-        ])
+        getTools: jest
+          .fn()
+          .mockReturnValue([{ name: 'tool1' }, { name: 'tool2' }]),
       };
-      
+
       mockMcpController.mockImplementation(() => mockMcpInstance);
-      
+
       const resultPromise = refreshTool.func({
         agentId: 'test-agent',
         timeout: 30000,
       });
-      
+
       jest.runAllTimers();
-      
+
       const result = await resultPromise;
-      
+
       expect(mockPostgres.query).toHaveBeenCalled();
-      expect(result).toContain('Successfully refreshed MCP servers for agent test-agent');
+      expect(result).toContain(
+        'Successfully refreshed MCP servers for agent test-agent'
+      );
       expect(mockMcpController).toHaveBeenCalled();
-      
+
       // Clean up fake timers
       jest.useRealTimers();
     });
 
     it('should handle refresh errors', async () => {
       mockPostgres.query.mockResolvedValue([]);
-      
-      await expect(refreshTool.func({
-        agentId: 'test-agent',
-        timeout: 30000,
-      })).rejects.toThrow('Agent not found');
+
+      await expect(
+        refreshTool.func({
+          agentId: 'test-agent',
+          timeout: 30000,
+        })
+      ).rejects.toThrow('Agent not found');
     });
   });
 
@@ -479,7 +506,7 @@ describe('mcpAgentTools', () => {
 
     beforeEach(() => {
       const tools = getMcpAgentTools();
-      deleteTool = tools.find(t => t.name === 'delete_mcp_server');
+      deleteTool = tools.find((t) => t.name === 'delete_mcp_server');
     });
 
     it('should have correct schema validation', () => {
@@ -491,42 +518,50 @@ describe('mcpAgentTools', () => {
 
     it('should validate required fields', () => {
       const schema = deleteTool.schema;
-      
+
       expect(schema.shape.agentId._def.typeName).toBe('ZodString');
       expect(schema.shape.serverName._def.typeName).toBe('ZodString');
     });
 
     it('should handle successful deletion', async () => {
       mockPostgres.query
-        .mockResolvedValueOnce([{
-          id: 'test-agent',
-          mcpServers: {
-            'test-server': { config: 'value' }
-          }
-        }])
-        .mockResolvedValueOnce([{
-          id: 'test-agent',
-          mcpServers: {}
-        }]);
-      
+        .mockResolvedValueOnce([
+          {
+            id: 'test-agent',
+            mcpServers: {
+              'test-server': { config: 'value' },
+            },
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: 'test-agent',
+            mcpServers: {},
+          },
+        ]);
+
       const result = await deleteTool.func({
         agentId: 'test-agent',
         serverName: 'test-server',
       });
-      
+
       expect(mockPostgres.query).toHaveBeenCalledTimes(2);
       const resultObj = JSON.parse(result);
       expect(resultObj.success).toBe(true);
-      expect(resultObj.message).toContain('MCP server "test-server" deleted from agent "test-agent"');
+      expect(resultObj.message).toContain(
+        'MCP server "test-server" deleted from agent "test-agent"'
+      );
     });
 
     it('should handle deletion errors', async () => {
       mockPostgres.query.mockResolvedValue([]);
-      
-      await expect(deleteTool.func({
-        agentId: 'test-agent',
-        serverName: 'test-server',
-      })).rejects.toThrow('Agent not found');
+
+      await expect(
+        deleteTool.func({
+          agentId: 'test-agent',
+          serverName: 'test-server',
+        })
+      ).rejects.toThrow('Agent not found');
     });
   });
 });

@@ -25,23 +25,18 @@ describe('mcpAgentPrompts', () => {
         'Managing MCP server configurations',
         'Monitoring MCP server status and health',
         'Managing and organizing MCP tools',
-        'Ensuring proper integration of MCP servers'
+        'Ensuring proper integration of MCP servers',
       ];
 
-      responsibilities.forEach(responsibility => {
+      responsibilities.forEach((responsibility) => {
         expect(prompt).toContain(responsibility);
       });
     });
 
     it('should include configuration management operations', () => {
-      const operations = [
-        'add',
-        'remove', 
-        'update',
-        'list'
-      ];
+      const operations = ['add', 'remove', 'update', 'list'];
 
-      operations.forEach(operation => {
+      operations.forEach((operation) => {
         expect(prompt).toContain(operation);
       });
     });
@@ -52,10 +47,10 @@ describe('mcpAgentPrompts', () => {
         'Maintain consistent configuration formats',
         'Ensure proper error handling and logging',
         'Keep track of MCP server states and connections',
-        'Provide clear feedback on operation results'
+        'Provide clear feedback on operation results',
       ];
 
-      guidelines.forEach(guideline => {
+      guidelines.forEach((guideline) => {
         expect(prompt).toContain(guideline);
       });
     });
@@ -65,10 +60,10 @@ describe('mcpAgentPrompts', () => {
         'List and inspect MCP servers',
         'Manage MCP server configurations',
         'View and organize MCP tools',
-        'Monitor MCP server status'
+        'Monitor MCP server status',
       ];
 
-      tools.forEach(tool => {
+      tools.forEach((tool) => {
         expect(prompt).toContain(tool);
       });
     });
@@ -78,10 +73,10 @@ describe('mcpAgentPrompts', () => {
         'MCP servers are crucial for extending agent capabilities',
         'Configuration changes should be handled carefully',
         'Always maintain proper security practices',
-        'Keep configurations well-documented'
+        'Keep configurations well-documented',
       ];
 
-      reminders.forEach(reminder => {
+      reminders.forEach((reminder) => {
         expect(prompt).toContain(reminder);
       });
     });
@@ -92,10 +87,10 @@ describe('mcpAgentPrompts', () => {
         'Validating inputs and current state',
         'Using appropriate tools to perform the operation',
         'Providing clear feedback on results',
-        'Handling any errors gracefully'
+        'Handling any errors gracefully',
       ];
 
-      steps.forEach(step => {
+      steps.forEach((step) => {
         expect(prompt).toContain(step);
       });
     });
@@ -178,23 +173,33 @@ describe('mcpAgentPrompts', () => {
           'server status and health',
           'MCP tools',
           'integration',
-          'security'
+          'security',
         ];
-        
-        aspects.forEach(aspect => {
+
+        aspects.forEach((aspect) => {
           expect(prompt).toContain(aspect);
         });
       });
 
       it('should include both technical and operational guidance', () => {
-        const technicalTerms = ['MCP', 'Model Context Protocol', 'servers', 'tools'];
-        const operationalTerms = ['manage', 'Monitoring', 'configurations', 'integration'];
-        
-        technicalTerms.forEach(term => {
+        const technicalTerms = [
+          'MCP',
+          'Model Context Protocol',
+          'servers',
+          'tools',
+        ];
+        const operationalTerms = [
+          'manage',
+          'Monitoring',
+          'configurations',
+          'integration',
+        ];
+
+        technicalTerms.forEach((term) => {
           expect(prompt).toContain(term);
         });
-        
-        operationalTerms.forEach(term => {
+
+        operationalTerms.forEach((term) => {
           expect(prompt).toContain(term);
         });
       });
@@ -206,13 +211,17 @@ describe('mcpAgentPrompts', () => {
 
       it('should emphasize security practices', () => {
         expect(prompt).toContain('security practices');
-        expect(prompt).toContain('Configuration changes should be handled carefully');
+        expect(prompt).toContain(
+          'Configuration changes should be handled carefully'
+        );
       });
     });
 
     describe('MCP-specific functionality', () => {
       it('should emphasize MCP server importance', () => {
-        expect(prompt).toContain('MCP servers are crucial for extending agent capabilities');
+        expect(prompt).toContain(
+          'MCP servers are crucial for extending agent capabilities'
+        );
       });
 
       it('should mention configuration management', () => {
@@ -231,7 +240,9 @@ describe('mcpAgentPrompts', () => {
       });
 
       it('should emphasize integration', () => {
-        expect(prompt).toContain('Ensuring proper integration of MCP servers with the agent system');
+        expect(prompt).toContain(
+          'Ensuring proper integration of MCP servers with the agent system'
+        );
       });
     });
 
@@ -252,8 +263,14 @@ describe('mcpAgentPrompts', () => {
       });
 
       it('should maintain professional tone throughout', () => {
-        const professionalTerms = ['responsible', 'ensure', 'maintain', 'Provide', 'handle'];
-        professionalTerms.forEach(term => {
+        const professionalTerms = [
+          'responsible',
+          'ensure',
+          'maintain',
+          'Provide',
+          'handle',
+        ];
+        professionalTerms.forEach((term) => {
           expect(prompt).toContain(term);
         });
       });

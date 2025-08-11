@@ -4,8 +4,8 @@ import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 
-const normalizePositiveNumber = (val: number | null | undefined) => 
-  (val !== null && val !== undefined && val <= 0 ? null : val);
+const normalizePositiveNumber = (val: number | null | undefined) =>
+  val !== null && val !== undefined && val <= 0 ? null : val;
 
 const ListAgentsSchema = z.object({
   filters: z
@@ -65,17 +65,29 @@ export const listAgentsTool = new DynamicStructuredTool({
 
       // Build WHERE conditions
       if (input.filters) {
-        if (input.filters.group !== null && input.filters.group !== undefined && input.filters.group !== '') {
+        if (
+          input.filters.group !== null &&
+          input.filters.group !== undefined &&
+          input.filters.group !== ''
+        ) {
           whereConditions.push(`"group" = $${paramIndex}`);
           values.push(input.filters.group);
           paramIndex++;
         }
-        if (input.filters.mode !== null && input.filters.mode !== undefined && input.filters.mode !== '') {
+        if (
+          input.filters.mode !== null &&
+          input.filters.mode !== undefined &&
+          input.filters.mode !== ''
+        ) {
           whereConditions.push(`"mode" = $${paramIndex}`);
           values.push(input.filters.mode);
           paramIndex++;
         }
-        if (input.filters.name_contains !== null && input.filters.name_contains !== undefined && input.filters.name_contains !== '') {
+        if (
+          input.filters.name_contains !== null &&
+          input.filters.name_contains !== undefined &&
+          input.filters.name_contains !== ''
+        ) {
           whereConditions.push(`"name" ILIKE $${paramIndex}`);
           values.push(`%${input.filters.name_contains}%`);
           paramIndex++;

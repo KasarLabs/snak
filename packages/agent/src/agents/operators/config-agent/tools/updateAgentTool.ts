@@ -107,7 +107,7 @@ export const updateAgentTool = new DynamicStructuredTool({
       // First, find the agent
       let findQuery: Postgres.Query;
       const searchBy = input.searchBy || 'name';
-      
+
       if (searchBy === 'id') {
         const id = parseInt(input.identifier);
         if (isNaN(id)) {
@@ -116,7 +116,9 @@ export const updateAgentTool = new DynamicStructuredTool({
             message: `Invalid ID format: ${input.identifier}`,
           });
         }
-        findQuery = new Postgres.Query('SELECT * FROM agents WHERE id = $1', [id]);
+        findQuery = new Postgres.Query('SELECT * FROM agents WHERE id = $1', [
+          id,
+        ]);
       } else {
         findQuery = new Postgres.Query('SELECT * FROM agents WHERE name = $1', [
           input.identifier,
@@ -134,7 +136,8 @@ export const updateAgentTool = new DynamicStructuredTool({
       const agent = existingAgent[0];
       const updates = input.updates;
 
-      const { normalizedConfig: normalizedUpdates, appliedDefaults } = normalizeNumericValues(updates as AgentConfig);
+      const { normalizedConfig: normalizedUpdates, appliedDefaults } =
+        normalizeNumericValues(updates as AgentConfig);
 
       const updateFields: string[] = [];
       const updateValues: any[] = [];
@@ -173,12 +176,12 @@ export const updateAgentTool = new DynamicStructuredTool({
 
       if (result.length > 0) {
         logger.info(`Updated agent "${agent.name}" successfully`);
-        
+
         let message = `Agent "${agent.name}" updated successfully`;
         if (appliedDefaults.length > 0) {
           message += `. Note: ${appliedDefaults.join('; ')}`;
         }
-        
+
         return JSON.stringify({
           success: true,
           message: message,

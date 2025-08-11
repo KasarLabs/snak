@@ -2,8 +2,9 @@ import { AgentSelector } from '../agentSelector.js';
 
 // Mock the prompts
 jest.mock('../../../prompt/prompts', () => ({
-  agentSelectorPromptContent: jest.fn((agentInfo, input) => 
-    `Mock prompt for agents: ${Array.from(agentInfo.keys()).join(', ')} and input: ${input}`
+  agentSelectorPromptContent: jest.fn(
+    (agentInfo, input) =>
+      `Mock prompt for agents: ${Array.from(agentInfo.keys()).join(', ')} and input: ${input}`
   ),
 }));
 
@@ -57,12 +58,21 @@ describe('AgentSelector', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Create mock agents
     mockAgents = new Map();
-    mockAgents.set('agent1', new MockSnakAgent('agent1', 'Handles blockchain operations'));
-    mockAgents.set('agent2', new MockSnakAgent('agent2', 'Handles configuration management'));
-    mockAgents.set('agent3', new MockSnakAgent('agent3', 'Handles MCP operations'));
+    mockAgents.set(
+      'agent1',
+      new MockSnakAgent('agent1', 'Handles blockchain operations')
+    );
+    mockAgents.set(
+      'agent2',
+      new MockSnakAgent('agent2', 'Handles configuration management')
+    );
+    mockAgents.set(
+      'agent3',
+      new MockSnakAgent('agent3', 'Handles MCP operations')
+    );
 
     // Create mock model selector
     modelSelector = new MockModelSelector();
@@ -105,7 +115,7 @@ describe('AgentSelector', () => {
 
     it('should remove an agent successfully', async () => {
       await agentSelector.removeAgent('agent1');
-      
+
       // Verify agent is removed
       expect(mockAgents.has('agent1')).toBe(false);
       expect(mockAgents.size).toBe(2);
@@ -113,16 +123,19 @@ describe('AgentSelector', () => {
 
     it('should handle removing non-existent agent', async () => {
       await agentSelector.removeAgent('non-existent');
-      
+
       // Should not throw error and agents should remain unchanged
       expect(mockAgents.size).toBe(3);
     });
 
     it('should update available agents', async () => {
-      const newAgent: any = new MockSnakAgent('agent4', 'Handles new operations');
-      
+      const newAgent: any = new MockSnakAgent(
+        'agent4',
+        'Handles new operations'
+      );
+
       await agentSelector.updateAvailableAgents(['agent4', newAgent]);
-      
+
       // Verify new agent is added
       expect(mockAgents.has('agent4')).toBe(true);
       expect(mockAgents.size).toBe(4);
@@ -142,7 +155,9 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
       });
 
-      const result = await agentSelector.execute('I need to perform blockchain operations');
+      const result = await agentSelector.execute(
+        'I need to perform blockchain operations'
+      );
 
       expect(result).toBeDefined();
       expect(result.getAgentConfig().name).toBe('agent1');
@@ -157,7 +172,9 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
       });
 
-      const result = await agentSelector.execute('I need to change my configuration');
+      const result = await agentSelector.execute(
+        'I need to change my configuration'
+      );
 
       expect(result).toBeDefined();
       expect(result.getAgentConfig().name).toBe('agent2');
@@ -171,7 +188,9 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
       });
 
-      const result = await agentSelector.execute('I need to manage MCP servers');
+      const result = await agentSelector.execute(
+        'I need to manage MCP servers'
+      );
 
       expect(result).toBeDefined();
       expect(result.getAgentConfig().name).toBe('agent3');
@@ -185,9 +204,9 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
       });
 
-      await expect(
-        agentSelector.execute('Some request')
-      ).rejects.toThrow('No matching agent found');
+      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'No matching agent found'
+      );
     });
 
     it('should throw error when LLM returns invalid response format', async () => {
@@ -198,18 +217,20 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
       });
 
-      await expect(
-        agentSelector.execute('Some request')
-      ).rejects.toThrow('AgentSelector did not return a valid string response');
+      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'AgentSelector did not return a valid string response'
+      );
     });
 
     it('should handle LLM invocation errors', async () => {
       // Mock LLM to throw an error
-      mockModel.invoke.mockRejectedValueOnce(new Error('LLM service unavailable'));
+      mockModel.invoke.mockRejectedValueOnce(
+        new Error('LLM service unavailable')
+      );
 
-      await expect(
-        agentSelector.execute('Some request')
-      ).rejects.toThrow('AgentSelector execution failed: LLM service unavailable');
+      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'AgentSelector execution failed: LLM service unavailable'
+      );
     });
 
     it('should handle empty response content', async () => {
@@ -220,9 +241,9 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 0, total_tokens: 1 },
       });
 
-      await expect(
-        agentSelector.execute('Some request')
-      ).rejects.toThrow('No matching agent found');
+      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'No matching agent found'
+      );
     });
 
     it('should handle whitespace-only response content', async () => {
@@ -233,9 +254,9 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
       });
 
-      await expect(
-        agentSelector.execute('Some request')
-      ).rejects.toThrow('No matching agent found');
+      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'No matching agent found'
+      );
     });
   });
 
@@ -252,14 +273,17 @@ describe('AgentSelector', () => {
         usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
       });
 
-      await expect(
-        agentSelector.execute('Some request')
-      ).rejects.toThrow('No matching agent found');
+      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'No matching agent found'
+      );
     });
 
     it('should handle special characters in agent names', async () => {
       // Add agent with special characters
-      const specialAgent: any = new MockSnakAgent('agent-special', 'Handles special operations');
+      const specialAgent: any = new MockSnakAgent(
+        'agent-special',
+        'Handles special operations'
+      );
       mockAgents.set('agent-special', specialAgent);
 
       // Mock LLM response
@@ -274,4 +298,4 @@ describe('AgentSelector', () => {
       expect(result.getAgentConfig().name).toBe('agent-special');
     });
   });
-}); 
+});

@@ -25,20 +25,24 @@ describe('listAgentsTool', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockPostgres = jest.mocked(Postgres);
     mockLogger = jest.mocked(logger);
-    
+
     // Configure Postgres.Query to return a mock query object
-    mockPostgres.Query.mockImplementation((query: string, params: unknown[]) => {
-      return { query, params };
-    });
+    mockPostgres.Query.mockImplementation(
+      (query: string, params: unknown[]) => {
+        return { query, params };
+      }
+    );
   });
 
   describe('tool configuration', () => {
     it('should have correct name and description', () => {
       expect(listAgentsTool.name).toBe('list_agents');
-      expect(listAgentsTool.description).toContain('List/show/get all agent configurations');
+      expect(listAgentsTool.description).toContain(
+        'List/show/get all agent configurations'
+      );
     });
 
     it('should have proper schema validation', () => {
@@ -51,10 +55,10 @@ describe('listAgentsTool', () => {
 
     it('should validate schema structure', () => {
       const schema = listAgentsTool.schema;
-      
-      // Test filters object 
+
+      // Test filters object
       expect(schema.shape.filters._def.typeName).toBe('ZodNullable');
-      
+
       // Test limit and offset
       expect(schema.shape.limit._def.typeName).toBe('ZodEffects');
       expect(schema.shape.offset._def.typeName).toBe('ZodEffects');
@@ -62,7 +66,7 @@ describe('listAgentsTool', () => {
 
     it('should handle optional filters', () => {
       const schema = listAgentsTool.schema;
-      
+
       // Should accept empty object
       const parsed = schema.parse({});
       expect(parsed.filters).toBeUndefined();
@@ -72,17 +76,17 @@ describe('listAgentsTool', () => {
 
     it('should handle filters with all fields', () => {
       const schema = listAgentsTool.schema;
-      
+
       const parsed = schema.parse({
         filters: {
           group: 'trading',
           mode: 'interactive',
-          name_contains: 'test'
+          name_contains: 'test',
         },
         limit: 10,
-        offset: 5
+        offset: 5,
       });
-      
+
       expect(parsed.filters?.group).toBe('trading');
       expect(parsed.filters?.mode).toBe('interactive');
       expect(parsed.filters?.name_contains).toBe('test');
@@ -97,7 +101,7 @@ describe('listAgentsTool', () => {
         { id: 1, name: 'agent1', group: 'trading' },
         { id: 2, name: 'agent2', group: 'rpc' },
       ];
-      
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({});
@@ -107,7 +111,7 @@ describe('listAgentsTool', () => {
         []
       );
       expect(mockPostgres.query).toHaveBeenCalled();
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.message).toBe('Found 2 agent(s)');
@@ -116,63 +120,57 @@ describe('listAgentsTool', () => {
     });
 
     it('should filter agents by group', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { group: 'trading' }
+        filters: { group: 'trading' },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE "group" = $1 ORDER BY name',
         ['trading']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgents);
     });
 
     it('should filter agents by mode', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', mode: 'interactive' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', mode: 'interactive' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { mode: 'interactive' }
+        filters: { mode: 'interactive' },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE "mode" = $1 ORDER BY name',
         ['interactive']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgents);
     });
 
     it('should filter agents by name contains', async () => {
-      const mockAgents = [
-        { id: 1, name: 'trading-agent', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'trading-agent', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { name_contains: 'trading' }
+        filters: { name_contains: 'trading' },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE "name" ILIKE $1 ORDER BY name',
         ['%trading%']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgents);
@@ -182,106 +180,98 @@ describe('listAgentsTool', () => {
       const mockAgents = [
         { id: 1, name: 'trading-agent', group: 'trading', mode: 'interactive' },
       ];
-      
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { 
+        filters: {
           group: 'trading',
           mode: 'interactive',
-          name_contains: 'agent'
-        }
+          name_contains: 'agent',
+        },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE "group" = $1 AND "mode" = $2 AND "name" ILIKE $3 ORDER BY name',
         ['trading', 'interactive', '%agent%']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgents);
     });
 
     it('should apply limit', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        limit: 10
+        limit: 10,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents ORDER BY name LIMIT $1',
         [10]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should apply offset', async () => {
-      const mockAgents = [
-        { id: 2, name: 'agent2', group: 'rpc' },
-      ];
-      
+      const mockAgents = [{ id: 2, name: 'agent2', group: 'rpc' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        offset: 5
+        offset: 5,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents ORDER BY name OFFSET $1',
         [5]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should apply limit and offset together', async () => {
-      const mockAgents = [
-        { id: 3, name: 'agent3', group: 'general' },
-      ];
-      
+      const mockAgents = [{ id: 3, name: 'agent3', group: 'general' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
         limit: 5,
-        offset: 10
+        offset: 10,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents ORDER BY name LIMIT $1 OFFSET $2',
         [5, 10]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should apply filters, limit, and offset together', async () => {
-      const mockAgents = [
-        { id: 1, name: 'trading-agent', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'trading-agent', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
         filters: { group: 'trading' },
         limit: 5,
-        offset: 10
+        offset: 10,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE "group" = $1 ORDER BY name LIMIT $2 OFFSET $3',
         ['trading', 5, 10]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -295,7 +285,7 @@ describe('listAgentsTool', () => {
         'SELECT * FROM agents ORDER BY name',
         []
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.message).toBe('Found 0 agent(s)');
@@ -304,62 +294,56 @@ describe('listAgentsTool', () => {
     });
 
     it('should handle null filters', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: null
+        filters: null,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents ORDER BY name',
         []
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should handle undefined filters', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: undefined
+        filters: undefined,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents ORDER BY name',
         []
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should handle null limit and offset', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
         limit: null,
-        offset: null
+        offset: null,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents ORDER BY name',
         []
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -372,8 +356,10 @@ describe('listAgentsTool', () => {
 
       const result = await listAgentsTool.func({});
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error listing agents: Error: Database connection failed');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error listing agents: Error: Database connection failed'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to list agents');
@@ -385,8 +371,10 @@ describe('listAgentsTool', () => {
 
       const result = await listAgentsTool.func({});
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error listing agents: String error');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error listing agents: String error'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to list agents');
@@ -400,8 +388,10 @@ describe('listAgentsTool', () => {
 
       const result = await listAgentsTool.func({});
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error listing agents: Error: Invalid query syntax');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error listing agents: Error: Invalid query syntax'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to list agents');
@@ -416,7 +406,7 @@ describe('listAgentsTool', () => {
         name: `agent${i + 1}`,
         group: 'general',
       }));
-      
+
       mockPostgres.query.mockResolvedValue(largeDataset);
 
       const result = await listAgentsTool.func({});
@@ -434,18 +424,18 @@ describe('listAgentsTool', () => {
         { id: 2, name: 'agent_with_underscores', group: 'rpc' },
         { id: 3, name: 'agent.with.dots', group: 'general' },
       ];
-      
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { name_contains: 'agent' }
+        filters: { name_contains: 'agent' },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE "name" ILIKE $1 ORDER BY name',
         ['%agent%']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
       expect(parsedResult.data).toEqual(mockAgents);
@@ -456,7 +446,7 @@ describe('listAgentsTool', () => {
         { id: 1, name: 'agent1', group: null, mode: undefined },
         { id: 2, name: 'agent2', group: 'trading', mode: 'interactive' },
       ];
-      
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({});
@@ -467,14 +457,12 @@ describe('listAgentsTool', () => {
     });
 
     it('should handle case-insensitive name search', async () => {
-      const mockAgents = [
-        { id: 1, name: 'TRADING-AGENT', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'TRADING-AGENT', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { name_contains: 'trading' }
+        filters: { name_contains: 'trading' },
       });
 
       // ILIKE is case-insensitive, so 'trading' should match 'TRADING-AGENT'
@@ -482,7 +470,7 @@ describe('listAgentsTool', () => {
         'SELECT * FROM agents WHERE "name" ILIKE $1 ORDER BY name',
         ['%trading%']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -491,17 +479,17 @@ describe('listAgentsTool', () => {
   describe('parameter validation', () => {
     it('should transform negative and zero values to null', () => {
       const schema = listAgentsTool.schema;
-      
+
       // Test negative values
       const negativeResult = schema.parse({ limit: -5, offset: -10 });
       expect(negativeResult.limit).toBeNull();
       expect(negativeResult.offset).toBeNull();
-      
+
       // Test zero values
       const zeroResult = schema.parse({ limit: 0, offset: 0 });
       expect(zeroResult.limit).toBeNull();
       expect(zeroResult.offset).toBeNull();
-      
+
       // Test positive values
       const positiveResult = schema.parse({ limit: 5, offset: 10 });
       expect(positiveResult.limit).toBe(5);
@@ -509,14 +497,12 @@ describe('listAgentsTool', () => {
     });
 
     it('should handle empty string filters', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { group: '', mode: '', name_contains: '' }
+        filters: { group: '', mode: '', name_contains: '' },
       });
 
       // Empty strings should be treated as null and ignored
@@ -524,7 +510,7 @@ describe('listAgentsTool', () => {
         'SELECT * FROM agents ORDER BY name',
         []
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -533,15 +519,15 @@ describe('listAgentsTool', () => {
       const mockAgents = [
         { id: 1, name: 'trading-agent', group: 'trading', mode: 'interactive' },
       ];
-      
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const result = await listAgentsTool.func({
-        filters: { 
+        filters: {
           group: 'trading',
-          mode: '',  // Empty string should be ignored
-          name_contains: 'agent'  // Valid filter
-        }
+          mode: '', // Empty string should be ignored
+          name_contains: 'agent', // Valid filter
+        },
       });
 
       // Only valid filters should be included in the query
@@ -549,21 +535,19 @@ describe('listAgentsTool', () => {
         'SELECT * FROM agents WHERE "group" = $1 AND "name" ILIKE $2 ORDER BY name',
         ['trading', '%agent%']
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should handle zero limit and offset', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const validatedInput = listAgentsTool.schema.parse({
         limit: 0,
-        offset: 0
+        offset: 0,
       });
 
       const result = await listAgentsTool.func(validatedInput);
@@ -572,21 +556,19 @@ describe('listAgentsTool', () => {
         'SELECT * FROM agents ORDER BY name',
         []
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should handle negative limit and offset', async () => {
-      const mockAgents = [
-        { id: 1, name: 'agent1', group: 'trading' },
-      ];
-      
+      const mockAgents = [{ id: 1, name: 'agent1', group: 'trading' }];
+
       mockPostgres.query.mockResolvedValue(mockAgents);
 
       const validatedInput = listAgentsTool.schema.parse({
         limit: -5,
-        offset: -10
+        offset: -10,
       });
 
       const result = await listAgentsTool.func(validatedInput);
@@ -595,9 +577,9 @@ describe('listAgentsTool', () => {
         'SELECT * FROM agents ORDER BY name',
         []
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
   });
-}); 
+});

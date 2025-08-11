@@ -477,7 +477,7 @@ export class SnakAgent extends BaseAgent {
       if (finalAnswer) {
         await this.saveIteration(finalAnswer);
       }
-      
+
       if (lastChunkToSave) {
         yield {
           chunk: {
@@ -554,7 +554,9 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else {
-        throw new Error(`The mode : ${this.currentMode} is not supported in this method.`);
+        throw new Error(
+          `The mode : ${this.currentMode} is not supported in this method.`
+        );
       }
     } catch (error) {
       logger.error('Execute failed:', error);

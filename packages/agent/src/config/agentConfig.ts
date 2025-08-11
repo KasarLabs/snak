@@ -167,9 +167,11 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
 };
 
 const normalizeMemoryAndRag = (memory: any, rag: any) => {
-  const normalizedMemory = typeof memory === 'object' && memory !== null ? memory : { enabled: false };
-  const normalizedRag = typeof rag === 'object' && rag !== null ? rag : { enabled: false };
-  
+  const normalizedMemory =
+    typeof memory === 'object' && memory !== null ? memory : { enabled: false };
+  const normalizedRag =
+    typeof rag === 'object' && rag !== null ? rag : { enabled: false };
+
   return { memory: normalizedMemory, rag: normalizedRag };
 };
 
@@ -369,8 +371,11 @@ const checkParseJson = async (
       );
     }
 
-    const { memory, rag } = normalizeMemoryAndRag(json.memory || false, json.rag || false);
-    
+    const { memory, rag } = normalizeMemoryAndRag(
+      json.memory || false,
+      json.rag || false
+    );
+
     const agentConfig: AgentConfig = {
       id: uuidv4(),
       name: json.name,

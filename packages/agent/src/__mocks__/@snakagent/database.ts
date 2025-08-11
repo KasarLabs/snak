@@ -1,5 +1,8 @@
 export class Query {
-  constructor(public sql: string, public params: unknown[] = []) {}
+  constructor(
+    public sql: string,
+    public params: unknown[] = []
+  ) {}
 }
 
 export const Postgres = {
@@ -20,4 +23,4 @@ export interface DatabaseCredentials {
   database: string;
   user: string;
   password: string;
-} 
+}

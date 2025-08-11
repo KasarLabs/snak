@@ -4,7 +4,13 @@ import { ModelSelector } from '../../operators/modelSelector.js';
 import { MemoryAgent } from '../../operators/memoryAgent.js';
 import { RagAgent } from '../../operators/ragAgent.js';
 import { AgentConfig } from '@snakagent/core';
-import { BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 
 // Mock the logger from @snakagent/core
 jest.mock('@snakagent/core', () => ({
@@ -39,10 +45,12 @@ jest.mock('../autonomous.js', () => ({
 
 // Mock LangGraph modules with Annotation.Root
 jest.mock('@langchain/langgraph', () => {
-  const mockAnnotation = jest.fn().mockImplementation((config) => config) as any;
+  const mockAnnotation = jest
+    .fn()
+    .mockImplementation((config) => config) as any;
   const mockAnnotationRoot = jest.fn().mockImplementation((config) => config);
   mockAnnotation.Root = mockAnnotationRoot;
-  
+
   return {
     StateGraph: jest.fn().mockImplementation(() => ({
       addNode: jest.fn().mockReturnThis(),
@@ -136,7 +144,10 @@ describe('Interactive Mode', () => {
 
   describe('createInteractiveAgent', () => {
     it('should create an interactive agent successfully with basic configuration', async () => {
-      const result = await createInteractiveAgent(mockSnakAgent, mockModelSelector);
+      const result = await createInteractiveAgent(
+        mockSnakAgent,
+        mockModelSelector
+      );
 
       expect(result).toBeDefined();
       expect(result.app).toEqual({ app: 'compiled-app' });
@@ -145,11 +156,13 @@ describe('Interactive Mode', () => {
     });
 
     it('should throw error when agent configuration is missing', async () => {
-      mockSnakAgent.getAgentConfig.mockReturnValue(undefined as unknown as AgentConfig);
+      mockSnakAgent.getAgentConfig.mockReturnValue(
+        undefined as unknown as AgentConfig
+      );
 
-      await expect(createInteractiveAgent(mockSnakAgent, mockModelSelector))
-        .rejects
-        .toThrow('Agent configuration is required');
+      await expect(
+        createInteractiveAgent(mockSnakAgent, mockModelSelector)
+      ).rejects.toThrow('Agent configuration is required');
     });
 
     it('should initialize database with credentials', async () => {
@@ -171,7 +184,10 @@ describe('Interactive Mode', () => {
 
       await createInteractiveAgent(mockSnakAgent, mockModelSelector);
 
-      expect(initializeToolsList).toHaveBeenCalledWith(mockSnakAgent, mockAgentConfig);
+      expect(initializeToolsList).toHaveBeenCalledWith(
+        mockSnakAgent,
+        mockAgentConfig
+      );
     });
 
     it('should handle memory agent when memory is enabled', async () => {
@@ -240,10 +256,22 @@ describe('Interactive Mode', () => {
 
       await createInteractiveAgent(mockSnakAgent, mockModelSelector);
 
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('agent', expect.any(Function));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('tools', expect.any(Object));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('memory', expect.any(Object));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('ragNode', expect.any(Object));
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'agent',
+        expect.any(Function)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'tools',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'memory',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'ragNode',
+        expect.any(Object)
+      );
     });
 
     it('should create workflow with only rag node when memory is disabled', async () => {
@@ -262,10 +290,22 @@ describe('Interactive Mode', () => {
 
       await createInteractiveAgent(mockSnakAgent, mockModelSelector);
 
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('agent', expect.any(Function));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('tools', expect.any(Object));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('ragNode', expect.any(Object));
-      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith('memory', expect.any(Object));
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'agent',
+        expect.any(Function)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'tools',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'ragNode',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith(
+        'memory',
+        expect.any(Object)
+      );
     });
 
     it('should create basic workflow when memory and rag are disabled', async () => {
@@ -283,24 +323,36 @@ describe('Interactive Mode', () => {
 
       await createInteractiveAgent(mockSnakAgent, mockModelSelector);
 
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('agent', expect.any(Function));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('tools', expect.any(Object));
-      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith('memory', expect.any(Object));
-      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith('ragNode', expect.any(Object));
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'agent',
+        expect.any(Function)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'tools',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith(
+        'memory',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith(
+        'ragNode',
+        expect.any(Object)
+      );
     });
 
     it('should handle errors during agent creation', async () => {
       const { initializeDatabase } = require('../../core/utils.js');
       // Mock the rejection only for this test instance
-      initializeDatabase.mockImplementationOnce(() => 
+      initializeDatabase.mockImplementationOnce(() =>
         Promise.reject(new Error('Database initialization failed'))
       );
 
       const { logger } = require('@snakagent/core');
 
-      await expect(createInteractiveAgent(mockSnakAgent, mockModelSelector))
-        .rejects
-        .toThrow('Database initialization failed');
+      await expect(
+        createInteractiveAgent(mockSnakAgent, mockModelSelector)
+      ).rejects.toThrow('Database initialization failed');
 
       expect(logger.error).toHaveBeenCalledWith(
         'Failed to create an interactive agent:',
@@ -350,12 +402,12 @@ describe('Interactive Mode', () => {
   describe('Helper Functions', () => {
     // These tests would require more complex mocking of the internal functions
     // For now, we'll test the main function and its integration points
-    
+
     it('should use interactive rules in system prompt', async () => {
       const { interactiveRules } = require('../../../prompt/prompts.js');
-      
+
       await createInteractiveAgent(mockSnakAgent, mockModelSelector);
-      
+
       // The interactive rules should be used in the callModel function
       // This is tested indirectly through the workflow creation
       expect(interactiveRules).toBe('Interactive rules content');
@@ -363,18 +415,18 @@ describe('Interactive Mode', () => {
 
     it('should format agent response using utility function', async () => {
       const { formatAgentResponse } = require('../../core/utils.js');
-      
+
       await createInteractiveAgent(mockSnakAgent, mockModelSelector);
-      
+
       // The formatAgentResponse function should be available for use
       expect(formatAgentResponse).toBeDefined();
     });
 
     it('should truncate tool results using utility function', async () => {
       const { truncateToolResults } = require('../../core/utils.js');
-      
+
       await createInteractiveAgent(mockSnakAgent, mockModelSelector);
-      
+
       // The truncateToolResults function should be available for use
       expect(truncateToolResults).toBeDefined();
     });

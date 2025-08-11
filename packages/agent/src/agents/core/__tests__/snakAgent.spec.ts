@@ -4,117 +4,131 @@ jest.mock('@snakagent/core', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
   },
   AgentConfig: jest.fn(),
   CustomHuggingFaceEmbeddings: jest.fn().mockImplementation(() => ({
-    embedQuery: jest.fn().mockResolvedValue([0.1, 0.2, 0.3])
-  }))
+    embedQuery: jest.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+  })),
 }));
 
 jest.mock('@snakagent/metrics', () => ({
   metrics: {
-    agentConnect: jest.fn()
+    agentConnect: jest.fn(),
   },
   default: {
-    agentConnect: jest.fn()
-  }
+    agentConnect: jest.fn(),
+  },
 }));
 
 jest.mock('@snakagent/database/queries', () => ({
   iterations: {
     insert_iteration: jest.fn().mockResolvedValue(undefined),
     count_iterations: jest.fn().mockResolvedValue(5),
-    delete_oldest_iteration: jest.fn().mockResolvedValue(undefined)
-  }
+    delete_oldest_iteration: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 jest.mock('snak-mcps', () => ({
   MultiServerMCPClient: jest.fn().mockImplementation(() => ({
     initializeConnections: jest.fn().mockResolvedValue(undefined),
-    getTools: jest.fn().mockReturnValue([])
-  }))
+    getTools: jest.fn().mockReturnValue([]),
+  })),
 }));
 
 jest.mock('starknet', () => ({
   RpcProvider: jest.fn().mockImplementation(() => ({
-    getChainId: jest.fn().mockResolvedValue('0x534e5f474f45524c49')
-  }))
+    getChainId: jest.fn().mockResolvedValue('0x534e5f474f45524c49'),
+  })),
 }));
 
 jest.mock('../../operators/modelSelector', () => ({
   ModelSelector: jest.fn().mockImplementation(() => ({
-    init: jest.fn().mockResolvedValue(undefined)
-  }))
+    init: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 jest.mock('../../operators/memoryAgent', () => ({
   MemoryAgent: jest.fn().mockImplementation(() => ({
-    init: jest.fn().mockResolvedValue(undefined)
-  }))
+    init: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 jest.mock('../../operators/ragAgent', () => ({
   RagAgent: jest.fn().mockImplementation(() => ({
-    init: jest.fn().mockResolvedValue(undefined)
-  }))
+    init: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 jest.mock('../../operators/mcp-agent/mcpAgent', () => ({
   MCPAgent: jest.fn().mockImplementation(() => ({
-    init: jest.fn().mockResolvedValue(undefined)
-  }))
+    init: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 jest.mock('../../operators/config-agent/configAgent', () => ({
   ConfigurationAgent: jest.fn().mockImplementation(() => ({
-    init: jest.fn().mockResolvedValue(undefined)
-  }))
+    init: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 jest.mock('../../modes/interactive', () => ({
   createInteractiveAgent: jest.fn().mockResolvedValue({
     app: {
-      streamEvents: jest.fn().mockResolvedValue([])
-    }
-  })
+      streamEvents: jest.fn().mockResolvedValue([]),
+    },
+  }),
 }));
 
 jest.mock('../../modes/autonomous', () => ({
   createAutonomousAgent: jest.fn().mockResolvedValue({
     app: {
       streamEvents: jest.fn().mockResolvedValue([]),
-      getState: jest.fn().mockResolvedValue({ tasks: [] })
+      getState: jest.fn().mockResolvedValue({ tasks: [] }),
     },
-    agent_config: {}
-  })
+    agent_config: {},
+  }),
 }));
 
 jest.mock('../../../config/agentConfig', () => ({
   AgentMode: {
     INTERACTIVE: 'interactive',
     AUTONOMOUS: 'autonomous',
-    HYBRID: 'hybrid'
+    HYBRID: 'hybrid',
   },
   AGENT_MODES: {
     interactive: 'interactive',
     autonomous: 'autonomous',
-    hybrid: 'hybrid'
-  }
+    hybrid: 'hybrid',
+  },
 }));
 
-import { SnakAgent, SnakAgentConfig, AgentIterationEvent } from '../snakAgent.js';
+import {
+  SnakAgent,
+  SnakAgentConfig,
+  AgentIterationEvent,
+} from '../snakAgent.js';
 import { RpcProvider } from 'starknet';
 
 // Get the mocked modules for testing
 const mockLogger = jest.requireMock('@snakagent/core').logger;
 const mockMetrics = jest.requireMock('@snakagent/metrics').metrics;
-const mockIterations = jest.requireMock('@snakagent/database/queries').iterations;
-const mockModelSelector = jest.requireMock('../../operators/modelSelector').ModelSelector;
-const mockMemoryAgent = jest.requireMock('../../operators/memoryAgent').MemoryAgent;
+const mockIterations = jest.requireMock(
+  '@snakagent/database/queries'
+).iterations;
+const mockModelSelector = jest.requireMock(
+  '../../operators/modelSelector'
+).ModelSelector;
+const mockMemoryAgent = jest.requireMock(
+  '../../operators/memoryAgent'
+).MemoryAgent;
 const mockRagAgent = jest.requireMock('../../operators/ragAgent').RagAgent;
-const mockCreateInteractiveAgent = jest.requireMock('../../modes/interactive').createInteractiveAgent;
-const mockCreateAutonomousAgent = jest.requireMock('../../modes/autonomous').createAutonomousAgent;
+const mockCreateInteractiveAgent = jest.requireMock(
+  '../../modes/interactive'
+).createInteractiveAgent;
+const mockCreateAutonomousAgent = jest.requireMock(
+  '../../modes/autonomous'
+).createAutonomousAgent;
 
 describe('SnakAgent', () => {
   let snakAgent: SnakAgent;
@@ -127,20 +141,20 @@ describe('SnakAgent', () => {
     // Reset mock implementations
     mockCreateInteractiveAgent.mockResolvedValue({
       app: {
-        streamEvents: jest.fn().mockResolvedValue([])
-      }
+        streamEvents: jest.fn().mockResolvedValue([]),
+      },
     });
 
     mockCreateAutonomousAgent.mockResolvedValue({
       app: {
         streamEvents: jest.fn().mockResolvedValue([]),
-        getState: jest.fn().mockResolvedValue({ tasks: [] })
+        getState: jest.fn().mockResolvedValue({ tasks: [] }),
       },
-      agent_config: {}
+      agent_config: {},
     });
 
     mockProvider = {
-      getChainId: jest.fn().mockResolvedValue('0x534e5f474f45524c49')
+      getChainId: jest.fn().mockResolvedValue('0x534e5f474f45524c49'),
     } as any;
 
     mockConfig = {
@@ -152,7 +166,7 @@ describe('SnakAgent', () => {
         port: 5432,
         database: 'test_db',
         user: 'test_user',
-        password: 'test_password'
+        password: 'test_password',
       },
       agentConfig: {
         id: 'test-agent',
@@ -166,11 +180,11 @@ describe('SnakAgent', () => {
           enabled: true,
           shortTermMemorySize: 15,
           memorySize: 20,
-          embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+          embeddingModel: 'Xenova/all-MiniLM-L6-v2',
         },
         maxIterations: 10,
         plugins: [],
-        prompt: { content: 'Test prompt' } as any
+        prompt: { content: 'Test prompt' } as any,
       },
       modelSelectorConfig: {
         defaultModel: 'gpt-4',
@@ -178,10 +192,10 @@ describe('SnakAgent', () => {
           'gpt-4': {
             name: 'gpt-4',
             provider: 'openai',
-            apiKey: 'test-key'
-          }
-        }
-      } as any
+            apiKey: 'test-key',
+          },
+        },
+      } as any,
     };
 
     snakAgent = new SnakAgent(mockConfig as any);
@@ -196,7 +210,9 @@ describe('SnakAgent', () => {
 
     it('should throw error if private key is missing', () => {
       const invalidConfig = { ...mockConfig, accountPrivateKey: '' };
-      expect(() => new SnakAgent(invalidConfig)).toThrow('STARKNET_PRIVATE_KEY is required');
+      expect(() => new SnakAgent(invalidConfig)).toThrow(
+        'STARKNET_PRIVATE_KEY is required'
+      );
     });
 
     it('should call metrics.agentConnect on initialization', () => {
@@ -210,9 +226,9 @@ describe('SnakAgent', () => {
           ...mockConfig.agentConfig,
           memory: {
             ...mockConfig.agentConfig.memory,
-            embeddingModel: 'custom-model'
-          }
-        }
+            embeddingModel: 'custom-model',
+          },
+        },
       };
       new SnakAgent(customConfig);
     });
@@ -221,13 +237,15 @@ describe('SnakAgent', () => {
   describe('init method', () => {
     it('should initialize successfully with all components', async () => {
       await expect(snakAgent.init()).resolves.toBeUndefined();
-      
-      expect(mockModelSelector).toHaveBeenCalledWith(mockConfig.modelSelectorConfig);
+
+      expect(mockModelSelector).toHaveBeenCalledWith(
+        mockConfig.modelSelectorConfig
+      );
       expect(mockMemoryAgent).toHaveBeenCalledWith({
         shortTermMemorySize: 15,
         memorySize: 20,
         maxIterations: undefined,
-        embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+        embeddingModel: 'Xenova/all-MiniLM-L6-v2',
       });
       expect(mockCreateInteractiveAgent).toHaveBeenCalled();
     });
@@ -237,13 +255,13 @@ describe('SnakAgent', () => {
         ...mockConfig,
         agentConfig: {
           ...mockConfig.agentConfig,
-          memory: { enabled: false }
-        }
+          memory: { enabled: false },
+        },
       };
       const agent = new SnakAgent(configWithoutMemory as any);
-      
+
       await expect(agent.init()).resolves.toBeUndefined();
-      
+
       expect(mockMemoryAgent).not.toHaveBeenCalled();
     });
 
@@ -252,21 +270,23 @@ describe('SnakAgent', () => {
         ...mockConfig,
         agentConfig: {
           ...mockConfig.agentConfig,
-          rag: undefined
-        }
+          rag: undefined,
+        },
       };
       const agent = new SnakAgent(configWithoutRag as any);
-      
+
       await expect(agent.init()).resolves.toBeUndefined();
-      
+
       expect(mockRagAgent).not.toHaveBeenCalled();
     });
 
     it('should handle initialization errors', async () => {
       expect(typeof snakAgent.init).toBe('function');
-      
-      mockCreateInteractiveAgent.mockRejectedValue(new Error('Executor creation failed'));
-      
+
+      mockCreateInteractiveAgent.mockRejectedValue(
+        new Error('Executor creation failed')
+      );
+
       expect(snakAgent.init).toBeDefined();
     });
   });
@@ -280,7 +300,7 @@ describe('SnakAgent', () => {
       const credentials = snakAgent.getAccountCredentials();
       expect(credentials).toEqual({
         accountPrivateKey: '0xabcdef1234567890',
-        accountPublicKey: '0x1234567890abcdef'
+        accountPublicKey: '0x1234567890abcdef',
       });
     });
 
@@ -292,7 +312,7 @@ describe('SnakAgent', () => {
     it('should return agent mode', () => {
       const agent = snakAgent.getAgent();
       expect(agent).toEqual({
-        agentMode: 'interactive'
+        agentMode: 'interactive',
       });
     });
 
@@ -341,24 +361,24 @@ describe('SnakAgent', () => {
 
     it('should execute in interactive mode', async () => {
       expect(typeof snakAgent.execute).toBe('function');
-      
+
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
           event: 'on_chain_start',
-          metadata: { langgraph_step: 1 }
+          metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
           event: 'on_chain_end',
-          metadata: { langgraph_step: 1 }
-        }
+          metadata: { langgraph_step: 1 },
+        },
       ]);
-      
+
       mockCreateInteractiveAgent.mockResolvedValue({
         app: {
-          streamEvents: mockStreamEvents
-        }
+          streamEvents: mockStreamEvents,
+        },
       });
 
       const generator = snakAgent.execute('Test input');
@@ -373,12 +393,14 @@ describe('SnakAgent', () => {
 
     it('should handle execution errors', async () => {
       expect(typeof snakAgent.execute).toBe('function');
-      
-      const mockStreamEvents = jest.fn().mockRejectedValue(new Error('Execution failed'));
+
+      const mockStreamEvents = jest
+        .fn()
+        .mockRejectedValue(new Error('Execution failed'));
       mockCreateInteractiveAgent.mockResolvedValue({
         app: {
-          streamEvents: mockStreamEvents
-        }
+          streamEvents: mockStreamEvents,
+        },
       });
 
       const generator = snakAgent.execute('Test input');
@@ -388,7 +410,7 @@ describe('SnakAgent', () => {
     it('should handle uninitialized executor', async () => {
       const agent = new SnakAgent(mockConfig as any);
       const generator = agent.execute('Test input');
-      
+
       await expect(async () => {
         for await (const result of generator) {
           // This should throw
@@ -404,24 +426,24 @@ describe('SnakAgent', () => {
 
     it('should generate stream chunks', async () => {
       expect(typeof snakAgent.executeAsyncGenerator).toBe('function');
-      
+
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
           event: 'on_chain_start',
-          metadata: { langgraph_step: 1 }
+          metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
           event: 'on_chain_end',
-          metadata: { langgraph_step: 1 }
-        }
+          metadata: { langgraph_step: 1 },
+        },
       ]);
-      
+
       mockCreateInteractiveAgent.mockResolvedValue({
         app: {
-          streamEvents: mockStreamEvents
-        }
+          streamEvents: mockStreamEvents,
+        },
       });
 
       const generator = snakAgent.executeAsyncGenerator('Test input');
@@ -430,29 +452,29 @@ describe('SnakAgent', () => {
 
     it('should handle thread configuration', async () => {
       expect(typeof snakAgent.executeAsyncGenerator).toBe('function');
-      
+
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
           event: 'on_chain_start',
-          metadata: { langgraph_step: 1 }
+          metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
           event: 'on_chain_end',
-          metadata: { langgraph_step: 1 }
-        }
+          metadata: { langgraph_step: 1 },
+        },
       ]);
-      
+
       mockCreateInteractiveAgent.mockResolvedValue({
         app: {
-          streamEvents: mockStreamEvents
-        }
+          streamEvents: mockStreamEvents,
+        },
       });
 
       const config = {
         threadId: 'test-thread',
-        metadata: { threadId: 'metadata-thread' }
+        metadata: { threadId: 'metadata-thread' },
       };
 
       const generator = snakAgent.executeAsyncGenerator('Test input', config);
@@ -464,13 +486,15 @@ describe('SnakAgent', () => {
     it('should abort controller when available', () => {
       const mockAbort = jest.fn();
       snakAgent['controller'] = {
-        abort: mockAbort
+        abort: mockAbort,
       } as any;
 
       snakAgent.stop();
 
       expect(mockAbort).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('SnakAgent execution stopped');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'SnakAgent execution stopped'
+      );
     });
 
     it('should handle missing controller', () => {
@@ -478,7 +502,9 @@ describe('SnakAgent', () => {
 
       snakAgent.stop();
 
-      expect(mockLogger.warn).toHaveBeenCalledWith('No controller found to stop execution');
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'No controller found to stop execution'
+      );
     });
   });
 
@@ -488,8 +514,8 @@ describe('SnakAgent', () => {
         ...mockConfig,
         agentConfig: {
           ...mockConfig.agentConfig,
-          mode: 'autonomous'
-        }
+          mode: 'autonomous',
+        },
       };
       snakAgent = new SnakAgent(autonomousConfig as any);
       await snakAgent.init();
@@ -497,33 +523,35 @@ describe('SnakAgent', () => {
 
     it('should execute in autonomous mode', async () => {
       expect(typeof snakAgent.executeAutonomousAsyncGenerator).toBe('function');
-      
+
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<tools,tools,agent,end>',
           event: 'on_chain_start',
           data: {
             input: {
-              messages: [{
-                additional_kwargs: { iteration_number: 1 }
-              }]
-            }
+              messages: [
+                {
+                  additional_kwargs: { iteration_number: 1 },
+                },
+              ],
+            },
           },
-          metadata: { langgraph_step: 1 }
+          metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<tools,tools,agent,end>',
           event: 'on_chain_end',
-          metadata: { langgraph_step: 1 }
-        }
+          metadata: { langgraph_step: 1 },
+        },
       ]);
-      
+
       mockCreateAutonomousAgent.mockResolvedValue({
         app: {
           streamEvents: mockStreamEvents,
-          getState: jest.fn().mockResolvedValue({ tasks: [] })
+          getState: jest.fn().mockResolvedValue({ tasks: [] }),
         },
-        agent_config: {}
+        agent_config: {},
       });
 
       const generator = snakAgent.executeAutonomousAsyncGenerator('Test input');
@@ -532,38 +560,43 @@ describe('SnakAgent', () => {
 
     it('should handle interrupted execution', async () => {
       expect(typeof snakAgent.executeAutonomousAsyncGenerator).toBe('function');
-      
+
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<tools,tools,agent,end>',
           event: 'on_chain_start',
           data: {
             input: {
-              messages: [{
-                additional_kwargs: { iteration_number: 1 }
-              }]
-            }
+              messages: [
+                {
+                  additional_kwargs: { iteration_number: 1 },
+                },
+              ],
+            },
           },
-          metadata: { langgraph_step: 1 }
+          metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<tools,tools,agent,end>',
           event: 'on_chain_end',
-          metadata: { langgraph_step: 1 }
-        }
+          metadata: { langgraph_step: 1 },
+        },
       ]);
-      
+
       mockCreateAutonomousAgent.mockResolvedValue({
         app: {
           streamEvents: mockStreamEvents,
-          getState: jest.fn().mockResolvedValue({ 
-            tasks: [{ interrupts: ['user_input'] }] 
-          })
+          getState: jest.fn().mockResolvedValue({
+            tasks: [{ interrupts: ['user_input'] }],
+          }),
         },
-        agent_config: {}
+        agent_config: {},
       });
 
-      const generator = snakAgent.executeAutonomousAsyncGenerator('Test input', true);
+      const generator = snakAgent.executeAutonomousAsyncGenerator(
+        'Test input',
+        true
+      );
       expect(generator).toBeDefined();
     });
 
@@ -572,14 +605,14 @@ describe('SnakAgent', () => {
       mockCreateAutonomousAgent.mockResolvedValue({
         app: {
           streamEvents: jest.fn().mockRejectedValue(abortError),
-          getState: jest.fn().mockResolvedValue({ tasks: [] })
+          getState: jest.fn().mockResolvedValue({ tasks: [] }),
         },
-        agent_config: {}
+        agent_config: {},
       });
 
       const generator = snakAgent.executeAutonomousAsyncGenerator('Test input');
       const results = [];
-      
+
       for await (const result of generator) {
         results.push(result);
       }
@@ -594,35 +627,40 @@ describe('SnakAgent', () => {
     });
 
     it('should capture question for interactive mode', async () => {
-      const captureQuestionSpy = jest.spyOn(snakAgent as any, 'captureQuestion');
-      
+      const captureQuestionSpy = jest.spyOn(
+        snakAgent as any,
+        'captureQuestion'
+      );
+
       await snakAgent['captureQuestion']('Test question');
-      
+
       expect(captureQuestionSpy).toHaveBeenCalledWith('Test question');
     });
 
     it('should save iteration for interactive mode', async () => {
       snakAgent['pendingIteration'] = {
         question: 'Test question',
-        embedding: [0.1, 0.2, 0.3]
+        embedding: [0.1, 0.2, 0.3],
       };
-      
+
       await snakAgent['saveIteration']('Test answer');
-      
+
       expect(mockIterations.insert_iteration).toHaveBeenCalled();
     });
 
     it('should handle memory limit enforcement', async () => {
       mockIterations.count_iterations.mockResolvedValue(20);
-      
+
       snakAgent['pendingIteration'] = {
         question: 'Test question',
-        embedding: [0.1, 0.2, 0.3]
+        embedding: [0.1, 0.2, 0.3],
       };
-      
+
       await snakAgent['saveIteration']('Test answer');
-      
-      expect(mockIterations.delete_oldest_iteration).toHaveBeenCalledWith('test-agent');
+
+      expect(mockIterations.delete_oldest_iteration).toHaveBeenCalledWith(
+        'test-agent'
+      );
     });
   });
 
@@ -633,10 +671,10 @@ describe('SnakAgent', () => {
         'tokens exceed maximum',
         'context length exceeded',
         'prompt is too long',
-        'maximum context length'
+        'maximum context length',
       ];
 
-      tokenErrors.forEach(errorMsg => {
+      tokenErrors.forEach((errorMsg) => {
         const error = new Error(errorMsg);
         const isTokenError = snakAgent['isTokenRelatedError'](error);
         expect(isTokenError).toBe(true);
@@ -654,56 +692,56 @@ describe('SnakAgent', () => {
     it('should handle complete lifecycle', async () => {
       // Initialize
       await expect(snakAgent.init()).resolves.toBeUndefined();
-      
+
       // Get configuration
       const config = snakAgent.getAgentConfig();
       expect(config.id).toBe('test-agent');
-      
+
       // Test that execute method exists
       expect(typeof snakAgent.execute).toBe('function');
-      
+
       // Mock the streamEvents to return a simple stream
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
           event: 'on_chain_start',
-          metadata: { langgraph_step: 1 }
+          metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
           event: 'on_chain_end',
-          metadata: { langgraph_step: 1 }
-        }
+          metadata: { langgraph_step: 1 },
+        },
       ]);
 
       mockCreateInteractiveAgent.mockResolvedValue({
         app: {
-          streamEvents: mockStreamEvents
-        }
+          streamEvents: mockStreamEvents,
+        },
       });
 
       const generator = snakAgent.execute('Test input');
       expect(generator).toBeDefined();
-      
+
       // Stop execution
       snakAgent.stop();
     });
 
     it('should handle different agent modes', async () => {
       const modes = ['interactive', 'autonomous', 'hybrid'];
-      
+
       for (const mode of modes) {
         const modeConfig = {
           ...mockConfig,
           agentConfig: {
             ...mockConfig.agentConfig,
-            mode
-          }
+            mode,
+          },
         };
-        
+
         const agent = new SnakAgent(modeConfig as any);
         await expect(agent.init()).resolves.toBeUndefined();
-        
+
         expect(agent.getAgentMode()).toBe(mode);
       }
     });

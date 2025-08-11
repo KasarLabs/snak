@@ -2,7 +2,14 @@ import { createAutonomousAgent } from '../autonomous.js';
 import { SnakAgentInterface } from '../../../tools/tools.js';
 import { ModelSelector } from '../../operators/modelSelector.js';
 import { AgentConfig, AgentMode } from '@snakagent/core';
-import { BaseMessage, HumanMessage, AIMessage, ToolMessage, AIMessageChunk, SystemMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+  AIMessageChunk,
+  SystemMessage,
+} from '@langchain/core/messages';
 import { Tool } from '@langchain/core/tools';
 
 // Mock the logger from @snakagent/core
@@ -54,7 +61,7 @@ jest.mock('@langchain/langgraph', () => {
   const mockAnnotationWithRoot = Object.assign(mockAnnotation, {
     Root: jest.fn().mockImplementation((config) => config),
   });
-  
+
   return {
     StateGraph: jest.fn().mockImplementation(() => ({
       addNode: jest.fn().mockReturnThis(),
@@ -97,9 +104,13 @@ const mockModelSelector: jest.Mocked<ModelSelector> = {
   getCurrentModel: jest.fn(),
   selectModelForMessages: jest.fn().mockResolvedValue({
     model: {
-      invoke: jest.fn().mockResolvedValue(new AIMessageChunk({ content: 'Test response' })),
+      invoke: jest
+        .fn()
+        .mockResolvedValue(new AIMessageChunk({ content: 'Test response' })),
       bindTools: jest.fn().mockReturnValue({
-        invoke: jest.fn().mockResolvedValue(new AIMessageChunk({ content: 'Test response' })),
+        invoke: jest
+          .fn()
+          .mockResolvedValue(new AIMessageChunk({ content: 'Test response' })),
       }),
     },
     model_name: 'test-model',
@@ -133,7 +144,10 @@ describe('Autonomous Mode', () => {
 
   describe('createAutonomousAgent', () => {
     it('should create an autonomous agent successfully with basic configuration', async () => {
-      const result = await createAutonomousAgent(mockSnakAgent, mockModelSelector);
+      const result = await createAutonomousAgent(
+        mockSnakAgent,
+        mockModelSelector
+      );
 
       expect(result).toBeDefined();
       expect(result.app).toEqual({ app: 'compiled-app' });
@@ -142,19 +156,21 @@ describe('Autonomous Mode', () => {
     });
 
     it('should throw error when agent configuration is missing', async () => {
-      mockSnakAgent.getAgentConfig.mockReturnValue(undefined as unknown as AgentConfig);
+      mockSnakAgent.getAgentConfig.mockReturnValue(
+        undefined as unknown as AgentConfig
+      );
 
-      await expect(createAutonomousAgent(mockSnakAgent, mockModelSelector))
-        .rejects
-        .toThrow('Agent configuration is required.');
+      await expect(
+        createAutonomousAgent(mockSnakAgent, mockModelSelector)
+      ).rejects.toThrow('Agent configuration is required.');
     });
 
     it('should throw error when model selector is missing', async () => {
       const { logger } = require('@snakagent/core');
 
-      await expect(createAutonomousAgent(mockSnakAgent, null))
-        .rejects
-        .toThrow('ModelSelector is required for autonomous mode.');
+      await expect(createAutonomousAgent(mockSnakAgent, null)).rejects.toThrow(
+        'ModelSelector is required for autonomous mode.'
+      );
 
       expect(logger.error).toHaveBeenCalledWith(
         'ModelSelector is required for autonomous mode but was not provided.'
@@ -166,7 +182,10 @@ describe('Autonomous Mode', () => {
 
       await createAutonomousAgent(mockSnakAgent, mockModelSelector);
 
-      expect(createAllowedTools).toHaveBeenCalledWith(mockSnakAgent, mockAgentConfig.plugins);
+      expect(createAllowedTools).toHaveBeenCalledWith(
+        mockSnakAgent,
+        mockAgentConfig.plugins
+      );
     });
 
     it('should initialize MCP tools when mcpServers are configured', async () => {
@@ -182,7 +201,9 @@ describe('Autonomous Mode', () => {
 
       await createAutonomousAgent(mockSnakAgent, mockModelSelector);
 
-      expect(MCP_CONTROLLER.fromAgentConfig).toHaveBeenCalledWith(mockAgentConfig);
+      expect(MCP_CONTROLLER.fromAgentConfig).toHaveBeenCalledWith(
+        mockAgentConfig
+      );
       expect(logger.info).toHaveBeenCalledWith(
         'Initialized 0 MCP tools for the autonomous agent.'
       );
@@ -200,7 +221,9 @@ describe('Autonomous Mode', () => {
       const { logger } = require('@snakagent/core');
 
       MCP_CONTROLLER.fromAgentConfig.mockReturnValue({
-        initializeConnections: jest.fn().mockRejectedValue(new Error('MCP connection failed')),
+        initializeConnections: jest
+          .fn()
+          .mockRejectedValue(new Error('MCP connection failed')),
         getTools: jest.fn().mockReturnValue([]),
       });
 
@@ -225,9 +248,18 @@ describe('Autonomous Mode', () => {
 
       await createAutonomousAgent(mockSnakAgent, mockModelSelector);
 
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('agent', expect.any(Function));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('tools', expect.any(Object));
-      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith('human', expect.any(Function));
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'agent',
+        expect.any(Function)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'tools',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).not.toHaveBeenCalledWith(
+        'human',
+        expect.any(Function)
+      );
     });
 
     it('should create workflow with hybrid mode when mode is HYBRID', async () => {
@@ -244,9 +276,18 @@ describe('Autonomous Mode', () => {
 
       await createAutonomousAgent(mockSnakAgent, mockModelSelector);
 
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('agent', expect.any(Function));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('tools', expect.any(Object));
-      expect(mockStateGraph.addNode).toHaveBeenCalledWith('human', expect.any(Function));
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'agent',
+        expect.any(Function)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'tools',
+        expect.any(Object)
+      );
+      expect(mockStateGraph.addNode).toHaveBeenCalledWith(
+        'human',
+        expect.any(Function)
+      );
     });
 
     it('should use autonomous rules for autonomous mode', async () => {
@@ -286,15 +327,15 @@ describe('Autonomous Mode', () => {
     it('should handle errors during agent creation', async () => {
       const { createAllowedTools } = require('../../../tools/tools.js');
       const { logger } = require('@snakagent/core');
-      
+
       // Mock the rejection only for this test invocation
-      createAllowedTools.mockImplementationOnce(() => 
+      createAllowedTools.mockImplementationOnce(() =>
         Promise.reject(new Error('Tools initialization failed'))
       );
 
-      await expect(createAutonomousAgent(mockSnakAgent, mockModelSelector))
-        .rejects
-        .toThrow('Tools initialization failed');
+      await expect(
+        createAutonomousAgent(mockSnakAgent, mockModelSelector)
+      ).rejects.toThrow('Tools initialization failed');
 
       expect(logger.error).toHaveBeenCalledWith(
         'Failed to create autonomous agent graph: Error: Tools initialization failed'
@@ -387,16 +428,24 @@ describe('Autonomous Mode', () => {
       await createAutonomousAgent(mockSnakAgent, mockModelSelector);
 
       expect(mockStateGraph.addEdge).toHaveBeenCalledWith('start', 'agent');
-      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith('agent', expect.any(Function), {
-        tools: 'tools',
-        agent: 'agent',
-        end: 'end',
-      });
-      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith('tools', expect.any(Function), {
-        tools: 'tools',
-        agent: 'agent',
-        end: 'end',
-      });
+      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith(
+        'agent',
+        expect.any(Function),
+        {
+          tools: 'tools',
+          agent: 'agent',
+          end: 'end',
+        }
+      );
+      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith(
+        'tools',
+        expect.any(Function),
+        {
+          tools: 'tools',
+          agent: 'agent',
+          end: 'end',
+        }
+      );
     });
 
     it('should configure hybrid workflow correctly', async () => {
@@ -415,17 +464,25 @@ describe('Autonomous Mode', () => {
 
       expect(mockStateGraph.addEdge).toHaveBeenCalledWith('start', 'agent');
       expect(mockStateGraph.addEdge).toHaveBeenCalledWith('human', 'agent');
-      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith('agent', expect.any(Function), {
-        tools: 'tools',
-        agent: 'agent',
-        human: 'human',
-        end: 'end',
-      });
-      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith('tools', expect.any(Function), {
-        tools: 'tools',
-        agent: 'agent',
-        end: 'end',
-      });
+      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith(
+        'agent',
+        expect.any(Function),
+        {
+          tools: 'tools',
+          agent: 'agent',
+          human: 'human',
+          end: 'end',
+        }
+      );
+      expect(mockStateGraph.addConditionalEdges).toHaveBeenCalledWith(
+        'tools',
+        expect.any(Function),
+        {
+          tools: 'tools',
+          agent: 'agent',
+          end: 'end',
+        }
+      );
     });
   });
 });

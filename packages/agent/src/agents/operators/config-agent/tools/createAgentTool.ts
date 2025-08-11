@@ -95,7 +95,8 @@ export const createAgentTool = new DynamicStructuredTool({
   schema: CreateAgentSchema,
   func: async (input) => {
     try {
-      const { normalizedConfig, appliedDefaults } = normalizeNumericValues(input);
+      const { normalizedConfig, appliedDefaults } =
+        normalizeNumericValues(input);
 
       const query = new Postgres.Query(
         `INSERT INTO agents (
@@ -127,12 +128,12 @@ export const createAgentTool = new DynamicStructuredTool({
 
       if (result.length > 0) {
         logger.info(`Created new agent "${input.name}" successfully`);
-        
+
         let message = `Agent "${input.name}" created successfully`;
         if (appliedDefaults.length > 0) {
           message += `. Note: ${appliedDefaults.join('; ')}`;
         }
-        
+
         return JSON.stringify({
           success: true,
           message: message,

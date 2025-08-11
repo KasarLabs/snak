@@ -1,4 +1,7 @@
-import { ConfigurationAgent, ConfigurationAgentConfig } from '../../config-agent/configAgent.js';
+import {
+  ConfigurationAgent,
+  ConfigurationAgentConfig,
+} from '../../config-agent/configAgent.js';
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentType } from '../../../core/baseAgent.js';
 
@@ -82,16 +85,17 @@ describe('ConfigurationAgent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockLogger = require('@snakagent/core').logger;
     mockModelSelector = require('../../modelSelector.js').ModelSelector;
-    mockCreateReactAgent = require('@langchain/langgraph/prebuilt').createReactAgent;
-    
+    mockCreateReactAgent =
+      require('@langchain/langgraph/prebuilt').createReactAgent;
+
     mockReactAgent = {
       invoke: jest.fn(),
     };
     mockCreateReactAgent.mockReturnValue(mockReactAgent);
-    
+
     // Reset mock functions
     mockRegister.mockClear();
     mockUnregister.mockClear();
@@ -101,7 +105,7 @@ describe('ConfigurationAgent', () => {
   describe('constructor', () => {
     it('should create a ConfigurationAgent with default config', () => {
       agent = new ConfigurationAgent();
-      
+
       expect(agent.id).toBe('configuration-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
       expect(agent.description).toContain('managing agent configurations');
@@ -112,9 +116,9 @@ describe('ConfigurationAgent', () => {
         debug: false,
         modelType: 'smart',
       };
-      
+
       agent = new ConfigurationAgent(config);
-      
+
       expect(agent.id).toBe('configuration-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
     });
@@ -122,7 +126,7 @@ describe('ConfigurationAgent', () => {
     it('should initialize with correct debug setting', () => {
       agent = new ConfigurationAgent({ debug: false });
       expect(mockLogger.debug).not.toHaveBeenCalled();
-      
+
       agent = new ConfigurationAgent({ debug: true });
       expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('ConfigurationAgent initialized with')
@@ -141,17 +145,14 @@ describe('ConfigurationAgent', () => {
 
     it('should initialize successfully with default config', async () => {
       await agent.init();
-      
+
       expect(mockModelSelector.getInstance).toHaveBeenCalled();
       expect(mockCreateReactAgent).toHaveBeenCalledWith({
         llm: expect.any(Object),
         tools: expect.any(Array),
         stateModifier: 'test system prompt',
       });
-      expect(mockRegister).toHaveBeenCalledWith(
-        'configuration-agent',
-        agent
-      );
+      expect(mockRegister).toHaveBeenCalledWith('configuration-agent', agent);
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'ConfigurationAgent initialized with React agent and registered successfully'
       );
@@ -160,7 +161,7 @@ describe('ConfigurationAgent', () => {
     it('should initialize with custom model type', async () => {
       agent = new ConfigurationAgent({ modelType: 'smart' });
       await agent.init();
-      
+
       expect(mockCreateReactAgent).toHaveBeenCalledWith({
         llm: expect.any(Object),
         tools: expect.any(Array),
@@ -170,7 +171,7 @@ describe('ConfigurationAgent', () => {
 
     it('should throw error if ModelSelector is not initialized', async () => {
       mockModelSelector.getInstance.mockReturnValue(null);
-      
+
       await expect(agent.init()).rejects.toThrow(
         'ConfigurationAgent initialization failed: Error: ModelSelector is not initialized'
       );
@@ -178,7 +179,7 @@ describe('ConfigurationAgent', () => {
 
     it('should handle initialization errors', async () => {
       mockModelSelector.getInstance.mockReturnValue(null);
-      
+
       await expect(agent.init()).rejects.toThrow(
         'ConfigurationAgent initialization failed: Error: ModelSelector is not initialized'
       );
@@ -200,14 +201,14 @@ describe('ConfigurationAgent', () => {
 
     it('should execute with string input successfully', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Agent created successfully' }),
-        ],
+        messages: [new AIMessage({ content: 'Agent created successfully' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
-      const result = await agent.execute('Create a new agent called test-agent');
-      
+
+      const result = await agent.execute(
+        'Create a new agent called test-agent'
+      );
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Create a new agent called test-agent')],
       });
@@ -222,15 +223,13 @@ describe('ConfigurationAgent', () => {
 
     it('should execute with BaseMessage input successfully', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Agent updated successfully' }),
-        ],
+        messages: [new AIMessage({ content: 'Agent updated successfully' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = new HumanMessage('Update agent test-agent');
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Update agent test-agent')],
       });
@@ -239,15 +238,13 @@ describe('ConfigurationAgent', () => {
 
     it('should execute with message array input successfully', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Agents listed successfully' }),
-        ],
+        messages: [new AIMessage({ content: 'Agents listed successfully' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = [new HumanMessage('List all agents')];
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('List all agents')],
       });
@@ -256,16 +253,14 @@ describe('ConfigurationAgent', () => {
 
     it('should use originalUserQuery from config when provided', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Operation completed' }),
-        ],
+        messages: [new AIMessage({ content: 'Operation completed' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const result = await agent.execute('some input', false, {
         originalUserQuery: 'Create a new agent',
       });
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Create a new agent')],
       });
@@ -273,17 +268,15 @@ describe('ConfigurationAgent', () => {
 
     it('should use originalUserQuery from message additional_kwargs', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Operation completed' }),
-        ],
+        messages: [new AIMessage({ content: 'Operation completed' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = new HumanMessage('some content');
       input.additional_kwargs = { originalUserQuery: 'Delete agent test' };
-      
+
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Delete agent test')],
       });
@@ -291,11 +284,13 @@ describe('ConfigurationAgent', () => {
 
     it('should handle error when React agent is not initialized', async () => {
       agent = new ConfigurationAgent();
-      
+
       const result = await agent.execute('test');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('Configuration operation failed: React agent not initialized');
+      expect(result.content).toContain(
+        'Configuration operation failed: React agent not initialized'
+      );
       expect(result.additional_kwargs).toEqual({
         from: 'configuration-agent',
         final: true,
@@ -306,11 +301,13 @@ describe('ConfigurationAgent', () => {
 
     it('should handle execution errors gracefully', async () => {
       mockReactAgent.invoke.mockRejectedValue(new Error('Execution failed'));
-      
+
       const result = await agent.execute('test input');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('Configuration operation failed: Execution failed');
+      expect(result.content).toContain(
+        'Configuration operation failed: Execution failed'
+      );
       expect(result.additional_kwargs).toEqual({
         from: 'configuration-agent',
         final: true,
@@ -321,16 +318,19 @@ describe('ConfigurationAgent', () => {
 
     it('should handle empty response messages', async () => {
       mockReactAgent.invoke.mockResolvedValue({ messages: [] });
-      
+
       const result = await agent.execute('test');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('Configuration operation failed: No content found in the last message');
+      expect(result.content).toContain(
+        'Configuration operation failed: No content found in the last message'
+      );
       expect(result.additional_kwargs).toEqual({
         from: 'configuration-agent',
         final: true,
         success: false,
-        error: 'No content found in the last message from the configuration agent.',
+        error:
+          'No content found in the last message from the configuration agent.',
       });
     });
 
@@ -338,16 +338,19 @@ describe('ConfigurationAgent', () => {
       mockReactAgent.invoke.mockResolvedValue({
         messages: [new AIMessage({ content: '' })],
       });
-      
+
       const result = await agent.execute('test');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('Configuration operation failed: No content found in the last message');
+      expect(result.content).toContain(
+        'Configuration operation failed: No content found in the last message'
+      );
       expect(result.additional_kwargs).toEqual({
         from: 'configuration-agent',
         final: true,
         success: false,
-        error: 'No content found in the last message from the configuration agent.',
+        error:
+          'No content found in the last message from the configuration agent.',
       });
     });
   });
@@ -356,7 +359,7 @@ describe('ConfigurationAgent', () => {
     it('should return the tools array', () => {
       agent = new ConfigurationAgent();
       const tools = agent.getTools();
-      
+
       expect(Array.isArray(tools)).toBe(true);
       expect(tools.length).toBe(2); // Based on our mock
     });
@@ -365,12 +368,10 @@ describe('ConfigurationAgent', () => {
   describe('dispose', () => {
     it('should dispose and unregister successfully', async () => {
       agent = new ConfigurationAgent();
-      
+
       await agent.dispose();
-      
-      expect(mockUnregister).toHaveBeenCalledWith(
-        'configuration-agent'
-      );
+
+      expect(mockUnregister).toHaveBeenCalledWith('configuration-agent');
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'ConfigurationAgent disposed and unregistered'
       );
@@ -381,9 +382,9 @@ describe('ConfigurationAgent', () => {
       mockUnregister.mockImplementation(() => {
         throw new Error('Unregister failed');
       });
-      
+
       await agent.dispose();
-      
+
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error disposing ConfigurationAgent')
       );
@@ -402,20 +403,18 @@ describe('ConfigurationAgent', () => {
 
     it('should extract content from complex message structure', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Extracted content' }),
-        ],
+        messages: [new AIMessage({ content: 'Extracted content' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = [
         new HumanMessage('first message'),
         new AIMessage('second message'),
         new HumanMessage('third message'),
       ];
-      
+
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('first message')],
       });
@@ -423,20 +422,18 @@ describe('ConfigurationAgent', () => {
 
     it('should handle non-string content in messages', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Handled non-string' }),
-        ],
+        messages: [new AIMessage({ content: 'Handled non-string' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = new HumanMessage('test content');
       input.content = 123 as any; // Simulate non-string content
-      
+
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('123')],
       });
     });
   });
-}); 
+});

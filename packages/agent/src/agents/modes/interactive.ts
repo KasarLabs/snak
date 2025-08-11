@@ -26,9 +26,7 @@ import {
   formatAgentResponse,
 } from '../core/utils.js';
 import { ModelSelector } from '../operators/modelSelector.js';
-import {
-  interactiveRules,
-} from '../../prompt/prompts.js';
+import { interactiveRules } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';

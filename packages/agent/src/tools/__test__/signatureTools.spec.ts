@@ -1,8 +1,8 @@
-import { 
-  StarknetSignatureToolRegistry, 
-  RegisterSignatureTools, 
-  createSignatureTools, 
-  SignatureTool 
+import {
+  StarknetSignatureToolRegistry,
+  RegisterSignatureTools,
+  createSignatureTools,
+  SignatureTool,
 } from '../signatureTools.js';
 
 // Mock external dependencies
@@ -39,27 +39,45 @@ const otherSignaturePluginRegister = jest.fn(async (tools: SignatureTool[]) => {
   });
 });
 
-const invalidSignaturePluginRegister = jest.fn(async (tools: SignatureTool[]) => {
-  // This plugin doesn't export registerSignatureTools function
-  return;
-});
+const invalidSignaturePluginRegister = jest.fn(
+  async (tools: SignatureTool[]) => {
+    // This plugin doesn't export registerSignatureTools function
+    return;
+  }
+);
 
 // Mock dynamic imports for plugins
-jest.mock('@snakagent/plugin-mock/dist/index.js', () => ({
-  registerSignatureTools: mockSignaturePluginRegister,
-}), { virtual: true });
+jest.mock(
+  '@snakagent/plugin-mock/dist/index.js',
+  () => ({
+    registerSignatureTools: mockSignaturePluginRegister,
+  }),
+  { virtual: true }
+);
 
-jest.mock('@snakagent/plugin-other/dist/index.js', () => ({
-  registerSignatureTools: otherSignaturePluginRegister,
-}), { virtual: true });
+jest.mock(
+  '@snakagent/plugin-other/dist/index.js',
+  () => ({
+    registerSignatureTools: otherSignaturePluginRegister,
+  }),
+  { virtual: true }
+);
 
-jest.mock('@snakagent/plugin-invalid/dist/index.js', () => ({
-  // Missing registerSignatureTools function
-}), { virtual: true });
+jest.mock(
+  '@snakagent/plugin-invalid/dist/index.js',
+  () => ({
+    // Missing registerSignatureTools function
+  }),
+  { virtual: true }
+);
 
-jest.mock('@snakagent/plugin-error/dist/index.js', () => {
-  throw new Error('Plugin loading error');
-}, { virtual: true });
+jest.mock(
+  '@snakagent/plugin-error/dist/index.js',
+  () => {
+    throw new Error('Plugin loading error');
+  },
+  { virtual: true }
+);
 
 // Test data
 const sampleSignatureTool: SignatureTool = {
@@ -104,7 +122,7 @@ describe('StarknetSignatureToolRegistry', () => {
         description: 'A tool without categorie',
         execute: jest.fn(async () => 'result'),
       };
-      
+
       StarknetSignatureToolRegistry.registerTool(toolWithoutCategorie);
       const tools = (StarknetSignatureToolRegistry as any).tools;
       expect(tools).toHaveLength(1);
@@ -117,7 +135,7 @@ describe('StarknetSignatureToolRegistry', () => {
         description: 'A tool with empty name',
         execute: jest.fn(async () => 'result'),
       };
-      
+
       expect(() => {
         StarknetSignatureToolRegistry.registerTool(toolWithEmptyName);
       }).toThrow('Tool name is required and cannot be empty');
@@ -129,7 +147,7 @@ describe('StarknetSignatureToolRegistry', () => {
         description: '',
         execute: jest.fn(async () => 'result'),
       };
-      
+
       expect(() => {
         StarknetSignatureToolRegistry.registerTool(toolWithEmptyDescription);
       }).toThrow('Tool description is required and cannot be empty');
@@ -141,7 +159,7 @@ describe('StarknetSignatureToolRegistry', () => {
         description: 'A tool with whitespace-only name',
         execute: jest.fn(async () => 'result'),
       };
-      
+
       expect(() => {
         StarknetSignatureToolRegistry.registerTool(toolWithWhitespaceName);
       }).toThrow('Tool name is required and cannot be empty');
@@ -153,9 +171,11 @@ describe('StarknetSignatureToolRegistry', () => {
         description: '   ',
         execute: jest.fn(async () => 'result'),
       };
-      
+
       expect(() => {
-        StarknetSignatureToolRegistry.registerTool(toolWithWhitespaceDescription);
+        StarknetSignatureToolRegistry.registerTool(
+          toolWithWhitespaceDescription
+        );
       }).toThrow('Tool description is required and cannot be empty');
     });
 
@@ -165,7 +185,7 @@ describe('StarknetSignatureToolRegistry', () => {
         description: 'A tool without execute function',
         execute: undefined as any,
       };
-      
+
       expect(() => {
         StarknetSignatureToolRegistry.registerTool(toolWithoutExecute);
       }).toThrow('Tool execute function is required');
@@ -177,7 +197,7 @@ describe('StarknetSignatureToolRegistry', () => {
       StarknetSignatureToolRegistry.registerTool(sampleSignatureTool);
       StarknetSignatureToolRegistry.registerTool(sampleSignatureToolWithSchema);
       expect((StarknetSignatureToolRegistry as any).tools).toHaveLength(2);
-      
+
       StarknetSignatureToolRegistry.clearTools();
       expect((StarknetSignatureToolRegistry as any).tools).toHaveLength(0);
     });
@@ -185,21 +205,28 @@ describe('StarknetSignatureToolRegistry', () => {
 
   describe('createSignatureTools', () => {
     it('should return empty array when no tools allowed', async () => {
-      const result = await StarknetSignatureToolRegistry.createSignatureTools([]);
+      const result = await StarknetSignatureToolRegistry.createSignatureTools(
+        []
+      );
       expect(result).toEqual([]);
     });
 
     it('should create signature tools successfully', async () => {
-      const result = await StarknetSignatureToolRegistry.createSignatureTools(['mock']);
-      
+      const result = await StarknetSignatureToolRegistry.createSignatureTools([
+        'mock',
+      ]);
+
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('mockSignatureTool');
       expect(mockSignaturePluginRegister).toHaveBeenCalledTimes(1);
     });
 
     it('should handle multiple allowed tools', async () => {
-      const result = await StarknetSignatureToolRegistry.createSignatureTools(['mock', 'other']);
-      
+      const result = await StarknetSignatureToolRegistry.createSignatureTools([
+        'mock',
+        'other',
+      ]);
+
       expect(result).toHaveLength(2);
       expect(result[0].name).toBe('mockSignatureTool');
       expect(result[1].name).toBe('otherSignatureTool');
@@ -209,26 +236,35 @@ describe('StarknetSignatureToolRegistry', () => {
       // First call
       await StarknetSignatureToolRegistry.createSignatureTools(['mock']);
       expect((StarknetSignatureToolRegistry as any).tools).toHaveLength(1);
-      
+
       // Second call should clear and recreate
       await StarknetSignatureToolRegistry.createSignatureTools(['other']);
       expect((StarknetSignatureToolRegistry as any).tools).toHaveLength(1);
-      expect((StarknetSignatureToolRegistry as any).tools[0].name).toBe('otherSignatureTool');
+      expect((StarknetSignatureToolRegistry as any).tools[0].name).toBe(
+        'otherSignatureTool'
+      );
     });
 
     it('should convert SignatureTool to LangChain tool', async () => {
-      const result = await StarknetSignatureToolRegistry.createSignatureTools(['mock']);
-      
+      const result = await StarknetSignatureToolRegistry.createSignatureTools([
+        'mock',
+      ]);
+
       expect(result[0]).toHaveProperty('name', 'mockSignatureTool');
-      expect(result[0]).toHaveProperty('description', 'A mock signature tool for testing');
+      expect(result[0]).toHaveProperty(
+        'description',
+        'A mock signature tool for testing'
+      );
       expect(typeof result[0].invoke).toBe('function');
     });
 
     it('should preserve schema when present', async () => {
       // Register a tool with schema first
       StarknetSignatureToolRegistry.registerTool(sampleSignatureToolWithSchema);
-      
-      const result = await StarknetSignatureToolRegistry.createSignatureTools(['mock']);
+
+      const result = await StarknetSignatureToolRegistry.createSignatureTools([
+        'mock',
+      ]);
       // Note: The mock plugin tool doesn't have schema, but we test the conversion logic
       expect(result[0]).toBeDefined();
     });
@@ -285,11 +321,11 @@ describe('RegisterSignatureTools', () => {
     const tools: SignatureTool[] = [];
     const promises = [
       RegisterSignatureTools(['mock'], tools),
-      RegisterSignatureTools(['other'], tools)
+      RegisterSignatureTools(['other'], tools),
     ];
-    
+
     await Promise.all(promises);
-    
+
     expect(tools).toHaveLength(2);
     expect(mockSignaturePluginRegister).toHaveBeenCalledTimes(1);
     expect(otherSignaturePluginRegister).toHaveBeenCalledTimes(1);
@@ -298,18 +334,18 @@ describe('RegisterSignatureTools', () => {
   it('should log warning when no tools are registered', async () => {
     const { logger } = require('@snakagent/core');
     const tools: SignatureTool[] = [];
-    
+
     await RegisterSignatureTools(['invalid'], tools);
-    
+
     expect(logger.warn).toHaveBeenCalledWith('No valid tools registered');
   });
 
   it('should log error when plugin loading fails', async () => {
     const { logger } = require('@snakagent/core');
     const tools: SignatureTool[] = [];
-    
+
     await RegisterSignatureTools(['error'], tools);
-    
+
     expect(logger.error).toHaveBeenCalled();
   });
 });
@@ -342,10 +378,13 @@ describe('createSignatureTools', () => {
   });
 
   it('should delegate to StarknetSignatureToolRegistry.createSignatureTools', async () => {
-    const spy = jest.spyOn(StarknetSignatureToolRegistry, 'createSignatureTools');
-    
+    const spy = jest.spyOn(
+      StarknetSignatureToolRegistry,
+      'createSignatureTools'
+    );
+
     await createSignatureTools(['mock']);
-    
+
     expect(spy).toHaveBeenCalledWith(['mock']);
     spy.mockRestore();
   });
@@ -360,10 +399,10 @@ describe('Integration tests', () => {
   it('should work end-to-end with multiple plugins and signature tools', async () => {
     // Test the complete flow
     const allowedPlugins = ['mock', 'other'];
-    
+
     // Create signature tools
     const result = await createSignatureTools(allowedPlugins);
-    
+
     // Verify results
     expect(result).toHaveLength(2);
     expect(result[0].name).toBe('mockSignatureTool');
@@ -372,17 +411,17 @@ describe('Integration tests', () => {
 
   it('should handle tool execution through the created LangChain tool', async () => {
     const signatureTools = await createSignatureTools(['mock']);
-    
+
     // Execute the tool
     const result = await signatureTools[0].invoke({});
-    
+
     expect(result).toBe('mock signature result');
   });
 
   it('should handle tools with different categories', async () => {
     const tools: SignatureTool[] = [];
     await RegisterSignatureTools(['mock', 'other'], tools);
-    
+
     expect(tools[0].categorie).toBe('signature');
     expect(tools[1].categorie).toBe('signature');
   });
@@ -397,43 +436,55 @@ describe('Error handling and edge cases', () => {
   it('should handle malformed plugin names', async () => {
     const tools: SignatureTool[] = [];
     await RegisterSignatureTools(['', '   ', null as any], tools);
-    
+
     expect(tools).toHaveLength(0);
   });
 
   it('should handle plugins that return no tools', async () => {
-    const emptySignaturePluginRegister = jest.fn(async (tools: SignatureTool[]) => {
-      // Plugin doesn't add any tools
-    });
-    
-    jest.doMock('@snakagent/plugin-empty/dist/index.js', () => ({
-      registerSignatureTools: emptySignaturePluginRegister,
-    }), { virtual: true });
-    
+    const emptySignaturePluginRegister = jest.fn(
+      async (tools: SignatureTool[]) => {
+        // Plugin doesn't add any tools
+      }
+    );
+
+    jest.doMock(
+      '@snakagent/plugin-empty/dist/index.js',
+      () => ({
+        registerSignatureTools: emptySignaturePluginRegister,
+      }),
+      { virtual: true }
+    );
+
     const tools: SignatureTool[] = [];
     await RegisterSignatureTools(['empty'], tools);
-    
+
     expect(tools).toHaveLength(0);
     expect(emptySignaturePluginRegister).toHaveBeenCalled();
   });
 
   it('should handle tools with missing required properties', async () => {
-    const malformedSignaturePluginRegister = jest.fn(async (tools: SignatureTool[]) => {
-      tools.push({
-        name: '', // Empty name
-        categorie: 'malformed',
-        description: '', // Empty description
-        execute: jest.fn(async () => 'result'),
-      } as any);
-    });
-    
-    jest.doMock('@snakagent/plugin-malformed/dist/index.js', () => ({
-      registerSignatureTools: malformedSignaturePluginRegister,
-    }), { virtual: true });
-    
+    const malformedSignaturePluginRegister = jest.fn(
+      async (tools: SignatureTool[]) => {
+        tools.push({
+          name: '', // Empty name
+          categorie: 'malformed',
+          description: '', // Empty description
+          execute: jest.fn(async () => 'result'),
+        } as any);
+      }
+    );
+
+    jest.doMock(
+      '@snakagent/plugin-malformed/dist/index.js',
+      () => ({
+        registerSignatureTools: malformedSignaturePluginRegister,
+      }),
+      { virtual: true }
+    );
+
     const tools: SignatureTool[] = [];
     await RegisterSignatureTools(['malformed'], tools);
-    
+
     // Tools with empty required properties should be filtered out
     expect(tools).toHaveLength(0);
     expect(malformedSignaturePluginRegister).toHaveBeenCalled();
@@ -445,9 +496,9 @@ describe('Error handling and edge cases', () => {
       description: 'A tool with optional properties',
       execute: jest.fn(async () => 'result'),
     };
-    
+
     StarknetSignatureToolRegistry.registerTool(optionalPropsTool);
-    
+
     expect(optionalPropsTool.categorie).toBeUndefined();
     expect(optionalPropsTool.schema).toBeUndefined();
   });

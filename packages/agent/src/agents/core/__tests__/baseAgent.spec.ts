@@ -1,4 +1,10 @@
-import { BaseAgent, AgentType, IAgent, IModelAgent, AgentMessage } from '../baseAgent.js';
+import {
+  BaseAgent,
+  AgentType,
+  IAgent,
+  IModelAgent,
+  AgentMessage,
+} from '../baseAgent.js';
 import { BaseMessage } from '@langchain/core/messages';
 
 // Mock the logger from @snakagent/core
@@ -19,7 +25,11 @@ interface StreamChunk {
 
 // Concrete implementation of BaseAgent for testing
 class TestAgent extends BaseAgent {
-  constructor(id: string, type: AgentType = AgentType.OPERATOR, description?: string) {
+  constructor(
+    id: string,
+    type: AgentType = AgentType.OPERATOR,
+    description?: string
+  ) {
     super(id, type, description);
   }
 
@@ -38,7 +48,11 @@ class TestAgent extends BaseAgent {
 
 // Concrete implementation of IModelAgent for testing
 class TestModelAgent extends BaseAgent implements IModelAgent {
-  constructor(id: string, type: AgentType = AgentType.OPERATOR, description?: string) {
+  constructor(
+    id: string,
+    type: AgentType = AgentType.OPERATOR,
+    description?: string
+  ) {
     super(id, type, description);
   }
 
@@ -54,10 +68,13 @@ class TestModelAgent extends BaseAgent implements IModelAgent {
     return { result: `Model agent ${this.id} executed with input: ${input}` };
   }
 
-  async invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any> {
-    return { 
+  async invokeModel(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<any> {
+    return {
       modelResult: `Model invoked with ${messages.length} messages`,
-      forceModelType 
+      forceModelType,
     };
   }
 }
@@ -73,8 +90,12 @@ describe('baseAgent', () => {
 
   describe('IAgent interface', () => {
     it('should be implemented correctly by TestAgent', () => {
-      const agent: IAgent = new TestAgent('test-agent', AgentType.OPERATOR, 'Test agent');
-      
+      const agent: IAgent = new TestAgent(
+        'test-agent',
+        AgentType.OPERATOR,
+        'Test agent'
+      );
+
       expect(agent.id).toBe('test-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
       expect(agent.description).toBe('Test agent');
@@ -98,14 +119,20 @@ describe('baseAgent', () => {
       });
 
       it('should use default description when not provided', () => {
-        const agentWithoutDesc = new TestAgent('test-agent', AgentType.OPERATOR);
+        const agentWithoutDesc = new TestAgent(
+          'test-agent',
+          AgentType.OPERATOR
+        );
         expect(agentWithoutDesc.description).toBe('No description');
       });
 
       it('should work with different agent types', () => {
-        const supervisorAgent = new TestAgent('supervisor-agent', AgentType.SUPERVISOR);
+        const supervisorAgent = new TestAgent(
+          'supervisor-agent',
+          AgentType.SUPERVISOR
+        );
         const snakAgent = new TestAgent('snak-agent', AgentType.SNAK);
-        
+
         expect(supervisorAgent.type).toBe(AgentType.SUPERVISOR);
         expect(snakAgent.type).toBe(AgentType.SNAK);
       });
@@ -120,26 +147,26 @@ describe('baseAgent', () => {
     describe('execute method', () => {
       it('should execute with input', async () => {
         const result = await agent.execute('test input');
-        
+
         expect(result).toEqual({
-          result: 'Test agent test-agent executed with input: test input'
+          result: 'Test agent test-agent executed with input: test input',
         });
       });
 
       it('should execute with input and isInterrupted flag', async () => {
         const result = await agent.execute('test input', true);
-        
+
         expect(result).toEqual({
-          result: 'Test agent test-agent executed with input: test input'
+          result: 'Test agent test-agent executed with input: test input',
         });
       });
 
       it('should execute with input, isInterrupted flag, and config', async () => {
         const config = { timeout: 5000 };
         const result = await agent.execute('test input', false, config);
-        
+
         expect(result).toEqual({
-          result: 'Test agent test-agent executed with input: test input'
+          result: 'Test agent test-agent executed with input: test input',
         });
       });
     });
@@ -155,12 +182,16 @@ describe('baseAgent', () => {
     let modelAgent: TestModelAgent;
 
     beforeEach(() => {
-      modelAgent = new TestModelAgent('model-agent', AgentType.OPERATOR, 'Model agent');
+      modelAgent = new TestModelAgent(
+        'model-agent',
+        AgentType.OPERATOR,
+        'Model agent'
+      );
     });
 
     it('should implement IAgent interface', () => {
       const agent: IAgent = modelAgent;
-      
+
       expect(agent.id).toBe('model-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
       expect(agent.description).toBe('Model agent');
@@ -175,10 +206,10 @@ describe('baseAgent', () => {
       ];
 
       const result = await modelAgent.invokeModel(messages);
-      
+
       expect(result).toEqual({
         modelResult: 'Model invoked with 2 messages',
-        forceModelType: undefined
+        forceModelType: undefined,
       });
     });
 
@@ -188,10 +219,10 @@ describe('baseAgent', () => {
       ];
 
       const result = await modelAgent.invokeModel(messages, 'gpt-4');
-      
+
       expect(result).toEqual({
         modelResult: 'Model invoked with 1 messages',
-        forceModelType: 'gpt-4'
+        forceModelType: 'gpt-4',
       });
     });
   });
@@ -231,7 +262,7 @@ describe('baseAgent', () => {
   describe('executeAsyncGenerator method', () => {
     it('should be optional on BaseAgent', () => {
       const agent = new TestAgent('test-agent');
-      
+
       // The method is optional, so it might be undefined
       expect(typeof agent.executeAsyncGenerator).toBe('undefined');
     });
@@ -239,8 +270,16 @@ describe('baseAgent', () => {
 
   describe('Integration tests', () => {
     it('should work with different agent types in a system', async () => {
-      const supervisor = new TestAgent('supervisor', AgentType.SUPERVISOR, 'Supervisor agent');
-      const operator = new TestAgent('operator', AgentType.OPERATOR, 'Operator agent');
+      const supervisor = new TestAgent(
+        'supervisor',
+        AgentType.SUPERVISOR,
+        'Supervisor agent'
+      );
+      const operator = new TestAgent(
+        'operator',
+        AgentType.OPERATOR,
+        'Operator agent'
+      );
       const snak = new TestAgent('snak', AgentType.SNAK, 'Snak agent');
 
       const supervisorResult = await supervisor.execute('supervisor task');
@@ -253,15 +292,19 @@ describe('baseAgent', () => {
     });
 
     it('should handle agent lifecycle', async () => {
-      const agent = new TestAgent('lifecycle-agent', AgentType.OPERATOR, 'Lifecycle test');
-      
+      const agent = new TestAgent(
+        'lifecycle-agent',
+        AgentType.OPERATOR,
+        'Lifecycle test'
+      );
+
       // Initialize
       await agent.init();
-      
+
       // Execute
       const result = await agent.execute('lifecycle test');
       expect(result.result).toContain('lifecycle-agent');
-      
+
       // Dispose
       await agent.dispose();
     });

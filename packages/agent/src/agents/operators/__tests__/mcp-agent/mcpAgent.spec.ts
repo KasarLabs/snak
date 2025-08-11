@@ -91,16 +91,17 @@ describe('MCPAgent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockLogger = require('@snakagent/core').logger;
     mockModelSelector = require('../../modelSelector.js').ModelSelector;
-    mockCreateReactAgent = require('@langchain/langgraph/prebuilt').createReactAgent;
-    
+    mockCreateReactAgent =
+      require('@langchain/langgraph/prebuilt').createReactAgent;
+
     mockReactAgent = {
       invoke: jest.fn(),
     };
     mockCreateReactAgent.mockReturnValue(mockReactAgent);
-    
+
     // Reset mock functions
     mockRegister.mockClear();
     mockUnregister.mockClear();
@@ -116,10 +117,12 @@ describe('MCPAgent', () => {
   describe('constructor', () => {
     it('should create an MCPAgent with default config', () => {
       agent = new MCPAgent();
-      
+
       expect(agent.id).toBe('mcp-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
-      expect(agent.description).toContain('managing MCP (Model Context Protocol) servers');
+      expect(agent.description).toContain(
+        'managing MCP (Model Context Protocol) servers'
+      );
     });
 
     it('should create an MCPAgent with custom config', () => {
@@ -127,9 +130,9 @@ describe('MCPAgent', () => {
         debug: false,
         modelType: 'smart',
       };
-      
+
       agent = new MCPAgent(config);
-      
+
       expect(agent.id).toBe('mcp-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
     });
@@ -137,7 +140,7 @@ describe('MCPAgent', () => {
     it('should initialize with correct debug setting', () => {
       agent = new MCPAgent({ debug: false });
       expect(mockLogger.debug).not.toHaveBeenCalled();
-      
+
       agent = new MCPAgent({ debug: true });
       expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('MCPAgent initialized with')
@@ -156,17 +159,14 @@ describe('MCPAgent', () => {
 
     it('should initialize successfully with default config', async () => {
       await agent.init();
-      
+
       expect(mockModelSelector.getInstance).toHaveBeenCalled();
       expect(mockCreateReactAgent).toHaveBeenCalledWith({
         llm: expect.any(Object),
         tools: expect.any(Array),
         stateModifier: 'test system prompt',
       });
-      expect(mockRegister).toHaveBeenCalledWith(
-        'mcp-agent',
-        agent
-      );
+      expect(mockRegister).toHaveBeenCalledWith('mcp-agent', agent);
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'MCPAgent initialized with React agent and registered successfully'
       );
@@ -175,7 +175,7 @@ describe('MCPAgent', () => {
     it('should initialize with custom model type', async () => {
       agent = new MCPAgent({ modelType: 'smart' });
       await agent.init();
-      
+
       expect(mockCreateReactAgent).toHaveBeenCalledWith({
         llm: expect.any(Object),
         tools: expect.any(Array),
@@ -185,7 +185,7 @@ describe('MCPAgent', () => {
 
     it('should throw error if ModelSelector is not initialized', async () => {
       mockModelSelector.getInstance.mockReturnValue(null);
-      
+
       await expect(agent.init()).rejects.toThrow(
         'MCPAgent initialization failed: Error: ModelSelector is not initialized'
       );
@@ -193,7 +193,7 @@ describe('MCPAgent', () => {
 
     it('should handle initialization errors', async () => {
       mockModelSelector.getInstance.mockReturnValue(null);
-      
+
       await expect(agent.init()).rejects.toThrow(
         'MCPAgent initialization failed: Error: ModelSelector is not initialized'
       );
@@ -214,14 +214,12 @@ describe('MCPAgent', () => {
 
     it('should execute with string input successfully', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'MCP server added successfully' }),
-        ],
+        messages: [new AIMessage({ content: 'MCP server added successfully' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const result = await agent.execute('Add a new MCP server');
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Add a new MCP server')],
       });
@@ -241,10 +239,10 @@ describe('MCPAgent', () => {
         ],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = new HumanMessage('Update MCP server test-server');
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Update MCP server test-server')],
       });
@@ -258,10 +256,10 @@ describe('MCPAgent', () => {
         ],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = [new HumanMessage('List all MCP servers')];
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('List all MCP servers')],
       });
@@ -270,16 +268,14 @@ describe('MCPAgent', () => {
 
     it('should use originalUserQuery from config when provided', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Operation completed' }),
-        ],
+        messages: [new AIMessage({ content: 'Operation completed' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const result = await agent.execute('some input', false, {
         originalUserQuery: 'Add a new MCP server',
       });
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Add a new MCP server')],
       });
@@ -287,17 +283,15 @@ describe('MCPAgent', () => {
 
     it('should use originalUserQuery from message additional_kwargs', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Operation completed' }),
-        ],
+        messages: [new AIMessage({ content: 'Operation completed' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = new HumanMessage('some content');
       input.additional_kwargs = { originalUserQuery: 'Remove MCP server test' };
-      
+
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('Remove MCP server test')],
       });
@@ -306,11 +300,13 @@ describe('MCPAgent', () => {
 
     it('should handle error when React agent is not initialized', async () => {
       agent = new MCPAgent();
-      
+
       const result = await agent.execute('test');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('MCP operation failed: React agent not initialized');
+      expect(result.content).toContain(
+        'MCP operation failed: React agent not initialized'
+      );
       expect(result.additional_kwargs).toEqual({
         from: 'mcp-agent',
         final: true,
@@ -321,11 +317,13 @@ describe('MCPAgent', () => {
 
     it('should handle execution errors gracefully', async () => {
       mockReactAgent.invoke.mockRejectedValue(new Error('Execution failed'));
-      
+
       const result = await agent.execute('test input');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('MCP operation failed: Execution failed');
+      expect(result.content).toContain(
+        'MCP operation failed: Execution failed'
+      );
       expect(result.additional_kwargs).toEqual({
         from: 'mcp-agent',
         final: true,
@@ -336,9 +334,9 @@ describe('MCPAgent', () => {
 
     it('should handle empty response messages', async () => {
       mockReactAgent.invoke.mockResolvedValue({ messages: [] });
-      
+
       const result = await agent.execute('test');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
       expect(result.content).toBe('MCP operation completed.');
       expect(result.additional_kwargs).toEqual({
@@ -352,9 +350,9 @@ describe('MCPAgent', () => {
       mockReactAgent.invoke.mockResolvedValue({
         messages: [new AIMessage({ content: '' })],
       });
-      
+
       const result = await agent.execute('test');
-      
+
       expect(result).toBeInstanceOf(AIMessage);
       expect(result.content).toBe('MCP operation completed.');
       expect(result.additional_kwargs).toEqual({
@@ -369,7 +367,7 @@ describe('MCPAgent', () => {
     it('should return the tools array', () => {
       agent = new MCPAgent();
       const tools = agent.getTools();
-      
+
       expect(Array.isArray(tools)).toBe(true);
       expect(tools.length).toBe(2); // Based on our mock
     });
@@ -378,12 +376,10 @@ describe('MCPAgent', () => {
   describe('dispose', () => {
     it('should dispose and unregister successfully', async () => {
       agent = new MCPAgent();
-      
+
       await agent.dispose();
-      
-      expect(mockUnregister).toHaveBeenCalledWith(
-        'mcp-agent'
-      );
+
+      expect(mockUnregister).toHaveBeenCalledWith('mcp-agent');
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'MCPAgent disposed and unregistered'
       );
@@ -394,9 +390,9 @@ describe('MCPAgent', () => {
       mockUnregister.mockImplementation(() => {
         throw new Error('Unregister failed');
       });
-      
+
       await agent.dispose();
-      
+
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error disposing MCPAgent')
       );
@@ -414,20 +410,18 @@ describe('MCPAgent', () => {
 
     it('should extract content from complex message structure', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Extracted content' }),
-        ],
+        messages: [new AIMessage({ content: 'Extracted content' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
-      
+
       const input = [
         new HumanMessage('first message'),
         new AIMessage('second message'),
         new HumanMessage('third message'),
       ];
-      
+
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('first message')],
       });
@@ -435,16 +429,14 @@ describe('MCPAgent', () => {
 
     it('should handle non-string content in messages', async () => {
       const mockResponse = {
-        messages: [
-          new AIMessage({ content: 'Handled non-string' }),
-        ],
+        messages: [new AIMessage({ content: 'Handled non-string' })],
       };
       mockReactAgent.invoke.mockResolvedValue(mockResponse);
       // Create a message with non-string content
       const input = new HumanMessage({ content: 123 } as any);
-      
+
       const result = await agent.execute(input);
-      
+
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
         messages: [new HumanMessage('123')],
       });

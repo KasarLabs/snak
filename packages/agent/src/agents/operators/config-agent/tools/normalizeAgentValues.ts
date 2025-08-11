@@ -48,8 +48,12 @@ interface NormalizationResult {
  * @param config - The configuration object to normalize
  * @returns Normalized configuration object with default values applied where needed
  */
-export function normalizeNumericValues(config: AgentConfig): NormalizationResult {
-  const normalizedConfig: NormalizedAgentConfig = JSON.parse(JSON.stringify(config)) as NormalizedAgentConfig;
+export function normalizeNumericValues(
+  config: AgentConfig
+): NormalizationResult {
+  const normalizedConfig: NormalizedAgentConfig = JSON.parse(
+    JSON.stringify(config)
+  ) as NormalizedAgentConfig;
   const appliedDefaults: string[] = [];
 
   // Normalize max_iterations
@@ -71,16 +75,30 @@ export function normalizeNumericValues(config: AgentConfig): NormalizationResult
   // Normalize memory configuration
   if (config.memory && typeof config.memory === 'object') {
     normalizedConfig.memory = JSON.parse(JSON.stringify(config.memory));
-    
-    if (config.memory.shortTermMemorySize !== undefined && config.memory.shortTermMemorySize !== null) {
-      if (typeof config.memory.shortTermMemorySize !== 'number' || config.memory.shortTermMemorySize <= 0) {
+
+    if (
+      config.memory.shortTermMemorySize !== undefined &&
+      config.memory.shortTermMemorySize !== null
+    ) {
+      if (
+        typeof config.memory.shortTermMemorySize !== 'number' ||
+        config.memory.shortTermMemorySize <= 0
+      ) {
         normalizedConfig.memory!.shortTermMemorySize = 5;
-        appliedDefaults.push(`memory.shortTermMemorySize set to default value (5)`);
+        appliedDefaults.push(
+          `memory.shortTermMemorySize set to default value (5)`
+        );
       }
     }
-    
-    if (config.memory.memorySize !== undefined && config.memory.memorySize !== null) {
-      if (typeof config.memory.memorySize !== 'number' || config.memory.memorySize <= 0) {
+
+    if (
+      config.memory.memorySize !== undefined &&
+      config.memory.memorySize !== null
+    ) {
+      if (
+        typeof config.memory.memorySize !== 'number' ||
+        config.memory.memorySize <= 0
+      ) {
         normalizedConfig.memory!.memorySize = 20;
         appliedDefaults.push(`memory.memorySize set to default value (20)`);
       } else {
@@ -94,7 +112,7 @@ export function normalizeNumericValues(config: AgentConfig): NormalizationResult
     if (!normalizedConfig.rag) {
       normalizedConfig.rag = {};
     }
-    
+
     if (config.rag.topK !== undefined && config.rag.topK !== null) {
       if (typeof config.rag.topK !== 'number' || config.rag.topK <= 0) {
         normalizedConfig.rag.topK = 10;
@@ -103,16 +121,19 @@ export function normalizeNumericValues(config: AgentConfig): NormalizationResult
         normalizedConfig.rag.topK = config.rag.topK;
       }
     }
-    
+
     // Handle enabled property
     if (config.rag.enabled !== undefined && config.rag.enabled !== null) {
       normalizedConfig.rag.enabled = config.rag.enabled;
     }
-    
+
     // Handle embeddingModel property
-    if (config.rag.embeddingModel !== undefined && config.rag.embeddingModel !== null) {
+    if (
+      config.rag.embeddingModel !== undefined &&
+      config.rag.embeddingModel !== null
+    ) {
       normalizedConfig.rag.embeddingModel = config.rag.embeddingModel;
     }
   }
   return { normalizedConfig, appliedDefaults };
-} 
+}

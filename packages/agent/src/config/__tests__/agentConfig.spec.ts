@@ -46,7 +46,9 @@ const { logger } = require('@snakagent/core');
 const { SystemMessage } = require('@langchain/core/messages');
 
 // Type for agent prompt messages
-type AgentPromptMessage = InstanceType<typeof SystemMessage> | { type: 'system'; content: string };
+type AgentPromptMessage =
+  | InstanceType<typeof SystemMessage>
+  | { type: 'system'; content: string };
 
 enum AgentMode {
   INTERACTIVE = 'interactive',
@@ -73,7 +75,15 @@ interface RawAgentConfig {
   memory?: { enabled: boolean };
   rag?: { enabled?: boolean; embeddingModel?: string };
   mcpServers?: Record<string, McpServerConfig>;
-  mode?: string | { mode?: string; maxIterations?: number; interactive?: boolean; autonomous?: boolean; hybrid?: boolean };
+  mode?:
+    | string
+    | {
+        mode?: string;
+        maxIterations?: number;
+        interactive?: boolean;
+        autonomous?: boolean;
+        hybrid?: boolean;
+      };
   maxIterations?: number;
 }
 
@@ -133,7 +143,17 @@ const createContextFromJson = (json: RawAgentConfig): string => {
   return contextParts.join('\n');
 };
 
-const parseAgentMode = (modeConfig: string | { mode?: string; maxIterations?: number; interactive?: boolean; autonomous?: boolean; hybrid?: boolean }): AgentMode => {
+const parseAgentMode = (
+  modeConfig:
+    | string
+    | {
+        mode?: string;
+        maxIterations?: number;
+        interactive?: boolean;
+        autonomous?: boolean;
+        hybrid?: boolean;
+      }
+): AgentMode => {
   if (typeof modeConfig === 'string') {
     const mode = modeConfig.toLowerCase();
     if (Object.values(AgentMode).includes(mode as AgentMode)) {
@@ -174,10 +194,14 @@ const parseAgentMode = (modeConfig: string | { mode?: string; maxIterations?: nu
   return AgentMode.INTERACTIVE;
 };
 
-const normalizeMemoryAndRag = (memory: { enabled: boolean } | false, rag: { enabled?: boolean; embeddingModel?: string } | false) => {
-  const normalizedMemory = typeof memory === 'object' ? memory : { enabled: false };
+const normalizeMemoryAndRag = (
+  memory: { enabled: boolean } | false,
+  rag: { enabled?: boolean; embeddingModel?: string } | false
+) => {
+  const normalizedMemory =
+    typeof memory === 'object' ? memory : { enabled: false };
   const normalizedRag = typeof rag === 'object' ? rag : { enabled: false };
-  
+
   return { memory: normalizedMemory, rag: normalizedRag };
 };
 
@@ -197,7 +221,10 @@ const validateConfig = (config: AgentConfig) => {
     }
   }
 
-  if (!(config.prompt instanceof SystemMessage) && !(config.prompt && config.prompt.type === 'system')) {
+  if (
+    !(config.prompt instanceof SystemMessage) &&
+    !(config.prompt && config.prompt.type === 'system')
+  ) {
     throw new Error('prompt must be a SystemMessage-compatible object');
   }
 
@@ -256,12 +283,14 @@ const validateConfig = (config: AgentConfig) => {
   }
 };
 
-const load_json_config = async (agent_config_name: string): Promise<AgentConfig> => {
+const load_json_config = async (
+  agent_config_name: string
+): Promise<AgentConfig> => {
   try {
     await mockFs.access(agent_config_name);
-    
+
     const fileContent = await mockFs.readFile(agent_config_name, 'utf8');
-    
+
     // Parse JSON content
     const json = JSON.parse(fileContent);
     if (!json) {
@@ -278,8 +307,11 @@ const load_json_config = async (agent_config_name: string): Promise<AgentConfig>
       );
     }
 
-    const { memory, rag } = normalizeMemoryAndRag(json.memory || false, json.rag || false);
-    
+    const { memory, rag } = normalizeMemoryAndRag(
+      json.memory || false,
+      json.rag || false
+    );
+
     const agentConfig = {
       id: 'test-uuid-123',
       name: json.name,
@@ -367,7 +399,9 @@ describe('agentConfig', () => {
 
       const result = createContextFromJson(mockConfig);
 
-      expect(result).toBe('Your name : [SimpleAgent]\nYour Description : [Simple description]\nYour lore : []\nYour objectives : []\nYour knowledge : []');
+      expect(result).toBe(
+        'Your name : [SimpleAgent]\nYour Description : [Simple description]\nYour lore : []\nYour objectives : []\nYour knowledge : []'
+      );
     });
 
     it('should handle config with empty arrays', () => {
@@ -386,7 +420,9 @@ describe('agentConfig', () => {
 
       const result = createContextFromJson(mockConfig);
 
-      expect(result).toBe('Your name : [EmptyAgent]\nYour Description : [Empty arrays]\nYour lore : []\nYour objectives : []\nYour knowledge : []');
+      expect(result).toBe(
+        'Your name : [EmptyAgent]\nYour Description : [Empty arrays]\nYour lore : []\nYour objectives : []\nYour knowledge : []'
+      );
     });
 
     it('should handle config with missing optional fields', () => {
@@ -405,7 +441,9 @@ describe('agentConfig', () => {
 
       const result = createContextFromJson(mockConfig);
 
-      expect(result).toBe('Your name : [MinimalAgent]\nYour lore : []\nYour objectives : []\nYour knowledge : []');
+      expect(result).toBe(
+        'Your name : [MinimalAgent]\nYour lore : []\nYour objectives : []\nYour knowledge : []'
+      );
     });
 
     it('should throw error for null config', () => {
@@ -421,27 +459,25 @@ describe('agentConfig', () => {
     });
   });
 
-
-
-
-
   describe('load_json_config', () => {
     it('should load and return config successfully', async () => {
       // Setup mocks for this test
       mockFs.access.mockResolvedValue(undefined);
-      mockFs.readFile.mockResolvedValue(JSON.stringify({
-        name: 'TestAgent',
-        group: 'test-group',
-        description: 'Test description',
-        lore: ['Lore 1'],
-        objectives: ['Objective 1'],
-        knowledge: ['Knowledge 1'],
-        interval: 5,
-        chatId: 'chat-123',
-        plugins: ['plugin1'],
-        mode: 'interactive',
-        maxIterations: 10,
-      }));
+      mockFs.readFile.mockResolvedValue(
+        JSON.stringify({
+          name: 'TestAgent',
+          group: 'test-group',
+          description: 'Test description',
+          lore: ['Lore 1'],
+          objectives: ['Objective 1'],
+          knowledge: ['Knowledge 1'],
+          interval: 5,
+          chatId: 'chat-123',
+          plugins: ['plugin1'],
+          mode: 'interactive',
+          maxIterations: 10,
+        })
+      );
 
       const result = await load_json_config('test-config.json');
 
@@ -462,25 +498,33 @@ describe('agentConfig', () => {
     it('should handle and rethrow errors', async () => {
       // Mock file system to throw an error
       mockFs.access.mockRejectedValue(new Error('File not found'));
-      
-      await expect(load_json_config('nonexistent.json')).rejects.toThrow('Failed to load JSON config: File not found');
+
+      await expect(load_json_config('nonexistent.json')).rejects.toThrow(
+        'Failed to load JSON config: File not found'
+      );
     });
   });
 
   describe('load_json_config - additional test cases', () => {
     it('should handle file not found error', async () => {
       // Mock file system to throw access error
-      mockFs.access.mockRejectedValue(new Error('ENOENT: no such file or directory'));
-      
-      await expect(load_json_config('missing-file.json')).rejects.toThrow('Failed to load JSON config: ENOENT: no such file or directory');
+      mockFs.access.mockRejectedValue(
+        new Error('ENOENT: no such file or directory')
+      );
+
+      await expect(load_json_config('missing-file.json')).rejects.toThrow(
+        'Failed to load JSON config: ENOENT: no such file or directory'
+      );
     });
 
     it('should handle invalid JSON parsing', async () => {
       // Mock file system to return invalid JSON
       mockFs.access.mockResolvedValue(undefined);
       mockFs.readFile.mockResolvedValue('invalid json content');
-      
-      await expect(load_json_config('invalid-json.json')).rejects.toThrow('Failed to load JSON config: Unexpected token \'i\', "invalid json content" is not valid JSON');
+
+      await expect(load_json_config('invalid-json.json')).rejects.toThrow(
+        'Failed to load JSON config: Unexpected token \'i\', "invalid json content" is not valid JSON'
+      );
     });
 
     it('should handle missing mode configuration', async () => {
@@ -498,8 +542,10 @@ describe('agentConfig', () => {
 
       mockFs.access.mockResolvedValue(undefined);
       mockFs.readFile.mockResolvedValue(mockJsonData);
-      
-      await expect(load_json_config('missing-mode.json')).rejects.toThrow('Failed to load JSON config: Mode configuration is mandatory but missing in config file');
+
+      await expect(load_json_config('missing-mode.json')).rejects.toThrow(
+        'Failed to load JSON config: Mode configuration is mandatory but missing in config file'
+      );
     });
 
     it('should handle empty plugins array', async () => {
@@ -520,7 +566,9 @@ describe('agentConfig', () => {
       const result = await load_json_config('empty-plugins-config.json');
 
       expect(result.plugins).toEqual([]);
-      expect(logger.warn).toHaveBeenCalledWith("No plugins specified in agent's config");
+      expect(logger.warn).toHaveBeenCalledWith(
+        "No plugins specified in agent's config"
+      );
     });
 
     it('should convert plugins to lowercase', async () => {
@@ -579,7 +627,9 @@ describe('agentConfig', () => {
       mockFs.access.mockResolvedValue(undefined);
       mockFs.readFile.mockResolvedValue(mockJsonData);
 
-      const result = await load_json_config('default-maxiterations-config.json');
+      const result = await load_json_config(
+        'default-maxiterations-config.json'
+      );
 
       expect(result.maxIterations).toBe(10);
     });

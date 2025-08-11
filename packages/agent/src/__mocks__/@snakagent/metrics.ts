@@ -11,7 +11,7 @@ export const metrics = {
   recordAgentTokenUsage: jest.fn(),
   setUserActiveAgents: jest.fn(),
   metrics: jest.fn().mockResolvedValue('mock metrics'),
-  contentType: 'text/plain; version=0.0.4; charset=utf-8'
+  contentType: 'text/plain; version=0.0.4; charset=utf-8',
 };
 
 export default metrics;

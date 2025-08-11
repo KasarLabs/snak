@@ -11,15 +11,15 @@ jest.mock('@snakagent/database/queries', () => ({
         id: 1,
         content: 'User prefers blockchain transactions',
         similarity: 0.8,
-        history: [{ timestamp: '2024-01-01T00:00:00Z' }]
+        history: [{ timestamp: '2024-01-01T00:00:00Z' }],
       },
       {
         id: 2,
         content: 'User likes DeFi protocols',
         similarity: 0.75,
-        history: []
-      }
-    ])
+        history: [],
+      },
+    ]),
   },
   iterations: {
     similar_iterations: jest.fn().mockResolvedValue([
@@ -27,17 +27,18 @@ jest.mock('@snakagent/database/queries', () => ({
         id: 10,
         question: 'How to use AVNU?',
         answer: 'AVNU is a DEX aggregator...',
-        similarity: 0.7
-      }
-    ])
-  }
+        similarity: 0.7,
+      },
+    ]),
+  },
 }));
 
 import { MemoryAgent, MemoryConfig } from '../memoryAgent.js';
 import { HumanMessage } from '@langchain/core/messages';
 
 // Get the mocked modules for testing
-const { memory: mockMemoryOperations, iterations: mockIterationOperations } = jest.requireMock('@snakagent/database/queries');
+const { memory: mockMemoryOperations, iterations: mockIterationOperations } =
+  jest.requireMock('@snakagent/database/queries');
 
 describe('MemoryAgent', () => {
   let memoryAgent: MemoryAgent;
@@ -55,14 +56,14 @@ describe('MemoryAgent', () => {
         id: 1,
         content: 'User prefers blockchain transactions',
         similarity: 0.8,
-        history: [{ timestamp: '2024-01-01T00:00:00Z' }]
+        history: [{ timestamp: '2024-01-01T00:00:00Z' }],
       },
       {
         id: 2,
         content: 'User likes DeFi protocols',
         similarity: 0.75,
-        history: []
-      }
+        history: [],
+      },
     ]);
 
     // Create default memory configuration
@@ -71,7 +72,7 @@ describe('MemoryAgent', () => {
       shortTermMemorySize: 10,
       memorySize: 15,
       maxIterations: 5,
-      embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+      embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     };
 
     // Create memory agent instance
@@ -81,7 +82,7 @@ describe('MemoryAgent', () => {
   describe('initialization', () => {
     it('should initialize with default configuration values', () => {
       const agent = new MemoryAgent({});
-      
+
       expect(agent).toBeDefined();
       // Test that defaults are applied correctly
     });
@@ -91,16 +92,16 @@ describe('MemoryAgent', () => {
         shortTermMemorySize: 20,
         memorySize: 30,
         maxIterations: 10,
-        embeddingModel: 'custom-model'
+        embeddingModel: 'custom-model',
       };
-      
+
       const agent = new MemoryAgent(customConfig);
       expect(agent).toBeDefined();
     });
 
     it('should initialize memory database successfully', async () => {
       await memoryAgent.init();
-      
+
       expect(mockMemoryOperations.init).toHaveBeenCalledTimes(1);
     });
 
@@ -112,7 +113,7 @@ describe('MemoryAgent', () => {
         .mockResolvedValueOnce(undefined);
 
       await memoryAgent.init();
-      
+
       expect(mockMemoryOperations.init).toHaveBeenCalledTimes(3);
     });
 
@@ -120,7 +121,9 @@ describe('MemoryAgent', () => {
       const dbError = new Error('Persistent database error');
       mockMemoryOperations.init.mockRejectedValue(dbError);
 
-      await expect(memoryAgent.init()).rejects.toThrow('MemoryAgent initialization failed');
+      await expect(memoryAgent.init()).rejects.toThrow(
+        'MemoryAgent initialization failed'
+      );
       expect(mockMemoryOperations.init).toHaveBeenCalledTimes(3);
     });
   });
@@ -132,7 +135,7 @@ describe('MemoryAgent', () => {
 
     it('should create memory tools during initialization', () => {
       const tools = memoryAgent.getMemoryTools();
-      
+
       expect(tools).toHaveLength(2);
       expect(tools[0].name).toBe('upsert_memory');
       expect(tools[1].name).toBe('retrieve_memories');
@@ -140,7 +143,7 @@ describe('MemoryAgent', () => {
 
     it('should prepare memory tools for interactive agents', () => {
       const interactiveTools = memoryAgent.prepareMemoryTools();
-      
+
       expect(interactiveTools).toHaveLength(1);
       expect(interactiveTools[0].name).toBe('upsert_memory');
     });
@@ -163,19 +166,17 @@ describe('MemoryAgent', () => {
         content: 'remember that I prefer blockchain transactions',
         embedding: expect.any(Array),
         metadata: expect.objectContaining({
-          timestamp: expect.any(String)
+          timestamp: expect.any(String),
         }),
-        history: []
+        history: [],
       });
       expect(result).toBe('Memory stored successfully.');
     });
 
     it('should enforce memory limit when storing memories', async () => {
-      await memoryAgent.execute(
-        'store this important information',
-        false,
-        { userId: 'test-user' }
-      );
+      await memoryAgent.execute('store this important information', false, {
+        userId: 'test-user',
+      });
 
       expect(mockMemoryOperations.enforce_memory_limit).toHaveBeenCalledWith(
         'test-user',
@@ -188,11 +189,9 @@ describe('MemoryAgent', () => {
         new Error('Database write error')
       );
 
-      const result = await memoryAgent.execute(
-        'save this memory',
-        false,
-        { userId: 'test-user' }
-      );
+      const result = await memoryAgent.execute('save this memory', false, {
+        userId: 'test-user',
+      });
 
       expect(result).toContain('Failed to store memory');
     });
@@ -239,14 +238,14 @@ describe('MemoryAgent', () => {
           id: 1,
           content: 'User prefers DeFi',
           similarity: 0.9,
-          history: [{ timestamp: '2024-01-01T10:00:00Z' }]
+          history: [{ timestamp: '2024-01-01T10:00:00Z' }],
         },
         {
           id: 2,
           content: 'Question: How to swap?\nAnswer: Use DEX aggregator',
           similarity: 0.8,
-          history: []
-        }
+          history: [],
+        },
       ];
 
       const formatted = memoryAgent.formatMemoriesForContext(mockMemories);
@@ -302,32 +301,28 @@ describe('MemoryAgent', () => {
     });
 
     it('should default to retrieval for ambiguous requests', async () => {
-      const result = await memoryAgent.execute(
-        'what do I like?',
-        false,
-        { userId: 'test-user' }
-      );
+      const result = await memoryAgent.execute('what do I like?', false, {
+        userId: 'test-user',
+      });
 
       expect(result).toContain('### User Memory Context');
     });
 
     it('should handle different input types', async () => {
       const messageInput = new HumanMessage('remember my wallet address');
-      const result = await memoryAgent.execute(
-        messageInput,
-        false,
-        { userId: 'test-user' }
-      );
+      const result = await memoryAgent.execute(messageInput, false, {
+        userId: 'test-user',
+      });
 
       expect(result).toBe('Memory stored successfully.');
     });
 
     it('should throw error when not initialized', async () => {
       const uninitializedAgent = new MemoryAgent(mockConfig);
-      
-      await expect(
-        uninitializedAgent.execute('test input')
-      ).rejects.toThrow('MemoryAgent: Not initialized');
+
+      await expect(uninitializedAgent.execute('test input')).rejects.toThrow(
+        'MemoryAgent: Not initialized'
+      );
     });
   });
 
@@ -346,10 +341,10 @@ describe('MemoryAgent', () => {
       expect(typeof memoryNode).toBe('function');
 
       const mockState = {
-        messages: [new HumanMessage('test query')]
+        messages: [new HumanMessage('test query')],
       };
       const mockConfig = {
-        configurable: { userId: 'test-user', agentId: 'test-agent' }
+        configurable: { userId: 'test-user', agentId: 'test-agent' },
       };
 
       const result = await memoryNode(mockState, mockConfig);
@@ -364,10 +359,10 @@ describe('MemoryAgent', () => {
 
       const memoryNode = memoryAgent.createMemoryNode();
       const mockState = {
-        messages: [new HumanMessage('test query')]
+        messages: [new HumanMessage('test query')],
       };
       const mockConfig = {
-        configurable: { userId: 'test-user' }
+        configurable: { userId: 'test-user' },
       };
 
       const result = await memoryNode(mockState, mockConfig);
@@ -387,14 +382,14 @@ describe('MemoryAgent', () => {
           id: 1,
           content: 'High similarity memory',
           similarity: 0.8,
-          history: []
+          history: [],
         },
         {
           id: 2,
           content: 'Low similarity memory',
           similarity: 0.1, // Below default threshold of 0
-          history: []
-        }
+          history: [],
+        },
       ]);
 
       const memories = await memoryAgent.retrieveRelevantMemories(
@@ -413,14 +408,16 @@ describe('MemoryAgent', () => {
     });
 
     it('should handle empty message content', async () => {
-      const result = await memoryAgent.execute('', false, { userId: 'test-user' });
+      const result = await memoryAgent.execute('', false, {
+        userId: 'test-user',
+      });
       expect(result).toContain('### User Memory Context');
     });
 
     it('should handle null or undefined configurations', async () => {
       const agent = new MemoryAgent({});
       await agent.init();
-      
+
       const result = await agent.execute('test', false);
       expect(result).toBeDefined();
     });
@@ -434,7 +431,7 @@ describe('MemoryAgent', () => {
     it('should handle memory tools when not initialized', () => {
       const uninitializedAgent = new MemoryAgent(mockConfig);
       const tools = uninitializedAgent.prepareMemoryTools();
-      
+
       expect(tools).toHaveLength(1);
     });
   });
@@ -446,8 +443,10 @@ describe('MemoryAgent', () => {
 
     it('should enrich prompt with memory context', async () => {
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
-      
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
+
       const enrichedPrompt = await memoryAgent.enrichPromptWithMemories(
         originalPrompt,
         'blockchain question',
@@ -459,10 +458,12 @@ describe('MemoryAgent', () => {
 
     it('should return original prompt when no memories found', async () => {
       mockMemoryOperations.similar_memory.mockResolvedValueOnce([]);
-      
+
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
-      
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
+
       const enrichedPrompt = await memoryAgent.enrichPromptWithMemories(
         originalPrompt,
         'test query',
@@ -475,8 +476,10 @@ describe('MemoryAgent', () => {
     it('should handle enrichment errors gracefully', async () => {
       const uninitializedAgent = new MemoryAgent(mockConfig);
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
-      
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
+
       const enrichedPrompt = await uninitializedAgent.enrichPromptWithMemories(
         originalPrompt,
         'test query',

@@ -23,16 +23,16 @@ describe('createAgentTool', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockPostgres = require('@snakagent/database').Postgres;
     mockLogger = require('@snakagent/core').logger;
-    
+
     // Reset mock implementations
     mockPostgres.Query.mockClear();
     mockPostgres.query.mockClear();
     mockLogger.error.mockClear();
     mockLogger.info.mockClear();
-    
+
     // Configure Postgres.Query to return a mock query object
     mockPostgres.Query.mockImplementation((query: string, params: any[]) => {
       return { query, params };
@@ -42,7 +42,9 @@ describe('createAgentTool', () => {
   describe('tool configuration', () => {
     it('should have correct name and description', () => {
       expect(createAgentTool.name).toBe('create_agent');
-      expect(createAgentTool.description).toContain('Create/add/make a new agent configuration');
+      expect(createAgentTool.description).toContain(
+        'Create/add/make a new agent configuration'
+      );
     });
 
     it('should have proper schema validation', () => {
@@ -65,10 +67,10 @@ describe('createAgentTool', () => {
 
     it('should validate required fields', () => {
       const schema = createAgentTool.schema;
-      
+
       // Name should be required
       expect(schema.shape.name._def.typeName).toBe('ZodString');
-      
+
       // Description and group should be required
       expect(schema.shape.description._def.typeName).toBe('ZodString');
       expect(schema.shape.group._def.typeName).toBe('ZodString');
@@ -93,13 +95,13 @@ describe('createAgentTool', () => {
         mode: 'interactive',
         max_iterations: 15,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
         name: 'test-agent',
         group: 'general',
-        description: 'Test agent'
+        description: 'Test agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -123,10 +125,12 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe('Agent "test-agent" created successfully');
+      expect(parsedResult.message).toBe(
+        'Agent "test-agent" created successfully'
+      );
       expect(parsedResult.data).toEqual(mockCreatedAgent);
     });
 
@@ -147,7 +151,7 @@ describe('createAgentTool', () => {
         mode: 'interactive',
         max_iterations: 10,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -187,10 +191,12 @@ describe('createAgentTool', () => {
           10,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe('Agent "full-agent" created successfully');
+      expect(parsedResult.message).toBe(
+        'Agent "full-agent" created successfully'
+      );
       expect(parsedResult.data).toEqual(mockCreatedAgent);
     });
 
@@ -211,13 +217,13 @@ describe('createAgentTool', () => {
         mode: 'interactive',
         max_iterations: 15,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
         name: 'partial-agent',
         description: 'Partial agent',
-        group: 'rpc'
+        group: 'rpc',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -241,10 +247,12 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe('Agent "partial-agent" created successfully');
+      expect(parsedResult.message).toBe(
+        'Agent "partial-agent" created successfully'
+      );
     });
 
     it('should handle empty arrays for array fields', async () => {
@@ -256,7 +264,7 @@ describe('createAgentTool', () => {
         knowledge: [],
         plugins: [],
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -266,7 +274,7 @@ describe('createAgentTool', () => {
         lore: [],
         objectives: [],
         knowledge: [],
-        plugins: []
+        plugins: [],
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -290,7 +298,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -305,7 +313,7 @@ describe('createAgentTool', () => {
           memorySize: 200,
         },
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -316,7 +324,7 @@ describe('createAgentTool', () => {
           enabled: true,
           shortTermMemorySize: 50,
           memorySize: 200,
-        }
+        },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -340,7 +348,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -354,7 +362,7 @@ describe('createAgentTool', () => {
           embeddingModel: 'Xenova/all-MiniLM-L6-v2',
         },
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -364,7 +372,7 @@ describe('createAgentTool', () => {
         rag: {
           enabled: true,
           embeddingModel: 'Xenova/all-MiniLM-L6-v2',
-        }
+        },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -388,7 +396,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -402,11 +410,13 @@ describe('createAgentTool', () => {
       const result = await createAgentTool.func({
         name: 'test-agent',
         group: 'general',
-        description: 'Test agent'
+        description: 'Test agent',
       });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error creating agent: Error: Database connection failed');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error creating agent: Error: Database connection failed'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to create agent');
@@ -419,11 +429,13 @@ describe('createAgentTool', () => {
       const result = await createAgentTool.func({
         name: 'test-agent',
         group: 'general',
-        description: 'Test agent'
+        description: 'Test agent',
       });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error creating agent: String error');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error creating agent: String error'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to create agent');
@@ -438,11 +450,13 @@ describe('createAgentTool', () => {
       const result = await createAgentTool.func({
         name: 'test-agent',
         group: 'general',
-        description: 'Test agent'
+        description: 'Test agent',
       });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error creating agent: Error: Invalid query syntax');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error creating agent: Error: Invalid query syntax'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to create agent');
@@ -450,21 +464,27 @@ describe('createAgentTool', () => {
     });
 
     it('should handle duplicate agent name errors', async () => {
-      const duplicateError = new Error('duplicate key value violates unique constraint "agents_name_key"');
+      const duplicateError = new Error(
+        'duplicate key value violates unique constraint "agents_name_key"'
+      );
       mockPostgres.query.mockRejectedValue(duplicateError);
 
       const result = await createAgentTool.func({
         name: 'existing-agent',
         group: 'general',
-        description: 'Test agent'
+        description: 'Test agent',
       });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Error creating agent: Error: duplicate key value violates unique constraint "agents_name_key"');
-      
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error creating agent: Error: duplicate key value violates unique constraint "agents_name_key"'
+      );
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
       expect(parsedResult.message).toBe('Failed to create agent');
-      expect(parsedResult.error).toBe('duplicate key value violates unique constraint "agents_name_key"');
+      expect(parsedResult.error).toBe(
+        'duplicate key value violates unique constraint "agents_name_key"'
+      );
     });
   });
 
@@ -474,13 +494,13 @@ describe('createAgentTool', () => {
         id: 1,
         name: 'agent-with-dashes_and_underscores',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
         name: 'agent-with-dashes_and_underscores',
         group: 'general',
-        description: 'Test agent'
+        description: 'Test agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -504,7 +524,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -515,13 +535,13 @@ describe('createAgentTool', () => {
         id: 1,
         name: longName,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
         name: longName,
         group: 'general',
-        description: 'Test agent'
+        description: 'Test agent',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -545,25 +565,28 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
 
     it('should handle very long descriptions', async () => {
-      const longDescription = 'This is a very long description that might exceed normal limits. '.repeat(10);
+      const longDescription =
+        'This is a very long description that might exceed normal limits. '.repeat(
+          10
+        );
       const mockCreatedAgent = {
         id: 1,
         name: 'long-desc-agent',
         description: longDescription,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
         name: 'long-desc-agent',
         group: 'general',
-        description: longDescription
+        description: longDescription,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -587,7 +610,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -602,7 +625,7 @@ describe('createAgentTool', () => {
         knowledge: largeArray,
         plugins: largeArray,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -612,7 +635,7 @@ describe('createAgentTool', () => {
         lore: largeArray,
         objectives: largeArray,
         knowledge: largeArray,
-        plugins: largeArray
+        plugins: largeArray,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -636,7 +659,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -648,20 +671,20 @@ describe('createAgentTool', () => {
         memorySize: 200,
         customField: { nested: { value: 'test' } },
       };
-      
+
       const complexRag = {
         enabled: true,
         embeddingModel: 'Xenova/all-MiniLM-L6-v2',
         customConfig: { threshold: 0.8, maxResults: 100 },
       };
-      
+
       const mockCreatedAgent = {
         id: 1,
         name: 'complex-objects-agent',
         memory: complexMemory,
         rag: complexRag,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -669,7 +692,7 @@ describe('createAgentTool', () => {
         group: 'general',
         description: 'Test agent',
         memory: complexMemory,
-        rag: complexRag
+        rag: complexRag,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -693,7 +716,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -709,7 +732,7 @@ describe('createAgentTool', () => {
         system_prompt: '',
         mode: '',
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -717,7 +740,7 @@ describe('createAgentTool', () => {
         description: '',
         group: '',
         system_prompt: '',
-        mode: ''
+        mode: '',
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -741,7 +764,7 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -753,7 +776,7 @@ describe('createAgentTool', () => {
         interval: 5, // Default value interval
         max_iterations: 15, // Default value max_iterations
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -761,7 +784,7 @@ describe('createAgentTool', () => {
         group: 'general',
         description: 'Test agent',
         interval: 0,
-        max_iterations: -1
+        max_iterations: -1,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -785,7 +808,7 @@ describe('createAgentTool', () => {
           15, // uses default 15
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -797,7 +820,7 @@ describe('createAgentTool', () => {
         interval: 999999,
         max_iterations: 999999,
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -805,7 +828,7 @@ describe('createAgentTool', () => {
         group: 'general',
         description: 'Test agent',
         interval: 999999,
-        max_iterations: 999999
+        max_iterations: 999999,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -829,7 +852,7 @@ describe('createAgentTool', () => {
           999999,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
@@ -844,7 +867,7 @@ describe('createAgentTool', () => {
           memorySize: 20, // Default value memorySize
         },
       };
-      
+
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
@@ -855,7 +878,7 @@ describe('createAgentTool', () => {
           enabled: true,
           shortTermMemorySize: -5,
           memorySize: -10,
-        }
+        },
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
@@ -879,9 +902,9 @@ describe('createAgentTool', () => {
           15,
         ]
       );
-      
+
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
   });
-}); 
+});

@@ -18,7 +18,7 @@ describe('agentSelectorPrompts', () => {
   beforeEach(() => {
     // Clear all mocks
     jest.clearAllMocks();
-    
+
     // Mock console.error
     console.error = mockConsoleError;
   });
@@ -35,20 +35,20 @@ describe('agentSelectorPrompts', () => {
           id: 'config-agent',
           name: 'Configuration Agent',
           description: 'Manages agent configurations',
-          type: 'operator'
+          type: 'operator',
         },
         {
           id: 'mcp-agent',
           name: 'MCP Agent',
           description: 'Manages MCP servers',
-          type: 'operator'
+          type: 'operator',
         },
         {
           id: 'ethereum-agent',
           name: 'Ethereum Agent',
           description: 'Handles Ethereum operations',
-          type: 'snak'
-        }
+          type: 'snak',
+        },
       ]);
 
       const result = agentSelectionSystemPrompt(agentDescriptions);
@@ -72,7 +72,7 @@ describe('agentSelectorPrompts', () => {
         id: 'single-agent',
         name: 'Single Agent',
         description: 'A single agent',
-        type: 'operator'
+        type: 'operator',
       });
 
       const result = agentSelectionSystemPrompt(agentDescriptions);
@@ -100,20 +100,20 @@ describe('agentSelectorPrompts', () => {
           id: 'operator-1',
           name: 'Operator 1',
           description: 'First operator',
-          type: 'operator'
+          type: 'operator',
         },
         {
           id: 'snak-1',
           name: 'Snak 1',
           description: 'First snak',
-          type: 'snak'
+          type: 'snak',
         },
         {
           id: 'operator-2',
           name: 'Operator 2',
           description: 'Second operator',
-          type: 'operator'
-        }
+          type: 'operator',
+        },
       ]);
 
       const result = agentSelectionSystemPrompt(agentDescriptions);
@@ -159,17 +159,23 @@ describe('agentSelectorPrompts', () => {
       const result = agentSelectionSystemPrompt(agentDescriptions);
 
       expect(result).toContain('INSTRUCTIONS:');
-      expect(result).toContain('1. First, understand what the user is trying to accomplish:');
-      expect(result).toContain('2. Your response must ONLY contain the ID of the selected agent');
-      expect(result).toContain('3. If the query doesn\'t match any available agent\'s capabilities, respond with "NO_MATCHING_AGENT"');
+      expect(result).toContain(
+        '1. First, understand what the user is trying to accomplish:'
+      );
+      expect(result).toContain(
+        '2. Your response must ONLY contain the ID of the selected agent'
+      );
+      expect(result).toContain(
+        '3. If the query doesn\'t match any available agent\'s capabilities, respond with "NO_MATCHING_AGENT"'
+      );
     });
 
     it('should handle agents with missing properties gracefully', () => {
       const agentDescriptions = JSON.stringify([
         {
           id: 'incomplete-agent',
-          type: 'operator'
-        }
+          type: 'operator',
+        },
       ]);
 
       const result = agentSelectionSystemPrompt(agentDescriptions);
@@ -185,8 +191,8 @@ describe('agentSelectorPrompts', () => {
           id: 'test-agent',
           name: 'Test Agent',
           description: 'Test Description',
-          type: 'operator'
-        }
+          type: 'operator',
+        },
       ])}  `;
 
       const result = agentSelectionSystemPrompt(agentDescriptions);
@@ -200,25 +206,25 @@ describe('agentSelectorPrompts', () => {
   describe('agentSelectionPrompt', () => {
     it('should return the query as is', () => {
       const query = 'Help me configure my agent settings';
-      
+
       const result = agentSelectionPrompt(query);
-      
+
       expect(result).toBe(query);
     });
 
     it('should handle empty query', () => {
       const query = '';
-      
+
       const result = agentSelectionPrompt(query);
-      
+
       expect(result).toBe('');
     });
 
     it('should handle complex queries with special characters', () => {
       const query = 'Can you help me with @#$%^&*() operations?';
-      
+
       const result = agentSelectionPrompt(query);
-      
+
       expect(result).toBe(query);
     });
 
@@ -226,9 +232,9 @@ describe('agentSelectorPrompts', () => {
       const query = `This is a multi-line
 query with line breaks
 and special formatting`;
-      
+
       const result = agentSelectionPrompt(query);
-      
+
       expect(result).toBe(query);
     });
   });
@@ -236,14 +242,16 @@ and special formatting`;
   describe('noMatchingAgentMessage', () => {
     it('should return appropriate message when no agent matches', () => {
       const result = noMatchingAgentMessage();
-      
-      expect(result).toBe("I don't have an agent that can handle this specific request. Could you clarify what you're trying to do?");
+
+      expect(result).toBe(
+        "I don't have an agent that can handle this specific request. Could you clarify what you're trying to do?"
+      );
     });
 
     it('should return consistent message on multiple calls', () => {
       const result1 = noMatchingAgentMessage();
       const result2 = noMatchingAgentMessage();
-      
+
       expect(result1).toBe(result2);
     });
   });
@@ -251,14 +259,16 @@ and special formatting`;
   describe('defaultClarificationMessage', () => {
     it('should return appropriate clarification message', () => {
       const result = defaultClarificationMessage();
-      
-      expect(result).toBe('I need more information to select the appropriate agent. Could you provide more details about what you need?');
+
+      expect(result).toBe(
+        'I need more information to select the appropriate agent. Could you provide more details about what you need?'
+      );
     });
 
     it('should return consistent message on multiple calls', () => {
       const result1 = defaultClarificationMessage();
       const result2 = defaultClarificationMessage();
-      
+
       expect(result1).toBe(result2);
     });
   });
@@ -266,14 +276,16 @@ and special formatting`;
   describe('errorFallbackMessage', () => {
     it('should return appropriate error fallback message', () => {
       const result = errorFallbackMessage();
-      
-      expect(result).toBe('I encountered an issue understanding your request. Could you rephrase it or provide more details about what you need help with?');
+
+      expect(result).toBe(
+        'I encountered an issue understanding your request. Could you rephrase it or provide more details about what you need help with?'
+      );
     });
 
     it('should return consistent message on multiple calls', () => {
       const result1 = errorFallbackMessage();
       const result2 = errorFallbackMessage();
-      
+
       expect(result1).toBe(result2);
     });
   });
@@ -281,14 +293,16 @@ and special formatting`;
   describe('noValidAgentMessage', () => {
     it('should return appropriate no valid agent message', () => {
       const result = noValidAgentMessage();
-      
-      expect(result).toBe("I couldn't identify which agent should handle your request. Could you describe more precisely what you need help with?");
+
+      expect(result).toBe(
+        "I couldn't identify which agent should handle your request. Could you describe more precisely what you need help with?"
+      );
     });
 
     it('should return consistent message on multiple calls', () => {
       const result1 = noValidAgentMessage();
       const result2 = noValidAgentMessage();
-      
+
       expect(result1).toBe(result2);
     });
   });
@@ -297,9 +311,9 @@ and special formatting`;
     it('should have correct AgentSelectionPromptParams interface', () => {
       const params: AgentSelectionPromptParams = {
         query: 'test query',
-        agentDescriptions: 'test descriptions'
+        agentDescriptions: 'test descriptions',
       };
-      
+
       expect(params.query).toBe('test query');
       expect(params.agentDescriptions).toBe('test descriptions');
     });
@@ -308,9 +322,9 @@ and special formatting`;
       const clarificationData: ClarificationData = {
         possibleAgents: ['agent1', 'agent2'],
         missingInfo: 'missing information',
-        clarificationQuestion: 'What do you need?'
+        clarificationQuestion: 'What do you need?',
       };
-      
+
       expect(clarificationData.possibleAgents).toEqual(['agent1', 'agent2']);
       expect(clarificationData.missingInfo).toBe('missing information');
       expect(clarificationData.clarificationQuestion).toBe('What do you need?');
@@ -324,8 +338,8 @@ and special formatting`;
           id: 'test-agent',
           name: 'Test Agent',
           description: 'Test Description',
-          type: 'operator'
-        }
+          type: 'operator',
+        },
       ]);
 
       const systemPrompt = agentSelectionSystemPrompt(agentDescriptions);

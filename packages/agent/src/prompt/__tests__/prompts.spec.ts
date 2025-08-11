@@ -14,7 +14,18 @@ jest.mock('@snakagent/core', () => ({
   AgentConfig: jest.fn(),
 }));
 
-import { baseSystemPrompt, interactiveRules, autonomousRules, hybridRules, modelSelectorSystemPrompt, modelSelectorRules, finalAnswerRules, agentSelectorPromptContent, planPrompt, PromptPlanInteractive } from '../prompts.js';
+import {
+  baseSystemPrompt,
+  interactiveRules,
+  autonomousRules,
+  hybridRules,
+  modelSelectorSystemPrompt,
+  modelSelectorRules,
+  finalAnswerRules,
+  agentSelectorPromptContent,
+  planPrompt,
+  PromptPlanInteractive,
+} from '../prompts.js';
 import { AgentConfig } from '@snakagent/core';
 import { MessageContent } from '@langchain/core/messages';
 
@@ -64,7 +75,7 @@ describe('prompts', () => {
   describe('baseSystemPrompt', () => {
     it('should return the agent config prompt content as string', () => {
       const result = baseSystemPrompt(mockAgentConfig);
-      
+
       expect(result).toBe('Test system prompt content');
       expect(mockAgentConfig.prompt.content.toString).toHaveBeenCalled();
     });
@@ -84,7 +95,7 @@ describe('prompts', () => {
       } as unknown as AgentConfig;
 
       const result = baseSystemPrompt(customConfig);
-      
+
       expect(result).toBe('Custom prompt content');
       expect(customPrompt.content.toString).toHaveBeenCalled();
     });
@@ -93,8 +104,12 @@ describe('prompts', () => {
   describe('interactiveRules', () => {
     it('should contain the correct interactive mode rules', () => {
       expect(interactiveRules).toContain('INTERACTIVE MODE');
-      expect(interactiveRules).toContain('You are designed to help the user complete their tasks');
-      expect(interactiveRules).toContain('Use your available tools when needed');
+      expect(interactiveRules).toContain(
+        'You are designed to help the user complete their tasks'
+      );
+      expect(interactiveRules).toContain(
+        'Use your available tools when needed'
+      );
       expect(interactiveRules).toContain('Think step-by-step');
       expect(interactiveRules).toContain('Be concise but thorough');
       expect(interactiveRules).toContain('ask the user specific questions');
@@ -109,8 +124,12 @@ describe('prompts', () => {
   describe('autonomousRules', () => {
     it('should contain the correct autonomous mode rules', () => {
       expect(autonomousRules).toContain('AUTONOMOUS MODE');
-      expect(autonomousRules).toContain('You need to call tools in every response');
-      expect(autonomousRules).toContain('complete tasks step-by-step without requiring user input');
+      expect(autonomousRules).toContain(
+        'You need to call tools in every response'
+      );
+      expect(autonomousRules).toContain(
+        'complete tasks step-by-step without requiring user input'
+      );
       expect(autonomousRules).toContain('Work towards the GOAL');
       expect(autonomousRules).toContain('Break down complex tasks');
       expect(autonomousRules).toContain('NEXT STEPS:');
@@ -142,11 +161,12 @@ describe('prompts', () => {
 
   describe('modelSelectorSystemPrompt', () => {
     it('should generate prompt with nextStepsSection when provided', () => {
-      const nextStepsSection = 'Next planned actions: analyze data, create report';
+      const nextStepsSection =
+        'Next planned actions: analyze data, create report';
       const result = modelSelectorSystemPrompt(nextStepsSection);
 
       expect(result).toContain('model selector');
-      expect(result).toContain('Focus primarily on the \'Next planned actions\'');
+      expect(result).toContain("Focus primarily on the 'Next planned actions'");
       expect(result).toContain('SELECTION CRITERIA:');
       expect(result).toContain('fast');
       expect(result).toContain('smart');
@@ -159,7 +179,9 @@ describe('prompts', () => {
       const result = modelSelectorSystemPrompt('');
 
       expect(result).toContain('model selector');
-      expect(result).not.toContain('Focus primarily on the \'Next planned actions\'');
+      expect(result).not.toContain(
+        "Focus primarily on the 'Next planned actions'"
+      );
       expect(result).toContain('SELECTION CRITERIA:');
       expect(result).toContain('fast');
       expect(result).toContain('smart');
@@ -178,8 +200,12 @@ describe('prompts', () => {
       const result = modelSelectorSystemPrompt('test steps');
 
       expect(result).toContain('Priority is on simplicity');
-      expect(result).toContain('if the task appears to be trying to do too much at once, select \'smart\'');
-      expect(result).toContain('If the task is properly broken down into one simple step, prefer \'fast\' or \'cheap\'');
+      expect(result).toContain(
+        "if the task appears to be trying to do too much at once, select 'smart'"
+      );
+      expect(result).toContain(
+        "If the task is properly broken down into one simple step, prefer 'fast' or 'cheap'"
+      );
     });
   });
 
@@ -190,12 +216,14 @@ describe('prompts', () => {
       const result = modelSelectorRules(nextStepsSection, analysisContent);
 
       expect(result).toContain('Analyze this User Input');
-      expect(result).toContain('Focus primarily on the \'Next planned actions\'');
-      expect(result).toContain('Select \'fast\' for simple, focused tasks');
-      expect(result).toContain('Select \'smart\' for complex reasoning');
-      expect(result).toContain('Select \'cheap\' for non-urgent, simple tasks');
+      expect(result).toContain("Focus primarily on the 'Next planned actions'");
+      expect(result).toContain("Select 'fast' for simple, focused tasks");
+      expect(result).toContain("Select 'smart' for complex reasoning");
+      expect(result).toContain("Select 'cheap' for non-urgent, simple tasks");
       expect(result).toContain('Priority is on simplicity');
-      expect(result).toContain('Respond with only one word: \'fast\', \'smart\', or \'cheap\'');
+      expect(result).toContain(
+        "Respond with only one word: 'fast', 'smart', or 'cheap'"
+      );
       expect(result).toContain('User Input:');
       expect(result).toContain(analysisContent);
     });
@@ -205,29 +233,42 @@ describe('prompts', () => {
       const result = modelSelectorRules('', analysisContent);
 
       expect(result).toContain('Analyze this User Input');
-      expect(result).not.toContain('Focus primarily on the \'Next planned actions\'');
+      expect(result).not.toContain(
+        "Focus primarily on the 'Next planned actions'"
+      );
       expect(result).toContain(analysisContent);
     });
 
     it('should include all selection criteria', () => {
       const result = modelSelectorRules('', 'test content');
 
-      expect(result).toContain("Select 'fast' for simple, focused tasks that involve a single action");
-      expect(result).toContain("Select 'smart' for complex reasoning, creativity, or tasks that might take multiple steps");
-      expect(result).toContain("Select 'cheap' for non-urgent, simple tasks that don't require sophisticated reasoning");
+      expect(result).toContain(
+        "Select 'fast' for simple, focused tasks that involve a single action"
+      );
+      expect(result).toContain(
+        "Select 'smart' for complex reasoning, creativity, or tasks that might take multiple steps"
+      );
+      expect(result).toContain(
+        "Select 'cheap' for non-urgent, simple tasks that don't require sophisticated reasoning"
+      );
     });
   });
 
   describe('finalAnswerRules', () => {
     it('should generate rules with the provided final answer', () => {
-      const finalAnswer: MessageContent = 'The analysis is complete. Results show positive trends.';
+      const finalAnswer: MessageContent =
+        'The analysis is complete. Results show positive trends.';
       const result = finalAnswerRules(finalAnswer);
 
-      expect(result).toContain('I\'ve received your final answer:');
+      expect(result).toContain("I've received your final answer:");
       expect(result).toContain(`"${finalAnswer}"`);
-      expect(result).toContain('Based on the history of your actions and your objectives');
+      expect(result).toContain(
+        'Based on the history of your actions and your objectives'
+      );
       expect(result).toContain('decide what to do next');
-      expect(result).toContain('continue with another task or refine your previous solution');
+      expect(result).toContain(
+        'continue with another task or refine your previous solution'
+      );
     });
 
     it('should handle different types of final answers', () => {
@@ -241,7 +282,7 @@ describe('prompts', () => {
       const finalAnswer: MessageContent = '';
       const result = finalAnswerRules(finalAnswer);
 
-      expect(result).toContain('I\'ve received your final answer:');
+      expect(result).toContain("I've received your final answer:");
       expect(result).toContain('""');
     });
   });
@@ -259,12 +300,18 @@ describe('prompts', () => {
 
       expect(result).toContain('Agent Router');
       expect(result).toContain('ROUTING RULES:');
-      expect(result).toContain('Analyze the request to identify: domain, required skills, task type, and complexity');
-      expect(result).toContain('Match request requirements with agent capabilities');
+      expect(result).toContain(
+        'Analyze the request to identify: domain, required skills, task type, and complexity'
+      );
+      expect(result).toContain(
+        'Match request requirements with agent capabilities'
+      );
       expect(result).toContain('Select the agent with the highest alignment');
       expect(result).toContain('Consider specialist agents over generalists');
-      expect(result).toContain('For multi-domain requests, prioritize the agent covering the main objective');
-      expect(result).toContain('Respond with the agent\'s name only');
+      expect(result).toContain(
+        'For multi-domain requests, prioritize the agent covering the main objective'
+      );
+      expect(result).toContain("Respond with the agent's name only");
       expect(result).toContain('AGENT DESCRIPTIONS:');
       expect(result).toContain('**agent_1**: Blockchain analysis specialist');
       expect(result).toContain('**agent_2**: Data processing expert');
@@ -289,9 +336,7 @@ describe('prompts', () => {
     });
 
     it('should handle single agent in map', () => {
-      const agentInfo = new Map([
-        ['single_agent', 'Only agent available'],
-      ]);
+      const agentInfo = new Map([['single_agent', 'Only agent available']]);
       const input = 'Test request';
 
       const result = agentSelectorPromptContent(agentInfo, input);
@@ -314,9 +359,15 @@ describe('prompts', () => {
       expect(result).toContain('Keep the exact format below for parsing');
       expect(result).toContain('FORMAT:');
       expect(result).toContain('SOLUTION PLAN:');
-      expect(result).toContain('Step 1: [Action name] - [Description of what to do]');
-      expect(result).toContain('Step 2: [Action name] - [Description of what to do]');
-      expect(result).toContain('Step 3: [Action name] - [Description of what to do]');
+      expect(result).toContain(
+        'Step 1: [Action name] - [Description of what to do]'
+      );
+      expect(result).toContain(
+        'Step 2: [Action name] - [Description of what to do]'
+      );
+      expect(result).toContain(
+        'Step 3: [Action name] - [Description of what to do]'
+      );
       expect(result).toContain('Checkpoints:');
       expect(result).toContain('After step X: [What to verify]');
       expect(result).toContain('REQUEST:');
@@ -331,7 +382,8 @@ describe('prompts', () => {
     });
 
     it('should handle complex input with special characters', () => {
-      const input = 'Analyze data with special chars: @#$%^&*() and create report';
+      const input =
+        'Analyze data with special chars: @#$%^&*() and create report';
       const result = planPrompt(input);
 
       expect(result).toContain(input);
@@ -393,7 +445,9 @@ Step 3: create_report
       expect(result).toContain('CORE RULES:');
       expect(result).toContain('ALWAYS acknowledge your current step first');
       expect(result).toContain('Executing Step 3: create_report');
-      expect(result).toContain('You CAN complete the current step and immediately start the next one');
+      expect(result).toContain(
+        'You CAN complete the current step and immediately start the next one'
+      );
       expect(result).toContain('NEVER skip steps - execute them in order');
       expect(result).toContain('NEVER ask questions to the user');
       expect(result).toContain('NO RECAPS or summaries until the FINAL step');
@@ -416,20 +470,36 @@ Step 3: create_report
       const result = PromptPlanInteractive(currentStep, stepHistory, rawPlan);
 
       expect(result).toContain('EXECUTION FLOW:');
-      expect(result).toContain('State current step: "Executing Step X: stepName"');
-      expect(result).toContain('Execute the step WITHOUT asking for user input');
-      expect(result).toContain('Mark completed: **STEP_COMPLETED: Step X - stepName - [Result in 1-2 words max]**');
-      expect(result).toContain('IF step was quick/simple, continue: "Executing Step X+1: nextStepName"');
-      expect(result).toContain('**FINAL STEP ONLY: PLAN_COMPLETED must include FULL SUMMARY of all steps and results**');
+      expect(result).toContain(
+        'State current step: "Executing Step X: stepName"'
+      );
+      expect(result).toContain(
+        'Execute the step WITHOUT asking for user input'
+      );
+      expect(result).toContain(
+        'Mark completed: **STEP_COMPLETED: Step X - stepName - [Result in 1-2 words max]**'
+      );
+      expect(result).toContain(
+        'IF step was quick/simple, continue: "Executing Step X+1: nextStepName"'
+      );
+      expect(result).toContain(
+        '**FINAL STEP ONLY: PLAN_COMPLETED must include FULL SUMMARY of all steps and results**'
+      );
     });
 
     it('should include error handling section', () => {
       const result = PromptPlanInteractive(currentStep, stepHistory, rawPlan);
 
       expect(result).toContain('ERROR HANDLING:');
-      expect(result).toContain('If step fails: **STEP_FAILED: Step X - stepName - [Reason]**');
-      expect(result).toContain('If you need information: Use available tools, don\'t ask the user');
-      expect(result).toContain('If truly blocked: Mark step as failed and explain why');
+      expect(result).toContain(
+        'If step fails: **STEP_FAILED: Step X - stepName - [Reason]**'
+      );
+      expect(result).toContain(
+        "If you need information: Use available tools, don't ask the user"
+      );
+      expect(result).toContain(
+        'If truly blocked: Mark step as failed and explain why'
+      );
     });
 
     it('should include critical plan completed section', () => {
@@ -449,12 +519,20 @@ Step 3: create_report
       const result = PromptPlanInteractive(currentStep, stepHistory, rawPlan);
 
       expect(result).toContain('EXAMPLE (Final step with summary):');
-      expect(result).toContain('Current Step: {{stepNumber: 3, stepName: "create_report", status: "pending"}}');
-      expect(result).toContain('History: [{{stepNumber: 1, stepName: "collect_data", status: "completed"}}, {{stepNumber: 2, stepName: "analyze_data", status: "completed"}}]');
+      expect(result).toContain(
+        'Current Step: {{stepNumber: 3, stepName: "create_report", status: "pending"}}'
+      );
+      expect(result).toContain(
+        'History: [{{stepNumber: 1, stepName: "collect_data", status: "completed"}}, {{stepNumber: 2, stepName: "analyze_data", status: "completed"}}]'
+      );
       expect(result).toContain('Response:');
       expect(result).toContain('"Executing Step 3: create_report');
-      expect(result).toContain('**STEP_COMPLETED: Step 3 - create_report - Done**');
-      expect(result).toContain('**PLAN_COMPLETED: Successfully completed all tasks:');
+      expect(result).toContain(
+        '**STEP_COMPLETED: Step 3 - create_report - Done**'
+      );
+      expect(result).toContain(
+        '**PLAN_COMPLETED: Successfully completed all tasks:'
+      );
     });
 
     it('should handle empty step history', () => {
@@ -480,7 +558,11 @@ Step 3: create_report
     });
 
     it('should handle different current step numbers', () => {
-      const step1: StepInfo = { stepNumber: 1, stepName: 'first_step', status: 'pending' };
+      const step1: StepInfo = {
+        stepNumber: 1,
+        stepName: 'first_step',
+        status: 'pending',
+      };
       const result = PromptPlanInteractive(step1, stepHistory, rawPlan);
 
       expect(result).toContain('Current Step: STEP 1: first_step');
@@ -523,7 +605,7 @@ Step 3: create_report
     it('should validate prompt format consistency', () => {
       const agentInfo = new Map([['test_agent', 'Test description']]);
       const agentPrompt = agentSelectorPromptContent(agentInfo, 'test input');
-      
+
       expect(agentPrompt).toContain('ROUTING RULES:');
       expect(agentPrompt).toContain('AGENT DESCRIPTIONS:');
       expect(agentPrompt).toContain('USER REQUEST:');
