@@ -74,9 +74,14 @@ export class CustomHuggingFaceEmbeddings {
   }
 
   async embedQuery(query: string): Promise<number[]> {
-    const len = query.length || 1;
-    return Array.from({ length: 384 }, (_v, i) => {
-      return ((query.charCodeAt(i % len) + i * 31) % 1000) / 1000;
+    const dim = 384;
+    const len = query.length;
+    if (len === 0) {
+      return Array(dim).fill(0);
+    }
+    return Array.from({ length: dim }, (_v, i) => {
+      const ch = query.charCodeAt(i % len);
+      return ((ch + i * 31) % 1000) / 1000;
     });
   }
 
