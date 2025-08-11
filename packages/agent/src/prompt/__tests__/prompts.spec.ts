@@ -18,12 +18,7 @@ import { baseSystemPrompt, interactiveRules, autonomousRules, hybridRules, model
 import { AgentConfig } from '@snakagent/core';
 import { MessageContent } from '@langchain/core/messages';
 
-// Define StepInfo interface since it's not exported from the source
-interface StepInfo {
-  stepNumber: number;
-  stepName: string;
-  status: string;
-}
+import { StepInfo } from '../prompts.js';
 
 describe('prompts', () => {
   let mockAgentConfig: AgentConfig;

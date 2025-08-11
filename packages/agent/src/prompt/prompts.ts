@@ -1,7 +1,7 @@
 import { MessageContent } from '@langchain/core/messages';
 import { AgentConfig } from '@snakagent/core';
 
-interface StepInfo {
+export interface StepInfo {
   stepNumber: number;
   stepName: string;
   status: string;
