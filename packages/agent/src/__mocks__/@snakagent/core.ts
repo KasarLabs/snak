@@ -52,26 +52,37 @@ export interface ApiKeys {
 }
 
 export const logger = {
-  warn: (..._args: any[]) => {},
-  error: (..._args: any[]) => {},
-  debug: (..._args: any[]) => {},
-  info: (..._args: any[]) => {},
+  warn: (..._args: unknown[]): void => {
+    void _args;
+  },
+  error: (..._args: unknown[]): void => {
+    void _args;
+  },
+  debug: (..._args: unknown[]): void => {
+    void _args;
+  },
+  info: (..._args: unknown[]): void => {
+    void _args;
+  },
 };
 
 // Mock CustomHuggingFaceEmbeddings for tests
 export class CustomHuggingFaceEmbeddings {
-  constructor(fields?: any) {
+  constructor(fields?: Partial<CustomHuggingFaceEmbeddingsParams>) {
     // Mock constructor
+    void fields;
   }
 
   async embedQuery(query: string): Promise<number[]> {
-    // Return a mock embedding vector with 384 dimensions (default for MiniLM)
-    return Array.from({ length: 384 }, () => Math.random());
+    const len = query.length || 1;
+    return Array.from({ length: 384 }, (_v, i) => {
+      return ((query.charCodeAt(i % len) + i * 31) % 1000) / 1000;
+    });
   }
 
   async embedDocuments(documents: string[]): Promise<number[][]> {
-    // Return mock embeddings for multiple documents
-    return documents.map(() => Array.from({ length: 384 }, () => Math.random()));
+    // Reuse embedQuery for deterministic per-document embeddings
+    return Promise.all(documents.map((d) => this.embedQuery(d)));
   }
 }
 
