@@ -1,5 +1,4 @@
 // jest.config.cjs
-const path = require('path');
 /** @type {import('jest').Config} */
 module.exports = {
   // Tell Jest to look in the src directory, not dist
@@ -15,7 +14,7 @@ module.exports = {
       {
         useESM: false,
         isolatedModules: true,
-        tsconfig: path.resolve(__dirname, 'tsconfig.test.json'),
+        tsconfig: '<rootDir>/tsconfig.test.json',
       },
     ],
   },
