@@ -1,4 +1,6 @@
 import { deleteAgentTool } from '../../../config-agent/tools/deleteAgentTool.js';
+import { Postgres } from '@snakagent/database';
+import { logger } from '@snakagent/core';
 
 // Mock the database
 jest.mock('@snakagent/database', () => ({
@@ -18,14 +20,14 @@ jest.mock('@snakagent/core', () => ({
 }));
 
 describe('deleteAgentTool', () => {
-  let mockPostgres: any;
-  let mockLogger: any;
+  let mockPostgres: jest.Mocked<typeof Postgres>;
+  let mockLogger: jest.Mocked<typeof logger>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
-    mockPostgres = require('@snakagent/database').Postgres;
-    mockLogger = require('@snakagent/core').logger;
+    mockPostgres = jest.mocked(Postgres);
+    mockLogger = jest.mocked(logger);
     
     // Reset mock implementations
     mockPostgres.Query.mockClear();

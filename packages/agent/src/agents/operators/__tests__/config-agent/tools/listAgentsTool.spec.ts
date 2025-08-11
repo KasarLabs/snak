@@ -1,4 +1,6 @@
 import { listAgentsTool } from '../../../config-agent/tools/listAgentsTool.js';
+import { Postgres } from '@snakagent/database';
+import { logger } from '@snakagent/core';
 
 // Mock the database
 jest.mock('@snakagent/database', () => ({
@@ -18,14 +20,14 @@ jest.mock('@snakagent/core', () => ({
 }));
 
 describe('listAgentsTool', () => {
-  let mockPostgres: any;
-  let mockLogger: any;
+  let mockPostgres: jest.Mocked<typeof Postgres>;
+  let mockLogger: jest.Mocked<typeof logger>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
-    mockPostgres = require('@snakagent/database').Postgres;
-    mockLogger = require('@snakagent/core').logger;
+    mockPostgres = jest.mocked(Postgres);
+    mockLogger = jest.mocked(logger);
     
     // Reset mock implementations
     mockPostgres.Query.mockClear();
@@ -34,7 +36,7 @@ describe('listAgentsTool', () => {
     mockLogger.info.mockClear();
     
     // Configure Postgres.Query to return a mock query object
-    mockPostgres.Query.mockImplementation((query: string, params: any[]) => {
+    mockPostgres.Query.mockImplementation((query: string, params: unknown[]) => {
       return { query, params };
     });
   });

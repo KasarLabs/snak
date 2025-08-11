@@ -1,4 +1,6 @@
 import { readAgentTool } from '../../../config-agent/tools/readAgentTool.js';
+import { Postgres } from '@snakagent/database';
+import { logger } from '@snakagent/core';
 
 // Mock the database
 jest.mock('@snakagent/database', () => ({
@@ -18,14 +20,14 @@ jest.mock('@snakagent/core', () => ({
 }));
 
 describe('readAgentTool', () => {
-  let mockPostgres: any;
-  let mockLogger: any;
+  let mockPostgres: jest.Mocked<typeof Postgres>;
+  let mockLogger: jest.Mocked<typeof logger>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
-    mockPostgres = require('@snakagent/database').Postgres;
-    mockLogger = require('@snakagent/core').logger;
+    mockPostgres = jest.mocked(Postgres);
+    mockLogger = jest.mocked(logger);
     
     // Reset mock implementations
     mockPostgres.Query.mockClear();
@@ -34,7 +36,7 @@ describe('readAgentTool', () => {
     mockLogger.info.mockClear();
     
     // Configure Postgres.Query to return a mock query object
-    mockPostgres.Query.mockImplementation((query: string, params: any[]) => {
+    mockPostgres.Query.mockImplementation((query: string, params: unknown[]) => {
       return { query, params };
     });
   });
@@ -66,6 +68,21 @@ describe('readAgentTool', () => {
       const schema = readAgentTool.schema;
       const parsed = schema.parse({ identifier: 'test-agent' });
       expect(parsed.searchBy).toBeUndefined();
+    });
+
+    it('should validate searchBy enum values correctly', () => {
+      const schema = readAgentTool.schema;
+      
+      // Valid values should pass
+      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 'name' })).not.toThrow();
+      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 'id' })).not.toThrow();
+      expect(() => schema.parse({ identifier: 'test-agent', searchBy: null })).not.toThrow();
+      expect(() => schema.parse({ identifier: 'test-agent', searchBy: undefined })).not.toThrow();
+      
+      // Invalid values should fail
+      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 'invalid_type' as any })).toThrow();
+      expect(() => schema.parse({ identifier: 'test-agent', searchBy: 123 as any })).toThrow();
+      expect(() => schema.parse({ identifier: 'test-agent', searchBy: {} as any })).toThrow();
     });
   });
 
@@ -334,12 +351,15 @@ describe('readAgentTool', () => {
       expect(parsedResult.error).toBe('Invalid query syntax');
     });
 
-    it('should handle invalid identifier type', async () => {
+    it('should handle invalid searchBy value with fallback to name', async () => {
+      mockPostgres.query.mockResolvedValue([]);
+
       const result = await readAgentTool.func({
         identifier: 'test-agent',
         searchBy: 'invalid_type' as any
       });
 
+      // Should use fallback 'name' instead of 'invalid_type'
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         'SELECT * FROM agents WHERE name = $1',
         ['test-agent']
@@ -347,7 +367,7 @@ describe('readAgentTool', () => {
       
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Failed to read agent configuration');
+      expect(parsedResult.message).toBe('Agent not found with name: test-agent');
     });
   });
 
