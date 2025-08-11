@@ -28,14 +28,11 @@ import {
 import { ModelSelector } from '../operators/modelSelector.js';
 import {
   interactiveRules,
-  planPrompt,
-  PromptPlanInteractive,
 } from '../../prompt/prompts.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
 import { AgentReturn } from './autonomous.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
-import { RunnableConfig } from '@langchain/core/runnables';
 
 /**
  * Creates and configures an interactive agent.
