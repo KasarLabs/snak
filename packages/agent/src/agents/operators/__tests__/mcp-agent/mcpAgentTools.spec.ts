@@ -63,6 +63,7 @@ jest.mock('../../operatorRegistry.js', () => ({
 }));
 
 // Mock fetch globally
+const originalFetch = global.fetch;
 global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 
 describe('mcpAgentTools', () => {
@@ -98,6 +99,8 @@ describe('mcpAgentTools', () => {
     // Clean up remaining timers
     jest.clearAllTimers();
     jest.useRealTimers();
+    
+    global.fetch = originalFetch;
   });
 
   describe('getMcpAgentTools', () => {
