@@ -63,8 +63,8 @@ jest.mock('../../operatorRegistry.js', () => ({
 }));
 
 // Mock fetch globally
-const originalFetch = global.fetch;
-global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 describe('mcpAgentTools', () => {
   let mockLogger: MockLogger;
@@ -100,7 +100,7 @@ describe('mcpAgentTools', () => {
     jest.clearAllTimers();
     jest.useRealTimers();
     
-    global.fetch = originalFetch;
+    global.fetch = mockFetch;
   });
 
   describe('getMcpAgentTools', () => {
@@ -229,7 +229,7 @@ describe('mcpAgentTools', () => {
           },
         }),
       };
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      mockFetch.mockResolvedValue(mockResponse);
       
       const result = await searchTool.func({
         query: 'test search',
@@ -238,7 +238,7 @@ describe('mcpAgentTools', () => {
         verifiedOnly: false,
       });
       
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('https://registry.smithery.ai/servers'),
         expect.objectContaining({
           headers: {
@@ -270,7 +270,7 @@ describe('mcpAgentTools', () => {
           },
         }),
       };
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      mockFetch.mockResolvedValue(mockResponse);
       
       const result = await searchTool.func({
         query: 'nonexistent search',
@@ -292,7 +292,7 @@ describe('mcpAgentTools', () => {
         status: 401,
         statusText: 'Unauthorized',
       };
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      mockFetch.mockResolvedValue(mockResponse);
       
       await expect(searchTool.func({
         query: 'test search',
