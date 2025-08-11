@@ -27,6 +27,16 @@ export class StarknetSignatureToolRegistry {
   private static tools: SignatureTool[] = [];
 
   static registerTool<P>(tool: SignatureTool<P>): void {
+    if (typeof tool.name !== 'string' || tool.name.trim() === '') {
+      throw new Error('Tool name is required and cannot be empty');
+    }
+    if (typeof tool.description !== 'string' || tool.description.trim() === '') {
+      throw new Error('Tool description is required and cannot be empty');
+    }
+    if (typeof tool.execute !== 'function') {
+      throw new Error('Tool execute function is required');
+    }
+    
     this.tools.push(tool);
   }
 
@@ -88,8 +98,36 @@ export const RegisterSignatureTools = async (
         return true;
       })
     );
+    
+    // Filter out tools with invalid required properties
+    const validTools = tools.filter(tool => {
+      // Type-safe check for name
+      if (typeof tool.name !== 'string' || tool.name.trim() === '') {
+        const toolId = typeof tool.name === 'string' ? tool.name : '<unknown-tool>';
+        logger.warn(`Skipping tool with empty name: ${toolId}`);
+        return false;
+      }
+      // Type-safe check for description
+      if (typeof tool.description !== 'string' || tool.description.trim() === '') {
+        const toolId = typeof tool.name === 'string' ? tool.name : '<unknown-tool>';
+        logger.warn(`Skipping tool with empty description: ${toolId}`);
+        return false;
+      }
+      // Type-safe check for execute function
+      if (typeof tool.execute !== 'function') {
+        const toolId = typeof tool.name === 'string' ? tool.name : '<unknown-tool>';
+        logger.warn(`Skipping tool with invalid execute function: ${toolId}`);
+        return false;
+      }
+      return true;
+    });
+    
+    // Replace the tools array with only valid tools
+    tools.length = 0;
+    tools.push(...validTools);
+    
     if (tools.length === 0) {
-      logger.warn('No tools registered');
+      logger.warn('No valid tools registered');
     }
   } catch (error) {
     logger.error(error);
