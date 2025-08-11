@@ -24,6 +24,9 @@ module.exports = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@snakagent/core$': '<rootDir>/src/__mocks__/@snakagent/core.ts',
     '^@snakagent/database$': '<rootDir>/src/__mocks__/@snakagent/database.ts',
+    '^@snakagent/database/queries$': '<rootDir>/src/__mocks__/@snakagent/database.ts',
+    '^snak-mcps$': '<rootDir>/src/__mocks__/snak-mcps.ts',
+    '^../../config/agentConfig\\.js$': '<rootDir>/src/__mocks__/agentConfig.ts',
   },
 
   // Only treat TypeScript files as ESM
