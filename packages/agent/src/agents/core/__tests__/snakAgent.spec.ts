@@ -15,6 +15,9 @@ jest.mock('@snakagent/core', () => ({
 jest.mock('@snakagent/metrics', () => ({
   metrics: {
     agentConnect: jest.fn()
+  },
+  default: {
+    agentConnect: jest.fn()
   }
 }));
 
