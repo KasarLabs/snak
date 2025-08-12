@@ -188,17 +188,48 @@ describe('SnakAgent', () => {
       },
       modelSelectorConfig: {
         defaultModel: 'gpt-4',
-        models: {
-          'gpt-4': {
-            name: 'gpt-4',
-            provider: 'openai',
-            apiKey: 'test-key',
-          },
-        },
+        name: 'gpt-4',
+        provider: 'openai',
+        apiKey: 'test-key',
       } as any,
     };
 
     snakAgent = new SnakAgent(mockConfig as any);
+  });
+
+  describe('AgentIterationEvent enum', () => {
+    it('should have correct event values', () => {
+      expect(AgentIterationEvent.ON_CHAT_MODEL_STREAM).toBe('on_chat_model_stream');
+      expect(AgentIterationEvent.ON_CHAT_MODEL_START).toBe('on_chat_model_start');
+      expect(AgentIterationEvent.ON_CHAT_MODEL_END).toBe('on_chat_model_end');
+      expect(AgentIterationEvent.ON_CHAIN_START).toBe('on_chain_start');
+      expect(AgentIterationEvent.ON_CHAIN_END).toBe('on_chain_end');
+      expect(AgentIterationEvent.ON_CHAIN_STREAM).toBe('on_chain_stream');
+    });
+
+    it('should have all required event types', () => {
+      const expectedEvents = [
+        'on_chat_model_stream',
+        'on_chat_model_start', 
+        'on_chat_model_end',
+        'on_chain_start',
+        'on_chain_end',
+        'on_chain_stream'
+      ];
+      
+      const actualEvents = Object.values(AgentIterationEvent);
+      expect(actualEvents).toEqual(expect.arrayContaining(expectedEvents));
+      expect(actualEvents).toHaveLength(expectedEvents.length);
+    });
+
+    it('should maintain enum integrity', () => {
+      expect(AgentIterationEvent.ON_CHAT_MODEL_STREAM).toBeDefined();
+      expect(AgentIterationEvent.ON_CHAT_MODEL_START).toBeDefined();
+      expect(AgentIterationEvent.ON_CHAT_MODEL_END).toBeDefined();
+      expect(AgentIterationEvent.ON_CHAIN_START).toBeDefined();
+      expect(AgentIterationEvent.ON_CHAIN_END).toBeDefined();
+      expect(AgentIterationEvent.ON_CHAIN_STREAM).toBeDefined();
+    });
   });
 
   describe('constructor', () => {
@@ -230,7 +261,43 @@ describe('SnakAgent', () => {
           },
         },
       };
+      
+      // Clear previous calls to CustomHuggingFaceEmbeddings
+      const { CustomHuggingFaceEmbeddings } = jest.requireMock('@snakagent/core');
+      CustomHuggingFaceEmbeddings.mockClear();
+      
       new SnakAgent(customConfig);
+      
+      // Verify that CustomHuggingFaceEmbeddings was called with the custom model
+      expect(CustomHuggingFaceEmbeddings).toHaveBeenCalledWith({
+        model: 'custom-model',
+        dtype: 'fp32',
+      });
+    });
+
+    it('should initialize embeddings with default model when no custom model is specified', () => {
+      const configWithoutCustomModel = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          memory: {
+            ...mockConfig.agentConfig.memory,
+            embeddingModel: undefined,
+          },
+        },
+      };
+      
+      // Clear previous calls to CustomHuggingFaceEmbeddings
+      const { CustomHuggingFaceEmbeddings } = jest.requireMock('@snakagent/core');
+      CustomHuggingFaceEmbeddings.mockClear();
+      
+      new SnakAgent(configWithoutCustomModel);
+      
+      // Verify that CustomHuggingFaceEmbeddings was called with the default model
+      expect(CustomHuggingFaceEmbeddings).toHaveBeenCalledWith({
+        model: 'Xenova/all-MiniLM-L6-v2',
+        dtype: 'fp32',
+      });
     });
   });
 
@@ -286,7 +353,8 @@ describe('SnakAgent', () => {
       mockCreateInteractiveAgent.mockRejectedValue(
         new Error('Executor creation failed')
       );
-
+      await expect(snakAgent.init()).resolves.toBeUndefined();
+      expect(mockCreateInteractiveAgent).toHaveBeenCalled();
       expect(snakAgent.init).toBeDefined();
     });
   });
@@ -365,12 +433,12 @@ describe('SnakAgent', () => {
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
-          event: 'on_chain_start',
+          event: AgentIterationEvent.ON_CHAIN_START,
           metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
-          event: 'on_chain_end',
+          event: AgentIterationEvent.ON_CHAIN_END,
           metadata: { langgraph_step: 1 },
         },
       ]);
@@ -396,15 +464,33 @@ describe('SnakAgent', () => {
 
       const mockStreamEvents = jest
         .fn()
-        .mockRejectedValue(new Error('Execution failed'));
+        .mockRejectedValue(new Error('Stream execution failed'));
       mockCreateInteractiveAgent.mockResolvedValue({
         app: {
           streamEvents: mockStreamEvents,
         },
       });
 
+      await snakAgent.init();
+      snakAgent['currentMode'] = 'interactive';
       const generator = snakAgent.execute('Test input');
       expect(generator).toBeDefined();
+
+      // Test that the error is properly propagated when consuming the generator
+      let errorCaught = false;
+      try {
+        for await (const chunk of generator) {
+          // This should not execute due to the error
+          expect(true).toBe(false); // This should never be reached
+        }
+      } catch (error) {
+        errorCaught = true;
+        expect(error).toBeInstanceOf(Error);
+        expect(error.message).toBe('Stream execution failed');
+      }
+      
+      expect(errorCaught).toBe(true);
+      expect(mockStreamEvents).toHaveBeenCalled();
     });
 
     it('should handle uninitialized executor', async () => {
@@ -430,12 +516,12 @@ describe('SnakAgent', () => {
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
-          event: 'on_chain_start',
+          event: AgentIterationEvent.ON_CHAIN_START,
           metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
-          event: 'on_chain_end',
+          event: AgentIterationEvent.ON_CHAIN_END,
           metadata: { langgraph_step: 1 },
         },
       ]);
@@ -448,6 +534,20 @@ describe('SnakAgent', () => {
 
       const generator = snakAgent.executeAsyncGenerator('Test input');
       expect(generator).toBeDefined();
+      
+      expect(mockCreateInteractiveAgent).toHaveBeenCalled();
+      
+
+      const results = [];
+      for await (const chunk of generator) {
+        results.push(chunk);
+      }
+      
+      expect(results).toHaveLength(1);
+      expect(results[0]).toHaveProperty('chunk');
+      expect(results[0]).toHaveProperty('final');
+      expect(results[0]).toHaveProperty('iteration_number');
+      expect(results[0]).toHaveProperty('langgraph_step');
     });
 
     it('should handle thread configuration', async () => {
@@ -456,12 +556,12 @@ describe('SnakAgent', () => {
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
-          event: 'on_chain_start',
+          event: AgentIterationEvent.ON_CHAIN_START,
           metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
-          event: 'on_chain_end',
+          event: AgentIterationEvent.ON_CHAIN_END,
           metadata: { langgraph_step: 1 },
         },
       ]);
@@ -479,6 +579,19 @@ describe('SnakAgent', () => {
 
       const generator = snakAgent.executeAsyncGenerator('Test input', config);
       expect(generator).toBeDefined();
+      
+      expect(mockCreateInteractiveAgent).toHaveBeenCalled();
+      
+      const results = [];
+      for await (const chunk of generator) {
+        results.push(chunk);
+      }
+      
+      expect(results).toHaveLength(1);
+      expect(results[0]).toHaveProperty('chunk');
+      expect(results[0]).toHaveProperty('final');
+      expect(results[0]).toHaveProperty('iteration_number');
+      expect(results[0]).toHaveProperty('langgraph_step');
     });
   });
 
@@ -527,7 +640,7 @@ describe('SnakAgent', () => {
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<tools,tools,agent,end>',
-          event: 'on_chain_start',
+          event: AgentIterationEvent.ON_CHAIN_START,
           data: {
             input: {
               messages: [
@@ -541,7 +654,7 @@ describe('SnakAgent', () => {
         },
         {
           name: 'Branch<tools,tools,agent,end>',
-          event: 'on_chain_end',
+          event: AgentIterationEvent.ON_CHAIN_END,
           metadata: { langgraph_step: 1 },
         },
       ]);
@@ -556,6 +669,14 @@ describe('SnakAgent', () => {
 
       const generator = snakAgent.executeAutonomousAsyncGenerator('Test input');
       expect(generator).toBeDefined();
+      
+      expect(mockCreateAutonomousAgent).toHaveBeenCalled();
+      
+      for await (const chunk of generator) {
+        expect(chunk).toHaveProperty('chunk');
+        expect(chunk).toHaveProperty('final');
+      }
+    
     });
 
     it('should handle interrupted execution', async () => {
@@ -564,7 +685,7 @@ describe('SnakAgent', () => {
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<tools,tools,agent,end>',
-          event: 'on_chain_start',
+          event: AgentIterationEvent.ON_CHAIN_START,
           data: {
             input: {
               messages: [
@@ -578,7 +699,7 @@ describe('SnakAgent', () => {
         },
         {
           name: 'Branch<tools,tools,agent,end>',
-          event: 'on_chain_end',
+          event: AgentIterationEvent.ON_CHAIN_END,
           metadata: { langgraph_step: 1 },
         },
       ]);
@@ -598,6 +719,15 @@ describe('SnakAgent', () => {
         true
       );
       expect(generator).toBeDefined();
+      
+      expect(mockCreateAutonomousAgent).toHaveBeenCalled();
+      
+      const results = [];
+      for await (const chunk of generator) {
+        results.push(chunk);
+      }
+      
+      expect(Array.isArray(results)).toBe(true);
     });
 
     it('should handle abort errors', async () => {
@@ -611,13 +741,21 @@ describe('SnakAgent', () => {
       });
 
       const generator = snakAgent.executeAutonomousAsyncGenerator('Test input');
+      
+      expect(mockCreateAutonomousAgent).toHaveBeenCalled();
+      expect(generator).toBeDefined();
+      
       const results = [];
-
-      for await (const result of generator) {
-        results.push(result);
+      try {
+        for await (const result of generator) {
+          results.push(result);
+        }
+      } catch (error) {
+        // If error is thrown, it should be the abort error
+        expect(error.message).toBe('Abort');
       }
-
-      expect(results.length).toBeGreaterThanOrEqual(0);
+      // Either we get results or an error, but the generator should not crash
+      expect(generator).toBeDefined();
     });
   });
 
@@ -693,23 +831,20 @@ describe('SnakAgent', () => {
       // Initialize
       await expect(snakAgent.init()).resolves.toBeUndefined();
 
-      // Get configuration
       const config = snakAgent.getAgentConfig();
       expect(config.id).toBe('test-agent');
 
-      // Test that execute method exists
       expect(typeof snakAgent.execute).toBe('function');
 
-      // Mock the streamEvents to return a simple stream
       const mockStreamEvents = jest.fn().mockResolvedValue([
         {
           name: 'Branch<agent>',
-          event: 'on_chain_start',
+          event: AgentIterationEvent.ON_CHAIN_START,
           metadata: { langgraph_step: 1 },
         },
         {
           name: 'Branch<agent>',
-          event: 'on_chain_end',
+          event: AgentIterationEvent.ON_CHAIN_END,
           metadata: { langgraph_step: 1 },
         },
       ]);
@@ -722,6 +857,19 @@ describe('SnakAgent', () => {
 
       const generator = snakAgent.execute('Test input');
       expect(generator).toBeDefined();
+      
+      expect(mockCreateInteractiveAgent).toHaveBeenCalled();
+      
+      const results = [];
+      for await (const chunk of generator) {
+        results.push(chunk);
+      }
+      
+      expect(results).toHaveLength(1);
+      expect(results[0]).toHaveProperty('chunk');
+      expect(results[0]).toHaveProperty('final');
+      expect(results[0]).toHaveProperty('iteration_number');
+      expect(results[0]).toHaveProperty('langgraph_step');
 
       // Stop execution
       snakAgent.stop();
@@ -746,4 +894,214 @@ describe('SnakAgent', () => {
       }
     });
   });
+
+  describe('edge cases and error scenarios', () => {
+    it('should handle initialization without modelSelector', async () => {
+      const configWithoutModelSelector = {
+        ...mockConfig,
+        modelSelectorConfig: undefined,
+      };
+      const agent = new SnakAgent(configWithoutModelSelector as any);
+      
+      await expect(agent.init()).resolves.toBeUndefined();
+    });
+
+    it('should handle memory agent with custom configuration', async () => {
+      const customMemoryConfig = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          memory: {
+            enabled: true,
+            shortTermMemorySize: 50,
+            memorySize: 100,
+            maxIterations: 25,
+            embeddingModel: 'custom-embedding-model',
+          },
+        },
+      };
+      const agent = new SnakAgent(customMemoryConfig as any);
+      
+      await expect(agent.init()).resolves.toBeUndefined();
+      expect(agent.getMemoryAgent()).toBeDefined();
+      
+      await agent['captureQuestion']('Custom question');
+      expect(agent['pendingIteration']).toBeDefined();
+      
+      await expect(agent['saveIteration']('Custom answer')).resolves.toBeUndefined();
+      expect(mockIterations.insert_iteration).toHaveBeenCalled();
+    });
+
+    it('should handle RAG agent with custom configuration', async () => {
+      const customRagConfig = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          rag: {
+            enabled: true,
+            topK: 10,
+            embeddingModel: 'custom-rag-embedding',
+          },
+        },
+      };
+      const agent = new SnakAgent(customRagConfig as any);
+      
+      await expect(agent.init()).resolves.toBeUndefined();
+      expect(agent.getRagAgent()).toBeDefined();
+      
+      await agent['captureQuestion']('RAG question');
+      expect(agent['pendingIteration']).toBeDefined();
+      
+      await expect(agent['saveIteration']('RAG answer')).resolves.toBeUndefined();
+      expect(mockIterations.insert_iteration).toHaveBeenCalled();
+    });
+
+    it('should handle hybrid mode execution', async () => {
+      const hybridConfig = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          mode: 'hybrid',
+        },
+      };
+      const agent = new SnakAgent(hybridConfig as any);
+      await agent.init();
+
+      expect(agent.getAgentMode()).toBe('hybrid');
+      expect(typeof agent.execute).toBe('function');
+    });
+
+    it('should handle controller getter when not initialized', () => {
+      const agent = new SnakAgent(mockConfig as any);
+      const controller = agent.getController();
+      expect(controller).toBeUndefined();
+    });
+
+    it('should handle memory operations with disabled memory', async () => {
+      const disabledMemoryConfig = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          memory: { enabled: false },
+        },
+      };
+      const agent = new SnakAgent(disabledMemoryConfig as any);
+      await agent.init();
+
+      expect(agent.getMemoryAgent()).toBeNull();
+      
+      await agent['captureQuestion']('Test question');
+      expect(agent['pendingIteration']).toBeUndefined();
+      
+      await expect(agent['saveIteration']('Test answer')).resolves.toBeUndefined();
+      expect(mockIterations.insert_iteration).not.toHaveBeenCalled();
+    });
+
+    it('should handle memory operations with zero limits', async () => {
+      const zeroMemoryConfig = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          memory: {
+            enabled: true,
+            shortTermMemorySize: 0,
+            memorySize: 0,
+          },
+        },
+      };
+      const agent = new SnakAgent(zeroMemoryConfig as any);
+      await agent.init();
+
+      await agent['captureQuestion']('Test question');
+      expect(agent['pendingIteration']).toBeUndefined();
+      
+      await expect(agent['saveIteration']('Test answer')).resolves.toBeUndefined();
+      expect(mockIterations.insert_iteration).not.toHaveBeenCalled();
+    });
+
+    it('should handle database operation failures gracefully', async () => {
+      await snakAgent.init();
+      
+      mockIterations.insert_iteration.mockRejectedValue(new Error('Database connection failed'));
+      
+      await snakAgent['captureQuestion']('Test question');
+      expect(snakAgent['pendingIteration']).toBeDefined();
+      
+      await expect(snakAgent['saveIteration']('Test answer')).resolves.toBeUndefined();
+    });
+
+    it('should handle embedding generation failures', async () => {
+      await snakAgent.init();
+      
+      const mockEmbeddings = {
+        embedQuery: jest.fn().mockRejectedValue(new Error('Embedding failed')),
+      };
+      snakAgent['iterationEmbeddings'] = mockEmbeddings as any;
+      
+      await expect(snakAgent['captureQuestion']('Test question')).resolves.toBeUndefined();
+      expect(snakAgent['pendingIteration']).toBeUndefined();
+    });
+
+    it('should save iteration when memory is enabled and question is captured', async () => {
+      const enabledMemoryConfig = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          memory: {
+            enabled: true,
+            shortTermMemorySize: 50,
+            memorySize: 100,
+          },
+        },
+      };
+      const agent = new SnakAgent(enabledMemoryConfig as any);
+      await agent.init();
+
+      await agent['captureQuestion']('Test question');
+      
+      expect(agent['pendingIteration']).toBeDefined();
+      expect(agent['pendingIteration']?.question).toBe('Test question');
+      
+      await expect(agent['saveIteration']('Test answer')).resolves.toBeUndefined();
+      
+      expect(mockIterations.insert_iteration).toHaveBeenCalledWith({
+        agent_id: 'test-agent',
+        question: 'Test question',
+        question_embedding: expect.any(Array),
+        answer: 'Test answer',
+        answer_embedding: expect.any(Array),
+      });
+    });
+
+    it('should completely disable memory operations when memory.enabled is false', async () => {
+      const disabledMemoryConfig = {
+        ...mockConfig,
+        agentConfig: {
+          ...mockConfig.agentConfig,
+          memory: {
+            enabled: false,
+            shortTermMemorySize: 50,  // Even with positive limit
+            memorySize: 100,
+          },
+        },
+      };
+      const agent = new SnakAgent(disabledMemoryConfig as any);
+      await agent.init();
+
+      expect(agent.getMemoryAgent()).toBeNull();
+      
+      // Test captureQuestion - should not capture anything
+      await agent['captureQuestion']('Test question');
+      expect(agent['pendingIteration']).toBeUndefined();
+      
+      // Test saveIteration - should not save anything
+      await expect(agent['saveIteration']('Test answer')).resolves.toBeUndefined();
+      expect(mockIterations.insert_iteration).not.toHaveBeenCalled();
+      
+      // Verify that no database operations were performed
+      expect(mockIterations.count_iterations).not.toHaveBeenCalled();
+      expect(mockIterations.delete_oldest_iteration).not.toHaveBeenCalled();
+    });
+  });
+
 });

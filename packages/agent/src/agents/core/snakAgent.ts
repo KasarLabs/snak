@@ -582,7 +582,8 @@ export class SnakAgent extends BaseAgent {
       const limit = this.agentConfig.memory?.shortTermMemorySize ?? 15;
       if (
         limit <= 0 ||
-        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE]
+        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
+        this.agentConfig.memory?.enabled === false
       ) {
         return;
       }
@@ -604,7 +605,8 @@ export class SnakAgent extends BaseAgent {
       if (
         limit <= 0 ||
         this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
-        !this.pendingIteration
+        !this.pendingIteration ||
+        this.agentConfig.memory?.enabled === false
       ) {
         return;
       }
