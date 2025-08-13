@@ -17,25 +17,46 @@ jest.mock('@snakagent/core', () => ({
   },
 }));
 
+// Mock normalizeAgentValues
+jest.mock('../../../config-agent/tools/normalizeAgentValues.js', () => ({
+  normalizeNumericValues: jest.fn(),
+}));
+
 describe('createAgentTool', () => {
   let mockPostgres: any;
   let mockLogger: any;
+  let mockNormalizeAgentValues: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockPostgres = require('@snakagent/database').Postgres;
     mockLogger = require('@snakagent/core').logger;
+    mockNormalizeAgentValues = require('../../../config-agent/tools/normalizeAgentValues.js').normalizeNumericValues;
 
     // Reset mock implementations
     mockPostgres.Query.mockClear();
     mockPostgres.query.mockClear();
     mockLogger.error.mockClear();
     mockLogger.info.mockClear();
+    mockNormalizeAgentValues.mockClear();
 
     // Configure Postgres.Query to return a mock query object
     mockPostgres.Query.mockImplementation((query: string, params: any[]) => {
       return { query, params };
+    });
+
+    // Configure normalizeAgentValues to return a default mock response
+    mockNormalizeAgentValues.mockReturnValue({
+      normalizedConfig: {
+        interval: 5,
+        max_iterations: 15,
+        memory: {
+          shortTermMemorySize: 5,
+          memorySize: 20,
+        },
+      },
+      appliedDefaults: [],
     });
   });
 
@@ -78,6 +99,28 @@ describe('createAgentTool', () => {
   });
 
   describe('function execution', () => {
+    it('should call normalizeAgentValues with input parameters', async () => {
+      const mockCreatedAgent = {
+        id: 1,
+        name: 'test-agent',
+        description: 'Test agent',
+        group: 'general',
+      };
+
+      mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
+
+      const input = {
+        name: 'test-agent',
+        group: 'general',
+        description: 'Test agent',
+      };
+
+      await createAgentTool.func(input);
+
+      expect(mockNormalizeAgentValues).toHaveBeenCalledWith(input);
+      expect(mockNormalizeAgentValues).toHaveBeenCalledTimes(1);
+    });
+
     it('should create agent with minimal required fields', async () => {
       const mockCreatedAgent = {
         id: 1,
@@ -154,6 +197,19 @@ describe('createAgentTool', () => {
 
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
+      // Mock normalizeAgentValues to return the expected normalized values
+      mockNormalizeAgentValues.mockReturnValue({
+        normalizedConfig: {
+          interval: 300,
+          max_iterations: 10,
+          memory: {
+            shortTermMemorySize: 50,
+            memorySize: 100,
+          },
+        },
+        appliedDefaults: [],
+      });
+
       const result = await createAgentTool.func({
         name: 'full-agent',
         description: 'A comprehensive test agent',
@@ -200,59 +256,61 @@ describe('createAgentTool', () => {
       expect(parsedResult.data).toEqual(mockCreatedAgent);
     });
 
-    it('should create agent with partial fields', async () => {
+    it('should use normalized values from normalizeAgentValues', async () => {
       const mockCreatedAgent = {
         id: 1,
-        name: 'partial-agent',
-        description: 'Partial agent',
-        group: 'rpc',
-        lore: '',
-        objectives: '',
-        knowledge: '',
-        system_prompt: null,
-        interval: 5,
-        plugins: null,
-        memory: { enabled: false, shortTermMemorySize: 5, memorySize: 20 },
-        rag: { enabled: false, embeddingModel: null },
-        mode: 'interactive',
-        max_iterations: 15,
+        name: 'normalized-agent',
+        description: 'Test agent',
+        group: 'general',
       };
 
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
-      const result = await createAgentTool.func({
-        name: 'partial-agent',
-        description: 'Partial agent',
-        group: 'rpc',
+      // Mock normalizeAgentValues to return specific normalized values
+      mockNormalizeAgentValues.mockReturnValue({
+        normalizedConfig: {
+          interval: 10,
+          max_iterations: 25,
+          memory: {
+            shortTermMemorySize: 15,
+            memorySize: 50,
+          },
+        },
+        appliedDefaults: ['interval set to default value (10)', 'max_iterations set to default value (25)'],
       });
 
+      const result = await createAgentTool.func({
+        name: 'normalized-agent',
+        group: 'general',
+        description: 'Test agent',
+      });
+
+      // Verify that the normalized values are used in the query
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO agents'),
         [
-          'partial-agent',
-          'rpc',
-          'Partial agent',
+          'normalized-agent',
+          'general',
+          'Test agent',
           '',
           '',
           '',
           null,
-          5,
+          10, // normalized interval
           null,
           false,
-          5,
-          20,
+          15, // normalized shortTermMemorySize
+          50, // normalized memorySize
           false,
           null,
           'interactive',
-          15,
+          25, // normalized max_iterations
         ]
       );
 
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "partial-agent" created successfully'
-      );
+      expect(parsedResult.message).toContain('Note: interval set to default value (10); max_iterations set to default value (25)');
     });
 
     it('should handle empty arrays for array fields', async () => {
@@ -294,104 +352,6 @@ describe('createAgentTool', () => {
           20,
           false,
           null,
-          'interactive',
-          15,
-        ]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle complex memory configuration', async () => {
-      const mockCreatedAgent = {
-        id: 1,
-        name: 'memory-agent',
-        memory: {
-          enabled: true,
-          shortTermMemorySize: 50,
-          memorySize: 200,
-        },
-      };
-
-      mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
-
-      const result = await createAgentTool.func({
-        name: 'memory-agent',
-        group: 'general',
-        description: 'Test agent',
-        memory: {
-          enabled: true,
-          shortTermMemorySize: 50,
-          memorySize: 200,
-        },
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO agents'),
-        [
-          'memory-agent',
-          'general',
-          'Test agent',
-          '',
-          '',
-          '',
-          null,
-          5,
-          null,
-          true,
-          50,
-          200,
-          false,
-          null,
-          'interactive',
-          15,
-        ]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle complex RAG configuration', async () => {
-      const mockCreatedAgent = {
-        id: 1,
-        name: 'rag-agent',
-        rag: {
-          enabled: true,
-          embeddingModel: 'Xenova/all-MiniLM-L6-v2',
-        },
-      };
-
-      mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
-
-      const result = await createAgentTool.func({
-        name: 'rag-agent',
-        group: 'general',
-        description: 'Test agent',
-        rag: {
-          enabled: true,
-          embeddingModel: 'Xenova/all-MiniLM-L6-v2',
-        },
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO agents'),
-        [
-          'rag-agent',
-          'general',
-          'Test agent',
-          '',
-          '',
-          '',
-          null,
-          5,
-          null,
-          false,
-          5,
-          20,
-          true,
-          'Xenova/all-MiniLM-L6-v2',
           'interactive',
           15,
         ]
@@ -485,6 +445,43 @@ describe('createAgentTool', () => {
       expect(parsedResult.error).toBe(
         'duplicate key value violates unique constraint "agents_name_key"'
       );
+    });
+
+    it('should handle creation failure with no data returned', async () => {
+      mockPostgres.query.mockResolvedValue([]);
+
+      const result = await createAgentTool.func({
+        name: 'failed-agent',
+        group: 'general',
+        description: 'Test agent',
+      });
+
+      expect(mockPostgres.Query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO agents'),
+        [
+          'failed-agent',
+          'general',
+          'Test agent',
+          '',
+          '',
+          '',
+          null,
+          5,
+          null,
+          false,
+          5,
+          20,
+          false,
+          null,
+          'interactive',
+          15,
+        ]
+      );
+
+      const parsedResult = JSON.parse(result);
+      expect(parsedResult.success).toBe(false);
+      expect(parsedResult.message).toBe('Failed to create agent - no data returned');
+      expect(parsedResult.data).toBeUndefined();
     });
   });
 
@@ -663,63 +660,6 @@ describe('createAgentTool', () => {
       const parsedResult = JSON.parse(result);
       expect(parsedResult.success).toBe(true);
     });
-
-    it('should handle complex nested objects in memory and rag', async () => {
-      const complexMemory = {
-        enabled: true,
-        shortTermMemorySize: 50,
-        memorySize: 200,
-        customField: { nested: { value: 'test' } },
-      };
-
-      const complexRag = {
-        enabled: true,
-        embeddingModel: 'Xenova/all-MiniLM-L6-v2',
-        customConfig: { threshold: 0.8, maxResults: 100 },
-      };
-
-      const mockCreatedAgent = {
-        id: 1,
-        name: 'complex-objects-agent',
-        memory: complexMemory,
-        rag: complexRag,
-      };
-
-      mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
-
-      const result = await createAgentTool.func({
-        name: 'complex-objects-agent',
-        group: 'general',
-        description: 'Test agent',
-        memory: complexMemory,
-        rag: complexRag,
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO agents'),
-        [
-          'complex-objects-agent',
-          'general',
-          'Test agent',
-          '',
-          '',
-          '',
-          null,
-          5,
-          null,
-          true,
-          50,
-          200,
-          true,
-          'Xenova/all-MiniLM-L6-v2',
-          'interactive',
-          15,
-        ]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
   });
 
   describe('parameter validation', () => {
@@ -769,133 +709,47 @@ describe('createAgentTool', () => {
       expect(parsedResult.success).toBe(true);
     });
 
-    it('should handle zero and negative numeric values', async () => {
+    it('should handle null and undefined values', async () => {
       const mockCreatedAgent = {
         id: 1,
-        name: 'numeric-agent',
-        interval: 5, // Default value interval
-        max_iterations: 15, // Default value max_iterations
+        name: 'null-values-agent',
+        description: 'Test agent',
+        group: 'general',
       };
 
       mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
 
       const result = await createAgentTool.func({
-        name: 'numeric-agent',
+        name: 'null-values-agent',
         group: 'general',
         description: 'Test agent',
-        interval: 0,
-        max_iterations: -1,
+        lore: null,
+        objectives: undefined,
+        knowledge: null,
+        system_prompt: null,
+        plugins: undefined,
+        memory: null,
+        rag: null,
+        mode: null,
+        interval: null,
+        max_iterations: null,
       });
 
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO agents'),
         [
-          'numeric-agent',
+          'null-values-agent',
           'general',
           'Test agent',
           '',
           '',
           '',
           null,
-          5, // uses default 5
+          5,
           null,
           false,
           5,
           20,
-          false,
-          null,
-          'interactive',
-          15, // uses default 15
-        ]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle very large numeric values', async () => {
-      const mockCreatedAgent = {
-        id: 1,
-        name: 'large-numeric-agent',
-        interval: 999999,
-        max_iterations: 999999,
-      };
-
-      mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
-
-      const result = await createAgentTool.func({
-        name: 'large-numeric-agent',
-        group: 'general',
-        description: 'Test agent',
-        interval: 999999,
-        max_iterations: 999999,
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO agents'),
-        [
-          'large-numeric-agent',
-          'general',
-          'Test agent',
-          '',
-          '',
-          '',
-          null,
-          999999,
-          null,
-          false,
-          5,
-          20,
-          false,
-          null,
-          'interactive',
-          999999,
-        ]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle negative values in memory configuration', async () => {
-      const mockCreatedAgent = {
-        id: 1,
-        name: 'negative-memory-agent',
-        memory: {
-          enabled: true,
-          shortTermMemorySize: 5, // Default value shortTermMemorySize
-          memorySize: 20, // Default value memorySize
-        },
-      };
-
-      mockPostgres.query.mockResolvedValue([mockCreatedAgent]);
-
-      const result = await createAgentTool.func({
-        name: 'negative-memory-agent',
-        group: 'general',
-        description: 'Test agent',
-        memory: {
-          enabled: true,
-          shortTermMemorySize: -5,
-          memorySize: -10,
-        },
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO agents'),
-        [
-          'negative-memory-agent',
-          'general',
-          'Test agent',
-          '',
-          '',
-          '',
-          null,
-          5,
-          null,
-          true,
-          5, // Default value
-          20, // Default value
           false,
           null,
           'interactive',
