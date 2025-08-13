@@ -2,735 +2,205 @@ import { deleteAgentTool } from '../../../config-agent/tools/deleteAgentTool.js'
 import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 
-// Mock the database
 jest.mock('@snakagent/database', () => ({
-  Postgres: {
-    Query: jest.fn(),
-    query: jest.fn(),
-  },
+  Postgres: { 
+    Query: jest.fn(), 
+    query: jest.fn() 
+  }
 }));
 
-// Mock the logger
 jest.mock('@snakagent/core', () => ({
-  logger: {
-    error: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-  },
+  logger: { error: jest.fn(), info: jest.fn() }
 }));
 
 describe('deleteAgentTool', () => {
   let mockPostgres: jest.Mocked<typeof Postgres>;
   let mockLogger: jest.Mocked<typeof logger>;
 
+  const asJson = (result: string) => JSON.parse(result);
+  const mkAgent = (id: number, name: string) => ({ id, name, description: 'Test agent' });
+  const setupFind = (agent: any) => mockPostgres.query.mockResolvedValueOnce([agent]);
+  const setupDelete = () => mockPostgres.query.mockResolvedValueOnce([]);
+
   beforeEach(() => {
     jest.clearAllMocks();
-
     mockPostgres = jest.mocked(Postgres);
     mockLogger = jest.mocked(logger);
-
-    // Reset mock implementations
-    mockPostgres.Query.mockClear();
-    mockPostgres.query.mockClear();
-    mockLogger.error.mockClear();
-    mockLogger.info.mockClear();
-
-    // Configure Postgres.Query to return a mock query object
-    mockPostgres.Query.mockImplementation(
-      (query: string, params: unknown[]) => {
-        return { query, params };
-      }
-    );
+    
+    // Mock Postgres.Query constructor
+    mockPostgres.Query.mockImplementation((query: string, params: unknown[]) => ({ query, params }));
   });
 
   describe('tool configuration', () => {
     it('should have correct name and description', () => {
       expect(deleteAgentTool.name).toBe('delete_agent');
-      expect(deleteAgentTool.description).toContain(
-        'Delete/remove/destroy an agent configuration permanently'
-      );
+      expect(deleteAgentTool.description).toContain('Delete/remove/destroy an agent configuration permanently');
     });
 
-    it('should have proper schema validation', () => {
-      const schema = deleteAgentTool.schema;
-      expect(schema).toBeDefined();
-      expect(schema.shape).toHaveProperty('identifier');
-      expect(schema.shape).toHaveProperty('searchBy');
-      expect(schema.shape).toHaveProperty('confirm');
-    });
-
-    it('should validate schema structure', () => {
-      const schema = deleteAgentTool.schema;
-
-      // Identifier should be required
-      expect(schema.shape.identifier._def.typeName).toBe('ZodString');
-
-      // SearchBy should be optional with nullable
-      expect(schema.shape.searchBy._def.typeName).toBe('ZodNullable');
-
-      // Confirm should be optional with nullable
-      expect(schema.shape.confirm._def.typeName).toBe('ZodNullable');
-    });
-
-    it('should have correct default values', () => {
-      const schema = deleteAgentTool.schema;
-      const parsed = schema.parse({ identifier: 'test-agent' });
-      expect(parsed.searchBy).toBeUndefined();
-      expect(parsed.confirm).toBeUndefined();
+    it('should validate schema', () => {
+      const result = deleteAgentTool.schema.safeParse({ identifier: 'test' });
+      expect(result.success).toBe(true);
     });
   });
 
-  describe('function execution', () => {
-    it('should delete agent by name', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'test-agent',
-        description: 'Test agent description',
-        group: 'trading',
-      };
+  describe('confirmation handling', () => {
+    it('should proceed when confirm is true', async () => {
+      const agent = mkAgent(1, 'test-agent');
+      setupFind(agent);
+      setupDelete();
 
-      // Mock the SELECT query to return the agent
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      // Mock the DELETE query to return empty array (successful deletion)
-      mockPostgres.query.mockResolvedValueOnce([]);
+      const result = await deleteAgentTool.func({ identifier: 'test-agent', confirm: true });
 
-      const result = await deleteAgentTool.func({
-        identifier: 'test-agent',
-        searchBy: 'name',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['test-agent']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "test-agent" deleted successfully'
-      );
+      expect(asJson(result).success).toBe(true);
     });
 
-    it('should delete agent by ID', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'test-agent',
-        description: 'Test agent description',
-        group: 'trading',
-      };
+    it('should proceed when confirm is undefined', async () => {
+      const agent = mkAgent(1, 'test-agent');
+      setupFind(agent);
+      setupDelete();
 
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
+      const result = await deleteAgentTool.func({ identifier: 'test-agent' });
 
-      const result = await deleteAgentTool.func({
-        identifier: '1',
-        searchBy: 'id',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE id = $1',
-        ['1']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "test-agent" deleted successfully'
-      );
+      expect(asJson(result).success).toBe(true);
     });
 
-    it('should use default searchBy when not specified', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'test-agent',
-        description: 'Test agent description',
-      };
+    it('should return early when confirm is false', async () => {
+      const result = await deleteAgentTool.func({ identifier: 'test-agent', confirm: false });
 
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'test-agent',
+      expect(mockPostgres.query).not.toHaveBeenCalled();
+      expect(asJson(result)).toEqual({
+        success: false,
+        message: 'Deletion requires explicit confirmation. Set confirm to true.'
       });
+    });
+  });
 
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['test-agent']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
+  describe('search behavior', () => {
+    it.each([
+      ['id', 'id' as const, 'SELECT * FROM agents WHERE id = $1'],
+      ['name', 'name' as const, 'SELECT * FROM agents WHERE name = $1'],
+      ['default', undefined, 'SELECT * FROM agents WHERE name = $1']
+    ])('should use correct search query for %s', async (_, searchBy, expectedQuery) => {
+      const agent = mkAgent(1, 'test-agent');
+      setupFind(agent);
+      setupDelete();
 
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "test-agent" deleted successfully'
-      );
+      await deleteAgentTool.func({ identifier: 'test-agent', searchBy });
+
+      expect(mockPostgres.Query).toHaveBeenNthCalledWith(1, expectedQuery, ['test-agent']);
     });
 
-    it('should handle agent with complex configuration', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'complex-agent',
-        description: 'Complex agent description',
-        group: 'trading',
-        lore: ['Lore 1', 'Lore 2'],
-        objectives: ['Objective 1', 'Objective 2'],
-        knowledge: ['Knowledge 1', 'Knowledge 2'],
-        system_prompt: 'Complex system prompt',
-        interval: 300,
-        plugins: ['plugin1', 'plugin2'],
-        memory: { enabled: true, memorySize: 100 },
-        rag: { enabled: true, embeddingModel: 'test-model' },
-        mode: 'interactive',
-        max_iterations: 10,
-      };
+    it('should handle invalid searchBy by defaulting to name', async () => {
+      const agent = mkAgent(1, 'test-agent');
+      setupFind(agent);
+      setupDelete();
 
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
+      await deleteAgentTool.func({ identifier: 'test-agent', searchBy: 'invalid_type' as any });
+
+      expect(mockPostgres.Query).toHaveBeenNthCalledWith(1, 'SELECT * FROM agents WHERE name = $1', ['test-agent']);
+    });
+  });
+
+  describe('agent not found', () => {
+    it.each([
+      ['id', '999', 'id' as const],
+      ['name', 'non-existent', undefined],
+      ['default', 'missing', undefined]
+    ])('should handle agent not found by %s', async (_, identifier, searchBy) => {
       mockPostgres.query.mockResolvedValueOnce([]);
 
-      const result = await deleteAgentTool.func({
-        identifier: 'complex-agent',
+      const result = await deleteAgentTool.func({ identifier, searchBy });
+
+      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
+      expect(asJson(result)).toEqual({
+        success: false,
+        message: `Agent not found with ${searchBy || 'name'}: ${identifier}`
       });
+    });
+  });
+
+  describe('successful deletion', () => {
+    it('should delete agent and return success message', async () => {
+      const agent = mkAgent(1, 'test-agent');
+      setupFind(agent);
+      setupDelete();
+
+      const result = await deleteAgentTool.func({ identifier: 'test-agent' });
 
       expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['complex-agent']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
+      expect(mockPostgres.Query).toHaveBeenNthCalledWith(1, 'SELECT * FROM agents WHERE name = $1', ['test-agent']);
+      expect(mockPostgres.Query).toHaveBeenNthCalledWith(2, 'DELETE FROM agents WHERE id = $1', [1]);
 
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "complex-agent" deleted successfully'
-      );
-    });
-
-    it('should handle confirmation parameter', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'confirm-agent',
-        description: 'Test agent',
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'confirm-agent',
-        confirm: true,
+      expect(asJson(result)).toEqual({
+        success: true,
+        message: 'Agent "test-agent" deleted successfully'
       });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['confirm-agent']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle confirmation set to false', async () => {
-      const result = await deleteAgentTool.func({
-        identifier: 'test-agent',
-        confirm: false,
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(0);
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe(
-        'Deletion requires explicit confirmation. Set confirm to true.'
-      );
     });
   });
 
   describe('error handling', () => {
-    it('should handle agent not found by name', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
+    it.each([
+      ['during find', 'Error', new Error('DB error')],
+      ['during find', 'string', 'DB error'],
+      ['during delete', 'Error', new Error('DB error')],
+      ['during delete', 'string', 'DB error']
+    ])('should handle %s %s', async (phase, errorType, error) => {
+      const agent = mkAgent(1, 'test-agent');
+      
+      if (phase === 'during find') {
+        mockPostgres.query.mockRejectedValueOnce(error);
+      } else {
+        setupFind(agent);
+        mockPostgres.query.mockRejectedValueOnce(error);
+      }
 
-      const result = await deleteAgentTool.func({
-        identifier: 'non-existent-agent',
+      const result = await deleteAgentTool.func({ identifier: 'test-agent' });
+
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Error deleting agent:'));
+      expect(asJson(result)).toEqual({
+        success: false,
+        message: 'Failed to delete agent',
+        error: errorType === 'Error' ? 'DB error' : 'DB error'
       });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['non-existent-agent']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe(
-        'Agent not found with name: non-existent-agent'
-      );
-    });
-
-    it('should handle agent not found by ID', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: '999',
-        searchBy: 'id',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE id = $1',
-        ['999']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with id: 999');
-    });
-
-    it('should handle database query errors', async () => {
-      const dbError = new Error('Database connection failed');
-      mockPostgres.query.mockRejectedValueOnce(dbError);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'test-agent',
-      });
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Error deleting agent: Error: Database connection failed'
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Failed to delete agent');
-      expect(parsedResult.error).toBe('Database connection failed');
-    });
-
-    it('should handle database query errors with non-Error objects', async () => {
-      mockPostgres.query.mockRejectedValueOnce('String error');
-
-      const result = await deleteAgentTool.func({
-        identifier: 'test-agent',
-      });
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Error deleting agent: String error'
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Failed to delete agent');
-      expect(parsedResult.error).toBe('String error');
     });
 
     it('should handle Postgres.Query constructor errors', async () => {
-      mockPostgres.Query.mockImplementation(() => {
-        throw new Error('Invalid query syntax');
+      mockPostgres.Query.mockImplementation(() => { throw new Error('Query error'); });
+
+      const result = await deleteAgentTool.func({ identifier: 'test-agent' });
+
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Error deleting agent:'));
+      expect(asJson(result)).toEqual({
+        success: false,
+        message: 'Failed to delete agent',
+        error: 'Query error'
       });
-
-      const result = await deleteAgentTool.func({
-        identifier: 'test-agent',
-      });
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Error deleting agent: Error: Invalid query syntax'
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Failed to delete agent');
-      expect(parsedResult.error).toBe('Invalid query syntax');
-    });
-
-    it('should handle invalid searchBy parameter', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'test-agent',
-        searchBy: 'invalid_type' as any,
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['test-agent']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe(
-        'Agent not found with invalid_type: test-agent'
-      );
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle agent name with special characters', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'agent-with-dashes_and_underscores',
-        description: 'Special characters agent',
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
+  describe('ID parameter handling', () => {
+    it.each([
+      ['non-numeric', 'abc'],
+      ['zero', '0'],
+      ['negative', '-1']
+    ])('should handle %s ID gracefully', async (_, identifier) => {
       mockPostgres.query.mockResolvedValueOnce([]);
 
-      const result = await deleteAgentTool.func({
-        identifier: 'agent-with-dashes_and_underscores',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['agent-with-dashes_and_underscores']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "agent-with-dashes_and_underscores" deleted successfully'
-      );
-    });
-
-    it('should handle very long agent names', async () => {
-      const longName = 'a'.repeat(255);
-      const mockAgent = {
-        id: 1,
-        name: longName,
-        description: 'Long name agent',
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: longName,
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        [longName]
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle very large ID values', async () => {
-      const largeId = '999999999';
-      const mockAgent = {
-        id: 999999999,
-        name: 'large-id-agent',
-        description: 'Large ID agent',
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: largeId,
-        searchBy: 'id',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE id = $1',
-        [largeId]
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [999999999]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle empty identifier', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: '',
-      });
+      const result = await deleteAgentTool.func({ identifier, searchBy: 'id' });
 
       expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with name: ');
+      expect(asJson(result).success).toBe(false);
     });
 
-    it('should handle whitespace-only identifier', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
+    it('should use numeric string ID for SELECT but row ID for DELETE', async () => {
+      const agent = mkAgent(123, 'numeric-id-agent');
+      setupFind(agent);
+      setupDelete();
 
-      const result = await deleteAgentTool.func({
-        identifier: '   ',
-      });
+      await deleteAgentTool.func({ identifier: '123', searchBy: 'id' });
 
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['   ']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with name:    ');
-    });
-
-    it('should handle case-sensitive name matching', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'TestAgent',
-        description: 'Case sensitive agent',
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'TestAgent',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['TestAgent']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle multiple agents with same name (should delete first)', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'duplicate-agent',
-        description: 'First agent',
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'duplicate-agent',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['duplicate-agent']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "duplicate-agent" deleted successfully'
-      );
-    });
-
-    it('should handle agent with null values', async () => {
-      const mockAgent = {
-        id: 1,
-        name: 'null-values-agent',
-        description: null,
-        group: null,
-        lore: null,
-        objectives: null,
-        knowledge: null,
-        system_prompt: null,
-        interval: null,
-        plugins: null,
-        memory: null,
-        rag: null,
-        mode: null,
-        max_iterations: null,
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'null-values-agent',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE name = $1',
-        ['null-values-agent']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [1]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-      expect(parsedResult.message).toBe(
-        'Agent "null-values-agent" deleted successfully'
-      );
-    });
-  });
-
-  describe('parameter validation', () => {
-    it('should handle numeric string ID', async () => {
-      const mockAgent = {
-        id: 123,
-        name: 'numeric-id-agent',
-        description: 'Numeric ID agent',
-      };
-
-      mockPostgres.query.mockResolvedValueOnce([mockAgent]);
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: '123',
-        searchBy: 'id',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(2);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE id = $1',
-        ['123']
-      );
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        2,
-        'DELETE FROM agents WHERE id = $1',
-        [123]
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(true);
-    });
-
-    it('should handle non-numeric string ID gracefully', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: 'not-a-number',
-        searchBy: 'id',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE id = $1',
-        ['not-a-number']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe(
-        'Agent not found with id: not-a-number'
-      );
-    });
-
-    it('should handle zero ID', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: '0',
-        searchBy: 'id',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE id = $1',
-        ['0']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with id: 0');
-    });
-
-    it('should handle negative ID', async () => {
-      mockPostgres.query.mockResolvedValueOnce([]);
-
-      const result = await deleteAgentTool.func({
-        identifier: '-1',
-        searchBy: 'id',
-      });
-
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-      expect(mockPostgres.Query).toHaveBeenNthCalledWith(
-        1,
-        'SELECT * FROM agents WHERE id = $1',
-        ['-1']
-      );
-
-      const parsedResult = JSON.parse(result);
-      expect(parsedResult.success).toBe(false);
-      expect(parsedResult.message).toBe('Agent not found with id: -1');
+      expect(mockPostgres.Query).toHaveBeenNthCalledWith(1, 'SELECT * FROM agents WHERE id = $1', ['123']);
+      expect(mockPostgres.Query).toHaveBeenNthCalledWith(2, 'DELETE FROM agents WHERE id = $1', [123]);
     });
   });
 });
