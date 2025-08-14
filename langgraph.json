@@ -1,0 +1,10 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "interactive": "./packages/agent/src/agents/studio/graph.ts:studio_graph_interactive",
+    "autonomous": "./packages/agent/src/agents/studio/graph.ts:studio_graph_autonomous",
+    "hybrid" : "./packages/agent/src/agents/studio/graph.ts:studio_graph_hybrid"
+
+  },
+  "env": "./.env"
+}

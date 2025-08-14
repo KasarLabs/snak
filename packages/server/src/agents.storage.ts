@@ -201,7 +201,7 @@ export class AgentStorage implements OnModuleInit {
         rag: this.parseRagConfig(q_res[0].rag),
       };
       this.agentConfigs.push(newAgentDbRecord);
-      await this.createSnakAgentFromConfig(newAgentDbRecord)
+      this.createSnakAgentFromConfig(newAgentDbRecord)
         .then((snakAgent) => {
           this.agentInstances.set(newAgentDbRecord.id, snakAgent);
           this.agentSelector.updateAvailableAgents([

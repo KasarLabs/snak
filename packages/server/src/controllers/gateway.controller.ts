@@ -49,7 +49,6 @@ export class MyGateway implements OnModuleInit {
       });
     });
   }
-
   @SubscribeMessage('agents_request')
   async handleUserRequest(
     @MessageBody() userRequest: WebsocketAgentRequestDTO
@@ -97,9 +96,11 @@ export class MyGateway implements OnModuleInit {
               status: 'waiting_for_human_input',
               data: {
                 ...chunk.chunk,
-                iteration_number: chunk.iteration_number,
+                graph_step: chunk.graph_step,
                 langgraph_step: chunk.langgraph_step,
-                isLastChunk: chunk.final,
+                from: chunk.from,
+                retry_count: chunk.retry_count,
+                final: chunk.final,
               },
             };
           } else {
@@ -115,9 +116,11 @@ export class MyGateway implements OnModuleInit {
               status: 'success',
               data: {
                 ...chunk.chunk,
-                iteration_number: chunk.iteration_number,
+                graph_step: chunk.graph_step,
                 langgraph_step: chunk.langgraph_step,
-                isLastChunk: chunk.final,
+                from: chunk.from,
+                retry_count: chunk.retry_count,
+                final: chunk.final,
               },
             };
           }
@@ -129,9 +132,11 @@ export class MyGateway implements OnModuleInit {
             status: 'success',
             data: {
               ...chunk.chunk,
-              iteration_number: chunk.iteration_number,
+              graph_step: chunk.graph_step,
               langgraph_step: chunk.langgraph_step,
-              isLastChunk: chunk.final,
+              from: chunk.from,
+              retry_count: chunk.retry_count,
+              final: chunk.final,
             },
           };
         }

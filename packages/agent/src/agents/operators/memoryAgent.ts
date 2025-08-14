@@ -38,6 +38,7 @@ export class MemoryAgent extends BaseAgent {
   private embeddings: CustomHuggingFaceEmbeddings;
   private memoryTools: any[] = [];
   private initialized: boolean = false;
+  private isAutonomous: boolean;
 
   constructor(config: MemoryConfig) {
     super('memory-agent', AgentType.OPERATOR);
@@ -46,6 +47,11 @@ export class MemoryAgent extends BaseAgent {
       memorySize: config.memorySize || 20,
       embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
     };
+    if (!config.isAutonomous) {
+      this.isAutonomous = false;
+    } else {
+      this.isAutonomous = true;
+    }
 
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: this.config.embeddingModel,
@@ -323,7 +329,7 @@ export class MemoryAgent extends BaseAgent {
     return async (state: any, config: LangGraphRunnableConfig) => {
       try {
         const result = await chain.invoke(state, config);
-        logger.debug(`${JSON.stringify(result)}`);
+        // logger.debug(`${JSON.stringify(result)}`);
         return result;
       } catch (error) {
         logger.error('Error retrieving memories:', error);
@@ -341,6 +347,11 @@ export class MemoryAgent extends BaseAgent {
     limit = 4
   ): Runnable<MemoryNodeState, MemoryChainResult> {
     const buildQuery = (state: MemoryNodeState) => {
+      if (this.isAutonomous) {
+        const lastMessage =
+          state.plan.steps[state.currentStepIndex].description;
+        return lastMessage;
+      }
       const lastUser = [...state.messages]
         .reverse()
         .find((msg: BaseMessage) => msg instanceof HumanMessage);

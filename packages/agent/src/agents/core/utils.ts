@@ -16,7 +16,9 @@ import {
   FormattedOnChatModelStart,
   FormattedOnChatModelStream,
 } from './snakAgent.js';
-import { ToolMessage } from '@langchain/core/messages';
+import { BaseMessage, ToolMessage } from '@langchain/core/messages';
+import { AnyZodObject } from 'zod';
+import { ParsedPlan, StepInfo } from 'agents/modes/types/index.js';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
@@ -30,7 +32,7 @@ let isConnected = false;
 export async function initializeToolsList(
   snakAgent: SnakAgentInterface,
   agentConfig: AgentConfig
-): Promise<(Tool | DynamicStructuredTool<any> | StructuredTool)[]> {
+): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
 
   const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
@@ -219,42 +221,24 @@ const truncateStringContentHelper = (
  */
 export function truncateToolResults(
   result: any,
-  maxLength: number = 5000 // CLEAN-UP We don't have to cut the result is not a good idea
-): { messages: [ToolMessage] } {
-  if (Array.isArray(result)) {
-    for (const msg of result) {
-      if (
-        msg._getType &&
-        msg._getType() === 'tool' &&
-        typeof msg.content === 'string'
-      ) {
-        msg.content = truncateStringContentHelper(msg.content, maxLength);
-      }
+  maxLength: number = 5000,
+  currentStep: StepInfo
+): { messages: ToolMessage[]; plan?: ParsedPlan; last_message: BaseMessage } {
+  for (const tool_message of result.messages) {
+    const content = truncateStringContentHelper(
+      tool_message.content.toLocaleString(),
+      maxLength
+    );
+    tool_message.content = content;
+    if (currentStep.result) {
+      currentStep.result = currentStep.result.concat(content);
+    } else {
+      currentStep.result = content;
     }
   }
-
-  if (result && typeof result === 'object' && Array.isArray(result.messages)) {
-    for (const msg of result.messages) {
-      if (typeof msg.content === 'string') {
-        msg.content = truncateStringContentHelper(msg.content, maxLength);
-      }
-
-      if (Array.isArray(msg.tool_calls_results)) {
-        for (const toolResult of msg.tool_calls_results) {
-          if (typeof toolResult.content === 'string') {
-            toolResult.content = truncateStringContentHelper(
-              toolResult.content,
-              maxLength
-            );
-          }
-        }
-      }
-    }
-  }
-
+  logger.debug(`ToolMessage Result : ${currentStep.result}`);
   return result;
 }
-
 /**
  * Formats agent response for display, handling various data structures including JSON
  * @param response - Agent response (string, object, or array)
