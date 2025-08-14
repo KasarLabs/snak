@@ -46,7 +46,6 @@ import {
 import { Agent } from './types/index.js';
 import { INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT, REPLAN_EXECUTOR_SYSTEM_PROMPT } from '../../prompt/planner_prompt.js';
 import {
-  RETRY_EXECUTOR_SYSTEM_PROMPT,
   STEP_EXECUTOR_SYSTEM_PROMPT,
 } from '../../prompt/executor_prompts.js';
 import {

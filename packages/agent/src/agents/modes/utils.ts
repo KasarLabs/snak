@@ -388,6 +388,7 @@ export function formatToolResponse(
 ): StepInfo {
   try {
     console.log(messages);
+    console.log(step);
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
       if (!Array.isArray(messages)) {
         step.tools[0].result = `tool_name: ${messages.name}, tool_call_id : ${messages.id}, raw_result : ${messages.content.toLocaleString()}`;
@@ -431,15 +432,40 @@ export function formatValidatorToolsExecutor(step: StepInfo): string {
             `Required Input: ${tool.required || '<NO INPUT REQUIRED>'}`
           );
           format_response.push(`Expected Result: ${tool.expected_result}`);
+          format_response.push(`\n=== ACTUAL RESPONSE ===`);
+          format_response.push(tool.result);
         });
+      }
+    }
+    console.log(format_response.join('\n'));
+    return format_response.join('\n');
+  } catch (error) {
+    throw error;
+  }
+}
 
-        // Actual response section
+export function formatStepsForContext(steps: StepInfo[]): string {
+  try {
+    const format_response: string[] = [];
+    steps.map((step) => {
+      format_response.push(`[STEP_${step.stepNumber}] ${step.stepName}`);
+      format_response.push(`Type: ${step.type}`);
+      format_response.push(`Description: ${step.description}`);
+
+      if (step.type === 'tools') {
+        if (step.tools && step.tools.length > 0) {
+          step.tools.forEach((tool, index) => {
+            format_response.push(`\n[TOOL_${index}]`);
+            format_response.push(`Description: ${tool.description}`);
+          });
+          format_response.push(`\n=== ACTUAL RESPONSE ===`);
+          format_response.push(step.result.content);
+        }
+      } else {
         format_response.push(`\n=== ACTUAL RESPONSE ===`);
         format_response.push(step.result.content);
       }
-    }
-
-    console.log(format_response.join('\n'));
+    });
     return format_response.join('\n');
   } catch (error) {
     throw error;

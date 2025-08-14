@@ -36,7 +36,7 @@ import {
   truncateToolResults,
 } from '../core/utils.js';
 import { TokenTracker } from '../../token/tokenTracking.js';
-import { RunnableConfig } from '@langchain/core/runnables';
+import { Runnable, RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 import { Agent, AgentReturn, ParsedPlan, StepInfo } from './types/index.js';
@@ -48,6 +48,7 @@ import {
   formatExecutionMessage,
   formatParsedPlanSimple,
   formatShortMemoryMessage,
+  formatStepsForContext,
   formatToolResponse,
   formatValidatorToolsExecutor,
   getLatestMessageForMessage,
@@ -57,15 +58,20 @@ import {
   ValidatorResponseSchema,
 } from './utils.js';
 import {
-  ADAPTIVE_PLANNER_CONTEXT,
+  ADAPTIVE_PLANNER_CONTEXT_PROMPT,
   ADAPTIVE_PLANNER_SYSTEM_PROMPT,
   AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  AUTONOMOUS_PLANNER_CONTEXT_PROMPT,
   HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
+  REPLANNER_CONTEXT_PROMPT,
 } from '../../prompt/planner_prompt.js';
 import {
   MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
-  RETRY_EXECUTOR_SYSTEM_PROMPT,
+  RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
+  RETRY_STEP_EXECUTOR_CONTEXT_PROMPT,
+  RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
+  STEP_EXECUTOR_CONTEXT,
   STEP_EXECUTOR_CONTEXT_PROMPT,
   TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
 } from '../../prompt/executor_prompts.js';
@@ -75,6 +81,10 @@ import {
   VALIDATOR_EXECUTOR_CONTEXT,
 } from '../../prompt/validator_prompt.js';
 import { SUMMARIZE_AGENT } from '../../prompt/summary_prompts.js';
+import {
+  BaseChatModel,
+  BaseChatModelCallOptions,
+} from '@langchain/core/language_models/chat_models';
 
 const objectives = `Perform efficient and reliable RPC calls to the Starknet network.,
             Retrieve and analyze on-chain data such as transactions, blocks, and smart contract states.`;
@@ -218,36 +228,21 @@ export class AutonomousAgent {
       }
 
       const structuredModel = model.withStructuredOutput(PlanSchema);
-
-      const filteredMessages = filterMessagesByShortTermMemory(
-        state.messages,
-        config.configurable?.short_term_memory ?? 10
-      );
-
       const systemPrompt = ADAPTIVE_PLANNER_SYSTEM_PROMPT;
-      const context: string = ADAPTIVE_PLANNER_CONTEXT;
-      const promptAgentConfig = this.agentConfig.prompt;
+      const context: string = ADAPTIVE_PLANNER_CONTEXT_PROMPT;
       const availableTools = this.toolsList.map((tool) => tool.name).join(', ');
-      const lastStepResult = state.plan.steps
-        .map(
-          (step: StepInfo) =>
-            `Step ${step.stepNumber}: ${step.stepName} | Result: ${step.result} | Status: ${step.status}`
-        )
-        .join('\n');
 
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', systemPrompt],
         ['ai', context],
-        new MessagesPlaceholder('messages'),
       ]);
 
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
           stepLength: state.currentStepIndex + 1,
-          agent_config: promptAgentConfig,
-          toolsList: availableTools,
-          lastStepResult: lastStepResult,
-          messages: filteredMessages,
+          objectives: objectives,
+          toolsAvailable: availableTools,
+          previousSteps: formatStepsForContext(state.plan.steps),
         })
       );
 
@@ -300,6 +295,37 @@ export class AutonomousAgent {
     }
   }
 
+  private async replanExecution(
+    model: BaseChatModel<BaseChatModelCallOptions, AIMessageChunk>,
+    plan: ParsedPlan,
+    lastAiMessage: BaseMessage
+  ): Promise<ParsedPlan> {
+    try {
+      const systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
+      const contextPrompt = REPLANNER_CONTEXT_PROMPT;
+
+      const structuredModel = model.withStructuredOutput(PlanSchema);
+
+      const prompt = ChatPromptTemplate.fromMessages([
+        ['system', systemPrompt],
+        ['ai', contextPrompt],
+      ]);
+
+      const structuredResult = await structuredModel.invoke(
+        await prompt.formatMessages({
+          objectives: objectives,
+          toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
+          rejectedReason: lastAiMessage.content.toLocaleString(),
+          formatPlan: formatParsedPlanSimple(plan),
+        })
+      );
+
+      return structuredResult as ParsedPlan;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   private async planExecution(
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
@@ -312,57 +338,44 @@ export class AutonomousAgent {
   }> {
     try {
       logger.info('[Planner] 🚀 Starting plan execution');
-      const lastAiMessage = state.last_message as BaseMessage;
-
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
         throw new Error('Model not found in ModelSelector');
       }
-
-      const structuredModel = model.withStructuredOutput(PlanSchema);
-
-      const filteredMessages = filterMessagesByShortTermMemory(
-        state.messages,
-        config.configurable?.short_term_memory ?? 10
-      );
-
-      let systemPrompt;
-      let lastContent;
-
-      if (
-        lastAiMessage &&
-        state.last_agent === (Agent.PLANNER_VALIDATOR || Agent.EXECUTOR) &&
-        lastAiMessage
-      ) {
-        logger.debug(
-          '[Planner] 🔄 Creating re-plan based on validator feedback'
+      let structuredResult: ParsedPlan;
+      if (state.retry != 0) {
+        structuredResult = await this.replanExecution(
+          model,
+          state.plan,
+          state.last_message as BaseMessage
         );
-        systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
-        lastContent = lastAiMessage.content;
-      } else if (this.agentConfig.mode === AgentMode.HYBRID) {
-        systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
-        lastContent = '';
       } else {
-        logger.debug('[Planner] 📝 Creating initial plan');
-        systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
-        lastContent = '';
+        const structuredModel = model.withStructuredOutput(PlanSchema);
+
+        //
+        let systemPrompt;
+        let contextPrompt;
+        if (this.agentConfig.mode === AgentMode.HYBRID) {
+          logger.debug('[Planner] 📝 Creating initial hybrid plan');
+          systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
+          contextPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
+        } else {
+          logger.debug('[Planner] 📝 Creating initial autonomous plan');
+          systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
+          contextPrompt = AUTONOMOUS_PLANNER_CONTEXT_PROMPT;
+        }
+        const prompt = ChatPromptTemplate.fromMessages([
+          ['system', systemPrompt],
+          ['ai', contextPrompt],
+        ]);
+
+        structuredResult = (await structuredModel.invoke(
+          await prompt.formatMessages({
+            objectives: objectives,
+            toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
+          })
+        )) as ParsedPlan;
       }
-
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', systemPrompt],
-        new MessagesPlaceholder('messages'),
-      ]);
-
-      const structuredResult = await structuredModel.invoke(
-        await prompt.formatMessages({
-          messages: filteredMessages,
-          agentConfig: this.agentConfig.prompt,
-          toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
-          formatPlan: formatParsedPlanSimple(state.plan),
-          lastAiMessage: lastContent,
-        })
-      );
-
       logger.info(
         `[Planner] ✅ Successfully created plan with ${structuredResult.steps.length} steps`
       );
@@ -445,7 +458,7 @@ export class AutonomousAgent {
 
       const StructuredResponseValidator = z.object({
         success: z.boolean(),
-        description: z
+        result: z
           .string()
           .max(300)
           .describe(
@@ -474,7 +487,7 @@ export class AutonomousAgent {
 
       if (structuredResult.success) {
         const successMessage = new AIMessageChunk({
-          content: `Plan success: ${structuredResult.description}`,
+          content: `Plan success: ${structuredResult.result}`,
           additional_kwargs: {
             error: false,
             success: true,
@@ -491,7 +504,7 @@ export class AutonomousAgent {
         };
       } else {
         const errorMessage = new AIMessageChunk({
-          content: `Plan validation failed: ${structuredResult.description}`,
+          content: `Plan validation failed: ${structuredResult.result}`,
           additional_kwargs: {
             error: false,
             success: false,
@@ -499,7 +512,7 @@ export class AutonomousAgent {
           },
         });
         logger.warn(
-          `[PlannerValidator] ⚠️ Plan validation failed: ${structuredResult.description}`
+          `[PlannerValidator] ⚠️ Plan validation failed: ${structuredResult.result}`
         );
         return {
           last_message: errorMessage,
@@ -859,15 +872,30 @@ export class AutonomousAgent {
   private buildSystemPrompt(
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
-  ): string {
+  ): ChatPromptTemplate {
     const currentStep = state.plan.steps[state.currentStepIndex];
     let systemPrompt;
-    if (currentStep.type === 'tools') {
-      systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
+    let contextPrompt;
+    if (state.retry === 0) {
+      if (currentStep.type === 'tools') {
+        systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
+      } else {
+        systemPrompt = MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
+      }
+      contextPrompt = STEP_EXECUTOR_CONTEXT_PROMPT;
     } else {
-      systemPrompt = MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
+      if (currentStep.type === 'tools') {
+        systemPrompt = RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
+      } else {
+        systemPrompt = RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
+      }
+      contextPrompt = RETRY_STEP_EXECUTOR_CONTEXT_PROMPT;
     }
-    return systemPrompt;
+    const prompt = ChatPromptTemplate.fromMessages([
+      ['system', systemPrompt],
+      ['ai', contextPrompt],
+    ]);
+    return prompt;
   }
 
   // --- Model Invocation ---
@@ -875,37 +903,15 @@ export class AutonomousAgent {
     state: typeof this.GraphState.State,
     config: RunnableConfig<typeof this.ConfigurableAnnotation.State>,
     filteredMessages: BaseMessage[],
-    autonomousSystemPrompt: string
+    prompt: ChatPromptTemplate
   ): Promise<AIMessageChunk> {
-    const currentRetry = state.retry;
     const currentStep = state.plan.steps[state.currentStepIndex];
-    // const contextPrompt: string =
-    //   currentRetry != 0 ? RETRY_CONTENT : STEP_EXECUTOR_CONTEXT;
-
-    const systemPrompt = ChatPromptTemplate.fromMessages([
-      ['system', autonomousSystemPrompt],
-      ['ai', STEP_EXECUTOR_CONTEXT_PROMPT],
-    ]);
-
-    const availableTools = this.toolsList.map((tool) => tool.name).join(', ');
-
-    const retryPrompt: string =
-      currentRetry != 0 ? RETRY_EXECUTOR_SYSTEM_PROMPT : '';
-
     const execution_context = formatExecutionMessage(currentStep);
     const format_short_term_memory = formatShortMemoryMessage(state.plan);
-    const formattedPrompt = await systemPrompt.formatMessages({
-      messages: filteredMessages,
-      stepNumber: currentStep.stepNumber,
-      stepName: currentStep.stepName,
-      stepDescription: currentStep.description,
-      retryPrompt: retryPrompt,
-      toolsList: availableTools,
-      retry: currentRetry,
-      reason: Array.isArray(state.last_message)
+    const formattedPrompt = await prompt.formatMessages({
+      rejected_reason: Array.isArray(state.last_message)
         ? state.last_message[0].content
         : (state.last_message as BaseMessage).content,
-      maxRetry: 3,
       short_term_memory: format_short_term_memory,
       long_term_memory: '',
       execution_context: execution_context,
@@ -913,21 +919,23 @@ export class AutonomousAgent {
 
     const selectedModelType =
       await this.modelSelector!.selectModelForMessages(filteredMessages);
+    let model;
+    if (currentStep.type === 'tools') {
+      model =
+        typeof selectedModelType.model.bindTools === 'function'
+          ? selectedModelType.model.bindTools(this.toolsList)
+          : undefined;
 
-    const boundModel =
-      typeof selectedModelType.model.bindTools === 'function'
-        ? selectedModelType.model.bindTools(this.toolsList)
-        : undefined;
-
-    if (boundModel === undefined) {
-      throw new Error('Failed to bind tools to model');
+      if (model === undefined) {
+        throw new Error('Failed to bind tools to model');
+      }
+    } else {
+      model = selectedModelType.model;
     }
-
     logger.debug(
-      `[Executor] 🤖 Invoking model (${selectedModelType.model_name}) with ${filteredMessages.length} messages`
+      `[Executor] 🤖 Invoking model (${selectedModelType.model_name}) with ${currentStep.type} execution`
     );
-
-    const result = await boundModel.invoke(formattedPrompt);
+    const result = await model.invoke(formattedPrompt);
     if (!result) {
       throw new Error(
         'Model invocation returned no result. Please check the model configuration.'
@@ -942,7 +950,6 @@ export class AutonomousAgent {
       from: Agent.EXECUTOR,
       final: false,
     };
-
     return result;
   }
 

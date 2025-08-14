@@ -6,18 +6,6 @@
 /***    ADAPTIVE    ***/
 /**********************/
 
-export const ADAPTIVE_PLANNER_CONTEXT = `
-
-YOUR AGENT DESCRIPTION/OBJECTIVES :
-{agent_config}
-
-AVAIBLE TOOLS : 
-{toolsList}
-
-LAST STEPS RESULT
-{lastStepResult}
-`;
-
 export const ADAPTIVE_PLANNER_SYSTEM_PROMPT = `You are a strategic planning AI that creates NEW steps to accomplish objectives within an autonomous agent graph system.
 
 ## CORE PRINCIPLES
@@ -66,32 +54,30 @@ When type="tools":
 
 ## RESPONSE FORMAT
 Return valid JSON:
-\`\`\`json
-{
+{{
   "steps": [
-    {
+    {{
       "stepNumber": number,
       "stepName": string (max 200 chars),
       "description": string (detailed specification),
       "tools": [ // Only for type="tools"
-        {
+        {{
           "description": "Use <tool name> (execution details)",
-          "required": string (inputs and sources) if not required anything write <NO INPUT REQUIRED>,
+          "required": string (inputs and sources) if not required anything write <NO INPUT REQUIRED>
           "expected_result": string (output format),
           "result": ""
-        }
+        }}
       ],
       "status": "pending",
       "type": "tools" | "message",
-      "result": {
+      "result": {{
         "content": "",
         "tokens": 0
-      }
-    }
+        }}
+    }}
   ],
-  "summary": string (plan overview, max 300 chars)
-}
-\`\`\`
+  "summary": string (plan overview explaining how it addresses the rejection, max 300 chars)
+}}
 
 <example>
 <context>
@@ -102,58 +88,60 @@ Previous Steps:
 - Step 3: Discovered 67% of SMBs want wellness programs
 </context>
 
-\`\`\`json
-{
+json
+{{
   "steps": [
-    {
+    {{
       "stepNumber": 4,
       "stepName": "Investigate underserved SMB market",
       "description": "Validate the opportunity in neglected SMB segment using market search",
       "tools": [
-        {
+        {{
           "description": "Use web_search for SMB fitness app needs and pricing sensitivity",
           "required": "query='SMB fitness app needs pricing sensitivity 2025', limit=20",
           "expected_result": "Articles with SMB pain points and budget constraints",
           "result": ""
-        }
+        }}
       ],
       "status": "pending",
       "type": "tools",
-      "result": {
+      "result": {{
         "content": "",
         "tokens": 0
-      }
-    },
-    {
+        }}
+    }},
+    {{
       "stepNumber": 5,
       "stepName": "Research SMB-specific features",
       "description": "Research feature gaps in current SMB wellness solutions",
       "tools": [
-        {
+        {{
           "description": "Use web_search for SMB wellness program feature requirements",
           "required": "query='small business employee wellness programs features team challenges', limit=15",
           "expected_result": "Feature lists, case studies, and user feedback",
           "result": ""
-        }
+        }}
       ],
       "status": "pending",
       "type": "tools",
-      "result": {
+      "result": {{
         "content": "",
         "tokens": 0
-      }
-    }
+        }}
+    }}
   ],
   "summary": "Two-step plan to validate SMB market opportunity and identify feature gaps"
-}
-\`\`\`
+}}
 </example>
-
-## INPUTS
-Agent Description: {agentConfig}
+`;
+export const ADAPTIVE_PLANNER_CONTEXT_PROMPT = `
+<context>
+Objectives: {objectives}
 Available Tools: {toolsAvailable}
-Completed Steps: {completedSteps}
-Current Step Number: {stepLength}`;
+Previous Steps: {previousSteps}
+Current Step Number: {stepLength}
+</context`;
+
 /**********************/
 /***    REPLAN    ***/
 /**********************/
@@ -196,36 +184,30 @@ Before creating new plan, identify if rejection was due to:
 ## RESPONSE FORMAT
 Return valid JSON:
 \`\`\`json
-{
+{{
   "steps": [
-    {
+    {{
       "stepNumber": number,
       "stepName": string (max 200 chars),
       "description": string (detailed specification),
       "tools": [ // Only for type="tools"
-        {
+        {{
           "description": "Use <tool name> (execution details)",
           "required": string (inputs and sources) if not required anything write <NO INPUT REQUIRED>,
           "expected_result": string (output format),
           "result": ""
-        }
+        }}
       ],
       "status": "pending",
       "type": "tools" | "message",
-      "result": {
+      "result": {{
         "content": "",
         "tokens": 0
-      }
-    }
+        }}
+    }}
   ],
-  "summary": string (plan overview explaining how it addresses the rejection, max 300 chars),
-  "improvements": [
-    {
-      "issue": string (specific problem from rejection),
-      "solution": string (how this plan fixes it)
-    }
-  ]
-}
+  "summary": string (plan overview explaining how it addresses the rejection, max 300 chars)
+}}
 \`\`\`
 
 <example>
@@ -236,61 +218,51 @@ Objective: Analyze market trends for product launch
 </context>
 
 \`\`\`json
-{
+{{
   "steps": [
-    {
+    {{
       "stepNumber": 1,
       "stepName": "Gather market intelligence",
       "description": "Collect market data using available web search instead of unavailable API",
       "tools": [
-        {
+        {{
           "description": "Use web_search for current market analysis reports",
           "required": "query='market trends consumer electronics 2025', limit=20",
           "expected_result": "Array of market reports and analysis articles",
           "result": ""
-        }
+        }}
       ],
       "status": "pending",
       "type": "tools",
-      "result": {
+      "result": {{
         "content": "",
         "tokens": 0
-      }
-    },
-    {
+        }}
+    }},
+    {{
       "stepNumber": 2,
       "stepName": "Analyze competitive landscape",
       "description": "Process market data from step 1 to identify opportunities",
       "status": "pending",
       "type": "message",
-      "result": {
+      "result": {{
         "content": "",
         "tokens": 0
-      }
-    }
+        }}
+    }}
   ],
-  "summary": "Revised plan using web_search instead of unavailable API, with proper sequential dependencies",
-  "improvements": [
-    {
-      "issue": "Used non-existent 'market_predictor' API",
-      "solution": "Replaced with web_search tool from available tools list"
-    },
-    {
-      "issue": "Step 3 depended on Step 4 (circular dependency)",
-      "solution": "Restructured plan with clear sequential flow: gather then analyze"
-    }
-  ]
-}
+  "summary": "Revised plan using web_search instead of unavailable API, with proper sequential dependencies"
+}}
 \`\`\`
-</example>`
+</example>`;
 
 export const REPLANNER_CONTEXT_PROMPT = `
 ## INPUTS
-Original Objective: {originalObjective}
+Objectives: {objectives}
 Previous Plan: {formatPlan}
-Rejection Reason: {lastAiMessage}
+Rejection Reason: {rejectedReason}
 Available Tools: {toolsAvailable}
-Agent Description: {agentConfig}`
+`;
 
 /************************/
 /***    AUTONOMOUS    ***/
@@ -416,11 +388,14 @@ export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `You are a strategic plann
     "summary": "Two-step plan: parallel data gathering then comprehensive analysis"
     }}
     </example>
-    \`\`\`
+    `;
 
-    ## INPUTS
-    Agent Description: {agentConfig}
-    Available Tools: {toolsAvailable}`;
+export const AUTONOMOUS_PLANNER_CONTEXT_PROMPT = `
+<context>
+Objectives : {objectives}
+Available Tools: {toolsAvailable}
+</context>
+`;
 /**********************/
 /***    HYBRID    ****/
 /**********************/
