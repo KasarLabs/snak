@@ -44,10 +44,11 @@ import {
   isTerminalMessage,
 } from './utils.js';
 import { Agent } from './types/index.js';
-import { INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT, REPLAN_EXECUTOR_SYSTEM_PROMPT } from '../../prompt/planner_prompt.js';
 import {
-  STEP_EXECUTOR_SYSTEM_PROMPT,
-} from '../../prompt/executor_prompts.js';
+  INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  REPLAN_EXECUTOR_SYSTEM_PROMPT,
+} from '../../prompt/planner_prompt.js';
+import { STEP_EXECUTOR_SYSTEM_PROMPT } from '../../prompt/executor_prompts.js';
 import {
   INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT,
   STEPS_VALIDATOR_SYSTEM_PROMPT,
@@ -319,7 +320,7 @@ export class InteractiveAgent {
   ): Promise<{
     messages: BaseMessage;
     last_agent: Agent;
-    plan: ParsedPlan;
+    plan?: ParsedPlan;
     currentGraphStep: number;
   }> {
     try {
@@ -429,11 +430,7 @@ export class InteractiveAgent {
       );
 
       const aiMessage = new AIMessageChunk({
-        content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map(
-            (s: StepInfo) => `${s.stepNumber}. ${s.stepName}: ${s.description}`
-          )
-          .join('\n')}`,
+        content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps}`,
         additional_kwargs: {
           from: Agent.PLANNER,
           error: false,
@@ -444,8 +441,8 @@ export class InteractiveAgent {
       return {
         messages: aiMessage,
         last_agent: Agent.PLANNER,
-        plan: structuredResult as ParsedPlan,
         currentGraphStep: state.currentGraphStep + 1,
+
       };
     } catch (error) {
       logger.error(`[Planner] ❌ Plan execution failed: ${error}`);
@@ -467,7 +464,10 @@ export class InteractiveAgent {
             description: 'Error trying to create the plan',
             status: 'failed',
             type: 'tools',
-            result: '',
+            result: {
+              content: 'test',
+              tokens: 0,
+            },
           },
         ],
         summary: 'Error',
@@ -1076,7 +1076,7 @@ ${validationContent}`,
       stepNumber: currentStep.stepNumber,
       stepName: currentStep.stepName,
       stepDescription: currentStep.description,
-      retryPrompt: RETRY_EXECUTOR_SYSTEM_PROMPT,
+      retryPrompt: 'tesdt',
     });
 
     const selectedModelType =
