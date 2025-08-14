@@ -1,5 +1,5 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
-import { logger } from '@snakagent/core';
+import { logger, MemoryConfig } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { memory, iterations } from '@snakagent/database/queries';
@@ -29,16 +29,6 @@ const SIMILARITY_THRESHOLD = (() => {
   }
   return value;
 })();
-/**
- * Memory configuration for the agent
- */
-export interface MemoryConfig {
-  enabled?: boolean;
-  shortTermMemorySize?: number;
-  memorySize?: number;
-  maxIterations?: number;
-  embeddingModel?: string;
-}
 
 /**
  * Operator agent that manages memory and knowledge
@@ -54,7 +44,6 @@ export class MemoryAgent extends BaseAgent {
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,
       memorySize: config.memorySize || 20,
-      maxIterations: config.maxIterations,
       embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
     };
 

@@ -8,12 +8,13 @@ import {
   logger,
   AgentConfig,
   CustomHuggingFaceEmbeddings,
+  MemoryConfig,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
-import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
+import { MemoryAgent } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { AgentReturn, createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -246,7 +247,6 @@ export class SnakAgent extends BaseAgent {
       this.memoryAgent = new MemoryAgent({
         shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
         memorySize: agentConfig?.memory?.memorySize || 20,
-        maxIterations: agentConfig?.memory?.maxIterations,
         embeddingModel: agentConfig?.memory?.embeddingModel,
       });
       await this.memoryAgent.init();

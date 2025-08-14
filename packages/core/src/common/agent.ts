@@ -63,7 +63,6 @@ export interface MemoryConfig {
   enabled?: boolean;
   shortTermMemorySize?: number;
   memorySize?: number;
-  maxIterations?: number;
   embeddingModel?: string;
 }
 

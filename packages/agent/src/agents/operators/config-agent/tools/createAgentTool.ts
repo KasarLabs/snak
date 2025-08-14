@@ -58,6 +58,7 @@ const CreateAgentSchema = z.object({
       enabled: z.boolean().optional().nullable(),
       shortTermMemorySize: z.number().optional().nullable(),
       memorySize: z.number().optional().nullable(),
+      embeddingModel: z.string().optional().nullable(),
     })
     .optional()
     .nullable()

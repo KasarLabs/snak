@@ -4,7 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
-import { logger, AgentConfig, RawAgentConfig } from '@snakagent/core';
+import { logger, AgentConfig, RawAgentConfig, RagConfig, MemoryConfig } from '@snakagent/core';
+import { normalizeNumericValues, OutputMemoryConfig, OutputRagConfig } from '../agents/operators/config-agent/tools/normalizeAgentValues.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -164,15 +165,6 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
   };
 
   return configCopy;
-};
-
-const normalizeMemoryAndRag = (memory: any, rag: any) => {
-  const normalizedMemory =
-    typeof memory === 'object' && memory !== null ? memory : { enabled: false };
-  const normalizedRag =
-    typeof rag === 'object' && rag !== null ? rag : { enabled: false };
-
-  return { memory: normalizedMemory, rag: normalizedRag };
 };
 
 /**
@@ -371,33 +363,39 @@ const checkParseJson = async (
       );
     }
 
-    const { memory, rag } = normalizeMemoryAndRag(
-      json.memory || false,
-      json.rag || false
-    );
+    // Use normalizeNumericValues directly for robust memory and RAG normalization
+    const configToNormalize = {
+      memory: json.memory || null,
+      rag: json.rag || null,
+      max_iterations: json.maxIterations || 
+        (json.mode && typeof json.mode === 'object' && typeof json.mode.maxIterations === 'number'
+          ? json.mode.maxIterations
+          : 10),
+      interval: json.interval || 5
+    };
+
+    const { normalizedConfig, appliedDefaults } = normalizeNumericValues(configToNormalize);
+    
+    // Log any defaults that were applied for debugging
+    if (appliedDefaults.length > 0) {
+      logger.debug('Applied defaults during memory/RAG normalization:', appliedDefaults);
+    }
 
     const agentConfig: AgentConfig = {
       id: uuidv4(),
       name: json.name,
       group: json.group,
       description: json.description,
-      interval: json.interval,
+      interval: normalizedConfig.interval,
       chatId: json.chatId,
       mode: parseAgentMode(json.mode),
       plugins: Array.isArray(json.plugins)
         ? json.plugins.map((tool: string) => tool.toLowerCase())
         : [],
-      memory,
-      rag,
+      memory: normalizedConfig.memory,
+      rag: normalizedConfig.rag,
       mcpServers: json.mcpServers || {},
-      maxIterations:
-        typeof json.maxIterations === 'number'
-          ? json.maxIterations
-          : json.mode &&
-              typeof json.mode === 'object' &&
-              typeof json.mode.maxIterations === 'number'
-            ? json.mode.maxIterations
-            : 10,
+      maxIterations: normalizedConfig.max_iterations,
       prompt: systemMessagefromjson,
     };
 
