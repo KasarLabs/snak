@@ -1100,9 +1100,7 @@ ${validationContent}`,
       if (state.last_agent === Agent.PLANNER_VALIDATOR) {
         const lastAiMessage = state.last_message as BaseMessage;
         if (lastAiMessage.additional_kwargs.error === true) {
-          logger.error(
-            '[ValidatorRouter] Error found in validator messages'
-          );
+          logger.error('[ValidatorRouter] Error found in validator messages');
           return 'end';
         }
         if (lastAiMessage.additional_kwargs.from != 'planner_validator') {
@@ -1111,9 +1109,7 @@ ${validationContent}`,
           );
         }
         if (lastAiMessage.additional_kwargs.validated) {
-          logger.info(
-            '[ValidatorRouter] Plan validated, routing to executor'
-          );
+          logger.info('[ValidatorRouter] Plan validated, routing to executor');
           return 'executor';
         } else if (
           lastAiMessage.additional_kwargs.validated === false &&
@@ -1124,9 +1120,7 @@ ${validationContent}`,
           );
           return 're_planner';
         }
-        logger.warn(
-          '[ValidatorRouter] Max retries exceeded, routing to end'
-        );
+        logger.warn('[ValidatorRouter] Max retries exceeded, routing to end');
         return 'end';
       }
 
@@ -1188,9 +1182,7 @@ ${validationContent}`,
         return 'end';
       }
       if (lastAiMessage.content.toLocaleString().includes('REQUEST_REPLAN')) {
-        logger.debug(
-          '[Router] REQUEST_REPLAN detected, routing to re_planner'
-        );
+        logger.debug('[Router] REQUEST_REPLAN detected, routing to re_planner');
         return 're_planner';
       }
       if (lastAiMessage.tool_calls?.length) {

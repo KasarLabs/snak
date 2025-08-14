@@ -584,9 +584,7 @@ export class SnakAgent extends BaseAgent {
       const embedding = await this.iterationEmbeddings.embedQuery(content);
       this.pendingIteration = { question: content, embedding };
     } catch (err) {
-      logger.error(
-        `[SnakAgent] Failed to capture question iteration: ${err}`
-      );
+      logger.error(`[SnakAgent] Failed to capture question iteration: ${err}`);
     }
   }
 
