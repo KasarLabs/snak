@@ -148,19 +148,17 @@ export class AutonomousAgent {
     try {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
-        logger.debug(
-          '[AutonomousAgent] ✅ Memory agent retrieved successfully'
-        );
+        logger.debug('[AutonomousAgent] Memory agent retrieved successfully');
         const memoryTools = this.memoryAgent.prepareMemoryTools();
         this.toolsList.push(...memoryTools);
       } else {
         logger.warn(
-          '[AutonomousAgent] ⚠️ Memory agent not available - memory features will be limited'
+          '[AutonomousAgent] Memory agent not available - memory features will be limited'
         );
       }
     } catch (error) {
       logger.error(
-        `[AutonomousAgent] ❌ Failed to retrieve memory agent: ${error}`
+        `[AutonomousAgent] Failed to retrieve memory agent: ${error}`
       );
     }
   }
@@ -170,13 +168,11 @@ export class AutonomousAgent {
       this.ragAgent = this.snakAgent.getRagAgent();
       if (!this.ragAgent) {
         logger.warn(
-          '[AutonomousAgent] ⚠️ RAG agent not available - RAG context will be skipped'
+          '[AutonomousAgent] RAG agent not available - RAG context will be skipped'
         );
       }
     } catch (error) {
-      logger.error(
-        `[AutonomousAgent] ❌ Failed to retrieve RAG agent: ${error}`
-      );
+      logger.error(`[AutonomousAgent] Failed to retrieve RAG agent: ${error}`);
     }
   }
 
@@ -268,7 +264,7 @@ export class AutonomousAgent {
       );
 
       logger.info(
-        `[AdaptivePlanner] 📋 Created plan with ${structuredResult.steps.length} steps`
+        `[AdaptivePlanner] Created plan with ${structuredResult.steps.length} steps`
       );
 
       const aiMessage = new AIMessageChunk({
@@ -300,7 +296,7 @@ export class AutonomousAgent {
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error) {
-      logger.error(`[AdaptivePlanner] ❌ Plan creation failed: ${error}`);
+      logger.error(`[AdaptivePlanner] Plan creation failed: ${error}`);
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
@@ -344,7 +340,7 @@ export class AutonomousAgent {
     currentGraphStep: number;
   }> {
     try {
-      logger.info('[Planner] 🚀 Starting plan execution');
+      logger.info('[Planner] Starting plan execution');
       const lastAiMessage = state.last_message as BaseMessage;
 
       const model = this.modelSelector?.getModels()['fast'];
@@ -399,16 +395,14 @@ export class AutonomousAgent {
         state.last_agent === (Agent.PLANNER_VALIDATOR || Agent.EXECUTOR) &&
         lastAiMessage
       ) {
-        logger.debug(
-          '[Planner] 🔄 Creating re-plan based on validator feedback'
-        );
+        logger.debug('[Planner] Creating re-plan based on validator feedback');
         systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = lastAiMessage.content;
       } else if (this.agentConfig.mode === AgentMode.HYBRID) {
         systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = '';
       } else {
-        logger.debug('[Planner] 📝 Creating initial plan');
+        logger.debug('[Planner] Creating initial plan');
         systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
         lastContent = '';
       }
@@ -429,7 +423,7 @@ export class AutonomousAgent {
       );
 
       logger.info(
-        `[Planner] ✅ Successfully created plan with ${structuredResult.steps.length} steps`
+        `[Planner] Successfully created plan with ${structuredResult.steps.length} steps`
       );
 
       const aiMessage = new AIMessageChunk({
@@ -453,7 +447,7 @@ export class AutonomousAgent {
         currentStepIndex: 0,
       };
     } catch (error) {
-      logger.error(`[Planner] ❌ Plan execution failed: ${error}`);
+      logger.error(`[Planner] Plan execution failed: ${error}`);
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
@@ -498,7 +492,7 @@ export class AutonomousAgent {
     currentGraphStep: number;
   }> {
     logger.debug(
-      `[Validator] 🔍 Processing validation for agent: ${state.last_agent}`
+      `[Validator] Processing validation for agent: ${state.last_agent}`
     );
 
     if (state.last_agent === Agent.PLANNER) {
@@ -560,7 +554,7 @@ export class AutonomousAgent {
             from: Agent.PLANNER_VALIDATOR,
           },
         });
-        logger.info(`[PlannerValidator] ✅ Plan validated successfully`);
+        logger.info(`[PlannerValidator] Plan validated successfully`);
         return {
           last_message: successMessage,
           last_agent: Agent.PLANNER_VALIDATOR,
@@ -578,7 +572,7 @@ export class AutonomousAgent {
           },
         });
         logger.warn(
-          `[PlannerValidator] ⚠️ Plan validation failed: ${structuredResult.description}`
+          `[PlannerValidator] Plan validation failed: ${structuredResult.description}`
         );
         return {
           last_message: errorMessage,
@@ -590,7 +584,7 @@ export class AutonomousAgent {
       }
     } catch (error) {
       logger.error(
-        `[PlannerValidator] ❌ Failed to validate plan: ${error.message}`
+        `[PlannerValidator] Failed to validate plan: ${error.message}`
       );
       const errorMessage = new AIMessageChunk({
         content: `Failed to validate plan: ${error.message}`,
@@ -668,7 +662,7 @@ export class AutonomousAgent {
           ? lastMessage.map((msg) => msg.content).join('\n')
           : lastMessage.content;
 
-        logger.debug('[ExecutorValidator] 🔧 Validating tool execution');
+        logger.debug('[ExecutorValidator] Validating tool execution');
 
         validationContent = `VALIDATION_TYPE: TOOL_EXECUTION_MODE
 TOOL_CALL EXECUTED: ${
@@ -696,7 +690,7 @@ TOOL_CALL RESPONSE TO ANALYZE: ${
               })
         }`;
       } else {
-        logger.debug('[ExecutorValidator] 💬 Validating AI response');
+        logger.debug('[ExecutorValidator] Validating AI response');
         validationContent = `VALIDATION_TYPE: AI_RESPONSE_MODE
 AI_MESSAGE TO ANALYZE: ${(lastMessage as BaseMessage).content.toString()}`;
       }
@@ -725,7 +719,7 @@ ${validationContent}`,
 
         if (state.currentStepIndex === state.plan.steps.length - 1) {
           logger.info(
-            '[ExecutorValidator] 🎯 Final step reached - Plan completed'
+            '[ExecutorValidator] Final step reached - Plan completed'
           );
           const successMessage = new AIMessageChunk({
             content: `Final step reached`,
@@ -745,7 +739,7 @@ ${validationContent}`,
           };
         } else {
           logger.info(
-            `[ExecutorValidator] ✅ Step ${state.currentStepIndex + 1} validated successfully`
+            `[ExecutorValidator] Step ${state.currentStepIndex + 1} validated successfully`
           );
           const message = new AIMessageChunk({
             content: `Step ${state.currentStepIndex + 1} has been validated`,
@@ -767,7 +761,7 @@ ${validationContent}`,
       }
 
       logger.warn(
-        `[ExecutorValidator] ⚠️ Step ${state.currentStepIndex + 1} validation failed - Reason: ${structuredResult.reason}`
+        `[ExecutorValidator] Step ${state.currentStepIndex + 1} validation failed - Reason: ${structuredResult.reason}`
       );
       const notValidateMessage = new AIMessageChunk({
         content: `Step ${state.currentStepIndex + 1} not validated - Reason: ${structuredResult.reason}`,
@@ -786,7 +780,7 @@ ${validationContent}`,
       };
     } catch (error) {
       logger.error(
-        `[ExecutorValidator] ❌ Failed to validate step: ${error.message}`
+        `[ExecutorValidator] Failed to validate step: ${error.message}`
       );
       const errorPlan = state.plan;
       errorPlan.steps[state.currentStepIndex].status = 'failed';
@@ -828,7 +822,7 @@ ${validationContent}`,
 
     const currentStep = state.plan.steps[state.currentStepIndex];
     logger.info(
-      `[Executor] 🔄 Processing step ${state.currentStepIndex + 1} - ${currentStep?.stepName}`
+      `[Executor] Processing step ${state.currentStepIndex + 1} - ${currentStep?.stepName}`
     );
 
     const maxGraphSteps = config.configurable?.max_graph_steps ?? 100;
@@ -836,13 +830,11 @@ ${validationContent}`,
     const graphStep = state.currentGraphStep;
 
     if (maxGraphSteps && maxGraphSteps <= graphStep) {
-      logger.warn(
-        `[Executor] ⚠️ Maximum iterations (${maxGraphSteps}) reached`
-      );
+      logger.warn(`[Executor] Maximum iterations (${maxGraphSteps}) reached`);
       return createMaxIterationsResponse(graphStep);
     }
 
-    logger.debug(`[Executor] 📊 Current graph step: ${state.currentGraphStep}`);
+    logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
 
     const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
 
@@ -879,7 +871,7 @@ ${validationContent}`,
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error: any) {
-      logger.error(`[Executor] ❌ Model invocation failed: ${error.message}`);
+      logger.error(`[Executor]: Model invocation failed: ${error.message}`);
       const result = handleModelError(error);
       return {
         ...result,
@@ -911,7 +903,7 @@ ${validationContent}`,
         const argsPreview = JSON.stringify(call.args).substring(0, 150);
         const hasMore = JSON.stringify(call.args).length > 150;
         logger.info(
-          `[Tools] 🔧 Executing tool: ${call.name} with args: ${argsPreview}${hasMore ? '...' : ''}`
+          `[Tools] Executing tool: ${call.name} with args: ${argsPreview}${hasMore ? '...' : ''}`
         );
       });
     }
@@ -926,7 +918,7 @@ ${validationContent}`,
         state.plan.steps[state.currentStepIndex]
       );
 
-      logger.debug(`[Tools] ✅ Tool execution completed in ${executionTime}ms`);
+      logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
 
       truncatedResult.messages.forEach((res) => {
         res.additional_kwargs = {
@@ -943,7 +935,7 @@ ${validationContent}`,
     } catch (error) {
       const executionTime = Date.now() - startTime;
       logger.error(
-        `[Tools] ❌ Tool execution failed after ${executionTime}ms: ${error}`
+        `[Tools] Tool execution failed after ${executionTime}ms: ${error}`
       );
       throw error;
     }
@@ -979,7 +971,7 @@ ${validationContent}`,
     currentStepIndex: number;
     retry: number;
   } {
-    logger.info('[EndGraph] 🏁 Cleaning up state for graph termination');
+    logger.info('[EndGraph] Cleaning up state for graph termination');
     const emptyPlan: ParsedPlan = {
       steps: [],
       summary: '',
@@ -1056,7 +1048,7 @@ ${validationContent}`,
     }
 
     logger.debug(
-      `[Executor] 🤖 Invoking model (${selectedModelType.model_name}) with ${filteredMessages.length} messages`
+      `[Executor] Invoking model (${selectedModelType.model_name}) with ${filteredMessages.length} messages`
     );
 
     const result = await boundModel.invoke(formattedPrompt);
@@ -1102,14 +1094,14 @@ ${validationContent}`,
   ): 're_planner' | 'executor' | 'end' | 'adaptive_planner' {
     try {
       logger.debug(
-        `[ValidatorRouter] 🚦 Processing routing for ${state.last_agent}`
+        `[ValidatorRouter] Processing routing for ${state.last_agent}`
       );
 
       if (state.last_agent === Agent.PLANNER_VALIDATOR) {
         const lastAiMessage = state.last_message as BaseMessage;
         if (lastAiMessage.additional_kwargs.error === true) {
           logger.error(
-            '[ValidatorRouter] ❌ Error found in validator messages'
+            '[ValidatorRouter] Error found in validator messages'
           );
           return 'end';
         }
@@ -1120,7 +1112,7 @@ ${validationContent}`,
         }
         if (lastAiMessage.additional_kwargs.validated) {
           logger.info(
-            '[ValidatorRouter] ✅ Plan validated, routing to executor'
+            '[ValidatorRouter] Plan validated, routing to executor'
           );
           return 'executor';
         } else if (
@@ -1128,12 +1120,12 @@ ${validationContent}`,
           state.retry <= 3
         ) {
           logger.info(
-            `[ValidatorRouter] 🔄 Plan validation failed (retry ${state.retry}/3), routing to re-planner`
+            `[ValidatorRouter] Plan validation failed (retry ${state.retry}/3), routing to re-planner`
           );
           return 're_planner';
         }
         logger.warn(
-          '[ValidatorRouter] ⚠️ Max retries exceeded, routing to end'
+          '[ValidatorRouter] Max retries exceeded, routing to end'
         );
         return 'end';
       }
@@ -1150,30 +1142,26 @@ ${validationContent}`,
         }
         if (lastAiMessage.additional_kwargs.final === true) {
           logger.info(
-            '[ValidatorRouter] 🎯 Last step of plan reached, routing to ADAPTIVE_PLANNER'
+            '[ValidatorRouter] Last step of plan reached, routing to ADAPTIVE_PLANNER'
           );
           return 'adaptive_planner';
         }
         if (state.retry >= 3) {
           logger.warn(
-            `[ValidatorRouter] ⚠️ Max retries (${state.retry}) exceeded for step execution, routing to end`
+            `[ValidatorRouter] Max retries (${state.retry}) exceeded for step execution, routing to end`
           );
           return 'end';
         }
         logger.info(
-          '[ValidatorRouter] 🔄 Step requires execution/retry, routing to executor'
+          '[ValidatorRouter] Step requires execution/retry, routing to executor'
         );
         return 'executor';
       }
 
-      logger.warn(
-        '[ValidatorRouter] ⚠️ Unknown agent state, defaulting to end'
-      );
+      logger.warn('[ValidatorRouter] Unknown agent state, defaulting to end');
       return 'end';
     } catch (error) {
-      logger.error(
-        `[ValidatorRouter] ❌ Routing logic error: ${error.message}`
-      );
+      logger.error(`[ValidatorRouter] Routing logic error: ${error.message}`);
       return 'end';
     }
   }
@@ -1196,31 +1184,31 @@ ${validationContent}`,
     if (state.last_agent === Agent.EXECUTOR) {
       const lastAiMessage = state.last_message as AIMessageChunk;
       if (isTerminalMessage(lastAiMessage)) {
-        logger.info(`[Router] 🏁 Final message received, routing to end node`);
+        logger.info(`[Router] Final message received, routing to end node`);
         return 'end';
       }
       if (lastAiMessage.content.toLocaleString().includes('REQUEST_REPLAN')) {
         logger.debug(
-          '[Router] 🔄 REQUEST_REPLAN detected, routing to re_planner'
+          '[Router] REQUEST_REPLAN detected, routing to re_planner'
         );
         return 're_planner';
       }
       if (lastAiMessage.tool_calls?.length) {
         logger.debug(
-          `[Router] 🔧 Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
+          `[Router] Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
         );
         return 'tools';
       }
     } else if (state.last_agent === Agent.TOOLS) {
       const maxSteps = config.configurable?.max_graph_steps ?? 100;
       if (maxSteps <= state.currentGraphStep) {
-        logger.warn('[Router] ⚠️ Max graph steps reached, routing to END node');
+        logger.warn('[Router] Max graph steps reached, routing to END node');
         return 'end';
       } else {
         return 'validator';
       }
     }
-    logger.debug('[Router] 🔍 Routing to validator');
+    logger.debug('[Router] Routing to validator');
     return 'validator';
   }
 
@@ -1236,7 +1224,7 @@ ${validationContent}`,
         lastMessage.additional_kwargs.final === true ||
         lastMessage.content.toString().includes('FINAL ANSWER')
       ) {
-        logger.info(`[Router] 🏁 Final message received, routing to end node`);
+        logger.info(`[Router] Final message received, routing to end node`);
         return 'end';
       }
       if (
@@ -1262,16 +1250,16 @@ ${validationContent}`,
 
       const iteration = state.currentGraphStep;
       if (graphMaxSteps <= iteration) {
-        logger.info(`[Tools] 🏁 Max steps reached, routing to end node`);
+        logger.info(`[Tools] Max steps reached, routing to end node`);
         return 'end';
       }
 
       logger.debug(
-        `[Router] 🔍 Received ToolMessage, routing back to validator node`
+        `[Router] Received ToolMessage, routing back to validator node`
       );
       return 'validator';
     }
-    logger.info('[Router] 🔍 Routing to validator');
+    logger.info('[Router] Routing to validator');
     return 'validator';
   }
 
@@ -1280,13 +1268,11 @@ ${validationContent}`,
     config?: RunnableConfig<typeof this.ConfigurableAnnotation.State>
   ): Promise<{ messages?: BaseMessage[] }> {
     if (state.messages.length < 10) {
-      logger.debug('[Summarizer] 📊 Not enough data to summarize');
+      logger.debug('[Summarizer] Not enough data to summarize');
       return {};
     }
 
-    logger.debug(
-      `[Summarizer] 📋 Summarizing ${state.messages.length} messages`
-    );
+    logger.debug(`[Summarizer] Summarizing ${state.messages.length} messages`);
 
     const model = this.modelSelector?.getModels()['fast'];
     if (!model) {
@@ -1475,7 +1461,7 @@ ${validationContent}`,
       this.app = workflow.compile(this.getCompileOptions());
 
       logger.info(
-        '[AutonomousAgent] ✅ Successfully initialized autonomous agent'
+        '[AutonomousAgent] Successfully initialized autonomous agent'
       );
 
       return {
@@ -1484,7 +1470,7 @@ ${validationContent}`,
       };
     } catch (error) {
       logger.error(
-        '[AutonomousAgent] ❌ Failed to create autonomous agent:',
+        '[AutonomousAgent] Failed to create autonomous agent:',
         error
       );
       throw error;

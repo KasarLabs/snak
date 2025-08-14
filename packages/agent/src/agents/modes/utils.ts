@@ -35,10 +35,10 @@ export function formatStepsStatusCompact(
   const total = response.steps.length;
 
   if (response.isFinal) {
-    return `✅ Complete (${validated.length}/${total})`;
+    return `Complete (${validated.length}/${total})`;
   }
 
-  return `📋 Progress: [${validated.join(',')}] ➡️ Step ${response.nextSteps}`;
+  return `Progress: [${validated.join(',')}] Step ${response.nextSteps}`;
 }
 
 // --- Response Generators ---
