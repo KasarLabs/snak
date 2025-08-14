@@ -8,272 +8,157 @@ describe('mcpAgentPrompts', () => {
       prompt = mcpAgentSystemPrompt();
     });
 
-    it('should return a non-empty string', () => {
-      expect(prompt).toBeDefined();
-      expect(typeof prompt).toBe('string');
-      expect(prompt.length).toBeGreaterThan(0);
+    describe('basic properties', () => {
+      it('should return a non-empty string', () => {
+        expect(prompt).toBeDefined();
+        expect(typeof prompt).toBe('string');
+        expect(prompt.length).toBeGreaterThan(500);
+      });
+
+      it('should be consistent across multiple calls', () => {
+        const prompt1 = mcpAgentSystemPrompt();
+        const prompt2 = mcpAgentSystemPrompt();
+        expect(prompt1).toBe(prompt2);
+      });
+
+      it('should not contain invalid placeholders', () => {
+        expect(prompt).not.toContain('undefined');
+        expect(prompt).not.toContain('null');
+      });
     });
 
-    it('should contain the core role description', () => {
-      expect(prompt).toContain('MCP (Model Context Protocol) Agent');
-      expect(prompt).toContain('responsible for managing MCP servers');
-      expect(prompt).toContain('Managing MCP server configurations');
+    describe('core content sections', () => {
+      it.each([
+        ['role definition', 'You are a specialized MCP (Model Context Protocol) Agent'],
+        ['responsibilities header', 'Your primary responsibilities include:'],
+        ['request handling header', 'When handling requests:'],
+        ['tools section header', 'Use the available tools to:'],
+        ['reminders header', 'Remember:'],
+        ['workflow header', 'Respond to user queries by:']
+      ])('should contain %s', (description, expectedContent) => {
+        expect(prompt).toContain(expectedContent);
+      });
     });
 
-    it('should include all primary responsibilities', () => {
-      const responsibilities = [
-        'Managing MCP server configurations',
-        'Monitoring MCP server status and health',
-        'Managing and organizing MCP tools',
-        'Ensuring proper integration of MCP servers',
-      ];
-
-      responsibilities.forEach((responsibility) => {
+    describe('primary responsibilities', () => {
+      it.each([
+        ['Managing MCP server configurations'],
+        ['Monitoring MCP server status and health'],
+        ['Managing and organizing MCP tools'],
+        ['Ensuring proper integration of MCP servers']
+      ])('should include responsibility: %s', (responsibility) => {
         expect(prompt).toContain(responsibility);
       });
-    });
 
-    it('should include configuration management operations', () => {
-      const operations = ['add', 'remove', 'update', 'list'];
-
-      operations.forEach((operation) => {
-        expect(prompt).toContain(operation);
+      it('should format responsibilities as numbered list', () => {
+        expect(prompt).toMatch(/1\. Managing MCP server configurations/);
+        expect(prompt).toMatch(/4\. Ensuring proper integration/);
       });
     });
 
-    it('should include request handling guidelines', () => {
-      const guidelines = [
-        'validate inputs before performing operations',
-        'Maintain consistent configuration formats',
-        'Ensure proper error handling and logging',
-        'Keep track of MCP server states and connections',
-        'Provide clear feedback on operation results',
-      ];
-
-      guidelines.forEach((guideline) => {
+    describe('operational guidelines', () => {
+      it.each([
+        ['validate inputs before performing operations'],
+        ['Maintain consistent configuration formats'],
+        ['Ensure proper error handling and logging'],
+        ['Keep track of MCP server states and connections'],
+        ['Provide clear feedback on operation results']
+      ])('should include guideline: %s', (guideline) => {
         expect(prompt).toContain(guideline);
       });
     });
 
-    it('should include available tools section', () => {
-      const tools = [
-        'List and inspect MCP servers',
-        'Manage MCP server configurations',
-        'View and organize MCP tools',
-        'Monitor MCP server status',
-      ];
-
-      tools.forEach((tool) => {
-        expect(prompt).toContain(tool);
+    describe('available tools', () => {
+      it.each([
+        ['List and inspect MCP servers'],
+        ['Manage MCP server configurations'],
+        ['View and organize MCP tools'],
+        ['Monitor MCP server status']
+      ])('should mention tool capability: %s', (capability) => {
+        expect(prompt).toContain(capability);
       });
     });
 
-    it('should include important reminders', () => {
-      const reminders = [
-        'MCP servers are crucial for extending agent capabilities',
-        'Configuration changes should be handled carefully',
-        'Always maintain proper security practices',
-        'Keep configurations well-documented',
-      ];
-
-      reminders.forEach((reminder) => {
-        expect(prompt).toContain(reminder);
+    describe('workflow steps', () => {
+      it.each([
+        [1, 'Understanding the requested operation'],
+        [2, 'Validating inputs and current state'],
+        [3, 'Using appropriate tools to perform the operation'],
+        [4, 'Providing clear feedback on results'],
+        [5, 'Handling any errors gracefully']
+      ])('should include step %i: %s', (stepNumber, stepContent) => {
+        expect(prompt).toContain(`${stepNumber}. ${stepContent}`);
       });
     });
 
-    it('should include response workflow steps', () => {
-      const steps = [
-        'Understanding the requested operation',
-        'Validating inputs and current state',
-        'Using appropriate tools to perform the operation',
-        'Providing clear feedback on results',
-        'Handling any errors gracefully',
-      ];
-
-      steps.forEach((step) => {
-        expect(prompt).toContain(step);
+    describe('key concepts', () => {
+      it.each([
+        ['MCP servers are crucial for extending agent capabilities'],
+        ['Configuration changes should be handled carefully'],
+        ['Always maintain proper security practices'],
+        ['Keep configurations well-documented']
+      ])('should emphasize concept: %s', (concept) => {
+        expect(prompt).toContain(concept);
       });
     });
 
-    it('should have proper formatting with line breaks', () => {
-      const lines = prompt.split('\n');
-      expect(lines.length).toBeGreaterThan(5);
-    });
+    describe('structure and formatting', () => {
+      it('should have proper line breaks and sections', () => {
+        const lines = prompt.split('\n');
+        expect(lines.length).toBeGreaterThan(5);
+      });
 
-    it('should be consistent across multiple calls', () => {
-      const prompt1 = mcpAgentSystemPrompt();
-      const prompt2 = mcpAgentSystemPrompt();
-      const prompt3 = mcpAgentSystemPrompt();
+      it('should use bullet points for guidelines', () => {
+        const bulletPoints = prompt.match(/- [A-Z]/g);
+        expect(bulletPoints).toBeDefined();
+        expect(bulletPoints?.length ?? 0).toBeGreaterThanOrEqual(4);
+      });
 
-      expect(prompt1).toBe(prompt2);
-      expect(prompt2).toBe(prompt3);
-      expect(prompt1).toBe(prompt3);
-    });
-
-    it('should not contain any undefined or null values', () => {
-      expect(prompt).not.toContain('undefined');
-      expect(prompt).not.toContain('null');
-    });
-
-    it('should have a professional and clear tone', () => {
-      expect(prompt).toContain('You are');
-      expect(prompt).toContain('Your primary responsibilities');
-      expect(prompt).toContain('When handling requests');
-      expect(prompt).toContain('Remember');
-    });
-
-    it('should provide actionable instructions', () => {
-      expect(prompt).toContain('Use the available tools');
-      expect(prompt).toContain('Always');
-      expect(prompt).toContain('Respond to user queries');
-    });
-
-    describe('prompt structure validation', () => {
-      it('should start with the agent role definition', () => {
+      it('should start with role definition', () => {
         expect(prompt.trim()).toMatch(/^You are a specialized MCP/);
       });
-
-      it('should have clear section headers', () => {
-        expect(prompt).toContain('Your primary responsibilities include:');
-        expect(prompt).toContain('When handling requests:');
-        expect(prompt).toContain('Use the available tools to:');
-        expect(prompt).toContain('Remember:');
-        expect(prompt).toContain('Respond to user queries by:');
-      });
-
-      it('should use consistent formatting for responsibilities', () => {
-        // Check that responsibilities are numbered
-        expect(prompt).toMatch(/1\. Managing MCP server configurations/);
-        expect(prompt).toMatch(/2\. Monitoring MCP server status/);
-        expect(prompt).toMatch(/3\. Managing and organizing MCP tools/);
-        expect(prompt).toMatch(/4\. Ensuring proper integration/);
-      });
-
-      it('should use consistent formatting for response steps', () => {
-        // Check that response steps are numbered
-        expect(prompt).toMatch(/1\. Understanding the requested operation/);
-        expect(prompt).toMatch(/2\. Validating inputs and current state/);
-        expect(prompt).toMatch(/3\. Using appropriate tools/);
-        expect(prompt).toMatch(/4\. Providing clear feedback/);
-        expect(prompt).toMatch(/5\. Handling any errors gracefully/);
-      });
-
-      it('should have bullet points for guidelines and tools', () => {
-        const bulletPoints = prompt.match(/- [A-Za-z]/g);
-        expect(bulletPoints).toBeDefined();
-        expect(bulletPoints!.length).toBeGreaterThanOrEqual(4);
-      });
     });
 
-    describe('content completeness', () => {
-      it('should cover all MCP management aspects', () => {
-        const aspects = [
-          'server configurations',
-          'server status',
-          'server status and health',
-          'MCP tools',
-          'integration',
-          'security',
-        ];
+    describe('pass-through validation', () => {
+      it('should return the complete prompt unchanged', () => {
+        const expectedPrompt = `You are a specialized MCP (Model Context Protocol) Agent responsible for managing MCP servers and their tools in the system.
 
-        aspects.forEach((aspect) => {
-          expect(prompt).toContain(aspect);
-        });
-      });
+Your primary responsibilities include:
+1. Managing MCP server configurations (add, remove, update, list)
+2. Monitoring MCP server status and health
+3. Managing and organizing MCP tools
+4. Ensuring proper integration of MCP servers with the agent system
 
-      it('should include both technical and operational guidance', () => {
-        const technicalTerms = [
-          'MCP',
-          'Model Context Protocol',
-          'servers',
-          'tools',
-        ];
-        const operationalTerms = [
-          'manage',
-          'Monitoring',
-          'configurations',
-          'integration',
-        ];
+When handling requests:
+- Always validate inputs before performing operations
+- Maintain consistent configuration formats
+- Ensure proper error handling and logging
+- Keep track of MCP server states and connections
+- Provide clear feedback on operation results
 
-        technicalTerms.forEach((term) => {
-          expect(prompt).toContain(term);
-        });
+Use the available tools to:
+- List and inspect MCP servers
+- Manage MCP server configurations
+- View and organize MCP tools
+- Monitor MCP server status
 
-        operationalTerms.forEach((term) => {
-          expect(prompt).toContain(term);
-        });
-      });
+Remember:
+- MCP servers are crucial for extending agent capabilities
+- Configuration changes should be handled carefully
+- Always maintain proper security practices
+- Keep configurations well-documented
 
-      it('should provide specific guidance for error handling', () => {
-        expect(prompt).toContain('error handling and logging');
-        expect(prompt).toContain('Handling any errors gracefully');
-      });
+Respond to user queries by:
+1. Understanding the requested operation
+2. Validating inputs and current state
+3. Using appropriate tools to perform the operation
+4. Providing clear feedback on results
+5. Handling any errors gracefully
 
-      it('should emphasize security practices', () => {
-        expect(prompt).toContain('security practices');
-        expect(prompt).toContain(
-          'Configuration changes should be handled carefully'
-        );
-      });
-    });
-
-    describe('MCP-specific functionality', () => {
-      it('should emphasize MCP server importance', () => {
-        expect(prompt).toContain(
-          'MCP servers are crucial for extending agent capabilities'
-        );
-      });
-
-      it('should mention configuration management', () => {
-        expect(prompt).toContain('Managing MCP server configurations');
-        expect(prompt).toContain('Maintain consistent configuration formats');
-      });
-
-      it('should include tool management', () => {
-        expect(prompt).toContain('Managing and organizing MCP tools');
-        expect(prompt).toContain('View and organize MCP tools');
-      });
-
-      it('should mention monitoring capabilities', () => {
-        expect(prompt).toContain('Monitoring MCP server status and health');
-        expect(prompt).toContain('Monitor MCP server status');
-      });
-
-      it('should emphasize integration', () => {
-        expect(prompt).toContain(
-          'Ensuring proper integration of MCP servers with the agent system'
-        );
-      });
-    });
-
-    describe('prompt quality and clarity', () => {
-      it('should be comprehensive without being verbose', () => {
-        expect(prompt.length).toBeGreaterThan(500);
-        expect(prompt.length).toBeLessThan(2000);
-      });
-
-      it('should use clear and unambiguous language', () => {
-        expect(prompt).toContain('You are');
-        expect(prompt).toContain('Your primary responsibilities');
-        expect(prompt).toContain('When handling requests');
-      });
-
-      it('should provide structured guidance', () => {
-        expect(prompt).toMatch(/\d+\./);
-      });
-
-      it('should maintain professional tone throughout', () => {
-        const professionalTerms = [
-          'responsible',
-          'ensure',
-          'maintain',
-          'Provide',
-          'handle',
-        ];
-        professionalTerms.forEach((term) => {
-          expect(prompt).toContain(term);
-        });
+Your goal is to ensure smooth operation and management of MCP servers while maintaining system stability and security.`;
+        expect(prompt).toBe(expectedPrompt);
       });
     });
   });
 });
+
