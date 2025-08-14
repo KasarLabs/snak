@@ -105,26 +105,29 @@ class TestAsyncAgent extends BaseAgent {
         chunk: { content: `Starting execution for ${this.id}`, input },
         iteration_number: 1,
         langgraph_step: 1,
-        final: false
+        final: false,
       },
       {
         chunk: { content: `Processing input: ${input}`, config },
         iteration_number: 1,
         langgraph_step: 2,
-        final: false
+        final: false,
       },
       {
-        chunk: { content: `Completed execution for ${this.id}`, result: 'success' },
+        chunk: {
+          content: `Completed execution for ${this.id}`,
+          result: 'success',
+        },
         iteration_number: 1,
         langgraph_step: 3,
-        final: true
-      }
+        final: true,
+      },
     ];
 
     for (const chunk of mockChunks) {
       yield chunk;
       // Simulate some processing time
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 }
@@ -327,17 +330,19 @@ describe('baseAgent', () => {
     it('should return AsyncGenerator<StreamChunk>', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('test input');
-      
+
       expect(generator).toBeDefined();
       expect(typeof generator[Symbol.asyncIterator]).toBe('function');
     });
 
     it('should accept input and optional config parameters', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
-      
+
       const generator1 = asyncAgent.executeAsyncGenerator('input');
-      const generator2 = asyncAgent.executeAsyncGenerator('input', { key: 'value' });
-      
+      const generator2 = asyncAgent.executeAsyncGenerator('input', {
+        key: 'value',
+      });
+
       expect(generator1).toBeDefined();
       expect(generator2).toBeDefined();
     });
@@ -345,7 +350,7 @@ describe('baseAgent', () => {
     it('should yield StreamChunk objects with correct structure', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('Test input');
-      
+
       const chunks: StreamChunk[] = [];
       for await (const chunk of generator) {
         chunks.push(chunk);
@@ -360,7 +365,7 @@ describe('baseAgent', () => {
 
     it('should handle different input types', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
-      
+
       // Test with string input
       const stringGenerator = asyncAgent.executeAsyncGenerator('String input');
       const stringChunks: StreamChunk[] = [];
@@ -371,7 +376,7 @@ describe('baseAgent', () => {
 
       // Test with BaseMessage array input
       const messages: BaseMessage[] = [
-        { _getType: () => 'human', content: 'Hello' } as BaseMessage
+        { _getType: () => 'human', content: 'Hello' } as BaseMessage,
       ];
       const messageGenerator = asyncAgent.executeAsyncGenerator(messages);
       const messageChunks: StreamChunk[] = [];
@@ -384,7 +389,7 @@ describe('baseAgent', () => {
     it('should pass configuration through to chunks', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const config = { timeout: 5000, maxIterations: 10 };
-      
+
       const generator = asyncAgent.executeAsyncGenerator('Test input', config);
       const chunks: StreamChunk[] = [];
       for await (const chunk of generator) {
@@ -398,7 +403,7 @@ describe('baseAgent', () => {
     it('should maintain proper iteration and step progression', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('Test input');
-      
+
       const chunks: StreamChunk[] = [];
       for await (const chunk of generator) {
         chunks.push(chunk);
@@ -423,7 +428,7 @@ describe('baseAgent', () => {
     it('should work with empty input', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('');
-      
+
       const chunks: StreamChunk[] = [];
       for await (const chunk of generator) {
         chunks.push(chunk);
@@ -435,7 +440,7 @@ describe('baseAgent', () => {
 
     it('should work with null/undefined config', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
-      
+
       // Test with undefined config
       const generator1 = asyncAgent.executeAsyncGenerator('Test input');
       const chunks1: StreamChunk[] = [];
@@ -445,7 +450,10 @@ describe('baseAgent', () => {
       expect(chunks1).toHaveLength(3);
 
       // Test with null config
-      const generator2 = asyncAgent.executeAsyncGenerator('Test input', null as any);
+      const generator2 = asyncAgent.executeAsyncGenerator(
+        'Test input',
+        null as any
+      );
       const chunks2: StreamChunk[] = [];
       for await (const chunk of generator2) {
         chunks2.push(chunk);
@@ -456,7 +464,7 @@ describe('baseAgent', () => {
     it('should be iterable with for await...of', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('Test input');
-      
+
       let chunkCount = 0;
       for await (const chunk of generator) {
         chunkCount++;
@@ -465,7 +473,7 @@ describe('baseAgent', () => {
         expect(chunk).toHaveProperty('langgraph_step');
         expect(chunk).toHaveProperty('final');
       }
-      
+
       expect(chunkCount).toBe(3);
     });
   });

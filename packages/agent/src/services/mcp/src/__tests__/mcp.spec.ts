@@ -46,7 +46,7 @@ describe('MCP_CONTROLLER', () => {
       description: `${name} description`,
       schema: {},
     } satisfies Pick<StructuredTool, 'name' | 'description' | 'schema'>;
-    
+
     return mockTool as StructuredTool;
   };
 
@@ -55,7 +55,9 @@ describe('MCP_CONTROLLER', () => {
     server2: { command: 'python', args: ['server2.py'] },
   });
 
-  const createMockConfig = (overrides: Partial<AgentConfig> = {}): AgentConfig => ({
+  const createMockConfig = (
+    overrides: Partial<AgentConfig> = {}
+  ): AgentConfig => ({
     id: 'test-agent',
     name: 'test_agent',
     group: 'test-group',
@@ -75,10 +77,11 @@ describe('MCP_CONTROLLER', () => {
     ...overrides,
   });
 
-  const createMockToolsMap = () => new Map([
-    ['server1', [createMockTool('tool1'), createMockTool('tool2')]],
-    ['server2', [createMockTool('tool3')]],
-  ]);
+  const createMockToolsMap = () =>
+    new Map([
+      ['server1', [createMockTool('tool1'), createMockTool('tool2')]],
+      ['server2', [createMockTool('tool3')]],
+    ]);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -89,8 +92,9 @@ describe('MCP_CONTROLLER', () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as any;
 
-    (MultiServerMCPClient as jest.MockedClass<typeof MultiServerMCPClient>)
-      .mockImplementation(() => mockClient);
+    (
+      MultiServerMCPClient as jest.MockedClass<typeof MultiServerMCPClient>
+    ).mockImplementation(() => mockClient);
 
     mockLogger = logger as jest.Mocked<typeof logger>;
   });
@@ -101,7 +105,9 @@ describe('MCP_CONTROLLER', () => {
       const controller = new MCP_CONTROLLER(servers);
 
       expect(MultiServerMCPClient).toHaveBeenCalledWith(servers);
-      expect(mockLogger.info).toHaveBeenCalledWith('Initializing MCP_CONTROLLER with provided servers config');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Initializing MCP_CONTROLLER with provided servers config'
+      );
       expect(controller).toBeInstanceOf(MCP_CONTROLLER);
     });
 
@@ -110,7 +116,9 @@ describe('MCP_CONTROLLER', () => {
       ['undefined', undefined],
       ['empty object', {}],
     ])('should throw error when mcpServers is %s', (_, servers) => {
-      expect(() => new MCP_CONTROLLER(servers as any)).toThrow('MCP servers configuration is required');
+      expect(() => new MCP_CONTROLLER(servers as any)).toThrow(
+        'MCP servers configuration is required'
+      );
     });
 
     it('should handle non-object mcpServers gracefully', () => {
@@ -130,11 +138,16 @@ describe('MCP_CONTROLLER', () => {
     it.each([
       ['null config', null],
       ['undefined config', undefined],
-      ['missing mcpServers', createMockConfig({ mcpServers: undefined as any })],
+      [
+        'missing mcpServers',
+        createMockConfig({ mcpServers: undefined as any }),
+      ],
       ['empty mcpServers', createMockConfig({ mcpServers: {} })],
       ['null mcpServers', createMockConfig({ mcpServers: null as any })],
     ])('should throw error for %s', (_, config) => {
-      expect(() => MCP_CONTROLLER.fromAgentConfig(config as any)).toThrow('Agent configuration must include mcpServers');
+      expect(() => MCP_CONTROLLER.fromAgentConfig(config as any)).toThrow(
+        'Agent configuration must include mcpServers'
+      );
     });
   });
 
@@ -150,7 +163,9 @@ describe('MCP_CONTROLLER', () => {
 
       expect(mockClient.initializeConnections).toHaveBeenCalled();
       expect(mockClient.getTools).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('MCP connections initialized successfully');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'MCP connections initialized successfully'
+      );
     });
 
     it('should return empty array before initialization', () => {
@@ -199,7 +214,11 @@ describe('MCP_CONTROLLER', () => {
     });
 
     it.each([
-      ['initialization fails', 'initializeConnections', new Error('Connection timeout')],
+      [
+        'initialization fails',
+        'initializeConnections',
+        new Error('Connection timeout'),
+      ],
       ['close fails', 'close', new Error('Close failed')],
     ])('should propagate error when %s', async (_, method, error) => {
       (mockClient as any)[method].mockRejectedValue(error);
@@ -214,7 +233,9 @@ describe('MCP_CONTROLLER', () => {
     ])('should throw when getTools returns %s', async (_, toolsValue) => {
       mockClient.getTools.mockReturnValue(toolsValue as any);
 
-      await expect(controller.initializeConnections()).rejects.toThrow('No tools found');
+      await expect(controller.initializeConnections()).rejects.toThrow(
+        'No tools found'
+      );
     });
 
     it('should throw when getTools throws exception', async () => {
@@ -222,7 +243,9 @@ describe('MCP_CONTROLLER', () => {
         throw new Error('Connection failed');
       });
 
-      await expect(controller.initializeConnections()).rejects.toThrow('Error getting tools: Error: Connection failed');
+      await expect(controller.initializeConnections()).rejects.toThrow(
+        'Error getting tools: Error: Connection failed'
+      );
     });
 
     it('should handle tools with null values', async () => {
@@ -244,11 +267,15 @@ describe('MCP_CONTROLLER', () => {
     it('should handle multiple concurrent operations', async () => {
       const controller = new MCP_CONTROLLER(createMockServers());
 
-      const initPromises = Array(3).fill(null).map(() => controller.initializeConnections());
+      const initPromises = Array(3)
+        .fill(null)
+        .map(() => controller.initializeConnections());
       await Promise.all(initPromises);
       expect(mockClient.initializeConnections).toHaveBeenCalledTimes(3);
 
-      const closePromises = Array(3).fill(null).map(() => controller.close());
+      const closePromises = Array(3)
+        .fill(null)
+        .map(() => controller.close());
       await Promise.all(closePromises);
       expect(mockClient.close).toHaveBeenCalledTimes(3);
     });
@@ -279,7 +306,9 @@ describe('MCP_CONTROLLER', () => {
     it('should handle error recovery', async () => {
       const controller = new MCP_CONTROLLER(createMockServers());
 
-      mockClient.initializeConnections.mockRejectedValueOnce(new Error('Initial failure'));
+      mockClient.initializeConnections.mockRejectedValueOnce(
+        new Error('Initial failure')
+      );
       await expect(controller.initializeConnections()).rejects.toThrow();
 
       mockClient.initializeConnections.mockResolvedValueOnce(undefined as any);

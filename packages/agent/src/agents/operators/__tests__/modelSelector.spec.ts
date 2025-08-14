@@ -4,11 +4,21 @@ import { ModelsConfig } from '@snakagent/core';
 
 // Test class to expose protected methods
 class TestModelSelector extends ModelSelector {
-  public loadKeys() { this.loadApiKeys(); }
-  public initModels() { return this.initializeModels(); }
-  public getAllApiKeys() { return this.allApiKeys; }
-  public getDebugMode() { return (this as any).debugMode; }
-  public getUseModelSelector() { return (this as any).useModelSelector; }
+  public loadKeys() {
+    this.loadApiKeys();
+  }
+  public initModels() {
+    return this.initializeModels();
+  }
+  public getAllApiKeys() {
+    return this.allApiKeys;
+  }
+  public getDebugMode() {
+    return (this as any).debugMode;
+  }
+  public getUseModelSelector() {
+    return (this as any).useModelSelector;
+  }
 }
 
 // Test constants
@@ -34,9 +44,13 @@ jest.mock('@langchain/anthropic', () => ({
 jest.mock('@langchain/google-genai', () => ({
   ChatGoogleGenerativeAI: jest.fn(() => mockGeminiModel),
 }));
-jest.mock('@snakagent/core', () => ({
-  logger: { debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}), { virtual: true });
+jest.mock(
+  '@snakagent/core',
+  () => ({
+    logger: { debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  }),
+  { virtual: true }
+);
 jest.mock('../../../prompt/prompts', () => ({
   modelSelectorSystemPrompt: jest.fn(() => 'test prompt'),
 }));
@@ -51,7 +65,9 @@ jest.mock('../../../token/tokenTracking', () => ({
 }));
 
 // Test helpers
-const createModelsConfig = (overrides: Partial<ModelsConfig> = {}): ModelsConfig => ({
+const createModelsConfig = (
+  overrides: Partial<ModelsConfig> = {}
+): ModelsConfig => ({
   fast: { provider: ModelProviders.OpenAI, model_name: 'gpt-fast' },
   smart: { provider: ModelProviders.Anthropic, model_name: 'claude-smart' },
   cheap: { provider: ModelProviders.Gemini, model_name: 'gemini-cheap' },
@@ -127,7 +143,7 @@ describe('ModelSelector', () => {
       [
         { OPENAI_API_KEY: 'openai-key' },
         { openai: 'openai-key' },
-        'single API key'
+        'single API key',
       ],
       [
         {
@@ -140,7 +156,7 @@ describe('ModelSelector', () => {
           anthropic: 'anthropic-key',
           gemini: 'gemini-key',
         },
-        'multiple API keys'
+        'multiple API keys',
       ],
     ])('loads API keys for %s', (keys, expected, description) => {
       setupApiKeys(keys);
@@ -186,9 +202,10 @@ describe('ModelSelector', () => {
       ['unsupported provider', 'unsupported provider'],
     ])('handles %s gracefully', async (description, _) => {
       const modelsConfig = createModelsConfig({
-        fast: description === 'unsupported provider' 
-          ? { provider: 'unsupported' as any, model_name: 'test' }
-          : { provider: ModelProviders.OpenAI, model_name: 'test' },
+        fast:
+          description === 'unsupported provider'
+            ? { provider: 'unsupported' as any, model_name: 'test' }
+            : { provider: ModelProviders.OpenAI, model_name: 'test' },
       });
 
       if (description === 'missing API keys') {
@@ -197,7 +214,7 @@ describe('ModelSelector', () => {
       } else {
         setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
       }
-      
+
       const selector = new TestModelSelector({ modelsConfig });
       selector.loadKeys();
       await selector.initModels();
@@ -248,19 +265,24 @@ describe('ModelSelector', () => {
       ['fast', mockOpenAIModel],
       ['smart', mockAnthropicModel],
       ['cheap', mockGeminiModel],
-    ])('selects %s model when meta-selector chooses %s', async (choice, expected) => {
-      const selector = createSelector({ useModelSelector: true });
-      selector.loadKeys();
-      await selector.initModels();
+    ])(
+      'selects %s model when meta-selector chooses %s',
+      async (choice, expected) => {
+        const selector = createSelector({ useModelSelector: true });
+        selector.loadKeys();
+        await selector.initModels();
 
-      mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse(choice));
+        mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse(choice));
 
-      const result = await selector.selectModelForMessages([new HumanMessage('hello')]);
+        const result = await selector.selectModelForMessages([
+          new HumanMessage('hello'),
+        ]);
 
-      expect(result.model).toBe(expected);
-      expect(result.model_name).toBe(choice);
-      expect(result.token).toBeDefined();
-    });
+        expect(result.model).toBe(expected);
+        expect(result.model_name).toBe(choice);
+        expect(result.token).toBeDefined();
+      }
+    );
 
     it('uses originalUserQuery when provided in config', async () => {
       const selector = createSelector({ useModelSelector: true });
@@ -285,7 +307,9 @@ describe('ModelSelector', () => {
 
       mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse('cheap'));
 
-      const result = await selector.selectModelForMessages([new HumanMessage('simple task')]);
+      const result = await selector.selectModelForMessages([
+        new HumanMessage('simple task'),
+      ]);
 
       expect(result.model).toBe(mockGeminiModel);
       expect(result.model_name).toBe('cheap');
@@ -311,9 +335,13 @@ describe('ModelSelector', () => {
       selector.loadKeys();
       await selector.initModels();
 
-      mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse('invalid'));
+      mockOpenAIModel.invoke.mockResolvedValueOnce(
+        mockModelResponse('invalid')
+      );
 
-      const result = await selector.selectModelForMessages([new HumanMessage('hello')]);
+      const result = await selector.selectModelForMessages([
+        new HumanMessage('hello'),
+      ]);
 
       expect(result.model).toBe(mockAnthropicModel);
       expect(result.model_name).toBe('smart');
@@ -364,7 +392,9 @@ describe('ModelSelector', () => {
       selector.loadKeys();
       await selector.initModels();
 
-      mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse('nonexistent'));
+      mockOpenAIModel.invoke.mockResolvedValueOnce(
+        mockModelResponse('nonexistent')
+      );
       mockAnthropicModel.invoke.mockResolvedValueOnce({ result: 'fallback' });
 
       const result = await selector.execute([new HumanMessage('hello')]);
@@ -377,18 +407,25 @@ describe('ModelSelector', () => {
       selector.loadKeys();
       await selector.initModels();
 
-      mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse('nonexistent'));
-      
+      mockOpenAIModel.invoke.mockResolvedValueOnce(
+        mockModelResponse('nonexistent')
+      );
+
       const models = selector.getModels();
       delete models.smart;
 
       await expect(
         selector.execute([new HumanMessage('hello')])
-      ).rejects.toThrow('Selected model and fallback "smart" model are unavailable.');
+      ).rejects.toThrow(
+        'Selected model and fallback "smart" model are unavailable.'
+      );
     });
 
     it('executes with debug mode enabled', async () => {
-      const selector = createSelector({ useModelSelector: true, debugMode: true });
+      const selector = createSelector({
+        useModelSelector: true,
+        debugMode: true,
+      });
       selector.loadKeys();
       await selector.initModels();
 
@@ -410,38 +447,55 @@ describe('ModelSelector', () => {
 
       await expect(
         selector.selectModelForMessages([new HumanMessage('hello')])
-      ).rejects.toThrow('Cannot read properties of undefined (reading \'invoke\')');
+      ).rejects.toThrow(
+        "Cannot read properties of undefined (reading 'invoke')"
+      );
     });
 
     it('handles initialization failure', async () => {
-      const invalidSelector = new TestModelSelector({ modelsConfig: null as any });
+      const invalidSelector = new TestModelSelector({
+        modelsConfig: null as any,
+      });
       invalidSelector.loadKeys();
 
-      await expect(invalidSelector.init()).rejects.toThrow('ModelSelector initialization failed:');
+      await expect(invalidSelector.init()).rejects.toThrow(
+        'ModelSelector initialization failed:'
+      );
     });
 
     it.each([
       [false, 'without debug mode'],
       [true, 'with debug mode'],
-    ])('handles model initialization errors %s', async (debugMode, description) => {
-      const config = createModelsConfig({
-        fast: { provider: ModelProviders.OpenAI, model_name: 'invalid-model' },
-      });
+    ])(
+      'handles model initialization errors %s',
+      async (debugMode, description) => {
+        const config = createModelsConfig({
+          fast: {
+            provider: ModelProviders.OpenAI,
+            model_name: 'invalid-model',
+          },
+        });
 
-      setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
+        setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
 
-      const mockChatOpenAI = jest.fn().mockImplementation(() => {
-        throw new Error('Model creation failed');
-      });
-      jest.mocked(require('@langchain/openai').ChatOpenAI).mockImplementation(mockChatOpenAI);
+        const mockChatOpenAI = jest.fn().mockImplementation(() => {
+          throw new Error('Model creation failed');
+        });
+        jest
+          .mocked(require('@langchain/openai').ChatOpenAI)
+          .mockImplementation(mockChatOpenAI);
 
-      const selector = new TestModelSelector({ modelsConfig: config, debugMode });
-      selector.loadKeys();
-      await selector.initModels();
+        const selector = new TestModelSelector({
+          modelsConfig: config,
+          debugMode,
+        });
+        selector.loadKeys();
+        await selector.initModels();
 
-      const models = selector.getModels();
-      expect(models.fast).toBeUndefined();
-    });
+        const models = selector.getModels();
+        expect(models.fast).toBeUndefined();
+      }
+    );
   });
 
   describe('Additional functionality', () => {
@@ -475,7 +529,7 @@ describe('ModelSelector', () => {
       setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
       const selector = createSelector();
       selector.loadKeys();
-      
+
       const apiKey = (selector as any).getApiKey('openai');
       expect(apiKey).toBe('openai-key');
     });
@@ -484,7 +538,7 @@ describe('ModelSelector', () => {
       setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
       const selector = createSelector();
       selector.loadKeys();
-      
+
       const allKeys = selector.getAllApiKeys();
       expect(allKeys.openai).toBe('openai-key');
       expect(allKeys.anthropic).toBeUndefined();
@@ -493,7 +547,7 @@ describe('ModelSelector', () => {
     it('tests getInstance before initialization', () => {
       // Clear any existing instance
       (ModelSelector as any).instance = null;
-      
+
       const instance = ModelSelector.getInstance();
       expect(instance).toBeNull();
     });
@@ -510,7 +564,7 @@ describe('ModelSelector', () => {
       setupFullEnvironment();
       const selector = createSelector();
       selector.loadKeys();
-      
+
       const models = selector.getModels();
       expect(models).toBeDefined();
       expect(typeof models).toBe('object');

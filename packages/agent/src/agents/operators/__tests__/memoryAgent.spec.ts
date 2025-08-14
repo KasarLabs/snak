@@ -42,14 +42,24 @@ describe('MemoryAgent', () => {
   let mockConfig: MemoryConfig;
 
   // Test data helpers
-  const createMockMemory = (id: number, content: string, similarity: number, history: any[] = []) => ({
+  const createMockMemory = (
+    id: number,
+    content: string,
+    similarity: number,
+    history: any[] = []
+  ) => ({
     id,
     content,
     similarity,
     history,
   });
 
-  const createMockIteration = (id: number, question: string, answer: string, similarity: number) => ({
+  const createMockIteration = (
+    id: number,
+    question: string,
+    answer: string,
+    similarity: number
+  ) => ({
     id,
     question,
     answer,
@@ -75,7 +85,7 @@ describe('MemoryAgent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Reset mock implementations to default values
     mockMemoryOperations.init.mockResolvedValue(undefined);
     mockMemoryOperations.insert_memory.mockResolvedValue({ id: 1 });
@@ -94,7 +104,7 @@ describe('MemoryAgent', () => {
         history: [],
       },
     ]);
-    
+
     mockIterationOperations.similar_iterations.mockResolvedValue([
       {
         id: 10,
@@ -259,8 +269,14 @@ describe('MemoryAgent', () => {
 
     it('should format memories for context correctly', () => {
       const mockMemories = [
-        createMockMemory(1, 'User prefers DeFi', 0.9, [{ timestamp: '2024-01-01T10:00:00Z' }]),
-        createMockMemory(2, 'Question: How to swap?\nAnswer: Use DEX aggregator', 0.8),
+        createMockMemory(1, 'User prefers DeFi', 0.9, [
+          { timestamp: '2024-01-01T10:00:00Z' },
+        ]),
+        createMockMemory(
+          2,
+          'Question: How to swap?\nAnswer: Use DEX aggregator',
+          0.8
+        ),
       ];
 
       const formatted = memoryAgent.formatMemoriesForContext(mockMemories);
@@ -300,7 +316,9 @@ describe('MemoryAgent', () => {
       ['remember', 'remember my wallet address'],
       ['save', 'save this information'],
     ])('should detect %s operations correctly', async (operation, content) => {
-      const result = await memoryAgent.execute(content, false, { userId: 'test-user' });
+      const result = await memoryAgent.execute(content, false, {
+        userId: 'test-user',
+      });
       expect(result).toBe('Memory stored successfully.');
     });
 
@@ -309,7 +327,9 @@ describe('MemoryAgent', () => {
       ['recall', 'recall my settings'],
       ['get', 'get my memories'],
     ])('should detect %s operations correctly', async (operation, content) => {
-      const result = await memoryAgent.execute(content, false, { userId: 'test-user' });
+      const result = await memoryAgent.execute(content, false, {
+        userId: 'test-user',
+      });
       expect(result).toContain('### User Memory Context');
     });
 
@@ -351,7 +371,10 @@ describe('MemoryAgent', () => {
       expect(typeof memoryNode).toBe('function');
 
       const mockState = createMockState([new HumanMessage('test query')]);
-      const mockConfig = createMockConfig({ userId: 'test-user', agentId: 'test-agent' });
+      const mockConfig = createMockConfig({
+        userId: 'test-user',
+        agentId: 'test-agent',
+      });
 
       const result = await memoryNode(mockState, mockConfig);
       expect(result).toHaveProperty('memories');
@@ -397,7 +420,9 @@ describe('MemoryAgent', () => {
     });
 
     it('should handle empty message content', async () => {
-      const result = await memoryAgent.execute('', false, { userId: 'test-user' });
+      const result = await memoryAgent.execute('', false, {
+        userId: 'test-user',
+      });
       expect(result).toContain('### User Memory Context');
     });
 
@@ -428,7 +453,9 @@ describe('MemoryAgent', () => {
 
     it('should enrich prompt with memory context', async () => {
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
 
       const enrichedPrompt = await memoryAgent.enrichPromptWithMemories(
         originalPrompt,
@@ -442,7 +469,9 @@ describe('MemoryAgent', () => {
     it('should return original prompt when no memories found', async () => {
       mockMemoryOperations.similar_memory.mockResolvedValueOnce([]);
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
 
       const enrichedPrompt = await memoryAgent.enrichPromptWithMemories(
         originalPrompt,
@@ -456,7 +485,9 @@ describe('MemoryAgent', () => {
     it('should handle enrichment errors gracefully', async () => {
       const uninitializedAgent = new MemoryAgent(mockConfig);
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
 
       const enrichedPrompt = await uninitializedAgent.enrichPromptWithMemories(
         originalPrompt,
@@ -473,7 +504,9 @@ describe('MemoryAgent', () => {
       );
 
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
 
       const enrichedPrompt = await memoryAgent.enrichPromptWithMemories(
         originalPrompt,
@@ -493,14 +526,26 @@ describe('MemoryAgent', () => {
     it.each([
       { configurable: undefined, description: 'undefined configurable' },
       { configurable: { userId: undefined }, description: 'undefined userId' },
-      { configurable: { userId: 'test-user', memorySize: undefined }, description: 'undefined memorySize' },
-      { configurable: { userId: 'test-user', config: { memorySize: 25 } }, description: 'nested config memorySize' },
-    ])('should handle $description in prepareMemoryTools', async ({ configurable }) => {
-      const interactiveTools = memoryAgent.prepareMemoryTools();
-      const tool = interactiveTools[0];
-      const result = await tool.invoke({ content: 'test content' }, { configurable });
-      expect(result).toBeDefined();
-    });
+      {
+        configurable: { userId: 'test-user', memorySize: undefined },
+        description: 'undefined memorySize',
+      },
+      {
+        configurable: { userId: 'test-user', config: { memorySize: 25 } },
+        description: 'nested config memorySize',
+      },
+    ])(
+      'should handle $description in prepareMemoryTools',
+      async ({ configurable }) => {
+        const interactiveTools = memoryAgent.prepareMemoryTools();
+        const tool = interactiveTools[0];
+        const result = await tool.invoke(
+          { content: 'test content' },
+          { configurable }
+        );
+        expect(result).toBeDefined();
+      }
+    );
 
     it('should handle errors in memory tool execution', async () => {
       const interactiveTools = memoryAgent.prepareMemoryTools();
@@ -529,10 +574,12 @@ describe('MemoryAgent', () => {
       const result = await retrieveTool.invoke({
         query: 'test query',
         userId: 'test-user',
-        limit: 5
+        limit: 5,
       });
 
-      expect(result).toBe('Failed to retrieve memories: Error: Retrieval tool error');
+      expect(result).toBe(
+        'Failed to retrieve memories: Error: Retrieval tool error'
+      );
     });
 
     it('should handle empty results in retrieve memories tool', async () => {
@@ -544,7 +591,7 @@ describe('MemoryAgent', () => {
       const result = await retrieveTool.invoke({
         query: 'test query',
         userId: 'test-user',
-        limit: 5
+        limit: 5,
       });
 
       expect(result).toBe('No relevant memories found.');
@@ -561,7 +608,7 @@ describe('MemoryAgent', () => {
       const result = await retrieveTool.invoke({
         query: 'test query',
         userId: 'test-user',
-        limit: 5
+        limit: 5,
       });
 
       expect(result).toBe('No relevant memories found.');
@@ -574,14 +621,26 @@ describe('MemoryAgent', () => {
     });
 
     it.each([
-      { content: { type: 'object', data: 'test data' }, description: 'non-string content' },
-      { content: { type: 'complex', nested: { value: 'test value' } }, description: 'complex content' },
-    ])('should handle $description in retrieveRelevantMemories', async ({ content }) => {
-      const mockMessage = { content, constructor: { name: 'BaseMessage' } };
-      const memories = await memoryAgent.retrieveRelevantMemories(mockMessage as any, 'test-user');
-      expect(memories).toBeDefined();
-      expect(mockMemoryOperations.similar_memory).toHaveBeenCalled();
-    });
+      {
+        content: { type: 'object', data: 'test data' },
+        description: 'non-string content',
+      },
+      {
+        content: { type: 'complex', nested: { value: 'test value' } },
+        description: 'complex content',
+      },
+    ])(
+      'should handle $description in retrieveRelevantMemories',
+      async ({ content }) => {
+        const mockMessage = { content, constructor: { name: 'BaseMessage' } };
+        const memories = await memoryAgent.retrieveRelevantMemories(
+          mockMessage as any,
+          'test-user'
+        );
+        expect(memories).toBeDefined();
+        expect(mockMemoryOperations.similar_memory).toHaveBeenCalled();
+      }
+    );
   });
 
   describe('memory storage edge cases', () => {
@@ -589,18 +648,24 @@ describe('MemoryAgent', () => {
       await memoryAgent.init();
     });
 
-    it.each(memorySizeTests)('should handle $description', async ({ value, expected }) => {
-      const interactiveTools = memoryAgent.prepareMemoryTools();
-      const tool = interactiveTools[0];
+    it.each(memorySizeTests)(
+      'should handle $description',
+      async ({ value, expected }) => {
+        const interactiveTools = memoryAgent.prepareMemoryTools();
+        const tool = interactiveTools[0];
 
-      const result = await tool.invoke(
-        { content: 'store this memory' },
-        { configurable: { userId: 'test-user', memorySize: value } }
-      );
+        const result = await tool.invoke(
+          { content: 'store this memory' },
+          { configurable: { userId: 'test-user', memorySize: value } }
+        );
 
-      expect(result).toBe('Memory stored successfully.');
-      expect(mockMemoryOperations.enforce_memory_limit).toHaveBeenCalledWith('test-user', expected);
-    });
+        expect(result).toBe('Memory stored successfully.');
+        expect(mockMemoryOperations.enforce_memory_limit).toHaveBeenCalledWith(
+          'test-user',
+          expected
+        );
+      }
+    );
   });
 
   describe('memory retrieval edge cases', () => {
@@ -619,7 +684,9 @@ describe('MemoryAgent', () => {
         { userId: 'test-user' }
       );
 
-      expect(result).toBe('Failed to retrieve memories: Error: Retrieval error');
+      expect(result).toBe(
+        'Failed to retrieve memories: Error: Retrieval error'
+      );
     });
 
     it('should handle errors in retrieveMemoriesForContent with agentId', async () => {
@@ -633,7 +700,9 @@ describe('MemoryAgent', () => {
         { userId: 'test-user', agentId: 'test-agent' }
       );
 
-      expect(result).toBe('Failed to retrieve memories: Error: Iteration error');
+      expect(result).toBe(
+        'Failed to retrieve memories: Error: Iteration error'
+      );
     });
 
     it('should handle empty results in retrieveMemoriesForContent', async () => {
@@ -656,12 +725,23 @@ describe('MemoryAgent', () => {
     });
 
     it.each([
-      { messages: [{ content: 'test content', constructor: { name: 'OtherMessage' } }], description: 'messages without HumanMessage' },
-    ])('should handle $description in createMemoryChain', async ({ messages }) => {
-      const chain = memoryAgent.createMemoryChain(3);
-      const result = await chain.invoke(createMockState(messages), createMockConfig({ userId: 'test-user' }));
-      expect(result).toBeDefined();
-    });
+      {
+        messages: [
+          { content: 'test content', constructor: { name: 'OtherMessage' } },
+        ],
+        description: 'messages without HumanMessage',
+      },
+    ])(
+      'should handle $description in createMemoryChain',
+      async ({ messages }) => {
+        const chain = memoryAgent.createMemoryChain(3);
+        const result = await chain.invoke(
+          createMockState(messages),
+          createMockConfig({ userId: 'test-user' })
+        );
+        expect(result).toBeDefined();
+      }
+    );
 
     it('should handle memory chain execution errors', async () => {
       mockMemoryOperations.similar_memory.mockRejectedValueOnce(
@@ -669,7 +749,7 @@ describe('MemoryAgent', () => {
       );
 
       const chain = memoryAgent.createMemoryChain(3);
-      
+
       try {
         const result = await chain.invoke(
           createMockState([new HumanMessage('test query')]),
@@ -692,17 +772,29 @@ describe('MemoryAgent', () => {
         createMockMemory(1, 'Exact threshold memory', 0),
       ]);
 
-      const memories = await memoryAgent.retrieveRelevantMemories('test query', 'test-user');
+      const memories = await memoryAgent.retrieveRelevantMemories(
+        'test query',
+        'test-user'
+      );
       expect(memories).toHaveLength(1);
     });
 
     it('should handle iterations with exact similarity threshold', async () => {
       mockIterationOperations.similar_iterations.mockResolvedValueOnce([
-        createMockIteration(1, 'Exact threshold question', 'Exact threshold answer', 0),
+        createMockIteration(
+          1,
+          'Exact threshold question',
+          'Exact threshold answer',
+          0
+        ),
       ]);
       mockMemoryOperations.similar_memory.mockResolvedValueOnce([]);
 
-      const memories = await memoryAgent.retrieveRelevantMemories('test query', 'test-user', 'test-agent');
+      const memories = await memoryAgent.retrieveRelevantMemories(
+        'test query',
+        'test-user',
+        'test-agent'
+      );
       expect(memories).toHaveLength(1);
     });
 
@@ -713,11 +805,26 @@ describe('MemoryAgent', () => {
       ]);
 
       mockIterationOperations.similar_iterations.mockResolvedValueOnce([
-        createMockIteration(10, 'Iteration question 1', 'Iteration answer 1', 0.7),
-        createMockIteration(11, 'Iteration question 2', 'Iteration answer 2', 0.6),
+        createMockIteration(
+          10,
+          'Iteration question 1',
+          'Iteration answer 1',
+          0.7
+        ),
+        createMockIteration(
+          11,
+          'Iteration question 2',
+          'Iteration answer 2',
+          0.6
+        ),
       ]);
 
-      const memories = await memoryAgent.retrieveRelevantMemories('test query', 'test-user', 'test-agent', 3);
+      const memories = await memoryAgent.retrieveRelevantMemories(
+        'test query',
+        'test-user',
+        'test-agent',
+        3
+      );
 
       expect(memories).toHaveLength(3);
       expect(memories[0].similarity).toBe(0.9);
@@ -731,7 +838,10 @@ describe('MemoryAgent', () => {
         createMockMemory(2, 'Below threshold memory', -0.1),
       ]);
 
-      const memories = await memoryAgent.retrieveRelevantMemories('test query', 'test-user');
+      const memories = await memoryAgent.retrieveRelevantMemories(
+        'test query',
+        'test-user'
+      );
 
       expect(memories).toHaveLength(1);
       expect(memories[0].content).toBe('Above threshold memory');
@@ -739,15 +849,18 @@ describe('MemoryAgent', () => {
   });
 
   describe('configuration edge cases', () => {
-    it.each(similarityThresholdTests)('should handle $description', ({ value }) => {
-      const originalEnv = process.env.MEMORY_SIMILARITY_THRESHOLD;
-      process.env.MEMORY_SIMILARITY_THRESHOLD = value;
-      
-      const agent = new MemoryAgent({});
-      process.env.MEMORY_SIMILARITY_THRESHOLD = originalEnv;
-      
-      expect(agent).toBeDefined();
-    });
+    it.each(similarityThresholdTests)(
+      'should handle $description',
+      ({ value }) => {
+        const originalEnv = process.env.MEMORY_SIMILARITY_THRESHOLD;
+        process.env.MEMORY_SIMILARITY_THRESHOLD = value;
+
+        const agent = new MemoryAgent({});
+        process.env.MEMORY_SIMILARITY_THRESHOLD = originalEnv;
+
+        expect(agent).toBeDefined();
+      }
+    );
   });
 
   describe('advanced error handling', () => {
@@ -765,10 +878,12 @@ describe('MemoryAgent', () => {
 
       const result = await upsertTool.invoke({
         content: 'test content',
-        userId: 'test-user'
+        userId: 'test-user',
       });
 
-      expect(result).toBe('Failed to store memory: Error: Specific upsert error');
+      expect(result).toBe(
+        'Failed to store memory: Error: Specific upsert error'
+      );
     });
 
     it('should handle errors in retrieve memories tool with specific error message', async () => {
@@ -781,10 +896,12 @@ describe('MemoryAgent', () => {
 
       const result = await retrieveTool.invoke({
         query: 'test query',
-        userId: 'test-user'
+        userId: 'test-user',
       });
 
-      expect(result).toBe('Failed to retrieve memories: Error: Specific retrieval error');
+      expect(result).toBe(
+        'Failed to retrieve memories: Error: Specific retrieval error'
+      );
     });
 
     it('should handle errors in prompt enrichment with specific error message', async () => {
@@ -793,7 +910,9 @@ describe('MemoryAgent', () => {
       );
 
       const { ChatPromptTemplate } = await import('@langchain/core/prompts');
-      const originalPrompt = ChatPromptTemplate.fromTemplate('Hello {input}\n\n{memories}');
+      const originalPrompt = ChatPromptTemplate.fromTemplate(
+        'Hello {input}\n\n{memories}'
+      );
 
       const enrichedPrompt = await memoryAgent.enrichPromptWithMemories(
         originalPrompt,

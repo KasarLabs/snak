@@ -19,7 +19,11 @@ const makeMessage = (content = 'test', type = 'ai') => ({
   _getType: () => type,
 });
 
-const makeGeminiMessage = (inputTokens = 3, outputTokens = 2, totalTokens?: number) => ({
+const makeGeminiMessage = (
+  inputTokens = 3,
+  outputTokens = 2,
+  totalTokens?: number
+) => ({
   ...makeMessage(),
   usage_metadata: {
     input_tokens: inputTokens,
@@ -28,7 +32,11 @@ const makeGeminiMessage = (inputTokens = 3, outputTokens = 2, totalTokens?: numb
   },
 });
 
-const makeOpenAIMessage = (promptTokens = 4, completionTokens = 1, totalTokens?: number) => ({
+const makeOpenAIMessage = (
+  promptTokens = 4,
+  completionTokens = 1,
+  totalTokens?: number
+) => ({
   ...makeMessage(),
   response_metadata: {
     tokenUsage: {
@@ -49,7 +57,11 @@ const makeAnthropicMessage = (inputTokens = 7, outputTokens = 3) => ({
   },
 });
 
-const makeLangChainResult = (promptTokens = 10, completionTokens = 5, totalTokens?: number) => ({
+const makeLangChainResult = (
+  promptTokens = 10,
+  completionTokens = 5,
+  totalTokens?: number
+) => ({
   llmOutput: {
     tokenUsage: {
       promptTokens,
@@ -60,7 +72,12 @@ const makeLangChainResult = (promptTokens = 10, completionTokens = 5, totalToken
   generations: [],
 });
 
-const expectUsage = (usage: any, prompt: number, response: number, total?: number) => {
+const expectUsage = (
+  usage: any,
+  prompt: number,
+  response: number,
+  total?: number
+) => {
   expect(usage).toEqual({
     promptTokens: prompt,
     responseTokens: response,
@@ -80,23 +97,49 @@ describe('TokenTracker', () => {
   describe('trackCall', () => {
     describe('provider token formats', () => {
       it.each([
-        ['Gemini usage_metadata', makeGeminiMessage(3, 2, 5), 'gemini', 3, 2, 5],
-        ['OpenAI response_metadata', makeOpenAIMessage(4, 1, 5), 'openai', 4, 1, 5],
+        [
+          'Gemini usage_metadata',
+          makeGeminiMessage(3, 2, 5),
+          'gemini',
+          3,
+          2,
+          5,
+        ],
+        [
+          'OpenAI response_metadata',
+          makeOpenAIMessage(4, 1, 5),
+          'openai',
+          4,
+          1,
+          5,
+        ],
         ['Anthropic usage', makeAnthropicMessage(7, 3), 'anthropic', 7, 3, 10],
       ])(
         'tracks tokens from %s',
-        (_, message, model, expectedPrompt, expectedResponse, expectedTotal) => {
+        (
+          _,
+          message,
+          model,
+          expectedPrompt,
+          expectedResponse,
+          expectedTotal
+        ) => {
           const usage = TokenTracker.trackCall(message, model);
-          
+
           expectUsage(usage, expectedPrompt, expectedResponse, expectedTotal);
-          expectUsage(TokenTracker.getSessionTokenUsage(), expectedPrompt, expectedResponse, expectedTotal);
+          expectUsage(
+            TokenTracker.getSessionTokenUsage(),
+            expectedPrompt,
+            expectedResponse,
+            expectedTotal
+          );
         }
       );
 
       it('calculates total tokens when missing', () => {
         const message = makeGeminiMessage(5, 3, 0);
         const usage = TokenTracker.trackCall(message, 'gemini');
-        
+
         expect(usage.totalTokens).toBe(8);
         expect(TokenTracker.getSessionTokenUsage().totalTokens).toBe(8);
       });
@@ -109,7 +152,7 @@ describe('TokenTracker', () => {
           makeGeminiMessage(2, 1, 3),
         ];
         const usage = TokenTracker.trackCall(messages, 'test-model');
-        
+
         expectUsage(usage, 2, 1, 3);
       });
 
@@ -119,13 +162,13 @@ describe('TokenTracker', () => {
           makeGeminiMessage(3, 2, 5),
         ];
         const usage = TokenTracker.trackCall(messages, 'test-model');
-        
+
         expectUsage(usage, 3, 2, 5);
       });
 
       it('handles empty array with fallback', () => {
         const usage = TokenTracker.trackCall([], 'test-model');
-        
+
         expectUsage(usage, 0, 0, 0);
         expect(mockLogger.warn).toHaveBeenCalledWith(
           'No token usage information available for model [test-model], using fallback estimation.'
@@ -139,7 +182,7 @@ describe('TokenTracker', () => {
         ['undefined', undefined],
       ])('returns zero tokens for %s result', (_, input) => {
         const usage = TokenTracker.trackCall(input, 'test-model');
-        
+
         expectUsage(usage, 0, 0, 0);
         expect(mockLogger.warn).toHaveBeenCalledWith(
           'trackCall received null or undefined result for model [test-model]. Returning zero tokens.'
@@ -152,7 +195,7 @@ describe('TokenTracker', () => {
         ['complex object', { nested: { content: 'complex response' } }],
       ])('uses fallback estimation for %s', (_, input) => {
         const usage = TokenTracker.trackCall(input, 'test-model');
-        
+
         expect(usage.promptTokens).toBe(0);
         expect(usage.responseTokens).toBeGreaterThan(0);
         expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -164,7 +207,7 @@ describe('TokenTracker', () => {
     it('handles JSON content in fallback', () => {
       const message = { ...makeMessage(), content: { text: 'JSON content' } };
       const usage = TokenTracker.trackCall(message, 'test-model');
-      
+
       expect(usage.responseTokens).toBeGreaterThan(0);
       expect(usage.totalTokens).toBe(usage.responseTokens);
     });
@@ -174,8 +217,12 @@ describe('TokenTracker', () => {
     describe('llmOutput priority', () => {
       it('uses explicit token data from llmOutput', () => {
         const resultObj = makeLangChainResult(10, 5, 15);
-        const usage = TokenTracker.trackFullUsage('test prompt', resultObj, 'test-model');
-        
+        const usage = TokenTracker.trackFullUsage(
+          'test prompt',
+          resultObj,
+          'test-model'
+        );
+
         expectUsage(usage, 10, 5, 15);
         expect(mockLogger.debug).toHaveBeenCalledWith(
           'Token usage for model [test-model]: Prompt tokens: 10, Response tokens: 5, Total tokens: 15'
@@ -184,8 +231,12 @@ describe('TokenTracker', () => {
 
       it('calculates missing total tokens', () => {
         const resultObj = makeLangChainResult(8, 4, 0);
-        const usage = TokenTracker.trackFullUsage('test prompt', resultObj, 'test-model');
-        
+        const usage = TokenTracker.trackFullUsage(
+          'test prompt',
+          resultObj,
+          'test-model'
+        );
+
         expect(usage.totalTokens).toBe(12);
       });
     });
@@ -195,8 +246,12 @@ describe('TokenTracker', () => {
         const resultObj = {
           generations: [[{ message: makeGeminiMessage(3, 2, 5) }]],
         };
-        const usage = TokenTracker.trackFullUsage('test prompt', resultObj, 'test-model');
-        
+        const usage = TokenTracker.trackFullUsage(
+          'test prompt',
+          resultObj,
+          'test-model'
+        );
+
         expectUsage(usage, 3, 2, 5);
       });
 
@@ -204,17 +259,27 @@ describe('TokenTracker', () => {
         const resultObj = {
           generations: [[{ message: makeGeminiMessage(0, 3, 3) }]],
         };
-        const usage = TokenTracker.trackFullUsage('This is a test prompt', resultObj, 'test-model');
-        
+        const usage = TokenTracker.trackFullUsage(
+          'This is a test prompt',
+          resultObj,
+          'test-model'
+        );
+
         expect(usage.promptTokens).toBeGreaterThan(0);
         expect(usage.responseTokens).toBe(3);
         expect(usage.totalTokens).toBe(usage.promptTokens + 3);
       });
 
       it('uses fallback estimation for text extraction', () => {
-        const resultObj = { generations: [[{ text: 'extracted text response' }]] };
-        const usage = TokenTracker.trackFullUsage('test prompt', resultObj, 'test-model');
-        
+        const resultObj = {
+          generations: [[{ text: 'extracted text response' }]],
+        };
+        const usage = TokenTracker.trackFullUsage(
+          'test prompt',
+          resultObj,
+          'test-model'
+        );
+
         expect(usage.promptTokens).toBeGreaterThan(0);
         expect(usage.responseTokens).toBeGreaterThan(0);
         expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -223,9 +288,16 @@ describe('TokenTracker', () => {
       });
 
       it('uses fallback estimation for complex object', () => {
-        const resultObj = { some: 'complex object', without: 'expected structure' };
-        const usage = TokenTracker.trackFullUsage('test prompt', resultObj, 'test-model');
-        
+        const resultObj = {
+          some: 'complex object',
+          without: 'expected structure',
+        };
+        const usage = TokenTracker.trackFullUsage(
+          'test prompt',
+          resultObj,
+          'test-model'
+        );
+
         expect(usage.promptTokens).toBeGreaterThan(0);
         expect(usage.responseTokens).toBeGreaterThan(0);
       });
@@ -276,8 +348,16 @@ describe('TokenTracker', () => {
     });
 
     it.each([
-      ['fallback estimation', makeMessage('test without metadata'), 'No token usage information available for model [test-model], using fallback estimation.'],
-      ['null result', null, 'trackCall received null or undefined result for model [test-model]. Returning zero tokens.'],
+      [
+        'fallback estimation',
+        makeMessage('test without metadata'),
+        'No token usage information available for model [test-model], using fallback estimation.',
+      ],
+      [
+        'null result',
+        null,
+        'trackCall received null or undefined result for model [test-model]. Returning zero tokens.',
+      ],
     ])('logs warning for %s', (_, input, expectedMessage) => {
       TokenTracker.trackCall(input, 'test-model');
 

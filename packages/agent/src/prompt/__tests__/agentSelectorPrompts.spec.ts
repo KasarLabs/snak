@@ -36,8 +36,16 @@ describe('agentSelectorPrompts', () => {
     describe('normal operation', () => {
       it('should generate system prompt with multiple agent types', () => {
         const agentDescriptions = makeAgentDescriptions([
-          makeAgent({ id: 'config-agent', name: 'Configuration Agent', type: 'operator' }),
-          makeAgent({ id: 'ethereum-agent', name: 'Ethereum Agent', type: 'snak' }),
+          makeAgent({
+            id: 'config-agent',
+            name: 'Configuration Agent',
+            type: 'operator',
+          }),
+          makeAgent({
+            id: 'ethereum-agent',
+            name: 'Ethereum Agent',
+            type: 'snak',
+          }),
         ]);
 
         const result = agentSelectionSystemPrompt(agentDescriptions);
@@ -71,14 +79,19 @@ describe('agentSelectorPrompts', () => {
       it.each([
         ['empty array', '[]'],
         ['whitespace padded array', '  []  '],
-        ['single agent with whitespace', `  ${makeAgentDescriptions([makeAgent()])}  `],
+        [
+          'single agent with whitespace',
+          `  ${makeAgentDescriptions([makeAgent()])}  `,
+        ],
       ])('should handle %s', (_, input) => {
         const result = agentSelectionSystemPrompt(input);
         expect(result).toContain('You are an agent selector');
       });
 
       it('should handle agents with missing properties', () => {
-        const agentDescriptions = makeAgentDescriptions([{ id: 'incomplete', type: 'operator' }]);
+        const agentDescriptions = makeAgentDescriptions([
+          { id: 'incomplete', type: 'operator' },
+        ]);
 
         const result = agentSelectionSystemPrompt(agentDescriptions);
 
@@ -116,28 +129,35 @@ describe('agentSelectorPrompts', () => {
       {
         name: 'noMatchingAgentMessage',
         fn: noMatchingAgentMessage,
-        expected: "I don't have an agent that can handle this specific request. Could you clarify what you're trying to do?",
+        expected:
+          "I don't have an agent that can handle this specific request. Could you clarify what you're trying to do?",
       },
       {
         name: 'defaultClarificationMessage',
         fn: defaultClarificationMessage,
-        expected: 'I need more information to select the appropriate agent. Could you provide more details about what you need?',
+        expected:
+          'I need more information to select the appropriate agent. Could you provide more details about what you need?',
       },
       {
         name: 'errorFallbackMessage',
         fn: errorFallbackMessage,
-        expected: 'I encountered an issue understanding your request. Could you rephrase it or provide more details about what you need help with?',
+        expected:
+          'I encountered an issue understanding your request. Could you rephrase it or provide more details about what you need help with?',
       },
       {
         name: 'noValidAgentMessage',
         fn: noValidAgentMessage,
-        expected: "I couldn't identify which agent should handle your request. Could you describe more precisely what you need help with?",
+        expected:
+          "I couldn't identify which agent should handle your request. Could you describe more precisely what you need help with?",
       },
     ];
 
-    test.each(messageTests)('$name returns correct message', ({ fn, expected }) => {
-      expect(fn()).toBe(expected);
-    });
+    test.each(messageTests)(
+      '$name returns correct message',
+      ({ fn, expected }) => {
+        expect(fn()).toBe(expected);
+      }
+    );
 
     test.each(messageTests)('$name returns consistent results', ({ fn }) => {
       const result1 = fn();

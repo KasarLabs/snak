@@ -30,7 +30,11 @@ jest.mock(
 );
 
 // Plugin register factories
-const createPluginRegister = (toolName: string, pluginName: string, result: any = `${pluginName} result`) =>
+const createPluginRegister = (
+  toolName: string,
+  pluginName: string,
+  result: any = `${pluginName} result`
+) =>
   jest.fn(async (tools: StarknetTool[], agent: SnakAgentInterface) => {
     tools.push({
       name: toolName,
@@ -51,25 +55,37 @@ const pluginMocks = [
   ['mock', mockPluginRegister],
   ['other', otherPluginRegister],
   ['invalid', null],
-  ['error', new Error('Plugin loading error')]
+  ['error', new Error('Plugin loading error')],
 ] as const;
 
 pluginMocks.forEach(([plugin, register]) => {
   if (register instanceof Error) {
-    jest.mock(`@snakagent/plugin-${plugin}/dist/index.js`, () => {
-      throw register;
-    }, { virtual: true });
+    jest.mock(
+      `@snakagent/plugin-${plugin}/dist/index.js`,
+      () => {
+        throw register;
+      },
+      { virtual: true }
+    );
   } else if (register) {
-    jest.mock(`@snakagent/plugin-${plugin}/dist/index.js`, () => ({
-      registerTools: register,
-    }), { virtual: true });
+    jest.mock(
+      `@snakagent/plugin-${plugin}/dist/index.js`,
+      () => ({
+        registerTools: register,
+      }),
+      { virtual: true }
+    );
   } else {
-    jest.mock(`@snakagent/plugin-${plugin}/dist/index.js`, () => ({}), { virtual: true });
+    jest.mock(`@snakagent/plugin-${plugin}/dist/index.js`, () => ({}), {
+      virtual: true,
+    });
   }
 });
 
 // Agent factory
-const createAgent = (overrides: Partial<SnakAgentInterface> = {}): SnakAgentInterface => ({
+const createAgent = (
+  overrides: Partial<SnakAgentInterface> = {}
+): SnakAgentInterface => ({
   getAccountCredentials: () => ({
     accountPublicKey: '0x1234567890abcdef',
     accountPrivateKey: '0xfedcba0987654321',
@@ -82,11 +98,12 @@ const createAgent = (overrides: Partial<SnakAgentInterface> = {}): SnakAgentInte
     database: 'testdb',
   }),
   getProvider: () => ({}) as any,
-  getAgentConfig: () => ({
-    name: 'test-agent',
-    id: 'test-agent-123',
-    mode: 'interactive',
-  }) as any,
+  getAgentConfig: () =>
+    ({
+      name: 'test-agent',
+      id: 'test-agent-123',
+      mode: 'interactive',
+    }) as any,
   getMemoryAgent: () => null,
   getRagAgent: () => null,
   ...overrides,
@@ -101,13 +118,14 @@ const createTool = (overrides: Partial<StarknetTool> = {}): StarknetTool => ({
   ...overrides,
 });
 
-const createToolWithSchema = (): StarknetTool => createTool({
-  name: 'sampleToolWithSchema',
-  description: 'A sample tool with schema',
-  schema: {} as any,
-  responseFormat: 'json',
-  execute: jest.fn(async () => ({ result: 'success' })),
-});
+const createToolWithSchema = (): StarknetTool =>
+  createTool({
+    name: 'sampleToolWithSchema',
+    description: 'A sample tool with schema',
+    schema: {} as any,
+    responseFormat: 'json',
+    execute: jest.fn(async () => ({ result: 'success' })),
+  });
 
 describe('StarknetToolRegistry', () => {
   beforeEach(() => {
@@ -119,15 +137,18 @@ describe('StarknetToolRegistry', () => {
     it.each([
       [1, [createTool()]],
       [2, [createTool(), createToolWithSchema()]],
-      [3, [createTool(), createTool({ name: 'tool2' }), createToolWithSchema()]],
+      [
+        3,
+        [createTool(), createTool({ name: 'tool2' }), createToolWithSchema()],
+      ],
     ])('should register %i tool(s)', (count, tools) => {
-      tools.forEach(tool => StarknetToolRegistry.registerTool(tool));
+      tools.forEach((tool) => StarknetToolRegistry.registerTool(tool));
       const registeredTools = (StarknetToolRegistry as any).tools;
       expect(registeredTools).toHaveLength(count);
     });
 
     it('should clear all registered tools', () => {
-      [createTool(), createToolWithSchema()].forEach(tool => 
+      [createTool(), createToolWithSchema()].forEach((tool) =>
         StarknetToolRegistry.registerTool(tool)
       );
       expect((StarknetToolRegistry as any).tools).toHaveLength(2);
@@ -142,13 +163,16 @@ describe('StarknetToolRegistry', () => {
       ['empty array for no allowed tools', [], 0],
       ['single tool for one plugin', ['mock'], 1],
       ['multiple tools for multiple plugins', ['mock', 'other'], 2],
-    ])('should return %s', async (description, allowedTools, expectedLength) => {
-      const result = await StarknetToolRegistry.createAllowedTools(
-        createAgent(),
-        allowedTools
-      );
-      expect(result).toHaveLength(expectedLength);
-    });
+    ])(
+      'should return %s',
+      async (description, allowedTools, expectedLength) => {
+        const result = await StarknetToolRegistry.createAllowedTools(
+          createAgent(),
+          allowedTools
+        );
+        expect(result).toHaveLength(expectedLength);
+      }
+    );
 
     it('should clear existing tools before creating new ones', async () => {
       await StarknetToolRegistry.createAllowedTools(createAgent(), ['mock']);
@@ -170,14 +194,24 @@ describe('registerTools', () => {
   describe('Successful registration', () => {
     it.each([
       ['single plugin', ['mock'], 1, [mockPluginRegister]],
-      ['multiple plugins', ['mock', 'other'], 2, [mockPluginRegister, otherPluginRegister]],
-    ])('should register tools for %s', async (description, plugins, expectedCount, expectedCalls) => {
-      const tools: StarknetTool[] = [];
-      await registerTools(createAgent(), plugins, tools);
+      [
+        'multiple plugins',
+        ['mock', 'other'],
+        2,
+        [mockPluginRegister, otherPluginRegister],
+      ],
+    ])(
+      'should register tools for %s',
+      async (description, plugins, expectedCount, expectedCalls) => {
+        const tools: StarknetTool[] = [];
+        await registerTools(createAgent(), plugins, tools);
 
-      expect(tools).toHaveLength(expectedCount);
-      expectedCalls.forEach(mockFn => expect(mockFn).toHaveBeenCalledTimes(1));
-    });
+        expect(tools).toHaveLength(expectedCount);
+        expectedCalls.forEach((mockFn) =>
+          expect(mockFn).toHaveBeenCalledTimes(1)
+        );
+      }
+    );
 
     it('should call metrics for registered tools', async () => {
       const { metrics } = require('@snakagent/metrics');
@@ -272,7 +306,7 @@ describe('Integration and end-to-end', () => {
 
     expect(tools).toHaveLength(2);
     expect(allowedTools).toHaveLength(2);
-    expect(allowedTools.map(t => t.name)).toEqual(['mockTool', 'otherTool']);
+    expect(allowedTools.map((t) => t.name)).toEqual(['mockTool', 'otherTool']);
   });
 
   it('should execute tools correctly through DynamicStructuredTool interface', async () => {

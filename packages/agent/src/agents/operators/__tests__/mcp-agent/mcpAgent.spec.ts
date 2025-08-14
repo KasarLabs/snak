@@ -40,8 +40,18 @@ jest.mock('../../modelSelector.js', () => ({
 // Mock the MCP agent tools
 jest.mock('../../mcp-agent/mcpAgentTools.js', () => ({
   getMcpAgentTools: jest.fn(() => [
-    { name: 'search_mcp_server', description: 'Search for MCP servers', schema: {}, func: jest.fn() },
-    { name: 'add_mcp_server', description: 'Add an MCP server', schema: {}, func: jest.fn() },
+    {
+      name: 'search_mcp_server',
+      description: 'Search for MCP servers',
+      schema: {},
+      func: jest.fn(),
+    },
+    {
+      name: 'add_mcp_server',
+      description: 'Add an MCP server',
+      schema: {},
+      func: jest.fn(),
+    },
   ]),
 }));
 
@@ -81,7 +91,8 @@ describe('MCPAgent', () => {
     jest.clearAllMocks();
     mockLogger = require('@snakagent/core').logger;
     mockModelSelector = require('../../modelSelector.js').ModelSelector;
-    mockCreateReactAgent = require('@langchain/langgraph/prebuilt').createReactAgent;
+    mockCreateReactAgent =
+      require('@langchain/langgraph/prebuilt').createReactAgent;
     mockReactAgent = { invoke: jest.fn() };
   });
 
@@ -90,7 +101,9 @@ describe('MCPAgent', () => {
       const agent = new MCPAgent();
       expect(agent.id).toBe('mcp-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
-      expect(agent.description).toContain('managing MCP (Model Context Protocol) servers');
+      expect(agent.description).toContain(
+        'managing MCP (Model Context Protocol) servers'
+      );
     });
 
     it('should not log debug when debug:false', () => {
@@ -137,7 +150,7 @@ describe('MCPAgent', () => {
     ])('should execute with %s', async (_, input) => {
       const { agent, reactAgentInvoke } = setupAgent();
       await agent.init();
-      
+
       reactAgentInvoke.mockResolvedValue({
         messages: [ai('success')],
       });
@@ -159,10 +172,12 @@ describe('MCPAgent', () => {
     it('should prioritize originalUserQuery from config', async () => {
       const { agent, reactAgentInvoke } = setupAgent();
       await agent.init();
-      
+
       reactAgentInvoke.mockResolvedValue({ messages: [ai('done')] });
 
-      await agent.execute('some input', false, { originalUserQuery: 'config query' });
+      await agent.execute('some input', false, {
+        originalUserQuery: 'config query',
+      });
 
       expect(reactAgentInvoke).toHaveBeenCalledWith({
         messages: [human('config query')],
@@ -172,8 +187,10 @@ describe('MCPAgent', () => {
     it('should prioritize originalUserQuery from additional_kwargs', async () => {
       const { agent, reactAgentInvoke } = setupAgent();
       await agent.init();
-      
-      const message = human('some content', { originalUserQuery: 'kwargs query' });
+
+      const message = human('some content', {
+        originalUserQuery: 'kwargs query',
+      });
       reactAgentInvoke.mockResolvedValue({ messages: [ai('done')] });
 
       await agent.execute(message);
@@ -188,7 +205,9 @@ describe('MCPAgent', () => {
       const result = await agent.execute('test');
 
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('MCP operation failed: React agent not initialized');
+      expect(result.content).toContain(
+        'MCP operation failed: React agent not initialized'
+      );
       expect(result.additional_kwargs.success).toBe(false);
     });
 
@@ -246,7 +265,9 @@ describe('MCPAgent', () => {
       await agent.dispose();
 
       expect(mockUnregister).toHaveBeenCalledWith('mcp-agent');
-      expect(mockLogger.debug).toHaveBeenCalledWith('MCPAgent disposed and unregistered');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'MCPAgent disposed and unregistered'
+      );
     });
 
     it('should log error on unregister failure', async () => {

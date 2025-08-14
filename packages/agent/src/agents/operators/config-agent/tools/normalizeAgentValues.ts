@@ -52,23 +52,25 @@ const DEFAULT_VALUES = {
   memory: {
     enabled: false,
     shortTermMemorySize: 5,
-    memorySize: 20
+    memorySize: 20,
   },
   rag: {
     enabled: false,
     topK: 4,
-    embeddingModel: 'Xenova/all-MiniLM-L6-v2'
-  }
+    embeddingModel: 'Xenova/all-MiniLM-L6-v2',
+  },
 } as const;
 
 /**
  * Checks if a value is a plain object (not null, array, date, etc.)
  */
 function isPlainObject(value: any): value is Record<string, any> {
-  return value !== null && 
-         typeof value === 'object' && 
-         !Array.isArray(value) && 
-         Object.prototype.toString.call(value) === '[object Object]';
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.prototype.toString.call(value) === '[object Object]'
+  );
 }
 
 /**
@@ -80,13 +82,19 @@ function normalizeNumericValue(
   propertyName: string
 ): { value: number; appliedDefault: string | null } {
   if (value === null || value === undefined) {
-    return { value: defaultValue, appliedDefault: `${propertyName} set to default value (${defaultValue})` };
+    return {
+      value: defaultValue,
+      appliedDefault: `${propertyName} set to default value (${defaultValue})`,
+    };
   }
-  
+
   if (!Number.isFinite(value) || value <= 0) {
-    return { value: defaultValue, appliedDefault: `${propertyName} set to default value (${defaultValue})` };
+    return {
+      value: defaultValue,
+      appliedDefault: `${propertyName} set to default value (${defaultValue})`,
+    };
   }
-  
+
   return { value, appliedDefault: null };
 }
 
@@ -99,9 +107,12 @@ function normalizeBooleanValue(
   propertyName: string
 ): { value: boolean; appliedDefault: string | null } {
   if (value === null || value === undefined) {
-    return { value: defaultValue, appliedDefault: `${propertyName} set to default value (${defaultValue})` };
+    return {
+      value: defaultValue,
+      appliedDefault: `${propertyName} set to default value (${defaultValue})`,
+    };
   }
-  
+
   return { value, appliedDefault: null };
 }
 
@@ -114,23 +125,27 @@ function normalizeStringValue(
   propertyName: string
 ): { value: string; appliedDefault: string | null } {
   if (value === null || value === undefined) {
-    return { value: defaultValue, appliedDefault: `${propertyName} set to default value (${defaultValue})` };
+    return {
+      value: defaultValue,
+      appliedDefault: `${propertyName} set to default value (${defaultValue})`,
+    };
   }
-  
+
   return { value, appliedDefault: null };
 }
 
 /**
  * Normalizes memory configuration
  */
-function normalizeMemoryConfig(
-  memory: MemoryConfig | null | undefined
-): { config: MemoryConfig; appliedDefaults: string[] } {
+function normalizeMemoryConfig(memory: MemoryConfig | null | undefined): {
+  config: MemoryConfig;
+  appliedDefaults: string[];
+} {
   const appliedDefaults: string[] = [];
-  
+
   if (memory && isPlainObject(memory)) {
     const config: MemoryConfig = { ...memory };
-    
+
     // Normalize shortTermMemorySize
     const shortTermResult = normalizeNumericValue(
       memory.shortTermMemorySize,
@@ -141,7 +156,7 @@ function normalizeMemoryConfig(
     if (shortTermResult.appliedDefault) {
       appliedDefaults.push(shortTermResult.appliedDefault);
     }
-    
+
     // Normalize memorySize
     const memorySizeResult = normalizeNumericValue(
       memory.memorySize,
@@ -152,7 +167,7 @@ function normalizeMemoryConfig(
     if (memorySizeResult.appliedDefault) {
       appliedDefaults.push(memorySizeResult.appliedDefault);
     }
-    
+
     // Normalize enabled
     const enabledResult = normalizeBooleanValue(
       memory.enabled,
@@ -163,7 +178,7 @@ function normalizeMemoryConfig(
     if (enabledResult.appliedDefault) {
       appliedDefaults.push(enabledResult.appliedDefault);
     }
-    
+
     return { config, appliedDefaults };
   } else {
     // Initialize with defaults
@@ -177,14 +192,15 @@ function normalizeMemoryConfig(
 /**
  * Normalizes RAG configuration
  */
-function normalizeRagConfig(
-  rag: RagConfig | null | undefined
-): { config: RagConfig; appliedDefaults: string[] } {
+function normalizeRagConfig(rag: RagConfig | null | undefined): {
+  config: RagConfig;
+  appliedDefaults: string[];
+} {
   const appliedDefaults: string[] = [];
-  
+
   if (rag && isPlainObject(rag)) {
     const config: RagConfig = { ...rag };
-    
+
     // Normalize topK
     const topKResult = normalizeNumericValue(
       rag.topK,
@@ -195,7 +211,7 @@ function normalizeRagConfig(
     if (topKResult.appliedDefault) {
       appliedDefaults.push(topKResult.appliedDefault);
     }
-    
+
     // Normalize enabled
     const enabledResult = normalizeBooleanValue(
       rag.enabled,
@@ -206,7 +222,7 @@ function normalizeRagConfig(
     if (enabledResult.appliedDefault) {
       appliedDefaults.push(enabledResult.appliedDefault);
     }
-    
+
     // Normalize embeddingModel
     const embeddingModelResult = normalizeStringValue(
       rag.embeddingModel,
@@ -217,7 +233,7 @@ function normalizeRagConfig(
     if (embeddingModelResult.appliedDefault) {
       appliedDefaults.push(embeddingModelResult.appliedDefault);
     }
-    
+
     return { config, appliedDefaults };
   } else {
     // Initialize with defaults
@@ -237,7 +253,9 @@ function normalizeRagConfig(
 export function normalizeNumericValues(
   config: AgentConfig
 ): NormalizationResult {
-  const normalizedConfig: NormalizedAgentConfig = { ...config } as NormalizedAgentConfig;
+  const normalizedConfig: NormalizedAgentConfig = {
+    ...config,
+  } as NormalizedAgentConfig;
   const appliedDefaults: string[] = [];
 
   // Normalize max_iterations

@@ -29,12 +29,15 @@ describe('mcpAgentPrompts', () => {
 
     describe('core content sections', () => {
       it.each([
-        ['role definition', 'You are a specialized MCP (Model Context Protocol) Agent'],
+        [
+          'role definition',
+          'You are a specialized MCP (Model Context Protocol) Agent',
+        ],
         ['responsibilities header', 'Your primary responsibilities include:'],
         ['request handling header', 'When handling requests:'],
         ['tools section header', 'Use the available tools to:'],
         ['reminders header', 'Remember:'],
-        ['workflow header', 'Respond to user queries by:']
+        ['workflow header', 'Respond to user queries by:'],
       ])('should contain %s', (description, expectedContent) => {
         expect(prompt).toContain(expectedContent);
       });
@@ -45,7 +48,7 @@ describe('mcpAgentPrompts', () => {
         ['Managing MCP server configurations'],
         ['Monitoring MCP server status and health'],
         ['Managing and organizing MCP tools'],
-        ['Ensuring proper integration of MCP servers']
+        ['Ensuring proper integration of MCP servers'],
       ])('should include responsibility: %s', (responsibility) => {
         expect(prompt).toContain(responsibility);
       });
@@ -62,7 +65,7 @@ describe('mcpAgentPrompts', () => {
         ['Maintain consistent configuration formats'],
         ['Ensure proper error handling and logging'],
         ['Keep track of MCP server states and connections'],
-        ['Provide clear feedback on operation results']
+        ['Provide clear feedback on operation results'],
       ])('should include guideline: %s', (guideline) => {
         expect(prompt).toContain(guideline);
       });
@@ -73,7 +76,7 @@ describe('mcpAgentPrompts', () => {
         ['List and inspect MCP servers'],
         ['Manage MCP server configurations'],
         ['View and organize MCP tools'],
-        ['Monitor MCP server status']
+        ['Monitor MCP server status'],
       ])('should mention tool capability: %s', (capability) => {
         expect(prompt).toContain(capability);
       });
@@ -85,7 +88,7 @@ describe('mcpAgentPrompts', () => {
         [2, 'Validating inputs and current state'],
         [3, 'Using appropriate tools to perform the operation'],
         [4, 'Providing clear feedback on results'],
-        [5, 'Handling any errors gracefully']
+        [5, 'Handling any errors gracefully'],
       ])('should include step %i: %s', (stepNumber, stepContent) => {
         expect(prompt).toContain(`${stepNumber}. ${stepContent}`);
       });
@@ -96,7 +99,7 @@ describe('mcpAgentPrompts', () => {
         ['MCP servers are crucial for extending agent capabilities'],
         ['Configuration changes should be handled carefully'],
         ['Always maintain proper security practices'],
-        ['Keep configurations well-documented']
+        ['Keep configurations well-documented'],
       ])('should emphasize concept: %s', (concept) => {
         expect(prompt).toContain(concept);
       });
@@ -161,4 +164,3 @@ Your goal is to ensure smooth operation and management of MCP servers while main
     });
   });
 });
-
