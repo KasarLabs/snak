@@ -1,7 +1,7 @@
 import { AgentSelector } from '../agentSelector.js';
 
-// Mock the prompts
-jest.mock('../../../prompt/prompts', () => ({
+// Mock the prompts with .js suffix for ESM compatibility
+jest.mock('../../../prompt/prompts.js', () => ({
   agentSelectorPromptContent: jest.fn(
     (agentInfo, input) =>
       `Mock prompt for agents: ${Array.from(agentInfo.keys()).join(', ')} and input: ${input}`
@@ -50,6 +50,23 @@ class MockModelSelector {
   }
 }
 
+// Helper functions
+const llmOk = (content: any) => ({
+  content,
+  _getType: () => 'ai',
+  usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+});
+
+const llmErr = (msg = 'LLM error') => new Error(msg);
+
+function makeAgents() {
+  return new Map([
+    ['agent1', new MockSnakAgent('agent1', 'Handles blockchain operations') as any],
+    ['agent2', new MockSnakAgent('agent2', 'Handles configuration management') as any],
+    ['agent3', new MockSnakAgent('agent3', 'Handles MCP operations') as any],
+  ]);
+}
+
 describe('AgentSelector', () => {
   let agentSelector: AgentSelector;
   let modelSelector: any;
@@ -58,27 +75,9 @@ describe('AgentSelector', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Create mock agents
-    mockAgents = new Map();
-    mockAgents.set(
-      'agent1',
-      new MockSnakAgent('agent1', 'Handles blockchain operations')
-    );
-    mockAgents.set(
-      'agent2',
-      new MockSnakAgent('agent2', 'Handles configuration management')
-    );
-    mockAgents.set(
-      'agent3',
-      new MockSnakAgent('agent3', 'Handles MCP operations')
-    );
-
-    // Create mock model selector
+    mockAgents = makeAgents();
     modelSelector = new MockModelSelector();
     mockModel = modelSelector.getMockModel();
-
-    // Create agent selector
     agentSelector = new AgentSelector({
       availableAgents: mockAgents,
       modelSelector,
@@ -89,8 +88,6 @@ describe('AgentSelector', () => {
   describe('initialization', () => {
     it('should initialize with available agents', async () => {
       await agentSelector.init();
-
-      // Verify that agents are properly initialized
       expect(mockAgents.size).toBe(3);
       expect(mockAgents.has('agent1')).toBe(true);
       expect(mockAgents.has('agent2')).toBe(true);
@@ -102,7 +99,6 @@ describe('AgentSelector', () => {
         availableAgents: mockAgents,
         modelSelector: null as any,
       });
-
       await agentSelectorWithoutModel.init();
       // Should not throw error
     });
@@ -115,28 +111,18 @@ describe('AgentSelector', () => {
 
     it('should remove an agent successfully', async () => {
       await agentSelector.removeAgent('agent1');
-
-      // Verify agent is removed
       expect(mockAgents.has('agent1')).toBe(false);
       expect(mockAgents.size).toBe(2);
     });
 
     it('should handle removing non-existent agent', async () => {
       await agentSelector.removeAgent('non-existent');
-
-      // Should not throw error and agents should remain unchanged
       expect(mockAgents.size).toBe(3);
     });
 
     it('should update available agents', async () => {
-      const newAgent: any = new MockSnakAgent(
-        'agent4',
-        'Handles new operations'
-      );
-
+      const newAgent = new MockSnakAgent('agent4', 'Handles new operations') as any;
       await agentSelector.updateAvailableAgents(['agent4', newAgent]);
-
-      // Verify new agent is added
       expect(mockAgents.has('agent4')).toBe(true);
       expect(mockAgents.size).toBe(4);
     });
@@ -147,116 +133,38 @@ describe('AgentSelector', () => {
       await agentSelector.init();
     });
 
-    it('should select the correct agent based on LLM response', async () => {
-      // Mock LLM response to return 'agent1'
-      mockModel.invoke.mockResolvedValueOnce({
-        content: 'agent1',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
-      const result = await agentSelector.execute(
-        'I need to perform blockchain operations'
-      );
-
-      expect(result).toBeDefined();
-      expect(result.getAgentConfig().name).toBe('agent1');
+    it.each([
+      { llmContent: 'agent1', expectedAgent: 'agent1', description: 'blockchain operations' },
+      { llmContent: 'agent2', expectedAgent: 'agent2', description: 'configuration management' },
+      { llmContent: 'agent3', expectedAgent: 'agent3', description: 'MCP operations' },
+    ])('should select $expectedAgent for $description', async ({ llmContent, expectedAgent }) => {
+      mockModel.invoke.mockResolvedValueOnce(llmOk(llmContent));
+      const result = await agentSelector.execute('Some request');
+      expect(result.getAgentConfig().name).toBe(expectedAgent);
       expect(mockModel.invoke).toHaveBeenCalledTimes(1);
     });
 
-    it('should select agent2 for configuration requests', async () => {
-      // Mock LLM response to return 'agent2'
-      mockModel.invoke.mockResolvedValueOnce({
-        content: 'agent2',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
-      const result = await agentSelector.execute(
-        'I need to change my configuration'
-      );
-
-      expect(result).toBeDefined();
-      expect(result.getAgentConfig().name).toBe('agent2');
-    });
-
-    it('should select agent3 for MCP operations', async () => {
-      // Mock LLM response to return 'agent3'
-      mockModel.invoke.mockResolvedValueOnce({
-        content: 'agent3',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
-      const result = await agentSelector.execute(
-        'I need to manage MCP servers'
-      );
-
-      expect(result).toBeDefined();
-      expect(result.getAgentConfig().name).toBe('agent3');
+    it.each([
+      { content: '', description: 'empty content' },
+      { content: ' \n', description: 'whitespace-only content' },
+      { content: { complex: 'object' }, description: 'complex object' },
+    ])('should handle $description', async ({ content }) => {
+      mockModel.invoke.mockResolvedValueOnce(llmOk(content));
+      if (typeof content === 'string' && content.trim() === '') {
+        await expect(agentSelector.execute('Some request')).rejects.toThrow('No matching agent found');
+      } else {
+        await expect(agentSelector.execute('Some request')).rejects.toThrow('AgentSelector did not return a valid string response');
+      }
     });
 
     it('should throw error when LLM returns non-existent agent', async () => {
-      // Mock LLM response to return non-existent agent
-      mockModel.invoke.mockResolvedValueOnce({
-        content: 'non-existent-agent',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'No matching agent found'
-      );
-    });
-
-    it('should throw error when LLM returns invalid response format', async () => {
-      // Mock LLM response with invalid format
-      mockModel.invoke.mockResolvedValueOnce({
-        content: { complex: 'object' }, // Not a string
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'AgentSelector did not return a valid string response'
-      );
+      mockModel.invoke.mockResolvedValueOnce(llmOk('non-existent-agent'));
+      await expect(agentSelector.execute('Some request')).rejects.toThrow('No matching agent found');
     });
 
     it('should handle LLM invocation errors', async () => {
-      // Mock LLM to throw an error
-      mockModel.invoke.mockRejectedValueOnce(
-        new Error('LLM service unavailable')
-      );
-
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'AgentSelector execution failed: LLM service unavailable'
-      );
-    });
-
-    it('should handle empty response content', async () => {
-      // Mock LLM response with empty content
-      mockModel.invoke.mockResolvedValueOnce({
-        content: '',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 0, total_tokens: 1 },
-      });
-
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'No matching agent found'
-      );
-    });
-
-    it('should handle whitespace-only response content', async () => {
-      // Mock LLM response with whitespace-only content
-      mockModel.invoke.mockResolvedValueOnce({
-        content: '   \n\t   ',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'No matching agent found'
-      );
+      mockModel.invoke.mockRejectedValueOnce(llmErr('LLM service unavailable'));
+      await expect(agentSelector.execute('Some request')).rejects.toThrow('AgentSelector execution failed: LLM service unavailable');
     });
   });
 
@@ -266,35 +174,15 @@ describe('AgentSelector', () => {
     });
 
     it('should handle case-insensitive agent name matching', async () => {
-      // Mock LLM response with different case
-      mockModel.invoke.mockResolvedValueOnce({
-        content: 'AGENT1',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'No matching agent found'
-      );
+      mockModel.invoke.mockResolvedValueOnce(llmOk('AGENT1'));
+      await expect(agentSelector.execute('Some request')).rejects.toThrow('No matching agent found');
     });
 
     it('should handle special characters in agent names', async () => {
-      // Add agent with special characters
-      const specialAgent: any = new MockSnakAgent(
-        'agent-special',
-        'Handles special operations'
-      );
+      const specialAgent = new MockSnakAgent('agent-special', 'Handles special operations') as any;
       mockAgents.set('agent-special', specialAgent);
-
-      // Mock LLM response
-      mockModel.invoke.mockResolvedValueOnce({
-        content: 'agent-special',
-        _getType: () => 'ai',
-        usage_metadata: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      });
-
+      mockModel.invoke.mockResolvedValueOnce(llmOk('agent-special'));
       const result = await agentSelector.execute('Special operation request');
-
       expect(result.getAgentConfig().name).toBe('agent-special');
     });
   });

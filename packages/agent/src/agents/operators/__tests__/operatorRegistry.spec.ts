@@ -41,244 +41,182 @@ class MockAgent implements IAgent {
 
 describe('OperatorRegistry', () => {
   let registry: OperatorRegistry;
-  let mockAgent1: MockAgent;
-  let mockAgent2: MockAgent;
-  let mockAgent3: MockAgent;
+
+  // Factory functions for consistent test data
+  const createAgent = (id: string, description?: string) => 
+    new MockAgent(id, AgentType.OPERATOR, description);
+
+  const createAgents = () => ({
+    agent1: createAgent('agent1', 'Test agent 1'),
+    agent2: createAgent('agent2', 'Test agent 2'),
+    agent3: createAgent('agent3', 'Test agent 3'),
+  });
 
   beforeEach(() => {
-    // Clear the singleton instance before each test
     OperatorRegistry.resetForTesting();
-
-    // Get a fresh instance
     registry = OperatorRegistry.getInstance();
-
-    // Create mock agents
-    mockAgent1 = new MockAgent('agent1', AgentType.OPERATOR, 'Test agent 1');
-    mockAgent2 = new MockAgent('agent2', AgentType.OPERATOR, 'Test agent 2');
-    mockAgent3 = new MockAgent('agent3', AgentType.OPERATOR, 'Test agent 3');
   });
 
   afterEach(() => {
-    // Clear the registry after each test
     registry.clear();
   });
 
-  describe('getInstance', () => {
-    it('should return the same instance (singleton pattern)', () => {
+  describe('singleton behavior', () => {
+    it('should return the same instance', () => {
       const instance1 = OperatorRegistry.getInstance();
       const instance2 = OperatorRegistry.getInstance();
 
       expect(instance1).toBe(instance2);
       expect(instance1).toBeInstanceOf(OperatorRegistry);
     });
+
+    it('should maintain state across instances', () => {
+      const agent = createAgent('test');
+      const instance1 = OperatorRegistry.getInstance();
+      instance1.register('test', agent);
+
+      const instance2 = OperatorRegistry.getInstance();
+      expect(instance2.getAgent('test')).toBe(agent);
+    });
   });
 
   describe('register', () => {
-    it('should register a new agent successfully', () => {
-      registry.register('agent1', mockAgent1);
-
-      expect(registry.getAgent('agent1')).toBe(mockAgent1);
-      expect(registry.size()).toBe(1);
+    it.each([
+      ['single agent', 1, ['agent1']],
+      ['multiple agents', 3, ['agent1', 'agent2', 'agent3']],
+    ])('should register %s successfully', (_, expectedSize, agentIds) => {
+      const agents = createAgents();
+      
+      agentIds.forEach(id => registry.register(id, agents[id as keyof typeof agents]));
+      
+      expect(registry.size()).toBe(expectedSize);
+      agentIds.forEach(id => {
+        expect(registry.getAgent(id)).toBe(agents[id as keyof typeof agents]);
+      });
     });
 
-    it('should overwrite existing agent when registering with same ID', () => {
-      registry.register('agent1', mockAgent1);
-      registry.register('agent1', mockAgent2);
+    it('should overwrite existing agent with same ID', () => {
+      const agent1 = createAgent('same-id');
+      const agent2 = createAgent('same-id');
+      
+      registry.register('same-id', agent1);
+      registry.register('same-id', agent2);
 
-      expect(registry.getAgent('agent1')).toBe(mockAgent2);
+      expect(registry.getAgent('same-id')).toBe(agent2);
       expect(registry.size()).toBe(1);
-    });
-
-    it('should register multiple agents', () => {
-      registry.register('agent1', mockAgent1);
-      registry.register('agent2', mockAgent2);
-      registry.register('agent3', mockAgent3);
-
-      expect(registry.getAgent('agent1')).toBe(mockAgent1);
-      expect(registry.getAgent('agent2')).toBe(mockAgent2);
-      expect(registry.getAgent('agent3')).toBe(mockAgent3);
-      expect(registry.size()).toBe(3);
     });
   });
 
   describe('unregister', () => {
-    beforeEach(() => {
-      registry.register('agent1', mockAgent1);
-      registry.register('agent2', mockAgent2);
+    it.each([
+      ['existing agent', 'agent1', true, 0],
+      ['non-existent agent', 'missing', false, 1],
+    ])('should handle %s correctly', (_, agentId, expectedResult, expectedSize) => {
+      registry.register('agent1', createAgent('agent1'));
+      
+      const result = registry.unregister(agentId);
+      
+      expect(result).toBe(expectedResult);
+      expect(registry.size()).toBe(expectedSize);
     });
 
-    it('should unregister an existing agent successfully', () => {
-      const result = registry.unregister('agent1');
-
-      expect(result).toBe(true);
-      expect(registry.getAgent('agent1')).toBeUndefined();
-      expect(registry.getAgent('agent2')).toBe(mockAgent2);
-      expect(registry.size()).toBe(1);
-    });
-
-    it('should return false when trying to unregister non-existent agent', () => {
-      const result = registry.unregister('non-existent');
-
-      expect(result).toBe(false);
-      expect(registry.size()).toBe(2);
-    });
-
-    it('should handle unregistering the same agent multiple times', () => {
-      registry.unregister('agent1');
-      const result = registry.unregister('agent1');
-
-      expect(result).toBe(false);
-      expect(registry.size()).toBe(1);
+    it('should handle multiple unregister attempts', () => {
+      const agent = createAgent('test');
+      registry.register('test', agent);
+      
+      expect(registry.unregister('test')).toBe(true);
+      expect(registry.unregister('test')).toBe(false);
+      expect(registry.size()).toBe(0);
     });
   });
 
   describe('getAgent', () => {
-    beforeEach(() => {
-      registry.register('agent1', mockAgent1);
-    });
-
-    it('should return the correct agent for existing ID', () => {
-      const agent = registry.getAgent('agent1');
-
-      expect(agent).toBe(mockAgent1);
-      expect(agent?.id).toBe('agent1');
-    });
-
-    it('should return undefined for non-existent agent ID', () => {
-      const agent = registry.getAgent('non-existent');
-
-      expect(agent).toBeUndefined();
+    it.each([
+      ['existing agent', 'agent1', (agent: MockAgent) => agent],
+      ['non-existent agent', 'missing', () => undefined],
+    ])('should return correct result for %s', (_, agentId, expectedTransform) => {
+      const agent = createAgent('agent1');
+      registry.register('agent1', agent);
+      
+      const result = registry.getAgent(agentId);
+      const expected = expectedTransform(agent);
+      
+      expect(result).toBe(expected);
     });
   });
 
   describe('getAllAgents', () => {
-    beforeEach(() => {
-      registry.register('agent1', mockAgent1);
-      registry.register('agent2', mockAgent2);
-      registry.register('agent3', mockAgent3);
+    it('should return all registered agents as record', () => {
+      const agents = createAgents();
+      Object.entries(agents).forEach(([id, agent]) => 
+        registry.register(id, agent)
+      );
+
+      const result = registry.getAllAgents();
+
+      expect(result).toEqual(agents);
     });
 
-    it('should return all registered agents as a record', () => {
-      const allAgents = registry.getAllAgents();
-
-      expect(allAgents).toEqual({
-        agent1: mockAgent1,
-        agent2: mockAgent2,
-        agent3: mockAgent3,
-      });
-    });
-
-    it('should return empty record when no agents are registered', () => {
-      registry.clear();
-      const allAgents = registry.getAllAgents();
-
-      expect(allAgents).toEqual({});
+    it('should return empty record when no agents registered', () => {
+      expect(registry.getAllAgents()).toEqual({});
     });
   });
 
-  describe('size', () => {
-    it('should return 0 for empty registry', () => {
-      expect(registry.size()).toBe(0);
+  describe('size and clear', () => {
+    it.each([
+      [0, []],
+      [1, ['agent1']],
+      [3, ['agent1', 'agent2', 'agent3']],
+    ])('should return size %d for %j agents', (expectedSize, agentIds) => {
+      const agents = createAgents();
+      agentIds.forEach(id => registry.register(id, agents[id as keyof typeof agents]));
+      
+      expect(registry.size()).toBe(expectedSize);
     });
 
-    it('should return correct count after registering agents', () => {
-      registry.register('agent1', mockAgent1);
-      expect(registry.size()).toBe(1);
-
-      registry.register('agent2', mockAgent2);
-      expect(registry.size()).toBe(2);
-
-      registry.register('agent3', mockAgent3);
+    it('should clear all agents and reset size', () => {
+      const agents = createAgents();
+      Object.entries(agents).forEach(([id, agent]) => registry.register(id, agent));
+      
       expect(registry.size()).toBe(3);
-    });
-
-    it('should return correct count after unregistering agents', () => {
-      registry.register('agent1', mockAgent1);
-      registry.register('agent2', mockAgent2);
-      registry.register('agent3', mockAgent3);
-
-      expect(registry.size()).toBe(3);
-
-      registry.unregister('agent2');
-      expect(registry.size()).toBe(2);
-
-      registry.unregister('agent1');
-      expect(registry.size()).toBe(1);
-    });
-  });
-
-  describe('clear', () => {
-    beforeEach(() => {
-      registry.register('agent1', mockAgent1);
-      registry.register('agent2', mockAgent2);
-      registry.register('agent3', mockAgent3);
-    });
-
-    it('should remove all agents from registry', () => {
-      expect(registry.size()).toBe(3);
-
       registry.clear();
-
+      
       expect(registry.size()).toBe(0);
-      expect(registry.getAgent('agent1')).toBeUndefined();
-      expect(registry.getAgent('agent2')).toBeUndefined();
-      expect(registry.getAgent('agent3')).toBeUndefined();
+      expect(registry.getAllAgents()).toEqual({});
     });
 
-    it('should work on already empty registry', () => {
+    it('should handle clear on empty registry', () => {
       registry.clear();
-
       expect(registry.size()).toBe(0);
-
+      
       registry.clear();
-
       expect(registry.size()).toBe(0);
     });
   });
 
-  describe('integration tests', () => {
-    it('should handle complete lifecycle of agents', async () => {
-      // Register agents
-      registry.register('agent1', mockAgent1);
-      registry.register('agent2', mockAgent2);
-
+  describe('integration scenarios', () => {
+    it('should handle complete agent lifecycle', async () => {
+      const agent1 = createAgent('test1');
+      const agent2 = createAgent('test2');
+      
+      // Register
+      registry.register('test1', agent1);
+      registry.register('test2', agent2);
       expect(registry.size()).toBe(2);
-      expect(registry.getAgent('agent1')).toBe(mockAgent1);
-      expect(registry.getAgent('agent2')).toBe(mockAgent2);
-
-      // Test agent execution
-      const result1 = await mockAgent1.execute('test input');
-      expect(result1).toEqual({
-        result: 'Mock agent agent1 executed with input: test input',
-      });
-
-      // Unregister one agent
-      const unregisterResult = registry.unregister('agent1');
-      expect(unregisterResult).toBe(true);
+      
+      // Execute
+      const result = await agent1.execute('test input');
+      expect(result.result).toBe('Mock agent test1 executed with input: test input');
+      
+      // Unregister
+      expect(registry.unregister('test1')).toBe(true);
       expect(registry.size()).toBe(1);
-      expect(registry.getAgent('agent1')).toBeUndefined();
-      expect(registry.getAgent('agent2')).toBe(mockAgent2);
-
-      // Register a new agent
-      registry.register('agent3', mockAgent3);
-      expect(registry.size()).toBe(2);
-
-      // Clear all
+      expect(registry.getAgent('test1')).toBeUndefined();
+      expect(registry.getAgent('test2')).toBe(agent2);
+      
+      // Clear
       registry.clear();
       expect(registry.size()).toBe(0);
-    });
-
-    it('should maintain singleton behavior across operations', () => {
-      const instance1 = OperatorRegistry.getInstance();
-      instance1.register('agent1', mockAgent1);
-
-      const instance2 = OperatorRegistry.getInstance();
-      expect(instance2.getAgent('agent1')).toBe(mockAgent1);
-      expect(instance2.size()).toBe(1);
-
-      instance2.register('agent2', mockAgent2);
-      expect(instance1.size()).toBe(2);
-      expect(instance1.getAgent('agent2')).toBe(mockAgent2);
     });
   });
 });

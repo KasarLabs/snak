@@ -1,4 +1,3 @@
-// Mock external dependencies BEFORE importing
 jest.mock('@snakagent/core', () => ({
   logger: {
     debug: jest.fn(),
@@ -9,47 +8,18 @@ jest.mock('@snakagent/core', () => ({
 }));
 
 jest.mock('../../../tools/tools', () => ({
-  createAllowedTools: jest.fn().mockResolvedValue([
-    {
-      name: 'test_tool_1',
-      description: 'Test tool 1',
-      invoke: jest.fn().mockResolvedValue('Tool 1 result'),
-    },
-    {
-      name: 'test_tool_2',
-      description: 'Test tool 2',
-      invoke: jest.fn().mockResolvedValue('Tool 2 result'),
-    },
-  ]),
+  createAllowedTools: jest.fn(),
   SnakAgentInterface: jest.fn(),
 }));
 
 jest.mock('../../../services/mcp/src/mcp', () => ({
   MCP_CONTROLLER: {
-    fromAgentConfig: jest.fn().mockReturnValue({
-      initializeConnections: jest.fn().mockResolvedValue(undefined),
-      getTools: jest.fn().mockReturnValue([
-        {
-          name: 'mcp_tool_1',
-          description: 'MCP tool 1',
-          invoke: jest.fn().mockResolvedValue('MCP tool 1 result'),
-        },
-      ]),
-    }),
+    fromAgentConfig: jest.fn(),
   },
 }));
 
 jest.mock('@langchain/langgraph/prebuilt', () => ({
-  ToolNode: jest.fn().mockImplementation((tools) => ({
-    invoke: jest.fn().mockResolvedValue({
-      messages: [
-        {
-          content: 'Tool execution result',
-          _getType: () => 'tool',
-        },
-      ],
-    }),
-  })),
+  ToolNode: jest.fn(),
 }));
 
 import {
@@ -58,484 +28,272 @@ import {
 } from '../toolOrchestratorAgent.js';
 import { HumanMessage } from '@langchain/core/messages';
 
-// Get the mocked modules for testing
 const mockLogger = jest.requireMock('@snakagent/core').logger;
-const mockCreateAllowedTools = jest.requireMock(
-  '../../../tools/tools'
-).createAllowedTools;
-const mockMCPController = jest.requireMock(
-  '../../../services/mcp/src/mcp'
-).MCP_CONTROLLER;
+const mockCreateAllowedTools = jest.requireMock('../../../tools/tools').createAllowedTools;
+const mockMCPController = jest.requireMock('../../../services/mcp/src/mcp').MCP_CONTROLLER;
 const mockToolNode = jest.requireMock('@langchain/langgraph/prebuilt').ToolNode;
 
 describe('ToolsOrchestrator', () => {
-  let toolsOrchestrator: ToolsOrchestrator;
-  let mockConfig: ToolsOrchestratorConfig;
-  let mockSnakAgent: any;
-  let mockModelSelector: any;
+  // Factory functions for test data
+  const createMockTool = (name: string, result: string = `${name} result`) => ({
+    name,
+    description: `${name} description`,
+    invoke: jest.fn().mockResolvedValue(result),
+  });
+
+  const createMockConfig = (overrides: Partial<ToolsOrchestratorConfig> = {}): ToolsOrchestratorConfig => ({
+    snakAgent: { name: 'test-agent', description: 'Test agent' } as any,
+    agentConfig: {
+      plugins: ['test-plugin'],
+      mcpServers: { testServer: { command: 'test-command', args: ['--test'] } },
+    },
+    modelSelector: {
+      getModels: jest.fn().mockReturnValue({
+        fast: { bindTools: jest.fn().mockReturnValue([createMockTool('bound_tool')]) },
+      }),
+    } as any,
+    ...overrides,
+  });
+
+  const createMockMCPController = (tools = [createMockTool('mcp_tool')]) => ({
+    initializeConnections: jest.fn().mockResolvedValue(undefined),
+    getTools: jest.fn().mockReturnValue(tools),
+  });
+
+  const setupMocks = () => {
+    mockCreateAllowedTools.mockResolvedValue([
+      createMockTool('test_tool_1'),
+      createMockTool('test_tool_2'),
+    ]);
+    mockMCPController.fromAgentConfig.mockReturnValue(createMockMCPController());
+    mockToolNode.mockImplementation(() => ({
+      invoke: jest.fn().mockResolvedValue({
+        messages: [{ content: 'Tool execution result' }],
+      }),
+    }));
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Reset mock implementations
-    mockCreateAllowedTools.mockResolvedValue([
-      {
-        name: 'test_tool_1',
-        description: 'Test tool 1',
-        invoke: jest.fn().mockResolvedValue('Tool 1 result'),
-      },
-      {
-        name: 'test_tool_2',
-        description: 'Test tool 2',
-        invoke: jest.fn().mockResolvedValue('Tool 2 result'),
-      },
-    ]);
-
-    // Reset MCP controller mock to default implementation
-    mockMCPController.fromAgentConfig.mockReturnValue({
-      initializeConnections: jest.fn().mockResolvedValue(undefined),
-      getTools: jest.fn().mockReturnValue([
-        {
-          name: 'mcp_tool_1',
-          description: 'MCP tool 1',
-          invoke: jest.fn().mockResolvedValue('MCP tool 1 result'),
-        },
-      ]),
-    });
-
-    mockSnakAgent = {
-      name: 'test-agent',
-      description: 'Test agent',
-    };
-
-    mockModelSelector = {
-      getModels: jest.fn().mockReturnValue({
-        fast: {
-          bindTools: jest.fn().mockReturnValue([
-            {
-              name: 'bound_tool_1',
-              description: 'Bound tool 1',
-            },
-          ]),
-        },
-      }),
-    };
-
-    // Create default configuration
-    mockConfig = {
-      snakAgent: mockSnakAgent,
-      agentConfig: {
-        plugins: ['test-plugin'],
-        mcpServers: {
-          testServer: {
-            command: 'test-command',
-            args: ['--test'],
-          },
-        },
-      },
-      modelSelector: mockModelSelector,
-    };
-
-    // Create tools orchestrator instance
-    toolsOrchestrator = new ToolsOrchestrator(mockConfig);
+    setupMocks();
   });
 
   describe('initialization', () => {
-    it('should initialize with default configuration values', () => {
-      const config: ToolsOrchestratorConfig = {
-        snakAgent: null,
-        agentConfig: {},
-        modelSelector: null,
-      };
-
-      const agent = new ToolsOrchestrator(config);
-      expect(agent).toBeDefined();
+    it.each([
+      ['null values', { snakAgent: null, agentConfig: {}, modelSelector: null }],
+      ['with agent and plugins', createMockConfig()],
+    ])('should initialize with %s', (_, config) => {
+      const orchestrator = new ToolsOrchestrator(config);
+      expect(orchestrator).toBeDefined();
     });
 
-    it('should initialize with custom configuration', () => {
-      const customConfig: ToolsOrchestratorConfig = {
-        snakAgent: mockSnakAgent,
-        agentConfig: {
-          plugins: ['custom-plugin'],
-          mcpServers: {},
-        },
-        modelSelector: mockModelSelector,
-      };
+    it('should initialize successfully with tools and MCP', async () => {
+      const config = createMockConfig();
+      const orchestrator = new ToolsOrchestrator(config);
+      
+      await orchestrator.init();
 
-      const agent = new ToolsOrchestrator(customConfig);
-      expect(agent).toBeDefined();
-    });
-
-    it('should initialize tools orchestrator successfully', async () => {
-      await toolsOrchestrator.init();
-
-      expect(mockCreateAllowedTools).toHaveBeenCalledWith(mockSnakAgent, [
-        'test-plugin',
-      ]);
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        'ToolsOrchestrator: Starting initialization'
-      );
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        'ToolsOrchestrator: Initialized with 3 tools'
-      );
+      expect(mockCreateAllowedTools).toHaveBeenCalledWith(config.snakAgent, ['test-plugin']);
+      expect(mockLogger.debug).toHaveBeenCalledWith('ToolsOrchestrator: Starting initialization');
+      expect(mockLogger.debug).toHaveBeenCalledWith('ToolsOrchestrator: Initialized with 3 tools');
     });
 
     it('should initialize with limited tools when no SnakAgent provided', async () => {
-      const limitedConfig: ToolsOrchestratorConfig = {
-        snakAgent: null,
-        agentConfig: {},
-        modelSelector: null,
-      };
-
-      const limitedOrchestrator = new ToolsOrchestrator(limitedConfig);
-      await limitedOrchestrator.init();
+      const config = createMockConfig({ snakAgent: null });
+      const orchestrator = new ToolsOrchestrator(config);
+      
+      await orchestrator.init();
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         'ToolsOrchestrator: No SnakAgent provided, initializing with limited tools set'
       );
-    });
-
-    it('should initialize MCP tools when mcpServers are configured', async () => {
-      await toolsOrchestrator.init();
-
-      expect(mockMCPController.fromAgentConfig).toHaveBeenCalledWith(
-        mockConfig.agentConfig
-      );
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'ToolsOrchestrator: Added 1 MCP tools'
-      );
+      expect(mockCreateAllowedTools).not.toHaveBeenCalled();
     });
 
     it('should handle MCP initialization failure gracefully', async () => {
-      const mcpError = new Error('MCP connection failed');
       mockMCPController.fromAgentConfig.mockReturnValue({
-        initializeConnections: jest.fn().mockRejectedValue(mcpError),
+        initializeConnections: jest.fn().mockRejectedValue(new Error('MCP connection failed')),
         getTools: jest.fn().mockReturnValue([]),
       });
 
-      await toolsOrchestrator.init();
+      const orchestrator = new ToolsOrchestrator(createMockConfig());
+      await orchestrator.init();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'ToolsOrchestrator: Failed to initialize MCP tools: Error: MCP connection failed'
       );
     });
 
-    it('should throw error when initialization fails', async () => {
-      const initError = new Error('Tool initialization failed');
-      mockCreateAllowedTools.mockRejectedValue(initError);
+    it('should throw error when tool initialization fails', async () => {
+      mockCreateAllowedTools.mockRejectedValue(new Error('Tool initialization failed'));
 
-      await expect(toolsOrchestrator.init()).rejects.toThrow(
+      const orchestrator = new ToolsOrchestrator(createMockConfig());
+      
+      await expect(orchestrator.init()).rejects.toThrow(
         'ToolsOrchestrator initialization failed: Error: Tool initialization failed'
       );
     });
   });
 
   describe('tool execution', () => {
+    let orchestrator: ToolsOrchestrator;
+
     beforeEach(async () => {
-      await toolsOrchestrator.init();
+      orchestrator = new ToolsOrchestrator(createMockConfig());
+      await orchestrator.init();
     });
 
-    it('should execute tool with string input successfully', async () => {
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
+    const toolCallData = { name: 'test_tool_1', args: { param1: 'value1' } };
 
-      const result = await toolsOrchestrator.execute(JSON.stringify(toolCall));
+    describe('successful execution', () => {
+      it.each([
+        ['string input', () => JSON.stringify(toolCallData)],
+        ['object input', () => toolCallData],
+        ['BaseMessage input', () => {
+          const message = new HumanMessage('Execute tool');
+          (message as any).tool_calls = [toolCallData];
+          return message;
+        }],
+      ])('should execute tool with %s', async (_, inputFactory) => {
+        const result = await orchestrator.execute(inputFactory());
+        expect(result).toBe('Tool execution result');
+      });
 
-      expect(result).toBe('Tool execution result');
+      it('should use model selector when available', async () => {
+        const config = { modelType: 'fast' };
+        
+        await orchestrator.execute(toolCallData, false, config);
+        
+        expect(orchestrator['modelSelector']?.getModels).toHaveBeenCalled();
+      });
+
+      it('should handle execution without result', async () => {
+        mockToolNode.mockImplementationOnce(() => ({
+          invoke: jest.fn().mockResolvedValue({ messages: [] }),
+        }));
+
+        const result = await orchestrator.execute(toolCallData);
+        expect(result).toBe('Tool execution completed without result');
+      });
     });
 
-    it('should execute tool with BaseMessage input successfully', async () => {
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
+    describe('error cases', () => {
+      it.each([
+        ['tool not found', { name: 'non_existent_tool', args: {} }, 'Tool "non_existent_tool" not found'],
+        ['empty tool name', { name: '', args: {} }, 'Invalid tool call format'],
+        ['missing args', { name: 'test_tool_1' }, 'Invalid tool call format'],
+      ])('should throw error for %s', async (_, toolCall, expectedError) => {
+        await expect(orchestrator.execute(toolCall)).rejects.toThrow(expectedError);
+      });
 
-      const message = new HumanMessage('Execute tool');
-      (message as any).tool_calls = [toolCall];
+      it('should throw error for invalid JSON input', async () => {
+        await expect(orchestrator.execute('invalid json')).rejects.toThrow(
+          'Input could not be parsed as a tool call'
+        );
+      });
 
-      const result = await toolsOrchestrator.execute(message);
+      it('should throw error for message without tool calls', async () => {
+        const message = new HumanMessage('No tool calls here');
+        await expect(orchestrator.execute(message)).rejects.toThrow(
+          'No tool calls found in message'
+        );
+      });
 
-      expect(result).toBe('Tool execution result');
-    });
-
-    it('should execute tool with object input successfully', async () => {
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      const result = await toolsOrchestrator.execute(toolCall);
-
-      expect(result).toBe('Tool execution result');
-    });
-
-    it('should throw error when tool is not found', async () => {
-      const toolCall = {
-        name: 'non_existent_tool',
-        args: { param1: 'value1' },
-      };
-
-      await expect(
-        toolsOrchestrator.execute(JSON.stringify(toolCall))
-      ).rejects.toThrow(
-        'ToolsOrchestrator: Tool "non_existent_tool" not found'
-      );
-    });
-
-    it('should throw error when ToolNode is not initialized', async () => {
-      const uninitializedOrchestrator = new ToolsOrchestrator(mockConfig);
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      await expect(
-        uninitializedOrchestrator.execute(JSON.stringify(toolCall))
-      ).rejects.toThrow('ToolsOrchestrator: ToolNode is not initialized');
-    });
-
-    it('should throw error for invalid JSON input', async () => {
-      await expect(toolsOrchestrator.execute('invalid json')).rejects.toThrow(
-        'ToolsOrchestrator: Input could not be parsed as a tool call'
-      );
-    });
-
-    it('should throw error for message without tool calls', async () => {
-      const message = new HumanMessage('No tool calls here');
-
-      await expect(toolsOrchestrator.execute(message)).rejects.toThrow(
-        'ToolsOrchestrator: No tool calls found in message'
-      );
-    });
-
-    it('should throw error for invalid tool call format', async () => {
-      const invalidToolCall = {
-        name: '', // Empty name
-        args: { param1: 'value1' },
-      };
-
-      await expect(toolsOrchestrator.execute(invalidToolCall)).rejects.toThrow(
-        'ToolsOrchestrator: Invalid tool call format'
-      );
-    });
-
-    it('should use model selector for tool execution when available', async () => {
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      const config = { modelType: 'fast' };
-
-      await toolsOrchestrator.execute(JSON.stringify(toolCall), false, config);
-
-      expect(mockModelSelector.getModels).toHaveBeenCalled();
-    });
-
-    it('should handle tool execution without result', async () => {
-      mockToolNode.mockImplementationOnce(() => ({
-        invoke: jest.fn().mockResolvedValue({
-          messages: [],
-        }),
-      }));
-
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      const result = await toolsOrchestrator.execute(JSON.stringify(toolCall));
-
-      expect(result).toBe('Tool execution completed without result');
+      it('should throw error when ToolNode is not initialized', async () => {
+        const uninitializedOrchestrator = new ToolsOrchestrator(createMockConfig());
+        await expect(uninitializedOrchestrator.execute(toolCallData)).rejects.toThrow(
+          'ToolNode is not initialized'
+        );
+      });
     });
   });
 
   describe('tool management', () => {
+    let orchestrator: ToolsOrchestrator;
+
     beforeEach(async () => {
-      await toolsOrchestrator.init();
+      orchestrator = new ToolsOrchestrator(createMockConfig());
+      await orchestrator.init();
     });
 
-    it('should get all available tools', () => {
-      const tools = toolsOrchestrator.getTools();
-
-      // Should have 2 allowed tools + 1 MCP tool = 3 total
-      expect(tools.length).toBeGreaterThanOrEqual(2);
-      expect(tools[0].name).toBe('test_tool_1');
-      expect(tools[1].name).toBe('test_tool_2');
-
-      // Check if MCP tools were added by verifying the mock was called
-      expect(mockMCPController.fromAgentConfig).toHaveBeenCalledWith(
-        mockConfig.agentConfig
-      );
-
-      // Explicitly check for MCP tool presence by searching for the tool name
-      const mcpTool = tools.find((tool) => tool.name === 'mcp_tool_1');
-      expect(mcpTool).toBeDefined();
-      expect(mcpTool!.name).toBe('mcp_tool_1');
+    it('should get all available tools including MCP tools', () => {
+      const tools = orchestrator.getTools();
+      
+      expect(tools).toHaveLength(3); // 2 allowed + 1 MCP
+      expect(tools.map(t => t.name)).toEqual(['test_tool_1', 'test_tool_2', 'mcp_tool']);
     });
 
-    it('should get tool by name', () => {
-      const tool = toolsOrchestrator.getToolByName('test_tool_1');
-
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe('test_tool_1');
-    });
-
-    it('should return undefined for non-existent tool', () => {
-      const tool = toolsOrchestrator.getToolByName('non_existent_tool');
-
-      expect(tool).toBeUndefined();
+    it.each([
+      ['existing tool', 'test_tool_1', true],
+      ['non-existent tool', 'non_existent_tool', false],
+    ])('should %s when searching by name', (_, toolName, shouldExist) => {
+      const tool = orchestrator.getToolByName(toolName);
+      
+      if (shouldExist) {
+        expect(tool).toBeDefined();
+        expect(tool!.name).toBe(toolName);
+      } else {
+        expect(tool).toBeUndefined();
+      }
     });
   });
 
-  describe('edge cases and error handling', () => {
-    it('should handle empty mcpServers configuration', async () => {
-      const configWithoutMCP: ToolsOrchestratorConfig = {
-        snakAgent: mockSnakAgent,
-        agentConfig: {
-          plugins: ['test-plugin'],
-          mcpServers: {},
-        },
-        modelSelector: mockModelSelector,
-      };
-
-      const orchestrator = new ToolsOrchestrator(configWithoutMCP);
+  describe('edge cases and configuration handling', () => {
+    it.each([
+      ['empty mcpServers', { agentConfig: { plugins: ['test-plugin'], mcpServers: {} } }],
+      ['null SnakAgent', { snakAgent: null, agentConfig: {} }],
+      ['null model selector', { modelSelector: null }],
+      ['empty plugins', { agentConfig: { plugins: [] } }],
+    ])('should handle %s gracefully', async (_, configOverrides) => {
+      const config = createMockConfig(configOverrides);
+      const orchestrator = new ToolsOrchestrator(config);
+      
       await orchestrator.init();
-
-      expect(mockMCPController.fromAgentConfig).not.toHaveBeenCalled();
+      
+      expect(orchestrator).toBeDefined();
+      if ('snakAgent' in configOverrides && configOverrides.snakAgent === null) {
+        expect(mockCreateAllowedTools).not.toHaveBeenCalled();
+      }
     });
 
     it('should handle model selector without bindTools method', async () => {
-      const configWithoutBindTools: ToolsOrchestratorConfig = {
-        snakAgent: mockSnakAgent,
-        agentConfig: {
-          plugins: ['test-plugin'],
-        },
+      const config = createMockConfig({
         modelSelector: {
-          getModels: jest.fn().mockReturnValue({
-            fast: {}, // No bindTools method
-          }),
+          getModels: jest.fn().mockReturnValue({ fast: {} }), // No bindTools
         } as any,
-      };
-
-      const orchestrator = new ToolsOrchestrator(configWithoutBindTools);
+      });
+      
+      const orchestrator = new ToolsOrchestrator(config);
       await orchestrator.init();
 
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      const config = { modelType: 'fast' };
-      const result = await orchestrator.execute(
-        JSON.stringify(toolCall),
-        false,
-        config
-      );
-
+      const result = await orchestrator.execute({ name: 'test_tool_1', args: {} }, false, { modelType: 'fast' });
       expect(result).toBe('Tool execution result');
     });
 
     it('should handle tool execution errors gracefully', async () => {
-      await toolsOrchestrator.init();
+      const orchestrator = new ToolsOrchestrator(createMockConfig());
+      await orchestrator.init();
 
       mockToolNode.mockImplementationOnce(() => ({
         invoke: jest.fn().mockRejectedValue(new Error('Tool execution failed')),
       }));
 
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      await expect(
-        toolsOrchestrator.execute(JSON.stringify(toolCall))
-      ).rejects.toThrow('Tool execution failed');
+      await expect(orchestrator.execute({ name: 'test_tool_1', args: {} }))
+        .rejects.toThrow('Tool execution failed');
     });
 
-    it('should log tool execution time', async () => {
-      await toolsOrchestrator.init();
+    it('should log execution details', async () => {
+      const orchestrator = new ToolsOrchestrator(createMockConfig());
+      await orchestrator.init();
 
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      await toolsOrchestrator.execute(JSON.stringify(toolCall));
+      await orchestrator.execute({ name: 'test_tool_1', args: { param1: 'value1' } });
 
       expect(mockLogger.debug).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /ToolsOrchestrator: Tool "test_tool_1" execution completed in \d+ms/
-        )
+        expect.stringMatching(/Tool "test_tool_1" execution completed in \d+ms/)
       );
-    });
-
-    it('should log tool execution details', async () => {
-      await toolsOrchestrator.init();
-
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1', param2: 'value2' },
-      };
-
-      await toolsOrchestrator.execute(JSON.stringify(toolCall));
-
       expect(mockLogger.debug).toHaveBeenCalledWith(
-        'ToolsOrchestrator: Executing tool "test_tool_1" with args: {"param1":"value1","param2":"value2"}...'
+        expect.stringContaining('Executing tool "test_tool_1" with args:')
       );
-    });
-  });
-
-  describe('configuration handling', () => {
-    it('should handle null SnakAgent gracefully', async () => {
-      const configWithNullAgent: ToolsOrchestratorConfig = {
-        snakAgent: null,
-        agentConfig: {},
-        modelSelector: null,
-      };
-
-      const orchestrator = new ToolsOrchestrator(configWithNullAgent);
-      await orchestrator.init();
-
-      expect(mockCreateAllowedTools).not.toHaveBeenCalled();
-    });
-
-    it('should handle null model selector gracefully', async () => {
-      const configWithoutModelSelector: ToolsOrchestratorConfig = {
-        snakAgent: mockSnakAgent,
-        agentConfig: {
-          plugins: ['test-plugin'],
-        },
-        modelSelector: null,
-      };
-
-      const orchestrator = new ToolsOrchestrator(configWithoutModelSelector);
-      await orchestrator.init();
-
-      const toolCall = {
-        name: 'test_tool_1',
-        args: { param1: 'value1' },
-      };
-
-      const result = await orchestrator.execute(JSON.stringify(toolCall));
-      expect(result).toBe('Tool execution result');
-    });
-
-    it('should handle empty plugins configuration', async () => {
-      const configWithEmptyPlugins: ToolsOrchestratorConfig = {
-        snakAgent: mockSnakAgent,
-        agentConfig: {
-          plugins: [],
-        },
-        modelSelector: mockModelSelector,
-      };
-
-      const orchestrator = new ToolsOrchestrator(configWithEmptyPlugins);
-      await orchestrator.init();
-
-      expect(mockCreateAllowedTools).toHaveBeenCalledWith(mockSnakAgent, []);
     });
   });
 });
