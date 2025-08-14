@@ -63,8 +63,8 @@ export interface MemoryConfig {
   enabled?: boolean;
   shortTermMemorySize?: number;
   memorySize?: number;
-  maxIterations?: number;
   embeddingModel?: string;
+  isAutonomous?: boolean;
 }
 
 export interface RagConfig {

@@ -5,6 +5,7 @@ export type {
   StarknetTool,
   SignatureTool,
   DatabaseCredentials,
+  MemoryConfig,
 } from './common/agent.js';
 
 export { AgentMode, RagConfig } from './common/agent.js';

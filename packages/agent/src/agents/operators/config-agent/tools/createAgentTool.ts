@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
+import { normalizeNumericValues } from './normalizeAgentValues.js';
 
 /**
  * Schema definition for creating a new agent
@@ -57,6 +58,7 @@ const CreateAgentSchema = z.object({
       enabled: z.boolean().optional().nullable(),
       shortTermMemorySize: z.number().optional().nullable(),
       memorySize: z.number().optional().nullable(),
+      embeddingModel: z.string().optional().nullable(),
     })
     .optional()
     .nullable()
@@ -94,6 +96,9 @@ export const createAgentTool = new DynamicStructuredTool({
   schema: CreateAgentSchema,
   func: async (input) => {
     try {
+      const { normalizedConfig, appliedDefaults } =
+        normalizeNumericValues(input);
+
       const query = new Postgres.Query(
         `INSERT INTO agents (
 			    name, "group", description, lore, objectives, knowledge,
@@ -108,15 +113,15 @@ export const createAgentTool = new DynamicStructuredTool({
           input.objectives || '',
           input.knowledge || '',
           input.system_prompt || null,
-          input.interval || 5,
+          normalizedConfig.interval,
           input.plugins || null,
           input.memory?.enabled || false,
-          input.memory?.shortTermMemorySize || 5,
-          input.memory?.memorySize || 20,
+          normalizedConfig.memory?.shortTermMemorySize,
+          normalizedConfig.memory?.memorySize,
           input.rag?.enabled || false,
           input.rag?.embeddingModel || null,
           input.mode || 'interactive',
-          input.max_iterations || 15,
+          normalizedConfig.max_iterations,
         ]
       );
 
@@ -124,9 +129,15 @@ export const createAgentTool = new DynamicStructuredTool({
 
       if (result.length > 0) {
         logger.info(`Created new agent "${input.name}" successfully`);
+
+        let message = `Agent "${input.name}" created successfully`;
+        if (appliedDefaults.length > 0) {
+          message += `. Note: ${appliedDefaults.join('; ')}`;
+        }
+
         return JSON.stringify({
           success: true,
-          message: `Agent "${input.name}" created successfully`,
+          message: message,
           data: result[0],
         });
       } else {

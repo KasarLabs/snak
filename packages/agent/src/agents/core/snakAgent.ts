@@ -8,11 +8,12 @@ import {
   logger,
   AgentConfig,
   CustomHuggingFaceEmbeddings,
+  MemoryConfig,
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
-import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
+import { MemoryAgent } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -23,6 +24,7 @@ import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { Agent, AgentReturn } from 'agents/modes/types/index.js';
+import { metrics } from '@snakagent/metrics';
 
 /**
  * Configuration interface for SnakAgent initialization
@@ -145,6 +147,8 @@ export class SnakAgent extends BaseAgent {
       throw new Error('STARKNET_PRIVATE_KEY is required');
     }
 
+    metrics.agentConnect();
+
     this.iterationEmbeddings = new CustomHuggingFaceEmbeddings({
       model:
         this.agentConfig.memory?.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
@@ -259,7 +263,6 @@ export class SnakAgent extends BaseAgent {
       this.memoryAgent = new MemoryAgent({
         shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
         memorySize: agentConfig?.memory?.memorySize || 20,
-        maxIterations: agentConfig?.memory?.maxIterations,
         embeddingModel: agentConfig?.memory?.embeddingModel,
       });
       await this.memoryAgent.init();
@@ -576,7 +579,8 @@ export class SnakAgent extends BaseAgent {
       const limit = this.agentConfig.memory?.shortTermMemorySize ?? 15;
       if (
         limit <= 0 ||
-        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE]
+        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
+        this.agentConfig.memory?.enabled === false
       ) {
         return;
       }
@@ -598,7 +602,8 @@ export class SnakAgent extends BaseAgent {
       if (
         limit <= 0 ||
         this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
-        !this.pendingIteration
+        !this.pendingIteration ||
+        this.agentConfig.memory?.enabled === false
       ) {
         return;
       }
