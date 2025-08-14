@@ -149,7 +149,9 @@ describe('normalizeNumericValues', () => {
         expect(result.normalizedConfig.memory?.enabled).toBe(false);
         expect(result.normalizedConfig.memory?.shortTermMemorySize).toBe(5);
         expect(result.normalizedConfig.memory?.memorySize).toBe(20);
-        expect(result.normalizedConfig.memory?.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
+        expect(result.normalizedConfig.memory?.embeddingModel).toBe(
+          'Xenova/all-MiniLM-L6-v2'
+        );
 
         const expectedMessage =
           'memory initialized with default values (enabled: false, shortTermMemorySize: 5, memorySize: 20, embeddingModel: Xenova/all-MiniLM-L6-v2)';
@@ -188,7 +190,12 @@ describe('normalizeNumericValues', () => {
       const config = {
         max_iterations: -1,
         interval: 0,
-        memory: { enabled: null, shortTermMemorySize: -5, memorySize: 0, embeddingModel: undefined },
+        memory: {
+          enabled: null,
+          shortTermMemorySize: -5,
+          memorySize: 0,
+          embeddingModel: undefined,
+        },
         rag: { enabled: null, topK: -2, embeddingModel: undefined },
       };
 
@@ -233,7 +240,12 @@ describe('normalizeNumericValues', () => {
         bar: 'test',
         max_iterations: 25,
         interval: 10,
-        memory: { enabled: true, shortTermMemorySize: 30, memorySize: 100, embeddingModel: 'custom-memory-model' },
+        memory: {
+          enabled: true,
+          shortTermMemorySize: 30,
+          memorySize: 100,
+          embeddingModel: 'custom-memory-model',
+        },
         rag: { enabled: true, topK: 20, embeddingModel: 'custom-model' },
       };
 
@@ -247,7 +259,9 @@ describe('normalizeNumericValues', () => {
       expect(result.normalizedConfig.memory?.enabled).toBe(true);
       expect(result.normalizedConfig.memory?.shortTermMemorySize).toBe(30);
       expect(result.normalizedConfig.memory?.memorySize).toBe(100);
-      expect(result.normalizedConfig.memory?.embeddingModel).toBe('custom-memory-model');
+      expect(result.normalizedConfig.memory?.embeddingModel).toBe(
+        'custom-memory-model'
+      );
       expect(result.normalizedConfig.rag?.enabled).toBe(true);
       expect(result.normalizedConfig.rag?.topK).toBe(20);
       expect(result.normalizedConfig.rag?.embeddingModel).toBe('custom-model');

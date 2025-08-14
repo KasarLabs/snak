@@ -4,8 +4,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
-import { logger, AgentConfig, RawAgentConfig, RagConfig, MemoryConfig } from '@snakagent/core';
-import { normalizeNumericValues, OutputMemoryConfig, OutputRagConfig } from '../agents/operators/config-agent/tools/normalizeAgentValues.js';
+import {
+  logger,
+  AgentConfig,
+  RawAgentConfig,
+  RagConfig,
+  MemoryConfig,
+} from '@snakagent/core';
+import {
+  normalizeNumericValues,
+  OutputMemoryConfig,
+  OutputRagConfig,
+} from '../agents/operators/config-agent/tools/normalizeAgentValues.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -367,18 +377,25 @@ const checkParseJson = async (
     const configToNormalize = {
       memory: json.memory || null,
       rag: json.rag || null,
-      max_iterations: json.maxIterations || 
-        (json.mode && typeof json.mode === 'object' && typeof json.mode.maxIterations === 'number'
+      max_iterations:
+        json.maxIterations ||
+        (json.mode &&
+        typeof json.mode === 'object' &&
+        typeof json.mode.maxIterations === 'number'
           ? json.mode.maxIterations
           : 10),
-      interval: json.interval || 5
+      interval: json.interval || 5,
     };
 
-    const { normalizedConfig, appliedDefaults } = normalizeNumericValues(configToNormalize);
-    
+    const { normalizedConfig, appliedDefaults } =
+      normalizeNumericValues(configToNormalize);
+
     // Log any defaults that were applied for debugging
     if (appliedDefaults.length > 0) {
-      logger.debug('Applied defaults during memory/RAG normalization:', appliedDefaults);
+      logger.debug(
+        'Applied defaults during memory/RAG normalization:',
+        appliedDefaults
+      );
     }
 
     const agentConfig: AgentConfig = {

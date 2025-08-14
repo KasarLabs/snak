@@ -350,7 +350,7 @@ export function normalizeNumericValues(
   appliedDefaults.push(...ragResult.appliedDefaults);
 
   // Copy any additional properties from the input config
-  Object.keys(config).forEach(key => {
+  Object.keys(config).forEach((key) => {
     if (!['max_iterations', 'interval', 'memory', 'rag'].includes(key)) {
       (normalizedConfig as any)[key] = config[key];
     }
