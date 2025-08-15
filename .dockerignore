@@ -10,3 +10,4 @@ packages/database/log
 
 .vscode
 *.log
+.npmrc

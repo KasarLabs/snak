@@ -9,7 +9,6 @@ services:
     env_file:
       - .env
     volumes:
-      - pgdata:/var/lib/postgresql/data
       - ./packages/database/initdb:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER}']
@@ -40,8 +39,6 @@ services:
         condition: service_healthy
     restart: on-failure
 
-volumes:
-  pgdata:
 
 networks:
   network:
