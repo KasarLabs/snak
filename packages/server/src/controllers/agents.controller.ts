@@ -167,7 +167,7 @@ export class AgentsController {
             updateFields.push(
               `"memory" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})::memory`
             );
-            values.push(enabled, shortTermMemorySize, memorySize);
+            values.push(enabled, parsedShortTerm, memorySize);
             paramIndex += 3;
           } else {
             updateFields.push(`"${String(field)}" = $${paramIndex}`);
