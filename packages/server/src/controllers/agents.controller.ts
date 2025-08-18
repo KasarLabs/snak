@@ -152,9 +152,15 @@ export class AgentsController {
                 : config[field];
             const enabled =
               memoryData.enabled === 'true' || memoryData.enabled === true;
-            const shortTermMemorySize = parseInt(
-              memoryData.shortTermMemorySize
+            const parsedShortTerm = Number.parseInt(
+              String(memoryData.shortTermMemorySize ?? ''),
+              10
             );
+            if (Number.isNaN(parsedShortTerm)) {
+              throw new BadRequestException(
+                'memory.shortTermMemorySize must be a valid integer'
+              );
+            }
 
             const memorySize = parseInt(memoryData.memorySize) || 20;
 
