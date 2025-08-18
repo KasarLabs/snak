@@ -150,18 +150,19 @@ export class AgentsController {
               typeof config[field] === 'string'
                 ? JSON.parse(config[field])
                 : config[field];
-
             const enabled =
               memoryData.enabled === 'true' || memoryData.enabled === true;
             const shortTermMemorySize = parseInt(
               memoryData.shortTermMemorySize
             );
 
+            const memorySize = parseInt(memoryData.memorySize) || 20;
+
             updateFields.push(
-              `"memory" = ROW($${paramIndex}, $${paramIndex + 1})::memory`
+              `"memory" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})::memory`
             );
-            values.push(enabled, shortTermMemorySize);
-            paramIndex += 2;
+            values.push(enabled, shortTermMemorySize, memorySize);
+            paramIndex += 3;
           } else {
             updateFields.push(`"${String(field)}" = $${paramIndex}`);
             values.push(config[field]);
