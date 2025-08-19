@@ -442,7 +442,6 @@ export class InteractiveAgent {
         messages: aiMessage,
         last_agent: Agent.PLANNER,
         currentGraphStep: state.currentGraphStep + 1,
-
       };
     } catch (error) {
       logger.error(`[Planner] ❌ Plan execution failed: ${error}`);

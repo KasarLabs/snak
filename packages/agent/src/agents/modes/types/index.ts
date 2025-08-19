@@ -16,19 +16,24 @@ export interface AgentReturn {
 // TYPES & INTERFACES
 // ============================================
 
+export interface Memories {
+  ltm: string;
+  stm: string[];
+}
+
+export interface ToolInfo {
+  description: string;
+  required: string;
+  expected_result: string;
+  result: string;
+}
+
 export interface StepInfo {
   stepNumber: number;
   stepName: string;
   description: string;
   type: 'tools' | 'message' | 'human_in_the_loop';
-  tools?: [
-    {
-      description: string;
-      required: string;
-      expected_result: string;
-      result: string;
-    },
-  ];
+  tools?: ToolInfo[];
   result: {
     content: string;
     tokens: number;

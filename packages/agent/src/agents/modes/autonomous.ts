@@ -39,7 +39,13 @@ import { TokenTracker } from '../../token/tokenTracking.js';
 import { Runnable, RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
-import { Agent, AgentReturn, ParsedPlan, StepInfo } from './types/index.js';
+import {
+  Agent,
+  AgentReturn,
+  Memories,
+  ParsedPlan,
+  StepInfo,
+} from './types/index.js';
 import {
   calculateTotalTokenFromSteps,
   createMaxIterationsResponse,
@@ -85,12 +91,74 @@ import {
   BaseChatModel,
   BaseChatModelCallOptions,
 } from '@langchain/core/language_models/chat_models';
-
+import { MemoryGraph } from './sub-graph/memory.js';
 const objectives = `Perform efficient and reliable RPC calls to the Starknet network.,
             Retrieve and analyze on-chain data such as transactions, blocks, and smart contract states.`;
 
+export const AutonomousGraphState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: (x, y) => x.concat(y),
+    default: () => [],
+  }),
+  last_message: Annotation<BaseMessage | BaseMessage[]>({
+    reducer: (x, y) => y,
+  }),
+  last_agent: Annotation<Agent>({
+    reducer: (x, y) => y,
+    default: () => Agent.PLANNER,
+  }),
+  memories: Annotation<Memories>({
+    reducer: (x, y) => y,
+    default: () => ({ ltm: '', stm: [''] }),
+  }),
+  rag: Annotation<string>({
+    reducer: (x, y) => y,
+    default: () => '',
+  }),
+  plan: Annotation<ParsedPlan>({
+    reducer: (x, y) => y,
+    default: () => ({
+      steps: [],
+      summary: '',
+    }),
+  }),
+  currentStepIndex: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 0,
+  }),
+  retry: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 0,
+  }),
+  currentGraphStep: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 0,
+  }),
+});
+
+export const AutonomousConfigurableAnnotation = Annotation.Root({
+  max_graph_steps: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 100,
+  }),
+  short_term_memory: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 3,
+  }),
+  memory_size: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 20,
+  }),
+  human_in_the_loop: Annotation<boolean>({
+    reducer: (x, y) => y,
+    default: () => false,
+  }),
+  agent_config: Annotation<AgentConfig | undefined>({
+    reducer: (x, y) => y,
+    default: () => undefined,
+  }),
+});
 export class AutonomousAgent {
-  private agentConfig: AgentConfig;
   private modelSelector: ModelSelector | null;
   private toolsList: (
     | StructuredTool
@@ -98,69 +166,10 @@ export class AutonomousAgent {
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
   private memoryAgent: MemoryAgent | null = null;
+  private agentConfig: AgentConfig;
   private ragAgent: RagAgent | null = null;
   private checkpointer: MemorySaver;
   private app: any;
-
-  private ConfigurableAnnotation = Annotation.Root({
-    max_graph_steps: Annotation<number>({
-      reducer: (x, y) => y,
-      default: () => 100,
-    }),
-    short_term_memory: Annotation<number>({
-      reducer: (x, y) => y,
-      default: () => 3,
-    }),
-    memory_size: Annotation<number>({
-      reducer: (x, y) => y,
-      default: () => 20,
-    }),
-    human_in_the_loop: Annotation<boolean>({
-      reducer: (x, y) => y,
-      default: () => false,
-    }),
-  });
-
-  private GraphState = Annotation.Root({
-    messages: Annotation<BaseMessage[]>({
-      reducer: (x, y) => x.concat(y),
-      default: () => [],
-    }),
-    last_message: Annotation<BaseMessage | BaseMessage[]>({
-      reducer: (x, y) => y,
-    }),
-    last_agent: Annotation<Agent>({
-      reducer: (x, y) => y,
-      default: () => Agent.PLANNER,
-    }),
-    memories: Annotation<string>({
-      reducer: (x, y) => y,
-      default: () => '',
-    }),
-    rag: Annotation<string>({
-      reducer: (x, y) => y,
-      default: () => '',
-    }),
-    plan: Annotation<ParsedPlan>({
-      reducer: (x, y) => y,
-      default: () => ({
-        steps: [],
-        summary: '',
-      }),
-    }),
-    currentStepIndex: Annotation<number>({
-      reducer: (x, y) => y,
-      default: () => 0,
-    }),
-    retry: Annotation<number>({
-      reducer: (x, y) => y,
-      default: () => 0,
-    }),
-    currentGraphStep: Annotation<number>({
-      reducer: (x, y) => y,
-      default: () => 0,
-    }),
-  });
 
   constructor(
     private snakAgent: SnakAgentInterface,
@@ -213,8 +222,8 @@ export class AutonomousAgent {
   // --- PLANNER NODE ---
 
   private async adaptivePlanner(
-    state: typeof this.GraphState.State,
-    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): Promise<{
     last_message: BaseMessage;
     last_agent: Agent;
@@ -327,8 +336,8 @@ export class AutonomousAgent {
   }
 
   private async planExecution(
-    state: typeof this.GraphState.State,
-    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): Promise<{
     last_message: BaseMessage;
     last_agent: Agent;
@@ -337,6 +346,8 @@ export class AutonomousAgent {
     currentGraphStep: number;
   }> {
     try {
+      console.log(config.configurable?.max_graph_steps);
+
       logger.info('[Planner] 🚀 Starting plan execution');
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
@@ -355,7 +366,7 @@ export class AutonomousAgent {
         //
         let systemPrompt;
         let contextPrompt;
-        if (this.agentConfig.mode === AgentMode.HYBRID) {
+        if (config.configurable?.agent_config?.mode === AgentMode.HYBRID) {
           logger.debug('[Planner] 📝 Creating initial hybrid plan');
           systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
           contextPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
@@ -422,7 +433,10 @@ export class AutonomousAgent {
   }
 
   // --- VALIDATOR NODE ---
-  private async validator(state: typeof this.GraphState.State): Promise<{
+  private async validator(
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+  ): Promise<{
     last_message: BaseMessage;
     currentStepIndex: number;
     plan?: ParsedPlan;
@@ -435,7 +449,7 @@ export class AutonomousAgent {
     );
 
     if (state.last_agent === Agent.PLANNER) {
-      return await this.validatorPlanner(state);
+      return await this.validatorPlanner(state, config);
     } else if (state.last_agent === Agent.EXECUTOR) {
       return await this.validatorExecutor(state);
     } else {
@@ -443,7 +457,10 @@ export class AutonomousAgent {
     }
   }
 
-  private async validatorPlanner(state: typeof this.GraphState.State): Promise<{
+  private async validatorPlanner(
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+  ): Promise<{
     last_message: BaseMessage;
     currentStepIndex: number;
     last_agent: Agent;
@@ -480,7 +497,7 @@ export class AutonomousAgent {
       console.log(planDescription);
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
-          agentConfig: this.agentConfig.prompt,
+          agentConfig: config.configurable?.agent_config?.prompt,
           currentPlan: planDescription,
         })
       );
@@ -518,7 +535,7 @@ export class AutonomousAgent {
           last_message: errorMessage,
           currentStepIndex: state.currentStepIndex,
           last_agent: Agent.PLANNER_VALIDATOR,
-          retry: state.retry + 1,
+          retry: 0,
           currentGraphStep: state.currentGraphStep + 1,
         };
       }
@@ -545,7 +562,7 @@ export class AutonomousAgent {
   }
 
   private async validatorExecutor(
-    state: typeof this.GraphState.State
+    state: typeof AutonomousGraphState.State
   ): Promise<{
     last_message: BaseMessage;
     currentStepIndex: number;
@@ -671,8 +688,8 @@ export class AutonomousAgent {
 
   // --- EXECUTOR NODE ---
   private async callModel(
-    state: typeof this.GraphState.State,
-    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): Promise<{
     last_message: BaseMessage;
     messages: BaseMessage;
@@ -680,7 +697,7 @@ export class AutonomousAgent {
     plan?: ParsedPlan;
     currentGraphStep?: number;
   }> {
-    if (!this.agentConfig || !this.modelSelector) {
+    if (!config.configurable?.agent_config || !this.modelSelector) {
       throw new Error('Agent configuration and ModelSelector are required.');
     }
 
@@ -756,7 +773,7 @@ export class AutonomousAgent {
 
   // --- TOOLS NODE ---
   private async toolNodeInvoke(
-    state: typeof this.GraphState.State,
+    state: typeof AutonomousGraphState.State,
     config: LangGraphRunnableConfig | undefined,
     originalInvoke: Function
   ): Promise<{
@@ -826,7 +843,7 @@ export class AutonomousAgent {
     }
   }
 
-  public async humanNode(state: typeof this.GraphState.State): Promise<{
+  public async humanNode(state: typeof AutonomousGraphState.State): Promise<{
     last_message: BaseMessage;
     messages: BaseMessage;
     last_agent: Agent;
@@ -851,7 +868,7 @@ export class AutonomousAgent {
   }
 
   // --- END GRAPH NODE ---
-  private end_graph(state: typeof this.GraphState): {
+  private end_graph(state: typeof AutonomousGraphState): {
     plan: ParsedPlan;
     currentStepIndex: number;
     retry: number;
@@ -870,8 +887,8 @@ export class AutonomousAgent {
 
   // --- Prompt Building ---
   private buildSystemPrompt(
-    state: typeof this.GraphState.State,
-    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): ChatPromptTemplate {
     const currentStep = state.plan.steps[state.currentStepIndex];
     let systemPrompt;
@@ -900,8 +917,8 @@ export class AutonomousAgent {
 
   // --- Model Invocation ---
   private async invokeModelWithMessages(
-    state: typeof this.GraphState.State,
-    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>,
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>,
     filteredMessages: BaseMessage[],
     prompt: ChatPromptTemplate
   ): Promise<AIMessageChunk> {
@@ -959,8 +976,8 @@ export class AutonomousAgent {
 
     // Override invoke method
     toolNode.invoke = async (
-      state: typeof this.GraphState.State,
-      config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+      state: typeof AutonomousGraphState.State,
+      config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
     ): Promise<{
       messages: BaseMessage[];
       last_agent: Agent;
@@ -974,7 +991,7 @@ export class AutonomousAgent {
   }
 
   private handleValidatorRouting(
-    state: typeof this.GraphState.State
+    state: typeof AutonomousGraphState.State
   ): 're_planner' | 'executor' | 'end' | 'adaptive_planner' {
     try {
       logger.debug(
@@ -1053,10 +1070,10 @@ export class AutonomousAgent {
   }
 
   private shouldContinue(
-    state: typeof this.GraphState.State,
-    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): 'tools' | 'validator' | 'human' | 'end' | 're_planner' {
-    if (this.agentConfig.mode === AgentMode.HYBRID) {
+    if (config.configurable?.agent_config?.mode === AgentMode.HYBRID) {
       return this.shouldContinueHybrid(state, config);
     } else {
       return this.shouldContinueAutonomous(state, config);
@@ -1064,8 +1081,8 @@ export class AutonomousAgent {
   }
 
   private shouldContinueAutonomous(
-    state: typeof this.GraphState.State,
-    config: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): 'tools' | 'validator' | 'end' | 're_planner' {
     if (state.last_agent === Agent.EXECUTOR) {
       const lastAiMessage = state.last_message as AIMessageChunk;
@@ -1099,8 +1116,8 @@ export class AutonomousAgent {
   }
 
   private shouldContinueHybrid(
-    state: typeof this.GraphState.State,
-    config?: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config?: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): 'tools' | 'validator' | 'end' | 'human' {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
@@ -1150,8 +1167,8 @@ export class AutonomousAgent {
   }
 
   private async summarizeMessages(
-    state: typeof this.GraphState.State,
-    config?: RunnableConfig<typeof this.ConfigurableAnnotation.State>
+    state: typeof AutonomousGraphState.State,
+    config?: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): Promise<{ messages?: BaseMessage[] }> {
     if (state.messages.length < 10) {
       logger.debug('[Summarizer] 📊 Not enough data to summarize');
@@ -1233,30 +1250,49 @@ export class AutonomousAgent {
 
   private getCompileOptions(): {
     checkpointer?: MemorySaver;
-    configurable?: object;
+    configurable?: Record<string, any>;
   } {
-    return this.agentConfig.memory
+    const baseOptions = this.agentConfig.memory
       ? {
           checkpointer: this.checkpointer,
-          configurable: {},
         }
       : {};
+
+    // Ajouter les configurables depuis votre annotation
+    return {
+      ...baseOptions,
+      configurable: {
+        max_graph_steps: 100,
+        short_term_memory: 7,
+        memory_size: 20,
+        human_in_the_loop: false,
+        agent_config: this.agentConfig,
+      },
+    };
   }
 
   private buildWorkflow(): StateGraph<
-    typeof this.GraphState.State,
-    typeof this.ConfigurableAnnotation.State
+    typeof AutonomousGraphState.State,
+    typeof AutonomousConfigurableAnnotation.State
   > {
     const toolNode = this.createToolNode();
     if (!this.memoryAgent) {
       throw new Error('MemoryAgent is not setup');
     }
+    console.log('hELLO');
+    const memory = new MemoryGraph(
+      this.agentConfig,
+      this.modelSelector,
+      this.memoryAgent
+    );
 
+    memory.createGraphMemory();
+    const memory_graph = memory.getMemoryGraph();
     const workflow = new StateGraph(
-      this.GraphState,
-      this.ConfigurableAnnotation
+      AutonomousGraphState,
+      AutonomousConfigurableAnnotation
     )
-      .addNode('memory', this.memoryAgent.createMemoryNode())
+      .addNode('memory', memory_graph)
       .addNode('plan_node', this.planExecution.bind(this))
       .addNode('validator', this.validator.bind(this))
       .addNode('executor', this.callModel.bind(this))
@@ -1299,7 +1335,7 @@ export class AutonomousAgent {
 
     workflow.addConditionalEdges(
       'memory',
-      (state: typeof this.GraphState.State) => {
+      (state: typeof AutonomousGraphState.State) => {
         const total_tokens = calculateTotalTokenFromSteps(state.plan.steps);
         logger.debug(`[SummarizeAgent] : TotalTokens : ${total_tokens}`);
         if (total_tokens >= 100000) {
@@ -1316,8 +1352,8 @@ export class AutonomousAgent {
     workflow.addEdge('summarize', 'executor');
 
     return workflow as unknown as StateGraph<
-      typeof this.GraphState.State,
-      typeof this.ConfigurableAnnotation.State
+      typeof AutonomousGraphState.State,
+      typeof AutonomousConfigurableAnnotation.State
     >;
   }
 

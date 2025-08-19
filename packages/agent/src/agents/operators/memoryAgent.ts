@@ -1,5 +1,5 @@
 import { BaseAgent, AgentType } from '../core/baseAgent.js';
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { memory, iterations } from '@snakagent/database/queries';
@@ -7,13 +7,15 @@ import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { Runnable, RunnableSequence } from '@langchain/core/runnables';
-
-export interface MemoryNodeState {
-  messages: BaseMessage[];
-  [key: string]: any;
-}
-
+import {
+  Runnable,
+  RunnableConfig,
+  RunnableSequence,
+} from '@langchain/core/runnables';
+import {
+  AutonomousConfigurableAnnotation,
+  AutonomousGraphState,
+} from 'agents/modes/autonomous.js';
 export interface MemoryChainResult {
   memories: string;
 }
@@ -50,8 +52,9 @@ export class MemoryAgent extends BaseAgent {
   private memoryTools: any[] = [];
   private initialized: boolean = false;
   private isAutonomous: boolean;
+  private agentConfig: AgentConfig;
 
-  constructor(config: MemoryConfig) {
+  constructor(config: MemoryConfig, agentConfig?: AgentConfig) {
     super('memory-agent', AgentType.OPERATOR);
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,
@@ -59,6 +62,9 @@ export class MemoryAgent extends BaseAgent {
       maxIterations: config.maxIterations,
       embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
     };
+    if (agentConfig) {
+      this.agentConfig = agentConfig;
+    }
     if (!config.isAutonomous) {
       this.isAutonomous = false;
     } else {
@@ -123,7 +129,7 @@ export class MemoryAgent extends BaseAgent {
   /**
    * Helper to insert or update a memory record
    */
-  private async upsertMemory(
+  public async upsertMemory(
     content: string,
     memoryId: number | null | undefined,
     userId: string,
@@ -340,6 +346,7 @@ export class MemoryAgent extends BaseAgent {
     const chain = this.createMemoryChain();
     return async (state: any, config: LangGraphRunnableConfig) => {
       try {
+        logger.debug('MEMORY NODE STARTING');
         const result = await chain.invoke(state, config);
         // logger.debug(`${JSON.stringify(result)}`);
         return result;
@@ -357,9 +364,13 @@ export class MemoryAgent extends BaseAgent {
    */
   public createMemoryChain(
     limit = 4
-  ): Runnable<MemoryNodeState, MemoryChainResult> {
-    const buildQuery = (state: MemoryNodeState) => {
+  ): Runnable<typeof AutonomousGraphState.State, MemoryChainResult> {
+    const buildQuery = (state: typeof AutonomousGraphState.State) => {
       if (this.isAutonomous) {
+        console.log(
+          'hello',
+          state.plan.steps[state.currentStepIndex].description
+        );
         const lastMessage =
           state.plan.steps[state.currentStepIndex].description;
         return lastMessage;
@@ -376,10 +387,12 @@ export class MemoryAgent extends BaseAgent {
 
     const fetchMemories = async (
       query: string,
-      config: LangGraphRunnableConfig
+      config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
     ) => {
-      const userId = config.configurable?.userId || 'default_user';
-      const agentId = config.configurable?.agentId;
+      console.log('Fetch');
+      console.log(config.configurable?.max_graph_steps);
+      const userId = 'default_user';
+      const agentId = '';
       const embedding = await this.embeddings.embedQuery(query);
       const memResults = await memory.similar_memory(userId, embedding, limit);
       let iterResults: iterations.IterationSimilarity[] = [];
@@ -400,7 +413,10 @@ export class MemoryAgent extends BaseAgent {
       return this.formatMemoriesForContext(combined);
     };
 
-    return RunnableSequence.from<MemoryNodeState, MemoryChainResult>([
+    return RunnableSequence.from<
+      typeof AutonomousGraphState.State,
+      MemoryChainResult
+    >([
       buildQuery,
       fetchMemories,
       (context: string) => ({ memories: context }),

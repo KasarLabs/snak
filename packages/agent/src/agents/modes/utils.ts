@@ -471,3 +471,28 @@ export function formatStepsForContext(steps: StepInfo[]): string {
     throw error;
   }
 }
+
+export function formatStepsForSTM(step: StepInfo): string {
+  try {
+    const format_response = [];
+    format_response.push(`[STEP_${step.stepNumber}] ${step.stepName}`);
+    format_response.push(`Type: ${step.type}`);
+    format_response.push(`Description: ${step.description}`);
+    if (step.type === 'tools') {
+      if (step.tools && step.tools.length > 0) {
+        step.tools.forEach((tool, index) => {
+          format_response.push(`\n[TOOL_${index}]`);
+          format_response.push(`Description: ${tool.description}`);
+        });
+        format_response.push(`\n=== ACTUAL RESPONSE ===`);
+        format_response.push(step.result.content);
+      }
+    } else {
+      format_response.push(`\n=== ACTUAL RESPONSE ===`);
+      format_response.push(step.result.content);
+    }
+    return format_response.join('\n');
+  } catch (error) {
+    throw error;
+  }
+}

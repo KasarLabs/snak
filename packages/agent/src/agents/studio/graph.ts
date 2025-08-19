@@ -285,9 +285,20 @@ export async function createInteractiveAgent(agentId: string): Promise<any> {
  * @returns Promise<any> - The initialized graph
  */
 export async function createAutonomousAgent(agentId: string): Promise<any> {
-  const { agent, modelSelector } = await createAgentById(agentId);
+  const { agent, modelSelector } = await createAgentById(AUTONOMOUS_ID);
   const autonomousAgent = new AutonomousAgent(agent, modelSelector);
-  const { app } = await autonomousAgent.initialize();
+
+  const result = await autonomousAgent.initialize();
+  console.log('Initialize result:', result); // Debug
+  console.log('Result.app exists?', result?.app !== undefined);
+
+  const app = result.app;
+
+  // Vérifier que app existe
+  if (!app) {
+    throw new Error('App is undefined after initialization');
+  }
+
   return app;
 }
 
@@ -304,12 +315,12 @@ export async function createHybridAgent(agentId: string): Promise<any> {
 }
 
 // Example usage with specific IDs (for backward compatibility)
-const AUTONOMOUS_ID = '9585f1ac-e25b-4397-bdfc-83ed28126eb3';
-const INTERACTIVE_ID = '9d96b53c-9fe1-4cf5-a2b3-40d0741e7972';
-const HYBRID_ID = 'e5ad188c-c47d-4e6a-aee5-3be8dfb4647e';
+const AUTONOMOUS_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
+const INTERACTIVE_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
+const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 
-export const studio_graph_interactive = () =>
-  createInteractiveAgent(INTERACTIVE_ID);
+// export const studio_graph_interactive = () =>
+//   createInteractiveAgent(INTERACTIVE_ID);
 export const studio_graph_autonomous = () =>
   createAutonomousAgent(AUTONOMOUS_ID);
-export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);
+// export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);
