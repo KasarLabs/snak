@@ -5,14 +5,14 @@ import { logger } from '@snakagent/core';
  * @interface SignatureTool
  * @description Interface for the signature tool
  * @property {string} name - The name of the tool
- * @property {string} categorie - The categorie of the tool
+ * @property {string} [category] - The category of the tool (optional)
  * @property {string} description - The description of the tool
  * @property {object} schema - The schema for the tool
  * @property {(params: any) => Promise<unknown>} execute - Function to execute the tool
  */
 export interface SignatureTool<P = any> {
   name: string;
-  categorie?: string;
+  category?: string;
   description: string;
   schema?: object;
   execute: (params: P) => Promise<unknown>;
@@ -50,6 +50,16 @@ export class StarknetSignatureToolRegistry {
    */
   static clearTools(): void {
     this.tools = [];
+  }
+
+  /**
+   * @static
+   * @function getRegisteredToolsCount
+   * @description Returns the count of currently registered tools
+   * @returns {number} The number of registered tools
+   */
+  static getRegisteredToolsCount(): number {
+    return this.tools.length;
   }
 
   /**
