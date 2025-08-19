@@ -15,7 +15,9 @@ import {
   FormattedOnChatModelEnd,
   FormattedOnChatModelStart,
   FormattedOnChatModelStream,
-} from './snakAgent.js';
+  ToolsChunk,
+  TokenChunk,
+} from './types.js';
 import { BaseMessage, ToolMessage } from '@langchain/core/messages';
 import { AnyZodObject } from 'zod';
 import { ParsedPlan, StepInfo } from 'agents/modes/types/index.js';
@@ -55,19 +57,7 @@ export async function initializeToolsList(
   return toolsList;
 }
 
-export interface ToolsChunk {
-  name: string;
-  args: string;
-  id: string;
-  index: number;
-  type: string;
-}
 
-export interface TokenChunk {
-  input: number;
-  output: number;
-  total: number;
-}
 
 export const FormatChunkIteration = (
   chunk: any
@@ -122,8 +112,11 @@ export const extractTokenChunkFromIteration = (
   if (!iteration || !iteration.data || !iteration.data.chunk) {
     return undefined;
   }
+  if (!iteration.data.chunk.kwargs) {
+    return undefined;
+  }
   const token_chunk = iteration.data.chunk.kwargs.token_chunk as TokenChunk;
-  if (!token_chunk || !token_chunk.input) {
+  if (!token_chunk) {
     return undefined;
   }
   return {
@@ -292,6 +285,11 @@ export const formatAgentResponse = (response: any): string => {
       return response.text;
     } else if (response.content && typeof response.content === 'string') {
       return response.content;
+    }
+    try {
+      return JSON.stringify(response);
+    } catch (e) {
+      return String(response);
     }
   }
 

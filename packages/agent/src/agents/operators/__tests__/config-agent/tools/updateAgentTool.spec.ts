@@ -29,6 +29,11 @@ const createAgent = (overrides: any = {}) => ({
   ...overrides,
 });
 
+const createMockNormalizeResult = (config: any, defaults: string[] = []) => ({
+  normalizedConfig: JSON.parse(JSON.stringify(config)),
+  appliedDefaults: [...defaults],
+});
+
 describe('updateAgentTool', () => {
   let mockPostgres: any;
   let mockLogger: any;
@@ -50,6 +55,10 @@ describe('updateAgentTool', () => {
     mockPostgres.query.mockResolvedValue([]);
     mockLogger.error.mockImplementation(() => {});
     mockLogger.info.mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
   describe('tool configuration', () => {
@@ -104,10 +113,9 @@ describe('updateAgentTool', () => {
         const mockAgent = createAgent({ name: identifier });
         const mockUpdatedAgent = { ...mockAgent, description: 'Updated' };
 
-        mockNormalize.mockReturnValue({
-          normalizedConfig: { description: 'Updated' },
-          appliedDefaults: [],
-        });
+        mockNormalize.mockReturnValueOnce(
+          createMockNormalizeResult({ description: 'Updated' })
+        );
         mockPostgres.query
           .mockResolvedValueOnce([mockAgent])
           .mockResolvedValueOnce([mockUpdatedAgent]);
@@ -169,10 +177,7 @@ describe('updateAgentTool', () => {
       const mockAgent = createAgent();
       const mockUpdatedAgent = { ...mockAgent, ...updates };
 
-      mockNormalize.mockReturnValue({
-        normalizedConfig: updates,
-        appliedDefaults: [],
-      });
+      mockNormalize.mockReturnValueOnce(createMockNormalizeResult(updates));
       mockPostgres.query
         .mockResolvedValueOnce([mockAgent])
         .mockResolvedValueOnce([mockUpdatedAgent]);
@@ -187,10 +192,7 @@ describe('updateAgentTool', () => {
 
     it('should handle no valid fields to update', async () => {
       const mockAgent = createAgent();
-      mockNormalize.mockReturnValue({
-        normalizedConfig: {},
-        appliedDefaults: [],
-      });
+      mockNormalize.mockReturnValueOnce(createMockNormalizeResult({}));
       mockPostgres.query.mockResolvedValueOnce([mockAgent]);
 
       const result = await updateAgentTool.func({
@@ -216,10 +218,7 @@ describe('updateAgentTool', () => {
       const mockAgent = createAgent();
       const mockUpdatedAgent = { ...mockAgent, ...updates };
 
-      mockNormalize.mockReturnValue({
-        normalizedConfig: updates,
-        appliedDefaults: [],
-      });
+      mockNormalize.mockReturnValueOnce(createMockNormalizeResult(updates));
       mockPostgres.query
         .mockResolvedValueOnce([mockAgent])
         .mockResolvedValueOnce([mockUpdatedAgent]);
@@ -238,10 +237,12 @@ describe('updateAgentTool', () => {
       const mockAgent = createAgent();
       const mockUpdatedAgent = { ...mockAgent, interval: 5 };
 
-      mockNormalize.mockReturnValue({
-        normalizedConfig: { interval: 5 },
-        appliedDefaults: ['interval set to default value (5)'],
-      });
+      mockNormalize.mockReturnValueOnce(
+        createMockNormalizeResult(
+          { interval: 5 },
+          ['interval set to default value (5)']
+        )
+      );
       mockPostgres.query
         .mockResolvedValueOnce([mockAgent])
         .mockResolvedValueOnce([mockUpdatedAgent]);
@@ -255,13 +256,40 @@ describe('updateAgentTool', () => {
       expect(parsed.success).toBe(true);
       expect(parsed.message).toContain('interval set to default value (5)');
     });
+
+    it('should handle update failure when result is empty', async () => {
+      const mockAgent = createAgent();
+      
+      mockNormalize.mockReturnValueOnce(
+        createMockNormalizeResult({ description: 'Updated' })
+      );
+      mockPostgres.query
+        .mockResolvedValueOnce([mockAgent])
+        .mockResolvedValueOnce([]); // Empty result means update failed
+
+      const result = await updateAgentTool.func({
+        identifier: 'test-agent',
+        updates: { description: 'Updated' },
+      });
+
+      const parsed = asJson(result);
+      expect(parsed.success).toBe(false);
+      expect(parsed.message).toBe('Failed to update agent');
+      expect(mockPostgres.query).toHaveBeenCalledTimes(2);
+      expect(mockPostgres.query.mock.calls[1][0]).toEqual(
+        expect.objectContaining({
+          query: expect.stringMatching(/\bUPDATE\b/i),
+        })
+      );
+    });
   });
 
   describe('error handling', () => {
-    it('should handle Postgres.Query constructor errors', async () => {
-      mockPostgres.Query.mockImplementation(() => {
-        throw new Error('Invalid query syntax');
-      });
+    it.each([
+      ['Postgres.Query constructor errors', () => { throw new Error('Invalid query syntax'); }, 'Invalid query syntax'],
+      ['non-Error exceptions', () => { throw 'String error'; }, 'String error'],
+    ])('should handle %s', async (_description, errorThrowingFn, expectedMsg) => {
+      mockPostgres.Query.mockImplementation(errorThrowingFn);
 
       const result = await updateAgentTool.func({
         identifier: 'test-agent',
@@ -271,7 +299,12 @@ describe('updateAgentTool', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error updating agent:')
       );
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining(expectedMsg)
+      );
       expect(asJson(result).success).toBe(false);
+      expect(mockPostgres.query).not.toHaveBeenCalled();
+      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
     });
   });
 });

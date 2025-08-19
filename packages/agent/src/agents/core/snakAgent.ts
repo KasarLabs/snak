@@ -18,7 +18,11 @@ import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
-import { FormatChunkIteration, ToolsChunk } from './utils.js';
+import { FormatChunkIteration } from './utils.js';
+import { 
+  IterationResponse, 
+  AgentIterationEvent 
+} from './types.js';
 import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
@@ -38,64 +42,7 @@ export interface StreamChunk {
   final: boolean;
 }
 
-export interface FormattedOnChatModelStream {
-  chunk: {
-    content: string;
-    tools: ToolsChunk | undefined;
-  };
-}
 
-export type MessagesLangraph = {
-  lc: number;
-  type: string;
-  id: string[];
-  kwargs: {
-    content: string;
-    additional_kwargs?: any;
-    response_metadata?: any;
-  };
-};
-
-export type ResultModelEnd = {
-  output: {
-    content: string;
-  };
-  input: {
-    messages: MessagesLangraph[][];
-  };
-};
-
-export interface FormattedOnChatModelStart {
-  iteration: {
-    name: string;
-    messages: MessagesLangraph[][];
-    metadata?: any;
-  };
-}
-
-export interface FormattedOnChatModelEnd {
-  iteration: {
-    name: string;
-    result: ResultModelEnd;
-  };
-}
-
-export enum AgentIterationEvent {
-  ON_CHAT_MODEL_STREAM = 'on_chat_model_stream',
-  ON_CHAT_MODEL_START = 'on_chat_model_start',
-  ON_CHAT_MODEL_END = 'on_chat_model_end',
-  ON_CHAIN_START = 'on_chain_start',
-  ON_CHAIN_END = 'on_chain_end',
-  ON_CHAIN_STREAM = 'on_chain_stream',
-}
-
-export interface IterationResponse {
-  event: AgentIterationEvent;
-  kwargs:
-    | FormattedOnChatModelEnd
-    | FormattedOnChatModelStart
-    | FormattedOnChatModelStream;
-}
 
 export interface SnakAgentConfig {
   provider: RpcProvider;
@@ -553,7 +500,7 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else {
-        return `The mode: ${this.currentMode} is not supported in this method.`;
+        throw new Error(`The mode: ${this.currentMode} is not supported in this method.`);
       }
     } catch (error) {
       logger.error(`[SnakAgent] Execute failed: ${error}`);
@@ -739,9 +686,7 @@ export class SnakAgent extends BaseAgent {
             ) {
               const formatted = FormatChunkIteration(chunk);
               if (!formatted) {
-                throw new Error(
-                  `Failed to format chunk: ${JSON.stringify(chunk)}`
-                );
+                throw new Error(`Failed to format chunk: ${JSON.stringify(chunk)}`);
               }
               const formattedChunk: IterationResponse = {
                 event: chunk.event as AgentIterationEvent,

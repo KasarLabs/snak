@@ -5,6 +5,7 @@ import {
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentType } from '../../../core/baseAgent.js';
 
+// Mocks consolidés - un seul par package
 jest.mock('../../../core/baseAgent.js', () => ({
   BaseAgent: jest.fn().mockImplementation(function (
     id: string,
@@ -86,19 +87,7 @@ describe('ConfigurationAgent', () => {
   let mockCreateReactAgent: any;
   let mockReactAgent: any;
 
-  // Helpers
-  const resp = (content: string) => ({
-    messages: [new AIMessage({ content })],
-  });
-  const mockInvoke = (content: string) =>
-    mockReactAgent.invoke.mockResolvedValue(resp(content));
-  const mkHuman = (content: string, kwargs?: any) => {
-    const msg = new HumanMessage(content);
-    if (kwargs) msg.additional_kwargs = kwargs;
-    return msg;
-  };
-  const mkAI = (content: string) => new AIMessage(content);
-
+  // Factories et helpers
   const makeAgent = async (init = true, cfg?: ConfigurationAgentConfig) => {
     agent = new ConfigurationAgent(cfg);
     if (init) {
@@ -109,6 +98,17 @@ describe('ConfigurationAgent', () => {
     }
     return agent;
   };
+
+  const mkHuman = (content: string, kwargs?: any) => {
+    const msg = new HumanMessage(content);
+    if (kwargs) msg.additional_kwargs = kwargs;
+    return msg;
+  };
+
+  const mkAI = (content: string) => new AIMessage(content);
+
+  const mockInvoke = (content: string) =>
+    mockReactAgent.invoke.mockResolvedValue({ messages: [new AIMessage( content )] });
 
   const expectSuccessMessage = (ai: AIMessage, content: string) => {
     expect(ai.content).toBe(content);
@@ -123,10 +123,14 @@ describe('ConfigurationAgent', () => {
     jest.clearAllMocks();
     mockLogger = require('@snakagent/core').logger;
     mockModelSelector = require('../../modelSelector.js').ModelSelector;
-    mockCreateReactAgent =
-      require('@langchain/langgraph/prebuilt').createReactAgent;
+    mockCreateReactAgent = require('@langchain/langgraph/prebuilt').createReactAgent;
     mockReactAgent = { invoke: jest.fn() };
     mockCreateReactAgent.mockReturnValue(mockReactAgent);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -137,14 +141,18 @@ describe('ConfigurationAgent', () => {
       expect(agent.description).toContain('managing agent configurations');
     });
 
-    it('should handle debug setting', () => {
-      new ConfigurationAgent({ debug: false });
-      expect(mockLogger.debug).not.toHaveBeenCalled();
-
-      new ConfigurationAgent({ debug: true });
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        expect.stringContaining('ConfigurationAgent initialized with')
-      );
+    it.each([
+      [false, false],
+      [true, true],
+    ])('should handle debug setting %s', (debug, shouldLog) => {
+      new ConfigurationAgent({ debug });
+      if (shouldLog) {
+        expect(mockLogger.debug).toHaveBeenCalledWith(
+          expect.stringContaining('ConfigurationAgent initialized with')
+        );
+      } else {
+        expect(mockLogger.debug).not.toHaveBeenCalled();
+      }
     });
 
     it('should create with custom model type', () => {
@@ -227,12 +235,27 @@ describe('ConfigurationAgent', () => {
       expectSuccessMessage(result, 'Operation completed');
     });
 
+    it('should stringify non-string content from last result message', async () => {
+      const obj = { ok: true, id: 1 };
+      mockReactAgent.invoke.mockResolvedValue({ messages: [{ content: obj }] });
+
+      const result = await agent.execute('anything');
+
+      expectSuccessMessage(result, JSON.stringify(obj));
+    });
+
     it.each([
-      ['config', 'some input', { originalUserQuery: 'Create a new agent' }],
+      [
+        'config',
+        'some input',
+        { originalUserQuery: 'Create a new agent' },
+        'Create a new agent',
+      ],
       [
         'message kwargs',
         mkHuman('some content', { originalUserQuery: 'Delete agent test' }),
         undefined,
+        'Delete agent test',
       ],
       [
         'first message in array',
@@ -241,21 +264,15 @@ describe('ConfigurationAgent', () => {
           mkHuman('second message'),
         ],
         undefined,
+        'First query',
       ],
-    ])('should use originalUserQuery from %s', async (_, input, config) => {
+    ])('should use originalUserQuery from %s', async (_, input, config, expectedContent) => {
       mockInvoke('Operation completed');
       const result = await agent.execute(input, false, config);
       expectSuccessMessage(result, 'Operation completed');
 
-      const expectedContent =
-        config?.originalUserQuery ||
-        (input instanceof HumanMessage &&
-          input.additional_kwargs?.originalUserQuery) ||
-        (Array.isArray(input) &&
-          input[0] instanceof HumanMessage &&
-          input[0].additional_kwargs?.originalUserQuery);
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
-        messages: [new HumanMessage(expectedContent || expect.any(String))],
+        messages: [new HumanMessage(expectedContent)],
       });
     });
 
@@ -263,21 +280,47 @@ describe('ConfigurationAgent', () => {
       [
         'first HumanMessage content',
         [mkHuman('first human message'), mkHuman('second human message')],
+        'first human message',
       ],
       [
         'fallback to last message',
         [mkAI('AI message'), mkAI('Another AI message')],
+        'Another AI message',
       ],
-    ])('should handle array input with %s', async (_, messages) => {
+    ])('should handle array input with %s', async (_, messages, expectedContent) => {
       mockInvoke('Operation completed');
       const result = await agent.execute(messages);
       expectSuccessMessage(result, 'Operation completed');
 
-      const expectedContent =
-        messages.find((m) => m instanceof HumanMessage)?.content ||
-        messages[messages.length - 1]?.content;
       expect(mockReactAgent.invoke).toHaveBeenCalledWith({
-        messages: [new HumanMessage(expectedContent || expect.any(String))],
+        messages: [new HumanMessage(expectedContent)],
+      });
+    });
+
+    it('should handle BaseMessage with non-string content (stringified)', async () => {
+      const nonStringContent = { action: 'update', target: 'agent' };
+      const fakeMessage: any = { content: nonStringContent, additional_kwargs: {} };
+      Object.setPrototypeOf(fakeMessage, HumanMessage.prototype);
+
+      mockInvoke('Operation completed');
+      await agent.execute(fakeMessage);
+
+      expect(mockReactAgent.invoke).toHaveBeenCalledWith({
+        messages: [new HumanMessage(JSON.stringify(nonStringContent))],
+      });
+    });
+
+    it('should handle array with last non-string content and no HumanMessage', async () => {
+      const arr: any[] = [
+        { content: 'ai says', additional_kwargs: {} },
+        { content: { data: 'final' }, additional_kwargs: {} },
+      ];
+
+      mockInvoke('Operation completed');
+      await agent.execute(arr);
+
+      expect(mockReactAgent.invoke).toHaveBeenCalledWith({
+        messages: [new HumanMessage(JSON.stringify({ data: 'final' }))],
       });
     });
 
@@ -285,9 +328,7 @@ describe('ConfigurationAgent', () => {
       [
         'invoke rejection',
         () => {
-          mockReactAgent.invoke.mockRejectedValue(
-            new Error('Execution failed')
-          );
+          mockReactAgent.invoke.mockRejectedValue(new Error('Execution failed'));
         },
         'Configuration operation failed: Execution failed',
       ],
@@ -298,11 +339,26 @@ describe('ConfigurationAgent', () => {
         },
         'Configuration operation failed: No content found in the last message',
       ],
+      [
+        'no messages field in response',
+        () => {
+          mockReactAgent.invoke.mockResolvedValue({});
+        },
+        'Configuration operation failed: No content found in the last message',
+      ],
     ])('should handle %s error', async (_, setup, expectedError) => {
       setup();
       const result = await agent.execute('test input');
       expect(result.content).toContain(expectedError);
       expect(result.additional_kwargs.success).toBe(false);
+    });
+
+    it('should handle non-Error thrown values (string) and set error field', async () => {
+      mockReactAgent.invoke.mockRejectedValue('string failure');
+      const result = await agent.execute('test input');
+      expect(result.content).toContain('Configuration operation failed: string failure');
+      expect(result.additional_kwargs.success).toBe(false);
+      expect(result.additional_kwargs.error).toBe('string failure');
     });
 
     it('should handle React agent not initialized error', async () => {
@@ -407,6 +463,57 @@ describe('ConfigurationAgent', () => {
         });
 
         expect(mockLogger.debug).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('extractContent method', () => {
+    beforeEach(async () => {
+      agent = new ConfigurationAgent({ debug: false });
+      await agent.init();
+      mockInvoke('Operation completed');
+    });
+
+    it('should test extractContent method directly for full coverage', () => {
+
+      const extractContent = (agent as any).extractContent.bind(agent);
+      
+      const arrayInput = [new HumanMessage('test')];
+      expect(extractContent(arrayInput)).toBe('test');
+      
+      expect(extractContent('test string')).toBe('test string');
+      
+      const messageWithString = new HumanMessage('test message');
+      expect(extractContent(messageWithString)).toBe('test message');
+      
+      const mockMessageWithObject = {
+        content: { data: 'test' },
+        additional_kwargs: {}
+      };
+      expect(extractContent(mockMessageWithObject)).toBe(JSON.stringify({ data: 'test' }));
+      
+      const arrayWithObject = [
+        new HumanMessage('first'),
+        { content: { data: 'last' }, additional_kwargs: {} }
+      ];
+      expect(extractContent(arrayWithObject)).toBe(JSON.stringify({ data: 'last' }));
+    });
+
+    it('should trigger fallback path in extractOriginalUserContent', async () => {
+      const debugAgent = new ConfigurationAgent({ debug: true });
+      await debugAgent.init();
+      mockInvoke('Operation completed');
+      
+      const fallbackInput = { 
+        content: 'fallback content',
+        additional_kwargs: {}
+      } as any;
+      
+      const result = await debugAgent.execute(fallbackInput);
+      
+      expectSuccessMessage(result, 'Operation completed');
+      expect(mockReactAgent.invoke).toHaveBeenCalledWith({
+        messages: [new HumanMessage('fallback content')],
       });
     });
   });

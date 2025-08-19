@@ -31,7 +31,8 @@ jest.mock('@snakagent/database/queries', () => ({
   },
 }));
 
-import { MemoryAgent, MemoryConfig } from '../memoryAgent.js';
+import type { MemoryConfig } from '@snakagent/core';
+import { MemoryAgent } from '../memoryAgent.js';
 import { HumanMessage } from '@langchain/core/messages';
 
 const { memory: mockMemoryOperations, iterations: mockIterationOperations } =
@@ -118,7 +119,6 @@ describe('MemoryAgent', () => {
       enabled: true,
       shortTermMemorySize: 10,
       memorySize: 15,
-      maxIterations: 5,
       embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     };
     memoryAgent = new MemoryAgent(mockConfig);
@@ -134,7 +134,6 @@ describe('MemoryAgent', () => {
       const customConfig: MemoryConfig = {
         shortTermMemorySize: 20,
         memorySize: 30,
-        maxIterations: 10,
         embeddingModel: 'custom-model',
       };
       const agent = new MemoryAgent(customConfig);
@@ -399,7 +398,7 @@ describe('MemoryAgent', () => {
       await memoryAgent.init();
     });
 
-    it('should filter memories below similarity threshold', async () => {
+    it('should filter memories by similarity threshold', async () => {
       mockMemoryOperations.similar_memory.mockResolvedValueOnce([
         createMockMemory(1, 'High similarity memory', 0.8),
         createMockMemory(2, 'Low similarity memory', 0.1),
@@ -411,6 +410,9 @@ describe('MemoryAgent', () => {
       );
 
       expect(memories).toHaveLength(2);
+      expect(memories[0].similarity).toBe(0.8);
+      expect(memories[1].similarity).toBe(0.1);
+      expect(memories[0].similarity).toBeGreaterThan(memories[1].similarity);
     });
   });
 

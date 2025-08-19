@@ -154,7 +154,6 @@ export function handleModelError(error: any): {
   messages: BaseMessage;
   last_agent: Agent.EXECUTOR;
 } {
-  logger.error(`Executor: Error calling model - ${error}`);
 
   if (isTokenLimitError(error)) {
     logger.error(
@@ -173,6 +172,8 @@ export function handleModelError(error: any): {
       messages: message,
       last_agent: Agent.EXECUTOR,
     };
+  } else {
+    logger.error(`Executor: Error calling model - ${error}`);
   }
 
   const message = new AIMessageChunk({

@@ -293,7 +293,7 @@ export class ModelSelector extends BaseAgent {
       if (this.debugMode) {
         logger.debug(`Invoking "fast" model for meta-selection analysis.`);
         logger.debug(
-          `Using ${nextStepsSection ? 'NEXT STEPS-focused' : 'full content'} analysis.`
+          `Using full content analysis.`
         );
       }
 
@@ -366,7 +366,7 @@ export class ModelSelector extends BaseAgent {
 
     if (this.debugMode) {
       logger.debug(
-        `Executing model: ${modelType} Actual: ${selectedModel === this.models.smart ? 'smart (fallback)' : modelType})`
+        `Executing model: ${modelType} Actual: ${selectedModel === this.models.smart ? 'smart (fallback)' : modelType}`
       );
     }
     return selectedModel.invoke(input);

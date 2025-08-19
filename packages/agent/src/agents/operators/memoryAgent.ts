@@ -8,6 +8,7 @@ import { tool } from '@langchain/core/tools';
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { Runnable, RunnableSequence } from '@langchain/core/runnables';
+import { processMessageContent } from '../core/utils.js';
 
 export interface MemoryNodeState {
   messages: BaseMessage[];
@@ -348,24 +349,48 @@ export class MemoryAgent extends BaseAgent {
   ): Runnable<MemoryNodeState, MemoryChainResult> {
     const buildQuery = (state: MemoryNodeState) => {
       if (this.isAutonomous) {
-        const lastMessage =
-          state.plan.steps[state.currentStepIndex].description;
-        return lastMessage;
+        try {
+          if (state.plan?.steps?.[state.currentStepIndex]?.description) {
+            return state.plan.steps[state.currentStepIndex].description;
+          }
+          if (state.plan?.steps?.[0]?.description) {
+            return state.plan.steps[0].description;
+          }
+          logger.warn('MemoryAgent: Invalid plan structure in autonomous mode, falling back to messages');
+        } catch (error) {
+          logger.warn('MemoryAgent: Error accessing plan structure, falling back to messages');
+        }
       }
+      
       const lastUser = [...state.messages]
         .reverse()
         .find((msg: BaseMessage) => msg instanceof HumanMessage);
-      return lastUser
-        ? typeof lastUser.content === 'string'
+      
+      let query: string;
+      if (lastUser) {
+        query = typeof lastUser.content === 'string'
           ? lastUser.content
-          : JSON.stringify(lastUser.content)
-        : (state.messages[0]?.content as string);
+          : JSON.stringify(lastUser.content);
+      } else if (state.messages[0]?.content) {
+        const content = state.messages[0].content;
+        query = typeof content === 'string'
+          ? content
+          : JSON.stringify(content);
+      } else {
+        query = '';
+      }
+      
+      return query.trim();
     };
 
     const fetchMemories = async (
       query: string,
       config: LangGraphRunnableConfig
     ) => {
+      if (!query || !query.trim()) {
+        return '';
+      }
+      
       const userId = config.configurable?.userId || 'default_user';
       const agentId = config.configurable?.agentId;
       const embedding = await this.embeddings.embedQuery(query);
@@ -412,8 +437,11 @@ export class MemoryAgent extends BaseAgent {
         throw new Error('MemoryAgent: Not initialized');
       }
 
-      const query =
-        typeof message === 'string' ? message : message.content.toString();
+      const query = processMessageContent(message);
+      
+      if (!query || query.trim() === '') {
+        return [];
+      }
 
       const embedding = await this.embeddings.embedQuery(query);
       const memResults = await memory.similar_memory(userId, embedding, limit);
@@ -524,12 +552,7 @@ export class MemoryAgent extends BaseAgent {
         throw new Error('MemoryAgent: Not initialized');
       }
 
-      const content =
-        typeof input === 'string'
-          ? input
-          : input instanceof BaseMessage
-            ? input.content.toString()
-            : JSON.stringify(input);
+      const content = processMessageContent(input);
 
       // Determine the type of memory operation to perform
       if (
