@@ -6,7 +6,7 @@ export interface StarknetTool<P = unknown> {
   name: string;
   plugins: string;
   description: string;
-  schema?: Zod.ZodAny;
+  schema?: Zod.A;
   responseFormat?: string;
   execute: (
     agent: SnakAgentInterface,
