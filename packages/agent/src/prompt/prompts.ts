@@ -537,7 +537,7 @@ tool_available  : {toolsAvailable}
 `;
 
 export const HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT = `
-You are a strategic planning AI in the context of an autonmous agent with human-in-the-loop capabilities that:
+You are a strategic planning AI in the context of an autonomous agent with human-in-the-loop capabilities that:
 - Decomposes complex goals into actionable steps
 - Anticipates potential blockers
 - Provides reasoning for each decision
@@ -579,7 +579,7 @@ Response Format (JSON):
       "stepName": string (max 200 chars),
       "description": string (detailed description including required inputs),
       "status": "pending",
-      "type" : enum('tools' | 'message' | 'human_in_the_loop')
+      "type" : enum('tools' | 'message' | 'human_in_the_loop'),
       "result": ""
 }}
   ],
@@ -598,7 +598,7 @@ Response:
       "stepName": "Search for recent AI developments",
       "description": "Use web_search tool to find latest AI news and breakthroughs. Required inputs: search query 'latest AI developments 2024', focus on reputable sources like research papers and tech news sites.",
       "status": "pending",
-      "type" : "tools"
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -606,7 +606,7 @@ Response:
       "stepName": "Analyze and filter search results",
       "description": "Process search results to identify most significant developments. Required inputs: search results from step 1, filtering criteria for relevance and credibility.",
       "status": "pending",
-      "type" : "tools"
+      "type" : "tools",
       "result": ""
 }},
     {{
@@ -614,7 +614,7 @@ Response:
       "stepName": "Search documentation on the most recent Ai developments",
       "description": "Use web_search tool to find documentation on the most recent Ai developments. Required inputs: filtered information from step 2.",
       "status": "pending",
-      "type" : "tools"
+      "type" : "tools",
       "result": ""
 }}
   ],
@@ -631,7 +631,7 @@ Response:
      "stepName": "Load customer feedback data",
      "description": "Use data_loader tool to import feedback dataset. Required inputs: file path or database connection string, data format specification (CSV/JSON), date range parameters if applicable.",
      "status": "pending",
-     "type" : "tools"
+     "type" : "tools",
      "result": ""
 }},
    {{
@@ -639,7 +639,7 @@ Response:
      "stepName": "Preprocess and clean data",
      "description": "Use data_processing tool to clean and standardize feedback. Required inputs: raw data from step 1, cleaning rules (remove duplicates, handle missing values), text normalization parameters.",
      "status": "pending",
-     "type" : "tools"
+     "type" : "tools",
      "result": ""
 }},
    {{
@@ -647,7 +647,7 @@ Response:
      "stepName": "Perform sentiment analysis",
      "description": "Use sentiment_analysis tool to classify feedback sentiment. Required inputs: cleaned text data from step 2, sentiment model selection, confidence threshold settings.",
      "status": "pending",
-     "type" : "tools"
+     "type" : "tools",
      "result": ""
 }},
    {{
@@ -655,7 +655,7 @@ Response:
      "stepName": "Extract and categorize issues",
      "description": "Use topic_extraction tool to identify main complaint categories. Required inputs: feedback text with sentiment scores from step 3, number of topics to extract, minimum topic frequency threshold.",
      "status": "pending",
-     "type" : "tools"
+     "type" : "tools",
      "result": ""
 }},
    {{
@@ -663,7 +663,7 @@ Response:
      "stepName": "Select analysis focus areas",
      "description": "Human-in-the-loop: Based on the extracted data from steps 3-4, we identified multiple insight categories. Please specify which areas you want to prioritize for deeper analysis: (1) Top 5 negative sentiment drivers by volume, (2) Emerging complaint trends (new issues in last 30 days), (3) Product-specific feedback breakdown, (4) Customer segment analysis (by demographics/region), (5) Comparison with competitor mentions, (6) Service touchpoint performance. Select 1-3 focus areas for detailed reporting.",
      "status": "pending",
-     "type" : "human_in_the_loop"
+     "type" : "human_in_the_loop",
      "result": ""
 }}
  ],

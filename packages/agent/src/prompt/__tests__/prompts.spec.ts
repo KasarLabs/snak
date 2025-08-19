@@ -12,11 +12,24 @@ import {
   finalAnswerRules,
   agentSelectorPromptContent,
   planPrompt,
-  PromptPlanInteractive,
+  SummarizeAgent,
+  hybridInitialPrompt,
+  STEP_EXECUTOR_SYSTEM_PROMPT,
+  RETRY_EXECUTOR_SYSTEM_PROMPT,
+  RETRY_CONTENT,
+  STEP_EXECUTOR_CONTEXT,
+  REPLAN_EXECUTOR_SYSTEM_PROMPT,
+  ADAPTIVE_PLANNER_SYSTEM_PROMPT,
+  ADAPTIVE_PLANNER_CONTEXT,
+  AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT,
+  AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT,
+  STEPS_VALIDATOR_SYSTEM_PROMPT,
 } from '../prompts.js';
 import { AgentConfig } from '@snakagent/core';
 import { MessageContent } from '@langchain/core/messages';
-import { StepInfo } from '../prompts.js';
 
 // Test constants
 const DEFAULT_PLAN = `PLAN: Test plan
@@ -49,16 +62,6 @@ describe('prompts', () => {
       prompt,
     }) as unknown as AgentConfig;
 
-  const createStepInfo = (
-    stepNumber: number,
-    stepName: string,
-    status: string
-  ): StepInfo => ({
-    stepNumber,
-    stepName,
-    status,
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -81,19 +84,19 @@ describe('prompts', () => {
         'interactiveRules',
         interactiveRules,
         'INTERACTIVE MODE',
-        ['Think step-by-step', 'ask the user specific questions'],
+        ['REAL TOOL USAGE', 'AUTHENTIC OUTPUTS', 'MACHINE-READABLE FORMAT'],
       ],
       [
         'autonomousRules',
         autonomousRules,
         'AUTONOMOUS MODE',
-        ['call tools in every response', 'NEXT STEPS:'],
+        ['call tools in every response', 'NEXT STEPS:', 'GOAL defined in the initial messages'],
       ],
       [
         'hybridRules',
         hybridRules,
         'HYBRID MODE',
-        ['WAITING_FOR_HUMAN_INPUT', 'FINAL ANSWER:'],
+        ['WAITING_FOR_HUMAN_INPUT', 'FINAL ANSWER:', 'autonomously to complete tasks'],
       ],
     ])(
       '%s should contain correct content',
@@ -104,6 +107,20 @@ describe('prompts', () => {
         keyPhrases.forEach((phrase) => expect(rules).toContain(phrase));
       }
     );
+  });
+
+  describe('SummarizeAgent', () => {
+    it('should contain correct content', () => {
+      expect(SummarizeAgent).toContain('Summarization Agent');
+      expect(SummarizeAgent).toContain('Compress AIMessages and ToolMessages');
+      expect(SummarizeAgent).toContain('MESSAGES TO SUMMARY : {messagesContent}');
+    });
+  });
+
+  describe('hybridInitialPrompt', () => {
+    it('should return the correct initial prompt', () => {
+      expect(hybridInitialPrompt).toBe('Start executing your primary objective.');
+    });
   });
 
   describe('modelSelectorSystemPrompt', () => {
@@ -280,87 +297,130 @@ describe('prompts', () => {
       const expectedSections = [
         'RULES:',
         'Maximum 5-7 steps total',
-        'FORMAT:',
-        'SOLUTION PLAN:',
-        'Step 1: [Action name] - [Description of what to do]',
-        'Checkpoints:',
-        'After step X: [What to verify]',
+        'Merge similar actions into single steps',
+        'Focus on essential tasks only',
+        'Keep the exact format below for parsing',
       ];
 
       expectedSections.forEach((section) => expect(result).toContain(section));
     });
   });
 
-  describe('PromptPlanInteractive', () => {
-    const defaultPlan = DEFAULT_PLAN;
-
-    it('should generate interactive plan prompt with all main sections', () => {
-      const currentStep = createStepInfo(3, 'create_report', 'pending');
-      const stepHistory = [
-        createStepInfo(1, 'collect_data', 'completed'),
-        createStepInfo(2, 'analyze_data', 'completed'),
-      ];
-
-      const result = PromptPlanInteractive(
-        currentStep,
-        stepHistory,
-        defaultPlan
-      );
-
-      const expectedSections = [
-        'PLAN-EXECUTION MODE with REAL-TIME TRACKING',
-        'THE PLAN :',
-        'CURRENT POSITION:',
-        'CORE RULES:',
-        'PLAN FORMAT:',
-        'EXECUTION FLOW:',
-        'ERROR HANDLING:',
-        'CRITICAL FOR PLAN_COMPLETED:',
-      ];
-
-      expectedSections.forEach((section) => expect(result).toContain(section));
-      expect(result).toContain(defaultPlan);
-      expect(result).toContain('Current Step: STEP 3: create_report');
+  describe('STEP_EXECUTOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('AI Step Executor with REAL tool access');
+      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('Execute STEP {stepNumber}: {stepName}');
+      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('TOOL EXECUTION MODE');
+      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('AI RESPONSE MODE');
     });
+  });
 
-    it.each([
-      ['empty history', [], 'should not contain step history items'],
-      [
-        'mixed statuses',
-        [
-          createStepInfo(1, 'step1', 'completed'),
-          createStepInfo(2, 'step2', 'failed'),
-          createStepInfo(3, 'step3', 'in_progress'),
-        ],
-        'should contain all step history items',
-      ],
-    ])('should handle %s', (_, history, _description) => {
-      const currentStep = createStepInfo(1, 'test_step', 'pending');
-      const result = PromptPlanInteractive(currentStep, history, defaultPlan);
-
-      expect(result).toContain('Completed Steps:');
-
-      if (history.length > 0) {
-        history.forEach((step) => {
-          expect(result).toContain(
-            `STEP ${step.stepNumber}: ${step.stepName} (${step.status})`
-          );
-        });
-      }
+  describe('RETRY_EXECUTOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('validator rejected your previous execution attempt');
+      expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('RETRY EXECUTION');
+      expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('REQUEST REPLANNING');
+      expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('REQUEST_REPLAN');
     });
+  });
 
-    it('should include all core rules and instructions', () => {
-      const currentStep = createStepInfo(1, 'test', 'pending');
-      const result = PromptPlanInteractive(currentStep, [], defaultPlan);
+  describe('RETRY_CONTENT', () => {
+    it('should contain correct placeholders', () => {
+      expect(RETRY_CONTENT).toContain('{toolsList}');
+      expect(RETRY_CONTENT).toContain('{retry}');
+      expect(RETRY_CONTENT).toContain('{maxRetry}');
+      expect(RETRY_CONTENT).toContain('{reason}');
+      expect(RETRY_CONTENT).toContain('{stepNumber}');
+      expect(RETRY_CONTENT).toContain('{stepName}');
+      expect(RETRY_CONTENT).toContain('{stepDescription}');
+    });
+  });
 
-      const expectedRules = [
-        'ALWAYS acknowledge your current step first',
-        'NEVER skip steps - execute them in order',
-        'NEVER ask questions to the user',
-        'Follow the plan EXACTLY',
-      ];
+  describe('STEP_EXECUTOR_CONTEXT', () => {
+    it('should contain correct placeholders', () => {
+      expect(STEP_EXECUTOR_CONTEXT).toContain('{toolsList}');
+      expect(STEP_EXECUTOR_CONTEXT).toContain('{stepNumber}');
+      expect(STEP_EXECUTOR_CONTEXT).toContain('{stepName}');
+      expect(STEP_EXECUTOR_CONTEXT).toContain('{stepDescription}');
+    });
+  });
 
-      expectedRules.forEach((rule) => expect(result).toContain(rule));
+  describe('REPLAN_EXECUTOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('re-planning assistant');
+      expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('Create a NEW plan that:');
+      expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{formatPlan}');
+      expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{lastAiMessage}');
+    });
+  });
+
+  describe('ADAPTIVE_PLANNER_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('autonomous agent graph');
+      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('AUTONOMOUS AGENT system');
+      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('Step {stepLength}');
+      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('NEVER repeat or rewrite a step');
+    });
+  });
+
+  describe('ADAPTIVE_PLANNER_CONTEXT', () => {
+    it('should contain correct placeholders', () => {
+      expect(ADAPTIVE_PLANNER_CONTEXT).toContain('{agent_config}');
+      expect(ADAPTIVE_PLANNER_CONTEXT).toContain('{toolsList}');
+      expect(ADAPTIVE_PLANNER_CONTEXT).toContain('{lastStepResult}');
+    });
+  });
+
+  describe('AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('strategic planning AI');
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('autonomous agent');
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('Every Tool has to be considered as a step');
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{agentConfig}');
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{toolsAvailable}');
+    });
+  });
+
+  describe('HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('autonomous agent with human-in-the-loop capabilities');
+      expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('Human-in-the Loop has to be considered as a step');
+      expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('human_in_the_loop');
+    });
+  });
+
+  describe('INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('interactive planning AI');
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('end-to-end execution plans');
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{userRequest}');
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{agentConfig}');
+    });
+  });
+
+  describe('INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('plan validator');
+      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('Be supportive, not critical');
+      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('end with summarize');
+    });
+  });
+
+  describe('AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('plan validator');
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('Verify dependencies');
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('{agentConfig}');
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('{currentPlan}');
+    });
+  });
+
+  describe('STEPS_VALIDATOR_SYSTEM_PROMPT', () => {
+    it('should contain correct content', () => {
+      expect(STEPS_VALIDATOR_SYSTEM_PROMPT).toContain('step validator');
+      expect(STEPS_VALIDATOR_SYSTEM_PROMPT).toContain('TOOL_EXECUTION_MODE');
+      expect(STEPS_VALIDATOR_SYSTEM_PROMPT).toContain('AI_RESPONSE_MODE');
+      expect(STEPS_VALIDATOR_SYSTEM_PROMPT).toContain('step validated');
     });
   });
 
