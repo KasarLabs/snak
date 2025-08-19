@@ -8,13 +8,9 @@ import {
   logger,
   AgentConfig,
   RawAgentConfig,
-  RagConfig,
-  MemoryConfig,
 } from '@snakagent/core';
 import {
   normalizeNumericValues,
-  OutputMemoryConfig,
-  OutputRagConfig,
 } from '../agents/operators/config-agent/tools/normalizeAgentValues.js';
 
 const __filename = fileURLToPath(import.meta.url);
