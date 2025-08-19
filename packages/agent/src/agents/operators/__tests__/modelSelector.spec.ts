@@ -237,40 +237,42 @@ describe('ModelSelector', () => {
     it('logs warning for missing required models', async () => {
       setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
       const selector = createSelector();
-      
+
       const mockWarn = jest.spyOn(logger, 'warn');
-      
+
       await selector.init();
 
       expect(mockWarn).toHaveBeenCalledWith(
-        "ModelSelector initialized with missing models: smart, cheap"
+        'ModelSelector initialized with missing models: smart, cheap'
       );
-      
+
       const models = selector.getModels();
       expect(models.fast).toBe(mockOpenAIModel);
       expect(models.smart).toBeUndefined();
       expect(models.cheap).toBeUndefined();
-      
     });
 
     it.each([
       [false, 'disabled', 'without model selector'],
       [true, 'enabled', 'with model selector'],
-    ])('logs debug info when all models are present %s', async (useModelSelector, expectedStatus, description) => {
-      setupFullEnvironment();
-      const selector = createSelector({ debugMode: true, useModelSelector });
-      
-      const mockDebug = jest.spyOn(logger, 'debug');
-      
-      await selector.init();
+    ])(
+      'logs debug info when all models are present %s',
+      async (useModelSelector, expectedStatus, description) => {
+        setupFullEnvironment();
+        const selector = createSelector({ debugMode: true, useModelSelector });
 
-      expect(mockDebug).toHaveBeenCalledWith(
-        `ModelSelector initialized with models: fast, smart, cheap (Meta selection: ${expectedStatus})`
-      );
-      
-      const models = selector.getModels();
-      expect(Object.keys(models)).toHaveLength(3);
-    });
+        const mockDebug = jest.spyOn(logger, 'debug');
+
+        await selector.init();
+
+        expect(mockDebug).toHaveBeenCalledWith(
+          `ModelSelector initialized with models: fast, smart, cheap (Meta selection: ${expectedStatus})`
+        );
+
+        const models = selector.getModels();
+        expect(Object.keys(models)).toHaveLength(3);
+      }
+    );
   });
 
   describe('Model selection', () => {
@@ -300,7 +302,10 @@ describe('ModelSelector', () => {
     );
 
     it('uses originalUserQuery when provided in config', async () => {
-      const selector = createSelector({ useModelSelector: true, debugMode: true });
+      const selector = createSelector({
+        useModelSelector: true,
+        debugMode: true,
+      });
       selector.loadKeys();
       await selector.initModels();
 
@@ -340,51 +345,55 @@ describe('ModelSelector', () => {
       ['string content', 'hello world', 'string'],
       ['object content', { type: 'text', text: 'test' }, 'object'],
       ['null content', null, 'null'],
-    ])('handles %s correctly for content type %s', async (description, content, type) => {
-      const selector = createSelector({ useModelSelector: true });
-      selector.loadKeys();
-      await selector.initModels();
+    ])(
+      'handles %s correctly for content type %s',
+      async (description, content, type) => {
+        const selector = createSelector({ useModelSelector: true });
+        selector.loadKeys();
+        await selector.initModels();
 
-      mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse('fast'));
+        mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse('fast'));
 
-      const message = new HumanMessage('placeholder');
+        const message = new HumanMessage('placeholder');
         Object.defineProperty(message, 'content', {
           value: content,
-          writable: true
+          writable: true,
         });
 
-      const result = await selector.selectModelForMessages([message]);
+        const result = await selector.selectModelForMessages([message]);
 
-      expect(result.model).toBe(mockOpenAIModel);
-      expect(result.model_name).toBe('fast');
-    });
+        expect(result.model).toBe(mockOpenAIModel);
+        expect(result.model_name).toBe('fast');
+      }
+    );
 
     it('handles complex object content to cover JSON.stringify branch', async () => {
-      const selector = createSelector({ useModelSelector: true, debugMode: true });
+      const selector = createSelector({
+        useModelSelector: true,
+        debugMode: true,
+      });
       selector.loadKeys();
       await selector.initModels();
 
       mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse('smart'));
 
       const message = new HumanMessage('placeholder');
-      const complexObject = { 
-        type: 'complex', 
+      const complexObject = {
+        type: 'complex',
         data: { nested: true, array: [1, 2, 3] },
         function: () => 'test',
-        largeString: 'x'.repeat(1000)
+        largeString: 'x'.repeat(1000),
       };
       Object.defineProperty(message, 'content', {
         value: complexObject,
-        writable: true
+        writable: true,
       });
 
       const mockDebug = jest.spyOn(logger, 'debug');
 
       const result = await selector.selectModelForMessages([message]);
 
-      expect(mockDebug).toHaveBeenCalledWith(
-        'Using full content analysis.'
-      );
+      expect(mockDebug).toHaveBeenCalledWith('Using full content analysis.');
 
       expect(result.model).toBe(mockAnthropicModel);
       expect(result.model_name).toBe('smart');
@@ -484,38 +493,47 @@ describe('ModelSelector', () => {
     it.each([
       ['fast', false, 'direct execution'],
       ['nonexistent', true, 'fallback execution'],
-    ])('executes with debug mode enabled %s', async (modelChoice, shouldFallback, description) => {
-      const selector = createSelector({
-        useModelSelector: true,
-        debugMode: true,
-      });
-      selector.loadKeys();
-      await selector.initModels();
+    ])(
+      'executes with debug mode enabled %s',
+      async (modelChoice, shouldFallback, description) => {
+        const selector = createSelector({
+          useModelSelector: true,
+          debugMode: true,
+        });
+        selector.loadKeys();
+        await selector.initModels();
 
-      const mockDebug = jest.spyOn(logger, 'debug');
+        const mockDebug = jest.spyOn(logger, 'debug');
 
-      mockOpenAIModel.invoke.mockResolvedValueOnce(mockModelResponse(modelChoice));
-      
-      if (shouldFallback) {
-        mockAnthropicModel.invoke.mockResolvedValueOnce({ result: 'fallback success' });
-      } else {
-        mockOpenAIModel.invoke.mockResolvedValueOnce({ result: 'direct success' });
-      }
-
-      const result = await selector.execute([new HumanMessage('hello')]);
-
-      if (shouldFallback) {
-        expect(result).toEqual({ result: 'fallback success' });
-        expect(mockDebug).toHaveBeenCalledWith(
-          'Executing model: smart Actual: smart (fallback)'
+        mockOpenAIModel.invoke.mockResolvedValueOnce(
+          mockModelResponse(modelChoice)
         );
-      } else {
-        expect(result).toEqual({ result: 'direct success' });
-        expect(mockDebug).toHaveBeenCalledWith(
-          'Executing model: fast Actual: fast'
-        );
+
+        if (shouldFallback) {
+          mockAnthropicModel.invoke.mockResolvedValueOnce({
+            result: 'fallback success',
+          });
+        } else {
+          mockOpenAIModel.invoke.mockResolvedValueOnce({
+            result: 'direct success',
+          });
+        }
+
+        const result = await selector.execute([new HumanMessage('hello')]);
+
+        if (shouldFallback) {
+          expect(result).toEqual({ result: 'fallback success' });
+          expect(mockDebug).toHaveBeenCalledWith(
+            'Executing model: smart Actual: smart (fallback)'
+          );
+        } else {
+          expect(result).toEqual({ result: 'direct success' });
+          expect(mockDebug).toHaveBeenCalledWith(
+            'Executing model: fast Actual: fast'
+          );
+        }
       }
-    });
+    );
   });
 
   describe('Edge cases and error handling', () => {
@@ -595,22 +613,25 @@ describe('ModelSelector', () => {
 
     it('handles unsupported AI provider with warning log', async () => {
       const config = createModelsConfig({
-        fast: { provider: 'unsupported-provider' as any, model_name: 'test-model' },
+        fast: {
+          provider: 'unsupported-provider' as any,
+          model_name: 'test-model',
+        },
       });
 
       const selector = new TestModelSelector({ modelsConfig: config });
       selector.loadKeys();
-      
+
       (selector as any).apiKeys['unsupported-provider'] = 'fake-key';
-      
+
       const mockWarn = jest.spyOn(logger, 'warn');
-      
+
       await selector.initModels();
 
       expect(mockWarn).toHaveBeenCalledWith(
         "Unsupported AI provider 'unsupported-provider' for model level 'fast'. Skipping."
       );
-      
+
       const models = selector.getModels();
       expect(models.fast).toBeUndefined();
     });

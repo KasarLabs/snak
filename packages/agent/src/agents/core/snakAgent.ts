@@ -19,10 +19,7 @@ import { createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration } from './utils.js';
-import { 
-  IterationResponse, 
-  AgentIterationEvent 
-} from './types.js';
+import { IterationResponse, AgentIterationEvent } from './types.js';
 import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
@@ -41,8 +38,6 @@ export interface StreamChunk {
   retry_count: number;
   final: boolean;
 }
-
-
 
 export interface SnakAgentConfig {
   provider: RpcProvider;
@@ -500,7 +495,9 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else {
-        throw new Error(`The mode: ${this.currentMode} is not supported in this method.`);
+        throw new Error(
+          `The mode: ${this.currentMode} is not supported in this method.`
+        );
       }
     } catch (error) {
       logger.error(`[SnakAgent] Execute failed: ${error}`);
@@ -686,7 +683,9 @@ export class SnakAgent extends BaseAgent {
             ) {
               const formatted = FormatChunkIteration(chunk);
               if (!formatted) {
-                throw new Error(`Failed to format chunk: ${JSON.stringify(chunk)}`);
+                throw new Error(
+                  `Failed to format chunk: ${JSON.stringify(chunk)}`
+                );
               }
               const formattedChunk: IterationResponse = {
                 event: chunk.event as AgentIterationEvent,

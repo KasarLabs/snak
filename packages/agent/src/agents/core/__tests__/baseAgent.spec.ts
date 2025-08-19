@@ -19,7 +19,9 @@ jest.mock('@snakagent/core', () => ({
 }));
 
 // Factory functions pour les fixtures
-const makeAgent = (overrides: Partial<{ id: string; type: AgentType; description?: string }> = {}) => {
+const makeAgent = (
+  overrides: Partial<{ id: string; type: AgentType; description?: string }> = {}
+) => {
   const defaults = {
     id: 'test-agent',
     type: AgentType.OPERATOR,
@@ -37,14 +39,19 @@ const makeMessage = (overrides: Partial<AgentMessage> = {}) => {
   return { ...defaults, ...overrides };
 };
 
-const makeBaseMessage = (content: string) => ({
-  _getType: () => 'human',
-  content,
-} as BaseMessage);
+const makeBaseMessage = (content: string) =>
+  ({
+    _getType: () => 'human',
+    content,
+  }) as BaseMessage;
 
 // Concrete implementations for testing
 class TestAgent extends BaseAgent {
-  constructor(id: string, type: AgentType = AgentType.OPERATOR, description?: string) {
+  constructor(
+    id: string,
+    type: AgentType = AgentType.OPERATOR,
+    description?: string
+  ) {
     super(id, type, description);
   }
 
@@ -52,13 +59,21 @@ class TestAgent extends BaseAgent {
     // Mock implementation
   }
 
-  async execute(input: any, isInterrupted?: boolean, config?: Record<string, any>): Promise<any> {
+  async execute(
+    input: any,
+    isInterrupted?: boolean,
+    config?: Record<string, any>
+  ): Promise<any> {
     return { result: `Test agent ${this.id} executed with input: ${input}` };
   }
 }
 
 class TestModelAgent extends BaseAgent implements IModelAgent {
-  constructor(id: string, type: AgentType = AgentType.OPERATOR, description?: string) {
+  constructor(
+    id: string,
+    type: AgentType = AgentType.OPERATOR,
+    description?: string
+  ) {
     super(id, type, description);
   }
 
@@ -66,11 +81,18 @@ class TestModelAgent extends BaseAgent implements IModelAgent {
     // Mock implementation
   }
 
-  async execute(input: any, isInterrupted?: boolean, config?: Record<string, any>): Promise<any> {
+  async execute(
+    input: any,
+    isInterrupted?: boolean,
+    config?: Record<string, any>
+  ): Promise<any> {
     return { result: `Model agent ${this.id} executed with input: ${input}` };
   }
 
-  async invokeModel(messages: BaseMessage[], forceModelType?: string): Promise<any> {
+  async invokeModel(
+    messages: BaseMessage[],
+    forceModelType?: string
+  ): Promise<any> {
     return {
       modelResult: `Model invoked with ${messages.length} messages`,
       forceModelType,
@@ -79,7 +101,11 @@ class TestModelAgent extends BaseAgent implements IModelAgent {
 }
 
 class TestAsyncAgent extends BaseAgent {
-  constructor(id: string, type: AgentType = AgentType.OPERATOR, description?: string) {
+  constructor(
+    id: string,
+    type: AgentType = AgentType.OPERATOR,
+    description?: string
+  ) {
     super(id, type, description);
   }
 
@@ -87,11 +113,18 @@ class TestAsyncAgent extends BaseAgent {
     // Mock implementation
   }
 
-  async execute(input: any, isInterrupted?: boolean, config?: Record<string, any>): Promise<any> {
+  async execute(
+    input: any,
+    isInterrupted?: boolean,
+    config?: Record<string, any>
+  ): Promise<any> {
     return { result: `Async agent ${this.id} executed with input: ${input}` };
   }
 
-  async *executeAsyncGenerator(input: BaseMessage[] | any, config?: Record<string, any>): AsyncGenerator<StreamChunk> {
+  async *executeAsyncGenerator(
+    input: BaseMessage[] | any,
+    config?: Record<string, any>
+  ): AsyncGenerator<StreamChunk> {
     const mockChunks: StreamChunk[] = [
       {
         chunk: { content: `Starting execution for ${this.id}`, input },
@@ -108,7 +141,10 @@ class TestAsyncAgent extends BaseAgent {
         final: false,
       },
       {
-        chunk: { content: `Completed execution for ${this.id}`, result: 'success' },
+        chunk: {
+          content: `Completed execution for ${this.id}`,
+          result: 'success',
+        },
         graph_step: 1,
         langgraph_step: 3,
         retry_count: 0,
@@ -141,7 +177,11 @@ describe('BaseAgent', () => {
 
   describe('IAgent interface', () => {
     it('should be implemented correctly by TestAgent', () => {
-      const agent: IAgent = new TestAgent('test-agent', AgentType.OPERATOR, 'Test agent');
+      const agent: IAgent = new TestAgent(
+        'test-agent',
+        AgentType.OPERATOR,
+        'Test agent'
+      );
 
       expect(agent.id).toBe('test-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
@@ -160,16 +200,37 @@ describe('BaseAgent', () => {
 
     describe('constructor', () => {
       it.each([
-        ['with all parameters', 'test-agent', AgentType.OPERATOR, 'Test agent', 'Test agent'],
-        ['with default description', 'test-agent', AgentType.OPERATOR, undefined, 'No description'],
-        ['with different agent types', 'supervisor-agent', AgentType.SUPERVISOR, 'Supervisor', 'Supervisor'],
+        [
+          'with all parameters',
+          'test-agent',
+          AgentType.OPERATOR,
+          'Test agent',
+          'Test agent',
+        ],
+        [
+          'with default description',
+          'test-agent',
+          AgentType.OPERATOR,
+          undefined,
+          'No description',
+        ],
+        [
+          'with different agent types',
+          'supervisor-agent',
+          AgentType.SUPERVISOR,
+          'Supervisor',
+          'Supervisor',
+        ],
         ['with snak type', 'snak-agent', AgentType.SNAK, 'Snak', 'Snak'],
-      ])('should initialize %s correctly', (_, id, type, description, expectedDesc) => {
-        const testAgent = new TestAgent(id, type, description);
-        expect(testAgent.id).toBe(id);
-        expect(testAgent.type).toBe(type);
-        expect(testAgent.description).toBe(expectedDesc);
-      });
+      ])(
+        'should initialize %s correctly',
+        (_, id, type, description, expectedDesc) => {
+          const testAgent = new TestAgent(id, type, description);
+          expect(testAgent.id).toBe(id);
+          expect(testAgent.type).toBe(type);
+          expect(testAgent.description).toBe(expectedDesc);
+        }
+      );
     });
 
     describe('init method', () => {
@@ -182,10 +243,17 @@ describe('BaseAgent', () => {
       it.each([
         ['with input only', 'test input', undefined, undefined],
         ['with input and isInterrupted', 'test input', true, undefined],
-        ['with input, isInterrupted and config', 'test input', false, { timeout: 5000 }],
+        [
+          'with input, isInterrupted and config',
+          'test input',
+          false,
+          { timeout: 5000 },
+        ],
       ])('should execute %s', async (_, input, isInterrupted, config) => {
         const result = await agent.execute(input, isInterrupted, config);
-        expect(result.result).toContain(`Test agent test-agent executed with input: ${input}`);
+        expect(result.result).toContain(
+          `Test agent test-agent executed with input: ${input}`
+        );
       });
     });
 
@@ -200,7 +268,11 @@ describe('BaseAgent', () => {
     let modelAgent: TestModelAgent;
 
     beforeEach(() => {
-      modelAgent = new TestModelAgent('model-agent', AgentType.OPERATOR, 'Model agent');
+      modelAgent = new TestModelAgent(
+        'model-agent',
+        AgentType.OPERATOR,
+        'Model agent'
+      );
     });
 
     it('should implement IAgent interface', () => {
@@ -213,18 +285,34 @@ describe('BaseAgent', () => {
     });
 
     it.each([
-      ['without forced model type', [makeBaseMessage('Hello'), makeBaseMessage('Hi there!')], undefined, 2],
+      [
+        'without forced model type',
+        [makeBaseMessage('Hello'), makeBaseMessage('Hi there!')],
+        undefined,
+        2,
+      ],
       ['with forced model type', [makeBaseMessage('Hello')], 'gpt-4', 1],
-    ])('should invoke model %s', async (_, messages, forceModelType, expectedCount) => {
-      const result = await modelAgent.invokeModel(messages, forceModelType);
-      expect(result.modelResult).toBe(`Model invoked with ${expectedCount} messages`);
-      expect(result.forceModelType).toBe(forceModelType);
-    });
+    ])(
+      'should invoke model %s',
+      async (_, messages, forceModelType, expectedCount) => {
+        const result = await modelAgent.invokeModel(messages, forceModelType);
+        expect(result.modelResult).toBe(
+          `Model invoked with ${expectedCount} messages`
+        );
+        expect(result.forceModelType).toBe(forceModelType);
+      }
+    );
   });
 
   describe('AgentMessage interface', () => {
     it.each([
-      ['with all fields', makeMessage({ metadata: { timestamp: Date.now() }, modelType: 'gpt-4' })],
+      [
+        'with all fields',
+        makeMessage({
+          metadata: { timestamp: Date.now() },
+          modelType: 'gpt-4',
+        }),
+      ],
       ['with minimal fields', makeMessage()],
     ])('should work %s', (_, message) => {
       expect(message.from).toBe('agent1');
@@ -234,7 +322,10 @@ describe('BaseAgent', () => {
 
     it('should handle optional fields correctly', () => {
       const minimalMessage = makeMessage();
-      const fullMessage = makeMessage({ metadata: { key: 'value' }, modelType: 'gpt-4' });
+      const fullMessage = makeMessage({
+        metadata: { key: 'value' },
+        modelType: 'gpt-4',
+      });
 
       expect(minimalMessage.metadata).toBeUndefined();
       expect(minimalMessage.modelType).toBeUndefined();
@@ -281,7 +372,7 @@ describe('BaseAgent', () => {
       const config = { timeout: 5000, maxIterations: 10 };
       const generator = asyncAgent.executeAsyncGenerator('Test input', config);
       const chunks: StreamChunk[] = [];
-      
+
       for await (const chunk of generator) {
         chunks.push(chunk);
       }
@@ -293,7 +384,7 @@ describe('BaseAgent', () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('Test input');
       const chunks: StreamChunk[] = [];
-      
+
       for await (const chunk of generator) {
         chunks.push(chunk);
       }
@@ -308,7 +399,7 @@ describe('BaseAgent', () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('');
       const chunks: StreamChunk[] = [];
-      
+
       for await (const chunk of generator) {
         chunks.push(chunk);
       }
@@ -321,7 +412,7 @@ describe('BaseAgent', () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
       const generator = asyncAgent.executeAsyncGenerator('Test input');
       const chunks: StreamChunk[] = [];
-      
+
       for await (const chunk of generator) {
         chunks.push(chunk);
       }
@@ -355,7 +446,7 @@ describe('BaseAgent', () => {
       ];
 
       const results = await Promise.all(
-        agents.map(agent => agent.execute(`${agent.type} task`))
+        agents.map((agent) => agent.execute(`${agent.type} task`))
       );
 
       results.forEach((result, index) => {
@@ -364,7 +455,11 @@ describe('BaseAgent', () => {
     });
 
     it('should work with async generator agents', async () => {
-      const asyncAgent = new TestAsyncAgent('async-operator', AgentType.OPERATOR, 'Async operator agent');
+      const asyncAgent = new TestAsyncAgent(
+        'async-operator',
+        AgentType.OPERATOR,
+        'Async operator agent'
+      );
 
       const syncResult = await asyncAgent.execute('sync task');
       expect(syncResult.result).toContain('async-operator');
@@ -381,7 +476,11 @@ describe('BaseAgent', () => {
     });
 
     it('should handle agent lifecycle', async () => {
-      const agent = new TestAgent('lifecycle-agent', AgentType.OPERATOR, 'Lifecycle test');
+      const agent = new TestAgent(
+        'lifecycle-agent',
+        AgentType.OPERATOR,
+        'Lifecycle test'
+      );
 
       await agent.init();
       const result = await agent.execute('lifecycle test');

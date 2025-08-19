@@ -28,8 +28,12 @@ jest.mock('@snakagent/database', () => ({
 // Consolidated mocks
 const mockSnakAgentInit = jest.fn().mockResolvedValue(undefined);
 const mockModelSelectorInit = jest.fn().mockResolvedValue(undefined);
-const mockInteractiveAgentInitialize = jest.fn().mockResolvedValue({ app: { type: 'interactive' } });
-const mockAutonomousAgentInitialize = jest.fn().mockResolvedValue({ app: { type: 'autonomous' } });
+const mockInteractiveAgentInitialize = jest
+  .fn()
+  .mockResolvedValue({ app: { type: 'interactive' } });
+const mockAutonomousAgentInitialize = jest
+  .fn()
+  .mockResolvedValue({ app: { type: 'autonomous' } });
 
 jest.mock('../../core/snakAgent', () => ({
   SnakAgent: jest.fn().mockImplementation(() => ({
@@ -82,14 +86,22 @@ type TestAgentConfig = Omit<AgentConfigSQL, 'memory' | 'rag'> & {
 
 // Mock references
 const mockPostgres = jest.requireMock('@snakagent/database').Postgres;
-const mockInteractiveAgent = jest.requireMock('../../modes/interactive').InteractiveAgent;
-const mockAutonomousAgent = jest.requireMock('../../modes/autonomous').AutonomousAgent;
-const mockModelSelector = jest.requireMock('../../operators/modelSelector').ModelSelector;
+const mockInteractiveAgent = jest.requireMock(
+  '../../modes/interactive'
+).InteractiveAgent;
+const mockAutonomousAgent = jest.requireMock(
+  '../../modes/autonomous'
+).AutonomousAgent;
+const mockModelSelector = jest.requireMock(
+  '../../operators/modelSelector'
+).ModelSelector;
 const mockLogger = jest.requireMock('starknet').logger;
 
 describe('Graph Module', () => {
   // Factory function for test data
-  const makeAgentConfig = (overrides: Partial<TestAgentConfig> = {}): TestAgentConfig => ({
+  const makeAgentConfig = (
+    overrides: Partial<TestAgentConfig> = {}
+  ): TestAgentConfig => ({
     id: 'test-agent-id',
     name: 'TestAgent',
     group: 'test-group',
@@ -167,7 +179,9 @@ describe('Graph Module', () => {
     it('should throw error when agent not found', async () => {
       mockPostgres.query.mockResolvedValue([]);
 
-      await expect(createAgentById('non-existent-id')).rejects.toThrow('No agent found for id: non-existent-id');
+      await expect(createAgentById('non-existent-id')).rejects.toThrow(
+        'No agent found for id: non-existent-id'
+      );
     });
 
     describe('memory and RAG config parsing', () => {
@@ -176,32 +190,47 @@ describe('Graph Module', () => {
           name: 'enabled memory and RAG',
           memory: '(t,10,20)',
           rag: '(t,"test-embedding")',
-          expectedMemory: { enabled: true, short_term_memory_size: 10, memory_size: 20 },
+          expectedMemory: {
+            enabled: true,
+            short_term_memory_size: 10,
+            memory_size: 20,
+          },
           expectedRag: { enabled: true, embedding_model: 'test-embedding' },
         },
         {
           name: 'disabled memory and RAG',
           memory: '(f,5,15)',
           rag: '(f,"")',
-          expectedMemory: { enabled: false, short_term_memory_size: 5, memory_size: 15 },
+          expectedMemory: {
+            enabled: false,
+            short_term_memory_size: 5,
+            memory_size: 15,
+          },
           expectedRag: { enabled: false, embedding_model: null },
         },
         {
           name: 'partial memory config with default size',
           memory: '(t,10)',
           rag: '(t,"null")',
-          expectedMemory: { enabled: true, short_term_memory_size: 10, memory_size: 20 },
+          expectedMemory: {
+            enabled: true,
+            short_term_memory_size: 10,
+            memory_size: 20,
+          },
           expectedRag: { enabled: true, embedding_model: null },
         },
-      ])('should parse $name correctly', async ({ memory, rag, expectedMemory, expectedRag }) => {
-        const config = makeAgentConfig({ memory, rag });
-        mockPostgres.query.mockResolvedValue([config]);
+      ])(
+        'should parse $name correctly',
+        async ({ memory, rag, expectedMemory, expectedRag }) => {
+          const config = makeAgentConfig({ memory, rag });
+          mockPostgres.query.mockResolvedValue([config]);
 
-        const result = await createAgentById('test-agent-id');
+          const result = await createAgentById('test-agent-id');
 
-        expect(result.config.memory).toEqual(expectedMemory);
-        expect(result.config.rag).toEqual(expectedRag);
-      });
+          expect(result.config.memory).toEqual(expectedMemory);
+          expect(result.config.rag).toEqual(expectedRag);
+        }
+      );
     });
 
     it('should build system prompt correctly', async () => {
@@ -258,12 +287,15 @@ describe('Graph Module', () => {
         mockClass: mockAutonomousAgent,
         expectedType: 'autonomous',
       },
-    ])('should create $name agent successfully', async ({ fn, mockClass, expectedType }) => {
-      const result = await fn('test-agent-id');
+    ])(
+      'should create $name agent successfully',
+      async ({ fn, mockClass, expectedType }) => {
+        const result = await fn('test-agent-id');
 
-      expect(result).toEqual({ type: expectedType });
-      expect(mockClass).toHaveBeenCalled();
-    });
+        expect(result).toEqual({ type: expectedType });
+        expect(mockClass).toHaveBeenCalled();
+      }
+    );
   });
 
   describe('Studio Graph Functions', () => {
@@ -282,29 +314,40 @@ describe('Graph Module', () => {
     it.each([
       {
         name: 'database connection',
-        mockFn: () => mockPostgres.connect.mockRejectedValue(new Error('Connection failed')),
+        mockFn: () =>
+          mockPostgres.connect.mockRejectedValue(
+            new Error('Connection failed')
+          ),
         expectedError: 'Connection failed',
       },
       {
         name: 'model selector initialization',
-        mockFn: () => mockModelSelectorInit.mockRejectedValueOnce(new Error('Init failed')),
+        mockFn: () =>
+          mockModelSelectorInit.mockRejectedValueOnce(new Error('Init failed')),
         expectedError: 'Init failed',
       },
       {
         name: 'agent initialization',
-        mockFn: () => mockSnakAgentInit.mockRejectedValueOnce(new Error('Agent init failed')),
+        mockFn: () =>
+          mockSnakAgentInit.mockRejectedValueOnce(
+            new Error('Agent init failed')
+          ),
         expectedError: 'Agent init failed',
       },
     ])('should handle $name errors', async ({ mockFn, expectedError }) => {
       mockFn();
 
-      await expect(createAgentById('test-agent-id')).rejects.toThrow(expectedError);
+      await expect(createAgentById('test-agent-id')).rejects.toThrow(
+        expectedError
+      );
     });
 
     it('should throw error when required environment variables are missing', async () => {
       delete process.env.POSTGRES_DB;
 
-      await expect(createAgentById('test-agent-id')).rejects.toThrow('Required environment variable POSTGRES_DB is not set');
+      await expect(createAgentById('test-agent-id')).rejects.toThrow(
+        'Required environment variable POSTGRES_DB is not set'
+      );
     });
 
     it('should handle missing STARKNET environment variables gracefully', async () => {
@@ -317,13 +360,13 @@ describe('Graph Module', () => {
 
   describe('Parsing edge cases and error handling', () => {
     it('should handle malformed memory config gracefully', async () => {
-      const malformedConfig = makeAgentConfig({ 
-        memory: '(t,invalid_number,20)' // This will result in NaN for short_term_memory_size
+      const malformedConfig = makeAgentConfig({
+        memory: '(t,invalid_number,20)', // This will result in NaN for short_term_memory_size
       });
       mockPostgres.query.mockResolvedValue([malformedConfig]);
-      
+
       const result = await createAgentById('test-agent-id');
-      
+
       // The parsing should handle this gracefully, resulting in NaN values
       expect(result.config.memory.short_term_memory_size).toBeNaN();
       expect(result.config.memory.memory_size).toBe(20);
@@ -331,26 +374,26 @@ describe('Graph Module', () => {
     });
 
     it('should handle malformed RAG config gracefully', async () => {
-      const malformedConfig = makeAgentConfig({ 
-        rag: '(invalid_boolean,"embed")' // This will result in enabled: false due to falsy check
+      const malformedConfig = makeAgentConfig({
+        rag: '(invalid_boolean,"embed")', // This will result in enabled: false due to falsy check
       });
       mockPostgres.query.mockResolvedValue([malformedConfig]);
-      
+
       const result = await createAgentById('test-agent-id');
-      
+
       // The parsing should handle this gracefully
       expect(result.config.rag.enabled).toBe(false);
       expect(result.config.rag.embedding_model).toBe('embed');
     });
 
     it('should handle empty string memory config', async () => {
-      const emptyConfig = makeAgentConfig({ 
-        memory: '()' // Empty tuple
+      const emptyConfig = makeAgentConfig({
+        memory: '()', // Empty tuple
       });
       mockPostgres.query.mockResolvedValue([emptyConfig]);
-      
+
       const result = await createAgentById('test-agent-id');
-      
+
       // Should handle empty config gracefully
       expect(result.config.memory.enabled).toBe(false);
       expect(result.config.memory.short_term_memory_size).toBeNaN();
@@ -358,13 +401,13 @@ describe('Graph Module', () => {
     });
 
     it('should handle empty string RAG config', async () => {
-      const emptyConfig = makeAgentConfig({ 
-        rag: '()' // Empty tuple
+      const emptyConfig = makeAgentConfig({
+        rag: '()', // Empty tuple
       });
       mockPostgres.query.mockResolvedValue([emptyConfig]);
-      
+
       const result = await createAgentById('test-agent-id');
-      
+
       // Should handle empty config gracefully
       expect(result.config.rag.enabled).toBe(false);
       expect(result.config.rag.embedding_model).toBe(null);

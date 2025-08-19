@@ -114,23 +114,32 @@ describe('AgentSelector', () => {
       const agentsWithoutDescription = new Map([
         ['agent-no-desc', new MockSnakAgent('agent-no-desc') as any],
         ['agent-empty-desc', new MockSnakAgent('agent-empty-desc', '') as any],
-        ['agent-undefined-desc', new MockSnakAgent('agent-undefined-desc', undefined) as any],
+        [
+          'agent-undefined-desc',
+          new MockSnakAgent('agent-undefined-desc', undefined) as any,
+        ],
       ]);
-      
+
       const agentSelectorNoDesc = new AgentSelector({
         availableAgents: agentsWithoutDescription,
         modelSelector,
         debug: true,
       });
-      
+
       await agentSelectorNoDesc.init();
       // Exercise prompt path and assert default description is used
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent-no-desc'));
       await agentSelectorNoDesc.execute('Request');
       expect(agentSelectorPromptContent).toHaveBeenCalled();
-      const [agentInfo] = (agentSelectorPromptContent as jest.Mock).mock.calls.at(-1);
-      const agentNames = ['agent-no-desc', 'agent-empty-desc', 'agent-undefined-desc'];
-      agentNames.forEach(agentName => {
+      const [agentInfo] = (
+        agentSelectorPromptContent as jest.Mock
+      ).mock.calls.at(-1);
+      const agentNames = [
+        'agent-no-desc',
+        'agent-empty-desc',
+        'agent-undefined-desc',
+      ];
+      agentNames.forEach((agentName) => {
         const desc = agentInfo.get(agentName)?.description;
         expect(desc).toBeUndefined();
       });
@@ -165,7 +174,10 @@ describe('AgentSelector', () => {
 
     it('should update available agents without description', async () => {
       const agentWithoutDescription = new MockSnakAgent('agent-no-desc') as any;
-      await agentSelector.updateAvailableAgents(['agent-no-desc', agentWithoutDescription]);
+      await agentSelector.updateAvailableAgents([
+        'agent-no-desc',
+        agentWithoutDescription,
+      ]);
       expect(mockAgents.has('agent-no-desc')).toBe(true);
       expect(mockAgents.size).toBe(4);
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent-no-desc'));

@@ -57,8 +57,6 @@ export async function initializeToolsList(
   return toolsList;
 }
 
-
-
 export const FormatChunkIteration = (
   chunk: any
 ):

@@ -90,13 +90,21 @@ describe('prompts', () => {
         'autonomousRules',
         autonomousRules,
         'AUTONOMOUS MODE',
-        ['call tools in every response', 'NEXT STEPS:', 'GOAL defined in the initial messages'],
+        [
+          'call tools in every response',
+          'NEXT STEPS:',
+          'GOAL defined in the initial messages',
+        ],
       ],
       [
         'hybridRules',
         hybridRules,
         'HYBRID MODE',
-        ['WAITING_FOR_HUMAN_INPUT', 'FINAL ANSWER:', 'autonomously to complete tasks'],
+        [
+          'WAITING_FOR_HUMAN_INPUT',
+          'FINAL ANSWER:',
+          'autonomously to complete tasks',
+        ],
       ],
     ])(
       '%s should contain correct content',
@@ -113,13 +121,17 @@ describe('prompts', () => {
     it('should contain correct content', () => {
       expect(SummarizeAgent).toContain('Summarization Agent');
       expect(SummarizeAgent).toContain('Compress AIMessages and ToolMessages');
-      expect(SummarizeAgent).toContain('MESSAGES TO SUMMARY : {messagesContent}');
+      expect(SummarizeAgent).toContain(
+        'MESSAGES TO SUMMARY : {messagesContent}'
+      );
     });
   });
 
   describe('hybridInitialPrompt', () => {
     it('should return the correct initial prompt', () => {
-      expect(hybridInitialPrompt).toBe('Start executing your primary objective.');
+      expect(hybridInitialPrompt).toBe(
+        'Start executing your primary objective.'
+      );
     });
   });
 
@@ -308,8 +320,12 @@ describe('prompts', () => {
 
   describe('STEP_EXECUTOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('AI Step Executor with REAL tool access');
-      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('Execute STEP {stepNumber}: {stepName}');
+      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'AI Step Executor with REAL tool access'
+      );
+      expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'Execute STEP {stepNumber}: {stepName}'
+      );
       expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('TOOL EXECUTION MODE');
       expect(STEP_EXECUTOR_SYSTEM_PROMPT).toContain('AI RESPONSE MODE');
     });
@@ -317,7 +333,9 @@ describe('prompts', () => {
 
   describe('RETRY_EXECUTOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('validator rejected your previous execution attempt');
+      expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'validator rejected your previous execution attempt'
+      );
       expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('RETRY EXECUTION');
       expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('REQUEST REPLANNING');
       expect(RETRY_EXECUTOR_SYSTEM_PROMPT).toContain('REQUEST_REPLAN');
@@ -348,7 +366,9 @@ describe('prompts', () => {
   describe('REPLAN_EXECUTOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
       expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('re-planning assistant');
-      expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('Create a NEW plan that:');
+      expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'Create a NEW plan that:'
+      );
       expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{formatPlan}');
       expect(REPLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{lastAiMessage}');
     });
@@ -356,10 +376,16 @@ describe('prompts', () => {
 
   describe('ADAPTIVE_PLANNER_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('autonomous agent graph');
-      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('AUTONOMOUS AGENT system');
+      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain(
+        'autonomous agent graph'
+      );
+      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain(
+        'AUTONOMOUS AGENT system'
+      );
       expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('Step {stepLength}');
-      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain('NEVER repeat or rewrite a step');
+      expect(ADAPTIVE_PLANNER_SYSTEM_PROMPT).toContain(
+        'NEVER repeat or rewrite a step'
+      );
     });
   });
 
@@ -373,45 +399,79 @@ describe('prompts', () => {
 
   describe('AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('strategic planning AI');
-      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('autonomous agent');
-      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('Every Tool has to be considered as a step');
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'strategic planning AI'
+      );
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'autonomous agent'
+      );
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'Every Tool has to be considered as a step'
+      );
       expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{agentConfig}');
-      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{toolsAvailable}');
+      expect(AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        '{toolsAvailable}'
+      );
     });
   });
 
   describe('HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('autonomous agent with human-in-the-loop capabilities');
-      expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('Human-in-the Loop has to be considered as a step');
+      expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'autonomous agent with human-in-the-loop capabilities'
+      );
+      expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'Human-in-the Loop has to be considered as a step'
+      );
       expect(HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('human_in_the_loop');
     });
   });
 
   describe('INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('interactive planning AI');
-      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('end-to-end execution plans');
-      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{userRequest}');
-      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain('{agentConfig}');
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'interactive planning AI'
+      );
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        'end-to-end execution plans'
+      );
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        '{userRequest}'
+      );
+      expect(INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT).toContain(
+        '{agentConfig}'
+      );
     });
   });
 
   describe('INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('plan validator');
-      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('Be supportive, not critical');
-      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('end with summarize');
+      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain(
+        'plan validator'
+      );
+      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain(
+        'Be supportive, not critical'
+      );
+      expect(INTERACTIVE_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain(
+        'end with summarize'
+      );
     });
   });
 
   describe('AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT', () => {
     it('should contain correct content', () => {
-      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('plan validator');
-      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('Verify dependencies');
-      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('{agentConfig}');
-      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain('{currentPlan}');
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain(
+        'plan validator'
+      );
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain(
+        'Verify dependencies'
+      );
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain(
+        '{agentConfig}'
+      );
+      expect(AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT).toContain(
+        '{currentPlan}'
+      );
     });
   });
 

@@ -4,14 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  logger,
-  AgentConfig,
-  RawAgentConfig,
-} from '@snakagent/core';
-import {
-  normalizeNumericValues,
-} from '../agents/operators/config-agent/tools/normalizeAgentValues.js';
+import { logger, AgentConfig, RawAgentConfig } from '@snakagent/core';
+import { normalizeNumericValues } from '../agents/operators/config-agent/tools/normalizeAgentValues.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

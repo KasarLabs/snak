@@ -61,7 +61,10 @@ const createPluginRegisterWithSchema = (
 // Plugin mocks
 const mockPluginRegister = createPluginRegister('mockTool', 'mock');
 const otherPluginRegister = createPluginRegister('otherTool', 'other');
-const schemaPluginRegister = createPluginRegisterWithSchema('schemaTool', 'schema');
+const schemaPluginRegister = createPluginRegisterWithSchema(
+  'schemaTool',
+  'schema'
+);
 const emptyPluginRegister = jest.fn(async (tools: StarknetTool[]) => {});
 const crashingPluginRegister = jest.fn(async () => {
   throw new Error('Plugin execution failed');
@@ -153,7 +156,14 @@ describe('StarknetToolRegistry', () => {
     it.each([
       [1, [createTool()]],
       [2, [createTool(), createTool({ name: 'tool2' })]],
-      [3, [createTool(), createTool({ name: 'tool2' }), createTool({ name: 'tool3' })]],
+      [
+        3,
+        [
+          createTool(),
+          createTool({ name: 'tool2' }),
+          createTool({ name: 'tool3' }),
+        ],
+      ],
     ])('should register %i tool(s)', (count, tools) => {
       tools.forEach((tool) => StarknetToolRegistry.registerTool(tool));
       const registeredTools = (StarknetToolRegistry as any).tools;
@@ -197,18 +207,25 @@ describe('StarknetToolRegistry', () => {
     });
 
     it('should handle default parameter (empty array)', async () => {
-      const result = await StarknetToolRegistry.createAllowedTools(createAgent());
+      const result =
+        await StarknetToolRegistry.createAllowedTools(createAgent());
       expect(result).toHaveLength(0);
     });
 
     it('should handle tools with schema correctly', async () => {
-      const result = await StarknetToolRegistry.createAllowedTools(createAgent(), ['schema']);
+      const result = await StarknetToolRegistry.createAllowedTools(
+        createAgent(),
+        ['schema']
+      );
       const tool = result[0];
-      
+
       expect(tool).toHaveProperty('name', 'schemaTool');
-      expect(tool).toHaveProperty('description', 'A schema tool with schema for testing');
+      expect(tool).toHaveProperty(
+        'description',
+        'A schema tool with schema for testing'
+      );
       expect(typeof tool.invoke).toBe('function');
-      
+
       const executionResult = await tool.invoke({ input: 'test input' });
       expect(executionResult).toBe('schema result');
       expect(tool).toHaveProperty('schema');
@@ -230,7 +247,12 @@ describe('registerTools', () => {
   describe('Successful registration', () => {
     it.each([
       ['single plugin', ['mock'], 1, [mockPluginRegister]],
-      ['multiple plugins', ['mock', 'other'], 2, [mockPluginRegister, otherPluginRegister]],
+      [
+        'multiple plugins',
+        ['mock', 'other'],
+        2,
+        [mockPluginRegister, otherPluginRegister],
+      ],
     ])(
       'should register tools for %s',
       async (description, plugins, expectedCount, expectedCalls) => {
@@ -271,7 +293,7 @@ describe('registerTools', () => {
       const expectedLength = description === 'undefined values' ? 2 : 0;
       expect(tools).toHaveLength(expectedLength);
       if (description === 'undefined values') {
-        expect(tools.map(t => t.name)).toEqual(['mockTool', 'otherTool']);
+        expect(tools.map((t) => t.name)).toEqual(['mockTool', 'otherTool']);
       }
     });
 
@@ -304,21 +326,28 @@ describe('registerTools', () => {
     it.each([
       ['empty plugin', 'empty'],
       ['crashing plugin', 'crashing'],
-      ['invalid agent config', 'mock', createAgent({
-        getAgentConfig: () => ({ name: 'test', id: '', mode: '' }) as any,
-      })],
-    ])('should log warning when %s', async (description, plugin, agent = createAgent()) => {
-      const tools: StarknetTool[] = [];
-      
-      await registerTools(agent, [plugin], tools);
-      
-      expect(tools).toHaveLength(0);
-      expect(logger.warn).toHaveBeenCalledWith('No tools registered');
-    });
+      [
+        'invalid agent config',
+        'mock',
+        createAgent({
+          getAgentConfig: () => ({ name: 'test', id: '', mode: '' }) as any,
+        }),
+      ],
+    ])(
+      'should log warning when %s',
+      async (description, plugin, agent = createAgent()) => {
+        const tools: StarknetTool[] = [];
+
+        await registerTools(agent, [plugin], tools);
+
+        expect(tools).toHaveLength(0);
+        expect(logger.warn).toHaveBeenCalledWith('No tools registered');
+      }
+    );
 
     it('should handle errors in the main try-catch block', async () => {
       const tools: StarknetTool[] = [];
-      
+
       jest.doMock(
         '@snakagent/plugin-crash/dist/index.js',
         () => {
@@ -328,9 +357,11 @@ describe('registerTools', () => {
       );
 
       await registerTools(createAgent(), ['crash'], tools);
-      
+
       expect(tools).toHaveLength(0);
-      expect(logger.error).toHaveBeenCalledWith('Error loading plugin crash: Error: Import crash');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Error loading plugin crash: Error: Import crash'
+      );
     });
 
     it('should log outer error when a warning throws during processing', async () => {
@@ -342,7 +373,9 @@ describe('registerTools', () => {
 
       await registerTools(createAgent(), [undefined as any], tools);
 
-      expect(logger.error).toHaveBeenCalledWith('Error registering tools: Error: warn fail');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Error registering tools: Error: warn fail'
+      );
     });
   });
 });
@@ -415,16 +448,15 @@ describe('Integration and end-to-end', () => {
   it('should handle concurrent tool registration without conflicts', async () => {
     const tools1: StarknetTool[] = [];
     const tools2: StarknetTool[] = [];
-    
+
     await Promise.all([
       registerTools(createAgent(), ['mock'], tools1),
       registerTools(createAgent(), ['other'], tools2),
     ]);
-    
+
     expect(tools1).toHaveLength(1);
     expect(tools2).toHaveLength(1);
     expect(tools1[0].name).toBe('mockTool');
     expect(tools2[0].name).toBe('otherTool');
   });
-    
 });

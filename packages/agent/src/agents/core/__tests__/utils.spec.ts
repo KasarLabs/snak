@@ -19,30 +19,40 @@ jest.mock('@snakagent/core');
 jest.mock('@snakagent/database/queries');
 jest.mock('@snakagent/database');
 
-const mockCreateAllowedTools = jest.mocked(require('../../../tools/tools.js').createAllowedTools);
-const mockMCPController = jest.mocked(require('../../../services/mcp/src/mcp.js').MCP_CONTROLLER);
+const mockCreateAllowedTools = jest.mocked(
+  require('../../../tools/tools.js').createAllowedTools
+);
+const mockMCPController = jest.mocked(
+  require('../../../services/mcp/src/mcp.js').MCP_CONTROLLER
+);
 const mockLogger = jest.mocked(require('@snakagent/core').logger);
-const mockPostgres = jest.mocked(require('@snakagent/database/queries').Postgres);
+const mockPostgres = jest.mocked(
+  require('@snakagent/database/queries').Postgres
+);
 const mockMemory = jest.mocked(require('@snakagent/database/queries').memory);
-const mockIterations = jest.mocked(require('@snakagent/database/queries').iterations);
+const mockIterations = jest.mocked(
+  require('@snakagent/database/queries').iterations
+);
 
-const makeSnakAgent = (): any => ({} as any);
+const makeSnakAgent = (): any => ({}) as any;
 const makeAgentConfig = (overrides: any = {}): any => ({
   plugins: ['test-plugin'],
   mcpServers: {},
   ...overrides,
 });
-const makeCredentials = (): any => ({
-  host: 'localhost',
-  port: 5432,
-  database: 'test',
-  user: 'test',
-  password: 'test',
-} as any);
-const makeStepInfo = (overrides: any = {}): any => ({
-  result: '',
-  ...overrides,
-} as any);
+const makeCredentials = (): any =>
+  ({
+    host: 'localhost',
+    port: 5432,
+    database: 'test',
+    user: 'test',
+    password: 'test',
+  }) as any;
+const makeStepInfo = (overrides: any = {}): any =>
+  ({
+    result: '',
+    ...overrides,
+  }) as any;
 
 describe('utils functions', () => {
   beforeEach(() => {
@@ -65,7 +75,10 @@ describe('utils functions', () => {
 
       const result = await initializeToolsList(mockSnakAgent, mockAgentConfig);
 
-      expect(mockCreateAllowedTools).toHaveBeenCalledWith(mockSnakAgent, mockAgentConfig.plugins);
+      expect(mockCreateAllowedTools).toHaveBeenCalledWith(
+        mockSnakAgent,
+        mockAgentConfig.plugins
+      );
       expect(result).toEqual(mockTools);
     });
 
@@ -80,13 +93,20 @@ describe('utils functions', () => {
       mockCreateAllowedTools.mockResolvedValue(mockAllowedTools);
       mockMCPController.fromAgentConfig.mockReturnValue(mockMCP);
 
-      const agentConfigWithMCP = makeAgentConfig({ mcpServers: { test: 'config' } });
+      const agentConfigWithMCP = makeAgentConfig({
+        mcpServers: { test: 'config' },
+      });
 
-      const result = await initializeToolsList(mockSnakAgent, agentConfigWithMCP);
+      const result = await initializeToolsList(
+        mockSnakAgent,
+        agentConfigWithMCP
+      );
 
       expect(mockMCP.initializeConnections).toHaveBeenCalled();
       expect(mockMCP.getTools).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith(`Added ${mockMCPTools.length} MCP tools to the agent`);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        `Added ${mockMCPTools.length} MCP tools to the agent`
+      );
       expect(result).toEqual([...mockAllowedTools, ...mockMCPTools]);
     });
 
@@ -97,11 +117,18 @@ describe('utils functions', () => {
         throw new Error('MCP error');
       });
 
-      const agentConfigWithMCP = makeAgentConfig({ mcpServers: { test: 'config' } });
+      const agentConfigWithMCP = makeAgentConfig({
+        mcpServers: { test: 'config' },
+      });
 
-      const result = await initializeToolsList(mockSnakAgent, agentConfigWithMCP);
+      const result = await initializeToolsList(
+        mockSnakAgent,
+        agentConfigWithMCP
+      );
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to initialize MCP tools: Error: MCP error');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to initialize MCP tools: Error: MCP error'
+      );
       expect(result).toEqual(mockAllowedTools);
     });
 
@@ -172,14 +199,16 @@ describe('utils functions', () => {
       const result = FormatChunkIteration(mockChunk);
 
       expect(result).toHaveProperty(testCase.expectedProperty);
-      
+
       if (testCase.expectedProperty === 'chunk') {
         expect((result as any).chunk.content).toBe(testCase.expectedContent);
       } else if (testCase.expectedProperty === 'iteration') {
         const iteration = (result as any).iteration;
         expect(iteration.name).toBe(testCase.expectedName);
         if (testCase.expectedContent !== undefined) {
-          expect(iteration.result.output.content).toBe(testCase.expectedContent);
+          expect(iteration.result.output.content).toBe(
+            testCase.expectedContent
+          );
         }
         if (testCase.expectedMessages) {
           expect(iteration.messages).toEqual(testCase.expectedMessages);
@@ -233,7 +262,11 @@ describe('utils functions', () => {
         data: {
           chunk: {
             kwargs: {
-              token_chunk: { input: undefined, output: undefined, total: undefined },
+              token_chunk: {
+                input: undefined,
+                output: undefined,
+                total: undefined,
+              },
             },
           },
         },
@@ -282,9 +315,29 @@ describe('utils functions', () => {
 
     it.each([
       { data: { chunk: {} }, description: 'missing tool calls' },
-      { data: { chunk: { tool_call_chunks: [] } }, description: 'empty tool_call_chunks array' },
-      { data: { chunk: { tool_call_chunks: 'not-an-array' } }, description: 'tool_call_chunks that is not an array' },
-      { data: { chunk: { tool_call_chunks: [{ id: 'tool-1', args: '{"arg": "value"}', index: 0, type: 'function' }] } }, description: 'tool without name' },
+      {
+        data: { chunk: { tool_call_chunks: [] } },
+        description: 'empty tool_call_chunks array',
+      },
+      {
+        data: { chunk: { tool_call_chunks: 'not-an-array' } },
+        description: 'tool_call_chunks that is not an array',
+      },
+      {
+        data: {
+          chunk: {
+            tool_call_chunks: [
+              {
+                id: 'tool-1',
+                args: '{"arg": "value"}',
+                index: 0,
+                type: 'function',
+              },
+            ],
+          },
+        },
+        description: 'tool without name',
+      },
     ])('should handle $description', ({ data }) => {
       const mockIteration = { data };
 
@@ -317,7 +370,9 @@ describe('utils functions', () => {
       expect(mockPostgres.connect).toHaveBeenCalledWith(mockCredentials);
       expect(mockMemory.init).toHaveBeenCalled();
       expect(mockIterations.init).toHaveBeenCalled();
-      expect(mockLogger.debug).toHaveBeenCalledWith('Agent memory table successfully created');
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Agent memory table successfully created'
+      );
     });
 
     it('should reuse existing connection when already connected', async () => {
@@ -333,16 +388,22 @@ describe('utils functions', () => {
       expect(mockPostgres.connect).not.toHaveBeenCalled();
       expect(mockMemory.init).toHaveBeenCalled();
       expect(mockIterations.init).toHaveBeenCalled();
-      expect(
-        mockLogger.debug
-      ).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         'Agent memory table successfully initialized (connection exists)'
       );
     });
 
     it.each([
-      { mock: mockMemory.init, error: 'Memory init failed', description: 'memory initialization' },
-      { mock: mockIterations.init, error: 'Iterations init failed', description: 'iterations initialization' },
+      {
+        mock: mockMemory.init,
+        error: 'Memory init failed',
+        description: 'memory initialization',
+      },
+      {
+        mock: mockIterations.init,
+        error: 'Iterations init failed',
+        description: 'iterations initialization',
+      },
     ])('should handle $description errors', async ({ mock, error }) => {
       mockPostgres.connect.mockResolvedValue(undefined);
       if (mock === mockMemory.init) {
@@ -354,7 +415,10 @@ describe('utils functions', () => {
       }
 
       await expect(initializeDatabase(mockCredentials)).rejects.toThrow(error);
-      expect(mockLogger.error).toHaveBeenCalledWith('Error creating memories table:', expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error creating memories table:',
+        expect.any(Error)
+      );
     });
   });
 
@@ -372,21 +436,24 @@ describe('utils functions', () => {
         shouldTruncate: false,
         description: 'short content',
       },
-    ])('should $description correctly', ({ content, maxLength, shouldTruncate }) => {
-      const mockResult = { messages: [{ content }] };
-      const mockStepInfo = makeStepInfo();
+    ])(
+      'should $description correctly',
+      ({ content, maxLength, shouldTruncate }) => {
+        const mockResult = { messages: [{ content }] };
+        const mockStepInfo = makeStepInfo();
 
-      const result = truncateToolResults(mockResult, maxLength, mockStepInfo);
+        const result = truncateToolResults(mockResult, maxLength, mockStepInfo);
 
-      if (shouldTruncate) {
-        expect(result.messages[0].content).toContain('... [truncated');
-        expect(result.messages[0].content.length).toBeLessThan(6000);
-        expect(mockStepInfo.result).toContain('... [truncated');
-      } else {
-        expect(result.messages[0].content).toBe(content);
-        expect(mockStepInfo.result).toBe(content);
+        if (shouldTruncate) {
+          expect(result.messages[0].content).toContain('... [truncated');
+          expect(result.messages[0].content.length).toBeLessThan(6000);
+          expect(mockStepInfo.result).toContain('... [truncated');
+        } else {
+          expect(result.messages[0].content).toBe(content);
+          expect(mockStepInfo.result).toBe(content);
+        }
       }
-    });
+    );
 
     it('should handle multiple messages', () => {
       const mockResult = {
@@ -407,17 +474,23 @@ describe('utils functions', () => {
     });
 
     it.each([
-      { existingResult: 'existing result', expectedResult: 'existing resultnew content' },
+      {
+        existingResult: 'existing result',
+        expectedResult: 'existing resultnew content',
+      },
       { existingResult: undefined, expectedResult: 'new content' },
-    ])('should handle step info with $existingResult existing result', ({ existingResult, expectedResult }) => {
-      const mockResult = { messages: [{ content: 'new content' }] };
-      const maxLength = 5000;
-      const mockStepInfo = makeStepInfo({ result: existingResult });
+    ])(
+      'should handle step info with $existingResult existing result',
+      ({ existingResult, expectedResult }) => {
+        const mockResult = { messages: [{ content: 'new content' }] };
+        const maxLength = 5000;
+        const mockStepInfo = makeStepInfo({ result: existingResult });
 
-      truncateToolResults(mockResult, maxLength, mockStepInfo);
+        truncateToolResults(mockResult, maxLength, mockStepInfo);
 
-      expect(mockStepInfo.result).toBe(expectedResult);
-    });
+        expect(mockStepInfo.result).toBe(expectedResult);
+      }
+    );
 
     it('should handle content that is not a string', () => {
       const mockResult = { messages: [{ content: 12345 }] };
@@ -474,10 +547,7 @@ describe('utils functions', () => {
         description: 'array with text objects',
       },
       {
-        response: [
-          { content: 'Content 1' },
-          { content: 'Content 2' },
-        ],
+        response: [{ content: 'Content 1' }, { content: 'Content 2' }],
         expected: 'Content 1\nContent 2',
         description: 'array with content objects',
       },
@@ -497,9 +567,15 @@ describe('utils functions', () => {
     });
 
     it.each([
-      { response: { type: 'text', text: 'Text content' }, expected: 'Text content' },
+      {
+        response: { type: 'text', text: 'Text content' },
+        expected: 'Text content',
+      },
       { response: { content: 'Object content' }, expected: 'Object content' },
-      { response: { key: 'value', number: 123 }, expected: '{"key":"value","number":123}' },
+      {
+        response: { key: 'value', number: 123 },
+        expected: '{"key":"value","number":123}',
+      },
     ])('should format object response correctly', ({ response, expected }) => {
       const result = formatAgentResponse(response);
       expect(result).toBe(expected);
@@ -581,10 +657,7 @@ describe('utils functions', () => {
         description: 'array with text objects',
       },
       {
-        content: [
-          { content: 'Content 1' },
-          { content: 'Content 2' },
-        ],
+        content: [{ content: 'Content 1' }, { content: 'Content 2' }],
         expected: 'Content 1\nContent 2',
         description: 'array with content objects',
       },
@@ -605,8 +678,14 @@ describe('utils functions', () => {
 
     it.each([
       { content: [], expected: '' },
-      { content: ['First item', null, 'Third item'], expected: 'First item\nThird item' },
-      { content: ['First item', undefined, 'Third item'], expected: 'First item\nundefined\nThird item' },
+      {
+        content: ['First item', null, 'Third item'],
+        expected: 'First item\nThird item',
+      },
+      {
+        content: ['First item', undefined, 'Third item'],
+        expected: 'First item\nundefined\nThird item',
+      },
     ])('should handle array edge cases', ({ content, expected }) => {
       const result = processArrayContent(content);
       expect(result).toBe(expected);
@@ -621,9 +700,15 @@ describe('utils functions', () => {
 
   describe('processObjectContent', () => {
     it.each([
-      { content: { type: 'text', text: 'Text content' }, expected: 'Text content' },
+      {
+        content: { type: 'text', text: 'Text content' },
+        expected: 'Text content',
+      },
       { content: { content: 'Object content' }, expected: 'Object content' },
-      { content: { key: 'value', number: 123 }, expected: '{"key":"value","number":123}' },
+      {
+        content: { key: 'value', number: 123 },
+        expected: '{"key":"value","number":123}',
+      },
     ])('should process object content correctly', ({ content, expected }) => {
       const result = processObjectContent(content);
       expect(result).toBe(expected);
@@ -631,8 +716,14 @@ describe('utils functions', () => {
 
     it.each([
       { content: {}, expected: '{}' },
-      { content: { key: null, other: 'value' }, expected: '{"key":null,"other":"value"}' },
-      { content: { key: undefined, other: 'value' }, expected: '{"other":"value"}' },
+      {
+        content: { key: null, other: 'value' },
+        expected: '{"key":null,"other":"value"}',
+      },
+      {
+        content: { key: undefined, other: 'value' },
+        expected: '{"other":"value"}',
+      },
     ])('should handle object edge cases', ({ content, expected }) => {
       const result = processObjectContent(content);
       expect(result).toBe(expected);
@@ -641,9 +732,21 @@ describe('utils functions', () => {
 
   describe('processMessageContent', () => {
     it.each([
-      { content: '{"type": "text", "text": "String content"}', expected: 'String content' },
-      { content: [{ type: 'text', text: 'Array item 1' }, { type: 'text', text: 'Array item 2' }], expected: 'Array item 1\nArray item 2' },
-      { content: { type: 'text', text: 'Object content' }, expected: 'Object content' },
+      {
+        content: '{"type": "text", "text": "String content"}',
+        expected: 'String content',
+      },
+      {
+        content: [
+          { type: 'text', text: 'Array item 1' },
+          { type: 'text', text: 'Array item 2' },
+        ],
+        expected: 'Array item 1\nArray item 2',
+      },
+      {
+        content: { type: 'text', text: 'Object content' },
+        expected: 'Object content',
+      },
     ])('should process $content type correctly', ({ content, expected }) => {
       const result = processMessageContent(content);
       expect(result).toBe(expected);
@@ -678,7 +781,9 @@ describe('utils functions', () => {
       };
 
       const result = processMessageContent(content);
-      expect(result).toBe('{"type":"complex","data":[{"type":"text","text":"Nested text"},{"content":"Nested content"}],"metadata":{"key":"value"}}');
+      expect(result).toBe(
+        '{"type":"complex","data":[{"type":"text","text":"Nested text"},{"content":"Nested content"}],"metadata":{"key":"value"}}'
+      );
     });
   });
 });

@@ -59,7 +59,9 @@ describe('mcpAgentTools', () => {
     success: (response: any) => mockFetch.mockResolvedValue(response),
     error: (error: Error) => mockFetch.mockRejectedValue(error),
     sequence: (responses: any[]) => {
-      responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
+      responses.forEach((response) =>
+        mockFetch.mockResolvedValueOnce(response)
+      );
     },
   };
 
@@ -103,9 +105,11 @@ describe('mcpAgentTools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLogger = require('@snakagent/core').logger;
-    mockMcpController = require('../../../../services/mcp/src/mcp.js').MCP_CONTROLLER;
+    mockMcpController =
+      require('../../../../services/mcp/src/mcp.js').MCP_CONTROLLER;
     mockPostgres = require('@snakagent/database').Postgres;
-    mockOperatorRegistry = require('../../operatorRegistry.js').OperatorRegistry;
+    mockOperatorRegistry =
+      require('../../operatorRegistry.js').OperatorRegistry;
     tools = getMcpAgentTools();
     process.env.SMITHERY_API_KEY = TEST_SMITHERY_API_KEY;
   });
@@ -126,13 +130,17 @@ describe('mcpAgentTools', () => {
       ];
 
       expect(tools).toHaveLength(5);
-      expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(expectedTools));
+      expect(tools.map((t) => t.name)).toEqual(
+        expect.arrayContaining(expectedTools)
+      );
 
       tools.forEach((tool) => {
         expect(tool).toHaveProperty('name');
         expect(tool).toHaveProperty('description');
         expect(tool).toHaveProperty('schema');
-        expect(tool.hasOwnProperty('func') || tool.hasOwnProperty('invoke')).toBe(true);
+        expect(
+          tool.hasOwnProperty('func') || tool.hasOwnProperty('invoke')
+        ).toBe(true);
       });
     });
   });
@@ -153,10 +161,22 @@ describe('mcpAgentTools', () => {
     });
 
     it.each([
-      ['missing API key', undefined, 'SMITHERY_API_KEY environment variable is required'],
+      [
+        'missing API key',
+        undefined,
+        'SMITHERY_API_KEY environment variable is required',
+      ],
       ['invalid API key', makeResponse.error(401), 'Invalid Smithery API key'],
-      ['server error', makeResponse.error(500, 'Internal Server Error'), 'Smithery API request failed: 500 Internal Server Error'],
-      ['network error', new Error('Network error'), 'Failed to search MCP servers: Error: Network error'],
+      [
+        'server error',
+        makeResponse.error(500, 'Internal Server Error'),
+        'Smithery API request failed: 500 Internal Server Error',
+      ],
+      [
+        'network error',
+        new Error('Network error'),
+        'Failed to search MCP servers: Error: Network error',
+      ],
     ])('should handle %s', async (_, response, expectedError) => {
       if (response instanceof Error) {
         makeFetchResult.error(response);
@@ -166,13 +186,20 @@ describe('mcpAgentTools', () => {
         makeFetchResult.success(response);
       }
 
-      await expect(searchTool.func({ query: 'test' })).rejects.toThrow(expectedError);
+      await expect(searchTool.func({ query: 'test' })).rejects.toThrow(
+        expectedError
+      );
     });
 
     it('should handle successful search with filters', async () => {
       const mockResponse = makeResponse.ok({
         servers: [makeServer()],
-        pagination: { totalCount: 1, currentPage: 1, pageSize: 10, totalPages: 1 },
+        pagination: {
+          totalCount: 1,
+          currentPage: 1,
+          pageSize: 10,
+          totalPages: 1,
+        },
       });
       makeFetchResult.success(mockResponse);
 
@@ -196,7 +223,9 @@ describe('mcpAgentTools', () => {
     });
 
     it('should handle search with no results', async () => {
-      makeFetchResult.success(makeResponse.ok({ servers: [], pagination: { totalCount: 0 } }));
+      makeFetchResult.success(
+        makeResponse.ok({ servers: [], pagination: { totalCount: 0 } })
+      );
 
       const result = await searchTool.func({ query: 'nonexistent' });
       expect(result).toContain('No MCP servers found');
@@ -274,8 +303,16 @@ describe('mcpAgentTools', () => {
 
     it.each([
       ['agent not found', [], 'Agent not found: test-agent'],
-      ['duplicate server', [makeAgent({ mcpServers: { 'existing-server': { command: 'npx' } } })], 'MCP server "existing-server" already exists for agent "test-agent"'],
-      ['database error', new Error('Database error'), 'Failed to install MCP server'],
+      [
+        'duplicate server',
+        [makeAgent({ mcpServers: { 'existing-server': { command: 'npx' } } })],
+        'MCP server "existing-server" already exists for agent "test-agent"',
+      ],
+      [
+        'database error',
+        new Error('Database error'),
+        'Failed to install MCP server',
+      ],
     ])('should handle %s', async (_, dbResult, expectedError) => {
       if (dbResult instanceof Error) {
         makeDbResult.error(dbResult);
@@ -283,30 +320,38 @@ describe('mcpAgentTools', () => {
         makeDbResult.rows(dbResult);
       }
 
-      await expect(installTool.func({
-        agentId: 'test-agent',
-        qualifiedName: 'test-server',
-        serverName: Array.isArray(dbResult) && dbResult.length > 0 ? 'existing-server' : undefined,
-      })).rejects.toThrow(expectedError);
+      await expect(
+        installTool.func({
+          agentId: 'test-agent',
+          qualifiedName: 'test-server',
+          serverName:
+            Array.isArray(dbResult) && dbResult.length > 0
+              ? 'existing-server'
+              : undefined,
+        })
+      ).rejects.toThrow(expectedError);
     });
 
     it.each([
       ['custom server name', 'custom-name', 'custom-name'],
       ['default server name', undefined, 'test-server'],
-    ])('should handle successful installation with %s', async (_, serverName, expectedName) => {
-      makeDbResult.rows([makeAgent()]);
+    ])(
+      'should handle successful installation with %s',
+      async (_, serverName, expectedName) => {
+        makeDbResult.rows([makeAgent()]);
 
-      const result = await installTool.func({
-        agentId: 'test-agent',
-        qualifiedName: 'org/test-server',
-        serverName,
-        config: { apiKey: TEST_SMITHERY_API_KEY },
-        profile: 'test-profile',
-      });
+        const result = await installTool.func({
+          agentId: 'test-agent',
+          qualifiedName: 'org/test-server',
+          serverName,
+          config: { apiKey: TEST_SMITHERY_API_KEY },
+          profile: 'test-profile',
+        });
 
-      expect(mockPostgres.query).toHaveBeenCalledTimes(2);
-      expect(result).toContain(expectedName);
-    });
+        expect(mockPostgres.query).toHaveBeenCalledTimes(2);
+        expect(result).toContain(expectedName);
+      }
+    );
 
     it('should handle installation with profile but no config', async () => {
       makeDbResult.rows([makeAgent()]);
@@ -347,7 +392,11 @@ describe('mcpAgentTools', () => {
 
     it.each([
       ['agent not found', [], 'Agent not found: test-agent'],
-      ['database error', new Error('Database error'), 'Failed to list MCP servers'],
+      [
+        'database error',
+        new Error('Database error'),
+        'Failed to list MCP servers',
+      ],
     ])('should handle %s', async (_, dbResult, expectedError) => {
       if (dbResult instanceof Error) {
         makeDbResult.error(dbResult);
@@ -355,11 +404,16 @@ describe('mcpAgentTools', () => {
         makeDbResult.rows(dbResult);
       }
 
-      await expect(listTool.func({ agentId: 'test-agent' })).rejects.toThrow(expectedError);
+      await expect(listTool.func({ agentId: 'test-agent' })).rejects.toThrow(
+        expectedError
+      );
     });
 
     it.each([
-      ['with servers', { server1: { config: 'value1' }, server2: { config: 'value2' } }],
+      [
+        'with servers',
+        { server1: { config: 'value1' }, server2: { config: 'value2' } },
+      ],
       ['no servers', {}],
       ['null mcpServers', null],
       ['undefined mcpServers', undefined],
@@ -368,7 +422,7 @@ describe('mcpAgentTools', () => {
 
       const result = await listTool.func({ agentId: 'test-agent' });
       expect(result).toContain('test-agent');
-      
+
       if (mcpServers && Object.keys(mcpServers).length > 0) {
         expect(result).toContain('server1');
       } else {
@@ -397,7 +451,11 @@ describe('mcpAgentTools', () => {
 
     it.each([
       ['agent not found', [], 'Agent not found: test-agent'],
-      ['database error', new Error('Database error'), 'Failed to refresh MCP servers'],
+      [
+        'database error',
+        new Error('Database error'),
+        'Failed to refresh MCP servers',
+      ],
     ])('should handle %s', async (_, dbResult, expectedError) => {
       if (dbResult instanceof Error) {
         makeDbResult.error(dbResult);
@@ -405,7 +463,9 @@ describe('mcpAgentTools', () => {
         makeDbResult.rows(dbResult);
       }
 
-      await expect(refreshTool.func({ agentId: 'test-agent' })).rejects.toThrow(expectedError);
+      await expect(refreshTool.func({ agentId: 'test-agent' })).rejects.toThrow(
+        expectedError
+      );
     });
 
     it('should handle no servers configured', async () => {
@@ -413,12 +473,16 @@ describe('mcpAgentTools', () => {
 
       const result = await refreshTool.func({ agentId: 'test-agent' });
 
-      expect(result).toContain('No MCP servers configured for agent test-agent');
+      expect(result).toContain(
+        'No MCP servers configured for agent test-agent'
+      );
       expect(result).toContain('"mcpToolsCount":0');
     });
 
     it('should handle successful refresh', async () => {
-      makeDbResult.rows([makeAgent({ mcpServers: { server1: { config: 'value1' } } })]);
+      makeDbResult.rows([
+        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+      ]);
 
       const mockMcpInstance = {
         initializeConnections: jest.fn().mockResolvedValue(undefined),
@@ -431,32 +495,53 @@ describe('mcpAgentTools', () => {
         getAgent: jest.fn().mockReturnValue(mockAgent),
       });
 
-      const resultPromise = refreshTool.func({ agentId: 'test-agent', timeout: 30000 });
+      const resultPromise = refreshTool.func({
+        agentId: 'test-agent',
+        timeout: 30000,
+      });
       jest.runAllTimers();
       const result = await resultPromise;
 
-      expect(result).toContain('Successfully refreshed MCP servers for agent test-agent');
+      expect(result).toContain(
+        'Successfully refreshed MCP servers for agent test-agent'
+      );
       expect(mockMcpController).toHaveBeenCalled();
     });
 
     it.each([
       ['connection errors', 'ECONNREFUSED', 'Failed to connect to MCP servers'],
-      ['timeout errors', 'MCP initialization timed out after 1000ms', 'MCP server refresh timed out after 1000ms'],
-      ['generic errors', 'Some other error', 'Failed to refresh MCP servers: Some other error'],
+      [
+        'timeout errors',
+        'MCP initialization timed out after 1000ms',
+        'MCP server refresh timed out after 1000ms',
+      ],
+      [
+        'generic errors',
+        'Some other error',
+        'Failed to refresh MCP servers: Some other error',
+      ],
     ])('should handle %s', async (_, errorMessage, expectedError) => {
-      makeDbResult.rows([makeAgent({ mcpServers: { server1: { config: 'value1' } } })]);
+      makeDbResult.rows([
+        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+      ]);
 
       const mockMcpInstance = {
-        initializeConnections: jest.fn().mockRejectedValue(new Error(errorMessage)),
+        initializeConnections: jest
+          .fn()
+          .mockRejectedValue(new Error(errorMessage)),
         getTools: jest.fn().mockReturnValue([]),
       };
       mockMcpController.mockImplementation(() => mockMcpInstance);
 
-      await expect(refreshTool.func({ agentId: 'test-agent', timeout: 1000 })).rejects.toThrow(expectedError);
+      await expect(
+        refreshTool.func({ agentId: 'test-agent', timeout: 1000 })
+      ).rejects.toThrow(expectedError);
     });
 
     it('should handle registry update errors with warning', async () => {
-      makeDbResult.rows([makeAgent({ mcpServers: { server1: { config: 'value1' } } })]);
+      makeDbResult.rows([
+        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+      ]);
 
       const mockMcpInstance = {
         initializeConnections: jest.fn().mockResolvedValue(undefined),
@@ -472,12 +557,18 @@ describe('mcpAgentTools', () => {
       jest.runAllTimers();
       const result = await resultPromise;
 
-      expect(result).toContain('Successfully refreshed MCP servers for agent test-agent');
-      expect(mockLogger.warn).toHaveBeenCalledWith('Failed to update agent registry: Error: Registry error');
+      expect(result).toContain(
+        'Successfully refreshed MCP servers for agent test-agent'
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Failed to update agent registry: Error: Registry error'
+      );
     });
 
     it('should filter out existing mcp_ tools when updating registry', async () => {
-      makeDbResult.rows([makeAgent({ mcpServers: { server1: { config: 'value1' } } })]);
+      makeDbResult.rows([
+        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+      ]);
 
       const mockMcpInstance = {
         initializeConnections: jest.fn().mockResolvedValue(undefined),
@@ -486,18 +577,26 @@ describe('mcpAgentTools', () => {
       mockMcpController.mockImplementation(() => mockMcpInstance);
 
       const mockAgent: any = {
-        getTools: jest.fn().mockReturnValue([{ name: 'mcp_old' }, { name: 'keep_me' }]),
+        getTools: jest
+          .fn()
+          .mockReturnValue([{ name: 'mcp_old' }, { name: 'keep_me' }]),
         tools: [],
       };
       mockOperatorRegistry.getInstance.mockReturnValue({
         getAgent: jest.fn().mockReturnValue(mockAgent),
       });
 
-      const resultPromise = refreshTool.func({ agentId: 'test-agent', timeout: 30000 });
+      const resultPromise = refreshTool.func({
+        agentId: 'test-agent',
+        timeout: 30000,
+      });
       jest.runAllTimers();
       await resultPromise;
 
-      expect(mockAgent.tools.map((t: any) => t.name)).toEqual(['keep_me', 'new_tool']);
+      expect(mockAgent.tools.map((t: any) => t.name)).toEqual([
+        'keep_me',
+        'new_tool',
+      ]);
     });
   });
 
@@ -516,8 +615,16 @@ describe('mcpAgentTools', () => {
 
     it.each([
       ['agent not found', [], 'Agent not found: test-agent'],
-      ['server not found', [makeAgent({ mcpServers: { 'other-server': { config: 'value' } } })], 'MCP server "test-server" not found in agent "test-agent"'],
-      ['database error', new Error('Database error'), 'Failed to delete MCP server'],
+      [
+        'server not found',
+        [makeAgent({ mcpServers: { 'other-server': { config: 'value' } } })],
+        'MCP server "test-server" not found in agent "test-agent"',
+      ],
+      [
+        'database error',
+        new Error('Database error'),
+        'Failed to delete MCP server',
+      ],
     ])('should handle %s', async (_, dbResult, expectedError) => {
       if (dbResult instanceof Error) {
         makeDbResult.error(dbResult);
@@ -525,15 +632,19 @@ describe('mcpAgentTools', () => {
         makeDbResult.rows(dbResult);
       }
 
-      await expect(deleteTool.func({
-        agentId: 'test-agent',
-        serverName: 'test-server',
-      })).rejects.toThrow(expectedError);
+      await expect(
+        deleteTool.func({
+          agentId: 'test-agent',
+          serverName: 'test-server',
+        })
+      ).rejects.toThrow(expectedError);
     });
 
     it('should handle successful deletion', async () => {
       mockPostgres.query
-        .mockResolvedValueOnce([makeAgent({ mcpServers: { 'test-server': { config: 'value' } } })])
+        .mockResolvedValueOnce([
+          makeAgent({ mcpServers: { 'test-server': { config: 'value' } } }),
+        ])
         .mockResolvedValueOnce([makeAgent({ mcpServers: {} })]);
 
       const result = await deleteTool.func({
@@ -555,10 +666,14 @@ describe('mcpAgentTools', () => {
         .mockResolvedValueOnce([makeAgent({ mcpServers })])
         .mockResolvedValueOnce([makeAgent({ mcpServers: {} })]);
 
-      await expect(deleteTool.func({
-        agentId: 'test-agent',
-        serverName: 'test-server',
-      })).rejects.toThrow('MCP server "test-server" not found in agent "test-agent"');
+      await expect(
+        deleteTool.func({
+          agentId: 'test-agent',
+          serverName: 'test-server',
+        })
+      ).rejects.toThrow(
+        'MCP server "test-server" not found in agent "test-agent"'
+      );
     });
   });
 });

@@ -356,30 +356,33 @@ export class MemoryAgent extends BaseAgent {
           if (state.plan?.steps?.[0]?.description) {
             return state.plan.steps[0].description;
           }
-          logger.warn('MemoryAgent: Invalid plan structure in autonomous mode, falling back to messages');
+          logger.warn(
+            'MemoryAgent: Invalid plan structure in autonomous mode, falling back to messages'
+          );
         } catch (error) {
-          logger.warn('MemoryAgent: Error accessing plan structure, falling back to messages');
+          logger.warn(
+            'MemoryAgent: Error accessing plan structure, falling back to messages'
+          );
         }
       }
-      
+
       const lastUser = [...state.messages]
         .reverse()
         .find((msg: BaseMessage) => msg instanceof HumanMessage);
-      
+
       let query: string;
       if (lastUser) {
-        query = typeof lastUser.content === 'string'
-          ? lastUser.content
-          : JSON.stringify(lastUser.content);
+        query =
+          typeof lastUser.content === 'string'
+            ? lastUser.content
+            : JSON.stringify(lastUser.content);
       } else if (state.messages[0]?.content) {
         const content = state.messages[0].content;
-        query = typeof content === 'string'
-          ? content
-          : JSON.stringify(content);
+        query = typeof content === 'string' ? content : JSON.stringify(content);
       } else {
         query = '';
       }
-      
+
       return query.trim();
     };
 
@@ -390,7 +393,7 @@ export class MemoryAgent extends BaseAgent {
       if (!query || !query.trim()) {
         return '';
       }
-      
+
       const userId = config.configurable?.userId || 'default_user';
       const agentId = config.configurable?.agentId;
       const embedding = await this.embeddings.embedQuery(query);
@@ -438,7 +441,7 @@ export class MemoryAgent extends BaseAgent {
       }
 
       const query = processMessageContent(message);
-      
+
       if (!query || query.trim() === '') {
         return [];
       }

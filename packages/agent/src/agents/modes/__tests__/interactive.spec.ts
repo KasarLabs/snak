@@ -1,7 +1,12 @@
 import { logger, AgentMode } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
 import { Agent } from '../types/index.js';
-import { BaseMessage, AIMessageChunk, ToolMessage, HumanMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  AIMessageChunk,
+  ToolMessage,
+  HumanMessage,
+} from '@langchain/core/messages';
 import { InteractiveAgent, createInteractiveAgent } from '../interactive.js';
 
 jest.mock('@snakagent/core', () => ({
@@ -31,20 +36,20 @@ jest.mock('../../operators/modelSelector.js', () => {
           }
           return {
             steps: [
-              { 
-                stepNumber: 1, 
-                stepName: 'Step 1', 
-                description: 'First step description', 
-                status: 'pending', 
-                result: '' 
+              {
+                stepNumber: 1,
+                stepName: 'Step 1',
+                description: 'First step description',
+                status: 'pending',
+                result: '',
               },
-              { 
-                stepNumber: 2, 
-                stepName: 'Step 2', 
-                description: 'Second step description', 
-                status: 'pending', 
-                result: '' 
-              }
+              {
+                stepNumber: 2,
+                stepName: 'Step 2',
+                description: 'Second step description',
+                status: 'pending',
+                result: '',
+              },
             ],
             summary: 'Test plan summary',
           };
@@ -74,8 +79,12 @@ jest.mock('../../operators/modelSelector.js', () => {
   return {
     ModelSelector: class {
       private model = new FakeModel();
-      getModels() { return { fast: this.model }; }
-      async selectModelForMessages() { return { model_name: 'fast', model: this.model }; }
+      getModels() {
+        return { fast: this.model };
+      }
+      async selectModelForMessages() {
+        return { model_name: 'fast', model: this.model };
+      }
     },
   };
 });
@@ -89,10 +98,18 @@ jest.mock('@langchain/langgraph', () => {
 
   return {
     StateGraph: class {
-      addNode() { return this; }
-      addEdge() { return this; }
-      addConditionalEdges() { return this; }
-      compile() { return { run: jest.fn() }; }
+      addNode() {
+        return this;
+      }
+      addEdge() {
+        return this;
+      }
+      addConditionalEdges() {
+        return this;
+      }
+      compile() {
+        return { run: jest.fn() };
+      }
     },
     MemorySaver: class {},
     Annotation,
@@ -110,9 +127,9 @@ jest.mock('@langchain/langgraph/prebuilt', () => ({
 
 jest.mock('@langchain/core/messages', () => {
   interface IBaseMessage {
-   content: any;
-   additional_kwargs: any;
-   response_metadata: any;
+    content: any;
+    additional_kwargs: any;
+    response_metadata: any;
   }
   class BaseMessage implements IBaseMessage {
     public response_metadata: any;
@@ -154,10 +171,16 @@ jest.mock('@langchain/core/messages', () => {
 });
 
 jest.mock('@langchain/core/prompts', () => ({
-  MessagesPlaceholder: class { constructor(public _name: string) {} },
+  MessagesPlaceholder: class {
+    constructor(public _name: string) {}
+  },
   ChatPromptTemplate: class {
-    static fromMessages() { return new (require('@langchain/core/prompts').ChatPromptTemplate)(); }
-    async formatMessages(vars: any) { return vars; }
+    static fromMessages() {
+      return new (require('@langchain/core/prompts').ChatPromptTemplate)();
+    }
+    async formatMessages(vars: any) {
+      return vars;
+    }
   },
 }));
 
@@ -174,14 +197,20 @@ jest.mock('../../core/utils.js', () => ({
   initializeDatabase: jest.fn(async () => {}),
   initializeToolsList: jest.fn(async () => [{ name: 'toolA' }]),
   truncateToolResults: jest.fn((result: any) => ({
-    messages: result?.messages ?? [{ name: 'toolA', content: 'ok', tool_call_id: 'id-1' }],
+    messages: result?.messages ?? [
+      { name: 'toolA', content: 'ok', tool_call_id: 'id-1' },
+    ],
   })),
 }));
 
 jest.mock('../../operators/memoryAgent.js', () => ({
   MemoryAgent: class {
-    prepareMemoryTools() { return [{ name: 'memoryTool' }]; }
-    createMemoryNode() { return jest.fn(); }
+    prepareMemoryTools() {
+      return [{ name: 'memoryTool' }];
+    }
+    createMemoryNode() {
+      return jest.fn();
+    }
   },
 }));
 
@@ -210,13 +239,15 @@ jest.mock('../utils.js', () => ({
     currentGraphStep: graphStep,
   }),
   filterMessagesByShortTermMemory: (msgs: any[], n: number) => msgs.slice(-n),
-  formatParsedPlanSimple: (plan: any) => `plan(${(plan?.steps || []).length} steps)`,
+  formatParsedPlanSimple: (plan: any) =>
+    `plan(${(plan?.steps || []).length} steps)`,
   handleModelError: (err: any) => ({
     messages: { content: `error:${err.message}`, additional_kwargs: {} },
   }),
-  isTerminalMessage: (msg: any) => String(msg?.content || '').includes('TERMINAL'),
+  isTerminalMessage: (msg: any) =>
+    String(msg?.content || '').includes('TERMINAL'),
   getLatestMessageForMessage: (messages: any[], type: any) => {
-    const filtered = messages.filter(msg => msg instanceof type);
+    const filtered = messages.filter((msg) => msg instanceof type);
     return filtered[filtered.length - 1] || null;
   },
 }));
@@ -237,9 +268,21 @@ const makeModelSelectorConfig = () => ({
   debugMode: false,
   useModelSelector: false,
   modelsConfig: {
-    fast: { provider: 'openai' as any, model_name: 'gpt-4o-mini', description: 'Fast model' },
-    smart: { provider: 'openai' as any, model_name: 'gpt-4o-mini', description: 'Smart model' },
-    cheap: { provider: 'openai' as any, model_name: 'gpt-4o-mini', description: 'Cheap model' },
+    fast: {
+      provider: 'openai' as any,
+      model_name: 'gpt-4o-mini',
+      description: 'Fast model',
+    },
+    smart: {
+      provider: 'openai' as any,
+      model_name: 'gpt-4o-mini',
+      description: 'Smart model',
+    },
+    cheap: {
+      provider: 'openai' as any,
+      model_name: 'gpt-4o-mini',
+      description: 'Cheap model',
+    },
   },
 });
 
@@ -251,7 +294,8 @@ const makeSnakAgent = (overrides: Partial<any> = {}) => ({
     prompt: { content: 'SYS' },
   }),
   getDatabaseCredentials: () => ({ uri: 'postgres://x' }),
-  getMemoryAgent: () => new (require('../../operators/memoryAgent.js').MemoryAgent)(),
+  getMemoryAgent: () =>
+    new (require('../../operators/memoryAgent.js').MemoryAgent)(),
   getRagAgent: () => new (require('../../operators/ragAgent.js').RagAgent)(),
   ...overrides,
 });
@@ -263,13 +307,13 @@ const makeState = (over: Partial<any> = {}) => ({
   rag: '',
   plan: {
     steps: [
-      { 
-        stepNumber: 1, 
-        stepName: 'S1', 
-        description: 'do something', 
-        status: 'pending', 
-        result: '' 
-      }
+      {
+        stepNumber: 1,
+        stepName: 'S1',
+        description: 'do something',
+        status: 'pending',
+        result: '',
+      },
     ],
     summary: '',
   },
@@ -328,7 +372,9 @@ describe('InteractiveAgent', () => {
     it('initializeMemoryAgent adds memory tools to toolsList', async () => {
       await (agent as any).initializeMemoryAgent();
       expect((agent as any).toolsList.length).toBeGreaterThan(0);
-      expect((agent as any).toolsList.some((tool: any) => tool.name === 'memoryTool')).toBe(true);
+      expect(
+        (agent as any).toolsList.some((tool: any) => tool.name === 'memoryTool')
+      ).toBe(true);
     });
 
     it('initializeRagAgent sets ragAgent property', async () => {
@@ -353,11 +399,18 @@ describe('InteractiveAgent', () => {
         messages: [new HumanMessage('hi')],
         plan,
         last_agent: lastAgent,
-        last_message: lastAgent === Agent.PLANNER_VALIDATOR 
-          ? new AIMessageChunk({ content: 'validator says fix', additional_kwargs: { from: Agent.PLANNER_VALIDATOR } })
-          : new AIMessageChunk({ content: 'init', additional_kwargs: { from: Agent.PLANNER } }),
+        last_message:
+          lastAgent === Agent.PLANNER_VALIDATOR
+            ? new AIMessageChunk({
+                content: 'validator says fix',
+                additional_kwargs: { from: Agent.PLANNER_VALIDATOR },
+              })
+            : new AIMessageChunk({
+                content: 'init',
+                additional_kwargs: { from: Agent.PLANNER },
+              }),
       });
-      
+
       const res = await (agent as any).planExecution(state, makeConfig());
       expect(res.last_agent).toBe(Agent.PLANNER);
       expect(res.plan.steps.length).toBeGreaterThan(0);
@@ -365,13 +418,16 @@ describe('InteractiveAgent', () => {
     });
 
     it('planExecution handles model not found error gracefully', async () => {
-      (agent as any).modelSelector = { getModels: () => ({}), selectModelForMessages: jest.fn() };
-      
+      (agent as any).modelSelector = {
+        getModels: () => ({}),
+        selectModelForMessages: jest.fn(),
+      };
+
       const state = makeState({
         plan: { steps: [], summary: '' },
         messages: [new HumanMessage('test')],
       });
-      
+
       const res = await (agent as any).planExecution(state, makeConfig());
       expect(res.messages.content).toContain('Failed to create plan');
       expect(res.last_agent).toBe(Agent.PLANNER);
@@ -382,11 +438,14 @@ describe('InteractiveAgent', () => {
         last_agent: Agent.PLANNER_VALIDATOR,
         messages: [
           new HumanMessage('test'),
-          new AIMessageChunk({ content: 'validator feedback', additional_kwargs: { from: Agent.PLANNER_VALIDATOR } })
+          new AIMessageChunk({
+            content: 'validator feedback',
+            additional_kwargs: { from: Agent.PLANNER_VALIDATOR },
+          }),
         ],
         plan: { steps: [], summary: '' },
       });
-      
+
       const res = await (agent as any).planExecution(state, makeConfig());
       expect(res.last_agent).toBe(Agent.PLANNER);
       expect(res.plan.steps.length).toBeGreaterThan(0);
@@ -403,9 +462,20 @@ describe('InteractiveAgent', () => {
     it('validator routes PLANNER to validatorPlanner', async () => {
       const state = makeState({
         last_agent: Agent.PLANNER,
-        plan: { steps: [{ stepNumber: 1, stepName: 'Test', description: 'test', status: 'pending', result: '' }], summary: 'test' },
+        plan: {
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'test',
+              status: 'pending',
+              result: '',
+            },
+          ],
+          summary: 'test',
+        },
       });
-      
+
       const res = await (agent as any).validator(state);
       expect(res.last_agent).toBe(Agent.PLANNER_VALIDATOR);
       expect(res.currentGraphStep).toBe(state.currentGraphStep + 1);
@@ -414,9 +484,20 @@ describe('InteractiveAgent', () => {
     it('validator routes EXECUTOR to validatorExecutor', async () => {
       const state = makeState({
         last_agent: Agent.EXECUTOR,
-        plan: { steps: [{ stepNumber: 1, stepName: 'Test', description: 'test', status: 'pending', result: '' }], summary: 'test' },
+        plan: {
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'test',
+              status: 'pending',
+              result: '',
+            },
+          ],
+          summary: 'test',
+        },
       });
-      
+
       const res = await (agent as any).validator(state);
       expect(res.last_agent).toBe(Agent.EXEC_VALIDATOR);
       expect(res.currentGraphStep).toBe(state.currentGraphStep + 1);
@@ -425,10 +506,21 @@ describe('InteractiveAgent', () => {
     it('validatorPlanner validates plan successfully', async () => {
       const state = makeState({
         last_agent: Agent.PLANNER,
-        plan: { steps: [{ stepNumber: 1, stepName: 'Test', description: 'test', status: 'pending', result: '' }], summary: 'test' },
+        plan: {
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'test',
+              status: 'pending',
+              result: '',
+            },
+          ],
+          summary: 'test',
+        },
         messages: [new HumanMessage('test')],
       });
-      
+
       const res = await (agent as any).validatorPlanner(state);
       expect(res.last_agent).toBe(Agent.PLANNER_VALIDATOR);
       expect(res.currentGraphStep).toBe(state.currentGraphStep + 1);
@@ -444,14 +536,28 @@ describe('InteractiveAgent', () => {
           })),
         }),
       };
-      (agent as any).modelSelector = { getModels: () => ({ fast: mockModel }), selectModelForMessages: jest.fn() };
-      
+      (agent as any).modelSelector = {
+        getModels: () => ({ fast: mockModel }),
+        selectModelForMessages: jest.fn(),
+      };
+
       const state = makeState({
         last_agent: Agent.PLANNER,
-        plan: { steps: [{ stepNumber: 1, stepName: 'Test', description: 'test', status: 'pending', result: '' }], summary: 'test' },
+        plan: {
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'test',
+              status: 'pending',
+              result: '',
+            },
+          ],
+          summary: 'test',
+        },
         messages: [new HumanMessage('test')],
       });
-      
+
       const res = await (agent as any).validatorPlanner(state);
       expect(res.last_agent).toBe(Agent.PLANNER_VALIDATOR);
       expect(res.retry).toBe(state.retry + 1);
@@ -460,11 +566,31 @@ describe('InteractiveAgent', () => {
     it('validatorExecutor validates step successfully', async () => {
       const state = makeState({
         last_agent: Agent.EXECUTOR,
-        last_message: new AIMessageChunk({ content: 'Step completed', additional_kwargs: {} }),
-        plan: { steps: [{ stepNumber: 1, stepName: 'Test', description: 'test', status: 'pending', result: '' }], summary: 'test' },
-        messages: [new HumanMessage('test'), new AIMessageChunk({ content: 'Step completed', additional_kwargs: {} })],
+        last_message: new AIMessageChunk({
+          content: 'Step completed',
+          additional_kwargs: {},
+        }),
+        plan: {
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'test',
+              status: 'pending',
+              result: '',
+            },
+          ],
+          summary: 'test',
+        },
+        messages: [
+          new HumanMessage('test'),
+          new AIMessageChunk({
+            content: 'Step completed',
+            additional_kwargs: {},
+          }),
+        ],
       });
-      
+
       const res = await (agent as any).validatorExecutor(state);
       expect(res.last_agent).toBe(Agent.EXEC_VALIDATOR);
       expect(res.currentGraphStep).toBe(state.currentGraphStep + 1);
@@ -481,30 +607,67 @@ describe('InteractiveAgent', () => {
           })),
         }),
       };
-      (agent as any).modelSelector = { getModels: () => ({ fast: mockModel }), selectModelForMessages: jest.fn() };
-      
+      (agent as any).modelSelector = {
+        getModels: () => ({ fast: mockModel }),
+        selectModelForMessages: jest.fn(),
+      };
+
       const state = makeState({
         last_agent: Agent.EXECUTOR,
-        last_message: new AIMessageChunk({ content: 'Step completed', additional_kwargs: {} }),
-        plan: { steps: [{ stepNumber: 1, stepName: 'Test', description: 'test', status: 'pending', result: '' }], summary: 'test' },
+        last_message: new AIMessageChunk({
+          content: 'Step completed',
+          additional_kwargs: {},
+        }),
+        plan: {
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'test',
+              status: 'pending',
+              result: '',
+            },
+          ],
+          summary: 'test',
+        },
         currentStepIndex: 0,
-        messages: [new HumanMessage('test'), new AIMessageChunk({ content: 'Step completed', additional_kwargs: {} })],
+        messages: [
+          new HumanMessage('test'),
+          new AIMessageChunk({
+            content: 'Step completed',
+            additional_kwargs: {},
+          }),
+        ],
       });
-      
+
       const res = await (agent as any).validatorExecutor(state);
       expect(res.last_agent).toBe(Agent.EXEC_VALIDATOR);
       expect(res.currentStepIndex).toBe(1);
     });
 
     it('validators handle model not found error gracefully', async () => {
-      (agent as any).modelSelector = { getModels: () => ({}), selectModelForMessages: jest.fn() };
-      
+      (agent as any).modelSelector = {
+        getModels: () => ({}),
+        selectModelForMessages: jest.fn(),
+      };
+
       const state = makeState({
         last_agent: Agent.PLANNER,
-        plan: { steps: [{ stepNumber: 1, stepName: 'Test', description: 'test', status: 'pending', result: '' }], summary: 'test' },
+        plan: {
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'test',
+              status: 'pending',
+              result: '',
+            },
+          ],
+          summary: 'test',
+        },
         messages: [new HumanMessage('test')],
       });
-      
+
       const res = await (agent as any).validatorPlanner(state);
       expect(res.messages.content).toContain('Failed to validate plan');
       expect(res.last_agent).toBe(Agent.PLANNER_VALIDATOR);
@@ -522,33 +685,47 @@ describe('InteractiveAgent', () => {
     it.each([
       ['max_graph_steps limit', 15, 15, 'max-iter-15'],
       ['max_graph_steps exact', 14, 14, 'max-iter-14'],
-    ])('%s returns correct response', async (_, currentStep, maxSteps, expectedContent) => {
-      const state = makeState({ currentGraphStep: currentStep });
-      const cfg = makeConfig({ configurable: { max_graph_steps: maxSteps } });
-      
-      const res = await (agent as any).callModel(state, cfg);
-      expect(res.last_message.content).toContain(expectedContent);
-      expect(res.last_agent).toBe(Agent.EXECUTOR);
-    });
+    ])(
+      '%s returns correct response',
+      async (_, currentStep, maxSteps, expectedContent) => {
+        const state = makeState({ currentGraphStep: currentStep });
+        const cfg = makeConfig({ configurable: { max_graph_steps: maxSteps } });
+
+        const res = await (agent as any).callModel(state, cfg);
+        expect(res.last_message.content).toContain(expectedContent);
+        expect(res.last_agent).toBe(Agent.EXECUTOR);
+      }
+    );
 
     it('callModel processes step successfully', async () => {
       const state = makeState({
         plan: {
-          steps: [{ stepNumber: 1, stepName: 'Test Step', description: 'Test description', status: 'pending', result: '' }],
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test Step',
+              description: 'Test description',
+              status: 'pending',
+              result: '',
+            },
+          ],
           summary: 'Test plan',
         },
         currentStepIndex: 0,
         messages: [new HumanMessage('test')],
       });
-      
+
       const res = await (agent as any).callModel(state, makeConfig());
       expect(res.last_agent).toBe(Agent.EXECUTOR);
       expect(res.currentGraphStep).toBe(state.currentGraphStep + 1);
     });
 
     it('callModel handles model not found error gracefully', async () => {
-      (agent as any).modelSelector = { getModels: () => ({}), selectModelForMessages: jest.fn() };
-      
+      (agent as any).modelSelector = {
+        getModels: () => ({}),
+        selectModelForMessages: jest.fn(),
+      };
+
       const res = await (agent as any).callModel(makeState(), makeConfig());
       expect(res.messages.content).toContain('error:');
       expect(res.messages).toBeDefined();
@@ -571,8 +748,12 @@ describe('InteractiveAgent', () => {
           tool_calls: [{ name: 'toolA', args: { foo: 'bar' } }],
         }),
       });
-      
-      const res = await (agent as any).toolNodeInvoke(state, undefined, toolNode.invoke.bind(toolNode));
+
+      const res = await (agent as any).toolNodeInvoke(
+        state,
+        undefined,
+        toolNode.invoke.bind(toolNode)
+      );
       expect(Array.isArray(res?.messages)).toBe(true);
       expect((res?.messages[0] as ToolMessage).name).toBe('toolA');
       expect((res?.messages[0] as any).additional_kwargs.from).toBe('tools');
@@ -587,10 +768,15 @@ describe('InteractiveAgent', () => {
     it('toolNodeInvoke propagates tool execution errors', async () => {
       const originalInvoke = jest.fn().mockRejectedValue(new Error('boom'));
       const state = makeState({
-        last_message: new AIMessageChunk({ content: 'x', tool_calls: [{ name: 'toolA', args: {} }] }),
+        last_message: new AIMessageChunk({
+          content: 'x',
+          tool_calls: [{ name: 'toolA', args: {} }],
+        }),
       });
-      
-      await expect((agent as any).toolNodeInvoke(state, undefined, originalInvoke)).rejects.toThrow('boom');
+
+      await expect(
+        (agent as any).toolNodeInvoke(state, undefined, originalInvoke)
+      ).rejects.toThrow('boom');
     });
   });
 
@@ -602,40 +788,77 @@ describe('InteractiveAgent', () => {
     ])('shouldContinue %s -> %s', (_, messageProps, expectedRoute) => {
       const state = makeState({
         last_agent: Agent.EXECUTOR,
-        messages: [new HumanMessage('test'), new AIMessageChunk({ content: 'test', ...messageProps })],
+        messages: [
+          new HumanMessage('test'),
+          new AIMessageChunk({ content: 'test', ...messageProps }),
+        ],
       });
-      
+
       const next = (agent as any).shouldContinue(state, makeConfig());
       expect(next).toBe(expectedRoute);
     });
 
     it.each([
-      ['PLANNER_VALIDATOR validated', Agent.PLANNER_VALIDATOR, { validated: true, error: false }, 'executor'],
-      ['PLANNER_VALIDATOR error', Agent.PLANNER_VALIDATOR, { error: true }, 'end'],
-      ['PLANNER_VALIDATOR failed validation', Agent.PLANNER_VALIDATOR, { validated: false }, 're_planner', 1],
-      ['PLANNER_VALIDATOR max retries', Agent.PLANNER_VALIDATOR, { validated: false }, 'end', 4],
+      [
+        'PLANNER_VALIDATOR validated',
+        Agent.PLANNER_VALIDATOR,
+        { validated: true, error: false },
+        'executor',
+      ],
+      [
+        'PLANNER_VALIDATOR error',
+        Agent.PLANNER_VALIDATOR,
+        { error: true },
+        'end',
+      ],
+      [
+        'PLANNER_VALIDATOR failed validation',
+        Agent.PLANNER_VALIDATOR,
+        { validated: false },
+        're_planner',
+        1,
+      ],
+      [
+        'PLANNER_VALIDATOR max retries',
+        Agent.PLANNER_VALIDATOR,
+        { validated: false },
+        'end',
+        4,
+      ],
       ['EXEC_VALIDATOR final', Agent.EXEC_VALIDATOR, { isFinal: true }, 'end'],
       ['EXEC_VALIDATOR max retries', Agent.EXEC_VALIDATOR, {}, 'end', 3],
-      ['EXEC_VALIDATOR continue', Agent.EXEC_VALIDATOR, { isFinal: false }, 'executor', 1],
-    ])('handleValidatorRouting %s -> %s', (_, agentType, kwargs, expectedRoute, retry = 0) => {
-      const state = makeState({
-        last_agent: agentType,
-        messages: [
-          new HumanMessage('test'), 
-          new AIMessageChunk({ 
-            content: 'test', 
-            additional_kwargs: { 
-              from: agentType === Agent.PLANNER_VALIDATOR ? 'planner_validator' : 'exec_validator', 
-              ...kwargs 
-            } 
-          })
-        ],
-        retry,
-      });
-      
-      const route = (agent as any).handleValidatorRouting(state);
-      expect(route).toBe(expectedRoute);
-    });
+      [
+        'EXEC_VALIDATOR continue',
+        Agent.EXEC_VALIDATOR,
+        { isFinal: false },
+        'executor',
+        1,
+      ],
+    ])(
+      'handleValidatorRouting %s -> %s',
+      (_, agentType, kwargs, expectedRoute, retry = 0) => {
+        const state = makeState({
+          last_agent: agentType,
+          messages: [
+            new HumanMessage('test'),
+            new AIMessageChunk({
+              content: 'test',
+              additional_kwargs: {
+                from:
+                  agentType === Agent.PLANNER_VALIDATOR
+                    ? 'planner_validator'
+                    : 'exec_validator',
+                ...kwargs,
+              },
+            }),
+          ],
+          retry,
+        });
+
+        const route = (agent as any).handleValidatorRouting(state);
+        expect(route).toBe(expectedRoute);
+      }
+    );
 
     it('handleToolMessageRouting routes to validator by default', () => {
       const messages = [
@@ -643,22 +866,28 @@ describe('InteractiveAgent', () => {
         new AIMessageChunk({ content: 'ai response', additional_kwargs: {} }),
         new ToolMessage('toolA', 'tool result', 'call-1'),
       ];
-      
-      const route = (agent as any).handleToolMessageRouting(messages, makeConfig());
+
+      const route = (agent as any).handleToolMessageRouting(
+        messages,
+        makeConfig()
+      );
       expect(route).toBe('validator');
     });
 
     it('handleToolMessageRouting routes to end when max iterations reached', () => {
       const toolMessage = new ToolMessage('toolA', 'tool result', 'call-1');
       toolMessage.additional_kwargs = { graph_step: 15 };
-      
+
       const messages = [
         new HumanMessage('test'),
         new AIMessageChunk({ content: 'ai response', additional_kwargs: {} }),
         toolMessage,
       ];
-      
-      const route = (agent as any).handleToolMessageRouting(messages, makeConfig({ configurable: { max_graph_steps: 15 } }));
+
+      const route = (agent as any).handleToolMessageRouting(
+        messages,
+        makeConfig({ configurable: { max_graph_steps: 15 } })
+      );
       expect(route).toBe('end');
     });
   });
@@ -667,7 +896,7 @@ describe('InteractiveAgent', () => {
     it('buildSystemPrompt includes agent config and step rules', async () => {
       await agent.initialize();
       (agent as any).agentConfig = snak.getAgentConfig();
-      
+
       const prompt = (agent as any).buildSystemPrompt(makeState());
       expect(prompt).toContain('SYS');
       expect(prompt).toContain('STEP_RULES');
@@ -685,17 +914,29 @@ describe('InteractiveAgent', () => {
     it('invokeModelWithMessages processes messages correctly', async () => {
       const state = makeState({
         plan: {
-          steps: [{ stepNumber: 1, stepName: 'Test', description: 'Test description', status: 'pending', result: '' }],
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'Test description',
+              status: 'pending',
+              result: '',
+            },
+          ],
           summary: 'Test plan',
         },
         currentStepIndex: 0,
         messages: [new HumanMessage('test')],
       });
-      
+
       const filteredMessages = [new HumanMessage('test')];
       const systemPrompt = 'Test system prompt';
-      
-      const result = await (agent as any).invokeModelWithMessages(state, filteredMessages, systemPrompt);
+
+      const result = await (agent as any).invokeModelWithMessages(
+        state,
+        filteredMessages,
+        systemPrompt
+      );
       expect(result.additional_kwargs.from).toBe(Agent.EXECUTOR);
       expect(result.additional_kwargs.final).toBe(false);
       expect(result.additional_kwargs.error).toBe(false);
@@ -704,36 +945,58 @@ describe('InteractiveAgent', () => {
     it('invokeModelWithMessages handles model selection correctly', async () => {
       const state = makeState({
         plan: {
-          steps: [{ stepNumber: 1, stepName: 'Test', description: 'Test description', status: 'pending', result: '' }],
+          steps: [
+            {
+              stepNumber: 1,
+              stepName: 'Test',
+              description: 'Test description',
+              status: 'pending',
+              result: '',
+            },
+          ],
           summary: 'Test plan',
         },
         currentStepIndex: 0,
         messages: [new HumanMessage('test')],
       });
-      
+
       const filteredMessages = [new HumanMessage('test')];
       const systemPrompt = 'Test system prompt';
-      
-      const result = await (agent as any).invokeModelWithMessages(state, filteredMessages, systemPrompt);
+
+      const result = await (agent as any).invokeModelWithMessages(
+        state,
+        filteredMessages,
+        systemPrompt
+      );
       expect(result).toBeDefined();
     });
   });
 
   describe('Configuration and Compilation', () => {
     it.each([
-      ['memory enabled', true, { checkpointer: expect.any(Object), configurable: {} }],
+      [
+        'memory enabled',
+        true,
+        { checkpointer: expect.any(Object), configurable: {} },
+      ],
       ['memory disabled', false, {}],
-    ])('getCompileOptions %s returns correct options', (_, memoryEnabled, expectedOptions) => {
-      (agent as any).agentConfig = { ...snak.getAgentConfig(), memory: memoryEnabled };
-      
-      const options = (agent as any).getCompileOptions();
-      expect(options).toEqual(expectedOptions);
-    });
+    ])(
+      'getCompileOptions %s returns correct options',
+      (_, memoryEnabled, expectedOptions) => {
+        (agent as any).agentConfig = {
+          ...snak.getAgentConfig(),
+          memory: memoryEnabled,
+        };
+
+        const options = (agent as any).getCompileOptions();
+        expect(options).toEqual(expectedOptions);
+      }
+    );
 
     it('buildWorkflow creates StateGraph with all required nodes', () => {
       (agent as any).agentConfig = snak.getAgentConfig();
       (agent as any).memoryAgent = snak.getMemoryAgent();
-      
+
       const workflow = (agent as any).buildWorkflow();
       expect(workflow).toBeTruthy();
       expect(typeof workflow.addNode).toBe('function');
@@ -756,27 +1019,44 @@ describe('InteractiveAgent', () => {
       ['0 max_graph_steps', { max_graph_steps: 0 }, 0, 'end'],
       ['1 max_graph_steps', { max_graph_steps: 1 }, 1, 'end'],
       ['high max_graph_steps', { max_graph_steps: 100 }, 50, 'validator'],
-    ])('shouldContinue %s routes correctly', (_, configOverrides, graphStep, expectedRoute) => {
-      const toolMessage = new ToolMessage('toolA', 'tool result', 'test-tool-call');
-      toolMessage.additional_kwargs = { graph_step: graphStep };
-      
-      const state = makeState({ 
-        last_agent: Agent.TOOLS, 
-        currentGraphStep: graphStep,
-        messages: [new HumanMessage('test'), new AIMessageChunk({ content: 'ai response', additional_kwargs: {} }), toolMessage]
-      });
-      const cfg = makeConfig({ configurable: configOverrides });
-      
-      const res = (agent as any).shouldContinue(state, cfg);
-      expect(res).toBe(expectedRoute);
-    });
+    ])(
+      'shouldContinue %s routes correctly',
+      (_, configOverrides, graphStep, expectedRoute) => {
+        const toolMessage = new ToolMessage(
+          'toolA',
+          'tool result',
+          'test-tool-call'
+        );
+        toolMessage.additional_kwargs = { graph_step: graphStep };
+
+        const state = makeState({
+          last_agent: Agent.TOOLS,
+          currentGraphStep: graphStep,
+          messages: [
+            new HumanMessage('test'),
+            new AIMessageChunk({
+              content: 'ai response',
+              additional_kwargs: {},
+            }),
+            toolMessage,
+          ],
+        });
+        const cfg = makeConfig({ configurable: configOverrides });
+
+        const res = (agent as any).shouldContinue(state, cfg);
+        expect(res).toBe(expectedRoute);
+      }
+    );
 
     it('handleValidatorRouting handles unknown agent state gracefully', () => {
       const state = makeState({
         last_agent: 'unknown_agent' as any,
-        last_message: new AIMessageChunk({ content: 'test', additional_kwargs: {} }),
+        last_message: new AIMessageChunk({
+          content: 'test',
+          additional_kwargs: {},
+        }),
       });
-      
+
       const route = (agent as any).handleValidatorRouting(state);
       expect(route).toBe('end');
     });
@@ -785,59 +1065,81 @@ describe('InteractiveAgent', () => {
   describe('Integration Scenarios', () => {
     it('should complete interactive workflow: plan → validate → execute → complete', async () => {
       await agent.initialize();
-      
+
       const initialState = makeState({
         messages: [new HumanMessage('Create a simple plan with 2 steps')],
         plan: { steps: [], summary: '' },
         currentStepIndex: 0,
         currentGraphStep: 0,
       });
-      
-      const planState = await (agent as any).planExecution(initialState, makeConfig());
+
+      const planState = await (agent as any).planExecution(
+        initialState,
+        makeConfig()
+      );
       expect(planState.last_agent).toBe(Agent.PLANNER);
       expect(planState.plan.steps.length).toBeGreaterThan(0);
-      
+
       const validationState = await (agent as any).validatorPlanner(planState);
       expect(validationState.last_agent).toBe(Agent.PLANNER_VALIDATOR);
-      expect(validationState.currentGraphStep).toBe(planState.currentGraphStep + 1);
+      expect(validationState.currentGraphStep).toBe(
+        planState.currentGraphStep + 1
+      );
     });
     it('workflow with tool usage: plan → validate → execute → tools → validate', async () => {
       await agent.initialize();
-      
+
       const initialState = makeState({
         messages: [new HumanMessage('Create a plan with tool usage')],
         plan: { steps: [], summary: '' },
         currentStepIndex: 0,
         currentGraphStep: 0,
       });
-      
+
       (agent as any).agentConfig = snak.getAgentConfig();
       (agent as any).toolsList = [{ name: 'toolA' }];
       (agent as any).modelSelector = selector;
-      
-      const executionState = await (agent as any).callModel(initialState, makeConfig());
+
+      const executionState = await (agent as any).callModel(
+        initialState,
+        makeConfig()
+      );
       expect(executionState).toBeDefined();
       expect(executionState.messages).toBeDefined();
     });
     it('re-planning workflow: validation failure → re-plan → re-validate', async () => {
       await agent.initialize();
-      
+
       const mockModel = {
         withStructuredOutput: () => ({
           invoke: jest.fn(async (input: any) => {
             if (input && Array.isArray(input)) {
-              return { isValidated: false, description: 'Plan needs improvement' };
+              return {
+                isValidated: false,
+                description: 'Plan needs improvement',
+              };
             }
             return {
-              steps: [{ stepNumber: 1, stepName: 'Improved Step', description: 'Better description', status: 'pending', result: '' }],
+              steps: [
+                {
+                  stepNumber: 1,
+                  stepName: 'Improved Step',
+                  description: 'Better description',
+                  status: 'pending',
+                  result: '',
+                },
+              ],
               summary: 'Improved plan',
             };
           }),
         }),
       };
-      (agent as any).modelSelector = { getModels: () => ({ fast: mockModel }), selectModelForMessages: jest.fn() };
+      (agent as any).modelSelector = {
+        getModels: () => ({ fast: mockModel }),
+        selectModelForMessages: jest.fn(),
+      };
       (agent as any).toolsList = [{ name: 't1' }];
-      
+
       const initialState = makeState({
         messages: [new HumanMessage('Create a plan')],
         plan: { steps: [], summary: '' },
@@ -845,12 +1147,17 @@ describe('InteractiveAgent', () => {
         currentGraphStep: 0,
         retry: 0,
       });
-      
-      const planState = await (agent as any).planExecution(initialState, makeConfig());
+
+      const planState = await (agent as any).planExecution(
+        initialState,
+        makeConfig()
+      );
       expect(planState.last_agent).toBe(Agent.PLANNER);
-      
+
       const stateWithRetry = { ...planState, retry: 0 };
-      const validationState = await (agent as any).validatorPlanner(stateWithRetry);
+      const validationState = await (agent as any).validatorPlanner(
+        stateWithRetry
+      );
       expect(validationState.last_agent).toBe(Agent.PLANNER_VALIDATOR);
       expect(validationState.retry).toBe(1);
     });

@@ -238,10 +238,9 @@ describe('updateAgentTool', () => {
       const mockUpdatedAgent = { ...mockAgent, interval: 5 };
 
       mockNormalize.mockReturnValueOnce(
-        createMockNormalizeResult(
-          { interval: 5 },
-          ['interval set to default value (5)']
-        )
+        createMockNormalizeResult({ interval: 5 }, [
+          'interval set to default value (5)',
+        ])
       );
       mockPostgres.query
         .mockResolvedValueOnce([mockAgent])
@@ -259,7 +258,7 @@ describe('updateAgentTool', () => {
 
     it('should handle update failure when result is empty', async () => {
       const mockAgent = createAgent();
-      
+
       mockNormalize.mockReturnValueOnce(
         createMockNormalizeResult({ description: 'Updated' })
       );
@@ -286,25 +285,40 @@ describe('updateAgentTool', () => {
 
   describe('error handling', () => {
     it.each([
-      ['Postgres.Query constructor errors', () => { throw new Error('Invalid query syntax'); }, 'Invalid query syntax'],
-      ['non-Error exceptions', () => { throw 'String error'; }, 'String error'],
-    ])('should handle %s', async (_description, errorThrowingFn, expectedMsg) => {
-      mockPostgres.Query.mockImplementation(errorThrowingFn);
+      [
+        'Postgres.Query constructor errors',
+        () => {
+          throw new Error('Invalid query syntax');
+        },
+        'Invalid query syntax',
+      ],
+      [
+        'non-Error exceptions',
+        () => {
+          throw 'String error';
+        },
+        'String error',
+      ],
+    ])(
+      'should handle %s',
+      async (_description, errorThrowingFn, expectedMsg) => {
+        mockPostgres.Query.mockImplementation(errorThrowingFn);
 
-      const result = await updateAgentTool.func({
-        identifier: 'test-agent',
-        updates: { description: 'Updated' },
-      });
+        const result = await updateAgentTool.func({
+          identifier: 'test-agent',
+          updates: { description: 'Updated' },
+        });
 
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Error updating agent:')
-      );
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining(expectedMsg)
-      );
-      expect(asJson(result).success).toBe(false);
-      expect(mockPostgres.query).not.toHaveBeenCalled();
-      expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
-    });
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          expect.stringContaining('Error updating agent:')
+        );
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          expect.stringContaining(expectedMsg)
+        );
+        expect(asJson(result).success).toBe(false);
+        expect(mockPostgres.query).not.toHaveBeenCalled();
+        expect(mockPostgres.Query).toHaveBeenCalledTimes(1);
+      }
+    );
   });
 });

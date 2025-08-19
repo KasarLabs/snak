@@ -292,9 +292,7 @@ export class ModelSelector extends BaseAgent {
 
       if (this.debugMode) {
         logger.debug(`Invoking "fast" model for meta-selection analysis.`);
-        logger.debug(
-          `Using full content analysis.`
-        );
+        logger.debug(`Using full content analysis.`);
       }
 
       const response = await this.models.fast.invoke([

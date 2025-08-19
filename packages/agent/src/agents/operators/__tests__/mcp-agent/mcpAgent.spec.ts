@@ -1,5 +1,10 @@
 import { MCPAgent, MCPAgentConfig } from '../../mcp-agent/mcpAgent.js';
-import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import { AgentType } from '../../../core/baseAgent.js';
 
 // Mock the logger from @snakagent/core
@@ -73,7 +78,7 @@ describe('MCPAgent', () => {
 
   // Factory functions
   const makeAgent = (config: MCPAgentConfig = {}) => new MCPAgent(config);
-  
+
   const makeHumanMessage = (content: string, additionalKwargs?: any) => {
     const msg = new HumanMessage(content);
     if (additionalKwargs) msg.additional_kwargs = additionalKwargs;
@@ -94,7 +99,8 @@ describe('MCPAgent', () => {
     jest.clearAllMocks();
     mockLogger = require('@snakagent/core').logger;
     mockModelSelector = require('../../modelSelector.js').ModelSelector;
-    mockCreateReactAgent = require('@langchain/langgraph/prebuilt').createReactAgent;
+    mockCreateReactAgent =
+      require('@langchain/langgraph/prebuilt').createReactAgent;
     mockReactAgent = { invoke: jest.fn() };
   });
 
@@ -108,23 +114,28 @@ describe('MCPAgent', () => {
       const agent = makeAgent();
       expect(agent.id).toBe('mcp-agent');
       expect(agent.type).toBe(AgentType.OPERATOR);
-      expect(agent.description).toContain('managing MCP (Model Context Protocol) servers');
+      expect(agent.description).toContain(
+        'managing MCP (Model Context Protocol) servers'
+      );
     });
 
     it.each([
       [false, false],
       [true, true],
       [undefined, true],
-    ])('should set debug to %s when config.debug is %s', (configValue, expected) => {
-      const agent = makeAgent({ debug: configValue });
-      if (expected) {
-        expect(mockLogger.debug).toHaveBeenCalledWith(
-          expect.stringContaining('MCPAgent initialized with 2 tools')
-        );
-      } else {
-        expect(mockLogger.debug).not.toHaveBeenCalled();
+    ])(
+      'should set debug to %s when config.debug is %s',
+      (configValue, expected) => {
+        const agent = makeAgent({ debug: configValue });
+        if (expected) {
+          expect(mockLogger.debug).toHaveBeenCalledWith(
+            expect.stringContaining('MCPAgent initialized with 2 tools')
+          );
+        } else {
+          expect(mockLogger.debug).not.toHaveBeenCalled();
+        }
       }
-    });
+    );
 
     it('should create with custom model type', () => {
       const agent = makeAgent({ modelType: 'fast' });
@@ -163,8 +174,8 @@ describe('MCPAgent', () => {
 
     it('should initialize with custom model type', async () => {
       const agent = makeAgent({ modelType: 'cheap' });
-      mockModelSelector.getInstance.mockReturnValue({ 
-        getModels: () => ({ cheap: { invoke: jest.fn() } }) 
+      mockModelSelector.getInstance.mockReturnValue({
+        getModels: () => ({ cheap: { invoke: jest.fn() } }),
       });
       mockCreateReactAgent.mockReturnValue(mockReactAgent);
 
@@ -210,7 +221,9 @@ describe('MCPAgent', () => {
 
       reactAgentInvoke.mockResolvedValue({ messages: [makeAIMessage('done')] });
 
-      await agent.execute('some input', false, { originalUserQuery: 'config query' });
+      await agent.execute('some input', false, {
+        originalUserQuery: 'config query',
+      });
 
       expect(reactAgentInvoke).toHaveBeenCalledWith({
         messages: [makeHumanMessage('config query')],
@@ -221,7 +234,9 @@ describe('MCPAgent', () => {
       const { agent, reactAgentInvoke } = setupAgent();
       await agent.init();
 
-      const message = makeHumanMessage('some content', { originalUserQuery: 'kwargs query' });
+      const message = makeHumanMessage('some content', {
+        originalUserQuery: 'kwargs query',
+      });
       reactAgentInvoke.mockResolvedValue({ messages: [makeAIMessage('done')] });
 
       await agent.execute(message);
@@ -236,7 +251,9 @@ describe('MCPAgent', () => {
       const result = await agent.execute('test');
 
       expect(result).toBeInstanceOf(AIMessage);
-      expect(result.content).toContain('MCP operation failed: React agent not initialized');
+      expect(result.content).toContain(
+        'MCP operation failed: React agent not initialized'
+      );
       expect(result.additional_kwargs.success).toBe(false);
     });
 
@@ -251,7 +268,9 @@ describe('MCPAgent', () => {
       const result = await agent.execute('test');
 
       expect(result.additional_kwargs.success).toBe(false);
-      expect(result.additional_kwargs.error).toBe(error instanceof Error ? error.message : String(error));
+      expect(result.additional_kwargs.error).toBe(
+        error instanceof Error ? error.message : String(error)
+      );
     });
 
     it.each([
@@ -285,15 +304,34 @@ describe('MCPAgent', () => {
     });
 
     it.each([
-      ['array with originalUserQuery in additional_kwargs', 
-       [makeSystemMessage('system'), makeHumanMessage('some content', { originalUserQuery: 'priority query' }), makeAIMessage('ai response')],
-       'priority query'],
-      ['array with first HumanMessage fallback',
-       [makeSystemMessage('system'), makeHumanMessage('first human message'), makeAIMessage('ai response')],
-       'first human message'],
-      ['array with last message content fallback',
-       [makeSystemMessage('system'), makeAIMessage('ai response with content')],
-       'ai response with content'],
+      [
+        'array with originalUserQuery in additional_kwargs',
+        [
+          makeSystemMessage('system'),
+          makeHumanMessage('some content', {
+            originalUserQuery: 'priority query',
+          }),
+          makeAIMessage('ai response'),
+        ],
+        'priority query',
+      ],
+      [
+        'array with first HumanMessage fallback',
+        [
+          makeSystemMessage('system'),
+          makeHumanMessage('first human message'),
+          makeAIMessage('ai response'),
+        ],
+        'first human message',
+      ],
+      [
+        'array with last message content fallback',
+        [
+          makeSystemMessage('system'),
+          makeAIMessage('ai response with content'),
+        ],
+        'ai response with content',
+      ],
     ])('should handle %s', async (_, messages, expected) => {
       const { agent, reactAgentInvoke } = setupAgent();
       await agent.init();
@@ -308,8 +346,18 @@ describe('MCPAgent', () => {
     });
 
     it.each([
-      ['single message with originalUserQuery', makeHumanMessage('some content', { originalUserQuery: 'single message query' }), 'single message query'],
-      ['single message without originalUserQuery', makeHumanMessage('single message content'), 'single message content'],
+      [
+        'single message with originalUserQuery',
+        makeHumanMessage('some content', {
+          originalUserQuery: 'single message query',
+        }),
+        'single message query',
+      ],
+      [
+        'single message without originalUserQuery',
+        makeHumanMessage('single message content'),
+        'single message content',
+      ],
     ])('should handle %s', async (_, message, expected) => {
       const { agent, reactAgentInvoke } = setupAgent();
       await agent.init();
@@ -349,24 +397,37 @@ describe('MCPAgent', () => {
     });
 
     it.each([
-      ['array with non-string content in last message', 
-       [makeSystemMessage('system'), makeAIMessage('second message'), makeAIMessage({ content: { last: 'object' } } as any)],
-       '{"content":{"last":"object"}}'],
-      ['single message with non-string content',
-       makeHumanMessage({ content: { nested: 'object' } } as any),
-       '{"nested":"object"}'],
-    ])('should test extractContent method for %s', async (_, input, expected) => {
-      const { agent, reactAgentInvoke } = setupAgent();
-      await agent.init();
+      [
+        'array with non-string content in last message',
+        [
+          makeSystemMessage('system'),
+          makeAIMessage('second message'),
+          makeAIMessage({ content: { last: 'object' } } as any),
+        ],
+        '{"content":{"last":"object"}}',
+      ],
+      [
+        'single message with non-string content',
+        makeHumanMessage({ content: { nested: 'object' } } as any),
+        '{"nested":"object"}',
+      ],
+    ])(
+      'should test extractContent method for %s',
+      async (_, input, expected) => {
+        const { agent, reactAgentInvoke } = setupAgent();
+        await agent.init();
 
-      reactAgentInvoke.mockResolvedValue({ messages: [makeAIMessage('done')] });
+        reactAgentInvoke.mockResolvedValue({
+          messages: [makeAIMessage('done')],
+        });
 
-      await agent.execute(input);
+        await agent.execute(input);
 
-      expect(reactAgentInvoke).toHaveBeenCalledWith({
-        messages: [makeHumanMessage(expected)],
-      });
-    });
+        expect(reactAgentInvoke).toHaveBeenCalledWith({
+          messages: [makeHumanMessage(expected)],
+        });
+      }
+    );
 
     it('should handle debug logging when enabled', async () => {
       const { agent, reactAgentInvoke } = setupAgent();
@@ -385,9 +446,9 @@ describe('MCPAgent', () => {
     it('should return tools array with correct structure', () => {
       const agent = makeAgent();
       const tools = agent.getTools();
-      
+
       expect(tools).toHaveLength(2);
-      tools.forEach(tool => {
+      tools.forEach((tool) => {
         expect(tool).toHaveProperty('name');
         expect(tool).toHaveProperty('description');
         expect(tool).toHaveProperty('schema');
@@ -446,7 +507,10 @@ describe('MCPAgent', () => {
       const { agent, reactAgentInvoke } = setupAgent();
       await agent.init();
 
-      const messages = [makeSystemMessage('system'), makeAIMessage('ai message')];
+      const messages = [
+        makeSystemMessage('system'),
+        makeAIMessage('ai message'),
+      ];
       reactAgentInvoke.mockResolvedValue({ messages: [makeAIMessage('done')] });
 
       await agent.execute(messages);
@@ -459,18 +523,25 @@ describe('MCPAgent', () => {
     it.each([
       ['null', null],
       ['undefined', undefined],
-    ])('should handle message with %s content in additional_kwargs', async (_, value) => {
-      const { agent, reactAgentInvoke } = setupAgent();
-      await agent.init();
+    ])(
+      'should handle message with %s content in additional_kwargs',
+      async (_, value) => {
+        const { agent, reactAgentInvoke } = setupAgent();
+        await agent.init();
 
-      const message = makeHumanMessage('some content', { originalUserQuery: value });
-      reactAgentInvoke.mockResolvedValue({ messages: [makeAIMessage('done')] });
+        const message = makeHumanMessage('some content', {
+          originalUserQuery: value,
+        });
+        reactAgentInvoke.mockResolvedValue({
+          messages: [makeAIMessage('done')],
+        });
 
-      await agent.execute(message);
+        await agent.execute(message);
 
-      expect(reactAgentInvoke).toHaveBeenCalledWith({
-        messages: [makeHumanMessage('some content')],
-      });
-    });
+        expect(reactAgentInvoke).toHaveBeenCalledWith({
+          messages: [makeHumanMessage('some content')],
+        });
+      }
+    );
   });
 });

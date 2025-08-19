@@ -22,8 +22,11 @@ import { RagAgent } from '../ragAgent.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 
-const { rag: mockRagOperations } = jest.requireMock('@snakagent/database/queries');
-const { CustomHuggingFaceEmbeddings: MockEmbeddings } = jest.requireMock('@snakagent/core');
+const { rag: mockRagOperations } = jest.requireMock(
+  '@snakagent/database/queries'
+);
+const { CustomHuggingFaceEmbeddings: MockEmbeddings } =
+  jest.requireMock('@snakagent/core');
 
 // Factory functions
 const makeSearchResult = (overrides = {}) => ({
@@ -38,13 +41,16 @@ const makeSearchResult = (overrides = {}) => ({
 });
 
 const makeDefaultResults = () => [
-  makeSearchResult({ id: 'vec1', content: 'This is a test document about blockchain technology' }),
-  makeSearchResult({ 
-    id: 'vec2', 
-    document_id: 'doc2', 
-    chunk_index: 1, 
+  makeSearchResult({
+    id: 'vec1',
+    content: 'This is a test document about blockchain technology',
+  }),
+  makeSearchResult({
+    id: 'vec2',
+    document_id: 'doc2',
+    chunk_index: 1,
     content: 'Another document about DeFi protocols',
-    similarity: 0.72 
+    similarity: 0.72,
   }),
 ];
 
@@ -56,17 +62,20 @@ describe('RagAgent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default mocks
     mockRagOperations.init.mockResolvedValue(undefined);
     mockRagOperations.search.mockResolvedValue(makeDefaultResults());
-    
+
     mockEmbeddings = {
       embedQuery: jest.fn().mockResolvedValue([0.1, 0.2, 0.3, 0.4, 0.5]),
     };
     (MockEmbeddings as jest.Mock).mockImplementation(() => mockEmbeddings);
-    
-    ragAgent = makeRagAgent({ topK: 4, embeddingModel: 'Xenova/all-MiniLM-L6-v2' });
+
+    ragAgent = makeRagAgent({
+      topK: 4,
+      embeddingModel: 'Xenova/all-MiniLM-L6-v2',
+    });
   });
 
   afterEach(() => {
@@ -77,7 +86,12 @@ describe('RagAgent', () => {
   describe('initialization', () => {
     it.each([
       ['default config', {}, 'rag-agent', 'Xenova/all-MiniLM-L6-v2'],
-      ['custom config', { topK: 10, embeddingModel: 'custom-model' }, 'rag-agent', 'custom-model'],
+      [
+        'custom config',
+        { topK: 10, embeddingModel: 'custom-model' },
+        'rag-agent',
+        'custom-model',
+      ],
     ])('should initialize with %s', (_, config, expectedId, expectedModel) => {
       const agent = makeRagAgent(config);
 
@@ -94,7 +108,7 @@ describe('RagAgent', () => {
       await ragAgent.init();
 
       expect(mockRagOperations.init).toHaveBeenCalledTimes(1);
-      
+
       // Verify initialization enables execution
       const result = await ragAgent.execute('test query');
       expect(result).toBeDefined();
@@ -110,9 +124,15 @@ describe('RagAgent', () => {
       ['string query', 'blockchain technology'],
       ['BaseMessage query', new HumanMessage('blockchain technology')],
     ])('should retrieve documents for %s', async (_, query) => {
-      const results = await ragAgent.retrieveRelevantRag(query, 4, 'test-agent');
+      const results = await ragAgent.retrieveRelevantRag(
+        query,
+        4,
+        'test-agent'
+      );
 
-      expect(mockEmbeddings.embedQuery).toHaveBeenCalledWith('blockchain technology');
+      expect(mockEmbeddings.embedQuery).toHaveBeenCalledWith(
+        'blockchain technology'
+      );
       expect(mockRagOperations.search).toHaveBeenCalledWith(
         [0.1, 0.2, 0.3, 0.4, 0.5],
         'test-agent',
@@ -147,16 +167,25 @@ describe('RagAgent', () => {
     it('should throw error when not initialized', async () => {
       const uninitializedAgent = makeRagAgent();
 
-      await expect(uninitializedAgent.retrieveRelevantRag('test query'))
-        .rejects.toThrow('RagAgent: Not initialized');
+      await expect(
+        uninitializedAgent.retrieveRelevantRag('test query')
+      ).rejects.toThrow('RagAgent: Not initialized');
     });
   });
 
   describe('formatRagForContext', () => {
     it.each([
       ['empty results', [], ''],
-      ['single result', [makeSearchResult()], expect.stringContaining('### Rag Context')],
-      ['multiple results', makeDefaultResults(), expect.stringContaining('Rag [id: doc1, chunk: 0, similarity: 0.8500]')],
+      [
+        'single result',
+        [makeSearchResult()],
+        expect.stringContaining('### Rag Context'),
+      ],
+      [
+        'multiple results',
+        makeDefaultResults(),
+        expect.stringContaining('Rag [id: doc1, chunk: 0, similarity: 0.8500]'),
+      ],
     ])('should format %s correctly', (_, results, expected) => {
       const formatted = ragAgent.formatRagForContext(results);
 
@@ -172,7 +201,9 @@ describe('RagAgent', () => {
 
       expect(formatted).toContain('### Rag Context');
       expect(formatted).toContain('Instructions:');
-      expect(formatted).toContain('Rag [id: doc2, chunk: 1, similarity: 0.7200]');
+      expect(formatted).toContain(
+        'Rag [id: doc2, chunk: 1, similarity: 0.7200]'
+      );
     });
   });
 
@@ -184,26 +215,46 @@ describe('RagAgent', () => {
     it.each([
       ['string message', 'What is blockchain?'],
       ['BaseMessage', new HumanMessage('What is blockchain?')],
-    ])('should enrich prompt when relevant documents found with %s', async (_, message) => {
-      const prompt = ChatPromptTemplate.fromTemplate('Answer this: {question}\n\nContext: {rag}');
+    ])(
+      'should enrich prompt when relevant documents found with %s',
+      async (_, message) => {
+        const prompt = ChatPromptTemplate.fromTemplate(
+          'Answer this: {question}\n\nContext: {rag}'
+        );
 
-      const enrichedPrompt = await ragAgent.enrichPromptWithRag(prompt, message, 4, 'test-agent');
+        const enrichedPrompt = await ragAgent.enrichPromptWithRag(
+          prompt,
+          message,
+          4,
+          'test-agent'
+        );
 
-      expect(enrichedPrompt).toBeDefined();
-      expect(enrichedPrompt).not.toBe(prompt);
-    });
+        expect(enrichedPrompt).toBeDefined();
+        expect(enrichedPrompt).not.toBe(prompt);
+      }
+    );
 
     it.each([
       ['string message', 'What is blockchain?'],
       ['BaseMessage', new HumanMessage('What is blockchain?')],
-    ])('should return original prompt when no documents found with %s', async (_, message) => {
-      mockRagOperations.search.mockResolvedValue([]);
-      const prompt = ChatPromptTemplate.fromTemplate('Answer this: {question}');
+    ])(
+      'should return original prompt when no documents found with %s',
+      async (_, message) => {
+        mockRagOperations.search.mockResolvedValue([]);
+        const prompt = ChatPromptTemplate.fromTemplate(
+          'Answer this: {question}'
+        );
 
-      const enrichedPrompt = await ragAgent.enrichPromptWithRag(prompt, message, 4, 'test-agent');
+        const enrichedPrompt = await ragAgent.enrichPromptWithRag(
+          prompt,
+          message,
+          4,
+          'test-agent'
+        );
 
-      expect(enrichedPrompt).toBe(prompt);
-    });
+        expect(enrichedPrompt).toBe(prompt);
+      }
+    );
   });
 
   describe('execute', () => {
@@ -219,7 +270,9 @@ describe('RagAgent', () => {
       const result = await ragAgent.execute(input);
 
       expect(result).toContain('### Rag Context');
-      expect(result).toContain('This is a test document about blockchain technology');
+      expect(result).toContain(
+        'This is a test document about blockchain technology'
+      );
     });
 
     it('should return raw results when raw config is true', async () => {
@@ -233,21 +286,25 @@ describe('RagAgent', () => {
     it.each([
       ['custom topK', { topK: 10 }, 10, ''],
       ['custom agentId', { agentId: 'custom-agent' }, 4, 'custom-agent'],
-    ])('should use %s from config', async (_, config, expectedTopK, expectedAgentId) => {
-      await ragAgent.execute('test query', false, config);
+    ])(
+      'should use %s from config',
+      async (_, config, expectedTopK, expectedAgentId) => {
+        await ragAgent.execute('test query', false, config);
 
-      expect(mockRagOperations.search).toHaveBeenCalledWith(
-        [0.1, 0.2, 0.3, 0.4, 0.5],
-        expectedAgentId,
-        expectedTopK
-      );
-    });
+        expect(mockRagOperations.search).toHaveBeenCalledWith(
+          [0.1, 0.2, 0.3, 0.4, 0.5],
+          expectedAgentId,
+          expectedTopK
+        );
+      }
+    );
 
     it('should throw error when not initialized', async () => {
       const uninitializedAgent = makeRagAgent();
 
-      await expect(uninitializedAgent.execute('test query'))
-        .rejects.toThrow('RagAgent: Not initialized');
+      await expect(uninitializedAgent.execute('test query')).rejects.toThrow(
+        'RagAgent: Not initialized'
+      );
     });
   });
 
@@ -268,17 +325,20 @@ describe('RagAgent', () => {
       ['non-string content', ['first message', 'last user message']],
       ['complex content objects', ['first message', 'last user message']],
       ['no HumanMessage found', ['system message']],
-    ])('should handle chain execution with %s in messages', async (_, messageContents) => {
-      const chain = ragAgent.createRagChain('test-agent');
-      const state = { 
-        messages: messageContents.map(content => new HumanMessage(content))
-      };
+    ])(
+      'should handle chain execution with %s in messages',
+      async (_, messageContents) => {
+        const chain = ragAgent.createRagChain('test-agent');
+        const state = {
+          messages: messageContents.map((content) => new HumanMessage(content)),
+        };
 
-      const result = await chain.invoke(state);
+        const result = await chain.invoke(state);
 
-      expect(result).toHaveProperty('rag');
-      expect(typeof result.rag).toBe('string');
-    });
+        expect(result).toHaveProperty('rag');
+        expect(typeof result.rag).toBe('string');
+      }
+    );
 
     it('should handle chain execution with empty messages array', async () => {
       const chain = ragAgent.createRagChain('test-agent');
@@ -336,19 +396,22 @@ describe('RagAgent', () => {
       ['not set', undefined],
       ['valid threshold', '0.7'],
       ['invalid threshold', 'invalid'],
-    ])('should handle similarity threshold when env var is %s', async (_, thresholdValue) => {
-      if (thresholdValue === undefined) {
-        delete process.env.RAG_SIMILARITY_THRESHOLD;
-      } else {
-        process.env.RAG_SIMILARITY_THRESHOLD = thresholdValue;
+    ])(
+      'should handle similarity threshold when env var is %s',
+      async (_, thresholdValue) => {
+        if (thresholdValue === undefined) {
+          delete process.env.RAG_SIMILARITY_THRESHOLD;
+        } else {
+          process.env.RAG_SIMILARITY_THRESHOLD = thresholdValue;
+        }
+
+        jest.resetModules();
+        const { RagAgent } = await import('../ragAgent.js');
+        const agent = new RagAgent();
+
+        expect(agent).toBeDefined();
       }
-
-      jest.resetModules();
-      const { RagAgent } = await import('../ragAgent.js');
-      const agent = new RagAgent();
-
-      expect(agent).toBeDefined();
-    });
+    );
   });
 
   describe('integration workflow', () => {
@@ -360,7 +423,11 @@ describe('RagAgent', () => {
       const query = 'blockchain technology';
 
       // Test complete workflow
-      const results = await ragAgent.retrieveRelevantRag(query, 4, 'test-agent');
+      const results = await ragAgent.retrieveRelevantRag(
+        query,
+        4,
+        'test-agent'
+      );
       const formatted = ragAgent.formatRagForContext(results);
       const executed = await ragAgent.execute(query);
       const chain = ragAgent.createRagChain('test-agent');

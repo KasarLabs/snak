@@ -154,7 +154,6 @@ export function handleModelError(error: any): {
   messages: BaseMessage;
   last_agent: Agent.EXECUTOR;
 } {
-
   if (isTokenLimitError(error)) {
     logger.error(
       `Executor: Token limit error during model invocation - ${error.message}`
