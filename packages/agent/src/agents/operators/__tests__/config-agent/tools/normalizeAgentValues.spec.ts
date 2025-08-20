@@ -207,17 +207,15 @@ describe('normalizeNumericValues', () => {
     });
 
     it('should initialize mode with default value when absent', () => {
-      const testCases = [
-        {},
-        { mode: null },
-        { mode: undefined },
-      ];
+      const testCases = [{}, { mode: null }, { mode: undefined }];
 
       testCases.forEach((config) => {
         const result = normalizeNumericValues(config as any);
 
         expect(result.normalizedConfig.mode).toBe('interactive');
-        expect(result.appliedDefaults).toContain('mode set to default value (interactive)');
+        expect(result.appliedDefaults).toContain(
+          'mode set to default value (interactive)'
+        );
       });
     });
   });

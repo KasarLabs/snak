@@ -228,7 +228,9 @@ describe('updateAgentTool', () => {
 
         mockPostgres.query
           .mockResolvedValueOnce([existingAgent])
-          .mockResolvedValueOnce([{ ...existingAgent, memory: updates.memory }]);
+          .mockResolvedValueOnce([
+            { ...existingAgent, memory: updates.memory },
+          ]);
 
         const result = await updateAgentTool.func({
           identifier: 'test-agent',
@@ -236,7 +238,7 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         expect(mockPostgres.Query).toHaveBeenNthCalledWith(
           2,
           expect.stringContaining('"memory" = ROW($'),
@@ -245,7 +247,7 @@ describe('updateAgentTool', () => {
 
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe(true);
         expect(updateParams[1]).toBe(10);
         expect(updateParams[2]).toBe(50);
@@ -276,7 +278,7 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         expect(mockPostgres.Query).toHaveBeenNthCalledWith(
           2,
           expect.stringContaining('"rag" = ROW($'),
@@ -285,7 +287,7 @@ describe('updateAgentTool', () => {
 
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe(false);
         expect(updateParams[1]).toBe('custom-model');
         expect(updateParams[2]).toBe('test-agent');
@@ -310,7 +312,9 @@ describe('updateAgentTool', () => {
 
         mockPostgres.query
           .mockResolvedValueOnce([existingAgent])
-          .mockResolvedValueOnce([{ ...existingAgent, memory: updates.memory }]);
+          .mockResolvedValueOnce([
+            { ...existingAgent, memory: updates.memory },
+          ]);
 
         const result = await updateAgentTool.func({
           identifier: 'test-agent',
@@ -318,14 +322,14 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe(true);
         expect(updateParams[1]).toBe(15);
         expect(updateParams[2]).toBe(100);
-        expect(updateParams[3]).toBe('test-agent'); 
+        expect(updateParams[3]).toBe('test-agent');
       });
 
       it('should handle complete rag object replacement', async () => {
@@ -353,10 +357,10 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe(true);
         expect(updateParams[1]).toBe('new-model');
         expect(updateParams[2]).toBe('test-agent');
@@ -390,7 +394,7 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         expect(mockPostgres.Query).toHaveBeenNthCalledWith(
           2,
           expect.not.stringContaining('"memory" = ROW($'),
@@ -411,14 +415,14 @@ describe('updateAgentTool', () => {
           expect.stringContaining('"description" = $'),
           expect.any(Array)
         );
-        
+
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe('new-name');
         expect(updateParams[1]).toBe('Updated description');
         expect(updateParams[2]).toBe('test-agent');
-        
+
         expect(updateParams).toHaveLength(3);
       });
 
@@ -441,7 +445,12 @@ describe('updateAgentTool', () => {
 
         mockPostgres.query
           .mockResolvedValueOnce([existingAgent])
-          .mockResolvedValueOnce([{ ...existingAgent, memory: { ...existingAgent.memory, memorySize: 100 } }]);
+          .mockResolvedValueOnce([
+            {
+              ...existingAgent,
+              memory: { ...existingAgent.memory, memorySize: 100 },
+            },
+          ]);
 
         const result = await updateAgentTool.func({
           identifier: 'test-agent',
@@ -449,10 +458,10 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe(true);
         expect(updateParams[1]).toBe(20);
         expect(updateParams[2]).toBe(100);
@@ -492,17 +501,17 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe(true);
         expect(updateParams[1]).toBe(5);
         expect(updateParams[2]).toBe(100);
-        
+
         expect(updateParams[3]).toBe(true);
         expect(updateParams[4]).toBe('existing-rag-model');
-        
+
         expect(updateParams[5]).toBe('test-agent');
       });
 
@@ -537,14 +546,17 @@ describe('updateAgentTool', () => {
 
         mockPostgres.query
           .mockResolvedValueOnce([existingAgent])
-          .mockResolvedValueOnce([{ ...existingAgent, 
-            description: 'new-description',
-            interval: 2000,
-            mode: 'autonomous',
-            plugins: ['new-plugin'],
-            knowledge: ['new-knowledge'],
-            system_prompt: 'new-prompt'
-          }]);
+          .mockResolvedValueOnce([
+            {
+              ...existingAgent,
+              description: 'new-description',
+              interval: 2000,
+              mode: 'autonomous',
+              plugins: ['new-plugin'],
+              knowledge: ['new-knowledge'],
+              system_prompt: 'new-prompt',
+            },
+          ]);
 
         const result = await updateAgentTool.func({
           identifier: 'test-agent',
@@ -552,17 +564,17 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams[0]).toBe('new-description');
         expect(updateParams[1]).toBe(2000);
         expect(updateParams[2]).toBe('autonomous');
         expect(updateParams[3]).toEqual(['new-plugin']);
         expect(updateParams[4]).toEqual(['new-knowledge']);
         expect(updateParams[5]).toBe('new-prompt');
-        
+
         expect(updateParams).toHaveLength(7);
         expect(updateParams[6]).toBe('test-agent');
       });
@@ -595,10 +607,10 @@ describe('updateAgentTool', () => {
         const updates = {
           description: 'new description',
           interval: 2000,
-          
+
           group: null,
           max_iterations: undefined,
-          
+
           memory: {
             enabled: true,
             shortTermMemorySize: 15,
@@ -609,21 +621,32 @@ describe('updateAgentTool', () => {
             topK: undefined,
             embeddingModel: 'new-model',
           },
-          
+
           plugins: ['new-plugin1', 'new-plugin2'],
           knowledge: ['new-knowledge1', 'new-knowledge2'],
         };
 
         mockPostgres.query
           .mockResolvedValueOnce([existingAgent])
-          .mockResolvedValueOnce([{ ...existingAgent, 
-            description: 'new description',
-            interval: 2000,
-            memory: { ...existingAgent.memory, enabled: true, shortTermMemorySize: 15 },
-            rag: { ...existingAgent.rag, enabled: true, embeddingModel: 'new-model' },
-            plugins: ['new-plugin1', 'new-plugin2'],
-            knowledge: ['new-knowledge1', 'new-knowledge2'],
-          }]);
+          .mockResolvedValueOnce([
+            {
+              ...existingAgent,
+              description: 'new description',
+              interval: 2000,
+              memory: {
+                ...existingAgent.memory,
+                enabled: true,
+                shortTermMemorySize: 15,
+              },
+              rag: {
+                ...existingAgent.rag,
+                enabled: true,
+                embeddingModel: 'new-model',
+              },
+              plugins: ['new-plugin1', 'new-plugin2'],
+              knowledge: ['new-knowledge1', 'new-knowledge2'],
+            },
+          ]);
 
         const result = await updateAgentTool.func({
           identifier: 'test-agent',
@@ -631,12 +654,12 @@ describe('updateAgentTool', () => {
         });
 
         expect(asJson(result).success).toBe(true);
-        
+
         const updateCall = mockPostgres.Query.mock.calls[1];
         const updateParams = updateCall[1];
-        
+
         expect(updateParams).toHaveLength(10);
-        
+
         expect(updateParams[0]).toBe('new description');
         expect(updateParams[1]).toBe(2000);
         expect(updateParams[2]).toBe(true);
@@ -646,7 +669,7 @@ describe('updateAgentTool', () => {
         expect(updateParams[6]).toBe('new-model');
         expect(updateParams[7]).toEqual(['new-plugin1', 'new-plugin2']);
         expect(updateParams[8]).toEqual(['new-knowledge1', 'new-knowledge2']);
-        
+
         expect(updateParams[9]).toBe('test-agent');
       });
     });

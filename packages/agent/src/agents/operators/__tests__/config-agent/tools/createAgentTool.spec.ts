@@ -39,15 +39,15 @@ describe('createAgentTool', () => {
         interval: 5,
         max_iterations: 15,
         mode: 'interactive',
-        memory: { 
-          enabled: false, 
-          shortTermMemorySize: 5, 
-          memorySize: 20
+        memory: {
+          enabled: false,
+          shortTermMemorySize: 5,
+          memorySize: 20,
         },
-        rag: { 
-          enabled: false, 
+        rag: {
+          enabled: false,
           topK: 4,
-          embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+          embeddingModel: 'Xenova/all-MiniLM-L6-v2',
         },
       },
       appliedDefaults: [],
@@ -173,15 +173,15 @@ describe('createAgentTool', () => {
           interval: 300,
           max_iterations: 10,
           mode: 'autonomous',
-          memory: { 
-            enabled: true, 
-            shortTermMemorySize: 50, 
-            memorySize: 100
+          memory: {
+            enabled: true,
+            shortTermMemorySize: 50,
+            memorySize: 100,
           },
-          rag: { 
-            enabled: true, 
+          rag: {
+            enabled: true,
             topK: 4,
-            embeddingModel: 'model'
+            embeddingModel: 'model',
           },
         },
         appliedDefaults: [],
@@ -220,15 +220,15 @@ describe('createAgentTool', () => {
           interval: 10,
           max_iterations: 25,
           mode: 'interactive',
-          memory: { 
-            enabled: false, 
-            shortTermMemorySize: 15, 
-            memorySize: 50
+          memory: {
+            enabled: false,
+            shortTermMemorySize: 15,
+            memorySize: 50,
           },
-          rag: { 
-            enabled: false, 
+          rag: {
+            enabled: false,
             topK: 4,
-            embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+            embeddingModel: 'Xenova/all-MiniLM-L6-v2',
           },
         },
         appliedDefaults: ['interval set to 10', 'max_iterations set to 25'],
@@ -309,15 +309,15 @@ describe('createAgentTool', () => {
           interval: 5,
           max_iterations: 15,
           mode: 'interactive',
-          memory: { 
-            enabled: false, 
-            shortTermMemorySize: 5, 
-            memorySize: 20
+          memory: {
+            enabled: false,
+            shortTermMemorySize: 5,
+            memorySize: 20,
           },
-          rag: { 
-            enabled: false, 
+          rag: {
+            enabled: false,
             topK: 4,
-            embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+            embeddingModel: 'Xenova/all-MiniLM-L6-v2',
           },
         },
         appliedDefaults: ['interval set to 5', 'max_iterations set to 15'],
@@ -416,15 +416,15 @@ describe('createAgentTool', () => {
           interval: 5,
           max_iterations: 15,
           mode: 'interactive',
-          memory: { 
-            enabled: true, 
-            shortTermMemorySize: 999, 
-            memorySize: 1000
+          memory: {
+            enabled: true,
+            shortTermMemorySize: 999,
+            memorySize: 1000,
           },
-          rag: { 
-            enabled: true, 
+          rag: {
+            enabled: true,
             topK: 4,
-            embeddingModel: 'very-long-model-name-with-special-chars'
+            embeddingModel: 'very-long-model-name-with-special-chars',
           },
         },
         appliedDefaults: [],
