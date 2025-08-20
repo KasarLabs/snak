@@ -74,12 +74,19 @@ const UpdateAgentSchema = z.object({
         .nullable()
         .describe('New plugins list'),
       memory: z
-        .unknown()
+        .object({
+          enabled: z.boolean().optional().nullable(),
+          shortTermMemorySize: z.number().optional().nullable(),
+          memorySize: z.number().optional().nullable(),
+        })
         .optional()
         .nullable()
         .describe('New memory configuration object'),
       rag: z
-        .unknown()
+        .object({
+          enabled: z.boolean().optional().nullable(),
+          embeddingModel: z.string().optional().nullable(),
+        })
         .optional()
         .nullable()
         .describe('New RAG configuration object'),
@@ -136,15 +143,67 @@ export const updateAgentTool = new DynamicStructuredTool({
       const agent = existingAgent[0];
       const updates = input.updates;
 
+      const fieldsToUpdate: Partial<AgentConfig> = {};
+      Object.entries(updates).forEach(([key, value]) => {
+        // Skip the entire field if it's null or undefined
+        if (value === undefined || value === null) {
+          return;
+        }
+        
+        if (key === 'memory' && typeof value === 'object' && value !== null) {
+          const existingMemory: AgentConfig['memory'] | undefined = agent.memory;
+          const memoryUpdate = value as Partial<AgentConfig['memory']>;
+          const filteredMemoryUpdate = Object.fromEntries(
+            Object.entries(memoryUpdate).filter(([_, val]) => val !== null && val !== undefined)
+          ) as Partial<AgentConfig['memory']>;
+          
+          if (Object.keys(filteredMemoryUpdate).length > 0) {
+            fieldsToUpdate.memory = { ...existingMemory, ...filteredMemoryUpdate } as AgentConfig['memory'];
+          }
+        } else if (key === 'rag' && typeof value === 'object' && value !== null) {
+          const existingRag: AgentConfig['rag'] | undefined = agent.rag;
+          const ragUpdate = value as Partial<AgentConfig['rag']>;
+          const filteredRagUpdate = Object.fromEntries(
+            Object.entries(ragUpdate as Record<string, any>).filter(([_, val]) => val !== null && val !== undefined)
+          ) as Partial<AgentConfig['rag']>;
+          
+          if (filteredRagUpdate && Object.keys(filteredRagUpdate).length > 0) {
+            fieldsToUpdate.rag = { ...existingRag, ...filteredRagUpdate } as AgentConfig['rag'];
+          }
+        } else {
+          (fieldsToUpdate as any)[key] = value;
+        }
+      });
+
       const { normalizedConfig: normalizedUpdates, appliedDefaults } =
-        normalizeNumericValues(updates as AgentConfig);
+        normalizeNumericValues(fieldsToUpdate);
 
       const updateFields: string[] = [];
       const updateValues: any[] = [];
       let paramIndex = 1;
 
-      Object.entries(normalizedUpdates).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+      Object.keys(fieldsToUpdate).forEach((key) => {
+        const value = normalizedUpdates[key as keyof typeof normalizedUpdates];
+        
+        if (key === 'memory' && typeof value === 'object' && value !== null) {
+          const memory = value as AgentConfig['memory'];
+          updateFields.push(`"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`);
+          updateValues.push(
+            memory?.enabled ?? null,
+            memory?.shortTermMemorySize ?? null,
+            memory?.memorySize ?? null
+          );
+          paramIndex += 3;
+        } else if (key === 'rag' && typeof value === 'object' && value !== null) {
+          const rag = value as AgentConfig['rag'];
+          updateFields.push(`"${key}" = ROW($${paramIndex}, $${paramIndex + 1})`);
+          updateValues.push(
+            rag?.enabled ?? null,
+            (rag as any)?.embeddingModel ?? null
+          );
+          paramIndex += 2;
+        } else {
+          // Handle regular fields
           updateFields.push(`"${key}" = $${paramIndex}`);
           updateValues.push(value);
           paramIndex++;
