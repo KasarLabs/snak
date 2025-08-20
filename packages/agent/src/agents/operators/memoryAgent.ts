@@ -16,6 +16,8 @@ import {
   AutonomousConfigurableAnnotation,
   AutonomousGraphState,
 } from 'agents/modes/autonomous.js';
+import { MemoryGraph, MemoryState } from 'agents/modes/sub-graph/memory.js';
+import { Agent, Memories } from '../../agents/modes/types/index.js';
 export interface MemoryChainResult {
   memories: string;
 }
@@ -60,7 +62,7 @@ export class MemoryAgent extends BaseAgent {
       shortTermMemorySize: config.shortTermMemorySize || 15,
       memorySize: config.memorySize || 20,
       maxIterations: config.maxIterations,
-      embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
+      embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     };
     if (agentConfig) {
       this.agentConfig = agentConfig;
@@ -72,7 +74,7 @@ export class MemoryAgent extends BaseAgent {
     }
 
     this.embeddings = new CustomHuggingFaceEmbeddings({
-      model: this.config.embeddingModel,
+      model: 'Xenova/all-MiniLM-L6-v2',
       dtype: 'fp32',
     });
   }
@@ -131,7 +133,8 @@ export class MemoryAgent extends BaseAgent {
    */
   public async upsertMemory(
     content: string,
-    memoryId: number | null | undefined,
+    memories_id: string,
+    query: string,
     userId: string,
     memorySize?: number
   ): Promise<string> {
@@ -139,12 +142,14 @@ export class MemoryAgent extends BaseAgent {
     const embedding = await this.embeddings.embedQuery(content);
     const metadata = { timestamp: new Date().toISOString() };
     const limit = memorySize ?? this.config.memorySize;
-
+    logger.debug('Inserting');
     await memory.insert_memory({
       user_id: userId,
-      content,
-      embedding,
-      metadata,
+      memories_id: memories_id,
+      query: query,
+      content: content,
+      embedding: embedding,
+      metadata: metadata,
       history: [],
     });
 
@@ -152,9 +157,7 @@ export class MemoryAgent extends BaseAgent {
       await memory.enforce_memory_limit(userId, limit);
     }
 
-    return memoryId
-      ? `Memory ${memoryId} updated successfully.`
-      : `Memory stored successfully.`;
+    return `Memory ${memories_id} updated successfully.`;
   }
 
   /**
@@ -164,12 +167,13 @@ export class MemoryAgent extends BaseAgent {
     // Tool for creating or updating a memory
     const upsertMemoryTool = tool(
       async ({
+        query,
         content,
-        memoryId,
+        memories_id,
         userId = 'default_user',
       }): Promise<string> => {
         try {
-          return await this.upsertMemory(content, memoryId, userId);
+          return await this.upsertMemory(content, memories_id, query, userId);
         } catch (error) {
           logger.error(`MemoryAgent: Error storing memory: ${error}`);
           return `Failed to store memory: ${error}`;
@@ -178,11 +182,10 @@ export class MemoryAgent extends BaseAgent {
       {
         name: 'upsert_memory',
         schema: z.object({
+          query: z.string().describe('The query of the memory to store.'),
           content: z.string().describe('The content of the memory to store.'),
-          memoryId: z
-            .number()
-            .optional()
-            .nullable()
+          memories_id: z
+            .string()
             .describe('Memory ID when wanting to update an existing memory.'),
           userId: z
             .string()
@@ -263,22 +266,15 @@ export class MemoryAgent extends BaseAgent {
    */
   private mergeSimilarityResults(
     memResults: memory.Similarity[],
-    iterResults: iterations.IterationSimilarity[],
     limit: number
   ): Array<{
     id: number;
+    query: string;
     content: string;
     history: memory.History[];
     similarity: number;
   }> {
-    const formattedIter = iterResults.map((it) => ({
-      id: it.id,
-      content: `Question: ${it.question}\nAnswer: ${it.answer}`,
-      history: [] as memory.History[],
-      similarity: it.similarity,
-    }));
-
-    return [...memResults, ...formattedIter]
+    return [...memResults]
       .filter((m) => m.similarity >= SIMILARITY_THRESHOLD)
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
@@ -298,7 +294,7 @@ export class MemoryAgent extends BaseAgent {
     // Create the upsert memory tool for the interactive agent
     const upsertMemoryToolDB = tool(
       async (
-        { content, memoryId },
+        { content, memories_id },
         config: LangGraphRunnableConfig
       ): Promise<string> => {
         try {
@@ -306,7 +302,7 @@ export class MemoryAgent extends BaseAgent {
           const limit =
             config.configurable?.memorySize ??
             config.configurable?.config?.memorySize;
-          return await this.upsertMemory(content, memoryId, userId, limit);
+          return await this.upsertMemory(content, memories_id, userId, limit);
         } catch (error) {
           logger.error('Error storing memory:', error);
           return 'Failed to store memory.';
@@ -316,10 +312,8 @@ export class MemoryAgent extends BaseAgent {
         name: 'upsert_memory',
         schema: z.object({
           content: z.string().describe('The content of the memory to store.'),
-          memoryId: z
-            .number()
-            .optional()
-            .nullable()
+          memories_id: z
+            .string()
             .describe('Memory ID when wanting to update an existing memory.'),
         }),
         description: `
@@ -344,15 +338,21 @@ export class MemoryAgent extends BaseAgent {
    */
   public createMemoryNode(): any {
     const chain = this.createMemoryChain();
-    return async (state: any, config: LangGraphRunnableConfig) => {
+    return async (
+      state: typeof MemoryState.State,
+      config: RunnableConfig<typeof AutonomousConfigurableAnnotation>
+    ): Promise<{ memories: Memories; last_agent: Agent }> => {
       try {
         logger.debug('MEMORY NODE STARTING');
         const result = await chain.invoke(state, config);
-        // logger.debug(`${JSON.stringify(result)}`);
-        return result;
+        logger.debug(`MEMORY FOUND : ${JSON.stringify(result)}`);
+        return {
+          memories: { stm: state.memories.stm, ltm: result.memories },
+          last_agent: Agent.MEMORY_MANAGER,
+        };
       } catch (error) {
         logger.error('Error retrieving memories:', error);
-        return { memories: '' };
+        return { memories: state.memories, last_agent: Agent.MEMORY_MANAGER };
       }
     };
   }
@@ -363,8 +363,8 @@ export class MemoryAgent extends BaseAgent {
    * can trace memory retrieval.
    */
   public createMemoryChain(
-    limit = 4
-  ): Runnable<typeof AutonomousGraphState.State, MemoryChainResult> {
+    limit = 5
+  ): Runnable<typeof MemoryState.State, MemoryChainResult> {
     const buildQuery = (state: typeof AutonomousGraphState.State) => {
       if (this.isAutonomous) {
         console.log(
@@ -388,28 +388,15 @@ export class MemoryAgent extends BaseAgent {
     const fetchMemories = async (
       query: string,
       config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-    ) => {
+    ): Promise<string> => {
       console.log('Fetch');
-      console.log(config.configurable?.max_graph_steps);
-      const userId = 'default_user';
-      const agentId = '';
+      console.log(config.metadata);
+      const userId = config?.metadata?.run_id as string;
+      console.log(userId);
       const embedding = await this.embeddings.embedQuery(query);
       const memResults = await memory.similar_memory(userId, embedding, limit);
-      let iterResults: iterations.IterationSimilarity[] = [];
-      if (agentId) {
-        iterResults = await iterations.similar_iterations(
-          agentId,
-          embedding,
-          limit
-        );
-      }
-
-      const combined = this.mergeSimilarityResults(
-        memResults,
-        iterResults,
-        limit
-      );
-
+      console.log(memResults);
+      const combined = this.mergeSimilarityResults(memResults, limit);
       return this.formatMemoriesForContext(combined);
     };
 
@@ -454,7 +441,7 @@ export class MemoryAgent extends BaseAgent {
         );
       }
 
-      return this.mergeSimilarityResults(memResults, iterResults, limit);
+      return this.mergeSimilarityResults(memResults, limit);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
@@ -565,7 +552,7 @@ export class MemoryAgent extends BaseAgent {
         content.includes('remember') ||
         content.includes('save')
       ) {
-        return this.storeMemory(content, config?.userId || 'default_user');
+        // return this.upsertMemory(content, config?.userId || 'default_user');
       } else if (
         content.includes('retrieve') ||
         content.includes('recall') ||
@@ -590,36 +577,38 @@ export class MemoryAgent extends BaseAgent {
     }
   }
 
-  /**
-   * Store a memory
-   */
-  private async storeMemory(
-    content: string,
-    userId: string,
-    memorySize?: number
-  ): Promise<string> {
-    try {
-      const embedding = await this.embeddings.embedQuery(content);
-      const metadata = { timestamp: new Date().toISOString() };
-      const limit = memorySize ?? this.config.memorySize;
+  // /**
+  //  * Store a memory
+  //  */
+  // private async storeMemory(
+  //   content: string,
+  //   userId: string,
+  //   memorySize?: number
+  // ): Promise<string> {
+  //   try {
+  //     const embedding = await this.embeddings.embedQuery(content);
+  //     const metadata = { timestamp: new Date().toISOString() };
+  //     const limit = memorySize ?? this.config.memorySize;
 
-      await memory.insert_memory({
-        user_id: userId,
-        content,
-        embedding,
-        metadata,
-        history: [],
-      });
+  //     await memory.insert_memory({
+  //       user_id: userId,
+  //       memories_id: memories_id,
+  //       query: query,
+  //       content: content,
+  //       embedding: embedding,
+  //       metadata: metadata,
+  //       history: [],
+  //     });
 
-      if (limit) {
-        await memory.enforce_memory_limit(userId, limit);
-      }
-      return `Memory stored successfully.`;
-    } catch (error) {
-      logger.error(`MemoryAgent: Error storing memory: ${error}`);
-      return `Failed to store memory: ${error}`;
-    }
-  }
+  //     if (limit) {
+  //       await memory.enforce_memory_limit(userId, limit);
+  //     }
+  //     return `Memory stored successfully.`;
+  //   } catch (error) {
+  //     logger.error(`MemoryAgent: Error storing memory: ${error}`);
+  //     return `Failed to store memory: ${error}`;
+  //   }
+  // }
 
   /**
    * Retrieve memories for a content
@@ -642,11 +631,7 @@ export class MemoryAgent extends BaseAgent {
         );
       }
 
-      const combined = this.mergeSimilarityResults(
-        memResults,
-        iterResults,
-        limit
-      );
+      const combined = this.mergeSimilarityResults(memResults, limit);
 
       if (combined.length === 0) {
         return 'No relevant memories found.';

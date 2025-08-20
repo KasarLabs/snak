@@ -52,6 +52,8 @@
     "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "dependencies": {
+    "@langchain/langgraph": "^0.3.0",
+    "@langchain/langgraph-checkpoint": "~0.0.16",
     "@nestjs/platform-socket.io": "^11.1.1",
     "@nestjs/websockets": "^11.1.1",
     "add": "^2.0.6",

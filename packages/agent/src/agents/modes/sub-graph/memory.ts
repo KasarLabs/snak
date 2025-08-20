@@ -15,7 +15,8 @@ import { ModelSelector } from 'agents/operators/modelSelector.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { AutonomousConfigurableAnnotation } from '../autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-
+import { v4 as uuidv4 } from 'uuid';
+import { PLANNER_ORCHESTRATOR } from '../types/index.js';
 export type MemoryStateType = typeof MemoryState.State;
 
 let summarize_prompt = `
@@ -39,7 +40,10 @@ Summary :
 `;
 
 export const MemoryState = Annotation.Root({
-  messages: Annotation<BaseMessage[]>,
+  messages: Annotation<BaseMessage[]>({
+    reducer: (x, y) => x.concat(y),
+    default: () => [],
+  }),
   last_message: Annotation<BaseMessage | BaseMessage[]>,
   last_agent: Annotation<Agent>,
   memories: Annotation<Memories>,
@@ -65,18 +69,25 @@ export class MemoryGraph {
   private async stm_manager(
     state: typeof MemoryState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ) {
+  ): Promise<{
+    memories: Memories;
+  }> {
     logger.debug('STM Manager processing');
-    const stm = state.memories.stm;
+    console.log(state.memories.stm);
+    const stm = state.memories.stm || [''];
     const new_message = formatStepsForSTM(
       state.plan.steps[state.currentStepIndex]
     );
-    if (stm.length >= 7) {
+    if (stm && stm.length >= 7) {
       stm.shift();
     }
-    stm.push(new_message);
+    stm.push({ content: new_message, memories_id: uuidv4() });
     logger.debug(`New STM = ${stm.join('\n')}`);
-    return state;
+    const memories: Memories = {
+      stm: stm,
+      ltm: state.memories.ltm,
+    };
+    return { memories };
   }
 
   private async ltm_manager(
@@ -84,13 +95,15 @@ export class MemoryGraph {
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ) {
     logger.debug('LTM Manager processing');
-    logger.debug(JSON.stringify(state.plan));
+    logger.debug(JSON.stringify(state.memories));
     const model = this.modelSelector?.getModels()['fast'];
     if (!model) {
       throw new Error('Model not found in ModelSelector');
     }
-    const currentStepIndex =
-      state.currentStepIndex === 0 ? 0 : state.currentStepIndex - 1;
+    if (state.currentStepIndex === 0) {
+      return {};
+    }
+    const currentStepIndex = state.currentStepIndex - 1;
     const current_step = state.plan.steps[currentStepIndex];
     const structured_output = z.object({
       summarize: z.string().describe('the summarization of the response.'),
@@ -111,14 +124,32 @@ export class MemoryGraph {
 
     logger.debug(`SUMMARIZE RESPONSE BEFORE EMBEDDING : ${structured_result}`);
     console.log(config.metadata?.run_id);
-    this.memoryAgent?.upsertMemory(
+    this.memoryAgent.upsertMemory(
       structured_result.summarize,
-      null,
-      config.metadata?.run_id as string
+      state.memories.stm[state.memories.stm.length - 1].memories_id,
+      `${current_step.stepName + current_step.description}`,
+      config.metadata?.run_id as string,
+      10
     );
-    return state;
+    return {};
   }
 
+  private memory_router(
+    state: typeof MemoryState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+  ): 'retrieve_memory' | 'stm_manager' | 'end' {
+    if (state.last_agent === Agent.PLANNER_VALIDATOR) {
+      return 'retrieve_memory';
+    }
+    if (state.last_agent === Agent.EXEC_VALIDATOR) {
+      return 'stm_manager';
+    }
+    return 'end';
+  }
+  private end_memory_graph(
+    state: typeof MemoryState.State,
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+  ) {}
   public getMemoryGraph() {
     return this.graph;
   }
@@ -135,7 +166,7 @@ export class MemoryGraph {
         'retrieve_memory',
         this.memoryAgent.createMemoryNode().bind(this)
       )
-      .addEdge(START, 'stm_manager')
+      .addConditionalEdges(START, this.memory_router.bind(this))
       .addEdge('stm_manager', 'ltm_manager')
       .addEdge('ltm_manager', 'retrieve_memory')
       .addEdge('retrieve_memory', END);

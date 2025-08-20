@@ -41,6 +41,8 @@ describe('Memory table', () => {
   it('Should handle insertions', async () => {
     const m: memory.Memory = {
       user_id: 'default_user',
+      memories_id: 'default_memories_id',
+      query: 'query',
       content: 'content',
       embedding: [...Array(384).keys()],
       metadata: {

@@ -8,8 +8,8 @@ import {
   ModelSelector,
   ModelSelectorConfig,
 } from '../operators/modelSelector.js';
-import { logger, RpcProvider } from 'starknet';
-
+import { RpcProvider } from 'starknet';
+import { logger } from '@snakagent/core';
 // Types and Interfaces
 export interface AgentConfigSQL {
   id: string;
@@ -289,9 +289,6 @@ export async function createAutonomousAgent(agentId: string): Promise<any> {
   const autonomousAgent = new AutonomousAgent(agent, modelSelector);
 
   const result = await autonomousAgent.initialize();
-  console.log('Initialize result:', result); // Debug
-  console.log('Result.app exists?', result?.app !== undefined);
-
   const app = result.app;
 
   // Vérifier que app existe
@@ -315,7 +312,7 @@ export async function createHybridAgent(agentId: string): Promise<any> {
 }
 
 // Example usage with specific IDs (for backward compatibility)
-const AUTONOMOUS_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
+const AUTONOMOUS_ID = '2af6c614-410d-4173-a1a8-a9dc17a92dd8';
 const INTERACTIVE_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 
@@ -324,3 +321,4 @@ const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 export const studio_graph_autonomous = () =>
   createAutonomousAgent(AUTONOMOUS_ID);
 // export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);
+  

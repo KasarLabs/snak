@@ -18,7 +18,7 @@ export interface AgentReturn {
 
 export interface Memories {
   ltm: string;
-  stm: string[];
+  stm: [{ content: string; memories_id: string }];
 }
 
 export interface ToolInfo {
@@ -63,9 +63,11 @@ export interface ValidatorStepResponse {
 }
 
 export enum Agent {
+  START = 'start',
   PLANNER = 'planner',
   EXEC_VALIDATOR = 'exec_validator',
   PLANNER_VALIDATOR = 'planner_validator',
+  MEMORY_MANAGER = 'memory_manager',
   EXECUTOR = 'executor',
   MODEL_SELECTOR = 'model_selector',
   ADAPTIVE_PLANNER = 'adaptive_planner',
@@ -73,6 +75,16 @@ export enum Agent {
   SUMMARIZE = 'summarize',
   HUMAN = 'human',
 }
+
+export type PLANNER_ORCHESTRATOR =
+  | 'planner'
+  | 'planner_validator'
+  | 'evolve_from_history'
+  | 'plan_revision';
+
+export type AGENT_EXECUTOR = 'exec_validator' | 'executor';
+
+export type MEMORY_ORCHESTRATOR = 'memory_manager';
 
 export interface AgentKwargs {
   error: boolean;
