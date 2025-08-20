@@ -53,7 +53,9 @@ describe('OperatorRegistry', () => {
   });
 
   beforeEach(() => {
-    OperatorRegistry.resetForTesting();
+    // Clear any existing registry state by clearing all agents
+    const existingRegistry = OperatorRegistry.getInstance();
+    existingRegistry.clear();
     registry = OperatorRegistry.getInstance();
   });
 
