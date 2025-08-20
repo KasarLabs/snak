@@ -11,10 +11,6 @@ jest.mock('@snakagent/core', () => ({
   })),
 }));
 
-jest.mock('@snakagent/metrics', () => ({
-  metrics: { agentConnect: jest.fn() },
-}));
-
 jest.mock('@snakagent/database/queries', () => ({
   iterations: {
     insert_iteration: jest.fn().mockResolvedValue(undefined),
@@ -82,7 +78,6 @@ import { RpcProvider } from 'starknet';
 
 // Mock references
 const mockLogger = jest.requireMock('@snakagent/core').logger;
-const mockMetrics = jest.requireMock('@snakagent/metrics').metrics;
 const mockIterations = jest.requireMock(
   '@snakagent/database/queries'
 ).iterations;
@@ -200,7 +195,6 @@ describe('SnakAgent', () => {
     it('should initialize with provided configuration', () => {
       expect(snakAgent.id).toBe('snak');
       expect(snakAgent.type).toBe('snak');
-      expect(mockMetrics.agentConnect).toHaveBeenCalled();
     });
 
     it('should throw error if private key is missing', () => {
