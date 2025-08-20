@@ -38,7 +38,17 @@ describe('createAgentTool', () => {
       normalizedConfig: {
         interval: 5,
         max_iterations: 15,
-        memory: { shortTermMemorySize: 5, memorySize: 20 },
+        mode: 'interactive',
+        memory: { 
+          enabled: false, 
+          shortTermMemorySize: 5, 
+          memorySize: 20
+        },
+        rag: { 
+          enabled: false, 
+          topK: 4,
+          embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+        },
       },
       appliedDefaults: [],
     });
@@ -100,42 +110,6 @@ describe('createAgentTool', () => {
         ],
       },
       {
-        name: 'all fields present',
-        input: {
-          name: 'full',
-          group: 'trading',
-          description: 'desc',
-          lore: ['l1'],
-          objectives: ['o1'],
-          knowledge: ['k1'],
-          system_prompt: 'prompt',
-          interval: 300,
-          plugins: ['p1'],
-          memory: { enabled: true, shortTermMemorySize: 50, memorySize: 100 },
-          rag: { enabled: true, embeddingModel: 'model' },
-          mode: 'autonomous',
-          max_iterations: 10,
-        },
-        expected: [
-          'full',
-          'trading',
-          'desc',
-          ['l1'],
-          ['o1'],
-          ['k1'],
-          'prompt',
-          5,
-          ['p1'],
-          true,
-          5,
-          20,
-          true,
-          'model',
-          'autonomous',
-          15,
-        ],
-      },
-      {
         name: 'empty arrays',
         input: {
           name: 'empty',
@@ -176,12 +150,86 @@ describe('createAgentTool', () => {
       );
     });
 
+    it('should handle all fields present correctly', async () => {
+      const input = {
+        name: 'full',
+        group: 'trading',
+        description: 'desc',
+        lore: ['l1'],
+        objectives: ['o1'],
+        knowledge: ['k1'],
+        system_prompt: 'prompt',
+        interval: 300,
+        plugins: ['p1'],
+        memory: { enabled: true, shortTermMemorySize: 50, memorySize: 100 },
+        rag: { enabled: true, embeddingModel: 'model' },
+        mode: 'autonomous',
+        max_iterations: 10,
+      };
+
+      // Mock normalizeNumericValues to return the input values
+      mockNormalize.mockReturnValue({
+        normalizedConfig: {
+          interval: 300,
+          max_iterations: 10,
+          mode: 'autonomous',
+          memory: { 
+            enabled: true, 
+            shortTermMemorySize: 50, 
+            memorySize: 100
+          },
+          rag: { 
+            enabled: true, 
+            topK: 4,
+            embeddingModel: 'model'
+          },
+        },
+        appliedDefaults: [],
+      });
+
+      mockPostgres.query.mockResolvedValue([mkRow()]);
+
+      await createAgentTool.func(input);
+
+      expect(mockPostgres.Query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO agents'),
+        expect.arrayContaining([
+          'full',
+          'trading',
+          'desc',
+          ['l1'],
+          ['o1'],
+          ['k1'],
+          'prompt',
+          300,
+          ['p1'],
+          true,
+          50,
+          100,
+          true,
+          'model',
+          'autonomous',
+          10,
+        ])
+      );
+    });
+
     it('should use normalized values from normalizeNumericValues', async () => {
       mockNormalize.mockReturnValue({
         normalizedConfig: {
           interval: 10,
           max_iterations: 25,
-          memory: { shortTermMemorySize: 15, memorySize: 50 },
+          mode: 'interactive',
+          memory: { 
+            enabled: false, 
+            shortTermMemorySize: 15, 
+            memorySize: 50
+          },
+          rag: { 
+            enabled: false, 
+            topK: 4,
+            embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+          },
         },
         appliedDefaults: ['interval set to 10', 'max_iterations set to 25'],
       });
@@ -260,7 +308,17 @@ describe('createAgentTool', () => {
         normalizedConfig: {
           interval: 5,
           max_iterations: 15,
-          memory: { shortTermMemorySize: 5, memorySize: 20 },
+          mode: 'interactive',
+          memory: { 
+            enabled: false, 
+            shortTermMemorySize: 5, 
+            memorySize: 20
+          },
+          rag: { 
+            enabled: false, 
+            topK: 4,
+            embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+          },
         },
         appliedDefaults: ['interval set to 5', 'max_iterations set to 15'],
       });
@@ -351,6 +409,27 @@ describe('createAgentTool', () => {
           embeddingModel: 'very-long-model-name-with-special-chars',
         },
       };
+
+      // Mock normalizeNumericValues to return the input values
+      mockNormalize.mockReturnValue({
+        normalizedConfig: {
+          interval: 5,
+          max_iterations: 15,
+          mode: 'interactive',
+          memory: { 
+            enabled: true, 
+            shortTermMemorySize: 999, 
+            memorySize: 1000
+          },
+          rag: { 
+            enabled: true, 
+            topK: 4,
+            embeddingModel: 'very-long-model-name-with-special-chars'
+          },
+        },
+        appliedDefaults: [],
+      });
+
       mockPostgres.query.mockResolvedValue([mkRow()]);
 
       await createAgentTool.func(complexInput);
@@ -362,9 +441,9 @@ describe('createAgentTool', () => {
           complexInput.objectives,
           complexInput.knowledge,
           complexInput.plugins,
-          complexInput.memory.enabled,
-          complexInput.rag.enabled,
-          complexInput.rag.embeddingModel,
+          true, // memory.enabled from normalizedConfig
+          true, // rag.enabled from normalizedConfig
+          'very-long-model-name-with-special-chars', // rag.embeddingModel from normalizedConfig
         ])
       );
     });

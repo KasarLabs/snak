@@ -5,7 +5,6 @@ interface InputMemoryConfig {
   enabled?: boolean | null;
   shortTermMemorySize?: number | null;
   memorySize?: number | null;
-  embeddingModel?: string | null;
 }
 
 /**
@@ -23,6 +22,7 @@ interface InputRagConfig {
 interface InputAgentConfig {
   max_iterations?: number | null;
   interval?: number | null;
+  mode?: string | null;
   memory?: InputMemoryConfig | null;
   rag?: InputRagConfig | null;
   [key: string]: any; // Allow for additional properties
@@ -35,7 +35,6 @@ export interface OutputMemoryConfig {
   enabled: boolean;
   shortTermMemorySize: number;
   memorySize: number;
-  embeddingModel: string;
 }
 
 /**
@@ -53,6 +52,7 @@ export interface OutputRagConfig {
 export interface OutputAgentConfig {
   max_iterations: number;
   interval: number;
+  mode: string;
   memory: OutputMemoryConfig;
   rag: OutputRagConfig;
   [key: string]: any; // Allow for additional properties
@@ -72,11 +72,11 @@ interface NormalizationResult {
 const DEFAULT_VALUES = {
   max_iterations: 15,
   interval: 5,
+  mode: 'interactive',
   memory: {
     enabled: false,
     shortTermMemorySize: 5,
     memorySize: 20,
-    embeddingModel: 'Xenova/all-MiniLM-L6-v2',
   },
   rag: {
     enabled: false,
@@ -148,7 +148,7 @@ function normalizeStringValue(
   defaultValue: string,
   propertyName: string
 ): { value: string; appliedDefault: string | null } {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || value === '') {
     return {
       value: defaultValue,
       appliedDefault: `${propertyName} set to default value (${defaultValue})`,
@@ -173,7 +173,6 @@ function normalizeMemoryConfig(memory: InputMemoryConfig | null | undefined): {
       enabled: DEFAULT_VALUES.memory.enabled,
       shortTermMemorySize: DEFAULT_VALUES.memory.shortTermMemorySize,
       memorySize: DEFAULT_VALUES.memory.memorySize,
-      embeddingModel: DEFAULT_VALUES.memory.embeddingModel,
     };
 
     // Normalize shortTermMemorySize
@@ -209,22 +208,11 @@ function normalizeMemoryConfig(memory: InputMemoryConfig | null | undefined): {
       appliedDefaults.push(enabledResult.appliedDefault);
     }
 
-    // Normalize embeddingModel
-    const embeddingModelResult = normalizeStringValue(
-      memory.embeddingModel,
-      DEFAULT_VALUES.memory.embeddingModel,
-      'memory.embeddingModel'
-    );
-    config.embeddingModel = embeddingModelResult.value;
-    if (embeddingModelResult.appliedDefault) {
-      appliedDefaults.push(embeddingModelResult.appliedDefault);
-    }
-
     return { config, appliedDefaults };
   } else {
     // Initialize with defaults
     appliedDefaults.push(
-      `memory initialized with default values (enabled: ${DEFAULT_VALUES.memory.enabled}, shortTermMemorySize: ${DEFAULT_VALUES.memory.shortTermMemorySize}, memorySize: ${DEFAULT_VALUES.memory.memorySize}, embeddingModel: ${DEFAULT_VALUES.memory.embeddingModel})`
+      `memory initialized with default values (enabled: ${DEFAULT_VALUES.memory.enabled}, shortTermMemorySize: ${DEFAULT_VALUES.memory.shortTermMemorySize}, memorySize: ${DEFAULT_VALUES.memory.memorySize})`
     );
     return { config: { ...DEFAULT_VALUES.memory }, appliedDefaults };
   }
@@ -303,11 +291,11 @@ export function normalizeNumericValues(
   const normalizedConfig: OutputAgentConfig = {
     max_iterations: DEFAULT_VALUES.max_iterations,
     interval: DEFAULT_VALUES.interval,
+    mode: DEFAULT_VALUES.mode,
     memory: {
       enabled: DEFAULT_VALUES.memory.enabled,
       shortTermMemorySize: DEFAULT_VALUES.memory.shortTermMemorySize,
       memorySize: DEFAULT_VALUES.memory.memorySize,
-      embeddingModel: DEFAULT_VALUES.memory.embeddingModel,
     },
     rag: {
       enabled: DEFAULT_VALUES.rag.enabled,
@@ -339,6 +327,17 @@ export function normalizeNumericValues(
     appliedDefaults.push(intervalResult.appliedDefault);
   }
 
+  // Normalize mode
+  const modeResult = normalizeStringValue(
+    config.mode,
+    DEFAULT_VALUES.mode,
+    'mode'
+  );
+  normalizedConfig.mode = modeResult.value;
+  if (modeResult.appliedDefault) {
+    appliedDefaults.push(modeResult.appliedDefault);
+  }
+
   // Normalize memory configuration
   const memoryResult = normalizeMemoryConfig(config.memory);
   normalizedConfig.memory = memoryResult.config;
@@ -351,7 +350,7 @@ export function normalizeNumericValues(
 
   // Copy any additional properties from the input config
   Object.keys(config).forEach((key) => {
-    if (!['max_iterations', 'interval', 'memory', 'rag'].includes(key)) {
+    if (!['max_iterations', 'interval', 'mode', 'memory', 'rag'].includes(key)) {
       (normalizedConfig as any)[key] = config[key];
     }
   });

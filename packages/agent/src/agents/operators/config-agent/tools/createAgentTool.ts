@@ -58,7 +58,6 @@ const CreateAgentSchema = z.object({
       enabled: z.boolean().optional().nullable(),
       shortTermMemorySize: z.number().optional().nullable(),
       memorySize: z.number().optional().nullable(),
-      embeddingModel: z.string().optional().nullable(),
     })
     .optional()
     .nullable()
@@ -115,12 +114,12 @@ export const createAgentTool = new DynamicStructuredTool({
           input.system_prompt || null,
           normalizedConfig.interval,
           input.plugins || null,
-          input.memory?.enabled || false,
-          normalizedConfig.memory?.shortTermMemorySize,
-          normalizedConfig.memory?.memorySize,
-          input.rag?.enabled || false,
-          input.rag?.embeddingModel || null,
-          input.mode || 'interactive',
+          normalizedConfig.memory.enabled,
+          normalizedConfig.memory.shortTermMemorySize,
+          normalizedConfig.memory.memorySize,
+          normalizedConfig.rag.enabled,
+          normalizedConfig.rag.embeddingModel,
+          normalizedConfig.mode,
           normalizedConfig.max_iterations,
         ]
       );

@@ -105,9 +105,6 @@ describe('normalizeNumericValues', () => {
 
   describe('string properties normalization', () => {
     it.each([
-      ['memory.embeddingModel', undefined, 'Xenova/all-MiniLM-L6-v2', true],
-      ['memory.embeddingModel', null, 'Xenova/all-MiniLM-L6-v2', true],
-      ['memory.embeddingModel', 'test-model', 'test-model', false],
       ['rag.embeddingModel', undefined, 'Xenova/all-MiniLM-L6-v2', true],
       ['rag.embeddingModel', null, 'Xenova/all-MiniLM-L6-v2', true],
       ['rag.embeddingModel', 'test-model', 'test-model', false],
@@ -132,6 +129,34 @@ describe('normalizeNumericValues', () => {
     );
   });
 
+  describe('mode normalization', () => {
+    it.each([
+      ['mode', undefined, 'interactive', true],
+      ['mode', null, 'interactive', true],
+      ['mode', '', 'interactive', true],
+      ['mode', 'interactive', 'interactive', false],
+      ['mode', 'autonomous', 'autonomous', false],
+      ['mode', 'hybrid', 'hybrid', false],
+    ])(
+      'should normalize %s: %p → %p',
+      (property, inputValue, expected, shouldApplyDefault) => {
+        const config = { [property]: inputValue };
+
+        const result = normalizeNumericValues(config);
+
+        expect(result.normalizedConfig[property]).toBe(expected);
+
+        if (shouldApplyDefault) {
+          const expectedMessage = `${property} set to default value (${expected})`;
+          expect(result.appliedDefaults).toContain(expectedMessage);
+        } else {
+          const unexpectedMessage = `${property} set to default value`;
+          expect(result.appliedDefaults).not.toContain(unexpectedMessage);
+        }
+      }
+    );
+  });
+
   describe('object initialization', () => {
     it('should initialize memory with defaults when absent/non-plain', () => {
       const testCases = [
@@ -149,12 +174,9 @@ describe('normalizeNumericValues', () => {
         expect(result.normalizedConfig.memory?.enabled).toBe(false);
         expect(result.normalizedConfig.memory?.shortTermMemorySize).toBe(5);
         expect(result.normalizedConfig.memory?.memorySize).toBe(20);
-        expect(result.normalizedConfig.memory?.embeddingModel).toBe(
-          'Xenova/all-MiniLM-L6-v2'
-        );
 
         const expectedMessage =
-          'memory initialized with default values (enabled: false, shortTermMemorySize: 5, memorySize: 20, embeddingModel: Xenova/all-MiniLM-L6-v2)';
+          'memory initialized with default values (enabled: false, shortTermMemorySize: 5, memorySize: 20)';
         expect(result.appliedDefaults).toContain(expectedMessage);
       });
     });
@@ -183,6 +205,21 @@ describe('normalizeNumericValues', () => {
         expect(result.appliedDefaults).toContain(expectedMessage);
       });
     });
+
+    it('should initialize mode with default value when absent', () => {
+      const testCases = [
+        {},
+        { mode: null },
+        { mode: undefined },
+      ];
+
+      testCases.forEach((config) => {
+        const result = normalizeNumericValues(config as any);
+
+        expect(result.normalizedConfig.mode).toBe('interactive');
+        expect(result.appliedDefaults).toContain('mode set to default value (interactive)');
+      });
+    });
   });
 
   describe('defaults aggregation', () => {
@@ -190,11 +227,11 @@ describe('normalizeNumericValues', () => {
       const config = {
         max_iterations: -1,
         interval: 0,
+        mode: null,
         memory: {
           enabled: null,
           shortTermMemorySize: -5,
           memorySize: 0,
-          embeddingModel: undefined,
         },
         rag: { enabled: null, topK: -2, embeddingModel: undefined },
       };
@@ -208,6 +245,9 @@ describe('normalizeNumericValues', () => {
         'interval set to default value (5)'
       );
       expect(result.appliedDefaults).toContain(
+        'mode set to default value (interactive)'
+      );
+      expect(result.appliedDefaults).toContain(
         'memory.enabled set to default value (false)'
       );
       expect(result.appliedDefaults).toContain(
@@ -215,9 +255,6 @@ describe('normalizeNumericValues', () => {
       );
       expect(result.appliedDefaults).toContain(
         'memory.memorySize set to default value (20)'
-      );
-      expect(result.appliedDefaults).toContain(
-        'memory.embeddingModel set to default value (Xenova/all-MiniLM-L6-v2)'
       );
       expect(result.appliedDefaults).toContain(
         'rag.enabled set to default value (false)'
@@ -238,13 +275,13 @@ describe('normalizeNumericValues', () => {
       const config = {
         foo: 123,
         bar: 'test',
+        mode: 'autonomous',
         max_iterations: 25,
         interval: 10,
         memory: {
           enabled: true,
           shortTermMemorySize: 30,
           memorySize: 100,
-          embeddingModel: 'custom-memory-model',
         },
         rag: { enabled: true, topK: 20, embeddingModel: 'custom-model' },
       };
@@ -259,9 +296,6 @@ describe('normalizeNumericValues', () => {
       expect(result.normalizedConfig.memory?.enabled).toBe(true);
       expect(result.normalizedConfig.memory?.shortTermMemorySize).toBe(30);
       expect(result.normalizedConfig.memory?.memorySize).toBe(100);
-      expect(result.normalizedConfig.memory?.embeddingModel).toBe(
-        'custom-memory-model'
-      );
       expect(result.normalizedConfig.rag?.enabled).toBe(true);
       expect(result.normalizedConfig.rag?.topK).toBe(20);
       expect(result.normalizedConfig.rag?.embeddingModel).toBe('custom-model');
