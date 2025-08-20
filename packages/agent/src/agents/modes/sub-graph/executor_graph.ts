@@ -41,6 +41,10 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import {
+  ExecutorNode,
+  DEFAULT_AUTONOMOUS_CONFIG,
+} from '../config/autonomous-config.js';
+import {
   TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
   VALIDATOR_EXECUTOR_CONTEXT,
 } from '../../../prompt/validator_prompt.js';
@@ -232,14 +236,28 @@ export class AgentExecutorGraph {
 
       const content = result.content.toLocaleString();
       const updatedPlan = state.plan;
-      const tokens =
-        currentStep.type === 'tools'
-          ? result.response_metadata?.usage?.completion_tokens
-          : estimateTokens(content);
+
+      // Improved token tracking with fallbacks
+      let tokens = 0;
+      if (currentStep.type === 'tools') {
+        // For tool calls, try to get actual tokens from response metadata
+        tokens =
+          result.response_metadata?.usage?.completion_tokens ||
+          result.response_metadata?.usage?.total_tokens ||
+          estimateTokens(content);
+      } else {
+        // For non-tool messages, estimate tokens
+        tokens = estimateTokens(content);
+      }
+
       updatedPlan.steps[state.currentStepIndex].result = {
         content: content,
         tokens: tokens,
       };
+
+      logger.debug(
+        `[Executor] Token tracking: ${tokens} tokens for step ${state.currentStepIndex + 1}`
+      );
 
       return {
         messages: result,
@@ -396,6 +414,7 @@ export class AgentExecutorGraph {
     plan: ParsedPlan;
   } | null> {
     const lastMessage = state.last_message;
+    const toolTimeout = DEFAULT_AUTONOMOUS_CONFIG.toolTimeout; // TODO add the field in the agent_configuration;
 
     const toolCalls =
       lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
@@ -413,8 +432,18 @@ export class AgentExecutorGraph {
     }
 
     const startTime = Date.now();
+
     try {
-      const result = await originalInvoke(state, config);
+      // Add timeout wrapper for tool execution
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Tool execution timed out after ${toolTimeout}ms`));
+        }, toolTimeout);
+      });
+
+      const executionPromise = originalInvoke(state, config);
+      const result = await Promise.race([executionPromise, timeoutPromise]);
+
       const executionTime = Date.now() - startTime;
       const truncatedResult: { messages: ToolMessage[] } = truncateToolResults(
         result,
@@ -433,25 +462,45 @@ export class AgentExecutorGraph {
 
       const updatedPlan = { ...state.plan };
       const currentStep = { ...updatedPlan.steps[state.currentStepIndex] };
+
+      // Improved token tracking for tool results
+      const toolResultContent =
+        truncatedResult.messages[0]?.content?.toString() || '';
+      const estimatedTokens = estimateTokens(toolResultContent);
+
       currentStep.result = {
-        content: truncatedResult.messages[0].content.toLocaleString(),
-        tokens: 0,
+        content: toolResultContent,
+        tokens: estimatedTokens,
       };
+
       updatedPlan.steps[state.currentStepIndex] = formatToolResponse(
         truncatedResult.messages,
         currentStep
       );
+
+      logger.debug(
+        `[Tools] Token tracking: ${estimatedTokens} tokens for tool result`
+      );
+
       return {
         ...truncatedResult,
         last_message: truncatedResult.messages,
         last_agent: Agent.TOOLS,
-        plan: state.plan,
+        plan: updatedPlan,
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      logger.error(
-        `[Tools] ❌ Tool execution failed after ${executionTime}ms: ${error}`
-      );
+
+      if (error.message.includes('timed out')) {
+        logger.error(
+          `[Tools] ⏱️ Tool execution timed out after ${toolTimeout}ms`
+        );
+      } else {
+        logger.error(
+          `[Tools] ❌ Tool execution failed after ${executionTime}ms: ${error}`
+        );
+      }
+
       throw error;
     }
   }
@@ -594,17 +643,11 @@ export class AgentExecutorGraph {
   private executor_router(
     state: typeof ExecutorState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ):
-    | 'tool_executor'
-    | 'executor_validator'
-    | 'human'
-    | 'end'
-    | 'end_executor_graph'
-    | 'planning_orchestrator' {
+  ): ExecutorNode {
     if (config.configurable?.agent_config?.mode === AgentMode.HYBRID) {
-      return this.shouldContinueHybrid(state, config);
+      return this.shouldContinueHybrid(state, config) as ExecutorNode;
     } else {
-      return this.shouldContinueAutonomous(state, config);
+      return this.shouldContinueAutonomous(state, config) as ExecutorNode;
     }
   }
 

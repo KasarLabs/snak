@@ -23,6 +23,10 @@ import { AutonomousConfigurableAnnotation } from '../autonomous.js';
 import { Runnable, RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import {
+  PlannerNode,
+  DEFAULT_AUTONOMOUS_CONFIG,
+} from '../config/autonomous-config.js';
+import {
   ADAPTIVE_PLANNER_CONTEXT_PROMPT,
   ADAPTIVE_PLANNER_SYSTEM_PROMPT,
   AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
@@ -448,40 +452,44 @@ export class PlannerGraph {
   public planning_router(
     state: typeof PlannerGraphState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation>
-  ):
-    | 'create_initial_plan'
-    | 'plan_revision'
-    | 'evolve_from_history'
-    | 'end_planner_graph'
-    | 'end' {
+  ): PlannerNode {
+    const maxRetries = DEFAULT_AUTONOMOUS_CONFIG.maxRetries; // TODO add the field in the agent_configuration
+
     if (!state.last_agent || state.last_agent === Agent.START) {
       logger.debug(`[PLANNING_ROUTER]: Routing to create_initial_plan`);
-      return 'create_initial_plan';
+      return PlannerNode.CREATE_INITIAL_PLAN;
     }
+
     if (state.last_agent === Agent.EXEC_VALIDATOR) {
       logger.debug(`[PLANNING_ROUTER]: Routing to evolve_from_history`);
-      return 'evolve_from_history';
+      return PlannerNode.EVOLVE_FROM_HISTORY;
     }
+
     if (
       state.last_agent === Agent.PLANNER_VALIDATOR &&
       (state.last_message as BaseMessage).additional_kwargs.success
     ) {
       logger.debug(`[PLANNING_ROUTER]: Routing to end`);
-      return 'end';
+      return PlannerNode.END;
     }
+
     if (
       state.last_agent === Agent.PLANNER_VALIDATOR &&
       !(state.last_message as BaseMessage).additional_kwargs.success
     ) {
-      if (state.retry >= 3) {
+      if (state.retry >= maxRetries) {
         logger.debug(
-          `[PLANNING_ROUTER]: Last plan_revision reach routing to end`
+          `[PLANNING_ROUTER]: Max retries (${maxRetries}) reached, routing to end`
         );
-        return 'end_planner_graph';
+        return PlannerNode.END_PLANNER_GRAPH;
       }
-      return 'plan_revision';
+      logger.debug(
+        `[PLANNING_ROUTER]: Retry ${state.retry + 1}/${maxRetries}, routing to plan_revision`
+      );
+      return PlannerNode.PLAN_REVISION;
     }
-    return 'evolve_from_history';
+
+    return PlannerNode.EVOLVE_FROM_HISTORY;
   }
 
   private end_planner_graph(state: typeof PlannerGraphState.State) {

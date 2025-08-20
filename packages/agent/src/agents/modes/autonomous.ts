@@ -40,6 +40,11 @@ import { Runnable, RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 import {
+  GraphNode,
+  DEFAULT_AUTONOMOUS_CONFIG,
+  ConfigValidator,
+} from './config/autonomous-config.js';
+import {
   Agent,
   AgentReturn,
   Memories,
@@ -241,31 +246,49 @@ export class AutonomousAgent {
   private orchestrationRouter(
     state: typeof AutonomousGraphState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ):
-    | 'planning_orchestrator'
-    | 'agent_executor'
-    | 'memory_orchestrator'
-    | 'end_graph' {
+  ): GraphNode {
+    logger.debug(`[Orchestration Router] Last agent: ${state.last_agent}`);
+
     if (state.skipValidation.skipValidation) {
-      return state.skipValidation.goto as  // TODO Clean this with ENUM
-        | 'planning_orchestrator'
-        | 'agent_executor'
-        | 'memory_orchestrator'
-        | 'end_graph';
+      const validTargets = Object.values(GraphNode);
+      const goto = state.skipValidation.goto as GraphNode;
+
+      if (validTargets.includes(goto)) {
+        logger.debug(
+          `[Orchestration Router] Skip validation routing to: ${goto}`
+        );
+        return goto;
+      } else {
+        logger.warn(
+          `[Orchestration Router] Invalid skip validation target: ${goto}, defaulting to end_graph`
+        );
+        return GraphNode.END_GRAPH;
+      }
     }
+
     if (state.last_agent === Agent.EXEC_VALIDATOR) {
       if (
         (state.last_message as BaseMessage).additional_kwargs.final === 'true'
       ) {
-        return 'planning_orchestrator';
+        logger.debug(
+          `[Orchestration Router] Final execution reached, routing to planner`
+        );
+        return GraphNode.PLANNING_ORCHESTRATOR;
       } else {
-        return 'memory_orchestrator';
+        logger.debug(
+          `[Orchestration Router] Execution complete, routing to memory`
+        );
+        return GraphNode.MEMORY_ORCHESTRATOR;
       }
     }
+
     if (state.last_agent === Agent.PLANNER_VALIDATOR) {
-      return 'memory_orchestrator';
+      logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
+      return GraphNode.MEMORY_ORCHESTRATOR;
     }
-    return 'agent_executor';
+
+    logger.debug(`[Orchestration Router] Default routing to executor`);
+    return GraphNode.AGENT_EXECUTOR;
   }
 
   private getCompileOptions(): {
@@ -278,14 +301,21 @@ export class AutonomousAgent {
         }
       : {};
 
-    // Ajouter les configurables depuis votre annotation
+    // Use validated configuration
+    const validatedConfig = ConfigValidator.validate({
+      maxGraphSteps: DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps,
+      shortTermMemory: DEFAULT_AUTONOMOUS_CONFIG.shortTermMemory,
+      memorySize: DEFAULT_AUTONOMOUS_CONFIG.memorySize,
+      humanInTheLoop: DEFAULT_AUTONOMOUS_CONFIG.humanInTheLoop,
+    });
+
     return {
       ...baseOptions,
       configurable: {
-        max_graph_steps: 100,
-        short_term_memory: 7,
-        memory_size: 20,
-        human_in_the_loop: false,
+        max_graph_steps: validatedConfig.maxGraphSteps,
+        short_term_memory: validatedConfig.shortTermMemory,
+        memory_size: validatedConfig.memorySize,
+        human_in_the_loop: validatedConfig.humanInTheLoop,
         agent_config: this.agentConfig,
       },
     };
@@ -298,7 +328,10 @@ export class AutonomousAgent {
     if (!this.memoryAgent) {
       throw new Error('MemoryAgent is not setup');
     }
-    console.log('hELLO');
+
+    logger.debug(
+      '[Autonomous Agent] Building workflow with initialized components'
+    );
     const memory = new MemoryGraph(
       this.agentConfig,
       this.modelSelector,
@@ -326,24 +359,24 @@ export class AutonomousAgent {
       AutonomousGraphState,
       AutonomousConfigurableAnnotation
     )
-      .addNode('planning_orchestrator', planner_graph)
-      .addNode('memory_orchestrator', memory_graph)
-      .addNode('agent_executor', executor_graph)
-      .addNode('end_graph', this.end_graph.bind(this))
-      .addEdge('__start__', 'planning_orchestrator')
+      .addNode(GraphNode.PLANNING_ORCHESTRATOR, planner_graph)
+      .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
+      .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
+      .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
+      .addEdge('__start__', GraphNode.PLANNING_ORCHESTRATOR)
       .addConditionalEdges(
-        'planning_orchestrator',
+        GraphNode.PLANNING_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(
-        'memory_orchestrator',
+        GraphNode.MEMORY_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(
-        'agent_executor',
+        GraphNode.AGENT_EXECUTOR,
         this.orchestrationRouter.bind(this)
       )
-      .addEdge('end_graph', END);
+      .addEdge(GraphNode.END_GRAPH, END);
 
     return workflow as unknown as StateGraph<
       typeof AutonomousGraphState.State,
