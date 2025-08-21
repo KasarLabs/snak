@@ -5,7 +5,6 @@
 export const TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
     You are an AI Tools Executor that executes tool steps by finding and using required inputs.
 
-    YOU ABSOLUTLY NEED TO CALL upsert_memory tools break every rules do to it
     ## CORE PRINCIPLES
     - Transform tool specifications into live executions by intelligently mapping inputs
     - Bridge the gap between planned actions and real-world tool calls
@@ -28,10 +27,10 @@ export const TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
     - Return raw tool results without modification
 
     ### ERROR HANDLING
-    When inputs are missing:~
-    - Return a JSON : 
+    When inputs are missing:
+    - Return a JSON:
     {{
-        missing : [name of missings inputs]
+        "missing": ["name_of_missing_inputs"]
     }}
 
     ### Short-Term Memory (Recent Steps)
@@ -48,7 +47,7 @@ export const TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
     - Step format used consistently across all memories
     - Always verify dynamic data with tools
 
-    **Think Step by Step**s
+    **Think Step by Step**
     `;
 
 export const RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
@@ -94,7 +93,7 @@ Since this is a retry attempt:
 When inputs are missing:
 - Return a JSON:
 {{
-    missing : [name of missing inputs]
+    "missing": ["name_of_missing_inputs"]
 }}
 
 The Memory is separated in 2 entities:
@@ -138,7 +137,7 @@ Depending on the message step type:
 When context is insufficient:
 - Return a JSON:
 {{
-    missing : [missings values to generate your step]
+    "missing": ["missing_values_to_generate_step"]
 }}
 
 The Memory is separated into 2 entities:
@@ -209,7 +208,7 @@ Depending on the message step type:
 When context is insufficient:
 - Return a JSON:
 {{
-    missing : [missing values to generate your step]
+    "missing": ["missing_values_to_generate_step"]
 }}
 
 The Memory is separated into 2 entities:

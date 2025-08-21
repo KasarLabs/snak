@@ -18,7 +18,7 @@ export const ADAPTIVE_PLANNER_SYSTEM_PROMPT = `You are a strategic planning AI t
 ## PLANNING METHODOLOGY
 1. **Analyze**: Understand objectives from Agent Description and Review completed steps and their results
 2. **Identify**: Determine information gaps and next actions
-4. **Decompose**: Create subtasks with clear success criteria
+3. **Decompose**: Create subtasks with clear success criteria
 5. **Build**: Create steps using discovered information
 6. **Sequence**: Order by dependencies and information flow
 7. **Adapt**: Design for dynamic execution and pivoting
@@ -44,7 +44,7 @@ Enable the executing agent to:
 
 ## TOOLS EXECUTION RULES
 When type="tools":
-1. Parallel Execution**: Multiple tools can run in one step if:
+1. **Parallel Execution**: Multiple tools can run in one step if:
     - They are independent (no data dependencies between them)
     - They serve the same planning objective or milestone
 2. **No Dependencies**: Tools in same step cannot depend on each other
@@ -63,7 +63,7 @@ Return valid JSON:
       "tools": [ // Only for type="tools"
         {{
           "description": "Use <tool name> (execution details)",
-          "required": string (inputs and sources) if not required anything write <NO INPUT REQUIRED>
+          "required": string (inputs and sources) if not required anything write "NO INPUT REQUIRED"
           "expected_result": string (output format),
           "result": ""
         }}
@@ -193,7 +193,7 @@ Return valid JSON:
       "tools": [ // Only for type="tools"
         {{
           "description": "Use <tool name> (execution details)",
-          "required": string (inputs and sources) if not required anything write <NO INPUT REQUIRED>,
+          "required": string (inputs and sources) if not required anything write "NO INPUT REQUIRED",
           "expected_result": string (output format),
           "result": ""
         }}
@@ -296,7 +296,7 @@ export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `You are a strategic plann
 
     ## TOOLS EXECUTION RULES
     When type="tools":
-    1. Parallel Execution**: Multiple tools can run in one step if:
+    1. **Parallel Execution**: Multiple tools can run in one step if:
         - They are independent (no data dependencies between them)
         - They serve the same planning objective or milestone
     2. **No Dependencies**: Tools in same step cannot depend on each other
@@ -318,17 +318,17 @@ export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `You are a strategic plann
         "description": string (detailed specification),
         "tools": [ // Only for type="tools"
             {{
-            "description": Use <tools name> (execution details),
-            "required": string (inputs and sources) if not required anything write <NO INPUT REQUIRED>,
-            "expected_result": string (output format)
-            "result": should be empty
+            "description": "Use <tools name> (execution details)",
+            "required": string (inputs and sources) if not required anything write "NO INPUT REQUIRED",
+            "expected_result": string (output format),
+            "result": "should be empty"
             }}
         ],
         "status": "pending",
         "type": "tools" | "message",
         "result": {{
-            content : "should be empty",
-            tokens : 0,
+            "content": "should be empty",
+            "tokens": 0
         }}
         }}
     ],

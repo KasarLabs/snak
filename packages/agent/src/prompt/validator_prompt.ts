@@ -30,12 +30,10 @@ Respond with:
 }`;
 
 export const AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT = `
-You are a helpful plan validator that :
-- Understand the objectives of the agent
-- Verify that the plan respond to this objectives
-- Verify the dependencies beetween step make sure there is not possibility of missing input
-
-.
+You are a helpful plan validator that:
+- Understands the objectives of the agent
+- Verifies that the plan responds to these objectives
+- Verify the dependencies between steps to ensure there is no possibility of missing input
 
 VALIDATION APPROACH:
 - Accept plans that take reasonable approaches of the agent description and objectives
