@@ -1,6 +1,5 @@
 import { getMcpAgentTools } from '../../mcp-agent/mcpAgentTools.js';
 
-// Mock unique pour @snakagent/core
 jest.mock('@snakagent/core', () => ({
   logger: {
     error: jest.fn(),
@@ -10,17 +9,14 @@ jest.mock('@snakagent/core', () => ({
   },
 }));
 
-// Mock unique pour MCP_CONTROLLER
 jest.mock('../../../../services/mcp/src/mcp.js', () => ({
   MCP_CONTROLLER: jest.fn(),
 }));
 
-// Mock unique pour la base de données
 jest.mock('@snakagent/database', () => ({
   Postgres: { Query: jest.fn(), query: jest.fn() },
 }));
 
-// Mock unique pour OperatorRegistry
 jest.mock('../../operatorRegistry.js', () => ({
   OperatorRegistry: { getInstance: jest.fn(() => ({ getAgent: jest.fn() })) },
 }));
@@ -37,7 +33,6 @@ describe('mcpAgentTools', () => {
   let mockOperatorRegistry: any;
   let tools: any[];
 
-  // Helpers utilitaires
   const makeResponse = {
     ok: (data: any) => ({
       ok: true,
@@ -65,7 +60,6 @@ describe('mcpAgentTools', () => {
     },
   };
 
-  // Factory functions pour les fixtures
   const makeAgent = (overrides: any = {}) => ({
     id: 'test-agent',
     name: 'Test Agent',

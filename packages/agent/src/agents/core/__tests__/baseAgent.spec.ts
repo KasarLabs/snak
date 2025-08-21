@@ -8,7 +8,6 @@ import {
 import { BaseMessage } from '@langchain/core/messages';
 import { StreamChunk } from '../types.js';
 
-// Mock minimal du logger
 jest.mock('@snakagent/core', () => ({
   logger: {
     debug: jest.fn(),
@@ -17,18 +16,6 @@ jest.mock('@snakagent/core', () => ({
     info: jest.fn(),
   },
 }));
-
-// Factory functions pour les fixtures
-const makeAgent = (
-  overrides: Partial<{ id: string; type: AgentType; description?: string }> = {}
-) => {
-  const defaults = {
-    id: 'test-agent',
-    type: AgentType.OPERATOR,
-    description: 'Test agent',
-  };
-  return { ...defaults, ...overrides };
-};
 
 const makeMessage = (overrides: Partial<AgentMessage> = {}) => {
   const defaults = {

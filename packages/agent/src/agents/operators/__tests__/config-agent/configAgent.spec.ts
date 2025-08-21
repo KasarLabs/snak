@@ -5,7 +5,6 @@ import {
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentType } from '../../../core/baseAgent.js';
 
-// Mocks consolidés - un seul par package
 jest.mock('../../../core/baseAgent.js', () => ({
   BaseAgent: jest.fn().mockImplementation(function (
     id: string,
@@ -87,7 +86,6 @@ describe('ConfigurationAgent', () => {
   let mockCreateReactAgent: any;
   let mockReactAgent: any;
 
-  // Factories et helpers
   const makeAgent = async (init = true, cfg?: ConfigurationAgentConfig) => {
     agent = new ConfigurationAgent(cfg);
     if (init) {

@@ -142,7 +142,6 @@ pluginConfigs.forEach(({ name, mock: moduleMock }) => {
   });
 });
 
-// Mock the error plugin separately since it needs special handling
 jest.mock(
   '@snakagent/plugin-error/dist/index.js',
   () => {
@@ -455,7 +454,6 @@ describe('Integration', () => {
     ]);
     expect(result).toHaveLength(1);
     expect(result[0]).toHaveProperty('name', 'mockSignatureTool');
-    // LangChain tools always have a schema, so we check that it's the default one
     expect(result[0]).toHaveProperty('schema');
   });
 });

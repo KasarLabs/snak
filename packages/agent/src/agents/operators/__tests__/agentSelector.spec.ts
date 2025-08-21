@@ -1,7 +1,6 @@
 import { AgentSelector } from '../agentSelector.js';
 import { agentSelectorPromptContent } from '../../../prompt/prompts.js';
 
-// Mock the prompts with .js suffix for ESM compatibility
 jest.mock('../../../prompt/prompts.js', () => ({
   agentSelectorPromptContent: jest.fn(
     (agentInfo, input) =>

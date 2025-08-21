@@ -1,4 +1,3 @@
-// Single mock per package - consolidated
 jest.mock('@snakagent/database/queries', () => ({
   rag: {
     init: jest.fn().mockResolvedValue(undefined),

@@ -78,7 +78,6 @@ import {
   AgentConfigSQL,
 } from '../graph.js';
 
-// Test interface that allows string values for memory/rag during parsing tests
 type TestAgentConfig = Omit<AgentConfigSQL, 'memory' | 'rag'> & {
   memory: AgentConfigSQL['memory'] | string;
   rag: AgentConfigSQL['rag'] | string;
@@ -361,13 +360,12 @@ describe('Graph Module', () => {
   describe('Parsing edge cases and error handling', () => {
     it('should handle malformed memory config gracefully', async () => {
       const malformedConfig = makeAgentConfig({
-        memory: '(t,invalid_number,20)', // This will result in NaN for short_term_memory_size
+        memory: '(t,invalid_number,20)',
       });
       mockPostgres.query.mockResolvedValue([malformedConfig]);
 
       const result = await createAgentById('test-agent-id');
 
-      // The parsing should handle this gracefully, resulting in NaN values
       expect(result.config.memory.short_term_memory_size).toBeNaN();
       expect(result.config.memory.memory_size).toBe(20);
       expect(result.config.memory.enabled).toBe(true);
@@ -375,26 +373,24 @@ describe('Graph Module', () => {
 
     it('should handle malformed RAG config gracefully', async () => {
       const malformedConfig = makeAgentConfig({
-        rag: '(invalid_boolean,"embed")', // This will result in enabled: false due to falsy check
+        rag: '(invalid_boolean,"embed")',
       });
       mockPostgres.query.mockResolvedValue([malformedConfig]);
 
       const result = await createAgentById('test-agent-id');
 
-      // The parsing should handle this gracefully
       expect(result.config.rag.enabled).toBe(false);
       expect(result.config.rag.embedding_model).toBe('embed');
     });
 
     it('should handle empty string memory config', async () => {
       const emptyConfig = makeAgentConfig({
-        memory: '()', // Empty tuple
+        memory: '()',
       });
       mockPostgres.query.mockResolvedValue([emptyConfig]);
 
       const result = await createAgentById('test-agent-id');
 
-      // Should handle empty config gracefully
       expect(result.config.memory.enabled).toBe(false);
       expect(result.config.memory.short_term_memory_size).toBeNaN();
       expect(result.config.memory.memory_size).toBe(20); // Default value
@@ -408,7 +404,6 @@ describe('Graph Module', () => {
 
       const result = await createAgentById('test-agent-id');
 
-      // Should handle empty config gracefully
       expect(result.config.rag.enabled).toBe(false);
       expect(result.config.rag.embedding_model).toBe(null);
     });

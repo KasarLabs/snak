@@ -15,43 +15,18 @@ jest.mock('@snakagent/core', () => ({
   },
 }));
 
-jest.mock('../../../config-agent/tools/normalizeAgentValues.js', () => ({
-  normalizeNumericValues: jest.fn(),
-}));
-
 describe('createAgentTool', () => {
   let mockPostgres: any;
   let mockLogger: any;
-  let mockNormalize: any;
 
   const setupMocks = () => {
     mockPostgres = require('@snakagent/database').Postgres;
     mockLogger = require('@snakagent/core').logger;
-    mockNormalize =
-      require('../../../config-agent/tools/normalizeAgentValues.js').normalizeNumericValues;
 
     mockPostgres.Query.mockImplementation((query: string, params: any[]) => ({
       query,
       params,
     }));
-    mockNormalize.mockReturnValue({
-      normalizedConfig: {
-        interval: 5,
-        max_iterations: 15,
-        mode: 'interactive',
-        memory: {
-          enabled: false,
-          shortTermMemorySize: 5,
-          memorySize: 20,
-        },
-        rag: {
-          enabled: false,
-          topK: 4,
-          embeddingModel: 'Xenova/all-MiniLM-L6-v2',
-        },
-      },
-      appliedDefaults: [],
-    });
   };
 
   const mkRow = (overrides = {}) => ({
@@ -104,7 +79,7 @@ describe('createAgentTool', () => {
           5,
           20,
           false,
-          null,
+          'Xenova/all-MiniLM-L6-v2',
           'interactive',
           15,
         ],
@@ -134,7 +109,7 @@ describe('createAgentTool', () => {
           5,
           20,
           false,
-          null,
+          'Xenova/all-MiniLM-L6-v2',
           'interactive',
           15,
         ],
@@ -167,26 +142,6 @@ describe('createAgentTool', () => {
         max_iterations: 10,
       };
 
-      // Mock normalizeNumericValues to return the input values
-      mockNormalize.mockReturnValue({
-        normalizedConfig: {
-          interval: 300,
-          max_iterations: 10,
-          mode: 'autonomous',
-          memory: {
-            enabled: true,
-            shortTermMemorySize: 50,
-            memorySize: 100,
-          },
-          rag: {
-            enabled: true,
-            topK: 4,
-            embeddingModel: 'model',
-          },
-        },
-        appliedDefaults: [],
-      });
-
       mockPostgres.query.mockResolvedValue([mkRow()]);
 
       await createAgentTool.func(input);
@@ -215,24 +170,6 @@ describe('createAgentTool', () => {
     });
 
     it('should use normalized values from normalizeNumericValues', async () => {
-      mockNormalize.mockReturnValue({
-        normalizedConfig: {
-          interval: 10,
-          max_iterations: 25,
-          mode: 'interactive',
-          memory: {
-            enabled: false,
-            shortTermMemorySize: 15,
-            memorySize: 50,
-          },
-          rag: {
-            enabled: false,
-            topK: 4,
-            embeddingModel: 'Xenova/all-MiniLM-L6-v2',
-          },
-        },
-        appliedDefaults: ['interval set to 10', 'max_iterations set to 25'],
-      });
       mockPostgres.query.mockResolvedValue([mkRow()]);
 
       await createAgentTool.func({
@@ -241,14 +178,9 @@ describe('createAgentTool', () => {
         description: 'test',
       });
 
-      expect(mockNormalize).toHaveBeenCalledWith({
-        name: 'test',
-        group: 'test',
-        description: 'test',
-      });
       expect(mockPostgres.Query).toHaveBeenCalledWith(
         expect.any(String),
-        expect.arrayContaining([10, 15, 50, 25])
+        expect.arrayContaining([5, 5, 20, 15])
       );
     });
 
@@ -276,11 +208,15 @@ describe('createAgentTool', () => {
           '',
           null,
           null,
+          5,
+          null,
           false,
           5,
           20,
           false,
-          null,
+          'Xenova/all-MiniLM-L6-v2',
+          'interactive',
+          15,
         ])
       );
     });
@@ -300,28 +236,13 @@ describe('createAgentTool', () => {
 
       expect(parsed.success).toBe(true);
       expect(parsed.data).toEqual(mockRow);
-      expect(parsed.message).toBe('Agent "success-agent" created successfully');
+      expect(parsed.message).toContain(
+        'Agent "success-agent" created successfully'
+      );
+      expect(parsed.message).toContain('Note:');
     });
 
     it('should include appliedDefaults in message when present', async () => {
-      mockNormalize.mockReturnValue({
-        normalizedConfig: {
-          interval: 5,
-          max_iterations: 15,
-          mode: 'interactive',
-          memory: {
-            enabled: false,
-            shortTermMemorySize: 5,
-            memorySize: 20,
-          },
-          rag: {
-            enabled: false,
-            topK: 4,
-            embeddingModel: 'Xenova/all-MiniLM-L6-v2',
-          },
-        },
-        appliedDefaults: ['interval set to 5', 'max_iterations set to 15'],
-      });
       mockPostgres.query.mockResolvedValue([mkRow()]);
 
       const result = await createAgentTool.func({
@@ -331,9 +252,18 @@ describe('createAgentTool', () => {
       });
       const parsed = asJson(result);
 
+      expect(parsed.message).toContain('Note:');
+      expect(parsed.message).toContain('interval set to default value (5)');
       expect(parsed.message).toContain(
-        'Note: interval set to 5; max_iterations set to 15'
+        'max_iterations set to default value (15)'
       );
+      expect(parsed.message).toContain(
+        'mode set to default value (interactive)'
+      );
+      expect(parsed.message).toContain(
+        'memory initialized with default values'
+      );
+      expect(parsed.message).toContain('rag initialized with default values');
     });
   });
 
@@ -410,26 +340,6 @@ describe('createAgentTool', () => {
         },
       };
 
-      // Mock normalizeNumericValues to return the input values
-      mockNormalize.mockReturnValue({
-        normalizedConfig: {
-          interval: 5,
-          max_iterations: 15,
-          mode: 'interactive',
-          memory: {
-            enabled: true,
-            shortTermMemorySize: 999,
-            memorySize: 1000,
-          },
-          rag: {
-            enabled: true,
-            topK: 4,
-            embeddingModel: 'very-long-model-name-with-special-chars',
-          },
-        },
-        appliedDefaults: [],
-      });
-
       mockPostgres.query.mockResolvedValue([mkRow()]);
 
       await createAgentTool.func(complexInput);
@@ -441,9 +351,12 @@ describe('createAgentTool', () => {
           complexInput.objectives,
           complexInput.knowledge,
           complexInput.plugins,
-          true, // memory.enabled from normalizedConfig
-          true, // rag.enabled from normalizedConfig
-          'very-long-model-name-with-special-chars', // rag.embeddingModel from normalizedConfig
+          true,
+          true,
+          'very-long-model-name-with-special-chars',
+          5,
+          'interactive',
+          15,
         ])
       );
     });
