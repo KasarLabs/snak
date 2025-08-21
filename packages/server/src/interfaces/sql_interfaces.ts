@@ -41,4 +41,5 @@ export interface AgentConfigSQL {
   rag: AgentRagSQL;
   mode: AgentMode;
   max_iterations: number;
+  mcpServers: Record<string, any>;
 }
