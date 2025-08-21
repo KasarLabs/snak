@@ -17,7 +17,14 @@ import {
   AutonomousGraphState,
 } from 'agents/modes/autonomous.js';
 import { MemoryGraph, MemoryState } from 'agents/modes/sub-graph/memory.js';
-import { Agent, Memories } from '../../agents/modes/types/index.js';
+import {
+  Agent,
+  Memories,
+  MemoryOperationResult,
+} from '../../agents/modes/types/index.js';
+import { MemoryDBManager } from '../modes/utils/memory-db-manager.js';
+import { MemoryStateManager, LTMManager } from '../modes/utils/memory-utils.js';
+import { DEFAULT_AUTONOMOUS_CONFIG } from '../../agents/modes/config/autonomous-config.js';
 export interface MemoryChainResult {
   memories: string;
 }
@@ -43,6 +50,8 @@ export interface MemoryConfig {
   maxIterations?: number;
   embeddingModel?: string;
   isAutonomous?: boolean;
+  maxRetries?: number;
+  operationTimeoutMs?: number;
 }
 
 /**
@@ -55,6 +64,7 @@ export class MemoryAgent extends BaseAgent {
   private initialized: boolean = false;
   private isAutonomous: boolean;
   private agentConfig: AgentConfig;
+  private dbManager: MemoryDBManager | null = null;
 
   constructor(config: MemoryConfig, agentConfig?: AgentConfig) {
     super('memory-agent', AgentType.OPERATOR);
@@ -84,13 +94,29 @@ export class MemoryAgent extends BaseAgent {
    */
   public async init(): Promise<void> {
     try {
-      logger.debug('MemoryAgent: Starting initialization');
+      logger.debug('[MemoryAgent] Starting initialization');
       await this.initializeMemoryDB();
+
+      // Initialize database manager with improved error handling
+      this.dbManager = new MemoryDBManager(
+        this.embeddings,
+        this.config.maxRetries || 3,
+        this.config.operationTimeoutMs || 5000
+      );
+
+      // Perform health check
+      const isHealthy = await this.dbManager.healthCheck();
+      if (!isHealthy) {
+        logger.warn(
+          '[MemoryAgent] Database health check failed, proceeding with degraded functionality'
+        );
+      }
+
       this.createMemoryTools();
       this.initialized = true;
-      logger.debug('MemoryAgent: Initialized successfully');
+      logger.debug('[MemoryAgent] ✅ Initialized successfully');
     } catch (error) {
-      logger.error(`MemoryAgent: Initialization failed: ${error}`);
+      logger.error(`[MemoryAgent] ❌ Initialization failed: ${error}`);
       throw new Error(`MemoryAgent initialization failed: ${error}`);
     }
   }
@@ -138,11 +164,59 @@ export class MemoryAgent extends BaseAgent {
     userId: string,
     memorySize?: number
   ): Promise<string> {
-    logger.debug(`MemoryAgent: Upserting memory for user ${userId}`);
+    try {
+      if (!this.dbManager) {
+        // Fallback to original implementation if dbManager is not available
+        return await this.legacyUpsertMemory(
+          content,
+          memories_id,
+          query,
+          userId,
+          memorySize
+        );
+      }
+
+      logger.debug(
+        `[MemoryAgent] Upserting memory ${memories_id} for user ${userId}`
+      );
+
+      const result = await this.dbManager.upsertMemory(
+        content,
+        memories_id,
+        query,
+        userId,
+        memorySize
+      );
+
+      if (result.success) {
+        return result.data || `Memory ${memories_id} updated successfully`;
+      } else {
+        throw new Error(result.error || 'Unknown error during memory upsert');
+      }
+    } catch (error) {
+      logger.error(`[MemoryAgent] ❌ Memory upsert failed: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy upsert implementation for fallback
+   */
+  private async legacyUpsertMemory(
+    content: string,
+    memories_id: string,
+    query: string,
+    userId: string,
+    memorySize?: number
+  ): Promise<string> {
+    logger.debug(`[MemoryAgent] Using legacy upsert for user ${userId}`);
     const embedding = await this.embeddings.embedQuery(content);
-    const metadata = { timestamp: new Date().toISOString() };
+    const metadata: memory.Metadata = {
+      timestamp: new Date().toISOString(),
+      upsertedAt: Date.now(),
+    };
     const limit = memorySize ?? this.config.memorySize;
-    logger.debug('Inserting');
+
     await memory.insert_memory({
       user_id: userId,
       memories_id: memories_id,
@@ -340,19 +414,58 @@ export class MemoryAgent extends BaseAgent {
     const chain = this.createMemoryChain();
     return async (
       state: typeof MemoryState.State,
-      config: RunnableConfig<typeof AutonomousConfigurableAnnotation>
+      config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
     ): Promise<{ memories: Memories; last_agent: Agent }> => {
       try {
-        logger.debug('MEMORY NODE STARTING');
+        logger.debug('[MemoryNode] Starting memory context retrieval');
+
+        // Validate current state
+        if (!MemoryStateManager.validate(state.memories)) {
+          logger.error('[MemoryNode] Invalid memory state detected');
+          return {
+            memories: MemoryStateManager.createInitialState(
+              config.configurable?.memory_size ||
+                DEFAULT_AUTONOMOUS_CONFIG.memorySize
+            ),
+            last_agent: Agent.MEMORY_MANAGER,
+          };
+        }
+
         const result = await chain.invoke(state, config);
-        logger.debug(`MEMORY FOUND : ${JSON.stringify(result)}`);
+        logger.debug(
+          `[MemoryNode] Retrieved memory context: ${result.memories?.length || 0} chars`
+        );
+
+        // Update LTM context safely
+        const updatedMemories = MemoryStateManager.updateLTM(
+          state.memories,
+          result.memories || '',
+          [], // Memory IDs would be extracted from the chain result
+          0.8 // Default relevance score
+        );
+
         return {
-          memories: { stm: state.memories.stm, ltm: result.memories },
+          memories: updatedMemories,
           last_agent: Agent.MEMORY_MANAGER,
         };
       } catch (error) {
-        logger.error('Error retrieving memories:', error);
-        return { memories: state.memories, last_agent: Agent.MEMORY_MANAGER };
+        logger.error(`[MemoryNode] ❌ Error retrieving memories: ${error}`);
+
+        // Return safe fallback with error information
+        const fallbackMemories: Memories = {
+          ...state.memories,
+          ltm: LTMManager.markStale(state.memories.ltm),
+          lastError: {
+            type: 'MEMORY_RETRIEVAL_ERROR',
+            message: error.message,
+            timestamp: Date.now(),
+          },
+        };
+
+        return {
+          memories: fallbackMemories,
+          last_agent: Agent.MEMORY_MANAGER,
+        };
       }
     };
   }
@@ -366,31 +479,15 @@ export class MemoryAgent extends BaseAgent {
     limit = 5
   ): Runnable<typeof MemoryState.State, MemoryChainResult> {
     const buildQuery = (state: typeof AutonomousGraphState.State) => {
-      if (this.isAutonomous) {
-        console.log(
-          'hello',
-          state.plan.steps[state.currentStepIndex].description
-        );
-        const lastMessage =
-          state.plan.steps[state.currentStepIndex].description;
-        return lastMessage;
-      }
-      const lastUser = [...state.messages]
-        .reverse()
-        .find((msg: BaseMessage) => msg instanceof HumanMessage);
-      return lastUser
-        ? typeof lastUser.content === 'string'
-          ? lastUser.content
-          : JSON.stringify(lastUser.content)
-        : (state.messages[0]?.content as string);
+      const currentStep = state.plan.steps[state.currentStepIndex];
+      return `${currentStep.stepName} : ${currentStep.description} `;
     };
 
     const fetchMemories = async (
       query: string,
       config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
     ): Promise<string> => {
-      console.log('Fetch');
-      console.log(config.metadata);
+      console.log('FetchMemories');
       const userId = config?.metadata?.run_id as string;
       console.log(userId);
       const embedding = await this.embeddings.embedQuery(query);

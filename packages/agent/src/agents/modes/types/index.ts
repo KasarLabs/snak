@@ -16,9 +16,64 @@ export interface AgentReturn {
 // TYPES & INTERFACES
 // ============================================
 
+// ============================================
+// IMPROVED MEMORY INTERFACES
+// ============================================
+
+/**
+ * Individual memory item with immutable structure
+ */
+export interface MemoryItem {
+  readonly content: string;
+  readonly memories_id: string;
+  readonly timestamp: number;
+  readonly metadata?: Record<string, any>;
+}
+
+/**
+ * Circular buffer for STM with O(1) operations
+ */
+export interface CircularSTM {
+  readonly items: readonly (MemoryItem | null)[];
+  readonly maxSize: number;
+  readonly head: number; // Next insert position
+  readonly size: number; // Current number of items
+  readonly totalInserted: number; // Total items ever inserted
+}
+
+/**
+ * Long-term memory context with metadata
+ */
+export interface LTMContext {
+  readonly context: string;
+  readonly retrievedAt: number;
+  readonly relevanceScore: number;
+  readonly memoryIds: readonly string[];
+  readonly isStale: boolean;
+}
+
+/**
+ * Comprehensive memory state - IMMUTABLE
+ */
 export interface Memories {
-  ltm: string;
-  stm: [{ content: string; memories_id: string }];
+  readonly stm: CircularSTM;
+  readonly ltm: LTMContext;
+  readonly isProcessing: boolean;
+  readonly lastError?: {
+    readonly type: string;
+    readonly message: string;
+    readonly timestamp: number;
+  };
+}
+
+/**
+ * Memory operation result for safe operations
+ */
+export interface MemoryOperationResult<T> {
+  readonly success: boolean;
+  readonly data?: T;
+  readonly error?: string;
+  readonly timestamp: number;
 }
 
 export interface ToolInfo {

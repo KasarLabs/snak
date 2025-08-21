@@ -6,7 +6,7 @@ import {
   StateGraph,
   CompiledStateGraph,
 } from '@langchain/langgraph';
-import { Agent, Memories, ParsedPlan } from '../types/index.js';
+import { Agent, Memories, ParsedPlan, MemoryOperationResult } from '../types/index.js';
 import { formatStepsForSTM } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { z } from 'zod';
@@ -18,6 +18,13 @@ import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import { PLANNER_ORCHESTRATOR } from '../types/index.js';
 import { MemoryNode, DEFAULT_AUTONOMOUS_CONFIG } from '../config/autonomous-config.js';
+import { 
+  MemoryStateManager,
+  STMManager,
+  LTMManager,
+  formatSTMForContext
+} from '../utils/memory-utils.js';
+import { MemoryDBManager } from '../utils/memory-db-manager.js';
 export type MemoryStateType = typeof MemoryState.State;
 
 let summarize_prompt = `
@@ -56,7 +63,9 @@ export class MemoryGraph {
   private agentConfig: AgentConfig;
   private modelSelector: ModelSelector | null;
   private memoryAgent: MemoryAgent;
+  private memoryDBManager: MemoryDBManager | null = null;
   private graph: any;
+  
   constructor(
     agentConfig: AgentConfig,
     modelSelector: ModelSelector | null,
@@ -65,6 +74,12 @@ export class MemoryGraph {
     this.modelSelector = modelSelector;
     this.agentConfig = agentConfig;
     this.memoryAgent = memoryAgent;
+    
+    // Initialize DB manager if embeddings are available
+    const embeddings = memoryAgent.getEmbeddings();
+    if (embeddings) {
+      this.memoryDBManager = new MemoryDBManager(embeddings, 3, 8000);
+    }
   }
 
   private async stm_manager(
@@ -74,100 +89,137 @@ export class MemoryGraph {
     memories: Memories;
   }> {
     try {
-      logger.debug('STM Manager processing');
+      logger.debug('[STMManager] Processing memory update');
       
       const stmSize = config.configurable?.short_term_memory ?? DEFAULT_AUTONOMOUS_CONFIG.shortTermMemory;
-      const stm = state.memories.stm || [];
-      const new_message = formatStepsForSTM(
-        state.plan.steps[state.currentStepIndex]
-      );
+      const currentStep = state.plan.steps[state.currentStepIndex];
       
-      // Maintain STM size limit
-      if (stm && stm.length >= stmSize) {
-        stm.shift();
+      if (!currentStep) {
+        logger.warn('[STMManager] No current step found, returning unchanged memories');
+        return { memories: state.memories };
       }
       
-      stm.push({ content: new_message, memories_id: uuidv4() });
-      logger.debug(`STM updated with ${stm.length} items (max: ${stmSize})`);
+      const newMessage = formatStepsForSTM(currentStep);
       
-      const memories: Memories = {
-        stm: stm,
-        ltm: state.memories.ltm,
+      // Use safe STM operations with O(1) complexity
+      const result = MemoryStateManager.addSTMMemory(
+        state.memories,
+        newMessage,
+      );
+      
+      if (!result.success) {
+        logger.error(`[STMManager] Failed to add memory: ${result.error}`);
+        return { memories: result.data || state.memories };
+      }
+      
+      const updatedMemories = result.data!;
+      logger.debug(
+        `[STMManager] ✅ Memory updated. STM size: ${updatedMemories.stm.size}/${updatedMemories.stm.maxSize}`
+      );
+      
+      return { memories: updatedMemories };
+      
+    } catch (error) {
+      logger.error(`[STMManager] ❌ Critical error in STM processing: ${error}`);
+      
+      // Return safe fallback state
+      const fallbackMemories: Memories = {
+        ...state.memories,
+        lastError: {
+          type: 'STM_PROCESSING_ERROR',
+          message: error.message,
+          timestamp: Date.now(),
+        },
       };
       
-      return { memories };
-    } catch (error) {
-      logger.error(`[STM Manager] Failed to update short-term memory: ${error}`);
-      // Return unchanged memories on error
-      return { memories: state.memories };
+      return { memories: fallbackMemories };
     }
   }
 
   private async ltm_manager(
     state: typeof MemoryState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ): Promise<{}> {
+  ): Promise<{ memories? : Memories}> {
     try {
-      logger.debug('LTM Manager processing');
+      logger.debug('[LTMManager] Processing long-term memory update');
       
-      const model = this.modelSelector?.getModels()['fast'];
-      if (!model) {
-        throw new Error('Model not found in ModelSelector');
+      // Skip LTM processing for initial step
+      if (state.currentStepIndex === 0) {
+        logger.debug('[LTMManager] Skipping LTM for initial step');
+        return {};
       }
       
-      if (state.currentStepIndex === 0) {
-        logger.debug('Skipping LTM for initial step');
+      // Validate prerequisites
+      if (!this.modelSelector || !this.memoryDBManager) {
+        logger.warn('[LTMManager] Missing dependencies, skipping LTM processing');
         return {};
+      }
+      
+      const model = this.modelSelector.getModels()['fast'];
+      if (!model) {
+        throw new Error('Fast model not available for LTM processing');
       }
       
       const currentStepIndex = state.currentStepIndex - 1;
-      const current_step = state.plan.steps[currentStepIndex];
+      const currentStep = state.plan.steps[currentStepIndex];
       
-      if (!current_step) {
-        logger.warn(`No step found at index ${currentStepIndex}`);
+      if (!currentStep) {
+        logger.warn(`[LTMManager] No step found at index ${currentStepIndex}`);
         return {};
       }
       
-      const structured_output = z.object({
-        summarize: z.string().describe('the summarization of the response.'),
+      // Generate summary using structured output
+      const summarySchema = z.object({
+        summarize: z.string().min(10).max(500).describe('Concise summary of the step execution and result'),
+        relevance: z.number().min(0).max(1).describe('Relevance score for this memory (0-1)'),
       });
-
-      type structured_output_type = z.infer<typeof structured_output>;
-
-      const strucutred_model = model.withStructuredOutput(structured_output);
-      const s_prompt = ChatPromptTemplate.fromMessages([
+      
+      const structuredModel = model.withStructuredOutput(summarySchema);
+      const prompt = ChatPromptTemplate.fromMessages([
         ['system', summarize_prompt],
       ]);
-
-      const structured_result = (await strucutred_model.invoke(
-        await s_prompt.formatMessages({
-          response: formatStepsForSTM(current_step),
-        })
-      )) as structured_output_type;
-
-      logger.debug(`Summarized response for LTM: ${JSON.stringify(structured_result)}`);
       
-      // Safely access STM with error handling
-      const lastSTMItem = state.memories.stm?.[state.memories.stm.length - 1];
-      if (!lastSTMItem) {
-        logger.warn('No STM item found for LTM upsert');
+      const summaryResult = await structuredModel.invoke(
+        await prompt.formatMessages({
+          response: formatStepsForSTM(currentStep),
+        })
+      );
+      
+      logger.debug(`[LTMManager] Generated summary: ${JSON.stringify(summaryResult)}`);
+      
+      const recentMemories = STMManager.getRecentMemories(state.memories.stm, 1);
+      if (recentMemories.length === 0) {
+        logger.warn('[LTMManager] No recent STM items available for LTM upsert');
         return {};
       }
       
-      // Perform memory upsert with error handling
-      await this.memoryAgent.upsertMemory(
-        structured_result.summarize,
+      const lastSTMItem = recentMemories[0];
+      const userId = config.metadata?.run_id as string;
+      
+      if (!userId) {
+        logger.warn('[LTMManager] No user ID available, skipping LTM upsert');
+        return {};
+      }
+      
+      // Perform safe memory upsert with improved error handling
+      const upsertResult = await this.memoryDBManager.upsertMemory(
+        summaryResult.summarize,
         lastSTMItem.memories_id,
-        `${current_step.stepName}: ${current_step.description}`,
-        config.metadata?.run_id as string,
-        10
+        `${currentStep.stepName}: ${currentStep.description}`,
+        userId,
+        config.configurable?.memory_size || 20
       );
       
-      logger.debug('LTM upsert completed successfully');
+      if (upsertResult.success) {
+        logger.debug(`[LTMManager] ✅ Successfully upserted memory for step ${currentStepIndex + 1}`);
+      } else {
+        logger.warn(`[LTMManager] ⚠️ Failed to upsert memory: ${upsertResult.error}`);
+      }
+      
       return {};
+      
     } catch (error) {
-      logger.error(`[LTM Manager] Failed to process long-term memory: ${error}`);
-      // Don't throw - allow graph to continue
+      logger.error(`[LTMManager] ❌ Critical error in LTM processing: ${error}`);
       return {};
     }
   }
@@ -176,15 +228,37 @@ export class MemoryGraph {
     state: typeof MemoryState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): MemoryNode {
-    logger.debug(`[Memory Router] Last agent: ${state.last_agent}`);
+    const lastAgent = state.last_agent;
+    logger.debug(`[MemoryRouter] Routing from agent: ${lastAgent}`);
     
-    if (state.last_agent === Agent.PLANNER_VALIDATOR) {
-      return MemoryNode.RETRIEVE_MEMORY;
+    // Validate memory state
+    if (!MemoryStateManager.validate(state.memories)) {
+      logger.error('[MemoryRouter] Invalid memory state detected, routing to end');
+      return MemoryNode.END;
     }
-    if (state.last_agent === Agent.EXEC_VALIDATOR) {
-      return MemoryNode.STM_MANAGER;
+    
+    // Route based on previous agent and current state
+    switch (lastAgent) {
+      case Agent.PLANNER_VALIDATOR:
+        // After plan validation, retrieve relevant context
+        logger.debug('[MemoryRouter] Plan validated → retrieving memory context');
+        return MemoryNode.RETRIEVE_MEMORY;
+        
+      case Agent.EXEC_VALIDATOR:
+        // After execution validation, update STM
+        logger.debug('[MemoryRouter] Execution validated → updating STM');
+        return MemoryNode.STM_MANAGER;
+        
+      case Agent.MEMORY_MANAGER:
+        // Memory context retrieved, end memory processing
+        logger.debug('[MemoryRouter] Memory context retrieved → ending memory flow');
+        return MemoryNode.END;
+        
+      default:
+        // Fallback to end for unknown agents
+        logger.warn(`[MemoryRouter] Unknown agent ${lastAgent}, routing to end`);
+        return MemoryNode.END;
     }
-    return MemoryNode.END;
   }
   private end_memory_graph(
     state: typeof MemoryState.State,

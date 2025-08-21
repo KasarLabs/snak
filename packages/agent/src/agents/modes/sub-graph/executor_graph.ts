@@ -138,7 +138,7 @@ export class AgentExecutorGraph {
         ? state.last_message[0].content
         : (state.last_message as BaseMessage).content,
       short_term_memory: format_short_term_memory,
-      long_term_memory: '',
+      long_term_memory: state.memories.ltm.context,
       execution_context: execution_context,
     });
 
@@ -218,12 +218,23 @@ export class AgentExecutorGraph {
         state.messages,
         shortTermMemory
       );
-      const result = await this.invokeModelWithMessages(
+
+      // Add simple timeout protection for model calls
+      const modelPromise = this.invokeModelWithMessages(
         state,
         config,
         filteredMessages,
         autonomousSystemPrompt
       );
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Model invocation timeout')), 45000);
+      });
+
+      const result = (await Promise.race([
+        modelPromise,
+        timeoutPromise,
+      ])) as AIMessageChunk;
 
       if (result.tool_calls?.length) {
         return {

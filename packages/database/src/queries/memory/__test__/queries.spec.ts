@@ -47,6 +47,7 @@ describe('Memory table', () => {
       embedding: [...Array(384).keys()],
       metadata: {
         timestamp: 'now',
+        upsertedAt : Date.now(),
       },
       history: [
         {

@@ -50,7 +50,9 @@ import {
   Memories,
   ParsedPlan,
   StepInfo,
+  MemoryOperationResult,
 } from './types/index.js';
+import { MemoryStateManager } from './utils/memory-utils.js';
 import {
   calculateTotalTokenFromSteps,
   createMaxIterationsResponse,
@@ -115,7 +117,7 @@ export const AutonomousGraphState = Annotation.Root({
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
-    default: () => ({ ltm: '', stm: [{ content: '', memories_id: '' }] }),
+    default: () => MemoryStateManager.createInitialState(15),
   }),
   rag: Annotation<string>({
     reducer: (x, y) => y,
@@ -268,7 +270,7 @@ export class AutonomousAgent {
 
     if (state.last_agent === Agent.EXEC_VALIDATOR) {
       if (
-        (state.last_message as BaseMessage).additional_kwargs.final === 'true'
+        (state.last_message as BaseMessage).additional_kwargs.final === true
       ) {
         logger.debug(
           `[Orchestration Router] Final execution reached, routing to planner`
@@ -300,8 +302,6 @@ export class AutonomousAgent {
           checkpointer: this.checkpointer,
         }
       : {};
-
-    // Use validated configuration
     const validatedConfig = ConfigValidator.validate({
       maxGraphSteps: DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps,
       shortTermMemory: DEFAULT_AUTONOMOUS_CONFIG.shortTermMemory,

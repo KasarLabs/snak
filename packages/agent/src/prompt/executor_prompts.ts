@@ -321,7 +321,6 @@ Description: {stepDescription}
 // Rejection: "API endpoint returned 'Service Unavailable' for all RPC calls"
 // Response: "REQUEST_REPLAN: The Starknet RPC endpoint appears to be down. The plan should be adjusted to either wait for service restoration or use alternative data sources."
 
-
 // example 5 - Retry Execution (Missing point in you analyze)
 // Rejection : "summary too superficial"
 // Response : FOLLOW AI MESSAGE MODE

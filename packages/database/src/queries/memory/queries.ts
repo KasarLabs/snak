@@ -251,6 +251,7 @@ export namespace memory {
   // ```
   export interface Metadata {
     timestamp: string;
+    upsertedAt: number;
   }
 
   export interface History {
