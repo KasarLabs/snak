@@ -332,20 +332,20 @@ export function formatShortMemoryMessage(plan: ParsedPlan): string {
           return '';
         }
         const format_response: string[] = [];
-        format_response.push(`Q: [STEP_${step.stepNumber}] ${step.stepName}`);
+        format_response.push(`S${step.stepNumber}:${step.stepName}`);
         format_response.push(`Type: ${step.type}`);
-        format_response.push(`Description : ${step.description}`);
+        format_response.push(`Description: ${step.description}`);
         if (step.type === 'tools') {
           if (step.tools && step.tools.length > 0) {
             step.tools.forEach((tool, index) => {
-              const tool_desc: string = `Tools Description: [TOOLS_${index}] ${tool.description}`;
+              const tool_desc: string = `T${index}:${tool.description}`;
               format_response.push(tool_desc);
-              const tool_result: string = `Tools Result : ${tool.result}`;
+              const tool_result: string = `Result: ${tool.result}`;
               format_response.push(tool_result);
             });
           }
         } else {
-          const tool_result: string = `Message Result : ${step.result}`;
+          const tool_result: string = `Result: ${step.result}`;
           format_response.push(tool_result);
         }
         return format_response;
@@ -361,17 +361,17 @@ export function formatShortMemoryMessage(plan: ParsedPlan): string {
 export function formatExecutionMessage(step: StepInfo): string {
   try {
     const format_response: string[] = [];
-    format_response.push(`Q: [STEP_${step.stepNumber}] ${step.stepName}`);
+    format_response.push(`S${step.stepNumber}:${step.stepName}`);
     format_response.push(`Type: ${step.type}`);
-    format_response.push(`Description : ${step.description}`);
+    format_response.push(`Description: ${step.description}`);
     if (step.type === 'tools') {
       if (step.tools && step.tools.length > 0) {
         step.tools.forEach((tool, index) => {
-          const tool_desc: string = `Tools Description: [TOOLS_${index}] ${tool.description}`;
+          const tool_desc: string = `T${index}:${tool.description}`;
           format_response.push(tool_desc);
-          const tool_required = `Tools Required Input: ${tool.required}`;
+          const tool_required = `Required: ${tool.required}`;
           format_response.push(tool_required);
-          const tool_result = `Tool Exepected Result: ${tool.expected_result}`;
+          const tool_result = `Expected: ${tool.expected_result}`;
           format_response.push(tool_result);
         });
       }
@@ -413,29 +413,22 @@ export function formatToolResponse(
 }
 export function formatValidatorToolsExecutor(step: StepInfo): string {
   try {
+    const header = `S${step.stepNumber}:${step.stepName}`;
     const format_response: string[] = [];
 
-    // Header section
-    format_response.push(`Q: [STEP_${step.stepNumber}] ${step.stepName}`);
+    format_response.push(header);
     format_response.push(`Type: ${step.type}`);
     format_response.push(`Description: ${step.description}`);
 
-    if (step.type === 'tools') {
-      if (step.tools && step.tools.length > 0) {
-        // Tools requirements section
-        format_response.push(`\n=== TOOLS REQUIREMENTS ===`);
+    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+      const toolInfo = step.tools
+        .map((tool, index) => {
+          return `T${index}:${tool.description}\nRequired: ${tool.required || '<NO INPUT REQUIRED>'}\n
+                  Expected: ${tool.expected_result}\nResult: ${tool.result}`;
+        })
+        .join('\n\n');
 
-        step.tools.forEach((tool, index) => {
-          format_response.push(`\n[TOOL_${index}]`);
-          format_response.push(`Description: ${tool.description}`);
-          format_response.push(
-            `Required Input: ${tool.required || '<NO INPUT REQUIRED>'}`
-          );
-          format_response.push(`Expected Result: ${tool.expected_result}`);
-          format_response.push(`\n=== ACTUAL RESPONSE ===`);
-          format_response.push(tool.result);
-        });
-      }
+      format_response.push(`\nTools:\n${toolInfo}`);
     }
     console.log(format_response.join('\n'));
     return format_response.join('\n');
@@ -455,7 +448,7 @@ export function formatStepsForContext(steps: StepInfo[]): string {
           const toolInfo = step.tools
             .map((t, i) => `T${i}:${t.description}`)
             .join('|');
-          return `${header}[${toolInfo}]→${step.result.content}`;
+          return `${header}[${toolInfo}]`;
         }
 
         // For non-tool steps, just show result

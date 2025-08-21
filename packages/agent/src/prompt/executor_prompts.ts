@@ -34,18 +34,18 @@ export const TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
         missing : [name of missings inputs]
     }}
 
-    ### Short-Term Memory (Recent Steps)\
-    Format: S{{n}}:{{action}}[tools]→{{result}}[date]
-    S1:SearchProduct[T0:web_search]→{{"results":3,"topResult":"iPhone 15 Pro"}}[2025-08-21T14:32:15.234Z]
-    S2:FetchDetails[T1:web_fetch]→{{"price":"$999","availability":"in stock"}}[2025-08-21T14:32:15.236Z]
+    ### Short-Term Memory (Recent Steps)
+    Format: S{{n}}:{{action}}[T{{n}}:{{tool_desc}}→{{result}}][{{date}}]
+    S1:SearchProduct[T0:web_search→{{"results":3,"topResult":"iPhone 15 Pro"}}][2025-08-21T14:32:15.234Z]
+    S2:FetchDetails[T0:web_fetch→{{"price":"$999","availability":"in stock"}}][2025-08-21T14:32:15.236Z]
     S3:ComparePrice→{{"bestDeal":"Amazon","savings":"15%"}}[2025-08-21T14:32:15.239Z]
 
     ### Long-Term Memory (User Context)
     Format: M{{id}}[{{relevance}}]@{{date}}:{{content}}
     - M38[0.52]@2024-01-15:Previous sync check returned false
-    - M12[0.91]@unknown:Q:What is chain ID? A:0x534e5f4d41494e
+    - M12[0.91]@unknown:S2:GetChainID→0x534e5f4d41494e
     - Higher relevance = more important (0-1 scale)
-    - Q/A pairs shown inline when applicable
+    - Step format used consistently across all memories
     - Always verify dynamic data with tools
 
     **Think Step by Step**s
@@ -98,8 +98,8 @@ When inputs are missing:
 }}
 
 The Memory is separated in 2 entities:
-short_term_memory : the last messages in a Q/A Format
-long_term_memory : vectorial database research
+short_term_memory: recent steps in SX:format [TX:tool→result][date]
+long_term_memory: vectorial database research
 
 **Think Step by Step**
 `;
@@ -142,8 +142,19 @@ When context is insufficient:
 }}
 
 The Memory is separated into 2 entities:
-short_term_memory: the last messages in a Q/A Format
-long_term_memory: vectorial database research
+    ### Short-Term Memory (Recent Steps)
+    Format: S{{n}}:{{action}}[T{{n}}:{{tool_desc}}→{{result}}][{{date}}]
+    S1:SearchProduct[T0:web_search→{{"results":3,"topResult":"iPhone 15 Pro"}}][2025-08-21T14:32:15.234Z]
+    S2:FetchDetails[T0:web_fetch→{{"price":"$999","availability":"in stock"}}][2025-08-21T14:32:15.236Z]
+    S3:ComparePrice→{{"bestDeal":"Amazon","savings":"15%"}}[2025-08-21T14:32:15.239Z]
+
+    ### Long-Term Memory (User Context)
+    Format: M{{id}}[{{relevance}}]@{{date}}:{{content}}
+    - M38[0.52]@2024-01-15:Previous sync check returned false
+    - M12[0.91]@unknown:S2:GetChainID→0x534e5f4d41494e
+    - Higher relevance = more important (0-1 scale)
+    - Step format used consistently across all memories
+    - Always verify dynamic data with tools
 
 **Think Step by Step**
 `;
@@ -202,8 +213,19 @@ When context is insufficient:
 }}
 
 The Memory is separated into 2 entities:
-short_term_memory: the last messages in a Q/A Format
-long_term_memory: vectorial database research
+    ### Short-Term Memory (Recent Steps)
+    Format: S{{n}}:{{action}}[T{{n}}:{{tool_desc}}→{{result}}][{{date}}]
+    S1:SearchProduct[T0:web_search→{{"results":3,"topResult":"iPhone 15 Pro"}}][2025-08-21T14:32:15.234Z]
+    S2:FetchDetails[T0:web_fetch→{{"price":"$999","availability":"in stock"}}][2025-08-21T14:32:15.236Z]
+    S3:ComparePrice→{{"bestDeal":"Amazon","savings":"15%"}}[2025-08-21T14:32:15.239Z]
+
+    ### Long-Term Memory (User Context)
+    Format: M{{id}}[{{relevance}}]@{{date}}:{{content}}
+    - M38[0.52]@2024-01-15:Previous sync check returned false
+    - M12[0.91]@unknown:S2:GetChainID→0x534e5f4d41494e
+    - Higher relevance = more important (0-1 scale)
+    - Step format used consistently across all memories
+    - Always verify dynamic data with tools
 
 **Think Step by Step**
 `;
