@@ -57,22 +57,22 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getSpecVersion,
   });
 
-  StarknetToolRegistry.push({
-    name: 'get_block_with_tx_hashes',
-    plugins: 'rpc',
-    description:
-      'Retrieve the details of a block, including transaction hashes',
-    schema: blockIdSchema,
-    execute: getBlockWithTxHashes,
-  });
+  // StarknetToolRegistry.push({
+  //   name: 'get_block_with_tx_hashes',
+  //   plugins: 'rpc',
+  //   description:
+  //     'Retrieve the details of a block, including transaction hashes',
+  //   schema: blockIdSchema,
+  //   execute: getBlockWithTxHashes,
+  // });
 
-  StarknetToolRegistry.push({
-    name: 'get_block_with_receipts',
-    plugins: 'rpc',
-    description: 'Fetch block details with transaction receipts',
-    schema: blockIdSchema,
-    execute: getBlockWithReceipts,
-  });
+  // StarknetToolRegistry.push({
+  //   name: 'get_block_with_receipts',
+  //   plugins: 'rpc',
+  //   description: 'Fetch block details with transaction receipts',
+  //   schema: blockIdSchema,
+  //   execute: getBlockWithReceipts,
+  // });
 
   StarknetToolRegistry.push({
     name: 'get_transaction_status',
@@ -99,13 +99,13 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getBlockTransactionCount,
   });
 
-  StarknetToolRegistry.push({
-    name: 'get_storage_at',
-    plugins: 'rpc',
-    description: 'Get the storage value at a specific slot for a contract',
-    schema: getStorageAtSchema,
-    execute: getStorageAt,
-  });
+  // StarknetToolRegistry.push({
+  //   name: 'get_storage_at',
+  //   plugins: 'rpc',
+  //   description: 'Get the storage value at a specific slot for a contract',
+  //   schema: getStorageAtSchema,
+  //   execute: getStorageAt,
+  // });
 
   // Register contract-related tools
   StarknetToolRegistry.push({

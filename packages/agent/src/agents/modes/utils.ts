@@ -446,52 +446,40 @@ export function formatValidatorToolsExecutor(step: StepInfo): string {
 
 export function formatStepsForContext(steps: StepInfo[]): string {
   try {
-    const format_response: string[] = [];
-    steps.map((step) => {
-      format_response.push(`[STEP_${step.stepNumber}] ${step.stepName}`);
-      format_response.push(`Type: ${step.type}`);
-      format_response.push(`Description: ${step.description}`);
+    return steps
+      .map((step) => {
+        const header = `S${step.stepNumber}:${step.stepName}`;
 
-      if (step.type === 'tools') {
-        if (step.tools && step.tools.length > 0) {
-          step.tools.forEach((tool, index) => {
-            format_response.push(`\n[TOOL_${index}]`);
-            format_response.push(`Description: ${tool.description}`);
-          });
-          format_response.push(`\n=== ACTUAL RESPONSE ===`);
-          format_response.push(step.result.content);
+        if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+          // For tool steps, include tool info and results
+          const toolInfo = step.tools
+            .map((t, i) => `T${i}:${t.description}`)
+            .join('|');
+          return `${header}[${toolInfo}]→${step.result.content}`;
         }
-      } else {
-        format_response.push(`\n=== ACTUAL RESPONSE ===`);
-        format_response.push(step.result.content);
-      }
-    });
-    return format_response.join('\n');
+
+        // For non-tool steps, just show result
+        return `${header}→${step.result.content}`;
+      })
+      .join('\n');
   } catch (error) {
     throw error;
   }
 }
 
-export function formatStepsForSTM(step: StepInfo): string {
+export function formatStepForSTM(step: StepInfo, date: string): string {
   try {
-    const format_response = [];
-    format_response.push(`[STEP_${step.stepNumber}] ${step.stepName}`);
-    format_response.push(`Type: ${step.type}`);
-    format_response.push(`Description: ${step.description}`);
-    if (step.type === 'tools') {
-      if (step.tools && step.tools.length > 0) {
-        step.tools.forEach((tool, index) => {
-          format_response.push(`\n[TOOL_${index}]`);
-          format_response.push(`Description: ${tool.description}`);
-        });
-        format_response.push(`\n=== ACTUAL RESPONSE ===`);
-        format_response.push(step.result.content);
-      }
-    } else {
-      format_response.push(`\n=== ACTUAL RESPONSE ===`);
-      format_response.push(step.result.content);
+    const header = `S${step.stepNumber}:${step.stepName}`;
+    console.log(step.type === 'tools' && step.tools && step.tools.length > 0);
+    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+      const toolInfo = step.tools
+        .map((t, i) => `T${i}:${t.description}->${t.result}`)
+        .join('|');
+      console.log(step);
+      console.log(toolInfo);
+      return `${header}[${toolInfo}][${date}]`;
     }
-    return format_response.join('\n');
+    return `${header}→${step.result.content}[${date}]`;
   } catch (error) {
     throw error;
   }

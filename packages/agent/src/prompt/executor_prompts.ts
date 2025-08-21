@@ -34,11 +34,21 @@ export const TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
         missing : [name of missings inputs]
     }}
 
-    The Memory is separate in 2 entity.
-    short_term_memory : the last messages in a Q/A Format
-    long_term_memory : vectoriel database research
+    ### Short-Term Memory (Recent Steps)\
+    Format: S{{n}}:{{action}}[tools]→{{result}}[date]
+    S1:SearchProduct[T0:web_search]→{{"results":3,"topResult":"iPhone 15 Pro"}}[2025-08-21T14:32:15.234Z]
+    S2:FetchDetails[T1:web_fetch]→{{"price":"$999","availability":"in stock"}}[2025-08-21T14:32:15.236Z]
+    S3:ComparePrice→{{"bestDeal":"Amazon","savings":"15%"}}[2025-08-21T14:32:15.239Z]
 
-    **Think Step by Step**
+    ### Long-Term Memory (User Context)
+    Format: M{{id}}[{{relevance}}]@{{date}}:{{content}}
+    - M38[0.52]@2024-01-15:Previous sync check returned false
+    - M12[0.91]@unknown:Q:What is chain ID? A:0x534e5f4d41494e
+    - Higher relevance = more important (0-1 scale)
+    - Q/A pairs shown inline when applicable
+    - Always verify dynamic data with tools
+
+    **Think Step by Step**s
     `;
 
 export const RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
@@ -269,74 +279,3 @@ Step Number: {stepNumber}
 Step Name: {stepName}
 Description: {stepDescription}
 `;
-
-/**********************/
-/***    Retry    ***/
-/**********************/
-
-// export const RETRY_EXECUTOR_SYSTEM_PROMPT = `You are receiving this message because the validator rejected your previous execution attempt. Your task is to diagnose the issue and determine the appropriate course of action.
-
-// VALIDATION FAILURE NOTICE:
-// The execution validator has identified issues with your previous response. You must analyze the rejection reason and proceed with one of the available recovery strategies.
-
-// RECOVERY OPTIONS AVAILABLE:
-
-// 1. **RETRY EXECUTION** - Attempt the step again with corrections
-//    - Choose this when: You made a minor error (wrong syntax, typo, formatting issue, wrong tool call)
-//    - Action: Execute the step correctly this time
-
-// 2. **REQUEST REPLANNING** - Ask for a new plan to be created
-//    - Choose this when: The current step cannot be executed due to missing prerequisites or fundamental blockers
-//    - Action: Explain why replanning is necessary
-//    - Add REQUEST_REPLAN in your response content(e.g. : REQUEST_REPLAN : reason)
-
-// DECISION CRITERIA FOR REPLANNING:
-// ✓ REQUEST REPLAN when:
-//   - Required variables or data are missing from previous steps
-//   - Tools return unexpected errors indicating the approach is flawed
-//   - Prerequisites for the current step were not properly established
-//   - The step assumptions are no longer valid based on new information
-
-// ✗ DO NOT REQUEST REPLAN when:
-//   - You simply called the wrong tool (fix it and retry)
-//   - You used incorrect arguments (fix them and retry)
-//   - You made a syntax or formatting error (correct it and retry)
-//   - The issue is your execution, not the plan itself
-
-// EXAMPLES OF APPROPRIATE RESPONSES:
-
-// Example 1 - Retry Execution (Minor Error):
-// Rejection: "Tool called with invalid JSON format"
-// Response: FOLLOW TOOL EXECUTION MODE
-
-// Example 2 - Request Replanning (Missing Prerequisites):
-// Rejection: "Attempted to analyze transaction data but no transaction hash was retrieved in previous steps"
-// Response: "REQUEST_REPLAN: The current step requires transaction hash data that was not collected in previous steps. The plan needs to be modified to first retrieve transaction hashes before analysis can proceed."
-
-// Example 3 - Retry Execution (Wrong Tool):
-// Rejection: "Used get_block_number instead of get_block_with_tx_hashes as specified"
-// Response: FOLLOW TOOL EXECUTION MODE
-
-// Example 4 - Request Replanning (Fundamental Blocker):
-// Rejection: "API endpoint returned 'Service Unavailable' for all RPC calls"
-// Response: "REQUEST_REPLAN: The Starknet RPC endpoint appears to be down. The plan should be adjusted to either wait for service restoration or use alternative data sources."
-
-// example 5 - Retry Execution (Missing point in you analyze)
-// Rejection : "summary too superficial"
-// Response : FOLLOW AI MESSAGE MODE
-
-// CRITICAL: Analyze the rejection reason carefully. Most rejections can be resolved by simply correcting your execution. Only request replanning when the plan itself is flawed.`;
-
-// export const RETRY_CONTENT = `
-// AVAILABLE TOOLS:
-// {toolsList}
-
-// CURRENT RETRY : {retry}
-// MAX_RETRY_AUTORISED : {maxRetry}
-
-// WHY IT WAS REJECTED BY THE VALIDATOR : {reason}
-// CURRENT STEP DETAILS:
-// Step Number: {stepNumber}
-// Step Name: {stepName}
-// Description: {stepDescription}
-// `;

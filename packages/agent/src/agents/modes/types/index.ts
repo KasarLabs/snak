@@ -33,7 +33,7 @@ export interface MemoryItem {
 /**
  * Circular buffer for STM with O(1) operations
  */
-export interface CircularSTM {
+export interface STMContext {
   readonly items: readonly (MemoryItem | null)[];
   readonly maxSize: number;
   readonly head: number; // Next insert position
@@ -56,7 +56,7 @@ export interface LTMContext {
  * Comprehensive memory state - IMMUTABLE
  */
 export interface Memories {
-  readonly stm: CircularSTM;
+  readonly stm: STMContext;
   readonly ltm: LTMContext;
   readonly isProcessing: boolean;
   readonly lastError?: {

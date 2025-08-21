@@ -171,20 +171,17 @@ export class ModelSelector extends BaseAgent {
             modelInstance = new ChatOpenAI({
               ...commonConfig,
               openAIApiKey: apiKey,
-              verbose: true, // Specific key name for OpenAI
             });
             break;
           case 'anthropic':
             modelInstance = new ChatAnthropic({
               ...commonConfig,
               anthropicApiKey: apiKey,
-              verbose: true, // Specific key name for Anthropic
             });
             break;
           case 'gemini':
             modelInstance = new ChatGoogleGenerativeAI({
               ...commonConfig,
-              verbose: true,
             });
             break;
           // Add case for 'deepseek' if a Langchain integration exists or becomes available

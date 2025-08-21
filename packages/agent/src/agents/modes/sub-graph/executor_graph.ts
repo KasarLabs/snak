@@ -19,7 +19,7 @@ import {
   filterMessagesByShortTermMemory,
   formatExecutionMessage,
   formatShortMemoryMessage,
-  formatStepsForSTM,
+  formatStepForSTM,
   formatToolResponse,
   formatValidatorToolsExecutor,
   getLatestMessageForMessage,
@@ -132,12 +132,14 @@ export class AgentExecutorGraph {
   ): Promise<AIMessageChunk> {
     const currentStep = state.plan.steps[state.currentStepIndex];
     const execution_context = formatExecutionMessage(currentStep);
-    const format_short_term_memory = formatShortMemoryMessage(state.plan);
     const formattedPrompt = await prompt.formatMessages({
       rejected_reason: Array.isArray(state.last_message)
         ? state.last_message[0].content
         : (state.last_message as BaseMessage).content,
-      short_term_memory: format_short_term_memory,
+      short_term_memory: state.memories.stm.items
+        .filter((item) => item !== null)
+        .map((item) => item.content)
+        .join('\n'),
       long_term_memory: state.memories.ltm.context,
       execution_context: execution_context,
     });

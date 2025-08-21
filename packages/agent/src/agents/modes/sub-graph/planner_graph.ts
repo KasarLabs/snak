@@ -11,7 +11,7 @@ import { Agent, Memories, ParsedPlan, StepInfo } from '../types/index.js';
 import {
   formatParsedPlanSimple,
   formatStepsForContext,
-  formatStepsForSTM,
+  formatStepForSTM,
   PlanSchema,
 } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';

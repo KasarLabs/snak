@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@snakagent/core';
 import {
   MemoryItem,
-  CircularSTM,
+  STMContext,
   LTMContext,
   Memories,
   MemoryOperationResult,
@@ -16,7 +16,7 @@ export class STMManager {
   /**
    * Creates an empty STM state
    */
-  static createEmpty(maxSize: number = 15): CircularSTM {
+  static createEmpty(maxSize: number = 15): STMContext {
     return {
       items: new Array(maxSize).fill(null),
       maxSize,
@@ -30,9 +30,9 @@ export class STMManager {
    * Adds a new memory item to STM - O(1) operation
    */
   static addMemory(
-    stm: CircularSTM,
+    stm: STMContext,
     content: string
-  ): MemoryOperationResult<CircularSTM> {
+  ): MemoryOperationResult<STMContext> {
     try {
       const newItem: MemoryItem = {
         content: content.trim(),
@@ -55,7 +55,7 @@ export class STMManager {
       newItems[stm.head] = newItem;
 
       // Use freeze to make items fields immutable
-      const newSTM: CircularSTM = {
+      const newSTM: STMContext = {
         items: Object.freeze(newItems),
         maxSize: stm.maxSize,
         head: (stm.head + 1) % stm.maxSize,
@@ -81,7 +81,7 @@ export class STMManager {
   /**
    * Gets all active memories in chronological order (newest first)
    */
-  static getMemories(stm: CircularSTM): MemoryItem[] {
+  static getMemories(stm: STMContext): MemoryItem[] {
     const memories: MemoryItem[] = [];
 
     if (stm.size === 0) return memories;
@@ -101,7 +101,7 @@ export class STMManager {
   /**
    * Gets the most recent N memories
    */
-  static getRecentMemories(stm: CircularSTM, count: number): MemoryItem[] {
+  static getRecentMemories(stm: STMContext, count: number): MemoryItem[] {
     const allMemories = this.getMemories(stm);
     return allMemories.slice(-count);
   }
@@ -109,13 +109,13 @@ export class STMManager {
   /**
    * Clears all memories - returns new empty STM
    */
-  static clear(stm: CircularSTM): CircularSTM {
+  static clear(stm: STMContext): STMContext {
     return this.createEmpty(stm.maxSize);
   }
   /**
    * Validates STM state integrity
    */
-  static validate(stm: CircularSTM): boolean {
+  static validate(stm: STMContext): boolean {
     try {
       // Check basic structure
       if (!Array.isArray(stm.items) || stm.items.length !== stm.maxSize) {
@@ -194,13 +194,13 @@ export class LTMManager {
 }
 
 /**
- * Complete memory state manager
+ * Memory state management namespace
  */
-export class MemoryStateManager {
+export namespace MemoryStateManager {
   /**
    * Creates initial memory state
    */
-  static createInitialState(stmSize: number): Memories {
+  export function createInitialState(stmSize: number): Memories {
     return {
       stm: STMManager.createEmpty(stmSize),
       ltm: LTMManager.createEmpty(),
@@ -212,15 +212,16 @@ export class MemoryStateManager {
   /**
    * Safely adds memory to STM with full error handling
    */
-  static addSTMMemory(
+  export function addSTMMemory(
     state: Memories,
-    content: string
+    content: string,
+    timestamp: number
   ): MemoryOperationResult<Memories> {
     if (state.isProcessing) {
       return {
         success: false,
         error: 'Memory operation already in progress',
-        timestamp: Date.now(),
+        timestamp: timestamp,
       };
     }
 
@@ -230,7 +231,7 @@ export class MemoryStateManager {
       return {
         success: false,
         error: stmResult.error,
-        timestamp: Date.now(),
+        timestamp: timestamp,
       };
     }
 
@@ -240,14 +241,14 @@ export class MemoryStateManager {
         ...state,
         stm: stmResult.data,
       },
-      timestamp: Date.now(),
+      timestamp: timestamp,
     };
   }
 
   /**
    * Updates LTM context
    */
-  static updateLTM(
+  export function updateLTM(
     state: Memories,
     context: string,
     memoryIds: string[],
@@ -268,7 +269,10 @@ export class MemoryStateManager {
   /**
    * Return a copy of current Memories State with updated isProcessing field
    */
-  static setProcessing(state: Memories, isProcessing: boolean): Memories {
+  export function setProcessing(
+    state: Memories,
+    isProcessing: boolean
+  ): Memories {
     return {
       ...state,
       isProcessing,
@@ -278,7 +282,7 @@ export class MemoryStateManager {
   /**
    * Validates complete memory state
    */
-  static validate(state: Memories): boolean {
+  export function validate(state: Memories): boolean {
     try {
       return STMManager.validate(state.stm);
     } catch {
@@ -290,7 +294,7 @@ export class MemoryStateManager {
 /**
  * Format memories for context display
  */
-export function formatSTMForContext(stm: CircularSTM): string {
+export function formatSTMForContext(stm: STMContext): string {
   const memories = STMManager.getMemories(stm);
   if (memories.length === 0) return 'No recent memories';
 
