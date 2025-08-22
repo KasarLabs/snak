@@ -40,178 +40,6 @@ export namespace memory {
    * Performs the actual initialization
    */
   async function performInit(): Promise<void> {
-    const t = [
-      // 1. Créer l'extension vector
-      new Postgres.Query(`
-        CREATE EXTENSION IF NOT EXISTS vector;
-      `),
-
-      // 2. Créer la table agent_memories
-      new Postgres.Query(`
-        CREATE TABLE IF NOT EXISTS agent_memories (
-          id SERIAL PRIMARY KEY,
-          user_id VARCHAR(100) NOT NULL,
-          memories_id UUID NOT NULL,
-          query TEXT NOT NULL,
-          content TEXT NOT NULL,
-          embedding vector(384) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-          metadata JSONB NOT NULL,
-          history JSONB NOT NULL
-        );
-      `),
-
-      // 3. Créer l'index pour les recherches vectorielles
-      new Postgres.Query(`
-        CREATE INDEX IF NOT EXISTS agent_memories_embedding_idx
-          ON agent_memories 
-          USING ivfflat (embedding vector_cosine_ops);
-      `),
-
-      // 4. Analyser la table pour optimiser les requêtes
-      new Postgres.Query(`
-        ANALYZE agent_memories;
-      `),
-
-      // 5. Fonction insert_memory
-      new Postgres.Query(`
-        CREATE OR REPLACE FUNCTION insert_memory(
-          p_id integer,
-          p_user_id varchar(100),
-          p_memories_id uuid,
-          p_query text,
-          p_content text,
-          p_embedding vector(384),
-          p_created_at timestamp,
-          p_updated_at timestamp,
-          p_metadata jsonb,
-          p_history jsonb
-        ) RETURNS void AS $$
-        BEGIN
-          INSERT INTO agent_memories (
-            id,
-            user_id,
-            memories_id,
-            query,
-            content,
-            embedding,
-            created_at,
-            updated_at,
-            metadata,
-            history
-          ) VALUES (
-            COALESCE(p_id, nextval('agent_memories_id_seq')),
-            p_user_id,
-            p_memories_id,
-            p_query,
-            p_content,
-            p_embedding,
-            COALESCE(p_created_at, CURRENT_TIMESTAMP),
-            COALESCE(p_updated_at, CURRENT_TIMESTAMP),
-            p_metadata,
-            p_history
-          ) 
-          ON CONFLICT (id) 
-          DO UPDATE SET
-            query = EXCLUDED.query,
-            content = EXCLUDED.content,
-            embedding = EXCLUDED.embedding,
-            updated_at = COALESCE(EXCLUDED.updated_at, CURRENT_TIMESTAMP),
-            metadata = EXCLUDED.metadata,
-            history = EXCLUDED.history;
-        END;
-        $$ LANGUAGE plpgsql;
-      `),
-
-      // 6. Fonction select_memory
-      new Postgres.Query(`
-        CREATE OR REPLACE FUNCTION select_memory(
-          p_id integer
-        ) RETURNS TABLE (
-          id INTEGER,
-          user_id VARCHAR(100),
-          memories_id UUID,
-          query TEXT,
-          content TEXT,
-          embedding vector(384),
-          created_at TIMESTAMP,
-          updated_at TIMESTAMP,
-          metadata JSONB,
-          history JSONB
-        ) AS $$
-          SELECT
-            id,
-            user_id,
-            memories_id,
-            query,
-            content,
-            embedding,
-            created_at,
-            updated_at,
-            metadata,
-            history
-          FROM
-            agent_memories
-          WHERE
-            id = p_id
-        $$ LANGUAGE sql;
-      `),
-
-      // 7. Fonction update_memory
-      new Postgres.Query(`
-        CREATE OR REPLACE FUNCTION update_memory(
-          p_id integer,
-          p_content text,
-          p_embedding vector(384)
-        ) RETURNS void AS $$
-        DECLARE
-          m jsonb;
-          t timestamp;
-          new_history jsonb;
-        BEGIN
-          -- Récupérer la mémoire existante
-          SELECT to_jsonb(mem.*) INTO m 
-          FROM select_memory(p_id) mem;
-          
-          -- Si la mémoire n'existe pas, lever une erreur
-          IF m IS NULL THEN
-            RAISE EXCEPTION 'Memory with id % not found', p_id;
-          END IF;
-
-          t := CURRENT_TIMESTAMP;
-          
-          -- Construire l'historique mis à jour
-          new_history := COALESCE(m->'history', '[]'::jsonb) || jsonb_build_array(
-            jsonb_build_object(
-              'value', m->>'content',
-              'timestamp', to_char(t, 'YYYY-MM-DD"T"HH24:MI:SS.US'),
-              'action', 'UPDATE'
-            )
-          );
-
-          -- Mettre à jour la mémoire
-          PERFORM insert_memory(
-            p_id,
-            (m->>'user_id')::varchar(100),
-            (m->>'memories_id')::uuid,
-            (m->>'query')::text,
-            p_content,
-            p_embedding,
-            (m->>'created_at')::timestamp,
-            t,
-            m->'metadata',
-            new_history
-          );
-        END;
-        $$ LANGUAGE plpgsql;
-      `),
-    ];
-
-    // Exécuter toutes les requêtes dans une transaction
-    await Postgres.transaction(t);
-
-    // Configurer le parser de type pour les vecteurs
     const q = new Postgres.Query(`SELECT 'vector'::regtype::oid;`);
     const oid = (await Postgres.query<{ oid: number }>(q))[0].oid;
     pg.types.setTypeParser(oid, (v: any) => {
@@ -361,6 +189,24 @@ export namespace memory {
     query: string;
     content: string;
     history: History[];
+    similarity: number;
+  }
+
+  export interface EpisodicMemory {
+    id: number;
+    content: string;
+    similarity: number;
+    importance: number;
+    event_type: string;
+    created_at: Date;
+  }
+
+  export interface SemanticKnowledge {
+    id: string;
+    concept: string;
+    content: string;
+    category: string;
+    confidence: number;
     similarity: number;
   }
 
