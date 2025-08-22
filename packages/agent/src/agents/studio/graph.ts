@@ -33,6 +33,7 @@ export interface AgentConfigSQL {
   };
   mode: AgentMode;
   max_iterations: number;
+  mcpServers : Record<string,any>
 }
 
 export interface AgentMemorySQL {
@@ -253,7 +254,7 @@ export async function createAgentById(agentId: string): Promise<{
       memory: agentConfig.memory,
       rag: agentConfig.rag,
       plugins: agentConfig.plugins,
-      mcpServers: {},
+      mcpServers: agentConfig.mcpServers,
     },
     modelSelectorConfig: modelSelectorConfig,
     memory: agentConfig.memory,
@@ -312,7 +313,7 @@ export async function createHybridAgent(agentId: string): Promise<any> {
 }
 
 // Example usage with specific IDs (for backward compatibility)
-const AUTONOMOUS_ID = '2af6c614-410d-4173-a1a8-a9dc17a92dd8';
+const AUTONOMOUS_ID = 'b1e5aa50-b028-44eb-a4ce-ddc426a17836';
 const INTERACTIVE_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 
@@ -321,4 +322,3 @@ const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 export const studio_graph_autonomous = () =>
   createAutonomousAgent(AUTONOMOUS_ID);
 // export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);
-  

@@ -24,6 +24,7 @@ import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { Agent, AgentReturn } from 'agents/modes/types/index.js';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Configuration interface for SnakAgent initialization
@@ -434,6 +435,8 @@ export class SnakAgent extends BaseAgent {
           max_graph_steps: maxGraphSteps,
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
+          agent_config: this.agentConfig,
+          conversation_id: uuidv4(),
         },
       };
       const executionConfig = {
@@ -685,10 +688,10 @@ export class SnakAgent extends BaseAgent {
           max_graph_steps: maxGraphSteps,
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
-          human_in_the_loop: humanInTheLoop,
+          agent_config: this.agentConfig,
+          conversation_id: uuidv4(),
         },
       };
-
       let lastChunk;
       let graphStep: number = 0;
       let retryCount: number = 0;

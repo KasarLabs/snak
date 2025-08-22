@@ -488,7 +488,7 @@ export class MemoryAgent extends BaseAgent {
       config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
     ): Promise<string> => {
       console.log('FetchMemories');
-      const userId = config?.metadata?.run_id as string;
+      const userId = config?.configurable?.conversation_id as string;
       console.log(userId);
       const embedding = await this.embeddings.embedQuery(query);
       const memResults = await memory.similar_memory(userId, embedding, limit);

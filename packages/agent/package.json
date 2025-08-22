@@ -45,8 +45,8 @@
     "@langchain/ollama": "^0.1.4",
     "@langchain/openai": "^0.3.17",
     "@snakagent/core": "workspace:*",
-    "@snakagent/metrics": "workspace:*",
     "@snakagent/database": "workspace:*",
+    "@snakagent/metrics": "workspace:*",
     "@snakagent/plugin-argent": "workspace:*",
     "@snakagent/plugin-artpeace": "workspace:*",
     "@snakagent/plugin-atlantic": "workspace:*",
@@ -73,7 +73,11 @@
     "inquirer": "^12.4.1",
     "langchain": "^0.3.10",
     "nanospinner": "^1.2.2",
-    "snak-mcps": "^0.1.2"
+    "snak-mcps": "^0.1.2",
+    "zod-to-json-schema": "^3.24.6"
+  },
+  "devDependencies": {
+    "@types/zod-to-json-schema": "^3.24.6"
   },
   "gitHead": "92aedfbed422f736e1890cff065f6f2890e8befd"
 }

@@ -200,9 +200,9 @@ Since this is a retry attempt:
 
 ### OUTPUT FORMATS
 Depending on the message step type:
-- **Query Analysis**: { intent, entities, context, confidence }
-- **Summary Generation**: { summary, key_points, action_items }
-- **Information Extraction**: { extracted_data, metadata, relationships }
+- **Query Analysis**: {{ intent, entities, context, confidence }}
+- **Summary Generation**: {{ summary, key_points, action_items }}
+- **Information Extraction**: {{ extracted_data, metadata, relationships }}
 
 ### ERROR HANDLING
 When context is insufficient:

@@ -261,7 +261,7 @@ export const REPLANNER_CONTEXT_PROMPT = `
 Objectives: {objectives}
 Previous Plan: {formatPlan}
 Rejection Reason: {rejectedReason}
-Available Tools: {toolsAvailable}
+Available Tools: \`\`\`{toolsAvailable}\`\`\`
 `;
 
 /************************/
@@ -302,6 +302,14 @@ export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `You are a strategic plann
     2. **No Dependencies**: Tools in same step cannot depend on each other
     3. **Pure Execution**: Only tool calls, no analysis or summaries
     4. **Input Availability**: All inputs must exist before step execution
+
+    ## REQUIRED FIELDS
+    Each tool description must specify:
+    - Tool Name: The name of the tool to be executed.
+    - Required Inputs: A list of all necessary inputs for the tool.
+    - Optional Inputs: Any additional inputs that can enhance the execution but are not mandatory.
+    - Execution Parameters: Specific parameters that guide how the tool should be executed.
+
 
     Example:
     ✅ VALID: "Execute web_search for 'AI trends' AND fetch_pricing for 'competitors'"
@@ -387,13 +395,14 @@ export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `You are a strategic plann
     ],
     "summary": "Two-step plan: parallel data gathering then comprehensive analysis"
     }}
+    \`\`\`
     </example>
     `;
 
 export const AUTONOMOUS_PLANNER_CONTEXT_PROMPT = `
 <context>
-Objectives : {objectives}
-Available Tools: {toolsAvailable}
+Your Configuration(bio/objectives/knowledge) : {objectives}
+Available Tools: \`\`\`{toolsAvailable}\`\`\`
 </context>
 `;
 /**********************/

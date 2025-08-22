@@ -70,3 +70,29 @@ CREATE TABLE IF NOT EXISTS models_config (
             smart model NOT NULL,
             cheap model NOT NULL
         );
+
+CREATE OR REPLACE FUNCTION delete_all_agents()
+RETURNS TABLE (
+    deleted_count INTEGER,
+    message TEXT
+) 
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    agent_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO agent_count FROM agents;
+    
+    DELETE FROM agents;
+    
+    RETURN QUERY 
+    SELECT 
+        agent_count AS deleted_count,
+        CASE 
+            WHEN agent_count > 0 THEN 
+                format('%s agent(s) supprimé(s) avec succès', agent_count)
+            ELSE 
+                'Aucun agent à supprimer'
+        END AS message;
+END;
+$$;

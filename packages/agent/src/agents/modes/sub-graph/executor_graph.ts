@@ -460,7 +460,7 @@ export class AgentExecutorGraph {
       const executionTime = Date.now() - startTime;
       const truncatedResult: { messages: ToolMessage[] } = truncateToolResults(
         result,
-        5000,
+        100000,
         state.plan.steps[state.currentStepIndex]
       );
 

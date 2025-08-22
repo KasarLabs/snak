@@ -188,7 +188,6 @@ export class MemoryGraph {
         summarize: z
           .string()
           .min(10)
-          .max(500)
           .describe('Concise summary of the step execution and result'),
         relevance: z
           .number()
@@ -224,8 +223,8 @@ export class MemoryGraph {
       );
 
       const lastSTMItem = recentMemories[0];
-      const userId = config.metadata?.run_id as string;
-
+      const userId = config.configurable?.conversation_id as string;
+      console.log(`[LTMManager]${userId},\n ${config.configurable})`);
       if (!userId) {
         logger.warn('[LTMManager] No user ID available, skipping LTM upsert');
         return {};

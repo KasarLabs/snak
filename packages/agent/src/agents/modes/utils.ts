@@ -423,7 +423,7 @@ export function formatValidatorToolsExecutor(step: StepInfo): string {
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
       const toolInfo = step.tools
         .map((tool, index) => {
-          return `T${index}:${tool.description}\nRequired: ${tool.required || '<NO INPUT REQUIRED>'}\n
+          return `T${index + 1}:${tool.description}\nRequired: ${tool.required || '<NO INPUT REQUIRED>'}\n
                   Expected: ${tool.expected_result}\nResult: ${tool.result}`;
         })
         .join('\n\n');
@@ -446,7 +446,7 @@ export function formatStepsForContext(steps: StepInfo[]): string {
         if (step.type === 'tools' && step.tools && step.tools.length > 0) {
           // For tool steps, include tool info and results
           const toolInfo = step.tools
-            .map((t, i) => `T${i}:${t.description}`)
+            .map((t, i) => `T${i + 1}:${t.description}`)
             .join('|');
           return `${header}[${toolInfo}]`;
         }

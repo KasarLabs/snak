@@ -35,7 +35,6 @@ export async function initializeToolsList(
   agentConfig: AgentConfig
 ): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
-
   const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
   toolsList = [...allowedTools];
   if (
@@ -43,6 +42,7 @@ export async function initializeToolsList(
     Object.keys(agentConfig.mcpServers).length > 0
   ) {
     try {
+      console.log('Hello');
       const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
       await mcp.initializeConnections();
 

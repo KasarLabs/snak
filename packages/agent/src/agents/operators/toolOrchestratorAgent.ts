@@ -183,7 +183,6 @@ export class ToolsOrchestrator extends BaseAgent {
     if (!toolName || toolArgs === undefined) {
       throw new Error('ToolsOrchestrator: Invalid tool call format');
     }
-
     return { toolName, toolArgs, toolCall };
   }
 

@@ -45,10 +45,11 @@ import {
   BaseChatModelCallOptions,
 } from '@langchain/core/language_models/chat_models';
 import { AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT } from '../../../prompt/validator_prompt.js';
+import { JsonSchema7Type, zodToJsonSchema } from 'zod-to-json-schema';
+import { toJsonSchema } from '@langchain/core/utils/json_schema';
+import { convertToOpenAITool } from '@langchain/core/utils/function_calling';
 
 export type PlannerStateType = typeof PlannerGraphState.State;
-const objectives = `Perform efficient and reliable RPC calls to the Starknet network.,
-            Retrieve and analyze on-chain data such as transactions, blocks, and smart contract states.`;
 
 export const PlannerGraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -62,6 +63,25 @@ export const PlannerGraphState = Annotation.Root({
   retry: Annotation<number>,
   currentGraphStep: Annotation<number>,
 });
+
+export const parseToolsToJson = (
+  tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
+): string => {
+  const toolFunctions = tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: toJsonSchema(tool.schema), // This converts Zod schema to JSON schema
+  }));
+
+  const formatTools = toolFunctions.map((tool, index) => ({
+    index: index,
+    name: tool.name,
+    description: tool.description,
+    properties: tool.parameters,
+  }));
+
+  return JSON.stringify(formatTools);
+};
 
 export class PlannerGraph {
   private agentConfig: AgentConfig;
@@ -111,8 +131,8 @@ export class PlannerGraph {
 
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
-          objectives: objectives,
-          toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
+          objectives: this.agentConfig.prompt,
+          toolsAvailable: parseToolsToJson(this.toolsList),
           rejectedReason: (
             state.last_message as BaseMessage
           ).content.toLocaleString(),
@@ -181,8 +201,6 @@ export class PlannerGraph {
       }
       let structuredResult: ParsedPlan;
       const structuredModel = model.withStructuredOutput(PlanSchema);
-
-      //
       let systemPrompt;
       let contextPrompt;
       if (config.configurable?.agent_config?.mode === AgentMode.HYBRID) {
@@ -198,11 +216,10 @@ export class PlannerGraph {
         ['system', systemPrompt],
         ['ai', contextPrompt],
       ]);
-
       structuredResult = (await structuredModel.invoke(
         await prompt.formatMessages({
-          objectives: objectives,
-          toolsAvailable: this.toolsList.map((tool) => tool.name).join(', '),
+          objectives: this.agentConfig.prompt,
+          toolsAvailable: parseToolsToJson(this.toolsList),
         })
       )) as ParsedPlan;
       logger.info(
@@ -270,20 +287,22 @@ export class PlannerGraph {
       const structuredModel = model.withStructuredOutput(PlanSchema);
       const systemPrompt = ADAPTIVE_PLANNER_SYSTEM_PROMPT;
       const context: string = ADAPTIVE_PLANNER_CONTEXT_PROMPT;
-      const availableTools = this.toolsList
-        .map((tool: any) => tool.name)
-        .join(', ');
 
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', systemPrompt],
         ['ai', context],
       ]);
 
+      const toolFunctions = this.toolsList.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: toJsonSchema(tool.schema), // This converts Zod schema to JSON schema
+      }));
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
           stepLength: state.currentStepIndex + 1,
-          objectives: objectives,
-          toolsAvailable: availableTools,
+          objectives: this.agentConfig.prompt,
+          toolsAvailable: parseToolsToJson(this.toolsList),
           previousSteps: formatStepsForContext(state.plan.steps),
         })
       );

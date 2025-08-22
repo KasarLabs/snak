@@ -25,6 +25,7 @@ import {
   SnakAgentConfig,
 } from '@snakagent/agents';
 import { SystemMessage } from '@langchain/core/messages';
+import { agent } from 'supertest';
 
 const logger = new Logger('AgentStorage');
 
@@ -533,6 +534,7 @@ export class AgentStorage implements OnModuleInit {
           : undefined,
         chatId: `agent_${agentConfig.id}`,
         maxIterations: agentConfig.max_iterations || 15,
+        mcpServers: agentConfig.mcpServers,
         mode: agentConfig.mode || AgentMode.INTERACTIVE,
       };
 

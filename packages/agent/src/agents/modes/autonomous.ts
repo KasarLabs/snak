@@ -102,6 +102,7 @@ import { MemoryGraph } from './sub-graph/memory.js';
 import { PlannerGraph } from './sub-graph/planner_graph.js';
 import { AgentExecutorGraph } from './sub-graph/executor_graph.js';
 import { exec } from 'child_process';
+import { v4 as uuidv4 } from 'uuid';
 
 export const AutonomousGraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -168,6 +169,10 @@ export const AutonomousConfigurableAnnotation = Annotation.Root({
   agent_config: Annotation<AgentConfig | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
+  }),
+  conversation_id: Annotation<string>({
+    reducer: (x, y) => y,
+    default: () => uuidv4(),
   }),
 });
 export class AutonomousAgent {
