@@ -534,6 +534,7 @@ export class AgentStorage implements OnModuleInit {
         chatId: `agent_${agentConfig.id}`,
         maxIterations: agentConfig.max_iterations || 15,
         mode: agentConfig.mode || AgentMode.INTERACTIVE,
+        mcpServers: agentConfig.mcpServers || {},
       };
 
       // Creat model selector
