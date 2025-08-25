@@ -106,6 +106,7 @@ export class AgentStorage implements OnModuleInit {
     if (userId) {
       return this.getAgentInstancesByUser(userId);
     }
+    logger.warn('Returning all agent instances across all users');
     return Array.from(this.agentInstances.values());
   }
 
@@ -261,16 +262,17 @@ export class AgentStorage implements OnModuleInit {
   /**
    * Delete an agent from the system
    * @param id - Agent ID to delete
+   * @param userId - User ID to verify ownership
    * @returns Promise<void>
    */
-  public async deleteAgent(id: string): Promise<void> {
+  public async deleteAgent(id: string, userId: string): Promise<void> {
     if (!this.initialized) {
       await this.initialize();
     }
 
     const q = new Postgres.Query(
-      `DELETE FROM agents WHERE id = $1 RETURNING *`,
-      [id]
+      `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [id, userId]
     );
     const q_res = await Postgres.query<AgentConfigSQL>(q);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);

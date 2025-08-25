@@ -8,6 +8,7 @@ import {
   Req,
   Headers,
   Delete,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
@@ -68,6 +69,21 @@ export class AgentsController {
     private readonly agentFactory: AgentStorage,
     private readonly reflector: Reflector
   ) {}
+
+  /**
+   * Extract and validate userId from request headers
+   * @param req - FastifyRequest object
+   * @returns string - Validated userId
+   * @throws BadRequestException if userId is missing or invalid
+   */
+  private getUserIdFromHeaders(req: FastifyRequest): string {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+    return userId;
+  }
+
   /**
    * Handle user request to a specific agent
    * @param userRequest - The user request containing agent ID and content
@@ -80,7 +96,7 @@ export class AgentsController {
   ) {
     try {
       const { id, mcpServers } = updateData;
-      const userId = req.headers['x-user-id'] as string;
+      const userId = this.getUserIdFromHeaders(req);
 
       if (!id) {
         throw new BadRequestException('Agent ID is required');
@@ -90,17 +106,13 @@ export class AgentsController {
         throw new BadRequestException('MCP servers must be an object');
       }
 
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
-
       // Update agent MCP configuration in database
       const q = new Postgres.Query(
         `UPDATE agents
-       SET "mcpServers" = $1
-       WHERE id = $2 AND user_id = $3
-       RETURNING id, "mcpServers"`,
-        [JSON.stringify(mcpServers), id, userId]
+         SET "mcpServers" = $1::jsonb
+         WHERE id = $2 AND user_id = $3
+         RETURNING id, "mcpServers"`,
+        [mcpServers, id, userId]
       );
 
       const result = await Postgres.query<AgentMcpResponseDTO>(q);
@@ -132,14 +144,10 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<any> {
     try {
-      const userId = req.headers['x-user-id'] as string;
+      const userId = this.getUserIdFromHeaders(req);
 
       if (!config || !config.id) {
         throw new BadRequestException('Agent ID is required');
-      }
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
       }
 
       const updateFields: string[] = [];
@@ -236,11 +244,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ) {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const data = await (req as any).file();
 
@@ -324,7 +328,7 @@ export class AgentsController {
   private verifyAgentOwnership(agentId: string, userId: string): SnakAgent {
     const agent = this.agentFactory.getAgentInstance(agentId, userId);
     if (!agent) {
-      throw new BadRequestException('Agent not found or access denied');
+      throw new ForbiddenException('Agent not found or access denied');
     }
     return agent;
   }
@@ -341,7 +345,7 @@ export class AgentsController {
   ): AgentConfigSQL {
     const agentConfig = this.agentFactory.getAgentConfig(agentId, userId);
     if (!agentConfig) {
-      throw new BadRequestException('Agent not found or access denied');
+      throw new ForbiddenException('Agent not found or access denied');
     }
     return agentConfig;
   }
@@ -352,11 +356,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const route = this.reflector.get('path', this.handleUserRequest);
       let agent: SnakAgent | undefined = undefined;
@@ -413,11 +413,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const agent = this.verifyAgentOwnership(
         userRequest.agent_id,
@@ -447,11 +443,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const newAgentConfig = await this.agentFactory.addAgent({
         ...userRequest.agent,
@@ -483,11 +475,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
       const agentConfig = this.verifyAgentConfigOwnership(
         userRequest.agent_id,
         userId
@@ -521,11 +509,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
       const agentConfig = this.verifyAgentConfigOwnership(
         userRequest.agent_id,
         userId
@@ -534,7 +518,7 @@ export class AgentsController {
         throw new BadRequestException('Agent not found or access denied');
       }
 
-      await this.agentFactory.deleteAgent(userRequest.agent_id);
+      await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 
       const response: AgentResponse = {
         status: 'success',
@@ -559,11 +543,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse[]> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const responses: AgentResponse[] = [];
 
@@ -571,7 +551,7 @@ export class AgentsController {
         try {
           this.verifyAgentConfigOwnership(agentId, userId);
 
-          await this.agentFactory.deleteAgent(agentId);
+          await this.agentFactory.deleteAgent(agentId, userId);
 
           responses.push({
             status: 'success',
@@ -605,11 +585,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
       this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
 
       const messages = await this.agentService.getMessageFromAgentId(
@@ -637,11 +613,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const agentConfig = this.verifyAgentConfigOwnership(
         userRequest.agent_id,
@@ -671,11 +643,7 @@ export class AgentsController {
   @Get('get_agents')
   async getAgents(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const agents = await this.agentService.getAllAgentsOfUser(userId);
       const response: AgentResponse = {
@@ -695,11 +663,7 @@ export class AgentsController {
   @Get('get_agent_status')
   async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {
@@ -723,11 +687,7 @@ export class AgentsController {
   @Get('get_agent_thread')
   async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const userId = req.headers['x-user-id'] as string;
-
-      if (!userId) {
-        throw new BadRequestException('User ID is required');
-      }
+      const userId = this.getUserIdFromHeaders(req);
 
       const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {

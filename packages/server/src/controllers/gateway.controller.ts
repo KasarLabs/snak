@@ -2,7 +2,7 @@ import { AgentResponse } from './agents.controller.js';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import ServerError from '../utils/error.js';
-import { OnModuleInit } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -29,7 +29,7 @@ import { Postgres } from '@snakagent/database';
     credentials: true,
   },
 })
-export class MyGateway implements OnModuleInit {
+export class MyGateway {
   constructor(
     private readonly agentService: AgentService,
     private readonly agentFactory: AgentStorage
@@ -40,24 +40,13 @@ export class MyGateway implements OnModuleInit {
   private getUserIdOrThrow(client: Socket): string {
     const userId = client.handshake.headers['x-user-id'] as string;
   
-    if (!userId) throw new ServerError('X-USER-ID-NOT-FOUND');
+    if (!userId) throw new ForbiddenException('X-USER-ID-NOT-FOUND');
     return userId;
   }
 
-  private readonly clients = new Map<string, Socket>();
   @WebSocketServer()
   server: Server;
 
-  onModuleInit() {
-    this.server.on('connection', (socket) => {
-      logger.info(`Client connected: ${socket.id}`);
-      this.clients.set(socket.id, socket);
-      socket.on('disconnect', () => {
-        logger.error('Client disconnected:', socket.id);
-        this.clients.delete(socket.id);
-      });
-    });
-  }
   @SubscribeMessage('agents_request')
   async handleUserRequest(
     @MessageBody() userRequest: WebsocketAgentRequestDTO,
@@ -252,9 +241,7 @@ export class MyGateway implements OnModuleInit {
 
       const userId = this.getUserIdOrThrow(client);
       const agents = await this.agentService.getAllAgentsOfUser(userId);
-      if (!agents) {
-        throw new ServerError('E01TA400');
-      }
+
       const response: AgentResponse = {
         status: 'success',
         data: agents,
@@ -290,7 +277,7 @@ export class MyGateway implements OnModuleInit {
         status: 'success',
         data: messages,
       };
-              client.emit('onGetMessagesRequest', response);
+      client.emit('onGetMessagesRequest', response);
     } catch (error) {
       logger.error('Error in getMessages:', error);
       throw new ServerError('E05TA100');
