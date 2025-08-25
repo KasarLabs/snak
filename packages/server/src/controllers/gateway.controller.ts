@@ -37,6 +37,13 @@ export class MyGateway implements OnModuleInit {
     logger.info('Gateway initialized');
   }
 
+  private getUserIdOrThrow(client: Socket): string {
+    const userId = client.handshake.headers['x-user-id'] as string;
+  
+    if (!userId) throw new ServerError('X-USER-ID-NOT-FOUND');
+    return userId;
+  }
+
   private readonly clients = new Map<string, Socket>();
   @WebSocketServer()
   server: Server;
@@ -60,10 +67,7 @@ export class MyGateway implements OnModuleInit {
       logger.info('handleUserRequest called');
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
-      const userId = client.handshake.headers['x-user-id'] as string;
-      if (!userId) {
-        throw new ServerError('E01TA400');
-      }
+      const userId = this.getUserIdOrThrow(client);
 
       const agent = this.agentFactory.getAgentInstance(
         userRequest.request.agent_id,
@@ -161,10 +165,7 @@ export class MyGateway implements OnModuleInit {
   ): Promise<void> {
     try {
       logger.info('stop_agent called');
-      const userId = client.handshake.headers['x-user-id'] as string;
-      if (!userId) {
-        throw new ServerError('E01TA400');
-      }
+      const userId = this.getUserIdOrThrow(client);
       const agent = this.agentFactory.getAgentInstance(
         userRequest.agent_id,
         userId
@@ -193,7 +194,7 @@ export class MyGateway implements OnModuleInit {
     try {
       logger.info('init_agent called');
 
-      const userId = client.handshake.headers['x-user-id'] as string;
+      const userId = this.getUserIdOrThrow(client);
       await this.agentFactory.addAgent({
         ...userRequest.agent,
         user_id: userId,
@@ -217,7 +218,7 @@ export class MyGateway implements OnModuleInit {
   ): Promise<void> {
     try {
 
-      const userId = client.handshake.headers['x-user-id'] as string;
+      const userId = this.getUserIdOrThrow(client);
       const agentConfig = this.agentFactory.getAgentConfig(
         userRequest.agent_id,
         userId
@@ -226,7 +227,7 @@ export class MyGateway implements OnModuleInit {
         throw new ServerError('E01TA400');
       }
 
-      await this.agentFactory.deleteAgent(userRequest.agent_id);
+      await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 
       const response: AgentResponse = {
         status: 'success',
@@ -249,7 +250,7 @@ export class MyGateway implements OnModuleInit {
     try {
       logger.info('getAgents called');
 
-      const userId = client.handshake.headers['x-user-id'] as string;
+      const userId = this.getUserIdOrThrow(client);
       const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {
         throw new ServerError('E01TA400');
@@ -273,13 +274,7 @@ export class MyGateway implements OnModuleInit {
     try {
       logger.info('getMessages called');
 
-      // Get userId from socket handshake headers
-      const userId = client.handshake.headers['x-user-id'] as string;
-      if (!userId) {
-        throw new ServerError('E01TA400');
-      }
-
-
+      const userId = this.getUserIdOrThrow(client);
 
       const messages = await this.agentService.getMessageFromAgentId(
         {
