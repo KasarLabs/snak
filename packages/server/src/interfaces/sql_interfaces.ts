@@ -29,6 +29,7 @@ export interface AgentRagSQL {
 export interface AgentConfigSQL {
   id: string;
   name: string;
+  user_id: string;
   group: string;
   description: string;
   lore: string[];

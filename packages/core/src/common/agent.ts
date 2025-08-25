@@ -47,6 +47,7 @@ export enum AgentMode {
 export interface RawAgentConfig {
   name: string;
   group: string;
+  user_id: string;
   description: string;
   lore: string[];
   objectives: string[];

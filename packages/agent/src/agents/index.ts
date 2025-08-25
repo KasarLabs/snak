@@ -10,11 +10,6 @@ export interface AgentIterations {
   data: any;
 }
 
-export interface MessageRequest {
-  agent_id: string;
-  user_request: string;
-}
-
 export interface Message {
   agent_id: string;
   user_request: string;

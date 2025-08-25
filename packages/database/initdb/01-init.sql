@@ -21,6 +21,7 @@ CREATE TYPE model AS (
 CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    user_id UUID NOT NULL,
     "group" VARCHAR(255) NOT NULL DEFAULT 'default_group',
     description TEXT NOT NULL,
     lore TEXT[] NOT NULL DEFAULT '{}',
@@ -70,3 +71,5 @@ CREATE TABLE IF NOT EXISTS models_config (
             smart model NOT NULL,
             cheap model NOT NULL
         );
+
+CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);

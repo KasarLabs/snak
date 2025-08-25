@@ -73,7 +73,11 @@ export class AgentSelector extends BaseAgent {
     );
   }
 
-  public async execute(input: string): Promise<SnakAgent> {
+  public async execute(
+    input: string,
+    isInterrupted?: boolean,
+    config?: Record<string, any>
+  ): Promise<SnakAgent> {
     try {
       const model = this.modelSelector.getModels()['fast'];
       logger.info('AgentSelector model:', this.modelSelector.getModels());

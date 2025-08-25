@@ -53,13 +53,26 @@ export class AgentStorage implements OnModuleInit {
   /**
    * Get an agent configuration by ID
    * @param id - Agent ID
-   * @returns AgentConfigSQL | undefined - The agent configuration or undefined if not found
+   * @param userId - User ID to verify ownership
+   * @returns AgentConfigSQL | undefined - The agent configuration or undefined if not found or not owned by user
    */
-  public getAgentConfig(id: string): AgentConfigSQL | undefined {
+  public getAgentConfig(
+    id: string,
+    userId: string
+  ): AgentConfigSQL | undefined {
     if (!this.initialized) {
       return undefined;
     }
-    return this.agentConfigs.find((config) => config.id === id);
+
+    const config = this.agentConfigs.find(
+      (config) => config.id === id && config.user_id === userId
+    );
+
+    if (!config) {
+      logger.debug(`Agent ${id} not found for user ${userId}`);
+    }
+
+    return config;
   }
 
   /**
@@ -76,19 +89,24 @@ export class AgentStorage implements OnModuleInit {
   /**
    * Get a SnakAgent instance by ID
    * @param {string} id - The agent ID
-   * @returns {SnakAgent | undefined} The agent instance or undefined if not found
+   * @param {string} userId - User ID to verify ownership (required)
+   * @returns {SnakAgent | undefined} The agent instance or undefined if not found or not owned by user
    */
-  public getAgentInstance(id: string): SnakAgent | undefined {
-    const instance = this.agentInstances.get(id);
-    return instance ? instance : undefined;
+  public getAgentInstance(id: string, userId: string): SnakAgent | undefined {
+    const compositeKey = `${id}:${userId}`;
+    return this.agentInstances.get(compositeKey);
   }
 
   /**
    * Get all agent instances
+   * @param userId - Optional user ID to filter instances
    * @returns {SnakAgent[]} Array of all agent instances
    */
-  public getAllAgentInstances(): SnakAgent[] {
-    return Array.from(this.agentInstances.values()).map((instance) => instance);
+  public getAllAgentInstances(userId?: string): SnakAgent[] {
+    if (userId) {
+      return this.getAgentInstancesByUser(userId);
+    }
+    return Array.from(this.agentInstances.values());
   }
 
   public getAgentSelector(): AgentSelector {
@@ -106,6 +124,21 @@ export class AgentStorage implements OnModuleInit {
       throw new Error(`No agent found with name: ${name}`);
     }
     return instance;
+  }
+
+  /**
+   * Get all agent instances for a specific user
+   * @param {string} userId - The user ID
+   * @returns {SnakAgent[]} Array of agent instances owned by the user
+   */
+  public getAgentInstancesByUser(userId: string): SnakAgent[] {
+    const userAgents: SnakAgent[] = [];
+    for (const [key, instance] of this.agentInstances.entries()) {
+      if (key.endsWith(`:${userId}`)) {
+        userAgents.push(instance);
+      }
+    }
+    return userAgents;
   }
 
   public isInitialized(): boolean {
@@ -169,8 +202,8 @@ export class AgentStorage implements OnModuleInit {
     });
 
     const q = new Postgres.Query(
-      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12), ROW($13, $14), $15, $16, $17) RETURNING *`,
+      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers", user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12), ROW($13, $14), $15, $16, $17, $18) RETURNING *`,
       [
         finalName,
         group,
@@ -189,6 +222,7 @@ export class AgentStorage implements OnModuleInit {
         agent_config.mode,
         15,
         agent_config.mcpServers || '{}',
+        agent_config.user_id,
       ]
     );
     const q_res = await Postgres.query<AgentConfigSQL>(q);
@@ -203,7 +237,8 @@ export class AgentStorage implements OnModuleInit {
       this.agentConfigs.push(newAgentDbRecord);
       this.createSnakAgentFromConfig(newAgentDbRecord)
         .then((snakAgent) => {
-          this.agentInstances.set(newAgentDbRecord.id, snakAgent);
+          const compositeKey = `${newAgentDbRecord.id}:${newAgentDbRecord.user_id}`;
+          this.agentInstances.set(compositeKey, snakAgent);
           this.agentSelector.updateAvailableAgents([
             newAgentDbRecord.id,
             snakAgent,
@@ -575,9 +610,10 @@ export class AgentStorage implements OnModuleInit {
           );
           continue;
         }
-        this.agentInstances.set(agentConfig.id, snakAgent);
+        const compositeKey = `${agentConfig.id}:${agentConfig.user_id}`;
+        this.agentInstances.set(compositeKey, snakAgent);
         logger.debug(
-          `Created SnakAgent: ${agentConfig.name} (${agentConfig.id})`
+          `Created SnakAgent: ${agentConfig.name} (${agentConfig.id}) for user ${agentConfig.user_id}`
         );
       }
     } catch (error) {

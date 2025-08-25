@@ -60,6 +60,7 @@ export class MessageFromAgentIdDTO {
 export interface MessageRequest {
   agent_id: string;
   user_request: string;
+  userId: string;
 }
 
 /**

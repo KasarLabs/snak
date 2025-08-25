@@ -8,6 +8,7 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import {
@@ -20,6 +21,7 @@ import {
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
+
 @WebSocketGateway({
   cors: {
     origin: 'http://localhost:4000',
@@ -51,22 +53,23 @@ export class MyGateway implements OnModuleInit {
   }
   @SubscribeMessage('agents_request')
   async handleUserRequest(
-    @MessageBody() userRequest: WebsocketAgentRequestDTO
+    @MessageBody() userRequest: WebsocketAgentRequestDTO,
+    @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
       logger.info('handleUserRequest called');
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
-      const agent = this.agentFactory.getAgentInstance(
-        userRequest.request.agent_id
-      );
-      if (!agent) {
+      const userId = client.handshake.headers['x-user-id'] as string;
+      if (!userId) {
         throw new ServerError('E01TA400');
       }
 
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
+      const agent = this.agentFactory.getAgentInstance(
+        userRequest.request.agent_id,
+        userId
+      );
+      if (!agent) {
         throw new ServerError('E01TA400');
       }
 
@@ -74,7 +77,8 @@ export class MyGateway implements OnModuleInit {
 
       for await (const chunk of this.agentService.handleUserRequestWebsocket(
         agent,
-        userRequest.request
+        userRequest.request,
+        userId
       )) {
         if (chunk.final === true) {
           let q;
@@ -144,11 +148,6 @@ export class MyGateway implements OnModuleInit {
         client.emit('onAgentRequest', response);
       }
     } catch (error) {
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
-        throw new ServerError('E01TA400');
-      }
       if (error instanceof ServerError) {
         client.emit('onAgentRequest', error);
       }
@@ -157,16 +156,19 @@ export class MyGateway implements OnModuleInit {
 
   @SubscribeMessage('stop_agent')
   async stopAgent(
-    @MessageBody() userRequest: { agent_id: string; socket_id: string }
+    @MessageBody() userRequest: { agent_id: string; socket_id: string },
+    @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
       logger.info('stop_agent called');
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
+      const userId = client.handshake.headers['x-user-id'] as string;
+      if (!userId) {
         throw new ServerError('E01TA400');
       }
-      const agent = this.agentFactory.getAgentInstance(userRequest.agent_id);
+      const agent = this.agentFactory.getAgentInstance(
+        userRequest.agent_id,
+        userId
+      );
       if (!agent) {
         throw new ServerError('E01TA400');
       }
@@ -185,16 +187,17 @@ export class MyGateway implements OnModuleInit {
 
   @SubscribeMessage('init_agent')
   async addAgent(
-    @MessageBody() userRequest: WebsocketAgentAddRequestDTO
+    @MessageBody() userRequest: WebsocketAgentAddRequestDTO,
+    @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
       logger.info('init_agent called');
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
-        throw new ServerError('E01TA400');
-      }
-      await this.agentFactory.addAgent(userRequest.agent);
+
+      const userId = client.handshake.headers['x-user-id'] as string;
+      await this.agentFactory.addAgent({
+        ...userRequest.agent,
+        user_id: userId,
+      });
 
       const response: AgentResponse = {
         status: 'success',
@@ -209,17 +212,15 @@ export class MyGateway implements OnModuleInit {
 
   @SubscribeMessage('delete_agent')
   async deleteAgent(
-    @MessageBody() userRequest: WebsocketAgentDeleteRequestDTO
+    @MessageBody() userRequest: WebsocketAgentDeleteRequestDTO,
+    @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
-        throw new ServerError('E01TA400');
-      }
 
+      const userId = client.handshake.headers['x-user-id'] as string;
       const agentConfig = this.agentFactory.getAgentConfig(
-        userRequest.agent_id
+        userRequest.agent_id,
+        userId
       );
       if (!agentConfig) {
         throw new ServerError('E01TA400');
@@ -242,16 +243,14 @@ export class MyGateway implements OnModuleInit {
 
   @SubscribeMessage('get_agents')
   async getAgents(
-    @MessageBody() userRequest: WebsocketGetAgentsConfigRequestDTO
+    @MessageBody() userRequest: WebsocketGetAgentsConfigRequestDTO,
+    @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
       logger.info('getAgents called');
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
-        throw new ServerError('E01TA400'); // TODO Need to create a new error for socket not found
-      }
-      const agents = await this.agentService.getAllAgents();
+
+      const userId = client.handshake.headers['x-user-id'] as string;
+      const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {
         throw new ServerError('E01TA400');
       }
@@ -268,19 +267,27 @@ export class MyGateway implements OnModuleInit {
 
   @SubscribeMessage('get_messages')
   async getMessages(
-    @MessageBody() userRequest: WebsocketGetMessagesRequestDTO
+    @MessageBody() userRequest: WebsocketGetMessagesRequestDTO,
+    @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
       logger.info('getMessages called');
-      const client = this.clients.get(userRequest.socket_id);
-      if (!client) {
-        logger.error('Client not found');
-        throw new ServerError('E01TA400'); // TODO Need to create a new error for socket not found
+
+      // Get userId from socket handshake headers
+      const userId = client.handshake.headers['x-user-id'] as string;
+      if (!userId) {
+        throw new ServerError('E01TA400');
       }
-      const messages = await this.agentService.getMessageFromAgentId({
-        agent_id: userRequest.agent_id,
-        limit_message: userRequest.limit_message,
-      });
+
+
+
+      const messages = await this.agentService.getMessageFromAgentId(
+        {
+          agent_id: userRequest.agent_id,
+          limit_message: userRequest.limit_message,
+        },
+        userId
+      );
       if (!messages) {
         throw new ServerError('E01TA400');
       }
@@ -288,7 +295,7 @@ export class MyGateway implements OnModuleInit {
         status: 'success',
         data: messages,
       };
-      client.emit('onGetMessagesRequest', response);
+              client.emit('onGetMessagesRequest', response);
     } catch (error) {
       logger.error('Error in getMessages:', error);
       throw new ServerError('E05TA100');

@@ -105,7 +105,8 @@ export class AgentService implements IAgentService {
 
   async *handleUserRequestWebsocket(
     agent: any,
-    userRequest: MessageRequest
+    userRequest: MessageRequest,
+    userId: string
   ): AsyncGenerator<any> {
     this.logger.debug({
       message: 'Processing agent request',
@@ -113,12 +114,13 @@ export class AgentService implements IAgentService {
     });
     try {
       const q = new Postgres.Query(
-        `SELECT status, id 
-     FROM message 
-     WHERE agent_id = $1
-     ORDER BY created_at DESC
+        `SELECT m.status, m.id 
+     FROM message m
+     INNER JOIN agents a ON m.agent_id = a.id
+     WHERE m.agent_id = $1 AND a.user_id = $2
+     ORDER BY m.created_at DESC
      LIMIT 1;`,
-        [userRequest.agent_id]
+        [userRequest.agent_id, userId]
       );
       const status = await Postgres.query<{ status: string; id: string }>(q);
       if (
@@ -210,19 +212,49 @@ export class AgentService implements IAgentService {
     }
   }
 
+  async getAllAgentsOfUser(userId: string): Promise<AgentConfigSQL[]> {
+    try {
+      const q = new Postgres.Query(
+        `
+			SELECT
+			  id, name, "group", description, lore, objectives, knowledge,
+			  system_prompt, interval, plugins, memory, mode, max_iterations,
+			  "mcpServers",
+			  CASE
+				WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
+				THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
+				ELSE NULL
+			  END as "avatarUrl",
+			  avatar_mime_type
+			FROM agents
+			WHERE user_id = $1
+		  `,
+        [userId]
+      );
+      const res = await Postgres.query<AgentConfigSQL>(q);
+      this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
+      return res;
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
   async getMessageFromAgentId(
-    userRequest: MessageFromAgentIdDTO
+    userRequest: MessageFromAgentIdDTO,
+    userId: string
   ): Promise<MessageSQL[]> {
     try {
       const limit = userRequest.limit_message || 10;
       const q = new Postgres.Query(
-        `SELECT * FROM message WHERE agent_id = $1
-        ORDER BY created_at DESC
-        LIMIT $2`,
-        [userRequest.agent_id, limit]
+        `SELECT m.* FROM message m
+         INNER JOIN agents a ON m.agent_id = a.id
+         WHERE m.agent_id = $1 AND a.user_id = $2
+         ORDER BY m.created_at DESC
+         LIMIT $3`,
+        [userRequest.agent_id, userId, limit]
       );
       const res = await Postgres.query<MessageSQL>(q);
-      // this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
       this.logger.error(error);
