@@ -75,7 +75,7 @@ export class AgentSelector extends BaseAgent {
 
   public async execute(
     input: string,
-    isInterrupted?: boolean,
+    _isInterrupted?: boolean,
     config?: Record<string, any>
   ): Promise<SnakAgent> {
     try {
