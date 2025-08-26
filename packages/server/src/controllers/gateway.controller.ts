@@ -39,7 +39,7 @@ export class MyGateway {
 
   private getUserIdOrThrow(client: Socket): string {
     const userId = client.handshake.headers['x-user-id'] as string;
-  
+
     if (!userId) throw new ForbiddenException('X-USER-ID-NOT-FOUND');
     return userId;
   }
@@ -206,7 +206,6 @@ export class MyGateway {
     @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
-
       const userId = this.getUserIdOrThrow(client);
       const agentConfig = this.agentFactory.getAgentConfig(
         userRequest.agent_id,

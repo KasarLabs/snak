@@ -415,10 +415,7 @@ export class AgentsController {
     try {
       const userId = this.getUserIdFromHeaders(req);
 
-      const agent = this.verifyAgentOwnership(
-        userRequest.agent_id,
-        userId
-      );
+      const agent = this.verifyAgentOwnership(userRequest.agent_id, userId);
 
       agent.stop();
       const response: AgentResponse = {

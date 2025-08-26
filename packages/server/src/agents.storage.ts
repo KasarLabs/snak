@@ -93,7 +93,7 @@ export class AgentStorage implements OnModuleInit {
    * @returns {SnakAgent | undefined} The agent instance or undefined if not found or not owned by user
    */
   public getAgentInstance(id: string, userId: string): SnakAgent | undefined {
-    const compositeKey = `${id}:${userId}`;
+    const compositeKey = `${id}|${userId}`;
     return this.agentInstances.get(compositeKey);
   }
 
@@ -135,7 +135,8 @@ export class AgentStorage implements OnModuleInit {
   public getAgentInstancesByUser(userId: string): SnakAgent[] {
     const userAgents: SnakAgent[] = [];
     for (const [key, instance] of this.agentInstances.entries()) {
-      if (key.endsWith(`:${userId}`)) {
+      const [_agentId, agentUserId] = key.split('|');
+      if (agentUserId === userId) {
         userAgents.push(instance);
       }
     }
@@ -238,12 +239,12 @@ export class AgentStorage implements OnModuleInit {
       this.agentConfigs.push(newAgentDbRecord);
       this.createSnakAgentFromConfig(newAgentDbRecord)
         .then((snakAgent) => {
-          const compositeKey = `${newAgentDbRecord.id}:${newAgentDbRecord.user_id}`;
+          const compositeKey = `${newAgentDbRecord.id}|${newAgentDbRecord.user_id}`;
           this.agentInstances.set(compositeKey, snakAgent);
-          this.agentSelector.updateAvailableAgents([
-            newAgentDbRecord.id,
-            snakAgent,
-          ]);
+          this.agentSelector.updateAvailableAgents(
+            [newAgentDbRecord.id, snakAgent],
+            newAgentDbRecord.user_id
+          );
         })
         .catch((error) => {
           logger.error(
@@ -270,6 +271,13 @@ export class AgentStorage implements OnModuleInit {
       await this.initialize();
     }
 
+    const config = this.getAgentConfig(id, userId);
+    if (!config) {
+      throw new Error(
+        `Agent ${id} not found or access denied for user ${userId}`
+      );
+    }
+
     const q = new Postgres.Query(
       `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
       [id, userId]
@@ -278,8 +286,11 @@ export class AgentStorage implements OnModuleInit {
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
     this.agentConfigs = this.agentConfigs.filter((config) => config.id !== id);
-    this.agentInstances.delete(id);
-    this.agentSelector.removeAgent(id);
+
+    const compositeKey = `${id}|${userId}`;
+    this.agentInstances.delete(compositeKey);
+
+    this.agentSelector.removeAgent(id, userId);
     logger.debug(`Agent ${id} removed from local configuration`);
   }
 
@@ -612,7 +623,7 @@ export class AgentStorage implements OnModuleInit {
           );
           continue;
         }
-        const compositeKey = `${agentConfig.id}:${agentConfig.user_id}`;
+        const compositeKey = `${agentConfig.id}|${agentConfig.user_id}`;
         this.agentInstances.set(compositeKey, snakAgent);
         logger.debug(
           `Created SnakAgent: ${agentConfig.name} (${agentConfig.id}) for user ${agentConfig.user_id}`

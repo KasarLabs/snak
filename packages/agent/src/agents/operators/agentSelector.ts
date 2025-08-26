@@ -51,22 +51,31 @@ export class AgentSelector extends BaseAgent {
     }
   }
 
-  public async removeAgent(agentId: string): Promise<void> {
-    logger.debug(`AgentSelector: Removing agent ${agentId}`);
-    if (this.availableAgents.has(agentId)) {
-      this.availableAgents.delete(agentId);
-      this.agentInfo.delete(agentId);
+  public async removeAgent(agentId: string, userId: string): Promise<void> {
+    const compositeKey = `${agentId}|${userId}`;
+    logger.debug(
+      `AgentSelector: Removing agent ${agentId} for user ${userId} with key ${compositeKey}`
+    );
+    if (this.availableAgents.has(compositeKey)) {
+      this.availableAgents.delete(compositeKey);
+      this.agentInfo.delete(compositeKey);
       logger.debug(`AgentSelector: Agent ${agentId} removed successfully`);
     } else {
-      logger.warn(`AgentSelector: Agent ${agentId} not found`);
+      logger.warn(
+        `AgentSelector: Agent ${agentId} not found for user ${userId}`
+      );
     }
   }
 
   public async updateAvailableAgents(
-    agent: [string, SnakAgent]
+    agent: [string, SnakAgent],
+    userId: string
   ): Promise<void> {
-    logger.debug(`AgentSelector: Updating available agents with ${agent[0]}`);
-    this.availableAgents.set(agent[0], agent[1]);
+    const compositeKey = `${agent[0]}|${userId}`;
+    logger.debug(
+      `AgentSelector: Updating available agents with ${agent[0]} for user ${userId} with key ${compositeKey}`
+    );
+    this.availableAgents.set(compositeKey, agent[1]);
     this.agentInfo.set(
       agent[1].getAgentConfig().name,
       agent[1].getAgentConfig().description || 'No description available'
