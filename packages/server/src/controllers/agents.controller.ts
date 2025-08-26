@@ -81,6 +81,9 @@ export class AgentsController {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
+    if (!/^[a-zA-Z0-9-_]+$/.test(userId)) {
+      throw new BadRequestException('Invalid User ID format');
+    }
     return userId;
   }
 
@@ -374,6 +377,10 @@ export class AgentsController {
           false,
           { userId }
         );
+        if (agent) {
+          const agentId = agent.getAgentConfig().id;
+          this.verifyAgentConfigOwnership(agentId, userId);
+        }
       } else {
         agent = this.verifyAgentOwnership(userRequest.request.agent_id, userId);
       }

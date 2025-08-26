@@ -2,7 +2,7 @@ import { AgentResponse } from './agents.controller.js';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import ServerError from '../utils/error.js';
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -41,6 +41,10 @@ export class MyGateway {
     const userId = client.handshake.headers['x-user-id'] as string;
 
     if (!userId) throw new ForbiddenException('X-USER-ID-NOT-FOUND');
+
+    if (!/^[a-zA-Z0-9-_]+$/.test(userId)) {
+      throw new BadRequestException('Invalid User ID format');
+    }
     return userId;
   }
 
