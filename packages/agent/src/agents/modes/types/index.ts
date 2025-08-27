@@ -6,6 +6,7 @@ import {
 } from '@langchain/core/messages';
 import { Annotation } from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
+import { memory } from '@snakagent/database/queries';
 import z from 'zod';
 
 export interface AgentReturn {
@@ -46,13 +47,17 @@ export interface STMContext {
  * Long-term memory context with metadata
  */
 export interface LTMContext {
-  readonly context: string;
-  readonly retrievedAt: number;
-  readonly relevanceScore: number;
-  readonly memoryIds: readonly string[];
-  readonly isStale: boolean;
+  items: memory.Similarity[];
+  episodic_size: number;
+  semantic_size: number;
+  merge_size: number;
 }
 
+export interface MemoryContextBase {
+  user_id: string;
+  run_id: string;
+  created_at: string;
+}
 export interface SemanticMemoryContext {
   user_id: string;
   run_id: string;

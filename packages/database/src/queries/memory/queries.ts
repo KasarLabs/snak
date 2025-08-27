@@ -154,9 +154,8 @@ export namespace memory {
   export async function insert_episodic_memory(
     memory: EpisodicMemory
   ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
-    console.log(JSON.stringify(memory));
     const q = new Postgres.Query(
-      `SELECT insert_episodic_memory_smart($1, $2, $3, $4, $5);`,
+      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5);`,
       [
         memory.user_id,
         memory.run_id,
@@ -172,9 +171,8 @@ export namespace memory {
   export async function insert_semantic_memory(
     memory: SemanticMemory
   ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
-    console.log(JSON.stringify(memory));
     const q = new Postgres.Query(
-      `SELECT upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6);`,
+      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6);`,
       [
         memory.user_id,
         memory.run_id,

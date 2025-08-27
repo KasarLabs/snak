@@ -88,7 +88,7 @@ Previous Steps:
 - Step 3: Discovered 67% of SMBs want wellness programs
 </context>
 
-json
+\`\`\`json
 {{
   "steps": [
     {{
@@ -132,6 +132,7 @@ json
   ],
   "summary": "Two-step plan to validate SMB market opportunity and identify feature gaps"
 }}
+\`\`\`
 </example>
 `;
 export const ADAPTIVE_PLANNER_CONTEXT_PROMPT = `

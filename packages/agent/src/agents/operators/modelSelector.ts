@@ -294,7 +294,7 @@ export class ModelSelector extends BaseAgent {
    * @returns {Promise<any>} The model's response.
    * @throws {Error} If the selected or fallback model is unavailable or fails to invoke.
    */
-  public async execute(input: BaseMessage[]): Promise<any> {
+  public async execute(input: string): Promise<any> {
     const modelType = (await this.selectModelForMessages(input)).model_name;
 
     let selectedModel = this.models[modelType];

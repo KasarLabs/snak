@@ -59,6 +59,11 @@ import {
   STEP_EXECUTOR_CONTEXT_PROMPT,
   TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
 } from '../../../prompt/executor_prompts.js';
+import {
+  JSONstringifyLTM,
+  JSONstringifySTM,
+  MemoryStateManager,
+} from '../utils/memory-utils.js';
 
 export type ExecutorStateType = typeof ExecutorState.State;
 
@@ -139,8 +144,8 @@ export class AgentExecutorGraph {
       rejected_reason: Array.isArray(state.last_message)
         ? state.last_message[0].content
         : (state.last_message as BaseMessage).content,
-      short_term_memory: formatSTMforContext(state.memories.stm),
-      long_term_memory: state.memories.ltm.context,
+      short_term_memory: JSONstringifySTM(state.memories.stm),
+      long_term_memory: JSONstringifyLTM(state.memories.ltm),
       execution_context: execution_context,
     });
 

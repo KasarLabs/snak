@@ -199,9 +199,7 @@ export class InteractiveAgent {
     try {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
-        logger.debug(
-          '[InteractiveAgent] Memory agent retrieved successfully'
-        );
+        logger.debug('[InteractiveAgent] Memory agent retrieved successfully');
         // const memoryTools = this.memoryAgent.prepareMemoryTools(); TODO
         // this.toolsList.push(...memoryTools);
       } else {
@@ -225,9 +223,7 @@ export class InteractiveAgent {
         );
       }
     } catch (error) {
-      logger.error(
-        `[InteractiveAgent] Failed to retrieve RAG agent: ${error}`
-      );
+      logger.error(`[InteractiveAgent] Failed to retrieve RAG agent: ${error}`);
     }
   }
 
@@ -391,9 +387,7 @@ export class InteractiveAgent {
 
       let systemPrompt;
       if (state.last_agent === Agent.PLANNER_VALIDATOR && lastAiMessage) {
-        logger.debug(
-          '[Planner] Creating re-plan based on validator feedback'
-        );
+        logger.debug('[Planner] Creating re-plan based on validator feedback');
         systemPrompt = REPLAN_EXECUTOR_SYSTEM_PROMPT;
       } else {
         logger.debug('[Planner] Creating initial plan');
@@ -809,9 +803,7 @@ ${validationContent}`,
     const shortTermMemory =
       (config.configurable?.short_term_memory as number) || 10;
     if (maxGraphSteps && maxGraphSteps <= state.currentGraphStep) {
-      logger.warn(
-        `[Executor] Maximum iterations (${maxGraphSteps}) reached`
-      );
+      logger.warn(`[Executor] Maximum iterations (${maxGraphSteps}) reached`);
       return createMaxIterationsResponse(maxGraphSteps);
     }
 
@@ -950,9 +942,7 @@ ${validationContent}`,
       if (state.last_agent === Agent.PLANNER_VALIDATOR) {
         const lastAiMessage = state.messages[state.messages.length - 1];
         if (lastAiMessage.additional_kwargs.error === true) {
-          logger.error(
-            '[ValidatorRouter] Error found in validator messages'
-          );
+          logger.error('[ValidatorRouter] Error found in validator messages');
           return 'end';
         }
         if (lastAiMessage.additional_kwargs.from != Agent.PLANNER_VALIDATOR) {
@@ -961,9 +951,7 @@ ${validationContent}`,
           );
         }
         if (lastAiMessage.additional_kwargs.validated) {
-          logger.info(
-            '[ValidatorRouter] Plan validated, routing to executor'
-          );
+          logger.info('[ValidatorRouter] Plan validated, routing to executor');
           return 'executor';
         } else if (
           lastAiMessage.additional_kwargs.validated === false &&
@@ -974,9 +962,7 @@ ${validationContent}`,
           );
           return 're_planner';
         }
-        logger.warn(
-          '[ValidatorRouter] Max retries exceeded, routing to end'
-        );
+        logger.warn('[ValidatorRouter] Max retries exceeded, routing to end');
         return 'end';
       }
 
@@ -994,9 +980,7 @@ ${validationContent}`,
           );
         }
         if (lastAiMessage.additional_kwargs.isFinal === true) {
-          logger.info(
-            '[ValidatorRouter] Final step reached, routing to end'
-          );
+          logger.info('[ValidatorRouter] Final step reached, routing to end');
           return 'end';
         }
         if (state.retry >= 3) {
@@ -1011,14 +995,10 @@ ${validationContent}`,
         return 'executor';
       }
 
-      logger.warn(
-        '[ValidatorRouter] Unknown agent state, defaulting to end'
-      );
+      logger.warn('[ValidatorRouter] Unknown agent state, defaulting to end');
       return 'end';
     } catch (error) {
-      logger.error(
-        `[ValidatorRouter] Routing logic error: ${error.message}`
-      );
+      logger.error(`[ValidatorRouter] Routing logic error: ${error.message}`);
       return 'end';
     }
   }
@@ -1078,8 +1058,9 @@ ${validationContent}`,
       retryPrompt: 'tesdt',
     });
 
-    const selectedModelType =
-      await this.modelSelector!.selectModelForMessages(filteredMessages);
+    const selectedModelType = await this.modelSelector!.selectModelForMessages(
+      currentStep.description
+    );
     const boundModel =
       typeof selectedModelType.model.bindTools === 'function'
         ? selectedModelType.model.bindTools(this.toolsList)

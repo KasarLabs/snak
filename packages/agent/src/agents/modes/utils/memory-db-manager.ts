@@ -31,8 +31,7 @@ export class MemoryDBManager {
    */
   async upsertMemory(
     semantic_memories: SemanticMemoryContext[],
-    episodic_memories: EpisodicMemoryContext[],
-    memorySize?: number
+    episodic_memories: EpisodicMemoryContext[]
   ): Promise<MemoryOperationResult<string>> {
     let attempt = 0;
 
@@ -122,7 +121,7 @@ export class MemoryDBManager {
         };
 
         const result = await memory.insert_episodic_memory(episodicRecord);
-        console.log(JSON.stringify(result));
+        console.log(JSON.stringify(result, null, 2));
         event_ids.push(result.memory_id);
         logger.debug(
           `[MemoryDBManager] Successfully upserted memory ${result.memory_id} for user ${e_memory.user_id}`
@@ -148,9 +147,8 @@ export class MemoryDBManager {
           source_events: event_ids,
         };
         const result = await memory.insert_semantic_memory(semanticRecord);
-        console.log(JSON.stringify(result));
         logger.debug(
-          `[MemoryDBManager] Successfully upserted memory ${result.memory_id} for user ${s_memory.user_id}`
+          `[MemoryDBManager] Successfully insert memory ${result.memory_id} for user ${s_memory.user_id}`
         );
       }
 

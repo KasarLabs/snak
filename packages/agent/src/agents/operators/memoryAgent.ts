@@ -200,16 +200,12 @@ export class MemoryAgent extends BaseAgent {
           };
         }
         const result = await chain.invoke(state, config);
-        logger.debug(
-          `[MemoryNode] Retrieved memory context: ${result.memories?.length || 0} chars`
-        );
+        logger.debug(`[MemoryNode] Retrieved  ${result.length} memory context`);
 
         // Update LTM context safely
         const updatedMemories = MemoryStateManager.updateLTM(
           state.memories,
-          result.memories || '',
-          [], // Memory IDs would be extracted from the chain result
-          0.8 // Default relevance score
+          result
         );
 
         return {
@@ -222,7 +218,6 @@ export class MemoryAgent extends BaseAgent {
         // Return safe fallback with error information
         const fallbackMemories: Memories = {
           ...state.memories,
-          ltm: LTMManager.markStale(state.memories.ltm),
           lastError: {
             type: 'MEMORY_RETRIEVAL_ERROR',
             message: error.message,
@@ -245,7 +240,7 @@ export class MemoryAgent extends BaseAgent {
    */
   public createMemoryChain(
     limit = 5
-  ): Runnable<typeof MemoryState.State, MemoryChainResult> {
+  ): Runnable<typeof MemoryState.State, memory.Similarity[]> {
     const buildQuery = (state: typeof AutonomousGraphState.State) => {
       const currentStep = state.plan.steps[state.currentStepIndex];
       if (!currentStep) {
@@ -257,8 +252,7 @@ export class MemoryAgent extends BaseAgent {
     const fetchMemories = async (
       query: string,
       config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-    ): Promise<string> => {
-      console.log('FetchMemories');
+    ): Promise<memory.Similarity[]> => {
       const runId = config?.configurable?.conversation_id as string;
       const userId = 'default_user';
       const embedding = await this.embeddings.embedQuery(query);
@@ -268,18 +262,15 @@ export class MemoryAgent extends BaseAgent {
         embedding,
         limit
       );
-      console.log(memResults);
-      return this.formatMemoriesForContext(memResults);
+      return memResults;
     };
 
     return RunnableSequence.from<
       typeof AutonomousGraphState.State,
-      MemoryChainResult
-    >([
-      buildQuery,
-      fetchMemories,
-      (context: string) => ({ memories: context }),
-    ]).withConfig({ runName: 'MemoryContextChain' });
+      memory.Similarity[]
+    >([buildQuery, fetchMemories]).withConfig({
+      runName: 'MemoryContextChain',
+    });
   }
 
   /**

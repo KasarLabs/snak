@@ -34,18 +34,7 @@ export const TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT = `
     }}
 
     ### Short-Term Memory (Recent Steps)
-    Format: S{{n}}:{{action}}[T{{n}}:{{tool_desc}}→{{result}}][{{date}}]
-    S1:SearchProduct[T0:web_search→{{"results":3,"topResult":"iPhone 15 Pro"}}][2025-08-21T14:32:15.234Z]
-    S2:FetchDetails[T0:web_fetch→{{"price":"$999","availability":"in stock"}}][2025-08-21T14:32:15.236Z]
-    S3:ComparePrice→{{"bestDeal":"Amazon","savings":"15%"}}[2025-08-21T14:32:15.239Z]
-
     ### Long-Term Memory (User Context)
-    Format: M{{id}}[{{relevance}}]@{{date}}:{{content}}
-    - M38[0.52]@2024-01-15:Previous sync check returned false
-    - M12[0.91]@unknown:S2:GetChainID→0x534e5f4d41494e
-    - Higher relevance = more important (0-1 scale)
-    - Step format used consistently across all memories
-    - Always verify dynamic data with tools
 
     **Think Step by Step**
     `;
@@ -142,19 +131,7 @@ When context is insufficient:
 
 The Memory is separated into 2 entities:
     ### Short-Term Memory (Recent Steps)
-    Format: S{{n}}:{{action}}[T{{n}}:{{tool_desc}}→{{result}}][{{date}}]
-    S1:SearchProduct[T0:web_search→{{"results":3,"topResult":"iPhone 15 Pro"}}][2025-08-21T14:32:15.234Z]
-    S2:FetchDetails[T0:web_fetch→{{"price":"$999","availability":"in stock"}}][2025-08-21T14:32:15.236Z]
-    S3:ComparePrice→{{"bestDeal":"Amazon","savings":"15%"}}[2025-08-21T14:32:15.239Z]
-
     ### Long-Term Memory (User Context)
-    Format: M{{id}}[{{relevance}}]@{{date}}:{{content}}
-    - M38[0.52]@2024-01-15:Previous sync check returned false
-    - M12[0.91]@unknown:S2:GetChainID→0x534e5f4d41494e
-    - Higher relevance = more important (0-1 scale)
-    - Step format used consistently across all memories
-    - Always verify dynamic data with tools
-
 **Think Step by Step**
 `;
 
@@ -231,9 +208,15 @@ The Memory is separated into 2 entities:
 
 export const RETRY_STEP_EXECUTOR_CONTEXT_PROMPT = `
     <context>
-    short_term_memory : {short_term_memory}
-    long_term_memory : {long_term_memory}
+    ### Short-Term Memory
+    \`\`\`json
+     {short_term_memory}
+     \`\`\`
 
+    ### Long-Term Memory
+     \`\`\`json
+     {long_term_memory}
+     \`\`\`
     REJECTED_REASON: {rejected_reason}
     CURRENT_STEP_TO_EXECUTE: {execution_context}
     <context>
@@ -241,10 +224,17 @@ export const RETRY_STEP_EXECUTOR_CONTEXT_PROMPT = `
 
 export const STEP_EXECUTOR_CONTEXT_PROMPT = `
     <context>
-    short_term_memory : {short_term_memory}
-    long_term_memory : {long_term_memory}
+    ### Short-Term Memory
+    \`\`\`json
+     {short_term_memory}
+     \`\`\`
 
-    CURRENT_STEP_TO_EXECUTE: {execution_context}
+    ### Long-Term Memory
+     \`\`\`json
+     {long_term_memory}
+     \`\`\`
+
+    ### CURRENT_STEP_TO_EXECUTE: {execution_context}
     <context>
 `;
 

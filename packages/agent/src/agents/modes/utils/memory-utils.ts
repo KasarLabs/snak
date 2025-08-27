@@ -7,6 +7,7 @@ import {
   Memories,
   MemoryOperationResult,
 } from '../types/index.js';
+import { memory } from '@snakagent/database/queries';
 
 /**
  * Safe Short-Term Memory operations with O(1) complexity
@@ -145,29 +146,31 @@ export class LTMManager {
    */
   static createEmpty(): LTMContext {
     return {
-      context: '',
-      retrievedAt: 0,
-      relevanceScore: 0,
-      memoryIds: Object.freeze([]),
-      isStale: true,
+      items: [],
+      episodic_size: 0,
+      semantic_size: 0,
+      merge_size: 0,
     };
   }
 
   /**
    * Updates LTM context with new retrieved data
    */
-  static updateContext(
-    ltm: LTMContext,
-    newContext: string,
-    memoryIds: string[],
-    relevanceScore: number = 0.8
-  ): LTMContext {
+  static updateContext(newItems: memory.Similarity[]): LTMContext {
+    let episodic_counter = 0;
+    let semantic_counter = 0;
+    newItems.forEach((item) => {
+      if (item.memory_type === 'episodic') {
+        episodic_counter++;
+      } else {
+        semantic_counter++;
+      }
+    });
     return {
-      context: newContext.trim(),
-      retrievedAt: Date.now(),
-      relevanceScore: Math.max(0, Math.min(1, relevanceScore)),
-      memoryIds: Object.freeze([...memoryIds]),
-      isStale: false,
+      items: newItems,
+      episodic_size: episodic_counter,
+      semantic_size: semantic_counter,
+      merge_size: newItems.length,
     };
   }
 }
@@ -229,18 +232,11 @@ export namespace MemoryStateManager {
    */
   export function updateLTM(
     state: Memories,
-    context: string,
-    memoryIds: string[],
-    relevanceScore?: number
+    newItems: memory.Similarity[]
   ): Memories {
     return {
       ...state,
-      ltm: LTMManager.updateContext(
-        state.ltm,
-        context,
-        memoryIds,
-        relevanceScore
-      ),
+      ltm: LTMManager.updateContext(newItems),
       lastError: undefined,
     };
   }
@@ -280,6 +276,14 @@ export function formatSTMForContext(stm: STMContext): string {
   return memories
     .map((memory, index) => `${index + 1}. ${memory.content}`)
     .join('\n');
+}
+
+export function JSONstringifySTM(stm: STMContext): string {
+  return JSON.stringify(stm.items, null, 2);
+}
+
+export function JSONstringifyLTM(ltm: LTMContext): string {
+  return JSON.stringify(ltm, null, 2);
 }
 
 /**

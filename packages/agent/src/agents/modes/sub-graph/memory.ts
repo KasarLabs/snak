@@ -303,6 +303,17 @@ export class MemoryGraph {
         return {};
       }
 
+      if (
+        state.currentGraphStep >=
+        (config.configurable?.max_graph_steps ??
+          DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps)
+      ) {
+        logger.warn(
+          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+        );
+        return {};
+      }
+
       // Validate prerequisites
       if (!this.modelSelector || !this.memoryDBManager) {
         logger.warn(
