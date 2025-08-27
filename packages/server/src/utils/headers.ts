@@ -8,7 +8,9 @@ import { Socket } from 'socket.io';
  * @returns string - Validated userId
  * @throws BadRequestException if userId is missing or invalid
  */
-function extractAndValidateUserId(userIdHeader: string | string[] | undefined): string {
+function extractAndValidateUserId(
+  userIdHeader: string | string[] | undefined
+): string {
   if (!userIdHeader) {
     throw new BadRequestException('User ID is required');
   }
