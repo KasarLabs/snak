@@ -69,7 +69,7 @@ async function bootstrap() {
       origin: true,
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-user-id'],
     });
 
     await app.listen(config.port, '0.0.0.0');
