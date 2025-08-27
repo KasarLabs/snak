@@ -95,13 +95,45 @@ export class AgentSelector extends BaseAgent {
     try {
       const model = this.modelSelector.getModels()['fast'];
       logger.info('AgentSelector model:', this.modelSelector.getModels());
+
+      if (!config?.userId) {
+        throw new Error(
+          'AgentSelector: userId is required in config parameter'
+        );
+      }
+
+      const userId = config.userId;
+      logger.debug(`AgentSelector: Filtering agents for user ${userId}`);
+
+      const userAgents = new Map<string, SnakAgent>();
+      const userAgentInfo = new Map<string, string>();
+
+      for (const [key, agent] of this.availableAgents.entries()) {
+        const [agentId, agentUserId] = key.split('|');
+        if (agentUserId === userId) {
+          userAgents.set(key, agent);
+          const agentName = agent.getAgentConfig().name;
+          const description = this.agentInfo.get(agentName);
+          if (description) {
+            userAgentInfo.set(agentName, description);
+          }
+        }
+      }
+
+      const availableAgentsForUser = userAgents;
+      const agentInfoForUser = userAgentInfo;
+
+      logger.debug(
+        `AgentSelector: Found ${userAgents.size} agents for user ${userId}`
+      );
+
       const result = await model.invoke(
-        agentSelectorPromptContent(this.agentInfo, input)
+        agentSelectorPromptContent(agentInfoForUser, input)
       );
       logger.debug('AgentSelector result:', result);
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
-        const agent = Array.from(this.availableAgents.values()).find(
+        const agent = Array.from(availableAgentsForUser.values()).find(
           (agent) => agent.getAgentConfig().name === r_trim
         );
         if (agent) {
