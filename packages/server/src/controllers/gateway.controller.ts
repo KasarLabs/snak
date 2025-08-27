@@ -21,6 +21,7 @@ import {
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
+import { SnakAgent } from '@snakagent/agents';
 
 @WebSocketGateway({
   cors: {
@@ -61,14 +62,45 @@ export class MyGateway {
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
       const userId = this.getUserIdOrThrow(client);
+      let agent: SnakAgent | undefined;
 
-      const agent = this.agentFactory.getAgentInstance(
-        userRequest.request.agent_id,
-        userId
-      );
+      if (userRequest.request.agent_id === undefined) {
+        logger.info(
+          'Agent ID not provided in request, Using agent Selector to select agent'
+        );
+
+        const agentSelector = this.agentFactory.getAgentSelector();
+        if (!agentSelector) {
+          throw new ServerError('E01TA400');
+        }
+        try {
+          agent = await agentSelector.execute(
+            userRequest.request.user_request,
+            false,
+            { userId }
+          );
+        } catch (error) {
+          logger.error('Error in agentSelector:', error);
+          throw new ServerError('E01TA400');
+        }
+
+        if (agent) {
+          const agentId = agent.getAgentConfig().id;
+          const agentConfig = this.agentFactory.getAgentConfig(agentId, userId);
+          if (!agentConfig) {
+            throw new ServerError('E01TA400');
+          }
+        }
+      } else {
+        agent = this.agentFactory.getAgentInstance(
+          userRequest.request.agent_id,
+          userId
+        );
+      }
       if (!agent) {
         throw new ServerError('E01TA400');
       }
+      const agentId = agent.getAgentConfig().id;
 
       let response: AgentResponse;
 
@@ -87,7 +119,7 @@ export class MyGateway {
             q = new Postgres.Query(
               'INSERT INTO message (agent_id,user_request,agent_iteration,status)  VALUES($1, $2, $3, $4)',
               [
-                userRequest.request.agent_id,
+                agentId,
                 userRequest.request.user_request,
                 chunk.chunk,
                 'waiting_for_human_input',
@@ -107,11 +139,7 @@ export class MyGateway {
           } else {
             q = new Postgres.Query(
               'INSERT INTO message (agent_id,user_request,agent_iteration)  VALUES($1, $2, $3)',
-              [
-                userRequest.request.agent_id,
-                userRequest.request.user_request,
-                chunk.chunk,
-              ]
+              [agentId, userRequest.request.user_request, chunk.chunk]
             );
             response = {
               status: 'success',
