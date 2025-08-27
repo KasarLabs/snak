@@ -22,6 +22,7 @@ import {
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
+import { getUserIdFromSocketHeaders } from '../utils/headers.js';
 
 @WebSocketGateway({
   cors: {
@@ -38,17 +39,6 @@ export class MyGateway {
     logger.info('Gateway initialized');
   }
 
-  private getUserIdOrThrow(client: Socket): string {
-    const userId = client.handshake.headers['x-user-id'] as string;
-
-    if (!userId) throw new ForbiddenException('X-USER-ID-NOT-FOUND');
-
-    if (!/^[a-zA-Z0-9-_]+$/.test(userId)) {
-      throw new BadRequestException('Invalid User ID format');
-    }
-    return userId;
-  }
-
   @WebSocketServer()
   server: Server;
 
@@ -61,7 +51,7 @@ export class MyGateway {
       logger.info('handleUserRequest called');
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
-      const userId = this.getUserIdOrThrow(client);
+      const userId = getUserIdFromSocketHeaders(client);
       let agent: SnakAgent | undefined;
 
       if (userRequest.request.agent_id === undefined) {
@@ -186,7 +176,7 @@ export class MyGateway {
   ): Promise<void> {
     try {
       logger.info('stop_agent called');
-      const userId = this.getUserIdOrThrow(client);
+      const userId = getUserIdFromSocketHeaders(client);
       const agent = this.agentFactory.getAgentInstance(
         userRequest.agent_id,
         userId
@@ -215,7 +205,7 @@ export class MyGateway {
     try {
       logger.info('init_agent called');
 
-      const userId = this.getUserIdOrThrow(client);
+      const userId = getUserIdFromSocketHeaders(client);
       await this.agentFactory.addAgent({
         ...userRequest.agent,
         user_id: userId,
@@ -238,7 +228,7 @@ export class MyGateway {
     @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
-      const userId = this.getUserIdOrThrow(client);
+      const userId = getUserIdFromSocketHeaders(client);
       const agentConfig = this.agentFactory.getAgentConfig(
         userRequest.agent_id,
         userId
@@ -270,7 +260,7 @@ export class MyGateway {
     try {
       logger.info('getAgents called');
 
-      const userId = this.getUserIdOrThrow(client);
+      const userId = getUserIdFromSocketHeaders(client);
       const agents = await this.agentService.getAllAgentsOfUser(userId);
 
       const response: AgentResponse = {
@@ -292,7 +282,7 @@ export class MyGateway {
     try {
       logger.info('getMessages called');
 
-      const userId = this.getUserIdOrThrow(client);
+      const userId = getUserIdFromSocketHeaders(client);
 
       const messages = await this.agentService.getMessageFromAgentId(
         {

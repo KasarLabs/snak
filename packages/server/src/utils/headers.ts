@@ -1,15 +1,14 @@
 import { BadRequestException } from '@nestjs/common';
 import { FastifyRequest } from 'fastify';
+import { Socket } from 'socket.io';
 
 /**
- * Extract and validate userId from request headers
- * @param req - FastifyRequest object
+ * Common function to extract and validate userId from headers
+ * @param userIdHeader - The x-user-id header value (can be string, string array, or undefined)
  * @returns string - Validated userId
  * @throws BadRequestException if userId is missing or invalid
  */
-export function getUserIdFromHeaders(req: FastifyRequest): string {
-  const userIdHeader = req.headers['x-user-id'];
-
+function extractAndValidateUserId(userIdHeader: string | string[] | undefined): string {
   if (!userIdHeader) {
     throw new BadRequestException('User ID is required');
   }
@@ -20,4 +19,24 @@ export function getUserIdFromHeaders(req: FastifyRequest): string {
   }
 
   return userId;
+}
+
+/**
+ * Extract and validate userId from request headers
+ * @param req - FastifyRequest object
+ * @returns string - Validated userId
+ * @throws BadRequestException if userId is missing or invalid
+ */
+export function getUserIdFromHeaders(req: FastifyRequest): string {
+  return extractAndValidateUserId(req.headers['x-user-id']);
+}
+
+/**
+ * Extract and validate userId from WebSocket socket headers
+ * @param client - Socket object from WebSocket connection
+ * @returns string - Validated userId
+ * @throws BadRequestException if userId is missing or invalid
+ */
+export function getUserIdFromSocketHeaders(client: Socket): string {
+  return extractAndValidateUserId(client.handshake.headers['x-user-id']);
 }
