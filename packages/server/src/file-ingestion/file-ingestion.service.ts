@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { ConfigurationService } from '../../config/configuration.js';
 import { fileTypeFromBuffer } from 'file-type';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -9,6 +9,7 @@ import { FileContent, StoredFile } from './file-content.interface.js';
 import { ChunkingService } from '../chunking/chunking.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
 import { VectorStoreService } from '../vector-store/vector-store.service.js';
+import { Postgres } from '@snakagent/database';
 
 @Injectable()
 export class FileIngestionService {
@@ -20,6 +21,24 @@ export class FileIngestionService {
     private readonly vectorStore: VectorStoreService,
     private readonly config: ConfigurationService
   ) {}
+
+  /**
+   * Verify that the agent belongs to the specified user
+   * @param agentId - The agent ID to verify
+   * @param userId - The user ID to check ownership against
+   * @throws ForbiddenException if the agent doesn't belong to the user
+   */
+  private async verifyAgentOwnership(agentId: string, userId: string): Promise<void> {
+    const q = new Postgres.Query(
+      'SELECT id FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+    const result = await Postgres.query(q);
+    
+    if (result.length === 0) {
+      throw new ForbiddenException('Agent not found or access denied');
+    }
+  }
 
   async saveFile(buffer: Buffer, originalName: string) {
     const filename = `${Date.now()}-${originalName}`;
@@ -122,10 +141,12 @@ export class FileIngestionService {
   async process(
     agentId: string,
     buffer: Buffer,
-    originalName: string
+    originalName: string,
+    userId: string
   ): Promise<FileContent> {
+    await this.verifyAgentOwnership(agentId, userId);
     const meta = await this.saveFile(buffer, originalName);
-    const agentSize = await this.vectorStore.getAgentSize(agentId);
+    const agentSize = await this.vectorStore.getAgentSize(agentId, userId);
     const totalSize = await this.vectorStore.getTotalSize();
     const { maxAgentSize, maxProcessSize } = this.config.rag;
 
@@ -172,7 +193,7 @@ export class FileIngestionService {
           mimeType: meta.mimeType,
         },
       }));
-      await this.vectorStore.upsert(agentId, upsertPayload);
+      await this.vectorStore.upsert(agentId, upsertPayload, userId);
     } catch (err) {
       this.logger.error('Embedding failed', err);
       throw err;
@@ -188,8 +209,9 @@ export class FileIngestionService {
     };
   }
 
-  async listFiles(agentId: string): Promise<StoredFile[]> {
-    const docs = await this.vectorStore.listDocuments(agentId);
+  async listFiles(agentId: string, userId: string): Promise<StoredFile[]> {
+    await this.verifyAgentOwnership(agentId, userId);
+    const docs = await this.vectorStore.listDocuments(agentId, userId);
     return docs.map((d) => ({
       id: d.document_id,
       originalName: d.original_name,
@@ -201,8 +223,9 @@ export class FileIngestionService {
     }));
   }
 
-  async getFile(agentId: string, id: string): Promise<FileContent> {
-    const rows = await this.vectorStore.getDocument(agentId, id);
+  async getFile(agentId: string, id: string, userId: string): Promise<FileContent> {
+    await this.verifyAgentOwnership(agentId, userId);
+    const rows = await this.vectorStore.getDocument(agentId, id, userId);
     if (!rows.length) {
       throw new Error('Document not found');
     }
@@ -227,7 +250,8 @@ export class FileIngestionService {
     };
   }
 
-  async deleteFile(agentId: string, id: string) {
-    await this.vectorStore.deleteDocument(agentId, id);
+  async deleteFile(agentId: string, id: string, userId: string) {
+    await this.verifyAgentOwnership(agentId, userId);
+    await this.vectorStore.deleteDocument(agentId, id, userId);
   }
 }

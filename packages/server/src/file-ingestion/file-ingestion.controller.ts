@@ -31,12 +31,31 @@ export class FileIngestionController {
     private readonly config: ConfigurationService
   ) {}
 
+  /**
+   * Extract and validate userId from request headers
+   * @param req - FastifyRequest object
+   * @returns string - Validated userId
+   * @throws BadRequestException if userId is missing or invalid
+   */
+  private getUserIdFromHeaders(req: FastifyRequest): string {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+    if (!/^[a-zA-Z0-9-_]+$/.test(userId)) {
+      throw new BadRequestException('Invalid User ID format');
+    }
+    return userId;
+  }
+
   @Post('upload')
   async upload(@Req() request: FastifyRequest): Promise<FileContent> {
     const req = request as unknown as MultipartRequest;
     if (!req.isMultipart || !req.isMultipart()) {
       throw new BadRequestException('Multipart request expected');
     }
+
+    const userId = this.getUserIdFromHeaders(request);
 
     let agentId = '';
     let fileBuffer: Buffer | undefined;
@@ -66,35 +85,41 @@ export class FileIngestionController {
     }
 
     try {
-      const result = await this.service.process(agentId, fileBuffer, fileName);
+      const result = await this.service.process(agentId, fileBuffer, fileName, userId);
       result.chunks.forEach((c) => delete c.metadata.embedding);
       return result;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       throw new InternalServerErrorException(
-        `Embedding failed: ${err.message}`
+        `Embedding failed: ${errorMessage}`
       );
     }
   }
 
   @Post('list')
-  async listFiles(@Body('agentId') agentId: string) {
-    return this.service.listFiles(agentId);
+  async listFiles(@Body('agentId') agentId: string, @Req() req: FastifyRequest) {
+    const userId = this.getUserIdFromHeaders(req);
+    return this.service.listFiles(agentId, userId);
   }
 
   @Post('get')
   async getFile(
     @Body('agentId') agentId: string,
-    @Body('fileId') fileId: string
+    @Body('fileId') fileId: string,
+    @Req() req: FastifyRequest
   ) {
-    return this.service.getFile(agentId, fileId);
+    const userId = this.getUserIdFromHeaders(req);
+    return this.service.getFile(agentId, fileId, userId);
   }
 
   @Post('delete')
   async deleteFile(
     @Body('agentId') agentId: string,
-    @Body('fileId') fileId: string
+    @Body('fileId') fileId: string,
+    @Req() req: FastifyRequest
   ) {
-    await this.service.deleteFile(agentId, fileId);
+    const userId = this.getUserIdFromHeaders(req);
+    await this.service.deleteFile(agentId, fileId, userId);
     return { deleted: true };
   }
 }

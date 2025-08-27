@@ -364,7 +364,7 @@ export class AgentsController {
       const route = this.reflector.get('path', this.handleUserRequest);
       let agent: SnakAgent | undefined = undefined;
       if (userRequest.request.agent_id === undefined) {
-        logger.warn(
+        logger.info(
           'Agent ID not provided in request, Using agent Selector to select agent'
         );
 
@@ -625,7 +625,11 @@ export class AgentsController {
       );
 
       const q = new Postgres.Query(
-        `DELETE FROM message WHERE agent_id = $1 AND user_id = $2`,
+        `DELETE FROM message m
+         USING agents a 
+         WHERE m.agent_id = a.id 
+         AND m.agent_id = $1 
+         AND a.user_id = $2`,
         [userRequest.agent_id, userId]
       );
       await Postgres.query(q);

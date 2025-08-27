@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, ForbiddenException } from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
 import { rag } from '@snakagent/database/queries';
 
@@ -22,6 +22,24 @@ export class VectorStoreService implements OnModuleInit {
     }
   }
 
+  /**
+   * Verify that the agent belongs to the specified user
+   * @param agentId - The agent ID to verify
+   * @param userId - The user ID to check ownership against
+   * @throws ForbiddenException if the agent doesn't belong to the user
+   */
+  private async verifyAgentOwnership(agentId: string, userId: string): Promise<void> {
+    const q = new Postgres.Query(
+      'SELECT id FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+    const result = await Postgres.query(q);
+    
+    if (result.length === 0) {
+      throw new ForbiddenException('Agent not found or access denied');
+    }
+  }
+
   async upsert(
     agentId: string,
     entries: {
@@ -34,8 +52,11 @@ export class VectorStoreService implements OnModuleInit {
         originalName: string;
         mimeType: string;
       };
-    }[]
+    }[],
+    userId: string
   ) {
+    await this.verifyAgentOwnership(agentId, userId);
+
     const queries = entries.map(
       (e) =>
         new Postgres.Query(
@@ -59,7 +80,8 @@ export class VectorStoreService implements OnModuleInit {
       await Postgres.transaction(queries);
     }
   }
-  async listDocuments(agentId: string): Promise<
+
+  async listDocuments(agentId: string, userId: string): Promise<
     {
       document_id: string;
       original_name: string;
@@ -67,10 +89,12 @@ export class VectorStoreService implements OnModuleInit {
       size: number;
     }[]
   > {
+    await this.verifyAgentOwnership(agentId, userId);
+
     const q = new Postgres.Query(
       `SELECT document_id, MAX(original_name) AS original_name, MAX(mime_type) AS mime_type, SUM(LENGTH(content)) AS size
        FROM document_vectors
-        WHERE agent_id = $1
+       WHERE agent_id = $1
        GROUP BY document_id`,
       [agentId]
     );
@@ -79,7 +103,8 @@ export class VectorStoreService implements OnModuleInit {
 
   async getDocument(
     agentId: string,
-    documentId: string
+    documentId: string,
+    userId: string
   ): Promise<
     {
       id: string;
@@ -89,6 +114,8 @@ export class VectorStoreService implements OnModuleInit {
       mime_type: string;
     }[]
   > {
+    await this.verifyAgentOwnership(agentId, userId);
+
     const q = new Postgres.Query(
       `SELECT id, chunk_index, content, original_name, mime_type
        FROM document_vectors
@@ -99,7 +126,9 @@ export class VectorStoreService implements OnModuleInit {
     return await Postgres.query(q);
   }
 
-  async deleteDocument(agentId: string, documentId: string): Promise<void> {
+  async deleteDocument(agentId: string, documentId: string, userId: string): Promise<void> {
+    await this.verifyAgentOwnership(agentId, userId);
+
     const q = new Postgres.Query(
       `DELETE FROM document_vectors WHERE agent_id = $1 AND document_id = $2`,
       [agentId, documentId]
@@ -107,7 +136,8 @@ export class VectorStoreService implements OnModuleInit {
     await Postgres.query(q);
   }
 
-  async getAgentSize(agentId: string): Promise<number> {
+  async getAgentSize(agentId: string, userId: string): Promise<number> {
+    await this.verifyAgentOwnership(agentId, userId);
     return rag.totalSizeForAgent(agentId);
   }
 
