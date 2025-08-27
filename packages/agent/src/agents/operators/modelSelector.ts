@@ -238,50 +238,13 @@ export class ModelSelector extends BaseAgent {
    * @returns {Promise<string>} The selected model type.
    */
   public async selectModelForMessages(
-    messages: BaseMessage[],
+    nextStepsSection: string,
     config?: Record<string, any>
   ): Promise<ModelSelectorReturn> {
     try {
-      let analysisContent = '';
-      if (
-        config?.originalUserQuery &&
-        typeof config.originalUserQuery === 'string'
-      ) {
-        // Use originalUserQuery from config if available
-        analysisContent = config.originalUserQuery;
-        if (this.debugMode) {
-          logger.debug(
-            `Using originalUserQuery for model selection: "${analysisContent.substring(0, 100)}..."`
-          );
-        }
-      } else {
-        // TODO Never reach need to had something to know if we are in autonomous mode to use this instead of this
-        // Fall back to using the last message
-        const lastMessage = messages[messages.length - 1];
-        if (!lastMessage) {
-          logger.warn(
-            'ModelSelector: Could not get the last message; defaulting to "smart".'
-          );
-          return { model: this.models['smart'], model_name: 'smart' };
-        }
-
-        const content =
-          lastMessage.content != null
-            ? typeof lastMessage.content === 'string'
-              ? lastMessage.content
-              : JSON.stringify(lastMessage.content)
-            : '';
-
-        analysisContent = content;
-      }
-
-      let nextStepsSection = '';
-
       const systemPrompt = new SystemMessage(
         modelSelectorSystemPrompt(nextStepsSection)
       );
-      const humanMessage = new HumanMessage(analysisContent);
-
       if (this.debugMode) {
         logger.debug(`Invoking "fast" model for meta-selection analysis.`);
         logger.debug(
@@ -289,10 +252,7 @@ export class ModelSelector extends BaseAgent {
         );
       }
 
-      const response = await this.models.fast.invoke([
-        systemPrompt,
-        humanMessage,
-      ]);
+      const response = await this.models.fast.invoke([systemPrompt]);
       const modelChoice = response.content
         .toString()
         .toLowerCase()

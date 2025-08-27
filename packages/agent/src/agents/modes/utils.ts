@@ -13,6 +13,7 @@ import {
   Agent,
   ParsedPlan,
   StepInfo,
+  STMContext,
   ValidatorStepResponse,
 } from './types/index.js';
 import { logger } from '@snakagent/core';
@@ -139,10 +140,10 @@ export function formatStepsStatusCompact(
   const total = response.steps.length;
 
   if (response.isFinal) {
-    return `✅ Complete (${validated.length}/${total})`;
+    return `Complete (${validated.length}/${total})`;
   }
 
-  return `📋 Progress: [${validated.join(',')}] ➡️ Step ${response.nextSteps}`;
+  return `Progress: [${validated.join(',')}] -> Step ${response.nextSteps}`;
 }
 
 // --- Response Generators ---
@@ -387,8 +388,6 @@ export function formatToolResponse(
   step: StepInfo
 ): StepInfo {
   try {
-    console.log(messages);
-    console.log(step);
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
       if (!Array.isArray(messages)) {
         step.tools[0].result = `tool_name: ${messages.name}, tool_call_id : ${messages.id}, raw_result : ${messages.content.toLocaleString()}`;
@@ -402,7 +401,6 @@ export function formatToolResponse(
           });
         }
       }
-      console.log(step);
       return step;
     } else {
       throw new Error('Wrong Message Tool to format!');
@@ -430,7 +428,6 @@ export function formatValidatorToolsExecutor(step: StepInfo): string {
 
       format_response.push(`\nTools:\n${toolInfo}`);
     }
-    console.log(format_response.join('\n'));
     return format_response.join('\n');
   } catch (error) {
     throw error;
@@ -463,17 +460,20 @@ export function formatStepsForContext(steps: StepInfo[]): string {
 export function formatStepForSTM(step: StepInfo, date: string): string {
   try {
     const header = `S${step.stepNumber}:${step.stepName}`;
-    console.log(step.type === 'tools' && step.tools && step.tools.length > 0);
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
       const toolInfo = step.tools
         .map((t, i) => `T${i}:${t.description}->${t.result}`)
         .join('|');
-      console.log(step);
-      console.log(toolInfo);
       return `${header}[${toolInfo}][${date}]`;
     }
     return `${header}→${step.result.content}[${date}]`;
   } catch (error) {
     throw error;
   }
+}
+export function formatSTMforContext(stm: STMContext): string {
+  const formated_stm = stm.items.map((s, i) => {
+    return `Short-Term-Memories [id :${i}], content : ${s?.content || ''}`;
+  });
+  return formated_stm.join('\n\n');
 }

@@ -20,6 +20,7 @@ import {
   formatExecutionMessage,
   formatShortMemoryMessage,
   formatStepForSTM,
+  formatSTMforContext,
   formatToolResponse,
   formatValidatorToolsExecutor,
   getLatestMessageForMessage,
@@ -100,6 +101,9 @@ export class AgentExecutorGraph {
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): ChatPromptTemplate {
     const currentStep = state.plan.steps[state.currentStepIndex];
+    if (!currentStep) {
+      throw new Error(`No step found at index ${state.currentStepIndex}`);
+    }
     let systemPrompt;
     let contextPrompt;
     if (state.retry === 0) {
@@ -127,7 +131,6 @@ export class AgentExecutorGraph {
   private async invokeModelWithMessages(
     state: typeof ExecutorState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>,
-    filteredMessages: BaseMessage[],
     prompt: ChatPromptTemplate
   ): Promise<AIMessageChunk> {
     const currentStep = state.plan.steps[state.currentStepIndex];
@@ -136,16 +139,14 @@ export class AgentExecutorGraph {
       rejected_reason: Array.isArray(state.last_message)
         ? state.last_message[0].content
         : (state.last_message as BaseMessage).content,
-      short_term_memory: state.memories.stm.items
-        .filter((item) => item !== null)
-        .map((item) => item.content)
-        .join('\n'),
+      short_term_memory: formatSTMforContext(state.memories.stm),
       long_term_memory: state.memories.ltm.context,
       execution_context: execution_context,
     });
 
-    const selectedModelType =
-      await this.modelSelector!.selectModelForMessages(filteredMessages);
+    const selectedModelType = await this.modelSelector!.selectModelForMessages(
+      state.plan.steps[state.currentStepIndex].description
+    );
     let model;
     if (currentStep.type === 'tools') {
       model =
@@ -160,7 +161,7 @@ export class AgentExecutorGraph {
       model = selectedModelType.model;
     }
     logger.debug(
-      `[Executor] 🤖 Invoking model (${selectedModelType.model_name}) with ${currentStep.type} execution`
+      `[Executor] Invoking model (${selectedModelType.model_name}) with ${currentStep.type} execution`
     );
     const result = await model.invoke(formattedPrompt);
     if (!result) {
@@ -196,36 +197,33 @@ export class AgentExecutorGraph {
     }
 
     const currentStep = state.plan.steps[state.currentStepIndex];
+    if (!currentStep) {
+      const errorMessage = `No step found at index ${state.currentStepIndex}. Plan has ${state.plan.steps.length} steps.`;
+      logger.error(`[Executor] ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
     logger.info(
-      `[Executor] 🔄 Processing step ${state.currentStepIndex + 1} - ${currentStep?.stepName}`
+      `[Executor] Processing step ${state.currentStepIndex + 1} - ${currentStep.stepName}`
     );
 
-    const maxGraphSteps = config.configurable?.max_graph_steps ?? 100;
-    const shortTermMemory = config.configurable?.short_term_memory ?? 10;
+    const maxGraphSteps =
+      config.configurable?.max_graph_steps ??
+      DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps;
     const graphStep = state.currentGraphStep;
 
     if (maxGraphSteps && maxGraphSteps <= graphStep) {
-      logger.warn(
-        `[Executor] ⚠️ Maximum iterations (${maxGraphSteps}) reached`
-      );
+      logger.warn(`[Executor] Maximum iterations (${maxGraphSteps}) reached`);
       return createMaxIterationsResponse(graphStep);
     }
 
-    logger.debug(`[Executor] 📊 Current graph step: ${state.currentGraphStep}`);
+    logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
 
     const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
 
     try {
-      const filteredMessages = filterMessagesByShortTermMemory(
-        state.messages,
-        shortTermMemory
-      );
-
-      // Add simple timeout protection for model calls
       const modelPromise = this.invokeModelWithMessages(
         state,
         config,
-        filteredMessages,
         autonomousSystemPrompt
       );
 
@@ -250,16 +248,13 @@ export class AgentExecutorGraph {
       const content = result.content.toLocaleString();
       const updatedPlan = state.plan;
 
-      // Improved token tracking with fallbacks
       let tokens = 0;
       if (currentStep.type === 'tools') {
-        // For tool calls, try to get actual tokens from response metadata
         tokens =
           result.response_metadata?.usage?.completion_tokens ||
           result.response_metadata?.usage?.total_tokens ||
           estimateTokens(content);
       } else {
-        // For non-tool messages, estimate tokens
         tokens = estimateTokens(content);
       }
 
@@ -280,7 +275,7 @@ export class AgentExecutorGraph {
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error: any) {
-      logger.error(`[Executor] ❌ Model invocation failed: ${error.message}`);
+      logger.error(`[Executor] Model invocation failed: ${error.message}`);
       const result = handleModelError(error);
       return {
         ...result,
@@ -330,10 +325,10 @@ export class AgentExecutorGraph {
 
         if (state.currentStepIndex === state.plan.steps.length - 1) {
           logger.info(
-            '[ExecutorValidator] 🎯 Final step reached - Plan completed'
+            '[ExecutorValidator] Final step reached - Plan completed'
           );
           const successMessage = new AIMessageChunk({
-            content: `Final step reached`,
+            content: `Last Step ${state.currentStepIndex + 1} has been success`,
             additional_kwargs: {
               error: false,
               final: true,
@@ -350,7 +345,7 @@ export class AgentExecutorGraph {
           };
         } else {
           logger.info(
-            `[ExecutorValidator] ✅ Step ${state.currentStepIndex + 1} success successfully`
+            `[ExecutorValidator] Step ${state.currentStepIndex + 1} success successfully`
           );
           const message = new AIMessageChunk({
             content: `Step ${state.currentStepIndex + 1} has been success`,
@@ -372,7 +367,7 @@ export class AgentExecutorGraph {
       }
 
       logger.warn(
-        `[ExecutorValidator] ⚠️ Step ${state.currentStepIndex + 1} validation failed - Reason: ${structuredResult.results.join('Reason :')}`
+        `[ExecutorValidator] Step ${state.currentStepIndex + 1} validation failed - Reason: ${structuredResult.results.join('Reason :')}`
       );
       const notValidateMessage = new AIMessageChunk({
         content: `Step ${state.currentStepIndex + 1} not success - Reason: ${structuredResult.results.join('Reason :')}`,
@@ -391,7 +386,7 @@ export class AgentExecutorGraph {
       };
     } catch (error) {
       logger.error(
-        `[ExecutorValidator] ❌ Failed to validate step: ${error.message}`
+        `[ExecutorValidator] Failed to validate step: ${error.message}`
       );
       const errorPlan = state.plan;
       errorPlan.steps[state.currentStepIndex].status = 'failed';
@@ -439,7 +434,7 @@ export class AgentExecutorGraph {
         const argsPreview = JSON.stringify(call.args).substring(0, 150);
         const hasMore = JSON.stringify(call.args).length > 150;
         logger.info(
-          `[Tools] 🔧 Executing tool: ${call.name} with args: ${argsPreview}${hasMore ? '...' : ''}`
+          `[Tools] Executing tool: ${call.name} with args: ${argsPreview}${hasMore ? '...' : ''}`
         );
       });
     }
@@ -458,13 +453,32 @@ export class AgentExecutorGraph {
       const result = await Promise.race([executionPromise, timeoutPromise]);
 
       const executionTime = Date.now() - startTime;
-      const truncatedResult: { messages: ToolMessage[] } = truncateToolResults(
-        result,
-        100000,
-        state.plan.steps[state.currentStepIndex]
-      );
 
-      logger.debug(`[Tools] ✅ Tool execution completed in ${executionTime}ms`);
+      let truncatedResult: { messages: ToolMessage[] };
+      try {
+        truncatedResult = truncateToolResults(
+          result,
+          100000,
+          state.plan.steps[state.currentStepIndex]
+        );
+      } catch (error) {
+        logger.error(
+          `[Tools] Failed to truncate tool results: ${error.message}`
+        );
+        // Create a fallback result to prevent complete failure
+        truncatedResult = {
+          messages: [
+            new ToolMessage({
+              content: `Tool execution completed but result processing failed: ${error.message}`,
+              tool_call_id: result.messages?.[0]?.tool_call_id || 'unknown',
+              name: result.messages?.[0]?.name || 'unknown_tool',
+              additional_kwargs: { from: 'tools', final: false },
+            }),
+          ],
+        };
+      }
+
+      logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
 
       truncatedResult.messages.forEach((res) => {
         res.additional_kwargs = {
@@ -476,9 +490,25 @@ export class AgentExecutorGraph {
       const updatedPlan = { ...state.plan };
       const currentStep = { ...updatedPlan.steps[state.currentStepIndex] };
 
-      // Improved token tracking for tool results
-      const toolResultContent =
-        truncatedResult.messages[0]?.content?.toString() || '';
+      // Improved token tracking for tool results with safe content extraction
+      let toolResultContent = '';
+      try {
+        const firstMessage = truncatedResult.messages[0];
+        if (firstMessage && firstMessage.content) {
+          if (typeof firstMessage.content === 'string') {
+            toolResultContent = firstMessage.content;
+          } else if (typeof firstMessage.content.toString === 'function') {
+            toolResultContent = firstMessage.content.toString();
+          } else {
+            toolResultContent = String(firstMessage.content);
+          }
+        }
+      } catch (error) {
+        logger.warn(
+          `[Tools] Failed to extract tool result content: ${error.message}`
+        );
+        toolResultContent = '[Content extraction failed]';
+      }
       const estimatedTokens = estimateTokens(toolResultContent);
 
       currentStep.result = {
@@ -510,7 +540,7 @@ export class AgentExecutorGraph {
         );
       } else {
         logger.error(
-          `[Tools] ❌ Tool execution failed after ${executionTime}ms: ${error}`
+          `[Tools] Tool execution failed after ${executionTime}ms: ${error}`
         );
       }
 
@@ -573,32 +603,30 @@ export class AgentExecutorGraph {
     if (state.last_agent === Agent.EXECUTOR) {
       const lastAiMessage = state.last_message as AIMessageChunk;
       if (isTerminalMessage(lastAiMessage)) {
-        logger.info(`[Router] 🏁 Final message received, routing to end node`);
+        logger.info(`[Router] Final message received, routing to end node`);
         return 'end';
       }
       if (lastAiMessage.content.toLocaleString().includes('REQUEST_REPLAN')) {
-        logger.debug(
-          '[Router] 🔄 REQUEST_REPLAN detected, routing to re_planner'
-        );
+        logger.debug('[Router] REQUEST_REPLAN detected, routing to re_planner');
 
         return 'planning_orchestrator';
       }
       if (lastAiMessage.tool_calls?.length) {
         logger.debug(
-          `[Router] 🔧 Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
+          `[Router] Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
         );
         return 'tool_executor';
       }
     } else if (state.last_agent === Agent.TOOLS) {
       const maxSteps = config.configurable?.max_graph_steps ?? 100;
       if (maxSteps <= state.currentGraphStep) {
-        logger.warn('[Router] ⚠️ Max graph steps reached, routing to END node');
+        logger.warn('[Router] Max graph steps reached, routing to END node');
         return 'end_executor_graph';
       } else {
         return 'executor_validator';
       }
     }
-    logger.debug('[Router] 🔍 Routing to validator');
+    logger.debug('[Router] Routing to validator');
     return 'executor_validator';
   }
 
@@ -614,7 +642,7 @@ export class AgentExecutorGraph {
         lastMessage.additional_kwargs.final === true ||
         lastMessage.content.toString().includes('FINAL ANSWER')
       ) {
-        logger.info(`[Router] 🏁 Final message received, routing to end node`);
+        logger.info(`[Router] Final message received, routing to end node`);
         return 'end';
       }
       if (
@@ -624,7 +652,7 @@ export class AgentExecutorGraph {
       }
       if (lastMessage.tool_calls?.length) {
         logger.debug(
-          `[Router] 🔧 Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node`
+          `[Router] Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node`
         );
         return 'tool_executor';
       }
@@ -640,16 +668,16 @@ export class AgentExecutorGraph {
 
       const iteration = state.currentGraphStep;
       if (graphMaxSteps <= iteration) {
-        logger.info(`[Tools] 🏁 Max steps reached, routing to end node`);
+        logger.info(`[Tools] Max steps reached, routing to end node`);
         return 'end';
       }
 
       logger.debug(
-        `[Router] 🔍 Received ToolMessage, routing back to validator node`
+        `[Router] Received ToolMessage, routing back to validator node`
       );
       return 'executor_validator';
     }
-    logger.info('[Router] 🔍 Routing to validator');
+    logger.info('[Router] Routing to validator');
     return 'executor_validator';
   }
 
@@ -665,9 +693,7 @@ export class AgentExecutorGraph {
   }
 
   private end_planner_graph(state: typeof ExecutorState.State) {
-    logger.info(
-      '[EndExecutorGraph] 🏁 Cleaning up state for graph termination'
-    );
+    logger.info('[EndExecutorGraph] Cleaning up state for graph termination');
     const emptyPlan: ParsedPlan = {
       steps: [],
       summary: '',

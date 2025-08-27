@@ -261,7 +261,7 @@ export const REPLANNER_CONTEXT_PROMPT = `
 Objectives: {objectives}
 Previous Plan: {formatPlan}
 Rejection Reason: {rejectedReason}
-Available Tools: \`\`\`{toolsAvailable}\`\`\`
+Available Tools: \`\`\`json{toolsAvailable}\`\`\`
 `;
 
 /************************/
@@ -402,7 +402,7 @@ export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `You are a strategic plann
 export const AUTONOMOUS_PLANNER_CONTEXT_PROMPT = `
 <context>
 Your Configuration(bio/objectives/knowledge) : {objectives}
-Available Tools: \`\`\`{toolsAvailable}\`\`\`
+Available Tools: \`\`\`json{toolsAvailable}\`\`\`
 </context>
 `;
 /**********************/
@@ -494,7 +494,7 @@ Include human intervention when:
 
 ## INPUT VARIABLES
 Agent Description: {agentConfig}
-Available Tools: {toolsAvailable}`;
+Available Tools: \`\`\`json{toolsAvailable}\`\`\``;
 
 /*************************/
 /***    INTERACTIVE    ***/

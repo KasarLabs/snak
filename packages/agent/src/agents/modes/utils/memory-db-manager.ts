@@ -1,7 +1,11 @@
 import { logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
-import { MemoryOperationResult } from '../types/index.js';
+import {
+  EpisodicMemoryContext,
+  MemoryOperationResult,
+  SemanticMemoryContext,
+} from '../types/index.js';
 
 /**
  * Transaction-safe memory database operations
@@ -26,10 +30,8 @@ export class MemoryDBManager {
    * Safe memory upsert with retry logic and transaction safety
    */
   async upsertMemory(
-    content: string,
-    memories_id: string,
-    query: string,
-    userId: string,
+    semantic_memories: SemanticMemoryContext[],
+    episodic_memories: EpisodicMemoryContext[],
     memorySize?: number
   ): Promise<MemoryOperationResult<string>> {
     let attempt = 0;
@@ -46,7 +48,7 @@ export class MemoryDBManager {
 
         // Execute with timeout
         const result = await Promise.race([
-          this.performUpsert(content, memories_id, query, userId, memorySize),
+          this.performUpsert(semantic_memories, episodic_memories),
           timeoutPromise,
         ]);
 
@@ -81,73 +83,85 @@ export class MemoryDBManager {
    * Performs the actual upsert operation with transaction safety
    */
   private async performUpsert(
-    content: string,
-    memories_id: string,
-    query: string,
-    userId: string,
-    memorySize?: number
+    semantic_memories: SemanticMemoryContext[],
+    episodic_memories: EpisodicMemoryContext[]
   ): Promise<MemoryOperationResult<string>> {
     try {
       // Validate inputs
-      const validation = this.validateUpsertInputs(
-        content,
-        memories_id,
-        query,
-        userId
-      );
-      if (!validation.success) {
+      const episodic_validation =
+        this.validateEpisodicUpsertInputs(episodic_memories);
+      const semantic_validation =
+        this.validateSemanticUpsertInputs(semantic_memories);
+      if (!episodic_validation.success || !semantic_validation) {
         return {
           success: false,
-          error: validation.error,
-          timestamp: validation.timestamp,
+          error: episodic_validation.error || semantic_validation.error,
+          timestamp:
+            episodic_validation.timestamp || semantic_validation.timestamp,
           data: undefined,
         };
       }
+      const event_ids: Array<number> = [];
 
-      // Generate embedding
-      const embedding = await this.embeddings.embedQuery(content);
-      if (!embedding || embedding.length === 0) {
-        return {
-          success: false,
-          error: 'Failed to generate embedding for content',
-          timestamp: Date.now(),
+      for (const e_memory of episodic_memories) {
+        const embedding = await this.embeddings.embedQuery(e_memory.content);
+        if (!embedding || embedding.length === 0) {
+          return {
+            success: false,
+            error: 'Failed to generate embedding for content',
+            timestamp: Date.now(),
+          };
+        }
+
+        const episodicRecord: memory.EpisodicMemory = {
+          user_id: e_memory.user_id,
+          run_id: e_memory.run_id,
+          content: e_memory.content,
+          embedding: embedding,
+          sources: e_memory.sources,
         };
+
+        const result = await memory.insert_episodic_memory(episodicRecord);
+        console.log(JSON.stringify(result));
+        event_ids.push(result.memory_id);
+        logger.debug(
+          `[MemoryDBManager] Successfully upserted memory ${result.memory_id} for user ${e_memory.user_id}`
+        );
       }
 
-      // Create memory record
-      const memoryRecord: memory.Memory = {
-        user_id: userId,
-        memories_id: memories_id,
-        query: query,
-        content: content,
-        embedding: embedding,
-        metadata: {
-          timestamp: new Date().toISOString(),
-          upsertedAt: Date.now(),
-        },
-        history: [],
-      };
+      for (const s_memory of semantic_memories) {
+        const embedding = await this.embeddings.embedQuery(s_memory.fact);
+        if (!embedding || embedding.length === 0) {
+          return {
+            success: false,
+            error: 'Failed to generate embedding for fact',
+            timestamp: Date.now(),
+          };
+        }
 
-      // Insert memory with transaction safety
-      await memory.insert_memory(memoryRecord);
-
-      // Enforce memory limit if specified
-      if (memorySize && memorySize > 0) {
-        await memory.enforce_memory_limit(userId, memorySize);
+        const semanticRecord: memory.SemanticMemory = {
+          user_id: s_memory.user_id,
+          run_id: s_memory.run_id,
+          fact: s_memory.fact,
+          embedding: embedding,
+          category: s_memory.category,
+          source_events: event_ids,
+        };
+        const result = await memory.insert_semantic_memory(semanticRecord);
+        console.log(JSON.stringify(result));
+        logger.debug(
+          `[MemoryDBManager] Successfully upserted memory ${result.memory_id} for user ${s_memory.user_id}`
+        );
       }
-
-      logger.debug(
-        `[MemoryDBManager] Successfully upserted memory ${memories_id} for user ${userId}`
-      );
 
       return {
         success: true,
-        data: `Memory ${memories_id} updated successfully`,
+        data: `Memory updated successfully`,
         timestamp: Date.now(),
       };
     } catch (error) {
       logger.error(`[MemoryDBManager] Upsert operation failed:`, error);
-      throw error; // Re-throw for retry logic
+      throw error;
     }
   }
 
@@ -157,6 +171,7 @@ export class MemoryDBManager {
   async retrieveSimilarMemories(
     query: string,
     userId: string,
+    runId: string,
     limit: number = 4,
     similarityThreshold: number = 0.7
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
@@ -173,7 +188,13 @@ export class MemoryDBManager {
         });
 
         const result = await Promise.race([
-          this.performRetrieval(query, userId, limit, similarityThreshold),
+          this.performRetrieval(
+            query,
+            userId,
+            runId,
+            limit,
+            similarityThreshold
+          ),
           timeoutPromise,
         ]);
 
@@ -210,6 +231,7 @@ export class MemoryDBManager {
   private async performRetrieval(
     query: string,
     userId: string,
+    runId: string,
     limit: number,
     similarityThreshold: number
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
@@ -244,6 +266,7 @@ export class MemoryDBManager {
       // Retrieve similar memories
       const similarities = await memory.similar_memory(
         userId,
+        runId,
         embedding,
         limit
       );
@@ -267,126 +290,103 @@ export class MemoryDBManager {
       throw error;
     }
   }
-
-  /**
-   * Batch upsert with transaction safety
-   */
-  async batchUpsertMemories(
-    memories: Array<{
-      content: string;
-      memories_id: string;
-      query: string;
-    }>,
-    userId: string,
-    memorySize?: number
-  ): Promise<MemoryOperationResult<string[]>> {
-    const results: string[] = [];
-    const errors: string[] = [];
-
-    for (const memoryData of memories) {
-      const result = await this.upsertMemory(
-        memoryData.content,
-        memoryData.memories_id,
-        memoryData.query,
-        userId,
-        memorySize
-      );
-
-      if (result.success) {
-        results.push(result.data!);
-      } else {
-        errors.push(`${memoryData.memories_id}: ${result.error}`);
-      }
-    }
-
-    if (errors.length === 0) {
-      return {
-        success: true,
-        data: results,
-        timestamp: Date.now(),
-      };
-    } else if (results.length > 0) {
-      return {
-        success: true, // Partial success
-        data: results,
-        error: `Some operations failed: ${errors.join('; ')}`,
-        timestamp: Date.now(),
-      };
-    } else {
-      return {
-        success: false,
-        error: `All operations failed: ${errors.join('; ')}`,
-        timestamp: Date.now(),
-      };
-    }
-  }
-
-  /**
-   * Health check for database connectivity
-   */
-  async healthCheck(): Promise<boolean> {
-    try {
-      const testQuery = 'test_connectivity_query';
-      const testUserId = 'health_check_user';
-
-      // Try a simple retrieval operation
-      const embedding = await this.embeddings.embedQuery(testQuery);
-      await memory.similar_memory(testUserId, embedding, 1);
-
-      return true;
-    } catch (error) {
-      logger.error('[MemoryDBManager] Health check failed:', error);
-      return false;
-    }
-  }
-
   /**
    * Validates upsert inputs
    */
-  private validateUpsertInputs(
-    content: string,
-    memories_id: string,
-    query: string,
-    userId: string
+  private validateEpisodicUpsertInputs(
+    episodic_memories: EpisodicMemoryContext[]
   ): MemoryOperationResult<void> {
-    if (!content.trim()) {
-      return {
-        success: false,
-        error: 'Content cannot be empty',
-        timestamp: Date.now(),
-      };
+    for (const memory of episodic_memories) {
+      if (!memory.content.trim()) {
+        return {
+          success: false,
+          error: 'Content cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
+
+      if (memory.content.length > 10000) {
+        return {
+          success: false,
+          error: 'Content too long (max 10000 characters)',
+          timestamp: Date.now(),
+        };
+      }
+
+      if (!memory.user_id.trim()) {
+        return {
+          success: false,
+          error: 'User ID cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
+
+      if (!memory.run_id.trim()) {
+        return {
+          success: false,
+          error: 'User ID cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
+
+      if (memory.sources.length <= 0) {
+        return {
+          success: false,
+          error: 'Sources Array cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
     }
 
-    if (!memories_id.trim()) {
-      return {
-        success: false,
-        error: 'Memory ID cannot be empty',
-        timestamp: Date.now(),
-      };
-    }
+    return {
+      success: true,
+      timestamp: Date.now(),
+    };
+  }
 
-    if (!query.trim()) {
-      return {
-        success: false,
-        error: 'Query cannot be empty',
-        timestamp: Date.now(),
-      };
-    }
+  private validateSemanticUpsertInputs(
+    semantic_memories: SemanticMemoryContext[]
+  ): MemoryOperationResult<void> {
+    for (const memory of semantic_memories) {
+      if (!memory.fact.trim()) {
+        return {
+          success: false,
+          error: 'Content cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
 
-    if (!userId.trim()) {
-      return {
-        success: false,
-        error: 'User ID cannot be empty',
-        timestamp: Date.now(),
-      };
-    }
+      if (memory.fact.length > 10000) {
+        return {
+          success: false,
+          error: 'Content too long (max 10000 characters)',
+          timestamp: Date.now(),
+        };
+      }
 
-    if (content.length > 10000) {
-      return {
-        success: false,
-        error: 'Content too long (max 10000 characters)',
-        timestamp: Date.now(),
-      };
+      if (!memory.user_id.trim()) {
+        return {
+          success: false,
+          error: 'User ID cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
+
+      if (!memory.run_id.trim()) {
+        return {
+          success: false,
+          error: 'User ID cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
+
+      if (!memory.category.trim()) {
+        return {
+          success: false,
+          error: 'Sources Array cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
     }
 
     return {
@@ -405,23 +405,36 @@ export class MemoryDBManager {
   /**
    * Format memories for context display
    */
+  /**
+   * Format memories for inclusion in a context
+   * @param memories The memories to format
+   */
   formatMemoriesForContext(memories: memory.Similarity[]): string {
     if (memories.length === 0) {
       return '';
     }
 
-    const formattedMemories = memories
+    const s_memories: memory.Similarity[] = [];
+    const e_memories: memory.Similarity[] = [];
+    for (const memory of memories) {
+      if (memory.memory_type === 'semantic') {
+        s_memories.push(memory);
+      } else if (memory.memory_type === 'episopdic') {
+        e_memories.push(memory);
+      }
+    }
+
+    const formattedEpisodicMemories = e_memories
       .map((mem) => {
-        const lastHist =
-          Array.isArray(mem.history) && mem.history.length > 0
-            ? mem.history[mem.history.length - 1]
-            : null;
-        const timestamp = lastHist?.timestamp || 'unknown';
-        const relevance = mem.similarity.toFixed(4);
-        return `Memory [id: ${mem.id}, relevance: ${relevance}, last_updated: ${timestamp}]: ${mem.content}`;
+        return `Episodic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
+      })
+      .join('\n\n');
+    const formattedSemanticMemories = s_memories
+      .map((mem) => {
+        return `Semantic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, category: ${mem.metadata.category}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
       })
       .join('\n\n');
 
-    return `### Relevant Memory Context\n${formattedMemories}\n\n`;
+    return formattedEpisodicMemories.concat(formattedSemanticMemories);
   }
 }

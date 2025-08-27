@@ -170,27 +170,6 @@ export class LTMManager {
       isStale: false,
     };
   }
-
-  /**
-   * Marks LTM as stale (needs refresh)
-   */
-  static markStale(ltm: LTMContext): LTMContext {
-    return {
-      ...ltm,
-      isStale: true,
-    };
-  }
-
-  /**
-   * Checks if LTM needs refresh based on age
-   */
-  static needsRefresh(
-    ltm: LTMContext,
-    maxAgeMs: number = 5 * 60 * 1000
-  ): boolean {
-    if (ltm.isStale) return true;
-    return Date.now() - ltm.retrievedAt > maxAgeMs;
-  }
 }
 
 /**

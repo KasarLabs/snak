@@ -4,67 +4,189 @@ import {
   START,
   END,
   StateGraph,
-  CompiledStateGraph,
+  Command,
 } from '@langchain/langgraph';
 import {
   Agent,
   Memories,
   ParsedPlan,
-  MemoryOperationResult,
+  EpisodicMemoryContext,
+  SemanticMemoryContext,
+  ltmSchema,
+  ltmSchemaType,
 } from '../types/index.js';
 import { formatStepForSTM } from '../utils.js';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { z } from 'zod';
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from '@langchain/core/prompts';
 import { AgentConfig, logger } from '@snakagent/core';
 import { ModelSelector } from 'agents/operators/modelSelector.js';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { AutonomousConfigurableAnnotation } from '../autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { v4 as uuidv4 } from 'uuid';
-import { PLANNER_ORCHESTRATOR } from '../types/index.js';
 import {
   MemoryNode,
   DEFAULT_AUTONOMOUS_CONFIG,
 } from '../config/autonomous-config.js';
-import {
-  MemoryStateManager,
-  STMManager,
-  LTMManager,
-  formatSTMForContext,
-} from '../utils/memory-utils.js';
+import { MemoryStateManager, STMManager } from '../utils/memory-utils.js';
 import { MemoryDBManager } from '../utils/memory-db-manager.js';
+
 export type MemoryStateType = typeof MemoryState.State;
+const ltm_summarize_prompt = `You are a memory integration agent that processes responses into Long-Term Memory (LTM) with episodic and semantic components. Your task is to analyze the given response and create structured memory entries following this schema:
 
-let summarize_prompt = `
-You are a summarization agent. Your objective is to create the best summary of a given response before embedding it.
+- Episodic events: Specific occurrences, actions, or experiences
+- Semantic facts: General knowledge, learned information, or insights
 
-Please follow these guidelines:
+Guidelines:
+1. Extract important episodic events (things that happened, were discussed, or experienced) and include the sources for these events in an array format, including any relevant website URLs.
+2. Identify important semantic facts (knowledge, insights, or learnable information) and categorize them appropriately.
+3. Use clear, descriptive names for events.
+4. Categorize facts as one of: "preference", "fact", "skill", or "relationship".
+5. If no specific source is mentioned, default to ["conversation"].
 
-1. Read the response carefully and identify the main points and key details.
-2. Focus on clarity and conciseness while retaining the essential information.
-3. Aim for a summary length of 1-3 sentences, depending on the complexity of the response.
-4. Use clear and straightforward language to ensure the summary is easily understandable.
-5. Include the original response value as part of the summary process.
+Output format (JSON):
+{{
+  "episodic": [
+    {{
+      "name": "event_identifier",
+      "content": "detailed description of what happened",
+      "source": ["source_reference_1", "source_reference_2"]
+    }}
+  ],
+  "semantic": [
+    {{
+      "fact": "the learned information or insight",
+      "category": "preference|fact|skill|relationship"
+    }}
+  ]
+}}
 
 <example>
-Response: "The meeting will cover the quarterly financial results, upcoming projects, and team performance metrics."
-Summary: "The meeting will discuss quarterly financial results, upcoming projects, and team performance."
-</example
+Response: "The user explained they're building a TypeScript application with memory management. They want to implement LTM with episodic and semantic storage. The meeting covered schema design and simplification strategies."
 
-Response : {response}
-Summary :
-`;
+Output:
+{{
+  "episodic": [
+    {{
+      "name": "project_discussion",
+      "content": "User explained building a TypeScript application with memory management features",
+      "source": ["meeting_notes"]
+    }},
+    {{
+      "name": "design_review",
+      "content": "Meeting covered schema design and simplification strategies for LTM",
+      "source": ["meeting_notes"]
+    }}
+  ],
+  "semantic": [
+    {{
+      "fact": "User is building with TypeScript for type safety",
+      "category": "fact"
+    }},
+    {{
+      "fact": "LTM implementation requires both episodic and semantic storage",
+      "category": "fact"
+    }}
+  ]
+}}
+</example>
+
+<example>
+Response: "Yesterday at 3 PM, the user mentioned they prefer Python over Java for data science projects because of its extensive libraries like pandas and scikit-learn. They shared that they've been using Python for 5 years."
+
+Output:
+{{
+  "episodic": [
+    {{
+      "name": "language_preference_discussion",
+      "content": "User mentioned preferring Python over Java for data science projects yesterday at 3 PM",
+      "source": ["conversation"]
+    }}
+  ],
+  "semantic": [
+    {{
+      "fact": "User prefers Python over Java for data science",
+      "category": "preference"
+    }},
+    {{
+      "fact": "User has 5 years of Python experience",
+      "category": "skill"
+    }},
+    {{
+      "fact": "User values pandas and scikit-learn libraries for data science",
+      "category": "preference"
+    }}
+  ]
+}}
+</example>
+
+<example>
+Response: "The user's team lead Sarah mentioned in the Slack channel that the deadline for the API integration has been moved to next Friday. The user acknowledged this and started working on the authentication module."
+
+Output:
+{{
+  "episodic": [
+    {{
+      "name": "deadline_update",
+      "content": "Team lead Sarah announced the API integration deadline was moved to next Friday",
+      "source": ["slack_channel"]
+    }},
+    {{
+      "name": "task_started",
+      "content": "User acknowledged deadline change and started working on authentication module",
+      "source": ["conversation"]
+    }}
+  ],
+  "semantic": [
+    {{
+      "fact": "Sarah is the user's team lead",
+      "category": "relationship"
+    }},
+    {{
+      "fact": "User is responsible for API integration with authentication module",
+      "category": "fact"
+    }}
+  ]
+}}
+</example>
+
+<example>
+Response: "Based on the documentation from https://docs.example.com/api, the user learned that rate limiting is set to 100 requests per minute. They successfully implemented the throttling mechanism using a token bucket algorithm."
+
+Output:
+{{
+  "episodic": [
+    {{
+      "name": "api_documentation_review",
+      "content": "User reviewed API documentation and learned about rate limiting specifications",
+      "source": ["https://docs.example.com/api"]
+    }},
+    {{
+      "name": "throttling_implementation",
+      "content": "User successfully implemented throttling mechanism using token bucket algorithm",
+      "source": ["conversation"]
+    }}
+  ],
+  "semantic": [
+    {{
+      "fact": "API rate limit is 100 requests per minute",
+      "category": "fact"
+    }},
+    {{
+      "fact": "User can implement token bucket algorithms for rate limiting",
+      "category": "skill"
+    }}
+  ]
+}}
+</example>`;
 
 export const MemoryState = Annotation.Root({
-  messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => x.concat(y),
-    default: () => [],
-  }),
-  last_message: Annotation<BaseMessage | BaseMessage[]>,
   last_agent: Annotation<Agent>,
   memories: Annotation<Memories>,
   plan: Annotation<ParsedPlan>,
   currentStepIndex: Annotation<number>,
+  currentGraphStep: Annotation<number>,
 });
 
 export class MemoryGraph {
@@ -98,13 +220,30 @@ export class MemoryGraph {
   }> {
     try {
       logger.debug('[STMManager] Processing memory update');
+
+      // Circuit breaker: vérifier les limites du sub-graph
+      if (
+        state.currentGraphStep >=
+        (config.configurable?.max_graph_steps ??
+          DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps)
+      ) {
+        logger.warn(
+          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+        );
+        return {
+          memories: state.memories,
+        };
+      }
+
       const currentStep = state.plan.steps[state.currentStepIndex - 1];
 
       if (!currentStep) {
         logger.warn(
           '[STMManager] No current step found, returning unchanged memories'
         );
-        return { memories: state.memories };
+        return {
+          memories: state.memories,
+        };
       }
       const date = Date.now();
       const newMessage = formatStepForSTM(
@@ -126,14 +265,14 @@ export class MemoryGraph {
 
       const updatedMemories = result.data!;
       logger.debug(
-        `[STMManager] ✅ Memory updated. STM size: ${updatedMemories.stm.size}/${updatedMemories.stm.maxSize}`
+        `[STMManager] Memory updated. STM size: ${updatedMemories.stm.size}/${updatedMemories.stm.maxSize}`
       );
 
-      return { memories: updatedMemories };
+      return {
+        memories: updatedMemories,
+      };
     } catch (error) {
-      logger.error(
-        `[STMManager] ❌ Critical error in STM processing: ${error}`
-      );
+      logger.error(`[STMManager] Critical error in STM processing: ${error}`);
 
       // Return safe fallback state
       const fallbackMemories: Memories = {
@@ -145,7 +284,9 @@ export class MemoryGraph {
         },
       };
 
-      return { memories: fallbackMemories };
+      return {
+        memories: fallbackMemories,
+      };
     }
   }
 
@@ -183,22 +324,10 @@ export class MemoryGraph {
         return {};
       }
 
-      // Generate summary using structured output
-      const summarySchema = z.object({
-        summarize: z
-          .string()
-          .min(10)
-          .describe('Concise summary of the step execution and result'),
-        relevance: z
-          .number()
-          .min(0)
-          .max(1)
-          .describe('Relevance score for this memory (0-1)'),
-      });
-
-      const structuredModel = model.withStructuredOutput(summarySchema);
+      const structuredModel = model.withStructuredOutput(ltmSchema);
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', summarize_prompt],
+        ['system', ltm_summarize_prompt],
+        new MessagesPlaceholder('response'),
       ]);
       const recentMemories = STMManager.getRecentMemories(
         state.memories.stm,
@@ -212,17 +341,40 @@ export class MemoryGraph {
         return {};
       }
 
-      const summaryResult = await structuredModel.invoke(
+      const summaryResult = (await structuredModel.invoke(
         await prompt.formatMessages({
           response: recentMemories[0].content,
         })
-      );
+      )) as ltmSchemaType;
+
+      console.log(JSON.stringify(summaryResult));
+      const episodic_memories: EpisodicMemoryContext[] = [];
+      const semantic_memories: SemanticMemoryContext[] = [];
+
+      summaryResult.episodic.forEach((memory) => {
+        const episodic_memory: EpisodicMemoryContext = {
+          user_id: 'default_user',
+          run_id: config.configurable?.conversation_id as string,
+          content: memory.content,
+          sources: memory.source,
+        };
+        episodic_memories.push(episodic_memory);
+      });
+
+      summaryResult.semantic.forEach((memory) => {
+        const semantic_memory: SemanticMemoryContext = {
+          user_id: 'default_user',
+          run_id: config.configurable?.conversation_id as string,
+          fact: memory.fact,
+          category: memory.category,
+        };
+        semantic_memories.push(semantic_memory);
+      });
 
       logger.debug(
-        `[LTMManager] Generated summary: ${JSON.stringify(summaryResult)}`
+        `[LTMManager] Generated summary: ${JSON.stringify(summaryResult, null, 2)}`
       );
 
-      const lastSTMItem = recentMemories[0];
       const userId = config.configurable?.conversation_id as string;
       console.log(`[LTMManager]${userId},\n ${config.configurable})`);
       if (!userId) {
@@ -232,28 +384,23 @@ export class MemoryGraph {
 
       // Perform safe memory upsert with improved error handling
       const upsertResult = await this.memoryDBManager.upsertMemory(
-        summaryResult.summarize,
-        lastSTMItem.memories_id,
-        `${currentStep.stepName}: ${currentStep.description}`,
-        userId,
-        config.configurable?.memory_size || 20
+        semantic_memories,
+        episodic_memories
       );
 
       if (upsertResult.success) {
         logger.debug(
-          `[LTMManager] ✅ Successfully upserted memory for step ${currentStepIndex + 1}`
+          `[LTMManager] Successfully upserted memory for step ${currentStepIndex + 1}`
         );
       } else {
         logger.warn(
-          `[LTMManager] ⚠️ Failed to upsert memory: ${upsertResult.error}`
+          `[LTMManager] Failed to upsert memory: ${upsertResult.error}`
         );
       }
 
       return {};
     } catch (error) {
-      logger.error(
-        `[LTMManager] ❌ Critical error in LTM processing: ${error}`
-      );
+      logger.error(`[LTMManager] Critical error in LTM processing: ${error}`);
       return {};
     }
   }
@@ -265,12 +412,29 @@ export class MemoryGraph {
     const lastAgent = state.last_agent;
     logger.debug(`[MemoryRouter] Routing from agent: ${lastAgent}`);
 
+    if (
+      state.currentGraphStep >=
+      (config.configurable?.max_graph_steps ??
+        DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps)
+    ) {
+      logger.warn(
+        `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+      );
+      return MemoryNode.END_MEMORY_GRAPH;
+    }
+
     // Validate memory state
     if (!MemoryStateManager.validate(state.memories)) {
       logger.error(
         '[MemoryRouter] Invalid memory state detected, routing to end'
       );
-      return MemoryNode.END;
+      return MemoryNode.END_MEMORY_GRAPH;
+    }
+
+    const maxSteps = config.configurable?.max_graph_steps ?? 100;
+    if (maxSteps <= state.currentGraphStep) {
+      logger.warn('[Router] Max graph steps reached, routing to END node');
+      return MemoryNode.END_MEMORY_GRAPH;
     }
 
     // Route based on previous agent and current state
@@ -302,16 +466,33 @@ export class MemoryGraph {
         return MemoryNode.END;
     }
   }
+
   private end_memory_graph(
     state: typeof MemoryState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ) {}
+  ) {
+    logger.info('[EndMemoryGraph] Cleaning up memory graph state');
+    const emptyPlan: ParsedPlan = {
+      steps: [],
+      summary: '',
+    };
+    return new Command({
+      update: {
+        plan: emptyPlan,
+        currentStepIndex: 0,
+        retry: 0,
+        skipValidation: { skipValidation: true, goto: 'end_graph' },
+      },
+      goto: 'end_graph',
+      graph: Command.PARENT,
+    });
+  }
+
   public getMemoryGraph() {
     return this.graph;
   }
 
   public createGraphMemory() {
-    const retrieve_memory = this.memoryAgent.createMemoryNode();
     const memory_subgraph = new StateGraph(
       MemoryState,
       AutonomousConfigurableAnnotation
@@ -322,11 +503,11 @@ export class MemoryGraph {
         'retrieve_memory',
         this.memoryAgent.createMemoryNode().bind(this)
       )
+      .addNode('end_memory_graph', this.end_memory_graph.bind(this))
       .addConditionalEdges(START, this.memory_router.bind(this))
       .addEdge('stm_manager', 'ltm_manager')
       .addEdge('ltm_manager', 'retrieve_memory')
       .addEdge('retrieve_memory', END);
-
     this.graph = memory_subgraph.compile();
   }
 }

@@ -118,7 +118,7 @@ export const AutonomousGraphState = Annotation.Root({
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
-    default: () => MemoryStateManager.createInitialState(15),
+    default: () => MemoryStateManager.createInitialState(1),
   }),
   rag: Annotation<string>({
     reducer: (x, y) => y,
@@ -142,6 +142,10 @@ export const AutonomousGraphState = Annotation.Root({
   currentGraphStep: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 0,
+  }),
+  subGraphSteps: Annotation<Record<string, number>>({
+    reducer: (x, y) => ({ ...x, ...y }),
+    default: () => ({ planner: 0, memory: 0, executor: 0 }),
   }),
   skipValidation: Annotation<{ skipValidation: boolean; goto: string }>({
     reducer: (x, y) => y,
@@ -201,18 +205,18 @@ export class AutonomousAgent {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
         logger.debug(
-          '[AutonomousAgent] ✅ Memory agent retrieved successfully'
+          '[AutonomousAgent] Memory agent retrieved successfully'
         );
-        const memoryTools = this.memoryAgent.prepareMemoryTools();
-        this.toolsList.push(...memoryTools);
+        // const memoryTools = this.memoryAgent.prepareMemoryTools(); TODO
+        // this.toolsList.push(...memoryTools);
       } else {
         logger.warn(
-          '[AutonomousAgent] ⚠️ Memory agent not available - memory features will be limited'
+          '[AutonomousAgent] WARNING: Memory agent not available - memory features will be limited'
         );
       }
     } catch (error) {
       logger.error(
-        `[AutonomousAgent] ❌ Failed to retrieve memory agent: ${error}`
+        `[AutonomousAgent] Failed to retrieve memory agent: ${error}`
       );
     }
   }
@@ -222,12 +226,12 @@ export class AutonomousAgent {
       this.ragAgent = this.snakAgent.getRagAgent();
       if (!this.ragAgent) {
         logger.warn(
-          '[AutonomousAgent] ⚠️ RAG agent not available - RAG context will be skipped'
+          '[AutonomousAgent] WARNING: RAG agent not available - RAG context will be skipped'
         );
       }
     } catch (error) {
       logger.error(
-        `[AutonomousAgent] ❌ Failed to retrieve RAG agent: ${error}`
+        `[AutonomousAgent] Failed to retrieve RAG agent: ${error}`
       );
     }
   }
@@ -238,7 +242,7 @@ export class AutonomousAgent {
     currentStepIndex: number;
     retry: number;
   } {
-    logger.info('[EndGraph] 🏁 Cleaning up state for graph termination');
+    logger.info('[EndGraph] Cleaning up state for graph termination');
     const emptyPlan: ParsedPlan = {
       steps: [],
       summary: '',
@@ -274,6 +278,18 @@ export class AutonomousAgent {
     }
 
     if (state.last_agent === Agent.EXEC_VALIDATOR) {
+      logger.debug(
+        `[Orchestration Router] Execution complete, routing to memory`
+      );
+      return GraphNode.MEMORY_ORCHESTRATOR;
+    }
+
+    if (state.last_agent === Agent.PLANNER_VALIDATOR) {
+      logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
+      return GraphNode.MEMORY_ORCHESTRATOR;
+    }
+
+    if (state.last_agent === Agent.MEMORY_MANAGER) {
       if (
         (state.last_message as BaseMessage).additional_kwargs.final === true
       ) {
@@ -281,17 +297,7 @@ export class AutonomousAgent {
           `[Orchestration Router] Final execution reached, routing to planner`
         );
         return GraphNode.PLANNING_ORCHESTRATOR;
-      } else {
-        logger.debug(
-          `[Orchestration Router] Execution complete, routing to memory`
-        );
-        return GraphNode.MEMORY_ORCHESTRATOR;
       }
-    }
-
-    if (state.last_agent === Agent.PLANNER_VALIDATOR) {
-      logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
-      return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
     logger.debug(`[Orchestration Router] Default routing to executor`);
@@ -419,7 +425,7 @@ export class AutonomousAgent {
       this.app = workflow.compile(this.getCompileOptions());
 
       logger.info(
-        '[AutonomousAgent] ✅ Successfully initialized autonomous agent'
+        '[AutonomousAgent] Successfully initialized autonomous agent'
       );
 
       return {
@@ -428,7 +434,7 @@ export class AutonomousAgent {
       };
     } catch (error) {
       logger.error(
-        '[AutonomousAgent] ❌ Failed to create autonomous agent:',
+        '[AutonomousAgent] Failed to create autonomous agent:',
         error
       );
       throw error;

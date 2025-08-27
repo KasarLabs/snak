@@ -1,27 +1,16 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
-import {
-  Annotation,
-  START,
-  END,
-  StateGraph,
-  CompiledStateGraph,
-  Command,
-} from '@langchain/langgraph';
-import { Agent, Memories, ParsedPlan, StepInfo } from '../types/index.js';
+import { Annotation, START, StateGraph, Command } from '@langchain/langgraph';
+import { Agent, ParsedPlan, StepInfo } from '../types/index.js';
 import {
   formatParsedPlanSimple,
   formatStepsForContext,
-  formatStepForSTM,
   PlanSchema,
 } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from 'agents/operators/modelSelector.js';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { AutonomousConfigurableAnnotation } from '../autonomous.js';
-import { Runnable, RunnableConfig } from '@langchain/core/runnables';
-import { v4 as uuidv4 } from 'uuid';
 import {
   PlannerNode,
   DEFAULT_AUTONOMOUS_CONFIG,
@@ -40,14 +29,9 @@ import {
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import {
-  BaseChatModel,
-  BaseChatModelCallOptions,
-} from '@langchain/core/language_models/chat_models';
 import { AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT } from '../../../prompt/validator_prompt.js';
-import { JsonSchema7Type, zodToJsonSchema } from 'zod-to-json-schema';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
-import { convertToOpenAITool } from '@langchain/core/utils/function_calling';
+import { RunnableConfig } from '@langchain/core/runnables';
 
 export type PlannerStateType = typeof PlannerGraphState.State;
 
@@ -80,7 +64,7 @@ export const parseToolsToJson = (
     properties: tool.parameters,
   }));
 
-  return JSON.stringify(formatTools);
+  return JSON.stringify(formatTools, null, 2);
 };
 
 export class PlannerGraph {
@@ -113,7 +97,7 @@ export class PlannerGraph {
     currentGraphStep: number;
   }> {
     try {
-      logger.info('[PlanRevision] 🚀 Starting plan revision');
+      logger.info('[PlanRevision] Starting plan revision');
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
         throw new Error('Model not found in ModelSelector');
@@ -161,7 +145,7 @@ export class PlannerGraph {
         currentStepIndex: 0,
       };
     } catch (error) {
-      logger.error(`[PlanRevision] ❌ Plan execution failed: ${error}`);
+      logger.error(`[PlanRevision] Plan execution failed: ${error}`);
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
@@ -192,9 +176,7 @@ export class PlannerGraph {
     currentGraphStep: number;
   }> {
     try {
-      console.log(config.configurable?.max_graph_steps);
-
-      logger.info('[Planner] 🚀 Starting plan execution');
+      logger.info('[Planner] Starting plan execution');
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
         throw new Error('Model not found in ModelSelector');
@@ -204,11 +186,11 @@ export class PlannerGraph {
       let systemPrompt;
       let contextPrompt;
       if (config.configurable?.agent_config?.mode === AgentMode.HYBRID) {
-        logger.debug('[Planner] 📝 Creating initial hybrid plan');
+        logger.debug('[Planner] Creating initial hybrid plan');
         systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
         contextPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
       } else {
-        logger.debug('[Planner] 📝 Creating initial autonomous plan');
+        logger.debug('[Planner] Creating initial autonomous plan');
         systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
         contextPrompt = AUTONOMOUS_PLANNER_CONTEXT_PROMPT;
       }
@@ -223,7 +205,7 @@ export class PlannerGraph {
         })
       )) as ParsedPlan;
       logger.info(
-        `[Planner] ✅ Successfully created plan with ${structuredResult.steps.length} steps`
+        `[Planner] Successfully created plan with ${structuredResult.steps.length} steps`
       );
 
       const aiMessage = new AIMessageChunk({
@@ -248,7 +230,7 @@ export class PlannerGraph {
         currentStepIndex: 0,
       };
     } catch (error) {
-      logger.error(`[Planner] ❌ Plan execution failed: ${error}`);
+      logger.error(`[Planner] Plan execution failed: ${error}`);
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
@@ -292,12 +274,6 @@ export class PlannerGraph {
         ['system', systemPrompt],
         ['ai', context],
       ]);
-
-      const toolFunctions = this.toolsList.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        parameters: toJsonSchema(tool.schema), // This converts Zod schema to JSON schema
-      }));
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
           stepLength: state.currentStepIndex + 1,
@@ -308,7 +284,7 @@ export class PlannerGraph {
       );
 
       logger.info(
-        `[AdaptivePlanner] 📋 Created plan with ${structuredResult.steps.length} steps`
+        `[AdaptivePlanner] Created plan with ${structuredResult.steps.length} steps`
       );
 
       const aiMessage = new AIMessageChunk({
@@ -339,7 +315,7 @@ export class PlannerGraph {
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error) {
-      logger.error(`[AdaptivePlanner] ❌ Plan creation failed: ${error}`);
+      logger.error(`[AdaptivePlanner] Plan creation failed: ${error}`);
 
       const errorMessage = new AIMessageChunk({
         content: `Failed to create plan: ${error.message}`,
@@ -397,8 +373,6 @@ export class PlannerGraph {
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', systemPrompt],
       ]);
-
-      console.log(planDescription);
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
           agentConfig: config.configurable?.agent_config?.prompt,
@@ -415,7 +389,7 @@ export class PlannerGraph {
             from: Agent.PLANNER_VALIDATOR,
           },
         });
-        logger.info(`[PlannerValidator] ✅ Plan success successfully`);
+        logger.info(`[PlannerValidator] Plan success successfully`);
         return {
           messages: successMessage,
           last_message: successMessage,
@@ -434,7 +408,7 @@ export class PlannerGraph {
           },
         });
         logger.warn(
-          `[PlannerValidator] ⚠️ Plan validation failed: ${structuredResult.result}`
+          `[PlannerValidator] Plan validation failed: ${structuredResult.result}`
         );
         return {
           messages: errorMessage,
@@ -447,7 +421,7 @@ export class PlannerGraph {
       }
     } catch (error) {
       logger.error(
-        `[PlannerValidator] ❌ Failed to validate plan: ${error.message}`
+        `[PlannerValidator] Failed to validate plan: ${error.message}`
       );
       const errorMessage = new AIMessageChunk({
         content: `Failed to validate plan: ${error.message}`,
@@ -470,9 +444,19 @@ export class PlannerGraph {
 
   public planning_router(
     state: typeof PlannerGraphState.State,
-    config: RunnableConfig<typeof AutonomousConfigurableAnnotation>
+    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
   ): PlannerNode {
-    const maxRetries = DEFAULT_AUTONOMOUS_CONFIG.maxRetries; // TODO add the field in the agent_configuration
+    if (
+      state.currentGraphStep >=
+      (config.configurable?.max_graph_steps ??
+        DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps)
+    ) {
+      logger.warn(
+        `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+      );
+      return PlannerNode.END_PLANNER_GRAPH;
+    }
+    const maxRetries = DEFAULT_AUTONOMOUS_CONFIG.maxRetries;
 
     if (!state.last_agent || state.last_agent === Agent.START) {
       logger.debug(`[PLANNING_ROUTER]: Routing to create_initial_plan`);
@@ -512,7 +496,7 @@ export class PlannerGraph {
   }
 
   private end_planner_graph(state: typeof PlannerGraphState.State) {
-    logger.info('[EndPlannerGraph] 🏁 Cleaning up state for graph termination');
+    logger.info('[EndPlannerGraph] Cleaning up state for graph termination');
     const emptyPlan: ParsedPlan = {
       steps: [],
       summary: '',

@@ -78,8 +78,25 @@ export namespace memory {
   // SELECT created_at FROM history WHERE memory_id = $1 ORDER BY id ASC TAKE 1;
   // ```
   export interface Metadata {
-    timestamp: string;
-    upsertedAt: number;
+    created_at?: string;
+    updated_at: string;
+    access_count?: number;
+    confidence?: number;
+    category?: string;
+  }
+
+  export interface UPSERT_SEMANTIC_MEMORY_OUTPUT {
+    memory_id: number;
+    operation: string;
+    similarity_score: number | null;
+    matched_fact: string | null;
+  }
+
+  export interface INSERT_EPISODIC_MEMORY_OUTPUT {
+    memory_id: number;
+    operation: string;
+    similar_memory_id: number | null;
+    similar_memory_content: string | null;
   }
 
   export interface History {
@@ -87,19 +104,35 @@ export namespace memory {
     timestamp: string;
     action: 'UPDATE';
   }
-
   interface MemoryBase {
     user_id: string;
-    memories_id: string;
-    query: string;
-    content: string;
+    run_id: string;
     embedding: number[];
     created_at?: Date;
-    updated_at?: Date;
-    metadata: Metadata;
-    history: History[];
+    accessed_at?: Date;
+    confidence?: number;
+    access_count?: number;
+  }
+
+  interface EpisodicMemoryBase extends MemoryBase {
+    content: string;
+    sources: Array<string>;
+    expires_at?: Date;
+  }
+
+  interface SemanticMemoryBase extends MemoryBase {
+    fact: string;
+    category: 'preference' | 'fact' | 'skill' | 'relationship';
+    source_events?: Array<number>;
   }
   interface MemoryWithId extends MemoryBase {
+    id: number;
+  }
+
+  interface SemanticMemoryWithId extends SemanticMemoryBase {
+    id: number;
+  }
+  interface EpisodicMemoryWithId extends EpisodicMemoryBase {
     id: number;
   }
 
@@ -110,29 +143,49 @@ export namespace memory {
     ? MemoryWithId
     : MemoryBase;
 
-  /**
-   * Saves a new agent { @see Memory } into the db.
-   *
-   * @param { Memory } memory - The memory to insert.
-   *
-   * @throws { DatabaseError } If a database operation fails.
-   */
-  export async function insert_memory(memory: Memory): Promise<void> {
+  export type EpisodicMemory<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? EpisodicMemoryWithId
+    : EpisodicMemoryBase;
+
+  export type SemanticMemory<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? SemanticMemoryWithId
+    : SemanticMemoryBase;
+
+  export async function insert_episodic_memory(
+    memory: EpisodicMemory
+  ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
+    console.log(JSON.stringify(memory));
     const q = new Postgres.Query(
-      `SELECT insert_memory(null, $1, $2, $3, $4, $5, $6, $7, $8, $9);`,
+      `SELECT insert_episodic_memory_smart($1, $2, $3, $4, $5);`,
       [
         memory.user_id,
-        memory.memories_id || null, // Ajout
-        memory.query || memory.content, // Ajout (ou utilisez le content si pas de query)
+        memory.run_id,
         memory.content,
         JSON.stringify(memory.embedding),
-        memory.created_at,
-        memory.updated_at,
-        JSON.stringify(memory.metadata),
-        JSON.stringify(memory.history),
+        memory.sources,
       ]
     );
-    ~(await Postgres.query(q));
+    const result = await Postgres.query<INSERT_EPISODIC_MEMORY_OUTPUT>(q);
+    return result[0];
+  }
+
+  export async function insert_semantic_memory(
+    memory: SemanticMemory
+  ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
+    console.log(JSON.stringify(memory));
+    const q = new Postgres.Query(
+      `SELECT upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6);`,
+      [
+        memory.user_id,
+        memory.run_id,
+        memory.fact,
+        JSON.stringify(memory.embedding),
+        memory.category,
+        memory.source_events,
+      ]
+    );
+    const result = await Postgres.query<UPSERT_SEMANTIC_MEMORY_OUTPUT>(q);
+    return result[0];
   }
 
   /**
@@ -185,29 +238,11 @@ export namespace memory {
    * https://github.com/pgvector/pgvector?tab=readme-ov-file#distances
    */
   export interface Similarity {
-    id: number;
-    query: string;
-    content: string;
-    history: History[];
-    similarity: number;
-  }
-
-  export interface EpisodicMemory {
-    id: number;
+    memory_type: string;
+    memory_id: number;
     content: string;
     similarity: number;
-    importance: number;
-    event_type: string;
-    created_at: Date;
-  }
-
-  export interface SemanticKnowledge {
-    id: string;
-    concept: string;
-    content: string;
-    category: string;
-    confidence: number;
-    similarity: number;
+    metadata: any; // JSONB from PostgreSQL
   }
 
   /**
@@ -220,18 +255,24 @@ export namespace memory {
    */
   export async function similar_memory(
     userId: string,
+    runId: string,
     embedding: number[],
-    limit = 4
+    limit?: number,
+    threshold?: number
   ): Promise<Similarity[]> {
     const q = new Postgres.Query(
-      `SELECT id, content, history, 1 - (embedding <=> $1::vector) AS similarity
-          FROM agent_memories
-          WHERE user_id = $2
-          ORDER BY similarity DESC
-          LIMIT $3;`,
-      [JSON.stringify(embedding), userId, limit]
+      `SELECT * FROM retrieve_similar_memories($1, $2, $3, $4, $5)`, 
+      [
+        userId,
+        runId,
+        JSON.stringify(embedding),
+        threshold || 0.5,
+        limit || 10,
+      ]
     );
-    return await Postgres.query(q);
+    const result = await Postgres.query<Similarity>(q);
+    console.log(result);
+    return result;
   }
 
   /**

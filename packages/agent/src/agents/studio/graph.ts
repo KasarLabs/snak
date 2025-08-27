@@ -313,7 +313,7 @@ export async function createHybridAgent(agentId: string): Promise<any> {
 }
 
 // Example usage with specific IDs (for backward compatibility)
-const AUTONOMOUS_ID = 'b1e5aa50-b028-44eb-a4ce-ddc426a17836';
+const AUTONOMOUS_ID = 'f899486d-d365-4f0a-ae7d-dbeab73d320e';
 const INTERACTIVE_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 

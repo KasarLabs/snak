@@ -226,17 +226,32 @@ export function truncateToolResults(
   currentStep: StepInfo
 ): { messages: ToolMessage[]; plan?: ParsedPlan; last_message: BaseMessage } {
   for (const tool_message of result.messages) {
-    const content = truncateStringContentHelper(
-      tool_message.content.toLocaleString(),
-      maxLength
-    );
-    tool_message.content = content;
+    let content: string;
+    try {
+      // Safely handle content conversion, avoiding Response body issues
+      if (typeof tool_message.content === 'string') {
+        content = tool_message.content;
+      } else if (tool_message.content && typeof tool_message.content.toString === 'function') {
+        content = tool_message.content.toString();
+      } else if (tool_message.content && typeof tool_message.content.toLocaleString === 'function') {
+        content = tool_message.content.toLocaleString();
+      } else {
+        content = String(tool_message.content || '');
+      }
+    } catch (error) {
+      logger.warn(`Failed to convert tool message content to string: ${error.message}`);
+      content = '[Content conversion failed - Response body may be locked]';
+    }
+    
+    const truncatedContent = truncateStringContentHelper(content, maxLength);
+    tool_message.content = truncatedContent;
+    
     if (currentStep.result) {
-      currentStep.result.content = currentStep.result.content.concat(content);
+      currentStep.result.content = currentStep.result.content.concat(truncatedContent);
     } else {
       currentStep.result = {
-        content: content,
-        tokens: estimateTokens(content),
+        content: truncatedContent,
+        tokens: estimateTokens(truncatedContent),
       };
     }
   }

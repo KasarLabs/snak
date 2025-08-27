@@ -6,6 +6,7 @@ import {
 } from '@langchain/core/messages';
 import { Annotation } from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
+import z from 'zod';
 
 export interface AgentReturn {
   app: any;
@@ -50,6 +51,36 @@ export interface LTMContext {
   readonly relevanceScore: number;
   readonly memoryIds: readonly string[];
   readonly isStale: boolean;
+}
+
+export interface SemanticMemoryContext {
+  user_id: string;
+  run_id: string;
+  fact: string;
+  category: 'preference' | 'fact' | 'skill' | 'relationship';
+}
+
+export interface EpisodicMemoryContext {
+  user_id: string;
+  run_id: string;
+  content: string;
+  sources: Array<string>;
+}
+
+export interface EpisodicMemoryInsertSQL {
+  user_id: string;
+  run_id: string;
+  content: string;
+  embedding: Array<number>;
+  sources: Array<string>;
+}
+
+export interface SemanticMemoryInsertSQL {
+  user_id: string;
+  run_id: string;
+  fact: string;
+  embedding: Array<number>;
+  category: 'preference' | 'fact' | 'skill' | 'relationship';
 }
 
 /**
@@ -147,30 +178,6 @@ export interface AgentKwargs {
   validated?: boolean;
 }
 
-export type TypedBaseMessage<
-  T extends Record<string, any> = Record<string, any>,
-> = BaseMessage & {
-  additional_kwargs: T;
-};
-
-export type TypedAiMessage<
-  T extends Record<string, any> = Record<string, any>,
-> = AIMessage & {
-  additional_kwargs: T;
-};
-
-export type TypedAiMessageChunk<
-  T extends Record<string, any> = Record<string, any>,
-> = AIMessageChunk & {
-  additional_kwargs: T;
-};
-
-export type TypedHumanMessage<
-  T extends Record<string, any> = Record<string, any>,
-> = HumanMessage & {
-  additional_kwargs: T;
-};
-
 export const InteractiveConfigurableAnnotation = Annotation.Root({
   max_graph_steps: Annotation<number>({
     reducer: (x, y) => y,
@@ -223,3 +230,39 @@ export const InteractiveGraphState = Annotation.Root({
     default: () => 0,
   }),
 });
+
+export const episodicEventSchema = z.object({
+  name: z.string().min(1).describe('Event name or identifier'),
+  content: z.string().min(1).describe('Detailed description of what happened'),
+  source: z
+    .array(z.string())
+    .optional()
+    .default(['conversation'])
+    .describe('Source reference or website URL'),
+});
+// Enhanced semantic fact schema with confidence and source
+export const semanticFactSchema = z.object({
+  fact: z.string().min(1).describe('The learned information or insight'),
+  category: z
+    .enum(['preference', 'fact', 'skill', 'relationship'])
+    .optional()
+    .default('fact')
+    .describe('Type of fact'),
+});
+
+// Main enhanced LTM schema
+export const ltmSchema = z.object({
+  // Episodic memory - array of events with confidence
+  episodic: z
+    .array(episodicEventSchema)
+    .default([])
+    .describe('Events and experiences with confidence scoring'),
+
+  // Semantic memory - array of facts with confidence
+  semantic: z
+    .array(semanticFactSchema)
+    .default([])
+    .describe('Facts and knowledge learned with confidence scoring'),
+});
+
+export type ltmSchemaType = z.infer<typeof ltmSchema>;

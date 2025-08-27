@@ -22,7 +22,7 @@ export enum GraphNode {
   PLANNING_ORCHESTRATOR = 'planning_orchestrator',
   AGENT_EXECUTOR = 'agent_executor',
   MEMORY_ORCHESTRATOR = 'memory_orchestrator',
-  END_GRAPH = 'end_graph'
+  END_GRAPH = 'end_graph',
 }
 
 export enum PlannerNode {
@@ -31,7 +31,7 @@ export enum PlannerNode {
   EVOLVE_FROM_HISTORY = 'evolve_from_history',
   END_PLANNER_GRAPH = 'end_planner_graph',
   PLANNER_VALIDATOR = 'planner_validator',
-  END = 'end'
+  END = 'end',
 }
 
 export enum ExecutorNode {
@@ -40,21 +40,22 @@ export enum ExecutorNode {
   EXECUTOR_VALIDATOR = 'executor_validator',
   HUMAN = 'human',
   END_EXECUTOR_GRAPH = 'end_executor_graph',
-  END = 'end'
+  END = 'end',
 }
 
 export enum MemoryNode {
   STM_MANAGER = 'stm_manager',
   LTM_MANAGER = 'ltm_manager',
   RETRIEVE_MEMORY = 'retrieve_memory',
-  END = 'end'
+  END_MEMORY_GRAPH = 'end_memory_graph',
+  END = 'end',
 }
 
 export class ConfigValidator {
   static validate(config: Partial<AutonomousConfig>): AutonomousConfig {
     const validated: AutonomousConfig = {
       ...DEFAULT_AUTONOMOUS_CONFIG,
-      ...config
+      ...config,
     };
 
     if (validated.maxGraphSteps <= 0) {

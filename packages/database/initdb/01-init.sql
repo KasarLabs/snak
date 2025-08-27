@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS agent_memories (
 );
 
 
+
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
@@ -113,7 +114,6 @@ CREATE INDEX IF NOT EXISTS agent_memories_embedding_idx
     USING ivfflat (embedding vector_cosine_ops);
 
 ANALYZE agent_memories;
-
 
 -- ============================================================================
 -- FUNCTIONS AND PROCEDURES

@@ -77,7 +77,6 @@
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
-    "@types/zod-to-json-schema": "^3.24.6"
   },
   "gitHead": "92aedfbed422f736e1890cff065f6f2890e8befd"
 }
