@@ -76,14 +76,15 @@ export class AgentStorage implements OnModuleInit {
   }
 
   /**
-   * Get all agent configurations
-   * @returns AgentConfigSQL[] - Array of all agent configurations
+   * Get all agent configurations for a specific user
+   * @param userId - User ID to filter configurations
+   * @returns AgentConfigSQL[] - Array of agent configurations owned by the user
    */
-  public getAllAgentConfigs(): AgentConfigSQL[] {
+  public getAllAgentConfigs(userId: string): AgentConfigSQL[] {
     if (!this.initialized) {
       return [];
     }
-    return [...this.agentConfigs];
+    return this.agentConfigs.filter((config) => config.user_id === userId);
   }
 
   /**
@@ -102,12 +103,8 @@ export class AgentStorage implements OnModuleInit {
    * @param userId - Optional user ID to filter instances
    * @returns {SnakAgent[]} Array of all agent instances
    */
-  public getAllAgentInstances(userId?: string): SnakAgent[] {
-    if (userId) {
-      return this.getAgentInstancesByUser(userId);
-    }
-    logger.warn('Returning all agent instances across all users');
-    return Array.from(this.agentInstances.values());
+  public getAllAgentInstances(userId: string): SnakAgent[] {
+    return this.getAgentInstancesByUser(userId);
   }
 
   public getAgentSelector(): AgentSelector {

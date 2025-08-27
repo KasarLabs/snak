@@ -78,10 +78,8 @@ export class FileIngestionController {
       result.chunks.forEach((c) => delete c.metadata.embedding);
       return result;
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      throw new InternalServerErrorException(
-        `Embedding failed: ${errorMessage}`
-      );
+      request.log?.error?.({ err }, 'Embedding failed during file processing');
+      throw new InternalServerErrorException('Embedding failed');
     }
   }
 

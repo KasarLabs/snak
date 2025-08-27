@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
+import { WsException } from '@nestjs/websockets';
 import { FastifyRequest } from 'fastify';
 import { Socket } from 'socket.io';
+
+const USER_ID_HEADER = 'x-user-id';
 
 /**
  * Common function to extract and validate userId from headers
@@ -30,7 +33,7 @@ function extractAndValidateUserId(
  * @throws BadRequestException if userId is missing or invalid
  */
 export function getUserIdFromHeaders(req: FastifyRequest): string {
-  return extractAndValidateUserId(req.headers['x-user-id']);
+  return extractAndValidateUserId(req.headers[USER_ID_HEADER]);
 }
 
 /**
@@ -40,5 +43,12 @@ export function getUserIdFromHeaders(req: FastifyRequest): string {
  * @throws BadRequestException if userId is missing or invalid
  */
 export function getUserIdFromSocketHeaders(client: Socket): string {
-  return extractAndValidateUserId(client.handshake.headers['x-user-id']);
+  try {
+    return extractAndValidateUserId(client.handshake.headers[USER_ID_HEADER]);
+  } catch (err) {
+    if (err instanceof BadRequestException) {
+      throw new WsException(err.getResponse());
+    }
+    throw new WsException('Invalid User ID');
+  }
 }

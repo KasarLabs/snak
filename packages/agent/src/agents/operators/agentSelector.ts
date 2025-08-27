@@ -56,10 +56,15 @@ export class AgentSelector extends BaseAgent {
     logger.debug(
       `AgentSelector: Removing agent ${agentId} for user ${userId} with key ${compositeKey}`
     );
-    if (this.availableAgents.has(compositeKey)) {
+
+    const agent = this.availableAgents.get(compositeKey);
+    if (agent) {
+      const agentName = agent.getAgentConfig().name;
       this.availableAgents.delete(compositeKey);
-      this.agentInfo.delete(compositeKey);
-      logger.debug(`AgentSelector: Agent ${agentId} removed successfully`);
+      this.agentInfo.delete(agentName);
+      logger.debug(
+        `AgentSelector: Agent ${agentName} (${agentId}) removed successfully for user ${userId}`
+      );
     } else {
       logger.warn(
         `AgentSelector: Agent ${agentId} not found for user ${userId}`
