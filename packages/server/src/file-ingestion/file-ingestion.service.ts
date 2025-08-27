@@ -28,13 +28,16 @@ export class FileIngestionService {
    * @param userId - The user ID to check ownership against
    * @throws ForbiddenException if the agent doesn't belong to the user
    */
-  private async verifyAgentOwnership(agentId: string, userId: string): Promise<void> {
+  private async verifyAgentOwnership(
+    agentId: string,
+    userId: string
+  ): Promise<void> {
     const q = new Postgres.Query(
       'SELECT id FROM agents WHERE id = $1 AND user_id = $2',
       [agentId, userId]
     );
     const result = await Postgres.query(q);
-    
+
     if (result.length === 0) {
       throw new ForbiddenException('Agent not found or access denied');
     }
@@ -223,7 +226,11 @@ export class FileIngestionService {
     }));
   }
 
-  async getFile(agentId: string, id: string, userId: string): Promise<FileContent> {
+  async getFile(
+    agentId: string,
+    id: string,
+    userId: string
+  ): Promise<FileContent> {
     await this.verifyAgentOwnership(agentId, userId);
     const rows = await this.vectorStore.getDocument(agentId, id, userId);
     if (!rows.length) {

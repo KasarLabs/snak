@@ -19,7 +19,8 @@ import {
   AgentDeletesRequestDTO,
 } from '../dto/agents.js';
 import { Reflector } from '@nestjs/core';
-import { ServerError } from '../utils/error.js';
+import ServerError from '../utils/error.js';
+import { getUserIdFromHeaders } from '../utils/index.js';
 import {
   logger,
   MessageFromAgentIdDTO,
@@ -71,23 +72,6 @@ export class AgentsController {
   ) {}
 
   /**
-   * Extract and validate userId from request headers
-   * @param req - FastifyRequest object
-   * @returns string - Validated userId
-   * @throws BadRequestException if userId is missing or invalid
-   */
-  private getUserIdFromHeaders(req: FastifyRequest): string {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      throw new BadRequestException('User ID is required');
-    }
-    if (!/^[a-zA-Z0-9-_]+$/.test(userId)) {
-      throw new BadRequestException('Invalid User ID format');
-    }
-    return userId;
-  }
-
-  /**
    * Handle user request to a specific agent
    * @param userRequest - The user request containing agent ID and content
    * @returns Promise<AgentResponse> - Response with status and data
@@ -99,7 +83,7 @@ export class AgentsController {
   ) {
     try {
       const { id, mcpServers } = updateData;
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       if (!id) {
         throw new BadRequestException('Agent ID is required');
@@ -147,7 +131,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<any> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       if (!config || !config.id) {
         throw new BadRequestException('Agent ID is required');
@@ -247,7 +231,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ) {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const data = await (req as any).file();
 
@@ -359,7 +343,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const route = this.reflector.get('path', this.handleUserRequest);
       let agent: SnakAgent | undefined = undefined;
@@ -420,7 +404,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const agent = this.verifyAgentOwnership(userRequest.agent_id, userId);
 
@@ -447,7 +431,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const newAgentConfig = await this.agentFactory.addAgent({
         ...userRequest.agent,
@@ -479,7 +463,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
       const agentConfig = this.verifyAgentConfigOwnership(
         userRequest.agent_id,
         userId
@@ -513,7 +497,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
       const agentConfig = this.verifyAgentConfigOwnership(
         userRequest.agent_id,
         userId
@@ -547,7 +531,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse[]> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const responses: AgentResponse[] = [];
 
@@ -589,7 +573,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
       this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
 
       const messages = await this.agentService.getMessageFromAgentId(
@@ -617,7 +601,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const agentConfig = this.verifyAgentConfigOwnership(
         userRequest.agent_id,
@@ -651,7 +635,7 @@ export class AgentsController {
   @Get('get_agents')
   async getAgents(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const agents = await this.agentService.getAllAgentsOfUser(userId);
       const response: AgentResponse = {
@@ -671,7 +655,7 @@ export class AgentsController {
   @Get('get_agent_status')
   async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {
@@ -695,7 +679,7 @@ export class AgentsController {
   @Get('get_agent_thread')
   async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const userId = this.getUserIdFromHeaders(req);
+      const userId = getUserIdFromHeaders(req);
 
       const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {

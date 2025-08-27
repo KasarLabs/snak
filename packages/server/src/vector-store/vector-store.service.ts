@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
 import { rag } from '@snakagent/database/queries';
 
@@ -28,13 +33,16 @@ export class VectorStoreService implements OnModuleInit {
    * @param userId - The user ID to check ownership against
    * @throws ForbiddenException if the agent doesn't belong to the user
    */
-  private async verifyAgentOwnership(agentId: string, userId: string): Promise<void> {
+  private async verifyAgentOwnership(
+    agentId: string,
+    userId: string
+  ): Promise<void> {
     const q = new Postgres.Query(
       'SELECT id FROM agents WHERE id = $1 AND user_id = $2',
       [agentId, userId]
     );
     const result = await Postgres.query(q);
-    
+
     if (result.length === 0) {
       throw new ForbiddenException('Agent not found or access denied');
     }
@@ -81,7 +89,10 @@ export class VectorStoreService implements OnModuleInit {
     }
   }
 
-  async listDocuments(agentId: string, userId: string): Promise<
+  async listDocuments(
+    agentId: string,
+    userId: string
+  ): Promise<
     {
       document_id: string;
       original_name: string;
@@ -126,7 +137,11 @@ export class VectorStoreService implements OnModuleInit {
     return await Postgres.query(q);
   }
 
-  async deleteDocument(agentId: string, documentId: string, userId: string): Promise<void> {
+  async deleteDocument(
+    agentId: string,
+    documentId: string,
+    userId: string
+  ): Promise<void> {
     await this.verifyAgentOwnership(agentId, userId);
 
     const q = new Postgres.Query(

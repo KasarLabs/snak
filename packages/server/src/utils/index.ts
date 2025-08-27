@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import path from 'path';
 import { promises as fs } from 'fs';
+export { getUserIdFromHeaders } from './headers.js';
 
 export const test = () => {};
 export const getFilename = async (filename: string): Promise<string> => {
