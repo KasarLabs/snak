@@ -16,11 +16,7 @@ import { Agent, Memories, ParsedPlan } from '../types/index.js';
 import {
   createMaxIterationsResponse,
   estimateTokens,
-  filterMessagesByShortTermMemory,
   formatExecutionMessage,
-  formatShortMemoryMessage,
-  formatStepForSTM,
-  formatSTMforContext,
   formatToolResponse,
   formatValidatorToolsExecutor,
   getLatestMessageForMessage,
@@ -515,11 +511,6 @@ export class AgentExecutorGraph {
         toolResultContent = '[Content extraction failed]';
       }
       const estimatedTokens = estimateTokens(toolResultContent);
-
-      currentStep.result = {
-        content: toolResultContent,
-        tokens: estimatedTokens,
-      };
 
       updatedPlan.steps[state.currentStepIndex] = formatToolResponse(
         truncatedResult.messages,

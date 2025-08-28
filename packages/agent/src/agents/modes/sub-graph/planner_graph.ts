@@ -1,11 +1,7 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
 import { Annotation, START, StateGraph, Command } from '@langchain/langgraph';
 import { Agent, ParsedPlan, StepInfo } from '../types/index.js';
-import {
-  formatParsedPlanSimple,
-  formatStepsForContext,
-  PlanSchema,
-} from '../utils.js';
+import { formatParsedPlanSimple, PlanSchema } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
@@ -279,7 +275,7 @@ export class PlannerGraph {
           stepLength: state.currentStepIndex + 1,
           objectives: this.agentConfig.prompt,
           toolsAvailable: parseToolsToJson(this.toolsList),
-          previousSteps: formatStepsForContext(state.plan.steps),
+          previousSteps: JSON.stringify(state.plan.steps),
         })
       );
 

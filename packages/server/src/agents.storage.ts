@@ -352,14 +352,14 @@ export class AgentStorage implements OnModuleInit {
           model_name: 'gpt-4o-mini',
           description: 'Optimized for speed and simple tasks.',
         };
-        const smart: ModelLevelConfig = {
+        const cheap: ModelLevelConfig = {
           provider: ModelProviders.OpenAI,
           model_name: 'gpt-4o-mini',
           description: 'Optimized for complex reasoning.',
         };
-        const cheap: ModelLevelConfig = {
-          provider: ModelProviders.OpenAI,
-          model_name: 'gpt-4o-mini',
+        const smart: ModelLevelConfig = {
+          provider: ModelProviders.Gemini,
+          model_name: 'gemini-2.5-flash',
           description: 'Good cost-performance balance.',
         };
 

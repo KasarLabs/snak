@@ -77,15 +77,16 @@ export const StepInfoSchema = z.object({
     .describe(
       'Parallel tool executions (only for type="tools"). Must be independent'
     ),
+  message: resultSchema
+    .describe(
+      'Message Output (only for type="message") - empty during planning, populated during execution'
+    )
+    .optional()
+    .default({ content: '', token: 0 }),
   status: z
     .enum(['pending', 'completed', 'failed'])
     .default('pending')
     .describe('Execution state of this step'),
-  result: resultSchema
-    .describe(
-      'Output placeholder - empty during planning, populated during execution'
-    )
-    .default({ content: '', token: 0 }),
 });
 
 export const PlanSchema = z.object({
@@ -311,7 +312,7 @@ export function calculateTotalTokenFromSteps(steps: StepInfo[]): number {
     for (const step of steps) {
       if (step.status === 'completed') {
         if (step.type === 'tools') {
-          total_tokens += step.result.tokens;
+          total_tokens += step.message.tokens;
         } else {
           total_tokens;
         }
@@ -320,40 +321,6 @@ export function calculateTotalTokenFromSteps(steps: StepInfo[]): number {
       }
     }
     return total_tokens;
-  } catch (error) {
-    throw error;
-  }
-}
-
-export function formatShortMemoryMessage(plan: ParsedPlan): string {
-  try {
-    const result = plan.steps
-      .map((step: StepInfo) => {
-        if (step.status != 'completed') {
-          return '';
-        }
-        const format_response: string[] = [];
-        format_response.push(`S${step.stepNumber}:${step.stepName}`);
-        format_response.push(`Type: ${step.type}`);
-        format_response.push(`Description: ${step.description}`);
-        if (step.type === 'tools') {
-          if (step.tools && step.tools.length > 0) {
-            step.tools.forEach((tool, index) => {
-              const tool_desc: string = `T${index}:${tool.description}`;
-              format_response.push(tool_desc);
-              const tool_result: string = `Result: ${tool.result}`;
-              format_response.push(tool_result);
-            });
-          }
-        } else {
-          const tool_result: string = `Result: ${step.result}`;
-          format_response.push(tool_result);
-        }
-        return format_response;
-      })
-      .concat()
-      .join('\n');
-    return result;
   } catch (error) {
     throw error;
   }
@@ -390,17 +357,27 @@ export function formatToolResponse(
   try {
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
       if (!Array.isArray(messages)) {
-        step.tools[0].result = `tool_name: ${messages.name}, tool_call_id : ${messages.id}, raw_result : ${messages.content.toLocaleString()}`;
+        step.tools[0].result = messages.content.toLocaleString();
+        step.tools[0].metadata = {
+          tool_name: messages.name || '',
+          tool_call_id: messages.tool_call_id || '',
+          timestamp: new Date(Date.now()).toISOString(),
+        };
       } else {
         if (step.tools && step.tools.length > 0) {
           messages.forEach((msg: ToolMessage, index: number) => {
             if (step.tools && step.tools[index]) {
-              step.tools[index].result =
-                `tool_name: ${msg.name}, tool_call_id : ${msg.id}, raw_result : ${msg.content.toLocaleString()}`;
+              step.tools[index].result = msg.content.toLocaleString();
+              step.tools[index].metadata = {
+                tool_name: msg.name || '',
+                tool_call_id: msg.tool_call_id || '',
+                timestamp: new Date(Date.now()).toISOString(),
+              };
             }
           });
         }
       }
+      1;
       return step;
     } else {
       throw new Error('Wrong Message Tool to format!');
@@ -409,26 +386,48 @@ export function formatToolResponse(
     throw error;
   }
 }
+// export function formatValidatorToolsExecutor(step: StepInfo): string {
+//   try {
+//     const header = `S${step.stepNumber}:${step.stepName}`;
+//     const format_response: string[] = [];
+
+//     format_response.push(header);
+//     format_response.push(`Type: ${step.type}`);
+//     format_response.push(`Description: ${step.description}`);
+
+//     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+//       const toolInfo = step.tools
+//         .map((tool, index) => {
+//           return `T${index + 1}:${tool.description}\nRequired: ${tool.required || '<NO INPUT REQUIRED>'}\n
+//                   Expected: ${tool.expected_result}\nResult: ${tool.result}`;
+//         })
+//         .join('\n\n');
+
+//       format_response.push(`\nTools:\n${toolInfo}`);
+//     }
+//     return format_response.join('\n');
+//   } catch (error) {
+//     throw error;
+//   }
+// }
+
 export function formatValidatorToolsExecutor(step: StepInfo): string {
   try {
-    const header = `S${step.stepNumber}:${step.stepName}`;
-    const format_response: string[] = [];
-
-    format_response.push(header);
-    format_response.push(`Type: ${step.type}`);
-    format_response.push(`Description: ${step.description}`);
+    const header = `S${step.stepNumber}:${step.stepName}\nD:${step.description}`;
 
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+      // For tool steps, include tool info and results
       const toolInfo = step.tools
-        .map((tool, index) => {
-          return `T${index + 1}:${tool.description}\nRequired: ${tool.required || '<NO INPUT REQUIRED>'}\n
-                  Expected: ${tool.expected_result}\nResult: ${tool.result}`;
-        })
-        .join('\n\n');
-
-      format_response.push(`\nTools:\n${toolInfo}`);
+        .map(
+          (t, i) =>
+            `T${i + 1}:${t.description}\n Result: \`\`\`json ${JSON.stringify({ tool_name: t.metadata?.tool_name, tools_call_id: t.metadata?.tool_call_id, tool_result: t.result })}\`\`\``
+        )
+        .join('|');
+      return `${header}[${toolInfo}]`;
     }
-    return format_response.join('\n');
+
+    // For non-tool steps, just show result
+    return `${header}→${step.message.content}`;
   } catch (error) {
     throw error;
   }
@@ -449,7 +448,7 @@ export function formatStepsForContext(steps: StepInfo[]): string {
         }
 
         // For non-tool steps, just show result
-        return `${header}→${step.result.content}`;
+        return `${header}→${step.message.content}`;
       })
       .join('\n');
   } catch (error) {
@@ -457,23 +456,32 @@ export function formatStepsForContext(steps: StepInfo[]): string {
   }
 }
 
-export function formatStepForSTM(step: StepInfo, date: string): string {
+export function formatStepForSTM(step: StepInfo): string {
   try {
     const header = `S${step.stepNumber}:${step.stepName}`;
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
       const toolInfo = step.tools
         .map((t, i) => `T${i}:${t.description}->${t.result}`)
         .join('|');
-      return `${header}[${toolInfo}][${date}]`;
+      return `${header}[${toolInfo}]`;
     }
-    return `${header}→${step.result.content}[${date}]`;
+    return `${header}→${step.message.content}`;
   } catch (error) {
     throw error;
   }
 }
-export function formatSTMforContext(stm: STMContext): string {
-  const formated_stm = stm.items.map((s, i) => {
-    return `Short-Term-Memories [id :${i}], content : ${s?.content || ''}`;
-  });
-  return formated_stm.join('\n\n');
+
+export function formatCurrentStepForSTM(step: StepInfo): string {
+  try {
+    const header = `S${step.stepNumber}:${step.stepName}`;
+    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+      const toolInfo = step.tools
+        .map((t, i) => `T${i}:${t.description}->${t.result}`)
+        .join('|');
+      return `${header}[${toolInfo}]`;
+    }
+    return `${header}→${step.message.content}`;
+  } catch (error) {
+    throw error;
+  }
 }

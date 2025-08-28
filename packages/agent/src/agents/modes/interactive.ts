@@ -457,7 +457,7 @@ export class InteractiveAgent {
             description: 'Error trying to create the plan',
             status: 'failed',
             type: 'tools',
-            result: {
+            message: {
               content: 'test',
               tokens: 0,
             },

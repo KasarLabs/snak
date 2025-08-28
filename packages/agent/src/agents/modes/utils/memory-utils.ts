@@ -6,6 +6,7 @@ import {
   LTMContext,
   Memories,
   MemoryOperationResult,
+  StepInfo,
 } from '../types/index.js';
 import { memory } from '@snakagent/database/queries';
 
@@ -32,30 +33,29 @@ export class STMManager {
    */
   static addMemory(
     stm: STMContext,
-    content: string
+    currentStep: StepInfo
   ): MemoryOperationResult<STMContext> {
     try {
+      // Validate input
+      if (!currentStep) {
+        return {
+          success: false,
+          error: 'Step cannot be empty',
+          timestamp: Date.now(),
+        };
+      }
+
       const newItem: MemoryItem = {
-        content: content.trim(),
+        stepinfo: currentStep,
         memories_id: uuidv4(),
         timestamp: Date.now(),
         metadata: { insertIndex: stm.totalInserted },
       };
 
-      // Validate input
-      if (!content.trim()) {
-        return {
-          success: false,
-          error: 'Content cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
-
       // Create new items array with the new item
       const newItems = [...stm.items];
       newItems[stm.head] = newItem;
 
-      // Use freeze to make items fields immutable
       const newSTM: STMContext = {
         items: Object.freeze(newItems),
         maxSize: stm.maxSize,
@@ -196,7 +196,7 @@ export namespace MemoryStateManager {
    */
   export function addSTMMemory(
     state: Memories,
-    content: string,
+    currentStep: StepInfo,
     timestamp: number
   ): MemoryOperationResult<Memories> {
     if (state.isProcessing) {
@@ -207,7 +207,7 @@ export namespace MemoryStateManager {
       };
     }
 
-    const stmResult = STMManager.addMemory(state.stm, content);
+    const stmResult = STMManager.addMemory(state.stm, currentStep);
 
     if (!stmResult.success || !stmResult.data) {
       return {
@@ -266,30 +266,18 @@ export namespace MemoryStateManager {
   }
 }
 
-/**
- * Format memories for context display
- */
-export function formatSTMForContext(stm: STMContext): string {
-  const memories = STMManager.getMemories(stm);
-  if (memories.length === 0) return 'No recent memories';
-
-  return memories
-    .map((memory, index) => `${index + 1}. ${memory.content}`)
-    .join('\n');
-}
-
 export function JSONstringifySTM(stm: STMContext): string {
-  return JSON.stringify(stm.items, null, 2);
+  return JSON.stringify(
+    stm.items.filter((item) => {
+      if (item) {
+        return item;
+      }
+    }),
+    null,
+    2
+  );
 }
 
 export function JSONstringifyLTM(ltm: LTMContext): string {
-  return JSON.stringify(ltm, null, 2);
-}
-
-/**
- * Format single memory item for step processing
- */
-export function formatMemoryItem(item: MemoryItem): string {
-  const age = Math.round((Date.now() - item.timestamp) / 1000);
-  return `[${age}s ago] ${item.content}`;
+  return JSON.stringify(ltm.items, null, 2);
 }

@@ -177,7 +177,7 @@ export class MemoryAgent extends BaseAgent {
    * Create a memory node for the graph
    */
   public createMemoryNode(): any {
-    const chain = this.createMemoryChain();
+    const chain = this.createMemoryChain(20);
     return async (
       state: typeof MemoryState.State,
       config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
@@ -239,20 +239,37 @@ export class MemoryAgent extends BaseAgent {
    * can trace memory retrieval.
    */
   public createMemoryChain(
-    limit = 5
+    limit: number
   ): Runnable<typeof MemoryState.State, memory.Similarity[]> {
     const buildQuery = (state: typeof AutonomousGraphState.State) => {
       const currentStep = state.plan.steps[state.currentStepIndex];
       if (!currentStep) {
         return 'No current step available';
       }
-      return `${currentStep.stepName} : ${currentStep.description} `;
+
+      // Build a comprehensive query using all available StepInfo fields
+      const queryParts: string[] = [];
+
+      queryParts.push(`${currentStep.stepNumber}: ${currentStep.stepName}`);
+      queryParts.push(`Description: ${currentStep.description}`);
+      if (currentStep.tools && currentStep.tools.length > 0) {
+        const toolsInfo = currentStep.tools
+          .map(
+            (tool) =>
+              `Tool: ${tool.description} | Required: ${tool.required} | Expected: ${tool.expected_result}`
+          )
+          .join(' | ');
+        queryParts.push(`Tools: ${toolsInfo}`);
+      }
+
+      return queryParts.join(' | ');
     };
 
     const fetchMemories = async (
       query: string,
       config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
     ): Promise<memory.Similarity[]> => {
+      logger.debug(`Query : ${query}`);
       const runId = config?.configurable?.conversation_id as string;
       const userId = 'default_user';
       const embedding = await this.embeddings.embedQuery(query);

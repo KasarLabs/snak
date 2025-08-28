@@ -124,7 +124,7 @@ export class MemoryDBManager {
         console.log(JSON.stringify(result, null, 2));
         event_ids.push(result.memory_id);
         logger.debug(
-          `[MemoryDBManager] Successfully upserted memory ${result.memory_id} for user ${e_memory.user_id}`
+          `[MemoryDBManager] Successfully ${result.operation} memory ${result.memory_id} for user ${e_memory.user_id}`
         );
       }
 
@@ -417,7 +417,7 @@ export class MemoryDBManager {
     for (const memory of memories) {
       if (memory.memory_type === 'semantic') {
         s_memories.push(memory);
-      } else if (memory.memory_type === 'episopdic') {
+      } else if (memory.memory_type === 'episodic') {
         e_memories.push(memory);
       }
     }

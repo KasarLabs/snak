@@ -264,7 +264,7 @@ export namespace memory {
         userId,
         runId,
         JSON.stringify(embedding),
-        threshold || 0.5,
+        threshold || 0.,
         limit || 10,
       ]
     );

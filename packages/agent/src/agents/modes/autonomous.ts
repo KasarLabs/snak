@@ -1,42 +1,16 @@
-import { AgentConfig, AgentMode, logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
-import { createAllowedTools } from '../../tools/tools.js';
-import {
-  StateGraph,
-  MemorySaver,
-  Annotation,
-  END,
-  START,
-  interrupt,
-  MessagesAnnotation,
-} from '@langchain/langgraph';
-import { ToolNode } from '@langchain/langgraph/prebuilt';
-import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
+import { StateGraph, MemorySaver, Annotation, END } from '@langchain/langgraph';
 import {
   DynamicStructuredTool,
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject, z } from 'zod';
-import {
-  BaseMessage,
-  ToolMessage,
-  HumanMessage,
-  AIMessageChunk,
-} from '@langchain/core/messages';
-import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from '@langchain/core/prompts';
+import { BaseMessage } from '@langchain/core/messages';
 import { ModelSelector } from '../operators/modelSelector.js';
-import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import {
-  initializeDatabase,
-  initializeToolsList,
-  truncateToolResults,
-} from '../core/utils.js';
-import { TokenTracker } from '../../token/tokenTracking.js';
-import { Runnable, RunnableConfig } from '@langchain/core/runnables';
+import { initializeDatabase, initializeToolsList } from '../core/utils.js';
+import { RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 import {
@@ -44,64 +18,11 @@ import {
   DEFAULT_AUTONOMOUS_CONFIG,
   ConfigValidator,
 } from './config/autonomous-config.js';
-import {
-  Agent,
-  AgentReturn,
-  Memories,
-  ParsedPlan,
-  StepInfo,
-  MemoryOperationResult,
-} from './types/index.js';
+import { Agent, AgentReturn, Memories, ParsedPlan } from './types/index.js';
 import { MemoryStateManager } from './utils/memory-utils.js';
-import {
-  calculateTotalTokenFromSteps,
-  createMaxIterationsResponse,
-  estimateTokens,
-  filterMessagesByShortTermMemory,
-  formatExecutionMessage,
-  formatParsedPlanSimple,
-  formatShortMemoryMessage,
-  formatStepsForContext,
-  formatToolResponse,
-  formatValidatorToolsExecutor,
-  getLatestMessageForMessage,
-  handleModelError,
-  isTerminalMessage,
-  PlanSchema,
-  ValidatorResponseSchema,
-} from './utils.js';
-import {
-  ADAPTIVE_PLANNER_CONTEXT_PROMPT,
-  ADAPTIVE_PLANNER_SYSTEM_PROMPT,
-  AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
-  AUTONOMOUS_PLANNER_CONTEXT_PROMPT,
-  HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
-  REPLAN_EXECUTOR_SYSTEM_PROMPT,
-  REPLANNER_CONTEXT_PROMPT,
-} from '../../prompt/planner_prompt.js';
-import {
-  MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
-  RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
-  RETRY_STEP_EXECUTOR_CONTEXT_PROMPT,
-  RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
-  STEP_EXECUTOR_CONTEXT,
-  STEP_EXECUTOR_CONTEXT_PROMPT,
-  TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
-} from '../../prompt/executor_prompts.js';
-import {
-  AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT,
-  TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
-  VALIDATOR_EXECUTOR_CONTEXT,
-} from '../../prompt/validator_prompt.js';
-import { SUMMARIZE_AGENT } from '../../prompt/summary_prompts.js';
-import {
-  BaseChatModel,
-  BaseChatModelCallOptions,
-} from '@langchain/core/language_models/chat_models';
 import { MemoryGraph } from './sub-graph/memory.js';
 import { PlannerGraph } from './sub-graph/planner_graph.js';
 import { AgentExecutorGraph } from './sub-graph/executor_graph.js';
-import { exec } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 
 export const AutonomousGraphState = Annotation.Root({
@@ -118,7 +39,7 @@ export const AutonomousGraphState = Annotation.Root({
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
-    default: () => MemoryStateManager.createInitialState(1),
+    default: () => MemoryStateManager.createInitialState(5),
   }),
   rag: Annotation<string>({
     reducer: (x, y) => y,
@@ -160,7 +81,7 @@ export const AutonomousConfigurableAnnotation = Annotation.Root({
   }),
   short_term_memory: Annotation<number>({
     reducer: (x, y) => y,
-    default: () => 3,
+    default: () => 5,
   }),
   memory_size: Annotation<number>({
     reducer: (x, y) => y,
@@ -204,9 +125,7 @@ export class AutonomousAgent {
     try {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
-        logger.debug(
-          '[AutonomousAgent] Memory agent retrieved successfully'
-        );
+        logger.debug('[AutonomousAgent] Memory agent retrieved successfully');
         // const memoryTools = this.memoryAgent.prepareMemoryTools(); TODO
         // this.toolsList.push(...memoryTools);
       } else {
@@ -230,9 +149,7 @@ export class AutonomousAgent {
         );
       }
     } catch (error) {
-      logger.error(
-        `[AutonomousAgent] Failed to retrieve RAG agent: ${error}`
-      );
+      logger.error(`[AutonomousAgent] Failed to retrieve RAG agent: ${error}`);
     }
   }
 

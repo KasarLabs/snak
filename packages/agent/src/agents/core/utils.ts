@@ -222,40 +222,39 @@ const truncateStringContentHelper = (
  */
 export function truncateToolResults(
   result: any,
-  maxLength: number = 5000,
+  maxLength: number = 20000,
   currentStep: StepInfo
 ): { messages: ToolMessage[]; plan?: ParsedPlan; last_message: BaseMessage } {
+  let i = 0;
   for (const tool_message of result.messages) {
     let content: string;
     try {
       // Safely handle content conversion, avoiding Response body issues
       if (typeof tool_message.content === 'string') {
         content = tool_message.content;
-      } else if (tool_message.content && typeof tool_message.content.toString === 'function') {
+      } else if (
+        tool_message.content &&
+        typeof tool_message.content.toString === 'function'
+      ) {
         content = tool_message.content.toString();
-      } else if (tool_message.content && typeof tool_message.content.toLocaleString === 'function') {
+      } else if (
+        tool_message.content &&
+        typeof tool_message.content.toLocaleString === 'function'
+      ) {
         content = tool_message.content.toLocaleString();
       } else {
         content = String(tool_message.content || '');
       }
     } catch (error) {
-      logger.warn(`Failed to convert tool message content to string: ${error.message}`);
+      logger.warn(
+        `Failed to convert tool message content to string: ${error.message}`
+      );
       content = '[Content conversion failed - Response body may be locked]';
     }
-    
+
     const truncatedContent = truncateStringContentHelper(content, maxLength);
     tool_message.content = truncatedContent;
-    
-    if (currentStep.result) {
-      currentStep.result.content = currentStep.result.content.concat(truncatedContent);
-    } else {
-      currentStep.result = {
-        content: truncatedContent,
-        tokens: estimateTokens(truncatedContent),
-      };
-    }
   }
-  logger.debug(`ToolMessage Result : ${currentStep.result}`);
   return result;
 }
 /**

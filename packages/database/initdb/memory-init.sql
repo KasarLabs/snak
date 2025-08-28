@@ -23,8 +23,7 @@ CREATE TABLE IF NOT EXISTS semantic_memories (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),  -- Corrigé: updated_at
     category VARCHAR(50),  -- 'preference', 'fact', 'skill', 'relationship'
-    source_events INTEGER[] DEFAULT '{}',
-    UNIQUE(user_id, fact)
+    source_events INTEGER[] DEFAULT '{}'
 );
 
 -- ============================================================================
@@ -251,7 +250,7 @@ CREATE OR REPLACE FUNCTION retrieve_similar_memories(
     p_user_id VARCHAR(100),
     p_run_id UUID,
     p_embedding vector(384),
-    p_threshold FLOAT DEFAULT 0.5,
+    p_threshold FLOAT DEFAULT 0.35,
     p_limit INTEGER DEFAULT 10
 )
 RETURNS TABLE (

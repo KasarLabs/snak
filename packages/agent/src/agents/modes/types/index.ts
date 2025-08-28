@@ -26,7 +26,7 @@ export interface AgentReturn {
  * Individual memory item with immutable structure
  */
 export interface MemoryItem {
-  readonly content: string;
+  readonly stepinfo: StepInfo;
   readonly memories_id: string;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
@@ -117,6 +117,16 @@ export interface ToolInfo {
   required: string;
   expected_result: string;
   result: string;
+  metadata?: {
+    tool_name: string;
+    tool_call_id: string;
+    timestamp: string;
+  };
+}
+
+export interface MessageInfo {
+  content: string;
+  tokens: number;
 }
 
 export interface StepInfo {
@@ -125,10 +135,7 @@ export interface StepInfo {
   description: string;
   type: 'tools' | 'message' | 'human_in_the_loop';
   tools?: ToolInfo[];
-  result: {
-    content: string;
-    tokens: number;
-  };
+  message: MessageInfo;
   status: 'pending' | 'completed' | 'failed';
 }
 
@@ -271,3 +278,20 @@ export const ltmSchema = z.object({
 });
 
 export type ltmSchemaType = z.infer<typeof ltmSchema>;
+
+export const test = z.object({
+  asset_type: z.enum(['Asset', 'Contract']).describe(''),
+  asset_content: z.string().describe(''),
+});
+
+export const getAllowanceSchema = z.object({
+  ownerAddress: z
+    .string()
+    .describe('The starknet address of the account owner of the tokens'),
+  spenderAddress: z
+    .string()
+    .describe(
+      'The starknet address of the account allowed to spend the tokens'
+    ),
+  asset: test.describe('Asset details'),
+});
