@@ -122,7 +122,7 @@ export namespace memory {
 
   interface SemanticMemoryBase extends MemoryBase {
     fact: string;
-    category: 'preference' | 'fact' | 'skill' | 'relationship';
+    category: string;
     source_events?: Array<number>;
   }
   interface MemoryWithId extends MemoryBase {
@@ -259,14 +259,8 @@ export namespace memory {
     threshold?: number
   ): Promise<Similarity[]> {
     const q = new Postgres.Query(
-      `SELECT * FROM retrieve_similar_memories($1, $2, $3, $4, $5)`, 
-      [
-        userId,
-        runId,
-        JSON.stringify(embedding),
-        threshold || 0.,
-        limit || 10,
-      ]
+      `SELECT * FROM retrieve_similar_memories($1, $2, $3, $4, $5)`,
+      [userId, runId, JSON.stringify(embedding), threshold || 0, limit || 10]
     );
     const result = await Postgres.query<Similarity>(q);
     console.log(result);

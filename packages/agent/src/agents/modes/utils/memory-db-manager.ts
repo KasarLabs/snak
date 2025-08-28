@@ -124,7 +124,7 @@ export class MemoryDBManager {
         console.log(JSON.stringify(result, null, 2));
         event_ids.push(result.memory_id);
         logger.debug(
-          `[MemoryDBManager] Successfully ${result.operation} memory ${result.memory_id} for user ${e_memory.user_id}`
+          `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${e_memory.user_id}`
         );
       }
 
@@ -148,7 +148,7 @@ export class MemoryDBManager {
         };
         const result = await memory.insert_semantic_memory(semanticRecord);
         logger.debug(
-          `[MemoryDBManager] Successfully insert memory ${result.memory_id} for user ${s_memory.user_id}`
+          `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${s_memory.user_id}`
         );
       }
 

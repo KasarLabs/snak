@@ -1,14 +1,18 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
 import { Annotation, START, StateGraph, Command } from '@langchain/langgraph';
 import { Agent, ParsedPlan, StepInfo } from '../types/index.js';
-import { formatParsedPlanSimple, PlanSchema } from '../utils.js';
+import {
+  formatParsedPlanSimple,
+  formatStepsForContext,
+  PlanSchema,
+} from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from 'agents/operators/modelSelector.js';
 import { AutonomousConfigurableAnnotation } from '../autonomous.js';
 import {
-  PlannerNode,
+  AutonomousPlannerNode,
   DEFAULT_AUTONOMOUS_CONFIG,
 } from '../config/autonomous-config.js';
 import {
@@ -17,6 +21,8 @@ import {
   AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
   AUTONOMOUS_PLANNER_CONTEXT_PROMPT,
   HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT,
+  INTERACTIVE_PLANNER_CONTEXT_PROMPT,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
   REPLANNER_CONTEXT_PROMPT,
 } from '../../../prompt/planner_prompt.js';
@@ -160,6 +166,7 @@ export class PlannerGraph {
       };
     }
   }
+
   private async planExecution(
     state: typeof PlannerGraphState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
@@ -181,14 +188,19 @@ export class PlannerGraph {
       const structuredModel = model.withStructuredOutput(PlanSchema);
       let systemPrompt;
       let contextPrompt;
-      if (config.configurable?.agent_config?.mode === AgentMode.HYBRID) {
+      const agent_mode: AgentMode = config.configurable?.agent_config
+        ?.mode as AgentMode;
+      if (agent_mode === AgentMode.HYBRID) {
         logger.debug('[Planner] Creating initial hybrid plan');
         systemPrompt = HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT;
         contextPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
-      } else {
+      } else if (agent_mode === AgentMode.AUTONOMOUS) {
         logger.debug('[Planner] Creating initial autonomous plan');
         systemPrompt = AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT;
         contextPrompt = AUTONOMOUS_PLANNER_CONTEXT_PROMPT;
+      } else {
+        systemPrompt = INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT;
+        contextPrompt = INTERACTIVE_PLANNER_CONTEXT_PROMPT;
       }
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', systemPrompt],
@@ -275,7 +287,7 @@ export class PlannerGraph {
           stepLength: state.currentStepIndex + 1,
           objectives: this.agentConfig.prompt,
           toolsAvailable: parseToolsToJson(this.toolsList),
-          previousSteps: JSON.stringify(state.plan.steps),
+          previousSteps: formatStepsForContext(state.plan.steps),
         })
       );
 
@@ -441,7 +453,7 @@ export class PlannerGraph {
   public planning_router(
     state: typeof PlannerGraphState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ): PlannerNode {
+  ): AutonomousPlannerNode {
     if (
       state.currentGraphStep >=
       (config.configurable?.max_graph_steps ??
@@ -450,18 +462,18 @@ export class PlannerGraph {
       logger.warn(
         `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
       );
-      return PlannerNode.END_PLANNER_GRAPH;
+      return AutonomousPlannerNode.END_PLANNER_GRAPH;
     }
     const maxRetries = DEFAULT_AUTONOMOUS_CONFIG.maxRetries;
 
     if (!state.last_agent || state.last_agent === Agent.START) {
       logger.debug(`[PLANNING_ROUTER]: Routing to create_initial_plan`);
-      return PlannerNode.CREATE_INITIAL_PLAN;
+      return AutonomousPlannerNode.CREATE_INITIAL_PLAN;
     }
 
     if (state.last_agent === Agent.EXEC_VALIDATOR) {
       logger.debug(`[PLANNING_ROUTER]: Routing to evolve_from_history`);
-      return PlannerNode.EVOLVE_FROM_HISTORY;
+      return AutonomousPlannerNode.EVOLVE_FROM_HISTORY;
     }
 
     if (
@@ -469,7 +481,7 @@ export class PlannerGraph {
       (state.last_message as BaseMessage).additional_kwargs.success
     ) {
       logger.debug(`[PLANNING_ROUTER]: Routing to end`);
-      return PlannerNode.END;
+      return AutonomousPlannerNode.END;
     }
 
     if (
@@ -480,15 +492,15 @@ export class PlannerGraph {
         logger.debug(
           `[PLANNING_ROUTER]: Max retries (${maxRetries}) reached, routing to end`
         );
-        return PlannerNode.END_PLANNER_GRAPH;
+        return AutonomousPlannerNode.END_PLANNER_GRAPH;
       }
       logger.debug(
         `[PLANNING_ROUTER]: Retry ${state.retry + 1}/${maxRetries}, routing to plan_revision`
       );
-      return PlannerNode.PLAN_REVISION;
+      return AutonomousPlannerNode.PLAN_REVISION;
     }
 
-    return PlannerNode.EVOLVE_FROM_HISTORY;
+    return AutonomousPlannerNode.EVOLVE_FROM_HISTORY;
   }
 
   private end_planner_graph(state: typeof PlannerGraphState.State) {

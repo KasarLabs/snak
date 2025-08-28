@@ -28,7 +28,7 @@ import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { AutonomousConfigurableAnnotation } from '../autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
-  MemoryNode,
+  AutonomousMemoryNode,
   DEFAULT_AUTONOMOUS_CONFIG,
 } from '../config/autonomous-config.js';
 import { MemoryStateManager, STMManager } from '../utils/memory-utils.js';
@@ -501,7 +501,7 @@ export class MemoryGraph {
   private memory_router(
     state: typeof MemoryState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ): MemoryNode {
+  ): AutonomousMemoryNode {
     const lastAgent = state.last_agent;
     logger.debug(`[MemoryRouter] Routing from agent: ${lastAgent}`);
 
@@ -513,7 +513,7 @@ export class MemoryGraph {
       logger.warn(
         `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
       );
-      return MemoryNode.END_MEMORY_GRAPH;
+      return AutonomousMemoryNode.END_MEMORY_GRAPH;
     }
 
     // Validate memory state
@@ -521,13 +521,13 @@ export class MemoryGraph {
       logger.error(
         '[MemoryRouter] Invalid memory state detected, routing to end'
       );
-      return MemoryNode.END_MEMORY_GRAPH;
+      return AutonomousMemoryNode.END_MEMORY_GRAPH;
     }
 
     const maxSteps = config.configurable?.max_graph_steps ?? 100;
     if (maxSteps <= state.currentGraphStep) {
       logger.warn('[Router] Max graph steps reached, routing to END node');
-      return MemoryNode.END_MEMORY_GRAPH;
+      return AutonomousMemoryNode.END_MEMORY_GRAPH;
     }
 
     // Route based on previous agent and current state
@@ -537,26 +537,26 @@ export class MemoryGraph {
         logger.debug(
           '[MemoryRouter] Plan validated → retrieving memory context'
         );
-        return MemoryNode.RETRIEVE_MEMORY;
+        return AutonomousMemoryNode.RETRIEVE_MEMORY;
 
       case Agent.EXEC_VALIDATOR:
         // After execution validation, update STM
         logger.debug('[MemoryRouter] Execution validated → updating STM');
-        return MemoryNode.STM_MANAGER;
+        return AutonomousMemoryNode.STM_MANAGER;
 
       case Agent.MEMORY_MANAGER:
         // Memory context retrieved, end memory processing
         logger.debug(
           '[MemoryRouter] Memory context retrieved → ending memory flow'
         );
-        return MemoryNode.END;
+        return AutonomousMemoryNode.END;
 
       default:
         // Fallback to end for unknown agents
         logger.warn(
           `[MemoryRouter] Unknown agent ${lastAgent}, routing to end`
         );
-        return MemoryNode.END;
+        return AutonomousMemoryNode.END;
     }
   }
 

@@ -6,17 +6,16 @@ import {
 import {
   Annotation,
   START,
-  END,
   StateGraph,
-  CompiledStateGraph,
   Command,
   interrupt,
 } from '@langchain/langgraph';
-import { Agent, Memories, ParsedPlan } from '../types/index.js';
+import { Agent, Memories, ParsedPlan, StepInfo } from '../types/index.js';
 import {
   createMaxIterationsResponse,
   estimateTokens,
   formatExecutionMessage,
+  formatStepsForContext,
   formatToolResponse,
   formatValidatorToolsExecutor,
   getLatestMessageForMessage,
@@ -30,7 +29,6 @@ import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../../agents/operators/modelSelector.js';
 import { AutonomousConfigurableAnnotation } from '../autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { v4 as uuidv4 } from 'uuid';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
   DynamicStructuredTool,
@@ -38,7 +36,7 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import {
-  ExecutorNode,
+  AutonomousExecutorNode,
   DEFAULT_AUTONOMOUS_CONFIG,
 } from '../config/autonomous-config.js';
 import {
@@ -55,11 +53,7 @@ import {
   STEP_EXECUTOR_CONTEXT_PROMPT,
   TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
 } from '../../../prompt/executor_prompts.js';
-import {
-  JSONstringifyLTM,
-  JSONstringifySTM,
-  MemoryStateManager,
-} from '../utils/memory-utils.js';
+import { JSONstringifyLTM } from '../utils/memory-utils.js';
 
 export type ExecutorStateType = typeof ExecutorState.State;
 
@@ -140,7 +134,11 @@ export class AgentExecutorGraph {
       rejected_reason: Array.isArray(state.last_message)
         ? state.last_message[0].content
         : (state.last_message as BaseMessage).content,
-      short_term_memory: JSONstringifySTM(state.memories.stm),
+      short_term_memory: formatStepsForContext(
+        state.memories.stm.items
+          .map((item) => item?.stepinfo)
+          .filter((stepinfo): stepinfo is StepInfo => stepinfo !== undefined)
+      ),
       long_term_memory: JSONstringifyLTM(state.memories.ltm),
       execution_context: execution_context,
     });
@@ -257,12 +255,11 @@ export class AgentExecutorGraph {
           estimateTokens(content);
       } else {
         tokens = estimateTokens(content);
+        updatedPlan.steps[state.currentStepIndex].message = {
+          content: content,
+          tokens: tokens,
+        };
       }
-
-      updatedPlan.steps[state.currentStepIndex].result = {
-        content: content,
-        tokens: tokens,
-      };
 
       logger.debug(
         `[Executor] Token tracking: ${tokens} tokens for step ${state.currentStepIndex + 1}`
@@ -680,11 +677,14 @@ export class AgentExecutorGraph {
   private executor_router(
     state: typeof ExecutorState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ): ExecutorNode {
+  ): AutonomousExecutorNode {
     if (config.configurable?.agent_config?.mode === AgentMode.HYBRID) {
-      return this.shouldContinueHybrid(state, config) as ExecutorNode;
+      return this.shouldContinueHybrid(state, config) as AutonomousExecutorNode;
     } else {
-      return this.shouldContinueAutonomous(state, config) as ExecutorNode;
+      return this.shouldContinueAutonomous(
+        state,
+        config
+      ) as AutonomousExecutorNode;
     }
   }
 

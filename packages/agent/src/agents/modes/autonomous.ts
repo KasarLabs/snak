@@ -14,7 +14,7 @@ import { RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from 'agents/operators/memoryAgent.js';
 import { RagAgent } from 'agents/operators/ragAgent.js';
 import {
-  GraphNode,
+  AutonomousGraphNode,
   DEFAULT_AUTONOMOUS_CONFIG,
   ConfigValidator,
 } from './config/autonomous-config.js';
@@ -63,10 +63,6 @@ export const AutonomousGraphState = Annotation.Root({
   currentGraphStep: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 0,
-  }),
-  subGraphSteps: Annotation<Record<string, number>>({
-    reducer: (x, y) => ({ ...x, ...y }),
-    default: () => ({ planner: 0, memory: 0, executor: 0 }),
   }),
   skipValidation: Annotation<{ skipValidation: boolean; goto: string }>({
     reducer: (x, y) => y,
@@ -174,12 +170,12 @@ export class AutonomousAgent {
   private orchestrationRouter(
     state: typeof AutonomousGraphState.State,
     config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ): GraphNode {
+  ): AutonomousGraphNode {
     logger.debug(`[Orchestration Router] Last agent: ${state.last_agent}`);
 
     if (state.skipValidation.skipValidation) {
-      const validTargets = Object.values(GraphNode);
-      const goto = state.skipValidation.goto as GraphNode;
+      const validTargets = Object.values(AutonomousGraphNode);
+      const goto = state.skipValidation.goto as AutonomousGraphNode;
 
       if (validTargets.includes(goto)) {
         logger.debug(
@@ -190,7 +186,7 @@ export class AutonomousAgent {
         logger.warn(
           `[Orchestration Router] Invalid skip validation target: ${goto}, defaulting to end_graph`
         );
-        return GraphNode.END_GRAPH;
+        return AutonomousGraphNode.END_GRAPH;
       }
     }
 
@@ -198,12 +194,12 @@ export class AutonomousAgent {
       logger.debug(
         `[Orchestration Router] Execution complete, routing to memory`
       );
-      return GraphNode.MEMORY_ORCHESTRATOR;
+      return AutonomousGraphNode.MEMORY_ORCHESTRATOR;
     }
 
     if (state.last_agent === Agent.PLANNER_VALIDATOR) {
       logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
-      return GraphNode.MEMORY_ORCHESTRATOR;
+      return AutonomousGraphNode.MEMORY_ORCHESTRATOR;
     }
 
     if (state.last_agent === Agent.MEMORY_MANAGER) {
@@ -213,12 +209,12 @@ export class AutonomousAgent {
         logger.debug(
           `[Orchestration Router] Final execution reached, routing to planner`
         );
-        return GraphNode.PLANNING_ORCHESTRATOR;
+        return AutonomousGraphNode.PLANNING_ORCHESTRATOR;
       }
     }
 
     logger.debug(`[Orchestration Router] Default routing to executor`);
-    return GraphNode.AGENT_EXECUTOR;
+    return AutonomousGraphNode.AGENT_EXECUTOR;
   }
 
   private getCompileOptions(): {
@@ -287,24 +283,24 @@ export class AutonomousAgent {
       AutonomousGraphState,
       AutonomousConfigurableAnnotation
     )
-      .addNode(GraphNode.PLANNING_ORCHESTRATOR, planner_graph)
-      .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
-      .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
-      .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
-      .addEdge('__start__', GraphNode.PLANNING_ORCHESTRATOR)
+      .addNode(AutonomousGraphNode.PLANNING_ORCHESTRATOR, planner_graph)
+      .addNode(AutonomousGraphNode.MEMORY_ORCHESTRATOR, memory_graph)
+      .addNode(AutonomousGraphNode.AGENT_EXECUTOR, executor_graph)
+      .addNode(AutonomousGraphNode.END_GRAPH, this.end_graph.bind(this))
+      .addEdge('__start__', AutonomousGraphNode.PLANNING_ORCHESTRATOR)
       .addConditionalEdges(
-        GraphNode.PLANNING_ORCHESTRATOR,
+        AutonomousGraphNode.PLANNING_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(
-        GraphNode.MEMORY_ORCHESTRATOR,
+        AutonomousGraphNode.MEMORY_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(
-        GraphNode.AGENT_EXECUTOR,
+        AutonomousGraphNode.AGENT_EXECUTOR,
         this.orchestrationRouter.bind(this)
       )
-      .addEdge(GraphNode.END_GRAPH, END);
+      .addEdge(AutonomousGraphNode.END_GRAPH, END);
 
     return workflow as unknown as StateGraph<
       typeof AutonomousGraphState.State,

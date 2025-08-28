@@ -1,4 +1,4 @@
-export interface AutonomousConfig {
+export interface InteractiveConfig {
   maxGraphSteps: number;
   shortTermMemory: number;
   memorySize: number;
@@ -8,7 +8,7 @@ export interface AutonomousConfig {
   planValidationEnabled: boolean;
 }
 
-export const DEFAULT_AUTONOMOUS_CONFIG: AutonomousConfig = {
+export const DEFAULT_INTERACTIVE_CONFIG: InteractiveConfig = {
   maxGraphSteps: 100,
   shortTermMemory: 7,
   memorySize: 20,
@@ -18,32 +18,29 @@ export const DEFAULT_AUTONOMOUS_CONFIG: AutonomousConfig = {
   planValidationEnabled: true,
 };
 
-export enum AutonomousGraphNode {
+export enum InteractiveGraphNode {
   PLANNING_ORCHESTRATOR = 'planning_orchestrator',
   AGENT_EXECUTOR = 'agent_executor',
   MEMORY_ORCHESTRATOR = 'memory_orchestrator',
   END_GRAPH = 'end_graph',
 }
 
-export enum AutonomousPlannerNode {
+export enum InteractivePlannerNode {
   CREATE_INITIAL_PLAN = 'create_initial_plan',
   PLAN_REVISION = 'plan_revision',
-  EVOLVE_FROM_HISTORY = 'evolve_from_history',
   END_PLANNER_GRAPH = 'end_planner_graph',
-  PLANNER_VALIDATOR = 'planner_validator',
   END = 'end',
 }
 
-export enum AutonomousExecutorNode {
+export enum InteractiveExecutorNode {
   REASONING_EXECUTOR = 'reasoning_executor',
   TOOL_EXECUTOR = 'tool_executor',
   EXECUTOR_VALIDATOR = 'executor_validator',
-  HUMAN = 'human',
   END_EXECUTOR_GRAPH = 'end_executor_graph',
   END = 'end',
 }
 
-export enum AutonomousMemoryNode {
+export enum InteractiveMemoryNode {
   STM_MANAGER = 'stm_manager',
   LTM_MANAGER = 'ltm_manager',
   RETRIEVE_MEMORY = 'retrieve_memory',
@@ -52,9 +49,9 @@ export enum AutonomousMemoryNode {
 }
 
 export class ConfigValidator {
-  static validate(config: Partial<AutonomousConfig>): AutonomousConfig {
-    const validated: AutonomousConfig = {
-      ...DEFAULT_AUTONOMOUS_CONFIG,
+  static validate(config: Partial<InteractiveConfig>): InteractiveConfig {
+    const validated: InteractiveConfig = {
+      ...DEFAULT_INTERACTIVE_CONFIG,
       ...config,
     };
 

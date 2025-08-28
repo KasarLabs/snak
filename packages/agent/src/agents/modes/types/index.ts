@@ -62,7 +62,7 @@ export interface SemanticMemoryContext {
   user_id: string;
   run_id: string;
   fact: string;
-  category: 'preference' | 'fact' | 'skill' | 'relationship';
+  category: string;
 }
 
 export interface EpisodicMemoryContext {
@@ -255,11 +255,7 @@ export const episodicEventSchema = z.object({
 // Enhanced semantic fact schema with confidence and source
 export const semanticFactSchema = z.object({
   fact: z.string().min(1).describe('The learned information or insight'),
-  category: z
-    .enum(['preference', 'fact', 'skill', 'relationship'])
-    .optional()
-    .default('fact')
-    .describe('Type of fact'),
+  category: z.string().optional().default('fact').describe('Type of fact'),
 });
 
 // Main enhanced LTM schema

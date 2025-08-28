@@ -425,14 +425,12 @@ export class SnakAgent extends BaseAgent {
 
       const app = this.agentReactExecutor.app;
       let lastChunk;
-      const maxGraphSteps = this.agentConfig.maxIterations;
       const shortTermMemory = this.agentConfig.memory.shortTermMemorySize || 5;
       const memorySize = this.agentConfig.memory?.memorySize || 20;
 
       const threadConfig = {
         configurable: {
           thread_id: threadId,
-          max_graph_steps: maxGraphSteps,
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
           agent_config: this.agentConfig,
