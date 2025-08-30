@@ -20,7 +20,7 @@ CREATE TYPE model AS (
 
 CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     user_id UUID NOT NULL,
     "group" VARCHAR(255) NOT NULL DEFAULT 'default_group',
     description TEXT NOT NULL,
