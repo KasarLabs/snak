@@ -3,7 +3,7 @@ import { WsException } from '@nestjs/websockets';
 import { FastifyRequest } from 'fastify';
 import { Socket } from 'socket.io';
 
-const USER_ID_HEADER = 'x-user-id';
+export const USER_ID_HEADER = 'x-user-id' as const;
 
 /**
  * Common function to extract and validate userId from headers
