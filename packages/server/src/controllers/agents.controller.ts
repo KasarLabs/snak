@@ -8,6 +8,7 @@ import {
   Req,
   Headers,
   Delete,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
@@ -18,7 +19,8 @@ import {
   AgentDeletesRequestDTO,
 } from '../dto/agents.js';
 import { Reflector } from '@nestjs/core';
-import { ServerError } from '../utils/error.js';
+import ServerError from '../utils/error.js';
+import { getUserIdFromHeaders } from '../utils/index.js';
 import {
   logger,
   MessageFromAgentIdDTO,
@@ -68,15 +70,21 @@ export class AgentsController {
     private readonly agentFactory: AgentStorage,
     private readonly reflector: Reflector
   ) {}
+
   /**
    * Handle user request to a specific agent
    * @param userRequest - The user request containing agent ID and content
    * @returns Promise<AgentResponse> - Response with status and data
    */
   @Post('update_agent_mcp')
-  async updateAgentMcp(@Body() updateData: UpdateAgentMcpDTO) {
+  async updateAgentMcp(
+    @Body() updateData: UpdateAgentMcpDTO,
+    @Req() req: FastifyRequest
+  ) {
     try {
       const { id, mcpServers } = updateData;
+      const userId = getUserIdFromHeaders(req);
+
       if (!id) {
         throw new BadRequestException('Agent ID is required');
       }
@@ -88,10 +96,10 @@ export class AgentsController {
       // Update agent MCP configuration in database
       const q = new Postgres.Query(
         `UPDATE agents
-       SET "mcpServers" = $1
-       WHERE id = $2
-       RETURNING id, "mcpServers"`,
-        [JSON.stringify(mcpServers), id]
+         SET "mcpServers" = $1::jsonb
+         WHERE id = $2 AND user_id = $3
+         RETURNING id, "mcpServers"`,
+        [mcpServers, id, userId]
       );
 
       const result = await Postgres.query<AgentMcpResponseDTO>(q);
@@ -118,8 +126,13 @@ export class AgentsController {
   }
 
   @Post('update_agent_config')
-  async updateAgentConfig(@Body() config: AgentConfigSQL): Promise<any> {
+  async updateAgentConfig(
+    @Body() config: AgentConfigSQL,
+    @Req() req: FastifyRequest
+  ): Promise<any> {
     try {
+      const userId = getUserIdFromHeaders(req);
+
       if (!config || !config.id) {
         throw new BadRequestException('Agent ID is required');
       }
@@ -206,11 +219,12 @@ export class AgentsController {
       }
 
       values.push(config.id);
+      values.push(userId);
 
       const query = `
 		UPDATE agents
 		SET ${updateFields.join(', ')}
-		WHERE id = $${paramIndex}
+		WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}
 		RETURNING *
 	  `;
 
@@ -241,6 +255,8 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ) {
     try {
+      const userId = getUserIdFromHeaders(req);
+
       const data = await (req as any).file();
 
       if (!data) {
@@ -286,9 +302,9 @@ export class AgentsController {
       const q = new Postgres.Query(
         `UPDATE agents
 			 SET avatar_image = $1, avatar_mime_type = $2
-			 WHERE id = $3
+			 WHERE id = $3 AND user_id = $4
 			 RETURNING id, avatar_mime_type`,
-        [buffer, mimetype, agentId]
+        [buffer, mimetype, agentId, userId]
       );
 
       const result = await Postgres.query<AgentAvatarResponseDTO>(q);
@@ -314,26 +330,67 @@ export class AgentsController {
     }
   }
 
+  /**
+   * Private method to verify agent ownership
+   * @param agentId - The agent ID
+   * @param userId - The user ID
+   * @returns The agent instance if owned by user, throws error otherwise
+   */
+  private verifyAgentOwnership(agentId: string, userId: string): SnakAgent {
+    const agent = this.agentFactory.getAgentInstance(agentId, userId);
+    if (!agent) {
+      throw new ForbiddenException('Agent not found or access denied');
+    }
+    return agent;
+  }
+
+  /**
+   * Private method to verify agent configuration ownership
+   * @param agentId - The agent ID
+   * @param userId - The user ID
+   * @returns The agent configuration if owned by user, throws error otherwise
+   */
+  private verifyAgentConfigOwnership(
+    agentId: string,
+    userId: string
+  ): AgentConfigSQL {
+    const agentConfig = this.agentFactory.getAgentConfig(agentId, userId);
+    if (!agentConfig) {
+      throw new ForbiddenException('Agent not found or access denied');
+    }
+    return agentConfig;
+  }
+
   @Post('request')
   async handleUserRequest(
-    @Body() userRequest: AgentRequestDTO
+    @Body() userRequest: AgentRequestDTO,
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
+      const userId = getUserIdFromHeaders(req);
+
       const route = this.reflector.get('path', this.handleUserRequest);
       let agent: SnakAgent | undefined = undefined;
       if (userRequest.request.agent_id === undefined) {
-        logger.warn(
+        logger.info(
           'Agent ID not provided in request, Using agent Selector to select agent'
         );
+
         const agentSelector = this.agentFactory.getAgentSelector();
         if (!agentSelector) {
           throw new ServerError('E01TA400');
         }
-        agent = await agentSelector.execute(userRequest.request.content);
-      } else {
-        agent = this.agentFactory.getAgentInstance(
-          userRequest.request.agent_id
+        agent = await agentSelector.execute(
+          userRequest.request.content,
+          false,
+          { userId }
         );
+        if (agent) {
+          const agentId = agent.getAgentConfig().id;
+          this.verifyAgentConfigOwnership(agentId, userId);
+        }
+      } else {
+        agent = this.verifyAgentOwnership(userRequest.request.agent_id, userId);
       }
       if (!agent) {
         throw new ServerError('E01TA400');
@@ -367,17 +424,15 @@ export class AgentsController {
 
   @Post('stop_agent')
   async stopAgent(
-    @Body() userRequest: { agent_id: string }
+    @Body() userRequest: { agent_id: string },
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const agentConfig = this.agentFactory.getAgentInstance(
-        userRequest.agent_id
-      );
-      if (!agentConfig) {
-        throw new ServerError('E01TA400');
-      }
+      const userId = getUserIdFromHeaders(req);
 
-      agentConfig.stop();
+      const agent = this.verifyAgentOwnership(userRequest.agent_id, userId);
+
+      agent.stop();
       const response: AgentResponse = {
         status: 'success',
         data: `Agent ${userRequest.agent_id} stopped and unregistered from supervisor`,
@@ -396,12 +451,16 @@ export class AgentsController {
    */
   @Post('init_agent')
   async addAgent(
-    @Body() userRequest: AgentAddRequestDTO
+    @Body() userRequest: AgentAddRequestDTO,
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const newAgentConfig = await this.agentFactory.addAgent(
-        userRequest.agent
-      );
+      const userId = getUserIdFromHeaders(req);
+
+      const newAgentConfig = await this.agentFactory.addAgent({
+        ...userRequest.agent,
+        user_id: userId,
+      });
 
       const response: AgentResponse = {
         status: 'success',
@@ -424,17 +483,22 @@ export class AgentsController {
    */
   @Post('get_messages_from_agent')
   async getMessagesFromAgent(
-    @Body() userRequest: MessageFromAgentIdDTO
+    @Body() userRequest: MessageFromAgentIdDTO,
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const agentConfig = this.agentFactory.getAgentConfig(
-        userRequest.agent_id
+      const userId = getUserIdFromHeaders(req);
+      const agentConfig = this.verifyAgentConfigOwnership(
+        userRequest.agent_id,
+        userId
       );
       if (!agentConfig) {
         throw new ServerError('E01TA400');
       }
-      const messages =
-        await this.agentService.getMessageFromAgentId(userRequest);
+      const messages = await this.agentService.getMessageFromAgentId(
+        userRequest,
+        userId
+      );
       const response: AgentResponse = {
         status: 'success',
         data: messages,
@@ -453,17 +517,20 @@ export class AgentsController {
    */
   @Post('delete_agent')
   async deleteAgent(
-    @Body() userRequest: AgentDeleteRequestDTO
+    @Body() userRequest: AgentDeleteRequestDTO,
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const agentConfig = this.agentFactory.getAgentConfig(
-        userRequest.agent_id
+      const userId = getUserIdFromHeaders(req);
+      const agentConfig = this.verifyAgentConfigOwnership(
+        userRequest.agent_id,
+        userId
       );
       if (!agentConfig) {
-        throw new ServerError('E01TA400');
+        throw new BadRequestException('Agent not found or access denied');
       }
 
-      await this.agentFactory.deleteAgent(userRequest.agent_id);
+      await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 
       const response: AgentResponse = {
         status: 'success',
@@ -484,23 +551,19 @@ export class AgentsController {
    */
   @Post('delete_agents')
   async deleteAgents(
-    @Body() userRequest: AgentDeletesRequestDTO
+    @Body() userRequest: AgentDeletesRequestDTO,
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse[]> {
     try {
+      const userId = getUserIdFromHeaders(req);
+
       const responses: AgentResponse[] = [];
 
       for (const agentId of userRequest.agent_id) {
         try {
-          const agentConfig = this.agentFactory.getAgentConfig(agentId);
-          if (!agentConfig) {
-            responses.push({
-              status: 'failure',
-              data: `Agent ${agentId} not found`,
-            });
-            continue;
-          }
+          this.verifyAgentConfigOwnership(agentId, userId);
 
-          await this.agentFactory.deleteAgent(agentId);
+          await this.agentFactory.deleteAgent(agentId, userId);
 
           responses.push({
             status: 'success',
@@ -530,21 +593,20 @@ export class AgentsController {
    */
   @Post('get_messages_from_agents')
   async getMessageFromAgentsId(
-    @Body() userRequest: getMessagesFromAgentsDTO
+    @Body() userRequest: getMessagesFromAgentsDTO,
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const agentConfig = this.agentFactory.getAgentConfig(
-        userRequest.agent_id
-      );
-      if (!agentConfig) {
-        logger.warn(`Agent ${userRequest.agent_id} not found`);
-        throw new ServerError('E01TA400');
-      }
+      const userId = getUserIdFromHeaders(req);
+      this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
 
-      const messages = await this.agentService.getMessageFromAgentId({
-        agent_id: userRequest.agent_id,
-        limit_message: undefined,
-      });
+      const messages = await this.agentService.getMessageFromAgentId(
+        {
+          agent_id: userRequest.agent_id,
+          limit_message: undefined,
+        },
+        userId
+      );
 
       const response: AgentResponse = {
         status: 'success',
@@ -559,21 +621,25 @@ export class AgentsController {
 
   @Delete('clear_message')
   async clearMessage(
-    @Body() userRequest: getMessagesFromAgentsDTO
+    @Body() userRequest: getMessagesFromAgentsDTO,
+    @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     try {
-      const agentConfig = this.agentFactory.getAgentConfig(
-        userRequest.agent_id
-      );
-      if (!agentConfig) {
-        logger.warn(`Agent ${userRequest.agent_id} not found`);
+      const userId = getUserIdFromHeaders(req);
 
-        throw new ServerError('E01TA400');
-      }
-
-      const q = new Postgres.Query(`DELETE FROM message WHERE agent_id = $1`, [
+      const agentConfig = this.verifyAgentConfigOwnership(
         userRequest.agent_id,
-      ]);
+        userId
+      );
+
+      const q = new Postgres.Query(
+        `DELETE FROM message m
+         USING agents a 
+         WHERE m.agent_id = a.id 
+         AND m.agent_id = $1 
+         AND a.user_id = $2`,
+        [userRequest.agent_id, userId]
+      );
       await Postgres.query(q);
       const response: AgentResponse = {
         status: 'success',
@@ -591,9 +657,11 @@ export class AgentsController {
    * @returns Promise<AgentResponse> - Response with all agents
    */
   @Get('get_agents')
-  async getAgents(): Promise<AgentResponse> {
+  async getAgents(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const agents = await this.agentService.getAllAgents();
+      const userId = getUserIdFromHeaders(req);
+
+      const agents = await this.agentService.getAllAgentsOfUser(userId);
       const response: AgentResponse = {
         status: 'success',
         data: agents,
@@ -609,9 +677,11 @@ export class AgentsController {
    * @returns Promise<AgentResponse> - Response with agents status
    */
   @Get('get_agent_status')
-  async getAgentStatus(): Promise<AgentResponse> {
+  async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const agents = await this.agentService.getAllAgents();
+      const userId = getUserIdFromHeaders(req);
+
+      const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {
         throw new ServerError('E01TA400');
       }
@@ -631,9 +701,11 @@ export class AgentsController {
    * @returns Promise<AgentResponse> - Response with agents thread data
    */
   @Get('get_agent_thread')
-  async getAgentThread(): Promise<AgentResponse> {
+  async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
     try {
-      const agents = await this.agentService.getAllAgents();
+      const userId = getUserIdFromHeaders(req);
+
+      const agents = await this.agentService.getAllAgentsOfUser(userId);
       if (!agents) {
         throw new ServerError('E01TA400');
       }
