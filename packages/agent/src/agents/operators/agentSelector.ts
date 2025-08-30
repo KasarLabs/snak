@@ -90,7 +90,7 @@ export class AgentSelector extends BaseAgent {
   public async execute(
     input: string,
     _isInterrupted?: boolean,
-    config?: Record<string, any>
+    config?: Record<string, unknown>
   ): Promise<SnakAgent> {
     try {
       const model = this.modelSelector.getModels()['fast'];
@@ -109,14 +109,14 @@ export class AgentSelector extends BaseAgent {
       const userAgentInfo = new Map<string, string>();
 
       for (const [key, agent] of this.availableAgents.entries()) {
-        const [agentId, agentUserId] = key.split('|');
+        const [_agentId, agentUserId] = key.split('|');
         if (agentUserId === userId) {
           userAgents.set(key, agent);
-          const agentName = agent.getAgentConfig().name;
-          const description = this.agentInfo.get(agentName);
-          if (description) {
-            userAgentInfo.set(agentName, description);
-          }
+          const cfg = agent.getAgentConfig();
+          userAgentInfo.set(
+            cfg.name,
+            cfg.description || 'No description available'
+          );
         }
       }
 
