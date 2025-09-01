@@ -1,28 +1,30 @@
 import { z } from 'zod';
 import type { WorkerConfig } from '../types/index.js';
 
-export const configSchema = z.object({
-  redis: z.object({
-    host: z.string().min(1).default('redis'),
-    port: z.coerce.number().int().min(1).max(65535).default(6379),
-    password: z.string().optional(),
-    db: z.number().int().min(0).default(0),
-  }),
-  queues: z.object({
-    fileIngestion: z.string().min(1).default('file-ingestion'),
-    embeddings: z.string().min(1).default('embeddings'),
-    agentExecution: z.string().min(1).default('agent-execution'),
-    cleanup: z.string().min(1).default('cleanup'),
-  }).strict(),
-  concurrency: z.object({
-    fileIngestion: z.coerce.number().int().min(1).default(2),
-    embeddings: z.coerce.number().int().min(1).default(2),
-    agentExecution: z.coerce.number().int().min(1).default(2),
-    cleanup: z.coerce.number().int().min(1).default(2),
-    fallbackWorkers: z.coerce.number().int().min(0).default(8),
-    workerIdleTimeout: z.coerce.number().int().min(0).default(30000),
-  }).strict(),
-}).strict();
+export const configSchema = z
+  .object({
+    redis: z.object({
+      host: z.string().min(1).default('redis'),
+      port: z.coerce.number().int().min(1).max(65535).default(6379),
+      password: z.string().optional(),
+      db: z.number().int().min(0).default(0),
+    }),
+    queues: z
+      .object({
+        fileIngestion: z.string().min(1).default('file-ingestion'),
+        embeddings: z.string().min(1).default('embeddings'),
+      })
+      .strict(),
+    concurrency: z
+      .object({
+        fileIngestion: z.coerce.number().int().min(1).default(2),
+        embeddings: z.coerce.number().int().min(1).default(2),
+        fallbackWorkers: z.coerce.number().int().min(0).default(8),
+        workerIdleTimeout: z.coerce.number().int().min(0).default(30000),
+      })
+      .strict(),
+  })
+  .strict();
 
 export function loadWorkerConfig(): WorkerConfig {
   const config = {
@@ -35,16 +37,16 @@ export function loadWorkerConfig(): WorkerConfig {
     queues: {
       fileIngestion: process.env.QUEUE_FILE_INGESTION ?? 'file-ingestion',
       embeddings: process.env.QUEUE_EMBEDDINGS ?? 'embeddings',
-      agentExecution: process.env.QUEUE_AGENT_EXECUTION ?? 'agent-execution',
-      cleanup: process.env.QUEUE_CLEANUP ?? 'cleanup',
     },
     concurrency: {
       fileIngestion: parseInt(process.env.CONCURRENCY_FILE_INGESTION ?? '2'),
       embeddings: parseInt(process.env.CONCURRENCY_EMBEDDINGS ?? '2'),
-      agentExecution: parseInt(process.env.CONCURRENCY_AGENT_EXECUTION ?? '2'),
-      cleanup: parseInt(process.env.CONCURRENCY_CLEANUP ?? '2'),
-      fallbackWorkers: parseInt(process.env.CONCURRENCY_FALLBACK_WORKERS ?? '8'),
-      workerIdleTimeout: parseInt(process.env.CONCURRENCY_WORKER_IDLE_TIMEOUT ?? '30000'),
+      fallbackWorkers: parseInt(
+        process.env.CONCURRENCY_FALLBACK_WORKERS ?? '8'
+      ),
+      workerIdleTimeout: parseInt(
+        process.env.CONCURRENCY_WORKER_IDLE_TIMEOUT ?? '30000'
+      ),
     },
   };
 
