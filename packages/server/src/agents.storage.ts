@@ -202,7 +202,7 @@ export class AgentStorage implements OnModuleInit {
 
     const q = new Postgres.Query(
       `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers", user_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12), ROW($13, $14), $15, $16, $17, $18) RETURNING *`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12), ROW($13, $14), $15, $16, $17::jsonb, $18) RETURNING *`,
       [
         finalName,
         group,
@@ -282,7 +282,9 @@ export class AgentStorage implements OnModuleInit {
     const q_res = await Postgres.query<AgentConfigSQL>(q);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
-    this.agentConfigs = this.agentConfigs.filter((config) => config.id !== id);
+    this.agentConfigs = this.agentConfigs.filter(
+      (cfg) => !(cfg.id === id && cfg.user_id === userId)
+    );
 
     const compositeKey = `${id}|${userId}`;
     this.agentInstances.delete(compositeKey);
