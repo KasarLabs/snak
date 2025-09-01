@@ -29,14 +29,14 @@ services:
     networks:
       - network
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis_data:/data
     env_file:
       - .env
-    command: redis-server --appendonly yes --requirepass $${REDIS_PASSWORD}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '$${REDIS_PASSWORD}', 'ping']
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
