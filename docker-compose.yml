@@ -24,23 +24,23 @@ services:
     restart: unless-stopped
 
   redis:
-  image: redis:7-alpine
-  container_name: snak_redis
-  networks:
-    - network
-  ports:
-    - '6379:6379'
-  volumes:
-    - redis_data:/data
-  env_file:
-    - .env
-  command: redis-server --appendonly yes --requirepass $${REDIS_PASSWORD}
-  healthcheck:
-    test: ['CMD', 'redis-cli', '-a', '$${REDIS_PASSWORD}', 'ping']
-    interval: 10s
-    timeout: 5s
-    retries: 5
-  restart: unless-stopped
+    image: redis:7-alpine
+    container_name: snak_redis
+    networks:
+      - network
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    env_file:
+      - .env
+    command: redis-server --appendonly yes --requirepass $${REDIS_PASSWORD}
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '$${REDIS_PASSWORD}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   server:
     build:
