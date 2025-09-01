@@ -1,7 +1,6 @@
 import { StructuredTool } from '@langchain/core/tools';
 import { MultiServerMCPClient } from 'snak-mcps';
-import { logger } from '@snakagent/core';
-import { AgentConfig } from 'config/agentConfig.js';
+import { logger, AgentConfig } from '@snakagent/core';
 
 /**
  * @class MCP_CONTROLLER

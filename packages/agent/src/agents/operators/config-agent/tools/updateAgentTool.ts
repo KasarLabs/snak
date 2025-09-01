@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
+import { normalizeNumericValues } from './normalizeAgentValues.js';
 
 const UpdateAgentSchema = z.object({
   identifier: z
@@ -72,6 +73,23 @@ const UpdateAgentSchema = z.object({
         .optional()
         .nullable()
         .describe('New plugins list'),
+      memory: z
+        .object({
+          enabled: z.boolean().optional().nullable(),
+          shortTermMemorySize: z.number().optional().nullable(),
+          memorySize: z.number().optional().nullable(),
+        })
+        .optional()
+        .nullable()
+        .describe('New memory configuration object'),
+      rag: z
+        .object({
+          enabled: z.boolean().optional().nullable(),
+          embeddingModel: z.string().optional().nullable(),
+        })
+        .optional()
+        .nullable()
+        .describe('New RAG configuration object'),
       mode: z
         .string()
         .optional()
@@ -96,9 +114,17 @@ export const updateAgentTool = new DynamicStructuredTool({
       // First, find the agent
       let findQuery: Postgres.Query;
       const searchBy = input.searchBy || 'name';
+
       if (searchBy === 'id') {
+        const id = parseInt(input.identifier);
+        if (isNaN(id)) {
+          return JSON.stringify({
+            success: false,
+            message: `Invalid ID format: ${input.identifier}`,
+          });
+        }
         findQuery = new Postgres.Query('SELECT * FROM agents WHERE id = $1', [
-          input.identifier,
+          id,
         ]);
       } else {
         findQuery = new Postgres.Query('SELECT * FROM agents WHERE name = $1', [
@@ -117,13 +143,90 @@ export const updateAgentTool = new DynamicStructuredTool({
       const agent = existingAgent[0];
       const updates = input.updates;
 
-      // Build dynamic update query
+      const fieldsToUpdate: Partial<AgentConfig> = {};
+      Object.entries(updates).forEach(([key, value]) => {
+        // Skip the entire field if it's null or undefined
+        if (value === undefined || value === null) {
+          return;
+        }
+
+        if (key === 'memory' && typeof value === 'object' && value !== null) {
+          const existingMemory: AgentConfig['memory'] | undefined =
+            agent.memory;
+          const memoryUpdate = value as Partial<AgentConfig['memory']>;
+          const filteredMemoryUpdate = Object.fromEntries(
+            Object.entries(memoryUpdate).filter(
+              ([_, val]) => val !== null && val !== undefined
+            )
+          ) as Partial<AgentConfig['memory']>;
+
+          if (Object.keys(filteredMemoryUpdate).length > 0) {
+            fieldsToUpdate.memory = {
+              ...existingMemory,
+              ...filteredMemoryUpdate,
+            } as AgentConfig['memory'];
+          }
+        } else if (
+          key === 'rag' &&
+          typeof value === 'object' &&
+          value !== null
+        ) {
+          const existingRag: AgentConfig['rag'] | undefined = agent.rag;
+          const ragUpdate = value as Partial<AgentConfig['rag']>;
+          const filteredRagUpdate = Object.fromEntries(
+            Object.entries(ragUpdate as Record<string, any>).filter(
+              ([_, val]) => val !== null && val !== undefined
+            )
+          ) as Partial<AgentConfig['rag']>;
+
+          if (filteredRagUpdate && Object.keys(filteredRagUpdate).length > 0) {
+            fieldsToUpdate.rag = {
+              ...existingRag,
+              ...filteredRagUpdate,
+            } as AgentConfig['rag'];
+          }
+        } else {
+          (fieldsToUpdate as any)[key] = value;
+        }
+      });
+
+      const { normalizedConfig: normalizedUpdates, appliedDefaults } =
+        normalizeNumericValues(fieldsToUpdate);
+
       const updateFields: string[] = [];
       const updateValues: any[] = [];
       let paramIndex = 1;
 
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value !== undefined) {
+      Object.keys(fieldsToUpdate).forEach((key) => {
+        const value = normalizedUpdates[key as keyof typeof normalizedUpdates];
+
+        if (key === 'memory' && typeof value === 'object' && value !== null) {
+          const memory = value as AgentConfig['memory'];
+          updateFields.push(
+            `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`
+          );
+          updateValues.push(
+            memory?.enabled ?? null,
+            memory?.shortTermMemorySize ?? null,
+            memory?.memorySize ?? null
+          );
+          paramIndex += 3;
+        } else if (
+          key === 'rag' &&
+          typeof value === 'object' &&
+          value !== null
+        ) {
+          const rag = value as AgentConfig['rag'];
+          updateFields.push(
+            `"${key}" = ROW($${paramIndex}, $${paramIndex + 1})`
+          );
+          updateValues.push(
+            rag?.enabled ?? null,
+            (rag as any)?.embeddingModel ?? null
+          );
+          paramIndex += 2;
+        } else {
+          // Handle regular fields
           updateFields.push(`"${key}" = $${paramIndex}`);
           updateValues.push(value);
           paramIndex++;
@@ -137,9 +240,17 @@ export const updateAgentTool = new DynamicStructuredTool({
         });
       }
 
-      updateValues.push(agent.id);
+      let whereClause: string;
+      if (searchBy === 'id') {
+        whereClause = `WHERE id = $${paramIndex}`;
+        updateValues.push(parseInt(input.identifier));
+      } else {
+        whereClause = `WHERE name = $${paramIndex}`;
+        updateValues.push(input.identifier);
+      }
+
       const updateQuery = new Postgres.Query(
-        `UPDATE agents SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        `UPDATE agents SET ${updateFields.join(', ')} ${whereClause} RETURNING *`,
         updateValues
       );
 
@@ -147,9 +258,15 @@ export const updateAgentTool = new DynamicStructuredTool({
 
       if (result.length > 0) {
         logger.info(`Updated agent "${agent.name}" successfully`);
+
+        let message = `Agent "${agent.name}" updated successfully`;
+        if (appliedDefaults.length > 0) {
+          message += `. Note: ${appliedDefaults.join('; ')}`;
+        }
+
         return JSON.stringify({
           success: true,
-          message: `Agent "${agent.name}" updated successfully`,
+          message: message,
           data: result[0],
         });
       } else {

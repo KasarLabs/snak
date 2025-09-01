@@ -8,21 +8,24 @@ import {
   logger,
   AgentConfig,
   CustomHuggingFaceEmbeddings,
+  MemoryConfig,
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
-import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
+import { MemoryAgent } from '../operators/memoryAgent.js';
 import { createInteractiveAgent } from '../modes/interactive.js';
 import { createAutonomousAgent } from '../modes/autonomous.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
-import { FormatChunkIteration, ToolsChunk } from './utils.js';
+import { FormatChunkIteration } from './utils.js';
+import { IterationResponse, AgentIterationEvent } from './types.js';
 import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { Agent, AgentReturn } from 'agents/modes/types/index.js';
+import { metrics } from '@snakagent/metrics';
 
 /**
  * Configuration interface for SnakAgent initialization
@@ -34,65 +37,6 @@ export interface StreamChunk {
   from?: Agent;
   retry_count: number;
   final: boolean;
-}
-
-export interface FormattedOnChatModelStream {
-  chunk: {
-    content: string;
-    tools: ToolsChunk | undefined;
-  };
-}
-
-export type MessagesLangraph = {
-  lc: number;
-  type: string;
-  id: string[];
-  kwargs: {
-    content: string;
-    additional_kwargs?: any;
-    response_metadata?: any;
-  };
-};
-
-export type ResultModelEnd = {
-  output: {
-    content: string;
-  };
-  input: {
-    messages: MessagesLangraph[][];
-  };
-};
-
-export interface FormattedOnChatModelStart {
-  iteration: {
-    name: string;
-    messages: MessagesLangraph[][];
-    metadata?: any;
-  };
-}
-
-export interface FormattedOnChatModelEnd {
-  iteration: {
-    name: string;
-    result: ResultModelEnd;
-  };
-}
-
-export enum AgentIterationEvent {
-  ON_CHAT_MODEL_STREAM = 'on_chat_model_stream',
-  ON_CHAT_MODEL_START = 'on_chat_model_start',
-  ON_CHAT_MODEL_END = 'on_chat_model_end',
-  ON_CHAIN_START = 'on_chain_start',
-  ON_CHAIN_END = 'on_chain_end',
-  ON_CHAIN_STREAM = 'on_chain_stream',
-}
-
-export interface IterationResponse {
-  event: AgentIterationEvent;
-  kwargs:
-    | FormattedOnChatModelEnd
-    | FormattedOnChatModelStart
-    | FormattedOnChatModelStream;
 }
 
 export interface SnakAgentConfig {
@@ -259,7 +203,6 @@ export class SnakAgent extends BaseAgent {
       this.memoryAgent = new MemoryAgent({
         shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
         memorySize: agentConfig?.memory?.memorySize || 20,
-        maxIterations: agentConfig?.memory?.maxIterations,
         embeddingModel: agentConfig?.memory?.embeddingModel,
       });
       await this.memoryAgent.init();
@@ -550,7 +493,9 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else {
-        return `The mode: ${this.currentMode} is not supported in this method.`;
+        throw new Error(
+          `The mode: ${this.currentMode} is not supported in this method.`
+        );
       }
     } catch (error) {
       logger.error(`[SnakAgent] Execute failed: ${error}`);
@@ -576,7 +521,8 @@ export class SnakAgent extends BaseAgent {
       const limit = this.agentConfig.memory?.shortTermMemorySize ?? 15;
       if (
         limit <= 0 ||
-        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE]
+        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
+        this.agentConfig.memory?.enabled === false
       ) {
         return;
       }
@@ -598,7 +544,8 @@ export class SnakAgent extends BaseAgent {
       if (
         limit <= 0 ||
         this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
-        !this.pendingIteration
+        !this.pendingIteration ||
+        this.agentConfig.memory?.enabled === false
       ) {
         return;
       }

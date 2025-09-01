@@ -154,17 +154,41 @@ export class AgentsController {
         'memory',
         'mode',
         'max_iterations',
+        'mcpServers',
       ];
 
       updatableFields.forEach((field) => {
         if (config[field] !== undefined && config[field] !== null) {
           if (field === 'memory') {
-            const memoryData =
-              typeof config[field] === 'string'
-                ? JSON.parse(config[field])
-                : config[field];
+            let memoryData;
+
+            if (typeof config[field] === 'string') {
+              const fieldValue = config[field] as string;
+              if (fieldValue.startsWith('(') && fieldValue.endsWith(')')) {
+                const content = fieldValue.slice(1, -1);
+                const parts = content.split(',');
+                memoryData = {
+                  enabled: parts[0] === 't' || parts[0] === 'true',
+                  shortTermMemorySize: parseInt(parts[1], 10),
+                  memorySize: parseInt(parts[2], 10),
+                };
+              } else {
+                try {
+                  memoryData = JSON.parse(fieldValue);
+                } catch (jsonError) {
+                  throw new BadRequestException(
+                    `Invalid memory format: ${fieldValue}. Expected JSON or PostgreSQL composite type format.`
+                  );
+                }
+              }
+            } else {
+              memoryData = config[field];
+            }
+
             const enabled =
-              memoryData.enabled === 'true' || memoryData.enabled === true;
+              memoryData.enabled === 'true' ||
+              memoryData.enabled === true ||
+              memoryData.enabled === 't';
             const parsedShortTerm = Number.parseInt(
               String(memoryData.shortTermMemorySize ?? ''),
               10

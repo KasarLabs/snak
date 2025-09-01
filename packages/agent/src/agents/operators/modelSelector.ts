@@ -77,6 +77,14 @@ export class ModelSelector extends BaseAgent {
     }
   }
 
+  protected getApiKey(provider: string): string | undefined {
+    return this.apiKeys[provider];
+  }
+
+  protected get allApiKeys(): Readonly<ApiKeys> {
+    return { ...this.apiKeys };
+  }
+
   /**
    * Gets the singleton instance of the ModelSelector.
    * @returns {ModelSelector | null} The singleton instance or null if not initialized.
@@ -104,7 +112,7 @@ export class ModelSelector extends BaseAgent {
   /**
    * Loads API keys from environment variables.
    */
-  private loadApiKeys(): void {
+  protected loadApiKeys(): void {
     if (this.debugMode) {
       logger.debug('Loading API keys from environment variables...');
     }
@@ -135,7 +143,7 @@ export class ModelSelector extends BaseAgent {
    * Initializes model instances based on the loaded configuration.
    * @throws {Error} If models configuration is not loaded.
    */
-  private async initializeModels(): Promise<void> {
+  protected async initializeModels(): Promise<void> {
     if (this.debugMode) {
       logger.debug('Initializing AI models...');
     }
@@ -284,9 +292,7 @@ export class ModelSelector extends BaseAgent {
 
       if (this.debugMode) {
         logger.debug(`Invoking "fast" model for meta-selection analysis.`);
-        logger.debug(
-          `Using ${nextStepsSection ? 'NEXT STEPS-focused' : 'full content'} analysis.`
-        );
+        logger.debug(`Using full content analysis.`);
       }
 
       const response = await this.models.fast.invoke([
@@ -358,7 +364,7 @@ export class ModelSelector extends BaseAgent {
 
     if (this.debugMode) {
       logger.debug(
-        `Executing model: ${modelType} Actual: ${selectedModel === this.models.smart ? 'smart (fallback)' : modelType})`
+        `Executing model: ${modelType} Actual: ${selectedModel === this.models.smart ? 'smart (fallback)' : modelType}`
       );
     }
     return selectedModel.invoke(input);
