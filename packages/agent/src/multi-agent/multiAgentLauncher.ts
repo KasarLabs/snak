@@ -99,7 +99,7 @@ export function registerAgentsWithSupervisor(supervisor: any): void {
  * @param agentName - The name of the agent to find configuration for
  * @returns The full path to the agent config file, or null if not found
  */
-function findAgentConfig(agentName: string): string | null {
+async function findAgentConfig(agentName: string): Promise<string | null> {
   const configFileName = `${agentName}.agent.json`;
   const configPath = path.resolve(
     process.cwd(),
@@ -345,7 +345,7 @@ export async function launchMultiAgent(
       continue;
     }
 
-    const agentConfigPath = findAgentConfig(type);
+    const agentConfigPath = await findAgentConfig(type);
     if (!agentConfigPath) {
       logger.error(`Agent configuration not found for type: ${type}`);
       continue;
