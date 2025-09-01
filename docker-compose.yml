@@ -23,6 +23,25 @@ services:
         -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
     restart: unless-stopped
 
+  redis:
+  image: redis:7-alpine
+  container_name: snak_redis
+  networks:
+    - network
+  ports:
+    - '6379:6379'
+  volumes:
+    - redis_data:/data
+  env_file:
+    - .env
+  command: redis-server --appendonly yes --requirepass $${REDIS_PASSWORD}
+  healthcheck:
+    test: ['CMD', 'redis-cli', '-a', '$${REDIS_PASSWORD}', 'ping']
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  restart: unless-stopped
+
   server:
     build:
       context: .
@@ -37,8 +56,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: on-failure
 
+volumes:
+  redis_data:
+    driver: local
 
 networks:
   network:
