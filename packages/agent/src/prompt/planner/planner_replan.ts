@@ -36,30 +36,30 @@ Before creating new plan, identify if rejection was due to:
 ## RESPONSE FORMAT
 Return valid JSON:
 \`\`\`json
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": number, 
     "stepName": string (semantic-rich title with keywords, max 200 chars),
     "description": string (keyword-dense specification with entities, actions, domains, outcomes),
     "type": "tools" | "message",
     "tools": [ // Only for type="tools"
-        {
+        {{
         "description": "Action verb + domain context + specific entities (e.g., Extract pricing data from OpenAI GPT-4 and Claude API documentation)",
         "required": string (knowledge/data values needed - if none write "NO PREREQUISITE DATA"),
         "expected_result": string (information types, metrics, insights produced),
         "result": "should be empty"
-        }
+        }}
     ],
-        "message": { // Only for type="message"
+        "message": {{ // Only for type="message"
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-  }
+  }}
 ],
 "summary": string (semantic overview with key concepts and outcomes, max 300 chars)
-}
+}}
 \`\`\`
 
 <example>
@@ -70,47 +70,47 @@ Objective: Analyze market trends for product launch
 </context>
 
 \`\`\`json
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": 1,
     "stepName": "Gather consumer electronics market intelligence and trend analysis",
     "description": "Collect comprehensive market data using web search for consumer electronics trends, product launch analysis, competitive landscape insights, replacing unavailable market_predictor API",
     "type": "tools",
     "tools": [
-        {
+        {{
         "description": "Search current consumer electronics market trends, product launch strategies, competitive analysis from industry reports and market research",
         "required": "NO PREREQUISITE DATA - initial market intelligence gathering",
         "expected_result": "Market trend reports, competitive analysis data, product launch insights, industry forecasts",
         "result": "should be empty"
-        }
+        }}
     ],
-    "message": {
+    "message": {{
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    },
-    {
+    }},
+    {{
     "stepNumber": 2,
     "stepName": "Analyze competitive landscape and identify market opportunities",
     "description": "Process collected market intelligence to identify competitive gaps, emerging opportunities, product positioning strategies based on trend analysis from market research data",
     "type": "message",
-    "message": {
+    "message": {{
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    }
+    }}
 ],
 "summary": "Two-phase market analysis: web-based intelligence gathering followed by competitive opportunity identification"
-}
+}}
 \`\`\`
 </example>`;
 
 export const REPLANNER_CONTEXT_PROMPT = `
 ## INPUTS
-Objectives: {objectives}
+AgentConfig: {agentConfig}
 Previous Plan: {formatPlan}
 Rejection Reason: {rejectedReason}
 Available Tools: \`\`\`json{toolsAvailable}\`\`\`

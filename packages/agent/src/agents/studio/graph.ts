@@ -2,8 +2,7 @@ import { SystemMessage } from '@langchain/core/messages';
 import { AgentMode, ModelLevelConfig, ModelProviders } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '../core/snakAgent.js';
-import { InteractiveAgent } from '../modes/interactive.js';
-import { AutonomousAgent } from '../modes/autonomous.js';
+import { Graph } from '../modes/graph.js';
 import {
   ModelSelector,
   ModelSelectorConfig,
@@ -33,7 +32,7 @@ export interface AgentConfigSQL {
   };
   mode: AgentMode;
   max_iterations: number;
-  mcpServers : Record<string,any>
+  mcpServers: Record<string, any>;
 }
 
 export interface AgentMemorySQL {
@@ -275,7 +274,7 @@ export async function createAgentById(agentId: string): Promise<{
  */
 export async function createInteractiveAgent(agentId: string): Promise<any> {
   const { agent, modelSelector } = await createAgentById(agentId);
-  const interactiveAgent = new InteractiveAgent(agent, modelSelector);
+  const interactiveAgent = new Graph(agent, modelSelector);
   const { app } = await interactiveAgent.initialize();
   return app;
 }
@@ -287,7 +286,7 @@ export async function createInteractiveAgent(agentId: string): Promise<any> {
  */
 export async function createAutonomousAgent(agentId: string): Promise<any> {
   const { agent, modelSelector } = await createAgentById(AUTONOMOUS_ID);
-  const autonomousAgent = new AutonomousAgent(agent, modelSelector);
+  const autonomousAgent = new Graph(agent, modelSelector);
 
   const result = await autonomousAgent.initialize();
   const app = result.app;
@@ -307,18 +306,18 @@ export async function createAutonomousAgent(agentId: string): Promise<any> {
  */
 export async function createHybridAgent(agentId: string): Promise<any> {
   const { agent, modelSelector } = await createAgentById(agentId);
-  const hybridAgent = new AutonomousAgent(agent, modelSelector);
+  const hybridAgent = new Graph(agent, modelSelector);
   const { app } = await hybridAgent.initialize();
   return app;
 }
 
 // Example usage with specific IDs (for backward compatibility)
-const AUTONOMOUS_ID = 'f899486d-d365-4f0a-ae7d-dbeab73d320e';
-const INTERACTIVE_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
+const AUTONOMOUS_ID = 'b5c8bf7d-09a2-45b4-a85e-866cc4bb8102';
+const INTERACTIVE_ID = 'efa2b836-0a5f-43cd-8146-a5610e705695';
 const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 
-// export const studio_graph_interactive = () =>
-//   createInteractiveAgent(INTERACTIVE_ID);
+export const studio_graph_interactive = () =>
+  createInteractiveAgent(INTERACTIVE_ID);
 export const studio_graph_autonomous = () =>
   createAutonomousAgent(AUTONOMOUS_ID);
 // export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);

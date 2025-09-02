@@ -93,30 +93,30 @@ Example:
 ## RESPONSE FORMAT
 Return valid JSON:
 \`\`\`json
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": number, 
     "stepName": string (semantic-rich title with keywords, max 200 chars),
     "description": string (keyword-dense specification with entities, actions, domains, outcomes),
     "type": "tools" | "message",
     "tools": [ // Only for type="tools"
-        {
+        {{
         "description": "Action verb + domain context + specific entities (e.g., Extract pricing data from OpenAI GPT-4 and Claude API documentation)",
         "required": string (knowledge/data values needed - if none write "NO PREREQUISITE DATA"),
         "expected_result": string (information types, metrics, insights produced),
         "result": "should be empty"
-        }
+        }}
     ],
-        "message": { // Only for type="message"
+        "message": {{ // Only for type="message"
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-  }
+  }}
 ],
 "summary": string (semantic overview with key concepts and outcomes, max 300 chars)
-}
+}}
 \`\`\`
 
 <example : competitive intelligence workflow>
@@ -126,58 +126,58 @@ Objective: Analyze competitor pricing strategies in AI SaaS market
 </context>
 
 \`\`\`json
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": 1,
     "stepName": "Competitive landscape intelligence gathering for AI SaaS pricing models",
     "description": "Extract comprehensive pricing strategies, subscription tiers, API rate structures from OpenAI GPT-4, Anthropic Claude, Google Vertex AI, and Cohere platforms. Collect enterprise pricing, volume discounts, token costs, rate limits, and feature differentiation for comparative market analysis",
     "tools": [
-        {
+        {{
         "description": "Gather current AI API pricing models, subscription tiers, token costs from OpenAI, Anthropic, Cohere official pricing pages and documentation",
         "required": "NO PREREQUISITE DATA - initial market intelligence collection",
         "expected_result": "Pricing tables with dollar amounts per token, monthly subscription costs, tier names, API rate limits, enterprise pricing options",
         "result": ""
-        },
-        {
+        }},
+        {{
         "description": "Extract feature matrices and capability comparisons from competitor platforms including model performance, context windows, and unique selling propositions",
         "required": "NO PREREQUISITE DATA - parallel competitive feature analysis",
         "expected_result": "Feature comparison matrix, capability differences, unique advantages, target customer segments, value propositions",
         "result": ""
-        }
+        }}
     ],
     "status": "pending",
     "type": "tools",
-    "message": {
+    "message": {{
         "content": "",
         "tokens": 0
-    }
-    },
-    {
+    }}
+    }},
+    {{
     "stepNumber": 2,
     "stepName": "Strategic pricing analysis and market positioning recommendations",
     "description": "Synthesize competitive intelligence into actionable insights analyzing pricing elasticity, feature-to-price ratios, market gaps, positioning opportunities. Compare enterprise versus developer pricing strategies across OpenAI, Anthropic, emerging competitors. Identify underserved segments and pricing optimization opportunities",
     "status": "pending",
     "type": "message",
-    "message": {
+    "message": {{
         "content": "",
         "tokens": 0
-    }
-    },
-    {
+    }}
+    }},
+    {{
     "stepNumber": 3,
     "stepName": "Market opportunity identification and strategic recommendations",
     "description": "Develop strategic recommendations based on competitive gaps, pricing inefficiencies, and market opportunities. Create positioning strategy for differentiation in AI SaaS market considering pricing, features, and target segments",
     "status": "pending",
     "type": "message",
-    "message": {
+    "message": {{
         "content": "",
         "tokens": 0
-    }
-    }
+    }}
+    }}
 ],
 "summary": "Three-phase competitive intelligence: comprehensive pricing data extraction, strategic analysis, and market positioning recommendations for AI SaaS"
-}
+}}
 \`\`\`
 </example>
 
@@ -201,7 +201,7 @@ specific knowledge or capability in the LTM system.
 
 export const AUTONOMOUS_PLANNER_CONTEXT_PROMPT = `
 <context>
-Your Configuration(bio/objectives/knowledge) : {objectives}
+Your Configuration(bio/objectives/knowledge) : {agentConfig}
 Available Tools: \`\`\`json{toolsAvailable}\`\`\`
 </context>
 `;

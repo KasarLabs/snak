@@ -13,20 +13,23 @@ import {
   RunnableSequence,
 } from '@langchain/core/runnables';
 import {
-  AutonomousConfigurableAnnotation,
-  AutonomousGraphState,
-} from 'agents/modes/autonomous.js';
-import { MemoryGraph, MemoryState } from 'agents/modes/sub-graph/memory.js';
+  GraphConfigurableAnnotation,
+  GraphState,
+  PlannerMode,
+} from '../../agents/modes/graph.js';
+import { MemoryGraph } from '../../agents/modes/sub-graph/memory.js';
 import {
   Agent,
   EpisodicMemoryContext,
   Memories,
   MemoryOperationResult,
   SemanticMemoryContext,
+  StepToolsInfo,
 } from '../../agents/modes/types/index.js';
 import { MemoryDBManager } from '../modes/utils/memory-db-manager.js';
 import { MemoryStateManager, LTMManager } from '../modes/utils/memory-utils.js';
-import { DEFAULT_AUTONOMOUS_CONFIG } from '../../agents/modes/config/autonomous-config.js';
+import { DEFAULT_GRAPH_CONFIG } from '../modes/config/default-config.js';
+import { checkAndReturnObjectFromPlansOrHistories } from '../../agents/modes/utils.js';
 export interface MemoryChainResult {
   memories: string;
 }
@@ -179,14 +182,20 @@ export class MemoryAgent extends BaseAgent {
   public createMemoryNode(): any {
     const chain = this.createMemoryChain(20);
     return async (
-      state: typeof MemoryState.State,
-      config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+      state: typeof GraphState.State,
+      config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
     ): Promise<{ memories: Memories; last_agent: Agent }> => {
       try {
         logger.debug('[MemoryNode] Starting memory context retrieval');
-        if (state.currentStepIndex >= state.plan.steps.length) {
+        const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
+          state.plans_or_histories
+        );
+        if (
+          plan_or_history.type === 'plan' &&
+          state.currentStepIndex >= plan_or_history.steps.length
+        ) {
           logger.info(`[MemoryNode] Final step reach no retrieval data.`);
-        }
+        } // TODO add history case
         if (!MemoryStateManager.validate(state.memories)) {
           logger.error(
             '[MemoryNode] Invalid memory state detected created initial memory-manager state'
@@ -194,7 +203,7 @@ export class MemoryAgent extends BaseAgent {
           return {
             memories: MemoryStateManager.createInitialState(
               config.configurable?.memory_size ||
-                DEFAULT_AUTONOMOUS_CONFIG.memorySize
+                DEFAULT_GRAPH_CONFIG.memorySize
             ),
             last_agent: Agent.MEMORY_MANAGER,
           };
@@ -240,36 +249,60 @@ export class MemoryAgent extends BaseAgent {
    */
   public createMemoryChain(
     limit: number
-  ): Runnable<typeof MemoryState.State, memory.Similarity[]> {
-    const buildQuery = (state: typeof AutonomousGraphState.State) => {
-      const currentStep = state.plan.steps[state.currentStepIndex];
-      if (!currentStep) {
-        return 'No current step available';
+  ): Runnable<typeof GraphState.State, memory.Similarity[]> {
+    const buildQuery = (
+      state: typeof GraphState.State,
+      config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+    ): string => {
+      const agentConfig =
+        config.configurable?.agent_config ?? DEFAULT_GRAPH_CONFIG.agent_config;
+      if (!agentConfig) {
+        throw new Error(`[MemoryAgent] AgentConfig is undefined.`);
       }
+      console.log(config.configurable?.planner_mode);
+      if (
+        (config.configurable?.planner_mode ??
+          DEFAULT_GRAPH_CONFIG.planner_mode) === PlannerMode.ACTIVATED
+      ) {
+        const plan = checkAndReturnObjectFromPlansOrHistories(
+          state.plans_or_histories
+        );
+        if (!plan || plan.type !== 'plan') {
+          throw new Error(`[MemoryAgent] Plan is undefined or type history.`);
+        }
+        const currentStep = plan.steps[state.currentStepIndex];
+        if (!currentStep) {
+          return 'No current step available';
+        }
 
-      // Build a comprehensive query using all available StepInfo fields
-      const queryParts: string[] = [];
+        // Build a comprehensive query using all available StepInfo fields
+        const queryParts: string[] = [];
 
-      queryParts.push(`${currentStep.stepNumber}: ${currentStep.stepName}`);
-      queryParts.push(`Description: ${currentStep.description}`);
-      if (currentStep.tools && currentStep.tools.length > 0) {
-        const toolsInfo = currentStep.tools
-          .map(
-            (tool) =>
-              `Tool: ${tool.description} | Required: ${tool.required} | Expected: ${tool.expected_result}`
-          )
-          .join(' | ');
-        queryParts.push(`Tools: ${toolsInfo}`);
+        queryParts.push(`${currentStep.stepNumber}: ${currentStep.stepName}`);
+        queryParts.push(`Description: ${currentStep.description}`);
+        if (currentStep.tools && currentStep.tools.length > 0) {
+          const toolsInfo = currentStep.tools
+            .map(
+              (tool: StepToolsInfo) =>
+                `Tool: ${tool.description} | Required: ${tool.required} | Expected: ${tool.expected_result}`
+            )
+            .join(' | ');
+          queryParts.push(`Tools: ${toolsInfo}`);
+        }
+        return queryParts.join(' | ');
+      } else {
+        const user_r = config.configurable?.user_request;
+        if (!user_r) {
+          throw new Error(`[MemoryAgent] UserQuery is undefined.`);
+        }
+        return user_r; //TODO improve query from history
       }
-
-      return queryParts.join(' | ');
     };
 
     const fetchMemories = async (
       query: string,
-      config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+      config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
     ): Promise<memory.Similarity[]> => {
-      logger.debug(`Query : ${query}`);
       const runId = config?.configurable?.conversation_id as string;
       const userId = 'default_user';
       const embedding = await this.embeddings.embedQuery(query);
@@ -282,10 +315,10 @@ export class MemoryAgent extends BaseAgent {
       return memResults;
     };
 
-    return RunnableSequence.from<
-      typeof AutonomousGraphState.State,
-      memory.Similarity[]
-    >([buildQuery, fetchMemories]).withConfig({
+    return RunnableSequence.from<typeof GraphState.State, memory.Similarity[]>([
+      buildQuery,
+      fetchMemories,
+    ]).withConfig({
       runName: 'MemoryContextChain',
     });
   }

@@ -11,13 +11,17 @@ import {
 } from '@langchain/core/messages';
 import {
   Agent,
+  History,
+  HistoryItem,
   ParsedPlan,
   StepInfo,
   STMContext,
+  StepToolsInfo,
   ValidatorStepResponse,
+  HistoryToolsInfo,
 } from './types/index.js';
 import { logger } from '@snakagent/core';
-import { z } from 'zod';
+import { late, z } from 'zod';
 import { Tool } from '@langchain/core/tools';
 
 export const tools_call = z.object({
@@ -42,7 +46,7 @@ export const resultSchema = z.object({
       'Output content placeholder - empty during planning, populated during execution'
     )
     .default(''),
-  token: z
+  tokens: z
     .number()
     .describe('Ouput Token Count - empty during planning')
     .default(0),
@@ -82,7 +86,7 @@ export const StepInfoSchema = z.object({
       'Message Output (only for type="message") - empty during planning, populated during execution'
     )
     .optional()
-    .default({ content: '', token: 0 }),
+    .default({ content: '', tokens: 0 }),
   status: z
     .enum(['pending', 'completed', 'failed'])
     .default('pending')
@@ -99,6 +103,8 @@ export const PlanSchema = z.object({
     .string()
     .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
 });
+
+export type PlanSchemaType = z.infer<typeof PlanSchema>;
 
 export const ValidatorResponseSchema = z.object({
   success: z.boolean().describe('true if sucess | false if failure'),
@@ -149,8 +155,7 @@ export function formatStepsStatusCompact(
 
 // --- Response Generators ---
 export function createMaxIterationsResponse(graph_step: number): {
-  messages: BaseMessage;
-  last_message: BaseMessage;
+  messages: BaseMessage[];
   last_agent: Agent;
 } {
   const message = new AIMessageChunk({
@@ -161,8 +166,7 @@ export function createMaxIterationsResponse(graph_step: number): {
     },
   });
   return {
-    messages: message,
-    last_message: message,
+    messages: [message],
     last_agent: Agent.EXECUTOR,
   };
 }
@@ -239,7 +243,7 @@ export function filterMessagesByShortTermMemory(
 }
 
 // --- Terminal State Checks ---
-export function isTerminalMessage(message: AIMessageChunk): boolean {
+export function isTerminalMessage(message: BaseMessage): boolean {
   return (
     message.additional_kwargs.final === true ||
     message.content.toString().includes('FINAL ANSWER') ||
@@ -257,7 +261,7 @@ export function isTokenLimitError(error: any): boolean {
 
 // --- ERROR HANDLING --- //
 export function handleModelError(error: any): {
-  messages: BaseMessage;
+  messages: BaseMessage[];
   last_agent: Agent.EXECUTOR;
 } {
   logger.error(`Executor: Error calling model - ${error}`);
@@ -276,7 +280,7 @@ export function handleModelError(error: any): {
       },
     });
     return {
-      messages: message,
+      messages: [message],
       last_agent: Agent.EXECUTOR,
     };
   }
@@ -289,7 +293,7 @@ export function handleModelError(error: any): {
     },
   });
   return {
-    messages: message,
+    messages: [message],
     last_agent: Agent.EXECUTOR,
   };
 }
@@ -311,9 +315,7 @@ export function calculateTotalTokenFromSteps(steps: StepInfo[]): number {
     let total_tokens: number = 0;
     for (const step of steps) {
       if (step.status === 'completed') {
-        if (step.type === 'tools') {
-          total_tokens += step.message.tokens;
-        } else {
+        if (step.type != 'tools') {
           total_tokens;
         }
         total_tokens += estimateTokens(step.description);
@@ -352,23 +354,24 @@ export function formatExecutionMessage(step: StepInfo): string {
 
 export function formatToolResponse(
   messages: ToolMessage | ToolMessage[],
-  step: StepInfo
-): StepInfo {
+  tools: StepToolsInfo[] | HistoryToolsInfo[]
+): StepToolsInfo[] | HistoryToolsInfo[] {
   try {
-    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+    console.log(tools);
+    if (tools.length > 0) {
       if (!Array.isArray(messages)) {
-        step.tools[0].result = messages.content.toLocaleString();
-        step.tools[0].metadata = {
+        tools[0].result = messages.content.toLocaleString();
+        tools[0].metadata = {
           tool_name: messages.name || '',
           tool_call_id: messages.tool_call_id || '',
           timestamp: new Date(Date.now()).toISOString(),
         };
       } else {
-        if (step.tools && step.tools.length > 0) {
+        if (tools && tools.length > 0) {
           messages.forEach((msg: ToolMessage, index: number) => {
-            if (step.tools && step.tools[index]) {
-              step.tools[index].result = msg.content.toLocaleString();
-              step.tools[index].metadata = {
+            if (tools && tools[index]) {
+              tools[index].result = msg.content.toLocaleString();
+              tools[index].metadata = {
                 tool_name: msg.name || '',
                 tool_call_id: msg.tool_call_id || '',
                 timestamp: new Date(Date.now()).toISOString(),
@@ -377,11 +380,9 @@ export function formatToolResponse(
           });
         }
       }
-      1;
-      return step;
-    } else {
-      throw new Error('Wrong Message Tool to format!');
+      return tools;
     }
+    return tools;
   } catch (error) {
     throw error;
   }
@@ -411,25 +412,55 @@ export function formatToolResponse(
 //   }
 // }
 
-export function formatValidatorToolsExecutor(step: StepInfo): string {
+export function formatValidatorToolsExecutor(
+  item: ReturnTypeCheckPlanorHistory
+): string {
   try {
-    const header = `S${step.stepNumber}:${step.stepName}\nD:${step.description}`;
+    if (!item.item) {
+      console.log('Item is empty');
+      return '';
+    }
+    console.log(item.item);
+    const header =
+      item.type === 'step'
+        ? `S${item.item.stepNumber}:${item.item.stepName}\nD:${item.item.description}`
+        : `Q:${new Date(item.item.timestamp).toISOString()}\nD:History Item`;
 
-    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
+    if (
+      item.type === 'step' &&
+      item.item.type === 'tools' &&
+      item.item.tools &&
+      item.item.tools.length > 0
+    ) {
       // For tool steps, include tool info and results
-      const toolInfo = step.tools
+      const toolInfo = item.item.tools
         .map(
           (t, i) =>
             `T${i + 1}:${t.description}\n Result: \`\`\`json ${JSON.stringify({ tool_name: t.metadata?.tool_name, tools_call_id: t.metadata?.tool_call_id, tool_result: t.result })}\`\`\``
         )
         .join('|');
       return `${header}[${toolInfo}]`;
+    } else if (
+      item.type === 'history' &&
+      item.item.type === 'tools' &&
+      item.item.tools &&
+      item.item.tools.length > 0
+    ) {
+      const toolInfo = item.item.tools
+        .map(
+          (t, i) =>
+            `T${i + 1}:Result: \`\`\`json ${JSON.stringify({ tool_name: t.metadata?.tool_name, tools_call_id: t.metadata?.tool_call_id, tool_result: t.result })}\`\`\``
+        )
+        .join('|');
+      return `${header}[${toolInfo}]`;
     }
-
-    // For non-tool steps, just show result
-    return `${header}→${step.message.content}`;
+    if (!item.item.message) {
+      // For non-tool steps, just show result
+      throw new Error('Message content is missing');
+    }
+    return `${header}→${item.item.message.content}`;
   } catch (error) {
-    throw error;
+    return `formatValidatorToolsExecutor: ${error}`;
   }
 }
 
@@ -448,26 +479,48 @@ export function formatStepsForContext(steps: StepInfo[]): string {
         }
 
         // For non-tool steps, just show result
+        if (!step.message) {
+          throw new Error('Message content is missing');
+        }
         return `${header}→${step.message.content}`;
       })
       .join('\n');
   } catch (error) {
-    throw error;
+    return `formatStepsForContext: ${error}`;
   }
 }
 
-export function formatStepForSTM(step: StepInfo): string {
+export function formatSteporHistoryForSTM(
+  item: StepInfo | HistoryItem
+): string {
   try {
-    const header = `S${step.stepNumber}:${step.stepName}`;
-    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
-      const toolInfo = step.tools
+    if ('stepNumber' in item === false) {
+      // HistoryItem
+      const header = `H:${new Date(item.timestamp).toISOString()}`;
+      if (item.type === 'tools' && item.tools && item.tools.length > 0) {
+        const toolInfo = item.tools
+          .map((t, i) => `T${i}:${t.metadata?.tool_name}->${t.result}`)
+          .join('|');
+        return `${header}[${toolInfo}]`;
+      }
+      if (!item.message) {
+        throw new Error('Message content is missing in HistoryItem');
+      }
+      return `${header}→${item.message.content}`;
+    }
+    const header = `S${item.stepNumber}:${item.stepName}`; // StepInfo
+    if (item.type === 'tools' && item.tools && item.tools.length > 0) {
+      const toolInfo = item.tools
         .map((t, i) => `T${i}:${t.description}->${t.result}`)
         .join('|');
       return `${header}[${toolInfo}]`;
     }
-    return `${header}→${step.message.content}`;
+    if (!item.message) {
+      throw new Error('Message content is missing in StepInfo');
+    }
+    return `${header}→${item.message.content}`;
   } catch (error) {
-    throw error;
+    return `formatSteporHistoryForSTM: ${error}`;
   }
 }
 
@@ -480,8 +533,70 @@ export function formatCurrentStepForSTM(step: StepInfo): string {
         .join('|');
       return `${header}[${toolInfo}]`;
     }
+    if (step.message === undefined) {
+      throw new Error('Message content is missing');
+    }
     return `${header}→${step.message.content}`;
   } catch (error) {
-    throw error;
+    return `formatCurrentStepForSTM: ${error}`;
   }
 }
+
+export type ReturnTypeCheckPlanorHistory =
+  | { type: 'step'; item: StepInfo }
+  | { type: 'history'; item: HistoryItem | null };
+
+export const checkAndReturnLastItemFromPlansOrHistories = (
+  plans_or_histories: Array<ParsedPlan | History> | undefined,
+  currentStepIndex: number
+): ReturnTypeCheckPlanorHistory => {
+  try {
+    if (!plans_or_histories || plans_or_histories.length === 0) {
+      throw new Error('No plan or history available');
+    }
+
+    const latest = plans_or_histories[plans_or_histories.length - 1];
+    if (latest.type === 'plan') {
+      if (
+        currentStepIndex === undefined ||
+        currentStepIndex < 0 ||
+        currentStepIndex > latest.steps.length
+      ) {
+        throw new Error('Invalid current step index');
+      }
+      return { type: 'step', item: latest.steps[currentStepIndex] };
+    } else if (latest.type === 'history') {
+      if (latest.items.length === 0) {
+        console.log('No history items available');
+        return { type: 'history', item: null };
+      }
+      return { type: 'history', item: latest.items[latest.items.length - 1] };
+    } else {
+      throw new Error('Unknown type in plan or history');
+    }
+  } catch (error) {
+    logger.error(`Error retrieving last item: ${error}`);
+    throw error;
+  }
+};
+export const checkAndReturnObjectFromPlansOrHistories = (
+  plans_or_histories: Array<ParsedPlan | History> | undefined
+): ParsedPlan | History => {
+  try {
+    if (!plans_or_histories || plans_or_histories.length === 0) {
+      throw new Error('No plan or history available');
+    }
+
+    const latest = plans_or_histories[plans_or_histories.length - 1];
+    if (latest.type === 'plan') {
+      return latest;
+    } else if (latest.type === 'history') {
+      return latest;
+    } else {
+      throw new Error('Unknown type in plan or history');
+    }
+  } catch (error) {
+    logger.error(`Error retrieving last item: ${error}`);
+    throw error;
+  }
+};

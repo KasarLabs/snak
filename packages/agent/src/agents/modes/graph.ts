@@ -1,4 +1,4 @@
-import { AgentConfig, logger } from '@snakagent/core';
+import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { StateGraph, MemorySaver, Annotation, END } from '@langchain/langgraph';
 import {
@@ -11,27 +11,37 @@ import { BaseMessage } from '@langchain/core/messages';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { initializeDatabase, initializeToolsList } from '../core/utils.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
-import { RagAgent } from 'agents/operators/ragAgent.js';
+import { MemoryAgent } from '../../agents/operators/memoryAgent.js';
+import { RagAgent } from '../../agents/operators/ragAgent.js';
 import {
-  AutonomousGraphNode,
-  DEFAULT_AUTONOMOUS_CONFIG,
+  GraphNode,
+  DEFAULT_GRAPH_CONFIG,
   ConfigValidator,
-} from './config/autonomous-config.js';
-import { Agent, AgentReturn, Memories, ParsedPlan } from './types/index.js';
+  DEFAULT_AGENT_CONFIG,
+} from './config/default-config.js';
+import {
+  Agent,
+  AgentReturn,
+  History,
+  Memories,
+  ParsedPlan,
+  StepInfo,
+} from './types/index.js';
 import { MemoryStateManager } from './utils/memory-utils.js';
 import { MemoryGraph } from './sub-graph/memory.js';
 import { PlannerGraph } from './sub-graph/planner_graph.js';
 import { AgentExecutorGraph } from './sub-graph/executor_graph.js';
 import { v4 as uuidv4 } from 'uuid';
 
-export const AutonomousGraphState = Annotation.Root({
+export enum PlannerMode {
+  ACTIVATED = 'activated',
+  DISABLED = 'disabled',
+  AUTOMATIC = 'automatic',
+}
+export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => x.concat(y),
-    default: () => [],
-  }),
-  last_message: Annotation<BaseMessage | BaseMessage[]>({
     reducer: (x, y) => y,
+    default: () => [],
   }),
   last_agent: Annotation<Agent>({
     reducer: (x, y) => y,
@@ -45,12 +55,28 @@ export const AutonomousGraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => '',
   }),
-  plan: Annotation<ParsedPlan>({
-    reducer: (x, y) => y,
-    default: () => ({
-      steps: [],
-      summary: '',
-    }),
+  plans_or_histories: Annotation<Array<ParsedPlan | History>>({
+    reducer: (
+      x: Array<ParsedPlan | History>,
+      y: ParsedPlan | History | Array<ParsedPlan | History>
+    ) => {
+      logger.debug('Plans Or Histories Reducer Called');
+      if (y === undefined) return x;
+      if (Array.isArray(y)) return y; // Normally never reach is just to satisfy typescript cause we never have to return an array
+      if (x === undefined || x.length === 0) {
+        logger.debug(`First Plan Added.`);
+        return [y];
+      }
+      if (x[x.length - 1].id === y.id) {
+        logger.debug('Plan Updtated.');
+        return [...x.slice(0, -1), y];
+      } else {
+        logger.debug('Plan Added.');
+        x.push(y);
+        return x;
+      }
+    },
+    default: () => [],
   }),
   currentStepIndex: Annotation<number>({
     reducer: (x, y) => y,
@@ -70,7 +96,7 @@ export const AutonomousGraphState = Annotation.Root({
   }),
 });
 
-export const AutonomousConfigurableAnnotation = Annotation.Root({
+export const GraphConfigurableAnnotation = Annotation.Root({
   max_graph_steps: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 100,
@@ -83,11 +109,15 @@ export const AutonomousConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => 20,
   }),
-  human_in_the_loop: Annotation<boolean>({
+  human_in_the_loop: Annotation<number>({
     reducer: (x, y) => y,
-    default: () => false,
+    default: () => 0,
   }),
   agent_config: Annotation<AgentConfig | undefined>({
+    reducer: (x, y) => y,
+    default: () => undefined,
+  }),
+  user_request: Annotation<string | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
   }),
@@ -95,8 +125,12 @@ export const AutonomousConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => uuidv4(),
   }),
+  planner_mode: Annotation<PlannerMode>({
+    reducer: (x, y) => y,
+    default: () => PlannerMode.ACTIVATED,
+  }),
 });
-export class AutonomousAgent {
+export class Graph {
   private modelSelector: ModelSelector | null;
   private toolsList: (
     | StructuredTool
@@ -121,18 +155,16 @@ export class AutonomousAgent {
     try {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
-        logger.debug('[AutonomousAgent] Memory agent retrieved successfully');
+        logger.debug('Agent] Memory agent retrieved successfully');
         // const memoryTools = this.memoryAgent.prepareMemoryTools(); TODO
         // this.toolsList.push(...memoryTools);
       } else {
         logger.warn(
-          '[AutonomousAgent] WARNING: Memory agent not available - memory features will be limited'
+          'Agent] WARNING: Memory agent not available - memory features will be limited'
         );
       }
     } catch (error) {
-      logger.error(
-        `[AutonomousAgent] Failed to retrieve memory agent: ${error}`
-      );
+      logger.error(`Agent] Failed to retrieve memory agent: ${error}`);
     }
   }
 
@@ -141,41 +173,36 @@ export class AutonomousAgent {
       this.ragAgent = this.snakAgent.getRagAgent();
       if (!this.ragAgent) {
         logger.warn(
-          '[AutonomousAgent] WARNING: RAG agent not available - RAG context will be skipped'
+          'Agent] WARNING: RAG agent not available - RAG context will be skipped'
         );
       }
     } catch (error) {
-      logger.error(`[AutonomousAgent] Failed to retrieve RAG agent: ${error}`);
+      logger.error(`Agent] Failed to retrieve RAG agent: ${error}`);
     }
   }
 
-  // --- END GRAPH NODE ---
-  private end_graph(state: typeof AutonomousGraphState): {
-    plan: ParsedPlan;
+  private end_graph(state: typeof GraphState): {
+    plans_or_histories: Array<ParsedPlan | History> | undefined;
     currentStepIndex: number;
     retry: number;
   } {
     logger.info('[EndGraph] Cleaning up state for graph termination');
-    const emptyPlan: ParsedPlan = {
-      steps: [],
-      summary: '',
-    };
     return {
-      plan: emptyPlan,
+      plans_or_histories: undefined,
       currentStepIndex: 0,
       retry: 0,
     };
   }
 
   private orchestrationRouter(
-    state: typeof AutonomousGraphState.State,
-    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ): AutonomousGraphNode {
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): GraphNode {
     logger.debug(`[Orchestration Router] Last agent: ${state.last_agent}`);
-
+    const l_msg = state.messages[state.messages.length - 1];
     if (state.skipValidation.skipValidation) {
-      const validTargets = Object.values(AutonomousGraphNode);
-      const goto = state.skipValidation.goto as AutonomousGraphNode;
+      const validTargets = Object.values(GraphNode);
+      const goto = state.skipValidation.goto as GraphNode;
 
       if (validTargets.includes(goto)) {
         logger.debug(
@@ -186,7 +213,7 @@ export class AutonomousAgent {
         logger.warn(
           `[Orchestration Router] Invalid skip validation target: ${goto}, defaulting to end_graph`
         );
-        return AutonomousGraphNode.END_GRAPH;
+        return GraphNode.END_GRAPH;
       }
     }
 
@@ -194,27 +221,65 @@ export class AutonomousAgent {
       logger.debug(
         `[Orchestration Router] Execution complete, routing to memory`
       );
-      return AutonomousGraphNode.MEMORY_ORCHESTRATOR;
+      return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
     if (state.last_agent === Agent.PLANNER_VALIDATOR) {
       logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
-      return AutonomousGraphNode.MEMORY_ORCHESTRATOR;
+      return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
     if (state.last_agent === Agent.MEMORY_MANAGER) {
-      if (
-        (state.last_message as BaseMessage).additional_kwargs.final === true
-      ) {
+      if (l_msg.additional_kwargs.final === true) {
         logger.debug(
           `[Orchestration Router] Final execution reached, routing to planner`
         );
-        return AutonomousGraphNode.PLANNING_ORCHESTRATOR;
+        return GraphNode.PLANNING_ORCHESTRATOR;
       }
     }
 
     logger.debug(`[Orchestration Router] Default routing to executor`);
-    return AutonomousGraphNode.AGENT_EXECUTOR;
+    return GraphNode.AGENT_EXECUTOR;
+  }
+
+  private startOrchestrationRouter(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): GraphNode {
+    try {
+      const agentConfig =
+        config.configurable?.agent_config ?? DEFAULT_GRAPH_CONFIG.agent_config;
+      if (!agentConfig) {
+        throw new Error(
+          '[Start Orchestration Router] AgentConfig is undefined.'
+        );
+      }
+      console.log('AGENT CONFIG', agentConfig.mode);
+      console.log(DEFAULT_GRAPH_CONFIG.planner_mode);
+      const currentMode: AgentMode = agentConfig.mode;
+      switch (currentMode) {
+        case AgentMode.INTERACTIVE:
+          if (
+            (config.configurable?.planner_mode ??
+              DEFAULT_GRAPH_CONFIG.planner_mode) != PlannerMode.DISABLED
+          ) {
+            return GraphNode.PLANNING_ORCHESTRATOR;
+          } else {
+            return GraphNode.PLANNING_ORCHESTRATOR;
+          }
+        case AgentMode.AUTONOMOUS:
+          return GraphNode.PLANNING_ORCHESTRATOR;
+        case AgentMode.HYBRID:
+          return GraphNode.END_GRAPH;
+        default:
+          throw new Error(
+            `[Start Orchestration Router] No Agent entry point Found find for mode : ${currentMode}`
+          );
+      }
+    } catch (error) {
+      logger.error(error);
+      return GraphNode.END_GRAPH;
+    }
   }
 
   private getCompileOptions(): {
@@ -227,10 +292,10 @@ export class AutonomousAgent {
         }
       : {};
     const validatedConfig = ConfigValidator.validate({
-      maxGraphSteps: DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps,
-      shortTermMemory: DEFAULT_AUTONOMOUS_CONFIG.shortTermMemory,
-      memorySize: DEFAULT_AUTONOMOUS_CONFIG.memorySize,
-      humanInTheLoop: DEFAULT_AUTONOMOUS_CONFIG.humanInTheLoop,
+      maxGraphSteps: DEFAULT_GRAPH_CONFIG.maxGraphSteps,
+      shortTermMemory: DEFAULT_GRAPH_CONFIG.shortTermMemory,
+      memorySize: DEFAULT_GRAPH_CONFIG.memorySize,
+      humanInTheLoop: DEFAULT_GRAPH_CONFIG.humanInTheLoop,
     });
 
     return {
@@ -246,16 +311,14 @@ export class AutonomousAgent {
   }
 
   private buildWorkflow(): StateGraph<
-    typeof AutonomousGraphState.State,
-    typeof AutonomousConfigurableAnnotation.State
+    typeof GraphState.State,
+    typeof GraphConfigurableAnnotation.State
   > {
     if (!this.memoryAgent) {
       throw new Error('MemoryAgent is not setup');
     }
 
-    logger.debug(
-      '[Autonomous Agent] Building workflow with initialized components'
-    );
+    logger.debug(' Agent] Building workflow with initialized components');
     const memory = new MemoryGraph(
       this.agentConfig,
       this.modelSelector,
@@ -279,32 +342,31 @@ export class AutonomousAgent {
     const executor_graph = executor.getExecutorGraph();
     const memory_graph = memory.getMemoryGraph();
     const planner_graph = planner.getPlannerGraph();
-    const workflow = new StateGraph(
-      AutonomousGraphState,
-      AutonomousConfigurableAnnotation
-    )
-      .addNode(AutonomousGraphNode.PLANNING_ORCHESTRATOR, planner_graph)
-      .addNode(AutonomousGraphNode.MEMORY_ORCHESTRATOR, memory_graph)
-      .addNode(AutonomousGraphNode.AGENT_EXECUTOR, executor_graph)
-      .addNode(AutonomousGraphNode.END_GRAPH, this.end_graph.bind(this))
-      .addEdge('__start__', AutonomousGraphNode.PLANNING_ORCHESTRATOR)
+    const workflow = new StateGraph(GraphState, GraphConfigurableAnnotation)
+      .addNode(GraphNode.PLANNING_ORCHESTRATOR, planner_graph)
+      .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
+      .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
+      .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
       .addConditionalEdges(
-        AutonomousGraphNode.PLANNING_ORCHESTRATOR,
+        '__start__',
+        this.startOrchestrationRouter.bind(this)
+      )
+      .addConditionalEdges(
+        GraphNode.PLANNING_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(
-        AutonomousGraphNode.MEMORY_ORCHESTRATOR,
+        GraphNode.MEMORY_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(
-        AutonomousGraphNode.AGENT_EXECUTOR,
+        GraphNode.AGENT_EXECUTOR,
         this.orchestrationRouter.bind(this)
       )
-      .addEdge(AutonomousGraphNode.END_GRAPH, END);
-
+      .addEdge(GraphNode.END_GRAPH, END);
     return workflow as unknown as StateGraph<
-      typeof AutonomousGraphState.State,
-      typeof AutonomousConfigurableAnnotation.State
+      typeof GraphState.State,
+      typeof GraphConfigurableAnnotation.State
     >;
   }
 
@@ -337,19 +399,14 @@ export class AutonomousAgent {
       const workflow = this.buildWorkflow();
       this.app = workflow.compile(this.getCompileOptions());
 
-      logger.info(
-        '[AutonomousAgent] Successfully initialized autonomous agent'
-      );
+      logger.info('Agent] Successfully initialized agent');
 
       return {
         app: this.app,
         agent_config: this.agentConfig,
       };
     } catch (error) {
-      logger.error(
-        '[AutonomousAgent] Failed to create autonomous agent:',
-        error
-      );
+      logger.error('Agent] Failed to create agent:', error);
       throw error;
     }
   }
@@ -359,10 +416,10 @@ export class AutonomousAgent {
 // FACTORY FUNCTION
 // ============================================
 
-export const createAutonomousAgent = async (
+export const createGraph = async (
   snakAgent: SnakAgentInterface,
   modelSelector: ModelSelector | null
 ): Promise<AgentReturn> => {
-  const agent = new AutonomousAgent(snakAgent, modelSelector);
+  const agent = new Graph(snakAgent, modelSelector);
   return agent.initialize();
 };

@@ -14,8 +14,7 @@ import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
-import { createInteractiveAgent } from '../modes/interactive.js';
-import { createAutonomousAgent } from '../modes/autonomous.js';
+import { createGraph, PlannerMode } from '../modes/graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
@@ -23,7 +22,7 @@ import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
-import { Agent, AgentReturn } from 'agents/modes/types/index.js';
+import { Agent, AgentReturn } from '../../agents/modes/types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -211,22 +210,13 @@ export class SnakAgent extends BaseAgent {
 
       switch (this.currentMode) {
         case AGENT_MODES[AgentMode.AUTONOMOUS]:
-          this.agentReactExecutor = await createAutonomousAgent(
-            this,
-            this.modelSelector
-          );
+          this.agentReactExecutor = await createGraph(this, this.modelSelector);
           break;
         case AGENT_MODES[AgentMode.HYBRID]:
-          this.agentReactExecutor = await createAutonomousAgent(
-            this,
-            this.modelSelector
-          );
+          this.agentReactExecutor = await createGraph(this, this.modelSelector);
           break;
         case AGENT_MODES[AgentMode.INTERACTIVE]:
-          this.agentReactExecutor = await createInteractiveAgent(
-            this,
-            this.modelSelector
-          );
+          this.agentReactExecutor = await createGraph(this, this.modelSelector);
           break;
         default:
           throw new Error(`Invalid mode: ${this.currentMode}`);
@@ -434,6 +424,7 @@ export class SnakAgent extends BaseAgent {
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
           agent_config: this.agentConfig,
+          user_request: input,
           conversation_id: uuidv4(),
         },
       };
@@ -688,6 +679,7 @@ export class SnakAgent extends BaseAgent {
           memory_size: memorySize,
           agent_config: this.agentConfig,
           conversation_id: uuidv4(),
+          planner_mode: PlannerMode.ACTIVATED,
         },
       };
       let lastChunk;

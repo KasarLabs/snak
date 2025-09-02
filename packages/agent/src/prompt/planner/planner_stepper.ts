@@ -88,30 +88,30 @@ When type="tools":
 ## RESPONSE FORMAT
 Return valid JSON:
 \`\`\`json
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": number, 
     "stepName": string (semantic-rich title with keywords, max 200 chars),
     "description": string (keyword-dense specification with entities, actions, domains, outcomes),
     "type": "tools" | "message",
     "tools": [ // Only for type="tools"
-        {
+        {{
         "description": "Action verb + domain context + specific entities (e.g., Extract pricing data from OpenAI GPT-4 and Claude API documentation)",
         "required": string (knowledge/data values needed - if none write "NO PREREQUISITE DATA"),
         "expected_result": string (information types, metrics, insights produced),
         "result": "should be empty"
-        }
+        }}
     ],
-        "message": { // Only for type="message"
+        "message": {{ // Only for type="message"
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-  }
+  }}
 ],
 "summary": string (semantic overview with key concepts and outcomes, max 300 chars)
-}
+}}
 \`\`\`
 
 <example>
@@ -121,52 +121,52 @@ Agent Configuration: Technical Research Assistant specializing in AI/ML technolo
 </context>
 
 \`\`\`json
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": 1,
     "stepName": "Research current AI chatbot development frameworks and libraries in 2024",
     "description": "Gather comprehensive information about leading AI chatbot frameworks including LangChain, Rasa, Botpress, Microsoft Bot Framework, covering features, capabilities, community support, and 2024 updates",
     "type": "tools",
     "tools": [
-        {
+        {{
         "description": "Search current AI chatbot frameworks, development libraries, 2024 releases covering LangChain, Rasa, Botpress, Microsoft Bot Framework feature comparisons",
         "required": "NO PREREQUISITE DATA - initial framework research",
         "expected_result": "Framework comparison data, feature matrices, community metrics, 2024 updates and releases",
         "result": "should be empty"
-        }
+        }}
     ],
-    "message": {
+    "message": {{
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    },
-    {
+    }},
+    {{
     "stepNumber": 2,
     "stepName": "Analyze framework performance benchmarks and developer adoption trends",
     "description": "Evaluate collected framework data focusing on performance metrics, scalability, ease of implementation, developer community size, GitHub activity, and industry adoption patterns for 2024 chatbot development",
     "type": "message",
-    "message": {
+    "message": {{
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    },
-    {
+    }},
+    {{
     "stepNumber": 3,
     "stepName": "Provide comprehensive chatbot framework recommendations and final response",
     "description": "Synthesize research findings into actionable recommendations answering user query about best AI development frameworks for chatbots in 2024, including pros/cons, use cases, and implementation guidance",
     "type": "message",
-    "message": {
+    "message": {{
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    }
+    }}
 ],
 "summary": "Three-phase chatbot framework analysis: comprehensive research, performance evaluation, and user-focused recommendations for 2024 AI development"
-}
+}}
 \`\`\`
 </example>
 `;

@@ -4,8 +4,8 @@ import { logger, AgentConfig } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { DatabaseCredentials } from './types/database.js';
 import { z as Zod } from 'zod';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
-import { RagAgent } from 'agents/operators/ragAgent.js';
+import { MemoryAgent } from '../agents/operators/memoryAgent.js';
+import { RagAgent } from '../agents/operators/ragAgent.js';
 
 /**
  * @interface SnakAgentInterface

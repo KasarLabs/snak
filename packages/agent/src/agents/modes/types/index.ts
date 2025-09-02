@@ -1,9 +1,3 @@
-import {
-  AIMessage,
-  AIMessageChunk,
-  BaseMessage,
-  HumanMessage,
-} from '@langchain/core/messages';
 import { Annotation } from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
@@ -25,8 +19,9 @@ export interface AgentReturn {
 /**
  * Individual memory item with immutable structure
  */
+
 export interface MemoryItem {
-  readonly stepinfo: StepInfo;
+  readonly step_or_history: StepInfo | HistoryItem;
   readonly memories_id: string;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
@@ -112,10 +107,19 @@ export interface MemoryOperationResult<T> {
   readonly timestamp: number;
 }
 
-export interface ToolInfo {
+export interface StepToolsInfo {
   description: string;
   required: string;
   expected_result: string;
+  result: string;
+  metadata?: {
+    tool_name: string;
+    tool_call_id: string;
+    timestamp: string;
+  };
+}
+
+export interface HistoryToolsInfo {
   result: string;
   metadata?: {
     tool_name: string;
@@ -134,8 +138,8 @@ export interface StepInfo {
   stepName: string;
   description: string;
   type: 'tools' | 'message' | 'human_in_the_loop';
-  tools?: ToolInfo[];
-  message: MessageInfo;
+  tools?: StepToolsInfo[];
+  message?: MessageInfo;
   status: 'pending' | 'completed' | 'failed';
 }
 
@@ -145,10 +149,24 @@ export interface validatorResponse {
 }
 
 export interface ParsedPlan {
+  type: 'plan';
+  id: string;
   steps: StepInfo[];
   summary: string;
 }
 
+export interface History {
+  type: 'history';
+  id: string;
+  items: HistoryItem[];
+}
+export interface HistoryItem {
+  tools?: HistoryToolsInfo[];
+  message?: MessageInfo;
+  userquery?: string;
+  type: 'tools' | 'message' | 'human_in_the_loop';
+  timestamp: number;
+}
 interface StepResponse {
   number: number;
   validated: boolean;
@@ -205,44 +223,6 @@ export const InteractiveConfigurableAnnotation = Annotation.Root({
   }),
 });
 
-export const InteractiveGraphState = Annotation.Root({
-  messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => x.concat(y),
-    default: () => [],
-  }),
-  last_agent: Annotation<Agent>({
-    reducer: (x, y) => y,
-    default: () => Agent.PLANNER,
-  }),
-  memories: Annotation<string>({
-    reducer: (x, y) => y,
-    default: () => '',
-  }),
-  rag: Annotation<string>({
-    reducer: (x, y) => y,
-    default: () => '',
-  }),
-  plan: Annotation<ParsedPlan>({
-    reducer: (x, y) => y,
-    default: () => ({
-      steps: [],
-      summary: '',
-    }),
-  }),
-  currentStepIndex: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 0,
-  }),
-  retry: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 0,
-  }),
-  currentGraphStep: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 0,
-  }),
-});
-
 export const episodicEventSchema = z.object({
   name: z.string().min(1).describe('Event name or identifier'),
   content: z.string().min(1).describe('Detailed description of what happened'),
@@ -280,14 +260,10 @@ export const test = z.object({
   asset_content: z.string().describe(''),
 });
 
-export const getAllowanceSchema = z.object({
-  ownerAddress: z
-    .string()
-    .describe('The starknet address of the account owner of the tokens'),
-  spenderAddress: z
-    .string()
-    .describe(
-      'The starknet address of the account allowed to spend the tokens'
-    ),
-  asset: test.describe('Asset details'),
+export const isPlannerActivateSchema = z.object({
+  planner_actived: z
+    .boolean()
+    .describe('You need to set the state of the planner in a boolean.'),
 });
+
+export type isPlannerActivateType = z.infer<typeof isPlannerActivateSchema>;

@@ -4,12 +4,10 @@ export { SnakAgent } from './agents/core/snakAgent.js';
 
 // Agent-related exports
 // Interactive agent exports
-export { createInteractiveAgent } from './agents/modes/interactive.js';
-
 export { initializeToolsList } from './agents/core/utils.js';
 
 // Autonomous agent exports
-export { createAutonomousAgent } from './agents/modes/autonomous.js';
+export { createGraph } from './agents/modes/graph.js';
 
 // Tool-related exports
 export type {

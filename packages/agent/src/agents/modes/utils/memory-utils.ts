@@ -7,6 +7,7 @@ import {
   Memories,
   MemoryOperationResult,
   StepInfo,
+  HistoryItem,
 } from '../types/index.js';
 import { memory } from '@snakagent/database/queries';
 
@@ -33,11 +34,11 @@ export class STMManager {
    */
   static addMemory(
     stm: STMContext,
-    currentStep: StepInfo
+    item: StepInfo | HistoryItem
   ): MemoryOperationResult<STMContext> {
     try {
       // Validate input
-      if (!currentStep) {
+      if (!item) {
         return {
           success: false,
           error: 'Step cannot be empty',
@@ -46,7 +47,7 @@ export class STMManager {
       }
 
       const newItem: MemoryItem = {
-        stepinfo: currentStep,
+        step_or_history: item,
         memories_id: uuidv4(),
         timestamp: Date.now(),
         metadata: { insertIndex: stm.totalInserted },
@@ -196,7 +197,7 @@ export namespace MemoryStateManager {
    */
   export function addSTMMemory(
     state: Memories,
-    currentStep: StepInfo,
+    item: StepInfo | HistoryItem,
     timestamp: number
   ): MemoryOperationResult<Memories> {
     if (state.isProcessing) {
@@ -207,7 +208,7 @@ export namespace MemoryStateManager {
       };
     }
 
-    const stmResult = STMManager.addMemory(state.stm, currentStep);
+    const stmResult = STMManager.addMemory(state.stm, item);
 
     if (!stmResult.success || !stmResult.data) {
       return {

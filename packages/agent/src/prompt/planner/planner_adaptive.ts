@@ -92,30 +92,30 @@ When type="tools":
 
 ## RESPONSE FORMAT
 Return valid JSON:
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": number, 
     "stepName": string (semantic-rich title with keywords, max 200 chars),
     "description": string (keyword-dense specification with entities, actions, domains, outcomes),
     "type": "tools" | "message",
     "tools": [ // Only for type="tools"
-        {
+        {{
         "description": "Action verb + domain context + specific entities (e.g., Extract pricing data from OpenAI GPT-4 and Claude API documentation)",
         "required": string (knowledge/data values needed - if none write "NO PREREQUISITE DATA"),
         "expected_result": string (information types, metrics, insights produced),
         "result": "should be empty"
-        }
+        }}
     ],
-        "message": { // Only for type="message"
+        "message": {{ // Only for type="message"
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-  }
+  }}
 ],
 "summary": string (semantic overview with key concepts and outcomes, max 300 chars)
-}
+}}
 
 <example>
 <context>
@@ -127,65 +127,65 @@ Previous Steps:
 </context>
 
 \`\`\`json
-{
+{{
 "steps": [
-    {
+    {{
     "stepNumber": 4,
     "stepName": "Advanced competitive positioning analysis building on collected pricing intelligence",
     "description": "Synthesize comprehensive competitive landscape analysis leveraging documented pricing data from OpenAI GPT-4, Anthropic Claude, Google Vertex AI. Calculate price-performance ratios, identify market gaps, analyze enterprise feature differentiation strategies, and assess competitive positioning opportunities in AI SaaS market",
     "type": "tools",
     "tools": [
-        {
+        {{
         "description": "Extract additional competitive intelligence from Cohere, AWS Bedrock, Azure OpenAI pricing models to complete market landscape analysis",
         "required": "Existing pricing data from OpenAI ($0.03/$0.06 per 1K tokens), Anthropic ($0.025/$0.075), Google Vertex AI volume structures",
         "expected_result": "Complete pricing matrix, competitive positioning insights, market gap identification, enterprise feature analysis, price-performance benchmarks",
         "result": "should be empty"
-        },
-        {
+        }},
+        {{
         "description": "Gather customer case studies, implementation patterns, ROI metrics from enterprise AI deployments across competitor platforms",
         "required": "Collected pricing data and enterprise feature differentiation from established competitor analysis",
         "expected_result": "Enterprise adoption patterns, ROI case studies, implementation costs, customer success metrics, deployment strategies",
         "result": "should be empty"
-        }
+        }}
     ],
-    "message": {
+    "message": {{
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    },
-    {
+    }},
+    {{
     "stepNumber": 5,
     "stepName": "Strategic market opportunity identification and competitive differentiation recommendations",
     "description": "Process complete competitive intelligence dataset to identify underserved market segments, pricing optimization opportunities, feature gaps, and strategic positioning recommendations. Build upon comprehensive pricing analysis to develop actionable market entry strategies and competitive differentiation approaches",
     "type": "message",
-    "message": {
+    "message": {{
         "content": "should be empty", 
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    },
-    {
+    }},
+    {{
     "stepNumber": 6,
     "stepName": "Comprehensive competitive intelligence report synthesis and strategic recommendations",
     "description": "Generate executive-level competitive intelligence report combining pricing analysis, market positioning insights, enterprise adoption patterns, and strategic recommendations. Synthesize findings from completed competitor analysis into actionable business intelligence for market entry and competitive positioning decisions",
     "type": "message",
-    "message": {
+    "message": {{
         "content": "should be empty",
         "tokens": 0
-    },
+    }},
     "status": "pending"
-    }
+    }}
 ],
 "summary": "Three-phase adaptive competitive intelligence: extended market analysis building on pricing data, strategic opportunity identification, and comprehensive intelligence report synthesis"
-}
+}}
 \`\`\`
 </example>
 `;
 
 export const ADAPTIVE_PLANNER_CONTEXT_PROMPT = `
 <context>
-Objectives: {objectives}
+AgentConfig: {agentConfig}
 Available Tools:\`\`\`json {toolsAvailable} \`\`\`
 Previous Steps: \`\`\`json {previousSteps} \`\`\`
 Current Step Number: {stepLength}

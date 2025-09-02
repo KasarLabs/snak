@@ -15,7 +15,7 @@ import {
   errorFallbackMessage,
   noValidAgentMessage,
 } from '../../prompt/agentSelectorPrompts.js';
-import { SnakAgent } from 'agents/core/snakAgent.js';
+import { SnakAgent } from '../../agents/core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../prompt/prompts.js';
 
 export interface AgentInfo {

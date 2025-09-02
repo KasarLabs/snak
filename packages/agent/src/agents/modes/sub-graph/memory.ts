@@ -14,27 +14,27 @@ import {
   SemanticMemoryContext,
   ltmSchema,
   ltmSchemaType,
-  StepInfo,
-  ToolInfo,
+  History,
 } from '../types/index.js';
-import { estimateTokens, formatStepForSTM } from '../utils.js';
+import {
+  checkAndReturnLastItemFromPlansOrHistories,
+  estimateTokens,
+  formatSteporHistoryForSTM,
+} from '../utils.js';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
 import { AgentConfig, logger } from '@snakagent/core';
-import { ModelSelector } from 'agents/operators/modelSelector.js';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
-import { AutonomousConfigurableAnnotation } from '../autonomous.js';
+import { ModelSelector } from '../../../agents/operators/modelSelector.js';
+import { MemoryAgent } from '../../../agents/operators/memoryAgent.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import {
-  AutonomousMemoryNode,
-  DEFAULT_AUTONOMOUS_CONFIG,
-} from '../config/autonomous-config.js';
+import { MemoryNode, DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import { MemoryStateManager, STMManager } from '../utils/memory-utils.js';
 import { MemoryDBManager } from '../utils/memory-db-manager.js';
 
-export type MemoryStateType = typeof MemoryState.State;
+export type GraphStateType = typeof GraphState.State;
 
 const summarize_content = `
 You are a data summarization expert. Create DETAILED, COMPREHENSIVE summaries that retain maximum information from the source material.
@@ -212,13 +212,13 @@ Before finalizing output, verify you've captured:
 - [ ] Growth/change indicators
 - [ ] Rankings or positions;
 `;
-export const MemoryState = Annotation.Root({
-  last_agent: Annotation<Agent>,
-  memories: Annotation<Memories>,
-  plan: Annotation<ParsedPlan>,
-  currentStepIndex: Annotation<number>,
-  currentGraphStep: Annotation<number>,
-});
+// export const GraphState = Annotation.Root({
+//   last_agent: Annotation<Agent>,
+//   memories: Annotation<Memories>,
+//   plans_or_histories: Annotation<Array<ParsedPlan | History> | undefined>,
+//   currentStepIndex: Annotation<number>,
+//   currentGraphStep: Annotation<number>,
+// });
 
 export class MemoryGraph {
   private agentConfig: AgentConfig;
@@ -269,8 +269,6 @@ export class MemoryGraph {
           content: content,
         })
       );
-
-      console.log(summaryResult.content);
       return {
         content: summaryResult.content as string,
         tokens: estimateTokens(summaryResult.content as string),
@@ -281,18 +279,18 @@ export class MemoryGraph {
   }
 
   private async stm_manager(
-    state: typeof MemoryState.State,
-    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{
     memories: Memories;
-    plan?: ParsedPlan;
+    plans_or_histories?: ParsedPlan;
   }> {
     try {
       logger.debug('[STMManager] Processing memory update');
       if (
         state.currentGraphStep >=
         (config.configurable?.max_graph_steps ??
-          DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps)
+          DEFAULT_GRAPH_CONFIG.maxGraphSteps)
       ) {
         logger.warn(
           `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
@@ -301,20 +299,22 @@ export class MemoryGraph {
           memories: state.memories,
         };
       }
-
-      let currentStep = state.plan.steps[state.currentStepIndex - 1];
-      if (!currentStep) {
+      const item = checkAndReturnLastItemFromPlansOrHistories(
+        state.plans_or_histories,
+        state.currentStepIndex - 1
+      );
+      if (!item || !item.item) {
+        // Need to throw an Error
         logger.warn(
-          '[STMManager] No current step found, returning unchanged memories'
+          '[STMManager] No current step or history_item found, returning unchanged memories'
         );
         return {
           memories: state.memories,
         };
       }
-      const date = Date.now();
-      if (currentStep.type === 'tools') {
+      if (item.item.type === 'tools') {
         const result = await Promise.all(
-          currentStep.tools?.map(async (tool) => {
+          item.item.tools?.map(async (tool) => {
             if (estimateTokens(tool.result) >= 2000) {
               let result = await this.summarize_before_inserting(tool.result);
               tool.result = result.content;
@@ -323,20 +323,24 @@ export class MemoryGraph {
             return tool;
           }) ?? []
         );
-        currentStep.tools = result;
+        item.item.tools = result;
       }
       if (
-        currentStep.type === 'message' &&
-        currentStep.message.tokens >= 3000
+        item.item.type === 'message' &&
+        item.item.message &&
+        item.item.message.tokens >= 3000
       ) {
         let result = await this.summarize_before_inserting(
-          currentStep.message.content
+          item.item.message.content
         );
-        currentStep.message = result;
+        item.item.message = result;
       }
+      const date = Date.now();
+      1;
+
       const result = MemoryStateManager.addSTMMemory(
         state.memories,
-        currentStep,
+        item.item,
         date
       );
 
@@ -373,12 +377,10 @@ export class MemoryGraph {
   }
 
   private async ltm_manager(
-    state: typeof MemoryState.State,
-    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{ memories?: Memories }> {
     try {
-      logger.debug('[LTMManager] Processing long-term memory update');
-
       // Skip LTM processing for initial step
       if (state.currentStepIndex === 0) {
         logger.debug('[LTMManager] Skipping LTM for initial step');
@@ -388,7 +390,7 @@ export class MemoryGraph {
       if (
         state.currentGraphStep >=
         (config.configurable?.max_graph_steps ??
-          DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps)
+          DEFAULT_GRAPH_CONFIG.maxGraphSteps)
       ) {
         logger.warn(
           `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
@@ -410,10 +412,13 @@ export class MemoryGraph {
       }
 
       const currentStepIndex = state.currentStepIndex - 1;
-      const currentStep = state.plan.steps[currentStepIndex];
+      const item = checkAndReturnLastItemFromPlansOrHistories(
+        state.plans_or_histories,
+        currentStepIndex - 1
+      );
 
-      if (!currentStep) {
-        logger.warn(`[LTMManager] No step found at index ${currentStepIndex}`);
+      if (!item) {
+        logger.warn(`[LTMManager] No item found at index ${currentStepIndex}`);
         return {};
       }
 
@@ -436,18 +441,19 @@ export class MemoryGraph {
 
       const summaryResult = (await structuredModel.invoke(
         await prompt.formatMessages({
-          response: formatStepForSTM(recentMemories[0].stepinfo),
+          response: formatSteporHistoryForSTM(
+            recentMemories[0].step_or_history
+          ),
         })
       )) as ltmSchemaType;
 
-      console.log(JSON.stringify(summaryResult));
       const episodic_memories: EpisodicMemoryContext[] = [];
       const semantic_memories: SemanticMemoryContext[] = [];
 
       summaryResult.episodic.forEach((memory) => {
         const episodic_memory: EpisodicMemoryContext = {
           user_id: 'default_user',
-          run_id: config.configurable?.conversation_id as string,
+          run_id: config.configurable?.conversation_id as string, //TODO add DEFAULT CONFIG
           content: memory.content,
           sources: memory.source,
         };
@@ -499,21 +505,21 @@ export class MemoryGraph {
   }
 
   private memory_router(
-    state: typeof MemoryState.State,
-    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
-  ): AutonomousMemoryNode {
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): MemoryNode {
     const lastAgent = state.last_agent;
     logger.debug(`[MemoryRouter] Routing from agent: ${lastAgent}`);
 
     if (
       state.currentGraphStep >=
       (config.configurable?.max_graph_steps ??
-        DEFAULT_AUTONOMOUS_CONFIG.maxGraphSteps)
+        DEFAULT_GRAPH_CONFIG.maxGraphSteps)
     ) {
       logger.warn(
         `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
       );
-      return AutonomousMemoryNode.END_MEMORY_GRAPH;
+      return MemoryNode.END_MEMORY_GRAPH;
     }
 
     // Validate memory state
@@ -521,57 +527,55 @@ export class MemoryGraph {
       logger.error(
         '[MemoryRouter] Invalid memory state detected, routing to end'
       );
-      return AutonomousMemoryNode.END_MEMORY_GRAPH;
+      return MemoryNode.END_MEMORY_GRAPH;
     }
 
-    const maxSteps = config.configurable?.max_graph_steps ?? 100;
+    const maxSteps =
+      config.configurable?.max_graph_steps ??
+      DEFAULT_GRAPH_CONFIG.maxGraphSteps;
     if (maxSteps <= state.currentGraphStep) {
       logger.warn('[Router] Max graph steps reached, routing to END node');
-      return AutonomousMemoryNode.END_MEMORY_GRAPH;
+      return MemoryNode.END_MEMORY_GRAPH;
     }
 
     // Route based on previous agent and current state
     switch (lastAgent) {
       case Agent.PLANNER_VALIDATOR:
-        // After plan validation, retrieve relevant context
+        // After plan_or_history validation, retrieve relevant context
         logger.debug(
           '[MemoryRouter] Plan validated → retrieving memory context'
         );
-        return AutonomousMemoryNode.RETRIEVE_MEMORY;
+        return MemoryNode.RETRIEVE_MEMORY;
 
       case Agent.EXEC_VALIDATOR:
         // After execution validation, update STM
         logger.debug('[MemoryRouter] Execution validated → updating STM');
-        return AutonomousMemoryNode.STM_MANAGER;
+        return MemoryNode.STM_MANAGER;
 
       case Agent.MEMORY_MANAGER:
         // Memory context retrieved, end memory processing
         logger.debug(
           '[MemoryRouter] Memory context retrieved → ending memory flow'
         );
-        return AutonomousMemoryNode.END;
+        return MemoryNode.END;
 
       default:
         // Fallback to end for unknown agents
         logger.warn(
           `[MemoryRouter] Unknown agent ${lastAgent}, routing to end`
         );
-        return AutonomousMemoryNode.END;
+        return MemoryNode.END;
     }
   }
 
   private end_memory_graph(
-    state: typeof MemoryState.State,
-    config: RunnableConfig<typeof AutonomousConfigurableAnnotation.State>
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ) {
     logger.info('[EndMemoryGraph] Cleaning up memory graph state');
-    const emptyPlan: ParsedPlan = {
-      steps: [],
-      summary: '',
-    };
     return new Command({
       update: {
-        plan: emptyPlan,
+        plans_or_histories: undefined,
         currentStepIndex: 0,
         retry: 0,
         skipValidation: { skipValidation: true, goto: 'end_graph' },
@@ -587,8 +591,8 @@ export class MemoryGraph {
 
   public createGraphMemory() {
     const memory_subgraph = new StateGraph(
-      MemoryState,
-      AutonomousConfigurableAnnotation
+      GraphState,
+      GraphConfigurableAnnotation
     )
       .addNode('stm_manager', this.stm_manager.bind(this))
       .addNode('ltm_manager', this.ltm_manager.bind(this))
