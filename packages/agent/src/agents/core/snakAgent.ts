@@ -25,7 +25,7 @@ import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { Agent, AgentReturn } from '../../agents/modes/types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
-/**
+/*
  * Configuration interface for SnakAgent initialization
  */
 export interface StreamChunk {
@@ -521,7 +521,10 @@ export class SnakAgent extends BaseAgent {
       }
 
       if (this.currentMode == AGENT_MODES[AgentMode.INTERACTIVE]) {
-        for await (const chunk of this.executeAsyncGenerator(input, config)) {
+        for await (const chunk of this.executeAutonomousAsyncGenerator(
+          input,
+          isInterrupted
+        )) {
           if (chunk.final) {
             yield chunk;
             return;
@@ -644,6 +647,7 @@ export class SnakAgent extends BaseAgent {
   public async *executeAutonomousAsyncGenerator(
     input: string,
     isInterrupted: boolean = false,
+    conversation_id?: string,
     runnableConfig?: RunnableConfig
   ): AsyncGenerator<StreamChunk> {
     let autonomousResponseContent: string | any;
@@ -678,7 +682,7 @@ export class SnakAgent extends BaseAgent {
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
           agent_config: this.agentConfig,
-          conversation_id: uuidv4(),
+          conversation_id: conversation_id ?? uuidv4(), // If conversation_id is not provided, generate a new one
           planner_mode: PlannerMode.ACTIVATED,
         },
       };

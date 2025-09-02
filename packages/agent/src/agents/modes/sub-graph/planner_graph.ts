@@ -13,6 +13,8 @@ import {
   formatStepsForContext,
   PlanSchema,
   PlanSchemaType,
+  handleNodeError,
+  createErrorCommand,
 } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
@@ -222,13 +224,16 @@ export class PlannerGraph {
   private async replanExecution(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    last_agent: Agent;
-    plans_or_histories?: ParsedPlan;
-    currentStepIndex: number;
-    currentGraphStep: number;
-  }> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        last_agent: Agent;
+        plans_or_histories?: ParsedPlan;
+        currentStepIndex: number;
+        currentGraphStep: number;
+      }
+    | Command
+  > {
     try {
       const l_msg = state.messages[state.messages.length - 1];
       logger.info('[PlanRevision] Starting plan_or_history revision');
@@ -288,38 +293,31 @@ export class PlannerGraph {
         currentGraphStep: state.currentGraphStep + 1,
         currentStepIndex: 0,
       };
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[PlanRevision] Plan execution failed: ${error}`);
-
-      const errorMessage = new AIMessageChunk({
-        content: `Failed to create plans_or_histories: ${error.message}`,
-        additional_kwargs: {
-          error: true,
-          final: false,
-          from: 'planner',
-        },
-      });
-
-      return {
-        messages: [errorMessage],
-        last_agent: Agent.PLANNER,
-        currentStepIndex: 0,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
+      return handleNodeError(
+        error,
+        'PLANNER_REVISION',
+        state,
+        'Plan revision failed'
+      );
     }
   }
 
   private async planExecution(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    last_agent: Agent;
-    plans_or_histories?: ParsedPlan;
-    executionMode?: ExecutionMode;
-    currentStepIndex: number;
-    currentGraphStep: number;
-  }> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        last_agent: Agent;
+        plans_or_histories?: ParsedPlan;
+        executionMode?: ExecutionMode;
+        currentStepIndex: number;
+        currentGraphStep: number;
+      }
+    | Command
+  > {
     try {
       logger.info('[Planner] Starting plan_or_history execution');
       const model = this.modelSelector?.getModels()['fast'];
@@ -375,37 +373,25 @@ export class PlannerGraph {
         currentGraphStep: state.currentGraphStep + 1,
         currentStepIndex: 0,
       };
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Planner] Plan execution failed: ${error}`);
-
-      const errorMessage = new AIMessageChunk({
-        content: `Failed to create plans_or_histories: ${error.message}`,
-        additional_kwargs: {
-          error: true,
-          final: false,
-          from: 'planner',
-        },
-      });
-
-      return {
-        messages: [errorMessage],
-        last_agent: Agent.PLANNER,
-        currentStepIndex: 0,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
+      return handleNodeError(error, 'PLANNER', state, 'Plan creation failed');
     }
   }
 
   private async adaptivePlanner(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    last_agent: Agent;
-    plans_or_histories?: ParsedPlan;
-    currentGraphStep: number;
-    currentStepIndex: number;
-  }> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        last_agent: Agent;
+        plans_or_histories?: ParsedPlan;
+        currentGraphStep: number;
+        currentStepIndex: number;
+      }
+    | Command
+  > {
     try {
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
@@ -464,23 +450,14 @@ export class PlannerGraph {
         currentStepIndex: 0,
         currentGraphStep: state.currentGraphStep + 1,
       };
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[AdaptivePlanner] Plan creation failed: ${error}`);
-
-      const errorMessage = new AIMessageChunk({
-        content: `Failed to create plans_or_histories: ${error.message}`,
-        additional_kwargs: {
-          error: true,
-          from: Agent.ADAPTIVE_PLANNER,
-        },
-      });
-
-      return {
-        messages: [errorMessage],
-        last_agent: Agent.PLANNER,
-        currentGraphStep: state.currentGraphStep + 1,
-        currentStepIndex: state.currentStepIndex,
-      };
+      return handleNodeError(
+        error,
+        'ADAPTIVE_PLANNER',
+        state,
+        'Adaptive plan creation failed'
+      );
     }
   }
 
@@ -489,13 +466,16 @@ export class PlannerGraph {
   private async validatorPlanner(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    currentStepIndex: number;
-    last_agent: Agent;
-    retry: number;
-    currentGraphStep: number;
-  }> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        currentStepIndex: number;
+        last_agent: Agent;
+        retry: number;
+        currentGraphStep: number;
+      }
+    | Command
+  > {
     try {
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
@@ -579,25 +559,16 @@ export class PlannerGraph {
           currentGraphStep: state.currentGraphStep + 1,
         };
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.error(
         `[PlannerValidator] Failed to validate plans_or_histories: ${error.message}`
       );
-      const errorMessage = new AIMessageChunk({
-        content: `Failed to validate plans_or_histories: ${error.message}`,
-        additional_kwargs: {
-          error: true,
-          success: false,
-          from: Agent.PLANNER_VALIDATOR,
-        },
-      });
-      return {
-        messages: [errorMessage],
-        currentStepIndex: state.currentStepIndex,
-        last_agent: Agent.PLANNER_VALIDATOR,
-        retry: state.retry + 1,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
+      return handleNodeError(
+        error,
+        'PLANNER_VALIDATOR',
+        state,
+        'Plan validation failed'
+      );
     }
   }
 

@@ -23,6 +23,7 @@ import {
 import { logger } from '@snakagent/core';
 import { late, z } from 'zod';
 import { tool, Tool } from '@langchain/core/tools';
+import { Command } from '@langchain/langgraph';
 
 export const tools_call = z.object({
   description: z
@@ -700,3 +701,56 @@ export const checkAndReturnObjectFromPlansOrHistories = (
     throw error;
   }
 };
+
+// --- ERROR HANDLING --- //
+export interface ErrorContext {
+  hasError: boolean;
+  message: string;
+  source: string;
+  timestamp: number;
+}
+
+export function createErrorCommand(
+  error: Error,
+  source: string,
+  additionalUpdates?: Record<string, any>
+): Command {
+  const errorContext: ErrorContext = {
+    hasError: true,
+    message: error.message,
+    source,
+    timestamp: Date.now(),
+  };
+
+  logger.error(`[${source}] Error occurred: ${error.message}`, error);
+
+  const updates = {
+    error: errorContext,
+    skipValidation: { skipValidation: true, goto: 'end_graph' },
+    ...additionalUpdates,
+  };
+
+  return new Command({
+    update: updates,
+    goto: 'end_graph',
+    graph: Command.PARENT,
+  });
+}
+
+export function handleNodeError(
+  error: Error,
+  source: string,
+  state?: any,
+  additionalContext?: string
+): Command {
+  const fullMessage = additionalContext
+    ? `${error.message} - Context: ${additionalContext}`
+    : error.message;
+
+  const enhancedError = new Error(fullMessage);
+  enhancedError.stack = error.stack;
+
+  return createErrorCommand(enhancedError, source, {
+    currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
+  });
+}

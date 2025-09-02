@@ -42,6 +42,7 @@ export enum PlannerMode {
 export enum ExecutionMode {
   PLANNING = 'PLANNING',
   REACTIVE = 'REACTIVE',
+  AUTOMATIC = 'AUTOMATIC', // Let the system decide based on query complexity
 }
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -103,6 +104,10 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => ({ skipValidation: false, goto: '' }),
   }),
+  error: Annotation<{ hasError: boolean; message: string; source: string; timestamp: number } | null>({
+    reducer: (x, y) => y,
+    default: () => null,
+  }),
 });
 
 export const GraphConfigurableAnnotation = Annotation.Root({
@@ -133,10 +138,6 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   conversation_id: Annotation<string>({
     reducer: (x, y) => y,
     default: () => uuidv4(),
-  }),
-  planner_mode: Annotation<PlannerMode>({
-    reducer: (x, y) => y,
-    default: () => PlannerMode.ACTIVATED,
   }),
 });
 export class Graph {
@@ -208,6 +209,13 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
     logger.debug(`[Orchestration Router] Last agent: ${state.last_agent}`);
+    
+    // Check for errors first
+    if (state.error?.hasError) {
+      logger.error(`[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`);
+      return GraphNode.END_GRAPH;
+    }
+    
     const l_msg = state.messages[state.messages.length - 1];
     if (state.skipValidation.skipValidation) {
       const validTargets = Object.values(GraphNode);

@@ -41,6 +41,8 @@ import {
   isTerminalMessage,
   ReturnTypeCheckPlanorHistory,
   ValidatorResponseSchema,
+  handleNodeError,
+  createErrorCommand,
 } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
@@ -212,12 +214,15 @@ export class AgentExecutorGraph {
   private async reasoning_executor(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    last_agent: Agent;
-    plans_or_histories?: ParsedPlan | History;
-    currentGraphStep?: number;
-  }> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        last_agent: Agent;
+        plans_or_histories?: ParsedPlan | History;
+        currentGraphStep?: number;
+      }
+    | Command
+  > {
     if (!this.agentConfig || !this.modelSelector) {
       throw new Error('Agent configuration and ModelSelector are required.');
     }
@@ -353,25 +358,29 @@ export class AgentExecutorGraph {
       };
     } catch (error: any) {
       logger.error(`[Executor] Model invocation failed: ${error.message}`);
-      const result = handleModelError(error);
-      return {
-        ...result,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
+      return handleNodeError(
+        error,
+        'EXECUTOR',
+        state,
+        'Model invocation failed during execution'
+      );
     }
   }
 
   private async validatorExecutor(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    currentStepIndex?: number; // Optional when we are in history mode
-    plans_or_histories?: ParsedPlan | History;
-    last_agent: Agent;
-    retry: number;
-    currentGraphStep: number;
-  }> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        currentStepIndex?: number; // Optional when we are in history mode
+        plans_or_histories?: ParsedPlan | History;
+        last_agent: Agent;
+        retry: number;
+        currentGraphStep: number;
+      }
+    | Command
+  > {
     try {
       const retry: number = state.retry;
       const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
@@ -482,34 +491,16 @@ export class AgentExecutorGraph {
         retry: retry + 1,
         currentGraphStep: state.currentGraphStep + 1,
       };
-    } catch (error) {
+    } catch (error: any) {
       logger.error(
         `[ExecutorValidator] Failed to validate step: ${error.message}`
       );
-      const errorPlan = checkAndReturnObjectFromPlansOrHistories(
-        state.plans_or_histories
+      return handleNodeError(
+        error,
+        'EXECUTOR_VALIDATOR',
+        state,
+        'Step validation failed'
       );
-      if (errorPlan.type === 'plan') {
-        errorPlan.steps[state.currentStepIndex].status = 'failed';
-      }
-
-      const errorMessage = new AIMessageChunk({
-        content: `Failed to validate plans_or_histories: ${error.message}`,
-        additional_kwargs: {
-          error: true,
-          final: false,
-          success: false,
-          from: Agent.EXEC_VALIDATOR,
-        },
-      });
-      return {
-        messages: [errorMessage],
-        currentStepIndex: state.currentStepIndex,
-        last_agent: Agent.EXEC_VALIDATOR,
-        plans_or_histories: errorPlan,
-        retry: -1,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
     }
   }
 
@@ -517,11 +508,15 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>,
     originalInvoke: Function
-  ): Promise<{
-    messages: BaseMessage[];
-    last_agent: Agent;
-    plans_or_histories: ParsedPlan | History;
-  } | null> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        last_agent: Agent;
+        plans_or_histories: ParsedPlan | History;
+      }
+    | Command
+    | null
+  > {
     const lastMessage = state.messages[state.messages.length - 1];
     const toolTimeout = DEFAULT_GRAPH_CONFIG.toolTimeout; // TODO add the field in the agent_configuration;
 
@@ -664,7 +659,7 @@ export class AgentExecutorGraph {
         );
       }
 
-      throw error;
+      return handleNodeError(error, 'TOOLS', state, 'Tool execution failed');
     }
   }
 
@@ -675,11 +670,15 @@ export class AgentExecutorGraph {
     toolNode.invoke = async (
       state: typeof GraphState.State,
       config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-    ): Promise<{
-      messages: BaseMessage[];
-      last_agent: Agent;
-      plans_or_histories: ParsedPlan | History;
-    } | null> => {
+    ): Promise<
+      | {
+          messages: BaseMessage[];
+          last_agent: Agent;
+          plans_or_histories: ParsedPlan | History;
+        }
+      | Command
+      | null
+    > => {
       return this.toolNodeInvoke(state, config, originalInvoke);
     };
 

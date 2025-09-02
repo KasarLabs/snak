@@ -24,6 +24,8 @@ import {
   getCurrentHistoryItem,
   estimateTokens,
   formatSteporHistoryForSTM,
+  handleNodeError,
+  createErrorCommand,
 } from '../utils.js';
 import {
   ChatPromptTemplate,
@@ -288,7 +290,7 @@ export class MemoryGraph {
   ): Promise<{
     memories: Memories;
     plans_or_histories?: ParsedPlan;
-  }> {
+  } | Command> {
     try {
       logger.debug('[STMManager] Processing memory update');
       if (
@@ -363,29 +365,16 @@ export class MemoryGraph {
       return {
         memories: updatedMemories,
       };
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[STMManager] Critical error in STM processing: ${error}`);
-
-      // Return safe fallback state
-      const fallbackMemories: Memories = {
-        ...state.memories,
-        lastError: {
-          type: 'STM_PROCESSING_ERROR',
-          message: error.message,
-          timestamp: Date.now(),
-        },
-      };
-
-      return {
-        memories: fallbackMemories,
-      };
+      return handleNodeError(error, 'STM_MANAGER', state, 'STM processing failed');
     }
   }
 
   private async ltm_manager(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{ memories?: Memories }> {
+  ): Promise<{ memories?: Memories } | Command> {
     try {
       // Skip LTM processing for initial step
       if (state.currentStepIndex === 0) {
@@ -494,9 +483,9 @@ export class MemoryGraph {
       }
 
       return {};
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[LTMManager] Critical error in LTM processing: ${error}`);
-      return {};
+      return handleNodeError(error, 'LTM_MANAGER', state, 'LTM processing failed');
     }
   }
 
