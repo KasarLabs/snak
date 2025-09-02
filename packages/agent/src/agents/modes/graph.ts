@@ -38,6 +38,11 @@ export enum PlannerMode {
   DISABLED = 'disabled',
   AUTOMATIC = 'automatic',
 }
+
+export enum ExecutionMode {
+  PLANNING = 'PLANNING',
+  REACTIVE = 'REACTIVE',
+}
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => y,
@@ -55,6 +60,10 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => '',
   }),
+  executionMode: Annotation<ExecutionMode>({
+    reducer: (x, y) => y,
+    default: () => ExecutionMode.PLANNING,
+  }),
   plans_or_histories: Annotation<Array<ParsedPlan | History>>({
     reducer: (
       x: Array<ParsedPlan | History>,
@@ -62,16 +71,16 @@ export const GraphState = Annotation.Root({
     ) => {
       logger.debug('Plans Or Histories Reducer Called');
       if (y === undefined) return x;
-      if (Array.isArray(y)) return y; // Normally never reach is just to satisfy typescript cause we never have to return an array
+      if (Array.isArray(y)) return y;
       if (x === undefined || x.length === 0) {
-        logger.debug(`First Plan Added.`);
+        logger.debug(`First Plan/History Added.`);
         return [y];
       }
       if (x[x.length - 1].id === y.id) {
-        logger.debug('Plan Updtated.');
+        logger.debug('Plan/History Updated.');
         return [...x.slice(0, -1), y];
       } else {
-        logger.debug('Plan Added.');
+        logger.debug('Plan/History Added.');
         x.push(y);
         return x;
       }
@@ -230,11 +239,22 @@ export class Graph {
     }
 
     if (state.last_agent === Agent.MEMORY_MANAGER) {
-      if (l_msg.additional_kwargs.final === true) {
+      if (
+        l_msg.additional_kwargs.final === true &&
+        state.executionMode === ExecutionMode.PLANNING
+      ) {
         logger.debug(
-          `[Orchestration Router] Final execution reached, routing to planner`
+          `[Orchestration Router] Final execution reached in PLANNING mode, routing to planner`
         );
         return GraphNode.PLANNING_ORCHESTRATOR;
+      } else if (
+        l_msg.additional_kwargs.final === true &&
+        state.executionMode === ExecutionMode.REACTIVE
+      ) {
+        logger.debug(
+          `[Orchestration Router] Final execution reached in REACTIVE mode, routing to end`
+        );
+        return GraphNode.END_GRAPH;
       }
     }
 

@@ -24,11 +24,17 @@ import {
 import {
   checkAndReturnLastItemFromPlansOrHistories,
   checkAndReturnObjectFromPlansOrHistories,
+  getCurrentPlanStep,
+  getCurrentHistoryItem,
+  getCurrentPlan,
+  getCurrentHistory,
   createMaxIterationsResponse,
   estimateTokens,
   formatExecutionMessage,
   formatStepsForContext,
   formatToolResponse,
+  formatToolsForPlan,
+  formatToolsForHistory,
   formatValidatorToolsExecutor,
   getLatestMessageForMessage,
   handleModelError,
@@ -40,7 +46,11 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../../agents/operators/modelSelector.js';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import {
+  GraphConfigurableAnnotation,
+  GraphState,
+  ExecutionMode,
+} from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
@@ -93,33 +103,40 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): ChatPromptTemplate {
-    const currentItem = checkAndReturnLastItemFromPlansOrHistories(
-      state.plans_or_histories,
-      state.currentStepIndex
-    );
-    if (!currentItem) {
-      throw new Error(`No step found at index ${state.currentStepIndex}`);
-    }
     let systemPrompt;
     let contextPrompt;
-    if (currentItem.type === 'history') {
+
+    if (state.executionMode === ExecutionMode.REACTIVE) {
       systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
       contextPrompt = STEP_EXECUTOR_CONTEXT_PROMPT;
-    } else if (state.retry === 0) {
-      if (currentItem.item.type === 'tools') {
-        systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
-      } else {
-        systemPrompt = MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
+    } else if (state.executionMode === ExecutionMode.PLANNING) {
+      const currentStep = getCurrentPlanStep(
+        state.plans_or_histories,
+        state.currentStepIndex
+      );
+      if (!currentStep) {
+        throw new Error(`No step found at index ${state.currentStepIndex}`);
       }
-      contextPrompt = STEP_EXECUTOR_CONTEXT_PROMPT;
+
+      if (state.retry === 0) {
+        if (currentStep.type === 'tools') {
+          systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
+        } else {
+          systemPrompt = MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
+        }
+        contextPrompt = STEP_EXECUTOR_CONTEXT_PROMPT;
+      } else {
+        if (currentStep.type === 'tools') {
+          systemPrompt = RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
+        } else {
+          systemPrompt = RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
+        }
+        contextPrompt = RETRY_STEP_EXECUTOR_CONTEXT_PROMPT;
+      }
     } else {
-      if (currentItem.item.type === 'tools') {
-        systemPrompt = RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
-      } else {
-        systemPrompt = RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
-      }
-      contextPrompt = RETRY_STEP_EXECUTOR_CONTEXT_PROMPT;
+      throw new Error(`Unknown execution mode: ${state.executionMode}`);
     }
+
     const prompt = ChatPromptTemplate.fromMessages([
       ['system', systemPrompt],
       ['ai', contextPrompt],
@@ -205,20 +222,23 @@ export class AgentExecutorGraph {
       throw new Error('Agent configuration and ModelSelector are required.');
     }
 
+    // Initialize based on execution mode
     if (state.plans_or_histories.length === 0) {
-      console;
-      state.plans_or_histories.push({
-        type: 'history',
-        id: uuidv4(),
-        items: [],
-      });
+      if (state.executionMode === ExecutionMode.REACTIVE) {
+        state.plans_or_histories.push({
+          type: 'history',
+          id: uuidv4(),
+          items: [],
+        });
+      } else {
+        throw new Error('Planning mode requires a plan to be set');
+      }
     }
-    console.log(state.plans_or_histories);
     const currentItem = checkAndReturnLastItemFromPlansOrHistories(
       state.plans_or_histories,
       state.currentStepIndex
     );
-    const currentPlanorHistory = checkAndReturnObjectFromPlansOrHistories(
+    let currentPlanorHistory = checkAndReturnObjectFromPlansOrHistories(
       state.plans_or_histories
     );
     logger.info(`[Executor] Processing...`);
@@ -253,18 +273,26 @@ export class AgentExecutorGraph {
         timeoutPromise,
       ])) as AIMessageChunk;
       if (result.tool_calls?.length) {
-        if (
-          currentPlanorHistory.type === 'history' &&
-          currentPlanorHistory.items.length <= 0
-        ) {
-          currentPlanorHistory.items.push({
-            type: 'tools',
-            timestamp: 0,
-          });
+        if (state.executionMode === ExecutionMode.REACTIVE) {
+          const currentHistory = getCurrentHistory(state.plans_or_histories);
+          if (currentHistory && currentHistory.items.length === 0) {
+            currentHistory.items.push({
+              type: 'tools',
+              timestamp: Date.now(),
+            });
+            return {
+              messages: [result],
+              last_agent: Agent.EXECUTOR,
+              plans_or_histories: currentHistory,
+              currentGraphStep: state.currentGraphStep + 1,
+            };
+          }
+        } else {
           return {
+            // In planning mode, the tool node will handle updating the plan with tool calls
             messages: [result],
             last_agent: Agent.EXECUTOR,
-            plans_or_histories: currentPlanorHistory,
+            plans_or_histories: state.plans_or_histories[0],
             currentGraphStep: state.currentGraphStep + 1,
           };
         }
@@ -273,27 +301,45 @@ export class AgentExecutorGraph {
       console.log('Executor Result:', content);
       console.log(state.plans_or_histories);
       const tokens = estimateTokens(content);
-      if (currentItem.type === 'history') {
-        const historyItem: HistoryItem = {
-          type: 'message',
-          message: {
+
+      let updatedPlanOrHistory: ParsedPlan | History;
+
+      if (state.executionMode === ExecutionMode.REACTIVE) {
+        const currentHistory = getCurrentHistory(state.plans_or_histories);
+        if (currentHistory) {
+          const historyItem: HistoryItem = {
+            type: 'message',
+            message: {
+              content: content,
+              tokens: tokens,
+            },
+            timestamp: Date.now(),
+          };
+          currentHistory.items.push(historyItem);
+          updatedPlanOrHistory = currentHistory;
+        } else {
+          throw new Error('No history available for message update');
+        }
+      } else if (state.executionMode === ExecutionMode.PLANNING) {
+        const currentPlan = getCurrentPlan(state.plans_or_histories);
+        const currentStep = getCurrentPlanStep(
+          state.plans_or_histories,
+          state.currentStepIndex
+        );
+        if (currentPlan && currentStep && currentStep.type === 'message') {
+          currentPlan.steps[state.currentStepIndex].message = {
             content: content,
             tokens: tokens,
-          },
-          timestamp: Date.now(),
-        };
-        (currentPlanorHistory as History).items.push(historyItem);
-      } else if (
-        currentItem.type === 'step' &&
-        currentItem.item.type === 'message'
-      ) {
-        (currentPlanorHistory as ParsedPlan).steps[
-          state.currentStepIndex
-        ].message = {
-          content: content,
-          tokens: tokens,
-        };
+          };
+          updatedPlanOrHistory = currentPlan;
+        } else {
+          throw new Error('No plan step available for message update');
+        }
+      } else {
+        throw new Error(`Unknown execution mode: ${state.executionMode}`);
       }
+
+      currentPlanorHistory = updatedPlanOrHistory;
 
       logger.debug(
         `[Executor] Token tracking: ${tokens} tokens for step ${state.currentStepIndex + 1}`
@@ -320,7 +366,7 @@ export class AgentExecutorGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{
     messages: BaseMessage[];
-    currentStepIndex: number;
+    currentStepIndex?: number; // Optional when we are in history mode
     plans_or_histories?: ParsedPlan | History;
     last_agent: Agent;
     retry: number;
@@ -354,10 +400,24 @@ export class AgentExecutorGraph {
           formatValidatorInput: formatValidatorToolsExecutor(currentItem),
         })
       );
-      if (
-        structuredResult.success === true &&
-        plan_or_history.type === 'plan'
-      ) {
+      if (structuredResult.success === true) {
+        if (plan_or_history.type === 'history') {
+          console.log(JSON.stringify(state.plans_or_histories, null, 2));
+          const successMessage = new AIMessageChunk({
+            content: `Executor Validation successfully - History mode`,
+            additional_kwargs: {
+              error: false,
+              final: true,
+              from: Agent.EXEC_VALIDATOR,
+            },
+          });
+          return {
+            messages: [successMessage],
+            last_agent: Agent.EXEC_VALIDATOR,
+            retry: retry,
+            currentGraphStep: state.currentGraphStep + 1,
+          };
+        }
         const updatedPlan = plan_or_history;
         updatedPlan.steps[state.currentStepIndex].status = 'completed';
 
@@ -552,21 +612,36 @@ export class AgentExecutorGraph {
       }
       const estimatedTokens = estimateTokens(toolResultContent);
 
-      currentItem.item.tools = formatToolResponse(
-        truncatedResult.messages,
-        currentItem.item.type === 'tools' && currentItem.item.tools
-          ? currentItem.item.tools
-          : toolsInfos
-      );
-      const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
-        state.plans_or_histories
-      );
-      console.log(currentItem.item.tools);
-      plan_or_history.type === 'plan' // Attribute the tool results to the current step or the last history item
-        ? (plan_or_history.steps[state.currentStepIndex].tools = currentItem
-            .item.tools as StepToolsInfo[])
-        : (plan_or_history.items[plan_or_history.items.length - 1].tools =
-            currentItem.item.tools);
+      let updatedPlanOrHistory: ParsedPlan | History;
+
+      if (state.executionMode === ExecutionMode.REACTIVE) {
+        const currentHistory = getCurrentHistory(state.plans_or_histories);
+        if (currentHistory && currentHistory.items.length > 0) {
+          const tools = formatToolsForHistory(truncatedResult.messages);
+          currentHistory.items[currentHistory.items.length - 1].tools = tools;
+          updatedPlanOrHistory = currentHistory;
+        } else {
+          throw new Error('No history available for tool results');
+        }
+      } else if (state.executionMode === ExecutionMode.PLANNING) {
+        const currentPlan = getCurrentPlan(state.plans_or_histories);
+        const currentStep = getCurrentPlanStep(
+          state.plans_or_histories,
+          state.currentStepIndex
+        );
+        if (currentPlan && currentStep) {
+          const tools = formatToolsForPlan(
+            truncatedResult.messages,
+            currentStep
+          );
+          currentPlan.steps[state.currentStepIndex].tools = tools;
+          updatedPlanOrHistory = currentPlan;
+        } else {
+          throw new Error('No plan step available for tool results');
+        }
+      } else {
+        throw new Error(`Unknown execution mode: ${state.executionMode}`);
+      }
       logger.debug(
         `[Tools] Token tracking: ${estimatedTokens} tokens for tool result`
       );
@@ -574,7 +649,7 @@ export class AgentExecutorGraph {
       return {
         ...truncatedResult,
         last_agent: Agent.TOOLS,
-        plans_or_histories: plan_or_history,
+        plans_or_histories: updatedPlanOrHistory,
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;

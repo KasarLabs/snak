@@ -22,7 +22,7 @@ import {
 } from './types/index.js';
 import { logger } from '@snakagent/core';
 import { late, z } from 'zod';
-import { Tool } from '@langchain/core/tools';
+import { tool, Tool } from '@langchain/core/tools';
 
 export const tools_call = z.object({
   description: z
@@ -352,38 +352,65 @@ export function formatExecutionMessage(step: StepInfo): string {
   }
 }
 
-export function formatToolResponse(
+// Mode-specific tool formatting functions
+export function formatToolsForPlan(
   messages: ToolMessage | ToolMessage[],
-  tools: StepToolsInfo[] | HistoryToolsInfo[]
-): StepToolsInfo[] | HistoryToolsInfo[] {
+  currentStep: StepInfo
+): StepToolsInfo[] {
   try {
-    console.log(tools);
-    if (tools.length > 0) {
-      if (!Array.isArray(messages)) {
-        tools[0].result = messages.content.toLocaleString();
-        tools[0].metadata = {
-          tool_name: messages.name || '',
-          tool_call_id: messages.tool_call_id || '',
+    const tools = currentStep.tools || [];
+    const msgArray = Array.isArray(messages) ? messages : [messages];
+
+    msgArray.forEach((msg: ToolMessage, index: number) => {
+      if (tools[index]) {
+        tools[index].result = msg.content.toString();
+        tools[index].metadata = {
+          tool_name: msg.name || '',
+          tool_call_id: msg.tool_call_id || '',
           timestamp: new Date(Date.now()).toISOString(),
         };
-      } else {
-        if (tools && tools.length > 0) {
-          messages.forEach((msg: ToolMessage, index: number) => {
-            if (tools && tools[index]) {
-              tools[index].result = msg.content.toLocaleString();
-              tools[index].metadata = {
-                tool_name: msg.name || '',
-                tool_call_id: msg.tool_call_id || '',
-                timestamp: new Date(Date.now()).toISOString(),
-              };
-            }
-          });
-        }
       }
-      return tools;
-    }
+    });
+
     return tools;
   } catch (error) {
+    logger.error(`Error formatting tools for plan: ${error}`);
+    throw error;
+  }
+}
+
+export function formatToolsForHistory(
+  messages: ToolMessage | ToolMessage[]
+): HistoryToolsInfo[] {
+  try {
+    const msgArray = Array.isArray(messages) ? messages : [messages];
+
+    return msgArray.map((msg: ToolMessage) => ({
+      result: msg.content.toString(),
+      metadata: {
+        tool_name: msg.name || '',
+        tool_call_id: msg.tool_call_id || '',
+        timestamp: new Date(Date.now()).toISOString(),
+      },
+    }));
+  } catch (error) {
+    logger.error(`Error formatting tools for history: ${error}`);
+    throw error;
+  }
+}
+
+export function formatToolResponse(
+  messages: ToolMessage | ToolMessage[],
+  currentItem: ReturnTypeCheckPlanorHistory
+): StepToolsInfo[] | HistoryToolsInfo[] {
+  try {
+    if (currentItem.type === 'history') {
+      return formatToolsForHistory(messages);
+    } else {
+      return formatToolsForPlan(messages, currentItem.item);
+    }
+  } catch (error) {
+    logger.error(`Error formatting tool response: ${error}`);
     throw error;
   }
 }
@@ -473,7 +500,7 @@ export function formatStepsForContext(steps: StepInfo[]): string {
         if (step.type === 'tools' && step.tools && step.tools.length > 0) {
           // For tool steps, include tool info and results
           const toolInfo = step.tools
-            .map((t, i) => `T${i + 1}:${t.description}`)
+            .map((t, i) => `T${i + 1}:${t.description}->${t.result}`)
             .join('|');
           return `${header}[${toolInfo}]`;
         }
@@ -545,6 +572,79 @@ export function formatCurrentStepForSTM(step: StepInfo): string {
 export type ReturnTypeCheckPlanorHistory =
   | { type: 'step'; item: StepInfo }
   | { type: 'history'; item: HistoryItem | null };
+
+// Mode-specific utility functions - no more complex branching
+
+export const getCurrentPlanStep = (
+  plans_or_histories: Array<ParsedPlan | History> | undefined,
+  currentStepIndex: number
+): StepInfo | null => {
+  try {
+    if (!plans_or_histories || plans_or_histories.length === 0) {
+      throw new Error('No plan available');
+    }
+
+    const latest = plans_or_histories[plans_or_histories.length - 1];
+    if (latest.type !== 'plan') {
+      throw new Error('Current execution is not in plan mode');
+    }
+
+    if (currentStepIndex < 0 || currentStepIndex >= latest.steps.length) {
+      throw new Error(`Invalid step index: ${currentStepIndex}`);
+    }
+
+    return latest.steps[currentStepIndex];
+  } catch (error) {
+    logger.error(`Error retrieving plan step: ${error}`);
+    throw error;
+  }
+};
+
+export const getCurrentHistoryItem = (
+  plans_or_histories: Array<ParsedPlan | History> | undefined
+): HistoryItem | null => {
+  try {
+    if (!plans_or_histories || plans_or_histories.length === 0) {
+      return null;
+    }
+
+    const latest = plans_or_histories[plans_or_histories.length - 1];
+    if (latest.type !== 'history') {
+      throw new Error('Current execution is not in history mode');
+    }
+
+    if (latest.items.length === 0) {
+      return null;
+    }
+
+    return latest.items[latest.items.length - 1];
+  } catch (error) {
+    logger.error(`Error retrieving history item: ${error}`);
+    return null;
+  }
+};
+
+export const getCurrentPlan = (
+  plans_or_histories: Array<ParsedPlan | History> | undefined
+): ParsedPlan | null => {
+  if (!plans_or_histories || plans_or_histories.length === 0) {
+    return null;
+  }
+
+  const latest = plans_or_histories[plans_or_histories.length - 1];
+  return latest.type === 'plan' ? latest : null;
+};
+
+export const getCurrentHistory = (
+  plans_or_histories: Array<ParsedPlan | History> | undefined
+): History | null => {
+  if (!plans_or_histories || plans_or_histories.length === 0) {
+    return null;
+  }
+
+  const latest = plans_or_histories[plans_or_histories.length - 1];
+  return latest.type === 'history' ? latest : null;
+};
 
 export const checkAndReturnLastItemFromPlansOrHistories = (
   plans_or_histories: Array<ParsedPlan | History> | undefined,

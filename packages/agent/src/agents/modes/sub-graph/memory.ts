@@ -15,9 +15,13 @@ import {
   ltmSchema,
   ltmSchemaType,
   History,
+  StepInfo,
+  HistoryItem,
 } from '../types/index.js';
 import {
   checkAndReturnLastItemFromPlansOrHistories,
+  getCurrentPlanStep,
+  getCurrentHistoryItem,
   estimateTokens,
   formatSteporHistoryForSTM,
 } from '../utils.js';
@@ -28,7 +32,7 @@ import {
 import { AgentConfig, logger } from '@snakagent/core';
 import { ModelSelector } from '../../../agents/operators/modelSelector.js';
 import { MemoryAgent } from '../../../agents/operators/memoryAgent.js';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import { GraphConfigurableAnnotation, GraphState, ExecutionMode } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { MemoryNode, DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import { MemoryStateManager, STMManager } from '../utils/memory-utils.js';
@@ -299,22 +303,25 @@ export class MemoryGraph {
           memories: state.memories,
         };
       }
-      const item = checkAndReturnLastItemFromPlansOrHistories(
-        state.plans_or_histories,
-        state.currentStepIndex - 1
-      );
-      if (!item || !item.item) {
-        // Need to throw an Error
+      let item: StepInfo | HistoryItem | null = null;
+      
+      if (state.executionMode === ExecutionMode.PLANNING) {
+        item = getCurrentPlanStep(state.plans_or_histories, state.currentStepIndex - 1);
+      } else if (state.executionMode === ExecutionMode.REACTIVE) {
+        item = getCurrentHistoryItem(state.plans_or_histories);
+      }
+      
+      if (!item) {
         logger.warn(
-          '[STMManager] No current step or history_item found, returning unchanged memories'
+          '[STMManager] No current step or history item found, returning unchanged memories'
         );
         return {
           memories: state.memories,
         };
       }
-      if (item.item.type === 'tools') {
+      if (item.type === 'tools') {
         const result = await Promise.all(
-          item.item.tools?.map(async (tool) => {
+          item.tools?.map(async (tool) => {
             if (estimateTokens(tool.result) >= 2000) {
               let result = await this.summarize_before_inserting(tool.result);
               tool.result = result.content;
@@ -323,24 +330,23 @@ export class MemoryGraph {
             return tool;
           }) ?? []
         );
-        item.item.tools = result;
+        item.tools = result;
       }
       if (
-        item.item.type === 'message' &&
-        item.item.message &&
-        item.item.message.tokens >= 3000
+        item.type === 'message' &&
+        item.message &&
+        item.message.tokens >= 3000
       ) {
         let result = await this.summarize_before_inserting(
-          item.item.message.content
+          item.message.content
         );
-        item.item.message = result;
+        item.message = result;
       }
       const date = Date.now();
-      1;
 
       const result = MemoryStateManager.addSTMMemory(
         state.memories,
-        item.item,
+        item,
         date
       );
 
@@ -411,23 +417,7 @@ export class MemoryGraph {
         throw new Error('Fast model not available for LTM processing');
       }
 
-      const currentStepIndex = state.currentStepIndex - 1;
-      const item = checkAndReturnLastItemFromPlansOrHistories(
-        state.plans_or_histories,
-        currentStepIndex - 1
-      );
-
-      if (!item) {
-        logger.warn(`[LTMManager] No item found at index ${currentStepIndex}`);
-        return {};
-      }
-
-      const structuredModel = model.withStructuredOutput(ltmSchema);
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', ltm_summarize_prompt],
-        ['human', `TEXT_TO_ANALYZE : {response}`],
-      ]);
-      const recentMemories = STMManager.getRecentMemories(
+      let recentMemories = STMManager.getRecentMemories(
         state.memories.stm,
         1
       );
@@ -438,6 +428,12 @@ export class MemoryGraph {
         );
         return {};
       }
+
+      const structuredModel = model.withStructuredOutput(ltmSchema);
+      const prompt = ChatPromptTemplate.fromMessages([
+        ['system', ltm_summarize_prompt],
+        ['human', `TEXT_TO_ANALYZE : {response}`],
+      ]);
 
       const summaryResult = (await structuredModel.invoke(
         await prompt.formatMessages({
@@ -489,7 +485,7 @@ export class MemoryGraph {
 
       if (upsertResult.success) {
         logger.debug(
-          `[LTMManager] Successfully upserted memory for step ${currentStepIndex + 1}`
+          `[LTMManager] Successfully upserted memory for current step`
         );
       } else {
         logger.warn(

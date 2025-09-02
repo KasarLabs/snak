@@ -22,6 +22,7 @@ import {
   GraphConfigurableAnnotation,
   GraphState,
   PlannerMode,
+  ExecutionMode,
 } from '../graph.js';
 import { PlannerNode, DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
@@ -315,6 +316,7 @@ export class PlannerGraph {
     messages: BaseMessage[];
     last_agent: Agent;
     plans_or_histories?: ParsedPlan;
+    executionMode?: ExecutionMode;
     currentStepIndex: number;
     currentGraphStep: number;
   }> {
@@ -369,6 +371,7 @@ export class PlannerGraph {
         messages: [aiMessage],
         last_agent: Agent.PLANNER,
         plans_or_histories: created_plan,
+        executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
         currentStepIndex: 0,
       };
@@ -689,7 +692,7 @@ export class PlannerGraph {
       return PlannerNode.END_PLANNER_GRAPH;
     }
     // INTERACTIVE STRART PART
-    console.log('PLANNER_ROUTER - Current Mode:', currentMode);
+    console.log('PLANNER_ROUTER - StepToolsInfo', currentMode);
     console.log(config.configurable?.planner_mode);
     console.log(config.configurable?.planner_mode === PlannerMode.DISABLED);
     if (currentMode === AgentMode.INTERACTIVE) {
@@ -772,6 +775,7 @@ export class PlannerGraph {
           type: 'history',
           items: [],
         } as History,
+        executionMode: ExecutionMode.REACTIVE,
         currentStepIndex: 0,
         retry: 0,
       },
