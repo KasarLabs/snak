@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm clean:dist && nest build",
+    "pack": "pnpm pack",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",

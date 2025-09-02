@@ -23,6 +23,7 @@
     "test": "pnpm test-setup && pnpm test-jest ; ECODE=$? ; pnpm test-teardown ; exit $ECODE",
     "format": "prettier --write \"src/**/*.ts\"",
     "build": "tsc",
+    "pack": "pnpm pack",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",

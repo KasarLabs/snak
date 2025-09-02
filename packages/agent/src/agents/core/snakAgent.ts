@@ -736,7 +736,8 @@ export class SnakAgent extends BaseAgent {
   public async *executeAsyncGenerator(
     input: string,
     isInterrupted: boolean = false,
-    thread_id?: string
+    thread_id?: string,
+    checkpoint_id?: string
   ): AsyncGenerator<ChunkOutput> {
     let autonomousResponseContent: string | any;
     const originalMode = this.currentMode;
@@ -760,7 +761,7 @@ export class SnakAgent extends BaseAgent {
       this.controller = new AbortController();
       const initialMessages: BaseMessage[] = [new HumanMessage(input)];
 
-      const threadId = thread_id ?? agentJsonConfig?.chatId;
+      const threadId = thread_id ?? agentJsonConfig?.id;
       logger.info(`[SnakAgent] 🔗 Autonomous execution thread ID: ${threadId}`);
       8;
       const threadConfig = {
@@ -770,17 +771,19 @@ export class SnakAgent extends BaseAgent {
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
           agent_config: this.agentConfig,
+          human_in_the_loop: humanInTheLoop,
           executionMode:
             agentJsonConfig.mode === AgentMode.AUTONOMOUS
               ? ExecutionMode.PLANNING
               : ExecutionMode.REACTIVE,
+          checkpoint_id: checkpoint_id ? checkpoint_id : undefined,
         },
       };
       let lastChunk;
       let graphStep: number = 0;
       let retryCount: number = 0;
       let currentAgent: Agent | undefined;
-      let checkpoint_id: string | undefined = undefined;
+      let currentCheckpointId: string | undefined = undefined;
 
       try {
         let command: Command | undefined;
@@ -810,7 +813,7 @@ export class SnakAgent extends BaseAgent {
           graphStep = state.values.currentGraphStep;
           retryCount = state.values.retry;
           currentAgent = state.values.last_agent as Agent;
-          checkpoint_id = state.config.configurable.checkpoint_id;
+          currentCheckpointId = state.config.configurable.checkpoint_id;
           if (
             chunk.metadata?.langgraph_node &&
             isInEnum(PlannerNode, chunk.metadata.langgraph_node)
@@ -831,7 +834,8 @@ export class SnakAgent extends BaseAgent {
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
                   ls_provider: chunk.metadata.ls_provider,
-                  ls_model: chunk.metadata.ls_model,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
                   ls_temperature: chunk.metadata.ls_temperature,
                 },
                 timestamp: new Date().toISOString(),
@@ -854,7 +858,8 @@ export class SnakAgent extends BaseAgent {
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
                   ls_provider: chunk.metadata.ls_provider,
-                  ls_model: chunk.metadata.ls_model,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
                   ls_temperature: chunk.metadata.ls_temperature,
                 },
                 timestamp: new Date().toISOString(),
@@ -879,7 +884,8 @@ export class SnakAgent extends BaseAgent {
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
                   ls_provider: chunk.metadata.ls_provider,
-                  ls_model: chunk.metadata.ls_model,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
                   ls_temperature: chunk.metadata.ls_temperature,
                 },
                 timestamp: new Date().toISOString(),
@@ -903,7 +909,8 @@ export class SnakAgent extends BaseAgent {
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
                   ls_provider: chunk.metadata.ls_provider,
-                  ls_model: chunk.metadata.ls_model,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
                   ls_temperature: chunk.metadata.ls_temperature,
                 },
                 timestamp: new Date().toISOString(),
@@ -926,7 +933,8 @@ export class SnakAgent extends BaseAgent {
                     langgraph_step: chunk.metadata.langgraph_step,
                     langgraph_node: chunk.metadata.langgraph_node,
                     ls_provider: chunk.metadata.ls_provider,
-                    ls_model: chunk.metadata.ls_model,
+                    ls_model_name: chunk.metadata.ls_model_name,
+                    ls_model_type: chunk.metadata.ls_model_type,
                     ls_temperature: chunk.metadata.ls_temperature,
                   },
                   timestamp: new Date().toISOString(),
@@ -952,7 +960,8 @@ export class SnakAgent extends BaseAgent {
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
                   ls_provider: chunk.metadata.ls_provider,
-                  ls_model: chunk.metadata.ls_model,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
                   ls_temperature: chunk.metadata.ls_temperature,
                 },
                 timestamp: new Date().toISOString(),
@@ -974,36 +983,25 @@ export class SnakAgent extends BaseAgent {
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
                   ls_provider: chunk.metadata.ls_provider,
-                  ls_model: chunk.metadata.ls_model,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
                   ls_temperature: chunk.metadata.ls_temperature,
                 },
                 timestamp: new Date().toISOString(),
               };
             }
           }
-          // Write chunk to log file
-          // try {
-          //   await fs.appendFile(
-          //     'chunk.log.txt',
-          //     JSON.stringify(chunk, null, 2) + '\n'
-          //   );
-          // } catch (logError) {
-          //   logger.error(
-          //     `[SnakAgent] ❌ Failed to write chunk to log: ${logError}`
-          //   );
-          // }
         }
         logger.info('[SnakAgent] ✅ Autonomous execution completed');
-        if (!lastChunk || !checkpoint_id) {
+        if (!lastChunk || !currentCheckpointId) {
           throw new Error('No output from autonomous execution');
         }
-        console.log(lastChunk);
         yield {
           event: lastChunk.event,
           run_id: lastChunk.run_id,
           from: GraphNode.END_GRAPH,
           thread_id: threadId,
-          checkpoint_id: checkpoint_id,
+          checkpoint_id: currentCheckpointId,
           metadata: {
             conversation_id: lastChunk.metadata?.conversation_id,
             final: true,
@@ -1012,13 +1010,14 @@ export class SnakAgent extends BaseAgent {
         };
         return;
       } catch (error: any) {
+        ('');
         if (error?.message?.includes('Abort')) {
           logger.info('[SnakAgent] 🛑 Execution aborted by user');
-          if (lastChunk && checkpoint_id) {
+          if (lastChunk && currentCheckpointId) {
             yield {
               event: EventType.ON_GRAPH_ABORTED,
               run_id: lastChunk.run_id,
-              checkpoint_id: checkpoint_id,
+              checkpoint_id: currentCheckpointId,
               thread_id: threadId,
               from: GraphNode.END_GRAPH,
               metadata: {

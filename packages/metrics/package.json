@@ -17,6 +17,7 @@
   "scripts": {
     "test": "jest",
     "build": "tsup",
+    "pack": "pnpm pack",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",

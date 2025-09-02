@@ -83,7 +83,8 @@ export interface ChunkOutputMetadata {
   langgraph_step?: number;
   langgraph_node?: string;
   ls_provider?: string;
-  ls_model?: string;
+  ls_model_type?: string;
+  ls_model_name?: string;
   ls_temperature?: number;
   final?: boolean;
   [key: string]: any;
