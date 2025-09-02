@@ -23,7 +23,6 @@ import { ModelSelector } from '../../../agents/operators/modelSelector.js';
 import {
   GraphConfigurableAnnotation,
   GraphState,
-  PlannerMode,
   ExecutionMode,
 } from '../graph.js';
 import { PlannerNode, DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
@@ -620,18 +619,18 @@ export class PlannerGraph {
       );
 
       return {
-        isPlannerActivate: result.planner_actived
-          ? PlannerMode.ACTIVATED
-          : PlannerMode.DISABLED,
+        executionMode: result.planner_actived
+          ? ExecutionMode.PLANNING
+          : ExecutionMode.REACTIVE,
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error) {
       logger.error(
         `[GET_PLANNER_STATUS] Failed to determine planner status: ${error.message}`
       );
-      // Default to disabled on error to prevent getting stuck in planning loop
+      // Default to reactive on error to prevent getting stuck in planning loop
       return {
-        isPlannerActivate: PlannerMode.DISABLED,
+        executionMode: ExecutionMode.REACTIVE,
         currentGraphStep: state.currentGraphStep + 1,
       };
     }
@@ -662,28 +661,28 @@ export class PlannerGraph {
       );
       return PlannerNode.END_PLANNER_GRAPH;
     }
-    // INTERACTIVE STRART PART
-    console.log('PLANNER_ROUTER - StepToolsInfo', currentMode);
-    console.log(config.configurable?.planner_mode);
-    console.log(config.configurable?.planner_mode === PlannerMode.DISABLED);
+    // INTERACTIVE START PART
+    const executionMode = config.configurable?.executionMode;
+    console.log('PLANNER_ROUTER - ExecutionMode', currentMode);
+    console.log('Current ExecutionMode:', executionMode);
+    
     if (currentMode === AgentMode.INTERACTIVE) {
-      if (
-        (config.configurable?.planner_mode ??
-          DEFAULT_GRAPH_CONFIG.planner_mode) === PlannerMode.DISABLED
-      ) {
+      if (executionMode === ExecutionMode.REACTIVE) {
         logger.debug(
-          `[PLANNING_ROUTER] PlannerMode is disabled. routing to create_initial_history`
+          `[PLANNING_ROUTER] ExecutionMode is REACTIVE. routing to create_initial_history`
         );
         return PlannerNode.CREATE_INITIAL_HISTORY;
       }
-      if (
-        (config.configurable?.planner_mode ??
-          DEFAULT_GRAPH_CONFIG.planner_mode) === PlannerMode.AUTOMATIC
-      ) {
+      if (executionMode === ExecutionMode.AUTOMATIC) {
         logger.debug(
-          '[PLANNING_ROUTER] PlannerMode is automatic. routing to get_planner_status'
+          '[PLANNING_ROUTER] ExecutionMode is AUTOMATIC. routing to get_planner_status'
         );
         return PlannerNode.GET_PLANNER_STATUS;
+      }
+      // Default to PLANNING for INTERACTIVE mode if not specified
+      if (executionMode === ExecutionMode.PLANNING) {
+        logger.debug(`[PLANNING_ROUTER]: Routing to create_initial_plan`);
+        return PlannerNode.CREATE_INITIAL_PLAN;
       }
     }
 

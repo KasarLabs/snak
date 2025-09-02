@@ -63,7 +63,6 @@ import {
 import {
   ExecutorNode,
   DEFAULT_GRAPH_CONFIG,
-  PlannerMode,
 } from '../config/default-config.js';
 import {
   TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
@@ -107,11 +106,13 @@ export class AgentExecutorGraph {
   ): ChatPromptTemplate {
     let systemPrompt;
     let contextPrompt;
+    
+    const executionMode = config.configurable?.executionMode;
 
-    if (state.executionMode === ExecutionMode.REACTIVE) {
+    if (executionMode === ExecutionMode.REACTIVE) {
       systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
       contextPrompt = STEP_EXECUTOR_CONTEXT_PROMPT;
-    } else if (state.executionMode === ExecutionMode.PLANNING) {
+    } else if (executionMode === ExecutionMode.PLANNING) {
       const currentStep = getCurrentPlanStep(
         state.plans_or_histories,
         state.currentStepIndex
@@ -136,7 +137,7 @@ export class AgentExecutorGraph {
         contextPrompt = RETRY_STEP_EXECUTOR_CONTEXT_PROMPT;
       }
     } else {
-      throw new Error(`Unknown execution mode: ${state.executionMode}`);
+      throw new Error(`Unknown execution mode: ${executionMode}`);
     }
 
     const prompt = ChatPromptTemplate.fromMessages([
@@ -228,8 +229,9 @@ export class AgentExecutorGraph {
     }
 
     // Initialize based on execution mode
+    const executionMode = config.configurable?.executionMode;
     if (state.plans_or_histories.length === 0) {
-      if (state.executionMode === ExecutionMode.REACTIVE) {
+      if (executionMode === ExecutionMode.REACTIVE) {
         state.plans_or_histories.push({
           type: 'history',
           id: uuidv4(),
@@ -278,7 +280,7 @@ export class AgentExecutorGraph {
         timeoutPromise,
       ])) as AIMessageChunk;
       if (result.tool_calls?.length) {
-        if (state.executionMode === ExecutionMode.REACTIVE) {
+        if (executionMode === ExecutionMode.REACTIVE) {
           const currentHistory = getCurrentHistory(state.plans_or_histories);
           if (currentHistory && currentHistory.items.length === 0) {
             currentHistory.items.push({
@@ -309,7 +311,7 @@ export class AgentExecutorGraph {
 
       let updatedPlanOrHistory: ParsedPlan | History;
 
-      if (state.executionMode === ExecutionMode.REACTIVE) {
+      if (executionMode === ExecutionMode.REACTIVE) {
         const currentHistory = getCurrentHistory(state.plans_or_histories);
         if (currentHistory) {
           const historyItem: HistoryItem = {
@@ -325,7 +327,7 @@ export class AgentExecutorGraph {
         } else {
           throw new Error('No history available for message update');
         }
-      } else if (state.executionMode === ExecutionMode.PLANNING) {
+      } else if (executionMode === ExecutionMode.PLANNING) {
         const currentPlan = getCurrentPlan(state.plans_or_histories);
         const currentStep = getCurrentPlanStep(
           state.plans_or_histories,
@@ -341,7 +343,7 @@ export class AgentExecutorGraph {
           throw new Error('No plan step available for message update');
         }
       } else {
-        throw new Error(`Unknown execution mode: ${state.executionMode}`);
+        throw new Error(`Unknown execution mode: ${executionMode}`);
       }
 
       currentPlanorHistory = updatedPlanOrHistory;
@@ -607,9 +609,10 @@ export class AgentExecutorGraph {
       }
       const estimatedTokens = estimateTokens(toolResultContent);
 
+      const executionMode = config.configurable?.executionMode;
       let updatedPlanOrHistory: ParsedPlan | History;
 
-      if (state.executionMode === ExecutionMode.REACTIVE) {
+      if (executionMode === ExecutionMode.REACTIVE) {
         const currentHistory = getCurrentHistory(state.plans_or_histories);
         if (currentHistory && currentHistory.items.length > 0) {
           const tools = formatToolsForHistory(truncatedResult.messages);
@@ -618,7 +621,7 @@ export class AgentExecutorGraph {
         } else {
           throw new Error('No history available for tool results');
         }
-      } else if (state.executionMode === ExecutionMode.PLANNING) {
+      } else if (executionMode === ExecutionMode.PLANNING) {
         const currentPlan = getCurrentPlan(state.plans_or_histories);
         const currentStep = getCurrentPlanStep(
           state.plans_or_histories,
@@ -635,7 +638,7 @@ export class AgentExecutorGraph {
           throw new Error('No plan step available for tool results');
         }
       } else {
-        throw new Error(`Unknown execution mode: ${state.executionMode}`);
+        throw new Error(`Unknown execution mode: ${executionMode}`);
       }
       logger.debug(
         `[Tools] Token tracking: ${estimatedTokens} tokens for tool result`

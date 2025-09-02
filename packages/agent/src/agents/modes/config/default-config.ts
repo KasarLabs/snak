@@ -1,11 +1,6 @@
 import { SystemMessage } from '@langchain/core/messages';
 import { AgentConfig, AgentMode } from '@snakagent/core';
 
-export enum PlannerMode {
-  ACTIVATED = 'activated',
-  DISABLED = 'disabled',
-  AUTOMATIC = 'automatic',
-}
 export interface GraphConfig {
   maxGraphSteps: number;
   shortTermMemory: number;
@@ -14,7 +9,6 @@ export interface GraphConfig {
   toolTimeout: number;
   humanInTheLoop: number;
   planValidationEnabled: boolean;
-  planner_mode: PlannerMode;
   agent_config: AgentConfig;
 }
 
@@ -68,7 +62,6 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   toolTimeout: 30000, // 30 seconds
   humanInTheLoop: 0,
   agent_config: DEFAULT_AGENT_CONFIG,
-  planner_mode: PlannerMode.DISABLED,
   planValidationEnabled: true,
 };
 

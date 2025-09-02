@@ -14,7 +14,7 @@ import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
-import { createGraph, PlannerMode } from '../modes/graph.js';
+import { createGraph, ExecutionMode } from '../modes/graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
 import { FormatChunkIteration, ToolsChunk } from './utils.js';
@@ -683,7 +683,10 @@ export class SnakAgent extends BaseAgent {
           memory_size: memorySize,
           agent_config: this.agentConfig,
           conversation_id: conversation_id ?? uuidv4(), // If conversation_id is not provided, generate a new one
-          planner_mode: PlannerMode.ACTIVATED,
+          executionMode:
+            agentJsonConfig.mode === AgentMode.AUTONOMOUS
+              ? ExecutionMode.PLANNING
+              : ExecutionMode.REACTIVE,
         },
       };
       let lastChunk;

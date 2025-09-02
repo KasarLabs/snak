@@ -15,7 +15,7 @@ import {
 import {
   GraphConfigurableAnnotation,
   GraphState,
-  PlannerMode,
+  ExecutionMode,
 } from '../../agents/modes/graph.js';
 import { MemoryGraph } from '../../agents/modes/sub-graph/memory.js';
 import {
@@ -259,11 +259,8 @@ export class MemoryAgent extends BaseAgent {
       if (!agentConfig) {
         throw new Error(`[MemoryAgent] AgentConfig is undefined.`);
       }
-      console.log(config.configurable?.planner_mode);
-      if (
-        (config.configurable?.planner_mode ??
-          DEFAULT_GRAPH_CONFIG.planner_mode) === PlannerMode.ACTIVATED
-      ) {
+      const executionMode = config.configurable?.executionMode;
+      if (executionMode === ExecutionMode.PLANNING) {
         const plan = checkAndReturnObjectFromPlansOrHistories(
           state.plans_or_histories
         );

@@ -305,11 +305,12 @@ export class MemoryGraph {
           memories: state.memories,
         };
       }
+      const executionMode = config.configurable?.executionMode;
       let item: StepInfo | HistoryItem | null = null;
       
-      if (state.executionMode === ExecutionMode.PLANNING) {
+      if (executionMode === ExecutionMode.PLANNING) {
         item = getCurrentPlanStep(state.plans_or_histories, state.currentStepIndex - 1);
-      } else if (state.executionMode === ExecutionMode.REACTIVE) {
+      } else if (executionMode === ExecutionMode.REACTIVE) {
         item = getCurrentHistoryItem(state.plans_or_histories);
       }
       

@@ -33,12 +33,6 @@ import { PlannerGraph } from './sub-graph/planner_graph.js';
 import { AgentExecutorGraph } from './sub-graph/executor_graph.js';
 import { v4 as uuidv4 } from 'uuid';
 
-export enum PlannerMode {
-  ACTIVATED = 'activated',
-  DISABLED = 'disabled',
-  AUTOMATIC = 'automatic',
-}
-
 export enum ExecutionMode {
   PLANNING = 'PLANNING',
   REACTIVE = 'REACTIVE',
@@ -60,10 +54,6 @@ export const GraphState = Annotation.Root({
   rag: Annotation<string>({
     reducer: (x, y) => y,
     default: () => '',
-  }),
-  executionMode: Annotation<ExecutionMode>({
-    reducer: (x, y) => y,
-    default: () => ExecutionMode.PLANNING,
   }),
   plans_or_histories: Annotation<Array<ParsedPlan | History>>({
     reducer: (
@@ -104,7 +94,12 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => ({ skipValidation: false, goto: '' }),
   }),
-  error: Annotation<{ hasError: boolean; message: string; source: string; timestamp: number } | null>({
+  error: Annotation<{
+    hasError: boolean;
+    message: string;
+    source: string;
+    timestamp: number;
+  } | null>({
     reducer: (x, y) => y,
     default: () => null,
   }),
@@ -138,6 +133,10 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   conversation_id: Annotation<string>({
     reducer: (x, y) => y,
     default: () => uuidv4(),
+  }),
+  executionMode: Annotation<ExecutionMode>({
+    reducer: (x, y) => y,
+    default: () => ExecutionMode.REACTIVE,
   }),
 });
 export class Graph {
@@ -209,13 +208,15 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
     logger.debug(`[Orchestration Router] Last agent: ${state.last_agent}`);
-    
+
     // Check for errors first
     if (state.error?.hasError) {
-      logger.error(`[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`);
+      logger.error(
+        `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
+      );
       return GraphNode.END_GRAPH;
     }
-    
+
     const l_msg = state.messages[state.messages.length - 1];
     if (state.skipValidation.skipValidation) {
       const validTargets = Object.values(GraphNode);
@@ -247,9 +248,10 @@ export class Graph {
     }
 
     if (state.last_agent === Agent.MEMORY_MANAGER) {
+      const executionMode = config.configurable?.executionMode;
       if (
         l_msg.additional_kwargs.final === true &&
-        state.executionMode === ExecutionMode.PLANNING
+        executionMode === ExecutionMode.PLANNING
       ) {
         logger.debug(
           `[Orchestration Router] Final execution reached in PLANNING mode, routing to planner`
@@ -257,7 +259,7 @@ export class Graph {
         return GraphNode.PLANNING_ORCHESTRATOR;
       } else if (
         l_msg.additional_kwargs.final === true &&
-        state.executionMode === ExecutionMode.REACTIVE
+        executionMode === ExecutionMode.REACTIVE
       ) {
         logger.debug(
           `[Orchestration Router] Final execution reached in REACTIVE mode, routing to end`
@@ -282,18 +284,15 @@ export class Graph {
           '[Start Orchestration Router] AgentConfig is undefined.'
         );
       }
-      console.log('AGENT CONFIG', agentConfig.mode);
-      console.log(DEFAULT_GRAPH_CONFIG.planner_mode);
       const currentMode: AgentMode = agentConfig.mode;
+      const executionMode = config.configurable?.executionMode;
+
       switch (currentMode) {
         case AgentMode.INTERACTIVE:
-          if (
-            (config.configurable?.planner_mode ??
-              DEFAULT_GRAPH_CONFIG.planner_mode) != PlannerMode.DISABLED
-          ) {
+          if (executionMode !== ExecutionMode.REACTIVE) {
             return GraphNode.PLANNING_ORCHESTRATOR;
           } else {
-            return GraphNode.PLANNING_ORCHESTRATOR;
+            return GraphNode.AGENT_EXECUTOR;
           }
         case AgentMode.AUTONOMOUS:
           return GraphNode.PLANNING_ORCHESTRATOR;

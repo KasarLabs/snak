@@ -396,3 +396,57 @@ Establish a framework for continuous tracking of automobile import market trends
 ### T1: Daily Log Implementation
 - **Mechanism**: Implement a daily log mechanism in Google Docs to capture significant market changes, regulations updates, and competitive moves affecting the automotive import landscape.
 - **Structure**: A chronological log maintained in Google Docs that documents key events and trends affecting automotive imports in Portugal.
+# Documentation of Car Import Trends and Findings
+
+## Executive Summary
+This report provides a comprehensive analysis of car importation patterns in Portugal, focusing on imports from Germany and Spain, with insights on demand, pricing, and industry regulations.
+
+### Key Findings:
+1. **Car Imports Overview**
+   - Total imports from Germany: **$2.68 billion** (2024)
+   - Total imports from Spain: **$2.09 billion** (2024)
+   
+2. **Historical Growth Rates:**
+   - From Germany (2018-2022): **7.5% CAGR**
+   - From Spain (2018-2022): **6.3% CAGR**
+ 
+3. **Average Prices of Imported Vehicles (2024)**:
+   - From Germany:
+     - Compact cars: **$24,000**
+     - SUVs: **$30,000**
+     - Electric vehicles: **$39,000**
+   - From Spain:
+     - Compact cars: **$20,500**
+     - SUVs: **$25,500**
+     - Electric vehicles: **$35,500**
+
+4. **Consumer Preferences**: More than 65% of consumers prefer compact cars, with a growing interest in electric vehicles which accounted for **20%** of all purchases.
+
+5. **Projected Demand Growth**: Demand for imported cars is expected to increase by **8%** in the upcoming year due to positive economic indicators and consumer trends.
+## Trade Insights
+
+### Trade Dynamics between Portugal and Spain
+- Spain exported vehicles valued at **$2.09 billion** to Portugal in 2023, highlighting the importance of the automotive sector in bilateral trade.
+
+#### Trade Statistics for May 2025
+- Spain to Portugal:
+  - Total Exports: **€2.84 billion**
+  - Key Products:
+    - Cars: **€111 million**
+
+- Portugal to Spain:
+  - Total Exports: **€1.35 billion**
+  - Key Products:
+    - Motor Vehicles; parts & accessories: **€85 million**
+
+### Trade Insights between Portugal and Germany
+- Germany remains a crucial partner in automobile imports for Portugal, demonstrating a strong market for vehicles and components. The analysis shows that Germany's car exports to Portugal reached **$1.37 billion**.
+
+### Proposed Pricing Strategies
+- Implement tiered pricing strategies to target various consumer segments.
+- Promote electric vehicles through market-specific campaigns to align with current trends.
+
+## Recommendations
+1. **Adjust Pricing Strategies**: Align prices based on consumer perceptions of vehicle value.
+2. **Focus on Electric Vehicle Imports**: Meeting the increasing consumer demand for sustainable transport options.
+3. **Engage in Consumer Research**: Ongoing analysis of shifting preferences to inform marketing and import strategies.
