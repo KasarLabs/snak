@@ -16,6 +16,8 @@ export type {
   StarknetToolRegistry,
 } from './tools/tools.js';
 
+export { EventType } from './agents/core/snakAgent.js';
+export type { ChunkOutput, ChunkOutputMetadata } from './agents/core/utils.js';
 export { createAllowedTools, registerTools } from './tools/tools.js';
 
 export type {

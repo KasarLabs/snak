@@ -18,6 +18,7 @@ import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
 import { AgentConfigSQL, MessageSQL } from '../interfaces/sql_interfaces.js';
+import { ChunkOutput, EventType } from '@snakagent/agents';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -106,25 +107,25 @@ export class AgentService implements IAgentService {
   async *handleUserRequestWebsocket(
     agent: any,
     userRequest: MessageRequest
-  ): AsyncGenerator<any> {
+  ): AsyncGenerator<ChunkOutput> {
     this.logger.debug({
       message: 'Processing agent request',
       request: userRequest.user_request,
     });
     try {
       const q = new Postgres.Query(
-        `SELECT status, id 
+        `SELECT event, id 
      FROM message 
      WHERE agent_id = $1
      ORDER BY created_at DESC
      LIMIT 1;`,
         [userRequest.agent_id]
       );
-      const status = await Postgres.query<{ status: string; id: string }>(q);
+      const result = await Postgres.query<{ event: EventType; id: string }>(q);
       if (
-        status &&
-        status.length != 0 &&
-        status[0].status === 'waiting_for_human_input'
+        result &&
+        result.length != 0 &&
+        result[0].event === EventType.ON_GRAPH_INTERRUPTED
       ) {
         for await (const chunk of agent.execute(
           userRequest.user_request,
@@ -133,14 +134,6 @@ export class AgentService implements IAgentService {
           if (chunk.final === true) {
             this.logger.debug('SupervisorService: Execution completed');
             yield chunk;
-
-            const q = new Postgres.Query(
-              `UPDATE message 
-              SET status = $1 
-              WHERE id = $2;`,
-              ['success', status[0].id]
-            );
-            await Postgres.query(q);
             return;
           }
           yield chunk;
@@ -212,17 +205,16 @@ export class AgentService implements IAgentService {
 
   async getMessageFromAgentId(
     userRequest: MessageFromAgentIdDTO
-  ): Promise<MessageSQL[]> {
+  ): Promise<ChunkOutput[]> {
     try {
       const limit = userRequest.limit_message || 10;
+      console.log("userRequest:", userRequest);
       const q = new Postgres.Query(
-        `SELECT * FROM message WHERE agent_id = $1
-        ORDER BY created_at DESC
-        LIMIT $2`,
-        [userRequest.agent_id, limit]
+        `SELECT * FROM get_messages_optimized($1::UUID,$2,$3,$4,$5)`,
+        [userRequest.agent_id, userRequest.thread_id, false, limit, 0]
       );
-      const res = await Postgres.query<MessageSQL>(q);
-      // this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
+      const res = await Postgres.query<ChunkOutput>(q);
+      this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
       this.logger.error(error);

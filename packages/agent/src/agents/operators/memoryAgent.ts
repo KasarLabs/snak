@@ -300,7 +300,7 @@ export class MemoryAgent extends BaseAgent {
       query: string,
       config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
     ): Promise<memory.Similarity[]> => {
-      const runId = config?.configurable?.conversation_id as string;
+      const runId = config?.configurable?.thread_id as string;
       const userId = 'default_user';
       const embedding = await this.embeddings.embedQuery(query);
       const memResults = await memory.similar_memory(

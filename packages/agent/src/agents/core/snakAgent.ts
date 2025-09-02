@@ -10,24 +10,328 @@ import {
   CustomHuggingFaceEmbeddings,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
-import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  AIMessage,
+  AIMessageChunk,
+} from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../tools/types/database.js';
 import { AgentMode, AGENT_MODES } from '../../config/agentConfig.js';
 import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
 import { createGraph, ExecutionMode } from '../modes/graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from '@langchain/langgraph';
-import { FormatChunkIteration, ToolsChunk } from './utils.js';
+import {
+  ChunkOutput,
+  FormatChunkIteration,
+  isInEnum,
+  ToolsChunk,
+} from './utils.js';
 import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { Agent, AgentReturn } from '../../agents/modes/types/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
+import { IterableReadableStream } from '@langchain/core/utils/stream';
+import { StreamEvent } from '@langchain/core/tracers/log_stream';
+import { ChatPromptValue } from '@langchain/core/prompt_values';
+import {
+  ExecutorNode,
+  GraphNode,
+  MemoryNode,
+  PlannerNode,
+} from '../../agents/modes/config/default-config.js';
+
+export interface Output<EventType> {
+  event_name: EventType;
+  timestamps: string;
+}
+
+export interface BaseEvent {
+  event: EventType;
+  name: string;
+  agent_id: string;
+  run_id: string;
+  tags?: string[];
+  metadata?: {
+    langgraph_step?: number;
+    langgraph_node?: string;
+    langgraph_triggers?: string[];
+    langgraph_task_idx?: number;
+    checkpoint_id?: string;
+    checkpoint_ns?: string;
+    [key: string]: any;
+  };
+  /** IDs des événements parents */
+  parent_ids?: string[];
+}
+
+export interface ChatModelStartEvent extends BaseEvent {
+  event: EventType.ON_CHAT_MODEL_START;
+  data: {
+    input: {
+      messages: BaseMessage[];
+    };
+  };
+}
+
+export interface ChatModelStreamEvent extends BaseEvent {
+  event: EventType.ON_CHAT_MODEL_STREAM;
+  data: {
+    chunk: AIMessageChunk;
+  };
+}
+
+export interface ChatModelEndEvent extends BaseEvent {
+  event: EventType.ON_CHAT_MODEL_END;
+  data: {
+    input: {
+      messages: BaseMessage[];
+    };
+    output: AIMessageChunk;
+  };
+}
+
+/**
+ * Événements LLM
+ */
+export interface LLMStartEvent extends BaseEvent {
+  event: EventType.ON_LLM_START;
+  data: {
+    input: string;
+  };
+}
+
+export interface LLMStreamEvent extends BaseEvent {
+  event: EventType.ON_LLM_STREAM;
+  data: {
+    chunk: string;
+  };
+}
+
+export interface LLMEndEvent extends BaseEvent {
+  event: EventType.ON_LLM_END;
+  data: {
+    output: string;
+  };
+}
+
+export interface ChainStartEvent extends BaseEvent {
+  event: EventType.ON_CHAIN_START;
+  data: {
+    input?: any;
+  };
+}
+
+export interface ChainStreamEvent extends BaseEvent {
+  event: EventType.ON_CHAIN_STREAM;
+  data: {
+    chunk: any;
+  };
+}
+
+export interface ChainEndEvent extends BaseEvent {
+  event: EventType.ON_CHAIN_END;
+  data: {
+    input?: any;
+    output: any;
+  };
+}
+
+/**
+ * Événements Tool
+ */
+export interface ToolStartEvent extends BaseEvent {
+  event: EventType.ON_TOOL_START;
+  data: {
+    input: Record<string, any>;
+  };
+}
+
+export interface ToolStreamEvent extends BaseEvent {
+  event: EventType.ON_TOOL_STREAM;
+  data: {
+    chunk: any;
+  };
+}
+
+export interface ToolEndEvent extends BaseEvent {
+  event: EventType.ON_TOOL_END;
+  data: {
+    input: Record<string, any>;
+    output: any;
+  };
+}
+
+export interface ToolErrorEvent extends BaseEvent {
+  event: EventType.ON_TOOL_ERROR;
+  data: {
+    input: Record<string, any>;
+    error: Error | string;
+  };
+}
+
+/**
+ * Événements Retriever
+ */
+export interface RetrieverStartEvent extends BaseEvent {
+  event: EventType.ON_RETRIEVER_START;
+  data: {
+    input: {
+      query: string;
+    };
+  };
+}
+
+export interface RetrieverEndEvent extends BaseEvent {
+  event: EventType.ON_RETRIEVER_END;
+  data: {
+    input: {
+      query: string;
+    };
+    output: Document[];
+  };
+}
+
+export interface RetrieverErrorEvent extends BaseEvent {
+  event: EventType.ON_RETRIEVER_ERROR;
+  data: {
+    input: {
+      query: string;
+    };
+    error: Error | string;
+  };
+}
+
+/**
+ * Événements Prompt
+ */
+export interface PromptStartEvent extends BaseEvent {
+  event: EventType.ON_PROMPT_START;
+  data: {
+    input: Record<string, any>;
+  };
+}
+
+export interface PromptEndEvent extends BaseEvent {
+  event: EventType.ON_PROMPT_END;
+  data: {
+    input: Record<string, any>;
+    output: ChatPromptValue;
+  };
+}
+
+/**
+ * Événement personnalisé (custom)
+ */
+export interface CustomEvent extends BaseEvent {
+  event: EventType.ON_CUSTOM_EVENT;
+  data: any;
+}
+
+export type LangGraphEvent =
+  | ChatModelStartEvent
+  | ChatModelStreamEvent
+  | ChatModelEndEvent
+  | LLMStartEvent
+  | LLMStreamEvent
+  | LLMEndEvent
+  | ChainStartEvent
+  | ChainStreamEvent
+  | ChainEndEvent
+  | ToolStartEvent
+  | ToolStreamEvent
+  | ToolEndEvent
+  | ToolErrorEvent
+  | RetrieverStartEvent
+  | RetrieverEndEvent
+  | RetrieverErrorEvent
+  | PromptStartEvent
+  | PromptEndEvent
+  | CustomEvent;
+
+export type EventTypeMap = {
+  [EventType.ON_CHAT_MODEL_START]: ChatModelStartEvent;
+  [EventType.ON_CHAT_MODEL_STREAM]: ChatModelStreamEvent;
+  [EventType.ON_CHAT_MODEL_END]: ChatModelEndEvent;
+  [EventType.ON_LLM_START]: LLMStartEvent;
+  [EventType.ON_LLM_STREAM]: LLMStreamEvent;
+  [EventType.ON_LLM_END]: LLMEndEvent;
+  [EventType.ON_CHAIN_START]: ChainStartEvent;
+  [EventType.ON_CHAIN_STREAM]: ChainStreamEvent;
+  [EventType.ON_CHAIN_END]: ChainEndEvent;
+  [EventType.ON_TOOL_START]: ToolStartEvent;
+  [EventType.ON_TOOL_STREAM]: ToolStreamEvent;
+  [EventType.ON_TOOL_END]: ToolEndEvent;
+  [EventType.ON_TOOL_ERROR]: ToolErrorEvent;
+  [EventType.ON_RETRIEVER_START]: RetrieverStartEvent;
+  [EventType.ON_RETRIEVER_END]: RetrieverEndEvent;
+  [EventType.ON_RETRIEVER_ERROR]: RetrieverErrorEvent;
+  [EventType.ON_PROMPT_START]: PromptStartEvent;
+  [EventType.ON_PROMPT_END]: PromptEndEvent;
+  [EventType.ON_CUSTOM_EVENT]: CustomEvent;
+};
+
+export function isEventType<T extends LangGraphEvent>(
+  event: LangGraphEvent,
+  eventType: EventType
+): event is T {
+  return event.event === eventType;
+}
+
+/**
+ * Récupère le type d'un événement LangGraph
+ * @param event - L'événement LangGraph
+ * @returns Le type de l'événement (EventType)
+ */
+export function getEventType(event: LangGraphEvent): EventType {
+  return event.event as EventType;
+}
 
 /*
  * Configuration interface for SnakAgent initialization
  */
+
+export enum EventType {
+  // Chat Model Events
+  ON_CHAT_MODEL_START = 'on_chat_model_start',
+  ON_CHAT_MODEL_STREAM = 'on_chat_model_stream',
+  ON_CHAT_MODEL_END = 'on_chat_model_end',
+
+  // LLM Events
+  ON_LLM_START = 'on_llm_start',
+  ON_LLM_STREAM = 'on_llm_stream',
+  ON_LLM_END = 'on_llm_end',
+
+  // Chain Events
+  ON_CHAIN_START = 'on_chain_start',
+  ON_CHAIN_STREAM = 'on_chain_stream',
+  ON_CHAIN_END = 'on_chain_end',
+
+  // Tool Events
+  ON_TOOL_START = 'on_tool_start',
+  ON_TOOL_STREAM = 'on_tool_stream',
+  ON_TOOL_END = 'on_tool_end',
+  ON_TOOL_ERROR = 'on_tool_error',
+
+  // Retriever Events
+  ON_RETRIEVER_START = 'on_retriever_start',
+  ON_RETRIEVER_END = 'on_retriever_end',
+  ON_RETRIEVER_ERROR = 'on_retriever_error',
+
+  // Prompt Events
+  ON_PROMPT_START = 'on_prompt_start',
+  ON_PROMPT_END = 'on_prompt_end',
+
+  // Custom Events
+  ON_CUSTOM_EVENT = 'on_custom_event',
+  ON_GRAPH_ABORTED = 'on_graph_aborted',
+  ON_GRAPH_INTERRUPTED = 'on_graph_interrupted',
+}
+
 export interface StreamChunk {
   chunk: any;
   graph_step: number;
@@ -79,17 +383,8 @@ export interface FormattedOnChatModelEnd {
   };
 }
 
-export enum AgentIterationEvent {
-  ON_CHAT_MODEL_STREAM = 'on_chat_model_stream',
-  ON_CHAT_MODEL_START = 'on_chat_model_start',
-  ON_CHAT_MODEL_END = 'on_chat_model_end',
-  ON_CHAIN_START = 'on_chain_start',
-  ON_CHAIN_END = 'on_chain_end',
-  ON_CHAIN_STREAM = 'on_chain_stream',
-}
-
 export interface IterationResponse {
-  event: AgentIterationEvent;
+  event: EventType;
   kwargs:
     | FormattedOnChatModelEnd
     | FormattedOnChatModelStart
@@ -364,142 +659,6 @@ export class SnakAgent extends BaseAgent {
     return this.controller;
   }
 
-  public async *executeAsyncGenerator(
-    input: string,
-    config?: Record<string, any>
-  ): AsyncGenerator<StreamChunk> {
-    try {
-      if (!this.agentReactExecutor) {
-        throw new Error('Agent executor is not initialized');
-      }
-
-      await this.captureQuestion(input);
-
-      const graphState = {
-        messages: [new HumanMessage(input)],
-      };
-
-      const runnableConfig: Record<string, any> = {};
-      const threadId =
-        config?.threadId || config?.metadata?.threadId || 'default';
-
-      if (threadId) {
-        runnableConfig.configurable = { thread_id: threadId };
-      }
-
-      if (!runnableConfig.configurable) runnableConfig.configurable = {};
-      runnableConfig.configurable.userId =
-        this.agentConfig.chatId || 'default_chat';
-      runnableConfig.configurable.agentId = this.agentConfig.id;
-      runnableConfig.configurable.memorySize =
-        this.agentConfig.memory?.memorySize;
-
-      runnableConfig.version = 'v2';
-
-      if (config?.recursionLimit) {
-        runnableConfig.recursionLimit = config.recursionLimit;
-      }
-
-      if (config?.originalUserQuery) {
-        if (!runnableConfig.configurable) runnableConfig.configurable = {};
-        runnableConfig.configurable.originalUserQuery =
-          config.originalUserQuery;
-      }
-
-      this.controller = new AbortController();
-      runnableConfig.signal = this.controller.signal;
-
-      logger.debug(
-        `[SnakAgent] 🔄 Executing with thread ID: ${threadId}, message count: ${graphState.messages.length}`
-      );
-
-      const app = this.agentReactExecutor.app;
-      let lastChunk;
-      const shortTermMemory = this.agentConfig.memory.shortTermMemorySize || 5;
-      const memorySize = this.agentConfig.memory?.memorySize || 20;
-
-      const threadConfig = {
-        configurable: {
-          thread_id: threadId,
-          short_term_memory: shortTermMemory,
-          memory_size: memorySize,
-          agent_config: this.agentConfig,
-          user_request: input,
-          conversation_id: uuidv4(),
-        },
-      };
-      const executionConfig = {
-        ...threadConfig,
-        signal: this.controller.signal,
-        recursionLimit: 500,
-        version: 'v2',
-      };
-
-      let graphStep: number = 0;
-      let retryCount: number = 0;
-      let currentAgent: Agent | undefined;
-
-      for await (const chunk of await app.streamEvents(
-        graphState,
-        executionConfig
-      )) {
-        lastChunk = chunk;
-        const state = await app.getState(executionConfig);
-        let isNewNode: boolean = false;
-        if (currentAgent && currentAgent != state.last_agent) {
-          isNewNode = true;
-        }
-        graphStep = state.values.currentGraphStep;
-        retryCount = state.values.retry;
-        currentAgent = state.values.last_agent as Agent;
-
-        if (
-          chunk.event === 'on_chat_model_start' ||
-          chunk.event === 'on_chat_model_stream' ||
-          chunk.event === 'on_chat_model_end'
-        ) {
-          const formatted = FormatChunkIteration(chunk);
-          if (!formatted) {
-            throw new Error(`Failed to format chunk: ${JSON.stringify(chunk)}`);
-          }
-          const formattedChunk: IterationResponse = {
-            event: chunk.event as AgentIterationEvent,
-            kwargs: formatted,
-          };
-          const resultChunk = {
-            chunk: formattedChunk,
-            graph_step: graphStep,
-            langgraph_step: chunk.metadata.langgraph_step,
-            from: currentAgent,
-            final: false,
-            retry_count: retryCount,
-          };
-          yield resultChunk;
-        }
-      }
-
-      yield {
-        chunk: {
-          event: lastChunk.event,
-          kwargs: {
-            iteration: lastChunk,
-          },
-        },
-        graph_step: graphStep,
-        langgraph_step: lastChunk.metadata.langgraph_step,
-        from: currentAgent,
-        retry_count: retryCount,
-        final: true,
-      };
-
-      logger.info('[SnakAgent] 🏁 Execution completed');
-      return;
-    } catch (error) {
-      logger.error(`[SnakAgent] ❌ Execution failed: ${error}`);
-      throw error;
-    }
-  }
-
   /**
    * Execute the agent with the given input
    * @param input - The input message or string
@@ -510,7 +669,7 @@ export class SnakAgent extends BaseAgent {
     input: string,
     isInterrupted: boolean = false,
     config?: Record<string, any>
-  ): AsyncGenerator<StreamChunk> {
+  ): AsyncGenerator<ChunkOutput> {
     try {
       logger.debug(
         `[SnakAgent] 🚀 Execute called - mode: ${this.currentMode}, interrupted: ${isInterrupted}`
@@ -519,27 +678,16 @@ export class SnakAgent extends BaseAgent {
       if (!this.agentReactExecutor) {
         throw new Error('Agent executor is not initialized');
       }
-
-      if (this.currentMode == AGENT_MODES[AgentMode.INTERACTIVE]) {
-        for await (const chunk of this.executeAutonomousAsyncGenerator(
-          input,
-          isInterrupted
-        )) {
-          if (chunk.final) {
-            yield chunk;
-            return;
-          }
-          yield chunk;
-        }
-      } else if (
+      if (
         this.currentMode == AGENT_MODES[AgentMode.AUTONOMOUS] ||
-        this.currentMode == AGENT_MODES[AgentMode.HYBRID]
+        this.currentMode == AGENT_MODES[AgentMode.HYBRID] ||
+        this.currentMode == AGENT_MODES[AgentMode.INTERACTIVE]
       ) {
-        for await (const chunk of this.executeAutonomousAsyncGenerator(
+        for await (const chunk of this.executeAsyncGenerator(
           input,
           isInterrupted
         )) {
-          if (chunk.final) {
+          if (chunk.metadata.final) {
             yield chunk;
             return;
           }
@@ -560,65 +708,6 @@ export class SnakAgent extends BaseAgent {
       logger.info('[SnakAgent] ⏹️ Execution stopped');
     } else {
       logger.warn('[SnakAgent] ⚠️ No controller found to stop execution');
-    }
-  }
-
-  /**
-   * Capture the latest user question for pairing with the next assistant answer
-   * @param content - User question content
-   */
-  private async captureQuestion(content: string) {
-    try {
-      const limit = this.agentConfig.memory?.shortTermMemorySize ?? 15;
-      if (
-        limit <= 0 ||
-        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE]
-      ) {
-        return;
-      }
-
-      const embedding = await this.iterationEmbeddings.embedQuery(content);
-      this.pendingIteration = { question: content, embedding };
-    } catch (err) {
-      logger.error(
-        `[SnakAgent] ❌ Failed to capture question iteration: ${err}`
-      );
-    }
-  }
-
-  /**
-   * Save a question/answer pair and enforce FIFO limit
-   * @param answer - Assistant answer content
-   */
-  private async saveIteration(answer: string) {
-    try {
-      const limit = this.agentConfig.memory?.shortTermMemorySize ?? 15;
-      if (
-        limit <= 0 ||
-        this.currentMode !== AGENT_MODES[AgentMode.INTERACTIVE] ||
-        !this.pendingIteration
-      ) {
-        return;
-      }
-
-      const answerEmbedding = await this.iterationEmbeddings.embedQuery(answer);
-
-      await iterations.insert_iteration({
-        agent_id: this.agentConfig.id,
-        question: this.pendingIteration.question,
-        question_embedding: this.pendingIteration.embedding,
-        answer,
-        answer_embedding: answerEmbedding,
-      });
-
-      this.pendingIteration = undefined;
-
-      const count = await iterations.count_iterations(this.agentConfig.id);
-      if (count > limit) {
-        await iterations.delete_oldest_iteration(this.agentConfig.id);
-      }
-    } catch (err) {
-      logger.error(`[SnakAgent] ❌ Failed to save iteration pair: ${err}`);
     }
   }
 
@@ -644,12 +733,11 @@ export class SnakAgent extends BaseAgent {
    * This mode allows the agent to operate continuously based on an initial goal or prompt
    * @returns Promise resolving to the result of the autonomous execution
    */
-  public async *executeAutonomousAsyncGenerator(
+  public async *executeAsyncGenerator(
     input: string,
     isInterrupted: boolean = false,
-    conversation_id?: string,
-    runnableConfig?: RunnableConfig
-  ): AsyncGenerator<StreamChunk> {
+    thread_id?: string
+  ): AsyncGenerator<ChunkOutput> {
     let autonomousResponseContent: string | any;
     const originalMode = this.currentMode;
     let totalIterationCount = 0;
@@ -672,9 +760,9 @@ export class SnakAgent extends BaseAgent {
       this.controller = new AbortController();
       const initialMessages: BaseMessage[] = [new HumanMessage(input)];
 
-      const threadId = agentJsonConfig?.chatId || 'autonomous_session';
+      const threadId = thread_id ?? agentJsonConfig?.chatId;
       logger.info(`[SnakAgent] 🔗 Autonomous execution thread ID: ${threadId}`);
-
+      8;
       const threadConfig = {
         configurable: {
           thread_id: threadId,
@@ -682,7 +770,6 @@ export class SnakAgent extends BaseAgent {
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
           agent_config: this.agentConfig,
-          conversation_id: conversation_id ?? uuidv4(), // If conversation_id is not provided, generate a new one
           executionMode:
             agentJsonConfig.mode === AgentMode.AUTONOMOUS
               ? ExecutionMode.PLANNING
@@ -693,6 +780,7 @@ export class SnakAgent extends BaseAgent {
       let graphStep: number = 0;
       let retryCount: number = 0;
       let currentAgent: Agent | undefined;
+      let checkpoint_id: string | undefined = undefined;
 
       try {
         let command: Command | undefined;
@@ -710,108 +798,234 @@ export class SnakAgent extends BaseAgent {
           });
         }
 
-        while (true) {
-          const executionInput = !isInterrupted ? graphState : command;
-
-          for await (const chunk of await app.streamEvents(
-            executionInput,
-            executionConfig
-          )) {
-            isInterrupted = false;
-            lastChunk = chunk;
-            const state = await app.getState(executionConfig);
-            let isNewNode: boolean = false;
-            if (currentAgent && currentAgent != state.last_agent) {
-              isNewNode = true;
-            }
-            graphStep = state.values.currentGraphStep;
-            retryCount = state.values.retry;
-            currentAgent = state.values.last_agent as Agent;
-
-            if (
-              chunk.event === 'on_chat_model_start' ||
-              chunk.event === 'on_chat_model_stream' ||
-              chunk.event === 'on_chat_model_end'
-            ) {
-              const formatted = FormatChunkIteration(chunk);
-              if (!formatted) {
-                throw new Error(
-                  `Failed to format chunk: ${JSON.stringify(chunk)}`
-                );
-              }
-              const formattedChunk: IterationResponse = {
-                event: chunk.event as AgentIterationEvent,
-                kwargs: formatted,
-              };
-              const resultChunk = {
-                chunk: formattedChunk,
-                graph_step: graphStep,
-                langgraph_step: chunk.metadata.langgraph_step,
-                from: currentAgent,
-                retry_count: retryCount,
-                final: false,
-              };
-              yield resultChunk;
-            }
-          }
-
+        const executionInput = !isInterrupted ? graphState : command;
+        let chunk: LangGraphEvent;
+        for await (chunk of await app.streamEvents(
+          executionInput,
+          executionConfig
+        )) {
+          isInterrupted = false;
+          lastChunk = chunk;
           const state = await app.getState(executionConfig);
-          if (state.tasks.length > 0 && state.tasks[0]?.interrupts) {
-            if (state.tasks[0].interrupts.length > 0) {
-              logger.info(
-                '[SnakAgent] ⏸️ Graph interrupted - waiting for user input'
-              );
+          graphStep = state.values.currentGraphStep;
+          retryCount = state.values.retry;
+          currentAgent = state.values.last_agent as Agent;
+          checkpoint_id = state.config.configurable.checkpoint_id;
+          if (
+            chunk.metadata?.langgraph_node &&
+            isInEnum(PlannerNode, chunk.metadata.langgraph_node)
+          ) {
+            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
+              console.log(chunk.metadata.ls_model);
+              console.log(chunk.metadata);
               yield {
-                chunk: {
-                  event: 'on_graph_interrupted',
-                  kwargs: {
-                    iteration: lastChunk,
-                  },
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.PLANNING_ORCHESTRATOR,
+                metadata: {
+                  executionMode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model: chunk.metadata.ls_model,
+                  ls_temperature: chunk.metadata.ls_temperature,
                 },
-                graph_step: graphStep,
-                langgraph_step: lastChunk.metadata.langgraph_step,
-                retry_count: retryCount,
-
-                final: true,
+                timestamp: new Date().toISOString(),
               };
-              return;
             }
-          } else {
-            logger.info('[SnakAgent] ✅ Autonomous execution completed');
-            break;
+            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
+              // Need to add an error verifyer from get State
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                plan: chunk.data.output.tool_calls?.[0]?.args, // this is in a ParsedPlan format object
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.PLANNING_ORCHESTRATOR,
+                metadata: {
+                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
+                  executionMode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model: chunk.metadata.ls_model,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+          } else if (
+            chunk.metadata?.langgraph_node &&
+            isInEnum(ExecutorNode, chunk.metadata.langgraph_node)
+          ) {
+            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.AGENT_EXECUTOR,
+                metadata: {
+                  execution_mode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  retry: retryCount,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model: chunk.metadata.ls_model,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                tools: chunk.data.output.tool_calls,
+                content: chunk.data.output.content.toLocaleString(), // Is an ParsedPlan object
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.AGENT_EXECUTOR,
+                metadata: {
+                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
+                  execution_mode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  conversation_id: chunk.metadata.conversation_id,
+                  retry: retryCount,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model: chunk.metadata.ls_model,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+            if (chunk.event === EventType.ON_CHAT_MODEL_STREAM) {
+              if (chunk.data.chunk.content && chunk.data.chunk.content != '') {
+                yield {
+                  event: chunk.event,
+                  run_id: chunk.run_id,
+                  content: chunk.data.chunk.content.toLocaleString(),
+                  checkpoint_id: state.config.configurable.checkpoint_id,
+                  thread_id: state.config.configurable.thread_id,
+                  from: GraphNode.AGENT_EXECUTOR,
+                  metadata: {
+                    execution_mode: chunk.metadata.executionMode,
+                    agent_mode: agentJsonConfig.mode,
+                    retry: retryCount,
+                    conversation_id: chunk.metadata.conversation_id,
+                    langgraph_step: chunk.metadata.langgraph_step,
+                    langgraph_node: chunk.metadata.langgraph_node,
+                    ls_provider: chunk.metadata.ls_provider,
+                    ls_model: chunk.metadata.ls_model,
+                    ls_temperature: chunk.metadata.ls_temperature,
+                  },
+                  timestamp: new Date().toISOString(),
+                };
+              }
+            }
+          } else if (
+            chunk.metadata?.langgraph_node &&
+            isInEnum(MemoryNode, chunk.metadata.langgraph_node)
+          ) {
+            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.MEMORY_ORCHESTRATOR,
+                metadata: {
+                  execution_mode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  retry: retryCount,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model: chunk.metadata.ls_model,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.MEMORY_ORCHESTRATOR,
+                metadata: {
+                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
+                  agent_mode: agentJsonConfig.mode,
+                  execution_mode: chunk.metadata.executionMode,
+                  retry: retryCount,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model: chunk.metadata.ls_model,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
           }
+          // Write chunk to log file
+          // try {
+          //   await fs.appendFile(
+          //     'chunk.log.txt',
+          //     JSON.stringify(chunk, null, 2) + '\n'
+          //   );
+          // } catch (logError) {
+          //   logger.error(
+          //     `[SnakAgent] ❌ Failed to write chunk to log: ${logError}`
+          //   );
+          // }
         }
-
+        logger.info('[SnakAgent] ✅ Autonomous execution completed');
+        if (!lastChunk || !checkpoint_id) {
+          throw new Error('No output from autonomous execution');
+        }
+        console.log(lastChunk);
         yield {
-          chunk: {
-            event: lastChunk.event,
-            kwargs: {
-              iteration: lastChunk,
-            },
+          event: lastChunk.event,
+          run_id: lastChunk.run_id,
+          from: GraphNode.END_GRAPH,
+          thread_id: threadId,
+          checkpoint_id: checkpoint_id,
+          metadata: {
+            conversation_id: lastChunk.metadata?.conversation_id,
+            final: true,
           },
-          graph_step: graphStep,
-          langgraph_step: lastChunk.metadata.langgraph_step,
-          retry_count: retryCount,
-
-          final: true,
+          timestamp: new Date().toISOString(),
         };
         return;
       } catch (error: any) {
         if (error?.message?.includes('Abort')) {
           logger.info('[SnakAgent] 🛑 Execution aborted by user');
-          if (lastChunk) {
+          if (lastChunk && checkpoint_id) {
             yield {
-              chunk: {
-                event: 'on_graph_aborted',
-                kwargs: {
-                  iteration: lastChunk,
-                },
+              event: EventType.ON_GRAPH_ABORTED,
+              run_id: lastChunk.run_id,
+              checkpoint_id: checkpoint_id,
+              thread_id: threadId,
+              from: GraphNode.END_GRAPH,
+              metadata: {
+                conversation_id: lastChunk.metadata?.conversation_id,
+                final: true,
               },
-              graph_step: graphStep,
-              langgraph_step: lastChunk.metadata.langgraph_step,
-              retry_count: retryCount,
-
-              final: true,
+              timestamp: new Date().toISOString(),
             };
           }
           return;

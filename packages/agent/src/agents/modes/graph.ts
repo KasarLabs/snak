@@ -106,6 +106,10 @@ export const GraphState = Annotation.Root({
 });
 
 export const GraphConfigurableAnnotation = Annotation.Root({
+  thread_id: Annotation<string | undefined>({
+    reducer: (x, y) => y,
+    default: () => undefined,
+  }),
   max_graph_steps: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 100,
@@ -129,10 +133,6 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   user_request: Annotation<string | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
-  }),
-  conversation_id: Annotation<string>({
-    reducer: (x, y) => y,
-    default: () => uuidv4(),
   }),
   executionMode: Annotation<ExecutionMode>({
     reducer: (x, y) => y,

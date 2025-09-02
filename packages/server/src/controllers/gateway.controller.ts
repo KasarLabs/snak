@@ -20,6 +20,7 @@ import {
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
+import { ChunkOutput, EventType } from '@snakagent/agents';
 @WebSocketGateway({
   cors: {
     origin: 'http://localhost:4000',
@@ -70,78 +71,39 @@ export class MyGateway implements OnModuleInit {
         throw new ServerError('E01TA400');
       }
 
-      let response: AgentResponse;
-
       for await (const chunk of this.agentService.handleUserRequestWebsocket(
         agent,
         userRequest.request
       )) {
-        if (chunk.final === true) {
-          let q;
+        if (chunk.event != EventType.ON_CHAT_MODEL_STREAM) {
+          const q = new Postgres.Query(
+            `
+          INSERT INTO message (
+            event, run_id, thread_id, checkpoint_id, "from", agent_id,
+            content, tools, plan, metadata, "timestamp"
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING id;
+        `,
+            [
+              chunk.event,
+              chunk.run_id,
+              chunk.thread_id,
+              chunk.checkpoint_id,
+              chunk.from,
+              userRequest.request.agent_id,
+              chunk.content ?? null,
+              chunk.tools ? JSON.stringify(chunk.tools) : null,
+              chunk.plan ? JSON.stringify(chunk.plan) : null,
+              JSON.stringify(chunk.metadata || {}),
+              chunk.timestamp || new Date(),
+            ]
+          );
 
-          if (chunk.chunk.event === 'on_graph_interrupted') {
-            logger.info(
-              'Graph interrupted, saving message with status waiting_for_human_input'
-            );
-            q = new Postgres.Query(
-              'INSERT INTO message (agent_id,user_request,agent_iteration,status)  VALUES($1, $2, $3, $4)',
-              [
-                userRequest.request.agent_id,
-                userRequest.request.user_request,
-                chunk.chunk,
-                'waiting_for_human_input',
-              ]
-            );
-            response = {
-              status: 'waiting_for_human_input',
-              data: {
-                ...chunk.chunk,
-                graph_step: chunk.graph_step,
-                langgraph_step: chunk.langgraph_step,
-                from: chunk.from,
-                retry_count: chunk.retry_count,
-                final: chunk.final,
-              },
-            };
-          } else {
-            q = new Postgres.Query(
-              'INSERT INTO message (agent_id,user_request,agent_iteration)  VALUES($1, $2, $3)',
-              [
-                userRequest.request.agent_id,
-                userRequest.request.user_request,
-                chunk.chunk,
-              ]
-            );
-            response = {
-              status: 'success',
-              data: {
-                ...chunk.chunk,
-                graph_step: chunk.graph_step,
-                langgraph_step: chunk.langgraph_step,
-                from: chunk.from,
-                retry_count: chunk.retry_count,
-                final: chunk.final,
-              },
-            };
-          }
-
-          await Postgres.query(q);
-          logger.info('Message Saved in DB');
-        } else {
-          response = {
-            status: 'success',
-            data: {
-              ...chunk.chunk,
-              graph_step: chunk.graph_step,
-              langgraph_step: chunk.langgraph_step,
-              from: chunk.from,
-              retry_count: chunk.retry_count,
-              final: chunk.final,
-            },
-          };
+          const result = await Postgres.query<number>(q);
+          logger.info(`Inserted message with ID: ${result[0]}`);
         }
-
-        client.emit('onAgentRequest', response);
+        client.emit('onAgentRequest', chunk);
       }
     } catch (error) {
       const client = this.clients.get(userRequest.socket_id);
@@ -279,6 +241,7 @@ export class MyGateway implements OnModuleInit {
       }
       const messages = await this.agentService.getMessageFromAgentId({
         agent_id: userRequest.agent_id,
+        thread_id: userRequest.thread_id,
         limit_message: userRequest.limit_message,
       });
       if (!messages) {

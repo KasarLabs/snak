@@ -538,6 +538,7 @@ export class AgentsController {
 
       const messages = await this.agentService.getMessageFromAgentId({
         agent_id: userRequest.agent_id,
+        thread_id: userRequest.thread_id,
         limit_message: undefined,
       });
 

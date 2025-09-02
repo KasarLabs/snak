@@ -34,7 +34,11 @@ import {
 import { AgentConfig, logger } from '@snakagent/core';
 import { ModelSelector } from '../../../agents/operators/modelSelector.js';
 import { MemoryAgent } from '../../../agents/operators/memoryAgent.js';
-import { GraphConfigurableAnnotation, GraphState, ExecutionMode } from '../graph.js';
+import {
+  GraphConfigurableAnnotation,
+  GraphState,
+  ExecutionMode,
+} from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { MemoryNode, DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import { MemoryStateManager, STMManager } from '../utils/memory-utils.js';
@@ -287,10 +291,13 @@ export class MemoryGraph {
   private async stm_manager(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    memories: Memories;
-    plans_or_histories?: ParsedPlan;
-  } | Command> {
+  ): Promise<
+    | {
+        memories: Memories;
+        plans_or_histories?: ParsedPlan;
+      }
+    | Command
+  > {
     try {
       logger.debug('[STMManager] Processing memory update');
       if (
@@ -307,13 +314,16 @@ export class MemoryGraph {
       }
       const executionMode = config.configurable?.executionMode;
       let item: StepInfo | HistoryItem | null = null;
-      
+
       if (executionMode === ExecutionMode.PLANNING) {
-        item = getCurrentPlanStep(state.plans_or_histories, state.currentStepIndex - 1);
+        item = getCurrentPlanStep(
+          state.plans_or_histories,
+          state.currentStepIndex - 1
+        );
       } else if (executionMode === ExecutionMode.REACTIVE) {
         item = getCurrentHistoryItem(state.plans_or_histories);
       }
-      
+
       if (!item) {
         logger.warn(
           '[STMManager] No current step or history item found, returning unchanged memories'
@@ -368,7 +378,12 @@ export class MemoryGraph {
       };
     } catch (error: any) {
       logger.error(`[STMManager] Critical error in STM processing: ${error}`);
-      return handleNodeError(error, 'STM_MANAGER', state, 'STM processing failed');
+      return handleNodeError(
+        error,
+        'STM_MANAGER',
+        state,
+        'STM processing failed'
+      );
     }
   }
 
@@ -407,10 +422,7 @@ export class MemoryGraph {
         throw new Error('Fast model not available for LTM processing');
       }
 
-      let recentMemories = STMManager.getRecentMemories(
-        state.memories.stm,
-        1
-      );
+      let recentMemories = STMManager.getRecentMemories(state.memories.stm, 1);
 
       if (recentMemories.length === 0) {
         logger.warn(
@@ -439,7 +451,7 @@ export class MemoryGraph {
       summaryResult.episodic.forEach((memory) => {
         const episodic_memory: EpisodicMemoryContext = {
           user_id: 'default_user',
-          run_id: config.configurable?.conversation_id as string, //TODO add DEFAULT CONFIG
+          run_id: config.configurable?.thread_id as string, //TODO add DEFAULT CONFIG
           content: memory.content,
           sources: memory.source,
         };
@@ -449,7 +461,7 @@ export class MemoryGraph {
       summaryResult.semantic.forEach((memory) => {
         const semantic_memory: SemanticMemoryContext = {
           user_id: 'default_user',
-          run_id: config.configurable?.conversation_id as string,
+          run_id: config.configurable?.thread_id as string,
           fact: memory.fact,
           category: memory.category,
         };
@@ -460,7 +472,7 @@ export class MemoryGraph {
         `[LTMManager] Generated summary: ${JSON.stringify(summaryResult, null, 2)}`
       );
 
-      const userId = config.configurable?.conversation_id as string;
+      const userId = config.configurable?.thread_id as string;
       console.log(`[LTMManager]${userId},\n ${config.configurable})`);
       if (!userId) {
         logger.warn('[LTMManager] No user ID available, skipping LTM upsert');
@@ -486,7 +498,12 @@ export class MemoryGraph {
       return {};
     } catch (error: any) {
       logger.error(`[LTMManager] Critical error in LTM processing: ${error}`);
-      return handleNodeError(error, 'LTM_MANAGER', state, 'LTM processing failed');
+      return handleNodeError(
+        error,
+        'LTM_MANAGER',
+        state,
+        'LTM processing failed'
+      );
     }
   }
 

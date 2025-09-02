@@ -1,7 +1,7 @@
 import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
-import { logger, AgentConfig } from '@snakagent/core';
+import { logger, AgentConfig, AgentMode } from '@snakagent/core';
 import { Postgres } from '@snakagent/database/queries';
 import { memory, iterations } from '@snakagent/database/queries';
 import { DatabaseCredentials } from '@snakagent/database';
@@ -11,16 +11,27 @@ import {
   StructuredTool,
 } from '@langchain/core/tools';
 import {
-  AgentIterationEvent,
+  EventType,
   FormattedOnChatModelEnd,
   FormattedOnChatModelStart,
   FormattedOnChatModelStream,
 } from './snakAgent.js';
-import { BaseMessage, ToolMessage } from '@langchain/core/messages';
+import { ToolMessage } from '@langchain/core/messages';
 import { AnyZodObject } from 'zod';
-import { ParsedPlan, StepInfo } from '../../agents/modes/types/index.js';
-import { estimateTokens } from '../../agents/modes/utils.js';
+import { GraphNode } from 'agents/modes/config/default-config.js';
 
+/**
+ * A call to a tool.
+ * @property {string} name - The name of the tool to be called
+ * @property {Record<string, any>} args - The arguments to the tool call
+ * @property {string} [id] - If provided, an identifier associated with the tool call
+ */
+export type ToolCall = {
+  name: string;
+  args: Record<string, any>;
+  id?: string;
+  type?: 'tool_call';
+};
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
 
@@ -64,6 +75,33 @@ export interface ToolsChunk {
   type: string;
 }
 
+export interface ChunkOutputMetadata {
+  execution_mode?: string;
+  agent_mode?: AgentMode;
+  retry?: number;
+  tokens?: number;
+  langgraph_step?: number;
+  langgraph_node?: string;
+  ls_provider?: string;
+  ls_model?: string;
+  ls_temperature?: number;
+  final?: boolean;
+  [key: string]: any;
+}
+
+export interface ChunkOutput {
+  event: EventType;
+  run_id: string;
+  thread_id: string;
+  checkpoint_id: string;
+  from: GraphNode;
+  tools?: ToolCall[];
+  content?: string;
+  plan?: Record<string, any>;
+  metadata: ChunkOutputMetadata;
+  timestamp?: string;
+}
+
 export interface TokenChunk {
   input: number;
   output: number;
@@ -77,7 +115,7 @@ export const FormatChunkIteration = (
   | FormattedOnChatModelEnd
   | FormattedOnChatModelStart
   | undefined => {
-  if (chunk.event === AgentIterationEvent.ON_CHAT_MODEL_STREAM) {
+  if (chunk.event === EventType.ON_CHAT_MODEL_STREAM) {
     const tool = extractToolsFromIteration(chunk);
     const iteration: FormattedOnChatModelStream = {
       chunk: {
@@ -87,7 +125,7 @@ export const FormatChunkIteration = (
     };
     return iteration;
   }
-  if (chunk.event === AgentIterationEvent.ON_CHAT_MODEL_END) {
+  if (chunk.event === EventType.ON_CHAT_MODEL_END) {
     const content = chunk.data?.output?.kwargs?.content;
     const iteration: FormattedOnChatModelEnd = {
       iteration: {
@@ -104,7 +142,7 @@ export const FormatChunkIteration = (
     };
     return iteration;
   }
-  if (chunk.event === AgentIterationEvent.ON_CHAT_MODEL_START) {
+  if (chunk.event === EventType.ON_CHAT_MODEL_START) {
     const iteration: FormattedOnChatModelStart = {
       iteration: {
         name: chunk.name,
@@ -222,7 +260,7 @@ const truncateStringContentHelper = (
  */
 export function truncateToolResults(
   result: any,
-  maxLength: number = 20000,
+  maxLength: number = 20000
 ): { messages: ToolMessage[] } {
   let i = 0;
   for (const tool_message of result.messages) {
@@ -393,3 +431,16 @@ export const processMessageContent = (content: any): string => {
 
   return String(content);
 };
+
+/**
+ * Vérifie si une valeur appartient à un enum
+ * @param enumObj - L'objet enum
+ * @param value - La valeur à vérifier
+ * @returns true si la valeur est dans l'enum
+ */
+export function isInEnum<T extends Record<string, unknown>>(
+  enumObj: T,
+  value: unknown
+): value is T[keyof T] {
+  return Object.values(enumObj).includes(value);
+}

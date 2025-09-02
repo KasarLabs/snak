@@ -51,6 +51,8 @@ export class AddAgentRequestDTO {
 export class MessageFromAgentIdDTO {
   @IsNotEmpty()
   agent_id: string;
+  @IsNotEmpty()
+  thread_id: string;
   limit_message: number | undefined;
 }
 
