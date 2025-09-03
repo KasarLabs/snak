@@ -5,7 +5,8 @@
     "baseUrl": "./src",
     "paths": {
       "@common/*": ["./common/*"],
-      "@src/*": ["./src/*"]
+      "@src/*": ["./src/*"],
+      "@agents/*": ["./agents/*"]
     }
   },
   "include": ["src/**/*", "src/index.ts"],

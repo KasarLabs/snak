@@ -10,7 +10,6 @@ import {
   ToolMessage,
 } from '@langchain/core/messages';
 import {
-  Agent,
   History,
   HistoryItem,
   ParsedPlan,
@@ -19,11 +18,18 @@ import {
   StepToolsInfo,
   ValidatorStepResponse,
   HistoryToolsInfo,
+  LTMContext,
 } from './types/index.js';
 import { logger } from '@snakagent/core';
 import { late, z } from 'zod';
 import { tool, Tool } from '@langchain/core/tools';
 import { Command } from '@langchain/langgraph';
+import {
+  ExecutorNode,
+  MemoryNode,
+  PlannerNode,
+} from './config/default-config.js';
+import { memory } from '@snakagent/database/queries';
 
 export const tools_call = z.object({
   description: z
@@ -155,9 +161,12 @@ export function formatStepsStatusCompact(
 }
 
 // --- Response Generators ---
-export function createMaxIterationsResponse(graph_step: number): {
+export function createMaxIterationsResponse<T>(
+  graph_step: number,
+  current_node: T
+): {
   messages: BaseMessage[];
-  last_agent: Agent;
+  last_node: T;
 } {
   const message = new AIMessageChunk({
     content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
@@ -168,7 +177,7 @@ export function createMaxIterationsResponse(graph_step: number): {
   });
   return {
     messages: [message],
-    last_agent: Agent.EXECUTOR,
+    last_node: current_node,
   };
 }
 
@@ -206,43 +215,6 @@ export function getLatestMessageForMessage(
   }
 }
 
-// --- FILTER --- ///
-export function filterMessagesByShortTermMemory(
-  messages: BaseMessage[],
-  shortTermMemory: number
-): BaseMessage[] {
-  const filteredMessages = [];
-  const iterationAgent = [
-    Agent.EXECUTOR,
-    Agent.PLANNER,
-    Agent.ADAPTIVE_PLANNER,
-    Agent.TOOLS,
-    Agent.SUMMARIZE,
-  ];
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    // Handle iteration filtering
-    if (
-      iterationAgent.includes(msg.additional_kwargs.from as Agent) ||
-      msg instanceof HumanMessage ||
-      msg instanceof ToolMessage
-    ) {
-      if (
-        (msg instanceof AIMessageChunk && msg.tool_calls?.length) ||
-        msg instanceof ToolMessage
-      ) {
-        filteredMessages.unshift(msg);
-        continue;
-      } else {
-        filteredMessages.unshift(msg);
-        shortTermMemory--;
-      }
-    }
-    if (shortTermMemory <= 0) break;
-  }
-  return filteredMessages;
-}
-
 // --- Terminal State Checks ---
 export function isTerminalMessage(message: BaseMessage): boolean {
   return (
@@ -258,45 +230,6 @@ export function isTokenLimitError(error: any): boolean {
     error.message?.includes('tokens exceed') ||
     error.message?.includes('context length')
   );
-}
-
-// --- ERROR HANDLING --- //
-export function handleModelError(error: any): {
-  messages: BaseMessage[];
-  last_agent: Agent.EXECUTOR;
-} {
-  logger.error(`Executor: Error calling model - ${error}`);
-
-  if (isTokenLimitError(error)) {
-    logger.error(
-      `Executor: Token limit error during model invocation - ${error.message}`
-    );
-
-    const message = new AIMessageChunk({
-      content:
-        'Error: The conversation history has grown too large, exceeding token limits. Cannot proceed.',
-      additional_kwargs: {
-        error: 'token_limit_exceeded',
-        final: true,
-      },
-    });
-    return {
-      messages: [message],
-      last_agent: Agent.EXECUTOR,
-    };
-  }
-
-  const message = new AIMessageChunk({
-    content: `Error: An unexpected error occurred while processing the request. Error : ${error}`,
-    additional_kwargs: {
-      error: 'unexpected_error',
-      final: true,
-    },
-  });
-  return {
-    messages: [message],
-    last_agent: Agent.EXECUTOR,
-  };
 }
 
 // --- TOKEN CALCULATE --- //
@@ -492,26 +425,12 @@ export function formatValidatorToolsExecutor(
   }
 }
 
-export function formatStepsForContext(steps: StepInfo[]): string {
+export function formatStepsForContext(
+  steps: Array<StepInfo | HistoryItem>
+): string {
   try {
     return steps
-      .map((step) => {
-        const header = `S${step.stepNumber}:${step.stepName}`;
-
-        if (step.type === 'tools' && step.tools && step.tools.length > 0) {
-          // For tool steps, include tool info and results
-          const toolInfo = step.tools
-            .map((t, i) => `T${i + 1}:${t.description}->${t.result}`)
-            .join('|');
-          return `${header}[${toolInfo}]`;
-        }
-
-        // For non-tool steps, just show result
-        if (!step.message) {
-          throw new Error('Message content is missing');
-        }
-        return `${header}→${step.message.content}`;
-      })
+      .map((step) => formatSteporHistoryForSTM(step)) // Arrow function returns implicitly
       .join('\n');
   } catch (error) {
     return `formatStepsForContext: ${error}`;
@@ -524,7 +443,7 @@ export function formatSteporHistoryForSTM(
   try {
     if ('stepNumber' in item === false) {
       // HistoryItem
-      const header = `H:${new Date(item.timestamp).toISOString()}`;
+      const header = `ReAct Step : ${item.message ? item.message.content : 'No Message'}\n at ${new Date(item.timestamp).toISOString()}`; // HistoryItem
       if (item.type === 'tools' && item.tools && item.tools.length > 0) {
         const toolInfo = item.tools
           .map((t, i) => `T${i}:${t.metadata?.tool_name}->${t.result}`)
@@ -549,24 +468,6 @@ export function formatSteporHistoryForSTM(
     return `${header}→${item.message.content}`;
   } catch (error) {
     return `formatSteporHistoryForSTM: ${error}`;
-  }
-}
-
-export function formatCurrentStepForSTM(step: StepInfo): string {
-  try {
-    const header = `S${step.stepNumber}:${step.stepName}`;
-    if (step.type === 'tools' && step.tools && step.tools.length > 0) {
-      const toolInfo = step.tools
-        .map((t, i) => `T${i}:${t.description}->${t.result}`)
-        .join('|');
-      return `${header}[${toolInfo}]`;
-    }
-    if (step.message === undefined) {
-      throw new Error('Message content is missing');
-    }
-    return `${header}→${step.message.content}`;
-  } catch (error) {
-    return `formatCurrentStepForSTM: ${error}`;
   }
 }
 
@@ -753,4 +654,118 @@ export function handleNodeError(
   return createErrorCommand(enhancedError, source, {
     currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
   });
+}
+
+// --- LTM PARSING --- //
+
+export function formatLTMForContext(ltmItems: memory.Similarity[]): string {
+  try {
+    if (!ltmItems || ltmItems.length === 0) {
+      return 'No long-term memories available';
+    }
+
+    const formatted_memories: string[] = [];
+
+    ltmItems.forEach((memory, index) => {
+      const type_prefix = memory.memory_type === 'episodic' ? 'E' : 'S';
+      const similarity_score = `(${(memory.similarity * 100).toFixed(1)}%)`;
+      const content = memory.content.substring(0, 120);
+
+      // Extract key metadata context
+      let metadata_context = '';
+      if (memory.metadata) {
+        const parts = [];
+        if (memory.metadata.category)
+          parts.push(`category:${memory.metadata.category}`);
+        if (memory.metadata.confidence)
+          parts.push(`confidence:${memory.metadata.confidence}`);
+        if (memory.metadata.access_count)
+          parts.push(`access_count:${memory.metadata.access_count}`);
+        if (parts.length > 0) {
+          metadata_context = `[${parts.join('|')}]`;
+        }
+      }
+
+      formatted_memories.push(
+        `${type_prefix}${index + 1}:${similarity_score}${metadata_context}→${content}...`
+      );
+    });
+
+    return formatted_memories.join('\n');
+  } catch (error) {
+    return `formatLTMForContext: ${error}`;
+  }
+}
+
+// --- EVOLVE FROM HISTORY PARSING --- //
+
+export function parseEvolveFromHistoryContext(
+  plans_or_histories: Array<ParsedPlan | History> | undefined
+): string {
+  try {
+    if (!plans_or_histories || plans_or_histories.length === 0) {
+      return 'No execution history available for evolution';
+    }
+
+    const chronological_context: string[] = [];
+    chronological_context.push('CHRONOLOGICAL EXECUTION HISTORY:');
+    chronological_context.push('');
+
+    // Process in chronological order (as they appear in the array)
+    plans_or_histories.forEach((item, index) => {
+      if (item.type === 'plan') {
+        const completed = item.steps.filter(
+          (s) => s.status === 'completed'
+        ).length;
+        chronological_context.push(`${index + 1}. PLAN: ${item.summary}`);
+        chronological_context.push(
+          `   Status: ${completed}/${item.steps.length} steps completed`
+        );
+
+        // Show recent completed steps
+        const recentCompleted = item.steps.filter(
+          (s) => s.status === 'completed'
+        );
+        recentCompleted.forEach((step) => {
+          chronological_context.push(
+            `   → ${step.stepName}: ${step.description.substring(0, 80)}...`
+          );
+        });
+      } else if (item.type === 'history') {
+        chronological_context.push(
+          `${index + 1}. HISTORY: ${item.items.length} interactions`
+        );
+
+        // Show recent history items
+        const recentItems = item.items;
+        recentItems.forEach((historyItem) => {
+          const content =
+            historyItem.message?.content ||
+            historyItem.userquery ||
+            'No content';
+          chronological_context.push(`   → ${content.substring(0, 80)}...`);
+        });
+      }
+      chronological_context.push('');
+    });
+
+    // Current state (last item in chronological order)
+    const latest = plans_or_histories[plans_or_histories.length - 1];
+    chronological_context.push('CURRENT STATE:');
+    if (latest.type === 'plan') {
+      const lastStep = latest.steps[latest.steps.length - 1];
+      chronological_context.push(
+        `Mode: PLAN | Last Step: ${lastStep?.stepName || 'None'} (${lastStep?.status || 'pending'})`
+      );
+    } else {
+      chronological_context.push(
+        `Mode: HISTORY | Total Interactions: ${latest.items.length}`
+      );
+    }
+
+    return chronological_context.join('\n');
+  } catch (error) {
+    logger.error(`Error parsing evolve from history context: ${error}`);
+    return `Error parsing chronological history: ${error}`;
+  }
 }

@@ -1,3 +1,4 @@
+import { Message } from '@huggingface/transformers';
 import { Annotation } from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
@@ -178,20 +179,6 @@ export interface ValidatorStepResponse {
   isFinal: boolean;
 }
 
-export enum Agent {
-  START = 'start',
-  PLANNER = 'planner',
-  EXEC_VALIDATOR = 'exec_validator',
-  PLANNER_VALIDATOR = 'planner_validator',
-  MEMORY_MANAGER = 'memory_manager',
-  EXECUTOR = 'executor',
-  MODEL_SELECTOR = 'model_selector',
-  ADAPTIVE_PLANNER = 'adaptive_planner',
-  TOOLS = 'tools',
-  SUMMARIZE = 'summarize',
-  HUMAN = 'human',
-}
-
 export type PLANNER_ORCHESTRATOR =
   | 'planner'
   | 'planner_validator'
@@ -201,12 +188,6 @@ export type PLANNER_ORCHESTRATOR =
 export type AGENT_EXECUTOR = 'exec_validator' | 'executor';
 
 export type MEMORY_ORCHESTRATOR = 'memory_manager';
-
-export interface AgentKwargs {
-  error: boolean;
-  from: Agent;
-  validated?: boolean;
-}
 
 export const InteractiveConfigurableAnnotation = Annotation.Root({
   max_graph_steps: Annotation<number>({

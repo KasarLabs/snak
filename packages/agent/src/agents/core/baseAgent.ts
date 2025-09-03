@@ -1,6 +1,5 @@
 import { BaseMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { StreamChunk } from './snakAgent.js';
 import { ChunkOutput } from './utils.js';
 
 /**

@@ -32,7 +32,7 @@ import { iterations } from '@snakagent/database/queries';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
-import { Agent, AgentReturn } from '../../agents/modes/types/index.js';
+import { AgentReturn } from '../../agents/modes/types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import { IterableReadableStream } from '@langchain/core/utils/stream';
@@ -330,15 +330,6 @@ export enum EventType {
   ON_CUSTOM_EVENT = 'on_custom_event',
   ON_GRAPH_ABORTED = 'on_graph_aborted',
   ON_GRAPH_INTERRUPTED = 'on_graph_interrupted',
-}
-
-export interface StreamChunk {
-  chunk: any;
-  graph_step: number;
-  langgraph_step: number;
-  from?: Agent;
-  retry_count: number;
-  final: boolean;
 }
 
 export interface FormattedOnChatModelStream {
@@ -783,7 +774,6 @@ export class SnakAgent extends BaseAgent {
       let lastChunk;
       let graphStep: number = 0;
       let retryCount: number = 0;
-      let currentAgent: Agent | undefined;
       let currentCheckpointId: string | undefined = undefined;
 
       try {
@@ -813,7 +803,6 @@ export class SnakAgent extends BaseAgent {
           const state = await app.getState(executionConfig);
           graphStep = state.values.currentGraphStep;
           retryCount = state.values.retry;
-          currentAgent = state.values.last_agent as Agent;
           currentCheckpointId = state.config.configurable.checkpoint_id;
           if (
             chunk.metadata?.langgraph_node &&

@@ -1,7 +1,6 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
 import { Annotation, START, StateGraph, Command } from '@langchain/langgraph';
 import {
-  Agent,
   History,
   isPlannerActivateSchema,
   ParsedPlan,
@@ -15,6 +14,7 @@ import {
   PlanSchemaType,
   handleNodeError,
   createErrorCommand,
+  parseEvolveFromHistoryContext,
 } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
@@ -25,7 +25,13 @@ import {
   GraphState,
   ExecutionMode,
 } from '../graph.js';
-import { PlannerNode, DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
+import {
+  PlannerNode,
+  DEFAULT_GRAPH_CONFIG,
+  GraphNode,
+  ExecutorNode,
+  MemoryNode,
+} from '../config/default-config.js';
 import {
   ADAPTIVE_PLANNER_CONTEXT_PROMPT,
   ADAPTIVE_PLANNER_SYSTEM_PROMPT,
@@ -46,6 +52,7 @@ import { AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT } from '../../../prompt/validat
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
+import { isInEnum } from '@agents/core/utils.js';
 
 export const GET_PLANNER_STATUS_PROMPT = `
 You are a strategic routing agent that determines whether a user query requires complex planning (CoT) or can be handled by simple reactive execution (ReAct).
@@ -226,7 +233,7 @@ export class PlannerGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_agent: Agent;
+        last_node: PlannerNode;
         plans_or_histories?: ParsedPlan;
         currentStepIndex: number;
         currentGraphStep: number;
@@ -277,7 +284,7 @@ export class PlannerGraph {
         additional_kwargs: {
           error: false,
           final: false,
-          from: Agent.PLANNER,
+          from: GraphNode.PLANNING_ORCHESTRATOR,
         },
       });
       const newPlan: ParsedPlan = {
@@ -287,7 +294,7 @@ export class PlannerGraph {
       };
       return {
         messages: [aiMessage],
-        last_agent: Agent.PLANNER,
+        last_node: PlannerNode.PLAN_REVISION,
         plans_or_histories: newPlan,
         currentGraphStep: state.currentGraphStep + 1,
         currentStepIndex: 0,
@@ -309,7 +316,7 @@ export class PlannerGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_agent: Agent;
+        last_node: PlannerNode;
         plans_or_histories?: ParsedPlan;
         executionMode?: ExecutionMode;
         currentStepIndex: number;
@@ -355,7 +362,7 @@ export class PlannerGraph {
         additional_kwargs: {
           error: false,
           final: false,
-          from: Agent.PLANNER,
+          from: GraphNode.PLANNING_ORCHESTRATOR,
         },
       });
       const created_plan: ParsedPlan = {
@@ -366,7 +373,7 @@ export class PlannerGraph {
 
       return {
         messages: [aiMessage],
-        last_agent: Agent.PLANNER,
+        last_node: PlannerNode.CREATE_INITIAL_PLAN,
         plans_or_histories: created_plan,
         executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
@@ -384,7 +391,7 @@ export class PlannerGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_agent: Agent;
+        last_node: PlannerNode;
         plans_or_histories?: ParsedPlan;
         currentGraphStep: number;
         currentStepIndex: number;
@@ -420,7 +427,7 @@ export class PlannerGraph {
           stepLength: state.currentStepIndex + 1,
           agentConfig: this.agentConfig.prompt,
           toolsAvailable: parseToolsToJson(this.toolsList),
-          previousSteps: formatStepsForContext(plan_or_history.steps),
+          history: parseEvolveFromHistoryContext(state.plans_or_histories),
         })
       )) as PlanSchemaType;
 
@@ -444,7 +451,7 @@ export class PlannerGraph {
       };
       return {
         messages: [aiMessage],
-        last_agent: Agent.PLANNER,
+        last_node: PlannerNode.EVOLVE_FROM_HISTORY,
         plans_or_histories: newPlan,
         currentStepIndex: 0,
         currentGraphStep: state.currentGraphStep + 1,
@@ -469,7 +476,7 @@ export class PlannerGraph {
     | {
         messages: BaseMessage[];
         currentStepIndex: number;
-        last_agent: Agent;
+        last_node: PlannerNode;
         retry: number;
         currentGraphStep: number;
       }
@@ -527,13 +534,13 @@ export class PlannerGraph {
           additional_kwargs: {
             error: false,
             success: true,
-            from: Agent.PLANNER_VALIDATOR,
+            from: GraphNode.PLANNING_ORCHESTRATOR,
           },
         });
         logger.info(`[PlannerValidator] Plan success successfully`);
         return {
           messages: [successMessage],
-          last_agent: Agent.PLANNER_VALIDATOR,
+          last_node: PlannerNode.PLANNER_VALIDATOR,
           currentStepIndex: state.currentStepIndex,
           retry: state.retry,
           currentGraphStep: state.currentGraphStep + 1,
@@ -544,7 +551,7 @@ export class PlannerGraph {
           additional_kwargs: {
             error: false,
             success: false,
-            from: Agent.PLANNER_VALIDATOR,
+            from: GraphNode.PLANNING_ORCHESTRATOR,
           },
         });
         logger.warn(
@@ -553,7 +560,7 @@ export class PlannerGraph {
         return {
           messages: [errorMessage],
           currentStepIndex: state.currentStepIndex,
-          last_agent: Agent.PLANNER_VALIDATOR,
+          last_node: PlannerNode.PLANNER_VALIDATOR,
           retry: 0,
           currentGraphStep: state.currentGraphStep + 1,
         };
@@ -665,7 +672,7 @@ export class PlannerGraph {
     const executionMode = config.configurable?.executionMode;
     console.log('PLANNER_ROUTER - ExecutionMode', currentMode);
     console.log('Current ExecutionMode:', executionMode);
-    
+
     if (currentMode === AgentMode.INTERACTIVE) {
       if (executionMode === ExecutionMode.REACTIVE) {
         logger.debug(
@@ -687,12 +694,12 @@ export class PlannerGraph {
     }
 
     // GLOBAL START PART
-    if (!state.last_agent || state.last_agent === Agent.START) {
+    if (!state.last_node || state.last_node === 'start') {
       logger.debug(`[PLANNING_ROUTER]: Routing to create_initial_plan`);
       return PlannerNode.CREATE_INITIAL_PLAN;
     }
     if (
-      state.last_agent === Agent.PLANNER_VALIDATOR &&
+      state.last_node === PlannerNode.PLANNER_VALIDATOR &&
       l_msg.additional_kwargs.success
     ) {
       logger.debug(`[PLANNING_ROUTER]: Routing to end`);
@@ -700,7 +707,7 @@ export class PlannerGraph {
     }
 
     if (
-      state.last_agent === Agent.PLANNER_VALIDATOR &&
+      state.last_node === PlannerNode.PLANNER_VALIDATOR &&
       !l_msg.additional_kwargs.success
     ) {
       if (state.retry >= maxRetries) {
@@ -716,14 +723,14 @@ export class PlannerGraph {
     }
 
     console.log(currentMode);
-    console.log(state.last_agent);
+    console.log(state.last_node);
     if (
       currentMode === AgentMode.AUTONOMOUS ||
       currentMode === AgentMode.HYBRID
     ) {
       if (
-        state.last_agent === Agent.EXEC_VALIDATOR ||
-        state.last_agent === Agent.MEMORY_MANAGER
+        isInEnum(ExecutorNode, state.last_node) ||
+        isInEnum(MemoryNode, state.last_node)
       ) {
         logger.debug(`[PLANNING_ROUTER]: Routing to evolve_from_history`);
         return PlannerNode.EVOLVE_FROM_HISTORY;

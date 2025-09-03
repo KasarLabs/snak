@@ -12,7 +12,6 @@ import {
   interrupt,
 } from '@langchain/langgraph';
 import {
-  Agent,
   History,
   HistoryItem,
   HistoryToolsInfo,
@@ -37,12 +36,12 @@ import {
   formatToolsForHistory,
   formatValidatorToolsExecutor,
   getLatestMessageForMessage,
-  handleModelError,
   isTerminalMessage,
   ReturnTypeCheckPlanorHistory,
   ValidatorResponseSchema,
   handleNodeError,
   createErrorCommand,
+  formatLTMForContext,
 } from '../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
@@ -63,6 +62,7 @@ import {
 import {
   ExecutorNode,
   DEFAULT_GRAPH_CONFIG,
+  GraphNode,
 } from '../config/default-config.js';
 import {
   TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
@@ -91,6 +91,120 @@ import {
   createReActObservation,
 } from '../utils/react-utils.js';
 import { v4 as uuidv4 } from 'uuid';
+import { exec } from 'child_process';
+import { ChatOpenAI } from '@langchain/openai';
+
+interface ToolCall {
+  name: string;
+  args: any;
+  id: string;
+  type: 'tool_call';
+}
+
+/**
+ * Parses Actions from ReAct response to extract tool calls
+ * Handles cases where result.tools_call.length is 0 but there are actions to parse
+ */
+function parseActionsToToolCalls(content: string): ToolCall[] {
+  const toolCalls: ToolCall[] = [];
+
+  try {
+    // Look for Action patterns in the content - improved regex to capture complete JSON structures
+    const actionRegex = /\*?\*?Action\*?\*?:\s*({[\s\S]*?})\s*(?:\n|$|\*\*)/gi;
+    const matches = content.matchAll(actionRegex);
+
+    for (const match of matches) {
+      try {
+        let jsonStr = match[1].trim();
+
+        // Clean up the JSON string - remove any trailing text after the closing brace
+        const firstClosingBrace = jsonStr.indexOf('}');
+        if (firstClosingBrace !== -1) {
+          // Find the matching opening brace count
+          let braceCount = 0;
+          let endIndex = -1;
+
+          for (let i = 0; i < jsonStr.length; i++) {
+            if (jsonStr[i] === '{') braceCount++;
+            if (jsonStr[i] === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                endIndex = i;
+                break;
+              }
+            }
+          }
+
+          if (endIndex !== -1) {
+            jsonStr = jsonStr.substring(0, endIndex + 1);
+          }
+        }
+
+        // Parse the JSON from the action
+        const actionJson = JSON.parse(jsonStr);
+
+        if (actionJson.tool_calls && Array.isArray(actionJson.tool_calls)) {
+          for (const toolCall of actionJson.tool_calls) {
+            // Extract tool name, removing "functions." prefix if present
+            const toolName = toolCall.name?.replace(/^functions\./, '') || '';
+
+            if (toolName) {
+              toolCalls.push({
+                name: toolName,
+                args: toolCall.args || {},
+                id: uuidv4(),
+                type: 'tool_call',
+              });
+            }
+          }
+        }
+      } catch (jsonError) {
+        logger.warn(
+          `[ToolsHandler] Failed to parse action JSON: ${jsonError.message}`
+        );
+
+        // Fallback: try to extract tool name from malformed JSON
+        const toolNameMatch = match[1].match(
+          /"name":\s*"(?:functions\.)?([^"]+)"/
+        );
+        if (toolNameMatch) {
+          const toolName = toolNameMatch[1];
+          // Try to extract args if possible
+          const argsMatch = match[1].match(
+            /"args":\s*({[^}]*}|\{[^}]*\}|null)/
+          );
+          let args = {};
+
+          if (argsMatch && argsMatch[1] !== 'null') {
+            try {
+              args = JSON.parse(argsMatch[1]);
+            } catch {
+              args = {};
+            }
+          }
+
+          toolCalls.push({
+            name: toolName,
+            args: args,
+            id: uuidv4(),
+            type: 'tool_call',
+          });
+        }
+      }
+    }
+
+    logger.debug(
+      `[ToolsHandler] Parsed ${toolCalls.length} tool calls from actions`
+    );
+    return toolCalls;
+  } catch (error) {
+    logger.error(
+      `[ToolsHandler] Error parsing actions to tool calls: ${error.message}`
+    );
+    return [];
+  }
+}
+
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig;
   private modelSelector: ModelSelector | null;
@@ -188,18 +302,25 @@ export class AgentExecutorGraph {
       short_term_memory: formatStepsForContext(
         state.memories.stm.items
           .map((item) => item?.step_or_history)
-          .filter(
-            (step_or_history): step_or_history is StepInfo =>
-              step_or_history !== undefined
-          )
+          .filter((step_or_history) => step_or_history !== undefined)
       ),
-      long_term_memory: JSONstringifyLTM(state.memories.ltm),
+      long_term_memory: formatLTMForContext(state.memories.ltm.items),
       execution_context: execution_context,
     });
 
-    const selectedModelType = await this.modelSelector!.selectModelForMessages(
-      execution_context ?? config.configurable?.user_request ?? ''
-    );
+    const selectedModelType =
+      config.configurable?.executionMode === ExecutionMode.PLANNING
+        ? await this.modelSelector!.selectModelForMessages(
+            execution_context ?? config.configurable?.user_request ?? ''
+          )
+        : {
+            model: new ChatOpenAI({
+              model: 'gpt-4o-mini',
+              temperature: 0.1,
+              openAIApiKey: process.env.OPENAI_API_KEY,
+            }),
+            model_name: 'gpt-4o-mini',
+          };
     let model;
     const modelExecutionMode = config.configurable?.executionMode;
     const modelAgentMode = config.configurable?.agent_config?.mode;
@@ -238,7 +359,7 @@ export class AgentExecutorGraph {
     // Add metadata to result
     result.additional_kwargs = {
       ...result.additional_kwargs,
-      from: Agent.EXECUTOR,
+      from: ExecutorNode.REASONING_EXECUTOR,
       final: false,
     };
     return result;
@@ -251,7 +372,7 @@ export class AgentExecutorGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_agent: Agent;
+        last_node: ExecutorNode;
         plans_or_histories?: ParsedPlan | History;
         currentGraphStep?: number;
       }
@@ -289,13 +410,15 @@ export class AgentExecutorGraph {
 
     if (maxGraphSteps && maxGraphSteps <= graphStep) {
       logger.warn(`[Executor] Maximum iterations (${maxGraphSteps}) reached`);
-      return createMaxIterationsResponse(graphStep);
+      return createMaxIterationsResponse<ExecutorNode>(
+        graphStep,
+        ExecutorNode.REASONING_EXECUTOR
+      );
     }
 
     logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
 
     const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
-    console.log('Hello');
     try {
       const modelPromise = this.invokeModelWithMessages(
         state,
@@ -314,8 +437,10 @@ export class AgentExecutorGraph {
         timeoutPromise,
       ])) as AIMessageChunk;
 
+      const content = result.content.toLocaleString();
+      console.log('Executor Result:', content);
+      const tokens = estimateTokens(content);
       // Handle ReAct responses for INTERACTIVE+REACTIVE mode
-      console.log(result);
       const agentMode = config.configurable?.agent_config?.mode;
       if (
         executionMode === ExecutionMode.REACTIVE &&
@@ -324,9 +449,32 @@ export class AgentExecutorGraph {
         const content = result.content.toString();
         const reactParsed = parseReActResponse(content);
 
+        // Check for existing tool calls first
+        let toolCallsToUse = result.tool_calls || [];
+
+        // If no tool calls but ReAct parsed indicates there should be some, parse them from actions
+        if (
+          !toolCallsToUse?.length &&
+          reactParsed.hasToolCall &&
+          !reactParsed.isFinalAnswer
+        ) {
+          const parsedToolCalls = parseActionsToToolCalls(content);
+          if (parsedToolCalls.length > 0) {
+            // Convert our ToolCall interface to the expected format and add to result
+            toolCallsToUse = parsedToolCalls.map((tc) => ({
+              name: tc.name,
+              args: tc.args,
+              id: tc.id,
+              type: tc.type,
+            }));
+            // Update the result message with the parsed tool calls
+            result.tool_calls = toolCallsToUse;
+          }
+        }
+
         // If the response has tool calls OR the parsed ReAct response indicates an action should be taken
         if (
-          result.tool_calls?.length ||
+          toolCallsToUse?.length ||
           (reactParsed.hasToolCall && !reactParsed.isFinalAnswer)
         ) {
           const currentHistory = getCurrentHistory(state.plans_or_histories);
@@ -335,12 +483,16 @@ export class AgentExecutorGraph {
             if (currentHistory.items.length === 0) {
               currentHistory.items.push({
                 type: 'tools',
+                message: {
+                  content: content,
+                  tokens: tokens,
+                },
                 timestamp: Date.now(),
               });
             }
             return {
               messages: [result],
-              last_agent: Agent.EXECUTOR,
+              last_node: ExecutorNode.REASONING_EXECUTOR,
               plans_or_histories: currentHistory,
               currentGraphStep: state.currentGraphStep + 1,
             };
@@ -369,7 +521,7 @@ export class AgentExecutorGraph {
 
             return {
               messages: [result],
-              last_agent: Agent.EXECUTOR,
+              last_node: ExecutorNode.REASONING_EXECUTOR,
               plans_or_histories: currentHistory,
               currentGraphStep: state.currentGraphStep + 1,
             };
@@ -387,7 +539,7 @@ export class AgentExecutorGraph {
               });
               return {
                 messages: [result],
-                last_agent: Agent.EXECUTOR,
+                last_node: ExecutorNode.REASONING_EXECUTOR,
                 plans_or_histories: currentHistory,
                 currentGraphStep: state.currentGraphStep + 1,
               };
@@ -396,17 +548,13 @@ export class AgentExecutorGraph {
             return {
               // In planning mode, the tool node will handle updating the plan with tool calls
               messages: [result],
-              last_agent: Agent.EXECUTOR,
+              last_node: ExecutorNode.REASONING_EXECUTOR,
               plans_or_histories: state.plans_or_histories[0],
               currentGraphStep: state.currentGraphStep + 1,
             };
           }
         }
       }
-      const content = result.content.toLocaleString();
-      console.log('Executor Result:', content);
-      console.log(state.plans_or_histories);
-      const tokens = estimateTokens(content);
 
       let updatedPlanOrHistory: ParsedPlan | History;
 
@@ -453,7 +601,7 @@ export class AgentExecutorGraph {
       console.log(currentPlanorHistory);
       return {
         messages: [result],
-        last_agent: Agent.EXECUTOR,
+        last_node: ExecutorNode.REASONING_EXECUTOR,
         plans_or_histories: currentPlanorHistory,
         currentGraphStep: state.currentGraphStep + 1,
       };
@@ -476,7 +624,7 @@ export class AgentExecutorGraph {
         messages: BaseMessage[];
         currentStepIndex?: number; // Optional when we are in history mode
         plans_or_histories?: ParsedPlan | History;
-        last_agent: Agent;
+        last_node: ExecutorNode;
         retry: number;
         currentGraphStep: number;
       }
@@ -518,12 +666,12 @@ export class AgentExecutorGraph {
             additional_kwargs: {
               error: false,
               final: true,
-              from: Agent.EXEC_VALIDATOR,
+              from: ExecutorNode.EXECUTOR_VALIDATOR,
             },
           });
           return {
             messages: [successMessage],
-            last_agent: Agent.EXEC_VALIDATOR,
+            last_node: ExecutorNode.EXECUTOR_VALIDATOR,
             retry: retry,
             currentGraphStep: state.currentGraphStep + 1,
           };
@@ -540,13 +688,13 @@ export class AgentExecutorGraph {
             additional_kwargs: {
               error: false,
               final: true,
-              from: Agent.EXEC_VALIDATOR,
+              from: ExecutorNode.EXECUTOR_VALIDATOR,
             },
           });
           return {
             messages: [successMessage],
             currentStepIndex: state.currentStepIndex + 1,
-            last_agent: Agent.EXEC_VALIDATOR,
+            last_node: ExecutorNode.EXECUTOR_VALIDATOR,
             retry: retry,
             plans_or_histories: updatedPlan,
             currentGraphStep: state.currentGraphStep + 1,
@@ -560,13 +708,13 @@ export class AgentExecutorGraph {
             additional_kwargs: {
               error: false,
               final: false,
-              from: Agent.EXEC_VALIDATOR,
+              from: ExecutorNode.EXECUTOR_VALIDATOR,
             },
           });
           return {
             messages: [message],
             currentStepIndex: state.currentStepIndex + 1,
-            last_agent: Agent.EXEC_VALIDATOR,
+            last_node: ExecutorNode.EXECUTOR_VALIDATOR,
             retry: 0,
             plans_or_histories: updatedPlan,
             currentGraphStep: state.currentGraphStep + 1,
@@ -582,13 +730,13 @@ export class AgentExecutorGraph {
         additional_kwargs: {
           error: false,
           final: false,
-          from: Agent.EXEC_VALIDATOR,
+          from: ExecutorNode.EXECUTOR_VALIDATOR,
         },
       });
       return {
         messages: [notValidateMessage],
         currentStepIndex: state.currentStepIndex,
-        last_agent: Agent.EXEC_VALIDATOR,
+        last_node: ExecutorNode.EXECUTOR_VALIDATOR,
         retry: retry + 1,
         currentGraphStep: state.currentGraphStep + 1,
       };
@@ -598,7 +746,7 @@ export class AgentExecutorGraph {
       );
       return handleNodeError(
         error,
-        'EXECUTOR_VALIDATOR',
+        ExecutorNode.EXECUTOR_VALIDATOR,
         state,
         'Step validation failed'
       );
@@ -612,7 +760,7 @@ export class AgentExecutorGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_agent: Agent;
+        last_node: ExecutorNode;
         plans_or_histories: ParsedPlan | History;
       }
     | Command
@@ -698,10 +846,14 @@ export class AgentExecutorGraph {
         const observation = createReActObservation(truncatedResult.messages);
 
         // Add the observation to the last message's content for ReAct pattern
-        if (truncatedResult.messages.length > 0) {
-          const lastMsg =
-            truncatedResult.messages[truncatedResult.messages.length - 1];
-          lastMsg.content = `**Observation**: ${observation}`;
+        if (
+          truncatedResult.messages.length > 0 &&
+          currentItem.type === 'history' &&
+          currentItem.item.message
+        ) {
+          currentItem.item.message.content =
+            currentItem.item.message?.content +
+            `**Observation**: ${observation}`;
         }
       }
       // Improved token tracking for tool results with safe content extraction
@@ -762,7 +914,7 @@ export class AgentExecutorGraph {
 
       return {
         ...truncatedResult,
-        last_agent: Agent.TOOLS,
+        last_node: ExecutorNode.TOOL_EXECUTOR,
         plans_or_histories: updatedPlanOrHistory,
       };
     } catch (error) {
@@ -792,7 +944,7 @@ export class AgentExecutorGraph {
     ): Promise<
       | {
           messages: BaseMessage[];
-          last_agent: Agent;
+          last_node: ExecutorNode;
           plans_or_histories: ParsedPlan | History;
         }
       | Command
@@ -806,7 +958,7 @@ export class AgentExecutorGraph {
 
   public async humanNode(state: typeof GraphState.State): Promise<{
     messages: BaseMessage[];
-    last_agent: Agent;
+    last_node: ExecutorNode;
     currentGraphStep?: number;
   }> {
     const currentItem = checkAndReturnLastItemFromPlansOrHistories(
@@ -825,14 +977,14 @@ export class AgentExecutorGraph {
     const message = new AIMessageChunk({
       content: input,
       additional_kwargs: {
-        from: Agent.HUMAN,
+        from: ExecutorNode.HUMAN,
         final: false,
       },
     });
 
     return {
       messages: [message],
-      last_agent: Agent.HUMAN,
+      last_node: ExecutorNode.HUMAN,
       currentGraphStep: state.currentGraphStep + 1,
     };
   }
@@ -840,24 +992,63 @@ export class AgentExecutorGraph {
   private shouldContinue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ):
-    | 'reasoning_executor'
-    | 'tool_executor'
-    | 'executor_validator'
-    | 'end'
-    | 'planning_orchestrator'
-    | 'end_executor_graph' {
-    if (state.last_agent === Agent.EXECUTOR) {
+  ): ExecutorNode {
+    if (state.last_node === ExecutorNode.REASONING_EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
-
-      // Handle ReAct responses for INTERACTIVE+REACTIVE mode
-      const executionMode = config.configurable?.executionMode;
-      const agentMode = config.configurable?.agent_config?.mode;
-
       if (
-        executionMode === ExecutionMode.REACTIVE &&
-        agentMode === AgentMode.INTERACTIVE
+        (lastAiMessage instanceof AIMessageChunk ||
+          lastAiMessage instanceof AIMessage) &&
+        lastAiMessage.tool_calls?.length
       ) {
+        logger.debug(
+          `[Router] Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
+        );
+        return ExecutorNode.TOOL_EXECUTOR;
+      }
+    } else if (state.last_node === ExecutorNode.TOOL_EXECUTOR) {
+      const maxSteps =
+        config.configurable?.max_graph_steps ??
+        DEFAULT_GRAPH_CONFIG.maxGraphSteps;
+      if (maxSteps <= state.currentGraphStep) {
+        logger.warn('[Router] Max graph steps reached, routing to END node');
+        return ExecutorNode.END_EXECUTOR_GRAPH;
+      } else {
+        // For other modes, use validator
+        return ExecutorNode.EXECUTOR_VALIDATOR;
+      }
+    }
+    if (state.last_node === ExecutorNode.EXECUTOR_VALIDATOR) {
+      if (state.retry != 0 && state.retry < 3) {
+        logger.debug(
+          '[Router] Execution not validated routing to agent_executor'
+        );
+        return ExecutorNode.REASONING_EXECUTOR;
+      } else if (state.retry >= 3) {
+        logger.debug(
+          '[Router] Execution not validated and max retry reach routing to end'
+        );
+        return ExecutorNode.END_EXECUTOR_GRAPH;
+      }
+      return ExecutorNode.END;
+    }
+    logger.debug('[Router] Routing to validator');
+    return ExecutorNode.EXECUTOR_VALIDATOR;
+  }
+
+  private shouldContinueReactive(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): ExecutorNode {
+    const executionMode = config.configurable?.executionMode;
+    const agentMode = config.configurable?.agent_config?.mode;
+    const lastAiMessage = state.messages[state.messages.length - 1];
+
+    if (
+      executionMode === ExecutionMode.REACTIVE &&
+      agentMode === AgentMode.INTERACTIVE
+    ) {
+      if (state.last_node === ExecutorNode.REASONING_EXECUTOR) {
+        // Handle ReAct responses for INTERACTIVE+REACTIVE mode
         const content = lastAiMessage.content.toString();
         const reactParsed = parseReActResponse(content);
 
@@ -869,7 +1060,7 @@ export class AgentExecutorGraph {
           logger.info(
             `[Router] ReAct final answer detected, routing to end node`
           );
-          return 'end';
+          return ExecutorNode.END;
         }
 
         // Check for tool calls in ReAct format
@@ -881,73 +1072,38 @@ export class AgentExecutorGraph {
           logger.debug(
             `[Router] ReAct detected ${lastAiMessage.tool_calls.length} tool action, routing to tools node`
           );
-          return 'tool_executor';
+          return ExecutorNode.TOOL_EXECUTOR;
         }
 
         // If it's a thought without action, continue reasoning
         if (reactParsed.steps.length > 0 && !hasToolCalls) {
           logger.debug(
-            `[Router] ReAct thought without action, continuing reasoning`
+            `[Router] ReAct thought without action, routing to end mode`
           );
-          return 'reasoning_executor';
+          return ExecutorNode.END;
         }
       }
-      if (
-        (lastAiMessage instanceof AIMessageChunk ||
-          lastAiMessage instanceof AIMessage) &&
-        lastAiMessage.tool_calls?.length
-      ) {
-        logger.debug(
-          `[Router] Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
-        );
-        return 'tool_executor';
-      }
-    } else if (state.last_agent === Agent.TOOLS) {
-      const maxSteps =
-        config.configurable?.max_graph_steps ??
-        DEFAULT_GRAPH_CONFIG.maxGraphSteps;
-      if (maxSteps <= state.currentGraphStep) {
-        logger.warn('[Router] Max graph steps reached, routing to END node');
-        return 'end_executor_graph';
-      } else {
-        // For ReAct mode, route back to reasoning executor to continue the cycle
-        const toolsExecutionMode = config.configurable?.executionMode;
-        const toolsAgentMode = config.configurable?.agent_config?.mode;
+      if (state.last_node === ExecutorNode.TOOL_EXECUTOR) {
         if (
-          toolsExecutionMode === ExecutionMode.REACTIVE &&
-          toolsAgentMode === AgentMode.INTERACTIVE
+          executionMode === ExecutionMode.REACTIVE &&
+          agentMode === AgentMode.INTERACTIVE
         ) {
           logger.debug(
             '[Router] ReAct mode: routing from tools back to reasoning executor'
           );
-          return 'reasoning_executor';
+          return ExecutorNode.END; // Skipping validator for ReAct
         }
-        // For other modes, use validator
-        return 'executor_validator';
       }
     }
-    if (state.last_agent === Agent.EXEC_VALIDATOR) {
-      if (state.retry != 0 && state.retry < 3) {
-        logger.debug(
-          '[Router] Execution not validated routing to agent_executor'
-        );
-        return 'reasoning_executor';
-      } else if (state.retry >= 3) {
-        logger.debug(
-          '[Router] Execution not validated and max retry reach routing to end'
-        );
-        return 'end_executor_graph';
-      }
-      return 'end';
-    }
-    logger.debug('[Router] Routing to validator');
-    return 'executor_validator';
+
+    logger.debug('[Router] Routing to end_executor_graph');
+    return ExecutorNode.END_EXECUTOR_GRAPH;
   }
 
   private shouldContinueHybrid(
     state: typeof GraphState.State,
     config?: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): 'tool_executor' | 'executor_validator' | 'end' | 'human' {
+  ): ExecutorNode {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
     const currentItem = checkAndReturnLastItemFromPlansOrHistories(
@@ -963,16 +1119,16 @@ export class AgentExecutorGraph {
         lastMessage.content.toString().includes('FINAL ANSWER')
       ) {
         logger.info(`[Router] Final message received, routing to end node`);
-        return 'end';
+        return ExecutorNode.END;
       }
       if (currentItem.item.type === 'human_in_the_loop') {
-        return 'human';
+        return ExecutorNode.HUMAN;
       }
       if (lastMessage.tool_calls?.length) {
         logger.debug(
           `[Router] Detected ${lastMessage.tool_calls.length} tool calls, routing to tools node`
         );
-        return 'tool_executor';
+        return ExecutorNode.TOOL_EXECUTOR;
       }
     } else if (lastMessage instanceof ToolMessage) {
       const lastAiMessage = getLatestMessageForMessage(
@@ -987,16 +1143,16 @@ export class AgentExecutorGraph {
       const iteration = state.currentGraphStep;
       if (graphMaxSteps <= iteration) {
         logger.info(`[Tools] Max steps reached, routing to end node`);
-        return 'end';
+        return ExecutorNode.END;
       }
 
       logger.debug(
         `[Router] Received ToolMessage, routing back to validator node`
       );
-      return 'executor_validator';
+      return ExecutorNode.EXECUTOR_VALIDATOR;
     }
     logger.info('[Router] Routing to validator');
-    return 'executor_validator';
+    return ExecutorNode.EXECUTOR_VALIDATOR;
   }
 
   private executor_router(
@@ -1007,9 +1163,13 @@ export class AgentExecutorGraph {
       (config.configurable?.agent_config?.mode ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode) === AgentMode.HYBRID
     ) {
-      return this.shouldContinueHybrid(state, config) as ExecutorNode;
+      logger.debug('[Router] Hybrid mode routing decision');
+      return this.shouldContinueHybrid(state, config);
+    } else if (config.configurable?.executionMode === ExecutionMode.REACTIVE) {
+      logger.debug('[Router] Reactive mode routing decision');
+      return this.shouldContinueReactive(state, config);
     } else {
-      return this.shouldContinue(state, config) as ExecutorNode;
+      return this.shouldContinue(state, config);
     }
   }
 
@@ -1038,19 +1198,31 @@ export class AgentExecutorGraph {
       GraphState,
       GraphConfigurableAnnotation
     )
-      .addNode('reasoning_executor', this.reasoning_executor.bind(this))
-      .addNode('tool_executor', tool_executor)
-      .addNode('executor_validator', this.validatorExecutor.bind(this))
+      .addNode(
+        ExecutorNode.REASONING_EXECUTOR,
+        this.reasoning_executor.bind(this)
+      )
+      .addNode(ExecutorNode.TOOL_EXECUTOR, tool_executor)
+      .addNode(
+        ExecutorNode.EXECUTOR_VALIDATOR,
+        this.validatorExecutor.bind(this)
+      )
       .addNode('human', this.humanNode.bind(this))
-      .addNode('end_executor_graph', this.end_planner_graph.bind(this))
-      .addEdge(START, 'reasoning_executor')
+      .addNode(
+        ExecutorNode.END_EXECUTOR_GRAPH,
+        this.end_planner_graph.bind(this)
+      )
+      .addEdge(START, ExecutorNode.REASONING_EXECUTOR)
       .addConditionalEdges(
-        'reasoning_executor',
+        ExecutorNode.REASONING_EXECUTOR,
         this.executor_router.bind(this)
       )
-      .addConditionalEdges('tool_executor', this.executor_router.bind(this))
       .addConditionalEdges(
-        'executor_validator',
+        ExecutorNode.TOOL_EXECUTOR,
+        this.executor_router.bind(this)
+      )
+      .addConditionalEdges(
+        ExecutorNode.EXECUTOR_VALIDATOR,
         this.executor_router.bind(this)
       );
 

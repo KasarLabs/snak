@@ -18,7 +18,7 @@ import {
 } from './snakAgent.js';
 import { ToolMessage } from '@langchain/core/messages';
 import { AnyZodObject } from 'zod';
-import { GraphNode } from 'agents/modes/config/default-config.js';
+import { GraphNode } from '@agents/modes/config/default-config.js';
 
 /**
  * A call to a tool.

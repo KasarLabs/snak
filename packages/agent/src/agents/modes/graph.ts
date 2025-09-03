@@ -9,7 +9,11 @@ import {
 import { AnyZodObject, z } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
 import { ModelSelector } from '../operators/modelSelector.js';
-import { initializeDatabase, initializeToolsList } from '../core/utils.js';
+import {
+  initializeDatabase,
+  initializeToolsList,
+  isInEnum,
+} from '../core/utils.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from '../../agents/operators/memoryAgent.js';
 import { RagAgent } from '../../agents/operators/ragAgent.js';
@@ -18,9 +22,11 @@ import {
   DEFAULT_GRAPH_CONFIG,
   ConfigValidator,
   DEFAULT_AGENT_CONFIG,
+  ExecutorNode,
+  PlannerNode,
+  MemoryNode,
 } from './config/default-config.js';
 import {
-  Agent,
   AgentReturn,
   History,
   Memories,
@@ -43,9 +49,9 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => [],
   }),
-  last_agent: Annotation<Agent>({
+  last_node: Annotation<ExecutorNode | PlannerNode | MemoryNode | 'start'>({
     reducer: (x, y) => y,
-    default: () => Agent.START,
+    default: () => 'start',
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
@@ -207,8 +213,13 @@ export class Graph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
-    logger.debug(`[Orchestration Router] Last agent: ${state.last_agent}`);
-
+    logger.debug(`[Orchestration Router] Last agent: ${state.last_node}`);
+    const executionMode = config.configurable?.executionMode;
+    if (!executionMode) {
+      throw new Error(
+        '[Orchestration Router] ExecutionMode is undefined in configurable state.'
+      );
+    }
     // Check for errors first
     if (state.error?.hasError) {
       logger.error(
@@ -235,20 +246,19 @@ export class Graph {
       }
     }
 
-    if (state.last_agent === Agent.EXEC_VALIDATOR) {
+    if (isInEnum(ExecutorNode, state.last_node)) {
       logger.debug(
         `[Orchestration Router] Execution complete, routing to memory`
       );
       return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
-    if (state.last_agent === Agent.PLANNER_VALIDATOR) {
+    if (isInEnum(PlannerNode, state.last_node)) {
       logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
       return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
-    if (state.last_agent === Agent.MEMORY_MANAGER) {
-      const executionMode = config.configurable?.executionMode;
+    if (isInEnum(MemoryNode, state.last_node)) {
       if (
         l_msg.additional_kwargs.final === true &&
         executionMode === ExecutionMode.PLANNING

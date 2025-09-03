@@ -19,7 +19,6 @@ import {
 } from '../../agents/modes/graph.js';
 import { MemoryGraph } from '../../agents/modes/sub-graph/memory.js';
 import {
-  Agent,
   EpisodicMemoryContext,
   Memories,
   MemoryOperationResult,
@@ -28,7 +27,10 @@ import {
 } from '../../agents/modes/types/index.js';
 import { MemoryDBManager } from '../modes/utils/memory-db-manager.js';
 import { MemoryStateManager, LTMManager } from '../modes/utils/memory-utils.js';
-import { DEFAULT_GRAPH_CONFIG } from '../modes/config/default-config.js';
+import {
+  DEFAULT_GRAPH_CONFIG,
+  MemoryNode,
+} from '../modes/config/default-config.js';
 import { checkAndReturnObjectFromPlansOrHistories } from '../../agents/modes/utils.js';
 export interface MemoryChainResult {
   memories: string;
@@ -184,7 +186,7 @@ export class MemoryAgent extends BaseAgent {
     return async (
       state: typeof GraphState.State,
       config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-    ): Promise<{ memories: Memories; last_agent: Agent }> => {
+    ): Promise<{ memories: Memories; last_node: MemoryNode }> => {
       try {
         logger.debug('[MemoryNode] Starting memory context retrieval');
         const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
@@ -205,7 +207,7 @@ export class MemoryAgent extends BaseAgent {
               config.configurable?.memory_size ||
                 DEFAULT_GRAPH_CONFIG.memorySize
             ),
-            last_agent: Agent.MEMORY_MANAGER,
+            last_node: MemoryNode.RETRIEVE_MEMORY,
           };
         }
         const result = await chain.invoke(state, config);
@@ -216,10 +218,9 @@ export class MemoryAgent extends BaseAgent {
           state.memories,
           result
         );
-
         return {
           memories: updatedMemories,
-          last_agent: Agent.MEMORY_MANAGER,
+          last_node: MemoryNode.RETRIEVE_MEMORY,
         };
       } catch (error) {
         logger.error(`[MemoryNode] ❌ Error retrieving memories: ${error}`);
@@ -236,7 +237,7 @@ export class MemoryAgent extends BaseAgent {
 
         return {
           memories: fallbackMemories,
-          last_agent: Agent.MEMORY_MANAGER,
+          last_node: MemoryNode.RETRIEVE_MEMORY,
         };
       }
     };

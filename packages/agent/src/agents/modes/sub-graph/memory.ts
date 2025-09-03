@@ -7,7 +7,6 @@ import {
   Command,
 } from '@langchain/langgraph';
 import {
-  Agent,
   Memories,
   ParsedPlan,
   EpisodicMemoryContext,
@@ -40,9 +39,15 @@ import {
   ExecutionMode,
 } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { MemoryNode, DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
+import {
+  MemoryNode,
+  DEFAULT_GRAPH_CONFIG,
+  PlannerNode,
+  ExecutorNode,
+} from '../config/default-config.js';
 import { MemoryStateManager, STMManager } from '../utils/memory-utils.js';
 import { MemoryDBManager } from '../utils/memory-db-manager.js';
+import { isInEnum } from '@agents/core/utils.js';
 
 export type GraphStateType = typeof GraphState.State;
 
@@ -294,6 +299,7 @@ export class MemoryGraph {
   ): Promise<
     | {
         memories: Memories;
+        last_node: MemoryNode;
         plans_or_histories?: ParsedPlan;
       }
     | Command
@@ -310,6 +316,7 @@ export class MemoryGraph {
         );
         return {
           memories: state.memories,
+          last_node: MemoryNode.STM_MANAGER,
         };
       }
       const executionMode = config.configurable?.executionMode;
@@ -330,6 +337,7 @@ export class MemoryGraph {
         );
         return {
           memories: state.memories,
+          last_node: MemoryNode.STM_MANAGER,
         };
       }
       if (item.type === 'tools') {
@@ -365,7 +373,10 @@ export class MemoryGraph {
 
       if (!result.success) {
         logger.error(`[STMManager] Failed to add memory: ${result.error}`);
-        return { memories: result.data || state.memories };
+        return {
+          memories: result.data || state.memories,
+          last_node: MemoryNode.STM_MANAGER,
+        };
       }
 
       const updatedMemories = result.data!;
@@ -375,6 +386,7 @@ export class MemoryGraph {
 
       return {
         memories: updatedMemories,
+        last_node: MemoryNode.STM_MANAGER,
       };
     } catch (error: any) {
       logger.error(`[STMManager] Critical error in STM processing: ${error}`);
@@ -390,12 +402,17 @@ export class MemoryGraph {
   private async ltm_manager(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{ memories?: Memories } | Command> {
+  ): Promise<{ memories?: Memories; last_node: MemoryNode } | Command> {
     try {
       // Skip LTM processing for initial step
-      if (state.currentStepIndex === 0) {
+      if (
+        state.currentStepIndex === 0 &&
+        config.configurable?.executionMode === ExecutionMode.PLANNING
+      ) {
         logger.debug('[LTMManager] Skipping LTM for initial step');
-        return {};
+        return {
+          last_node: MemoryNode.LTM_MANAGER,
+        };
       }
 
       if (
@@ -406,7 +423,9 @@ export class MemoryGraph {
         logger.warn(
           `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
-        return {};
+        return {
+          last_node: MemoryNode.LTM_MANAGER,
+        };
       }
 
       // Validate prerequisites
@@ -414,7 +433,9 @@ export class MemoryGraph {
         logger.warn(
           '[LTMManager] Missing dependencies, skipping LTM processing'
         );
-        return {};
+        return {
+          last_node: MemoryNode.LTM_MANAGER,
+        };
       }
 
       const model = this.modelSelector.getModels()['cheap'];
@@ -428,7 +449,9 @@ export class MemoryGraph {
         logger.warn(
           '[LTMManager] No recent STM items available for LTM upsert'
         );
-        return {};
+        return {
+          last_node: MemoryNode.LTM_MANAGER,
+        };
       }
 
       const structuredModel = model.withStructuredOutput(ltmSchema);
@@ -476,7 +499,9 @@ export class MemoryGraph {
       console.log(`[LTMManager]${userId},\n ${config.configurable})`);
       if (!userId) {
         logger.warn('[LTMManager] No user ID available, skipping LTM upsert');
-        return {};
+        return {
+          last_node: MemoryNode.LTM_MANAGER,
+        };
       }
 
       // Perform safe memory upsert with improved error handling
@@ -495,7 +520,9 @@ export class MemoryGraph {
         );
       }
 
-      return {};
+      return {
+        last_node: MemoryNode.LTM_MANAGER,
+      };
     } catch (error: any) {
       logger.error(`[LTMManager] Critical error in LTM processing: ${error}`);
       return handleNodeError(
@@ -511,8 +538,8 @@ export class MemoryGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): MemoryNode {
-    const lastAgent = state.last_agent;
-    logger.debug(`[MemoryRouter] Routing from agent: ${lastAgent}`);
+    const lastNode = state.last_node;
+    logger.debug(`[MemoryRouter] Routing from agent: ${lastNode}`);
 
     if (
       state.currentGraphStep >=
@@ -542,33 +569,23 @@ export class MemoryGraph {
     }
 
     // Route based on previous agent and current state
-    switch (lastAgent) {
-      case Agent.PLANNER_VALIDATOR:
-        // After plan_or_history validation, retrieve relevant context
-        logger.debug(
-          '[MemoryRouter] Plan validated → retrieving memory context'
-        );
-        return MemoryNode.RETRIEVE_MEMORY;
 
-      case Agent.EXEC_VALIDATOR:
-        // After execution validation, update STM
-        logger.debug('[MemoryRouter] Execution validated → updating STM');
-        return MemoryNode.STM_MANAGER;
-
-      case Agent.MEMORY_MANAGER:
-        // Memory context retrieved, end memory processing
+    if (isInEnum(PlannerNode, lastNode)) {
+      logger.debug('[MemoryRouter] Plan validated → retrieving memory context');
+      return MemoryNode.RETRIEVE_MEMORY;
+    } else if (isInEnum(ExecutorNode, lastNode)) {
+      logger.debug('[MemoryRouter] Execution validated → updating STM');
+      return MemoryNode.STM_MANAGER;
+    } else if (isInEnum(MemoryNode, lastNode)) {
+      if (lastNode === MemoryNode.RETRIEVE_MEMORY) {
         logger.debug(
           '[MemoryRouter] Memory context retrieved → ending memory flow'
         );
         return MemoryNode.END;
-
-      default:
-        // Fallback to end for unknown agents
-        logger.warn(
-          `[MemoryRouter] Unknown agent ${lastAgent}, routing to end`
-        );
-        return MemoryNode.END;
+      }
     }
+    logger.warn(`[MemoryRouter] Unknown agent ${lastNode}, routing to end`);
+    return MemoryNode.END_MEMORY_GRAPH;
   }
 
   private end_memory_graph(

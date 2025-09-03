@@ -1,3 +1,4 @@
+import { ToolMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
 
 export interface ReActStep {
@@ -23,31 +24,44 @@ export function parseReActResponse(content: string): ParsedReActResponse {
   let isFinalAnswer = false;
 
   // Split content by lines and process each
-  const lines = content.split('\n').map(line => line.trim()).filter(line => line);
-  
+  const lines = content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line);
+
   for (const line of lines) {
     if (line.startsWith('**Thought**:') || line.startsWith('Thought:')) {
       // If we have a current step, save it before starting a new one
       if (currentStep.thought || currentStep.action) {
         steps.push({ ...currentStep });
       }
-      currentStep = { 
+      currentStep = {
         thought: line.replace(/^\*?\*?Thought\*?\*?:?\s*/, ''),
-        action: '' 
+        action: '',
       };
     } else if (line.startsWith('**Action**:') || line.startsWith('Action:')) {
       currentStep.action = line.replace(/^\*?\*?Action\*?\*?:?\s*/, '');
-      
+
       // Check if this is a final answer
       if (currentStep.action.toLowerCase().includes('final answer')) {
         isFinalAnswer = true;
       }
-    } else if (line.startsWith('**Observation**:') || line.startsWith('Observation:')) {
-      currentStep.observation = line.replace(/^\*?\*?Observation\*?\*?:?\s*/, '');
+    } else if (
+      line.startsWith('**Observation**:') ||
+      line.startsWith('Observation:')
+    ) {
+      currentStep.observation = line.replace(
+        /^\*?\*?Observation\*?\*?:?\s*/,
+        ''
+      );
     } else if (currentStep.thought && !currentStep.action) {
       // Continue thought if we're still in the thought section
       currentStep.thought += ' ' + line;
-    } else if (currentStep.action && !line.startsWith('**') && !line.startsWith('Observation:')) {
+    } else if (
+      currentStep.action &&
+      !line.startsWith('**') &&
+      !line.startsWith('Observation:')
+    ) {
       // Continue action if we're in the action section
       currentStep.action += ' ' + line;
     }
@@ -61,18 +75,19 @@ export function parseReActResponse(content: string): ParsedReActResponse {
   // Determine if there are tool calls based on action content
   const lastStep = steps[steps.length - 1];
   if (lastStep && lastStep.action) {
-    hasToolCall = !lastStep.action.toLowerCase().includes('final answer') && 
-                  lastStep.action.length > 0 &&
-                  !lastStep.action.toLowerCase().startsWith('provide') &&
-                  !lastStep.action.toLowerCase().startsWith('answer') &&
-                  !lastStep.action.toLowerCase().startsWith('explain');
+    hasToolCall =
+      !lastStep.action.toLowerCase().includes('final answer') &&
+      lastStep.action.length > 0 &&
+      !lastStep.action.toLowerCase().startsWith('provide') &&
+      !lastStep.action.toLowerCase().startsWith('answer') &&
+      !lastStep.action.toLowerCase().startsWith('explain');
   }
 
   return {
     steps,
     currentStep: lastStep || currentStep,
     hasToolCall,
-    isFinalAnswer
+    isFinalAnswer,
   };
 }
 
@@ -80,10 +95,13 @@ export function parseReActResponse(content: string): ParsedReActResponse {
  * Formats ReAct steps for memory storage
  */
 export function formatReActStepsForMemory(steps: ReActStep[]): string {
-  return steps.map((step, index) => 
-    `Step ${index + 1}:\nThought: ${step.thought}\nAction: ${step.action}` +
-    (step.observation ? `\nObservation: ${step.observation}` : '')
-  ).join('\n\n');
+  return steps
+    .map(
+      (step, index) =>
+        `Step ${index + 1}:\nThought: ${step.thought}\nAction: ${step.action}` +
+        (step.observation ? `\nObservation: ${step.observation}` : '')
+    )
+    .join('\n\n');
 }
 
 /**
@@ -92,22 +110,26 @@ export function formatReActStepsForMemory(steps: ReActStep[]): string {
 export function isValidReActFormat(content: string): boolean {
   const hasThought = /\*?\*?Thought\*?\*?:/.test(content);
   const hasAction = /\*?\*?Action\*?\*?:/.test(content);
-  
+
   return hasThought && hasAction;
 }
 
 /**
  * Creates a ReAct observation from tool results
  */
-export function createReActObservation(toolResults: any[]): string {
+export function createReActObservation(toolResults: ToolMessage[]): string {
   if (!toolResults || toolResults.length === 0) {
-    return "No tool results received.";
+    return 'No tool results received.';
   }
 
-  const observations = toolResults.map(result => {
+  const observations = toolResults.map((result) => {
+    // Maybe Upgrade Parsing
     if (typeof result.content === 'string') {
       return result.content;
-    } else if (result.content && typeof result.content.toString === 'function') {
+    } else if (
+      result.content &&
+      typeof result.content.toString === 'function'
+    ) {
       return result.content.toString();
     } else {
       return JSON.stringify(result.content || result);
@@ -120,16 +142,24 @@ export function createReActObservation(toolResults: any[]): string {
 /**
  * Enhances ReAct response with proper formatting
  */
-export function enhanceReActResponse(content: string, toolResults?: any[]): string {
+export function enhanceReActResponse(
+  content: string,
+  toolResults?: any[]
+): string {
   const parsed = parseReActResponse(content);
-  
+
   if (!isValidReActFormat(content)) {
     logger.warn('[ReAct] Response does not follow ReAct format, enhancing...');
     return `**Thought**: Let me analyze this request and determine the best approach.\n**Action**: ${content}`;
   }
 
   // If we have tool results and the last step doesn't have an observation, add it
-  if (toolResults && toolResults.length > 0 && parsed.currentStep && !parsed.currentStep.observation) {
+  if (
+    toolResults &&
+    toolResults.length > 0 &&
+    parsed.currentStep &&
+    !parsed.currentStep.observation
+  ) {
     const observation = createReActObservation(toolResults);
     return content + `\n**Observation**: ${observation}`;
   }

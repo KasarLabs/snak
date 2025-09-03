@@ -120,7 +120,7 @@ Return valid JSON:
 <example>
 <context>
 Agent: Competitive Intelligence Analyst  
-Previous Steps:
+History:
 - Step 1: Collected OpenAI GPT-4 pricing: $0.03/1K tokens input, $0.06/1K output, enterprise tiers available
 - Step 2: Gathered Anthropic Claude pricing: $0.025/1K tokens input, $0.075/1K output, API rate limits documented  
 - Step 3: Analyzed Google Vertex AI pricing structure: volume discounts, regional variations, enterprise features
@@ -187,7 +187,7 @@ export const ADAPTIVE_PLANNER_CONTEXT_PROMPT = `
 <context>
 AgentConfig: {agentConfig}
 Available Tools:\`\`\`json {toolsAvailable} \`\`\`
-Previous Steps: \`\`\`json {previousSteps} \`\`\`
+History: \`\`\`json {history} \`\`\`
 Current Step Number: {stepLength}
 </context>
 `;
