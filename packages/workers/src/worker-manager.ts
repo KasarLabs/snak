@@ -25,6 +25,9 @@ export class WorkerManager {
       await this.queueManager.initialize();
       logger.info('Queue manager initialized');
 
+      await this.jobProcessor.initialize();
+      logger.info('Job processor initialized');
+
       await this.jobProcessor.startProcessing();
       logger.info('Job processors started');
 

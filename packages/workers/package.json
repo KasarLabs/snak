@@ -12,8 +12,6 @@
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
     "format": "prettier --write \"./**/*.ts\"",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
     "test": "tsx src/test-worker.ts",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix"

@@ -1,4 +1,4 @@
-import Bull, { Queue } from 'bull';
+import { Job, JobOptions, Queue } from 'bull';
 import { JobType } from '../types/index.js';
 import { QueueManager } from './queue-manager.js';
 
@@ -24,7 +24,7 @@ export class FileIngestionQueue {
     } = queueManager.getConfig();
     this.queueName = fileIngestion;
     const q = queueManager.getQueue(fileIngestion) as
-      | Bull.Queue<FileIngestionJobPayload>
+      | Queue<FileIngestionJobPayload>
       | undefined;
     if (!q) {
       throw new Error(
@@ -36,8 +36,8 @@ export class FileIngestionQueue {
 
   async addFileIngestionJob(
     payload: FileIngestionJobPayload,
-    options?: Bull.JobOptions
-  ): Promise<Bull.Job> {
+    options?: JobOptions
+  ): Promise<Job> {
     return await this.queueManager.addJob(
       this.queueName,
       JobType.FILE_INGESTION,
@@ -46,7 +46,7 @@ export class FileIngestionQueue {
     );
   }
 
-  getQueue(): Bull.Queue {
+  getQueue(): Queue {
     return this.queue;
   }
 }
