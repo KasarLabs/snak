@@ -182,6 +182,32 @@ export function createMaxIterationsResponse<T>(
 }
 
 // --- Message Utilities ---
+/**
+ * Generic type-safe message finder implementation
+ * Provides proper type narrowing for message retrieval
+ * @param messages - Array of base messages to search through
+ * @param MessageClass - Constructor function for the specific message type
+ * @returns The most recent message of the specified type or null
+ */
+function getLatestMessageForMessageImpl<T extends BaseMessage>(
+  messages: BaseMessage[],
+  MessageClass: new (...args: unknown[]) => T
+): T | null {
+  try {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i] instanceof MessageClass) {
+        return messages[i] as T;
+      }
+    }
+    return null;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`Helper: Error in getLatestMessageForMessage - ${errorMessage}`);
+    throw error;
+  }
+}
+
+// Implementation for each overload using the generic function
 export function getLatestMessageForMessage(
   messages: BaseMessage[],
   MessageClass: typeof ToolMessage
@@ -198,21 +224,11 @@ export function getLatestMessageForMessage(
   messages: BaseMessage[],
   MessageClass: typeof HumanMessage
 ): HumanMessage | null;
-export function getLatestMessageForMessage(
+export function getLatestMessageForMessage<T extends BaseMessage>(
   messages: BaseMessage[],
-  MessageClass: any
-): any {
-  try {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i] instanceof MessageClass) {
-        return messages[i];
-      }
-    }
-    return null;
-  } catch (error: any) {
-    logger.error(`Helper: Error in getLatestMessageForMessage - ${error}`);
-    throw error;
-  }
+  MessageClass: new (...args: unknown[]) => T
+): T | null {
+  return getLatestMessageForMessageImpl(messages, MessageClass);
 }
 
 // --- Terminal State Checks ---
@@ -224,7 +240,16 @@ export function isTerminalMessage(message: BaseMessage): boolean {
   );
 }
 
-export function isTokenLimitError(error: any): boolean {
+/**
+ * Type-safe error checking for token limit errors
+ * Validates if an error is related to token limits without using any
+ * @param error - Error to check, can be Error instance or unknown type
+ * @returns true if the error indicates a token limit issue
+ */
+export function isTokenLimitError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
   return (
     error.message?.includes('token limit') ||
     error.message?.includes('tokens exceed') ||
@@ -250,7 +275,7 @@ export function calculateTotalTokenFromSteps(steps: StepInfo[]): number {
     for (const step of steps) {
       if (step.status === 'completed') {
         if (step.type != 'tools') {
-          total_tokens;
+          // Skip tool steps for token calculation
         }
         total_tokens += estimateTokens(step.description);
         total_tokens += estimateTokens(step.stepName);
@@ -282,7 +307,7 @@ export function formatExecutionMessage(step: StepInfo): string {
     }
     return format_response.join('\n');
   } catch (error) {
-    throw new error();
+    throw new Error('Failed to format execution message');
   }
 }
 

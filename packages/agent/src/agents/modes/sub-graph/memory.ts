@@ -48,6 +48,7 @@ import {
 import { MemoryStateManager, STMManager } from '../utils/memory-utils.js';
 import { MemoryDBManager } from '../utils/memory-db-manager.js';
 import { isInEnum } from '@agents/core/utils.js';
+import { MEMORY_THRESHOLDS } from '../constants/execution-constants.js';
 
 export type GraphStateType = typeof GraphState.State;
 
@@ -343,7 +344,7 @@ export class MemoryGraph {
       if (item.type === 'tools') {
         const result = await Promise.all(
           item.tools?.map(async (tool) => {
-            if (estimateTokens(tool.result) >= 2000) {
+            if (estimateTokens(tool.result) >= MEMORY_THRESHOLDS.SUMMARIZATION_THRESHOLD) {
               let result = await this.summarize_before_inserting(tool.result);
               tool.result = result.content;
               return tool;
@@ -356,7 +357,7 @@ export class MemoryGraph {
       if (
         item.type === 'message' &&
         item.message &&
-        item.message.tokens >= 3000
+        item.message.tokens >= MEMORY_THRESHOLDS.MAX_MESSAGE_TOKENS
       ) {
         let result = await this.summarize_before_inserting(
           item.message.content

@@ -256,7 +256,7 @@ export class MemoryAgent extends BaseAgent {
       config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
     ): string => {
       const agentConfig =
-        config.configurable?.agent_config ?? DEFAULT_GRAPH_CONFIG.agent_config;
+        config.configurable?.agent_config;
       if (!agentConfig) {
         throw new Error(`[MemoryAgent] AgentConfig is undefined.`);
       }

@@ -90,8 +90,13 @@ import {
   enhanceReActResponse,
   createReActObservation,
 } from '../utils/react-utils.js';
+import { PromptStrategyFactory } from '../strategies/prompt-strategies.js';
+import {
+  MODEL_TIMEOUTS,
+  DEFAULT_MODELS,
+  STRING_LIMITS,
+} from '../constants/execution-constants.js';
 import { v4 as uuidv4 } from 'uuid';
-import { exec } from 'child_process';
 import { ChatOpenAI } from '@langchain/openai';
 
 interface ToolCall {
@@ -109,60 +114,38 @@ function parseActionsToToolCalls(content: string): ToolCall[] {
   const toolCalls: ToolCall[] = [];
 
   try {
-    // Look for Action patterns in the content - improved regex to capture complete JSON structures
-    const actionRegex = /\*?\*?Action\*?\*?:\s*({[\s\S]*?})\s*(?:\n|$|\*\*)/gi;
+    // Look for Action patterns in the content
+    const actionRegex = /\*?\*?Action\*?\*?:\s*```?\s*([\[{][\s\S]*?[\]}])\s*```?/gi;
     const matches = content.matchAll(actionRegex);
-
+    
     for (const match of matches) {
       try {
-        let jsonStr = match[1].trim();
-
-        // Clean up the JSON string - remove any trailing text after the closing brace
-        const firstClosingBrace = jsonStr.indexOf('}');
-        if (firstClosingBrace !== -1) {
-          // Find the matching opening brace count
-          let braceCount = 0;
-          let endIndex = -1;
-
-          for (let i = 0; i < jsonStr.length; i++) {
-            if (jsonStr[i] === '{') braceCount++;
-            if (jsonStr[i] === '}') {
-              braceCount--;
-              if (braceCount === 0) {
-                endIndex = i;
-                break;
-              }
-            }
-          }
-
-          if (endIndex !== -1) {
-            jsonStr = jsonStr.substring(0, endIndex + 1);
-          }
-        }
-
+        const jsonStr = match[1].trim();
+        
         // Parse the JSON from the action
         const actionJson = JSON.parse(jsonStr);
-
-        if (actionJson.tool_calls && Array.isArray(actionJson.tool_calls)) {
-          for (const toolCall of actionJson.tool_calls) {
-            // Extract tool name, removing "functions." prefix if present
-            const toolName = toolCall.name?.replace(/^functions\./, '') || '';
-
-            if (toolName) {
-              toolCalls.push({
-                name: toolName,
-                args: toolCall.args || {},
-                id: uuidv4(),
-                type: 'tool_call',
-              });
-            }
+        
+        // Check if it's an array of tool calls or a single object
+        const toolCallArray = Array.isArray(actionJson) ? actionJson : [actionJson];
+        
+        for (const toolCall of toolCallArray) {
+          // Extract tool name, removing "functions." prefix if present
+          const toolName = toolCall.name?.replace(/^functions\./, '') || '';
+          
+          if (toolName) {
+            toolCalls.push({
+              name: toolName,
+              args: toolCall.args || {},
+              id: toolCall.id || uuidv4(), // Use provided id or generate new one
+              type: toolCall.type || 'tool_call',
+            });
           }
         }
       } catch (jsonError) {
         logger.warn(
           `[ToolsHandler] Failed to parse action JSON: ${jsonError.message}`
         );
-
+        
         // Fallback: try to extract tool name from malformed JSON
         const toolNameMatch = match[1].match(
           /"name":\s*"(?:functions\.)?([^"]+)"/
@@ -171,10 +154,10 @@ function parseActionsToToolCalls(content: string): ToolCall[] {
           const toolName = toolNameMatch[1];
           // Try to extract args if possible
           const argsMatch = match[1].match(
-            /"args":\s*({[^}]*}|\{[^}]*\}|null)/
+            /"args":\s*({[^}]*}|null)/
           );
           let args = {};
-
+          
           if (argsMatch && argsMatch[1] !== 'null') {
             try {
               args = JSON.parse(argsMatch[1]);
@@ -182,7 +165,7 @@ function parseActionsToToolCalls(content: string): ToolCall[] {
               args = {};
             }
           }
-
+          
           toolCalls.push({
             name: toolName,
             args: args,
@@ -192,7 +175,7 @@ function parseActionsToToolCalls(content: string): ToolCall[] {
         }
       }
     }
-
+    
     logger.debug(
       `[ToolsHandler] Parsed ${toolCalls.length} tool calls from actions`
     );
@@ -225,64 +208,18 @@ export class AgentExecutorGraph {
   }
 
   // --- Prompt Building ---
+  /**
+   * Builds system prompt using strategy pattern for clean separation of concerns
+   * Delegates prompt selection to appropriate strategy based on execution mode
+   * @param state - Current graph execution state
+   * @param config - Configuration including execution mode and agent settings
+   * @returns ChatPromptTemplate configured for the current execution context
+   */
   private buildSystemPrompt(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): ChatPromptTemplate {
-    let systemPrompt;
-    let contextPrompt;
-
-    const executionMode = config.configurable?.executionMode;
-    const agentMode = config.configurable?.agent_config?.mode;
-
-    if (executionMode === ExecutionMode.REACTIVE) {
-      // Use ReAct prompts for INTERACTIVE mode in REACTIVE execution
-      if (agentMode === AgentMode.INTERACTIVE) {
-        if (state.retry === 0) {
-          systemPrompt = REACT_SYSTEM_PROMPT;
-          contextPrompt = REACT_CONTEXT_PROMPT;
-        } else {
-          systemPrompt = REACT_SYSTEM_PROMPT;
-          contextPrompt = REACT_RETRY_PROMPT;
-        }
-      } else {
-        throw new Error(
-          'REACTIVE execution mode currently supports only INTERACTIVE agent mode'
-        );
-      }
-    } else if (executionMode === ExecutionMode.PLANNING) {
-      const currentStep = getCurrentPlanStep(
-        state.plans_or_histories,
-        state.currentStepIndex
-      );
-      if (!currentStep) {
-        throw new Error(`No step found at index ${state.currentStepIndex}`);
-      }
-
-      if (state.retry === 0) {
-        if (currentStep.type === 'tools') {
-          systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
-        } else {
-          systemPrompt = MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
-        }
-        contextPrompt = STEP_EXECUTOR_CONTEXT_PROMPT;
-      } else {
-        if (currentStep.type === 'tools') {
-          systemPrompt = RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
-        } else {
-          systemPrompt = RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT;
-        }
-        contextPrompt = RETRY_STEP_EXECUTOR_CONTEXT_PROMPT;
-      }
-    } else {
-      throw new Error(`Unknown execution mode: ${executionMode}`);
-    }
-
-    const prompt = ChatPromptTemplate.fromMessages([
-      ['system', systemPrompt],
-      ['ai', contextPrompt],
-    ]);
-    return prompt;
+    return PromptStrategyFactory.buildSystemPrompt(state, config);
   }
 
   private async invokeModelWithMessages(
@@ -315,11 +252,11 @@ export class AgentExecutorGraph {
           )
         : {
             model: new ChatOpenAI({
-              model: 'gpt-4o-mini',
-              temperature: 0.1,
+              model: DEFAULT_MODELS.INTERACTIVE_MODEL,
+              temperature: DEFAULT_MODELS.DEFAULT_TEMPERATURE,
               openAIApiKey: process.env.OPENAI_API_KEY,
             }),
-            model_name: 'gpt-4o-mini',
+            model_name: DEFAULT_MODELS.INTERACTIVE_MODEL,
           };
     let model;
     const modelExecutionMode = config.configurable?.executionMode;
@@ -365,6 +302,193 @@ export class AgentExecutorGraph {
     return result;
   }
 
+  // --- Model Execution Helpers ---
+
+  /**
+   * Executes model inference with timeout protection
+   * Handles model selection and invocation with proper error handling
+   * @param state - Current graph execution state
+   * @param config - Configuration for the execution
+   * @param currentItem - Current plan step or history item being processed
+   * @param prompt - Prepared prompt template for the model
+   * @returns Model response as AIMessageChunk
+   */
+  private async executeModelWithTimeout(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>,
+    currentItem: ReturnTypeCheckPlanorHistory,
+    prompt: ChatPromptTemplate
+  ): Promise<AIMessageChunk> {
+    const modelPromise = this.invokeModelWithMessages(
+      state,
+      config,
+      currentItem,
+      prompt
+    );
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error('Model invocation timeout')),
+        MODEL_TIMEOUTS.DEFAULT_MODEL_TIMEOUT
+      );
+    });
+
+    return (await Promise.race([
+      modelPromise,
+      timeoutPromise,
+    ])) as AIMessageChunk;
+  }
+
+  /**
+   * Processes ReAct responses for interactive reactive mode
+   * Handles tool call extraction and response formatting
+   * @param result - Model response to process
+   * @param content - String content from the model
+   * @param tokens - Estimated token count
+   * @param state - Current graph execution state
+   * @returns Processing result with updated state or null if no processing needed
+   */
+  private async processReActResponse(
+    result: AIMessageChunk,
+    content: string,
+    tokens: number,
+    state: typeof GraphState.State
+  ): Promise<{
+    messages: BaseMessage[];
+    last_node: ExecutorNode;
+    plans_or_histories?: ParsedPlan | History;
+    currentGraphStep?: number;
+  } | null> {
+    const reactParsed = parseReActResponse(content);
+
+    // Check for existing tool calls first
+    let toolCallsToUse = result.tool_calls || [];
+
+    // If no tool calls but ReAct parsed indicates there should be some, parse them from actions
+    if (!toolCallsToUse?.length && !reactParsed.isFinalAnswer) {
+      const parsedToolCalls = parseActionsToToolCalls(content);
+      if (parsedToolCalls.length > 0) {
+        // Convert our ToolCall interface to the expected format and add to result
+        toolCallsToUse = parsedToolCalls.map((tc) => ({
+          name: tc.name,
+          args: tc.args,
+          id: tc.id,
+          type: tc.type,
+        }));
+        // Update the result message with the parsed tool calls
+        result.tool_calls = toolCallsToUse;
+      }
+    }
+
+    // Handle tool calls
+    if (
+      toolCallsToUse?.length ||
+      (reactParsed.hasToolCall && !reactParsed.isFinalAnswer)
+    ) {
+      const currentHistory = getCurrentHistory(state.plans_or_histories);
+      if (currentHistory) {
+        // Add or update tools entry in history
+        if (currentHistory.items.length === 0) {
+          currentHistory.items.push({
+            type: 'tools',
+            message: {
+              content: content,
+              tokens: tokens,
+            },
+            timestamp: Date.now(),
+          });
+        }
+        return {
+          messages: [result],
+          last_node: ExecutorNode.REASONING_EXECUTOR,
+          plans_or_histories: currentHistory,
+          currentGraphStep: state.currentGraphStep + 1,
+        };
+      }
+    }
+
+    // Handle final answer or reasoning without tool calls
+    if (reactParsed.isFinalAnswer || !reactParsed.hasToolCall) {
+      const currentHistory = getCurrentHistory(state.plans_or_histories);
+      if (currentHistory) {
+        const historyItem: HistoryItem = {
+          type: 'message',
+          message: {
+            content: content,
+            tokens: estimateTokens(content),
+          },
+          timestamp: Date.now(),
+        };
+        currentHistory.items.push(historyItem);
+
+        // Mark as final if it's explicitly a final answer
+        result.additional_kwargs = {
+          ...result.additional_kwargs,
+          final: reactParsed.isFinalAnswer,
+        };
+
+        return {
+          messages: [result],
+          last_node: ExecutorNode.REASONING_EXECUTOR,
+          plans_or_histories: currentHistory,
+          currentGraphStep: state.currentGraphStep + 1,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Updates plan or history based on execution mode
+   * Handles message storage in the appropriate data structure
+   * @param executionMode - Current execution mode
+   * @param state - Current graph execution state
+   * @param content - Message content to store
+   * @param tokens - Token count for the content
+   * @returns Updated plan or history object
+   */
+  private updatePlanOrHistoryWithMessage(
+    executionMode: ExecutionMode,
+    state: typeof GraphState.State,
+    content: string,
+    tokens: number
+  ): ParsedPlan | History {
+    if (executionMode === ExecutionMode.REACTIVE) {
+      const currentHistory = getCurrentHistory(state.plans_or_histories);
+      if (!currentHistory) {
+        throw new Error('No history available for message update');
+      }
+
+      const historyItem: HistoryItem = {
+        type: 'message',
+        message: {
+          content: content,
+          tokens: tokens,
+        },
+        timestamp: Date.now(),
+      };
+      currentHistory.items.push(historyItem);
+      return currentHistory;
+    } else if (executionMode === ExecutionMode.PLANNING) {
+      const currentPlan = getCurrentPlan(state.plans_or_histories);
+      const currentStep = getCurrentPlanStep(
+        state.plans_or_histories,
+        state.currentStepIndex
+      );
+      if (!currentPlan || !currentStep || currentStep.type !== 'message') {
+        throw new Error('No plan step available for message update');
+      }
+
+      currentPlan.steps[state.currentStepIndex].message = {
+        content: content,
+        tokens: tokens,
+      };
+      return currentPlan;
+    } else {
+      throw new Error(`Unknown execution mode: ${executionMode}`);
+    }
+  }
+
   // --- EXECUTOR NODE ---
   private async reasoning_executor(
     state: typeof GraphState.State,
@@ -399,9 +523,8 @@ export class AgentExecutorGraph {
       state.plans_or_histories,
       state.currentStepIndex
     );
-    let currentPlanorHistory = checkAndReturnObjectFromPlansOrHistories(
-      state.plans_or_histories
-    );
+    // Validate current execution context
+    checkAndReturnObjectFromPlansOrHistories(state.plans_or_histories);
     logger.info(`[Executor] Processing...`);
     const maxGraphSteps =
       config.configurable?.max_graph_steps ??
@@ -418,117 +541,36 @@ export class AgentExecutorGraph {
 
     logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
 
-    const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
+    const systemPrompt = this.buildSystemPrompt(state, config);
+
     try {
-      const modelPromise = this.invokeModelWithMessages(
+      // Execute model with timeout protection
+      const result = await this.executeModelWithTimeout(
         state,
         config,
         currentItem,
-        autonomousSystemPrompt
+        systemPrompt
       );
-      console.log('Hello');
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Model invocation timeout')), 45000);
-      });
-
-      const result = (await Promise.race([
-        modelPromise,
-        timeoutPromise,
-      ])) as AIMessageChunk;
-
       const content = result.content.toLocaleString();
-      console.log('Executor Result:', content);
       const tokens = estimateTokens(content);
-      // Handle ReAct responses for INTERACTIVE+REACTIVE mode
       const agentMode = config.configurable?.agent_config?.mode;
+
+      // Handle ReAct responses for INTERACTIVE+REACTIVE mode
       if (
         executionMode === ExecutionMode.REACTIVE &&
         agentMode === AgentMode.INTERACTIVE
       ) {
-        const content = result.content.toString();
-        const reactParsed = parseReActResponse(content);
-
-        // Check for existing tool calls first
-        let toolCallsToUse = result.tool_calls || [];
-
-        // If no tool calls but ReAct parsed indicates there should be some, parse them from actions
-        if (
-          !toolCallsToUse?.length &&
-          reactParsed.hasToolCall &&
-          !reactParsed.isFinalAnswer
-        ) {
-          const parsedToolCalls = parseActionsToToolCalls(content);
-          if (parsedToolCalls.length > 0) {
-            // Convert our ToolCall interface to the expected format and add to result
-            toolCallsToUse = parsedToolCalls.map((tc) => ({
-              name: tc.name,
-              args: tc.args,
-              id: tc.id,
-              type: tc.type,
-            }));
-            // Update the result message with the parsed tool calls
-            result.tool_calls = toolCallsToUse;
-          }
-        }
-
-        // If the response has tool calls OR the parsed ReAct response indicates an action should be taken
-        if (
-          toolCallsToUse?.length ||
-          (reactParsed.hasToolCall && !reactParsed.isFinalAnswer)
-        ) {
-          const currentHistory = getCurrentHistory(state.plans_or_histories);
-          if (currentHistory) {
-            // Add or update tools entry in history
-            if (currentHistory.items.length === 0) {
-              currentHistory.items.push({
-                type: 'tools',
-                message: {
-                  content: content,
-                  tokens: tokens,
-                },
-                timestamp: Date.now(),
-              });
-            }
-            return {
-              messages: [result],
-              last_node: ExecutorNode.REASONING_EXECUTOR,
-              plans_or_histories: currentHistory,
-              currentGraphStep: state.currentGraphStep + 1,
-            };
-          }
-        }
-
-        // If it's a final answer or reasoning without tool calls, handle as message
-        if (reactParsed.isFinalAnswer || !reactParsed.hasToolCall) {
-          const currentHistory = getCurrentHistory(state.plans_or_histories);
-          if (currentHistory) {
-            const historyItem: HistoryItem = {
-              type: 'message',
-              message: {
-                content: content,
-                tokens: estimateTokens(content),
-              },
-              timestamp: Date.now(),
-            };
-            currentHistory.items.push(historyItem);
-
-            // Mark as final if it's explicitly a final answer
-            result.additional_kwargs = {
-              ...result.additional_kwargs,
-              final: reactParsed.isFinalAnswer,
-            };
-
-            return {
-              messages: [result],
-              last_node: ExecutorNode.REASONING_EXECUTOR,
-              plans_or_histories: currentHistory,
-              currentGraphStep: state.currentGraphStep + 1,
-            };
-          }
+        const reactResult = await this.processReActResponse(
+          result,
+          content,
+          tokens,
+          state
+        );
+        if (reactResult) {
+          return reactResult;
         }
       } else {
-        // Original logic for non-ReAct modes
+        // Handle non-ReAct modes with tool calls
         if (result.tool_calls?.length) {
           if (executionMode === ExecutionMode.REACTIVE) {
             const currentHistory = getCurrentHistory(state.plans_or_histories);
@@ -545,8 +587,8 @@ export class AgentExecutorGraph {
               };
             }
           } else {
+            // In planning mode, the tool node will handle updating the plan with tool calls
             return {
-              // In planning mode, the tool node will handle updating the plan with tool calls
               messages: [result],
               last_node: ExecutorNode.REASONING_EXECUTOR,
               plans_or_histories: state.plans_or_histories[0],
@@ -556,53 +598,26 @@ export class AgentExecutorGraph {
         }
       }
 
-      let updatedPlanOrHistory: ParsedPlan | History;
-
-      if (executionMode === ExecutionMode.REACTIVE) {
-        const currentHistory = getCurrentHistory(state.plans_or_histories);
-        if (currentHistory) {
-          const historyItem: HistoryItem = {
-            type: 'message',
-            message: {
-              content: content,
-              tokens: tokens,
-            },
-            timestamp: Date.now(),
-          };
-          currentHistory.items.push(historyItem);
-          updatedPlanOrHistory = currentHistory;
-        } else {
-          throw new Error('No history available for message update');
-        }
-      } else if (executionMode === ExecutionMode.PLANNING) {
-        const currentPlan = getCurrentPlan(state.plans_or_histories);
-        const currentStep = getCurrentPlanStep(
-          state.plans_or_histories,
-          state.currentStepIndex
-        );
-        if (currentPlan && currentStep && currentStep.type === 'message') {
-          currentPlan.steps[state.currentStepIndex].message = {
-            content: content,
-            tokens: tokens,
-          };
-          updatedPlanOrHistory = currentPlan;
-        } else {
-          throw new Error('No plan step available for message update');
-        }
-      } else {
-        throw new Error(`Unknown execution mode: ${executionMode}`);
+      // Handle message updates using helper method
+      if (!executionMode) {
+        throw new Error('Execution mode is required for message updates');
       }
 
-      currentPlanorHistory = updatedPlanOrHistory;
+      const updatedPlanOrHistory = this.updatePlanOrHistoryWithMessage(
+        executionMode,
+        state,
+        content,
+        tokens
+      );
 
       logger.debug(
         `[Executor] Token tracking: ${tokens} tokens for step ${state.currentStepIndex + 1}`
       );
-      console.log(currentPlanorHistory);
+
       return {
         messages: [result],
         last_node: ExecutorNode.REASONING_EXECUTOR,
-        plans_or_histories: currentPlanorHistory,
+        plans_or_histories: updatedPlanOrHistory,
         currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error: any) {
@@ -660,7 +675,6 @@ export class AgentExecutorGraph {
       );
       if (structuredResult.success === true) {
         if (plan_or_history.type === 'history') {
-          console.log(JSON.stringify(state.plans_or_histories, null, 2));
           const successMessage = new AIMessageChunk({
             content: `Executor Validation successfully - History mode`,
             additional_kwargs: {
@@ -776,8 +790,13 @@ export class AgentExecutorGraph {
 
     if (toolCalls.length > 0) {
       toolCalls.forEach((call) => {
-        const argsPreview = JSON.stringify(call.args).substring(0, 150);
-        const hasMore = JSON.stringify(call.args).length > 150;
+        const argsPreview = JSON.stringify(call.args).substring(
+          0,
+          STRING_LIMITS.CONTENT_PREVIEW_LENGTH
+        );
+        const hasMore =
+          JSON.stringify(call.args).length >
+          STRING_LIMITS.CONTENT_PREVIEW_LENGTH;
         logger.info(
           `[Tools] Executing tool: ${call.name} with args: ${argsPreview}${hasMore ? '...' : ''}`
         );

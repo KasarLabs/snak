@@ -584,7 +584,7 @@ export class PlannerGraph {
   ) {
     try {
       const agent_config =
-        config.configurable?.agent_config ?? DEFAULT_GRAPH_CONFIG.agent_config;
+        config.configurable?.agent_config;
       if (!agent_config) {
         throw new Error(
           '[PLANNING_ROUTER] AgentConfig is not configured. routing to END_GRAPH'
@@ -648,7 +648,7 @@ export class PlannerGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): PlannerNode {
     const agent_config =
-      config.configurable?.agent_config ?? DEFAULT_GRAPH_CONFIG.agent_config;
+      config.configurable?.agent_config;
     if (!agent_config) {
       throw new Error(
         '[PLANNING_ROUTER] AgentConfig is not configured. routing to END_GRAPH'

@@ -287,8 +287,7 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
     try {
-      const agentConfig =
-        config.configurable?.agent_config ?? DEFAULT_GRAPH_CONFIG.agent_config;
+      const agentConfig = config.configurable?.agent_config;
       if (!agentConfig) {
         throw new Error(
           '[Start Orchestration Router] AgentConfig is undefined.'

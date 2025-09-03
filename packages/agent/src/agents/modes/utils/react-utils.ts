@@ -5,6 +5,7 @@ export interface ReActStep {
   thought: string;
   action: string;
   observation?: string;
+  final_result?: string;
 }
 
 export interface ParsedReActResponse {
@@ -19,7 +20,7 @@ export interface ParsedReActResponse {
  */
 export function parseReActResponse(content: string): ParsedReActResponse {
   const steps: ReActStep[] = [];
-  let currentStep: ReActStep = { thought: '', action: '' };
+  let currentStep: ReActStep = { thought: '', action: '', final_result: '' };
   let hasToolCall = false;
   let isFinalAnswer = false;
 
@@ -43,9 +44,6 @@ export function parseReActResponse(content: string): ParsedReActResponse {
       currentStep.action = line.replace(/^\*?\*?Action\*?\*?:?\s*/, '');
 
       // Check if this is a final answer
-      if (currentStep.action.toLowerCase().includes('final answer')) {
-        isFinalAnswer = true;
-      }
     } else if (
       line.startsWith('**Observation**:') ||
       line.startsWith('Observation:')
@@ -54,6 +52,15 @@ export function parseReActResponse(content: string): ParsedReActResponse {
         /^\*?\*?Observation\*?\*?:?\s*/,
         ''
       );
+    } else if (
+      line.startsWith('**FINAL_ANSWER**:') ||
+      line.startsWith('FINAL_ANSWER:')
+    ) {
+      currentStep.final_result = line.replace(
+        /^\*?\*?FINAL_ANSWER\*?\*?:?\s*/,
+        ''
+      );
+      isFinalAnswer = true;
     } else if (currentStep.thought && !currentStep.action) {
       // Continue thought if we're still in the thought section
       currentStep.thought += ' ' + line;
@@ -76,13 +83,13 @@ export function parseReActResponse(content: string): ParsedReActResponse {
   const lastStep = steps[steps.length - 1];
   if (lastStep && lastStep.action) {
     hasToolCall =
-      !lastStep.action.toLowerCase().includes('final answer') &&
+      !lastStep.action.toLowerCase().includes('final_answer') &&
       lastStep.action.length > 0 &&
       !lastStep.action.toLowerCase().startsWith('provide') &&
       !lastStep.action.toLowerCase().startsWith('answer') &&
       !lastStep.action.toLowerCase().startsWith('explain');
   }
-
+  console.log(currentStep);
   return {
     steps,
     currentStep: lastStep || currentStep,
