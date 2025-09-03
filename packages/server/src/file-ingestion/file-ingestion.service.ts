@@ -1,4 +1,4 @@
-import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { ConfigurationService } from '../../config/configuration.js';
 import { fileTypeFromBuffer } from 'file-type';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -10,11 +10,10 @@ import { ChunkingService } from '../chunking/chunking.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
 import { VectorStoreService } from '../vector-store/vector-store.service.js';
 import { Postgres } from '@snakagent/database';
+import { logger } from '@snakagent/core';
 
 @Injectable()
 export class FileIngestionService {
-  private readonly logger = new Logger(FileIngestionService.name);
-
   constructor(
     private readonly chunkingService: ChunkingService,
     private readonly embeddingsService: EmbeddingsService,
@@ -72,72 +71,91 @@ export class FileIngestionService {
   }
 
   private async extractPdf(buffer: Buffer): Promise<string> {
-    const loadingTask = pdfjsLib.getDocument({ data: buffer });
-    const pdf = await loadingTask.promise;
-    let text = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items
-        .map((item) => {
-          if (typeof item === 'object' && item !== null && 'str' in item) {
-            return String(item.str);
-          }
-          return '';
-        })
-        .join(' ');
-      text += pageText + '\n';
+    
+    try {
+      const loadingTask = pdfjsLib.getDocument({ data: buffer });
+      const pdf = await loadingTask.promise;
+      
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item) => {
+            if (typeof item === 'object' && item !== null && 'str' in item) {
+              return String(item.str);
+            }
+            return '';
+          })
+          .join(' ');
+        text += pageText + '\n';
+      }
+      
+      const cleanedText = this.cleanText(text);
+      
+      return cleanedText;
+    } catch (err) {
+      logger.error(`PDF extraction failed:`, err);
+      throw err;
     }
-    return this.cleanText(text);
   }
 
-  private async extractDocx(buffer: Buffer): Promise<string> {
-    const { value } = await mammoth.extractRawText({ buffer });
-    return this.cleanText(value);
+  private async extractDocx(buffer: Buffer): Promise<string> {    
+    try {
+      const { value } = await mammoth.extractRawText({ buffer });
+      const cleanedText = this.cleanText(value);
+      return cleanedText;
+    } catch (err) {
+      logger.error(`DOCX extraction failed:`, err);
+      throw err;
+    }
   }
 
   private async extractRawText(buffer: Buffer, mimeType?: string) {
     const type =
       mimeType || (await fileTypeFromBuffer(buffer))?.mime || 'text/plain';
 
-    if (type === 'application/pdf') {
-      return this.extractPdf(buffer);
-    }
+    try {
+      let result: string;
 
-    if (
-      type ===
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ) {
-      return this.extractDocx(buffer);
-    }
+      if (type === 'application/pdf') {
+        result = await this.extractPdf(buffer);
+      } else if (
+        type ===
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ) {
+        result = await this.extractDocx(buffer);
+      } else if (type === 'text/csv' || type === 'application/csv') {
+        const csvText = await this.parseCsv(buffer);
+        result = this.cleanText(csvText);
+      } else if (type === 'application/json' || type === 'text/json') {
+        const obj = JSON.parse(buffer.toString('utf8'));
+        result = JSON.stringify(obj, null, 2);
+      } else {
+        const text = buffer.toString('utf8');
+        result = this.cleanText(text);
+      }
 
-    if (type === 'text/csv' || type === 'application/csv') {
-      const csvText = await this.parseCsv(buffer);
-      return this.cleanText(csvText);
+      
+      return result;
+    } catch (err) {
+      logger.error(`Text extraction failed:`, err);
+      throw err;
     }
-
-    if (type === 'application/json' || type === 'text/json') {
-      const obj = JSON.parse(buffer.toString('utf8'));
-      return JSON.stringify(obj, null, 2);
-    }
-
-    // default to text
-    const text = buffer.toString('utf8');
-    return this.cleanText(text);
   }
 
   private computeChunkParams(size: number) {
     const chunkSize =
       size > 1_000_000
-        ? 500
+        ? 1000
         : size > 500_000
-          ? 400
+          ? 800
           : size > 100_000
-            ? 300
+            ? 600
             : size > 50_000
-              ? 200
-              : 100;
-    const overlap = Math.round(chunkSize * (chunkSize <= 300 ? 0.2 : 0.1));
+              ? 400
+              : 200;
+    const overlap = Math.round(chunkSize * 0.1);
     return { chunkSize, overlap };
   }
 
@@ -147,69 +165,92 @@ export class FileIngestionService {
     originalName: string,
     userId: string
   ): Promise<FileContent> {
-    await this.verifyAgentOwnership(agentId, userId);
-    const meta = await this.saveFile(buffer, originalName);
-    const agentSize = await this.vectorStore.getAgentSize(agentId, userId);
-    const totalSize = await this.vectorStore.getTotalSize();
-    const { maxAgentSize, maxProcessSize } = this.config.rag;
-
-    if (agentSize + meta.size > maxAgentSize) {
-      throw new Error('Agent rag storage limit exceeded');
-    }
-    if (totalSize + meta.size > maxProcessSize) {
-      throw new Error('Process rag storage limit exceeded');
-    }
-    const text = await this.extractRawText(buffer, meta.mimeType);
-    const strategy =
-      meta.mimeType === 'text/csv' ||
-      meta.mimeType === 'application/csv' ||
-      meta.mimeType === 'application/json' ||
-      meta.mimeType === 'text/json'
-        ? 'structured'
-        : 'adaptive';
-    const { chunkSize, overlap } = this.computeChunkParams(meta.size);
-    const chunks = await this.chunkingService.chunkText(meta.id, text, {
-      chunkSize,
-      overlap,
-      strategy,
-    });
-
+    
     try {
-      const texts = chunks.map((c) => c.text);
-      const vectors = await this.embeddingsService.embedDocuments(texts);
-      if (vectors.length !== chunks.length) {
-        throw new Error('Embedding count mismatch');
-      }
+      await this.verifyAgentOwnership(agentId, userId);
 
-      chunks.forEach((chunk, idx) => {
-        chunk.metadata.embedding = vectors[idx];
+      const meta = await this.saveFile(buffer, originalName);
+
+      const agentSize = await this.vectorStore.getAgentSize(agentId, userId);
+      const totalSize = await this.vectorStore.getTotalSize();
+      const { maxAgentSize, maxProcessSize } = this.config.rag;
+      
+
+      if (agentSize + meta.size > maxAgentSize) {
+        logger.error(`Agent storage limit exceeded: ${agentSize + meta.size} > ${maxAgentSize}`);
+        throw new Error('Agent rag storage limit exceeded');
+      }
+      if (totalSize + meta.size > maxProcessSize) {
+        logger.error(`Process storage limit exceeded: ${totalSize + meta.size} > ${maxProcessSize}`);
+        throw new Error('Process rag storage limit exceeded');
+      }
+      const text = await this.extractRawText(buffer, meta.mimeType);
+
+      const strategy =
+        meta.mimeType === 'text/csv' ||
+        meta.mimeType === 'application/csv' ||
+        meta.mimeType === 'application/json' ||
+        meta.mimeType === 'text/json'
+          ? 'structured'
+          : 'adaptive';
+      const { chunkSize, overlap } = this.computeChunkParams(meta.size);
+
+      const chunks = await this.chunkingService.chunkText(meta.id, text, {
+        chunkSize,
+        overlap,
+        strategy,
       });
 
-      const upsertPayload = chunks.map((chunk) => ({
-        id: chunk.id,
-        vector: chunk.metadata.embedding as number[],
-        content: chunk.text,
+      const MAX_CHUNKS = 200;
+      if (chunks.length > MAX_CHUNKS) {
+        chunks.splice(MAX_CHUNKS);
+      }
+      
+      try {
+        const texts = chunks.map((c) => c.text);
+        
+        const vectors = await this.embeddingsService.embedDocuments(texts);
+        
+        if (vectors.length !== chunks.length) {
+          logger.error(`Embedding count mismatch: ${vectors.length} vectors vs ${chunks.length} chunks`);
+          throw new Error('Embedding count mismatch');
+        }
+
+        chunks.forEach((chunk, idx) => {
+          chunk.metadata.embedding = vectors[idx];
+        });
+
+        const upsertPayload = chunks.map((chunk) => ({
+          id: chunk.id,
+          vector: chunk.metadata.embedding as number[],
+          content: chunk.text,
+          metadata: {
+            documentId: chunk.metadata.documentId,
+            chunkIndex: chunk.metadata.chunkIndex,
+            originalName: meta.originalName,
+            mimeType: meta.mimeType,
+          },
+        }));
+
+        await this.vectorStore.upsert(agentId, upsertPayload, userId);
+
+      } catch (err) {
+        logger.error(`Embedding/Storage failed:`, err);
+        throw err;
+      }
+
+      return {
+        chunks,
         metadata: {
-          documentId: chunk.metadata.documentId,
-          chunkIndex: chunk.metadata.chunkIndex,
           originalName: meta.originalName,
           mimeType: meta.mimeType,
+          size: meta.size,
         },
-      }));
-      await this.vectorStore.upsert(agentId, upsertPayload, userId);
+      };
     } catch (err) {
-      this.logger.error('Embedding failed', err);
+      logger.error(`File processing failed:`, err);
       throw err;
     }
-
-    return {
-      chunks,
-      metadata: {
-        originalName: meta.originalName,
-        mimeType: meta.mimeType,
-        size: meta.size,
-      },
-    };
   }
 
   async listFiles(agentId: string, userId: string): Promise<StoredFile[]> {

@@ -72,9 +72,9 @@ export class ConfigurationService {
         err as any
       );
       this.ragConfig = {
-        maxAgentSize: 10_000_000,
+        maxAgentSize: 1_000_000,
         maxProcessSize: 50_000_000,
-        maxRagSize: 10_000_000,
+        maxRagSize: 553_000,
       };
     }
   }

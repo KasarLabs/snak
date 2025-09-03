@@ -13,6 +13,7 @@ import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
 import { ConfigurationService } from '../../config/configuration.js';
 import { getUserIdFromHeaders } from '../utils/index.js';
+import { logger } from '@snakagent/core';
 
 interface MultipartField {
   type: 'field';
@@ -34,41 +35,59 @@ export class FileIngestionController {
 
   @Post('upload')
   async upload(@Req() request: FastifyRequest): Promise<FileContent> {
-    const req = request as unknown as MultipartRequest;
-    if (!req.isMultipart || !req.isMultipart()) {
-      throw new BadRequestException('Multipart request expected');
-    }
-
-    const userId = getUserIdFromHeaders(request);
-
-    let agentId = '';
-    let fileBuffer: Buffer | undefined;
-    let fileName = '';
-
-    const parts = req.parts();
-    for await (const part of parts) {
-      if (part.type === 'field' && part.fieldname === 'agentId') {
-        agentId = String(part.value);
-      } else if (part.type === 'file') {
-        let size = 0;
-        const chunks: Buffer[] = [];
-        for await (const chunk of part.file) {
-          size += chunk.length;
-          if (size > this.config.rag.maxRagSize) {
-            part.file.destroy();
-            throw new ForbiddenException('File size exceeds limit');
-          }
-          chunks.push(chunk);
-        }
-        fileBuffer = Buffer.concat(chunks);
-        fileName = part.filename;
-      }
-    }
-    if (!fileBuffer) {
-      throw new BadRequestException('No file found in request');
-    }
-
+    
     try {
+      const req = request as unknown as MultipartRequest;
+      if (!req.isMultipart || !req.isMultipart()) {
+        logger.error('Multipart request expected');
+        throw new BadRequestException('Multipart request expected');
+      }
+
+      const userId = getUserIdFromHeaders(request);
+
+      let agentId = '';
+      let fileBuffer: Buffer | undefined;
+      let fileName = '';
+      let fileSize = 0;
+
+      const parts = req.parts();
+      let partCount = 0;
+      
+      for await (const part of parts) {
+        partCount++;
+        logger.debug(`Processing part ${partCount}, type: ${part.type}`);
+        
+        if (part.type === 'field' && part.fieldname === 'agentId') {
+          agentId = String(part.value);
+        } else if (part.type === 'file') {
+          let size = 0;
+          const chunks: Buffer[] = [];
+          let chunkCount = 0;
+          
+          for await (const chunk of part.file) {
+            chunkCount++;
+            size += chunk.length;
+            logger.debug(`Chunk ${chunkCount}: ${chunk.length} bytes (total: ${size} bytes)`);
+            
+            if (size > this.config.rag.maxRagSize) {
+              logger.error(`File size ${size} exceeds limit ${this.config.rag.maxRagSize}`);
+              part.file.destroy();
+              throw new ForbiddenException('File size exceeds limit');
+            }
+            chunks.push(chunk);
+          }
+          
+          fileBuffer = Buffer.concat(chunks);
+          fileName = part.filename;
+          fileSize = size;
+        }
+      }
+      
+      if (!fileBuffer) {
+        logger.error('No file found in request');
+        throw new BadRequestException('No file found in request');
+      }
+      
       const result = await this.service.process(
         agentId,
         fileBuffer,
@@ -76,10 +95,16 @@ export class FileIngestionController {
         userId
       );
       result.chunks.forEach((c) => delete c.metadata.embedding);
+      
       return result;
     } catch (err: unknown) {
-      request.log?.error?.({ err }, 'Embedding failed during file processing');
-      throw new InternalServerErrorException('Embedding failed');
+      logger.error(`Upload failed:`, err);
+      request.log?.error?.({ err }, 'File upload failed');
+      
+      if (err instanceof ForbiddenException || err instanceof BadRequestException) {
+        throw err;
+      }
+      throw new InternalServerErrorException('File processing failed');
     }
   }
 

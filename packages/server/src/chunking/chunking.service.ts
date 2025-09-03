@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Chunk } from './chunk.interface.js';
+import { logger } from '@snakagent/core';
 
 export interface ChunkOptions {
   chunkSize: number;
@@ -9,24 +10,40 @@ export interface ChunkOptions {
 
 @Injectable()
 export class ChunkingService {
+
   async chunkText(
     documentId: string,
     text: string,
     options: ChunkOptions
   ): Promise<Chunk[]> {
     const { chunkSize, overlap, strategy = 'adaptive' } = options;
-    if (chunkSize <= 0) throw new Error('Chunk size must be positive');
-    if (overlap < 0) throw new Error('Overlap cannot be negative');
-    if (overlap >= chunkSize)
-      throw new Error('Overlap must be less than chunk size');
+  
+    try {
+      if (chunkSize <= 0) {
+        throw new Error('Chunk size must be positive');
+      }
+      if (overlap < 0) {
+        throw new Error('Overlap cannot be negative');
+      }
+      if (overlap >= chunkSize) {
+        throw new Error('Overlap must be less than chunk size');
+      }
 
-    if (strategy === 'whitespace') {
-      return this.chunkByWhitespace(documentId, text, chunkSize, overlap);
+      let chunks: Chunk[];
+      
+      if (strategy === 'whitespace') {
+        chunks = this.chunkByWhitespace(documentId, text, chunkSize, overlap);
+      } else if (strategy === 'structured') {
+        chunks = this.chunkStructured(documentId, text, chunkSize, overlap);
+      } else {
+        chunks = this.chunkAdaptive(documentId, text, chunkSize, overlap);
+      }
+      
+      return chunks;
+    } catch (err) {
+      logger.error(`Chunking failed:`, err);
+      throw err;
     }
-    if (strategy === 'structured') {
-      return this.chunkStructured(documentId, text, chunkSize, overlap);
-    }
-    return this.chunkAdaptive(documentId, text, chunkSize, overlap);
   }
 
   private chunkByWhitespace(

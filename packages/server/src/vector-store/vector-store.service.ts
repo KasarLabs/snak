@@ -1,15 +1,14 @@
 import {
   Injectable,
-  Logger,
   OnModuleInit,
   ForbiddenException,
 } from '@nestjs/common';
+import { logger } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { rag } from '@snakagent/database/queries';
 
 @Injectable()
 export class VectorStoreService implements OnModuleInit {
-  private readonly logger = new Logger(VectorStoreService.name);
   private initialized = false;
 
   async onModuleInit() {
@@ -22,7 +21,7 @@ export class VectorStoreService implements OnModuleInit {
       await rag.init();
       this.initialized = true;
     } catch (err) {
-      this.logger.error('Failed to initialize vector table', err);
+      logger.error('Failed to initialize vector table', err);
       throw err;
     }
   }
@@ -63,29 +62,35 @@ export class VectorStoreService implements OnModuleInit {
     }[],
     userId: string
   ) {
-    await this.verifyAgentOwnership(agentId, userId);
+    
+    try {
+      await this.verifyAgentOwnership(agentId, userId);
 
-    const queries = entries.map(
-      (e) =>
-        new Postgres.Query(
-          `INSERT INTO document_vectors(id, agent_id, document_id, chunk_index, embedding, content, original_name, mime_type)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-           ON CONFLICT (id) DO UPDATE
-           SET embedding = $5, content=$6, original_name=$7, mime_type=$8`,
-          [
-            e.id,
-            agentId,
-            e.metadata.documentId,
-            e.metadata.chunkIndex,
-            JSON.stringify(e.vector),
-            e.content,
-            e.metadata.originalName,
-            e.metadata.mimeType,
-          ]
-        )
-    );
-    if (queries.length) {
-      await Postgres.transaction(queries);
+      const queries = entries.map(
+        (e) =>
+          new Postgres.Query(
+            `INSERT INTO document_vectors(id, agent_id, document_id, chunk_index, embedding, content, original_name, mime_type)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+             ON CONFLICT (id) DO UPDATE
+             SET embedding = $5, content=$6, original_name=$7, mime_type=$8`,
+            [
+              e.id,
+              agentId,
+              e.metadata.documentId,
+              e.metadata.chunkIndex,
+              JSON.stringify(e.vector),
+              e.content,
+              e.metadata.originalName,
+              e.metadata.mimeType,
+            ]
+          )
+      );
+      if (queries.length) {
+        await Postgres.transaction(queries);
+      }
+    } catch (err) {
+      logger.error(`Upsert failed:`, err);
+      throw err;
     }
   }
 
@@ -152,11 +157,23 @@ export class VectorStoreService implements OnModuleInit {
   }
 
   async getAgentSize(agentId: string, userId: string): Promise<number> {
-    await this.verifyAgentOwnership(agentId, userId);
-    return rag.totalSizeForAgent(agentId);
+    try {
+      await this.verifyAgentOwnership(agentId, userId);
+      const size = await rag.totalSizeForAgent(agentId);
+      return size;
+    } catch (err) {
+      logger.error(`Failed to get agent size:`, err);
+      throw err;
+    }
   }
 
   async getTotalSize(): Promise<number> {
-    return rag.totalSize();
+    try {
+      const size = await rag.totalSize();
+      return size;
+    } catch (err) {
+      logger.error(`Failed to get total size:`, err);
+      throw err;
+    }
   }
 }
