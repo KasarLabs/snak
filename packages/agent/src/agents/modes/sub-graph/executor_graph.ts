@@ -78,7 +78,18 @@ import {
   STEP_EXECUTOR_CONTEXT_PROMPT,
   TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
 } from '../../../prompt/executor_prompts.js';
+import {
+  REACT_SYSTEM_PROMPT,
+  REACT_CONTEXT_PROMPT,
+  REACT_RETRY_PROMPT,
+} from '../../../prompt/react_prompts.js';
 import { JSONstringifyLTM } from '../utils/memory-utils.js';
+import {
+  parseReActResponse,
+  isValidReActFormat,
+  enhanceReActResponse,
+  createReActObservation,
+} from '../utils/react-utils.js';
 import { v4 as uuidv4 } from 'uuid';
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig;
@@ -106,12 +117,25 @@ export class AgentExecutorGraph {
   ): ChatPromptTemplate {
     let systemPrompt;
     let contextPrompt;
-    
+
     const executionMode = config.configurable?.executionMode;
+    const agentMode = config.configurable?.agent_config?.mode;
 
     if (executionMode === ExecutionMode.REACTIVE) {
-      systemPrompt = TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT;
-      contextPrompt = STEP_EXECUTOR_CONTEXT_PROMPT;
+      // Use ReAct prompts for INTERACTIVE mode in REACTIVE execution
+      if (agentMode === AgentMode.INTERACTIVE) {
+        if (state.retry === 0) {
+          systemPrompt = REACT_SYSTEM_PROMPT;
+          contextPrompt = REACT_CONTEXT_PROMPT;
+        } else {
+          systemPrompt = REACT_SYSTEM_PROMPT;
+          contextPrompt = REACT_RETRY_PROMPT;
+        }
+      } else {
+        throw new Error(
+          'REACTIVE execution mode currently supports only INTERACTIVE agent mode'
+        );
+      }
     } else if (executionMode === ExecutionMode.PLANNING) {
       const currentStep = getCurrentPlanStep(
         state.plans_or_histories,
@@ -160,7 +184,7 @@ export class AgentExecutorGraph {
         ? formatExecutionMessage(currentItem.item)
         : (config.configurable?.user_request ?? '');
     const formattedPrompt = await prompt.formatMessages({
-      rejected_reason: l_msg.content,
+      rejected_reason: l_msg.content ?? '',
       short_term_memory: formatStepsForContext(
         state.memories.stm.items
           .map((item) => item?.step_or_history)
@@ -177,8 +201,17 @@ export class AgentExecutorGraph {
       execution_context ?? config.configurable?.user_request ?? ''
     );
     let model;
-    if (currentItem.type === 'history' || currentItem.item.type === 'tools') {
-      // So we give in case where we are in history mode or tools mode, the tools to the model (the prompt will be different for both cases)
+    const modelExecutionMode = config.configurable?.executionMode;
+    const modelAgentMode = config.configurable?.agent_config?.mode;
+
+    // Bind tools for history mode, tools mode, or ReAct mode
+    const shouldBindTools =
+      currentItem.type === 'history' ||
+      currentItem.item.type === 'tools' ||
+      (modelExecutionMode === ExecutionMode.REACTIVE &&
+        modelAgentMode === AgentMode.INTERACTIVE);
+
+    if (shouldBindTools) {
       model =
         typeof selectedModelType.model.bindTools === 'function'
           ? selectedModelType.model.bindTools(this.toolsList)
@@ -262,7 +295,7 @@ export class AgentExecutorGraph {
     logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
 
     const autonomousSystemPrompt = this.buildSystemPrompt(state, config);
-
+    console.log('Hello');
     try {
       const modelPromise = this.invokeModelWithMessages(
         state,
@@ -270,6 +303,7 @@ export class AgentExecutorGraph {
         currentItem,
         autonomousSystemPrompt
       );
+      console.log('Hello');
 
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Model invocation timeout')), 45000);
@@ -279,14 +313,31 @@ export class AgentExecutorGraph {
         modelPromise,
         timeoutPromise,
       ])) as AIMessageChunk;
-      if (result.tool_calls?.length) {
-        if (executionMode === ExecutionMode.REACTIVE) {
+
+      // Handle ReAct responses for INTERACTIVE+REACTIVE mode
+      console.log(result);
+      const agentMode = config.configurable?.agent_config?.mode;
+      if (
+        executionMode === ExecutionMode.REACTIVE &&
+        agentMode === AgentMode.INTERACTIVE
+      ) {
+        const content = result.content.toString();
+        const reactParsed = parseReActResponse(content);
+
+        // If the response has tool calls OR the parsed ReAct response indicates an action should be taken
+        if (
+          result.tool_calls?.length ||
+          (reactParsed.hasToolCall && !reactParsed.isFinalAnswer)
+        ) {
           const currentHistory = getCurrentHistory(state.plans_or_histories);
-          if (currentHistory && currentHistory.items.length === 0) {
-            currentHistory.items.push({
-              type: 'tools',
-              timestamp: Date.now(),
-            });
+          if (currentHistory) {
+            // Add or update tools entry in history
+            if (currentHistory.items.length === 0) {
+              currentHistory.items.push({
+                type: 'tools',
+                timestamp: Date.now(),
+              });
+            }
             return {
               messages: [result],
               last_agent: Agent.EXECUTOR,
@@ -294,14 +345,62 @@ export class AgentExecutorGraph {
               currentGraphStep: state.currentGraphStep + 1,
             };
           }
-        } else {
-          return {
-            // In planning mode, the tool node will handle updating the plan with tool calls
-            messages: [result],
-            last_agent: Agent.EXECUTOR,
-            plans_or_histories: state.plans_or_histories[0],
-            currentGraphStep: state.currentGraphStep + 1,
-          };
+        }
+
+        // If it's a final answer or reasoning without tool calls, handle as message
+        if (reactParsed.isFinalAnswer || !reactParsed.hasToolCall) {
+          const currentHistory = getCurrentHistory(state.plans_or_histories);
+          if (currentHistory) {
+            const historyItem: HistoryItem = {
+              type: 'message',
+              message: {
+                content: content,
+                tokens: estimateTokens(content),
+              },
+              timestamp: Date.now(),
+            };
+            currentHistory.items.push(historyItem);
+
+            // Mark as final if it's explicitly a final answer
+            result.additional_kwargs = {
+              ...result.additional_kwargs,
+              final: reactParsed.isFinalAnswer,
+            };
+
+            return {
+              messages: [result],
+              last_agent: Agent.EXECUTOR,
+              plans_or_histories: currentHistory,
+              currentGraphStep: state.currentGraphStep + 1,
+            };
+          }
+        }
+      } else {
+        // Original logic for non-ReAct modes
+        if (result.tool_calls?.length) {
+          if (executionMode === ExecutionMode.REACTIVE) {
+            const currentHistory = getCurrentHistory(state.plans_or_histories);
+            if (currentHistory && currentHistory.items.length === 0) {
+              currentHistory.items.push({
+                type: 'tools',
+                timestamp: Date.now(),
+              });
+              return {
+                messages: [result],
+                last_agent: Agent.EXECUTOR,
+                plans_or_histories: currentHistory,
+                currentGraphStep: state.currentGraphStep + 1,
+              };
+            }
+          } else {
+            return {
+              // In planning mode, the tool node will handle updating the plan with tool calls
+              messages: [result],
+              last_agent: Agent.EXECUTOR,
+              plans_or_histories: state.plans_or_histories[0],
+              currentGraphStep: state.currentGraphStep + 1,
+            };
+          }
         }
       }
       const content = result.content.toLocaleString();
@@ -587,7 +686,24 @@ export class AgentExecutorGraph {
         };
       });
 
-      const toolsInfos: StepToolsInfo[] | HistoryToolsInfo = [];
+      // Handle ReAct observation for INTERACTIVE+REACTIVE mode
+      const toolExecutionMode = config.configurable?.executionMode;
+      const toolAgentMode = config.configurable?.agent_config?.mode;
+
+      if (
+        toolExecutionMode === ExecutionMode.REACTIVE &&
+        toolAgentMode === AgentMode.INTERACTIVE
+      ) {
+        // Create ReAct observation from tool results
+        const observation = createReActObservation(truncatedResult.messages);
+
+        // Add the observation to the last message's content for ReAct pattern
+        if (truncatedResult.messages.length > 0) {
+          const lastMsg =
+            truncatedResult.messages[truncatedResult.messages.length - 1];
+          lastMsg.content = `**Observation**: ${observation}`;
+        }
+      }
       // Improved token tracking for tool results with safe content extraction
       let toolResultContent = '';
       try {
@@ -609,10 +725,10 @@ export class AgentExecutorGraph {
       }
       const estimatedTokens = estimateTokens(toolResultContent);
 
-      const executionMode = config.configurable?.executionMode;
+      const toolHistoryExecutionMode = config.configurable?.executionMode;
       let updatedPlanOrHistory: ParsedPlan | History;
 
-      if (executionMode === ExecutionMode.REACTIVE) {
+      if (toolHistoryExecutionMode === ExecutionMode.REACTIVE) {
         const currentHistory = getCurrentHistory(state.plans_or_histories);
         if (currentHistory && currentHistory.items.length > 0) {
           const tools = formatToolsForHistory(truncatedResult.messages);
@@ -621,7 +737,7 @@ export class AgentExecutorGraph {
         } else {
           throw new Error('No history available for tool results');
         }
-      } else if (executionMode === ExecutionMode.PLANNING) {
+      } else if (toolHistoryExecutionMode === ExecutionMode.PLANNING) {
         const currentPlan = getCurrentPlan(state.plans_or_histories);
         const currentStep = getCurrentPlanStep(
           state.plans_or_histories,
@@ -638,7 +754,7 @@ export class AgentExecutorGraph {
           throw new Error('No plan step available for tool results');
         }
       } else {
-        throw new Error(`Unknown execution mode: ${executionMode}`);
+        throw new Error(`Unknown execution mode: ${toolHistoryExecutionMode}`);
       }
       logger.debug(
         `[Tools] Token tracking: ${estimatedTokens} tokens for tool result`
@@ -721,7 +837,7 @@ export class AgentExecutorGraph {
     };
   }
 
-  private shouldContinueAutonomous(
+  private shouldContinue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ):
@@ -733,14 +849,48 @@ export class AgentExecutorGraph {
     | 'end_executor_graph' {
     if (state.last_agent === Agent.EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
-      if (isTerminalMessage(lastAiMessage)) {
-        logger.info(`[Router] Final message received, routing to end node`);
-        return 'end';
-      }
-      if (lastAiMessage.content.toLocaleString().includes('REQUEST_REPLAN')) {
-        logger.debug('[Router] REQUEST_REPLAN detected, routing to re_planner');
 
-        return 'planning_orchestrator';
+      // Handle ReAct responses for INTERACTIVE+REACTIVE mode
+      const executionMode = config.configurable?.executionMode;
+      const agentMode = config.configurable?.agent_config?.mode;
+
+      if (
+        executionMode === ExecutionMode.REACTIVE &&
+        agentMode === AgentMode.INTERACTIVE
+      ) {
+        const content = lastAiMessage.content.toString();
+        const reactParsed = parseReActResponse(content);
+
+        // Check for final answer in ReAct format
+        if (
+          reactParsed.isFinalAnswer ||
+          lastAiMessage.additional_kwargs?.final === true
+        ) {
+          logger.info(
+            `[Router] ReAct final answer detected, routing to end node`
+          );
+          return 'end';
+        }
+
+        // Check for tool calls in ReAct format
+        const hasToolCalls =
+          (lastAiMessage instanceof AIMessageChunk ||
+            lastAiMessage instanceof AIMessage) &&
+          lastAiMessage.tool_calls?.length;
+        if (hasToolCalls && lastAiMessage.tool_calls?.length) {
+          logger.debug(
+            `[Router] ReAct detected ${lastAiMessage.tool_calls.length} tool action, routing to tools node`
+          );
+          return 'tool_executor';
+        }
+
+        // If it's a thought without action, continue reasoning
+        if (reactParsed.steps.length > 0 && !hasToolCalls) {
+          logger.debug(
+            `[Router] ReAct thought without action, continuing reasoning`
+          );
+          return 'reasoning_executor';
+        }
       }
       if (
         (lastAiMessage instanceof AIMessageChunk ||
@@ -760,6 +910,19 @@ export class AgentExecutorGraph {
         logger.warn('[Router] Max graph steps reached, routing to END node');
         return 'end_executor_graph';
       } else {
+        // For ReAct mode, route back to reasoning executor to continue the cycle
+        const toolsExecutionMode = config.configurable?.executionMode;
+        const toolsAgentMode = config.configurable?.agent_config?.mode;
+        if (
+          toolsExecutionMode === ExecutionMode.REACTIVE &&
+          toolsAgentMode === AgentMode.INTERACTIVE
+        ) {
+          logger.debug(
+            '[Router] ReAct mode: routing from tools back to reasoning executor'
+          );
+          return 'reasoning_executor';
+        }
+        // For other modes, use validator
         return 'executor_validator';
       }
     }
@@ -844,10 +1007,9 @@ export class AgentExecutorGraph {
       (config.configurable?.agent_config?.mode ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode) === AgentMode.HYBRID
     ) {
-      console.log('Hybride');
       return this.shouldContinueHybrid(state, config) as ExecutorNode;
     } else {
-      return this.shouldContinueAutonomous(state, config) as ExecutorNode;
+      return this.shouldContinue(state, config) as ExecutorNode;
     }
   }
 
