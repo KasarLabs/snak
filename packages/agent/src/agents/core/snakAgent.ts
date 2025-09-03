@@ -734,7 +734,7 @@ export class SnakAgent extends BaseAgent {
    * @returns Promise resolving to the result of the autonomous execution
    */
   public async *executeAsyncGenerator(
-    input: string,
+    input?: string,
     isInterrupted: boolean = false,
     thread_id?: string,
     checkpoint_id?: string
@@ -759,7 +759,7 @@ export class SnakAgent extends BaseAgent {
       const memorySize = this.agentConfig.memory?.memorySize || 20;
       const humanInTheLoop = this.agentConfig.mode === AgentMode.HYBRID;
       this.controller = new AbortController();
-      const initialMessages: BaseMessage[] = [new HumanMessage(input)];
+      const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
 
       const threadId = thread_id ?? agentJsonConfig?.id;
       logger.info(`[SnakAgent] 🔗 Autonomous execution thread ID: ${threadId}`);
@@ -777,6 +777,7 @@ export class SnakAgent extends BaseAgent {
               ? ExecutionMode.PLANNING
               : ExecutionMode.REACTIVE,
           checkpoint_id: checkpoint_id ? checkpoint_id : undefined,
+          user_request: input ?? undefined,
         },
       };
       let lastChunk;
