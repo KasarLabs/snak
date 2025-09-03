@@ -1,8 +1,8 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "autonomous": "./packages/agent/src/agents/studio/graph.ts:studio_graph_autonomous",
-    "interactive": "./packages/agent/src/agents/studio/graph.ts:studio_graph_interactive"
+    "autonomous": "./packages/agent/src/agents/studio/studio-graph.ts:studio_graph_autonomous",
+    "interactive": "./packages/agent/src/agents/studio/studio-graph.ts:studio_graph_interactive"
   },
   "env": "./.env"
 }
