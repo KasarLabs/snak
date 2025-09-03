@@ -3,9 +3,9 @@ import { placePixelSchema } from '../schema/index.js';
 import { placePixelSignature } from '../actions/placePixel.js';
 
 export const registerSignatureTools = (
-  StarknetToolRegistry: SignatureTool[]
+  SnakToolRegistry: SignatureTool[]
 ) => {
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'place_pixel',
     description: 'Places a pixel, all parameters are optional',
     schema: placePixelSchema,

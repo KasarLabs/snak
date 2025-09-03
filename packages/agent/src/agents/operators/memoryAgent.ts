@@ -1,11 +1,8 @@
-import { BaseAgent, AgentType } from '../core/baseAgent.js';
+import { BaseAgent } from '../core/baseAgent.js';
 import { AgentConfig, logger } from '@snakagent/core';
-import { BaseMessage, HumanMessage } from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { memory, iterations } from '@snakagent/database/queries';
-import { z } from 'zod';
-import { tool } from '@langchain/core/tools';
-import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import {
   Runnable,
@@ -15,23 +12,22 @@ import {
 import {
   GraphConfigurableAnnotation,
   GraphState,
-  ExecutionMode,
-} from '../../agents/modes/graph.js';
-import { MemoryGraph } from '../../agents/modes/sub-graph/memory.js';
+} from '../modes/graph/graph.js';
 import {
   EpisodicMemoryContext,
   Memories,
-  MemoryOperationResult,
   SemanticMemoryContext,
   StepToolsInfo,
-} from '../../agents/modes/types/index.js';
-import { MemoryDBManager } from '../modes/utils/memory-db-manager.js';
-import { MemoryStateManager, LTMManager } from '../modes/utils/memory-utils.js';
+} from '../../types/memory.types.js';
+import { MemoryDBManager } from '../modes/manager/memory-db-manager.js';
+import { MemoryStateManager } from '../../lib/memory/memory-utils.js';
+import { DEFAULT_GRAPH_CONFIG } from '../modes/config.js';
 import {
-  DEFAULT_GRAPH_CONFIG,
+  AgentType,
+  ExecutionMode,
   MemoryNode,
-} from '../modes/config/default-config.js';
-import { checkAndReturnObjectFromPlansOrHistories } from '../../agents/modes/utils.js';
+} from '../../enums/agent-modes.enum.js';
+import { checkAndReturnObjectFromPlansOrHistories } from '../modes/utils.js';
 export interface MemoryChainResult {
   memories: string;
 }
@@ -69,8 +65,6 @@ export class MemoryAgent extends BaseAgent {
   private embeddings: CustomHuggingFaceEmbeddings;
   private memoryTools: any[] = [];
   private initialized: boolean = false;
-  private isAutonomous: boolean;
-  private agentConfig: AgentConfig;
   private dbManager: MemoryDBManager | null = null;
 
   constructor(config: MemoryConfig, agentConfig?: AgentConfig) {
@@ -81,14 +75,6 @@ export class MemoryAgent extends BaseAgent {
       maxIterations: config.maxIterations,
       embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     };
-    if (agentConfig) {
-      this.agentConfig = agentConfig;
-    }
-    if (!config.isAutonomous) {
-      this.isAutonomous = false;
-    } else {
-      this.isAutonomous = true;
-    }
 
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: 'Xenova/all-MiniLM-L6-v2',
@@ -255,8 +241,7 @@ export class MemoryAgent extends BaseAgent {
       state: typeof GraphState.State,
       config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
     ): string => {
-      const agentConfig =
-        config.configurable?.agent_config;
+      const agentConfig = config.configurable?.agent_config;
       if (!agentConfig) {
         throw new Error(`[MemoryAgent] AgentConfig is undefined.`);
       }

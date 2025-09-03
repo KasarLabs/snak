@@ -22,8 +22,8 @@ import { setApprovalForAll } from '../actions/setApprovalForAll.js';
 import { deployERC721Contract } from '../actions/deployERC721.js';
 import { StarknetTool } from '@snakagent/core';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'erc721_owner_of',
     plugins: 'erc721',
     description: 'Get the owner of a specific NFT',
@@ -31,7 +31,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getOwner,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_get_balance',
     plugins: 'erc721',
     description: 'Get the balance of NFTs for a given wallet address',
@@ -39,7 +39,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getBalance,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_get_own_balance',
     plugins: 'erc721',
     description: 'Get the balance of NFTs in your wallet',
@@ -47,7 +47,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getOwnBalance,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_is_approved_for_all',
     plugins: 'erc721',
     description:
@@ -56,7 +56,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: isApprovedForAll,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_get_approved',
     plugins: 'erc721',
     description: 'Get the approved address for a specific NFT ERC721',
@@ -64,7 +64,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getApproved,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_transfer_from',
     plugins: 'erc721',
     description: 'Transfer a NFT from one address to another',
@@ -72,7 +72,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: transferFrom,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_transfer',
     plugins: 'erc721',
     description: 'Transfer a NFT to a specific address',
@@ -80,7 +80,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: transfer,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_approve',
     plugins: 'erc721',
     description: 'Approve an address to manage a specific NFT erc721',
@@ -88,7 +88,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: approve,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_safe_transfer_from',
     plugins: 'erc721',
     description:
@@ -97,7 +97,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: safeTransferFrom,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc721_set_approval_for_all',
     plugins: 'erc721',
     description:
@@ -106,7 +106,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: setApprovalForAll,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'deploy_erc721',
     plugins: 'erc721',
     description:

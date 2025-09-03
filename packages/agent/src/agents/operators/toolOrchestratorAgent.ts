@@ -1,8 +1,6 @@
-import { BaseAgent, AgentType } from '../core/baseAgent.js';
+import { BaseAgent } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
-import { createSignatureTools } from '../../tools/signatureTools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import {
   Tool,
@@ -12,6 +10,8 @@ import {
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { ModelSelector } from './modelSelector.js';
+import { SnakAgentInterface } from '../../types/tools.types.js';
+import { AgentType } from '@enums/agent-modes.enum.js';
 
 /**
  * Configuration for the tools orchestrator

@@ -12,16 +12,16 @@ import {
   simulateDeclareTransaction,
 } from '../actions/simulateTransaction.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
   // Simulate transactions
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'simulate_transaction',
     plugins: 'transaction',
     description: 'Simulate a transaction without executing it',
     schema: simulateInvokeTransactionSchema,
     execute: simulateInvokeTransaction,
   });
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'simulate_deploy_transaction',
     plugins: 'transaction',
     description: 'Simulate Deploy transaction',
@@ -29,7 +29,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: simulateDeployTransaction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'simulate_declare_transaction',
     plugins: 'transaction',
     description: 'Simulate Declare transaction',
@@ -37,7 +37,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: simulateDeclareTransaction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'simulate_deploy_account_transaction',
     plugins: 'transaction',
     description: 'Simulate Deploy Account transaction',

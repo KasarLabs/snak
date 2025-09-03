@@ -7,7 +7,7 @@ import { EventEmitter } from 'events';
 import { SnakAgent } from '../index.js';
 import { RpcProvider } from 'starknet';
 import { ModelSelector } from '../agents/operators/modelSelector.js';
-import { deepCopyAgentConfig } from 'config/agentConfig.js';
+import { deepCopyAgentConfig } from '../config/agentConfig.js';
 
 /**
  * Configuration for multiple agents

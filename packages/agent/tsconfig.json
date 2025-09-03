@@ -6,7 +6,15 @@
     "paths": {
       "@common/*": ["./common/*"],
       "@src/*": ["./src/*"],
-      "@agents/*": ["./agents/*"]
+      "@agents/*": ["./agents/*"],
+      "@lib/*": ["./lib/*"],
+      "@prompts/*": ["./prompts/*"],
+      "@config/*": ["./config/*"],
+      "@types/*": ["./types/*"],
+      "@enums/*": ["./enums/*"],
+      "@schemas/*": ["./schemas/*"],
+      "@tools/*": ["./tools/*"],
+      "@services/*": ["./services/*"]
     }
   },
   "include": ["src/**/*", "src/index.ts"],

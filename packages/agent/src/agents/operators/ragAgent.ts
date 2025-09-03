@@ -1,12 +1,12 @@
-import { BaseAgent, AgentType } from '../core/baseAgent.js';
+import { BaseAgent } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { rag } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { Runnable, RunnableSequence } from '@langchain/core/runnables';
 import { RagConfig } from '@snakagent/core';
+import { AgentType } from '@enums/agent-modes.enum.js';
 
 export interface RagChainState {
   messages: BaseMessage[];

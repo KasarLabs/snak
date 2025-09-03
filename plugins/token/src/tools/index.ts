@@ -7,8 +7,8 @@ import {
 import { transfer } from '../actions/transfer.js';
 import { getBalance, getOwnBalance } from '../actions/getBalances.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'transfer',
     plugins: 'token',
     description: 'Transfer ERC20 tokens to a specific address',
@@ -16,7 +16,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: transfer,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'get_own_balance',
     plugins: 'token',
     description:
@@ -25,7 +25,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getOwnBalance,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'get_balance',
     plugins: 'token',
     description: 'Get the balance of an asset for a given wallet address',

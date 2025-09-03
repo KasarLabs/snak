@@ -14,7 +14,7 @@ import {
 import { logger, StarknetTool } from '@snakagent/core';
 import { scarb } from '@snakagent/database/queries';
 
-export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = async (SnakToolRegistry: StarknetTool[]) => {
   try {
     await scarb.init();
   } catch (error) {
@@ -22,7 +22,7 @@ export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
     throw error;
   }
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'scarb_install',
     description: 'Install the latest version of Scarb if not already installed',
     plugins: 'scarb',
@@ -30,7 +30,7 @@ export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
     execute: installScarb,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'scarb_compile_contract',
     description: `
       DESCRIPTION: Compile contracts or program of an existing project using Scarb.
@@ -44,7 +44,7 @@ export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
     execute: compileContract,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'scarb_execute_program',
     description: `
       DESCRIPTION: Execute a Cairo program function of an existing project using Scarb.
@@ -58,7 +58,7 @@ export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
     execute: executeProgram,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'scarb_prove_program',
     description: `
       DESCRIPTION: Generate a proof for a Cairo program execution of an existing project using Scarb.
@@ -72,7 +72,7 @@ export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
     execute: proveProgram,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'scarb_verify_program',
     description: `
       DESCRIPTION: Verify a proof for a Cairo program execution of a project using Scarb.

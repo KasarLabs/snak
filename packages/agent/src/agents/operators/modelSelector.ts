@@ -1,17 +1,14 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import {
-  BaseMessage,
-  HumanMessage,
-  SystemMessage,
-} from '@langchain/core/messages';
+import { SystemMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
-import { AgentType, BaseAgent } from '../core/baseAgent.js';
+import { BaseAgent } from '../core/baseAgent.js';
 import { ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { modelSelectorSystemPrompt } from '../../prompt/prompts.js';
-import { TokenTracker } from '../../token/tokenTracking.js';
+import { modelSelectorSystemPrompt } from '../../prompts/core/prompts.js';
+import { TokenTracker } from '../../lib/token/token-tracking.js';
+import { AgentType } from '@enums/agent-modes.enum.js';
 
 // CLEAN-UP Need to put in private every function who check the validity of the model selection instead of what we do now
 /**

@@ -127,6 +127,11 @@ export class AgentStorage implements OnModuleInit {
       await this.initialize();
     }
 
+    // Validate required fields
+    if (!agent_config.name || !agent_config.group || !agent_config.description) {
+      throw new Error('Missing required fields: name, group, and description are required');
+    }
+
     const baseName = agent_config.name;
     const group = agent_config.group;
 
@@ -182,9 +187,9 @@ export class AgentStorage implements OnModuleInit {
         systemPrompt,
         agent_config.interval,
         agent_config.plugins,
-        agent_config.memory.enabled || false,
-        agent_config.memory.shortTermMemorySize || 5,
-        agent_config.memory.memorySize || 20,
+        agent_config.memory?.enabled || false,
+        agent_config.memory?.shortTermMemorySize || 5,
+        agent_config.memory?.memorySize || 20,
         agent_config.rag?.enabled || false,
         agent_config.rag?.embeddingModel || null,
         agent_config.mode,
