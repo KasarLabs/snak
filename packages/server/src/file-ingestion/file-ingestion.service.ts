@@ -71,11 +71,10 @@ export class FileIngestionService {
   }
 
   private async extractPdf(buffer: Buffer): Promise<string> {
-    
     try {
       const loadingTask = pdfjsLib.getDocument({ data: buffer });
       const pdf = await loadingTask.promise;
-      
+
       let text = '';
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -90,9 +89,9 @@ export class FileIngestionService {
           .join(' ');
         text += pageText + '\n';
       }
-      
+
       const cleanedText = this.cleanText(text);
-      
+
       return cleanedText;
     } catch (err) {
       logger.error(`PDF extraction failed:`, err);
@@ -100,7 +99,7 @@ export class FileIngestionService {
     }
   }
 
-  private async extractDocx(buffer: Buffer): Promise<string> {    
+  private async extractDocx(buffer: Buffer): Promise<string> {
     try {
       const { value } = await mammoth.extractRawText({ buffer });
       const cleanedText = this.cleanText(value);
@@ -136,7 +135,6 @@ export class FileIngestionService {
         result = this.cleanText(text);
       }
 
-      
       return result;
     } catch (err) {
       logger.error(`Text extraction failed:`, err);
@@ -165,7 +163,6 @@ export class FileIngestionService {
     originalName: string,
     userId: string
   ): Promise<FileContent> {
-    
     try {
       await this.verifyAgentOwnership(agentId, userId);
 
@@ -174,14 +171,17 @@ export class FileIngestionService {
       const agentSize = await this.vectorStore.getAgentSize(agentId, userId);
       const totalSize = await this.vectorStore.getTotalSize();
       const { maxAgentSize, maxProcessSize } = this.config.rag;
-      
 
       if (agentSize + meta.size > maxAgentSize) {
-        logger.error(`Agent storage limit exceeded: ${agentSize + meta.size} > ${maxAgentSize}`);
+        logger.error(
+          `Agent storage limit exceeded: ${agentSize + meta.size} > ${maxAgentSize}`
+        );
         throw new Error('Agent rag storage limit exceeded');
       }
       if (totalSize + meta.size > maxProcessSize) {
-        logger.error(`Process storage limit exceeded: ${totalSize + meta.size} > ${maxProcessSize}`);
+        logger.error(
+          `Process storage limit exceeded: ${totalSize + meta.size} > ${maxProcessSize}`
+        );
         throw new Error('Process rag storage limit exceeded');
       }
       const text = await this.extractRawText(buffer, meta.mimeType);
@@ -205,14 +205,16 @@ export class FileIngestionService {
       if (chunks.length > MAX_CHUNKS) {
         chunks.splice(MAX_CHUNKS);
       }
-      
+
       try {
         const texts = chunks.map((c) => c.text);
-        
+
         const vectors = await this.embeddingsService.embedDocuments(texts);
-        
+
         if (vectors.length !== chunks.length) {
-          logger.error(`Embedding count mismatch: ${vectors.length} vectors vs ${chunks.length} chunks`);
+          logger.error(
+            `Embedding count mismatch: ${vectors.length} vectors vs ${chunks.length} chunks`
+          );
           throw new Error('Embedding count mismatch');
         }
 
@@ -233,7 +235,6 @@ export class FileIngestionService {
         }));
 
         await this.vectorStore.upsert(agentId, upsertPayload, userId);
-
       } catch (err) {
         logger.error(`Embedding/Storage failed:`, err);
         throw err;

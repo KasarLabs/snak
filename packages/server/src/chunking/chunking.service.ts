@@ -10,14 +10,13 @@ export interface ChunkOptions {
 
 @Injectable()
 export class ChunkingService {
-
   async chunkText(
     documentId: string,
     text: string,
     options: ChunkOptions
   ): Promise<Chunk[]> {
     const { chunkSize, overlap, strategy = 'adaptive' } = options;
-  
+
     try {
       if (chunkSize <= 0) {
         throw new Error('Chunk size must be positive');
@@ -30,7 +29,7 @@ export class ChunkingService {
       }
 
       let chunks: Chunk[];
-      
+
       if (strategy === 'whitespace') {
         chunks = this.chunkByWhitespace(documentId, text, chunkSize, overlap);
       } else if (strategy === 'structured') {
@@ -38,7 +37,7 @@ export class ChunkingService {
       } else {
         chunks = this.chunkAdaptive(documentId, text, chunkSize, overlap);
       }
-      
+
       return chunks;
     } catch (err) {
       logger.error(`Chunking failed:`, err);

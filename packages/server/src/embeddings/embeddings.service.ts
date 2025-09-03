@@ -9,7 +9,6 @@ export class EmbeddingsService {
   });
 
   async embedDocuments(texts: string[]): Promise<number[][]> {
-    
     try {
       if (!Array.isArray(texts) || texts.length === 0) {
         throw new Error('Input must be a non-empty array of strings');
@@ -18,9 +17,9 @@ export class EmbeddingsService {
       if (texts.some((text) => typeof text !== 'string')) {
         throw new Error('All input elements must be strings');
       }
-      
-      const vectors = await this.embeddings.embedDocuments(texts);   
-      
+
+      const vectors = await this.embeddings.embedDocuments(texts);
+
       return vectors;
     } catch (err) {
       logger.error(`Embedding generation failed :`, err);

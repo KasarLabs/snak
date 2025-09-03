@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  OnModuleInit,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, ForbiddenException } from '@nestjs/common';
 import { logger } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { rag } from '@snakagent/database/queries';
@@ -62,7 +58,6 @@ export class VectorStoreService implements OnModuleInit {
     }[],
     userId: string
   ) {
-    
     try {
       await this.verifyAgentOwnership(agentId, userId);
 

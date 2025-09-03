@@ -1,8 +1,5 @@
 import type { Job } from 'bull';
-import {
-  QueueManager,
-  FileIngestionQueue,
-} from '../queues/index.js';
+import { QueueManager, FileIngestionQueue } from '../queues/index.js';
 import { FileIngestionProcessor } from './file-ingestion-processor.js';
 import { logger } from '@snakagent/core';
 import { EmbeddingsResult } from '../types/index.js';
