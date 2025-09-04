@@ -29,7 +29,7 @@ import {
   formatLTMForContext,
 } from '../../utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { AnyZodObject, z } from 'zod';
+import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../../operators/modelSelector.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
@@ -63,7 +63,6 @@ import {
 } from '../../constants.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatOpenAI } from '@langchain/openai';
-import { ToolCall } from '../../../../types/tools.types.js';
 import { truncateToolResults } from '@agents/utils/tools.utils.js';
 import { ValidatorResponseSchema } from '@schemas/graph.js';
 
@@ -512,7 +511,7 @@ export class AgentExecutorGraph {
 
   private async validatorExecutor(
     state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+    config?: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<
     | {
         messages: BaseMessage[];

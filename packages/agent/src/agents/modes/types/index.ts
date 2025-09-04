@@ -1,4 +1,3 @@
-import { Message } from '@huggingface/transformers';
 import { Annotation } from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';

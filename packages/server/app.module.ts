@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AgentsModule } from './src/agents.module.js';
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKeyGuard } from './src/guard/ApikeyGuard.js';
 import { ConfigModule } from './config/config.module.js';

@@ -34,7 +34,6 @@ export function truncateToolResults(
   result: any,
   maxLength: number = 20000
 ): { messages: ToolMessage[] } {
-  let i = 0;
   for (const tool_message of result.messages) {
     let content: string;
     try {

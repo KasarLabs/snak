@@ -25,7 +25,7 @@ export class CleanupService implements OnModuleInit, OnModuleDestroy {
 
       try {
         await fs.access(this.uploadDir);
-      } catch (error) {
+      } catch {
         this.logger.log(
           `Upload directory does not exist: ${this.uploadDir}, cleanup skipped`
         );

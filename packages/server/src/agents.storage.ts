@@ -25,7 +25,6 @@ import {
   SnakAgentConfig,
 } from '@snakagent/agents';
 import { SystemMessage } from '@langchain/core/messages';
-import { agent } from 'supertest';
 
 const logger = new Logger('AgentStorage');
 

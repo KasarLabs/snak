@@ -23,7 +23,6 @@ import {
   History,
   Memories,
   ParsedPlan,
-  StepInfo,
 } from '../../../types/memory.types.js';
 import { MemoryStateManager } from '@lib/memory/memory-utils.js';
 import { MemoryGraph } from './sub-graph/memory.js';

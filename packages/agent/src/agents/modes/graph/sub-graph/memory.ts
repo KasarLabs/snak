@@ -151,7 +151,7 @@ export class MemoryGraph {
               estimateTokens(tool.result) >=
               MEMORY_THRESHOLDS.SUMMARIZATION_THRESHOLD
             ) {
-              let result = await this.summarize_before_inserting(tool.result);
+              const result = await this.summarize_before_inserting(tool.result);
               tool.result = result.content;
               return tool;
             }
@@ -165,7 +165,7 @@ export class MemoryGraph {
         item.message &&
         item.message.tokens >= MEMORY_THRESHOLDS.MAX_MESSAGE_TOKENS
       ) {
-        let result = await this.summarize_before_inserting(
+        const result = await this.summarize_before_inserting(
           item.message.content
         );
         item.message = result;
@@ -250,7 +250,7 @@ export class MemoryGraph {
         throw new Error('Fast model not available for LTM processing');
       }
 
-      let recentMemories = STMManager.getRecentMemories(state.memories.stm, 1);
+      const recentMemories = STMManager.getRecentMemories(state.memories.stm, 1);
 
       if (recentMemories.length === 0) {
         logger.warn(

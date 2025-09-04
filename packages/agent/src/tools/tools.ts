@@ -6,7 +6,7 @@ import {
 } from '@langchain/core/tools';
 import { logger, AgentConfig } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
-import { AnyZodObject, z as Zod } from 'zod';
+import { AnyZodObject } from 'zod';
 import { MCP_CONTROLLER } from '@services/mcp/src/mcp.js';
 import { SnakAgentInterface, StarknetTool } from '../types/tools.types.js';
 

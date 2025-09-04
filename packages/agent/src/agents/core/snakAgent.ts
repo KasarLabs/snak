@@ -385,7 +385,7 @@ export class SnakAgent extends BaseAgent {
   ): AsyncGenerator<ChunkOutput> {
     let autonomousResponseContent: string | any;
     const originalMode = this.currentMode;
-    let totalIterationCount = 0;
+    const totalIterationCount = 0;
 
     try {
       logger.info(
@@ -407,7 +407,6 @@ export class SnakAgent extends BaseAgent {
 
       const threadId = thread_id ?? agentJsonConfig?.id;
       logger.info(`[SnakAgent] 🔗 Autonomous execution thread ID: ${threadId}`);
-      8;
       const threadConfig = {
         configurable: {
           thread_id: threadId,
@@ -425,7 +424,6 @@ export class SnakAgent extends BaseAgent {
         },
       };
       let lastChunk;
-      let graphStep: number = 0;
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;
 
@@ -454,7 +452,6 @@ export class SnakAgent extends BaseAgent {
           isInterrupted = false;
           lastChunk = chunk;
           const state = await app.getState(executionConfig);
-          graphStep = state.values.currentGraphStep;
           retryCount = state.values.retry;
           currentCheckpointId = state.config.configurable.checkpoint_id;
           if (
@@ -653,7 +650,6 @@ export class SnakAgent extends BaseAgent {
         };
         return;
       } catch (error: any) {
-        ('');
         if (error?.message?.includes('Abort')) {
           logger.info('[SnakAgent] 🛑 Execution aborted by user');
           if (lastChunk && currentCheckpointId) {

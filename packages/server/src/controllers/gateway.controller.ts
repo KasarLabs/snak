@@ -18,9 +18,8 @@ import {
   WebsocketGetAgentsConfigRequestDTO,
   WebsocketGetMessagesRequestDTO,
 } from '@snakagent/core';
-import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
-import { ChunkOutput, EventType } from '@snakagent/agents';
+import { EventType } from '@snakagent/agents';
 @WebSocketGateway({
   cors: {
     origin: 'http://localhost:4000',

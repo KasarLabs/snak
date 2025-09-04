@@ -214,6 +214,7 @@ export function formatExecutionMessage(step: StepInfo): string {
     }
     return format_response.join('\n');
   } catch (error) {
+    logger.error(`Error formatting execution message: ${error}`);
     throw new Error('Failed to format execution message');
   }
 }

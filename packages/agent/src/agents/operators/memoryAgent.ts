@@ -32,17 +32,6 @@ export interface MemoryChainResult {
   memories: string;
 }
 
-// TODO: env -> config/agents
-const SIMILARITY_THRESHOLD = (() => {
-  const value = parseFloat(process.env.MEMORY_SIMILARITY_THRESHOLD || '0');
-  if (isNaN(value) || value < 0 || value > 1) {
-    logger.warn(
-      `Invalid MEMORY_SIMILARITY_THRESHOLD: ${process.env.MEMORY_SIMILARITY_THRESHOLD}, using default 0`
-    );
-    return 0;
-  }
-  return value;
-})();
 /**
  * Memory configuration for the agent
  */
@@ -67,7 +56,7 @@ export class MemoryAgent extends BaseAgent {
   private initialized: boolean = false;
   private dbManager: MemoryDBManager | null = null;
 
-  constructor(config: MemoryConfig, agentConfig?: AgentConfig) {
+  constructor(config: MemoryConfig) {
     super('memory-agent', AgentType.OPERATOR);
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,
@@ -334,15 +323,6 @@ export class MemoryAgent extends BaseAgent {
         embedding,
         limit
       );
-      let iterResults: iterations.IterationSimilarity[] = [];
-      if (agentId) {
-        iterResults = await iterations.similar_iterations(
-          agentId,
-          embedding,
-          limit
-        );
-      }
-
       return memResults;
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);

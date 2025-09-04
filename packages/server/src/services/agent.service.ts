@@ -17,7 +17,7 @@ import {
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
-import { AgentConfigSQL, MessageSQL } from '../interfaces/sql_interfaces.js';
+import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 import { ChunkOutput, EventType } from '@snakagent/agents';
 
 @Injectable()

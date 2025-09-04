@@ -53,7 +53,6 @@ export const listAgentsTool = new DynamicStructuredTool({
   schema: ListAgentsSchema,
   func: async (input) => {
     try {
-      let query: Postgres.Query;
       const whereConditions: string[] = [];
       const values: any[] = [];
       let paramIndex = 1;
@@ -95,7 +94,7 @@ export const listAgentsTool = new DynamicStructuredTool({
         values.push(input.offset);
       }
 
-      query = new Postgres.Query(queryString, values);
+      const query = new Postgres.Query(queryString, values);
       const result = await Postgres.query<AgentConfig>(query);
 
       return JSON.stringify({

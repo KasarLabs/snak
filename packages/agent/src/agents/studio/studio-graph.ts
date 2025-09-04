@@ -10,7 +10,7 @@ import {
 import { RpcProvider } from 'starknet';
 import { logger } from '@snakagent/core';
 // Types and Interfaces
-export interface AgentConfigSQL {
+interface AgentConfigSQL {
   id: string;
   name: string;
   group: string;
@@ -41,7 +41,7 @@ export interface AgentMemorySQL {
   memory_size: number;
 }
 
-export interface AgentRagSQL {
+interface AgentRagSQL {
   enabled: boolean;
   embedding_model: string | null;
 }
@@ -191,7 +191,7 @@ function getModelSelectorConfig(): ModelSelectorConfig {
  * @param agentId - The unique identifier of the agent
  * @returns Promise<{agent: SnakAgent, modelSelector: ModelSelector, config: AgentConfigSQL}>
  */
-export async function createAgentById(agentId: string): Promise<{
+async function createAgentById(agentId: string): Promise<{
   agent: SnakAgent;
   modelSelector: ModelSelector;
   config: AgentConfigSQL;
@@ -272,8 +272,8 @@ export async function createAgentById(agentId: string): Promise<{
  * @param agentId - The unique identifier of the agent
  * @returns Promise<any> - The initialized graph
  */
-export async function createInteractiveAgent(agentId: string): Promise<any> {
-  const { agent, modelSelector } = await createAgentById(agentId);
+async function createInteractiveAgent(): Promise<any> {
+  const { agent, modelSelector } = await createAgentById(INTERACTIVE_ID);
   const interactiveAgent = new Graph(agent, modelSelector);
   const { app } = await interactiveAgent.initialize();
   return app;
@@ -284,7 +284,7 @@ export async function createInteractiveAgent(agentId: string): Promise<any> {
  * @param agentId - The unique identifier of the agent
  * @returns Promise<any> - The initialized graph
  */
-export async function createAutonomousAgent(agentId: string): Promise<any> {
+async function createAutonomousAgent(): Promise<any> {
   const { agent, modelSelector } = await createAgentById(AUTONOMOUS_ID);
   const autonomousAgent = new Graph(agent, modelSelector);
 
@@ -304,7 +304,7 @@ export async function createAutonomousAgent(agentId: string): Promise<any> {
  * @param agentId - The unique identifier of the agent
  * @returns Promise<any> - The initialized graph
  */
-export async function createHybridAgent(agentId: string): Promise<any> {
+async function createHybridAgent(agentId: string): Promise<any> {
   const { agent, modelSelector } = await createAgentById(agentId);
   const hybridAgent = new Graph(agent, modelSelector);
   const { app } = await hybridAgent.initialize();
@@ -314,10 +314,8 @@ export async function createHybridAgent(agentId: string): Promise<any> {
 // Example usage with specific IDs (for backward compatibility)
 const AUTONOMOUS_ID = 'b5c8bf7d-09a2-45b4-a85e-866cc4bb8102';
 const INTERACTIVE_ID = 'efa2b836-0a5f-43cd-8146-a5610e705695';
-const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
+// const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
 
-export const studio_graph_interactive = () =>
-  createInteractiveAgent(INTERACTIVE_ID);
-export const studio_graph_autonomous = () =>
-  createAutonomousAgent(AUTONOMOUS_ID);
+export const studio_graph_interactive = () => createInteractiveAgent();
+export const studio_graph_autonomous = () => createAutonomousAgent();
 // export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);
