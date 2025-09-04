@@ -73,16 +73,16 @@ afterAll(async () => {
 async function cleanupTestData(): Promise<void> {
   const cleanupQueries = [
     'DELETE FROM agent_iterations WHERE 1=1',
-    'DELETE FROM thread_id WHERE 1=1', 
+    'DELETE FROM thread_id WHERE 1=1',
     'DELETE FROM message WHERE 1=1',
-    'DELETE FROM episodic_memories WHERE user_id LIKE \'test_%\'',
-    'DELETE FROM semantic_memories WHERE user_id LIKE \'test_%\'',
-    'DELETE FROM agents WHERE name LIKE \'Test_%\'',
+    "DELETE FROM episodic_memories WHERE user_id LIKE 'test_%'",
+    "DELETE FROM semantic_memories WHERE user_id LIKE 'test_%'",
+    "DELETE FROM agents WHERE name LIKE 'Test_%'",
     'DROP TABLE IF EXISTS users CASCADE',
     'DROP TABLE IF EXISTS job_details CASCADE',
-    'DROP TABLE IF EXISTS employees CASCADE'
+    'DROP TABLE IF EXISTS employees CASCADE',
   ];
-  
+
   for (const query of cleanupQueries) {
     try {
       await Postgres.query(new Postgres.Query(query));
@@ -108,9 +108,9 @@ describe('Database Connection & Configuration', () => {
   it('should handle invalid credentials gracefully', async () => {
     const invalidCredentials: DatabaseCredentials = {
       ...db_credentials,
-      password: 'invalid_password'
+      password: 'invalid_password',
     };
-    
+
     await Postgres.shutdown();
     await expect(Postgres.connect(invalidCredentials)).rejects.toThrow();
     await Postgres.connect(db_credentials);
@@ -126,10 +126,10 @@ describe('Database Connection & Configuration', () => {
       ['uuid-ossp', 'vector']
     );
     const extensions = await Postgres.query<Extension>(q);
-    
+
     expect(extensions).toHaveLength(2);
-    expect(extensions.find(ext => ext.extname === 'uuid-ossp')).toBeDefined();
-    expect(extensions.find(ext => ext.extname === 'vector')).toBeDefined();
+    expect(extensions.find((ext) => ext.extname === 'uuid-ossp')).toBeDefined();
+    expect(extensions.find((ext) => ext.extname === 'vector')).toBeDefined();
   });
 
   it('should verify custom types exist', async () => {
@@ -142,9 +142,9 @@ describe('Database Connection & Configuration', () => {
       ['memory', 'rag', 'model']
     );
     const types = await Postgres.query<TypeInfo>(q);
-    
+
     expect(types).toHaveLength(3);
-    expect(types.every(type => type.typtype === 'c')).toBe(true);
+    expect(types.every((type) => type.typtype === 'c')).toBe(true);
   });
 });
 
@@ -161,7 +161,7 @@ describe('Agent Table Operations', () => {
     plugins: ['test-plugin-1', 'test-plugin-2'],
     mode: 'interactive',
     max_iterations: 20,
-    mcpServers: { testServer: { url: 'test://server' } }
+    mcpServers: { testServer: { url: 'test://server' } },
   };
 
   it('should create agent with default values', async () => {
@@ -170,7 +170,7 @@ describe('Agent Table Operations', () => {
        VALUES ($1, $2) RETURNING id, name, "group", memory, rag, mode, max_iterations`,
       ['Test_Basic_Agent', 'Basic test agent']
     );
-    
+
     const [agent] = await Postgres.query<Agent>(q);
     expect(agent.name).toBe('Test_Basic_Agent');
     expect(agent.group).toBe('default_group');
@@ -191,15 +191,26 @@ describe('Agent Table Operations', () => {
                  ROW($13, $14)::rag, $15, $16, $17) 
        RETURNING *`,
       [
-        testAgent.name, testAgent.group, testAgent.description,
-        testAgent.lore, testAgent.objectives, testAgent.knowledge,
-        testAgent.system_prompt, testAgent.interval, testAgent.plugins,
-        true, 10, 50, // memory fields
-        true, 'text-embedding-ada-002', // rag fields
-        testAgent.mode, testAgent.max_iterations, JSON.stringify(testAgent.mcpServers)
+        testAgent.name,
+        testAgent.group,
+        testAgent.description,
+        testAgent.lore,
+        testAgent.objectives,
+        testAgent.knowledge,
+        testAgent.system_prompt,
+        testAgent.interval,
+        testAgent.plugins,
+        true,
+        10,
+        50, // memory fields
+        true,
+        'text-embedding-ada-002', // rag fields
+        testAgent.mode,
+        testAgent.max_iterations,
+        JSON.stringify(testAgent.mcpServers),
       ]
     );
-    
+
     const [agent] = await Postgres.query<Agent>(q);
     expect(agent.name).toBe(testAgent.name);
     expect(agent.group).toBe(testAgent.group);
@@ -226,7 +237,7 @@ describe('Agent Table Operations', () => {
        RETURNING description, memory, rag`,
       [id, 'Updated description', true, 15, 100, true, 'custom-embedding-model']
     );
-    
+
     const [updated] = await Postgres.query<Agent>(updateQ);
     expect(updated.description).toBe('Updated description');
     expect(updated.memory.enabled).toBe(true);
@@ -247,23 +258,35 @@ describe('Agent Table Operations', () => {
     );
     await Postgres.query(createThreadQ);
 
-    const deleteQ = new Postgres.Query('DELETE FROM agents WHERE id = $1', [id]);
+    const deleteQ = new Postgres.Query('DELETE FROM agents WHERE id = $1', [
+      id,
+    ]);
     await Postgres.query(deleteQ);
 
-    const checkQ = new Postgres.Query('SELECT COUNT(*) as count FROM agents WHERE id = $1', [id]);
+    const checkQ = new Postgres.Query(
+      'SELECT COUNT(*) as count FROM agents WHERE id = $1',
+      [id]
+    );
     const [{ count }] = await Postgres.query<{ count: string }>(checkQ);
     expect(parseInt(count)).toBe(0);
 
-    const checkThreadQ = new Postgres.Query('SELECT COUNT(*) as count FROM thread_id WHERE agent_id = $1', [id]);
-    const [{ count: threadCount }] = await Postgres.query<{ count: string }>(checkThreadQ);
+    const checkThreadQ = new Postgres.Query(
+      'SELECT COUNT(*) as count FROM thread_id WHERE agent_id = $1',
+      [id]
+    );
+    const [{ count: threadCount }] = await Postgres.query<{ count: string }>(
+      checkThreadQ
+    );
     expect(parseInt(threadCount)).toBe(0);
   });
 
   it('should test delete_all_agents function', async () => {
-    await Postgres.query(new Postgres.Query(
-      'INSERT INTO agents (name, description) VALUES ($1, $2), ($3, $4)',
-      ['Test_Agent_A', 'Agent A', 'Test_Agent_B', 'Agent B']
-    ));
+    await Postgres.query(
+      new Postgres.Query(
+        'INSERT INTO agents (name, description) VALUES ($1, $2), ($3, $4)',
+        ['Test_Agent_A', 'Agent A', 'Test_Agent_B', 'Agent B']
+      )
+    );
 
     interface DeleteResult {
       deleted_count: number;
@@ -271,7 +294,7 @@ describe('Agent Table Operations', () => {
     }
     const deleteQ = new Postgres.Query('SELECT * FROM delete_all_agents()');
     const [result] = await Postgres.query<DeleteResult>(deleteQ);
-    
+
     expect(result.deleted_count).toBeGreaterThanOrEqual(2);
     expect(result.message).toContain('agent(s) supprimé(s) avec succès');
   });
@@ -293,9 +316,17 @@ describe('Message Table Operations', () => {
     const insertQ = new Postgres.Query(
       `INSERT INTO message (agent_id, event, run_id, thread_id, checkpoint_id, "from", content)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [testAgentId, 'user_input', 'run_123', 'thread_456', 'checkpoint_789', 'user', 'Hello, agent!']
+      [
+        testAgentId,
+        'user_input',
+        'run_123',
+        'thread_456',
+        'checkpoint_789',
+        'user',
+        'Hello, agent!',
+      ]
     );
-    
+
     const [message] = await Postgres.query<Message>(insertQ);
     expect(message.agent_id).toBe(testAgentId);
     expect(message.event).toBe('user_input');
@@ -307,9 +338,16 @@ describe('Message Table Operations', () => {
     const insertQ = new Postgres.Query(
       `INSERT INTO message (agent_id, event, run_id, thread_id, checkpoint_id, "from")
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [testAgentId, 'state_change', 'run_124', 'thread_457', 'checkpoint_790', 'system']
+      [
+        testAgentId,
+        'state_change',
+        'run_124',
+        'thread_457',
+        'checkpoint_790',
+        'system',
+      ]
     );
-    
+
     const [message] = await Postgres.query<Message>(insertQ);
     expect(message.event).toBe('state_change');
     expect(message.content).toBeNull();
@@ -322,13 +360,29 @@ describe('Message Table Operations', () => {
       new Postgres.Query(
         `INSERT INTO message (agent_id, event, run_id, thread_id, checkpoint_id, "from", content)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [testAgentId, 'user_input', 'run_1', threadId, 'cp_1', 'user', 'Message 1']
+        [
+          testAgentId,
+          'user_input',
+          'run_1',
+          threadId,
+          'cp_1',
+          'user',
+          'Message 1',
+        ]
       ),
       new Postgres.Query(
         `INSERT INTO message (agent_id, event, run_id, thread_id, checkpoint_id, "from", content)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [testAgentId, 'agent_response', 'run_1', threadId, 'cp_2', 'agent', 'Response 1']
-      )
+        [
+          testAgentId,
+          'agent_response',
+          'run_1',
+          threadId,
+          'cp_2',
+          'agent',
+          'Response 1',
+        ]
+      ),
     ];
 
     await Postgres.transaction(insertQueries);
@@ -338,7 +392,7 @@ describe('Message Table Operations', () => {
       [threadId]
     );
     const messages = await Postgres.query<Message>(searchQ);
-    
+
     expect(messages).toHaveLength(2);
     expect(messages[0].content).toBe('Message 1');
     expect(messages[1].content).toBe('Response 1');
@@ -354,9 +408,15 @@ describe('Memory Table Operations', () => {
     const insertQ = new Postgres.Query(
       `INSERT INTO episodic_memories (user_id, run_id, content, embedding, sources)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [testUserId, testRunId, 'User asked about weather', JSON.stringify(embedding), ['conversation_log']]
+      [
+        testUserId,
+        testRunId,
+        'User asked about weather',
+        JSON.stringify(embedding),
+        ['conversation_log'],
+      ]
     );
-    
+
     const [memory] = await Postgres.query<EpisodicMemory>(insertQ);
     expect(memory.user_id).toBe(testUserId);
     expect(memory.content).toBe('User asked about weather');
@@ -371,14 +431,16 @@ describe('Memory Table Operations', () => {
        VALUES ($1, $2, $3, $4) RETURNING id`,
       [testUserId, testRunId, 'Memory to access', JSON.stringify(embedding)]
     );
-    
+
     const [{ id }] = await Postgres.query<{ id: number }>(insertQ);
 
     const updateQ = new Postgres.Query(
       'UPDATE episodic_memories SET access_count = access_count + 1 WHERE id = $1 RETURNING access_count',
       [id]
     );
-    const [{ access_count }] = await Postgres.query<{ access_count: number }>(updateQ);
+    const [{ access_count }] = await Postgres.query<{ access_count: number }>(
+      updateQ
+    );
     expect(access_count).toBe(1);
   });
 
@@ -388,9 +450,12 @@ describe('Memory Table Operations', () => {
       `INSERT INTO episodic_memories (user_id, run_id, content, embedding) VALUES 
        ($1, $2, $3, $4), ($1, $2, $5, $6)`,
       [
-        testUserId, testRunId, 
-        'Memory about cats', JSON.stringify(searchEmbedding),
-        'Memory about dogs', JSON.stringify(Array.from({ length: 384 }, () => Math.random()))
+        testUserId,
+        testRunId,
+        'Memory about cats',
+        JSON.stringify(searchEmbedding),
+        'Memory about dogs',
+        JSON.stringify(Array.from({ length: 384 }, () => Math.random())),
       ]
     );
     await Postgres.query(insertQ);
@@ -403,8 +468,12 @@ describe('Memory Table Operations', () => {
        LIMIT 5`,
       [testUserId, JSON.stringify(searchEmbedding)]
     );
-    
-    const memories = await Postgres.query<{ id: number; content: string; distance: number }>(searchQ);
+
+    const memories = await Postgres.query<{
+      id: number;
+      content: string;
+      distance: number;
+    }>(searchQ);
     expect(memories.length).toBeGreaterThan(0);
     expect(memories[0].distance).toBeDefined();
   });
@@ -417,13 +486,17 @@ describe('Custom Types Operations', () => {
        (ROW(true, 10, 100)::memory).enabled as memory_enabled,
        (ROW(true, 10, 100)::memory).short_term_memory_size as short_term_size`
     );
-    
+
     interface MemoryTest {
-      memory_config: { enabled: boolean; short_term_memory_size: number; memory_size: number };
+      memory_config: {
+        enabled: boolean;
+        short_term_memory_size: number;
+        memory_size: number;
+      };
       memory_enabled: boolean;
       short_term_size: number;
     }
-    
+
     const [result] = await Postgres.query<MemoryTest>(q);
     expect(result.memory_enabled).toBe(true);
     expect(result.short_term_size).toBe(10);
@@ -435,13 +508,13 @@ describe('Custom Types Operations', () => {
        (ROW(true, 'text-embedding-ada-002')::rag).enabled as rag_enabled,
        (ROW(true, 'text-embedding-ada-002')::rag).embedding_model as model_name`
     );
-    
+
     interface RagTest {
       rag_config: { enabled: boolean; embedding_model: string };
       rag_enabled: boolean;
       model_name: string;
     }
-    
+
     const [result] = await Postgres.query<RagTest>(q);
     expect(result.rag_enabled).toBe(true);
     expect(result.model_name).toBe('text-embedding-ada-002');
@@ -452,12 +525,16 @@ describe('Custom Types Operations', () => {
       `SELECT ROW('openai', 'gpt-4', 'Advanced AI model')::model as model_config,
        (ROW('openai', 'gpt-4', 'Advanced AI model')::model).provider as provider_name`
     );
-    
+
     interface ModelTest {
-      model_config: { provider: string; model_name: string; description: string };
+      model_config: {
+        provider: string;
+        model_name: string;
+        description: string;
+      };
       provider_name: string;
     }
-    
+
     const [result] = await Postgres.query<ModelTest>(q);
     expect(result.provider_name).toBe('openai');
   });
@@ -481,24 +558,32 @@ describe('Transaction Handling & Error Scenarios', () => {
           ref_id INT REFERENCES test_transaction_1(id),
           value INT
         );`
-      )
+      ),
     ];
-    
+
     const result = await Postgres.transaction(t);
     expect(result).toEqual([]);
 
-    const checkQ = new Postgres.Query('SELECT COUNT(*) as count FROM test_transaction_1');
+    const checkQ = new Postgres.Query(
+      'SELECT COUNT(*) as count FROM test_transaction_1'
+    );
     const [{ count }] = await Postgres.query<{ count: string }>(checkQ);
     expect(parseInt(count)).toBe(2);
   });
 
   it('should rollback failed transactions', async () => {
     const t = [
-      new Postgres.Query('CREATE TABLE test_rollback(id SERIAL PRIMARY KEY, name VARCHAR(10));'),
-      new Postgres.Query('INSERT INTO test_rollback(name) VALUES ($1);', ['valid']),
-      new Postgres.Query('INSERT INTO test_rollback(name) VALUES ($1);', ['this_name_is_way_too_long_and_will_fail'])
+      new Postgres.Query(
+        'CREATE TABLE test_rollback(id SERIAL PRIMARY KEY, name VARCHAR(10));'
+      ),
+      new Postgres.Query('INSERT INTO test_rollback(name) VALUES ($1);', [
+        'valid',
+      ]),
+      new Postgres.Query('INSERT INTO test_rollback(name) VALUES ($1);', [
+        'this_name_is_way_too_long_and_will_fail',
+      ]),
     ];
-    
+
     await expect(Postgres.transaction(t)).rejects.toThrow();
 
     const checkQ = new Postgres.Query(
@@ -511,10 +596,12 @@ describe('Transaction Handling & Error Scenarios', () => {
 
   it('should handle database connection errors', async () => {
     await Postgres.shutdown();
-    
+
     const q = new Postgres.Query('SELECT 1');
-    await expect(Postgres.query(q)).rejects.toThrow('Connection pool not initialized');
-    
+    await expect(Postgres.query(q)).rejects.toThrow(
+      'Connection pool not initialized'
+    );
+
     await Postgres.connect(db_credentials);
   });
 
@@ -524,16 +611,22 @@ describe('Transaction Handling & Error Scenarios', () => {
   });
 
   it('should handle constraint violations', async () => {
-    await Postgres.query(new Postgres.Query(
-      'CREATE TABLE test_constraints(id SERIAL PRIMARY KEY, unique_field VARCHAR(50) UNIQUE)'
-    ));
-    
-    await Postgres.query(new Postgres.Query(
-      'INSERT INTO test_constraints(unique_field) VALUES ($1)', ['unique_value']
-    ));
-    
+    await Postgres.query(
+      new Postgres.Query(
+        'CREATE TABLE test_constraints(id SERIAL PRIMARY KEY, unique_field VARCHAR(50) UNIQUE)'
+      )
+    );
+
+    await Postgres.query(
+      new Postgres.Query(
+        'INSERT INTO test_constraints(unique_field) VALUES ($1)',
+        ['unique_value']
+      )
+    );
+
     const duplicateQ = new Postgres.Query(
-      'INSERT INTO test_constraints(unique_field) VALUES ($1)', ['unique_value']
+      'INSERT INTO test_constraints(unique_field) VALUES ($1)',
+      ['unique_value']
     );
     await expect(Postgres.query(duplicateQ)).rejects.toThrow();
   });
@@ -541,48 +634,64 @@ describe('Transaction Handling & Error Scenarios', () => {
 
 describe('Performance & Stress Testing', () => {
   it('should handle large batch inserts efficiently', async () => {
-    await Postgres.query(new Postgres.Query(
-      'CREATE TABLE test_performance(id SERIAL PRIMARY KEY, data TEXT, created_at TIMESTAMP DEFAULT NOW())'
-    ));
+    await Postgres.query(
+      new Postgres.Query(
+        'CREATE TABLE test_performance(id SERIAL PRIMARY KEY, data TEXT, created_at TIMESTAMP DEFAULT NOW())'
+      )
+    );
 
     const batchSize = 1000;
-    const values = Array.from({ length: batchSize }, (_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(',');
-    const params = Array.from({ length: batchSize }, (_, i) => [`data_${i}`, new Date()]).flat();
-    
+    const values = Array.from(
+      { length: batchSize },
+      (_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`
+    ).join(',');
+    const params = Array.from({ length: batchSize }, (_, i) => [
+      `data_${i}`,
+      new Date(),
+    ]).flat();
+
     const startTime = Date.now();
-    await Postgres.query(new Postgres.Query(
-      `INSERT INTO test_performance(data, created_at) VALUES ${values}`,
-      params
-    ));
+    await Postgres.query(
+      new Postgres.Query(
+        `INSERT INTO test_performance(data, created_at) VALUES ${values}`,
+        params
+      )
+    );
     const endTime = Date.now();
-    
+
     expect(endTime - startTime).toBeLessThan(5000);
 
-    const countQ = new Postgres.Query('SELECT COUNT(*) as count FROM test_performance');
+    const countQ = new Postgres.Query(
+      'SELECT COUNT(*) as count FROM test_performance'
+    );
     const [{ count }] = await Postgres.query<{ count: string }>(countQ);
     expect(parseInt(count)).toBe(batchSize);
   });
 
   it('should handle concurrent transactions', async () => {
-    await Postgres.query(new Postgres.Query(
-      'CREATE TABLE test_concurrent(id SERIAL PRIMARY KEY, counter INT DEFAULT 0)'
-    ));
-    
-    await Postgres.query(new Postgres.Query(
-      'INSERT INTO test_concurrent(id) VALUES (1)'
-    ));
+    await Postgres.query(
+      new Postgres.Query(
+        'CREATE TABLE test_concurrent(id SERIAL PRIMARY KEY, counter INT DEFAULT 0)'
+      )
+    );
 
-    const concurrentTransactions = Array.from({ length: 10 }, () => 
+    await Postgres.query(
+      new Postgres.Query('INSERT INTO test_concurrent(id) VALUES (1)')
+    );
+
+    const concurrentTransactions = Array.from({ length: 10 }, () =>
       Postgres.transaction([
         new Postgres.Query(
           'UPDATE test_concurrent SET counter = counter + 1 WHERE id = 1'
-        )
+        ),
       ])
     );
-    
+
     await Promise.all(concurrentTransactions);
-    
-    const resultQ = new Postgres.Query('SELECT counter FROM test_concurrent WHERE id = 1');
+
+    const resultQ = new Postgres.Query(
+      'SELECT counter FROM test_concurrent WHERE id = 1'
+    );
     const [{ counter }] = await Postgres.query<{ counter: number }>(resultQ);
     expect(counter).toBe(10);
   });
@@ -595,16 +704,24 @@ describe('Integration Tests - Complex Multi-table Operations', () => {
       description: 'Full integration test agent',
       objectives: ['Complete integration test'],
       memory: true,
-      rag: true
+      rag: true,
     };
 
     const createAgentQ = new Postgres.Query(
       `INSERT INTO agents (name, description, objectives, memory, rag)
        VALUES ($1, $2, $3, ROW($4, 5, 20)::memory, ROW($5, 'test-embedding')::rag)
        RETURNING id`,
-      [agentData.name, agentData.description, agentData.objectives, agentData.memory, agentData.rag]
+      [
+        agentData.name,
+        agentData.description,
+        agentData.objectives,
+        agentData.memory,
+        agentData.rag,
+      ]
     );
-    const [{ id: agentId }] = await Postgres.query<{ id: string }>(createAgentQ);
+    const [{ id: agentId }] = await Postgres.query<{ id: string }>(
+      createAgentQ
+    );
 
     const createThreadQ = new Postgres.Query(
       'INSERT INTO thread_id (agent_id, name, thread_id) VALUES ($1, $2, $3) RETURNING id',
@@ -624,11 +741,17 @@ describe('Integration Tests - Complex Multi-table Operations', () => {
     const createMemoryQ = new Postgres.Query(
       `INSERT INTO episodic_memories (user_id, run_id, content, embedding)
        VALUES ($1, $2, $3, $4)`,
-      ['integration_user', agentId, 'Integration test conversation', JSON.stringify(embedding)]
+      [
+        'integration_user',
+        agentId,
+        'Integration test conversation',
+        JSON.stringify(embedding),
+      ]
     );
     await Postgres.query(createMemoryQ);
 
-    const verifyQ = new Postgres.Query(`
+    const verifyQ = new Postgres.Query(
+      `
       SELECT 
         a.name as agent_name,
         COUNT(DISTINCT t.id) as thread_count,
@@ -640,15 +763,17 @@ describe('Integration Tests - Complex Multi-table Operations', () => {
       LEFT JOIN episodic_memories em ON a.id::text = em.run_id
       WHERE a.id = $1
       GROUP BY a.id, a.name
-    `, [agentId]);
-    
+    `,
+      [agentId]
+    );
+
     interface IntegrationResult {
       agent_name: string;
       thread_count: string;
       message_count: string;
       memory_count: string;
     }
-    
+
     const [result] = await Postgres.query<IntegrationResult>(verifyQ);
     expect(result.agent_name).toBe(agentData.name);
     expect(parseInt(result.thread_count)).toBe(1);
@@ -661,7 +786,9 @@ describe('Integration Tests - Complex Multi-table Operations', () => {
       'INSERT INTO agents (name, description) VALUES ($1, $2) RETURNING id',
       ['Test_Cascade_Agent', 'Agent for cascade testing']
     );
-    const [{ id: agentId }] = await Postgres.query<{ id: string }>(createAgentQ);
+    const [{ id: agentId }] = await Postgres.query<{ id: string }>(
+      createAgentQ
+    );
 
     await Postgres.transaction([
       new Postgres.Query(
@@ -670,21 +797,38 @@ describe('Integration Tests - Complex Multi-table Operations', () => {
       ),
       new Postgres.Query(
         'INSERT INTO message (agent_id, event, run_id, thread_id, checkpoint_id, "from") VALUES ($1, $2, $3, $4, $5, $6)',
-        [agentId, 'test_event', 'run_cascade', 'thread_cascade_123', 'cp_cascade', 'system']
+        [
+          agentId,
+          'test_event',
+          'run_cascade',
+          'thread_cascade_123',
+          'cp_cascade',
+          'system',
+        ]
       ),
-      new Postgres.Query(
-        'INSERT INTO agent_iterations (data) VALUES ($1)',
-        [JSON.stringify({ agent_id: agentId, test_data: 'cascade_test' })]
-      )
+      new Postgres.Query('INSERT INTO agent_iterations (data) VALUES ($1)', [
+        JSON.stringify({ agent_id: agentId, test_data: 'cascade_test' }),
+      ]),
     ]);
 
-    const deleteAgentQ = new Postgres.Query('DELETE FROM agents WHERE id = $1', [agentId]);
+    const deleteAgentQ = new Postgres.Query(
+      'DELETE FROM agents WHERE id = $1',
+      [agentId]
+    );
     await Postgres.query(deleteAgentQ);
 
     const verifyDeletionQueries = [
-      new Postgres.Query('SELECT COUNT(*) as count FROM agents WHERE id = $1', [agentId]),
-      new Postgres.Query('SELECT COUNT(*) as count FROM thread_id WHERE agent_id = $1', [agentId]),
-      new Postgres.Query('SELECT COUNT(*) as count FROM message WHERE agent_id = $1', [agentId])
+      new Postgres.Query('SELECT COUNT(*) as count FROM agents WHERE id = $1', [
+        agentId,
+      ]),
+      new Postgres.Query(
+        'SELECT COUNT(*) as count FROM thread_id WHERE agent_id = $1',
+        [agentId]
+      ),
+      new Postgres.Query(
+        'SELECT COUNT(*) as count FROM message WHERE agent_id = $1',
+        [agentId]
+      ),
     ];
 
     for (const query of verifyDeletionQueries) {
