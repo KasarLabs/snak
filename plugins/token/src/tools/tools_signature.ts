@@ -3,9 +3,7 @@ import { transfer_signature } from '../actions/transfer.js';
 import { getBalanceSignature } from '../actions/getBalances.js';
 import { getBalanceSchema, transferSignatureschema } from '../schema/index.js';
 
-export const registerSignatureTools = (
-  SnakToolRegistry: SignatureTool[]
-) => {
+export const registerSignatureTools = (SnakToolRegistry: SignatureTool[]) => {
   (SnakToolRegistry.push({
     name: 'transfer',
     description: 'return transfer json transaction',

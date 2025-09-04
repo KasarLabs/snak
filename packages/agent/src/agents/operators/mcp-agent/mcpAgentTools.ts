@@ -130,7 +130,9 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           }
 
           if (response.bodyUsed) {
-            throw new Error('Response body already consumed in main search request');
+            throw new Error(
+              'Response body already consumed in main search request'
+            );
           }
           const searchResult: SmitheryListResponse = await response.json();
 
@@ -174,7 +176,9 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
                 }
 
                 if (detailResponse.bodyUsed) {
-                  throw new Error(`Response body already consumed for server ${server.qualifiedName}`);
+                  throw new Error(
+                    `Response body already consumed for server ${server.qualifiedName}`
+                  );
                 }
                 const detail: SmitheryServerDetail =
                   await detailResponse.json();

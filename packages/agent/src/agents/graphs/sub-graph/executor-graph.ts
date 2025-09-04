@@ -6,11 +6,6 @@ import {
 } from '@langchain/core/messages';
 import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
 import {
-  History,
-  HistoryItem,
-  ParsedPlan,
-} from '../../../../types/memory.types.js';
-import {
   checkAndReturnLastItemFromPlansOrHistories,
   checkAndReturnObjectFromPlansOrHistories,
   getCurrentPlanStep,
@@ -18,20 +13,13 @@ import {
   getCurrentHistory,
   createMaxIterationsResponse,
   estimateTokens,
-  formatExecutionMessage,
-  formatStepsForContext,
-  formatToolsForPlan,
-  formatToolsForHistory,
-  formatValidatorToolsExecutor,
   getLatestMessageForMessage,
-  ReturnTypeCheckPlanorHistory,
   handleNodeError,
-  formatLTMForContext,
-} from '../../utils.js';
+} from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
-import { ModelSelector } from '../../../operators/modelSelector.js';
+import { ModelSelector } from '../../operators/modelSelector.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
@@ -40,31 +28,46 @@ import {
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { DEFAULT_GRAPH_CONFIG } from '../../config.js';
+import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   ExecutionMode,
   ExecutorNode,
-} from '../../../../enums/agent-modes.enum.js';
+} from '../../../enums/agent-modes.enum.js';
 import {
   TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
   VALIDATOR_EXECUTOR_CONTEXT,
-} from '../../../../prompts/graph/executor/validator_prompt.js';
-import { TokenTracker } from '../../../../lib/token/token-tracking.js';
+} from '../../../prompts/graph/executor/validator_prompt.js';
+import { TokenTracker } from '../../../lib/token/token-tracking.js';
 import {
   parseReActResponse,
   createReActObservation,
   parseActionsToToolCallsReact,
-} from '../../utils/react-utils.js';
-import { PromptStrategyFactory } from '../../strategies/executor-prompt-strategies.js';
+} from '../utils/react-utils.js';
+import { PromptManagerFactory } from '../manager/prompts/executor-prompt-manager.js';
 import {
   MODEL_TIMEOUTS,
   DEFAULT_MODELS,
   STRING_LIMITS,
-} from '../../constants.js';
+} from '../constants/execution-constants.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatOpenAI } from '@langchain/openai';
 import { truncateToolResults } from '@agents/utils/tools.utils.js';
 import { ValidatorResponseSchema } from '@schemas/graph.js';
+import {
+  HistoryItem,
+  ParsedPlan,
+  History,
+  ReturnTypeCheckPlanorHistory,
+} from '../../../types/index.js';
+import { formatLTMForContext } from '../parser/memory/ltm-parser.js';
+import {
+  formatExecutionMessage,
+  formatStepsForContext,
+  formatToolResponse,
+  formatToolsForHistory,
+  formatToolsForPlan,
+  formatValidatorToolsExecutor,
+} from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig;
@@ -97,7 +100,7 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): ChatPromptTemplate {
-    return PromptStrategyFactory.buildSystemPrompt(state, config);
+    return PromptManagerFactory.buildSystemPrompt(state, config);
   }
 
   private async invokeModelWithMessages(

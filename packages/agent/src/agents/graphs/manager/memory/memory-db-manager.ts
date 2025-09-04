@@ -1,16 +1,14 @@
 import { logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
-import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
+import { CustomHuggingFaceEmbeddings } from '@snakagent/core'; /**
+ * Transaction-safe memory database operations
+ * Fixes the race conditions and data corruption issues in the original implementation
+ */
 import {
   EpisodicMemoryContext,
   MemoryOperationResult,
   SemanticMemoryContext,
-} from '../types/index.js';
-
-/**
- * Transaction-safe memory database operations
- * Fixes the race conditions and data corruption issues in the original implementation
- */
+} from '../../../../types/memory.types.js';
 export class MemoryDBManager {
   private embeddings: CustomHuggingFaceEmbeddings;
   private readonly maxRetries: number;
@@ -121,7 +119,6 @@ export class MemoryDBManager {
         };
 
         const result = await memory.insert_episodic_memory(episodicRecord);
-        console.log(JSON.stringify(result, null, 2));
         event_ids.push(result.memory_id);
         logger.debug(
           `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${e_memory.user_id}`

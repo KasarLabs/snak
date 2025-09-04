@@ -1,47 +1,46 @@
 import { START, END, StateGraph, Command } from '@langchain/langgraph';
 import {
   Memories,
-  ParsedPlan,
   EpisodicMemoryContext,
   SemanticMemoryContext,
   ltmSchema,
   ltmSchemaType,
-  StepInfo,
-  HistoryItem,
-} from '../../../../types/memory.types.js';
+} from '../../../types/memory.types.js';
 import {
   getCurrentPlanStep,
   getCurrentHistoryItem,
   estimateTokens,
-  formatSteporHistoryForSTM,
   handleNodeError,
-} from '../../utils.js';
+} from '../utils/graph-utils.js';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
-import { ModelSelector } from '../../../operators/modelSelector.js';
-import { MemoryAgent } from '../../../operators/memoryAgent.js';
-import {
-  GraphConfigurableAnnotation,
-  GraphState,
-} from '../graph.js';
+import { ModelSelector } from '../../operators/modelSelector.js';
+import { MemoryAgent } from '../../operators/memoryAgent.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { DEFAULT_GRAPH_CONFIG } from '../../config.js';
+import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   MemoryNode,
   PlannerNode,
   ExecutorNode,
   ExecutionMode,
-} from '../../../../enums/agent-modes.enum.js';
-import { MemoryStateManager } from '../../../../lib/memory/memory-utils.js';
-import { MemoryDBManager } from '../../manager/memory-db-manager.js';
-import { MEMORY_THRESHOLDS } from '../../constants.js';
+} from '../../../enums/agent-modes.enum.js';
+import { MemoryStateManager } from '../../../lib/memory/memory-utils.js';
+import { MemoryDBManager } from '../manager/memory/memory-db-manager.js';
 import { STMManager } from '@lib/memory/memory-manager.js';
 import { LTM_SYSTEM_PROMPT_RETRIEVE_MEMORY } from '@prompts/graph/memory/ltm_prompt.js';
 import { LTN_SUMMARIZE_SYSTEM_PROMPT } from '@prompts/graph/memory/summary_prompts.js';
 import { isInEnum } from '@enums/utils.js';
+import { MEMORY_THRESHOLDS } from '@agents/graphs/constants/execution-constants.js';
+import {
+  HistoryItem,
+  ParsedPlan,
+  StepInfo,
+} from '../../../types/graph.types.js';
+import { formatSteporHistoryForSTM } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 
 export type GraphStateType = typeof GraphState.State;
 
@@ -250,7 +249,10 @@ export class MemoryGraph {
         throw new Error('Fast model not available for LTM processing');
       }
 
-      const recentMemories = STMManager.getRecentMemories(state.memories.stm, 1);
+      const recentMemories = STMManager.getRecentMemories(
+        state.memories.stm,
+        1
+      );
 
       if (recentMemories.length === 0) {
         logger.warn(
@@ -303,7 +305,6 @@ export class MemoryGraph {
       );
 
       const userId = config.configurable?.thread_id as string;
-      console.log(`[LTMManager]${userId},\n ${config.configurable})`);
       if (!userId) {
         logger.warn('[LTMManager] No user ID available, skipping LTM upsert');
         return {

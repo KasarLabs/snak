@@ -3,9 +3,7 @@ import { accountDetailsSchema } from '../schemas/schema.js';
 import { CreateBraavosAccountSignature } from '../actions/createAccount.js';
 import { DeployBraavosAccountSignature } from '../actions/deployAccount.js';
 
-export const registerSignatureTools = (
-  SnakToolRegistry: SignatureTool[]
-) => {
+export const registerSignatureTools = (SnakToolRegistry: SignatureTool[]) => {
   (SnakToolRegistry.push({
     name: 'create_braavos_account',
     description:

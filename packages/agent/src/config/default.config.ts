@@ -7,7 +7,7 @@ import {
   MEMORY_THRESHOLDS,
   MODEL_TIMEOUTS,
   VALIDATION_LIMITS,
-} from '@agents/modes/constants.js';
+} from '@agents/graphs/constants.js';
 
 /**
  * Default system configurations

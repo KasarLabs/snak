@@ -5,26 +5,25 @@ import {
   isPlannerActivateSchema,
   ParsedPlan,
   StepInfo,
-} from '../../../../types/memory.types.js';
+} from '../../../types/index.js';
 import {
   checkAndReturnObjectFromPlansOrHistories,
   formatParsedPlanSimple,
   handleNodeError,
-  parseEvolveFromHistoryContext,
-} from '../../utils.js';
+} from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
-import { ModelSelector } from '../../../operators/modelSelector.js';
+import { ModelSelector } from '../../operators/modelSelector.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
-import { DEFAULT_GRAPH_CONFIG } from '../../config.js';
+import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   PlannerNode,
   GraphNode,
   ExecutorNode,
   MemoryNode,
   ExecutionMode,
-} from '../../../../enums/agent-modes.enum.js';
+} from '../../../enums/agent-modes.enum.js';
 import {
   ADAPTIVE_PLANNER_CONTEXT_PROMPT,
   ADAPTIVE_PLANNER_SYSTEM_PROMPT,
@@ -36,18 +35,19 @@ import {
   INTERACTIVE_PLANNER_CONTEXT_PROMPT,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
   REPLANNER_CONTEXT_PROMPT,
-} from '../../../../prompts/graph/planner/index.js';
+} from '../../../prompts/graph/planner/index.js';
 import {
   DynamicStructuredTool,
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT } from '../../../../prompts/graph/executor/validator_prompt.js';
+import { AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT } from '../../../prompts/graph/executor/validator_prompt.js';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import { isInEnum } from '@enums/utils.js';
 import { PlanSchema, PlanSchemaType } from '@schemas/graph.js';
+import { parseEvolveFromHistoryContext } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
@@ -617,9 +617,6 @@ export class PlannerGraph {
     }
     // INTERACTIVE START PART
     const executionMode = config.configurable?.executionMode;
-    console.log('PLANNER_ROUTER - ExecutionMode', currentMode);
-    console.log('Current ExecutionMode:', executionMode);
-
     if (currentMode === AgentMode.INTERACTIVE) {
       if (executionMode === ExecutionMode.REACTIVE) {
         logger.debug(
@@ -668,9 +665,6 @@ export class PlannerGraph {
       );
       return PlannerNode.PLAN_REVISION;
     }
-
-    console.log(currentMode);
-    console.log(state.last_node);
     if (
       currentMode === AgentMode.AUTONOMOUS ||
       currentMode === AgentMode.HYBRID

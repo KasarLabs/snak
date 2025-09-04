@@ -1,5 +1,6 @@
 import { memory } from '@snakagent/database/queries';
 import z from 'zod';
+import { HistoryItem, StepInfo } from './graph.types.js';
 
 /**
  * Individual memory item with immutable structure
@@ -105,109 +106,6 @@ export interface MemoryOperationResult<T> {
   readonly data?: T;
   readonly error?: string;
   readonly timestamp: number;
-}
-
-/**
- * Step information structure
- */
-export interface StepInfo {
-  stepNumber: number;
-  stepName: string;
-  description: string;
-  type: 'tools' | 'message' | 'human_in_the_loop';
-  tools?: StepToolsInfo[];
-  message?: MessageInfo;
-  status: 'pending' | 'completed' | 'failed';
-}
-
-/**
- * History item structure
- */
-export interface HistoryItem {
-  tools?: HistoryToolsInfo[];
-  message?: MessageInfo;
-  userquery?: string;
-  type: 'tools' | 'message' | 'human_in_the_loop';
-  timestamp: number;
-}
-
-/**
- * Step tools information
- */
-export interface StepToolsInfo {
-  description: string;
-  required: string;
-  expected_result: string;
-  result: string;
-  metadata?: {
-    tool_name: string;
-    tool_call_id: string;
-    timestamp: string;
-  };
-}
-
-/**
- * History tools information
- */
-export interface HistoryToolsInfo {
-  result: string;
-  metadata?: {
-    tool_name: string;
-    tool_call_id: string;
-    timestamp: string;
-  };
-}
-
-/**
- * Message information structure
- */
-export interface MessageInfo {
-  content: string;
-  tokens: number;
-}
-
-/**
- * Parsed plan structure
- */
-export interface ParsedPlan {
-  type: 'plan';
-  id: string;
-  steps: StepInfo[];
-  summary: string;
-}
-
-/**
- * History structure
- */
-export interface History {
-  type: 'history';
-  id: string;
-  items: HistoryItem[];
-}
-
-/**
- * Validator response structure
- */
-export interface validatorResponse {
-  success: boolean;
-  results: string[];
-}
-
-/**
- * Step response structure
- */
-interface StepResponse {
-  number: number;
-  validated: boolean;
-}
-
-/**
- * Validator step response structure
- */
-export interface ValidatorStepResponse {
-  steps: StepResponse[];
-  nextSteps: number;
-  isFinal: boolean;
 }
 
 /**

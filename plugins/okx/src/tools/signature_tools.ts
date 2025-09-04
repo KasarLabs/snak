@@ -3,9 +3,7 @@ import { accountDetailsSchema } from '../schemas/schema.js';
 import { DeployOKXAccountSignature } from '../actions/deployAccount.js';
 import { CreateOKXAccountSignature } from '../actions/createAccount.js';
 
-export const registerSignatureTools = (
-  SnakToolRegistry: SignatureTool[]
-) => {
+export const registerSignatureTools = (SnakToolRegistry: SignatureTool[]) => {
   (SnakToolRegistry.push({
     name: 'create_okx_account',
     description:

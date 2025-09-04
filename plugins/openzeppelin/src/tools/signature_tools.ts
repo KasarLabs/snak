@@ -3,9 +3,7 @@ import { accountDetailsSchema } from '../schemas/schema.js';
 import { CreateOZAccountSignature } from '../actions/createAccount.js';
 import { DeployOZAccountSignature } from '../actions/deployAccount.js';
 
-export const registerSignatureTools = (
-  SnakToolRegistry: SignatureTool[]
-) => {
+export const registerSignatureTools = (SnakToolRegistry: SignatureTool[]) => {
   (SnakToolRegistry.push({
     name: 'create_open_zeppelin_account',
     description:

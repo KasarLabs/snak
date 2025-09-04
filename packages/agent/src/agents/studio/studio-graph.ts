@@ -2,15 +2,15 @@ import { SystemMessage } from '@langchain/core/messages';
 import { AgentMode, ModelLevelConfig, ModelProviders } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '../core/snakAgent.js';
-import { Graph } from '../modes/graph/graph.js';
 import {
   ModelSelector,
   ModelSelectorConfig,
 } from '../operators/modelSelector.js';
-import { RpcProvider } from 'starknet';
-import { logger } from '@snakagent/core';
+import { logger, RpcProvider } from 'starknet';
+import { Graph } from '@agents/graphs/graph.js';
+
 // Types and Interfaces
-interface AgentConfigSQL {
+export interface AgentConfigSQL {
   id: string;
   name: string;
   group: string;
@@ -32,7 +32,6 @@ interface AgentConfigSQL {
   };
   mode: AgentMode;
   max_iterations: number;
-  mcpServers: Record<string, any>;
 }
 
 export interface AgentMemorySQL {
@@ -41,7 +40,7 @@ export interface AgentMemorySQL {
   memory_size: number;
 }
 
-interface AgentRagSQL {
+export interface AgentRagSQL {
   enabled: boolean;
   embedding_model: string | null;
 }
@@ -191,7 +190,7 @@ function getModelSelectorConfig(): ModelSelectorConfig {
  * @param agentId - The unique identifier of the agent
  * @returns Promise<{agent: SnakAgent, modelSelector: ModelSelector, config: AgentConfigSQL}>
  */
-async function createAgentById(agentId: string): Promise<{
+export async function createAgentById(agentId: string): Promise<{
   agent: SnakAgent;
   modelSelector: ModelSelector;
   config: AgentConfigSQL;
@@ -253,7 +252,7 @@ async function createAgentById(agentId: string): Promise<{
       memory: agentConfig.memory,
       rag: agentConfig.rag,
       plugins: agentConfig.plugins,
-      mcpServers: agentConfig.mcpServers,
+      mcpServers: {},
     },
     modelSelectorConfig: modelSelectorConfig,
     memory: agentConfig.memory,
@@ -272,8 +271,8 @@ async function createAgentById(agentId: string): Promise<{
  * @param agentId - The unique identifier of the agent
  * @returns Promise<any> - The initialized graph
  */
-async function createInteractiveAgent(): Promise<any> {
-  const { agent, modelSelector } = await createAgentById(INTERACTIVE_ID);
+export async function createInteractiveAgent(agentId: string): Promise<any> {
+  const { agent, modelSelector } = await createAgentById(agentId);
   const interactiveAgent = new Graph(agent, modelSelector);
   const { app } = await interactiveAgent.initialize();
   return app;
@@ -284,18 +283,10 @@ async function createInteractiveAgent(): Promise<any> {
  * @param agentId - The unique identifier of the agent
  * @returns Promise<any> - The initialized graph
  */
-async function createAutonomousAgent(): Promise<any> {
-  const { agent, modelSelector } = await createAgentById(AUTONOMOUS_ID);
+export async function createAutonomousAgent(agentId: string): Promise<any> {
+  const { agent, modelSelector } = await createAgentById(agentId);
   const autonomousAgent = new Graph(agent, modelSelector);
-
-  const result = await autonomousAgent.initialize();
-  const app = result.app;
-
-  // Vérifier que app existe
-  if (!app) {
-    throw new Error('App is undefined after initialization');
-  }
-
+  const { app } = await autonomousAgent.initialize();
   return app;
 }
 
@@ -304,7 +295,7 @@ async function createAutonomousAgent(): Promise<any> {
  * @param agentId - The unique identifier of the agent
  * @returns Promise<any> - The initialized graph
  */
-async function createHybridAgent(agentId: string): Promise<any> {
+export async function createHybridAgent(agentId: string): Promise<any> {
   const { agent, modelSelector } = await createAgentById(agentId);
   const hybridAgent = new Graph(agent, modelSelector);
   const { app } = await hybridAgent.initialize();
@@ -312,10 +303,12 @@ async function createHybridAgent(agentId: string): Promise<any> {
 }
 
 // Example usage with specific IDs (for backward compatibility)
-const AUTONOMOUS_ID = 'b5c8bf7d-09a2-45b4-a85e-866cc4bb8102';
-const INTERACTIVE_ID = 'efa2b836-0a5f-43cd-8146-a5610e705695';
-// const HYBRID_ID = 'f1367901-976d-4319-9cb1-b9afe2999e19';
+const AUTONOMOUS_ID = '223d72b7-7b61-43af-bbf6-278e69994b3f';
+const INTERACTIVE_ID = '683513b2-83fb-4e0a-8a30-ac6a23640595';
+const HYBRID_ID = 'e5ad188c-c47d-4e6a-aee5-3be8dfb4647e';
 
-export const studio_graph_interactive = () => createInteractiveAgent();
-export const studio_graph_autonomous = () => createAutonomousAgent();
-// export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);
+export const studio_graph_interactive = () =>
+  createInteractiveAgent(INTERACTIVE_ID);
+export const studio_graph_autonomous = () =>
+  createAutonomousAgent(AUTONOMOUS_ID);
+export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);

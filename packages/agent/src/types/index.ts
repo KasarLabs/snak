@@ -19,3 +19,9 @@ export * from './config.types.js';
 
 // Database types
 export * from './database.types.js';
+
+// Error Types
+export * from './error.types.js';
+
+// Streaming types
+export * from './streaming.types.js';

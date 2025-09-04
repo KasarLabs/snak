@@ -3,7 +3,6 @@ import { Annotation } from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
 import { ChunkOutput } from './streaming.types.js';
 
-
 /**
  * Base interface for all agents
  */

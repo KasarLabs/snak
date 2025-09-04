@@ -1,13 +1,13 @@
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AgentMode } from '@snakagent/core';
-import { GraphState, GraphConfigurableAnnotation } from '../graph/graph.js';
+import { GraphState, GraphConfigurableAnnotation } from '../../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { getCurrentPlanStep } from '../utils.js';
+import { getCurrentPlanStep } from '../../utils/graph-utils.js';
 import {
   REACT_SYSTEM_PROMPT,
   REACT_CONTEXT_PROMPT,
   REACT_RETRY_PROMPT,
-} from '../../../prompts/graph/executor/react_prompts.js';
+} from '../../../../prompts/graph/executor/react_prompts.js';
 import {
   MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
   RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
@@ -15,7 +15,7 @@ import {
   RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
   STEP_EXECUTOR_CONTEXT_PROMPT,
   TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
-} from '../../../prompts/graph/executor/executor_prompts.js';
+} from '../../../../prompts/graph/executor/executor_prompts.js';
 import { ExecutionMode } from '@enums/agent-modes.enum.js';
 /**
  * Represents a pair of system and context prompts for execution
@@ -29,16 +29,16 @@ interface PromptPair {
 }
 
 /**
- * Strategy interface for building system prompts
+ * Manager interface for building system prompts
  * Enables clean separation of prompt selection logic by execution mode
  */
-interface PromptBuildingStrategy {
+interface PromptBuildingManager {
   /**
    * Builds a prompt pair based on current state and configuration
    * @param state - Current graph execution state
    * @param config - Configuration including execution mode and agent settings
    * @returns Prompt pair containing system and context prompts
-   * @throws Error if the strategy cannot handle the given configuration
+   * @throws Error if the Manager cannot handle the given configuration
    */
   buildPrompts(
     state: typeof GraphState.State,
@@ -46,19 +46,19 @@ interface PromptBuildingStrategy {
   ): PromptPair;
 
   /**
-   * Checks if this strategy can handle the given execution mode
+   * Checks if this Manager can handle the given execution mode
    * @param executionMode - The execution mode to check
    * @param agentMode - The agent mode to check
-   * @returns true if this strategy supports the given modes
+   * @returns true if this Manager supports the given modes
    */
   supports(executionMode: ExecutionMode, agentMode?: AgentMode): boolean;
 }
 
 /**
- * Strategy for reactive execution mode
+ * Manager for reactive execution mode
  * Handles ReAct-style prompts for interactive agents
  */
-class ReactivePromptStrategy implements PromptBuildingStrategy {
+class ReactivePromptManager implements PromptBuildingManager {
   buildPrompts(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -89,10 +89,10 @@ class ReactivePromptStrategy implements PromptBuildingStrategy {
 }
 
 /**
- * Strategy for planning execution mode
+ * Manager for planning execution mode
  * Handles step-by-step execution with tools and message processing
  */
-class PlanningPromptStrategy implements PromptBuildingStrategy {
+class PlanningPromptManager implements PromptBuildingManager {
   buildPrompts(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -152,20 +152,20 @@ class PlanningPromptStrategy implements PromptBuildingStrategy {
 
 /**
  * Factory for creating and managing prompt building strategies
- * Provides centralized strategy selection and prompt template creation
+ * Provides centralized Manager selection and prompt template creation
  */
-export class PromptStrategyFactory {
-  private static readonly strategies: PromptBuildingStrategy[] = [
-    new ReactivePromptStrategy(),
-    new PlanningPromptStrategy(),
+export class PromptManagerFactory {
+  private static readonly strategies: PromptBuildingManager[] = [
+    new ReactivePromptManager(),
+    new PlanningPromptManager(),
   ];
 
   /**
-   * Builds a ChatPromptTemplate using the appropriate strategy
+   * Builds a ChatPromptTemplate using the appropriate Manager
    * @param state - Current graph execution state
    * @param config - Configuration including execution mode and agent settings
    * @returns Configured ChatPromptTemplate ready for use
-   * @throws Error if no suitable strategy is found
+   * @throws Error if no suitable Manager is found
    */
   static buildSystemPrompt(
     state: typeof GraphState.State,
@@ -178,19 +178,16 @@ export class PromptStrategyFactory {
       throw new Error('Execution mode is required for prompt building');
     }
 
-    // Find suitable strategy
-    const strategy = this.findStrategy(executionMode, agentMode);
-    if (!strategy) {
+    // Find suitable Manager
+    const Manager = this.findManager(executionMode, agentMode);
+    if (!Manager) {
       throw new Error(
-        `No prompt strategy found for execution mode: ${executionMode}`
+        `No prompt Manager found for execution mode: ${executionMode}`
       );
     }
 
-    // Build prompts using selected strategy
-    const { systemPrompt, contextPrompt } = strategy.buildPrompts(
-      state,
-      config
-    );
+    // Build prompts using selected Manager
+    const { systemPrompt, contextPrompt } = Manager.buildPrompts(state, config);
 
     // Create and return prompt template
     return ChatPromptTemplate.fromMessages([
@@ -200,17 +197,17 @@ export class PromptStrategyFactory {
   }
 
   /**
-   * Finds a strategy that supports the given execution and agent modes
-   * @param executionMode - The execution mode to find a strategy for
-   * @param agentMode - The agent mode to find a strategy for
-   * @returns Suitable strategy or undefined if none found
+   * Finds a Manager that supports the given execution and agent modes
+   * @param executionMode - The execution mode to find a Manager for
+   * @param agentMode - The agent mode to find a Manager for
+   * @returns Suitable Manager or undefined if none found
    */
-  private static findStrategy(
+  private static findManager(
     executionMode: ExecutionMode,
     agentMode?: AgentMode
-  ): PromptBuildingStrategy | undefined {
-    return this.strategies.find((strategy) =>
-      strategy.supports(executionMode, agentMode)
+  ): PromptBuildingManager | undefined {
+    return this.strategies.find((Manager) =>
+      Manager.supports(executionMode, agentMode)
     );
   }
 }

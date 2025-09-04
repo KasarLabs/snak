@@ -89,7 +89,6 @@ export function parseReActResponse(content: string): ParsedReActResponse {
       !lastStep.action.toLowerCase().startsWith('answer') &&
       !lastStep.action.toLowerCase().startsWith('explain');
   }
-  console.log(currentStep);
   return {
     steps,
     currentStep: lastStep || currentStep,

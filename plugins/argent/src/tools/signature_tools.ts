@@ -3,9 +3,7 @@ import { accountDetailsSchema } from '../schemas/schema.js';
 import { DeployArgentAccountSignature } from '../actions/deployAccount.js';
 import { CreateArgentAccountSignature } from '../actions/createAccount.js';
 
-export const registerSignatureTools = (
-  SnakToolRegistry: SignatureTool[]
-) => {
+export const registerSignatureTools = (SnakToolRegistry: SignatureTool[]) => {
   (SnakToolRegistry.push({
     name: 'create_argent_account',
     description:

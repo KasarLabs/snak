@@ -15,7 +15,7 @@ export type {
 } from './types/streaming.types.js';
 
 // Graph mode exports
-export { createGraph } from './agents/modes/graph/graph.js';
+export { createGraph } from './agents/graphs/graph.js';
 
 // Agent operators
 export { ModelSelector } from './agents/operators/modelSelector.js';

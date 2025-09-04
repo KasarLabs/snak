@@ -8,6 +8,7 @@ import {
   logger,
   AgentConfig,
   CustomHuggingFaceEmbeddings,
+  MemoryConfig,
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '../../types/database.types.js';
@@ -17,8 +18,8 @@ import {
   AgentType,
   ExecutionMode,
 } from '../../enums/agent-modes.enum.js';
-import { MemoryAgent, MemoryConfig } from '../operators/memoryAgent.js';
-import { createGraph } from '../modes/graph/graph.js';
+import { MemoryAgent } from '../operators/memoryAgent.js';
+import { createGraph } from '../graphs/graph.js';
 import { Command } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
@@ -31,7 +32,7 @@ import {
   PlannerNode,
 } from '../../enums/agent-modes.enum.js';
 import { ChunkOutput } from '../../types/streaming.types.js';
-import { LangGraphEvent } from '../../types/event_types.js';
+import { LangGraphEvent } from '../../types/event.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 
@@ -198,7 +199,6 @@ export class SnakAgent extends BaseAgent {
       this.memoryAgent = new MemoryAgent({
         shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
         memorySize: agentConfig?.memory?.memorySize || 20,
-        maxIterations: agentConfig?.memory?.maxIterations,
         embeddingModel: agentConfig?.memory?.embeddingModel,
       });
       await this.memoryAgent.init();
@@ -467,8 +467,6 @@ export class SnakAgent extends BaseAgent {
             isInEnum(PlannerNode, chunk.metadata.langgraph_node)
           ) {
             if (chunk.event === EventType.ON_CHAT_MODEL_START) {
-              console.log(chunk.metadata.ls_model);
-              console.log(chunk.metadata);
               yield {
                 event: chunk.event,
                 run_id: chunk.run_id,

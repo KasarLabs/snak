@@ -5,7 +5,7 @@ import {
   HistoryItem,
   STMContext,
   LTMContext,
-} from '../../types/memory.types.js';
+} from '../../types/index.js';
 import { STMManager, LTMManager } from './memory-manager.js';
 import { memory } from '@snakagent/database/queries';
 

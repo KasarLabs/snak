@@ -21,7 +21,7 @@ import {
   isTerminalMessage,
   isTokenLimitError,
   handleModelError,
-} from '../utils.js';
+} from '../utils/graph-utils.js';
 
 // -----------------------
 // Mocks

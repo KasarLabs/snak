@@ -1,9 +1,9 @@
+import { AgentType } from '@enums/agent-modes.enum.js';
 import {
   ConfigurationAgent,
   ConfigurationAgentConfig,
 } from '../../config-agent/configAgent.js';
-import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
-import { AgentType } from '../../../core/baseAgent.js';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 
 jest.mock('../../../core/baseAgent.js', () => ({
   BaseAgent: jest.fn().mockImplementation(function (

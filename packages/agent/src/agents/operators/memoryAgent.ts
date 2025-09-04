@@ -1,5 +1,5 @@
 import { BaseAgent } from '../core/baseAgent.js';
-import { logger } from '@snakagent/core';
+import { logger, MemoryConfig } from '@snakagent/core';
 import { BaseMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { memory, iterations } from '@snakagent/database/queries';
@@ -9,44 +9,26 @@ import {
   RunnableConfig,
   RunnableSequence,
 } from '@langchain/core/runnables';
-import {
-  GraphConfigurableAnnotation,
-  GraphState,
-} from '../modes/graph/graph.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graphs/graph.js';
 import {
   EpisodicMemoryContext,
   Memories,
   SemanticMemoryContext,
   StepToolsInfo,
-} from '../../types/memory.types.js';
-import { MemoryDBManager } from '../modes/manager/memory-db-manager.js';
+} from '../../types/index.js';
+import { MemoryDBManager } from '../graphs/manager/memory/memory-db-manager.js';
 import { MemoryStateManager } from '../../lib/memory/memory-utils.js';
-import { DEFAULT_GRAPH_CONFIG } from '../modes/config.js';
+import { DEFAULT_GRAPH_CONFIG } from '../graphs/config/default-config.js';
 import {
   AgentType,
   ExecutionMode,
   MemoryNode,
 } from '../../enums/agent-modes.enum.js';
-import { checkAndReturnObjectFromPlansOrHistories } from '../modes/utils.js';
+import { checkAndReturnObjectFromPlansOrHistories } from '../graphs/utils/graph-utils.js';
 import { processMessageContent } from '@agents/core/utils.js';
 export interface MemoryChainResult {
   memories: string;
 }
-
-/**
- * Memory configuration for the agent
- */
-export interface MemoryConfig {
-  enabled?: boolean;
-  shortTermMemorySize?: number;
-  memorySize?: number;
-  maxIterations?: number;
-  embeddingModel?: string;
-  isAutonomous?: boolean;
-  maxRetries?: number;
-  operationTimeoutMs?: number;
-}
-
 /**
  * Operator agent that manages memory and knowledge
  */
@@ -62,7 +44,6 @@ export class MemoryAgent extends BaseAgent {
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,
       memorySize: config.memorySize || 20,
-      maxIterations: config.maxIterations,
       embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     };
     this.embeddings = new CustomHuggingFaceEmbeddings({
@@ -80,11 +61,7 @@ export class MemoryAgent extends BaseAgent {
       await this.initializeMemoryDB();
 
       // Initialize database manager with improved error handling
-      this.dbManager = new MemoryDBManager(
-        this.embeddings,
-        this.config.maxRetries || 3,
-        this.config.operationTimeoutMs || 5000
-      );
+      this.dbManager = new MemoryDBManager(this.embeddings);
 
       // this.createMemoryTools();
       this.initialized = true;
@@ -345,7 +322,6 @@ export class MemoryAgent extends BaseAgent {
     const s_memories: memory.Similarity[] = [];
     const e_memories: memory.Similarity[] = [];
     for (const memory of memories) {
-      console.log(memory.memory_type);
       if (memory.memory_type === 'semantic') {
         s_memories.push(memory);
       } else if (memory.memory_type === 'episodic') {

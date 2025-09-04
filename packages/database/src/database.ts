@@ -96,7 +96,9 @@ export namespace Postgres {
    * @throws { DatabaseError }
    * @see module:database
    */
-  export async function query<Model = Record<string, unknown>>(q: Query): Promise<Model[]> {
+  export async function query<Model = Record<string, unknown>>(
+    q: Query
+  ): Promise<Model[]> {
     try {
       if (!this.pool) {
         console.log(this.pool);
@@ -116,7 +118,9 @@ export namespace Postgres {
    * @throws { DatabaseError }
    * @see module:database
    */
-  export async function transaction<Model = Record<string, unknown>>(qs: Query[]): Promise<Model[]> {
+  export async function transaction<Model = Record<string, unknown>>(
+    qs: Query[]
+  ): Promise<Model[]> {
     let client: PoolClient | undefined;
     let res: QueryResult | undefined;
     try {

@@ -28,7 +28,6 @@ export async function initializeToolsList(
     Object.keys(agentConfig.mcpServers).length > 0
   ) {
     try {
-      console.log('Hello');
       const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
       await mcp.initializeConnections();
 
