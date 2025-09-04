@@ -27,7 +27,7 @@ export const readAgentTool = new DynamicStructuredTool({
   func: async (input) => {
     try {
       let query: Postgres.Query;
-      const searchBy = input.searchBy ?? 'name';
+      const searchBy = input.searchBy === 'id' ? 'id' : 'name';
 
       if (searchBy === 'id') {
         query = new Postgres.Query('SELECT * FROM agents WHERE id = $1', [

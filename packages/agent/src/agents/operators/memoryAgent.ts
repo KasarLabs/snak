@@ -1,5 +1,5 @@
 import { BaseAgent } from '../core/baseAgent.js';
-import { AgentConfig, logger } from '@snakagent/core';
+import { logger } from '@snakagent/core';
 import { BaseMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { memory, iterations } from '@snakagent/database/queries';
@@ -28,6 +28,7 @@ import {
   MemoryNode,
 } from '../../enums/agent-modes.enum.js';
 import { checkAndReturnObjectFromPlansOrHistories } from '../modes/utils.js';
+import { processMessageContent } from '@agents/core/utils.js';
 export interface MemoryChainResult {
   memories: string;
 }
@@ -64,7 +65,6 @@ export class MemoryAgent extends BaseAgent {
       maxIterations: config.maxIterations,
       embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     };
-
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: 'Xenova/all-MiniLM-L6-v2',
       dtype: 'fp32',
@@ -313,8 +313,11 @@ export class MemoryAgent extends BaseAgent {
         throw new Error('MemoryAgent: Not initialized');
       }
 
-      const query =
-        typeof message === 'string' ? message : message.content.toString();
+      const query = processMessageContent(message);
+
+      if (!query || query.trim() === '') {
+        return [];
+      }
 
       const embedding = await this.embeddings.embedQuery(query);
       const memResults = await memory.similar_memory(
@@ -422,12 +425,7 @@ export class MemoryAgent extends BaseAgent {
         throw new Error('MemoryAgent: Not initialized');
       }
 
-      const content =
-        typeof input === 'string'
-          ? input
-          : input instanceof BaseMessage
-            ? input.content.toString()
-            : JSON.stringify(input);
+      const content = processMessageContent(input);
 
       // Determine the type of memory operation to perform
       if (
@@ -460,42 +458,6 @@ export class MemoryAgent extends BaseAgent {
     }
   }
 
-  // /**
-  //  * Store a memory
-  //  */
-  // private async storeMemory(
-  //   content: string,
-  //   userId: string,
-  //   memorySize?: number
-  // ): Promise<string> {
-  //   try {
-  //     const embedding = await this.embeddings.embedQuery(content);
-  //     const metadata = { timestamp: new Date().toISOString() };
-  //     const limit = memorySize ?? this.config.memorySize;
-
-  //     await memory.insert_memory({
-  //       user_id: userId,
-  //       memories_id: memories_id,
-  //       query: query,
-  //       content: content,
-  //       embedding: embedding,
-  //       metadata: metadata,
-  //       history: [],
-  //     });
-
-  //     if (limit) {
-  //       await memory.enforce_memory_limit(userId, limit);
-  //     }
-  //     return `Memory stored successfully.`;
-  //   } catch (error) {
-  //     logger.error(`MemoryAgent: Error storing memory: ${error}`);
-  //     return `Failed to store memory: ${error}`;
-  //   }
-  // }
-
-  /**
-   * Retrieve memories for a content
-   */
   private async retrieveMemoriesForContent(
     content: string,
     userId: string,

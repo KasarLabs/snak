@@ -56,11 +56,12 @@ export class SnakAgent extends BaseAgent {
   private readonly agentMode: string;
   private readonly agentConfig: AgentConfig;
   private readonly databaseCredentials: DatabaseCredentials;
-  private readonly modelSelectorConfig: ModelSelectorConfig;
   private memoryAgent: MemoryAgent | null = null;
   private ragAgent: RagAgent | null = null;
   private mcpAgent: MCPAgent | null = null;
   private configAgent: ConfigurationAgent | null = null;
+
+  private readonly modelSelectorConfig: ModelSelectorConfig;
 
   private currentMode: string;
   private agentReactExecutor: AgentReturn;
@@ -79,6 +80,8 @@ export class SnakAgent extends BaseAgent {
     this.databaseCredentials = config.db_credentials;
     this.currentMode = AGENT_MODES[config.agentConfig.mode];
     this.agentConfig = config.agentConfig;
+    this.modelSelectorConfig = config.modelSelectorConfig;
+
     this.modelSelectorConfig = config.modelSelectorConfig;
 
     if (!config.accountPrivateKey) {
@@ -107,6 +110,11 @@ export class SnakAgent extends BaseAgent {
       if (this.agentConfig) {
         this.agentConfig.plugins = this.agentConfig.plugins || [];
       }
+
+      this.modelSelector = new ModelSelector(this.modelSelectorConfig);
+      await this.modelSelector.init();
+      await this.initializeMemoryAgent(this.agentConfig);
+      await this.initializeRagAgent(this.agentConfig);
 
       this.modelSelector = new ModelSelector(this.modelSelectorConfig);
       await this.modelSelector.init();

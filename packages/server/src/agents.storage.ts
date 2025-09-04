@@ -126,11 +126,6 @@ export class AgentStorage implements OnModuleInit {
       await this.initialize();
     }
 
-    // Validate required fields
-    if (!agent_config.name || !agent_config.group || !agent_config.description) {
-      throw new Error('Missing required fields: name, group, and description are required');
-    }
-
     const baseName = agent_config.name;
     const group = agent_config.group;
 
@@ -186,9 +181,9 @@ export class AgentStorage implements OnModuleInit {
         systemPrompt,
         agent_config.interval,
         agent_config.plugins,
-        agent_config.memory?.enabled || false,
-        agent_config.memory?.shortTermMemorySize || 5,
-        agent_config.memory?.memorySize || 20,
+        agent_config.memory.enabled || false,
+        agent_config.memory.shortTermMemorySize || 5,
+        agent_config.memory.memorySize || 20,
         agent_config.rag?.enabled || false,
         agent_config.rag?.embeddingModel || null,
         agent_config.mode,
@@ -356,14 +351,14 @@ export class AgentStorage implements OnModuleInit {
           model_name: 'gpt-4o-mini',
           description: 'Optimized for speed and simple tasks.',
         };
-        const cheap: ModelLevelConfig = {
+        const smart: ModelLevelConfig = {
           provider: ModelProviders.OpenAI,
           model_name: 'gpt-4o-mini',
           description: 'Optimized for complex reasoning.',
         };
-        const smart: ModelLevelConfig = {
-          provider: ModelProviders.Gemini,
-          model_name: 'gemini-2.5-flash',
+        const cheap: ModelLevelConfig = {
+          provider: ModelProviders.OpenAI,
+          model_name: 'gpt-4o-mini',
           description: 'Good cost-performance balance.',
         };
 
@@ -538,8 +533,8 @@ export class AgentStorage implements OnModuleInit {
           : undefined,
         chatId: `agent_${agentConfig.id}`,
         maxIterations: agentConfig.max_iterations || 15,
-        mcpServers: agentConfig.mcpServers,
         mode: agentConfig.mode || AgentMode.INTERACTIVE,
+        mcpServers: agentConfig.mcpServers || {},
       };
 
       // Creat model selector

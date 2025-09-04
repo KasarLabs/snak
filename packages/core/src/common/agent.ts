@@ -19,14 +19,14 @@ export interface StarknetTool<P = unknown> {
  * @interface SignatureTool
  * @description Interface for the signature tool
  * @property {string} name - The name of the tool
- * @property {string} categorie - The categorie of the tool
+ * @property {string} category - The category of the tool
  * @property {string} description - The description of the tool
  * @property {object} schema - The schema for the tool
  * @property {(params: any) => Promise<unknown>} execute - Function to execute the tool
  */
 export interface SignatureTool<P = any> {
   name: string;
-  categorie?: string;
+  category?: string;
   description: string;
   schema?: object;
   execute: (params: P) => Promise<unknown>;
@@ -63,8 +63,8 @@ export interface MemoryConfig {
   enabled?: boolean;
   shortTermMemorySize?: number;
   memorySize?: number;
-  maxIterations?: number;
   embeddingModel?: string;
+  isAutonomous?: boolean;
 }
 
 export interface RagConfig {

@@ -141,27 +141,58 @@ export class AgentsController {
         'memory',
         'mode',
         'max_iterations',
+        'mcpServers',
       ];
 
       updatableFields.forEach((field) => {
         if (config[field] !== undefined && config[field] !== null) {
           if (field === 'memory') {
-            const memoryData =
-              typeof config[field] === 'string'
-                ? JSON.parse(config[field])
-                : config[field];
+            let memoryData;
+
+            if (typeof config[field] === 'string') {
+              const fieldValue = config[field] as string;
+              if (fieldValue.startsWith('(') && fieldValue.endsWith(')')) {
+                const content = fieldValue.slice(1, -1);
+                const parts = content.split(',');
+                memoryData = {
+                  enabled: parts[0] === 't' || parts[0] === 'true',
+                  shortTermMemorySize: parseInt(parts[1], 10),
+                  memorySize: parseInt(parts[2], 10),
+                };
+              } else {
+                try {
+                  memoryData = JSON.parse(fieldValue);
+                } catch (jsonError) {
+                  throw new BadRequestException(
+                    `Invalid memory format: ${fieldValue}. Expected JSON or PostgreSQL composite type format.`
+                  );
+                }
+              }
+            } else {
+              memoryData = config[field];
+            }
 
             const enabled =
-              memoryData.enabled === 'true' || memoryData.enabled === true;
-            const shortTermMemorySize = parseInt(
-              memoryData.shortTermMemorySize
+              memoryData.enabled === 'true' ||
+              memoryData.enabled === true ||
+              memoryData.enabled === 't';
+            const parsedShortTerm = Number.parseInt(
+              String(memoryData.shortTermMemorySize ?? ''),
+              10
             );
+            if (Number.isNaN(parsedShortTerm)) {
+              throw new BadRequestException(
+                'memory.shortTermMemorySize must be a valid integer'
+              );
+            }
+
+            const memorySize = parseInt(memoryData.memorySize) || 20;
 
             updateFields.push(
-              `"memory" = ROW($${paramIndex}, $${paramIndex + 1})::memory`
+              `"memory" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})::memory`
             );
-            values.push(enabled, shortTermMemorySize);
-            paramIndex += 2;
+            values.push(enabled, parsedShortTerm, memorySize);
+            paramIndex += 3;
           } else {
             updateFields.push(`"${String(field)}" = $${paramIndex}`);
             values.push(config[field]);
@@ -282,32 +313,6 @@ export class AgentsController {
       throw new BadRequestException('Upload failed: ' + error.message);
     }
   }
-
-  // @Post('supervisor_request')
-  // async handleSupervisorRequest(
-  //   @Body() userRequest: SupervisorRequestDTO
-  // ): Promise<AgentResponse> {
-  //   try {
-  //     const messageRequest = {
-  //       agent_id: userRequest.request.agent_id,
-  //       user_request: userRequest.request.content,
-  //     };
-
-  //     const action = this.supervisorService.websocketExecuteRequest(
-  //       messageRequest.user_request
-  //     );
-
-  //     const response: AgentResponse = {
-  //       status: 'success',
-  //       data: 'Response from supervisor request',
-  //     };
-  //     logger.warn(JSON.stringify(action));
-  //     return response;
-  //   } catch (error) {
-  //     logger.error('Error in handleSupervisorRequest:', error);
-  //     throw new ServerError('E03TA100');
-  //   }
-  // }
 
   @Post('request')
   async handleUserRequest(
