@@ -5,7 +5,7 @@ import { logger } from '@snakagent/core';
 import { OperatorRegistry } from '../operatorRegistry.js';
 import { getConfigAgentTools } from './configAgentTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { configurationAgentSystemPrompt } from '../../../prompts/agents/config.prompts.js';
+import { configurationAgentSystemPrompt } from '../../../shared/prompts/agents/config.prompts.js';
 import { ModelSelector } from '../modelSelector.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
 

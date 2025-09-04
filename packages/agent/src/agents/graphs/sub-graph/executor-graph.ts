@@ -32,12 +32,12 @@ import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   ExecutionMode,
   ExecutorNode,
-} from '../../../enums/agent-modes.enum.js';
+} from '../../../shared/enums/agent-modes.enum.js';
 import {
   TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
   VALIDATOR_EXECUTOR_CONTEXT,
-} from '../../../prompts/graph/executor/validator_prompt.js';
-import { TokenTracker } from '../../../lib/token/token-tracking.js';
+} from '../../../shared/prompts/graph/executor/validator_prompt.js';
+import { TokenTracker } from '../../../shared/lib/token/token-tracking.js';
 import {
   parseReActResponse,
   createReActObservation,
@@ -58,7 +58,7 @@ import {
   ParsedPlan,
   History,
   ReturnTypeCheckPlanorHistory,
-} from '../../../types/index.js';
+} from '../../../shared/types/index.js';
 import { formatLTMForContext } from '../parser/memory/ltm-parser.js';
 import {
   formatExecutionMessage,

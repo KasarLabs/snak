@@ -16,7 +16,7 @@ import {
   ReturnTypeCheckPlanorHistory,
   ErrorContext,
   StepInfo,
-} from '../../../types/index.js';
+} from '../../../shared/types/index.js';
 import { logger } from '@snakagent/core';
 import { Command } from '@langchain/langgraph';
 

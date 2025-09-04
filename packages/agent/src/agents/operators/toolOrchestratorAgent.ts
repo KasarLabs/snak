@@ -10,7 +10,7 @@ import {
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { ModelSelector } from './modelSelector.js';
-import { SnakAgentInterface } from '../../types/tools.types.js';
+import { SnakAgentInterface } from '../../shared/types/tools.types.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
 
 /**

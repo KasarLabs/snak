@@ -1,5 +1,5 @@
 import { EventType } from '@enums/event.enums.js';
-import { LangGraphEvent } from '../../types/event.types.js';
+import { LangGraphEvent } from '../../shared/types/event.types.js';
 
 export function isEventType<T extends LangGraphEvent>(
   event: LangGraphEvent,

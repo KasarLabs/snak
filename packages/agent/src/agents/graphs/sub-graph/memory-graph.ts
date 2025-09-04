@@ -5,7 +5,7 @@ import {
   SemanticMemoryContext,
   ltmSchema,
   ltmSchemaType,
-} from '../../../types/memory.types.js';
+} from '../../../shared/types/memory.types.js';
 import {
   getCurrentPlanStep,
   getCurrentHistoryItem,
@@ -27,8 +27,8 @@ import {
   PlannerNode,
   ExecutorNode,
   ExecutionMode,
-} from '../../../enums/agent-modes.enum.js';
-import { MemoryStateManager } from '../../../lib/memory/memory-utils.js';
+} from '../../../shared/enums/agent-modes.enum.js';
+import { MemoryStateManager } from '../../../shared/lib/memory/memory-utils.js';
 import { MemoryDBManager } from '../manager/memory/memory-db-manager.js';
 import { STMManager } from '@lib/memory/memory-manager.js';
 import { LTM_SYSTEM_PROMPT_RETRIEVE_MEMORY } from '@prompts/graph/memory/ltm_prompt.js';
@@ -39,7 +39,7 @@ import {
   HistoryItem,
   ParsedPlan,
   StepInfo,
-} from '../../../types/graph.types.js';
+} from '../../../shared/types/graph.types.js';
 import { formatSteporHistoryForSTM } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 
 export type GraphStateType = typeof GraphState.State;

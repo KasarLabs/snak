@@ -10,7 +10,7 @@ import {
   StructuredTool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { SnakAgentInterface } from '../../types/index.js';
+import { SnakAgentInterface } from '../../shared/types/index.js';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;

@@ -20,9 +20,9 @@ import {
   ExecutorNode,
   PlannerNode,
   MemoryNode,
-} from '../../enums/agent-modes.enum.js';
-import { AgentReturn } from '../../types/agents.types.js';
-import { History, Memories, ParsedPlan } from '../../types/index.js';
+} from '../../shared/enums/agent-modes.enum.js';
+import { AgentReturn } from '../../shared/types/agents.types.js';
+import { History, Memories, ParsedPlan } from '../../shared/types/index.js';
 import { MemoryStateManager } from '@lib/memory/memory-utils.js';
 import { MemoryGraph } from './sub-graph/memory-graph.js';
 import { PlannerGraph } from './sub-graph/planner-graph.js';
@@ -32,7 +32,7 @@ import { ExecutionMode } from '@enums/agent-modes.enum.js';
 import { isInEnum } from '@enums/utils.js';
 import { initializeDatabase } from '@agents/utils/database.utils.js';
 import { initializeToolsList } from '@tools/tools.js';
-import { SnakAgentInterface } from '../../types/tools.types.js';
+import { SnakAgentInterface } from '../../shared/types/tools.types.js';
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => y,

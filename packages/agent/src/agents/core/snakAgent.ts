@@ -11,28 +11,28 @@ import {
   MemoryConfig,
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
-import { DatabaseCredentials } from '../../types/database.types.js';
+import { DatabaseCredentials } from '../../shared/types/database.types.js';
 import {
   AgentMode,
   AGENT_MODES,
   AgentType,
   ExecutionMode,
-} from '../../enums/agent-modes.enum.js';
+} from '../../shared/enums/agent-modes.enum.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
 import { createGraph } from '../graphs/graph.js';
 import { Command } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
 import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
 import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
-import { AgentReturn } from '../../types/agents.types.js';
+import { AgentReturn } from '../../shared/types/agents.types.js';
 import {
   ExecutorNode,
   GraphNode,
   MemoryNode,
   PlannerNode,
-} from '../../enums/agent-modes.enum.js';
-import { ChunkOutput } from '../../types/streaming.types.js';
-import { LangGraphEvent } from '../../types/event.types.js';
+} from '../../shared/enums/agent-modes.enum.js';
+import { ChunkOutput } from '../../shared/types/streaming.types.js';
+import { LangGraphEvent } from '../../shared/types/event.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 

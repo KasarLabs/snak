@@ -1,5 +1,5 @@
 import { logger } from '@snakagent/core';
-import { IAgent } from '../../types/agents.types.js';
+import { IAgent } from '../../shared/types/agents.types.js';
 
 /**
  * Registry for managing available operator agents

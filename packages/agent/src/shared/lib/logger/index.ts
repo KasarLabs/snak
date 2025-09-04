@@ -2,4 +2,4 @@
  * Logger library exports
  */
 
-export * from './logger';
+export * from './logger.js';

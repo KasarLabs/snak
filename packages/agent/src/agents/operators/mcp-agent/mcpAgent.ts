@@ -5,7 +5,7 @@ import { logger } from '@snakagent/core';
 import { OperatorRegistry } from '../operatorRegistry.js';
 import { getMcpAgentTools } from './mcpAgentTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { mcpAgentSystemPrompt } from '../../../prompts/core/mcpAgentPrompts.js';
+import { mcpAgentSystemPrompt } from '../../../shared/prompts/core/mcpAgentPrompts.js';
 import { ModelSelector } from '../modelSelector.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { AgentType } from '@enums/agent-modes.enum.js';

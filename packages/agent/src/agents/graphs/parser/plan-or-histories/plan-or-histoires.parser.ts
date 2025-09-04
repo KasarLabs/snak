@@ -9,7 +9,7 @@ import {
   StepToolsInfo,
   ValidatorStepResponse,
   ReturnTypeCheckPlanorHistory,
-} from '../../../../types/index.js';
+} from '../../../../shared/types/index.js';
 
 export function formatParsedPlanSimple(plan: ParsedPlan): string {
   let formatted = `Plan Summary: ${plan.summary}\n\n`;

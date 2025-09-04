@@ -8,7 +8,7 @@ import {
   MemoryOperationResult,
   StepInfo,
   HistoryItem,
-} from '../../../../types/index.js';
+} from '../../../../shared/types/index.js';
 import { memory } from '@snakagent/database/queries';
 
 /**

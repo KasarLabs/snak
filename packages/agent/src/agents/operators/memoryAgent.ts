@@ -15,15 +15,15 @@ import {
   Memories,
   SemanticMemoryContext,
   StepToolsInfo,
-} from '../../types/index.js';
+} from '../../shared/types/index.js';
 import { MemoryDBManager } from '../graphs/manager/memory/memory-db-manager.js';
-import { MemoryStateManager } from '../../lib/memory/memory-utils.js';
+import { MemoryStateManager } from '../../shared/lib/memory/memory-utils.js';
 import { DEFAULT_GRAPH_CONFIG } from '../graphs/config/default-config.js';
 import {
   AgentType,
   ExecutionMode,
   MemoryNode,
-} from '../../enums/agent-modes.enum.js';
+} from '../../shared/enums/agent-modes.enum.js';
 import { checkAndReturnObjectFromPlansOrHistories } from '../graphs/utils/graph-utils.js';
 import { processMessageContent } from '@agents/core/utils.js';
 export interface MemoryChainResult {

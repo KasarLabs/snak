@@ -1,6 +1,6 @@
-import { IAgent } from '../../types/agents.types.js';
+import { IAgent } from '../../shared/types/agents.types.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
-import { ChunkOutput } from '../../types/streaming.types.js';
+import { ChunkOutput } from '../../shared/types/streaming.types.js';
 
 /**
  * Abstract base class for all agents

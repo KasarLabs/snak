@@ -2,7 +2,7 @@ import { BaseAgent } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
 import { ModelSelector } from './modelSelector.js';
 import { SnakAgent } from '../core/snakAgent.js';
-import { agentSelectorPromptContent } from '../../prompts/core/prompts.js';
+import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
 
 export interface AgentInfo {

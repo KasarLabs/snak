@@ -7,12 +7,12 @@
       "@common/*": ["./common/*"],
       "@src/*": ["./src/*"],
       "@agents/*": ["./agents/*"],
-      "@lib/*": ["./lib/*"],
-      "@prompts/*": ["./prompts/*"],
+      "@lib/*": ["./shared/lib/*"],
+      "@prompts/*": ["./shared/prompts/*"],
       "@config/*": ["./config/*"],
-      "@types/*": ["./types/*"],
-      "@enums/*": ["./enums/*"],
-      "@schemas/*": ["./schemas/*"],
+      "@types/*": ["./shared/types/*"],
+      "@enums/*": ["./shared/enums/*"],
+      "@schemas/*": ["./shared/schemas/*"],
       "@tools/*": ["./tools/*"],
       "@services/*": ["./services/*"]
     }

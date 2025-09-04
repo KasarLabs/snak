@@ -6,8 +6,8 @@ import { ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { modelSelectorSystemPrompt } from '../../prompts/core/prompts.js';
-import { TokenTracker } from '../../lib/token/token-tracking.js';
+import { modelSelectorSystemPrompt } from '../../shared/prompts/core/prompts.js';
+import { TokenTracker } from '../../shared/lib/token/token-tracking.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
 
 // CLEAN-UP Need to put in private every function who check the validity of the model selection instead of what we do now

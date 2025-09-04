@@ -7,7 +7,7 @@ import {
   REACT_SYSTEM_PROMPT,
   REACT_CONTEXT_PROMPT,
   REACT_RETRY_PROMPT,
-} from '../../../../prompts/graph/executor/react_prompts.js';
+} from '../../../../shared/prompts/graph/executor/react_prompts.js';
 import {
   MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
   RETRY_MESSAGE_STEP_EXECUTOR_SYSTEM_PROMPT,
@@ -15,7 +15,7 @@ import {
   RETRY_TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
   STEP_EXECUTOR_CONTEXT_PROMPT,
   TOOLS_STEP_EXECUTOR_SYSTEM_PROMPT,
-} from '../../../../prompts/graph/executor/executor_prompts.js';
+} from '../../../../shared/prompts/graph/executor/executor_prompts.js';
 import { ExecutionMode } from '@enums/agent-modes.enum.js';
 /**
  * Represents a pair of system and context prompts for execution

@@ -74,7 +74,6 @@ export namespace Postgres {
     // await shutdown();
 
     if (this.pool != undefined) {
-      console.log('Pool aldready exist !');
       return;
     }
     this.pool = new Pool({
@@ -101,7 +100,6 @@ export namespace Postgres {
   ): Promise<Model[]> {
     try {
       if (!this.pool) {
-        console.log(this.pool);
         throw new Error('Connection pool not initialized! query');
       }
       const query = await this.pool.query(q.query, q.values);
@@ -158,7 +156,6 @@ export namespace Postgres {
    */
   export async function shutdown(): Promise<void> {
     try {
-      console.log('STOP DB');
       if (this.pool) {
         const poolToEnd = this.pool;
         this.pool = undefined;

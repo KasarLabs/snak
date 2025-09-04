@@ -8,7 +8,7 @@ import {
   EpisodicMemoryContext,
   MemoryOperationResult,
   SemanticMemoryContext,
-} from '../../../../types/memory.types.js';
+} from '../../../../shared/types/memory.types.js';
 export class MemoryDBManager {
   private embeddings: CustomHuggingFaceEmbeddings;
   private readonly maxRetries: number;

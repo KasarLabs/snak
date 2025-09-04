@@ -1,6 +1,6 @@
 import { ToolMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
-import { ToolCall } from '../../../types/tools.types.js';
+import { ToolCall } from '../../../shared/types/tools.types.js';
 import { v4 as uuidv4 } from 'uuid';
 export interface ReActStep {
   thought: string;

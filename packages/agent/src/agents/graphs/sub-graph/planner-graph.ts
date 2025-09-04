@@ -5,7 +5,7 @@ import {
   isPlannerActivateSchema,
   ParsedPlan,
   StepInfo,
-} from '../../../types/index.js';
+} from '../../../shared/types/index.js';
 import {
   checkAndReturnObjectFromPlansOrHistories,
   formatParsedPlanSimple,
@@ -23,7 +23,7 @@ import {
   ExecutorNode,
   MemoryNode,
   ExecutionMode,
-} from '../../../enums/agent-modes.enum.js';
+} from '../../../shared/enums/agent-modes.enum.js';
 import {
   ADAPTIVE_PLANNER_CONTEXT_PROMPT,
   ADAPTIVE_PLANNER_SYSTEM_PROMPT,
@@ -35,13 +35,13 @@ import {
   INTERACTIVE_PLANNER_CONTEXT_PROMPT,
   REPLAN_EXECUTOR_SYSTEM_PROMPT,
   REPLANNER_CONTEXT_PROMPT,
-} from '../../../prompts/graph/planner/index.js';
+} from '../../../shared/prompts/graph/planner/index.js';
 import {
   DynamicStructuredTool,
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT } from '../../../prompts/graph/executor/validator_prompt.js';
+import { AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT } from '../../../shared/prompts/graph/executor/validator_prompt.js';
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
