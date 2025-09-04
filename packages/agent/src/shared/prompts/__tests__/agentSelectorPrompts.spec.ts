@@ -7,7 +7,7 @@ import {
   noValidAgentMessage,
   type AgentSelectionPromptParams,
   type ClarificationData,
-} from '../agentSelectorPrompts.js';
+} from '../index.js';
 
 describe('agentSelectorPrompts', () => {
   let consoleErrorSpy: jest.SpyInstance;

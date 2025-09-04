@@ -208,7 +208,6 @@ export class AgentService implements IAgentService {
   ): Promise<ChunkOutput[]> {
     try {
       const limit = userRequest.limit_message || 10;
-      console.log('userRequest:', userRequest);
       const q = new Postgres.Query(
         `SELECT * FROM get_messages_optimized($1::UUID,$2,$3,$4,$5)`,
         [userRequest.agent_id, userRequest.thread_id, false, limit, 0]

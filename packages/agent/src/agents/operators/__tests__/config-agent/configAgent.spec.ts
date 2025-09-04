@@ -75,7 +75,7 @@ jest.mock('@langchain/langgraph/prebuilt', () => ({
   createReactAgent: jest.fn(() => ({ invoke: jest.fn() })),
 }));
 
-jest.mock('../../../../prompt/configAgentPrompts.js', () => ({
+jest.mock('@prompts/index.js', () => ({
   configurationAgentSystemPrompt: jest.fn(() => 'test system prompt'),
 }));
 

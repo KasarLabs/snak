@@ -1,7 +1,7 @@
 import { AgentSelector } from '../agentSelector.js';
-import { agentSelectorPromptContent } from '../../../prompt/prompts.js';
+import { agentSelectorPromptContent } from '@prompts/core/prompts.js';
 
-jest.mock('../../../prompt/prompts.js', () => ({
+jest.mock('@prompts/core/prompts.js', () => ({
   agentSelectorPromptContent: jest.fn(
     (agentInfo, input) =>
       `Mock prompt for agents: ${Array.from(agentInfo.keys()).join(', ')} and input: ${input}`

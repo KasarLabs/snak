@@ -263,7 +263,6 @@ export namespace memory {
       [userId, runId, JSON.stringify(embedding), threshold || 0, limit || 10]
     );
     const result = await Postgres.query<Similarity>(q);
-    console.log(result);
     return result;
   }
 

@@ -66,7 +66,7 @@ jest.mock('@langchain/langgraph/prebuilt', () => ({
 }));
 
 // Mock the system prompt
-jest.mock('../../../../prompt/mcpAgentPrompts.js', () => ({
+jest.mock('@prompts/index.js', () => ({
   mcpAgentSystemPrompt: jest.fn(() => 'test system prompt'),
 }));
 

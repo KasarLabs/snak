@@ -16,6 +16,7 @@
   ],
   "scripts": {
     "test": "jest",
+    "test:graph": "cd ./src/agents/graphs/__tests__ && jest autonomous.spec.ts",
     "build": "tsup",
     "pack": "pnpm pack",
     "clean": "rm -rf node_modules",
@@ -77,7 +78,6 @@
     "snak-mcps": "^0.1.2",
     "zod-to-json-schema": "^3.24.6"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "gitHead": "92aedfbed422f736e1890cff065f6f2890e8befd"
 }

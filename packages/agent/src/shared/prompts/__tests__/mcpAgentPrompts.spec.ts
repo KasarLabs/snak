@@ -1,4 +1,4 @@
-import { mcpAgentSystemPrompt } from '../mcpAgentPrompts.js';
+import { mcpAgentSystemPrompt } from '../index.js';
 
 describe('mcpAgentPrompts', () => {
   describe('mcpAgentSystemPrompt', () => {

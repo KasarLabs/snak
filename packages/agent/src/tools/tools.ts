@@ -8,7 +8,10 @@ import { logger, AgentConfig } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { AnyZodObject } from 'zod';
 import { MCP_CONTROLLER } from '@services/mcp/src/mcp.js';
-import { SnakAgentInterface, StarknetTool } from '../shared/types/tools.types.js';
+import {
+  SnakAgentInterface,
+  StarknetTool,
+} from '../shared/types/tools.types.js';
 
 /**
  * Initializes the list of tools for the agent based on signature type and configuration

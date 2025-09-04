@@ -1,4 +1,4 @@
-import { configurationAgentSystemPrompt } from '../configAgentPrompts.js';
+import { configurationAgentSystemPrompt } from '../index.js';
 
 describe('configAgentPrompts', () => {
   describe('configurationAgentSystemPrompt', () => {

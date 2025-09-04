@@ -1,5 +1,6 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { AgentConfig, AgentMode } from '@snakagent/core';
+import { AgentConfig } from '@snakagent/core';
+import { AgentMode } from '@enums/agent-modes.enum.js';
 
 export interface GraphConfig {
   maxGraphSteps: number;
