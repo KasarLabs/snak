@@ -1,4 +1,3 @@
-// Mock external dependencies BEFORE importing
 jest.mock('@snakagent/database/queries', () => ({
   memory: {
     init: jest.fn().mockResolvedValue(undefined),

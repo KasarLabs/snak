@@ -1,15 +1,29 @@
-/**
- * A call to a tool.
- * @property {string} name - The name of the tool to be called
- * @property {Record<string, any>} args - The arguments to the tool call
- * @property {string} [id] - If provided, an identifier associated with the tool call
- */
-export type ToolCall = {
+export interface ToolArgs {
+  [key: string]: string | number | boolean;
+}
+
+export namespace Id {
+  export type NoId = 'no-id';
+  export type Id = 'id';
+}
+
+// Base type without required id
+export type ToolCallBase = {
   name: string;
-  args: Record<string, any>;
-  id?: string;
+  args: ToolArgs;
   type?: 'tool_call';
 };
+
+// Type with required id
+export type ToolCallWithId = {
+  name: string;
+  args: ToolArgs;
+  id: string;
+  type?: 'tool_call';
+};
+
+export type ToolCall<HasId extends Id.NoId | Id.Id = Id.NoId> =
+  HasId extends Id.Id ? ToolCallWithId : ToolCallBase;
 
 import { z as Zod } from 'zod';
 import { RpcProvider } from 'starknet';

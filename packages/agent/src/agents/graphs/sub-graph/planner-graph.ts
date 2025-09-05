@@ -12,7 +12,7 @@ import {
   handleNodeError,
 } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { AnyZodObject, z } from 'zod';
+import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
@@ -47,8 +47,9 @@ import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import { isInEnum } from '@enums/utils.js';
 import { PlanSchema, PlanSchemaType } from '@schemas/graph.js';
-import { parseEvolveFromHistoryContext } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
+import * as z from 'zod';
 
+import { parseEvolveFromHistoryContext } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
 ): string => {
