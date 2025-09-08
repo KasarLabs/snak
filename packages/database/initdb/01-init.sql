@@ -72,4 +72,28 @@ CREATE TABLE IF NOT EXISTS models_config (
             cheap model NOT NULL
         );
 
+
 CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
+
+CREATE TABLE IF NOT EXISTS jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id VARCHAR(255) NOT NULL UNIQUE,
+    agent_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    CONSTRAINT jobs_status_chk CHECK (status IN ('pending','running','success','failed','canceled')),
+    error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT jobs_time_order_chk
+    CHECK (
+      (started_at IS NULL OR started_at >= created_at) AND
+      (completed_at IS NULL OR completed_at >= COALESCE(started_at, created_at))
+    ),
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_agent_id ON jobs(agent_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_user_status_created_at ON jobs(user_id, status, created_at DESC);

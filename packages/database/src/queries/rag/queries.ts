@@ -86,9 +86,13 @@ export namespace rag {
     return parseInt(res[0]?.size || '0', 10);
   }
 
-  export async function totalSize(): Promise<number> {
+  export async function totalSize(userId: string): Promise<number> {
     const q = new Postgres.Query(
-      `SELECT COALESCE(SUM(LENGTH(content)),0) AS size FROM document_vectors`
+      `SELECT COALESCE(SUM(LENGTH(dv.content)),0) AS size 
+       FROM document_vectors dv
+       INNER JOIN agents a ON dv.agent_id = a.id::text
+       WHERE a.user_id = $1`,
+      [userId]
     );
     const res = await Postgres.query<{ size: string }>(q);
     return parseInt(res[0]?.size || '0', 10);
