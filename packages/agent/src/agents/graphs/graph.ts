@@ -198,7 +198,7 @@ export class Graph {
   private task_updater(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): { tasks?: TaskType[]; currentStepIndex?: number; last_node?: GraphNode } {
+  ): { tasks?: TaskType[]; currentTaskIndex?: number; last_node?: GraphNode } {
     try {
       if (!state.tasks || state.tasks.length === 0) {
         throw new Error('[Task Updater] No tasks found in the state.');
@@ -216,7 +216,7 @@ export class Graph {
         );
         return {
           tasks: state.tasks,
-          currentStepIndex: state.currentTaskIndex + 1,
+          currentTaskIndex: state.currentTaskIndex + 1,
           last_node: GraphNode.TASK_UPDATER,
         };
       }
@@ -401,7 +401,7 @@ export class Graph {
       throw new Error('MemoryAgent is not setup');
     }
 
-    logger.debug(' Agent] Building workflow with initialized components');
+    logger.debug('[Agent] Building workflow with initialized components');
     const memory = new MemoryGraph(this.modelSelector, this.memoryAgent);
     const planner = new PlannerGraph(
       this.agentConfig,

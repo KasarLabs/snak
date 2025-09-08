@@ -134,6 +134,8 @@ export class AgentExecutorGraph {
     );
     logger.debug(`[Executor] Invoking model () with execution`);
     const structuredModel = model.withStructuredOutput(StepSchema);
+    console.log(state.currentTaskIndex);
+    console.log(state.tasks[state.currentTaskIndex].speak);
     let current_task_id = state.tasks[state.currentTaskIndex].id;
     const result = (await structuredModel.invoke(
       await prompt.formatMessages({
