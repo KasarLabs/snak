@@ -141,15 +141,6 @@ export class MemoryAgent extends BaseAgent {
     ): Promise<{ memories: Memories; last_node: MemoryNode }> => {
       try {
         logger.debug('[MemoryNode] Starting memory context retrieval');
-        const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
-          state.plans_or_histories
-        );
-        if (
-          plan_or_history.type === 'plan' &&
-          state.currentStepIndex >= plan_or_history.steps.length
-        ) {
-          logger.info(`[MemoryNode] Final step reach no retrieval data.`);
-        } // TODO add history case
         if (!MemoryStateManager.validate(state.memories)) {
           logger.error(
             '[MemoryNode] Invalid memory state detected created initial memory-manager state'
@@ -213,32 +204,9 @@ export class MemoryAgent extends BaseAgent {
       }
       const executionMode = config.configurable?.executionMode;
       if (executionMode === ExecutionMode.PLANNING) {
-        const plan = checkAndReturnObjectFromPlansOrHistories(
-          state.plans_or_histories
-        );
-        if (!plan || plan.type !== 'plan') {
-          throw new Error(`[MemoryAgent] Plan is undefined or type history.`);
-        }
-        const currentStep = plan.steps[state.currentStepIndex];
-        if (!currentStep) {
-          return 'No current step available';
-        }
-
+        const task = state.tasks[state.currentTaskIndex]
         // Build a comprehensive query using all available StepInfo fields
-        const queryParts: string[] = [];
-
-        queryParts.push(`${currentStep.stepNumber}: ${currentStep.stepName}`);
-        queryParts.push(`Description: ${currentStep.description}`);
-        if (currentStep.tools && currentStep.tools.length > 0) {
-          const toolsInfo = currentStep.tools
-            .map(
-              (tool: StepToolsInfo) =>
-                `Tool: ${tool.description} | Required: ${tool.required} | Expected: ${tool.expected_result}`
-            )
-            .join(' | ');
-          queryParts.push(`Tools: ${toolsInfo}`);
-        }
-        return queryParts.join(' | ');
+        return task.text;
       } else {
         const user_r = config.configurable?.user_request;
         if (!user_r) {

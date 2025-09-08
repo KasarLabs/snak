@@ -137,11 +137,29 @@ export interface ValidatorStepResponse {
   isFinal: boolean;
 }
 
+export interface StepType {
+  thoughts: {
+    text: string;
+    reasoning: string;
+    plan: string;
+    criticism: string;
+    speak: string;
+  };
+  tool: {
+    name: string;
+    args: Record<string, any>;
+    result: string;
+    status: 'pending' | 'completed' | 'failed' | 'in_progress' | 'waiting';
+  };
+}
+
 export interface TaskType {
   id: string;
   text: string;
   reasoning: string;
   criticism: string;
+  speak: string;
+  steps: StepType[];
   status: 'pending' | 'completed' | 'failed' | 'in_progress' | 'waiting';
 }
 

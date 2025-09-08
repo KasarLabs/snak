@@ -173,38 +173,7 @@ export class PlannerGraph {
     });
   }
 
-  private build_prompt_generator(mode: AgentMode, context: PlannerNode): string {
-    try {
-      let prompt;
-      if (mode != AgentMode.AUTONOMOUS) {
-        throw new Error(`[PlannerGraph] Unsupported agent mode: ${mode}`);
-      }
-      if (context === PlannerNode.CREATE_INITIAL_PLAN) {
-        prompt = new PromptGenerator();
-        prompt.addHeader(headerPromptStandard);
-
-        // Add constraints based on agent mode
-        prompt.addConstraint('INDEPENDENT_DECISION_MAKING');
-        prompt.addConstraint('DECISION_BASED_ON_DATA_TOOLS');
-        prompt.addConstraint('DECISITION_SAFEST_POSSIBLE');
-        prompt.addConstraint('NEVER_WAIT_HUMAN');
-        prompt.addConstraint('SUBSEQUENT_TASKS');
-        prompt.addConstraint(`JSON_RESPONSE_MANDATORY`);
-
-        // add goals
-        prompt.addGoal(this.agentConfig.prompt.content.toLocaleString());
-        prompt.addInstruction(INSTRUCTION_TASK_INITALIZER);
-        prompt.addTools(parseToolsToJson(this.toolsList));
-        prompt.addPerformanceEvaluation(PERFORMANCE_EVALUATION_PROMPT);
-        return prompt.generatePromptString('task_initializer');
-      }
-      return '';
-    } catch (error) {
-      return '';
-    }
-  }
-
-  private build_prompt_generator_generator(
+  private build_prompt_generator(
     mode: AgentMode,
     context: PlannerNode
   ): PromptGenerator {
@@ -218,13 +187,14 @@ export class PlannerGraph {
         prompt.addHeader(headerPromptStandard);
 
         // Add constraints based on agent mode
-        prompt.addConstraint('INDEPENDENT_DECISION_MAKING');
-        prompt.addConstraint('DECISION_BASED_ON_DATA_TOOLS');
-        prompt.addConstraint('DECISITION_SAFEST_POSSIBLE');
-        prompt.addConstraint('NEVER_WAIT_HUMAN');
-        prompt.addConstraint('SUBSEQUENT_TASKS');
-        prompt.addConstraint(`JSON_RESPONSE_MANDATORY`);
-
+        prompt.addConstraints([
+          'INDEPENDENT_DECISION_MAKING',
+          'DECISION_BASED_ON_DATA_TOOLS',
+          'DECISITION_SAFEST_POSSIBLE',
+          'NEVER_WAIT_HUMAN',
+          'SUBSEQUENT_TASKS',
+          'JSON_RESPONSE_MANDATORY',
+        ]);
         // add goals
         prompt.addGoal(this.agentConfig.prompt.content.toLocaleString());
         prompt.addInstruction(INSTRUCTION_TASK_INITALIZER);
@@ -239,84 +209,6 @@ export class PlannerGraph {
     }
   }
 
-  private async replanExecution(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<
-    | {
-        messages: BaseMessage[];
-        last_node: PlannerNode;
-        plans_or_histories?: ParsedPlan;
-        currentStepIndex: number;
-        currentGraphStep: number;
-      }
-    | Command
-  > {
-    try {
-      const l_msg = state.messages[state.messages.length - 1];
-      logger.info('[PlanRevision] Starting plan_or_history revision');
-      const model = this.modelSelector?.getModels()['fast'];
-      if (!model) {
-        throw new Error('Model not found in ModelSelector');
-      }
-      const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
-        state.plans_or_histories
-      );
-      if (!plan_or_history || plan_or_history.type !== 'plan') {
-        throw new Error('No existing plan_or_history to revise');
-      }
-      const agent_mode =
-        config.configurable?.agent_config?.mode ??
-        DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt_generator(agent_mode, PlannerNode.PLAN_REVISION);
-
-      const structuredModel = model.withStructuredOutput(PlanSchema);
-
-      const prompt = ChatPromptTemplate.fromTemplate(prompts);
-
-      const structuredResult = (await structuredModel.invoke(
-        await prompt.formatMessages({
-          agentConfig: this.agentConfig.prompt,
-          toolsAvailable: parseToolsToJson(this.toolsList),
-          rejectedReason: l_msg.content.toLocaleString(),
-          formatPlan: formatParsedPlanSimple(plan_or_history),
-          userQuery: config.configurable?.user_request || '',
-        })
-      )) as PlanSchemaType;
-
-      const aiMessage = new AIMessageChunk({
-        content: `Plan revised with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
-          .join('\n')}`,
-        additional_kwargs: {
-          error: false,
-          final: false,
-          from: GraphNode.PLANNING_ORCHESTRATOR,
-        },
-      });
-      const newPlan: ParsedPlan = {
-        ...structuredResult,
-        id: plan_or_history.id,
-        type: 'plan' as const,
-      };
-      return {
-        messages: [aiMessage],
-        last_node: PlannerNode.PLAN_REVISION,
-        plans_or_histories: newPlan,
-        currentGraphStep: state.currentGraphStep + 1,
-        currentStepIndex: 0,
-      };
-    } catch (error: any) {
-      logger.error(`[PlanRevision] Plan execution failed: ${error}`);
-      return handleNodeError(
-        error,
-        'PLANNER_REVISION',
-        state,
-        'Plan revision failed'
-      );
-    }
-  }
-
   private async planExecution(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -326,7 +218,7 @@ export class PlannerGraph {
         last_node: PlannerNode;
         tasks?: TaskType[];
         executionMode?: ExecutionMode;
-        currentStepIndex: number;
+        currentTaskIndex: number;
         currentGraphStep: number;
       }
     | Command
@@ -341,7 +233,7 @@ export class PlannerGraph {
       const agent_mode: AgentMode =
         (config.configurable?.agent_config?.mode as AgentMode) ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt_generator_generator(
+      const prompts = this.build_prompt_generator(
         agent_mode,
         PlannerNode.CREATE_INITIAL_PLAN
       );
@@ -365,6 +257,14 @@ export class PlannerGraph {
             prompts.getConstraints(),
             'constraint'
           ),
+          short_term_memory: state.memories.stm.items
+            .map((item) => {
+              if (item) {
+                return item.content;
+              }
+            })
+            .join('\n'),
+          long_term_memory: '',
           goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
           instructions: prompts.generateNumberedList(
             prompts.getInstructions(),
@@ -396,6 +296,8 @@ export class PlannerGraph {
         text: task.text,
         reasoning: task.reasoning,
         criticism: task.criticism,
+        speak: task.speak,
+        steps: [],
         status: 'pending' as 'pending',
       }));
 
@@ -405,7 +307,7 @@ export class PlannerGraph {
         tasks: tasks,
         executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
-        currentStepIndex: 0,
+        currentTaskIndex: 0,
       };
     } catch (error: any) {
       logger.error(`[Planner] Plan execution failed: ${error}`);
@@ -413,196 +315,274 @@ export class PlannerGraph {
     }
   }
 
-  private async adaptivePlanner(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<
-    | {
-        messages: BaseMessage[];
-        last_node: PlannerNode;
-        plans_or_histories?: ParsedPlan;
-        currentGraphStep: number;
-        currentStepIndex: number;
-      }
-    | Command
-  > {
-    try {
-      const model = this.modelSelector?.getModels()['fast'];
-      if (!model) {
-        throw new Error('Model not found in ModelSelector');
-      }
-      const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
-        state.plans_or_histories
-      );
-      if (!plan_or_history || plan_or_history.type !== 'plan') {
-        throw new Error('No existing plan_or_history to revise');
-      }
-      const structuredModel = model.withStructuredOutput(PlanSchema);
+  // private async replanExecution(
+  //   state: typeof GraphState.State,
+  //   config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  // ): Promise<
+  //   | {
+  //       messages: BaseMessage[];
+  //       last_node: PlannerNode;
+  //       plans_or_histories?: ParsedPlan;
+  //       currentTaskIndex: number;
+  //       currentGraphStep: number;
+  //     }
+  //   | Command
+  // > {
+  //   try {
+  //     const l_msg = state.messages[state.messages.length - 1];
+  //     logger.info('[PlanRevision] Starting plan_or_history revision');
+  //     const model = this.modelSelector?.getModels()['fast'];
+  //     if (!model) {
+  //       throw new Error('Model not found in ModelSelector');
+  //     }
+  //     const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
+  //       state.plans_or_histories
+  //     );
+  //     if (!plan_or_history || plan_or_history.type !== 'plan') {
+  //       throw new Error('No existing plan_or_history to revise');
+  //     }
+  //     const agent_mode =
+  //       config.configurable?.agent_config?.mode ??
+  //       DEFAULT_GRAPH_CONFIG.agent_config.mode;
+  //     const prompts = this.build_prompt(agent_mode, PlannerNode.PLAN_REVISION);
 
-      const agent_mode =
-        config.configurable?.agent_config?.mode ??
-        DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt_generator(
-        agent_mode,
-        PlannerNode.EVOLVE_FROM_HISTORY
-      );
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', prompts],
-        ['ai', prompts],
-      ]);
-      const structuredResult = (await structuredModel.invoke(
-        await prompt.formatMessages({
-          stepLength: state.currentStepIndex + 1,
-          agentConfig: this.agentConfig.prompt,
-          toolsAvailable: parseToolsToJson(this.toolsList),
-          history: parseEvolveFromHistoryContext(state.plans_or_histories),
-        })
-      )) as PlanSchemaType;
+  //     const structuredModel = model.withStructuredOutput(PlanSchema);
 
-      logger.info(
-        `[AdaptivePlanner] Created plan_or_history with ${structuredResult.steps.length} steps`
-      );
+  //     const prompt = ChatPromptTemplate.fromTemplate(prompts);
 
-      const aiMessage = new AIMessageChunk({
-        content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map((s: StepInfo) => `${s.stepNumber}. ${s.stepName}:`)
-          .join('\n')}`,
-        additional_kwargs: {
-          structured_output: structuredResult,
-          from: 'planner',
-        },
-      });
-      const newPlan: ParsedPlan = {
-        ...structuredResult,
-        id: uuidv4(),
-        type: 'plan' as const,
-      };
-      return {
-        messages: [aiMessage],
-        last_node: PlannerNode.EVOLVE_FROM_HISTORY,
-        plans_or_histories: newPlan,
-        currentStepIndex: 0,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
-    } catch (error: any) {
-      logger.error(`[AdaptivePlanner] Plan creation failed: ${error}`);
-      return handleNodeError(
-        error,
-        'ADAPTIVE_PLANNER',
-        state,
-        'Adaptive plan creation failed'
-      );
-    }
-  }
+  //     const structuredResult = (await structuredModel.invoke(
+  //       await prompt.formatMessages({
+  //         agentConfig: this.agentConfig.prompt,
+  //         toolsAvailable: parseToolsToJson(this.toolsList),
+  //         rejectedReason: l_msg.content.toLocaleString(),
+  //         formatPlan: formatParsedPlanSimple(plan_or_history),
+  //         userQuery: config.configurable?.user_request || '',
+  //       })
+  //     )) as PlanSchemaType;
+
+  //     const aiMessage = new AIMessageChunk({
+  //       content: `Plan revised with ${structuredResult.steps.length} steps:\n${structuredResult.steps
+  //         .map((s) => `${s.stepNumber}. ${s.stepName}: ${s.description}`)
+  //         .join('\n')}`,
+  //       additional_kwargs: {
+  //         error: false,
+  //         final: false,
+  //         from: GraphNode.PLANNING_ORCHESTRATOR,
+  //       },
+  //     });
+  //     const newPlan: ParsedPlan = {
+  //       ...structuredResult,
+  //       id: plan_or_history.id,
+  //       type: 'plan' as const,
+  //     };
+  //     return {
+  //       messages: [aiMessage],
+  //       last_node: PlannerNode.PLAN_REVISION,
+  //       plans_or_histories: newPlan,
+  //       currentGraphStep: state.currentGraphStep + 1,
+  //       currentTaskIndex: 0,
+  //     };
+  //   } catch (error: any) {
+  //     logger.error(`[PlanRevision] Plan execution failed: ${error}`);
+  //     return handleNodeError(
+  //       error,
+  //       'PLANNER_REVISION',
+  //       state,
+  //       'Plan revision failed'
+  //     );
+  //   }
+  // }
+
+  // private async adaptivePlanner(
+  //   state: typeof GraphState.State,
+  //   config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  // ): Promise<
+  //   | {
+  //       messages: BaseMessage[];
+  //       last_node: PlannerNode;
+  //       plans_or_histories?: ParsedPlan;
+  //       currentGraphStep: number;
+  //       currentTaskIndex: number;
+  //     }
+  //   | Command
+  // > {
+  //   try {
+  //     const model = this.modelSelector?.getModels()['fast'];
+  //     if (!model) {
+  //       throw new Error('Model not found in ModelSelector');
+  //     }
+  //     const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
+  //       state.plans_or_histories
+  //     );
+  //     if (!plan_or_history || plan_or_history.type !== 'plan') {
+  //       throw new Error('No existing plan_or_history to revise');
+  //     }
+  //     const structuredModel = model.withStructuredOutput(PlanSchema);
+
+  //     const agent_mode =
+  //       config.configurable?.agent_config?.mode ??
+  //       DEFAULT_GRAPH_CONFIG.agent_config.mode;
+  //     const prompts = this.build_prompt(
+  //       agent_mode,
+  //       PlannerNode.EVOLVE_FROM_HISTORY
+  //     );
+  //     const prompt = ChatPromptTemplate.fromMessages([
+  //       ['system', prompts],
+  //       ['ai', prompts],
+  //     ]);
+  //     const structuredResult = (await structuredModel.invoke(
+  //       await prompt.formatMessages({
+  //         stepLength: state.currentTaskIndex + 1,
+  //         agentConfig: this.agentConfig.prompt,
+  //         toolsAvailable: parseToolsToJson(this.toolsList),
+  //         history: parseEvolveFromHistoryContext(state.plans_or_histories),
+  //       })
+  //     )) as PlanSchemaType;
+
+  //     logger.info(
+  //       `[AdaptivePlanner] Created plan_or_history with ${structuredResult.steps.length} steps`
+  //     );
+
+  //     const aiMessage = new AIMessageChunk({
+  //       content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
+  //         .map((s: StepInfo) => `${s.stepNumber}. ${s.stepName}:`)
+  //         .join('\n')}`,
+  //       additional_kwargs: {
+  //         structured_output: structuredResult,
+  //         from: 'planner',
+  //       },
+  //     });
+  //     const newPlan: ParsedPlan = {
+  //       ...structuredResult,
+  //       id: uuidv4(),
+  //       type: 'plan' as const,
+  //     };
+  //     return {
+  //       messages: [aiMessage],
+  //       last_node: PlannerNode.EVOLVE_FROM_HISTORY,
+  //       plans_or_histories: newPlan,
+  //       currentTaskIndex: 0,
+  //       currentGraphStep: state.currentGraphStep + 1,
+  //     };
+  //   } catch (error: any) {
+  //     logger.error(`[AdaptivePlanner] Plan creation failed: ${error}`);
+  //     return handleNodeError(
+  //       error,
+  //       'ADAPTIVE_PLANNER',
+  //       state,
+  //       'Adaptive plan creation failed'
+  //     );
+  //   }
+  // }
 
   // VALIDATOR
 
-  private async validatorPlanner(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<
-    | {
-        messages: BaseMessage[];
-        currentStepIndex: number;
-        last_node: PlannerNode;
-        retry: number;
-        currentGraphStep: number;
-      }
-    | Command
-  > {
-    try {
-      const model = this.modelSelector?.getModels()['fast'];
-      if (!model) {
-        throw new Error('Model not found in ModelSelector');
-      }
-      const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
-        state.plans_or_histories
-      );
-      if (!plan_or_history || plan_or_history.type !== 'plan') {
-        throw new Error('No existing plan_or_history to revise');
-      }
-      const StructuredResponseValidator = z.object({
-        success: z.boolean(),
-        result: z
-          .string()
-          .max(300)
-          .describe(
-            'Explain why the plan_or_history is valid or not in maximum 250 character'
-          ),
-      });
+  // private async validatorPlanner(
+  //   state: typeof GraphState.State,
+  //   config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  // ): Promise<
+  //   | {
+  //       messages: BaseMessage[];
+  //       currentTaskIndex: number;
+  //       last_node: PlannerNode;
+  //       retry: number;
+  //       currentGraphStep: number;
+  //     }
+  //   | Command
+  // > {
+  //   try {
+  //     const model = this.modelSelector?.getModels()['fast'];
+  //     if (!model) {
+  //       throw new Error('Model not found in ModelSelector');
+  //     }
+  //     const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
+  //       state.plans_or_histories
+  //     );
+  //     if (!plan_or_history || plan_or_history.type !== 'plan') {
+  //       throw new Error('No existing plan_or_history to revise');
+  //     }
+  //     const StructuredResponseValidator = z.object({
+  //       success: z.boolean(),
+  //       result: z
+  //         .string()
+  //         .max(300)
+  //         .describe(
+  //           'Explain why the plan_or_history is valid or not in maximum 250 character'
+  //         ),
+  //     });
 
-      const structuredModel = model.withStructuredOutput(
-        StructuredResponseValidator
-      );
+  //     const structuredModel = model.withStructuredOutput(
+  //       StructuredResponseValidator
+  //     );
 
-      const planDescription = formatParsedPlanSimple(plan_or_history);
+  //     const planDescription = formatParsedPlanSimple(plan_or_history);
 
-      const agent_mode =
-        config.configurable?.agent_config?.mode ??
-        DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt_generator(
-        agent_mode,
-        PlannerNode.PLANNER_VALIDATOR
-      );
-      const prompt = ChatPromptTemplate.fromMessages([['system', prompts]]);
-      const structuredResult = await structuredModel.invoke(
-        await prompt.formatMessages({
-          agentConfig:
-            config.configurable?.agent_config?.prompt ??
-            DEFAULT_GRAPH_CONFIG.agent_config.prompt,
-          currentPlan: planDescription,
-        })
-      );
+  //     const agent_mode =
+  //       config.configurable?.agent_config?.mode ??
+  //       DEFAULT_GRAPH_CONFIG.agent_config.mode;
+  //     const prompts = this.build_prompt(
+  //       agent_mode,
+  //       PlannerNode.PLANNER_VALIDATOR
+  //     );
+  //     const prompt = ChatPromptTemplate.fromMessages([['system', prompts]]);
+  //     const structuredResult = await structuredModel.invoke(
+  //       await prompt.formatMessages({
+  //         agentConfig:
+  //           config.configurable?.agent_config?.prompt ??
+  //           DEFAULT_GRAPH_CONFIG.agent_config.prompt,
+  //         currentPlan: planDescription,
+  //       })
+  //     );
 
-      if (structuredResult.success) {
-        const successMessage = new AIMessageChunk({
-          content: `Plan success: ${structuredResult.result}`,
-          additional_kwargs: {
-            error: false,
-            success: true,
-            from: GraphNode.PLANNING_ORCHESTRATOR,
-          },
-        });
-        logger.info(`[PlannerValidator] Plan success successfully`);
-        return {
-          messages: [successMessage],
-          last_node: PlannerNode.PLANNER_VALIDATOR,
-          currentStepIndex: state.currentStepIndex,
-          retry: state.retry,
-          currentGraphStep: state.currentGraphStep + 1,
-        };
-      } else {
-        const errorMessage = new AIMessageChunk({
-          content: `Plan validation failed: ${structuredResult.result}`,
-          additional_kwargs: {
-            error: false,
-            success: false,
-            from: GraphNode.PLANNING_ORCHESTRATOR,
-          },
-        });
-        logger.warn(
-          `[PlannerValidator] Plan validation failed: ${structuredResult.result}`
-        );
-        return {
-          messages: [errorMessage],
-          currentStepIndex: state.currentStepIndex,
-          last_node: PlannerNode.PLANNER_VALIDATOR,
-          retry: 0,
-          currentGraphStep: state.currentGraphStep + 1,
-        };
-      }
-    } catch (error: any) {
-      logger.error(
-        `[PlannerValidator] Failed to validate plans_or_histories: ${error.message}`
-      );
-      return handleNodeError(
-        error,
-        'PLANNER_VALIDATOR',
-        state,
-        'Plan validation failed'
-      );
-    }
-  }
+  //     if (structuredResult.success) {
+  //       const successMessage = new AIMessageChunk({
+  //         content: `Plan success: ${structuredResult.result}`,
+  //         additional_kwargs: {
+  //           error: false,
+  //           success: true,
+  //           from: GraphNode.PLANNING_ORCHESTRATOR,
+  //         },
+  //       });
+  //       logger.info(`[PlannerValidator] Plan success successfully`);
+  //       return {
+  //         messages: [successMessage],
+  //         last_node: PlannerNode.PLANNER_VALIDATOR,
+  //         currentTaskIndex: state.currentTaskIndex,
+  //         retry: state.retry,
+  //         currentGraphStep: state.currentGraphStep + 1,
+  //       };
+  //     } else {
+  //       const errorMessage = new AIMessageChunk({
+  //         content: `Plan validation failed: ${structuredResult.result}`,
+  //         additional_kwargs: {
+  //           error: false,
+  //           success: false,
+  //           from: GraphNode.PLANNING_ORCHESTRATOR,
+  //         },
+  //       });
+  //       logger.warn(
+  //         `[PlannerValidator] Plan validation failed: ${structuredResult.result}`
+  //       );
+  //       return {
+  //         messages: [errorMessage],
+  //         currentTaskIndex: state.currentTaskIndex,
+  //         last_node: PlannerNode.PLANNER_VALIDATOR,
+  //         retry: 0,
+  //         currentGraphStep: state.currentGraphStep + 1,
+  //       };
+  //     }
+  //   } catch (error: any) {
+  //     logger.error(
+  //       `[PlannerValidator] Failed to validate plans_or_histories: ${error.message}`
+  //     );
+  //     return handleNodeError(
+  //       error,
+  //       'PLANNER_VALIDATOR',
+  //       state,
+  //       'Plan validation failed'
+  //     );
+  //   }
+  // }
 
   private async get_planner_status(
     state: typeof GraphState.State,
@@ -771,7 +751,7 @@ export class PlannerGraph {
           items: [],
         } as History,
         executionMode: ExecutionMode.REACTIVE,
-        currentStepIndex: 0,
+        currentTaskIndex: 0,
         retry: 0,
       },
       goto: 'end',
@@ -781,7 +761,7 @@ export class PlannerGraph {
     logger.info('[EndPlannerGraph] Cleaning up state for graph termination');
     return new Command({
       update: {
-        currentStepIndex: 0,
+        currentTaskIndex: 0,
         retry: 0,
         skipValidation: { skipValidation: true, goto: 'end_graph' },
       },

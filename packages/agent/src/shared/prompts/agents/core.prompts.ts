@@ -6,6 +6,10 @@ GOAL:
 {goal}\n
 CONSTRAINTS:
 {constraints}\n
+WORKING_MEMORY:
+{short_term_memory}\n
+LONG-TERM_MEMORY:
+{long_term_memory}\n
 TOOLS:
 {tools}\n
 PERFORMANCE EVALUATION:

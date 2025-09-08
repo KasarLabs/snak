@@ -100,11 +100,11 @@ class PlanningPromptManager implements PromptBuildingManager {
     // Get current step to determine prompt type
     const currentStep = getCurrentPlanStep(
       state.plans_or_histories,
-      state.currentStepIndex
+      state.currentTaskIndex
     );
 
     if (!currentStep) {
-      throw new Error(`No step found at index ${state.currentStepIndex}`);
+      throw new Error(`No step found at index ${state.currentTaskIndex}`);
     }
 
     const isRetry = state.retry > 0;

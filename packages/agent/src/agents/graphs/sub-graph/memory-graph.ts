@@ -39,6 +39,7 @@ import {
   HistoryItem,
   ParsedPlan,
   StepInfo,
+  TaskType,
 } from '../../../shared/types/graph.types.js';
 import { formatSteporHistoryForSTM } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 
@@ -96,6 +97,54 @@ export class MemoryGraph {
     }
   }
 
+  private formatTaskForSTM(task: TaskType): string {
+    try {
+      let formatted = `Goal: ${task.speak}\n`;      
+      if (task.steps && task.steps.length > 0) {
+        formatted += `Steps: `;
+        task.steps.forEach((step: any, index: number) => {
+          const toolResult = typeof step.tool.result === 'string' ? 
+            step.tool.result : 
+            JSON.stringify(step.tool.result,null,2);
+          
+          formatted += `${index + 1}.${step.thoughts.text} → ${step.tool.name}(${Object.keys(step.tool.args).join(',')}) → ${step.tool.status}:${toolResult}; `;
+        });
+        formatted += `\n`;
+      }
+      
+      return formatted;
+    } catch (error) {
+      logger.error(`[STMManager] Error formatting task for STM: ${error}`);
+      return `Task: ${task.text || 'Unknown task'}`;
+    }
+  }
+
+  private formatAllStepsOfCurrentTask(task: any): string {
+    try {
+      let formatted = `Task: ${task.text}\n`;
+      if (task.steps && task.steps.length > 0) {
+        formatted += `Steps: `;
+        task.steps.forEach((step: any, index: number) => {
+          const toolResult = typeof step.tool.result === 'string' ? 
+            step.tool.result.slice(0, 150) + (step.tool.result.length > 150 ? '...' : '') : 
+            JSON.stringify(step.tool.result).slice(0, 150);
+          const toolArgs = JSON.stringify(step.tool.args).slice(0, 100) + 
+            (JSON.stringify(step.tool.args).length > 100 ? '...' : '');
+          
+          formatted += `${index + 1}.[${step.thoughts.text}|${step.thoughts.reasoning}] ${step.tool.name}(${toolArgs}) → ${step.tool.status}:${toolResult}; `;
+        });
+        formatted += `\n`;
+      } else {
+        formatted += `No steps completed.\n`;
+      }
+      
+      return formatted;
+    } catch (error) {
+      logger.error(`[LTMManager] Error formatting all steps of current task: ${error}`);
+      return `Task: ${task.text || 'Unknown task'} - Error formatting steps`;
+    }
+  }
+
   private async stm_manager(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -103,7 +152,6 @@ export class MemoryGraph {
     | {
         memories: Memories;
         last_node: MemoryNode;
-        plans_or_histories?: ParsedPlan;
       }
     | Command
   > {
@@ -122,58 +170,29 @@ export class MemoryGraph {
           last_node: MemoryNode.STM_MANAGER,
         };
       }
-      const executionMode = config.configurable?.executionMode;
-      let item: StepInfo | HistoryItem | null = null;
-
-      if (executionMode === ExecutionMode.PLANNING) {
-        item = getCurrentPlanStep(
-          state.plans_or_histories,
-          state.currentStepIndex - 1
-        );
-      } else if (executionMode === ExecutionMode.REACTIVE) {
-        item = getCurrentHistoryItem(state.plans_or_histories);
-      }
-
-      if (!item) {
-        logger.warn(
-          '[STMManager] No current step or history item found, returning unchanged memories'
-        );
+      const task = state.tasks[state.currentTaskIndex];
+      if (!task || task.status === 'completed') {
+        if (task && task.status === 'completed') {
+          logger.info(
+            `[STMManager] Current task at index ${state.currentTaskIndex} is already completed, skipping STM update`
+          );
+        } else {
+          logger.warn(
+            `[STMManager] No current task found at index ${state.currentTaskIndex}, skipping STM update`
+          );
+        }
         return {
           memories: state.memories,
           last_node: MemoryNode.STM_MANAGER,
         };
       }
-      if (item.type === 'tools') {
-        const result = await Promise.all(
-          item.tools?.map(async (tool) => {
-            if (
-              estimateTokens(tool.result) >=
-              MEMORY_THRESHOLDS.SUMMARIZATION_THRESHOLD
-            ) {
-              const result = await this.summarize_before_inserting(tool.result);
-              tool.result = result.content;
-              return tool;
-            }
-            return tool;
-          }) ?? []
-        );
-        item.tools = result;
-      }
-      if (
-        item.type === 'message' &&
-        item.message &&
-        item.message.tokens >= MEMORY_THRESHOLDS.MAX_MESSAGE_TOKENS
-      ) {
-        const result = await this.summarize_before_inserting(
-          item.message.content
-        );
-        item.message = result;
-      }
+      
+      const formattedTask = this.formatTaskForSTM(task);
       const date = Date.now();
 
       const result = MemoryStateManager.addSTMMemory(
         state.memories,
-        item,
+        formattedTask,
         date
       );
 
@@ -212,7 +231,7 @@ export class MemoryGraph {
     try {
       // Skip LTM processing for initial step
       if (
-        state.currentStepIndex === 0 &&
+        state.currentTaskIndex === 0 &&
         config.configurable?.executionMode === ExecutionMode.PLANNING
       ) {
         logger.debug('[LTMManager] Skipping LTM for initial step');
@@ -269,11 +288,22 @@ export class MemoryGraph {
         ['human', `TEXT_TO_ANALYZE : {response}`],
       ]);
 
+      // Get current task to format all its steps
+      const task = state.tasks[state.currentTaskIndex];
+      if (!task) {
+        logger.warn(
+          `[LTMManager] No current task found at index ${state.currentTaskIndex}, skipping LTM processing`
+        );
+        return {
+          last_node: MemoryNode.LTM_MANAGER,
+        };
+      }
+
+      // Use content of all steps of current task instead of just recent memories
+      const allStepsContent = this.formatAllStepsOfCurrentTask(task);
       const summaryResult = (await structuredModel.invoke(
         await prompt.formatMessages({
-          response: formatSteporHistoryForSTM(
-            recentMemories[0].step_or_history
-          ),
+          response: allStepsContent,
         })
       )) as ltmSchemaType;
 
@@ -404,7 +434,7 @@ export class MemoryGraph {
     return new Command({
       update: {
         plans_or_histories: undefined,
-        currentStepIndex: 0,
+        currentTaskIndex: 0,
         retry: 0,
         skipValidation: { skipValidation: true, goto: 'end_graph' },
       },

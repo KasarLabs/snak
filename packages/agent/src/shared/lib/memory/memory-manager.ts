@@ -33,7 +33,7 @@ export class STMManager {
    */
   static addMemory(
     stm: STMContext,
-    item: StepInfo | HistoryItem
+    item: string
   ): MemoryOperationResult<STMContext> {
     try {
       // Validate input
@@ -46,7 +46,7 @@ export class STMManager {
       }
 
       const newItem: MemoryItem = {
-        step_or_history: item,
+        content: item,
         memories_id: uuidv4(),
         timestamp: Date.now(),
         metadata: { insertIndex: stm.totalInserted },

@@ -355,7 +355,7 @@ const makeState = (over: Partial<any> = {}) => ({
   },
   rag: '',
   plans_or_histories: [],
-  currentStepIndex: 0,
+  currentTaskIndex: 0,
   retry: 0,
   currentGraphStep: 0,
   skipValidation: { skipValidation: false, goto: '' },
@@ -521,7 +521,7 @@ describe('Graph (Autonomous Mode)', () => {
     it('end_graph resets state correctly', () => {
       const res = (agent as any).end_graph({});
       expect(res.plans_or_histories).toBeUndefined();
-      expect(res.currentStepIndex).toBe(0);
+      expect(res.currentTaskIndex).toBe(0);
       expect(res.retry).toBe(0);
     });
   });

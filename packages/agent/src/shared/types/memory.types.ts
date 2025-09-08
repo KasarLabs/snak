@@ -6,7 +6,7 @@ import { HistoryItem, StepInfo } from './graph.types.js';
  * Individual memory item with immutable structure
  */
 export interface MemoryItem {
-  readonly step_or_history: StepInfo | HistoryItem;
+  readonly content: string;
   readonly memories_id: string;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;

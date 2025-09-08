@@ -58,30 +58,7 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => [],
   }),
-  plans_or_histories: Annotation<Array<ParsedPlan | History>>({
-    reducer: (
-      x: Array<ParsedPlan | History>,
-      y: ParsedPlan | History | Array<ParsedPlan | History>
-    ) => {
-      logger.debug('Plans Or Histories Reducer Called');
-      if (y === undefined) return x;
-      if (Array.isArray(y)) return y;
-      if (x === undefined || x.length === 0) {
-        logger.debug(`First Plan/History Added.`);
-        return [y];
-      }
-      if (x[x.length - 1].id === y.id) {
-        logger.debug('Plan/History Updated.');
-        return [...x.slice(0, -1), y];
-      } else {
-        logger.debug('Plan/History Added.');
-        x.push(y);
-        return x;
-      }
-    },
-    default: () => [],
-  }),
-  currentStepIndex: Annotation<number>({
+  currentTaskIndex: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 0,
   }),
@@ -199,13 +176,13 @@ export class Graph {
 
   private end_graph(state: typeof GraphState): {
     plans_or_histories: Array<ParsedPlan | History> | undefined;
-    currentStepIndex: number;
+    currentTaskIndex: number;
     retry: number;
   } {
     logger.info('[EndGraph] Cleaning up state for graph termination');
     return {
       plans_or_histories: undefined,
-      currentStepIndex: 0,
+      currentTaskIndex: 0,
       retry: 0,
     };
   }

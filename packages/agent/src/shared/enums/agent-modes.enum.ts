@@ -64,7 +64,6 @@ export enum PlannerNode {
 export enum ExecutorNode {
   REASONING_EXECUTOR = 'reasoning_executor',
   TOOL_EXECUTOR = 'tool_executor',
-  EXECUTOR_VALIDATOR = 'executor_validator',
   HUMAN = 'human',
   END_EXECUTOR_GRAPH = 'end_executor_graph',
   END = 'end',

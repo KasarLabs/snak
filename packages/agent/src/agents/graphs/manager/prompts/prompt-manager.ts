@@ -44,7 +44,7 @@ export class PromptGenerator {
   private instructions: string[];
   private goals: string[];
   private historyInstructions: string[];
-  private memory: Memories;
+  private memory: Memories | undefined;
   private constraints: string[];
   private tools: string[];
   private resources: string[];
@@ -211,6 +211,14 @@ export class PromptGenerator {
     }
   }
 
+    addConstraints(constraints: Array<keyof typeof AUTONOMOUS_AI_CONSTRAINTS>): void {
+    for (const constraint of constraints) {
+      this.constraints.push(
+        getConstraint(constraint as keyof typeof AUTONOMOUS_AI_CONSTRAINTS)
+      );
+    }
+  }
+
   /**
    * Add multiple constraints by category.
    * @param category - The category of constraints to add.
@@ -305,7 +313,7 @@ export class PromptGenerator {
    * Get the memory object.
    * @returns The memory object.
    */
-  getMemory(): Memories {
+  getMemory(): Memories | undefined {
     return this.memory;
   }
 
@@ -469,59 +477,3 @@ export class PromptGenerator {
     return promptParts.join('\n');
   }
 }
-
-// Example usage:
-/*
-const promptGen = new PromptGenerator();
-
-// Add a custom response format for simple responses
-promptGen.addResponseFormat("simple", {
-  response: {
-    answer: "direct answer",
-    confidence: "high/medium/low"
-  }
-});
-
-// Add a custom response format for analysis tasks
-promptGen.addResponseFormat("analysis", {
-  analysis: {
-    summary: "brief overview",
-    details: "detailed analysis",
-    recommendations: ["recommendation 1", "recommendation 2"],
-    confidence_score: 0.95
-  },
-  metadata: {
-    timestamp: "ISO 8601 timestamp",
-    version: "1.0"
-  }
-});
-
-// Set which format to use
-promptGen.setActiveResponseFormat("analysis");
-
-// Add constraints and tools
-promptGen.addConstraint("Respond only with valid JSON");
-promptGen.addConstraint("Be concise and clear");
-
-promptGen.addTools("execute", "run_script", { 
-  script_path: "/path/to/script.sh",
-  timeout: "30"
-});
-
-promptGen.addResource("Internet access for searches");
-promptGen.addResource("File system access");
-
-promptGen.addPerformanceEvaluation("Response time under 2 seconds");
-promptGen.addPerformanceEvaluation("Accuracy above 95%");
-
-// Generate prompt with active format
-const promptString = promptGen.generatePromptString();
-console.log(promptString);
-
-// Or generate with a specific format
-const simplePrompt = promptGen.generatePromptString("simple");
-console.log(simplePrompt);
-
-// Get all available format keys
-console.log(promptGen.getResponseFormatKeys()); // ["default", "simple", "analysis"]
-*/

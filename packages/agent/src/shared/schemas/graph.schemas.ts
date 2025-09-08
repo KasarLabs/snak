@@ -100,6 +100,23 @@ const TasksSchema = z
 // Export the schema
 export default TasksSchema;
 
+
+export const StepSchema = z.object({
+  thoughts: z.object({
+    text: z.string().describe("thought"),
+    reasoning: z.string().describe("short reasoning"),
+    plan: z.string().describe("- short bulleted\n- list that conveys\n- long-term plan"),
+    criticism: z.string().describe("constructive self-criticism"),
+    speak: z.string().describe("thoughts summary to say to user")
+  }),
+  tool: z.object({
+    name: z.string().describe("tool name"),
+    args: z.record(z.any()).describe("tool arguments").nullable()
+  })
+});
+
+export type StepSchemaType = z.infer<typeof StepSchema>;
+
 // Type inference (optional)
 export type TasksSchemaType = z.infer<typeof TasksSchema>;
 export type TaskSchemaType = z.infer<typeof TaskSchema>;

@@ -30,7 +30,7 @@ export namespace MemoryStateManager {
    */
   export function addSTMMemory(
     state: Memories,
-    item: StepInfo | HistoryItem,
+    item : string,
     timestamp: number
   ): MemoryOperationResult<Memories> {
     if (state.isProcessing) {

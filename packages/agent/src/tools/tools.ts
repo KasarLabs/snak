@@ -13,6 +13,14 @@ import {
   StarknetTool,
 } from '../shared/types/tools.types.js';
 
+const endTask = async (): Promise<string> => {
+  return 'Task ended successfully';
+};
+
+const noOpTool = async (): Promise<string> => {
+  return 'No operation performed';
+};
+
 /**
  * Initializes the list of tools for the agent based on signature type and configuration
  * @param snakAgent - The agent interface instance
@@ -26,6 +34,14 @@ export async function initializeToolsList(
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
   toolsList = [...allowedTools];
+
+  // Add the two simple tools
+  const endTaskTool = tool(endTask, {
+    name: 'end_task',
+    description: 'End the current task',
+  });
+
+  toolsList.push(endTaskTool);
   if (
     agentConfig.mcpServers &&
     Object.keys(agentConfig.mcpServers).length > 0

@@ -181,7 +181,7 @@ export function calculateTotalTokenFromSteps(steps: StepInfo[]): number {
 
 export const getCurrentPlanStep = (
   plans_or_histories: Array<ParsedPlan | History> | undefined,
-  currentStepIndex: number
+  currentTaskIndex: number
 ): StepInfo | null => {
   try {
     if (!plans_or_histories || plans_or_histories.length === 0) {
@@ -193,11 +193,11 @@ export const getCurrentPlanStep = (
       throw new Error('Current execution is not in plan mode');
     }
 
-    if (currentStepIndex < 0 || currentStepIndex >= latest.steps.length) {
-      throw new Error(`Invalid step index: ${currentStepIndex}`);
+    if (currentTaskIndex < 0 || currentTaskIndex >= latest.steps.length) {
+      throw new Error(`Invalid step index: ${currentTaskIndex}`);
     }
 
-    return latest.steps[currentStepIndex];
+    return latest.steps[currentTaskIndex];
   } catch (error) {
     logger.error(`Error retrieving plan step: ${error}`);
     throw error;
@@ -252,7 +252,7 @@ export const getCurrentHistory = (
 
 export const checkAndReturnLastItemFromPlansOrHistories = (
   plans_or_histories: Array<ParsedPlan | History> | undefined,
-  currentStepIndex: number
+  currentTaskIndex: number
 ): ReturnTypeCheckPlanorHistory => {
   try {
     if (!plans_or_histories || plans_or_histories.length === 0) {
@@ -262,13 +262,13 @@ export const checkAndReturnLastItemFromPlansOrHistories = (
     const latest = plans_or_histories[plans_or_histories.length - 1];
     if (latest.type === 'plan') {
       if (
-        currentStepIndex === undefined ||
-        currentStepIndex < 0 ||
-        currentStepIndex > latest.steps.length
+        currentTaskIndex === undefined ||
+        currentTaskIndex < 0 ||
+        currentTaskIndex > latest.steps.length
       ) {
         throw new Error('Invalid current step index');
       }
-      return { type: 'step', item: latest.steps[currentStepIndex] };
+      return { type: 'step', item: latest.steps[currentTaskIndex] };
     } else if (latest.type === 'history') {
       if (latest.items.length === 0) {
         logger.debug('No history items available');
