@@ -263,7 +263,7 @@ export class PlannerGraph {
                 return item.content;
               }
             })
-            .join('\n'),
+            .join(''),
           long_term_memory: '',
           goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
           instructions: prompts.generateNumberedList(

@@ -28,9 +28,9 @@ import {
   ExecutorNode,
   ExecutionMode,
 } from '../../../shared/enums/agent-modes.enum.js';
-import { MemoryStateManager } from '../../../shared/lib/memory/memory-utils.js';
+import { MemoryStateManager } from '../manager/memory/memory-utils.js';
 import { MemoryDBManager } from '../manager/memory/memory-db-manager.js';
-import { STMManager } from '@lib/memory/memory-manager.js';
+import { STMManager } from '@agents/graphs/manager/memory/memory-manager.js';
 import { LTM_SYSTEM_PROMPT_RETRIEVE_MEMORY } from '@prompts/graph/memory/ltm_prompt.js';
 import { LTN_SUMMARIZE_SYSTEM_PROMPT } from '@prompts/graph/memory/summary_prompts.js';
 import { isInEnum } from '@enums/utils.js';
@@ -39,6 +39,7 @@ import {
   HistoryItem,
   ParsedPlan,
   StepInfo,
+  StepType,
   TaskType,
 } from '../../../shared/types/graph.types.js';
 import { formatSteporHistoryForSTM } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
@@ -97,50 +98,55 @@ export class MemoryGraph {
     }
   }
 
-  private formatTaskForSTM(task: TaskType): string {
+  private formatTaskForSTM(step: StepType): string {
     try {
-      let formatted = `Goal: ${task.speak}\n`;      
-      if (task.steps && task.steps.length > 0) {
+      let formatted = '';
+      if (step) {
         formatted += `Steps: `;
-        task.steps.forEach((step: any, index: number) => {
-          const toolResult = typeof step.tool.result === 'string' ? 
-            step.tool.result : 
-            JSON.stringify(step.tool.result,null,2);
-          
-          formatted += `${index + 1}.${step.thoughts.text} → ${step.tool.name}(${Object.keys(step.tool.args).join(',')}) → ${step.tool.status}:${toolResult}; `;
-        });
+        const toolResult =
+          typeof step.tool.result === 'string'
+            ? step.tool.result
+            : JSON.stringify(step.tool.result, null, 2);
+
+        formatted += `${step.thoughts.text} → ${step.tool.name}(${Object.keys(step.tool.args).join(',')}) → ${step.tool.status}:${toolResult}; `;
+
         formatted += `\n`;
       }
-      
+
       return formatted;
     } catch (error) {
       logger.error(`[STMManager] Error formatting task for STM: ${error}`);
-      return `Task: ${task.text || 'Unknown task'}`;
+      return `Task: ${step.thoughts.text || 'Unknown task'}`;
     }
   }
 
-  private formatAllStepsOfCurrentTask(task: any): string {
+  private formatAllStepsOfCurrentTask(task: TaskType): string {
     try {
       let formatted = `Task: ${task.text}\n`;
       if (task.steps && task.steps.length > 0) {
         formatted += `Steps: `;
         task.steps.forEach((step: any, index: number) => {
-          const toolResult = typeof step.tool.result === 'string' ? 
-            step.tool.result.slice(0, 150) + (step.tool.result.length > 150 ? '...' : '') : 
-            JSON.stringify(step.tool.result).slice(0, 150);
-          const toolArgs = JSON.stringify(step.tool.args).slice(0, 100) + 
+          const toolResult =
+            typeof step.tool.result === 'string'
+              ? step.tool.result.slice(0, 150) +
+                (step.tool.result.length > 150 ? '...' : '')
+              : JSON.stringify(step.tool.result).slice(0, 150);
+          const toolArgs =
+            JSON.stringify(step.tool.args).slice(0, 100) +
             (JSON.stringify(step.tool.args).length > 100 ? '...' : '');
-          
+
           formatted += `${index + 1}.[${step.thoughts.text}|${step.thoughts.reasoning}] ${step.tool.name}(${toolArgs}) → ${step.tool.status}:${toolResult}; `;
         });
         formatted += `\n`;
       } else {
         formatted += `No steps completed.\n`;
       }
-      
+
       return formatted;
     } catch (error) {
-      logger.error(`[LTMManager] Error formatting all steps of current task: ${error}`);
+      logger.error(
+        `[LTMManager] Error formatting all steps of current task: ${error}`
+      );
       return `Task: ${task.text || 'Unknown task'} - Error formatting steps`;
     }
   }
@@ -186,13 +192,16 @@ export class MemoryGraph {
           last_node: MemoryNode.STM_MANAGER,
         };
       }
-      
-      const formattedTask = this.formatTaskForSTM(task);
+
+      const formattedTask = this.formatTaskForSTM(
+        task.steps[task.steps.length - 1]
+      );
       const date = Date.now();
 
       const result = MemoryStateManager.addSTMMemory(
         state.memories,
         formattedTask,
+        state.tasks[state.currentTaskIndex].id,
         date
       );
 
@@ -229,17 +238,6 @@ export class MemoryGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{ memories?: Memories; last_node: MemoryNode } | Command> {
     try {
-      // Skip LTM processing for initial step
-      if (
-        state.currentTaskIndex === 0 &&
-        config.configurable?.executionMode === ExecutionMode.PLANNING
-      ) {
-        logger.debug('[LTMManager] Skipping LTM for initial step');
-        return {
-          last_node: MemoryNode.LTM_MANAGER,
-        };
-      }
-
       if (
         state.currentGraphStep >=
         (config.configurable?.max_graph_steps ??
@@ -247,6 +245,15 @@ export class MemoryGraph {
       ) {
         logger.warn(
           `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+        );
+        return {
+          last_node: MemoryNode.LTM_MANAGER,
+        };
+      }
+
+      if (state.tasks[state.currentTaskIndex].status != 'completed') {
+        logger.debug(
+          `[LTMManager] Current task at index ${state.currentTaskIndex} is not completed, skipping LTM update`
         );
         return {
           last_node: MemoryNode.LTM_MANAGER,

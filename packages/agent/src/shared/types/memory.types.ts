@@ -7,7 +7,7 @@ import { HistoryItem, StepInfo } from './graph.types.js';
  */
 export interface MemoryItem {
   readonly content: string;
-  readonly memories_id: string;
+  readonly task_id : string;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
 }

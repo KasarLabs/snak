@@ -17,7 +17,7 @@ import {
   StepToolsInfo,
 } from '../../shared/types/index.js';
 import { MemoryDBManager } from '../graphs/manager/memory/memory-db-manager.js';
-import { MemoryStateManager } from '../../shared/lib/memory/memory-utils.js';
+import { MemoryStateManager } from '../graphs/manager/memory/memory-utils.js';
 import { DEFAULT_GRAPH_CONFIG } from '../graphs/config/default-config.js';
 import {
   AgentType,

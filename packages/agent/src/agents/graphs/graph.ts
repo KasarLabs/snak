@@ -1,5 +1,11 @@
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
-import { StateGraph, MemorySaver, Annotation, END } from '@langchain/langgraph';
+import {
+  StateGraph,
+  MemorySaver,
+  Annotation,
+  END,
+  task,
+} from '@langchain/langgraph';
 import {
   DynamicStructuredTool,
   StructuredTool,
@@ -29,7 +35,7 @@ import {
   TasksType,
   TaskType,
 } from '../../shared/types/index.js';
-import { MemoryStateManager } from '../../shared/lib/memory/memory-utils.js';
+import { MemoryStateManager } from './manager/memory/memory-utils.js';
 import { MemoryGraph } from './sub-graph/memory-graph.js';
 import { PlannerGraph } from './sub-graph/planner-graph.js';
 import { AgentExecutorGraph } from './sub-graph/executor-graph.js';
@@ -37,14 +43,16 @@ import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgentInterface } from '../../shared/types/tools.types.js';
+import { cat } from '@huggingface/transformers';
+import { handleNodeError } from './utils/graph-utils.js';
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => y,
     default: () => [],
   }),
-  last_node: Annotation<ExecutorNode | PlannerNode | MemoryNode | 'start'>({
+  last_node: Annotation<ExecutorNode | PlannerNode | MemoryNode | GraphNode>({
     reducer: (x, y) => y,
-    default: () => 'start',
+    default: () => GraphNode.START,
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
@@ -187,6 +195,38 @@ export class Graph {
     };
   }
 
+  private task_updater(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): { tasks?: TaskType[]; currentStepIndex?: number; last_node?: GraphNode } {
+    try {
+      if (!state.tasks || state.tasks.length === 0) {
+        throw new Error('[Task Updater] No tasks found in the state.');
+      }
+
+      const currentTasks = state.tasks[state.currentTaskIndex];
+      if (!currentTasks) {
+        throw new Error(
+          `[Task Updater] No current task found at index ${state.currentTaskIndex}.`
+        );
+      }
+      if (currentTasks.status === 'completed') {
+        logger.info(
+          `[Task Updater] Task at index ${state.currentTaskIndex} is already completed.`
+        );
+        return {
+          tasks: state.tasks,
+          currentStepIndex: state.currentTaskIndex + 1,
+          last_node: GraphNode.TASK_UPDATER,
+        };
+      }
+      return { last_node: GraphNode.TASK_UPDATER };
+    } catch (error) {
+      logger.error(error);
+      return { last_node: GraphNode.TASK_UPDATER };
+    }
+  }
+
   private orchestrationRouter(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -234,6 +274,35 @@ export class Graph {
     if (isInEnum(PlannerNode, state.last_node)) {
       logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
       return GraphNode.MEMORY_ORCHESTRATOR;
+    }
+
+    console.log(state.last_node);
+    if (isInEnum(GraphNode, state.last_node)) {
+      if (state.last_node === GraphNode.TASK_UPDATER) {
+        if (
+          l_msg.additional_kwargs.final === true &&
+          executionMode === ExecutionMode.PLANNING
+        ) {
+          logger.debug(
+            `[Orchestration Router] Final execution reached in PLANNING mode, routing to planner`
+          );
+          return GraphNode.PLANNING_ORCHESTRATOR;
+        } else if (
+          l_msg.additional_kwargs.final === true &&
+          executionMode === ExecutionMode.REACTIVE
+        ) {
+          logger.debug(
+            `[Orchestration Router] Final execution reached in REACTIVE mode, routing to end`
+          );
+          return GraphNode.END_GRAPH;
+        }
+      }
+    }
+    if (isInEnum(MemoryNode, state.last_node)) {
+      logger.debug(
+        `[Orchestration Router] Memory processed, routing to TASK_UPDATER`
+      );
+      return GraphNode.TASK_UPDATER;
     }
 
     if (isInEnum(MemoryNode, state.last_node)) {
@@ -356,6 +425,7 @@ export class Graph {
       .addNode(GraphNode.PLANNING_ORCHESTRATOR, planner_graph)
       .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
       .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
+      .addNode(GraphNode.TASK_UPDATER, this.task_updater.bind(this))
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
       .addConditionalEdges(
         '__start__',
@@ -371,6 +441,10 @@ export class Graph {
       )
       .addConditionalEdges(
         GraphNode.AGENT_EXECUTOR,
+        this.orchestrationRouter.bind(this)
+      )
+      .addConditionalEdges(
+        GraphNode.TASK_UPDATER,
         this.orchestrationRouter.bind(this)
       )
       .addEdge(GraphNode.END_GRAPH, END);

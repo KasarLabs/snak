@@ -87,8 +87,6 @@ import {
 } from '@prompts/agents/instruction.prompts.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
 import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
-import { cat } from '@huggingface/transformers';
-import { ca } from 'zod/v4/locales';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig;
@@ -136,18 +134,21 @@ export class AgentExecutorGraph {
     );
     logger.debug(`[Executor] Invoking model () with execution`);
     const structuredModel = model.withStructuredOutput(StepSchema);
-
+    let current_task_id = state.tasks[state.currentTaskIndex].id;
     const result = (await structuredModel.invoke(
       await prompt.formatMessages({
         header: prompts.generateNumberedList(prompts.getHeader()),
-        goal: state.tasks[0].speak,
+        goal: state.tasks[state.currentTaskIndex].speak,
         constraints: prompts.generateNumberedList(
           prompts.getConstraints(),
           'constraint'
         ),
         short_term_memory: state.memories.stm.items
-          .map((item) => {
+          .map((item, index) => {
             if (item) {
+              if (index === 0) {
+                return `TASK:${state.tasks[state.currentTaskIndex].speak}: ${item.content ? item.content : ''}`;
+              }
               return item.content;
             }
           })
@@ -228,6 +229,9 @@ export class AgentExecutorGraph {
           'NEVER_WAIT_HUMAN',
           'SUBSEQUENT_TASKS',
           'JSON_RESPONSE_MANDATORY',
+          'TOOL_END_TASK',
+          'TOOL_END_TASK_IF',
+          'WORKING_MEMORY_BLOCKED',
         ]);
         // add goals
         prompt.addInstruction(EXECUTOR_TASK_GENERATION_INSTRUCTION);
@@ -252,49 +256,29 @@ export class AgentExecutorGraph {
         last_node: ExecutorNode;
         tasks?: TaskType[];
         currentGraphStep?: number;
+        currentTaskIndex?: number;
       }
     | Command
   > {
-    if (!this.agentConfig || !this.modelSelector) {
-      throw new Error('Agent configuration and ModelSelector are required.');
-    }
-    // Validate current execution context
-    logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
-
-    const systemPrompt = this.build_prompt_generator(
-      config.configurable!.agent_config!.mode,
-      ExecutorNode.REASONING_EXECUTOR
-    );
-
     try {
+      if (!this.agentConfig || !this.modelSelector) {
+        throw new Error('Agent configuration and ModelSelector are required.');
+      }
+      // Validate current execution context
+      logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
       // Execute model with timeout protection
       const result = await this.executeModelWithTimeout(state, config);
       let toolCall: ToolCall<'id'> | undefined = undefined;
       if (result.tool) {
-        if (result.tool.name === `end_task`) {
-          logger.info(
-            `[Executor] End task signal received. Marking task as completed and terminating execution.`
-          );
-          // Mark current task as completed
-          const currentTask = state.tasks[state.currentTaskIndex];
-          if (currentTask) {
-            currentTask.status = 'completed';
-            logger.info(
-              `[Executor] Task "${currentTask.text}" marked as completed`
-            );
-          }
-          return interrupt('End task signal received from executor.');
-        } else {
-          toolCall = {
-            name: result.tool.name,
-            args:
-              result.tool.args && Object.keys(result.tool.args).length > 0
-                ? result.tool.args
-                : { noParams: {} },
-            id: `snak_${uuidv4()}`,
-            type: 'tool_call',
-          };
-        }
+        toolCall = {
+          name: result.tool.name,
+          args:
+            result.tool.args && Object.keys(result.tool.args).length > 0
+              ? result.tool.args
+              : { noParams: {} },
+          id: `snak_${uuidv4()}`,
+          type: 'tool_call',
+        };
       }
       console.log(toolCall);
       const toolInfo = {
@@ -304,7 +288,10 @@ export class AgentExecutorGraph {
             ? result.tool.args
             : { noParams: {} },
         result: '',
-        status: 'pending' as 'pending',
+        status:
+          result.tool.name === 'end_task'
+            ? ('completed' as const)
+            : ('pending' as const),
       };
       let step_save: StepType = {
         thoughts: result.thoughts,
@@ -316,14 +303,15 @@ export class AgentExecutorGraph {
       });
       newMessage.tool_calls = toolCall ? [toolCall] : [];
       state.tasks[state.currentTaskIndex].steps.push(step_save);
-      console.log(JSON.stringify(newMessage, null, 2));
-      // Handle ReAct responses for INTERACTIVE+REACTIVE mode
-
+      if (result.tool.name === 'end_task') {
+        state.tasks[state.currentTaskIndex].status = 'completed';
+      }
       return {
         messages: [newMessage],
         last_node: ExecutorNode.REASONING_EXECUTOR,
         tasks: state.tasks,
         currentGraphStep: state.currentGraphStep + 1,
+        currentTaskIndex: state.currentTaskIndex,
       };
     } catch (error: any) {
       logger.error(`[Executor] Model invocation failed: ${error.message}`);
@@ -381,7 +369,7 @@ export class AgentExecutorGraph {
         }, toolTimeout);
       });
 
-      const executionPromise = originalInvoke(state, config);
+      const executionPromise = await originalInvoke(state, config);
       const result = await Promise.race([executionPromise, timeoutPromise]);
 
       const executionTime = Date.now() - startTime;

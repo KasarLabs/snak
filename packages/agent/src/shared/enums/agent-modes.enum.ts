@@ -38,9 +38,11 @@ export enum ExecutionMode {
  * Graph node types
  */
 export enum GraphNode {
+  START = 'start',
   PLANNING_ORCHESTRATOR = 'planning_orchestrator',
   AGENT_EXECUTOR = 'agent_executor',
   MEMORY_ORCHESTRATOR = 'memory_orchestrator',
+  TASK_UPDATER = 'task_updater',
   END_GRAPH = 'end_graph',
 }
 

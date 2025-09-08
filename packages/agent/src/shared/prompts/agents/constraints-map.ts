@@ -19,6 +19,12 @@ export const AUTONOMOUS_AI_CONSTRAINTS = {
   DECISITION_SAFEST_POSSIBLE: `If uncertain about a decision, choose the safest option`,
   NEVER_WAIT_HUMAN: `Never wait for human approval before proceeding`,
   THINK_CHECK_AND_ADAPT: `Think "check and adapt" not "build from scratch"`,
+  TOOL_END_TASK: `USE TOOL END_TASK WHEN YOU RESOLVE YOUR GOAL.`,
+  TOOL_END_TASK_IF: `USE TOOL END_TASK IMMEDIATELY IF:
+   - You attempt the same action more than twice with the same result
+   - You cannot proceed to the next logical step
+   - You encounter any error or blocking situation`,
+  WORKING_MEMORY_BLOCKED: `If you see repeated attempts in WORKING_MEMORY with the same result, you are blocked and must use end_task`,
   // Output Format Constraints
   JSON_RESPONSE_MANDATORY: 'YOU MUST ALWAYS RESPOND WITH A JSON OBJECT.',
   TOOL_INVOCATION_REQUIRED:

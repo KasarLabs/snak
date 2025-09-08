@@ -7,7 +7,7 @@ import {
   MemoryOperationResult,
   StepInfo,
   HistoryItem,
-} from '../../types/index.js';
+} from '../../../../shared/types/index.js';
 import { memory } from '@snakagent/database/queries';
 
 /**
@@ -33,7 +33,8 @@ export class STMManager {
    */
   static addMemory(
     stm: STMContext,
-    item: string
+    item: string,
+    task_id: string
   ): MemoryOperationResult<STMContext> {
     try {
       // Validate input
@@ -47,7 +48,7 @@ export class STMManager {
 
       const newItem: MemoryItem = {
         content: item,
-        memories_id: uuidv4(),
+        task_id: task_id,
         timestamp: Date.now(),
         metadata: { insertIndex: stm.totalInserted },
       };
