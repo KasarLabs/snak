@@ -5,7 +5,7 @@ import {
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { AnyZodObject, z } from 'zod';
+import { AnyZodObject, object, z } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
 import { ModelSelector } from '../operators/modelSelector.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -22,7 +22,13 @@ import {
   MemoryNode,
 } from '../../shared/enums/agent-modes.enum.js';
 import { AgentReturn } from '../../shared/types/agents.types.js';
-import { History, Memories, ParsedPlan } from '../../shared/types/index.js';
+import {
+  History,
+  Memories,
+  ParsedPlan,
+  TasksType,
+  TaskType,
+} from '../../shared/types/index.js';
 import { MemoryStateManager } from '../../shared/lib/memory/memory-utils.js';
 import { MemoryGraph } from './sub-graph/memory-graph.js';
 import { PlannerGraph } from './sub-graph/planner-graph.js';
@@ -47,6 +53,10 @@ export const GraphState = Annotation.Root({
   rag: Annotation<string>({
     reducer: (x, y) => y,
     default: () => '',
+  }),
+  tasks: Annotation<TaskType[]>({
+    reducer: (x, y) => y,
+    default: () => [],
   }),
   plans_or_histories: Annotation<Array<ParsedPlan | History>>({
     reducer: (
@@ -130,6 +140,10 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   executionMode: Annotation<ExecutionMode>({
     reducer: (x, y) => y,
     default: () => ExecutionMode.REACTIVE,
+  }),
+  objectives: Annotation<string>({
+    reducer: (x, y) => y,
+    default: () => 'undefined',
   }),
 });
 export class Graph {

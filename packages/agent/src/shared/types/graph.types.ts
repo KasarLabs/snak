@@ -136,3 +136,15 @@ export interface ValidatorStepResponse {
   nextSteps: number;
   isFinal: boolean;
 }
+
+export interface TaskType {
+  id: string;
+  text: string;
+  reasoning: string;
+  criticism: string;
+  status: 'pending' | 'completed' | 'failed' | 'in_progress' | 'waiting';
+}
+
+export interface TasksType {
+  tasks: TaskType[];
+}

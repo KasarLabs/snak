@@ -1,10 +1,12 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
-import { START, StateGraph, Command } from '@langchain/langgraph';
+import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import {
   History,
   isPlannerActivateSchema,
   ParsedPlan,
   StepInfo,
+  TasksType,
+  TaskType,
 } from '../../../shared/types/index.js';
 import {
   checkAndReturnObjectFromPlansOrHistories,
@@ -46,10 +48,20 @@ import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import { isInEnum } from '@enums/utils.js';
-import { PlanSchema, PlanSchemaType } from '@schemas/graph.js';
+import TasksSchema, {
+  PlanSchema,
+  PlanSchemaType,
+  TasksSchemaType,
+} from '@schemas/graph.schemas.js';
 import * as z from 'zod';
 
 import { parseEvolveFromHistoryContext } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
+import { PromptGenerator } from '../manager/prompts/prompt-manager.js';
+import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
+import { INSTRUCTION_TASK_INITALIZER } from '@prompts/agents/instruction.prompts.js';
+import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
+import { tr } from 'zod/v4/locales';
+import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
 ): string => {
@@ -161,20 +173,70 @@ export class PlannerGraph {
     });
   }
 
-  private build_prompt(
+  private build_prompt_generator(mode: AgentMode, context: PlannerNode): string {
+    try {
+      let prompt;
+      if (mode != AgentMode.AUTONOMOUS) {
+        throw new Error(`[PlannerGraph] Unsupported agent mode: ${mode}`);
+      }
+      if (context === PlannerNode.CREATE_INITIAL_PLAN) {
+        prompt = new PromptGenerator();
+        prompt.addHeader(headerPromptStandard);
+
+        // Add constraints based on agent mode
+        prompt.addConstraint('INDEPENDENT_DECISION_MAKING');
+        prompt.addConstraint('DECISION_BASED_ON_DATA_TOOLS');
+        prompt.addConstraint('DECISITION_SAFEST_POSSIBLE');
+        prompt.addConstraint('NEVER_WAIT_HUMAN');
+        prompt.addConstraint('SUBSEQUENT_TASKS');
+        prompt.addConstraint(`JSON_RESPONSE_MANDATORY`);
+
+        // add goals
+        prompt.addGoal(this.agentConfig.prompt.content.toLocaleString());
+        prompt.addInstruction(INSTRUCTION_TASK_INITALIZER);
+        prompt.addTools(parseToolsToJson(this.toolsList));
+        prompt.addPerformanceEvaluation(PERFORMANCE_EVALUATION_PROMPT);
+        return prompt.generatePromptString('task_initializer');
+      }
+      return '';
+    } catch (error) {
+      return '';
+    }
+  }
+
+  private build_prompt_generator_generator(
     mode: AgentMode,
     context: PlannerNode
-  ): PromptValuePairs {
-    const key = `${mode}-${context}`;
-    const prompts = this.planner_prompts.get(key);
+  ): PromptGenerator {
+    try {
+      let prompt: PromptGenerator;
+      if (mode != AgentMode.AUTONOMOUS) {
+        throw new Error(`[PlannerGraph] Unsupported agent mode: ${mode}`);
+      }
+      if (context === PlannerNode.CREATE_INITIAL_PLAN) {
+        prompt = new PromptGenerator();
+        prompt.addHeader(headerPromptStandard);
 
-    if (!prompts) {
-      throw new Error(
-        `No prompts found for mode: ${mode}, context: ${context}`
-      );
+        // Add constraints based on agent mode
+        prompt.addConstraint('INDEPENDENT_DECISION_MAKING');
+        prompt.addConstraint('DECISION_BASED_ON_DATA_TOOLS');
+        prompt.addConstraint('DECISITION_SAFEST_POSSIBLE');
+        prompt.addConstraint('NEVER_WAIT_HUMAN');
+        prompt.addConstraint('SUBSEQUENT_TASKS');
+        prompt.addConstraint(`JSON_RESPONSE_MANDATORY`);
+
+        // add goals
+        prompt.addGoal(this.agentConfig.prompt.content.toLocaleString());
+        prompt.addInstruction(INSTRUCTION_TASK_INITALIZER);
+        prompt.addTools(parseToolsToJson(this.toolsList));
+        prompt.addPerformanceEvaluation(PERFORMANCE_EVALUATION_PROMPT);
+        prompt.setActiveResponseFormat('task_initializer');
+        return prompt;
+      }
+      throw new Error(`[PlannerGraph] No prompt found for context: ${context}`);
+    } catch (error) {
+      throw error;
     }
-
-    return prompts;
   }
 
   private async replanExecution(
@@ -206,16 +268,11 @@ export class PlannerGraph {
       const agent_mode =
         config.configurable?.agent_config?.mode ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt(agent_mode, PlannerNode.PLAN_REVISION);
-      const systemPrompt = prompts.system;
-      const contextPrompt = prompts.context;
+      const prompts = this.build_prompt_generator(agent_mode, PlannerNode.PLAN_REVISION);
 
       const structuredModel = model.withStructuredOutput(PlanSchema);
 
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', systemPrompt],
-        ['ai', contextPrompt],
-      ]);
+      const prompt = ChatPromptTemplate.fromTemplate(prompts);
 
       const structuredResult = (await structuredModel.invoke(
         await prompt.formatMessages({
@@ -267,7 +324,7 @@ export class PlannerGraph {
     | {
         messages: BaseMessage[];
         last_node: PlannerNode;
-        plans_or_histories?: ParsedPlan;
+        tasks?: TaskType[];
         executionMode?: ExecutionMode;
         currentStepIndex: number;
         currentGraphStep: number;
@@ -280,51 +337,72 @@ export class PlannerGraph {
       if (!model) {
         throw new Error('Model not found in ModelSelector');
       }
-      const structuredModel = model.withStructuredOutput(PlanSchema);
+      const structuredModel = model.withStructuredOutput(TasksSchema);
       const agent_mode: AgentMode =
         (config.configurable?.agent_config?.mode as AgentMode) ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt(
+      const prompts = this.build_prompt_generator_generator(
         agent_mode,
         PlannerNode.CREATE_INITIAL_PLAN
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', prompts.system],
-        ['ai', prompts.context],
+        ['system', CORE_AGENT_PROMPT],
       ]);
+
+      const formattedResponseFormat = JSON.stringify(
+        prompts.getResponseFormat(),
+        null,
+        4
+      );
+
       const structuredResult = (await structuredModel.invoke(
         await prompt.formatMessages({
-          agentConfig: this.agentConfig.prompt,
-          toolsAvailable: parseToolsToJson(this.toolsList),
-          userQuery: config.configurable?.user_request ?? '',
+          header: prompts.generateNumberedList(prompts.getHeader()),
+          goal:
+            config.configurable?.objectives ??
+            this.agentConfig.prompt.content.toLocaleString(),
+          constraints: prompts.generateNumberedList(
+            prompts.getConstraints(),
+            'constraint'
+          ),
+          goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
+          instructions: prompts.generateNumberedList(
+            prompts.getInstructions(),
+            'instruction'
+          ),
+          tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
+          performance_evaluation: prompts.generateNumberedList(
+            prompts.getPerformanceEvaluation(),
+            'performance evaluation'
+          ),
+          output_format: formattedResponseFormat,
         })
-      )) as PlanSchemaType;
+      )) as TasksSchemaType;
       logger.info(
-        `[Planner] Successfully created plan_or_history with ${structuredResult.steps.length} steps`
+        `[Planner] Successfully created tasks with ${structuredResult.tasks.length} items`
       );
 
       const aiMessage = new AIMessageChunk({
-        content: `Plan created with ${structuredResult.steps.length} steps:\n${structuredResult.steps
-          .map(
-            (s: StepInfo) => `${s.stepNumber}. ${s.stepName}: ${s.description}`
-          )
-          .join('\n')}`,
+        content: `Plan created with ${structuredResult.tasks.length}`,
         additional_kwargs: {
           error: false,
           final: false,
           from: GraphNode.PLANNING_ORCHESTRATOR,
         },
       });
-      const created_plan: ParsedPlan = {
-        ...structuredResult,
+
+      const tasks = structuredResult.tasks.map((task, index) => ({
         id: uuidv4(),
-        type: 'plan' as const,
-      };
+        text: task.text,
+        reasoning: task.reasoning,
+        criticism: task.criticism,
+        status: 'pending' as 'pending',
+      }));
 
       return {
         messages: [aiMessage],
         last_node: PlannerNode.CREATE_INITIAL_PLAN,
-        plans_or_histories: created_plan,
+        tasks: tasks,
         executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
         currentStepIndex: 0,
@@ -364,13 +442,13 @@ export class PlannerGraph {
       const agent_mode =
         config.configurable?.agent_config?.mode ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt(
+      const prompts = this.build_prompt_generator(
         agent_mode,
         PlannerNode.EVOLVE_FROM_HISTORY
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', prompts.system],
-        ['ai', prompts.context],
+        ['system', prompts],
+        ['ai', prompts],
       ]);
       const structuredResult = (await structuredModel.invoke(
         await prompt.formatMessages({
@@ -462,13 +540,11 @@ export class PlannerGraph {
       const agent_mode =
         config.configurable?.agent_config?.mode ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = this.build_prompt(
+      const prompts = this.build_prompt_generator(
         agent_mode,
         PlannerNode.PLANNER_VALIDATOR
       );
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', prompts.system],
-      ]);
+      const prompt = ChatPromptTemplate.fromMessages([['system', prompts]]);
       const structuredResult = await structuredModel.invoke(
         await prompt.formatMessages({
           agentConfig:
@@ -724,20 +800,22 @@ export class PlannerGraph {
       GraphConfigurableAnnotation
     )
       .addNode('create_initial_plan', this.planExecution.bind(this))
-      .addNode('create_initial_history', this.createInitialHistory.bind(this))
-      .addNode('plan_revision', this.replanExecution.bind(this))
-      .addNode('planner_validator', this.validatorPlanner.bind(this))
-      .addNode('end_planner_graph', this.end_planner_graph.bind(this))
-      .addNode('get_planner_status', this.get_planner_status.bind(this))
-      .addNode('evolve_from_history', this.adaptivePlanner.bind(this))
-      .addEdge('evolve_from_history', 'planner_validator')
-      .addEdge('create_initial_plan', 'planner_validator')
-      .addEdge('plan_revision', 'planner_validator')
-      .addConditionalEdges(START, this.planning_router.bind(this))
-      .addConditionalEdges(
-        'planner_validator',
-        this.planning_router.bind(this)
-      );
+      .addEdge('create_initial_plan', END)
+      .addEdge(START, 'create_initial_plan');
+    // .addNode('create_initial_history', this.createInitialHistory.bind(this))
+    // .addNode('plan_revision', this.replanExecution.bind(this))
+    // .addNode('planner_validator', this.validatorPlanner.bind(this))
+    // .addNode('end_planner_graph', this.end_planner_graph.bind(this))
+    // .addNode('get_planner_status', this.get_planner_status.bind(this))
+    // .addNode('evolve_from_history', this.adaptivePlanner.bind(this))
+    // .addEdge('evolve_from_history', 'planner_validator')
+    // .addEdge('create_initial_plan', 'planner_validator')
+    // .addEdge('plan_revision', 'planner_validator')
+    // .addConditionalEdges(START, this.planning_router.bind(this))
+    // .addConditionalEdges(
+    //   'planner_validator',
+    //   this.planning_router.bind(this)
+    // );
 
     this.graph = planner_subgraph.compile();
   }

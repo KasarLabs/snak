@@ -429,6 +429,7 @@ export class SnakAgent extends BaseAgent {
               : ExecutionMode.REACTIVE,
           checkpoint_id: checkpoint_id ? checkpoint_id : undefined,
           user_request: input ?? undefined,
+          objectives: `-Open Youtube and check for Jul-j'ai tout sus and add a like to this video`,
         },
       };
       let lastChunk;

@@ -52,12 +52,13 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { ChatOpenAI } from '@langchain/openai';
 import { truncateToolResults } from '@agents/utils/tools.utils.js';
-import { ValidatorResponseSchema } from '@schemas/graph.js';
+import { ValidatorResponseSchema } from '@schemas/graph.schemas.js';
 import {
   HistoryItem,
   ParsedPlan,
   History,
   ReturnTypeCheckPlanorHistory,
+  ToolCallWithId,
 } from '../../../shared/types/index.js';
 import { formatLTMForContext } from '../parser/memory/ltm-parser.js';
 import {
@@ -68,6 +69,15 @@ import {
   formatToolsForPlan,
   formatValidatorToolsExecutor,
 } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
+import { PromptGenerator } from '../manager/prompts/prompt-manager.js';
+import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
+import { parseToolsToJson } from './planner-graph.js';
+import {
+  EXECUTOR_TASK_GENERATION_INSTRUCTION,
+  INSTRUCTION_TASK_INITALIZER,
+} from '@prompts/agents/instruction.prompts.js';
+import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
+import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig;
@@ -105,74 +115,57 @@ export class AgentExecutorGraph {
 
   private async invokeModelWithMessages(
     state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>,
-    currentItem: ReturnTypeCheckPlanorHistory,
-    prompt: ChatPromptTemplate
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<AIMessageChunk> {
-    const l_msg = state.messages[state.messages.length - 1];
-
-    const execution_context = // This is safe because if item type is step, it meens that we are in a interactive mode
-      currentItem.type === 'step'
-        ? formatExecutionMessage(currentItem.item)
-        : (config.configurable?.user_request ?? '');
-    const formattedPrompt = await prompt.formatMessages({
-      rejected_reason: l_msg.content ?? '',
-      short_term_memory: formatStepsForContext(
-        state.memories.stm.items
-          .map((item) => item?.step_or_history)
-          .filter((step_or_history) => step_or_history !== undefined)
-      ),
-      long_term_memory: formatLTMForContext(state.memories.ltm.items),
-      execution_context: execution_context,
-    });
-
-    const selectedModelType =
-      config.configurable?.executionMode === ExecutionMode.PLANNING
-        ? await this.modelSelector!.selectModelForMessages(
-            execution_context ?? config.configurable?.user_request ?? ''
-          )
-        : {
-            model: new ChatOpenAI({
-              model: DEFAULT_MODELS.INTERACTIVE_MODEL,
-              temperature: DEFAULT_MODELS.DEFAULT_TEMPERATURE,
-              openAIApiKey: process.env.OPENAI_API_KEY,
-            }),
-            model_name: DEFAULT_MODELS.INTERACTIVE_MODEL,
-          };
-    let model;
-    const modelExecutionMode = config.configurable?.executionMode;
-    const modelAgentMode = config.configurable?.agent_config?.mode;
-
-    // Bind tools for history mode, tools mode, or ReAct mode
-    const shouldBindTools =
-      currentItem.type === 'history' ||
-      currentItem.item.type === 'tools' ||
-      (modelExecutionMode === ExecutionMode.REACTIVE &&
-        modelAgentMode === AgentMode.INTERACTIVE);
-
-    if (shouldBindTools) {
-      model =
-        typeof selectedModelType.model.bindTools === 'function'
-          ? selectedModelType.model.bindTools(this.toolsList)
-          : undefined;
-
-      if (model === undefined) {
-        throw new Error('Failed to bind tools to model');
-      }
-    } else {
-      model = selectedModelType.model;
+    const model = this.modelSelector?.getModels()['fast'];
+    if (!model) {
+      throw new Error('Model not found in ModelSelector');
     }
-    logger.debug(
-      `[Executor] Invoking model (${selectedModelType.model_name}) with ${currentItem.item?.type} execution`
+    if (model === undefined) {
+      throw new Error('Failed to bind tools to model');
+    }
+    const prompts = this.build_prompt_generator(
+      config.configurable!.agent_config!.mode,
+      ExecutorNode.REASONING_EXECUTOR
     );
-    const result = await model.invoke(formattedPrompt);
+    const prompt = ChatPromptTemplate.fromMessages([
+      ['system', CORE_AGENT_PROMPT],
+    ]);
+
+    const formattedResponseFormat = JSON.stringify(
+      prompts.getResponseFormat(),
+      null,
+      4
+    );
+    logger.debug(`[Executor] Invoking model () with execution`);
+    const result = await model.invoke(
+      await prompt.formatMessages({
+        header: prompts.generateNumberedList(prompts.getHeader()),
+        goal: state.tasks[0].text,
+        constraints: prompts.generateNumberedList(
+          prompts.getConstraints(),
+          'constraint'
+        ),
+        goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
+        instructions: prompts.generateNumberedList(
+          prompts.getInstructions(),
+          'instruction'
+        ),
+        tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
+        performance_evaluation: prompts.generateNumberedList(
+          prompts.getPerformanceEvaluation(),
+          'performance evaluation'
+        ),
+        output_format: formattedResponseFormat,
+      })
+    );
     if (!result) {
       throw new Error(
         'Model invocation returned no result. Please check the model configuration.'
       );
     }
 
-    TokenTracker.trackCall(result, selectedModelType.model_name);
+    TokenTracker.trackCall(result, 'selectedModelType.model_name');
 
     // Add metadata to result
     result.additional_kwargs = {
@@ -196,16 +189,9 @@ export class AgentExecutorGraph {
    */
   private async executeModelWithTimeout(
     state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>,
-    currentItem: ReturnTypeCheckPlanorHistory,
-    prompt: ChatPromptTemplate
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<AIMessageChunk> {
-    const modelPromise = this.invokeModelWithMessages(
-      state,
-      config,
-      currentItem,
-      prompt
-    );
+    const modelPromise = this.invokeModelWithMessages(state, config);
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(
         () => reject(new Error('Model invocation timeout')),
@@ -249,7 +235,7 @@ export class AgentExecutorGraph {
       const parsedToolCalls = parseActionsToToolCallsReact(content);
       if (parsedToolCalls.length > 0) {
         // Convert our ToolCall interface to the expected format and add to result
-        toolCallsToUse = parsedToolCalls.map((tc) => ({
+        toolCallsToUse = parsedToolCalls.map((tc: ToolCallWithId) => ({
           name: tc.name,
           args: tc.args,
           id: tc.id,
@@ -370,6 +356,39 @@ export class AgentExecutorGraph {
     }
   }
 
+  private build_prompt_generator(
+    mode: AgentMode,
+    context: ExecutorNode
+  ): PromptGenerator {
+    try {
+      let prompt: PromptGenerator;
+      if (mode != AgentMode.AUTONOMOUS) {
+        throw new Error(`[PlannerGraph] Unsupported agent mode: ${mode}`);
+      }
+      if (context === ExecutorNode.REASONING_EXECUTOR) {
+        prompt = new PromptGenerator();
+        prompt.addHeader(headerPromptStandard);
+        // Add constraints based on agent mode
+        prompt.addConstraint('INDEPENDENT_DECISION_MAKING');
+        prompt.addConstraint('DECISION_BASED_ON_DATA_TOOLS');
+        prompt.addConstraint('DECISITION_SAFEST_POSSIBLE');
+        prompt.addConstraint('NEVER_WAIT_HUMAN');
+        prompt.addConstraint('SUBSEQUENT_TASKS');
+        prompt.addConstraint(`JSON_RESPONSE_MANDATORY`);
+
+        // add goals
+        prompt.addInstruction(EXECUTOR_TASK_GENERATION_INSTRUCTION);
+        prompt.addTools(parseToolsToJson(this.toolsList));
+        prompt.addPerformanceEvaluation(PERFORMANCE_EVALUATION_PROMPT);
+        prompt.setActiveResponseFormat('executor');
+        return prompt;
+      }
+      throw new Error(`[PlannerGraph] No prompt found for context: ${context}`);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // --- EXECUTOR NODE ---
   private async reasoning_executor(
     state: typeof GraphState.State,
@@ -386,56 +405,21 @@ export class AgentExecutorGraph {
     if (!this.agentConfig || !this.modelSelector) {
       throw new Error('Agent configuration and ModelSelector are required.');
     }
-
-    // Initialize based on execution mode
-    const executionMode = config.configurable?.executionMode;
-    if (state.plans_or_histories.length === 0) {
-      if (executionMode === ExecutionMode.REACTIVE) {
-        state.plans_or_histories.push({
-          type: 'history',
-          id: uuidv4(),
-          items: [],
-        });
-      } else {
-        throw new Error('Planning mode requires a plan to be set');
-      }
-    }
-    const currentItem = checkAndReturnLastItemFromPlansOrHistories(
-      state.plans_or_histories,
-      state.currentStepIndex
-    );
     // Validate current execution context
-    checkAndReturnObjectFromPlansOrHistories(state.plans_or_histories);
-    logger.info(`[Executor] Processing...`);
-    const maxGraphSteps =
-      config.configurable?.max_graph_steps ??
-      DEFAULT_GRAPH_CONFIG.maxGraphSteps;
-    const graphStep = state.currentGraphStep;
-
-    if (maxGraphSteps && maxGraphSteps <= graphStep) {
-      logger.warn(`[Executor] Maximum iterations (${maxGraphSteps}) reached`);
-      return createMaxIterationsResponse<ExecutorNode>(
-        graphStep,
-        ExecutorNode.REASONING_EXECUTOR
-      );
-    }
-
     logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
 
-    const systemPrompt = this.buildSystemPrompt(state, config);
+    const systemPrompt = this.build_prompt_generator(
+      config.configurable!.agent_config!.mode,
+      ExecutorNode.REASONING_EXECUTOR
+    );
 
     try {
       // Execute model with timeout protection
-      const result = await this.executeModelWithTimeout(
-        state,
-        config,
-        currentItem,
-        systemPrompt
-      );
+      const result = await this.executeModelWithTimeout(state, config);
       const content = result.content.toLocaleString();
       const tokens = estimateTokens(content);
       const agentMode = config.configurable?.agent_config?.mode;
-
+      const executionMode = config.configurable?.executionMode;
       // Handle ReAct responses for INTERACTIVE+REACTIVE mode
       if (
         executionMode === ExecutionMode.REACTIVE &&

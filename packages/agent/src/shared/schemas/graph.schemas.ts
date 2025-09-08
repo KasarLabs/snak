@@ -80,6 +80,29 @@ export const PlanSchema = z.object({
     .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
 });
 
+// Define the task schema
+const TaskSchema = z
+  .object({
+    text: z.string().describe('thought'),
+    reasoning: z.string().describe('short reasoning about the goal'),
+    criticism: z.string().describe('constructive self-criticism'),
+    speak: z.string().describe('thoughts goal summary to say to executor'),
+  })
+  .strict(); // .strict() prevents additional properties
+
+// Define the main schema
+const TasksSchema = z
+  .object({
+    tasks: z.array(TaskSchema),
+  })
+  .strict();
+
+// Export the schema
+export default TasksSchema;
+
+// Type inference (optional)
+export type TasksSchemaType = z.infer<typeof TasksSchema>;
+export type TaskSchemaType = z.infer<typeof TaskSchema>;
 export type PlanSchemaType = z.infer<typeof PlanSchema>;
 
 export const ValidatorResponseSchema = z.object({

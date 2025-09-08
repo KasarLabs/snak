@@ -1,5 +1,12 @@
 import { Memories } from '@stypes/memory.types.js';
 import { ToolCall } from '@stypes/tools.types.js';
+import {
+  AUTONOMOUS_AI_CONSTRAINTS,
+  getConstraint,
+  getConstraintsByCategory,
+  CONSTRAINT_CATEGORIES,
+} from '../../../../shared/prompts/agents/constraints-map.js';
+import { logger } from '@snakagent/core';
 
 /**
  * A module for generating custom prompt strings.
@@ -21,12 +28,11 @@ interface ResponseFormatTaskInitializer {
     text: string;
     reasoning: string;
     criticism: string;
+    speak: string;
   };
 }
-
-// Dictionary type for storing multiple response formats
 interface ResponseFormats {
-  [key: string]: ResponseFormatExecutorReAct | any;
+  [key: string]: ResponseFormatExecutorReAct | ResponseFormatTaskInitializer;
 }
 
 /**
@@ -58,7 +64,7 @@ export class PromptGenerator {
     this.memory = {
       stm: { items: [], maxSize: 10, head: 0, size: 0, totalInserted: 0 },
       ltm: { items: [], episodic_size: 0, semantic_size: 0, merge_size: 0 },
-      isProcessing: false
+      isProcessing: false,
     };
     this.constraints = [];
     this.tools = [];
@@ -68,7 +74,7 @@ export class PromptGenerator {
     this.activeFormatKey = 'default';
 
     // Initialize with default format
-    this.addResponseFormat('default', {
+    this.addResponseFormat('executor', {
       thoughts: {
         text: 'thought',
         reasoning: 'reasoning',
@@ -79,6 +85,15 @@ export class PromptGenerator {
       Tools: {
         name: 'Tools name',
         args: { 'arg name': 'value' },
+      },
+    });
+
+    this.addResponseFormat('task_initializer', {
+      tasks: {
+        text: 'thought',
+        reasoning: 'short reasoning about the goal',
+        criticism: 'constructive self-criticism',
+        speak: 'thoughts goal summary to say to executor',
       },
     });
   }
@@ -109,8 +124,8 @@ export class PromptGenerator {
    * @param key - The identifier of the response format.
    * @returns The response format object or undefined if not found.
    */
-  getResponseFormat(key: string): any {
-    return this.responseFormats[key];
+  getResponseFormat(): any {
+    return this.responseFormats[this.activeFormatKey];
   }
 
   /**
@@ -180,10 +195,40 @@ export class PromptGenerator {
 
   /**
    * Add a constraint to the constraints list.
-   * @param constraint - The constraint to be added.
+   * @param constraint - The constraint to be added (can be a string or a constraint key from the map).
    */
-  addConstraint(constraint: string): void {
-    this.constraints.push(constraint);
+  addConstraint(constraint: keyof typeof AUTONOMOUS_AI_CONSTRAINTS): void {
+    if (
+      typeof constraint === 'string' &&
+      constraint in AUTONOMOUS_AI_CONSTRAINTS
+    ) {
+      // If it's a key from the constraints map, get the actual constraint text
+      this.constraints.push(
+        getConstraint(constraint as keyof typeof AUTONOMOUS_AI_CONSTRAINTS)
+      );
+    } else {
+      logger.warn(`Constraint "${constraint}" not found in constraints map.`);
+    }
+  }
+
+  /**
+   * Add multiple constraints by category.
+   * @param category - The category of constraints to add.
+   */
+  addConstraintsByCategory(category: keyof typeof CONSTRAINT_CATEGORIES): void {
+    const categoryConstraints = getConstraintsByCategory(category);
+    categoryConstraints.forEach((constraint: string) =>
+      this.constraints.push(constraint)
+    );
+  }
+
+  /**
+   * Add all available constraints.
+   */
+  addAllConstraints(): void {
+    Object.values(AUTONOMOUS_AI_CONSTRAINTS).forEach((constraint: string) =>
+      this.constraints.push(constraint)
+    );
   }
 
   /**
@@ -225,12 +270,100 @@ export class PromptGenerator {
   }
 
   /**
+   * Get the header array.
+   * @returns The header array.
+   */
+  getHeader(): string[] {
+    return this.header;
+  }
+
+  /**
+   * Get the instructions array.
+   * @returns The instructions array.
+   */
+  getInstructions(): string[] {
+    return this.instructions;
+  }
+
+  /**
+   * Get the goals array.
+   * @returns The goals array.
+   */
+  getGoals(): string[] {
+    return this.goals;
+  }
+
+  /**
+   * Get the history instructions array.
+   * @returns The history instructions array.
+   */
+  getHistoryInstructions(): string[] {
+    return this.historyInstructions;
+  }
+
+  /**
+   * Get the memory object.
+   * @returns The memory object.
+   */
+  getMemory(): Memories {
+    return this.memory;
+  }
+
+  /**
+   * Get the constraints array.
+   * @returns The constraints array.
+   */
+  getConstraints(): string[] {
+    return this.constraints;
+  }
+
+  /**
+   * Get the tools array.
+   * @returns The tools array.
+   */
+  getTools(): string[] {
+    return this.tools;
+  }
+
+  /**
+   * Get the resources array.
+   * @returns The resources array.
+   */
+  getResources(): string[] {
+    return this.resources;
+  }
+
+  /**
+   * Get the performance evaluation array.
+   * @returns The performance evaluation array.
+   */
+  getPerformanceEvaluation(): string[] {
+    return this.performanceEvaluation;
+  }
+
+  /**
+   * Get all response formats.
+   * @returns The response formats object.
+   */
+  getResponseFormats(): ResponseFormats {
+    return this.responseFormats;
+  }
+
+  /**
+   * Get the active format key.
+   * @returns The active format key.
+   */
+  getActiveFormatKey(): string {
+    return this.activeFormatKey;
+  }
+
+  /**
    * Generate a numbered list from given items based on the item_type.
    * @param items - A list of items to be numbered.
    * @param itemType - The type of items in the list. Defaults to 'list'.
    * @returns The formatted numbered list.
    */
-  private generateNumberedList(
+  public generateNumberedList(
     items: any[],
     itemType: string = 'list'
   ): string {
@@ -254,68 +387,85 @@ export class PromptGenerator {
     const formattedResponseFormat = JSON.stringify(responseFormat, null, 4);
 
     let promptParts: string[] = [];
-    
+
     // Add header if present
     if (this.header.length > 0) {
       promptParts.push(`Header:\n${this.generateNumberedList(this.header)}\n`);
     }
-    
+
     // Add instructions if present
     if (this.instructions.length > 0) {
-      promptParts.push(`Instructions:\n${this.generateNumberedList(this.instructions)}\n`);
+      promptParts.push(
+        `Instructions:\n${this.generateNumberedList(this.instructions)}\n`
+      );
     }
-    
+
     // Add goals if present
     if (this.goals.length > 0) {
       promptParts.push(`Goals:\n${this.generateNumberedList(this.goals)}\n`);
     }
-    
+
     // Add history instructions if present
     if (this.historyInstructions.length > 0) {
-      promptParts.push(`History Instructions:\n${this.generateNumberedList(this.historyInstructions)}\n`);
+      promptParts.push(
+        `History Instructions:\n${this.generateNumberedList(this.historyInstructions)}\n`
+      );
     }
-    
+
     // Add memory if present
-    if (this.memory && (this.memory.stm.size > 0 || this.memory.ltm.items.length > 0)) {
+    if (
+      this.memory &&
+      (this.memory.stm.size > 0 || this.memory.ltm.items.length > 0)
+    ) {
       let memorySection = 'Memory:\n';
       if (this.memory.stm.size > 0) {
-        const stmItems = this.memory.stm.items.filter(item => item !== null).map(item => JSON.stringify(item));
+        const stmItems = this.memory.stm.items
+          .filter((item) => item !== null)
+          .map((item) => JSON.stringify(item));
         memorySection += `Short Term:\n${this.generateNumberedList(stmItems)}\n`;
       }
       if (this.memory.ltm.items.length > 0) {
-        const ltmItems = this.memory.ltm.items.map(item => JSON.stringify(item));
+        const ltmItems = this.memory.ltm.items.map((item) =>
+          JSON.stringify(item)
+        );
         memorySection += `Long Term:\n${this.generateNumberedList(ltmItems)}\n`;
       }
       promptParts.push(memorySection);
     }
-    
+
     // Add constraints if present
     if (this.constraints.length > 0) {
-      promptParts.push(`Constraints:\n${this.generateNumberedList(this.constraints)}\n`);
+      promptParts.push(
+        `Constraints:\n${this.generateNumberedList(this.constraints)}\n`
+      );
     }
-    
+
     // Add tools if present
     if (this.tools.length > 0) {
       promptParts.push(`Tools:\n${this.generateNumberedList(this.tools)}\n`);
     }
-    
+
     // Add resources if present
     if (this.resources.length > 0) {
-      promptParts.push(`Resources:\n${this.generateNumberedList(this.resources)}\n`);
+      promptParts.push(
+        `Resources:\n${this.generateNumberedList(this.resources)}\n`
+      );
     }
-    
+
     // Add performance evaluation if present
     if (this.performanceEvaluation.length > 0) {
-      promptParts.push(`Performance Evaluation:\n${this.generateNumberedList(this.performanceEvaluation)}\n`);
+      promptParts.push(
+        `Performance Evaluation:\n${this.generateNumberedList(this.performanceEvaluation)}\n`
+      );
     }
-    
+
     // Add response format
     promptParts.push(
       `You should only respond in JSON format as described below \n` +
-      `Response Format: \n${formattedResponseFormat} \n` +
-      `Ensure the response can be parsed by Python json.loads`
+        `Response Format: \n${formattedResponseFormat} \n` +
+        `Ensure the response can be parsed by Python json.loads`
     );
-    
+
     return promptParts.join('\n');
   }
 }
