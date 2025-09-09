@@ -5,14 +5,14 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup",
+    "build": "tsup --dts",
     "dev": "tsx src/index.ts",
     "test": "tsx src/main.ts",
     "demo": "tsx src/demo.ts",
     "test:agents": "tsx src/test-agents.ts",
     "test:files": "tsx src/test-files.ts",
     "test:chat": "tsx src/test-chat.ts",
-    "test:file-stress": "tsx src/file-test/file-upload-stress.ts",
+    "test:file-stress": "tsx src/file-test/file-upload-stress-v2.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

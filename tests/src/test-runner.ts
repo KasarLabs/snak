@@ -24,7 +24,7 @@ export class TestRunner {
       const result: TestResult = {
         testName,
         success: true,
-        duration,
+        durationMs: duration,
         response
       };
       
@@ -38,7 +38,7 @@ export class TestRunner {
       const result: TestResult = {
         testName,
         success: false,
-        duration,
+        durationMs: duration,
         error: error instanceof Error ? error.message : String(error)
       };
       
@@ -103,9 +103,9 @@ export class TestRunner {
         this.client.getAgents()
       );
       
-      if (agents.success && agents.response && agents.response.data && agents.response.data.length > 0) {
-        console.log('✅ Found agents:', agents.response.data.length);
-        const agentId = agents.response.data[0].id;
+      if (agents.success && agents.response && (agents.response as any[]).length > 0) {
+        console.log('✅ Found agents:', (agents.response as any[]).length);
+        const agentId = (agents.response as any[])[0].id;
           
         await this.runTest('Send Agent Request', () => 
           this.client.sendAgentRequest({
@@ -142,12 +142,15 @@ export class TestRunner {
     
     const passed = this.results.filter(r => r.success).length;
     const failed = this.results.filter(r => !r.success).length;
-    const totalDuration = this.results.reduce((sum, r) => sum + r.duration, 0);
+    const totalDuration = this.results.reduce((sum, r) => sum + r.durationMs, 0);
 
     console.log(chalk.green(`✅ Passed: ${passed}`));
     console.log(chalk.red(`❌ Failed: ${failed}`));
     console.log(chalk.blue(`⏱️  Total Duration: ${totalDuration}ms`));
-    console.log(chalk.blue(`📈 Success Rate: ${((passed / this.results.length) * 100).toFixed(1)}%`));
+    const successRate = this.results.length > 0 
+     ? ((passed / this.results.length) * 100).toFixed(1) 
+     : '0.0';
+    console.log(chalk.blue(`📈 Success Rate: ${successRate}%`));
 
     if (failed > 0) {
       console.log(chalk.red.bold('\n❌ Failed Tests:'));

@@ -1,13 +1,15 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import FormData from 'form-data';
+import { AgentResponse } from '@snakagent/core';
 import { 
   SnakConfig, 
   AgentRequest, 
-  AgentResponse, 
   FileUploadResponse, 
   FileListResponse,
   AgentConfig,
-  CreateAgentRequest
+  CreateAgentRequest,
+  JobStatus,
+  QueueMetrics
 } from './types.js';
 
 export class SnakClient {
@@ -123,6 +125,34 @@ export class SnakClient {
       } catch {
         throw new Error('Service is not responding');
       }
+    }
+  }
+
+  // Worker-related methods
+  async getJobStatus(jobId: string): Promise<JobStatus> {
+    const response: AxiosResponse<JobStatus> = await this.client.get(`/api/files/status/${jobId}`);
+    return response.data;
+  }
+
+  async getQueueMetrics(): Promise<QueueMetrics[]> {
+    const response: AxiosResponse<QueueMetrics[]> = await this.client.get('/api/files/queues/metrics');
+    return response.data;
+  }
+
+  // Generic request method for future extensibility
+  async request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, data?: any): Promise<{ success: boolean; response?: any; error?: string }> {
+    try {
+      const response = await this.client.request({
+        method,
+        url,
+        data
+      });
+      return { success: true, response: response.data };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || error.message || 'Request failed' 
+      };
     }
   }
 }

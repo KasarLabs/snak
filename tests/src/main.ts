@@ -2,9 +2,8 @@ import { TestRunner } from './test-runner.js';
 import { SnakConfig } from './types.js';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
-import path from 'path';
 
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config();
 
 const port = process.env.SERVER_PORT || '3002';
 const config: SnakConfig = {

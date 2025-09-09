@@ -11,21 +11,26 @@ export interface AgentRequest {
   };
 }
 
-export interface AgentResponse {
-  status: 'success' | 'failure' | 'waiting_for_human_input';
-  data?: unknown;
+export interface FileUploadResponse {
+  jobId: string;
 }
 
-export interface FileUploadResponse {
-  chunks: Array<{
-    content: string;
-    metadata: {
-      source: string;
-      chunk_index: number;
-      [key: string]: any;
-    };
-  }>;
-  totalChunks: number;
+export interface JobStatus {
+  id: string;
+  status: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed';
+  error?: string;
+  createdAt?: Date;
+  processedOn?: Date;
+  finishedOn?: Date;
+}
+
+export interface QueueMetrics {
+  queueName: string;
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  delayed: number;
 }
 
 export interface FileListResponse {
@@ -85,10 +90,10 @@ export interface CreateAgentRequest {
   agent: AgentInitializationDTO;
 }
 
-export interface TestResult {
+export interface TestResult<T = unknown> {
   testName: string;
   success: boolean;
-  duration: number;
+  durationMs: number;
   error?: string;
-  response?: any;
+  response?: T;
 }

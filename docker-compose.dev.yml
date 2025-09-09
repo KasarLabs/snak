@@ -2,6 +2,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg17
     container_name: 'postgresql'
+    networks:
+      - default
     ports:
       - '5432:5432'
     env_file:
@@ -21,4 +23,29 @@ services:
         -c log_filename='postgresql-%Y-%m-%d_%H:%M:%S.log'
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: snak_redis
+    networks:
+      - default
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis_data:/data
+    env_file:
+      - .env
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
