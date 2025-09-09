@@ -1,3 +1,4 @@
+// Legacy interfaces - kept for backward compatibility
 export interface JobData {
   id: string;
   type: string;
@@ -5,14 +6,8 @@ export interface JobData {
   metadata?: Record<string, any>;
 }
 
-export interface JobResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface WorkerConfig {
+// Legacy WorkerConfig - kept for backward compatibility
+export interface LegacyWorkerConfig {
   redis: {
     host: string;
     port: number;
@@ -29,7 +24,8 @@ export interface WorkerConfig {
   };
 }
 
-export interface QueueMetrics {
+// Legacy QueueMetrics - kept for backward compatibility
+export interface LegacyQueueMetrics {
   queueName: string;
   waiting: number;
   active: number;
@@ -70,4 +66,17 @@ export interface FileIngestionResult {
   size: number;
   processedAt: string;
   chunks: unknown[];
+  chunksCount?: number;
+  embeddingsCount?: number;
+  processingTime?: number;
+  userId?: string;
 }
+
+// Export file ingestion types
+export * from './file-ingestion.js';
+
+// Export jobs types
+export * from './jobs.js';
+
+// Export workers types
+export * from './workers.js';

@@ -1,16 +1,10 @@
 import { Job, JobOptions, Queue } from 'bull';
 import { JobType } from '../types/index.js';
 import { QueueManager } from './queue-manager.js';
-
-export type FileIngestionJobPayload = {
-  agentId: string;
-  userId: string;
-  fileId: string;
-  originalName: string;
-  mimeType: string;
-  buffer: Buffer;
-  size: number;
-};
+import { 
+  FileIngestionJobPayload, 
+  validateFileIngestionPayload 
+} from './file-ingestion-queue.schema.js';
 
 export class FileIngestionQueue {
   private readonly queueManager: QueueManager;
@@ -35,13 +29,15 @@ export class FileIngestionQueue {
   }
 
   async addFileIngestionJob(
-    payload: FileIngestionJobPayload,
+    payload: unknown,
     options?: JobOptions
   ): Promise<Job> {
+    const validatedPayload = validateFileIngestionPayload(payload);
+    
     return await this.queueManager.addJob(
       this.queueName,
       JobType.FILE_INGESTION,
-      payload,
+      validatedPayload,
       options
     );
   }

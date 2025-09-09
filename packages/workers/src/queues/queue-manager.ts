@@ -1,5 +1,5 @@
 import Bull, { Job, JobOptions, Queue } from 'bull';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { WorkerConfig, QueueMetrics, JobType } from '../types/index.js';
 import { loadWorkerConfig } from '../config/worker-config.js';
 import { logger } from '@snakagent/core';
@@ -8,29 +8,48 @@ export class QueueManager {
   private redis: Redis;
   private queues: Map<string, Queue>;
   private config: WorkerConfig;
+  private initialized = false;
 
-  constructor() {
+  constructor(redisConfig?: { host: string; port: number; password?: string; db?: number }) {
     this.config = loadWorkerConfig();
+    
+    // Use provided Redis config or fall back to worker config
+    const redisSettings = redisConfig || this.config.redis;
+    
     this.redis = new Redis({
-      host: this.config.redis.host,
-      port: this.config.redis.port,
-      password: this.config.redis.password,
-      db: this.config.redis.db,
+      host: redisSettings.host,
+      port: redisSettings.port,
+      password: redisSettings.password,
+      db: redisSettings.db,
     });
     this.queues = new Map();
   }
 
   async initialize(): Promise<void> {
+    if (this.initialized) {
+      logger.warn('QueueManager already initialized');
+      return;
+    }
     // Initialize all queues
     const queueNames = Object.values(this.config.queues);
 
+    if (queueNames.length === 0) {
+      logger.warn('No queues configured');
+      this.initialized = true;
+      return;
+    }
+
     for (const queueName of queueNames) {
+      if (!queueName || typeof queueName !== 'string') {
+        logger.error(`Invalid queue name: ${queueName}`);
+        continue;
+      }
       const queue = new Bull(queueName, {
         redis: {
-          host: this.config.redis.host,
-          port: this.config.redis.port,
-          password: this.config.redis.password,
-          db: this.config.redis.db,
+          host: this.redis.options.host,
+          port: this.redis.options.port,
+          password: this.redis.options.password,
+          db: this.redis.options.db,
         },
       });
 
@@ -44,6 +63,8 @@ export class QueueManager {
         logger.error(`Job ${job.id} in queue ${queueName} failed:`, err);
       });
     }
+    this.initialized = true;
+    logger.info(`Initialized ${this.queues.size} queue(s)`);
   }
 
   getQueue(queueName: string): Queue | undefined {
@@ -120,11 +141,30 @@ export class QueueManager {
   }
 
   async close(): Promise<void> {
-    const closePromises = Array.from(this.queues.values()).map((queue) =>
-      queue.close()
-    );
+    logger.info('Closing queue manager...');
+    
+    // Close all queues
+    const closePromises = Array.from(this.queues.values()).map(async (queue) => {
+      try {
+        await queue.close();
+        logger.debug(`Queue ${queue.name} closed successfully`);
+      } catch (error) {
+        logger.error(`Error closing queue ${queue.name}:`, error);
+      }
+    });
+    
     await Promise.all(closePromises);
-    await this.redis.quit();
+    this.queues.clear();
+    
+    // Close Redis connection
+    try {
+      await this.redis.quit();
+      logger.info('Redis connection closed successfully');
+    } catch (error) {
+      logger.error('Error closing Redis connection:', error);
+    }
+    
+    logger.info('Queue manager closed successfully');
   }
 
   getConfig(): WorkerConfig {
