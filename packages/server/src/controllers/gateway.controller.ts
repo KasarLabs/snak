@@ -1,4 +1,4 @@
-import { AgentResponse } from './agents.controller.js';
+import { AgentResponse } from '@snakagent/core';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import ServerError from '../utils/error.js';

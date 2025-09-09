@@ -2,7 +2,7 @@ import type { Job } from 'bull';
 import { QueueManager, FileIngestionQueue } from '../queues/index.js';
 import { FileIngestionProcessor } from './file-ingestion-processor.js';
 import { logger } from '@snakagent/core';
-import { FileIngestionResult } from '../types/index.js';
+import { FileIngestionResult, ResultSource, ResultStatus } from '../types/index.js';
 import { CacheService } from '../services/cache/cache.service.js';
 
 export class JobProcessor {
@@ -132,12 +132,12 @@ export class JobProcessor {
           jobId: job.id.toString(),
           agentId: job.data.agentId,
           userId: job.data.userId,
-          status: 'completed',
+          status: ResultStatus.COMPLETED,
           data: result,
           error: undefined,
           createdAt: new Date(job.timestamp),
           completedAt: new Date(),
-          source: 'bull',
+          source: ResultSource.BULL,
         });
       } catch (cacheError) {
         logger.error(
@@ -157,12 +157,12 @@ export class JobProcessor {
           jobId: job.id.toString(),
           agentId: job.data.agentId,
           userId: job.data.userId,
-          status: 'failed',
+          status: ResultStatus.FAILED,
           data: null,
           error: error instanceof Error ? error.message : 'Unknown error',
           createdAt: new Date(job.timestamp),
           completedAt: new Date(),
-          source: 'bull',
+          source: ResultSource.BULL,
         });
       } catch (cacheError) {
         logger.error(
