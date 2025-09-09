@@ -2,7 +2,6 @@ import { AgentResponse } from '@snakagent/core';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import ServerError from '../utils/error.js';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -19,7 +18,6 @@ import {
   WebsocketGetAgentsConfigRequestDTO,
   WebsocketGetMessagesRequestDTO,
 } from '@snakagent/core';
-import { metrics } from '@snakagent/metrics';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
 import { getUserIdFromSocketHeaders } from '../utils/headers.js';
