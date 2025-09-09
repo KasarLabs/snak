@@ -1,9 +1,6 @@
 import { logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
-import { CustomHuggingFaceEmbeddings } from '@snakagent/core'; /**
- * Transaction-safe memory database operations
- * Fixes the race conditions and data corruption issues in the original implementation
- */
+import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import {
   EpisodicMemoryContext,
   MemoryOperationResult,
@@ -19,6 +16,15 @@ export class MemoryDBManager {
     maxRetries: number = 3,
     timeoutMs: number = 5000
   ) {
+    if (!embeddings) {
+      throw new Error('Embeddings parameter is required');
+    }
+    if (maxRetries <= 0) {
+      throw new Error('maxRetries must be at least 1');
+    }
+    if (!timeoutMs) {
+      throw new Error('timeoutMs must be at least 100ms');
+    }
     this.embeddings = embeddings;
     this.maxRetries = maxRetries;
     this.timeoutMs = timeoutMs;
@@ -346,7 +352,7 @@ export class MemoryDBManager {
       if (!memory.fact.trim()) {
         return {
           success: false,
-          error: 'Content cannot be empty',
+          error: 'Fact cannot be empty',
           timestamp: Date.now(),
         };
       }

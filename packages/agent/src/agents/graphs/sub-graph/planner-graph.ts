@@ -52,11 +52,16 @@ import { parseEvolveFromHistoryContext } from '../parser/plan-or-histories/plan-
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
 ): string => {
-  const toolFunctions = tools.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    parameters: toJsonSchema(tool.schema),
-  }));
+  const toolFunctions = tools.map((tool) => {
+    const schema = (tool as any).schema as AnyZodObject | undefined;
+    return {
+      name: tool.name,
+      description: tool.description,
+      parameters: schema
+        ? toJsonSchema(schema)
+        : { type: 'object', properties: {} },
+    };
+  });
 
   const formatTools = toolFunctions.map((tool, index) => ({
     index: index,
@@ -191,6 +196,9 @@ export class PlannerGraph {
   > {
     try {
       const l_msg = state.messages[state.messages.length - 1];
+      if (!l_msg) {
+        throw new Error('No messages in state to base replanning on');
+      }
       logger.info('[PlanRevision] Starting plan_or_history revision');
       const model = this.modelSelector?.getModels()['fast'];
       if (!model) {
@@ -603,6 +611,12 @@ export class PlannerGraph {
     }
     const currentMode = agent_config.mode;
     const l_msg = state.messages[state.messages.length - 1];
+    if (!l_msg) {
+      logger.error(
+        '[PLANNING_ROUTER] No messages in state to base routing on. routing to END_GRAPH'
+      );
+      return PlannerNode.END_PLANNER_GRAPH;
+    }
     const maxRetries = DEFAULT_GRAPH_CONFIG.maxRetries;
 
     if (

@@ -96,7 +96,7 @@ export class STMManager {
       }
     }
 
-    return memories;
+    return memories.reverse(); // Newest first
   }
 
   /**

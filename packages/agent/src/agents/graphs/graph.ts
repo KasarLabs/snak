@@ -157,12 +157,12 @@ export class Graph {
     try {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
-        logger.debug('Agent] Memory agent retrieved successfully');
+        logger.debug('[Agent] Memory agent retrieved successfully');
         // const memoryTools = this.memoryAgent.prepareMemoryTools(); TODO
         // this.toolsList.push(...memoryTools);
       } else {
         logger.warn(
-          'Agent] WARNING: Memory agent not available - memory features will be limited'
+          '[Agent] WARNING: Memory agent not available - memory features will be limited'
         );
       }
     } catch (error) {
@@ -175,7 +175,7 @@ export class Graph {
       this.ragAgent = this.snakAgent.getRagAgent();
       if (!this.ragAgent) {
         logger.warn(
-          'Agent] WARNING: RAG agent not available - RAG context will be skipped'
+          '[Agent] WARNING: RAG agent not available - RAG context will be skipped'
         );
       }
     } catch (error) {
@@ -418,14 +418,14 @@ export class Graph {
       const workflow = this.buildWorkflow();
       this.app = workflow.compile(this.getCompileOptions());
 
-      logger.info('Agent] Successfully initialized agent');
+      logger.info('[Agent] Successfully initialized agent');
 
       return {
         app: this.app,
         agent_config: this.agentConfig,
       };
     } catch (error) {
-      logger.error('Agent] Failed to create agent:', error);
+      logger.error('[Agent] Failed to create agent:', error);
       throw error;
     }
   }
