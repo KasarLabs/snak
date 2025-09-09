@@ -8,10 +8,12 @@ import { FileIngestionWorkerService } from '../services/file-ingestion-worker/fi
 @Injectable()
 export class FileIngestionProcessor {
   constructor(
-    private readonly fileIngestionWorkerService: FileIngestionWorkerService,
+    private readonly fileIngestionWorkerService: FileIngestionWorkerService
   ) {}
 
-  async process(job: Job<FileIngestionJobPayload>): Promise<FileIngestionResult> {
+  async process(
+    job: Job<FileIngestionJobPayload>
+  ): Promise<FileIngestionResult> {
     const { agentId, userId, fileId, originalName, mimeType, buffer, size } =
       job.data;
 
@@ -22,20 +24,21 @@ export class FileIngestionProcessor {
     try {
       const content = buffer.toString('base64');
 
-      const jobResult = await this.fileIngestionWorkerService.processFileIngestionJob({
-        documentId: fileId,
-        agentId,
-        userId,
-        originalName,
-        mimeType,
-        content,
-        size,
-        options: {
-          generateEmbeddings: true,
-          storeInVectorDB: true,
-          contentEncoding: 'base64',
-        },
-      });
+      const jobResult =
+        await this.fileIngestionWorkerService.processFileIngestionJob({
+          documentId: fileId,
+          agentId,
+          userId,
+          originalName,
+          mimeType,
+          content,
+          size,
+          options: {
+            generateEmbeddings: true,
+            storeInVectorDB: true,
+            contentEncoding: 'base64',
+          },
+        });
 
       if (!jobResult.success) {
         logger.error(
@@ -67,7 +70,8 @@ export class FileIngestionProcessor {
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       logger.error(
         `File ingestion failed for ${originalName} (agent: ${agentId}):`,
         {
@@ -81,7 +85,7 @@ export class FileIngestionProcessor {
           size,
         }
       );
-      
+
       throw error;
     }
   }

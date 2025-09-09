@@ -175,7 +175,8 @@ export class ConfigurationService {
   get redis() {
     const host = this.config.REDIS_HOST ?? '127.0.0.1';
     const port = Number(this.config.REDIS_PORT ?? 6379);
-    const db = this.config.REDIS_DB !== undefined ? Number(this.config.REDIS_DB) : 0;
+    const db =
+      this.config.REDIS_DB !== undefined ? Number(this.config.REDIS_DB) : 0;
     if (!Number.isFinite(port) || port <= 0) {
       throw new Error(`Invalid REDIS_PORT: ${this.config.REDIS_PORT}`);
     }

@@ -21,11 +21,13 @@ export class JobsMetadataService {
 
   async createJobMetadata(data: CreateJobMetadataData): Promise<JobMetadata> {
     const jobId = data.jobId || data.payload?.jobId;
-    
+
     try {
       // Validate required fields
       if (!jobId) {
-        throw new Error('jobId is required (either in data.jobId or data.payload.jobId)');
+        throw new Error(
+          'jobId is required (either in data.jobId or data.payload.jobId)'
+        );
       }
       if (!data.agentId) {
         throw new Error('agentId is required');
@@ -43,15 +45,17 @@ export class JobsMetadataService {
         RETURNING *
       `;
       logger.debug(`query: ${query}`);
-      logger.debug(`Creating job metadata with data:${jobId}, ${data.agentId}, ${data.userId}, ${data.status}`);
-      
+      logger.debug(
+        `Creating job metadata with data:${jobId}, ${data.agentId}, ${data.userId}, ${data.status}`
+      );
+
       const values = [
         jobId,
         data.agentId,
         data.userId,
         data.status || JobStatus.PENDING,
       ];
-      
+
       const q = new Postgres.Query(query, values);
       const result = await Postgres.query(q);
       const job = result[0];
@@ -80,7 +84,6 @@ export class JobsMetadataService {
         values.push(data.status);
       }
 
-
       if (data.error !== undefined) {
         updateFields.push(`error = $${paramIndex++}`);
         values.push(data.error);
@@ -95,7 +98,6 @@ export class JobsMetadataService {
         updateFields.push(`completed_at = $${paramIndex++}`);
         values.push(data.completedAt);
       }
-
 
       if (updateFields.length === 0) {
         return await this.getJobMetadata(jobId);
@@ -166,7 +168,10 @@ export class JobsMetadataService {
 
       return this.mapRowToJobMetadata(result[0]);
     } catch (error) {
-      logger.error(`Failed to get job metadata for ${jobId} and user ${userId}:`, error);
+      logger.error(
+        `Failed to get job metadata for ${jobId} and user ${userId}:`,
+        error
+      );
       throw error;
     }
   }
@@ -287,7 +292,10 @@ export class JobsMetadataService {
 
       const jobMetadata = await this.getJobMetadataForUser(jobId, userId);
       if (jobMetadata) {
-        if (jobMetadata.status === JobStatus.ACTIVE || jobMetadata.status === JobStatus.PENDING) {
+        if (
+          jobMetadata.status === JobStatus.ACTIVE ||
+          jobMetadata.status === JobStatus.PENDING
+        ) {
           return {
             jobId,
             agentId: jobMetadata.agentId || '',
@@ -308,10 +316,9 @@ export class JobsMetadataService {
         createdAt: new Date(),
         source: ResultSource.DATABASE,
       };
-
     } catch (error) {
       logger.error(`Failed to retrieve result for job ${jobId}:`, error);
-      
+
       // En cas d'erreur, essayer la régénération si autorisée
       if (allowRegeneration) {
         try {
@@ -319,7 +326,7 @@ export class JobsMetadataService {
             forceRegeneration: true,
             timeout: timeout - (Date.now() - startTime),
           });
-          
+
           if (regeneratedResult) {
             logger.info(`Result regenerated for job ${jobId}`);
             return {
@@ -329,7 +336,10 @@ export class JobsMetadataService {
             };
           }
         } catch (regenError) {
-          logger.error(`Failed to regenerate result for job ${jobId}:`, regenError);
+          logger.error(
+            `Failed to regenerate result for job ${jobId}:`,
+            regenError
+          );
         }
       }
 
@@ -349,7 +359,10 @@ export class JobsMetadataService {
   /**
    * Récupère un résultat depuis le cache Redis
    */
-  private async getFromCache(jobId: string, userId: string): Promise<JobRetrievalResult | null> {
+  private async getFromCache(
+    jobId: string,
+    userId: string
+  ): Promise<JobRetrievalResult | null> {
     if (!this.cacheService) return null;
 
     try {
@@ -357,7 +370,7 @@ export class JobsMetadataService {
       if (!cachedData) return null;
 
       const jobMetadata = await this.getJobMetadataForUser(jobId, userId);
-      
+
       return {
         jobId,
         agentId: jobMetadata?.agentId || '',
@@ -377,7 +390,10 @@ export class JobsMetadataService {
   /**
    * Récupère un résultat depuis la base de données
    */
-  private async getFromDatabase(jobId: string, userId: string): Promise<JobRetrievalResult | null> {
+  private async getFromDatabase(
+    jobId: string,
+    userId: string
+  ): Promise<JobRetrievalResult | null> {
     try {
       const jobMetadata = await this.getJobMetadataForUser(jobId, userId);
       if (!jobMetadata || jobMetadata.status !== JobStatus.COMPLETED) {
@@ -396,7 +412,10 @@ export class JobsMetadataService {
   /**
    * Récupère un résultat depuis Bull/Redis
    */
-  private async getFromBull(jobId: string, userId: string): Promise<JobRetrievalResult | null> {
+  private async getFromBull(
+    jobId: string,
+    userId: string
+  ): Promise<JobRetrievalResult | null> {
     try {
       // Cette méthode devrait être implémentée avec l'accès à Bull
       // Pour l'instant, on retourne null
@@ -410,7 +429,11 @@ export class JobsMetadataService {
   /**
    * Met à jour le résultat en base de données
    */
-  private async updateDatabaseResult(jobId: string, userId: string, data: any): Promise<void> {
+  private async updateDatabaseResult(
+    jobId: string,
+    userId: string,
+    data: any
+  ): Promise<void> {
     try {
       // Pour l'instant, on ne stocke pas les résultats en DB
       // Cette méthode est prête pour l'extension future
@@ -451,7 +474,6 @@ export class JobsMetadataService {
       // Cette méthode est prête pour l'extension future
       logger.info(`Result regeneration not implemented for job ${jobId}`);
       return null;
-
     } catch (error) {
       logger.error(`Failed to regenerate result for job ${jobId}:`, error);
       return null;
@@ -467,10 +489,13 @@ export class JobsMetadataService {
         allowRegeneration: false,
         fallbackToBull: false,
       });
-      
+
       return result.status === ResultStatus.COMPLETED;
     } catch (error) {
-      logger.error(`Failed to check result availability for job ${jobId}:`, error);
+      logger.error(
+        `Failed to check result availability for job ${jobId}:`,
+        error
+      );
       return false;
     }
   }
@@ -517,7 +542,9 @@ export class JobsMetadataService {
     try {
       // Le cache Redis gère déjà le TTL automatiquement
       // Cette méthode est prête pour l'extension future
-      logger.debug(`Cache cleanup handled by Redis TTL for jobs older than ${daysOld} days`);
+      logger.debug(
+        `Cache cleanup handled by Redis TTL for jobs older than ${daysOld} days`
+      );
       return 0;
     } catch (error) {
       logger.error('Failed to cleanup old results:', error);

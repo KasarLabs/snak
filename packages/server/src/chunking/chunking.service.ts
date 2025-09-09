@@ -18,10 +18,18 @@ export class ChunkingService {
     const { chunkSize, overlap, strategy = 'adaptive' } = options;
 
     try {
-      if (!Number.isFinite(chunkSize) || !Number.isInteger(chunkSize) || chunkSize < 1) {
+      if (
+        !Number.isFinite(chunkSize) ||
+        !Number.isInteger(chunkSize) ||
+        chunkSize < 1
+      ) {
         throw new BadRequestException('chunkSize must be a positive number');
       }
-      if (!Number.isFinite(overlap) || !Number.isInteger(overlap) || overlap < 0) {
+      if (
+        !Number.isFinite(overlap) ||
+        !Number.isInteger(overlap) ||
+        overlap < 0
+      ) {
         throw new BadRequestException('overlap cannot be negative');
       }
       if (overlap >= chunkSize) {

@@ -60,12 +60,11 @@ export class FileIngestionWorkerService {
       // Check storage limits
       await this.checkStorageLimits(agentId, userId, size);
 
-      const contentBuffer =
-        Buffer.isBuffer(content)
-          ? content
-          : (options?.contentEncoding === 'base64'
-              ? Buffer.from(content as string, 'base64')
-              : Buffer.from(content as string, 'utf8'));
+      const contentBuffer = Buffer.isBuffer(content)
+        ? content
+        : options?.contentEncoding === 'base64'
+          ? Buffer.from(content as string, 'base64')
+          : Buffer.from(content as string, 'utf8');
       const text = await this.extractRawText(contentBuffer, mimeType);
 
       // Determine processing strategy
@@ -102,18 +101,26 @@ export class FileIngestionWorkerService {
 
       // Generate embeddings if requested
       let embeddings: number[][] = [];
-      if (chunks.length > 0 && (processingOptions.generateEmbeddings || processingOptions.storeInVectorDB)) {
+      if (
+        chunks.length > 0 &&
+        (processingOptions.generateEmbeddings ||
+          processingOptions.storeInVectorDB)
+      ) {
         const texts = chunks.map((c: Chunk) => c.text);
         embeddings = await this.embeddingsService.embedDocuments(texts);
       }
       if (embeddings.length && embeddings.length !== chunks.length) {
-        throw new Error(`Embeddings/chunks mismatch: ${embeddings.length} vs ${chunks.length}`);
+        throw new Error(
+          `Embeddings/chunks mismatch: ${embeddings.length} vs ${chunks.length}`
+        );
       }
 
       // Store in vector database if requested
       if (processingOptions.storeInVectorDB && chunks.length > 0) {
         if (embeddings.length === 0) {
-          throw new Error('storeInVectorDB=true requires embeddings, but none were generated');
+          throw new Error(
+            'storeInVectorDB=true requires embeddings, but none were generated'
+          );
         }
         await this.storeChunksInVectorDB(
           agentId,
@@ -239,15 +246,18 @@ export class FileIngestionWorkerService {
    * @param size - The file size in bytes
    * @returns Chunk size and overlap parameters
    */
-  private computeChunkParams(size: number): { chunkSize: number; overlap: number } {
+  private computeChunkParams(size: number): {
+    chunkSize: number;
+    overlap: number;
+  } {
     const chunkSize =
       size > 1_000_000
         ? 1000
         : size > 100_000
-        ? 500
-        : size > 10_000
-        ? 200
-        : 100;
+          ? 500
+          : size > 10_000
+            ? 200
+            : 100;
     const overlap = Math.floor(chunkSize * 0.1);
     return { chunkSize, overlap };
   }
@@ -258,7 +268,10 @@ export class FileIngestionWorkerService {
    * @param mimeType - The MIME type of the file
    * @returns The extracted text
    */
-  private async extractRawText(buffer: Buffer, mimeTypeHint?: string): Promise<string> {
+  private async extractRawText(
+    buffer: Buffer,
+    mimeTypeHint?: string
+  ): Promise<string> {
     const detected = await fileTypeFromBuffer(buffer);
     const type = detected?.mime ?? mimeTypeHint ?? 'application/octet-stream';
 
@@ -388,7 +401,9 @@ export class FileIngestionWorkerService {
   ): Promise<void> {
     try {
       if (embeddings.length !== chunks.length) {
-        throw new Error(`Embeddings/chunks length mismatch: ${embeddings.length} vs ${chunks.length}`);
+        throw new Error(
+          `Embeddings/chunks length mismatch: ${embeddings.length} vs ${chunks.length}`
+        );
       }
       const entries: VectorStoreEntry[] = chunks.map((chunk, index) => ({
         id: chunk.id,
@@ -432,7 +447,9 @@ export class FileIngestionWorkerService {
    * @param documentId - The document ID
    * @returns The current progress
    */
-  async getFileIngestionProgress(documentId: string): Promise<FileIngestionProgress> {
+  async getFileIngestionProgress(
+    documentId: string
+  ): Promise<FileIngestionProgress> {
     // This would typically query a progress tracking system
     // For now, return a basic progress object
     return {

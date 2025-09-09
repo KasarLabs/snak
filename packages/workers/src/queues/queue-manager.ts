@@ -10,12 +10,17 @@ export class QueueManager {
   private config: WorkerConfig;
   private initialized = false;
 
-  constructor(redisConfig?: { host: string; port: number; password?: string; db?: number }) {
+  constructor(redisConfig?: {
+    host: string;
+    port: number;
+    password?: string;
+    db?: number;
+  }) {
     this.config = loadWorkerConfig();
-    
+
     // Use provided Redis config or fall back to worker config
     const redisSettings = redisConfig || this.config.redis;
-    
+
     this.redis = new Redis({
       host: redisSettings.host,
       port: redisSettings.port,
@@ -142,20 +147,22 @@ export class QueueManager {
 
   async close(): Promise<void> {
     logger.info('Closing queue manager...');
-    
+
     // Close all queues
-    const closePromises = Array.from(this.queues.values()).map(async (queue) => {
-      try {
-        await queue.close();
-        logger.debug(`Queue ${queue.name} closed successfully`);
-      } catch (error) {
-        logger.error(`Error closing queue ${queue.name}:`, error);
+    const closePromises = Array.from(this.queues.values()).map(
+      async (queue) => {
+        try {
+          await queue.close();
+          logger.debug(`Queue ${queue.name} closed successfully`);
+        } catch (error) {
+          logger.error(`Error closing queue ${queue.name}:`, error);
+        }
       }
-    });
-    
+    );
+
     await Promise.all(closePromises);
     this.queues.clear();
-    
+
     // Close Redis connection
     try {
       await this.redis.quit();
@@ -163,7 +170,7 @@ export class QueueManager {
     } catch (error) {
       logger.error('Error closing Redis connection:', error);
     }
-    
+
     logger.info('Queue manager closed successfully');
   }
 

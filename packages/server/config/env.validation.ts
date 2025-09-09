@@ -24,21 +24,21 @@ export const envSchema = z.object({
   DEEPSEEK_API_KEY: z.string().optional(),
   // Rag max size configuration
   RAG_CONFIG_PATH: z.string().optional().default('config/rag/default.rag.json'),
-  
+
   // Redis configuration
   REDIS_HOST: z.string().optional().default('redis'),
-  REDIS_PORT: z
-    .coerce.number()
+  REDIS_PORT: z.coerce
+    .number()
     .pipe(z.number().int().min(1).max(65535))
     .optional()
     .default(6379),
   REDIS_PASSWORD: z.string().optional(),
-  REDIS_DB: z
-    .coerce.number()
+  REDIS_DB: z.coerce
+    .number()
     .pipe(z.number().int().min(0))
     .optional()
     .default(0),
-  
+
   // Add other provider keys here if needed
 });
 

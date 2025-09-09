@@ -96,7 +96,7 @@ export type FileIngestionJobResult =
 /**
  * Supported file types
  */
-export type SupportedMimeType = 
+export type SupportedMimeType =
   | 'text/plain'
   | 'text/markdown'
   | 'application/pdf'

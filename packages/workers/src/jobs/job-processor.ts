@@ -13,7 +13,11 @@ export class JobProcessor {
   private isProcessingStarted: boolean = false;
   private isFileIngestionProcessorRegistered: boolean = false;
 
-  constructor(queueManager: QueueManager, fileIngestionProcessor: FileIngestionProcessor, cacheService: CacheService) {
+  constructor(
+    queueManager: QueueManager,
+    fileIngestionProcessor: FileIngestionProcessor,
+    cacheService: CacheService
+  ) {
     this.queueManager = queueManager;
     this.fileIngestionProcessor = fileIngestionProcessor;
     this.cacheService = cacheService;
@@ -48,7 +52,9 @@ export class JobProcessor {
 
     // Check if processor is already registered
     if (this.isFileIngestionProcessorRegistered) {
-      logger.info('File ingestion processor already registered, ensuring queue is active');
+      logger.info(
+        'File ingestion processor already registered, ensuring queue is active'
+      );
       // Ensure the queue is not paused
       if (await queue.isPaused()) {
         await queue.resume();
@@ -91,8 +97,12 @@ export class JobProcessor {
     }
 
     try {
-      queue.process('file-ingestion', concurrency, this.handleFileIngestionJob.bind(this));
-      
+      queue.process(
+        'file-ingestion',
+        concurrency,
+        this.handleFileIngestionJob.bind(this)
+      );
+
       this.isFileIngestionProcessorRegistered = true;
       logger.info(
         `File ingestion processor started with concurrency: ${concurrency}`
@@ -109,13 +119,13 @@ export class JobProcessor {
       userId: job.data.userId,
       fileId: job.data.fileId,
       originalName: job.data.originalName,
-      size: job.data.size
+      size: job.data.size,
     });
-    
+
     try {
       const result = await this.processFileIngestion(job);
       logger.info(`File ingestion job ${job.id} completed successfully`);
-      
+
       // Update cache with completed status - handle errors gracefully
       try {
         await this.cacheService.setJobRetrievalResult(job.id.toString(), {
@@ -127,17 +137,20 @@ export class JobProcessor {
           error: undefined,
           createdAt: new Date(job.timestamp),
           completedAt: new Date(),
-          source: 'bull'
+          source: 'bull',
         });
       } catch (cacheError) {
-        logger.error(`Failed to update cache for completed job ${job.id}:`, cacheError);
+        logger.error(
+          `Failed to update cache for completed job ${job.id}:`,
+          cacheError
+        );
         // Don't throw here as the job itself succeeded
       }
-      
+
       return result;
     } catch (error) {
       logger.error(`File ingestion job ${job.id} failed:`, error);
-      
+
       // Update cache with failed status - handle errors gracefully
       try {
         await this.cacheService.setJobRetrievalResult(job.id.toString(), {
@@ -149,13 +162,16 @@ export class JobProcessor {
           error: error instanceof Error ? error.message : 'Unknown error',
           createdAt: new Date(job.timestamp),
           completedAt: new Date(),
-          source: 'bull'
+          source: 'bull',
         });
       } catch (cacheError) {
-        logger.error(`Failed to update cache for failed job ${job.id}:`, cacheError);
+        logger.error(
+          `Failed to update cache for failed job ${job.id}:`,
+          cacheError
+        );
         // Don't throw here as we want to preserve the original error
       }
-      
+
       throw error;
     }
   }
@@ -200,14 +216,14 @@ export class JobProcessor {
    */
   async forceRestartProcessing(): Promise<void> {
     logger.info('Force restarting job processing...');
-    
+
     // Reset state
     this.isProcessingStarted = false;
     this.isFileIngestionProcessorRegistered = false;
-    
+
     // Restart processing
     await this.startProcessing();
-    
+
     logger.info('Job processing force restarted');
   }
 
@@ -223,13 +239,14 @@ export class JobProcessor {
     if (!this.fileIngestionQueue) {
       throw new Error('FileIngestionQueue not initialized');
     }
-    
+
     const queue = this.fileIngestionQueue.getQueue();
     const queuePaused = await queue.isPaused();
-    
+
     return {
       isProcessingStarted: this.isProcessingStarted,
-      isFileIngestionProcessorRegistered: this.isFileIngestionProcessorRegistered,
+      isFileIngestionProcessorRegistered:
+        this.isFileIngestionProcessorRegistered,
       queuePaused,
       queueName: queue.name,
     };

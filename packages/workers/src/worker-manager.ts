@@ -15,7 +15,12 @@ export class WorkerManager {
   private isRunning: boolean = false;
 
   constructor(
-    redisConfig?: { host: string; port: number; password?: string; db?: number },
+    redisConfig?: {
+      host: string;
+      port: number;
+      password?: string;
+      db?: number;
+    },
     cacheService?: CacheService,
     ingestionServices?: {
       chunkingService?: ChunkingService;
@@ -25,18 +30,29 @@ export class WorkerManager {
     }
   ) {
     this.queueManager = new QueueManager(redisConfig);
-    
-    const chunkingService = ingestionServices?.chunkingService || new ChunkingService();
-    const embeddingsService = ingestionServices?.embeddingsService || new EmbeddingsService();
-    const vectorStoreService = ingestionServices?.vectorStoreService || new VectorStoreService();
-    const fileIngestionWorkerService = ingestionServices?.fileIngestionWorkerService || new FileIngestionWorkerService(
-      chunkingService,
-      embeddingsService,
-      vectorStoreService
+
+    const chunkingService =
+      ingestionServices?.chunkingService || new ChunkingService();
+    const embeddingsService =
+      ingestionServices?.embeddingsService || new EmbeddingsService();
+    const vectorStoreService =
+      ingestionServices?.vectorStoreService || new VectorStoreService();
+    const fileIngestionWorkerService =
+      ingestionServices?.fileIngestionWorkerService ||
+      new FileIngestionWorkerService(
+        chunkingService,
+        embeddingsService,
+        vectorStoreService
+      );
+    const fileIngestionProcessor = new FileIngestionProcessor(
+      fileIngestionWorkerService
     );
-    const fileIngestionProcessor = new FileIngestionProcessor(fileIngestionWorkerService);
-    
-    this.jobProcessor = new JobProcessor(this.queueManager, fileIngestionProcessor, cacheService || new CacheService());
+
+    this.jobProcessor = new JobProcessor(
+      this.queueManager,
+      fileIngestionProcessor,
+      cacheService || new CacheService()
+    );
   }
 
   async start(): Promise<void> {
@@ -64,12 +80,19 @@ export class WorkerManager {
       this.setupGracefulShutdown();
     } catch (error: unknown) {
       logger.error('Failed to start worker manager:', error);
-      try { await this.jobProcessor.stopProcessing?.(); } catch (e) { logger.warn('Cleanup: jobProcessor.stopProcessing failed', e); }
-      try { await this.queueManager.close?.(); } catch (e) { logger.warn('Cleanup: queueManager.close failed', e); }
+      try {
+        await this.jobProcessor.stopProcessing?.();
+      } catch (e) {
+        logger.warn('Cleanup: jobProcessor.stopProcessing failed', e);
+      }
+      try {
+        await this.queueManager.close?.();
+      } catch (e) {
+        logger.warn('Cleanup: queueManager.close failed', e);
+      }
       this.isRunning = false;
       throw error;
     }
-      
   }
 
   async stop(): Promise<void> {

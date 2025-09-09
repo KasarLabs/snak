@@ -162,7 +162,10 @@ export interface IJobMetadataService {
  */
 export interface IJobProcessor<T = any> {
   process(context: JobProcessingContext): Promise<JobResult<T>>;
-  onSuccess?(context: JobProcessingContext, result: JobResult<T>): Promise<void>;
+  onSuccess?(
+    context: JobProcessingContext,
+    result: JobResult<T>
+  ): Promise<void>;
   onFailure?(context: JobProcessingContext, error: Error): Promise<void>;
   onRetry?(context: JobProcessingContext, error: Error): Promise<void>;
 }
@@ -249,7 +252,6 @@ export interface JobHealthCheck {
   };
 }
 
-
 /**
  * Options for result retrieval
  */
@@ -274,9 +276,9 @@ export interface ResultRegenerationOptions {
  */
 export enum ResultSource {
   CACHE = 'cache',
-  DATABASE = 'database', 
+  DATABASE = 'database',
   BULL = 'bull',
-  REGENERATED = 'regenerated'
+  REGENERATED = 'regenerated',
 }
 
 /**
@@ -286,5 +288,5 @@ export enum ResultStatus {
   COMPLETED = 'completed',
   FAILED = 'failed',
   PROCESSING = 'processing',
-  NOT_FOUND = 'not_found'
+  NOT_FOUND = 'not_found',
 }

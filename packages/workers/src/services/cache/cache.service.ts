@@ -21,7 +21,11 @@ export class CacheService {
   /**
    * Set a job retrieval result in cache
    */
-  async setJobRetrievalResult(key: string, result: JobRetrievalResult, ttlMs?: number): Promise<void> {
+  async setJobRetrievalResult(
+    key: string,
+    result: JobRetrievalResult,
+    ttlMs?: number
+  ): Promise<void> {
     try {
       const cacheKey = `job-result:${key}`;
       const existing = this.cache.get(cacheKey) as CacheEntry | undefined;
@@ -29,10 +33,12 @@ export class CacheService {
 
       const hasTtl = Number.isFinite(ttlMs) && (ttlMs as number) > 0;
       const expiresAt = hasTtl ? Date.now() + (ttlMs as number) : null;
-      const timer = hasTtl ? this.scheduleEviction(cacheKey, expiresAt as number) : undefined;
+      const timer = hasTtl
+        ? this.scheduleEviction(cacheKey, expiresAt as number)
+        : undefined;
 
       this.cache.set(cacheKey, { result, expiresAt, timer });
-      
+
       logger.debug(`Cached job result for key: ${key}`);
     } catch (error) {
       logger.error(`Failed to cache job result for key ${key}:`, error);
@@ -47,21 +53,24 @@ export class CacheService {
     try {
       const cacheKey = `job-result:${key}`;
       const data = this.cache.get(cacheKey) as CacheEntry | undefined;
-      
+
       if (!data) {
         return null;
       }
-      
+
       if (data.expiresAt !== null && Date.now() >= data.expiresAt) {
         if (data.timer) clearTimeout(data.timer);
         this.cache.delete(cacheKey);
         return null;
       }
-      
+
       logger.debug(`Retrieved job result from cache for key: ${key}`);
       return data.result;
     } catch (error) {
-      logger.error(`Failed to get job result from cache for key ${key}:`, error);
+      logger.error(
+        `Failed to get job result from cache for key ${key}:`,
+        error
+      );
       return null;
     }
   }
@@ -77,7 +86,10 @@ export class CacheService {
       this.cache.delete(cacheKey);
       logger.debug(`Deleted job result from cache for key: ${key}`);
     } catch (error) {
-      logger.error(`Failed to delete job result from cache for key ${key}:`, error);
+      logger.error(
+        `Failed to delete job result from cache for key ${key}:`,
+        error
+      );
       throw error;
     }
   }
@@ -99,9 +111,15 @@ export class CacheService {
     }
   }
 
-  private scheduleEviction(cacheKey: string, targetTs: number): ReturnType<typeof setTimeout> {
+  private scheduleEviction(
+    cacheKey: string,
+    targetTs: number
+  ): ReturnType<typeof setTimeout> {
     const now = Date.now();
-    const delay = Math.min(Math.max(0, targetTs - now), CacheService.MAX_TIMEOUT_MS);
+    const delay = Math.min(
+      Math.max(0, targetTs - now),
+      CacheService.MAX_TIMEOUT_MS
+    );
     const t = setTimeout(() => {
       const entry = this.cache.get(cacheKey);
       if (!entry) return;
@@ -123,7 +141,7 @@ export class CacheService {
   async cleanupExpired(): Promise<number> {
     let cleanedCount = 0;
     const now = Date.now();
-    
+
     for (const [key, data] of this.cache.entries()) {
       if (data.expiresAt && now > data.expiresAt) {
         if (data.timer) clearTimeout(data.timer);
@@ -131,7 +149,7 @@ export class CacheService {
         cleanedCount++;
       }
     }
-    
+
     logger.debug(`Cleaned up ${cleanedCount} expired cache entries`);
     return cleanedCount;
   }

@@ -1,4 +1,3 @@
-
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CacheService } from './cache.service.js';
@@ -26,9 +25,12 @@ export class CacheCleanupService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    this.cleanupInterval = setInterval(async () => {
-      await this.performCleanup();
-    }, 60 * 60 * 1000);
+    this.cleanupInterval = setInterval(
+      async () => {
+        await this.performCleanup();
+      },
+      60 * 60 * 1000
+    );
 
     logger.info('Automatic cache cleanup started (every hour)');
   }
@@ -54,9 +56,11 @@ export class CacheCleanupService implements OnModuleInit, OnModuleDestroy {
     try {
       logger.info('Starting cache cleanup...');
       const cleanedCount = await this.cacheService.cleanupExpired();
-      
+
       const duration = Date.now() - startTime;
-      logger.info(`Cache cleanup completed in ${duration}ms, cleaned ${cleanedCount} entries`);
+      logger.info(
+        `Cache cleanup completed in ${duration}ms, cleaned ${cleanedCount} entries`
+      );
     } catch (error) {
       logger.error('Cache cleanup failed:', error);
     } finally {
@@ -71,13 +75,15 @@ export class CacheCleanupService implements OnModuleInit, OnModuleDestroy {
     }
     this.isRunning = true;
     const startTime = Date.now();
-    
+
     try {
       logger.info('Force cache cleanup started...');
       const cleanedCount = await this.cacheService.cleanupExpired();
       const duration = Date.now() - startTime;
-      
-      logger.info(`Force cache cleanup completed in ${duration}ms, cleaned ${cleanedCount} entries`);
+
+      logger.info(
+        `Force cache cleanup completed in ${duration}ms, cleaned ${cleanedCount} entries`
+      );
       return { cleanedCount, duration };
     } catch (error) {
       logger.error('Force cache cleanup failed:', error);

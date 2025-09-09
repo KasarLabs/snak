@@ -1,12 +1,16 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { WorkerManager, CacheService, JobsMetadataService } from '@snakagent/workers';
+import {
+  WorkerManager,
+  CacheService,
+  JobsMetadataService,
+} from '@snakagent/workers';
 import { logger } from '@snakagent/core';
 import { ConfigurationService } from '../../config/configuration.js';
-import { 
-  JobNotFoundError, 
-  JobNotCompletedError, 
-  JobFailedError, 
-  UnknownJobStatusError 
+import {
+  JobNotFoundError,
+  JobNotCompletedError,
+  JobFailedError,
+  UnknownJobStatusError,
 } from '../common/errors/job-errors.js';
 
 @Injectable()
@@ -19,7 +23,10 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     private readonly jobsMetadataService: JobsMetadataService
   ) {
     this.cacheService = new CacheService();
-    this.workerManager = new WorkerManager(this.config.redis, this.cacheService);
+    this.workerManager = new WorkerManager(
+      this.config.redis,
+      this.cacheService
+    );
   }
 
   async onModuleInit() {
@@ -110,7 +117,7 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       .getFileIngestionQueue();
 
     const job = await fileIngestionQueue.getQueue().getJob(jobId);
-    
+
     if (!job) {
       return null;
     }
@@ -128,7 +135,10 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
   /**
    * Get job status by ID with user validation
    */
-  async getJobStatusForUser(jobId: string, userId: string): Promise<{
+  async getJobStatusForUser(
+    jobId: string,
+    userId: string
+  ): Promise<{
     id: string;
     status: string;
     error?: string;
@@ -137,7 +147,7 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     finishedOn?: Date;
   } | null> {
     logger.info(`Getting job status for ${jobId} (user: ${userId})`);
-    
+
     // Check cache for job status
     const cachedStatus = await this.cacheService.getJobRetrievalResult(jobId);
     if (cachedStatus) {
@@ -152,7 +162,10 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      const jobMetadata = await this.jobsMetadataService.getJobMetadataForUser(jobId, userId);
+      const jobMetadata = await this.jobsMetadataService.getJobMetadataForUser(
+        jobId,
+        userId
+      );
       if (jobMetadata) {
         const status = {
           id: jobMetadata.jobId,
@@ -175,8 +188,10 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
           completedAt: status.finishedOn,
           source: 'database' as any,
         });
-        
-        logger.debug(`Retrieved job status from metadata for ${jobId} (user: ${userId})`);
+
+        logger.debug(
+          `Retrieved job status from metadata for ${jobId} (user: ${userId})`
+        );
         return {
           id: jobId,
           status: status.status,
@@ -195,7 +210,7 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       .getFileIngestionQueue();
 
     const job = await fileIngestionQueue.getQueue().getJob(jobId);
-    
+
     if (!job) {
       logger.warn(`Job ${jobId} not found in queue`);
       return null;
@@ -241,19 +256,21 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       .getFileIngestionQueue();
 
     const job = await fileIngestionQueue.getQueue().getJob(jobId);
-    
+
     if (!job) {
       throw new Error(`Job ${jobId} not found`);
     }
 
     const state = await job.getState();
-    
+
     if (state === 'failed') {
       throw new Error(job.failedReason || 'Job failed');
     }
-    
+
     if (state !== 'completed') {
-      throw new Error(`Job ${jobId} is not completed yet. Current status: ${state}`);
+      throw new Error(
+        `Job ${jobId} is not completed yet. Current status: ${state}`
+      );
     }
 
     return job.returnvalue;
@@ -265,28 +282,35 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
   async getJobResultForUser(jobId: string, userId: string): Promise<any> {
     try {
       // Get job result from metadata service
-      const jobMetadata = await this.jobsMetadataService.getJobMetadataForUser(jobId, userId);
+      const jobMetadata = await this.jobsMetadataService.getJobMetadataForUser(
+        jobId,
+        userId
+      );
       if (!jobMetadata) {
         throw new JobNotFoundError(jobId);
       }
-      
+
       const result = {
-        status: jobMetadata.status === 'completed' ? 'completed' : 
-                jobMetadata.status === 'failed' ? 'failed' : 'processing',
+        status:
+          jobMetadata.status === 'completed'
+            ? 'completed'
+            : jobMetadata.status === 'failed'
+              ? 'failed'
+              : 'processing',
         data: jobMetadata.result,
-        error: jobMetadata.error
+        error: jobMetadata.error,
       };
 
       switch (result.status) {
         case 'completed':
           return result.data;
-        
+
         case 'processing':
           throw new JobNotCompletedError(jobId, result.status);
-        
+
         case 'failed':
           throw new JobFailedError(jobId, result.error);
-        
+
         default:
           throw new UnknownJobStatusError(jobId, result.status);
       }
@@ -323,5 +347,4 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
   async getDiagnostics(): Promise<any> {
     return await this.workerManager.getDiagnostics();
   }
-
 }

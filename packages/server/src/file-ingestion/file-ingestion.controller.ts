@@ -10,12 +10,12 @@ import {
   Param,
   NotFoundException,
 } from '@nestjs/common';
-import { 
-  JobNotFoundError, 
-  JobNotCompletedError, 
-  JobFailedError, 
+import {
+  JobNotFoundError,
+  JobNotCompletedError,
+  JobFailedError,
   JobAccessDeniedError,
-  UnknownJobStatusError 
+  UnknownJobStatusError,
 } from '../common/errors/job-errors.js';
 import { FileIngestionService } from './file-ingestion.service.js';
 import { MultipartFile } from '@fastify/multipart';
@@ -110,7 +110,7 @@ export class FileIngestionController {
       }
 
       const fileId = randomUUID();
-      
+
       let mimeType = 'application/octet-stream';
       try {
         const fileType = await fileTypeFromBuffer(fileBuffer);
@@ -118,7 +118,10 @@ export class FileIngestionController {
           mimeType = fileType.mime;
         }
       } catch (error) {
-        logger.warn(`Failed to detect file type for ${fileName}, using default mime type`, error);
+        logger.warn(
+          `Failed to detect file type for ${fileName}, using default mime type`,
+          error
+        );
       }
 
       const jobId = await this.workersService.processFileAsync(
@@ -131,8 +134,10 @@ export class FileIngestionController {
         fileSize
       );
 
-      logger.info(`File upload queued with job ID: ${jobId} for file: ${fileName}`);
-      
+      logger.info(
+        `File upload queued with job ID: ${jobId} for file: ${fileName}`
+      );
+
       return { jobId };
     } catch (err: unknown) {
       logger.error(`Upload failed:`, err);
@@ -185,8 +190,11 @@ export class FileIngestionController {
   ) {
     try {
       const userId = getUserIdFromHeaders(request);
-      const status = await this.workersService.getJobStatusForUser(jobId, userId);
-      
+      const status = await this.workersService.getJobStatusForUser(
+        jobId,
+        userId
+      );
+
       if (!status) {
         logger.error(`Job ${jobId} not found`);
         throw new NotFoundException(`Job ${jobId} not found`);
@@ -202,15 +210,20 @@ export class FileIngestionController {
       };
     } catch (error) {
       logger.error(`Failed to get job status for ${jobId}:`, error);
-      
+
       if (error instanceof NotFoundException) {
         throw error;
       }
-      
-      if (error instanceof ForbiddenException || (error instanceof JobAccessDeniedError)) {
-        throw new ForbiddenException('Access denied: Job does not belong to user');
+
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof JobAccessDeniedError
+      ) {
+        throw new ForbiddenException(
+          'Access denied: Job does not belong to user'
+        );
       }
-      
+
       throw new InternalServerErrorException('Failed to get job status');
     }
   }
@@ -222,8 +235,11 @@ export class FileIngestionController {
   ) {
     try {
       const userId = getUserIdFromHeaders(request);
-      const result = await this.workersService.getJobResultForUser(jobId, userId);
-      
+      const result = await this.workersService.getJobResultForUser(
+        jobId,
+        userId
+      );
+
       if (result && result.chunks) {
         result.chunks.forEach((chunk: any) => {
           if (chunk.metadata && chunk.metadata.embedding) {
@@ -235,27 +251,31 @@ export class FileIngestionController {
       return result;
     } catch (error) {
       logger.error(`Failed to get job result for ${jobId}:`, error);
-      
+
       if (error instanceof JobNotFoundError) {
         throw new NotFoundException(error.message);
       }
-      
+
       if (error instanceof JobAccessDeniedError) {
-        throw new ForbiddenException('Access denied: Job does not belong to user');
+        throw new ForbiddenException(
+          'Access denied: Job does not belong to user'
+        );
       }
-      
+
       if (error instanceof JobNotCompletedError) {
         throw new BadRequestException(error.message);
       }
-      
+
       if (error instanceof JobFailedError) {
         throw new InternalServerErrorException(`Job failed: ${error.message}`);
       }
-      
+
       if (error instanceof UnknownJobStatusError) {
-        throw new InternalServerErrorException(`Unknown job status: ${error.message}`);
+        throw new InternalServerErrorException(
+          `Unknown job status: ${error.message}`
+        );
       }
-      
+
       throw new InternalServerErrorException('Failed to get job result');
     }
   }

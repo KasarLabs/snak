@@ -51,7 +51,7 @@ export class ChunkingService {
     chunkSize: number,
     overlap: number
   ): Chunk[] {
-    const tokens = text.split(/\s+/).filter(token => token.length > 0);
+    const tokens = text.split(/\s+/).filter((token) => token.length > 0);
     const chunks: Chunk[] = [];
     let index = 0;
 
@@ -133,7 +133,9 @@ export class ChunkingService {
     };
 
     for (const seg of segments) {
-      const segTokens = seg.text.split(/\s+/).filter(token => token.length > 0);
+      const segTokens = seg.text
+        .split(/\s+/)
+        .filter((token) => token.length > 0);
       if (seg.heading) {
         flush();
         currentTokens.push(...segTokens);
@@ -192,7 +194,10 @@ export class ChunkingService {
     };
 
     for (const line of lines) {
-      const lineTokens = line.trim().split(/\s+/).filter(token => token.length > 0);
+      const lineTokens = line
+        .trim()
+        .split(/\s+/)
+        .filter((token) => token.length > 0);
       if (currentTokens.length + lineTokens.length > chunkSize) {
         flush();
       }

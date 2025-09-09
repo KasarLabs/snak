@@ -5,11 +5,7 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { VectorStoreModule } from '../vector-store/vector-store.module.js';
 
 @Module({
-  imports: [
-    ChunkingModule,
-    EmbeddingsModule,
-    VectorStoreModule,
-  ],
+  imports: [ChunkingModule, EmbeddingsModule, VectorStoreModule],
   providers: [FileIngestionWorkerService],
   exports: [FileIngestionWorkerService],
 })

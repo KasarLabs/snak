@@ -1,9 +1,9 @@
 import { Job, JobOptions, Queue } from 'bull';
 import { JobType } from '../types/index.js';
 import { QueueManager } from './queue-manager.js';
-import { 
-  FileIngestionJobPayload, 
-  validateFileIngestionPayload 
+import {
+  FileIngestionJobPayload,
+  validateFileIngestionPayload,
 } from './file-ingestion-queue.schema.js';
 
 export class FileIngestionQueue {
@@ -33,7 +33,7 @@ export class FileIngestionQueue {
     options?: JobOptions
   ): Promise<Job> {
     const validatedPayload = validateFileIngestionPayload(payload);
-    
+
     return await this.queueManager.addJob(
       this.queueName,
       JobType.FILE_INGESTION,
