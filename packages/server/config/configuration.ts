@@ -44,7 +44,7 @@ export class ConfigurationService {
 
     if (!result.success) {
       this.logger.error(
-        '❌ Invalid environment variables:',
+        ' Invalid environment variables:',
         JSON.stringify(result.error.format(), null, 2)
       );
       throw new Error('Invalid environment variables');

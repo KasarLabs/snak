@@ -370,7 +370,7 @@ describe('SnakAgent', () => {
 
         await expect(agent.init()).rejects.toThrow('ModelSelector init failed');
         expect(mockLogger.error).toHaveBeenCalledWith(
-          '[SnakAgent] ❌ Initialization failed: Error: ModelSelector init failed'
+          '[SnakAgent]  Initialization failed: Error: ModelSelector init failed'
         );
       } finally {
         // Restore original mock
@@ -382,12 +382,12 @@ describe('SnakAgent', () => {
       [
         'no ModelSelector',
         null,
-        '[SnakAgent] ⚠️ No ModelSelector provided - functionality will be limited',
+        '[SnakAgent]  No ModelSelector provided - functionality will be limited',
       ],
       [
         'executor returns null',
         undefined,
-        '[SnakAgent] ⚠️ Agent executor creation succeeded but result is null',
+        '[SnakAgent]  Agent executor creation succeeded but result is null',
       ],
     ])(
       'should log warning when %s',
@@ -415,10 +415,10 @@ describe('SnakAgent', () => {
 
       await expect(agent.init()).resolves.toBeUndefined();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        '[SnakAgent] ❌ Failed to create Agent React Executor: Error: Failed to create agent executor for mode interactive: result is null'
+        '[SnakAgent]  Failed to create Agent React Executor: Error: Failed to create agent executor for mode interactive: result is null'
       );
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        '[SnakAgent] ⚠️ Will attempt to recover during execute() calls'
+        '[SnakAgent]  Will attempt to recover during execute() calls'
       );
     });
 
@@ -428,21 +428,21 @@ describe('SnakAgent', () => {
         { memory: { enabled: false } },
         mockMemoryAgent,
         false,
-        '[SnakAgent] 🚫 MemoryAgent initialization skipped (disabled in config)',
+        '[SnakAgent]  MemoryAgent initialization skipped (disabled in config)',
       ],
       [
         'RAG undefined',
         { rag: undefined },
         mockRagAgent,
         false,
-        '[SnakAgent] 🚫 RagAgent initialization skipped (disabled or not configured)',
+        '[SnakAgent]  RagAgent initialization skipped (disabled or not configured)',
       ],
       [
         'RAG disabled',
         { rag: { enabled: false } },
         mockRagAgent,
         false,
-        '[SnakAgent] 🚫 RagAgent initialization skipped (disabled or not configured)',
+        '[SnakAgent]  RagAgent initialization skipped (disabled or not configured)',
       ],
       [
         'RAG enabled',
@@ -522,7 +522,7 @@ describe('SnakAgent', () => {
         const result = (snakAgent as any)[methodName]();
         expect(result).toBeNull();
         expect(mockLogger.warn).toHaveBeenCalledWith(
-          `[SnakAgent] ⚠️ ${expectedWarning}`
+          `[SnakAgent]  ${expectedWarning}`
         );
       }
     );
@@ -550,7 +550,7 @@ describe('SnakAgent', () => {
     it('should return undefined for controller when not initialized', () => {
       expect(snakAgent.getController()).toBeUndefined();
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        '[SnakAgent] ⚠️ Controller is not initialized'
+        '[SnakAgent]  Controller is not initialized'
       );
     });
   });
@@ -829,7 +829,7 @@ describe('SnakAgent', () => {
       await agent.init();
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '[SnakAgent] 🚫 MemoryAgent initialization skipped (disabled in config)'
+        '[SnakAgent]  MemoryAgent initialization skipped (disabled in config)'
       );
     });
   });
@@ -885,7 +885,7 @@ describe('SnakAgent', () => {
 
       expect(mockStreamEvents).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '[SnakAgent] 🛑 Execution aborted by user'
+        '[SnakAgent]  Execution aborted by user'
       );
     });
   });
@@ -899,7 +899,7 @@ describe('SnakAgent', () => {
 
       expect(mockController.abort).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        '[SnakAgent] ⏹️ Execution stopped'
+        '[SnakAgent]  Execution stopped'
       );
     });
 
@@ -909,7 +909,7 @@ describe('SnakAgent', () => {
       snakAgent.stop();
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        '[SnakAgent] ⚠️ No controller found to stop execution'
+        '[SnakAgent]  No controller found to stop execution'
       );
     });
   });

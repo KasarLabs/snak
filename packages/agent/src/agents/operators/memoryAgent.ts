@@ -65,9 +65,9 @@ export class MemoryAgent extends BaseAgent {
 
       // this.createMemoryTools();
       this.initialized = true;
-      logger.debug('[MemoryAgent] ✅ Initialized successfully');
+      logger.debug('[MemoryAgent]  Initialized successfully');
     } catch (error) {
-      logger.error(`[MemoryAgent] ❌ Initialization failed: ${error}`);
+      logger.error(`[MemoryAgent]  Initialization failed: ${error}`);
       throw new Error(`MemoryAgent initialization failed: ${error}`);
     }
   }
@@ -125,7 +125,7 @@ export class MemoryAgent extends BaseAgent {
         throw new Error(result.error || 'Unknown error during memory upsert');
       }
     } catch (error) {
-      logger.error(`[MemoryAgent] ❌ Memory upsert failed: ${error}`);
+      logger.error(`[MemoryAgent]  Memory upsert failed: ${error}`);
       throw error;
     }
   }
@@ -175,7 +175,7 @@ export class MemoryAgent extends BaseAgent {
           last_node: MemoryNode.RETRIEVE_MEMORY,
         };
       } catch (error) {
-        logger.error(`[MemoryNode] ❌ Error retrieving memories: ${error}`);
+        logger.error(`[MemoryNode]  Error retrieving memories: ${error}`);
 
         // Return safe fallback with error information
         const fallbackMemories: Memories = {

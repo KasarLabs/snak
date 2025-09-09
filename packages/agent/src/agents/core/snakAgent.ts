@@ -104,7 +104,7 @@ export class SnakAgent extends BaseAgent {
     try {
       if (!this.modelSelector) {
         logger.warn(
-          '[SnakAgent] ⚠️ No ModelSelector provided - functionality will be limited'
+          '[SnakAgent]  No ModelSelector provided - functionality will be limited'
         );
       }
 
@@ -126,21 +126,21 @@ export class SnakAgent extends BaseAgent {
         await this.createAgentReactExecutor();
         if (!this.agentReactExecutor) {
           logger.warn(
-            '[SnakAgent] ⚠️ Agent executor creation succeeded but result is null'
+            '[SnakAgent]  Agent executor creation succeeded but result is null'
           );
         }
       } catch (executorError) {
         logger.error(
-          `[SnakAgent] ❌ Failed to create agent executor: ${executorError}`
+          `[SnakAgent]  Failed to create agent executor: ${executorError}`
         );
         logger.warn(
-          '[SnakAgent] ⚠️ Will attempt to recover during execute() calls'
+          '[SnakAgent]  Will attempt to recover during execute() calls'
         );
       }
 
-      logger.info('[SnakAgent] ✅ Initialized successfully');
+      logger.info('[SnakAgent]  Initialized successfully');
     } catch (error) {
-      logger.error(`[SnakAgent] ❌ Initialization failed: ${error}`);
+      logger.error(`[SnakAgent]  Initialization failed: ${error}`);
       throw error;
     }
   }
@@ -153,7 +153,7 @@ export class SnakAgent extends BaseAgent {
   private async createAgentReactExecutor(): Promise<void> {
     try {
       logger.info(
-        `[SnakAgent] 🔧 Creating agent executor for mode: ${this.currentMode}`
+        `[SnakAgent]  Creating agent executor for mode: ${this.currentMode}`
       );
 
       switch (this.currentMode) {
@@ -177,7 +177,7 @@ export class SnakAgent extends BaseAgent {
       }
     } catch (error) {
       logger.error(
-        `[SnakAgent] ❌ Failed to create Agent React Executor: ${error}`
+        `[SnakAgent]  Failed to create Agent React Executor: ${error}`
       );
       if (error instanceof Error && error.stack) {
         logger.error(`[SnakAgent] 📋 Stack trace: ${error.stack}`);
@@ -195,17 +195,17 @@ export class SnakAgent extends BaseAgent {
     agentConfig: AgentConfig | undefined
   ): Promise<void> {
     if (agentConfig?.memory?.enabled !== false) {
-      logger.debug('[SnakAgent] 🧠 Initializing MemoryAgent...');
+      logger.debug('[SnakAgent]  Initializing MemoryAgent...');
       this.memoryAgent = new MemoryAgent({
         shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
         memorySize: agentConfig?.memory?.memorySize || 20,
         embeddingModel: agentConfig?.memory?.embeddingModel,
       });
       await this.memoryAgent.init();
-      logger.debug('[SnakAgent] ✅ MemoryAgent initialized');
+      logger.debug('[SnakAgent]  MemoryAgent initialized');
     } else {
       logger.info(
-        '[SnakAgent] 🚫 MemoryAgent initialization skipped (disabled in config)'
+        '[SnakAgent]  MemoryAgent initialization skipped (disabled in config)'
       );
     }
   }
@@ -221,22 +221,22 @@ export class SnakAgent extends BaseAgent {
     const ragConfig = agentConfig?.rag;
     if (!ragConfig || ragConfig.enabled !== true) {
       logger.info(
-        '[SnakAgent] 🚫 RagAgent initialization skipped (disabled or not configured)'
+        '[SnakAgent]  RagAgent initialization skipped (disabled or not configured)'
       );
       return;
     }
-    logger.debug('[SnakAgent] 📚 Initializing RagAgent...');
+    logger.debug('[SnakAgent]  Initializing RagAgent...');
     this.ragAgent = new RagAgent({
       topK: ragConfig?.topK,
       embeddingModel: ragConfig?.embeddingModel,
     });
     await this.ragAgent.init();
-    logger.debug('[SnakAgent] ✅ RagAgent initialized');
+    logger.debug('[SnakAgent]  RagAgent initialized');
   }
 
   public getMemoryAgent(): MemoryAgent | null {
     if (!this.memoryAgent) {
-      logger.warn('[SnakAgent] ⚠️ MemoryAgent is not initialized');
+      logger.warn('[SnakAgent]  MemoryAgent is not initialized');
       return null;
     }
     return this.memoryAgent;
@@ -244,7 +244,7 @@ export class SnakAgent extends BaseAgent {
 
   public getRagAgent(): RagAgent | null {
     if (!this.ragAgent) {
-      logger.warn('[SnakAgent] ⚠️ RagAgent is not initialized');
+      logger.warn('[SnakAgent]  RagAgent is not initialized');
       return null;
     }
     return this.ragAgent;
@@ -305,7 +305,7 @@ export class SnakAgent extends BaseAgent {
 
   public getController(): AbortController | undefined {
     if (!this.controller) {
-      logger.warn('[SnakAgent] ⚠️ Controller is not initialized');
+      logger.warn('[SnakAgent]  Controller is not initialized');
       return undefined;
     }
     return this.controller;
@@ -349,7 +349,7 @@ export class SnakAgent extends BaseAgent {
         return `The mode: ${this.currentMode} is not supported in this method.`;
       }
     } catch (error) {
-      logger.error(`[SnakAgent] ❌ Execute failed: ${error}`);
+      logger.error(`[SnakAgent]  Execute failed: ${error}`);
       throw error;
     }
   }
@@ -357,9 +357,9 @@ export class SnakAgent extends BaseAgent {
   public stop(): void {
     if (this.controller) {
       this.controller.abort();
-      logger.info('[SnakAgent] ⏹️ Execution stopped');
+      logger.info('[SnakAgent]  Execution stopped');
     } else {
-      logger.warn('[SnakAgent] ⚠️ No controller found to stop execution');
+      logger.warn('[SnakAgent]  No controller found to stop execution');
     }
   }
 
@@ -397,7 +397,7 @@ export class SnakAgent extends BaseAgent {
 
     try {
       logger.info(
-        `[SnakAgent] 🤖 Starting autonomous execution - interrupted: ${isInterrupted}`
+        `[SnakAgent]  Starting autonomous execution - interrupted: ${isInterrupted}`
       );
 
       if (!this.agentReactExecutor) {
@@ -414,7 +414,7 @@ export class SnakAgent extends BaseAgent {
       const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
 
       const threadId = thread_id ?? agentJsonConfig?.id;
-      logger.info(`[SnakAgent] 🔗 Autonomous execution thread ID: ${threadId}`);
+      logger.info(`[SnakAgent]  Autonomous execution thread ID: ${threadId}`);
       const threadConfig = {
         configurable: {
           thread_id: threadId,
@@ -638,7 +638,7 @@ export class SnakAgent extends BaseAgent {
             }
           }
         }
-        logger.info('[SnakAgent] ✅ Autonomous execution completed');
+        logger.info('[SnakAgent]  Autonomous execution completed');
         if (!lastChunk || !currentCheckpointId) {
           throw new Error('No output from autonomous execution');
         }
@@ -657,7 +657,7 @@ export class SnakAgent extends BaseAgent {
         return;
       } catch (error: any) {
         if (error?.message?.includes('Abort')) {
-          logger.info('[SnakAgent] 🛑 Execution aborted by user');
+          logger.info('[SnakAgent]  Execution aborted by user');
           if (lastChunk && currentCheckpointId) {
             yield {
               event: EventType.ON_GRAPH_ABORTED,
@@ -675,7 +675,7 @@ export class SnakAgent extends BaseAgent {
           return;
         }
 
-        logger.error(`[SnakAgent] ❌ Autonomous execution error: ${error}`);
+        logger.error(`[SnakAgent]  Autonomous execution error: ${error}`);
         if (this.isTokenRelatedError(error)) {
           autonomousResponseContent =
             'Error: Token limit likely exceeded during autonomous execution.';
@@ -692,7 +692,7 @@ export class SnakAgent extends BaseAgent {
         },
       });
     } catch (error: any) {
-      logger.error(`[SnakAgent] ❌ Autonomous execution failed: ${error}`);
+      logger.error(`[SnakAgent]  Autonomous execution failed: ${error}`);
       return new AIMessage({
         content: `Autonomous execution error: ${error.message}`,
         additional_kwargs: {

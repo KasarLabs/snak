@@ -100,13 +100,13 @@ Return your validation decision as:
 - When validation FAILS: success: false, results: "<specific reason for rejection>"
 
 **Example Responses**:
-✅ PASS:
+ PASS:
 {{
   "success": true,
   "results": ["STEP VALIDATED"]
 }}
 
-❌ FAIL (Multiple Errors):
+ FAIL (Multiple Errors):
 {{
   "success": false,
   "results": [
@@ -116,7 +116,7 @@ Return your validation decision as:
   ]
 }}
 
-❌ FAIL (Single Error):
+ FAIL (Single Error):
 {{
   "success": false,
   "results": ["Tool execution timeout: weather_api tool failed to respond within 30 seconds"]
@@ -182,13 +182,13 @@ Return your validation decision as:
 - When validation FAILS: success: false, results: ["<specific reason for rejection>"]
 
 **Example Responses**:
-✅ PASS:
+ PASS:
 {{
   "success": true,
   "results": ["STEP VALIDATED"]
 }}
 
-❌ FAIL (Multiple Issues):
+ FAIL (Multiple Issues):
 {{
   "success": false,
   "results": [
@@ -198,7 +198,7 @@ Return your validation decision as:
   ]
 }}
 
-❌ FAIL (Single Issue):
+ FAIL (Single Issue):
 {{
   "success": false,
   "results": ["Incomplete analysis: message stopped mid-reasoning without conclusions"]

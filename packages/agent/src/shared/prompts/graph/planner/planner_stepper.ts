@@ -46,13 +46,13 @@ Ask: "Does this step require external I/O operations (reading from or writing to
 
 **Clear Examples**
 
-✅ **type="tools"**:
+ **type="tools"**:
 - "Extract pricing data from competitor websites"
 - "Search industry reports for market trends"  
 - "Save analysis results to database"
 - "Fetch customer data from CRM system"
 
-✅ **type="message"**:
+ **type="message"**:
 - "Analyze collected pricing data for patterns"
 - "Compare competitor features and identify gaps"
 - "Synthesize market research into strategic insights"
@@ -71,11 +71,11 @@ When type="tools":
 
 **Tool Description Quality Standards:**
 
-✅ **GOOD - Semantic & Specific:**
+ **GOOD - Semantic & Specific:**
 - "Extract competitor pricing models from OpenAI, Anthropic API documentation including token costs, enterprise tiers, volume discounts"
 - "Gather customer retention metrics from CRM dashboard covering churn rates, engagement scores, renewal patterns"
 
-❌ **BAD - Generic & Technical:**  
+ **BAD - Generic & Technical:**  
 - "Execute web search tool with pricing query"
 - "Run data extraction function"
 
