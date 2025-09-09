@@ -169,7 +169,7 @@ export class FileIngestionService {
       const meta = await this.saveFile(buffer, originalName);
 
       const agentSize = await this.vectorStore.getAgentSize(agentId, userId);
-      const totalSize = await this.vectorStore.getTotalSize();
+      const totalSize = await this.vectorStore.getTotalSize(userId);
       const { maxAgentSize, maxProcessSize } = this.config.rag;
 
       if (agentSize + meta.size > maxAgentSize) {

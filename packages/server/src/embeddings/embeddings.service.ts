@@ -9,20 +9,20 @@ export class EmbeddingsService {
   });
 
   async embedDocuments(texts: string[]): Promise<number[][]> {
+    if (!Array.isArray(texts) || texts.length === 0) {
+      throw new TypeError('Input must be a non-empty array of strings');
+    }
+
+    if (texts.some((t) => typeof t !== 'string' || t.trim().length === 0)) {
+      throw new TypeError('All input elements must be non-empty strings');
+    }
     try {
-      if (!Array.isArray(texts) || texts.length === 0) {
-        throw new Error('Input must be a non-empty array of strings');
-      }
-
-      if (texts.some((text) => typeof text !== 'string')) {
-        throw new Error('All input elements must be strings');
-      }
-
       const vectors = await this.embeddings.embedDocuments(texts);
 
       return vectors;
     } catch (err) {
-      logger.error(`Embedding generation failed :`, err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error('Embedding generation failed', error);
       throw err;
     }
   }

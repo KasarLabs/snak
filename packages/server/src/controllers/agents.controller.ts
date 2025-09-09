@@ -25,17 +25,13 @@ import {
   logger,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
+  AgentResponse,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 import { SnakAgent } from '@snakagent/agents';
-
-export interface AgentResponse {
-  status: 'success' | 'failure' | 'waiting_for_human_input';
-  data?: unknown;
-}
 
 export interface SupervisorRequestDTO {
   request: {
@@ -574,7 +570,7 @@ export class AgentsController {
           logger.error(`Error deleting agent ${agentId}:`, error);
           responses.push({
             status: 'failure',
-            data: `Failed to delete agent ${agentId}: ${error.message}`,
+            error: `Failed to delete agent ${agentId}: ${error.message}`,
           });
         }
       }

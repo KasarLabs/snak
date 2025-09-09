@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Chunk } from './chunk.interface.js';
 import { logger } from '@snakagent/core';
 
@@ -18,14 +18,14 @@ export class ChunkingService {
     const { chunkSize, overlap, strategy = 'adaptive' } = options;
 
     try {
-      if (chunkSize <= 0) {
-        throw new Error('Chunk size must be positive');
+      if (!Number.isFinite(chunkSize) || !Number.isInteger(chunkSize) || chunkSize < 1) {
+        throw new BadRequestException('chunkSize must be a positive number');
       }
-      if (overlap < 0) {
-        throw new Error('Overlap cannot be negative');
+      if (!Number.isFinite(overlap) || !Number.isInteger(overlap) || overlap < 0) {
+        throw new BadRequestException('overlap cannot be negative');
       }
       if (overlap >= chunkSize) {
-        throw new Error('Overlap must be less than chunk size');
+        throw new BadRequestException('overlap must be less than chunkSize');
       }
 
       let chunks: Chunk[];

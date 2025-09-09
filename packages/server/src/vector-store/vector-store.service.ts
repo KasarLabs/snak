@@ -67,7 +67,8 @@ export class VectorStoreService implements OnModuleInit {
             `INSERT INTO document_vectors(id, agent_id, document_id, chunk_index, embedding, content, original_name, mime_type)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
              ON CONFLICT (id) DO UPDATE
-             SET embedding = $5, content=$6, original_name=$7, mime_type=$8`,
+             SET embedding = $5, content=$6, original_name=$7, mime_type=$8
+             WHERE document_vectors.agent_id = EXCLUDED.agent_id`,
             [
               e.id,
               agentId,
@@ -103,8 +104,11 @@ export class VectorStoreService implements OnModuleInit {
     await this.verifyAgentOwnership(agentId, userId);
 
     const q = new Postgres.Query(
-      `SELECT document_id, MAX(original_name) AS original_name, MAX(mime_type) AS mime_type, SUM(LENGTH(content)) AS size
-       FROM document_vectors
+      `SELECT document_id,
+        (SELECT DISTINCT original_name FROM document_vectors dv2 WHERE dv2.document_id = dv.document_id LIMIT 1) AS original_name,
+        (SELECT DISTINCT mime_type FROM document_vectors dv2 WHERE dv2.document_id = dv.document_id LIMIT 1) AS mime_type,
+        SUM(LENGTH(content)) AS size
+       FROM document_vectors dv
        WHERE agent_id = $1
        GROUP BY document_id`,
       [agentId]
@@ -162,9 +166,9 @@ export class VectorStoreService implements OnModuleInit {
     }
   }
 
-  async getTotalSize(): Promise<number> {
+  async getTotalSize(userId: string): Promise<number> {
     try {
-      const size = await rag.totalSize();
+      const size = await rag.totalSize(userId);
       return size;
     } catch (err) {
       logger.error(`Failed to get total size:`, err);

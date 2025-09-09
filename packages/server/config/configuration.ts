@@ -37,6 +37,10 @@ export class ConfigurationService {
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
       RAG_CONFIG_PATH: this.configService.get<string>('RAG_CONFIG_PATH'),
+      REDIS_HOST: this.configService.get<string>('REDIS_HOST'),
+      REDIS_PORT: this.configService.get<string>('REDIS_PORT'),
+      REDIS_PASSWORD: this.configService.get<string>('REDIS_PASSWORD'),
+      REDIS_DB: this.configService.get<string>('REDIS_DB'),
       // Add others if needed
     };
 
@@ -166,5 +170,23 @@ export class ConfigurationService {
 
   get isTest(): boolean {
     return this.config.NODE_ENV === 'test';
+  }
+
+  get redis() {
+    const host = this.config.REDIS_HOST ?? '127.0.0.1';
+    const port = Number(this.config.REDIS_PORT ?? 6379);
+    const db = this.config.REDIS_DB !== undefined ? Number(this.config.REDIS_DB) : 0;
+    if (!Number.isFinite(port) || port <= 0) {
+      throw new Error(`Invalid REDIS_PORT: ${this.config.REDIS_PORT}`);
+    }
+    if (db !== undefined && (!Number.isFinite(db) || db < 0)) {
+      throw new Error(`Invalid REDIS_DB: ${this.config.REDIS_DB}`);
+    }
+    return {
+      host,
+      port,
+      password: this.config.REDIS_PASSWORD || '',
+      db,
+    };
   }
 }
