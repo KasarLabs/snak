@@ -407,7 +407,7 @@ export class SnakAgent extends BaseAgent {
       const app = this.agentReactExecutor.app;
       const agentJsonConfig = this.agentReactExecutor.agent_config;
       const maxGraphSteps = this.agentConfig.maxIterations;
-      const shortTermMemory = this.agentConfig.memory.shortTermMemorySize || 5;
+      const shortTermMemory = this.agentConfig.memory.shortTermMemorySize || 10;
       const memorySize = this.agentConfig.memory?.memorySize || 20;
       const humanInTheLoop = this.agentConfig.mode === AgentMode.HYBRID;
       this.controller = new AbortController();

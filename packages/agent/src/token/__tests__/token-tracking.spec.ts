@@ -1,4 +1,4 @@
-import { TokenTracker } from '../tokenTracking.js';
+import { TokenTracker } from '../token-tracking.js';
 import { logger as coreLogger } from '@snakagent/core';
 
 type TokenUsage = {

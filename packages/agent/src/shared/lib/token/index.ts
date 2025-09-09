@@ -2,4 +2,4 @@
  * Token library exports
  */
 
-export * from './token-tracking.js';
+export * from '../../../token/token-tracking.js';

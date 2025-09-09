@@ -37,7 +37,7 @@ import {
   TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
   VALIDATOR_EXECUTOR_CONTEXT,
 } from '../../../shared/prompts/graph/executor/validator_prompt.js';
-import { TokenTracker } from '../../../shared/lib/token/token-tracking.js';
+import { TokenTracker } from '../../../token/token-tracking.js';
 import {
   parseReActResponse,
   createReActObservation,
