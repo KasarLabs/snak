@@ -2,8 +2,9 @@ import { TestRunner } from './test-runner.js';
 import { SnakConfig } from './types.js';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const port = process.env.SERVER_PORT || '3002';
 const config: SnakConfig = {
@@ -14,7 +15,6 @@ const config: SnakConfig = {
 
 async function main() {
   console.log(chalk.blue.bold('🚀 Snak API Test Suite\n'));
-  
   if (!port) {
     console.error(chalk.red('❌ SERVER_PORT is required'));
     process.exit(1);
