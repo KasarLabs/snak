@@ -42,6 +42,7 @@ export enum GraphNode {
   PLANNING_ORCHESTRATOR = 'planning_orchestrator',
   AGENT_EXECUTOR = 'agent_executor',
   MEMORY_ORCHESTRATOR = 'memory_orchestrator',
+  TASK_VERIFIER = 'task_verifier',
   TASK_UPDATER = 'task_updater',
   END_GRAPH = 'end_graph',
 }
@@ -79,5 +80,16 @@ export enum MemoryNode {
   LTM_MANAGER = 'ltm_manager',
   RETRIEVE_MEMORY = 'retrieve_memory',
   END_MEMORY_GRAPH = 'end_memory_graph',
+  END = 'end',
+}
+
+/**
+ * Task verifier node types
+ */
+export enum VerifierNode {
+  TASK_VERIFIER = 'task_verifier',
+  TASK_SUCCESS_HANDLER = 'task_success_handler',
+  TASK_FAILURE_HANDLER = 'task_failure_handler',
+  END_VERIFIER_GRAPH = 'end_verifier_graph',
   END = 'end',
 }

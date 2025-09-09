@@ -25,6 +25,12 @@ export const AUTONOMOUS_AI_CONSTRAINTS = {
    - You cannot proceed to the next logical step
    - You encounter any error or blocking situation`,
   WORKING_MEMORY_BLOCKED: `If you see repeated attempts in WORKING_MEMORY with the same result, you are blocked and must use end_task`,
+  
+  // Task Verification Constraints
+  OBJECTIVE_ANALYSIS_REQUIRED: 'Conduct objective analysis based on concrete evidence and measurable outcomes',
+  EVIDENCE_BASED_ASSESSMENT: 'Base all assessments on actual tool results, outputs, and observable evidence',
+  STRICT_COMPLETION_CRITERIA: 'Apply strict criteria - tasks are only complete when all original objectives are fully met',
+  DETAILED_REASONING_MANDATORY: 'Provide detailed, step-by-step reasoning for all completion assessments',
   // Output Format Constraints
   JSON_RESPONSE_MANDATORY: 'YOU MUST ALWAYS RESPOND WITH A JSON OBJECT.',
   TOOL_INVOCATION_REQUIRED:

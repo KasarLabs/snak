@@ -96,6 +96,14 @@ export class PromptGenerator {
         speak: 'thoughts goal summary to say to executor',
       },
     });
+
+    this.addResponseFormat('task_verifier', {
+      taskCompleted: 'boolean indicating if task was successfully completed',
+      confidenceScore: 'number from 0-100 indicating confidence in assessment',
+      reasoning: 'detailed reasoning for the completion assessment',
+      missingElements: ['list of missing elements or requirements if incomplete'],
+      nextActions: ['suggested next actions if task needs to continue']
+    });
   }
 
   /**
