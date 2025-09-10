@@ -418,7 +418,7 @@ export class SnakAgent extends BaseAgent {
       const threadConfig = {
         configurable: {
           thread_id: threadId,
-          max_graph_steps: maxGraphSteps,
+          max_graph_steps: 20,
           short_term_memory: shortTermMemory,
           memory_size: memorySize,
           agent_config: this.agentConfig,

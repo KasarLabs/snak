@@ -99,24 +99,39 @@ export class MemoryGraph {
   }
 
   private formatTaskForSTM(step: StepType): string {
+    let finalOutput = '';
+
     try {
-      let formatted = '';
-      if (step) {
-        formatted += `Steps: `;
-        const toolResult =
-          typeof step.tool.result === 'string'
-            ? step.tool.result
-            : JSON.stringify(step.tool.result, null, 2);
-
-        formatted += `${step.thoughts.text} → ${step.tool.name}(${Object.keys(step.tool.args).join(',')}) → ${step.tool.status}:${toolResult}; `;
-
-        formatted += `\n`;
+      // Parse thoughts section (same as Python version)
+      if (step.thoughts) {
+        if (step.thoughts.reasoning) {
+          finalOutput = '-Thoughts: ' + step.thoughts.reasoning + '\n';
+        }
+        if (step.thoughts.criticism) {
+          finalOutput += '-Criticism: ' + step.thoughts.criticism + '\n';
+        }
+      }
+      if (step.tool) {
+        finalOutput += '-Tool: ' + step.tool.name + '\n';
+        if (step.tool.args && Object.keys(step.tool.args).length > 0) {
+          const argsEntries = Object.entries(step.tool.args);
+          const argsString = argsEntries
+            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+            .join(', ');
+          finalOutput += '-Arguments: { ' + argsString + ' }\n';
+        }
+        if (step.tool.result) {
+          finalOutput += '-Result: ' + step.tool.result + '\n';
+        }
+        if (step.tool.status) {
+          finalOutput += '-Status: ' + step.tool.status + '\n';
+        }
       }
 
-      return formatted;
+      return finalOutput;
     } catch (error) {
-      logger.error(`[STMManager] Error formatting task for STM: ${error}`);
-      return `Task: ${step.thoughts.text || 'Unknown task'}`;
+      // If parsing fails, return a simple string representation
+      return JSON.stringify(step);
     }
   }
 
@@ -124,7 +139,7 @@ export class MemoryGraph {
     try {
       let formatted = `Task: ${task.text}\n`;
       if (task.steps && task.steps.length > 0) {
-        formatted += `Steps: `;
+        formatted += `-Steps: `;
         task.steps.forEach((step: any, index: number) => {
           const toolResult =
             typeof step.tool.result === 'string'
@@ -405,11 +420,11 @@ export class MemoryGraph {
       return MemoryNode.END_MEMORY_GRAPH;
     }
 
-    const maxSteps =
-      config.configurable?.max_graph_steps ??
-      DEFAULT_GRAPH_CONFIG.maxGraphSteps;
+    const maxSteps = config.configurable?.max_graph_steps ?? 0;
     if (maxSteps <= state.currentGraphStep) {
-      logger.warn('[Router] Max graph steps reached, routing to END node');
+      logger.warn(
+        `[Router] Max graph steps reached(${maxSteps}), routing to END node`
+      );
       return MemoryNode.END_MEMORY_GRAPH;
     }
 

@@ -6,29 +6,43 @@ import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { 
-  TaskType, 
-  StepType, 
+import {
+  TaskType,
+  StepType,
   TasksType,
-  validatorResponse 
+  validatorResponse,
+  MemoryItem,
 } from '../../../shared/types/index.js';
-import { 
+import {
   VerifierNode,
-  ExecutionMode 
+  ExecutionMode,
 } from '../../../shared/enums/agent-modes.enum.js';
 import { handleNodeError } from '../utils/graph-utils.js';
-import { PromptGenerator } from '../manager/prompts/prompt-manager.js';
+import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js';
 import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
 import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
 
 // Task verification schema
 export const TaskVerificationSchema = z.object({
-  taskCompleted: z.boolean().describe('true if the task was successfully completed, false otherwise'),
-  confidenceScore: z.number().min(0).max(100).describe('Confidence level (0-100) in the completion assessment'),
-  reasoning: z.string().describe('Detailed reasoning for the completion assessment'),
-  missingElements: z.array(z.string()).describe('List of missing elements or requirements if task is incomplete'),
-  nextActions: z.array(z.string()).optional().describe('Suggested next actions if task needs to continue')
+  taskCompleted: z
+    .boolean()
+    .describe('true if the task was successfully completed, false otherwise'),
+  confidenceScore: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe('Confidence level (0-100) in the completion assessment'),
+  reasoning: z
+    .string()
+    .describe('Detailed reasoning for the completion assessment'),
+  missingElements: z
+    .array(z.string())
+    .describe('List of missing elements or requirements if task is incomplete'),
+  nextActions: z
+    .array(z.string())
+    .optional()
+    .describe('Suggested next actions if task needs to continue'),
 });
 
 export type TaskVerificationResult = z.infer<typeof TaskVerificationSchema>;
@@ -42,7 +56,7 @@ const TASK_VERIFICATION_SYSTEM_PROMPT = `You are a task verification specialist.
 4. COMPLETENESS CHECK: Identify any missing elements or unfulfilled requirements
 
 ASSESSMENT CRITERIA:
-- Task objectives must be fully met, not partially completed
+- Only the Task objectives must be fully met, not partially completed
 - All critical requirements must be addressed
 - Tool executions must have produced meaningful results
 - No essential steps should be missing or failed
@@ -54,13 +68,10 @@ const TASK_VERIFICATION_CONTEXT_PROMPT = `Verify task completion for:
 ORIGINAL TASK GOAL:
 {originalTask}
 
-TASK REASONING:
-{taskReasoning}
-
 EXECUTED STEPS AND RESULTS:
 {executedSteps}
 
-FINAL TOOL RESULT:
+LAST TOOL RESULT:
 {finalToolResult}
 
 Assess whether this task is truly complete or requires additional work.`;
@@ -76,46 +87,46 @@ export class TaskVerifierGraph {
   private buildPromptGenerator(): PromptGenerator {
     const prompt = new PromptGenerator();
     prompt.addHeader(headerPromptStandard);
-    
+
     // Add verification-specific constraints
     prompt.addConstraints([
       'OBJECTIVE_ANALYSIS_REQUIRED',
       'EVIDENCE_BASED_ASSESSMENT',
       'STRICT_COMPLETION_CRITERIA',
       'DETAILED_REASONING_MANDATORY',
-      'JSON_RESPONSE_MANDATORY'
+      'JSON_RESPONSE_MANDATORY',
     ]);
-    
+
     prompt.addPerformanceEvaluation(PERFORMANCE_EVALUATION_PROMPT);
     prompt.setActiveResponseFormat('task_verifier');
-    
+
     return prompt;
   }
 
-  private formatExecutedSteps(steps: StepType[]): string {
-    return steps.map((step, index) => {
-      return `Step ${index + 1}:
-- Thought: ${step.thoughts.text}
-- Reasoning: ${step.thoughts.reasoning}
-- Tool Used: ${step.tool.name}
-- Tool Args: ${JSON.stringify(step.tool.args)}
-- Tool Result: ${step.tool.result}
-- Status: ${step.tool.status}
-`;
-    }).join('\n');
+  private formatExecutedSteps(steps: readonly (MemoryItem | null)[]): string {
+    return steps
+      .map((step, index) => {
+        if (!step) {
+          return;
+        }
+        return `${index}.${step.content}\n`;
+      })
+      .join('');
   }
 
   private async verifyTaskCompletion(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    last_node: VerifierNode;
-    tasks?: TaskType[];
-    currentTaskIndex?: number;
-    currentGraphStep?: number;
-    skipValidation?: { skipValidation: boolean; goto: string };
-  } | Command> {
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        last_node: VerifierNode;
+        tasks?: TaskType[];
+        currentTaskIndex?: number;
+        currentGraphStep?: number;
+      }
+    | Command
+  > {
     try {
       if (!this.modelSelector) {
         throw new Error('ModelSelector is required for task verification');
@@ -133,27 +144,33 @@ export class TaskVerifierGraph {
 
       // Check if task was marked as completed by end_task tool
       if (currentTask.status !== 'completed') {
-        logger.debug('[TaskVerifier] Task not marked as completed, skipping verification');
+        logger.debug(
+          '[TaskVerifier] Task not marked as completed, skipping verification'
+        );
         return {
           messages: [],
           last_node: VerifierNode.TASK_VERIFIER,
           tasks: state.tasks,
           currentTaskIndex: state.currentTaskIndex,
-          currentGraphStep: state.currentGraphStep + 1
+          currentGraphStep: state.currentGraphStep + 1,
         };
       }
 
       const prompts = this.buildPromptGenerator();
-      const structuredModel = model.withStructuredOutput(TaskVerificationSchema);
-      
+      const structuredModel = model.withStructuredOutput(
+        TaskVerificationSchema
+      );
+
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', TASK_VERIFICATION_SYSTEM_PROMPT],
-        ['user', TASK_VERIFICATION_CONTEXT_PROMPT]
+        ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 
-      const executedSteps = this.formatExecutedSteps(currentTask.steps);
+      const executedSteps = this.formatExecutedSteps(state.memories.stm.items);
       const lastStep = currentTask.steps[currentTask.steps.length - 1];
-      const finalToolResult = lastStep ? lastStep.tool.result : 'No final result available';
+      const finalToolResult = lastStep
+        ? lastStep.tool.result
+        : 'No final result available';
 
       const formattedResponseFormat = JSON.stringify(
         prompts.getResponseFormat(),
@@ -163,9 +180,9 @@ export class TaskVerifierGraph {
 
       logger.info('[TaskVerifier] Starting task completion verification');
 
-      const verificationResult = await structuredModel.invoke(
+      const verificationResult = (await structuredModel.invoke(
         await prompt.formatMessages({
-          originalTask: currentTask.speak,
+          originalTask: currentTask.text,
           taskReasoning: currentTask.reasoning,
           executedSteps,
           finalToolResult,
@@ -178,9 +195,9 @@ export class TaskVerifierGraph {
             prompts.getPerformanceEvaluation(),
             'performance evaluation'
           ),
-          output_format: formattedResponseFormat
+          output_format: formattedResponseFormat,
         })
-      ) as TaskVerificationResult;
+      )) as TaskVerificationResult;
 
       const verificationMessage = new AIMessageChunk({
         content: `Task verification completed: ${verificationResult.taskCompleted ? 'SUCCESS' : 'INCOMPLETE'}
@@ -192,32 +209,39 @@ Reasoning: ${verificationResult.reasoning}`,
           confidenceScore: verificationResult.confidenceScore,
           reasoning: verificationResult.reasoning,
           missingElements: verificationResult.missingElements,
-          nextActions: verificationResult.nextActions
-        }
+          nextActions: verificationResult.nextActions,
+        },
       });
 
-      if (verificationResult.taskCompleted && verificationResult.confidenceScore >= 70) {
+      if (
+        verificationResult.taskCompleted &&
+        verificationResult.confidenceScore >= 70
+      ) {
         // Task is truly complete, proceed to next task
-        logger.info(`[TaskVerifier] Task ${state.currentTaskIndex + 1} verified as complete (${verificationResult.confidenceScore}% confidence)`);
-        
+        logger.info(
+          `[TaskVerifier] Task ${state.currentTaskIndex + 1} verified as complete (${verificationResult.confidenceScore}% confidence)`
+        );
+
         return {
           messages: [verificationMessage],
           last_node: VerifierNode.TASK_VERIFIER,
           tasks: state.tasks,
           currentTaskIndex: state.currentTaskIndex,
-          currentGraphStep: state.currentGraphStep + 1
+          currentGraphStep: state.currentGraphStep + 1,
         };
       } else {
         // Task needs more work, mark as incomplete and go back to planning
-        logger.warn(`[TaskVerifier] Task ${state.currentTaskIndex + 1} verification failed (${verificationResult.confidenceScore}% confidence)`);
-        
+        logger.warn(
+          `[TaskVerifier] Task ${state.currentTaskIndex + 1} verification failed (${verificationResult.confidenceScore}% confidence)`
+        );
+
         // Mark task as incomplete and add verification context to memory
         const updatedTasks = [...state.tasks];
         updatedTasks[state.currentTaskIndex].status = 'failed';
-        
+
         // Add verification failure context to short-term memory
         const verificationContext = `TASK VERIFICATION FAILED:
-Task: ${currentTask.speak}
+Task: ${currentTask.text}
 Reason: ${verificationResult.reasoning}
 Missing Elements: ${verificationResult.missingElements.join(', ')}
 Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specified'}`;
@@ -228,10 +252,8 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
           tasks: updatedTasks,
           currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
-          skipValidation: { skipValidation: true, goto: 'planning_orchestrator' }
         };
       }
-
     } catch (error: any) {
       logger.error(`[TaskVerifier] Task verification failed: ${error.message}`);
       return handleNodeError(
@@ -248,12 +270,16 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): VerifierNode {
     const lastMessage = state.messages[state.messages.length - 1];
-    
+
     if (lastMessage?.additional_kwargs?.taskCompleted === true) {
-      logger.debug('[TaskVerifierRouter] Task verified as complete, routing to success handler');
+      logger.debug(
+        '[TaskVerifierRouter] Task verified as complete, routing to success handler'
+      );
       return VerifierNode.TASK_SUCCESS_HANDLER;
     } else {
-      logger.debug('[TaskVerifierRouter] Task verification failed, routing to failure handler');
+      logger.debug(
+        '[TaskVerifierRouter] Task verification failed, routing to failure handler'
+      );
       return VerifierNode.TASK_FAILURE_HANDLER;
     }
   }
@@ -267,14 +293,14 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
     currentTaskIndex?: number;
   }> {
     logger.info('[TaskSuccessHandler] Processing successful task completion');
-    
+
     const successMessage = new AIMessageChunk({
       content: `Task ${state.currentTaskIndex + 1} successfully completed and verified.`,
       additional_kwargs: {
         from: 'task_success_handler',
         final: false,
-        taskSuccess: true
-      }
+        taskSuccess: true,
+      },
     });
 
     // Move to next task
@@ -284,7 +310,7 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
     return {
       messages: [successMessage],
       last_node: VerifierNode.TASK_SUCCESS_HANDLER,
-      currentTaskIndex: hasMoreTasks ? nextTaskIndex : state.currentTaskIndex
+      currentTaskIndex: hasMoreTasks ? nextTaskIndex : state.currentTaskIndex,
     };
   }
 
@@ -297,21 +323,21 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
     retry?: number;
   }> {
     logger.info('[TaskFailureHandler] Processing failed task verification');
-    
+
     const failureMessage = new AIMessageChunk({
       content: `Task ${state.currentTaskIndex + 1} verification failed. Returning to planning phase.`,
       additional_kwargs: {
         from: 'task_failure_handler',
         final: false,
         taskSuccess: false,
-        needsReplanning: true
-      }
+        needsReplanning: true,
+      },
     });
 
     return {
       messages: [failureMessage],
       last_node: VerifierNode.TASK_FAILURE_HANDLER,
-      retry: state.retry + 1
+      retry: state.retry + 1,
     };
   }
 
@@ -324,10 +350,7 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
       GraphState,
       GraphConfigurableAnnotation
     )
-      .addNode(
-        VerifierNode.TASK_VERIFIER,
-        this.verifyTaskCompletion.bind(this)
-      )
+      .addNode(VerifierNode.TASK_VERIFIER, this.verifyTaskCompletion.bind(this))
       .addNode(
         VerifierNode.TASK_SUCCESS_HANDLER,
         this.taskSuccessHandler.bind(this)

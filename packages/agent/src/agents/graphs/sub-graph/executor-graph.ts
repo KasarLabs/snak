@@ -69,16 +69,7 @@ import {
   Id,
   TaskType,
 } from '../../../shared/types/index.js';
-import { formatLTMForContext } from '../parser/memory/ltm-parser.js';
-import {
-  formatExecutionMessage,
-  formatStepsForContext,
-  formatToolResponse,
-  formatToolsForHistory,
-  formatToolsForPlan,
-  formatValidatorToolsExecutor,
-} from '../parser/plan-or-histories/plan-or-histoires.parser.js';
-import { PromptGenerator } from '../manager/prompts/prompt-manager.js';
+import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js';
 import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
 import { parseToolsToJson } from './planner-graph.js';
 import {
@@ -87,6 +78,7 @@ import {
 } from '@prompts/agents/instruction.prompts.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
 import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
+import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig;
@@ -135,26 +127,18 @@ export class AgentExecutorGraph {
     logger.debug(`[Executor] Invoking model () with execution`);
     const structuredModel = model.withStructuredOutput(StepSchema);
     console.log(state.currentTaskIndex);
-    console.log(state.tasks[state.currentTaskIndex].speak);
+    console.log(state.tasks[state.currentTaskIndex].text);
     let current_task_id = state.tasks[state.currentTaskIndex].id;
     const result = (await structuredModel.invoke(
       await prompt.formatMessages({
         header: prompts.generateNumberedList(prompts.getHeader()),
-        goal: state.tasks[state.currentTaskIndex].speak,
+        goal: state.tasks[state.currentTaskIndex].text,
         constraints: prompts.generateNumberedList(
           prompts.getConstraints(),
           'constraint'
         ),
-        short_term_memory: state.memories.stm.items
-          .map((item, index) => {
-            if (item) {
-              if (index === 0) {
-                return `TASK:${state.tasks[state.currentTaskIndex].speak}: ${item.content ? item.content : ''}`;
-              }
-              return item.content;
-            }
-          })
-          .join('\n'),
+        short_term_memory: stm_format_for_history(state.memories.stm),
+
         long_term_memory: '',
         resources: prompts.generateNumberedList(
           prompts.getResources(),
@@ -230,6 +214,7 @@ export class AgentExecutorGraph {
           'DECISITION_SAFEST_POSSIBLE',
           'NEVER_WAIT_HUMAN',
           'SUBSEQUENT_TASKS',
+          'DONT_OVERTHINK',
           'JSON_RESPONSE_MANDATORY',
           'TOOL_END_TASK',
           'TOOL_END_TASK_IF',
@@ -523,9 +508,7 @@ export class AgentExecutorGraph {
         return ExecutorNode.TOOL_EXECUTOR;
       }
     } else if (state.last_node === ExecutorNode.TOOL_EXECUTOR) {
-      const maxSteps =
-        config.configurable?.max_graph_steps ??
-        DEFAULT_GRAPH_CONFIG.maxGraphSteps;
+      const maxSteps = config.configurable?.max_graph_steps ?? 0;
       if (maxSteps <= state.currentGraphStep) {
         logger.warn('[Router] Max graph steps reached, routing to END node');
         return ExecutorNode.END_EXECUTOR_GRAPH;

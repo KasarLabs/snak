@@ -52,7 +52,9 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => [],
   }),
-  last_node: Annotation<ExecutorNode | PlannerNode | MemoryNode | GraphNode | VerifierNode>({
+  last_node: Annotation<
+    ExecutorNode | PlannerNode | MemoryNode | GraphNode | VerifierNode
+  >({
     reducer: (x, y) => y,
     default: () => GraphNode.START,
   }),
@@ -102,7 +104,7 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   }),
   max_graph_steps: Annotation<number>({
     reducer: (x, y) => y,
-    default: () => 100,
+    default: () => 1000,
   }),
   short_term_memory: Annotation<number>({
     reducer: (x, y) => y,
@@ -200,7 +202,12 @@ export class Graph {
   private task_updater(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): { tasks?: TaskType[]; currentTaskIndex?: number; last_node?: GraphNode; memories?: Memories } {
+  ): {
+    tasks?: TaskType[];
+    currentTaskIndex?: number;
+    last_node?: GraphNode;
+    memories?: Memories;
+  } {
     try {
       if (!state.tasks || state.tasks.length === 0) {
         throw new Error('[Task Updater] No tasks found in the state.');
@@ -217,7 +224,10 @@ export class Graph {
       const lastMessage = state.messages[state.messages.length - 1];
       let updatedMemories = state.memories;
 
-      if (lastMessage && lastMessage.additional_kwargs?.from === 'task_verifier') {
+      if (
+        lastMessage &&
+        lastMessage.additional_kwargs?.from === 'task_verifier'
+      ) {
         // Add task verification context to memory
         const verificationContext = {
           content: `Task ${state.currentTaskIndex + 1} verification: ${
@@ -231,8 +241,8 @@ export class Graph {
             taskCompleted: lastMessage.additional_kwargs.taskCompleted,
             confidenceScore: lastMessage.additional_kwargs.confidenceScore,
             missingElements: lastMessage.additional_kwargs.missingElements,
-            nextActions: lastMessage.additional_kwargs.nextActions
-          }
+            nextActions: lastMessage.additional_kwargs.nextActions,
+          },
         };
 
         // Add to short-term memory
@@ -240,13 +250,15 @@ export class Graph {
           ...state.memories,
           stm: {
             ...state.memories.stm,
-            items: [
-              ...state.memories.stm.items,
-              verificationContext
-            ].slice(-state.memories.stm.maxSize), // Keep only latest items within maxSize
-            size: Math.min(state.memories.stm.size + 1, state.memories.stm.maxSize),
-            totalInserted: state.memories.stm.totalInserted + 1
-          }
+            items: [...state.memories.stm.items, verificationContext].slice(
+              -state.memories.stm.maxSize
+            ), // Keep only latest items within maxSize
+            size: Math.min(
+              state.memories.stm.size + 1,
+              state.memories.stm.maxSize
+            ),
+            totalInserted: state.memories.stm.totalInserted + 1,
+          },
         };
 
         logger.info(
@@ -255,42 +267,32 @@ export class Graph {
       }
 
       // If task is completed and verified successfully, move to next task
-      if (currentTask.status === 'completed' && 
-          lastMessage?.additional_kwargs?.taskCompleted === true) {
-        const nextTaskIndex = state.currentTaskIndex + 1;
-        const hasMoreTasks = nextTaskIndex < state.tasks.length;
-
-        if (hasMoreTasks) {
-          logger.info(
-            `[Task Updater] Moving from completed task ${state.currentTaskIndex + 1} to task ${nextTaskIndex + 1}`
-          );
-          return {
-            tasks: state.tasks,
-            currentTaskIndex: nextTaskIndex,
-            last_node: GraphNode.TASK_UPDATER,
-            memories: updatedMemories,
-          };
-        } else {
-          logger.info(`[Task Updater] All tasks completed successfully`);
-          return {
-            tasks: state.tasks,
-            currentTaskIndex: state.currentTaskIndex,
-            last_node: GraphNode.TASK_UPDATER,
-            memories: updatedMemories,
-          };
-        }
+      if (
+        currentTask.status === 'completed' &&
+        lastMessage?.additional_kwargs?.taskCompleted === true
+      ) {
+        logger.info(
+          `[Task Updater] Moving from completed task ${state.currentTaskIndex} to task ${state.currentTaskIndex + 1}`
+        );
+        return {
+          tasks: state.tasks,
+          currentTaskIndex: state.currentTaskIndex,
+          last_node: GraphNode.TASK_UPDATER,
+          memories: updatedMemories,
+        };
       }
-      
+
       // If task verification failed, mark task as failed and keep current index for retry
-      if (currentTask.status === 'completed' && 
-          lastMessage?.additional_kwargs?.taskCompleted === false) {
+      if (
+        currentTask.status === 'completed' &&
+        lastMessage?.additional_kwargs?.taskCompleted === false
+      ) {
         const updatedTasks = [...state.tasks];
         updatedTasks[state.currentTaskIndex].status = 'failed';
-        
+
         logger.warn(
           `[Task Updater] Task ${state.currentTaskIndex + 1} verification failed, marked as failed for retry`
         );
-        
         return {
           tasks: updatedTasks,
           currentTaskIndex: state.currentTaskIndex, // Keep same index for retry
@@ -300,7 +302,7 @@ export class Graph {
       }
 
       // Default case - no change
-      return { 
+      return {
         last_node: GraphNode.TASK_UPDATER,
         memories: updatedMemories,
       };
@@ -347,6 +349,13 @@ export class Graph {
       }
     }
 
+    if (isInEnum(VerifierNode, state.last_node)) {
+      logger.debug(
+        `[Orchestration Router] Task verification complete, routing to task_updater`
+      );
+      return GraphNode.TASK_UPDATER;
+    }
+
     if (isInEnum(ExecutorNode, state.last_node)) {
       // Check if a task was just completed (end_task tool was called)
       const currentTask = state.tasks[state.currentTaskIndex];
@@ -370,56 +379,35 @@ export class Graph {
 
     console.log(state.last_node);
     if (isInEnum(GraphNode, state.last_node)) {
+      const nextTaskIndex = state.currentTaskIndex + 1;
+      const hasMoreTasks = nextTaskIndex < state.tasks.length;
       if (state.last_node === GraphNode.TASK_UPDATER) {
-        if (
-          l_msg.additional_kwargs.final === true &&
-          executionMode === ExecutionMode.PLANNING
+        console.log(l_msg);
+        if (l_msg.additional_kwargs.taskSuccess === true) {
+          // Task is verified as complete, go to memory to save the success
+          if (hasMoreTasks) {
+            logger.debug(
+              `[Orchestration Router] Task verified as complete, routing to agent executor for next task`
+            );
+            return GraphNode.AGENT_EXECUTOR;
+          } else {
+            logger.debug(
+              `[Orchestration Router] All tasks completed successfully, routing to end planning new_task`
+            );
+            return GraphNode.PLANNING_ORCHESTRATOR;
+          }
+        } else if (
+          l_msg.additional_kwargs.taskSuccess === false &&
+          l_msg.additional_kwargs.needsReplanning === true
         ) {
+          // Task verification failed, need to replan
           logger.debug(
-            `[Orchestration Router] Final execution reached in PLANNING mode, routing to planner`
+            `[Orchestration Router] Task verification failed, routing to planner for retry`
           );
           return GraphNode.PLANNING_ORCHESTRATOR;
-        } else if (
-          l_msg.additional_kwargs.final === true &&
-          executionMode === ExecutionMode.REACTIVE
-        ) {
-          logger.debug(
-            `[Orchestration Router] Final execution reached in REACTIVE mode, routing to end`
-          );
-          return GraphNode.END_GRAPH;
         }
       }
     }
-    if (isInEnum(MemoryNode, state.last_node)) {
-      logger.debug(
-        `[Orchestration Router] Memory processed, routing to TASK_UPDATER`
-      );
-      return GraphNode.TASK_UPDATER;
-    }
-
-    // Handle task verifier routing
-    if (state.last_node === GraphNode.TASK_VERIFIER) {
-      if (l_msg.additional_kwargs.taskCompleted === true) {
-        // Task is verified as complete, go to memory to save the success
-        logger.debug(
-          `[Orchestration Router] Task verified as complete, routing to memory`
-        );
-        return GraphNode.MEMORY_ORCHESTRATOR;
-      } else if (l_msg.additional_kwargs.taskCompleted === false) {
-        // Task verification failed, need to replan
-        logger.debug(
-          `[Orchestration Router] Task verification failed, routing to planner for retry`
-        );
-        return GraphNode.PLANNING_ORCHESTRATOR;
-      } else {
-        // Default case - continue to memory
-        logger.debug(
-          `[Orchestration Router] Task verifier complete, routing to memory`
-        );
-        return GraphNode.MEMORY_ORCHESTRATOR;
-      }
-    }
-
 
     logger.debug(`[Orchestration Router] Default routing to executor`);
     return GraphNode.AGENT_EXECUTOR;
@@ -517,7 +505,7 @@ export class Graph {
     memory.createGraphMemory();
     planner.createPlannerGraph();
     taskVerifier.createTaskVerifierGraph();
-    
+
     const executor_graph = executor.getExecutorGraph();
     const memory_graph = memory.getMemoryGraph();
     const planner_graph = planner.getPlannerGraph();

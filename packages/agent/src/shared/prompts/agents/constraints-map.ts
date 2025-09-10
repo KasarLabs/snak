@@ -19,18 +19,20 @@ export const AUTONOMOUS_AI_CONSTRAINTS = {
   DECISITION_SAFEST_POSSIBLE: `If uncertain about a decision, choose the safest option`,
   NEVER_WAIT_HUMAN: `Never wait for human approval before proceeding`,
   THINK_CHECK_AND_ADAPT: `Think "check and adapt" not "build from scratch"`,
-  TOOL_END_TASK: `USE TOOL END_TASK WHEN YOU RESOLVE YOUR GOAL.`,
-  TOOL_END_TASK_IF: `USE TOOL END_TASK IMMEDIATELY IF:
-   - You attempt the same action more than twice with the same result
-   - You cannot proceed to the next logical step
-   - You encounter any error or blocking situation`,
-  WORKING_MEMORY_BLOCKED: `If you see repeated attempts in WORKING_MEMORY with the same result, you are blocked and must use end_task`,
-  
+  TOOL_END_TASK: `CRITICAL USE TOOL END_TASK WHEN YOU RESOLVE YOUR GOAL. DON'T OVERTHINKING`,
+  TOOL_END_TASK_IF: `CRITICAL USE TOOL END_TASK IMMEDIATELY IF YOUT ENCOUNTER ANY ERROR OR BLOCKING SITUATION'`,
+  DONT_OVERTHINK: `Don't overthink, only resolve your goal`,
+  WORKING_MEMORY_BLOCKED: `If you see that you are looping on same step/tool in WORKING_MEMORY with the same result, you are blocked and must use end_task`,
+
   // Task Verification Constraints
-  OBJECTIVE_ANALYSIS_REQUIRED: 'Conduct objective analysis based on concrete evidence and measurable outcomes',
-  EVIDENCE_BASED_ASSESSMENT: 'Base all assessments on actual tool results, outputs, and observable evidence',
-  STRICT_COMPLETION_CRITERIA: 'Apply strict criteria - tasks are only complete when all original objectives are fully met',
-  DETAILED_REASONING_MANDATORY: 'Provide detailed, step-by-step reasoning for all completion assessments',
+  OBJECTIVE_ANALYSIS_REQUIRED:
+    'Conduct objective analysis based on concrete evidence and measurable outcomes',
+  EVIDENCE_BASED_ASSESSMENT:
+    'Base all assessments on actual tool results, outputs, and observable evidence',
+  STRICT_COMPLETION_CRITERIA:
+    'Apply strict criteria - tasks are only complete when all original objectives are fully met',
+  DETAILED_REASONING_MANDATORY:
+    'Provide detailed, step-by-step reasoning for all completion assessments',
   // Output Format Constraints
   JSON_RESPONSE_MANDATORY: 'YOU MUST ALWAYS RESPOND WITH A JSON OBJECT.',
   TOOL_INVOCATION_REQUIRED:

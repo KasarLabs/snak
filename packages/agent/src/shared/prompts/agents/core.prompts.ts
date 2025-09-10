@@ -6,7 +6,7 @@ GOAL:
 {goal}\n
 CONSTRAINTS:
 {constraints}\n
-WORKING_MEMORY:
+HISTORY(oldest first):
 {short_term_memory}\n
 LONG-TERM_MEMORY:
 {long_term_memory}\n

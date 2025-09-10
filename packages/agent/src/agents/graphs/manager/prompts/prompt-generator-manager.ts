@@ -78,7 +78,6 @@ export class PromptGenerator {
       thoughts: {
         text: 'thought',
         reasoning: 'reasoning',
-        plan: '- short bulleted\n- list that conveys\n- long-term plan',
         criticism: 'constructive self-criticism',
         speak: 'thoughts summary to say to user',
       },
@@ -91,9 +90,10 @@ export class PromptGenerator {
     this.addResponseFormat('task_initializer', {
       tasks: {
         text: 'thought',
-        reasoning: 'short reasoning about the goal',
+        reasoning: 'reasoning',
         criticism: 'constructive self-criticism',
-        speak: 'thoughts goal summary to say to executor',
+        plan: '- short bulleted\n- list that conveys\n- long-term plan',
+        speak: 'thoughts summary to say to user',
       },
     });
 
@@ -101,8 +101,10 @@ export class PromptGenerator {
       taskCompleted: 'boolean indicating if task was successfully completed',
       confidenceScore: 'number from 0-100 indicating confidence in assessment',
       reasoning: 'detailed reasoning for the completion assessment',
-      missingElements: ['list of missing elements or requirements if incomplete'],
-      nextActions: ['suggested next actions if task needs to continue']
+      missingElements: [
+        'list of missing elements or requirements if incomplete',
+      ],
+      nextActions: ['suggested next actions if task needs to continue'],
     });
   }
 
@@ -219,7 +221,9 @@ export class PromptGenerator {
     }
   }
 
-    addConstraints(constraints: Array<keyof typeof AUTONOMOUS_AI_CONSTRAINTS>): void {
+  addConstraints(
+    constraints: Array<keyof typeof AUTONOMOUS_AI_CONSTRAINTS>
+  ): void {
     for (const constraint of constraints) {
       this.constraints.push(
         getConstraint(constraint as keyof typeof AUTONOMOUS_AI_CONSTRAINTS)
@@ -379,10 +383,7 @@ export class PromptGenerator {
    * @param itemType - The type of items in the list. Defaults to 'list'.
    * @returns The formatted numbered list.
    */
-  public generateNumberedList(
-    items: any[],
-    itemType: string = 'list'
-  ): string {
+  public generateNumberedList(items: any[], itemType: string = 'list'): string {
     return items.map((item, i) => `${i + 1}. ${item}`).join('\n');
   }
 

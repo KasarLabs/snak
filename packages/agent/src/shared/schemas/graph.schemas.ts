@@ -81,14 +81,17 @@ export const PlanSchema = z.object({
 });
 
 // Define the task schema
-const TaskSchema = z
+export const TaskSchema = z
   .object({
     text: z.string().describe('thought'),
     reasoning: z.string().describe('short reasoning about the goal'),
+    plan: z
+      .string()
+      .describe('- short bulleted\n- list that conveys\n- long-term plan'),
     criticism: z.string().describe('constructive self-criticism'),
-    speak: z.string().describe('thoughts goal summary to say to executor'),
+    speak: z.string().describe('thoughts summary to say to user'),
   })
-  .strict(); // .strict() prevents additional properties
+  .strict();
 
 // Define the main schema
 const TasksSchema = z
@@ -100,19 +103,17 @@ const TasksSchema = z
 // Export the schema
 export default TasksSchema;
 
-
 export const StepSchema = z.object({
   thoughts: z.object({
-    text: z.string().describe("thought"),
-    reasoning: z.string().describe("short reasoning"),
-    plan: z.string().describe("- short bulleted\n- list that conveys\n- long-term plan"),
-    criticism: z.string().describe("constructive self-criticism"),
-    speak: z.string().describe("thoughts summary to say to user")
+    text: z.string().describe('thought'),
+    reasoning: z.string().describe('reasoning'),
+    criticism: z.string().describe('constructive self-criticism'),
+    speak: z.string().describe('thoughts summary to say to user'),
   }),
   tool: z.object({
-    name: z.string().describe("tool name"),
-    args: z.record(z.any()).describe("tool arguments").nullable()
-  })
+    name: z.string().describe('tool name'),
+    args: z.record(z.any()).describe('tool arguments').nullable(),
+  }),
 });
 
 export type StepSchemaType = z.infer<typeof StepSchema>;

@@ -141,7 +141,6 @@ export interface StepType {
   thoughts: {
     text: string;
     reasoning: string;
-    plan: string;
     criticism: string;
     speak: string;
   };
@@ -156,6 +155,7 @@ export interface StepType {
 export interface TaskType {
   id: string;
   text: string;
+  plan: string;
   reasoning: string;
   criticism: string;
   speak: string;
