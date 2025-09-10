@@ -6,7 +6,8 @@ GOAL:
 {goal}\n
 CONSTRAINTS:
 {constraints}\n
-HISTORY(oldest first):
+HISTORY:
+// history past actions and task validations(newest first)
 {short_term_memory}\n
 LONG-TERM_MEMORY:
 {long_term_memory}\n

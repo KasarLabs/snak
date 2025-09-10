@@ -20,7 +20,11 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import {
+  appendToRunFile,
+  GraphConfigurableAnnotation,
+  GraphState,
+} from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
@@ -129,40 +133,42 @@ export class AgentExecutorGraph {
     console.log(state.currentTaskIndex);
     console.log(state.tasks[state.currentTaskIndex].text);
     let current_task_id = state.tasks[state.currentTaskIndex].id;
-    const result = (await structuredModel.invoke(
-      await prompt.formatMessages({
-        header: prompts.generateNumberedList(prompts.getHeader()),
-        goal: state.tasks[state.currentTaskIndex].text,
-        constraints: prompts.generateNumberedList(
-          prompts.getConstraints(),
-          'constraint'
-        ),
-        short_term_memory: stm_format_for_history(state.memories.stm),
 
-        long_term_memory: '',
-        resources: prompts.generateNumberedList(
-          prompts.getResources(),
-          'resource'
-        ),
-        goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
-        instructions: prompts.generateNumberedList(
-          prompts.getInstructions(),
-          'instruction'
-        ),
-        tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
-        performance_evaluation: prompts.generateNumberedList(
-          prompts.getPerformanceEvaluation(),
-          'performance evaluation'
-        ),
-        output_format: formattedResponseFormat,
-      })
+    const formattedPrompt = await prompt.formatMessages({
+      header: prompts.generateNumberedList(prompts.getHeader()),
+      goal: state.tasks[state.currentTaskIndex].text,
+      constraints: prompts.generateNumberedList(
+        prompts.getConstraints(),
+        'constraint'
+      ),
+      short_term_memory: stm_format_for_history(state.memories.stm),
+
+      long_term_memory: '',
+      resources: prompts.generateNumberedList(
+        prompts.getResources(),
+        'resource'
+      ),
+      goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
+      instructions: prompts.generateNumberedList(
+        prompts.getInstructions(),
+        'instruction'
+      ),
+      tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
+      performance_evaluation: prompts.generateNumberedList(
+        prompts.getPerformanceEvaluation(),
+        'performance evaluation'
+      ),
+      output_format: formattedResponseFormat,
+    });
+    const result = (await structuredModel.invoke(
+      formattedPrompt
     )) as StepSchemaType;
     if (!result) {
       throw new Error(
         'Model invocation returned no result. Please check the model configuration.'
       );
     }
-
+    appendToRunFile(JSON.stringify(formattedPrompt, null, 2));
     TokenTracker.trackCall(result, 'selectedModelType.model_name');
     return result;
   }

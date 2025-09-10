@@ -17,7 +17,11 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import {
+  appendToRunFile,
+  GraphConfigurableAnnotation,
+  GraphState,
+} from '../graph.js';
 import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   PlannerNode,
@@ -250,34 +254,36 @@ export class PlannerGraph {
         4
       );
 
+      const formattedPrompt = await prompt.formatMessages({
+        header: prompts.generateNumberedList(prompts.getHeader()),
+        goal:
+          config.configurable?.objectives ??
+          this.agentConfig.prompt.content.toLocaleString(),
+        constraints: prompts.generateNumberedList(
+          prompts.getConstraints(),
+          'constraint'
+        ),
+        short_term_memory: stm_format_for_history(state.memories.stm),
+        long_term_memory: '',
+        goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
+        instructions: prompts.generateNumberedList(
+          prompts.getInstructions(),
+          'instruction'
+        ),
+        tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
+        performance_evaluation: prompts.generateNumberedList(
+          prompts.getPerformanceEvaluation(),
+          'performance evaluation'
+        ),
+        output_format: formattedResponseFormat,
+      });
       const structuredResult = (await structuredModel.invoke(
-        await prompt.formatMessages({
-          header: prompts.generateNumberedList(prompts.getHeader()),
-          goal:
-            config.configurable?.objectives ??
-            this.agentConfig.prompt.content.toLocaleString(),
-          constraints: prompts.generateNumberedList(
-            prompts.getConstraints(),
-            'constraint'
-          ),
-          short_term_memory: stm_format_for_history(state.memories.stm),
-          long_term_memory: '',
-          goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
-          instructions: prompts.generateNumberedList(
-            prompts.getInstructions(),
-            'instruction'
-          ),
-          tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
-          performance_evaluation: prompts.generateNumberedList(
-            prompts.getPerformanceEvaluation(),
-            'performance evaluation'
-          ),
-          output_format: formattedResponseFormat,
-        })
+        formattedPrompt
       )) as TaskSchemaType;
       logger.info(
         `[Planner] Successfully created task : ${structuredResult.text}`
       );
+      appendToRunFile(JSON.stringify(formattedPrompt, null, 2));
 
       const aiMessage = new AIMessageChunk({
         content: `Plan created with task : ${structuredResult.text}`,

@@ -4,7 +4,11 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import {
+  appendToRunFile,
+  GraphConfigurableAnnotation,
+  GraphState,
+} from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   TaskType,
@@ -179,24 +183,24 @@ export class TaskVerifierGraph {
       );
 
       logger.info('[TaskVerifier] Starting task completion verification');
-
+      const formattedPrompt = await prompt.formatMessages({
+        originalTask: currentTask.text,
+        taskReasoning: currentTask.reasoning,
+        executedSteps,
+        finalToolResult,
+        header: prompts.generateNumberedList(prompts.getHeader()),
+        constraints: prompts.generateNumberedList(
+          prompts.getConstraints(),
+          'constraint'
+        ),
+        performance_evaluation: prompts.generateNumberedList(
+          prompts.getPerformanceEvaluation(),
+          'performance evaluation'
+        ),
+        output_format: formattedResponseFormat,
+      });
       const verificationResult = (await structuredModel.invoke(
-        await prompt.formatMessages({
-          originalTask: currentTask.text,
-          taskReasoning: currentTask.reasoning,
-          executedSteps,
-          finalToolResult,
-          header: prompts.generateNumberedList(prompts.getHeader()),
-          constraints: prompts.generateNumberedList(
-            prompts.getConstraints(),
-            'constraint'
-          ),
-          performance_evaluation: prompts.generateNumberedList(
-            prompts.getPerformanceEvaluation(),
-            'performance evaluation'
-          ),
-          output_format: formattedResponseFormat,
-        })
+        formattedPrompt
       )) as TaskVerificationResult;
 
       const verificationMessage = new AIMessageChunk({
@@ -212,7 +216,7 @@ Reasoning: ${verificationResult.reasoning}`,
           nextActions: verificationResult.nextActions,
         },
       });
-
+      appendToRunFile(JSON.stringify(formattedPrompt, null, 2));
       if (
         verificationResult.taskCompleted &&
         verificationResult.confidenceScore >= 70

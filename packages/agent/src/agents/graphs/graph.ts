@@ -47,6 +47,42 @@ import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgentInterface } from '../../shared/types/tools.types.js';
 import { cat } from '@huggingface/transformers';
 import { handleNodeError } from './utils/graph-utils.js';
+import { STMManager } from '@lib/memory/index.js';
+import { v4 as uuidv4 } from 'uuid';
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+export async function appendToRunFile(content: string): Promise<void> {
+  const fileName = 'run.txt';
+  const filePath = path.resolve(fileName);
+
+  try {
+    // Vérifie si le fichier existe
+    const fileExists = await fs.promises
+      .access(filePath, fs.constants.F_OK)
+      .then(() => true)
+      .catch(() => false);
+
+    if (!fileExists) {
+      console.log(`Le fichier ${fileName} n'existe pas. Création en cours...`);
+      // Crée le fichier vide s'il n'existe pas
+      await fs.promises.writeFile(filePath, '');
+      console.log(`Fichier ${fileName} créé avec succès.`);
+    }
+
+    // Ajoute le contenu au fichier (avec un retour à la ligne)
+    await fs.promises.appendFile(filePath, content + '\n');
+    console.log(`Contenu ajouté au fichier ${fileName}.`);
+  } catch (error) {
+    console.error(
+      `Erreur lors de l'opération sur le fichier ${fileName}:`,
+      error
+    );
+    throw error;
+  }
+}
+
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => y,
@@ -245,22 +281,11 @@ export class Graph {
           },
         };
 
-        // Add to short-term memory
-        updatedMemories = {
-          ...state.memories,
-          stm: {
-            ...state.memories.stm,
-            items: [...state.memories.stm.items, verificationContext].slice(
-              -state.memories.stm.maxSize
-            ), // Keep only latest items within maxSize
-            size: Math.min(
-              state.memories.stm.size + 1,
-              state.memories.stm.maxSize
-            ),
-            totalInserted: state.memories.stm.totalInserted + 1,
-          },
-        };
-
+        STMManager.addMemory(
+          state.memories.stm,
+          verificationContext.content,
+          uuidv4()
+        );
         logger.info(
           `[Task Updater] Added task verification context to memory: ${verificationContext.content}`
         );
