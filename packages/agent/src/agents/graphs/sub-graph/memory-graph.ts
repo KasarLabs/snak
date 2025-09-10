@@ -92,6 +92,7 @@ export class MemoryGraph {
         tokens: estimateTokens(summaryResult.content as string),
       };
     } catch (error: any) {
+      logger.error(`[STMManager] Error during summarization: ${error}`);
       throw error;
     }
   }
@@ -115,7 +116,7 @@ export class MemoryGraph {
           DEFAULT_GRAPH_CONFIG.maxGraphSteps)
       ) {
         logger.warn(
-          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[STMManager] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
         return {
           memories: state.memories,

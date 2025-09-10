@@ -57,7 +57,7 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
 
 export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   maxGraphSteps: 100,
-  shortTermMemory: 7,
+  shortTermMemory: 10,
   memorySize: 20,
   maxRetries: 3,
   toolTimeout: 30000, // 30 seconds

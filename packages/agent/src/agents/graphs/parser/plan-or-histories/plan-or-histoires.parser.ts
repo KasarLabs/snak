@@ -16,11 +16,9 @@ export function formatParsedPlanSimple(plan: ParsedPlan): string {
   formatted += `Steps (${plan.steps.length} total):\n`;
 
   plan.steps.forEach((step) => {
-    // Format principal de l'étape
     formatted += `${step.stepNumber}. ${step.stepName} [${step.type}] - ${step.status}\n`;
     formatted += `   Description: ${step.description}\n`;
 
-    // Si c'est une étape tools, afficher les détails des outils
     if (step.type === 'tools' && step.tools && step.tools.length > 0) {
       formatted += `   Tools:\n`;
       step.tools.forEach((tool, index) => {

@@ -106,14 +106,12 @@ export class MemoryDBManager {
       }
       const event_ids: Array<number> = [];
 
-      for (const e_memory of episodic_memories) {
+      const episodicPromises = episodic_memories.map(async (e_memory) => {
         const embedding = await this.embeddings.embedQuery(e_memory.content);
         if (!embedding || embedding.length === 0) {
-          return {
-            success: false,
-            error: 'Failed to generate embedding for content',
-            timestamp: Date.now(),
-          };
+          throw new Error(
+            `Failed to generate embedding for content: ${e_memory.content}`
+          );
         }
 
         const episodicRecord: memory.EpisodicMemory = {
@@ -125,10 +123,22 @@ export class MemoryDBManager {
         };
 
         const result = await memory.insert_episodic_memory(episodicRecord);
-        event_ids.push(result.memory_id);
         logger.debug(
           `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${e_memory.user_id}`
         );
+
+        return result.memory_id;
+      });
+
+      try {
+        const event_ids = await Promise.all(episodicPromises);
+        // Continue with event_ids...
+      } catch (error) {
+        return {
+          success: false,
+          error: error.message || 'Failed to process episodic memories',
+          timestamp: Date.now(),
+        };
       }
 
       for (const s_memory of semantic_memories) {

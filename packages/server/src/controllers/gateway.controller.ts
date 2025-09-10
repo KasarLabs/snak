@@ -100,7 +100,9 @@ export class MyGateway implements OnModuleInit {
           );
 
           const result = await Postgres.query<number>(q);
-          logger.info(`Inserted message with ID: ${result[0]}`);
+          logger.info(
+            `Inserted message with ID: ${result[0].toLocaleString()}`
+          );
         }
         client.emit('onAgentRequest', chunk);
       }

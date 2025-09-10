@@ -256,7 +256,12 @@ describe('Utils', () => {
       const source = 'test_source';
       const additionalContext = 'additional context';
 
-      const result = handleNodeError(error, source, undefined, additionalContext);
+      const result = handleNodeError(
+        error,
+        source,
+        undefined,
+        additionalContext
+      );
 
       expect(result).toBeDefined();
     });

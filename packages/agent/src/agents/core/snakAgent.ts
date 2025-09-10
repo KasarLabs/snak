@@ -11,7 +11,7 @@ import {
   MemoryConfig,
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
-import { DatabaseCredentials } from '../../shared/types/database.types.js';
+import { DatabaseCredentials } from '@snakagent/core';
 import {
   AgentMode,
   AGENT_MODES,
@@ -111,11 +111,6 @@ export class SnakAgent extends BaseAgent {
       if (this.agentConfig) {
         this.agentConfig.plugins = this.agentConfig.plugins || [];
       }
-
-      this.modelSelector = new ModelSelector(this.modelSelectorConfig);
-      await this.modelSelector.init();
-      await this.initializeMemoryAgent(this.agentConfig);
-      await this.initializeRagAgent(this.agentConfig);
 
       this.modelSelector = new ModelSelector(this.modelSelectorConfig);
       await this.modelSelector.init();

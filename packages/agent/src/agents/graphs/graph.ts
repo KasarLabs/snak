@@ -31,6 +31,7 @@ import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgentInterface } from '../../shared/types/tools.types.js';
+
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => y,
@@ -105,15 +106,15 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   }),
   max_graph_steps: Annotation<number>({
     reducer: (x, y) => y,
-    default: () => 100,
+    default: () => DEFAULT_GRAPH_CONFIG.maxGraphSteps,
   }),
   short_term_memory: Annotation<number>({
     reducer: (x, y) => y,
-    default: () => 5,
+    default: () => DEFAULT_GRAPH_CONFIG.shortTermMemory,
   }),
   memory_size: Annotation<number>({
     reducer: (x, y) => y,
-    default: () => 20,
+    default: () => DEFAULT_GRAPH_CONFIG.memorySize,
   }),
   human_in_the_loop: Annotation<number>({
     reducer: (x, y) => y,

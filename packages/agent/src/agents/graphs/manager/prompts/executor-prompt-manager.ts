@@ -179,15 +179,15 @@ export class PromptManagerFactory {
     }
 
     // Find suitable Manager
-    const Manager = this.findManager(executionMode, agentMode);
-    if (!Manager) {
+    const manager = this.findManager(executionMode, agentMode);
+    if (!manager) {
       throw new Error(
         `No prompt Manager found for execution mode: ${executionMode}`
       );
     }
 
     // Build prompts using selected Manager
-    const { systemPrompt, contextPrompt } = Manager.buildPrompts(state, config);
+    const { systemPrompt, contextPrompt } = manager.buildPrompts(state, config);
 
     // Create and return prompt template
     return ChatPromptTemplate.fromMessages([

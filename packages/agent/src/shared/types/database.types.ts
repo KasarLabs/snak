@@ -1,17 +1,4 @@
-/**
- * Database-related types and interfaces
- */
-
-/**
- * Database credentials structure
- */
-export interface DatabaseCredentials {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
-}
+import { DatabaseCredentials } from '@snakagent/core';
 
 /**
  * Database connection configuration

@@ -13,10 +13,9 @@ export type ToolCall = {
 
 import { z as Zod } from 'zod';
 import { RpcProvider } from 'starknet';
-import { AgentConfig } from '@snakagent/core';
+import { AgentConfig, DatabaseCredentials } from '@snakagent/core';
 import { MemoryAgent } from '@agents/operators/memoryAgent.js';
 import { RagAgent } from '@agents/operators/ragAgent.js';
-import { DatabaseCredentials } from './database.types.js';
 
 /**
  * @interface SnakAgentInterface
