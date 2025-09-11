@@ -7,7 +7,7 @@ describe('Metrics singleton', () => {
     // Reset the metrics client before each test
     client.register.resetMetrics();
     // Reset internal flag so register() se relance
-    // @ts-ignore
+    // @ts-expect-error - accessing private property for testing
     metrics.registered = false;
   });
 

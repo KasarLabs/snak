@@ -4,8 +4,8 @@ import { DeployArgentAccount } from '../actions/deployAccount.js';
 import { accountDetailsSchema } from '../schemas/schema.js';
 import { StarknetTool } from '@snakagent/core';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'create_new_argent_account',
     description:
       'Creates a new Argent account and return the privateKey/publicKey/contractAddress',
@@ -16,7 +16,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     },
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'deploy_existing_argent_account',
     description:
       'Deploy an existing Argent Account return the privateKey/publicKey/contractAddress',

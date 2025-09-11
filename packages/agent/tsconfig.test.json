@@ -1,12 +1,43 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "declaration": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "removeComments": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "target": "ES2020",
+    "sourceMap": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "isolatedModules": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "baseUrl": "./src",
     "moduleResolution": "node",
     "module": "commonjs",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "@snakagent/core": ["__mocks__/@snakagent/core.ts"]
+      "@snakagent/core": ["__mocks__/@snakagent/core.ts"],
+      "@common/*": ["./common/*"],
+      "@src/*": ["./src/*"],
+      "@agents/*": ["./agents/*"],
+      "@lib/*": ["./shared/lib/*"],
+      "@prompts/*": ["./shared/prompts/*"],
+      "@config/*": ["./config/*"],
+      "@types/*": ["./shared/types/*"],
+      "@enums/*": ["./shared/enums/*"],
+      "@schemas/*": ["./shared/schemas/*"],
+      "@tools/*": ["./tools/*"],
+      "@services/*": ["./services/*"]
     }
   }
 }

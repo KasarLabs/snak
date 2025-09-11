@@ -30,6 +30,8 @@ export class SupervisorRequestDTO {
 export class getMessagesFromAgentsDTO {
   @IsNotEmpty()
   agent_id: string;
+  @IsNotEmpty()
+  thread_id: string;
 }
 
 interface AgentMemory {

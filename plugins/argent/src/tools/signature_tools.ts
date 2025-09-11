@@ -3,16 +3,14 @@ import { accountDetailsSchema } from '../schemas/schema.js';
 import { DeployArgentAccountSignature } from '../actions/deployAccount.js';
 import { CreateArgentAccountSignature } from '../actions/createAccount.js';
 
-export const registerSignatureTools = (
-  StarknetToolRegistry: SignatureTool[]
-) => {
-  (StarknetToolRegistry.push({
+export const registerSignatureTools = (SnakToolRegistry: SignatureTool[]) => {
+  (SnakToolRegistry.push({
     name: 'create_argent_account',
     description:
       'create argent account return the privateKey/publicKey/contractAddress',
     execute: CreateArgentAccountSignature,
   }),
-    StarknetToolRegistry.push({
+    SnakToolRegistry.push({
       name: 'deploy_argent_account',
       description:
         'deploy argent account return the privateKey/publicKey/contractAddress',

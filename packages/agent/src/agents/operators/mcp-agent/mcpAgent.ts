@@ -1,13 +1,14 @@
-import { BaseAgent, AgentType } from '../../core/baseAgent.js';
+import { BaseAgent } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { logger } from '@snakagent/core';
 import { OperatorRegistry } from '../operatorRegistry.js';
 import { getMcpAgentTools } from './mcpAgentTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { mcpAgentSystemPrompt } from '../../../prompt/mcpAgentPrompts.js';
+import { mcpAgentSystemPrompt } from '../../../shared/prompts/core/mcpAgentPrompts.js';
 import { ModelSelector } from '../modelSelector.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
+import { AgentType } from '@enums/agent-modes.enum.js';
 
 /**
  * Interface defining the configuration options for the MCPAgent

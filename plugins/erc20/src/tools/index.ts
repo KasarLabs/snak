@@ -23,8 +23,8 @@ import { getMyGivenAllowance } from '../actions/getAllowance.js';
 import { getAllowanceGivenToMe } from '../actions/getAllowance.js';
 import { deployERC20Contract } from '../actions/deployERC20.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'erc20_get_allowance',
     plugins: 'erc20',
     description:
@@ -33,7 +33,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getAllowance,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_get_my_given_allowance',
     plugins: 'erc20',
     description:
@@ -42,7 +42,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getMyGivenAllowance,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_get_allowance_given_to_me',
     plugins: 'erc20',
     description:
@@ -51,7 +51,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getAllowanceGivenToMe,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_get_total_supply',
     plugins: 'erc20',
     description: 'Get the total supply of an token token',
@@ -59,7 +59,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getTotalSupply,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_transfer_from',
     plugins: 'erc20',
     description:
@@ -68,7 +68,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: transferFrom,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_get_balance',
     plugins: 'erc20',
     description: 'Get the balance of an asset for a given wallet address',
@@ -76,7 +76,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getBalance,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_get_own_balance',
     plugins: 'erc20',
     description: 'Get the balance of an asset in your wallet',
@@ -84,7 +84,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getOwnBalance,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_approve',
     plugins: 'erc20',
     description: 'Approve a spender to spend tokens on your behalf',
@@ -92,7 +92,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: approve,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_transfer',
     plugins: 'erc20',
     description: 'Transfer ERC20 tokens to a specific address',
@@ -100,7 +100,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: transfer,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'erc20_deploy_new_contract',
     plugins: 'erc20',
     description:

@@ -18,8 +18,8 @@ import { withdrawTrove } from '../actions/withdrawTrove.js';
 import { borrowTrove } from '../actions/borrowTrove.js';
 import { repayTrove } from '../actions/repayTrove.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'open_trove',
     plugins: 'opus',
     description: 'Open a Trove on Opus',
@@ -27,7 +27,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: openTrove,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'get_user_troves',
     plugins: 'opus',
     description: 'Get trove IDs for an address on Opus',
@@ -35,7 +35,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getUserTroves,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'get_trove_health',
     plugins: 'opus',
     description: 'Get the health of a trove on Opus',
@@ -43,14 +43,14 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: getTroveHealth,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'get_borrow_fee',
     plugins: 'opus',
     description: 'Get the current borrow fee for Opus',
     execute: getBorrowFee,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'deposit_trove',
     plugins: 'opus',
     description: 'Deposit collateral to a Trove on Opus',
@@ -58,7 +58,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: depositTrove,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'withdraw_trove',
     plugins: 'opus',
     description: 'Withdraw collateral from a Trove on Opus',
@@ -66,7 +66,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: withdrawTrove,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'borrow_trove',
     plugins: 'opus',
     description: 'Borrow CASH for a Trove on Opus',
@@ -74,7 +74,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     execute: borrowTrove,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'repay_trove',
     plugins: 'opus',
     description: 'Repay CASH for a Trove on Opus',

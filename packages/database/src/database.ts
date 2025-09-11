@@ -32,7 +32,6 @@ import { DatabaseError } from './error.js';
  *
  * @see module:database
  */
-let pool: pg.Pool | undefined = undefined;
 
 export interface DatabaseCredentials {
   host: string;
@@ -57,6 +56,7 @@ export namespace Postgres {
   export class Query {
     public readonly query: string;
     public readonly values?: any[];
+    private pool: pg.Pool | undefined = undefined;
 
     public constructor(query: string, values?: any[]) {
       this.query = query;
@@ -71,12 +71,12 @@ export namespace Postgres {
    * > This is mostly intended for use in setup/teardown logic between tests.
    */
   export async function connect(db: DatabaseCredentials): Promise<void> {
-    await shutdown();
+    // await shutdown();
 
-    if (pool != undefined) {
-      throw new Error('Connection pool already exists!');
+    if (this.pool != undefined) {
+      return;
     }
-    pool = new Pool({
+    this.pool = new Pool({
       user: db.user,
       host: db.host,
       database: db.database,
@@ -84,7 +84,7 @@ export namespace Postgres {
       port: db.port,
     });
 
-    pool.on('error', (err: any) => {
+    this.pool.on('error', (err: any) => {
       console.error('something bad has happened!', err.stack);
     });
   }
@@ -95,13 +95,14 @@ export namespace Postgres {
    * @throws { DatabaseError }
    * @see module:database
    */
-  export async function query<Model = {}>(q: Query): Promise<Model[]> {
+  export async function query<Model = Record<string, unknown>>(
+    q: Query
+  ): Promise<Model[]> {
     try {
-      if (!pool) {
-        console.log(pool);
+      if (!this.pool) {
         throw new Error('Connection pool not initialized! query');
       }
-      const query = await pool.query(q.query, q.values);
+      const query = await this.pool.query(q.query, q.values);
       return query.rows;
     } catch (err: any) {
       throw DatabaseError.handlePgError(err);
@@ -115,14 +116,16 @@ export namespace Postgres {
    * @throws { DatabaseError }
    * @see module:database
    */
-  export async function transaction<Model = {}>(qs: Query[]): Promise<Model[]> {
+  export async function transaction<Model = Record<string, unknown>>(
+    qs: Query[]
+  ): Promise<Model[]> {
     let client: PoolClient | undefined;
     let res: QueryResult | undefined;
     try {
-      if (!pool) {
+      if (!this.pool) {
         throw new Error('Connection pool not initialized!transaction');
       }
-      client = await pool.connect();
+      client = await this.pool.connect();
       if (!client) {
         throw new Error('Failed to acquire a client from the pool');
       }
@@ -153,9 +156,10 @@ export namespace Postgres {
    */
   export async function shutdown(): Promise<void> {
     try {
-      if (pool) {
-        await pool.end();
-        pool = undefined;
+      if (this.pool) {
+        const poolToEnd = this.pool;
+        this.pool = undefined;
+        await poolToEnd.end();
       }
     } catch (err: any) {
       throw DatabaseError.handlePgError(err);

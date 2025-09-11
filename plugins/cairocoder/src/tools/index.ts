@@ -33,10 +33,10 @@ export const initializeTools = async (
 };
 
 export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
+  SnakToolRegistry: StarknetTool[],
   _agent: SnakAgentInterface
 ) => {
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_generate_code',
     plugins: 'cairocoder',
     description: `
@@ -51,7 +51,7 @@ export const registerTools = async (
     execute: generateCairoCode,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_fix_code',
     plugins: 'cairocoder',
     description:
@@ -60,7 +60,7 @@ export const registerTools = async (
     execute: fixCairoCode,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_register_project',
     description:
       'Register new Cairo project in the database, only when explicitly asked in the command. Requires a project name.',
@@ -69,7 +69,7 @@ export const registerTools = async (
     execute: registerProject,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_delete_program',
     description:
       'Delete programs from a Cairo project in the database. Requires a project name and a list of program names.',
@@ -78,7 +78,7 @@ export const registerTools = async (
     execute: deleteProgramAction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_delete_dependency',
     description:
       'Delete dependencies from a Cairo project in the database. Requires a project name and a list of dependency names.',
@@ -87,7 +87,7 @@ export const registerTools = async (
     execute: deleteDependencyAction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_delete_project',
     description:
       'Delete several Cairo projects and all their data from the database. Requires a list of project names.',
@@ -96,7 +96,7 @@ export const registerTools = async (
     execute: deleteProjectAction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_add_dependency',
     description:
       'Add dependencies to an existing Cairo project in the database. Requires a project name and a list of dependency names.',
@@ -105,7 +105,7 @@ export const registerTools = async (
     execute: addDependencyAction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_add_program',
     description:
       'Add programs to an existing Cairo project in the database. Requires a project name and a list of program paths.',
@@ -114,7 +114,7 @@ export const registerTools = async (
     execute: addProgramAction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'cairocoder_list_projects',
     description:
       'List all Cairo projects stored in the database with their names.',

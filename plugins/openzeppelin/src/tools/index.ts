@@ -4,8 +4,8 @@ import { StarknetTool } from '@snakagent/core';
 import { DeployOZAccount } from '../actions/deployAccount.js';
 import { CreateOZAccount } from '../actions/createAccount.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'create_new_openzeppelin_account',
     description:
       'Create a new Open Zeppelin account and return the privateKey/publicKey/contractAddress',
@@ -16,7 +16,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     },
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'deploy_existing_openzeppelin_account',
     description:
       'Deploy an existing Open Zeppelin Account return the privateKey/publicKey/contractAddress',

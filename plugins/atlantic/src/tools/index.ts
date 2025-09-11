@@ -7,8 +7,8 @@ import {
 } from '../schema/index.js';
 import { verifyProofService } from '../actions/verifyProofService.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'get_proof_service',
     plugins: 'atlantic',
     description:
@@ -20,7 +20,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     },
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'verify_proof_service',
     plugins: 'atlantic',
     description:

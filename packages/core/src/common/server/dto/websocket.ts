@@ -40,6 +40,7 @@ export class WebsocketSupervisorRequestDTO {
 export class WebsocketGetMessagesRequestDTO {
   @IsNotEmpty()
   agent_id: string;
+  thread_id: string;
   @IsNotEmpty()
   socket_id: string;
   limit_message: number | undefined;

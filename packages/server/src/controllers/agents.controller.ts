@@ -600,9 +600,9 @@ export class AgentsController {
       const userId = getUserIdFromHeaders(req);
       this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
 
-      const messages = await this.agentService.getMessageFromAgentId(
-        {
+      const messages = await this.agentService.getMessageFromAgentId({
           agent_id: userRequest.agent_id,
+          thread_id: userRequest.thread_id,
           limit_message: undefined,
         },
         userId

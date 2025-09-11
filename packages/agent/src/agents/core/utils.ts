@@ -1,4 +1,3 @@
-import { SnakAgentInterface } from '../../tools/tools.js';
 import { createAllowedTools } from '../../tools/tools.js';
 import { MCP_CONTROLLER } from '../../services/mcp/src/mcp.js';
 import { logger, AgentConfig } from '@snakagent/core';
@@ -10,17 +9,8 @@ import {
   DynamicStructuredTool,
   StructuredTool,
 } from '@langchain/core/tools';
-import {
-  AgentIterationEvent,
-  FormattedOnChatModelEnd,
-  FormattedOnChatModelStart,
-  FormattedOnChatModelStream,
-  ToolsChunk,
-  TokenChunk,
-} from './types.js';
-import { BaseMessage, ToolMessage } from '@langchain/core/messages';
 import { AnyZodObject } from 'zod';
-import { ParsedPlan, StepInfo } from 'agents/modes/types/index.js';
+import { SnakAgentInterface } from '../../shared/types/index.js';
 
 let databaseConnectionPromise: Promise<void> | null = null;
 let isConnected = false;
@@ -56,90 +46,6 @@ export async function initializeToolsList(
   }
   return toolsList;
 }
-
-export const FormatChunkIteration = (
-  chunk: any
-):
-  | FormattedOnChatModelStream
-  | FormattedOnChatModelEnd
-  | FormattedOnChatModelStart
-  | undefined => {
-  if (chunk.event === AgentIterationEvent.ON_CHAT_MODEL_STREAM) {
-    const tool = extractToolsFromIteration(chunk);
-    const iteration: FormattedOnChatModelStream = {
-      chunk: {
-        content: chunk.data.chunk.content as string,
-        tools: tool,
-      },
-    };
-    return iteration;
-  }
-  if (chunk.event === AgentIterationEvent.ON_CHAT_MODEL_END) {
-    const content = chunk.data?.output?.kwargs?.content;
-    const iteration: FormattedOnChatModelEnd = {
-      iteration: {
-        name: chunk.name,
-        result: {
-          output: {
-            content: content || '',
-          },
-          input: {
-            messages: chunk.data.input.messages,
-          },
-        },
-      },
-    };
-    return iteration;
-  }
-  if (chunk.event === AgentIterationEvent.ON_CHAT_MODEL_START) {
-    const iteration: FormattedOnChatModelStart = {
-      iteration: {
-        name: chunk.name,
-        messages: chunk.data.input.messages,
-        metadata: chunk.data.input.metadata,
-      },
-    };
-    return iteration;
-  }
-  return undefined;
-};
-
-export const extractTokenChunkFromIteration = (
-  iteration: any
-): TokenChunk | undefined => {
-  if (!iteration || !iteration.data || !iteration.data.chunk) {
-    return undefined;
-  }
-  if (!iteration.data.chunk.kwargs) {
-    return undefined;
-  }
-  const token_chunk = iteration.data.chunk.kwargs.token_chunk as TokenChunk;
-  if (!token_chunk) {
-    return undefined;
-  }
-  return {
-    input: token_chunk.input || 0,
-    output: token_chunk.output || 0,
-    total: token_chunk.total || 0,
-  };
-};
-
-export const extractToolsFromIteration = (
-  iteration: any
-): ToolsChunk | undefined => {
-  const toolCallChunks = iteration?.data?.chunk?.tool_call_chunks;
-
-  if (!Array.isArray(toolCallChunks)) {
-    logger.debug('No valid tool_call_chunks found in iteration');
-    return undefined;
-  }
-  const lastTool = toolCallChunks[0] as ToolsChunk;
-  if (!lastTool?.name) {
-    return undefined;
-  }
-  return lastTool;
-};
-
 /**
  * Initializes database connection with singleton pattern to prevent duplicate connections
  * @param db - Database credentials for connection
@@ -180,56 +86,6 @@ export const initializeDatabase = async (db: DatabaseCredentials) => {
   }
 };
 
-/**
- * Truncates string content if it exceeds maximum length
- * @param content - The string content to truncate
- * @param maxLength - Maximum allowed length
- * @returns Truncated string with metadata or original string
- */
-const truncateStringContentHelper = (
-  content: string,
-  maxLength: number
-): string => {
-  const originalLength = content.length;
-  if (originalLength > maxLength) {
-    logger.debug(
-      `Content truncated from ${originalLength} to ${maxLength} characters.`
-    );
-    return (
-      content.substring(0, maxLength) +
-      `... [truncated ${originalLength - maxLength} characters]`
-    );
-  }
-  return content;
-};
-
-/**
- * Truncates tool response content to prevent oversized results
- * Handles both array and object formats with nested message structures
- * @param result - Tool invocation result
- * @param maxLength - Maximum content length (default: 5000)
- * @returns Result with truncated content strings
- */
-export function truncateToolResults(
-  result: any,
-  maxLength: number = 5000,
-  currentStep: StepInfo
-): { messages: ToolMessage[]; plan?: ParsedPlan; last_message: BaseMessage } {
-  for (const tool_message of result.messages) {
-    const content = truncateStringContentHelper(
-      tool_message.content.toLocaleString(),
-      maxLength
-    );
-    tool_message.content = content;
-    if (currentStep.result) {
-      currentStep.result = currentStep.result.concat(content);
-    } else {
-      currentStep.result = content;
-    }
-  }
-  logger.debug(`ToolMessage Result : ${currentStep.result}`);
-  return result;
-}
 /**
  * Formats agent response for display, handling various data structures including JSON
  * @param response - Agent response (string, object, or array)

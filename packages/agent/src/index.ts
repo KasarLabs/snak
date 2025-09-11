@@ -1,40 +1,41 @@
-// Main exports
+/**
+ * Main entry point for the Snak Agent package
+ * Exports all public APIs and types from the restructured codebase
+ */
+
+// Main agent exports
 export type { SnakAgentConfig } from './agents/core/snakAgent.js';
 export { SnakAgent } from './agents/core/snakAgent.js';
 
-// Agent-related exports
-// Interactive agent exports
-export { createInteractiveAgent } from './agents/modes/interactive.js';
+// Core agent utilities
+export { initializeToolsList } from './tools/tools.js';
+export type {
+  ChunkOutput,
+  ChunkOutputMetadata,
+} from './shared/types/streaming.types.js';
 
-export { initializeToolsList } from './agents/core/utils.js';
+// Graph mode exports
+export { createGraph } from './agents/graphs/graph.js';
 
-// Autonomous agent exports
-export { createAutonomousAgent } from './agents/modes/autonomous.js';
+// Agent operators
+export { ModelSelector } from './agents/operators/modelSelector.js';
+export { AgentSelector } from './agents/operators/agentSelector.js';
 
 // Tool-related exports
 export type {
   SnakAgentInterface,
   StarknetTool,
-  StarknetToolRegistry,
-} from './tools/tools.js';
+  SignatureTool,
+} from './shared/types/tools.types.js';
 
 export { createAllowedTools, registerTools } from './tools/tools.js';
+export type { SnakToolRegistry } from './tools/tools.js';
 
-export type {
-  SignatureTool,
-  StarknetSignatureToolRegistry,
-} from './tools/signatureTools.js';
+// Consolidated exports from new structure
+export * from './shared/types/index.js'; // All types
+export * from './shared/enums/index.js'; // All enums
+export * from './shared/lib/memory/index.js'; // Memory utilities (if index.ts exists)
+export * from './shared/lib/token/index.js'; // Token tracking (if index.ts exists)
 
-export { ModelSelector } from './agents/operators/modelSelector.js';
-export { AgentSelector } from './agents/operators/agentSelector.js';
-// Config exports
-export {
-  load_json_config,
-  AgentMode,
-  createContextFromJson,
-} from './config/agentConfig.js';
-
-// Common exports
-export type { IAgent, AiConfig } from './common/index.js';
-
-export type { AgentSystemConfig } from './agents/index.js';
+// Legacy exports for backward compatibility
+export type { IAgent } from './shared/types/agents.types.js';

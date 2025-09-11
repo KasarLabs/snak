@@ -1,36 +1,34 @@
-import { BaseAgent, AgentType } from '../core/baseAgent.js';
+import { BaseAgent } from '../core/baseAgent.js';
 import { logger, MemoryConfig } from '@snakagent/core';
-import { BaseMessage, HumanMessage } from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { memory, iterations } from '@snakagent/database/queries';
-import { z } from 'zod';
-import { tool } from '@langchain/core/tools';
-import { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { Runnable, RunnableSequence } from '@langchain/core/runnables';
-import { processMessageContent } from '../core/utils.js';
-
-export interface MemoryNodeState {
-  messages: BaseMessage[];
-  [key: string]: any;
-}
-
+import {
+  Runnable,
+  RunnableConfig,
+  RunnableSequence,
+} from '@langchain/core/runnables';
+import { GraphConfigurableAnnotation, GraphState } from '../graphs/graph.js';
+import {
+  EpisodicMemoryContext,
+  Memories,
+  SemanticMemoryContext,
+  StepToolsInfo,
+} from '../../shared/types/index.js';
+import { MemoryDBManager } from '../graphs/manager/memory/memory-db-manager.js';
+import { MemoryStateManager } from '../../shared/lib/memory/memory-utils.js';
+import { DEFAULT_GRAPH_CONFIG } from '../graphs/config/default-config.js';
+import {
+  AgentType,
+  ExecutionMode,
+  MemoryNode,
+} from '../../shared/enums/agent-modes.enum.js';
+import { checkAndReturnObjectFromPlansOrHistories } from '../graphs/utils/graph-utils.js';
+import { processMessageContent } from '@agents/core/utils.js';
 export interface MemoryChainResult {
   memories: string;
 }
-
-// TODO: env -> config/agents
-const SIMILARITY_THRESHOLD = (() => {
-  const value = parseFloat(process.env.MEMORY_SIMILARITY_THRESHOLD || '0');
-  if (isNaN(value) || value < 0 || value > 1) {
-    logger.warn(
-      `Invalid MEMORY_SIMILARITY_THRESHOLD: ${process.env.MEMORY_SIMILARITY_THRESHOLD}, using default 0`
-    );
-    return 0;
-  }
-  return value;
-})();
-
 /**
  * Operator agent that manages memory and knowledge
  */
@@ -39,23 +37,17 @@ export class MemoryAgent extends BaseAgent {
   private embeddings: CustomHuggingFaceEmbeddings;
   private memoryTools: any[] = [];
   private initialized: boolean = false;
-  private isAutonomous: boolean;
+  private dbManager: MemoryDBManager | null = null;
 
   constructor(config: MemoryConfig) {
     super('memory-agent', AgentType.OPERATOR);
     this.config = {
       shortTermMemorySize: config.shortTermMemorySize || 15,
       memorySize: config.memorySize || 20,
-      embeddingModel: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
+      embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     };
-    if (!config.isAutonomous) {
-      this.isAutonomous = false;
-    } else {
-      this.isAutonomous = true;
-    }
-
     this.embeddings = new CustomHuggingFaceEmbeddings({
-      model: this.config.embeddingModel,
+      model: 'Xenova/all-MiniLM-L6-v2',
       dtype: 'fp32',
     });
   }
@@ -65,13 +57,17 @@ export class MemoryAgent extends BaseAgent {
    */
   public async init(): Promise<void> {
     try {
-      logger.debug('MemoryAgent: Starting initialization');
+      logger.debug('[MemoryAgent] Starting initialization');
       await this.initializeMemoryDB();
-      this.createMemoryTools();
+
+      // Initialize database manager with improved error handling
+      this.dbManager = new MemoryDBManager(this.embeddings);
+
+      // this.createMemoryTools();
       this.initialized = true;
-      logger.debug('MemoryAgent: Initialized successfully');
+      logger.debug('[MemoryAgent]  Initialized successfully');
     } catch (error) {
-      logger.error(`MemoryAgent: Initialization failed: ${error}`);
+      logger.error(`[MemoryAgent]  Initialization failed: ${error}`);
       throw new Error(`MemoryAgent initialization failed: ${error}`);
     }
   }
@@ -109,232 +105,92 @@ export class MemoryAgent extends BaseAgent {
     }
   }
 
-  /**
-   * Helper to insert or update a memory record
-   */
-  private async upsertMemory(
-    content: string,
-    memoryId: number | null | undefined,
-    userId: string,
-    memorySize?: number
+  public async upsertMemory(
+    semantic_memories: SemanticMemoryContext[],
+    episodic_memories: EpisodicMemoryContext[]
   ): Promise<string> {
-    logger.debug(`MemoryAgent: Upserting memory for user ${userId}`);
-    const embedding = await this.embeddings.embedQuery(content);
-    const metadata = { timestamp: new Date().toISOString() };
-    const limit = memorySize ?? this.config.memorySize;
-
-    await memory.insert_memory({
-      user_id: userId,
-      content,
-      embedding,
-      metadata,
-      history: [],
-    });
-
-    if (limit) {
-      await memory.enforce_memory_limit(userId, limit);
-    }
-
-    return memoryId
-      ? `Memory ${memoryId} updated successfully.`
-      : `Memory stored successfully.`;
-  }
-
-  /**
-   * Create memory tools
-   */
-  private createMemoryTools(): void {
-    // Tool for creating or updating a memory
-    const upsertMemoryTool = tool(
-      async ({
-        content,
-        memoryId,
-        userId = 'default_user',
-      }): Promise<string> => {
-        try {
-          return await this.upsertMemory(content, memoryId, userId);
-        } catch (error) {
-          logger.error(`MemoryAgent: Error storing memory: ${error}`);
-          return `Failed to store memory: ${error}`;
-        }
-      },
-      {
-        name: 'upsert_memory',
-        schema: z.object({
-          content: z.string().describe('The content of the memory to store.'),
-          memoryId: z
-            .number()
-            .optional()
-            .nullable()
-            .describe('Memory ID when wanting to update an existing memory.'),
-          userId: z
-            .string()
-            .optional()
-            .describe('The user ID to associate with this memory.'),
-        }),
-        description: `
-        CREATE, UPDATE or DELETE persistent MEMORIES to persist across conversations.
-        Include the MEMORY ID when updating or deleting a MEMORY. Omit when creating a new MEMORY.
-        Proactively call this tool when you:
-        1. Identify a new user preference.
-        2. Receive an explicit user request to remember something.
-        3. Are working and want to record important context.
-        4. Identify that an existing MEMORY is incorrect or outdated.
-        `,
+    try {
+      if (!this.dbManager) {
+        throw new Error('[Memory Agent] dbManager is null.');
       }
-    );
 
-    // Tool for retrieving similar memories
-    const retrieveMemoriesTool = tool(
-      async ({
-        query,
-        userId = 'default_user',
-        limit = 4,
-      }): Promise<string> => {
-        try {
-          const embedding = await this.embeddings.embedQuery(query);
-          const similar = await memory.similar_memory(userId, embedding, limit);
-          const filtered = similar.filter(
-            (s) => s.similarity >= SIMILARITY_THRESHOLD
-          );
-
-          if (filtered.length === 0) {
-            return 'No relevant memories found.';
-          }
-
-          const memories = filtered
-            .map((similarity) => {
-              return `Memory [id: ${similarity.id}, similarity: ${similarity.similarity.toFixed(4)}]: ${similarity.content}`;
-            })
-            .join('\n\n');
-
-          return `Retrieved ${filtered.length} memories:\n\n${memories}`;
-        } catch (error) {
-          logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
-          return `Failed to retrieve memories: ${error}`;
-        }
-      },
-      {
-        name: 'retrieve_memories',
-        schema: z.object({
-          query: z.string().describe('The query to find similar memories for.'),
-          userId: z
-            .string()
-            .optional()
-            .describe('The user ID to retrieve memories for.'),
-          limit: z
-            .number()
-            .optional()
-            .default(4)
-            .describe('Maximum number of memories to retrieve.'),
-        }),
-        description: `
-        Retrieve memories that are semantically similar to a query.
-        Use this tool to recall information about user preferences, past interactions, or stored knowledge.
-        `,
-      }
-    );
-
-    this.memoryTools = [upsertMemoryTool, retrieveMemoriesTool];
-    logger.debug(
-      `MemoryAgent: Created ${this.memoryTools.length} memory tools`
-    );
-  }
-
-  /**
-   * Merge memory and iteration similarity results, then filter and rank them.
-   */
-  private mergeSimilarityResults(
-    memResults: memory.Similarity[],
-    iterResults: iterations.IterationSimilarity[],
-    limit: number
-  ): Array<{
-    id: number;
-    content: string;
-    history: memory.History[];
-    similarity: number;
-  }> {
-    const formattedIter = iterResults.map((it) => ({
-      id: it.id,
-      content: `Question: ${it.question}\nAnswer: ${it.answer}`,
-      history: [] as memory.History[],
-      similarity: it.similarity,
-    }));
-
-    return [...memResults, ...formattedIter]
-      .filter((m) => m.similarity >= SIMILARITY_THRESHOLD)
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, limit);
-  }
-
-  /**
-   * Prepare memory tools for the interactive agent
-   */
-  public prepareMemoryTools(): any[] {
-    if (!this.initialized) {
-      logger.warn(
-        'MemoryAgent: Trying to get memory tools before initialization'
+      const result = await this.dbManager.upsertMemory(
+        semantic_memories,
+        episodic_memories
       );
-      this.createMemoryTools();
-    }
 
-    // Create the upsert memory tool for the interactive agent
-    const upsertMemoryToolDB = tool(
-      async (
-        { content, memoryId },
-        config: LangGraphRunnableConfig
-      ): Promise<string> => {
-        try {
-          const userId = config.configurable?.userId || 'default_user';
-          const limit =
-            config.configurable?.memorySize ??
-            config.configurable?.config?.memorySize;
-          return await this.upsertMemory(content, memoryId, userId, limit);
-        } catch (error) {
-          logger.error('Error storing memory:', error);
-          return 'Failed to store memory.';
-        }
-      },
-      {
-        name: 'upsert_memory',
-        schema: z.object({
-          content: z.string().describe('The content of the memory to store.'),
-          memoryId: z
-            .number()
-            .optional()
-            .nullable()
-            .describe('Memory ID when wanting to update an existing memory.'),
-        }),
-        description: `
-        CREATE, UPDATE or DELETE persistent MEMORIES to persist across conversations.
-        In your system prompt, you have access to the MEMORIES relevant to the user's
-        query, each having their own MEMORY ID. Include the MEMORY ID when updating
-        or deleting a MEMORY. Omit when creating a new MEMORY - it will be created for
-        you. Proactively call this tool when you:
-        1. Identify a new USER preference.
-        2. Receive an explicit USER request to remember something or otherwise alter your behavior.
-        3. Are working and want to record important context.
-        4. Identify that an existing MEMORY is incorrect or outdated.
-        `,
+      if (result.success) {
+        return result.data || `Memory updated successfully`;
+      } else {
+        throw new Error(result.error || 'Unknown error during memory upsert');
       }
-    );
-
-    return [upsertMemoryToolDB];
+    } catch (error) {
+      logger.error(`[MemoryAgent]  Memory upsert failed: ${error}`);
+      throw error;
+    }
   }
 
   /**
    * Create a memory node for the graph
    */
   public createMemoryNode(): any {
-    const chain = this.createMemoryChain();
-    return async (state: any, config: LangGraphRunnableConfig) => {
+    const chain = this.createMemoryChain(20);
+    return async (
+      state: typeof GraphState.State,
+      config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+    ): Promise<{ memories: Memories; last_node: MemoryNode }> => {
       try {
+        logger.debug('[MemoryNode] Starting memory context retrieval');
+        const plan_or_history = checkAndReturnObjectFromPlansOrHistories(
+          state.plans_or_histories
+        );
+        if (
+          plan_or_history.type === 'plan' &&
+          state.currentStepIndex >= plan_or_history.steps.length
+        ) {
+          logger.info(`[MemoryNode] Final step reach no retrieval data.`);
+        } // TODO add history case
+        if (!MemoryStateManager.validate(state.memories)) {
+          logger.error(
+            '[MemoryNode] Invalid memory state detected created initial memory-manager state'
+          );
+          return {
+            memories: MemoryStateManager.createInitialState(
+              config.configurable?.memory_size ||
+                DEFAULT_GRAPH_CONFIG.memorySize
+            ),
+            last_node: MemoryNode.RETRIEVE_MEMORY,
+          };
+        }
         const result = await chain.invoke(state, config);
-        // logger.debug(`${JSON.stringify(result)}`);
-        return result;
+        logger.debug(`[MemoryNode] Retrieved  ${result.length} memory context`);
+
+        // Update LTM context safely
+        const updatedMemories = MemoryStateManager.updateLTM(
+          state.memories,
+          result
+        );
+        return {
+          memories: updatedMemories,
+          last_node: MemoryNode.RETRIEVE_MEMORY,
+        };
       } catch (error) {
-        logger.error('Error retrieving memories:', error);
-        return { memories: '' };
+        logger.error(`[MemoryNode]  Error retrieving memories: ${error}`);
+
+        // Return safe fallback with error information
+        const fallbackMemories: Memories = {
+          ...state.memories,
+          lastError: {
+            type: 'MEMORY_RETRIEVAL_ERROR',
+            message: error.message,
+            timestamp: Date.now(),
+          },
+        };
+
+        return {
+          memories: fallbackMemories,
+          last_node: MemoryNode.RETRIEVE_MEMORY,
+        };
       }
     };
   }
@@ -345,82 +201,75 @@ export class MemoryAgent extends BaseAgent {
    * can trace memory retrieval.
    */
   public createMemoryChain(
-    limit = 4
-  ): Runnable<MemoryNodeState, MemoryChainResult> {
-    const buildQuery = (state: MemoryNodeState) => {
-      if (this.isAutonomous) {
-        try {
-          if (state.plan?.steps?.[state.currentStepIndex]?.description) {
-            return state.plan.steps[state.currentStepIndex].description;
-          }
-          if (state.plan?.steps?.[0]?.description) {
-            return state.plan.steps[0].description;
-          }
-          logger.warn(
-            'MemoryAgent: Invalid plan structure in autonomous mode, falling back to messages'
-          );
-        } catch (error) {
-          logger.warn(
-            'MemoryAgent: Error accessing plan structure, falling back to messages'
-          );
+    limit: number
+  ): Runnable<typeof GraphState.State, memory.Similarity[]> {
+    const buildQuery = (
+      state: typeof GraphState.State,
+      config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+    ): string => {
+      const agentConfig = config.configurable?.agent_config;
+      if (!agentConfig) {
+        throw new Error(`[MemoryAgent] AgentConfig is undefined.`);
+      }
+      const executionMode = config.configurable?.executionMode;
+      if (executionMode === ExecutionMode.PLANNING) {
+        const plan = checkAndReturnObjectFromPlansOrHistories(
+          state.plans_or_histories
+        );
+        if (!plan || plan.type !== 'plan') {
+          throw new Error(`[MemoryAgent] Plan is undefined or type history.`);
         }
-      }
+        const currentStep = plan.steps[state.currentStepIndex];
+        if (!currentStep) {
+          return 'No current step available';
+        }
 
-      const lastUser = [...state.messages]
-        .reverse()
-        .find((msg: BaseMessage) => msg instanceof HumanMessage);
+        // Build a comprehensive query using all available StepInfo fields
+        const queryParts: string[] = [];
 
-      let query: string;
-      if (lastUser) {
-        query =
-          typeof lastUser.content === 'string'
-            ? lastUser.content
-            : JSON.stringify(lastUser.content);
-      } else if (state.messages[0]?.content) {
-        const content = state.messages[0].content;
-        query = typeof content === 'string' ? content : JSON.stringify(content);
+        queryParts.push(`${currentStep.stepNumber}: ${currentStep.stepName}`);
+        queryParts.push(`Description: ${currentStep.description}`);
+        if (currentStep.tools && currentStep.tools.length > 0) {
+          const toolsInfo = currentStep.tools
+            .map(
+              (tool: StepToolsInfo) =>
+                `Tool: ${tool.description} | Required: ${tool.required} | Expected: ${tool.expected_result}`
+            )
+            .join(' | ');
+          queryParts.push(`Tools: ${toolsInfo}`);
+        }
+        return queryParts.join(' | ');
       } else {
-        query = '';
+        const user_r = config.configurable?.user_request;
+        if (!user_r) {
+          throw new Error(`[MemoryAgent] UserQuery is undefined.`);
+        }
+        return user_r; //TODO improve query from history
       }
-
-      return query.trim();
     };
 
     const fetchMemories = async (
       query: string,
-      config: LangGraphRunnableConfig
-    ) => {
-      if (!query || !query.trim()) {
-        return '';
-      }
-
-      const userId = config.configurable?.userId || 'default_user';
-      const agentId = config.configurable?.agentId;
+      config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+    ): Promise<memory.Similarity[]> => {
+      const runId = config?.configurable?.thread_id as string;
+      const userId = 'default_user';
       const embedding = await this.embeddings.embedQuery(query);
-      const memResults = await memory.similar_memory(userId, embedding, limit);
-      let iterResults: iterations.IterationSimilarity[] = [];
-      if (agentId) {
-        iterResults = await iterations.similar_iterations(
-          agentId,
-          embedding,
-          limit
-        );
-      }
-
-      const combined = this.mergeSimilarityResults(
-        memResults,
-        iterResults,
+      const memResults = await memory.similar_memory(
+        userId,
+        runId,
+        embedding,
         limit
       );
-
-      return this.formatMemoriesForContext(combined);
+      return memResults;
     };
 
-    return RunnableSequence.from<MemoryNodeState, MemoryChainResult>([
+    return RunnableSequence.from<typeof GraphState.State, memory.Similarity[]>([
       buildQuery,
       fetchMemories,
-      (context: string) => ({ memories: context }),
-    ]).withConfig({ runName: 'MemoryContextChain' });
+    ]).withConfig({
+      runName: 'MemoryContextChain',
+    });
   }
 
   /**
@@ -432,9 +281,10 @@ export class MemoryAgent extends BaseAgent {
   public async retrieveRelevantMemories(
     message: string | BaseMessage,
     userId: string = 'default_user',
+    runId: string,
     agentId?: string,
     limit = 4
-  ): Promise<any[]> {
+  ): Promise<memory.Similarity[]> {
     try {
       if (!this.initialized) {
         throw new Error('MemoryAgent: Not initialized');
@@ -447,17 +297,13 @@ export class MemoryAgent extends BaseAgent {
       }
 
       const embedding = await this.embeddings.embedQuery(query);
-      const memResults = await memory.similar_memory(userId, embedding, limit);
-      let iterResults: iterations.IterationSimilarity[] = [];
-      if (agentId) {
-        iterResults = await iterations.similar_iterations(
-          agentId,
-          embedding,
-          limit
-        );
-      }
-
-      return this.mergeSimilarityResults(memResults, iterResults, limit);
+      const memResults = await memory.similar_memory(
+        userId,
+        runId,
+        embedding,
+        limit
+      );
+      return memResults;
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving relevant memories: ${error}`);
       return [];
@@ -468,34 +314,33 @@ export class MemoryAgent extends BaseAgent {
    * Format memories for inclusion in a context
    * @param memories The memories to format
    */
-  public formatMemoriesForContext(memories: any[]): string {
+  public formatMemoriesForContext(memories: memory.Similarity[]): string {
     if (memories.length === 0) {
       return '';
     }
 
-    const formattedMemories = memories
+    const s_memories: memory.Similarity[] = [];
+    const e_memories: memory.Similarity[] = [];
+    for (const memory of memories) {
+      if (memory.memory_type === 'semantic') {
+        s_memories.push(memory);
+      } else if (memory.memory_type === 'episodic') {
+        e_memories.push(memory);
+      }
+    }
+
+    const formattedEpisodicMemories = e_memories
       .map((mem) => {
-        const lastHist =
-          Array.isArray(mem.history) && mem.history.length > 0
-            ? mem.history[mem.history.length - 1]
-            : null;
-        const ts = lastHist?.timestamp || 'unknown';
-        return `Memory [id: ${mem.id}, relevance: ${mem.similarity.toFixed(4)}, last_updated: ${ts}]: ${mem.content}`;
+        return `Episodic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
+      })
+      .join('\n\n');
+    const formattedSemanticMemories = s_memories
+      .map((mem) => {
+        return `Semantic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, category: ${mem.metadata.category}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
       })
       .join('\n\n');
 
-    return (
-      '### User Memory Context (reference only - always verify dynamic info using tools)\n\
-  Format:\
-    Memory [id: <number>, relevance: <score>, last_updated: <date or “unknown”>]: <description>\
-    - Iteration memories may provide a "Question:" followed by its "Answer:".\
-  Instruction: 1.Always read every entry in the Memory Context before composing your answer.\n\
-    2. When description adds useful information quote or integrate it.\
-    3. Carefully analyze provided question/answer pairs before responding.\
-###\n' +
-      formattedMemories +
-      '\n\n'
-    );
+    return formattedEpisodicMemories.concat(formattedSemanticMemories);
   }
 
   /**
@@ -505,6 +350,7 @@ export class MemoryAgent extends BaseAgent {
     prompt: ChatPromptTemplate,
     message: string | BaseMessage,
     userId: string = 'default_user',
+    runId: string,
     agentId?: string
   ): Promise<ChatPromptTemplate> {
     try {
@@ -516,7 +362,7 @@ export class MemoryAgent extends BaseAgent {
       const memories = await this.retrieveRelevantMemories(
         message,
         userId,
-        agentId
+        runId
       );
       if (!memories || memories.length === 0) {
         logger.debug('MemoryAgent: No relevant memories found for enrichment');
@@ -563,7 +409,7 @@ export class MemoryAgent extends BaseAgent {
         content.includes('remember') ||
         content.includes('save')
       ) {
-        return this.storeMemory(content, config?.userId || 'default_user');
+        // return this.upsertMemory(content, config?.userId || 'default_user');
       } else if (
         content.includes('retrieve') ||
         content.includes('recall') ||
@@ -588,49 +434,21 @@ export class MemoryAgent extends BaseAgent {
     }
   }
 
-  /**
-   * Store a memory
-   */
-  private async storeMemory(
-    content: string,
-    userId: string,
-    memorySize?: number
-  ): Promise<string> {
-    try {
-      const embedding = await this.embeddings.embedQuery(content);
-      const metadata = { timestamp: new Date().toISOString() };
-      const limit = memorySize ?? this.config.memorySize;
-
-      await memory.insert_memory({
-        user_id: userId,
-        content,
-        embedding,
-        metadata,
-        history: [],
-      });
-
-      if (limit) {
-        await memory.enforce_memory_limit(userId, limit);
-      }
-      return `Memory stored successfully.`;
-    } catch (error) {
-      logger.error(`MemoryAgent: Error storing memory: ${error}`);
-      return `Failed to store memory: ${error}`;
-    }
-  }
-
-  /**
-   * Retrieve memories for a content
-   */
   private async retrieveMemoriesForContent(
     content: string,
     userId: string,
+    runId: string,
     agentId?: string,
     limit = 4
   ): Promise<string> {
     try {
       const embedding = await this.embeddings.embedQuery(content);
-      const memResults = await memory.similar_memory(userId, embedding, limit);
+      const memResults = await memory.similar_memory(
+        userId,
+        runId,
+        embedding,
+        limit
+      );
       let iterResults: iterations.IterationSimilarity[] = [];
       if (agentId) {
         iterResults = await iterations.similar_iterations(
@@ -639,18 +457,7 @@ export class MemoryAgent extends BaseAgent {
           limit
         );
       }
-
-      const combined = this.mergeSimilarityResults(
-        memResults,
-        iterResults,
-        limit
-      );
-
-      if (combined.length === 0) {
-        return 'No relevant memories found.';
-      }
-
-      return this.formatMemoriesForContext(combined);
+      return this.formatMemoriesForContext(memResults);
     } catch (error) {
       logger.error(`MemoryAgent: Error retrieving memories: ${error}`);
       return `Failed to retrieve memories: ${error}`;

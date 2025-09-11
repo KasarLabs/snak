@@ -3,7 +3,7 @@ import { insertChatIntructionSchema } from '../schema/index.js';
 import { StarknetTool } from '@snakagent/core';
 import { chat } from '@snakagent/database/queries';
 
-export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
+export const registerTools = async (SnakToolRegistry: StarknetTool[]) => {
   try {
     chat.init();
   } catch (error) {
@@ -11,7 +11,7 @@ export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
     throw error;
   }
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'insert_chat_instruction',
     plugins: 'chat-pool',
     description: 'Insert a chat instruction in a database',
@@ -19,7 +19,7 @@ export const registerTools = async (StarknetToolRegistry: StarknetTool[]) => {
     execute: insertChatInstruction,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'read_chat_pool',
     plugins: 'chat-pool',
     description: 'read the chat pool return all the instructions',

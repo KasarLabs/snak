@@ -3,16 +3,14 @@ import { accountDetailsSchema } from '../schemas/schema.js';
 import { CreateBraavosAccountSignature } from '../actions/createAccount.js';
 import { DeployBraavosAccountSignature } from '../actions/deployAccount.js';
 
-export const registerSignatureTools = (
-  StarknetToolRegistry: SignatureTool[]
-) => {
-  (StarknetToolRegistry.push({
+export const registerSignatureTools = (SnakToolRegistry: SignatureTool[]) => {
+  (SnakToolRegistry.push({
     name: 'create_braavos_account',
     description:
       'create braavos account return the privateKey/publicKey/contractAddress',
     execute: CreateBraavosAccountSignature,
   }),
-    StarknetToolRegistry.push({
+    SnakToolRegistry.push({
       name: 'deploy_braavos_account',
       description:
         'deploy braavos account return the privateKey/publicKey/contractAddress',
