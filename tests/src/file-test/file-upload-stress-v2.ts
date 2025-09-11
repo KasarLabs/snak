@@ -74,7 +74,7 @@ async function waitForJobCompletion(
   testRunner: TestRunner,
   jobId: string,
   maxWaitTime: number = 60000,
-  pollInterval: number = 750
+  pollInterval: number = 2750
 ): Promise<JobStatus | null> {
   const startTime = Date.now();
   
@@ -232,9 +232,9 @@ async function testFileStressWithJobQueue() {
               interval: 0,
               mode: 'interactive',
               memory: {
-                enabled: false,
-                memorySize: 0,
-                shortTermMemorySize: 0
+                enabled: true,
+                memorySize: 10,
+                shortTermMemorySize: 10
               },
               rag: {
                 enabled: true,

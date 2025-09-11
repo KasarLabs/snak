@@ -83,7 +83,7 @@ export class TestRunner {
           interval: 15000,
           plugins: ['rpc'],
           memory: {
-            enabled: true,
+            enabled: false,
             memorySize: 20,
             shortTermMemorySize: 15
           },
