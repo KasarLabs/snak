@@ -1,2 +1,2 @@
-export { CacheService } from './cache.service.js';
+export { RedisCacheService } from './redis-cache.service.js';
 export { WorkersCacheModule as CacheModule } from './cache.module.js';

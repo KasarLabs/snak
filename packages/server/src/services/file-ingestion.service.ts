@@ -10,7 +10,10 @@ import { ConfigurationService } from '../../config/configuration.js';
 import { randomUUID } from 'crypto';
 import { fileTypeFromBuffer } from 'file-type';
 import { Postgres } from '@snakagent/database';
-import { FileContent, StoredFile } from '../interfaces/file-content.interface.js';
+import {
+  FileContent,
+  StoredFile,
+} from '../interfaces/file-content.interface.js';
 import { MultipartFile } from '@fastify/multipart';
 
 @Injectable()

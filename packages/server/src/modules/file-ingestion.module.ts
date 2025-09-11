@@ -7,12 +7,7 @@ import { ConfigModule } from '../../config/config.module.js';
 import { WorkersModule } from './workers.module.js';
 
 @Module({
-  imports: [
-    AgentsModule,
-    VectorStoreModule,
-    ConfigModule,
-    WorkersModule,
-  ],
+  imports: [AgentsModule, VectorStoreModule, ConfigModule, WorkersModule],
   controllers: [FileIngestionController],
   providers: [FileIngestionService],
   exports: [FileIngestionService],

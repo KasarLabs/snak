@@ -1,4 +1,4 @@
-import { Chunk } from "@snakagent/core";
+import { Chunk } from '@snakagent/core';
 
 export interface FileContent {
   chunks: Chunk[];

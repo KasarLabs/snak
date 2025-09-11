@@ -8,7 +8,7 @@ import { VectorStoreService } from './services/vector-store/vector-store.service
 import { JobsMetadataService } from './services/jobs/jobs-metadata.service.js';
 import { QueueMetrics } from './types/index.js';
 import { logger } from '@snakagent/core';
-import { CacheService } from './services/cache/cache.service.js';
+import { RedisCacheService } from './services/cache/redis-cache.service.js';
 
 export class WorkerManager {
   private queueManager: QueueManager;
@@ -23,7 +23,7 @@ export class WorkerManager {
       password?: string;
       db?: number;
     },
-    cacheService?: CacheService,
+    cacheService?: RedisCacheService,
     ingestionServices?: {
       chunkingService?: ChunkingService;
       embeddingsService?: EmbeddingsService;
@@ -55,7 +55,7 @@ export class WorkerManager {
     this.jobProcessor = new JobProcessor(
       this.queueManager,
       fileIngestionProcessor,
-      cacheService || new CacheService(),
+      cacheService || new RedisCacheService(),
       this.jobsMetadataService
     );
   }

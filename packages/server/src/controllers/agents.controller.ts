@@ -481,10 +481,7 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const userId = getUserIdFromHeaders(req);
-      this.verifyAgentConfigOwnership(
-        userRequest.agent_id,
-        userId
-      );
+      this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
       const messages = await this.agentService.getMessageFromAgentId(
         userRequest,
         userId
@@ -512,10 +509,7 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const userId = getUserIdFromHeaders(req);
-      this.verifyAgentConfigOwnership(
-        userRequest.agent_id,
-        userId
-      );
+      this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
 
       await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 

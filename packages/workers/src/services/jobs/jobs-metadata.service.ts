@@ -13,11 +13,11 @@ import {
   ResultSource,
   ResultStatus,
 } from '../../types/jobs.js';
-import { CacheService } from '../cache/cache.service.js';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
 
 @Injectable()
 export class JobsMetadataService {
-  constructor(@Optional() private readonly cacheService?: CacheService) {}
+  constructor(@Optional() private readonly cacheService?: RedisCacheService) {}
 
   async createJobMetadata(data: CreateJobMetadataData): Promise<JobMetadata> {
     const jobId = data.jobId || data.payload?.jobId;
@@ -229,11 +229,6 @@ export class JobsMetadataService {
     };
   }
 
-  // ===== MÉTHODES DE RÉCUPÉRATION DES RÉSULTATS =====
-
-  /**
-   * Récupère un résultat de job avec fallback et régénération
-   */
   async getJobRetrievalResult(
     jobId: string,
     userId: string,
@@ -249,7 +244,6 @@ export class JobsMetadataService {
     const startTime = Date.now();
 
     try {
-      // 1. Essayer le cache Redis d'abord
       const cachedResult = await this.getFromCache(jobId, userId);
       if (cachedResult) {
         logger.debug(`Result retrieved from cache for job ${jobId}`);
@@ -259,10 +253,8 @@ export class JobsMetadataService {
         };
       }
 
-      // 2. Essayer la base de données
       const dbResult = await this.getFromDatabase(jobId, userId);
       if (dbResult) {
-        // Mettre en cache pour les prochaines requêtes
         if (this.cacheService) {
           await this.cacheService.setJobRetrievalResult(jobId, dbResult);
         }
@@ -273,11 +265,9 @@ export class JobsMetadataService {
         };
       }
 
-      // 3. Essayer Bull/Redis comme fallback
       if (fallbackToBull) {
         const bullResult = await this.getFromBull(jobId, userId);
         if (bullResult) {
-          // Mettre en cache et en DB
           if (this.cacheService) {
             await this.cacheService.setJobRetrievalResult(jobId, bullResult);
           }
@@ -307,7 +297,6 @@ export class JobsMetadataService {
         }
       }
 
-      // 5. Job non trouvé
       return {
         jobId,
         agentId: '',
@@ -319,7 +308,6 @@ export class JobsMetadataService {
     } catch (error) {
       logger.error(`Failed to retrieve result for job ${jobId}:`, error);
 
-      // En cas d'erreur, essayer la régénération si autorisée
       if (allowRegeneration) {
         try {
           const regeneratedResult = await this.regenerateResult(jobId, userId, {
@@ -343,7 +331,6 @@ export class JobsMetadataService {
         }
       }
 
-      // Retourner une erreur
       return {
         jobId,
         agentId: '',
@@ -356,9 +343,6 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Récupère un résultat depuis le cache Redis
-   */
   private async getFromCache(
     jobId: string,
     userId: string
@@ -387,9 +371,6 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Récupère un résultat depuis la base de données
-   */
   private async getFromDatabase(
     jobId: string,
     userId: string
@@ -400,8 +381,6 @@ export class JobsMetadataService {
         return null;
       }
 
-      // Pour l'instant, on n'a pas de stockage des résultats en DB
-      // Cette méthode est prête pour l'extension future
       return null;
     } catch (error) {
       logger.debug(`Database retrieval failed for job ${jobId}:`, error);
@@ -409,16 +388,11 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Récupère un résultat depuis Bull/Redis
-   */
   private async getFromBull(
     jobId: string,
     userId: string
   ): Promise<JobRetrievalResult | null> {
     try {
-      // Cette méthode devrait être implémentée avec l'accès à Bull
-      // Pour l'instant, on retourne null
       return null;
     } catch (error) {
       logger.debug(`Bull retrieval failed for job ${jobId}:`, error);
@@ -426,26 +400,18 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Met à jour le résultat en base de données
-   */
   private async updateDatabaseResult(
     jobId: string,
     userId: string,
     data: any
   ): Promise<void> {
     try {
-      // Pour l'instant, on ne stocke pas les résultats en DB
-      // Cette méthode est prête pour l'extension future
       logger.debug(`Database update not implemented for job ${jobId}`);
     } catch (error) {
       logger.error(`Failed to update database result for job ${jobId}:`, error);
     }
   }
 
-  /**
-   * Régénère un résultat si nécessaire
-   */
   async regenerateResult(
     jobId: string,
     userId: string,
@@ -458,7 +424,6 @@ export class JobsMetadataService {
     } = options;
 
     try {
-      // Vérifier si le job existe et est terminé
       const jobMetadata = await this.getJobMetadataForUser(jobId, userId);
       if (!jobMetadata) {
         logger.warn(`Cannot regenerate result: job ${jobId} not found`);
@@ -470,8 +435,6 @@ export class JobsMetadataService {
         return null;
       }
 
-      // Pour l'instant, on ne peut pas régénérer les résultats
-      // Cette méthode est prête pour l'extension future
       logger.info(`Result regeneration not implemented for job ${jobId}`);
       return null;
     } catch (error) {
@@ -480,9 +443,6 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Vérifie si un résultat est disponible
-   */
   async isResultAvailable(jobId: string, userId: string): Promise<boolean> {
     try {
       const result = await this.getJobRetrievalResult(jobId, userId, {
@@ -500,9 +460,6 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Obtient des statistiques sur les résultats
-   */
   async getResultStats(userId?: string): Promise<{
     total: number;
     cached: number;
@@ -512,8 +469,6 @@ export class JobsMetadataService {
     failed: number;
   }> {
     try {
-      // Cette méthode devrait être implémentée avec des requêtes de statistiques
-      // Pour l'instant, on retourne des stats basiques
       return {
         total: 0,
         cached: 0,
@@ -535,13 +490,8 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Nettoie les anciens résultats du cache
-   */
   async cleanupOldResults(daysOld: number = 7): Promise<number> {
     try {
-      // Le cache Redis gère déjà le TTL automatiquement
-      // Cette méthode est prête pour l'extension future
       logger.debug(
         `Cache cleanup handled by Redis TTL for jobs older than ${daysOld} days`
       );

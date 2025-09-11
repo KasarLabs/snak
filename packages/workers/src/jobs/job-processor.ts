@@ -7,21 +7,21 @@ import {
   ResultSource,
   ResultStatus,
 } from '../types/index.js';
-import { CacheService } from '../services/cache/cache.service.js';
+import { RedisCacheService } from '../services/cache/redis-cache.service.js';
 import { JobsMetadataService } from '../services/jobs/jobs-metadata.service.js';
 
 export class JobProcessor {
   private readonly queueManager: QueueManager;
   private fileIngestionQueue: FileIngestionQueue | null = null;
   private readonly fileIngestionProcessor: FileIngestionProcessor;
-  private readonly cacheService: CacheService;
+  private readonly cacheService: RedisCacheService;
   private isProcessingStarted: boolean = false;
   private isFileIngestionProcessorRegistered: boolean = false;
 
   constructor(
     queueManager: QueueManager,
     fileIngestionProcessor: FileIngestionProcessor,
-    cacheService: CacheService,
+    cacheService: RedisCacheService,
     private readonly jobsMetadataService: JobsMetadataService
   ) {
     this.queueManager = queueManager;

@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import {
   WorkerManager,
-  CacheService,
+  RedisCacheService,
   JobsMetadataService,
 } from '@snakagent/workers';
 import { logger } from '@snakagent/core';
@@ -17,13 +17,13 @@ import {
 @Injectable()
 export class WorkersService implements OnModuleInit, OnModuleDestroy {
   private workerManager: WorkerManager;
-  private cacheService: CacheService;
+  private cacheService: RedisCacheService;
 
   constructor(
     private readonly config: ConfigurationService,
     private readonly jobsMetadataService: JobsMetadataService
   ) {
-    this.cacheService = new CacheService();
+    this.cacheService = new RedisCacheService(this.config.redis);
     this.workerManager = new WorkerManager(
       this.config.redis,
       this.cacheService
@@ -81,9 +81,9 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
 
     const jobId = job.id?.toString();
     if (!jobId) {
-      throw new JobNotFoundError('unknown', { 
+      throw new JobNotFoundError('unknown', {
         message: 'Failed to get job ID from queue',
-        context: 'processFileAsync'
+        context: 'processFileAsync',
       });
     }
     logger.info(`File ingestion job added to queue with ID: ${jobId}`);

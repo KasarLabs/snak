@@ -204,7 +204,4 @@ export class FileIngestionController {
     await this.service.deleteFile(agentId, fileId, userId);
     return { deleted: true };
   }
-
-
-
 }
