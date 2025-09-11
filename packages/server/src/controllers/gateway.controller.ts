@@ -249,11 +249,14 @@ export class MyGateway {
     try {
       logger.info('getMessages called');
       const userId = getUserIdFromSocketHeaders(client);
-      const messages = await this.agentService.getMessageFromAgentId({
-        agent_id: userRequest.agent_id,
-        thread_id: userRequest.thread_id,
-        limit_message: userRequest.limit_message,
-      }, userId);
+      const messages = await this.agentService.getMessageFromAgentId(
+        {
+          agent_id: userRequest.agent_id,
+          thread_id: userRequest.thread_id,
+          limit_message: userRequest.limit_message,
+        },
+        userId
+      );
       if (!messages) {
         throw new ServerError('E01TA400');
       }
