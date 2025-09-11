@@ -116,15 +116,48 @@ export class FileIngestionController {
         const fileType = await fileTypeFromBuffer(fileBuffer);
         if (fileType?.mime) {
           mimeType = fileType.mime;
+        } else {
+          const extension = fileName.toLowerCase().split('.').pop();
+          switch (extension) {
+            case 'txt':
+              mimeType = 'text/plain';
+              break;
+            case 'md':
+            case 'markdown':
+              mimeType = 'text/markdown';
+              break;
+            case 'csv':
+              mimeType = 'text/csv';
+              break;
+            case 'json':
+              mimeType = 'application/json';
+              break;
+            case 'html':
+            case 'htm':
+              mimeType = 'text/html';
+              break;
+            case 'pdf':
+              mimeType = 'application/pdf';
+              break;
+            case 'doc':
+              mimeType = 'application/msword';
+              break;
+            case 'docx':
+              mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+              break;
+            default:
+              break;
+          }
         }
       } catch (error) {
         logger.warn(
-          `Failed to detect file type for ${fileName}, using default mime type`,
+          `Failed to detect file type for ${fileName}, using extension-based detection`,
           error
         );
+        throw new BadRequestException('Failed to detect file type');
       }
 
-      const jobId = await this.workersService.processFileAsync(
+      const { jobId } = await this.service.processFileUpload(
         agentId,
         userId,
         fileId,

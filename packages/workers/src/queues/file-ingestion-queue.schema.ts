@@ -11,11 +11,11 @@ const ALLOWED_MIME_TYPES = [
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
   'text/html',
+  'application/octet-stream',
 ] as const;
 
-// Limites de taille (en bytes)
 const MAX_FILE_SIZE = 523 * 1024 * 1024; // 523MB
-const MIN_FILE_SIZE = 1; // 1 byte
+const MIN_FILE_SIZE = 1;
 
 export const FileIngestionJobPayloadSchema = z
   .object({

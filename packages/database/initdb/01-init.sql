@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     agent_id UUID NOT NULL,
     user_id UUID NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    CONSTRAINT jobs_status_chk CHECK (status IN ('pending','running','success','failed','canceled')),
+    CONSTRAINT jobs_status_chk CHECK (status IN ('pending','running','completed','failed','canceled')),
     error TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     started_at TIMESTAMPTZ,

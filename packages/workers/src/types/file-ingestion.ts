@@ -105,7 +105,8 @@ export type SupportedMimeType =
   | 'text/csv'
   | 'application/csv'
   | 'application/json'
-  | 'text/html';
+  | 'text/html'
+  | 'application/octet-stream';
 
 /**
  * File type validation result
@@ -155,6 +156,7 @@ export interface VectorStoreEntry {
     chunkIndex: number;
     originalName: string;
     mimeType: SupportedMimeType;
+    fileSize: number;
   };
 }
 

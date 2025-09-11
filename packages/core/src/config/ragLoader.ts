@@ -14,6 +14,7 @@ export async function loadRagConfig(
       typeof config.maxProcessSize !== 'number' ||
       typeof config.maxRagSize !== 'number'
     ) {
+      console.log(config.maxAgentSize, config.maxProcessSize, config.maxRagSize);
       throw new Error('Invalid configuration: missing size limits');
     }
     return config as RagConfigSize;

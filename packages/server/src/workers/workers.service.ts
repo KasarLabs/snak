@@ -148,10 +148,9 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
   } | null> {
     logger.info(`Getting job status for ${jobId} (user: ${userId})`);
 
-    // Check cache for job status
     const cachedStatus = await this.cacheService.getJobRetrievalResult(jobId);
-    if (cachedStatus) {
-      logger.debug(`Cache hit for job status ${jobId} (user: ${userId})`);
+    if (cachedStatus && (cachedStatus.status === 'completed' || cachedStatus.status === 'failed')) {
+      logger.debug(`Cache hit for completed/failed job status ${jobId} (user: ${userId})`);
       return {
         id: cachedStatus.jobId,
         status: cachedStatus.status,
@@ -159,6 +158,8 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
         createdAt: cachedStatus.createdAt,
         finishedOn: cachedStatus.completedAt,
       };
+    } else if (cachedStatus) {
+      logger.debug(`Cache hit for active job status ${jobId} (user: ${userId}), but checking for updates...`);
     }
 
     try {
@@ -167,39 +168,52 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
         userId
       );
       if (jobMetadata) {
-        const status = {
-          id: jobMetadata.jobId,
-          status: jobMetadata.status,
-          error: jobMetadata.error,
-          createdAt: jobMetadata.createdAt,
-          processedOn: jobMetadata.startedAt,
-          finishedOn: jobMetadata.completedAt,
-        };
+        if (jobMetadata.userId !== userId) {
+          logger.error(`Job metadata ownership mismatch for job ${jobId}: metadata.userId=${jobMetadata.userId}, requested.userId=${userId}`);
+        } else {
+          const statusString = String(jobMetadata.status);
+          const isCompleted = statusString === 'completed';
+          const isFailed = statusString === 'failed';
+          
+          if (isCompleted || isFailed) {
+            const status = {
+              id: jobMetadata.jobId,
+              status: statusString,
+              error: jobMetadata.error,
+              createdAt: jobMetadata.createdAt,
+              processedOn: jobMetadata.startedAt,
+              finishedOn: jobMetadata.completedAt,
+            };
 
-        // Cache the status for future requests
-        await this.cacheService.setJobRetrievalResult(jobId, {
-          jobId,
-          agentId: jobMetadata.agentId || '',
-          userId: jobMetadata.userId,
-          status: status.status as any,
-          data: null,
-          error: status.error,
-          createdAt: status.createdAt,
-          completedAt: status.finishedOn,
-          source: 'database' as any,
-        });
+            await this.cacheService.setJobRetrievalResult(jobId, {
+              jobId,
+              agentId: jobMetadata.agentId || '',
+              userId: jobMetadata.userId,
+              status: status.status as any,
+              data: null,
+              error: status.error,
+              createdAt: status.createdAt,
+              completedAt: status.finishedOn,
+              source: 'database' as any,
+            });
 
-        logger.debug(
-          `Retrieved job status from metadata for ${jobId} (user: ${userId})`
-        );
-        return {
-          id: jobId,
-          status: status.status,
-          error: status.error,
-          createdAt: status.createdAt,
-          processedOn: status.processedOn,
-          finishedOn: status.finishedOn,
-        };
+            logger.debug(
+              `Retrieved completed job status from metadata for ${jobId} (user: ${userId})`
+            );
+            return {
+              id: jobId,
+              status: status.status,
+              error: status.error,
+              createdAt: status.createdAt,
+              processedOn: status.processedOn,
+              finishedOn: status.finishedOn,
+            };
+          } else {
+            logger.debug(
+              `Job metadata found but status is active (${jobMetadata.status}), checking Bull queue for ${jobId}`
+            );
+          }
+        }
       }
     } catch (error) {
       logger.error(`Failed to get job metadata for ${jobId}:`, error);
@@ -217,6 +231,7 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (job.data.userId !== userId) {
+      logger.error(`Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`);
       throw new Error('Access denied: Job does not belong to user');
     }
 
@@ -231,7 +246,70 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       processedOn: job.processedOn ? new Date(job.processedOn) : undefined,
       finishedOn: job.finishedOn ? new Date(job.finishedOn) : undefined,
     };
-    // Cache the status for future requests
+    const ttlMs = (status.status === 'completed' || status.status === 'failed') 
+      ? undefined
+      : 30000;
+
+    await this.cacheService.setJobRetrievalResult(jobId, {
+      jobId,
+      agentId: job.data.agentId || '',
+      userId: userId,
+      status: status.status as any,
+      data: null,
+      error: status.error,
+      createdAt: status.createdAt,
+      completedAt: status.finishedOn,
+      source: 'bull' as any,
+    }, ttlMs);
+
+    return status;
+  }
+
+  /**
+   * Get job status directly from Bull queue (bypassing cache and metadata)
+   * This is useful when cache contains stale data
+   */
+  async getJobStatusFromBull(
+    jobId: string,
+    userId: string
+  ): Promise<{
+    id: string;
+    status: string;
+    error?: string;
+    createdAt?: Date;
+    processedOn?: Date;
+    finishedOn?: Date;
+  } | null> {
+    logger.info(`Getting job status directly from Bull for ${jobId} (user: ${userId})`);
+
+    const fileIngestionQueue = this.workerManager
+      .getJobProcessor()
+      .getFileIngestionQueue();
+
+    const job = await fileIngestionQueue.getQueue().getJob(jobId);
+
+    if (!job) {
+      logger.warn(`Job ${jobId} not found in Bull queue`);
+      return null;
+    }
+
+    if (job.data.userId !== userId) {
+      logger.error(`Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`);
+      throw new Error('Access denied: Job does not belong to user');
+    }
+
+    const jobState = await job.getState();
+    logger.info(`Job ${jobId} state from Bull queue: ${jobState}`);
+
+    const status = {
+      id: job.id?.toString() || '',
+      status: jobState,
+      error: job.failedReason,
+      createdAt: new Date(job.timestamp),
+      processedOn: job.processedOn ? new Date(job.processedOn) : undefined,
+      finishedOn: job.finishedOn ? new Date(job.finishedOn) : undefined,
+    };
+
     await this.cacheService.setJobRetrievalResult(jobId, {
       jobId,
       agentId: job.data.agentId || '',

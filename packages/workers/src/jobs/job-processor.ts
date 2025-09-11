@@ -4,6 +4,7 @@ import { FileIngestionProcessor } from './file-ingestion-processor.js';
 import { logger } from '@snakagent/core';
 import { FileIngestionResult, ResultSource, ResultStatus } from '../types/index.js';
 import { CacheService } from '../services/cache/cache.service.js';
+import { JobsMetadataService } from '../services/jobs/jobs-metadata.service.js';
 
 export class JobProcessor {
   private readonly queueManager: QueueManager;
@@ -16,7 +17,8 @@ export class JobProcessor {
   constructor(
     queueManager: QueueManager,
     fileIngestionProcessor: FileIngestionProcessor,
-    cacheService: CacheService
+    cacheService: CacheService,
+    private readonly jobsMetadataService: JobsMetadataService
   ) {
     this.queueManager = queueManager;
     this.fileIngestionProcessor = fileIngestionProcessor;
@@ -126,7 +128,6 @@ export class JobProcessor {
       const result = await this.processFileIngestion(job);
       logger.info(`File ingestion job ${job.id} completed successfully`);
 
-      // Update cache with completed status - handle errors gracefully
       try {
         await this.cacheService.setJobRetrievalResult(job.id.toString(), {
           jobId: job.id.toString(),
@@ -139,9 +140,17 @@ export class JobProcessor {
           completedAt: new Date(),
           source: ResultSource.BULL,
         });
+
+        await this.jobsMetadataService.updateJobMetadata(job.id.toString(), {
+          status: 'completed' as any,
+          completedAt: new Date(),
+          result: result,
+        });
+
+        logger.info(`Updated cache and metadata for completed job ${job.id}`);
       } catch (cacheError) {
         logger.error(
-          `Failed to update cache for completed job ${job.id}:`,
+          `Failed to update cache/metadata for completed job ${job.id}:`,
           cacheError
         );
         // Don't throw here as the job itself succeeded
@@ -151,7 +160,6 @@ export class JobProcessor {
     } catch (error) {
       logger.error(`File ingestion job ${job.id} failed:`, error);
 
-      // Update cache with failed status - handle errors gracefully
       try {
         await this.cacheService.setJobRetrievalResult(job.id.toString(), {
           jobId: job.id.toString(),
@@ -164,9 +172,17 @@ export class JobProcessor {
           completedAt: new Date(),
           source: ResultSource.BULL,
         });
+
+        await this.jobsMetadataService.updateJobMetadata(job.id.toString(), {
+          status: 'failed' as any, // 'failed' is valid in database
+          completedAt: new Date(),
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+
+        logger.info(`Updated cache and metadata for failed job ${job.id}`);
       } catch (cacheError) {
         logger.error(
-          `Failed to update cache for failed job ${job.id}:`,
+          `Failed to update cache/metadata for failed job ${job.id}:`,
           cacheError
         );
         // Don't throw here as we want to preserve the original error

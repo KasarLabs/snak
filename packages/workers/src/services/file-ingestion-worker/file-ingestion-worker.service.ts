@@ -5,7 +5,7 @@ import mammoth from 'mammoth';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { Postgres } from '@snakagent/database';
-import { logger } from '@snakagent/core';
+import { logger, loadRagConfig } from '@snakagent/core';
 import { ChunkingService } from '../chunking/chunking.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
 import { VectorStoreService } from '../vector-store/vector-store.service.js';
@@ -20,6 +20,29 @@ import {
   SupportedMimeType,
 } from '../../types/file-ingestion.js';
 import { Chunk } from '../chunking/chunk.interface.js';
+import { rag } from '@snakagent/database/queries';
+
+const userMutexes = new Map<string, Promise<void>>();
+
+async function acquireUserMutex(userId: string): Promise<() => void> {
+  const existingMutex = userMutexes.get(userId);
+  
+  if (existingMutex) {
+    await existingMutex;
+  }
+  
+  let releaseMutex: () => void;
+  const mutexPromise = new Promise<void>((resolve) => {
+    releaseMutex = resolve;
+  });
+  
+  userMutexes.set(userId, mutexPromise);
+  
+  return () => {
+    userMutexes.delete(userId);
+    releaseMutex();
+  };
+}
 
 @Injectable()
 export class FileIngestionWorkerService {
@@ -53,11 +76,10 @@ export class FileIngestionWorkerService {
       `Processing file ingestion for agent ${agentId}, file: ${originalName}`
     );
 
-    try {
-      // Verify agent ownership
-      await this.verifyAgentOwnership(agentId, userId);
+    const releaseMutex = await acquireUserMutex(userId);
 
-      // Check storage limits
+    try {
+
       await this.checkStorageLimits(agentId, userId, size);
 
       const contentBuffer = Buffer.isBuffer(content)
@@ -67,13 +89,9 @@ export class FileIngestionWorkerService {
           : Buffer.from(content as string, 'utf8');
       const text = await this.extractRawText(contentBuffer, mimeType);
 
-      // Determine processing strategy
       const strategy = this.determineProcessingStrategy(mimeType);
-
-      // Compute chunk parameters
       const { chunkSize, overlap } = this.computeChunkParams(size);
 
-      // Process options
       const processingOptions: FileProcessingOptions = {
         chunkSize,
         overlap,
@@ -83,14 +101,12 @@ export class FileIngestionWorkerService {
         ...options,
       };
 
-      // Chunk the text
       const chunks = await this.chunkingService.chunkText(documentId, text, {
         chunkSize: processingOptions.chunkSize,
         overlap: processingOptions.overlap,
         strategy: processingOptions.strategy,
       });
 
-      // Limit chunks to prevent memory issues
       const MAX_CHUNKS = 200;
       if (chunks.length > MAX_CHUNKS) {
         chunks.splice(MAX_CHUNKS);
@@ -99,7 +115,6 @@ export class FileIngestionWorkerService {
         );
       }
 
-      // Generate embeddings if requested
       let embeddings: number[][] = [];
       if (
         chunks.length > 0 &&
@@ -115,7 +130,6 @@ export class FileIngestionWorkerService {
         );
       }
 
-      // Store in vector database if requested
       if (processingOptions.storeInVectorDB && chunks.length > 0) {
         if (embeddings.length === 0) {
           throw new Error(
@@ -129,11 +143,11 @@ export class FileIngestionWorkerService {
           chunks,
           embeddings,
           originalName,
-          mimeType
+          mimeType,
+          size
         );
       }
 
-      // Create processing result
       const processingTime = Date.now() - startTime;
       const result: FileProcessingResult = {
         documentId,
@@ -158,7 +172,6 @@ export class FileIngestionWorkerService {
         retryable: false,
       };
     } catch (error) {
-      const processingTime = Date.now() - startTime;
       logger.error(`File ingestion failed for ${originalName}:`, error);
 
       return {
@@ -166,27 +179,39 @@ export class FileIngestionWorkerService {
         error: error instanceof Error ? error.message : 'Unknown error',
         retryable: this.isRetryableError(error),
       };
+    } finally {
+      releaseMutex();
     }
   }
 
   /**
-   * Verify that the agent belongs to the specified user
-   * @param agentId - The agent ID to verify
-   * @param userId - The user ID to check ownership against
-   * @throws ForbiddenException if the agent doesn't belong to the user
+   * Get the total size for a specific agent
+   * @param agentId - The agent ID
+   * @param userId - The user ID for ownership verification
+   * @returns Promise<number> The total size in bytes
    */
-  private async verifyAgentOwnership(
-    agentId: string,
-    userId: string
-  ): Promise<void> {
-    const q = new Postgres.Query(
-      'SELECT id FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const result = await Postgres.query(q);
+  async getAgentSize(agentId: string, userId: string): Promise<number> {
+    try {
+      const size = await rag.totalSizeForAgent(agentId);
+      return size;
+    } catch (err) {
+      logger.error(`Failed to get agent size:`, err);
+      throw err;
+    }
+  }
 
-    if (result.length === 0) {
-      throw new ForbiddenException('Agent not found or access denied');
+  /**
+   * Get the total size for a specific user across all agents
+   * @param userId - The user ID
+   * @returns Promise<number> The total size in bytes
+   */
+  async getTotalSize(userId: string): Promise<number> {
+    try {
+      const size = await rag.totalSize(userId);
+      return size;
+    } catch (err) {
+      logger.error(`Failed to get total size:`, err);
+      throw err;
     }
   }
 
@@ -196,16 +221,38 @@ export class FileIngestionWorkerService {
    * @param userId - The user ID
    * @param fileSize - The size of the file to be processed
    */
-  private async checkStorageLimits(
+  async checkStorageLimits(
     agentId: string,
     userId: string,
     fileSize: number
   ): Promise<void> {
-    const agentSize = await this.vectorStore.getAgentSize(agentId, userId);
-    const totalSize = await this.vectorStore.getTotalSize(userId);
+    const agentSize = await this.getAgentSize(agentId, userId);
+    const totalSize = await this.getTotalSize(userId);
 
-    const maxAgentSize = 100 * 1024 * 1024; // 100MB per agent
-    const maxProcessSize = 1024 * 1024 * 1024; // 1GB total
+    let maxAgentSize: number;
+    let maxProcessSize: number;
+    
+    try {
+      const ragConfigPath = process.env.RAG_CONFIG_PATH || '../../config/rag/default.rag.json';
+      const ragConfig = await loadRagConfig(ragConfigPath);
+      maxAgentSize = ragConfig.maxAgentSize;
+      maxProcessSize = ragConfig.maxProcessSize;
+      logger.info(`Loaded RAG config: maxAgentSize=${maxAgentSize}, maxProcessSize=${maxProcessSize}`);
+    } catch (error) {
+      logger.warn(`Failed to load RAG config, using defaults: ${error}`);
+      maxAgentSize = 10 * 1024 * 1024; // 10MB per agent (matching default.rag.json)
+      maxProcessSize = 50 * 1024 * 1024; // 50MB total (matching default.rag.json)
+    }
+
+    // Log detailed size information for debugging
+    logger.info(`File ingestion size check for agent ${agentId} (user ${userId}):`);
+    logger.info(`  - Current agent size: ${agentSize} bytes (${(agentSize / 1024 / 1024).toFixed(2)} MB)`);
+    logger.info(`  - Current total size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
+    logger.info(`  - New file size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
+    logger.info(`  - Agent size after upload: ${agentSize + fileSize} bytes (${((agentSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`);
+    logger.info(`  - Total size after upload: ${totalSize + fileSize} bytes (${((totalSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`);
+    logger.info(`  - Agent size limit: ${maxAgentSize} bytes (${(maxAgentSize / 1024 / 1024).toFixed(2)} MB)`);
+    logger.info(`  - Process size limit: ${maxProcessSize} bytes (${(maxProcessSize / 1024 / 1024).toFixed(2)} MB)`);
 
     if (agentSize + fileSize > maxAgentSize) {
       logger.error(
@@ -221,6 +268,7 @@ export class FileIngestionWorkerService {
       throw new Error('Process rag storage limit exceeded');
     }
   }
+
 
   /**
    * Determine the processing strategy based on file type
@@ -397,7 +445,8 @@ export class FileIngestionWorkerService {
     chunks: Chunk[],
     embeddings: number[][],
     originalName: string,
-    mimeType: SupportedMimeType
+    mimeType: SupportedMimeType,
+    fileSize: number
   ): Promise<void> {
     try {
       if (embeddings.length !== chunks.length) {
@@ -414,6 +463,7 @@ export class FileIngestionWorkerService {
           chunkIndex: chunk.metadata.chunkIndex,
           originalName,
           mimeType,
+          fileSize,
         },
       }));
 

@@ -33,13 +33,14 @@ export namespace rag {
       CREATE EXTENSION IF NOT EXISTS vector;
       CREATE TABLE IF NOT EXISTS document_vectors(
         id VARCHAR PRIMARY KEY,
-        agent_id VARCHAR NOT NULL,
+        agent_id UUID NOT NULL,
         document_id VARCHAR NOT NULL,
         chunk_index INTEGER NOT NULL,
         embedding vector(384) NOT NULL,
         content TEXT NOT NULL,
         original_name TEXT,
-        mime_type TEXT
+        mime_type TEXT,
+        file_size BIGINT
       );
       CREATE INDEX IF NOT EXISTS document_vectors_embedding_idx
         ON document_vectors USING ivfflat (embedding vector_cosine_ops);
@@ -79,7 +80,7 @@ export namespace rag {
 
   export async function totalSizeForAgent(agentId: string): Promise<number> {
     const q = new Postgres.Query(
-      `SELECT COALESCE(SUM(LENGTH(content)),0) AS size FROM document_vectors WHERE agent_id = $1`,
+      `SELECT COALESCE(SUM(file_size),0) AS size FROM document_vectors WHERE agent_id = $1 AND file_size IS NOT NULL`,
       [agentId]
     );
     const res = await Postgres.query<{ size: string }>(q);
@@ -88,10 +89,10 @@ export namespace rag {
 
   export async function totalSize(userId: string): Promise<number> {
     const q = new Postgres.Query(
-      `SELECT COALESCE(SUM(LENGTH(dv.content)),0) AS size 
+      `SELECT COALESCE(SUM(dv.file_size),0) AS size 
        FROM document_vectors dv
-       INNER JOIN agents a ON dv.agent_id = a.id::text
-       WHERE a.user_id = $1`,
+       INNER JOIN agents a ON dv.agent_id = a.id
+       WHERE a.user_id = $1 AND dv.file_size IS NOT NULL`,
       [userId]
     );
     const res = await Postgres.query<{ size: string }>(q);

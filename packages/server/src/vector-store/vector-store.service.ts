@@ -1,95 +1,15 @@
-import { Injectable, OnModuleInit, ForbiddenException } from '@nestjs/common';
-import { logger } from '@snakagent/core';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
-import { rag } from '@snakagent/database/queries';
 
 @Injectable()
-export class VectorStoreService implements OnModuleInit {
-  private initialized = false;
-
-  async onModuleInit() {
-    await this.init();
-  }
-
-  private async init() {
-    if (this.initialized) return;
-    try {
-      await rag.init();
-      this.initialized = true;
-    } catch (err) {
-      logger.error('Failed to initialize vector table', err);
-      throw err;
-    }
-  }
+export class VectorStoreService {
 
   /**
-   * Verify that the agent belongs to the specified user
-   * @param agentId - The agent ID to verify
-   * @param userId - The user ID to check ownership against
-   * @throws ForbiddenException if the agent doesn't belong to the user
+   * List all documents for a specific agent (API-specific function)
+   * @param agentId - The agent ID
+   * @param userId - The user ID for ownership verification
+   * @returns Promise<Array> Array of document metadata
    */
-  private async verifyAgentOwnership(
-    agentId: string,
-    userId: string
-  ): Promise<void> {
-    const q = new Postgres.Query(
-      'SELECT id FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const result = await Postgres.query(q);
-
-    if (result.length === 0) {
-      throw new ForbiddenException('Agent not found or access denied');
-    }
-  }
-
-  async upsert(
-    agentId: string,
-    entries: {
-      id: string;
-      vector: number[];
-      content: string;
-      metadata: {
-        documentId: string;
-        chunkIndex: number;
-        originalName: string;
-        mimeType: string;
-      };
-    }[],
-    userId: string
-  ) {
-    try {
-      await this.verifyAgentOwnership(agentId, userId);
-
-      const queries = entries.map(
-        (e) =>
-          new Postgres.Query(
-            `INSERT INTO document_vectors(id, agent_id, document_id, chunk_index, embedding, content, original_name, mime_type)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-             ON CONFLICT (id) DO UPDATE
-             SET embedding = $5, content=$6, original_name=$7, mime_type=$8
-             WHERE document_vectors.agent_id = EXCLUDED.agent_id`,
-            [
-              e.id,
-              agentId,
-              e.metadata.documentId,
-              e.metadata.chunkIndex,
-              JSON.stringify(e.vector),
-              e.content,
-              e.metadata.originalName,
-              e.metadata.mimeType,
-            ]
-          )
-      );
-      if (queries.length) {
-        await Postgres.transaction(queries);
-      }
-    } catch (err) {
-      logger.error(`Upsert failed:`, err);
-      throw err;
-    }
-  }
-
   async listDocuments(
     agentId: string,
     userId: string
@@ -101,21 +21,27 @@ export class VectorStoreService implements OnModuleInit {
       size: number;
     }[]
   > {
-    await this.verifyAgentOwnership(agentId, userId);
-
     const q = new Postgres.Query(
-      `SELECT document_id,
+      `SELECT dv.document_id,
         (SELECT DISTINCT original_name FROM document_vectors dv2 WHERE dv2.document_id = dv.document_id LIMIT 1) AS original_name,
         (SELECT DISTINCT mime_type FROM document_vectors dv2 WHERE dv2.document_id = dv.document_id LIMIT 1) AS mime_type,
-        SUM(LENGTH(content)) AS size
+        SUM(LENGTH(dv.content)) AS size
        FROM document_vectors dv
-       WHERE agent_id = $1
-       GROUP BY document_id`,
-      [agentId]
+       INNER JOIN agents a ON a.id = dv.agent_id
+       WHERE dv.agent_id = $1 AND a.user_id = $2
+       GROUP BY dv.document_id`,
+      [agentId, userId]
     );
     return await Postgres.query(q);
   }
 
+  /**
+   * Get a specific document and its chunks (API-specific function)
+   * @param agentId - The agent ID
+   * @param documentId - The document ID
+   * @param userId - The user ID for ownership verification
+   * @returns Promise<Array> Array of document chunks
+   */
   async getDocument(
     agentId: string,
     documentId: string,
@@ -129,50 +55,39 @@ export class VectorStoreService implements OnModuleInit {
       mime_type: string;
     }[]
   > {
-    await this.verifyAgentOwnership(agentId, userId);
 
     const q = new Postgres.Query(
-      `SELECT id, chunk_index, content, original_name, mime_type
-       FROM document_vectors
-       WHERE agent_id = $1 AND document_id = $2
-       ORDER BY chunk_index ASC`,
-      [agentId, documentId]
+      `SELECT dv.id, dv.chunk_index, dv.content, dv.original_name, dv.mime_type
+       FROM document_vectors dv
+       INNER JOIN agents a ON a.id = dv.agent_id
+       WHERE dv.agent_id = $1 AND dv.document_id = $2 AND a.user_id = $3
+       ORDER BY dv.chunk_index ASC`,
+      [agentId, documentId, userId]
     );
     return await Postgres.query(q);
   }
 
+  /**
+   * Delete a specific document (API-specific function)
+   * @param agentId - The agent ID
+   * @param documentId - The document ID
+   * @param userId - The user ID for ownership verification
+   */
   async deleteDocument(
     agentId: string,
     documentId: string,
     userId: string
   ): Promise<void> {
-    await this.verifyAgentOwnership(agentId, userId);
 
     const q = new Postgres.Query(
-      `DELETE FROM document_vectors WHERE agent_id = $1 AND document_id = $2`,
-      [agentId, documentId]
+      `DELETE FROM document_vectors 
+       WHERE agent_id = $1 AND document_id = $2
+       AND EXISTS (
+         SELECT 1 FROM agents a 
+         WHERE a.id = document_vectors.agent_id AND a.user_id = $3
+       )`,
+      [agentId, documentId, userId]
     );
     await Postgres.query(q);
-  }
-
-  async getAgentSize(agentId: string, userId: string): Promise<number> {
-    try {
-      await this.verifyAgentOwnership(agentId, userId);
-      const size = await rag.totalSizeForAgent(agentId);
-      return size;
-    } catch (err) {
-      logger.error(`Failed to get agent size:`, err);
-      throw err;
-    }
-  }
-
-  async getTotalSize(userId: string): Promise<number> {
-    try {
-      const size = await rag.totalSize(userId);
-      return size;
-    } catch (err) {
-      logger.error(`Failed to get total size:`, err);
-      throw err;
-    }
   }
 }

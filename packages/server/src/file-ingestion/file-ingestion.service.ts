@@ -1,23 +1,19 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { ConfigurationService } from '../../config/configuration.js';
-import { fileTypeFromBuffer } from 'file-type';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-import mammoth from 'mammoth';
-import csv from 'csv-parser';
-import { Readable } from 'stream';
-import { FileContent, StoredFile } from './file-content.interface.js';
-import { ChunkingService } from '../chunking/chunking.service.js';
-import { EmbeddingsService } from '../embeddings/embeddings.service.js';
-import { VectorStoreService } from '../vector-store/vector-store.service.js';
-import { Postgres } from '@snakagent/database';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { logger } from '@snakagent/core';
+import { VectorStoreService } from '../vector-store/vector-store.service.js';
+import { WorkersService } from '../workers/workers.service.js';
+import { ConfigurationService } from '../../config/configuration.js';
+import { randomUUID } from 'crypto';
+import { fileTypeFromBuffer } from 'file-type';
+import { Postgres } from '@snakagent/database';
+import { FileContent, StoredFile } from './file-content.interface.js';
+import { MultipartFile } from '@fastify/multipart';
 
 @Injectable()
 export class FileIngestionService {
   constructor(
-    private readonly chunkingService: ChunkingService,
-    private readonly embeddingsService: EmbeddingsService,
     private readonly vectorStore: VectorStoreService,
+    private readonly workersService: WorkersService,
     private readonly config: ConfigurationService
   ) {}
 
@@ -42,218 +38,13 @@ export class FileIngestionService {
     }
   }
 
-  async saveFile(buffer: Buffer, originalName: string) {
-    const filename = `${Date.now()}-${originalName}`;
-    const fileType = await fileTypeFromBuffer(buffer);
-    const mimeType = fileType?.mime || 'application/octet-stream';
-    return { id: filename, mimeType, size: buffer.length, originalName };
-  }
-
-  private cleanText(text: string) {
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{2,}/g, '\n')
-      .trim();
-  }
-
-  private async parseCsv(buffer: Buffer) {
-    return new Promise<string>((resolve, reject) => {
-      const rows: string[] = [];
-      const stream = Readable.from(buffer);
-      stream
-        .pipe(csv())
-        .on('data', (data) => {
-          rows.push(JSON.stringify(data));
-        })
-        .on('end', () => resolve(rows.join('\n')))
-        .on('error', (err) => reject(err));
-    });
-  }
-
-  private async extractPdf(buffer: Buffer): Promise<string> {
-    try {
-      const loadingTask = pdfjsLib.getDocument({ data: buffer });
-      const pdf = await loadingTask.promise;
-
-      let text = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items
-          .map((item) => {
-            if (typeof item === 'object' && item !== null && 'str' in item) {
-              return String(item.str);
-            }
-            return '';
-          })
-          .join(' ');
-        text += pageText + '\n';
-      }
-
-      const cleanedText = this.cleanText(text);
-
-      return cleanedText;
-    } catch (err) {
-      logger.error(`PDF extraction failed:`, err);
-      throw err;
-    }
-  }
-
-  private async extractDocx(buffer: Buffer): Promise<string> {
-    try {
-      const { value } = await mammoth.extractRawText({ buffer });
-      const cleanedText = this.cleanText(value);
-      return cleanedText;
-    } catch (err) {
-      logger.error(`DOCX extraction failed:`, err);
-      throw err;
-    }
-  }
-
-  private async extractRawText(buffer: Buffer, mimeType?: string) {
-    const type =
-      mimeType || (await fileTypeFromBuffer(buffer))?.mime || 'text/plain';
-
-    try {
-      let result: string;
-
-      if (type === 'application/pdf') {
-        result = await this.extractPdf(buffer);
-      } else if (
-        type ===
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ) {
-        result = await this.extractDocx(buffer);
-      } else if (type === 'text/csv' || type === 'application/csv') {
-        const csvText = await this.parseCsv(buffer);
-        result = this.cleanText(csvText);
-      } else if (type === 'application/json' || type === 'text/json') {
-        const obj = JSON.parse(buffer.toString('utf8'));
-        result = JSON.stringify(obj, null, 2);
-      } else {
-        const text = buffer.toString('utf8');
-        result = this.cleanText(text);
-      }
-
-      return result;
-    } catch (err) {
-      logger.error(`Text extraction failed:`, err);
-      throw err;
-    }
-  }
-
-  private computeChunkParams(size: number) {
-    const chunkSize =
-      size > 1_000_000
-        ? 1000
-        : size > 500_000
-          ? 800
-          : size > 100_000
-            ? 600
-            : size > 50_000
-              ? 400
-              : 200;
-    const overlap = Math.round(chunkSize * 0.1);
-    return { chunkSize, overlap };
-  }
-
-  async process(
-    agentId: string,
-    buffer: Buffer,
-    originalName: string,
-    userId: string
-  ): Promise<FileContent> {
-    try {
-      await this.verifyAgentOwnership(agentId, userId);
-
-      const meta = await this.saveFile(buffer, originalName);
-
-      const agentSize = await this.vectorStore.getAgentSize(agentId, userId);
-      const totalSize = await this.vectorStore.getTotalSize(userId);
-      const { maxAgentSize, maxProcessSize } = this.config.rag;
-
-      if (agentSize + meta.size > maxAgentSize) {
-        logger.error(
-          `Agent storage limit exceeded: ${agentSize + meta.size} > ${maxAgentSize}`
-        );
-        throw new Error('Agent rag storage limit exceeded');
-      }
-      if (totalSize + meta.size > maxProcessSize) {
-        logger.error(
-          `Process storage limit exceeded: ${totalSize + meta.size} > ${maxProcessSize}`
-        );
-        throw new Error('Process rag storage limit exceeded');
-      }
-      const text = await this.extractRawText(buffer, meta.mimeType);
-
-      const strategy =
-        meta.mimeType === 'text/csv' ||
-        meta.mimeType === 'application/csv' ||
-        meta.mimeType === 'application/json' ||
-        meta.mimeType === 'text/json'
-          ? 'structured'
-          : 'adaptive';
-      const { chunkSize, overlap } = this.computeChunkParams(meta.size);
-
-      const chunks = await this.chunkingService.chunkText(meta.id, text, {
-        chunkSize,
-        overlap,
-        strategy,
-      });
-
-      const MAX_CHUNKS = 200;
-      if (chunks.length > MAX_CHUNKS) {
-        chunks.splice(MAX_CHUNKS);
-      }
-
-      try {
-        const texts = chunks.map((c) => c.text);
-
-        const vectors = await this.embeddingsService.embedDocuments(texts);
-
-        if (vectors.length !== chunks.length) {
-          logger.error(
-            `Embedding count mismatch: ${vectors.length} vectors vs ${chunks.length} chunks`
-          );
-          throw new Error('Embedding count mismatch');
-        }
-
-        chunks.forEach((chunk, idx) => {
-          chunk.metadata.embedding = vectors[idx];
-        });
-
-        const upsertPayload = chunks.map((chunk) => ({
-          id: chunk.id,
-          vector: chunk.metadata.embedding as number[],
-          content: chunk.text,
-          metadata: {
-            documentId: chunk.metadata.documentId,
-            chunkIndex: chunk.metadata.chunkIndex,
-            originalName: meta.originalName,
-            mimeType: meta.mimeType,
-          },
-        }));
-
-        await this.vectorStore.upsert(agentId, upsertPayload, userId);
-      } catch (err) {
-        logger.error(`Embedding/Storage failed:`, err);
-        throw err;
-      }
-
-      return {
-        chunks,
-        metadata: {
-          originalName: meta.originalName,
-          mimeType: meta.mimeType,
-          size: meta.size,
-        },
-      };
-    } catch (err) {
-      logger.error(`File processing failed:`, err);
-      throw err;
-    }
-  }
-
+  /**
+   * List all files associated with a specific agent
+   * @param agentId - The agent ID to list files for
+   * @param userId - The user ID to verify ownership
+   * @returns Promise<StoredFile[]> Array of stored file metadata
+   * @throws ForbiddenException if the agent doesn't belong to the user
+   */
   async listFiles(agentId: string, userId: string): Promise<StoredFile[]> {
     await this.verifyAgentOwnership(agentId, userId);
     const docs = await this.vectorStore.listDocuments(agentId, userId);
@@ -262,12 +53,38 @@ export class FileIngestionService {
       originalName: d.original_name,
       mimeType: d.mime_type,
       size: d.size,
-      uploadDate: new Date(
-        Number(d.document_id.split('-')[0]) || Date.now()
-      ).toISOString(),
+      uploadDate: (() => {
+        try {
+          const timestampStr = d.document_id.split('-')[0];
+          const timestamp = Number(timestampStr);
+          
+          if (isNaN(timestamp) || timestamp <= 0) {
+            return new Date().toISOString();
+          }
+          
+          const date = new Date(timestamp);
+          
+          if (isNaN(date.getTime())) {
+            return new Date().toISOString();
+          }
+          
+          return date.toISOString();
+        } catch (error) {
+          return new Date().toISOString();
+        }
+      })(),
     }));
   }
 
+  /**
+   * Retrieve a specific file and its chunks by document ID
+   * @param agentId - The agent ID that owns the file
+   * @param id - The document ID of the file to retrieve
+   * @param userId - The user ID to verify ownership
+   * @returns Promise<FileContent> The file content with chunks and metadata
+   * @throws ForbiddenException if the agent doesn't belong to the user
+   * @throws Error if the document is not found
+   */
   async getFile(
     agentId: string,
     id: string,
@@ -299,8 +116,110 @@ export class FileIngestionService {
     };
   }
 
+  /**
+   * Delete a file and all its associated chunks from the vector store
+   * @param agentId - The agent ID that owns the file
+   * @param id - The document ID of the file to delete
+   * @param userId - The user ID to verify ownership
+   * @throws ForbiddenException if the agent doesn't belong to the user
+   */
   async deleteFile(agentId: string, id: string, userId: string) {
     await this.verifyAgentOwnership(agentId, userId);
     await this.vectorStore.deleteDocument(agentId, id, userId);
+  }
+
+  /**
+   * Process file upload from multipart request parts
+   * @param parts - Array of multipart parts (file parts only)
+   * @param agentId - The agent ID for the file
+   * @param userId - The user ID making the request
+   * @returns Promise<{ jobId: string }> The job ID for the file processing
+   * @throws BadRequestException if no file is provided
+   * @throws ForbiddenException if file size exceeds limit
+   */
+  async processFileUpload(
+    agentId: string,
+    userId: string,
+    fileId: string,
+    fileName: string,
+    mimeType: string,
+    fileBuffer: Buffer,
+    fileSize: number
+  ): Promise<{ jobId: string }> {
+    await this.verifyAgentOwnership(agentId, userId);
+
+    const jobId = await this.workersService.processFileAsync(
+      agentId,
+      userId,
+      fileId,
+      fileName,
+      mimeType,
+      fileBuffer,
+      fileSize
+    );
+
+    logger.info(
+      `File upload queued with job ID: ${jobId} for file: ${fileName}`
+    );
+
+    return { jobId };
+  }
+
+  /**
+   * Detect MIME type from file buffer and filename
+   * @param fileBuffer - The file buffer
+   * @param fileName - The original filename
+   * @returns string The detected MIME type
+   * @throws BadRequestException if file type detection fails
+   */
+  private async detectMimeType(fileBuffer: Buffer, fileName: string): Promise<string> {
+    let mimeType = 'application/octet-stream';
+    
+    try {
+      const fileType = await fileTypeFromBuffer(fileBuffer);
+      if (fileType?.mime) {
+        mimeType = fileType.mime;
+      } else {
+        const extension = fileName.toLowerCase().split('.').pop();
+        switch (extension) {
+          case 'txt':
+            mimeType = 'text/plain';
+            break;
+          case 'md':
+          case 'markdown':
+            mimeType = 'text/markdown';
+            break;
+          case 'csv':
+            mimeType = 'text/csv';
+            break;
+          case 'json':
+            mimeType = 'application/json';
+            break;
+          case 'html':
+          case 'htm':
+            mimeType = 'text/html';
+            break;
+          case 'pdf':
+            mimeType = 'application/pdf';
+            break;
+          case 'doc':
+            mimeType = 'application/msword';
+            break;
+          case 'docx':
+            mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            break;
+          default:
+            break;
+        }
+      }
+    } catch (error) {
+      logger.warn(
+        `Failed to detect file type for ${fileName}, using extension-based detection`,
+        error
+      );
+      throw new BadRequestException('Failed to detect file type');
+    }
+
+    return mimeType;
   }
 }

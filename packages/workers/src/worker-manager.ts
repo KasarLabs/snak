@@ -5,6 +5,7 @@ import { FileIngestionWorkerService } from './services/file-ingestion-worker/fil
 import { ChunkingService } from './services/chunking/chunking.service.js';
 import { EmbeddingsService } from './services/embeddings/embeddings.service.js';
 import { VectorStoreService } from './services/vector-store/vector-store.service.js';
+import { JobsMetadataService } from './services/jobs/jobs-metadata.service.js';
 import { QueueMetrics } from './types/index.js';
 import { logger } from '@snakagent/core';
 import { CacheService } from './services/cache/cache.service.js';
@@ -12,6 +13,7 @@ import { CacheService } from './services/cache/cache.service.js';
 export class WorkerManager {
   private queueManager: QueueManager;
   private jobProcessor: JobProcessor;
+  private jobsMetadataService: JobsMetadataService;
   private isRunning: boolean = false;
 
   constructor(
@@ -48,10 +50,13 @@ export class WorkerManager {
       fileIngestionWorkerService
     );
 
+    this.jobsMetadataService = new JobsMetadataService(cacheService);
+
     this.jobProcessor = new JobProcessor(
       this.queueManager,
       fileIngestionProcessor,
-      cacheService || new CacheService()
+      cacheService || new CacheService(),
+      this.jobsMetadataService
     );
   }
 
@@ -70,7 +75,6 @@ export class WorkerManager {
       await this.jobProcessor.initialize();
       logger.info('Job processor initialized');
 
-      // Force restart processing to ensure clean state
       await this.jobProcessor.forceRestartProcessing();
       logger.info('Job processors started');
 

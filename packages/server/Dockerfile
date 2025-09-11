@@ -61,42 +61,31 @@ RUN corepack enable
 
 COPY --from=deps /app/node_modules ./node_modules
 
-COPY pnpm-workspace.yaml pnpm-lock.yaml lerna.json package.json ./
+COPY pnpm-workspace.yaml lerna.json package.json ./
 
-COPY --from=builder /app/packages/server/package.json     packages/server/package.json
+COPY --from=builder /app/config       config
 
-COPY --from=builder /app/packages/core/package.json       packages/core/package.json
+COPY --from=builder /app/plugins       plugins
 
-COPY --from=builder /app/packages/database/package.json   packages/database/package.json
+COPY --from=builder /app/packages/server/package.json   packages/server/package.json
+COPY --from=builder /app/packages/server/dist           packages/server/dist
 
-COPY --from=builder /app/packages/agent/package.json      packages/agent/package.json
+COPY --from=builder /app/packages/core/package.json     packages/core/package.json
+COPY --from=builder /app/packages/core/dist             packages/core/dist
+
+COPY --from=builder /app/packages/database/package.json    packages/database/package.json
+COPY --from=builder /app/packages/database/dist            packages/database/dist
+
+COPY --from=builder /app/packages/agent/package.json    packages/agent/package.json
+COPY --from=builder /app/packages/agent/dist            packages/agent/dist
 
 COPY --from=builder /app/packages/metrics/package.json    packages/metrics/package.json
+COPY --from=builder /app/packages/metrics/dist            packages/metrics/dist
 
 COPY --from=builder /app/packages/workers/package.json    packages/workers/package.json
-
-RUN pnpm prune --prod
-
-COPY --from=builder /app/config         config
-
-COPY --from=builder /app/plugins        plugins
-
-COPY --from=builder /app/packages/server/dist     packages/server/dist
-
-COPY --from=builder /app/packages/core/dist       packages/core/dist
-
-COPY --from=builder /app/packages/database/dist   packages/database/dist
-
-COPY --from=builder /app/packages/agent/dist      packages/agent/dist
-
-COPY --from=builder /app/packages/metrics/dist    packages/metrics/dist
-
-COPY --from=builder /app/packages/workers/dist    packages/workers/dist
+COPY --from=builder /app/packages/workers/dist            packages/workers/dist
 
 ENV NODE_ENV=production
 EXPOSE 3002
-
-RUN chown -R node:node /app
-USER node
 
 CMD ["pnpm", "run", "start:prod"]
