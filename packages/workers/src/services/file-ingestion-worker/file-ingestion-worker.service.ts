@@ -5,7 +5,7 @@ import mammoth from 'mammoth';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { Postgres } from '@snakagent/database';
-import { logger, loadRagConfig } from '@snakagent/core';
+import { logger, loadRagConfig, Chunk } from '@snakagent/core';
 import { ChunkingService } from '../chunking/chunking.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
 import { VectorStoreService } from '../vector-store/vector-store.service.js';
@@ -19,7 +19,6 @@ import {
   FileIngestionProgress,
   SupportedMimeType,
 } from '../../types/file-ingestion.js';
-import { Chunk } from '../chunking/chunk.interface.js';
 import { rag } from '@snakagent/database/queries';
 
 const userMutexes = new Map<string, Promise<void>>();

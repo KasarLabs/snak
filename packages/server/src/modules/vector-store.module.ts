@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { VectorStoreService } from './vector-store.service.js';
+import { VectorStoreService } from '../services/vector-store.service.js';
 
 @Module({
   providers: [VectorStoreService],

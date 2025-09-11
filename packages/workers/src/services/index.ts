@@ -1,7 +1,6 @@
 export * from './cache/index.js';
 
 export { ChunkingService, ChunkingModule } from './chunking/index.js';
-export type { Chunk, ChunkOptions } from './chunking/index.js';
 
 export * from './embeddings/index.js';
 

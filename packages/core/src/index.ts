@@ -27,3 +27,5 @@ export {
   CustomHuggingFaceEmbeddings,
   type CustomHuggingFaceEmbeddingsParams,
 } from './embeddings/customEmbedding.js';
+
+export type { Chunk, ChunkMetadata, ChunkOptions } from './types/rag/chunk.js';

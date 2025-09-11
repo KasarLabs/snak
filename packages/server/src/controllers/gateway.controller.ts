@@ -1,13 +1,14 @@
 import { AgentResponse } from '@snakagent/core';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
-import ServerError from '../utils/error.js';
+import { ServerError } from '../utils/error.js';
 import {
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
   ConnectedSocket,
+  WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import {
@@ -22,6 +23,7 @@ import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
 import { getUserIdFromSocketHeaders } from '../utils/headers.js';
 import { EventType } from '@snakagent/agents';
+import { ValidationError } from '../../common/errors/application.errors.js';
 
 @WebSocketGateway({
   cors: {
@@ -72,14 +74,6 @@ export class MyGateway {
           logger.error('Error in agentSelector:', error);
           throw new ServerError('E01TA400');
         }
-
-        if (agent) {
-          const agentId = agent.getAgentConfig().id;
-          const agentConfig = this.agentFactory.getAgentConfig(agentId, userId);
-          if (!agentConfig) {
-            throw new ServerError('E01TA400');
-          }
-        }
       } else {
         agent = this.agentFactory.getAgentInstance(
           userRequest.request.agent_id,
@@ -90,7 +84,6 @@ export class MyGateway {
         throw new ServerError('E01TA400');
       }
       const agentId = agent.getAgentConfig().id;
-
       for await (const chunk of this.agentService.handleUserRequestWebsocket(
         agent,
         userRequest.request,
@@ -131,6 +124,16 @@ export class MyGateway {
     } catch (error) {
       if (error instanceof ServerError) {
         client.emit('onAgentRequest', error);
+      } else if (error instanceof WsException) {
+        const validationError = new ValidationError(
+          'User ID validation failed',
+          { originalError: error.message }
+        );
+        client.emit('onAgentRequest', validationError);
+      } else {
+        logger.error('Unexpected error in handleUserRequest:', error);
+        const serverError = new ServerError('E01TA400');
+        client.emit('onAgentRequest', serverError);
       }
     }
   }
@@ -211,9 +214,7 @@ export class MyGateway {
       };
       client.emit('onDeleteAgentRequest', response);
     } catch (error) {
-      if (error instanceof ServerError) {
-        throw error;
-      }
+      logger.error('Error in deleteAgent:', error);
       throw new ServerError('E02TA300');
     }
   }

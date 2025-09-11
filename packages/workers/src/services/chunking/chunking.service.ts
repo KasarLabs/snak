@@ -1,12 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Chunk } from './chunk.interface.js';
-import { logger } from '@snakagent/core';
-
-export interface ChunkOptions {
-  chunkSize: number;
-  overlap: number;
-  strategy?: 'adaptive' | 'whitespace' | 'structured';
-}
+import { Chunk, ChunkOptions, logger } from '@snakagent/core';
 
 @Injectable()
 export class ChunkingService {

@@ -10,8 +10,9 @@ import {
   JobNotFoundError,
   JobNotCompletedError,
   JobFailedError,
+  JobAccessDeniedError,
   UnknownJobStatusError,
-} from '../common/errors/job-errors.js';
+} from '../../common/errors/job.errors.js';
 
 @Injectable()
 export class WorkersService implements OnModuleInit, OnModuleDestroy {
@@ -80,7 +81,10 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
 
     const jobId = job.id?.toString();
     if (!jobId) {
-      throw new Error('Failed to get job ID from queue');
+      throw new JobNotFoundError('unknown', { 
+        message: 'Failed to get job ID from queue',
+        context: 'processFileAsync'
+      });
     }
     logger.info(`File ingestion job added to queue with ID: ${jobId}`);
 
@@ -243,7 +247,7 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       logger.error(
         `Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`
       );
-      throw new Error('Access denied: Job does not belong to user');
+      throw new JobAccessDeniedError(jobId, userId);
     }
 
     const jobState = await job.getState();
@@ -315,7 +319,7 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       logger.error(
         `Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`
       );
-      throw new Error('Access denied: Job does not belong to user');
+      throw new JobAccessDeniedError(jobId, userId);
     }
 
     const jobState = await job.getState();
@@ -356,19 +360,17 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     const job = await fileIngestionQueue.getQueue().getJob(jobId);
 
     if (!job) {
-      throw new Error(`Job ${jobId} not found`);
+      throw new JobNotFoundError(jobId);
     }
 
     const state = await job.getState();
 
     if (state === 'failed') {
-      throw new Error(job.failedReason || 'Job failed');
+      throw new JobFailedError(jobId, job.failedReason);
     }
 
     if (state !== 'completed') {
-      throw new Error(
-        `Job ${jobId} is not completed yet. Current status: ${state}`
-      );
+      throw new JobNotCompletedError(jobId, state);
     }
 
     return job.returnvalue;

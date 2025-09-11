@@ -19,7 +19,7 @@ import {
   AgentDeletesRequestDTO,
 } from '../dto/agents.js';
 import { Reflector } from '@nestjs/core';
-import ServerError from '../utils/error.js';
+import { ServerError } from '../utils/error.js';
 import { getUserIdFromHeaders } from '../utils/index.js';
 import {
   logger,
@@ -373,9 +373,6 @@ export class AgentsController {
         );
 
         const agentSelector = this.agentFactory.getAgentSelector();
-        if (!agentSelector) {
-          throw new ServerError('E01TA400');
-        }
         agent = await agentSelector.execute(
           userRequest.request.content,
           false,
@@ -484,13 +481,10 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const userId = getUserIdFromHeaders(req);
-      const agentConfig = this.verifyAgentConfigOwnership(
+      this.verifyAgentConfigOwnership(
         userRequest.agent_id,
         userId
       );
-      if (!agentConfig) {
-        throw new ServerError('E01TA400');
-      }
       const messages = await this.agentService.getMessageFromAgentId(
         userRequest,
         userId
@@ -518,13 +512,10 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const userId = getUserIdFromHeaders(req);
-      const agentConfig = this.verifyAgentConfigOwnership(
+      this.verifyAgentConfigOwnership(
         userRequest.agent_id,
         userId
       );
-      if (!agentConfig) {
-        throw new BadRequestException('Agent not found or access denied');
-      }
 
       await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 

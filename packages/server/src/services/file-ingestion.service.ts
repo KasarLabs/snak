@@ -4,13 +4,13 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { logger } from '@snakagent/core';
-import { VectorStoreService } from '../vector-store/vector-store.service.js';
-import { WorkersService } from '../workers/workers.service.js';
+import { VectorStoreService } from './vector-store.service.js';
+import { WorkersService } from './workers.service.js';
 import { ConfigurationService } from '../../config/configuration.js';
 import { randomUUID } from 'crypto';
 import { fileTypeFromBuffer } from 'file-type';
 import { Postgres } from '@snakagent/database';
-import { FileContent, StoredFile } from './file-content.interface.js';
+import { FileContent, StoredFile } from '../interfaces/file-content.interface.js';
 import { MultipartFile } from '@fastify/multipart';
 
 @Injectable()

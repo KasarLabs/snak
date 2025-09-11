@@ -127,7 +127,9 @@ export class AgentSelector extends BaseAgent {
       logger.debug(
         `AgentSelector: Found ${userAgents.size} agents for user ${userId}`
       );
-
+      if (userAgents.size === 0) {
+        throw new Error('No agents found for user ' + userId);
+      }
       const result = await model.invoke(
         agentSelectorPromptContent(agentInfoForUser, input)
       );

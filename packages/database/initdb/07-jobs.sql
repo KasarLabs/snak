@@ -51,16 +51,13 @@ CREATE TABLE IF NOT EXISTS jobs (
     
     -- Foreign key relationships to ensure data integrity
     -- CASCADE deletion removes jobs when agent is deleted
-    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
-    
-    -- Ensure user_id consistency with the referenced agent
-    -- This constraint ensures that the user_id in jobs matches the user_id of the referenced agent
-    FOREIGN KEY (user_id, agent_id) REFERENCES agents(user_id, id) ON DELETE CASCADE
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
 );
 
 -- Performance Indexes
 -- ============================================================================
 -- Optimized indexes for common query patterns in job management
+
 
 -- Agent-based job lookup index
 -- Used for: Finding all jobs for a specific agent

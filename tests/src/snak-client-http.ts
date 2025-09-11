@@ -130,12 +130,12 @@ export class SnakClient {
 
   // Worker-related methods
   async getJobStatus(jobId: string): Promise<JobStatus> {
-    const response: AxiosResponse<JobStatus> = await this.client.get(`/api/files/status/${jobId}`);
+    const response: AxiosResponse<JobStatus> = await this.client.get(`/api/jobs/status/${jobId}`);
     return response.data;
   }
 
   async getQueueMetrics(): Promise<QueueMetrics[]> {
-    const response: AxiosResponse<QueueMetrics[]> = await this.client.get('/api/files/queues/metrics');
+    const response: AxiosResponse<QueueMetrics[]> = await this.client.get('/api/jobs/queues/metrics');
     return response.data;
   }
 
