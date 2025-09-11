@@ -102,10 +102,12 @@ export class TestRunner {
       const agents = await this.runTest('Get Agents List Again', () => 
         this.client.getAgents()
       );
+
+      console.log('Agents:', agents);
       
-      if (agents.success && agents.response && (agents.response as any[]).length > 0) {
-        console.log('✅ Found agents:', (agents.response as any[]).length);
-        const agentId = (agents.response as any[])[0].id;
+      if (agents.success && agents.response && (agents.response as any).data && ((agents.response as any).data as any[]).length > 0) {
+        console.log('✅ Found agents:', ((agents.response as any).data as any[]).length);
+        const agentId = ((agents.response as any).data as any[])[0].id;
           
         await this.runTest('Send Agent Request', () => 
           this.client.sendAgentRequest({
