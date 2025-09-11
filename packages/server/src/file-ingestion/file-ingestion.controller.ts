@@ -143,7 +143,8 @@ export class FileIngestionController {
               mimeType = 'application/msword';
               break;
             case 'docx':
-              mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+              mimeType =
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
               break;
             default:
               break;

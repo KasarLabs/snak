@@ -149,8 +149,13 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     logger.info(`Getting job status for ${jobId} (user: ${userId})`);
 
     const cachedStatus = await this.cacheService.getJobRetrievalResult(jobId);
-    if (cachedStatus && (cachedStatus.status === 'completed' || cachedStatus.status === 'failed')) {
-      logger.debug(`Cache hit for completed/failed job status ${jobId} (user: ${userId})`);
+    if (
+      cachedStatus &&
+      (cachedStatus.status === 'completed' || cachedStatus.status === 'failed')
+    ) {
+      logger.debug(
+        `Cache hit for completed/failed job status ${jobId} (user: ${userId})`
+      );
       return {
         id: cachedStatus.jobId,
         status: cachedStatus.status,
@@ -159,7 +164,9 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
         finishedOn: cachedStatus.completedAt,
       };
     } else if (cachedStatus) {
-      logger.debug(`Cache hit for active job status ${jobId} (user: ${userId}), but checking for updates...`);
+      logger.debug(
+        `Cache hit for active job status ${jobId} (user: ${userId}), but checking for updates...`
+      );
     }
 
     try {
@@ -169,12 +176,14 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       );
       if (jobMetadata) {
         if (jobMetadata.userId !== userId) {
-          logger.error(`Job metadata ownership mismatch for job ${jobId}: metadata.userId=${jobMetadata.userId}, requested.userId=${userId}`);
+          logger.error(
+            `Job metadata ownership mismatch for job ${jobId}: metadata.userId=${jobMetadata.userId}, requested.userId=${userId}`
+          );
         } else {
           const statusString = String(jobMetadata.status);
           const isCompleted = statusString === 'completed';
           const isFailed = statusString === 'failed';
-          
+
           if (isCompleted || isFailed) {
             const status = {
               id: jobMetadata.jobId,
@@ -231,7 +240,9 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (job.data.userId !== userId) {
-      logger.error(`Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`);
+      logger.error(
+        `Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`
+      );
       throw new Error('Access denied: Job does not belong to user');
     }
 
@@ -246,21 +257,26 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
       processedOn: job.processedOn ? new Date(job.processedOn) : undefined,
       finishedOn: job.finishedOn ? new Date(job.finishedOn) : undefined,
     };
-    const ttlMs = (status.status === 'completed' || status.status === 'failed') 
-      ? undefined
-      : 30000;
+    const ttlMs =
+      status.status === 'completed' || status.status === 'failed'
+        ? undefined
+        : 30000;
 
-    await this.cacheService.setJobRetrievalResult(jobId, {
+    await this.cacheService.setJobRetrievalResult(
       jobId,
-      agentId: job.data.agentId || '',
-      userId: userId,
-      status: status.status as any,
-      data: null,
-      error: status.error,
-      createdAt: status.createdAt,
-      completedAt: status.finishedOn,
-      source: 'bull' as any,
-    }, ttlMs);
+      {
+        jobId,
+        agentId: job.data.agentId || '',
+        userId: userId,
+        status: status.status as any,
+        data: null,
+        error: status.error,
+        createdAt: status.createdAt,
+        completedAt: status.finishedOn,
+        source: 'bull' as any,
+      },
+      ttlMs
+    );
 
     return status;
   }
@@ -280,7 +296,9 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     processedOn?: Date;
     finishedOn?: Date;
   } | null> {
-    logger.info(`Getting job status directly from Bull for ${jobId} (user: ${userId})`);
+    logger.info(
+      `Getting job status directly from Bull for ${jobId} (user: ${userId})`
+    );
 
     const fileIngestionQueue = this.workerManager
       .getJobProcessor()
@@ -294,7 +312,9 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (job.data.userId !== userId) {
-      logger.error(`Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`);
+      logger.error(
+        `Job ownership mismatch for job ${jobId}: job.userId=${job.data.userId}, requested.userId=${userId}`
+      );
       throw new Error('Access denied: Job does not belong to user');
     }
 

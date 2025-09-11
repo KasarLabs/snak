@@ -2,7 +2,11 @@ import type { Job } from 'bull';
 import { QueueManager, FileIngestionQueue } from '../queues/index.js';
 import { FileIngestionProcessor } from './file-ingestion-processor.js';
 import { logger } from '@snakagent/core';
-import { FileIngestionResult, ResultSource, ResultStatus } from '../types/index.js';
+import {
+  FileIngestionResult,
+  ResultSource,
+  ResultStatus,
+} from '../types/index.js';
 import { CacheService } from '../services/cache/cache.service.js';
 import { JobsMetadataService } from '../services/jobs/jobs-metadata.service.js';
 

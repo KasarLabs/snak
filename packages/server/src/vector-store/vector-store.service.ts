@@ -3,7 +3,6 @@ import { Postgres } from '@snakagent/database';
 
 @Injectable()
 export class VectorStoreService {
-
   /**
    * List all documents for a specific agent (API-specific function)
    * @param agentId - The agent ID
@@ -55,7 +54,6 @@ export class VectorStoreService {
       mime_type: string;
     }[]
   > {
-
     const q = new Postgres.Query(
       `SELECT dv.id, dv.chunk_index, dv.content, dv.original_name, dv.mime_type
        FROM document_vectors dv
@@ -78,7 +76,6 @@ export class VectorStoreService {
     documentId: string,
     userId: string
   ): Promise<void> {
-
     const q = new Postgres.Query(
       `DELETE FROM document_vectors 
        WHERE agent_id = $1 AND document_id = $2

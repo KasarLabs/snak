@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { logger } from '@snakagent/core';
 import { VectorStoreService } from '../vector-store/vector-store.service.js';
 import { WorkersService } from '../workers/workers.service.js';
@@ -57,17 +61,17 @@ export class FileIngestionService {
         try {
           const timestampStr = d.document_id.split('-')[0];
           const timestamp = Number(timestampStr);
-          
+
           if (isNaN(timestamp) || timestamp <= 0) {
             return new Date().toISOString();
           }
-          
+
           const date = new Date(timestamp);
-          
+
           if (isNaN(date.getTime())) {
             return new Date().toISOString();
           }
-          
+
           return date.toISOString();
         } catch (error) {
           return new Date().toISOString();
@@ -172,9 +176,12 @@ export class FileIngestionService {
    * @returns string The detected MIME type
    * @throws BadRequestException if file type detection fails
    */
-  private async detectMimeType(fileBuffer: Buffer, fileName: string): Promise<string> {
+  private async detectMimeType(
+    fileBuffer: Buffer,
+    fileName: string
+  ): Promise<string> {
     let mimeType = 'application/octet-stream';
-    
+
     try {
       const fileType = await fileTypeFromBuffer(fileBuffer);
       if (fileType?.mime) {
@@ -206,7 +213,8 @@ export class FileIngestionService {
             mimeType = 'application/msword';
             break;
           case 'docx':
-            mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            mimeType =
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
             break;
           default:
             break;

@@ -26,18 +26,18 @@ const userMutexes = new Map<string, Promise<void>>();
 
 async function acquireUserMutex(userId: string): Promise<() => void> {
   const existingMutex = userMutexes.get(userId);
-  
+
   if (existingMutex) {
     await existingMutex;
   }
-  
+
   let releaseMutex: () => void;
   const mutexPromise = new Promise<void>((resolve) => {
     releaseMutex = resolve;
   });
-  
+
   userMutexes.set(userId, mutexPromise);
-  
+
   return () => {
     userMutexes.delete(userId);
     releaseMutex();
@@ -79,7 +79,6 @@ export class FileIngestionWorkerService {
     const releaseMutex = await acquireUserMutex(userId);
 
     try {
-
       await this.checkStorageLimits(agentId, userId, size);
 
       const contentBuffer = Buffer.isBuffer(content)
@@ -231,13 +230,16 @@ export class FileIngestionWorkerService {
 
     let maxAgentSize: number;
     let maxProcessSize: number;
-    
+
     try {
-      const ragConfigPath = process.env.RAG_CONFIG_PATH || '../../config/rag/default.rag.json';
+      const ragConfigPath =
+        process.env.RAG_CONFIG_PATH || '../../config/rag/default.rag.json';
       const ragConfig = await loadRagConfig(ragConfigPath);
       maxAgentSize = ragConfig.maxAgentSize;
       maxProcessSize = ragConfig.maxProcessSize;
-      logger.info(`Loaded RAG config: maxAgentSize=${maxAgentSize}, maxProcessSize=${maxProcessSize}`);
+      logger.info(
+        `Loaded RAG config: maxAgentSize=${maxAgentSize}, maxProcessSize=${maxProcessSize}`
+      );
     } catch (error) {
       logger.warn(`Failed to load RAG config, using defaults: ${error}`);
       maxAgentSize = 10 * 1024 * 1024; // 10MB per agent (matching default.rag.json)
@@ -245,14 +247,30 @@ export class FileIngestionWorkerService {
     }
 
     // Log detailed size information for debugging
-    logger.info(`File ingestion size check for agent ${agentId} (user ${userId}):`);
-    logger.info(`  - Current agent size: ${agentSize} bytes (${(agentSize / 1024 / 1024).toFixed(2)} MB)`);
-    logger.info(`  - Current total size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
-    logger.info(`  - New file size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
-    logger.info(`  - Agent size after upload: ${agentSize + fileSize} bytes (${((agentSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`);
-    logger.info(`  - Total size after upload: ${totalSize + fileSize} bytes (${((totalSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`);
-    logger.info(`  - Agent size limit: ${maxAgentSize} bytes (${(maxAgentSize / 1024 / 1024).toFixed(2)} MB)`);
-    logger.info(`  - Process size limit: ${maxProcessSize} bytes (${(maxProcessSize / 1024 / 1024).toFixed(2)} MB)`);
+    logger.info(
+      `File ingestion size check for agent ${agentId} (user ${userId}):`
+    );
+    logger.info(
+      `  - Current agent size: ${agentSize} bytes (${(agentSize / 1024 / 1024).toFixed(2)} MB)`
+    );
+    logger.info(
+      `  - Current total size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)} MB)`
+    );
+    logger.info(
+      `  - New file size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`
+    );
+    logger.info(
+      `  - Agent size after upload: ${agentSize + fileSize} bytes (${((agentSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`
+    );
+    logger.info(
+      `  - Total size after upload: ${totalSize + fileSize} bytes (${((totalSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`
+    );
+    logger.info(
+      `  - Agent size limit: ${maxAgentSize} bytes (${(maxAgentSize / 1024 / 1024).toFixed(2)} MB)`
+    );
+    logger.info(
+      `  - Process size limit: ${maxProcessSize} bytes (${(maxProcessSize / 1024 / 1024).toFixed(2)} MB)`
+    );
 
     if (agentSize + fileSize > maxAgentSize) {
       logger.error(
@@ -268,7 +286,6 @@ export class FileIngestionWorkerService {
       throw new Error('Process rag storage limit exceeded');
     }
   }
-
 
   /**
    * Determine the processing strategy based on file type

@@ -27,7 +27,6 @@ export class VectorStoreService {
     _userId: string
   ) {
     try {
-
       const queries = entries.map(
         (e) =>
           new Postgres.Query(
