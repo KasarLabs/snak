@@ -52,39 +52,89 @@ export class AgentSelector extends BaseAgent {
     }
   }
 
-  public async removeAgent(agentId: string): Promise<void> {
-    logger.debug(`AgentSelector: Removing agent ${agentId}`);
-    if (this.availableAgents.has(agentId)) {
-      this.availableAgents.delete(agentId);
-      this.agentInfo.delete(agentId);
-      logger.debug(`AgentSelector: Agent ${agentId} removed successfully`);
+  public async removeAgent(agentId: string, userId: string): Promise<void> {
+    const compositeKey = `${agentId}|${userId}`;
+    logger.debug(
+      `AgentSelector: Removing agent ${agentId} for user ${userId} with key ${compositeKey}`
+    );
+
+    const agent = this.availableAgents.get(compositeKey);
+    if (agent) {
+      const agentName = agent.getAgentConfig().name;
+      this.availableAgents.delete(compositeKey);
+      this.agentInfo.delete(agentName);
+      logger.debug(
+        `AgentSelector: Agent ${agentName} (${agentId}) removed successfully for user ${userId}`
+      );
     } else {
-      logger.warn(`AgentSelector: Agent ${agentId} not found`);
+      logger.warn(
+        `AgentSelector: Agent ${agentId} not found for user ${userId}`
+      );
     }
   }
 
   public async updateAvailableAgents(
-    agent: [string, SnakAgent]
+    agent: [string, SnakAgent],
+    userId: string
   ): Promise<void> {
-    logger.debug(`AgentSelector: Updating available agents with ${agent[0]}`);
-    this.availableAgents.set(agent[0], agent[1]);
+    const compositeKey = `${agent[0]}|${userId}`;
+    logger.debug(
+      `AgentSelector: Updating available agents with ${agent[0]} for user ${userId} with key ${compositeKey}`
+    );
+    this.availableAgents.set(compositeKey, agent[1]);
     this.agentInfo.set(
       agent[1].getAgentConfig().name,
       agent[1].getAgentConfig().description || 'No description available'
     );
   }
 
-  public async execute(input: string): Promise<SnakAgent> {
+  public async execute(
+    input: string,
+    _isInterrupted?: boolean,
+    config?: Record<string, unknown>
+  ): Promise<SnakAgent> {
     try {
       const model = this.modelSelector.getModels()['fast'];
       logger.info('AgentSelector model:', this.modelSelector.getModels());
+
+      if (!config?.userId) {
+        throw new Error(
+          'AgentSelector: userId is required in config parameter'
+        );
+      }
+
+      const userId = config.userId;
+      logger.debug(`AgentSelector: Filtering agents for user ${userId}`);
+
+      const userAgents = new Map<string, SnakAgent>();
+      const userAgentInfo = new Map<string, string>();
+
+      for (const [key, agent] of this.availableAgents.entries()) {
+        const [_agentId, agentUserId] = key.split('|');
+        if (agentUserId === userId) {
+          userAgents.set(key, agent);
+          const cfg = agent.getAgentConfig();
+          userAgentInfo.set(
+            cfg.name,
+            cfg.description || 'No description available'
+          );
+        }
+      }
+
+      const availableAgentsForUser = userAgents;
+      const agentInfoForUser = userAgentInfo;
+
+      logger.debug(
+        `AgentSelector: Found ${userAgents.size} agents for user ${userId}`
+      );
+
       const result = await model.invoke(
-        agentSelectorPromptContent(this.agentInfo, input)
+        agentSelectorPromptContent(agentInfoForUser, input)
       );
       logger.debug('AgentSelector result:', result);
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
-        const agent = Array.from(this.availableAgents.values()).find(
+        const agent = Array.from(availableAgentsForUser.values()).find(
           (agent) => agent.getAgentConfig().name === r_trim
         );
         if (agent) {

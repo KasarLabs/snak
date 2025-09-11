@@ -104,6 +104,10 @@ CREATE OR REPLACE FUNCTION get_messages_optimized(
     -- Required: Which conversation thread to query
     p_thread_id TEXT,
     
+    -- Required: User ID for access control verification
+    -- Ensures user can only access messages from their own agents
+    p_user_id UUID,
+    
     -- Optional: Sort order (false = ascending, true = descending)
     -- Default ascending provides chronological conversation flow
     p_order_desc BOOLEAN DEFAULT FALSE,
@@ -120,6 +124,7 @@ CREATE OR REPLACE FUNCTION get_messages_optimized(
 -- Excludes internal fields like 'id' and 'created_at' for cleaner API
 RETURNS TABLE (
     agent_id UUID,
+    user_id UUID,
     event TEXT,
     run_id TEXT,
     thread_id TEXT,
@@ -143,6 +148,7 @@ BEGIN
         RETURN QUERY
         SELECT 
             m.agent_id,
+            a.user_id,
             m.event,
             m.run_id,
             m.thread_id,
@@ -154,8 +160,10 @@ BEGIN
             m.metadata,
             m."timestamp"
         FROM message m
+        INNER JOIN agents a ON m.agent_id = a.id
         WHERE m.agent_id = p_agent_id 
           AND m.thread_id = p_thread_id
+          AND a.user_id = p_user_id
         ORDER BY m."timestamp" DESC
         LIMIT COALESCE(p_limit, 2147483647)  -- Max INT when p_limit is NULL
         OFFSET p_offset;
@@ -165,6 +173,7 @@ BEGIN
         RETURN QUERY
         SELECT 
             m.agent_id,
+            a.user_id,
             m.event,
             m.run_id,
             m.thread_id,
@@ -176,8 +185,10 @@ BEGIN
             m.metadata,
             m."timestamp"
         FROM message m
+        INNER JOIN agents a ON m.agent_id = a.id
         WHERE m.agent_id = p_agent_id 
           AND m.thread_id = p_thread_id
+          AND a.user_id = p_user_id
         ORDER BY m."timestamp" ASC
         LIMIT COALESCE(p_limit, 2147483647)
         OFFSET p_offset;
@@ -269,10 +280,10 @@ CREATE INDEX IF NOT EXISTS idx_message_plan ON message USING GIN (plan);
 --           '{"confidence": 0.9, "processing_time_ms": 150}');
 --
 -- Retrieving conversation history:
---   SELECT * FROM get_messages_optimized('agent-uuid', 'thread-456', false, 50, 0);
+--   SELECT * FROM get_messages_optimized('agent-uuid', 'thread-456', 'user-uuid', false, 50, 0);
 --
 -- Getting recent messages:
---   SELECT * FROM get_messages_optimized('agent-uuid', 'thread-456', true, 10, 0);
+--   SELECT * FROM get_messages_optimized('agent-uuid', 'thread-456', 'user-uuid', true, 10, 0);
 --
 -- High-Performance Query Patterns (using indexes):
 --

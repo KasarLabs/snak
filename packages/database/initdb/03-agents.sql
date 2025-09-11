@@ -16,6 +16,11 @@ CREATE TABLE IF NOT EXISTS agents (
     -- Used in UI displays and logging
     -- Must be unique within a group for clarity
     name             VARCHAR(255) NOT NULL,
+
+    -- Reference to the user who owns this agent
+    -- Foreign key linking to the user who created and manages this agent
+    -- Ensures proper access control and ownership tracking
+    user_id          UUID NOT NULL,
     
     -- Organizational grouping for agents
     -- Allows logical separation of agents by purpose, team, or environment
@@ -177,13 +182,22 @@ BEGIN
         CASE 
             WHEN agent_count > 0 THEN 
                 -- Success message with count (in French as per original)
-                format('%s agent(s) supprimé(s) avec succès', agent_count)
+                format('%d agent(s) removed successfully', agent_count)
             ELSE 
                 -- No agents to delete message
-                'Aucun agent à supprimer'
+                'No agent to remove'
         END AS message;
 END;
 $$;
+
+-- ============================================================================
+-- INDEXES
+-- ============================================================================
+
+-- Index on user_id for efficient user-based agent queries
+-- Improves performance when filtering agents by owner
+-- Essential for access control and user dashboard queries
+CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
 
 -- ============================================================================
 -- USAGE PATTERNS

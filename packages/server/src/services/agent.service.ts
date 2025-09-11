@@ -106,7 +106,8 @@ export class AgentService implements IAgentService {
 
   async *handleUserRequestWebsocket(
     agent: any,
-    userRequest: MessageRequest
+    userRequest: MessageRequest,
+    userId: string
   ): AsyncGenerator<ChunkOutput> {
     this.logger.debug({
       message: 'Processing agent request',
@@ -114,12 +115,13 @@ export class AgentService implements IAgentService {
     });
     try {
       const q = new Postgres.Query(
-        `SELECT event, id 
-     FROM message 
-     WHERE agent_id = $1
-     ORDER BY created_at DESC
+        `SELECT m.event, m.id 
+     FROM message m
+     INNER JOIN agents a ON m.agent_id = a.id
+     WHERE m.agent_id = $1 AND a.user_id = $2
+     ORDER BY m.created_at DESC
      LIMIT 1;`,
-        [userRequest.agent_id]
+        [userRequest.agent_id, userId]
       );
       const result = await Postgres.query<{ event: EventType; id: string }>(q);
       if (
@@ -179,9 +181,10 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async getAllAgents(): Promise<AgentConfigSQL[]> {
+  async getAllAgentsOfUser(userId: string): Promise<AgentConfigSQL[]> {
     try {
-      const q = new Postgres.Query(`
+      const q = new Postgres.Query(
+        `
 			SELECT
 			  id, name, "group", description, lore, objectives, knowledge,
 			  system_prompt, interval, plugins, memory, mode, max_iterations,
@@ -193,7 +196,10 @@ export class AgentService implements IAgentService {
 			  END as "avatarUrl",
 			  avatar_mime_type
 			FROM agents
-		  `);
+      WHERE user_id = $1
+		  `,
+        [userId]
+      );
       const res = await Postgres.query<AgentConfigSQL>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
@@ -204,13 +210,14 @@ export class AgentService implements IAgentService {
   }
 
   async getMessageFromAgentId(
-    userRequest: MessageFromAgentIdDTO
+    userRequest: MessageFromAgentIdDTO,
+    userId: string
   ): Promise<ChunkOutput[]> {
     try {
       const limit = userRequest.limit_message || 10;
       const q = new Postgres.Query(
-        `SELECT * FROM get_messages_optimized($1::UUID,$2,$3,$4,$5)`,
-        [userRequest.agent_id, userRequest.thread_id, false, limit, 0]
+        `SELECT * FROM get_messages_optimized($1::UUID,$2,$3::UUID,$4,$5,$6)`,
+        [userRequest.agent_id, userRequest.thread_id, userId, false, limit, 0]
       );
       const res = await Postgres.query<ChunkOutput>(q);
       this.logger.debug(`All messages:', ${JSON.stringify(res)} `);

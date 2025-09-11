@@ -124,6 +124,7 @@ CREATE TYPE model AS (
 get_messages_optimized(
     p_agent_id UUID,
     p_thread_id TEXT,
+    p_user_id UUID,
     p_order_desc BOOLEAN DEFAULT FALSE,
     p_limit INTEGER DEFAULT NULL,
     p_offset INTEGER DEFAULT 0
