@@ -1,17 +1,14 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import {
-  BaseMessage,
-  HumanMessage,
-  SystemMessage,
-} from '@langchain/core/messages';
+import { SystemMessage } from '@langchain/core/messages';
 import { logger } from '@snakagent/core';
-import { AgentType, BaseAgent } from '../core/baseAgent.js';
+import { BaseAgent } from '../core/baseAgent.js';
 import { ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { modelSelectorSystemPrompt } from '../../prompt/prompts.js';
-import { TokenTracker } from '../../token/tokenTracking.js';
+import { modelSelectorSystemPrompt } from '../../shared/prompts/core/prompts.js';
+import { TokenTracker } from '../../shared/lib/token/token-tracking.js';
+import { AgentType } from '@enums/agent-modes.enum.js';
 
 // CLEAN-UP Need to put in private every function who check the validity of the model selection instead of what we do now
 /**
@@ -178,13 +175,13 @@ export class ModelSelector extends BaseAgent {
           case 'openai':
             modelInstance = new ChatOpenAI({
               ...commonConfig,
-              openAIApiKey: apiKey, // Specific key name for OpenAI
+              openAIApiKey: apiKey,
             });
             break;
           case 'anthropic':
             modelInstance = new ChatAnthropic({
               ...commonConfig,
-              anthropicApiKey: apiKey, // Specific key name for Anthropic
+              anthropicApiKey: apiKey,
             });
             break;
           case 'gemini':
@@ -246,59 +243,19 @@ export class ModelSelector extends BaseAgent {
    * @returns {Promise<string>} The selected model type.
    */
   public async selectModelForMessages(
-    messages: BaseMessage[],
+    nextStepsSection: string,
     config?: Record<string, any>
   ): Promise<ModelSelectorReturn> {
     try {
-      let analysisContent = '';
-      if (
-        config?.originalUserQuery &&
-        typeof config.originalUserQuery === 'string'
-      ) {
-        // Use originalUserQuery from config if available
-        analysisContent = config.originalUserQuery;
-        if (this.debugMode) {
-          logger.debug(
-            `Using originalUserQuery for model selection: "${analysisContent.substring(0, 100)}..."`
-          );
-        }
-      } else {
-        // TODO Never reach need to had something to know if we are in autonomous mode to use this instead of this
-        // Fall back to using the last message
-        const lastMessage = messages[messages.length - 1];
-        if (!lastMessage) {
-          logger.warn(
-            'ModelSelector: Could not get the last message; defaulting to "smart".'
-          );
-          return { model: this.models['smart'], model_name: 'smart' };
-        }
-
-        const content =
-          lastMessage.content != null
-            ? typeof lastMessage.content === 'string'
-              ? lastMessage.content
-              : JSON.stringify(lastMessage.content)
-            : '';
-
-        analysisContent = content;
-      }
-
-      let nextStepsSection = '';
-
       const systemPrompt = new SystemMessage(
         modelSelectorSystemPrompt(nextStepsSection)
       );
-      const humanMessage = new HumanMessage(analysisContent);
-
       if (this.debugMode) {
         logger.debug(`Invoking "fast" model for meta-selection analysis.`);
         logger.debug(`Using full content analysis.`);
       }
 
-      const response = await this.models.fast.invoke([
-        systemPrompt,
-        humanMessage,
-      ]);
+      const response = await this.models.fast.invoke([systemPrompt]);
       const modelChoice = response.content
         .toString()
         .toLowerCase()
@@ -340,7 +297,7 @@ export class ModelSelector extends BaseAgent {
    * @returns {Promise<any>} The model's response.
    * @throws {Error} If the selected or fallback model is unavailable or fails to invoke.
    */
-  public async execute(input: BaseMessage[]): Promise<any> {
+  public async execute(input: string): Promise<any> {
     const modelType = (await this.selectModelForMessages(input)).model_name;
 
     let selectedModel = this.models[modelType];

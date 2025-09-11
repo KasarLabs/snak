@@ -26,12 +26,12 @@ export const initializeTools = async (
 };
 
 export const registerTools = async (
-  StarknetToolRegistry: StarknetTool[],
+  SnakToolRegistry: StarknetTool[],
   agent: SnakAgentInterface
 ) => {
   await initializeTools(agent);
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'declare_contract',
     plugins: 'contract',
     description:
@@ -40,7 +40,7 @@ export const registerTools = async (
     execute: declareContract,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'step2_deploy_contract',
     plugins: 'contract',
     description:
@@ -49,7 +49,7 @@ export const registerTools = async (
     execute: deployContract,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'step1_prepare_deploy',
     plugins: 'contract',
     description:
@@ -58,7 +58,7 @@ export const registerTools = async (
     execute: getConstructorParams,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'list_declared_contracts',
     plugins: 'contract',
     description:
@@ -67,7 +67,7 @@ export const registerTools = async (
     execute: listDeclaredContracts,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'list_deployed_contracts_by_class_hash',
     plugins: 'contract',
     description: 'List all deployed instances of a contract by its class hash.',
@@ -75,7 +75,7 @@ export const registerTools = async (
     execute: listDeploymentsByClassHash,
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'delete_contract_by_class_hash',
     plugins: 'contract',
     description:

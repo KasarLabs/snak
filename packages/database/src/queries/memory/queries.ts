@@ -40,125 +40,6 @@ export namespace memory {
    * Performs the actual initialization
    */
   async function performInit(): Promise<void> {
-    const t = [
-      new Postgres.Query(`CREATE EXTENSION IF NOT EXISTS vector;`),
-      new Postgres.Query(
-        `CREATE TABLE IF NOT EXISTS agent_memories(
-          id SERIAL PRIMARY KEY,
-          user_id VARCHAR(100) NOT NULL,
-          content TEXT NOT NULL,
-          embedding vector(384) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-          metadata JSONB NOT NULL,
-          history JSONB NOT NULL
-        );`
-      ),
-      new Postgres.Query(
-        `CREATE INDEX IF NOT EXISTS agent_memories_embedding_idx
-           ON agent_memories USING ivfflat (embedding vector_cosine_ops);`
-      ),
-      new Postgres.Query(`ANALYZE agent_memories;`),
-      new Postgres.Query(`
-        CREATE OR REPLACE FUNCTION insert_memory(
-          id integer,
-          user_id varchar(100),
-          content text,
-          embedding vector(384),
-          created_at timestamp,
-          updated_at timestamp,
-          metadata jsonb,
-          history jsonb
-        ) RETURNS void AS $$
-          INSERT INTO agent_memories(
-            id,
-            user_id,
-            content,
-            embedding,
-            created_at,
-            updated_at,
-            metadata,
-            history
-          ) VALUES (
-            COALESCE($1, nextval('agent_memories_id_seq')),
-            $2,
-            $3,
-            $4,
-            COALESCE($5, CURRENT_TIMESTAMP),
-            COALESCE($6, CURRENT_TIMESTAMP),
-            $7,
-            $8
-          ) ON CONFLICT (id) DO UPDATE SET
-            content = $3,
-            embedding = $4,
-            updated_at = COALESCE($6, CURRENT_TIMESTAMP),
-            history = $8;
-        $$ LANGUAGE sql
-      `),
-      new Postgres.Query(`
-        CREATE OR REPLACE FUNCTION select_memory(
-          id integer
-        ) RETURNS TABLE (
-          id INTEGER,
-          user_id VARCHAR(100),
-          content TEXT,
-          embedding vector(384),
-          created_at TIMESTAMP,
-          updated_at TIMESTAMP,
-          metadata JSONB,
-          history JSONB
-        ) AS $$
-          SELECT
-            id,
-            user_id,
-            content,
-            embedding,
-            created_at,
-            updated_at,
-            metadata,
-            history
-          FROM
-            agent_memories
-          WHERE
-            id = $1
-        $$ LANGUAGE sql;
-      `),
-      new Postgres.Query(`
-        CREATE OR REPLACE FUNCTION update_memory(
-          id integer,
-          content text,
-          embedding vector(384)
-        ) RETURNS void AS $$
-          DECLARE
-            m jsonb;
-            t timestamp;
-            history jsonb;
-          BEGIN
-            SELECT to_jsonb(mem.*) INTO m FROM select_memory($1) mem;
-
-            t := CURRENT_TIMESTAMP;
-            history := m->'history' || jsonb_build_array(jsonb_build_object(
-              'value', m->>'content',
-              'timestamp', t,
-              'action', 'UPDATE'
-            ));
-
-            PERFORM insert_memory(
-              $1,
-              (m->>'user_id')::varchar(100),
-              $2,
-              $3,
-              (m->>'created_at')::timestamp,
-              t,
-              m->'metadata',
-              history
-            );
-          END;
-        $$ LANGUAGE plpgsql
-      `),
-    ];
-    await Postgres.transaction(t);
-
     const q = new Postgres.Query(`SELECT 'vector'::regtype::oid;`);
     const oid = (await Postgres.query<{ oid: number }>(q))[0].oid;
     pg.types.setTypeParser(oid, (v: any) => {
@@ -197,7 +78,25 @@ export namespace memory {
   // SELECT created_at FROM history WHERE memory_id = $1 ORDER BY id ASC TAKE 1;
   // ```
   export interface Metadata {
-    timestamp: string;
+    created_at?: string;
+    updated_at: string;
+    access_count?: number;
+    confidence?: number;
+    category?: string;
+  }
+
+  export interface UPSERT_SEMANTIC_MEMORY_OUTPUT {
+    memory_id: number;
+    operation: string;
+    similarity_score: number | null;
+    matched_fact: string | null;
+  }
+
+  export interface INSERT_EPISODIC_MEMORY_OUTPUT {
+    memory_id: number;
+    operation: string;
+    similar_memory_id: number | null;
+    similar_memory_content: string | null;
   }
 
   export interface History {
@@ -205,17 +104,35 @@ export namespace memory {
     timestamp: string;
     action: 'UPDATE';
   }
-
   interface MemoryBase {
     user_id: string;
-    content: string;
+    run_id: string;
     embedding: number[];
     created_at?: Date;
-    updated_at?: Date;
-    metadata: Metadata;
-    history: History[];
+    accessed_at?: Date;
+    confidence?: number;
+    access_count?: number;
+  }
+
+  interface EpisodicMemoryBase extends MemoryBase {
+    content: string;
+    sources: Array<string>;
+    expires_at?: Date;
+  }
+
+  interface SemanticMemoryBase extends MemoryBase {
+    fact: string;
+    category: string;
+    source_events?: Array<number>;
   }
   interface MemoryWithId extends MemoryBase {
+    id: number;
+  }
+
+  interface SemanticMemoryWithId extends SemanticMemoryBase {
+    id: number;
+  }
+  interface EpisodicMemoryWithId extends EpisodicMemoryBase {
     id: number;
   }
 
@@ -226,27 +143,47 @@ export namespace memory {
     ? MemoryWithId
     : MemoryBase;
 
-  /**
-   * Saves a new agent { @see Memory } into the db.
-   *
-   * @param { Memory } memory - The memory to insert.
-   *
-   * @throws { DatabaseError } If a database operation fails.
-   */
-  export async function insert_memory(memory: Memory): Promise<void> {
+  export type EpisodicMemory<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? EpisodicMemoryWithId
+    : EpisodicMemoryBase;
+
+  export type SemanticMemory<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? SemanticMemoryWithId
+    : SemanticMemoryBase;
+
+  export async function insert_episodic_memory(
+    memory: EpisodicMemory
+  ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT insert_memory(null, $1, $2, $3, $4, $5, $6, $7);`,
+      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5);`,
       [
         memory.user_id,
+        memory.run_id,
         memory.content,
         JSON.stringify(memory.embedding),
-        memory.created_at,
-        memory.updated_at,
-        JSON.stringify(memory.metadata),
-        JSON.stringify(memory.history),
+        memory.sources,
       ]
     );
-    await Postgres.query(q);
+    const result = await Postgres.query<INSERT_EPISODIC_MEMORY_OUTPUT>(q);
+    return result[0];
+  }
+
+  export async function insert_semantic_memory(
+    memory: SemanticMemory
+  ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
+    const q = new Postgres.Query(
+      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6);`,
+      [
+        memory.user_id,
+        memory.run_id,
+        memory.fact,
+        JSON.stringify(memory.embedding),
+        memory.category,
+        memory.source_events,
+      ]
+    );
+    const result = await Postgres.query<UPSERT_SEMANTIC_MEMORY_OUTPUT>(q);
+    return result[0];
   }
 
   /**
@@ -299,10 +236,11 @@ export namespace memory {
    * https://github.com/pgvector/pgvector?tab=readme-ov-file#distances
    */
   export interface Similarity {
-    id: number;
+    memory_type: string;
+    memory_id: number;
     content: string;
-    history: History[];
     similarity: number;
+    metadata: any; // JSONB from PostgreSQL
   }
 
   /**
@@ -315,18 +253,17 @@ export namespace memory {
    */
   export async function similar_memory(
     userId: string,
+    runId: string,
     embedding: number[],
-    limit = 4
+    limit?: number,
+    threshold?: number
   ): Promise<Similarity[]> {
     const q = new Postgres.Query(
-      `SELECT id, content, history, 1 - (embedding <=> $1::vector) AS similarity
-          FROM agent_memories
-          WHERE user_id = $2
-          ORDER BY similarity DESC
-          LIMIT $3;`,
-      [JSON.stringify(embedding), userId, limit]
+      `SELECT * FROM retrieve_similar_memories($1, $2, $3, $4, $5)`,
+      [userId, runId, JSON.stringify(embedding), threshold || 0, limit || 10]
     );
-    return await Postgres.query(q);
+    const result = await Postgres.query<Similarity>(q);
+    return result;
   }
 
   /**

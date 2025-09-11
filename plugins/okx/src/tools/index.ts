@@ -4,8 +4,8 @@ import { StarknetTool } from '@snakagent/core';
 import { DeployOKXAccount } from '../actions/deployAccount.js';
 import { CreateOKXAccount } from '../actions/createAccount.js';
 
-export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
-  StarknetToolRegistry.push({
+export const registerTools = (SnakToolRegistry: StarknetTool[]) => {
+  SnakToolRegistry.push({
     name: 'create_new_okx_account',
     description:
       'Create a new OKX account and return the privateKey/publicKey/contractAddress',
@@ -16,7 +16,7 @@ export const registerTools = (StarknetToolRegistry: StarknetTool[]) => {
     },
   });
 
-  StarknetToolRegistry.push({
+  SnakToolRegistry.push({
     name: 'deploy_existing_okx_account',
     description:
       'Deploy an existing OKX Account return the privateKey/publicKey/contractAddress',

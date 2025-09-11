@@ -1,3 +1,4 @@
+import { AgentType } from '@enums/agent-modes.enum.js';
 import { MCPAgent, MCPAgentConfig } from '../../mcp-agent/mcpAgent.js';
 import {
   BaseMessage,
@@ -5,7 +6,6 @@ import {
   HumanMessage,
   SystemMessage,
 } from '@langchain/core/messages';
-import { AgentType } from '../../../core/baseAgent.js';
 
 // Mock the logger from @snakagent/core
 jest.mock('@snakagent/core', () => ({
@@ -66,7 +66,7 @@ jest.mock('@langchain/langgraph/prebuilt', () => ({
 }));
 
 // Mock the system prompt
-jest.mock('../../../../prompt/mcpAgentPrompts.js', () => ({
+jest.mock('@prompts/index.js', () => ({
   mcpAgentSystemPrompt: jest.fn(() => 'test system prompt'),
 }));
 

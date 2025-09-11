@@ -1,69 +1,58 @@
-import { DynamicStructuredTool, tool } from '@langchain/core/tools';
-import { RpcProvider } from 'starknet';
+import {
+  DynamicStructuredTool,
+  StructuredTool,
+  Tool,
+  tool,
+} from '@langchain/core/tools';
 import { logger, AgentConfig } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
-import { DatabaseCredentials } from './types/database.js';
-import { z as Zod } from 'zod';
-import { MemoryAgent } from 'agents/operators/memoryAgent.js';
-import { RagAgent } from 'agents/operators/ragAgent.js';
+import { AnyZodObject } from 'zod';
+import { MCP_CONTROLLER } from '@services/mcp/src/mcp.js';
+import {
+  SnakAgentInterface,
+  StarknetTool,
+} from '../shared/types/tools.types.js';
 
 /**
- * @interface SnakAgentInterface
- * @description Interface for the Starknet agent
- * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
- * @property {() => { signature: string; }} getSignature - Function to get the signature
- * @property {() => RpcProvider} getProvider - Function to get the provider
- * @property {() => AgentConfig} getAgentConfig - Function to get the agent configuration
- * @property {() => PostgresAdaptater[]} getDatabase - Function to get the database
- * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
- * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
- * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
+ * Initializes the list of tools for the agent based on signature type and configuration
+ * @param snakAgent - The agent interface instance
+ * @param agentConfig - Configuration object containing plugins and MCP servers
+ * @returns Promise resolving to array of tools
  */
+export async function initializeToolsList(
+  snakAgent: SnakAgentInterface,
+  agentConfig: AgentConfig
+): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
+  let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+  const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
+  toolsList = [...allowedTools];
+  if (
+    agentConfig.mcpServers &&
+    Object.keys(agentConfig.mcpServers).length > 0
+  ) {
+    try {
+      const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
+      await mcp.initializeConnections();
 
-export interface SnakAgentInterface {
-  getAccountCredentials: () => {
-    accountPublicKey: string;
-    accountPrivateKey: string;
-  };
-  getDatabaseCredentials: () => DatabaseCredentials;
-  getProvider: () => RpcProvider;
-  getAgentConfig: () => AgentConfig;
-  getMemoryAgent: () => MemoryAgent | null;
-  getRagAgent: () => RagAgent | null;
+      const mcpTools = mcp.getTools();
+      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+      toolsList = [...toolsList, ...mcpTools];
+    } catch (error) {
+      logger.error(`Failed to initialize MCP tools: ${error}`);
+    }
+  }
+  return toolsList;
 }
 
 /**
- * @interface StarknetTool
- * @description Interface for the Starknet tool
- * @property {string} name - The name of the tool
- * @property {string} plugins - The plugins for the tool
- * @property {string} description - The description of the tool
- * @property {Zod.AnyZodObject} schema - The schema for the tool
- * @property {string} responseFormat - The response format for the tool
- * @property {(agent: SnakAgentInterface, params: any, plugins_manager?: any) => Promise<unknown>} execute - Function to execute the tool
- */
-export interface StarknetTool<P = unknown> {
-  name: string;
-  plugins: string;
-  description: string;
-  schema?: Zod.AnyZodObject;
-  responseFormat?: string;
-  execute: (
-    agent: SnakAgentInterface,
-    params: P,
-    plugins_manager?: any
-  ) => Promise<unknown>;
-}
-
-/**
- * @class StarknetToolRegistry
+ * @class SnakToolRegistry
  * @description Class for the Starknet tool registry
  * @property {StarknetTool[]} tools - The tools
  * @method {void} registerTool - Method to register a tool
  * @method {Promise<StarknetTool[]>} createAllowedTools - Method to create allowed tools
  *
  */
-export class StarknetToolRegistry {
+export class SnakToolRegistry {
   private static tools: StarknetTool[] = [];
 
   static registerTool<P>(tool: StarknetTool<P>): void {
@@ -96,7 +85,7 @@ export class StarknetToolRegistry {
     this.clearTools();
 
     if (!allowed_tools || allowed_tools.length === 0) {
-      logger.warn('StarknetToolRegistry: No tools allowed');
+      logger.warn('SnakToolRegistry: No tools allowed');
       return [];
     }
 
@@ -203,7 +192,7 @@ export const createAllowedTools = async (
     logger.warn('No tools allowed');
     return [];
   }
-  return StarknetToolRegistry.createAllowedTools(agent, allowed_tools);
+  return SnakToolRegistry.createAllowedTools(agent, allowed_tools);
 };
 
-export default StarknetToolRegistry;
+export default SnakToolRegistry;

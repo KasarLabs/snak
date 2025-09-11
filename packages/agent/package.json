@@ -16,7 +16,9 @@
   ],
   "scripts": {
     "test": "jest",
+    "test:graph": "cd ./src/agents/graphs/__tests__ && jest autonomous.spec.ts",
     "build": "tsup",
+    "pack": "pnpm pack",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
@@ -38,15 +40,15 @@
     "@huggingface/transformers": "^3.4.0",
     "@langchain/anthropic": "^0.3.11",
     "@langchain/community": "^0.3.34",
-    "@langchain/core": "^0.3.42",
+    "@langchain/core": "^0.3.72",
     "@langchain/deepseek": "^0.0.1",
     "@langchain/google-genai": "^0.1.6",
-    "@langchain/langgraph": "^0.2.44",
+    "@langchain/langgraph": "^0.3.0",
     "@langchain/ollama": "^0.1.4",
     "@langchain/openai": "^0.3.17",
     "@snakagent/core": "workspace:*",
-    "@snakagent/metrics": "workspace:*",
     "@snakagent/database": "workspace:*",
+    "@snakagent/metrics": "workspace:*",
     "@snakagent/plugin-argent": "workspace:*",
     "@snakagent/plugin-artpeace": "workspace:*",
     "@snakagent/plugin-atlantic": "workspace:*",
@@ -72,9 +74,10 @@
     "gpt-tokenizer": "^2.9.0",
     "inquirer": "^12.4.1",
     "langchain": "^0.3.10",
-    "mem0ai": "^2.1.9",
     "nanospinner": "^1.2.2",
-    "snak-mcps": "^0.1.2"
+    "snak-mcps": "^0.1.2",
+    "zod-to-json-schema": "^3.24.6"
   },
+  "devDependencies": {},
   "gitHead": "92aedfbed422f736e1890cff065f6f2890e8befd"
 }

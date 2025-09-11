@@ -414,7 +414,7 @@ const checkParseJson = async (
   } catch (error) {
     logger.error(
       chalk.red(
-        `⚠️ Ensure your environment variables are set correctly according to your config/agent.json file.`
+        ` Ensure your environment variables are set correctly according to your config/agent.json file.`
       )
     );
     logger.error('Failed to parse config : ', error);

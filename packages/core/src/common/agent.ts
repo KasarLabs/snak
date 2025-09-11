@@ -103,10 +103,8 @@ export interface DatabaseCredentials {
  * @description Interface for the Starknet agent
  * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
  * @property {() => DatabaseCredentials} getDatabaseCredentials - Function to get the database credentials
- * @property {() => { signature: string; }} getSignature - Function to get the signature
  * @property {() => RpcProvider} getProvider - Function to get the provider
  * @property {() => AgentConfig} getAgentConfig - Function to get the agent configuration
- * @property {() => PostgresAdaptater[]} getDatabase - Function to get the database
  * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
  * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
  * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
@@ -117,9 +115,6 @@ export interface SnakAgentInterface {
     accountPrivateKey: string;
   };
   getDatabaseCredentials: () => DatabaseCredentials;
-  getSignature: () => {
-    signature: string;
-  };
   getProvider: () => RpcProvider;
   getAgentConfig: () => AgentConfig;
 }

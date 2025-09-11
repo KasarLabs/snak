@@ -1,12 +1,13 @@
-import { BaseAgent, AgentType } from '../../core/baseAgent.js';
+import { BaseAgent } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { logger } from '@snakagent/core';
 import { OperatorRegistry } from '../operatorRegistry.js';
 import { getConfigAgentTools } from './configAgentTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { configurationAgentSystemPrompt } from '../../../prompt/configAgentPrompts.js';
+import { configurationAgentSystemPrompt } from '../../../shared/prompts/agents/config.prompts.js';
 import { ModelSelector } from '../modelSelector.js';
+import { AgentType } from '@enums/agent-modes.enum.js';
 
 /**
  * Interface defining the configuration options for the ConfigurationAgent

@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm clean:dist && nest build",
+    "pack": "pnpm pack",
     "clean": "rm -rf node_modules",
     "clean:dist": "rm -rf dist",
     "clean:all": "pnpm clean && pnpm clean:dist",
@@ -24,7 +25,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
     "@fastify/multipart": "^9.0.3",
-    "@langchain/core": "^0.3.42",
+    "@langchain/core": "^0.3.72",
     "@nestjs/common": "^11.1.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.7",

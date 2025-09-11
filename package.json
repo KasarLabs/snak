@@ -31,7 +31,9 @@
     "check-types": "turbo run check-types",
     "build": "turbo build",
     "build:ci": "turbo build --scope \"@snakagent/agents\" --scope \"@snakagent/plugin-*\" --scope \"@snakagent/server\"",
+    "package": "pnpm run build && lerna run pack --parallel",
     "docker-setup": "docker compose -f ./docker-compose.dev.yml up -d",
+    "start": "pnpm run docker-setup && ./scripts/start.sh ; ECODE=$? ; exit $ECODE",
     "start:server": "pnpm run build && pnpm run docker-setup && lerna run start --scope \"@snakagent/server\";ECODE=$? ; exit $ECODE",
     "start:test": "turbo test",
     "test": "./scripts/run_all_test.sh",
@@ -51,6 +53,8 @@
     "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "dependencies": {
+    "@langchain/langgraph": "^0.3.0",
+    "@langchain/langgraph-checkpoint": "~0.0.16",
     "@nestjs/platform-socket.io": "^11.1.1",
     "@nestjs/websockets": "^11.1.1",
     "add": "^2.0.6",
@@ -99,7 +103,8 @@
     "tsx": "^4.19.3",
     "turbo": "^2.4.4",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.25.0"
+    "typescript-eslint": "^8.25.0",
+    "zod-to-json-schema": "^3.24.6"
   },
   "engines": {
     "node": ">=16.0.0"

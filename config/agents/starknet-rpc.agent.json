@@ -21,7 +21,7 @@
   ],
   "interval": 15000,
   "maxIterations": 15,
-  "mode": "hybrid",
+  "mode": "autonomous",
   "memory": {
     "enabled": true,
     "memorySize": 20,

@@ -1,10 +1,8 @@
-import {
-  StarknetToolRegistry,
+import SnakToolRegistry, {
   registerTools,
   createAllowedTools,
-  StarknetTool,
-} from '../tools.js';
-import type { SnakAgentInterface } from '../tools.js';
+} from '../../tools/tools.js';
+import { SnakAgentInterface, StarknetTool } from '../../shared/types/index.js';
 
 // Mock external dependencies
 jest.mock('@snakagent/core', () => ({
@@ -23,7 +21,6 @@ jest.mock('@snakagent/metrics', () => ({
 
 // Import mocked dependencies
 const { logger } = require('@snakagent/core');
-const { metrics } = require('@snakagent/metrics');
 
 // Plugin register factories
 const createPluginRegister = (
@@ -141,10 +138,10 @@ const createTool = (overrides: Partial<StarknetTool> = {}): StarknetTool => ({
   ...overrides,
 });
 
-describe('StarknetToolRegistry', () => {
+describe('SnakToolRegistry', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    StarknetToolRegistry.clearTools();
+    SnakToolRegistry.clearTools();
   });
 
   afterEach(() => {
@@ -165,19 +162,19 @@ describe('StarknetToolRegistry', () => {
         ],
       ],
     ])('should register %i tool(s)', (count, tools) => {
-      tools.forEach((tool) => StarknetToolRegistry.registerTool(tool));
-      const registeredTools = (StarknetToolRegistry as any).tools;
+      tools.forEach((tool) => SnakToolRegistry.registerTool(tool));
+      const registeredTools = (SnakToolRegistry as any).tools;
       expect(registeredTools).toHaveLength(count);
     });
 
     it('should clear all registered tools', () => {
       [createTool(), createTool({ name: 'tool2' })].forEach((tool) =>
-        StarknetToolRegistry.registerTool(tool)
+        SnakToolRegistry.registerTool(tool)
       );
-      expect((StarknetToolRegistry as any).tools).toHaveLength(2);
+      expect((SnakToolRegistry as any).tools).toHaveLength(2);
 
-      StarknetToolRegistry.clearTools();
-      expect((StarknetToolRegistry as any).tools).toHaveLength(0);
+      SnakToolRegistry.clearTools();
+      expect((SnakToolRegistry as any).tools).toHaveLength(0);
     });
   });
 
@@ -189,7 +186,7 @@ describe('StarknetToolRegistry', () => {
     ])(
       'should return %s',
       async (description, allowedTools, expectedLength) => {
-        const result = await StarknetToolRegistry.createAllowedTools(
+        const result = await SnakToolRegistry.createAllowedTools(
           createAgent(),
           allowedTools
         );
@@ -198,25 +195,23 @@ describe('StarknetToolRegistry', () => {
     );
 
     it('should clear existing tools before creating new ones', async () => {
-      await StarknetToolRegistry.createAllowedTools(createAgent(), ['mock']);
-      expect((StarknetToolRegistry as any).tools).toHaveLength(1);
+      await SnakToolRegistry.createAllowedTools(createAgent(), ['mock']);
+      expect((SnakToolRegistry as any).tools).toHaveLength(1);
 
-      await StarknetToolRegistry.createAllowedTools(createAgent(), ['other']);
-      expect((StarknetToolRegistry as any).tools).toHaveLength(1);
-      expect((StarknetToolRegistry as any).tools[0].name).toBe('otherTool');
+      await SnakToolRegistry.createAllowedTools(createAgent(), ['other']);
+      expect((SnakToolRegistry as any).tools).toHaveLength(1);
+      expect((SnakToolRegistry as any).tools[0].name).toBe('otherTool');
     });
 
     it('should handle default parameter (empty array)', async () => {
-      const result =
-        await StarknetToolRegistry.createAllowedTools(createAgent());
+      const result = await SnakToolRegistry.createAllowedTools(createAgent());
       expect(result).toHaveLength(0);
     });
 
     it('should handle tools with schema correctly', async () => {
-      const result = await StarknetToolRegistry.createAllowedTools(
-        createAgent(),
-        ['schema']
-      );
+      const result = await SnakToolRegistry.createAllowedTools(createAgent(), [
+        'schema',
+      ]);
       const tool = result[0];
 
       expect(tool).toHaveProperty('name', 'schemaTool');
@@ -236,7 +231,7 @@ describe('StarknetToolRegistry', () => {
 describe('registerTools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    StarknetToolRegistry.clearTools();
+    SnakToolRegistry.clearTools();
   });
 
   afterEach(() => {
@@ -383,7 +378,7 @@ describe('registerTools', () => {
 describe('createAllowedTools function', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    StarknetToolRegistry.clearTools();
+    SnakToolRegistry.clearTools();
   });
 
   afterEach(() => {
@@ -418,7 +413,7 @@ describe('createAllowedTools function', () => {
 describe('Integration and end-to-end', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    StarknetToolRegistry.clearTools();
+    SnakToolRegistry.clearTools();
   });
 
   afterEach(() => {

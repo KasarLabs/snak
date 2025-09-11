@@ -16,11 +16,3 @@ export const memory = {
 export const iterations = {
   init: jest.fn().mockResolvedValue(undefined),
 };
-
-export interface DatabaseCredentials {
-  host: string;
-  port: number;
-  database: string;
-  user: string;
-  password: string;
-}
