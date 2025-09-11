@@ -3,11 +3,11 @@ import { WsException } from '@nestjs/websockets';
 import { FastifyRequest } from 'fastify';
 import { Socket } from 'socket.io';
 
-export const USER_ID_HEADER = 'x-user-id' as const;
+export const USER_ID_HEADER = 'x-auth-request-user' as const;
 
 /**
  * Common function to extract and validate userId from headers
- * @param userIdHeader - The x-user-id header value (can be string, string array, or undefined)
+ * @param userIdHeader - The x-auth-request-user header value (can be string, string array, or undefined)
  * @returns string - Validated userId
  * @throws BadRequestException if userId is missing or invalid
  */
