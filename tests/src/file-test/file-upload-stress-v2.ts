@@ -3,15 +3,23 @@ import { SnakConfig, JobStatus, QueueMetrics } from '../types.js';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const port = process.env.SERVER_PORT || '3002';
-const config: SnakConfig = {
+
+function generateUserId(scenarioName: string, fileIndex: number): string {
+  return randomUUID();
+}
+
+function createConfigForFile(scenarioName: string, fileIndex: number): SnakConfig {
+  return {
   baseUrl: `http://localhost:${port}`,
-  userId: process.env.SNAK_USER_ID,
+    userId: generateUserId(scenarioName, fileIndex),
   apiKey: process.env.SERVER_API_KEY,
 };
+}
 
 interface TestResult {
   testName: string;
@@ -26,26 +34,53 @@ interface TestResult {
 
 function generateLargeFileContent(file_size: number): string {
   const targetSize = file_size * 1024;
-  const baseString = 'This is a large test file for stress testing the new job queue system.\n';
-  const baseLength = Buffer.byteLength(baseString);
-  const repetitions = Math.ceil(targetSize / baseLength);
-  const largeContent = baseString.repeat(repetitions);
-  const buffer = Buffer.from(largeContent);
-  return buffer.subarray(0, targetSize).toString();
+  const baseStrings = [
+    'This is a large test file for stress testing the new job queue system.\n',
+    'The file ingestion service should handle this content properly.\n',
+    'We are testing concurrent file upload processing with job tracking.\n',
+    'Performance metrics will be collected during this stress test.\n',
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n',
+    'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n',
+    'Ut enim ad minim veniam, quis nostrud exercitation ullamco.\n',
+    'Duis aute irure dolor in reprehenderit in voluptate velit esse.\n'
+  ];
+  
+  let content = '';
+  let currentSize = 0;
+  let stringIndex = 0;
+  
+  while (currentSize < targetSize) {
+    const nextString = baseStrings[stringIndex % baseStrings.length];
+    const nextStringSize = Buffer.byteLength(nextString);
+    
+    if (currentSize + nextStringSize <= targetSize) {
+      content += nextString;
+      currentSize += nextStringSize;
+    } else {
+      // Add partial string to reach exact target size
+      const remainingSize = targetSize - currentSize;
+      const partialString = nextString.substring(0, remainingSize);
+      content += partialString;
+      break;
+    }
+    
+    stringIndex++;
+  }
+  
+  return content;
 }
 
 async function waitForJobCompletion(
   testRunner: TestRunner,
   jobId: string,
-  maxWaitTime: number = 600000,
-  pollInterval: number = 10000
+  maxWaitTime: number = 60000,
+  pollInterval: number = 750
 ): Promise<JobStatus | null> {
   const startTime = Date.now();
   
   while (Date.now() - startTime < maxWaitTime) {
     try {
       const status = await testRunner.client.getJobStatus(jobId);
-      console.log(chalk.yellow(`Job status: ${status.status}`));
       // Job is completed (success or failure)
       if (status.status === 'completed' || status.status === 'failed') {
         return status;
@@ -53,11 +88,46 @@ async function waitForJobCompletion(
     } catch (error) {
       console.log(chalk.yellow(`⚠️  Error checking job status: ${error}`));
     }
-    
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
   
-  return null; // Timeout
+  return null;
+}
+
+async function verifyFileInDatabase(
+  testRunner: TestRunner,
+  agentId: string,
+  filename: string,
+  maxRetries: number = 20,
+  retryDelay: number = 2500
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const fileList = await testRunner.client.listFiles(agentId);
+      const uploadedFile = fileList.find(f => f.originalName === filename);
+      
+      if (uploadedFile) {
+        return true;
+      } else {
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        } else {
+          console.log(chalk.red(`    ❌ File ${filename} NOT found after ${maxRetries} attempts`));
+          return false;
+        }
+      }
+    } catch (error) {
+      if (attempt < maxRetries) {
+        console.log(chalk.yellow(`    ⚠️  Error checking file list (${attempt}/${maxRetries}): ${error}`));
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      } else {
+        console.log(chalk.red(`    ❌ Failed to verify file ${filename}: ${error}`));
+        return false;
+      }
+    }
+  }
+  
+  return false;
 }
 
 async function getQueueMetrics(testRunner: TestRunner): Promise<QueueMetrics[]> {
@@ -87,93 +157,36 @@ async function testFileStressWithJobQueue() {
   console.log(chalk.blue.bold('🚀 File Upload Stress Test v2 - Job Queue System\n'));
   console.log(chalk.yellow('Testing: Concurrent file uploads with job queue monitoring\n'));
 
-  const testRunner = new TestRunner(config);
   const testResults: TestResult[] = [];
-
-  await testRunner.runTest('Health Check', () => testRunner.client.healthCheck());
 
   // Test configurations
   const testScenarios = [
-    { name: 'Medium Load', files: 10, sizes: [100, 500] }, // KB
-    { name: 'Heavy Load', files: 50, sizes: [1024] },
-    { name: 'Mixed Load', files: 20, sizes: [50, 200, 500, 1024] },
+    { name: '1 User', files: 1, sizes: [10, 75, 150, 350] }, // KB
+    { name: '3 Users', files: 3, sizes: [10, 75, 150, 350] },
+    { name: '6 Users', files: 6, sizes: [10, 75, 150, 350] },
+    { name: '9 Users', files: 9, sizes: [10, 75, 150, 350] }
   ];
 
-  // Create a single agent for all tests
-  console.log(chalk.blue('🤖 Creating stress test agent...'));
-  
-  const createResult = await testRunner.runTest('Create Stress Test Agent', () => 
-    testRunner.client.createAgent({
-      agent: {
-        name: 'File Stress Test Agent v2',
-        group: 'test',
-        description: 'Agent for stress testing file uploads with job queue system',
-        lore: [
-          'I am designed to handle high-volume file uploads with job queue processing.',
-          'My purpose is to test system performance under load with the new worker system.',
-          'I help validate concurrent file processing capabilities with job tracking.'
-        ],
-        objectives: [
-          'Test concurrent file upload performance with job queues',
-          'Validate system stability under load with worker monitoring',
-          'Measure processing times for large files through job completion',
-          'Ensure proper resource management and queue handling'
-        ],
-        knowledge: [
-          'I understand high-load scenarios and performance testing with job queues',
-          'I know how to measure system performance metrics and queue health',
-          'I can validate concurrent processing capabilities with job tracking',
-          'I am familiar with stress testing methodologies for distributed systems'
-        ],
-        interval: 0,
-        plugins: [],
-        memory: { enabled: false, shortTermMemorySize: 0, memorySize: 0 },
-        rag: { enabled: true, embeddingModel: 'Xenova/all-MiniLM-L6-v2' },
-        mode: 'interactive'
-      }
-    })
-  );
-
-  if (!createResult.success) {
-    console.log(chalk.red('❌ Failed to create stress test agent.'));
-    return;
-  }
-
-  const agentsResult = await testRunner.runTest('Get Agents List', () => 
-    testRunner.client.getAgents()
-  );
-
-  if (!agentsResult.success || !agentsResult.response) {
-    console.log(chalk.red('❌ Failed to get agents list.'));
-    return;
-  }
-
-  const agentsList = Array.isArray(agentsResult.response) 
-    ? agentsResult.response 
-    : (agentsResult.response as any).data || [];
-
-  const stressAgent = agentsList.find((agent: any) => agent.name === 'File Stress Test Agent v2');
-  if (!stressAgent) {
-    console.log(chalk.red('❌ Stress test agent not found in agents list.'));
-    return;
-  }
-
-  const agentId = stressAgent.id;
-  console.log(chalk.green(`✅ Created stress test agent: ${agentId}`));
+  // Health check with default config
+  const defaultConfig = createConfigForFile('default', 0);
+  const defaultTestRunner = new TestRunner(defaultConfig);
+  await defaultTestRunner.runTest('Health Check', () => defaultTestRunner.client.healthCheck());
 
   // Run test scenarios
   for (const scenario of testScenarios) {
-    console.log(chalk.blue(`\n🧪 Testing ${scenario.name}: ${scenario.files} files`));
+    console.log(chalk.blue(`\n🧪 Testing ${scenario.name}: ${scenario.files} files with ${scenario.files} different users`));
+    
+    const scenarioCreatedAgents: { testRunner: TestRunner; agentId: string; userId: string }[] = [];
     
     for (const fileSize of scenario.sizes) {
       const testName = `${scenario.name} - ${fileSize}KB files`;
-      console.log(chalk.blue(`\n📁 Testing ${scenario.files} files of ~${fileSize}KB each`));
+      console.log(chalk.blue(`\n📁 Testing ${scenario.files} files of ~${fileSize}KB each with ${scenario.files} different users`));
       
       const startTime = Date.now();
       const jobIds: string[] = [];
       
       // Generate test files
-      const files = [];
+      const files: Array<{ buffer: Buffer; filename: string; size: number }> = [];
       const content = generateLargeFileContent(fileSize);
       for (let i = 0; i < scenario.files; i++) {
         const buffer = Buffer.from(content, 'utf-8');
@@ -186,42 +199,147 @@ async function testFileStressWithJobQueue() {
       
       const totalSize = files.reduce((sum, file) => sum + file.size, 0);
       
-      // Upload files and collect job IDs
+      // Create users and agents for each file
+      console.log(chalk.blue(`👥 Creating ${scenario.files} users and agents...`));
+      const agentCreationPromises = files.map(async (file, index) => {
+        const fileConfig = createConfigForFile(scenario.name, index);
+        const fileTestRunner = new TestRunner(fileConfig);
+        
+        const uniqueAgentName = `FileStressTest-${scenario.name.replace(/\s+/g, '')}-User${index + 1}-${Date.now()}`;
+        const createResult = await fileTestRunner.runTest(`Create Agent for User ${index + 1}`, () => 
+          fileTestRunner.client.createAgent({
+            agent: {
+              name: uniqueAgentName,
+              group: 'test',
+              description: `Agent for stress testing file uploads - ${scenario.name} - User ${index + 1}`,
+              lore: [
+                `I am designed to handle file uploads for user ${index + 1} in ${scenario.name}.`,
+                'My purpose is to test system performance under concurrent user load.',
+                'I help validate multi-user file processing capabilities.'
+              ],
+              objectives: [
+                'Test concurrent file upload performance with multiple users',
+                'Validate system stability under multi-user load',
+                'Measure processing times for files from different users',
+                'Ensure proper resource management across users'
+              ],
+              knowledge: [
+                'I understand multi-user scenarios and concurrent processing',
+                'I know how to handle file uploads from different users',
+                'I can validate system performance under user load',
+                'I am familiar with stress testing methodologies for multi-user systems'
+              ],
+              interval: 0,
+              mode: 'interactive',
+              memory: {
+                enabled: false,
+                memorySize: 0,
+                shortTermMemorySize: 0
+              },
+              rag: {
+                enabled: true,
+                embeddingModel: 'Xenova/all-MiniLM-L6-v2'
+              },
+              plugins: []
+            }
+          })
+        );
+
+        if (!createResult.success) {
+          console.log(chalk.red(`  ❌ Failed to create agent for user ${index + 1}: ${createResult.error}`));
+          return null;
+        }
+
+        const agentsResult = await fileTestRunner.runTest(`Get Agents List for User ${index + 1}`, () => 
+          fileTestRunner.client.getAgents()
+        );
+
+        if (!agentsResult.success || !agentsResult.response) {
+          console.log(chalk.red(`  ❌ Failed to get agents list for user ${index + 1}`));
+          return null;
+        }
+
+        const agentsList = Array.isArray(agentsResult.response) 
+          ? agentsResult.response 
+          : (agentsResult.response as any).data || [];
+
+        const userAgent = agentsList.find((agent: any) => agent.name === uniqueAgentName);
+        if (!userAgent) {
+          console.log(chalk.red(`  ❌ Agent not found for user ${index + 1}`));
+          return null;
+        }
+
+        return {
+          testRunner: fileTestRunner,
+          agentId: userAgent.id,
+          userId: fileConfig.userId
+        };
+      });
+      
+      const agentResults = await Promise.all(agentCreationPromises);
+      const validAgents = agentResults.filter(agent => agent !== null) as { testRunner: TestRunner; agentId: string; userId: string }[];
+      
+      if (validAgents.length === 0) {
+        console.log(chalk.red(`❌ No valid agents created for ${scenario.name}`));
+        continue;
+      }
+      
+      console.log(chalk.green(`  ✅ Created ${validAgents.length} agents successfully`));
+      
+      scenarioCreatedAgents.push(...validAgents);
+      
+      console.log(chalk.blue(`🚀 Starting concurrent uploads with ${validAgents.length} users...`));
       const uploadPromises = files.map(async (file, index) => {
+        if (index >= validAgents.length) {
+          return { success: false, error: 'No agent available' };
+        }
+        
+        const agent = validAgents[index];
         const result = await uploadFileWithJobTracking(
-          testRunner,
-          agentId,
+          agent.testRunner,
+          agent.agentId,
           file.buffer,
           file.filename
         );
         
         if (result.success && result.jobId) {
           jobIds.push(result.jobId);
-          console.log(chalk.green(`  ✅ File ${index + 1} uploaded, job ID: ${result.jobId}`));
-        } else {
-          console.log(chalk.red(`  ❌ File ${index + 1} upload failed: ${result.error}`));
         }
         
-        return result;
+        return { ...result, agent, fileIndex: index };
       });
       
-      await Promise.all(uploadPromises);
+      const uploadResults = await Promise.all(uploadPromises);
       const uploadTime = Date.now() - startTime;
+      
+      const successfulUploads = uploadResults.filter(r => r.success).length;
+      const failedUploads = uploadResults.filter(r => !r.success).length;
+      console.log(chalk.green(`  ✅ Uploads completed: ${successfulUploads} successful, ${failedUploads} failed`));
+      
+      const jobToAgentMap = new Map();
+      uploadResults.forEach(result => {
+        if (result.success && 'jobId' in result && result.jobId && 'agent' in result && result.agent) {
+          jobToAgentMap.set(result.jobId, result.agent);
+        }
+      });
       
       // Wait for all jobs to complete
       console.log(chalk.blue(`⏳ Waiting for ${jobIds.length} jobs to complete...`));
-      await new Promise(resolve => setTimeout(resolve, 10000));
       const jobCompletionPromises = jobIds.map(async (jobId, index) => {
-        const jobStatus = await waitForJobCompletion(testRunner, jobId, 600_000); // 600s timeout
+        const agent = jobToAgentMap.get(jobId);
+        if (!agent) {
+          console.log(chalk.red(`  ❌ No agent found for job ${jobId}`));
+          return null;
+        }
+        
+        const jobStatus = await waitForJobCompletion(agent.testRunner, jobId, 600_000); // 600s timeout
         
         if (jobStatus) {
           if (jobStatus.status === 'completed') {
-            console.log(chalk.green(`  ✅ Job ${index + 1} (${jobId}) completed successfully`));
-          } else {
-            console.log(chalk.red(`  ❌ Job ${index + 1} (${jobId}) failed: ${jobStatus.error || 'Unknown error'}`));
+            const uploadResult = uploadResults.find(r => 'jobId' in r && r.jobId === jobId);
+            const fileIndex = uploadResult && 'fileIndex' in uploadResult ? uploadResult.fileIndex : index;
+            await verifyFileInDatabase(agent.testRunner, agent.agentId, files[fileIndex].filename, 50, 2500);
           }
-        } else {
-          console.log(chalk.yellow(`  ⚠️  Job ${index + 1} (${jobId}) timed out`));
         }
         
         return jobStatus;
@@ -230,19 +348,21 @@ async function testFileStressWithJobQueue() {
       const jobStatuses = await Promise.all(jobCompletionPromises);
       const totalTime = Date.now() - startTime;
       
-      // Get final queue metrics
-      const finalMetrics = await getQueueMetrics(testRunner);
+      const completedJobs = jobStatuses.filter(status => status?.status === 'completed').length;
+      const failedJobs = jobStatuses.filter(status => status?.status === 'failed').length;
+      const timedOutJobs = jobStatuses.filter(status => !status).length;
+      console.log(chalk.green(`  ✅ Jobs completed: ${completedJobs} successful, ${failedJobs} failed, ${timedOutJobs} timed out`));
+      
+      const finalMetrics = await getQueueMetrics(validAgents[0].testRunner);
       
       // Calculate metrics
-      const successfulJobs = jobStatuses.filter(status => status?.status === 'completed').length;
-      const failedJobs = jobStatuses.filter(status => status?.status === 'failed').length;
       const avgProcessingTime = totalTime / files.length;
       const throughput = (totalSize / 1024) / (totalTime / 1000); // KB/s
       
       // Store test result
       const testResult: TestResult = {
         testName,
-        success: successfulJobs === files.length,
+        success: completedJobs === files.length,
         duration: totalTime,
         jobIds,
         queueMetrics: finalMetrics,
@@ -253,29 +373,54 @@ async function testFileStressWithJobQueue() {
       
       testResults.push(testResult);
       
-      // Print test summary
-      console.log(chalk.blue(`\n📊 Test Summary for ${testName}:`));
-      console.log(chalk.blue(`  • Total time: ${totalTime}ms`));
-      console.log(chalk.blue(`  • Upload time: ${uploadTime}ms`));
-      console.log(chalk.blue(`  • Processing time: ${totalTime - uploadTime}ms`));
-      console.log(chalk.blue(`  • Average time per file: ${Math.round(avgProcessingTime)}ms`));
-      console.log(chalk.blue(`  • Throughput: ${throughput.toFixed(2)} KB/s`));
-      console.log(chalk.blue(`  • Successful jobs: ${successfulJobs}/${files.length}`));
-      console.log(chalk.blue(`  • Failed jobs: ${failedJobs}/${files.length}`));
+      // Verify all files are actually stored for each agent
+      console.log(chalk.blue(`\n🔍 Verifying file storage...`));
+      let totalFilesStored = 0;
+      for (const agent of validAgents) {
+        try {
+          const fileList = await agent.testRunner.client.listFiles(agent.agentId);
+          const agentFileCount = fileList.length || 0;
+          totalFilesStored += agentFileCount;
+        } catch (error) {
+          console.log(chalk.red(`  • Agent: Failed to list files - ${error}`));
+        }
+      }
+      console.log(chalk.green(`  ✅ Total files stored: ${totalFilesStored}`));
+
+      console.log(chalk.blue(`\n📊 ${testName}:`));
+      console.log(chalk.blue(`  • Time: ${totalTime}ms | Throughput: ${throughput.toFixed(2)} KB/s`));
+      console.log(chalk.blue(`  • Average time per file: ${(totalTime / files.length).toFixed(2)}ms`));
+      console.log(chalk.blue(`  • Success: ${completedJobs}/${files.length} | Files stored: ${totalFilesStored}`));
       
       if (finalMetrics.length > 0) {
-        console.log(chalk.blue(`  • Queue metrics:`));
         finalMetrics.forEach(metric => {
-          console.log(chalk.blue(`    - ${metric.queueName}: waiting=${metric.waiting}, active=${metric.active}, completed=${metric.completed}, failed=${metric.failed}`));
+          console.log(chalk.blue(`  • Queue ${metric.queueName}: w=${metric.waiting} a=${metric.active} c=${metric.completed} f=${metric.failed}`));
         });
       }
       
       // Small delay between tests
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
+    
+    console.log(chalk.blue(`\n🧹 Cleaning up ${scenarioCreatedAgents.length} agents...`));
+    const cleanupPromises = scenarioCreatedAgents.map(async (agent: { testRunner: TestRunner; agentId: string; userId: string }, index: number) => {
+      try {
+        await agent.testRunner.runTest(`Cleanup - Delete Agent ${index + 1}`, () => 
+          agent.testRunner.client.deleteAgent(agent.agentId)
+        );
+        return { success: true, index };
+      } catch (error) {
+        console.log(chalk.red(`  ❌ Failed to cleanup agent ${index + 1}: ${error}`));
+        return { success: false, index, error };
+      }
+    });
+    
+    const cleanupResults = await Promise.all(cleanupPromises);
+    const successfulCleanups = cleanupResults.filter(r => r.success).length;
+    const failedCleanups = cleanupResults.filter(r => !r.success).length;
+    console.log(chalk.green(`  ✅ Cleanup completed: ${successfulCleanups} successful, ${failedCleanups} failed`));
   }
 
-  // Print overall summary
   console.log(chalk.blue.bold('\n📈 Overall Test Summary:'));
   console.log(chalk.blue('='.repeat(50)));
   
@@ -292,18 +437,18 @@ async function testFileStressWithJobQueue() {
   const passedTests = testResults.filter(r => r.success).length;
   const avgThroughput = testResults.reduce((sum, r) => sum + r.throughput, 0) / totalTests;
   
+  const totalJobsCreated = testResults.reduce((sum, r) => sum + r.jobIds.length, 0);
+  const totalJobsSuccessful = testResults.reduce((sum, r) => {
+    return sum + (r.success ? r.jobIds.length : 0);
+  }, 0);
+  
   console.log(chalk.blue(`\n📊 Final Statistics:`));
   console.log(chalk.blue(`  • Tests passed: ${passedTests}/${totalTests}`));
   console.log(chalk.blue(`  • Average throughput: ${avgThroughput.toFixed(2)} KB/s`));
-  console.log(chalk.blue(`  • Total jobs processed: ${testResults.reduce((sum, r) => sum + r.jobIds.length, 0)}`));
+  console.log(chalk.blue(`  • Total jobs created: ${totalJobsCreated}`));
+  console.log(chalk.blue(`  • Total jobs successful: ${totalJobsSuccessful}`));
 
-  // Cleanup
-  console.log(chalk.blue('\n🧹 Cleaning up stress test agent...'));
-  await testRunner.runTest('Cleanup - Delete Stress Test Agent', () => 
-    testRunner.client.deleteAgent(agentId)
-  );
-
-  testRunner.printSummary();
+  defaultTestRunner.printSummary();
 }
 
 if (require.main === module) {

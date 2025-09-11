@@ -33,14 +33,15 @@ export interface QueueMetrics {
   delayed: number;
 }
 
-export interface FileListResponse {
-  files: Array<{
-    id: string;
-    filename: string;
-    uploadedAt: string;
-    size: number;
-  }>;
+export interface StoredFile {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: string;
+  uploadDate: string;
 }
+
+export type FileListResponse = StoredFile[];
 
 export interface AgentConfig {
   id: string;
