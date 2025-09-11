@@ -5,8 +5,6 @@ import { VectorStoreModule } from '../vector-store/vector-store.module.js';
 import { AgentsModule } from '../agents.module.js';
 import { ConfigModule } from '../../config/config.module.js';
 import { WorkersModule } from '../workers/workers.module.js';
-import { ChunkingModule } from '../chunking/chunking.module.js';
-import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 
 @Module({
   imports: [
@@ -14,8 +12,6 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
     VectorStoreModule,
     ConfigModule,
     WorkersModule,
-    ChunkingModule,
-    EmbeddingsModule,
   ],
   controllers: [FileIngestionController],
   providers: [FileIngestionService],
