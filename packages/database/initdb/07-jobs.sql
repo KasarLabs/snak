@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     -- Job execution status with constraint validation
     -- Default 'pending' for new jobs
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    CONSTRAINT jobs_status_chk CHECK (status IN ('pending','running','completed','failed','canceled')),
+    CONSTRAINT jobs_status_chk CHECK (status IN ('pending','active','completed','failed','delayed','paused')),
     
     -- Error information for failed jobs
     -- TEXT type accommodates detailed error messages and stack traces
@@ -49,9 +49,13 @@ CREATE TABLE IF NOT EXISTS jobs (
       (completed_at IS NULL OR completed_at >= COALESCE(started_at, created_at))
     ),
     
-    -- Foreign key relationship to agents table
+    -- Foreign key relationships to ensure data integrity
     -- CASCADE deletion removes jobs when agent is deleted
-    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+    
+    -- Ensure user_id consistency with the referenced agent
+    -- This constraint ensures that the user_id in jobs matches the user_id of the referenced agent
+    FOREIGN KEY (user_id, agent_id) REFERENCES agents(user_id, id) ON DELETE CASCADE
 );
 
 -- Performance Indexes
@@ -67,6 +71,11 @@ CREATE INDEX IF NOT EXISTS idx_jobs_agent_id ON jobs(agent_id);
 -- Used for: Dashboard queries showing user's jobs by status and time
 -- Query pattern: WHERE user_id = ? AND status = ? ORDER BY created_at DESC
 -- Composite index optimizes multi-column filtering and sorting
+-- 
+-- NOTE: This index uses created_at DESC which optimizes DESC ordering queries.
+-- PostgreSQL can still use this index for ASC ordering but with reduced efficiency.
+-- If ASC ordering becomes a common pattern, consider adding a separate index
+-- with created_at ASC or a more flexible approach.
 CREATE INDEX IF NOT EXISTS idx_jobs_user_status_created_at ON jobs(user_id, status, created_at DESC);
 
 -- ============================================================================
