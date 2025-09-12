@@ -3,13 +3,20 @@
 ########################################
 # image 
 ########################################
-FROM node:24-alpine AS base
+FROM node:24-slim AS base
 
 ########################################
 # dependencies 
 ########################################
 FROM base AS deps
 WORKDIR /app
+
+# Install system dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # activate Corepack for pnpm
 RUN corepack enable
@@ -43,6 +50,13 @@ RUN pnpm run build
 FROM base AS runner
 WORKDIR /app
 
+# Install system dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -67,6 +81,9 @@ COPY --from=builder /app/packages/agent/dist            packages/agent/dist
 
 COPY --from=builder /app/packages/metrics/package.json    packages/metrics/package.json
 COPY --from=builder /app/packages/metrics/dist            packages/metrics/dist
+
+COPY --from=builder /app/packages/workers/package.json    packages/workers/package.json
+COPY --from=builder /app/packages/workers/dist            packages/workers/dist
 
 ENV NODE_ENV=production
 EXPOSE 3002

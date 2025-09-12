@@ -185,7 +185,7 @@ BEGIN
                 format('%d agent(s) removed successfully', agent_count)
             ELSE 
                 -- No agents to delete message
-                'No agent to remove'
+                'No agents to remove'
         END AS message;
 END;
 $$;

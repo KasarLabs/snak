@@ -19,23 +19,19 @@ import {
   AgentDeletesRequestDTO,
 } from '../dto/agents.js';
 import { Reflector } from '@nestjs/core';
-import ServerError from '../utils/error.js';
+import { ServerError } from '../utils/error.js';
 import { getUserIdFromHeaders } from '../utils/index.js';
 import {
   logger,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
+  AgentResponse,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 import { SnakAgent } from '@snakagent/agents';
-
-export interface AgentResponse {
-  status: 'success' | 'failure' | 'waiting_for_human_input';
-  data?: unknown;
-}
 
 export interface SupervisorRequestDTO {
   request: {
@@ -377,9 +373,6 @@ export class AgentsController {
         );
 
         const agentSelector = this.agentFactory.getAgentSelector();
-        if (!agentSelector) {
-          throw new ServerError('E01TA400');
-        }
         agent = await agentSelector.execute(
           userRequest.request.content,
           false,
@@ -488,13 +481,7 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const userId = getUserIdFromHeaders(req);
-      const agentConfig = this.verifyAgentConfigOwnership(
-        userRequest.agent_id,
-        userId
-      );
-      if (!agentConfig) {
-        throw new ServerError('E01TA400');
-      }
+      this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
       const messages = await this.agentService.getMessageFromAgentId(
         userRequest,
         userId
@@ -522,13 +509,7 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     try {
       const userId = getUserIdFromHeaders(req);
-      const agentConfig = this.verifyAgentConfigOwnership(
-        userRequest.agent_id,
-        userId
-      );
-      if (!agentConfig) {
-        throw new BadRequestException('Agent not found or access denied');
-      }
+      this.verifyAgentConfigOwnership(userRequest.agent_id, userId);
 
       await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 
@@ -574,7 +555,7 @@ export class AgentsController {
           logger.error(`Error deleting agent ${agentId}:`, error);
           responses.push({
             status: 'failure',
-            data: `Failed to delete agent ${agentId}: ${error.message}`,
+            error: `Failed to delete agent ${agentId}: ${error.message}`,
           });
         }
       }

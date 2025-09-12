@@ -1,5 +1,5 @@
 {
   "maxAgentSize": 10000000,
   "maxProcessSize": 50000000,
-  "maxDocumentSize": 10000000
+  "maxRagSize": 10000000
 }

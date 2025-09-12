@@ -268,13 +268,6 @@ export class AgentStorage implements OnModuleInit {
       await this.initialize();
     }
 
-    const config = this.getAgentConfig(id, userId);
-    if (!config) {
-      throw new Error(
-        `Agent ${id} not found or access denied for user ${userId}`
-      );
-    }
-
     const q = new Postgres.Query(
       `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
       [id, userId]

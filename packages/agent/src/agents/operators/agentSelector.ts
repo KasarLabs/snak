@@ -110,7 +110,12 @@ export class AgentSelector extends BaseAgent {
       const userAgentInfo = new Map<string, string>();
 
       for (const [key, agent] of this.availableAgents.entries()) {
-        const [_agentId, agentUserId] = key.split('|');
+        const parts = key.split('|');
+        if (parts.length !== 2) {
+          logger.warn(`AgentSelector: Invalid composite key format: ${key}`);
+          continue;
+        }
+        const [_agentId, agentUserId] = parts;
         if (agentUserId === userId) {
           userAgents.set(key, agent);
           const cfg = agent.getAgentConfig();
@@ -121,20 +126,19 @@ export class AgentSelector extends BaseAgent {
         }
       }
 
-      const availableAgentsForUser = userAgents;
-      const agentInfoForUser = userAgentInfo;
-
       logger.debug(
         `AgentSelector: Found ${userAgents.size} agents for user ${userId}`
       );
-
+      if (userAgents.size === 0) {
+        throw new Error('No agents found for user ' + userId);
+      }
       const result = await model.invoke(
-        agentSelectorPromptContent(agentInfoForUser, input)
+        agentSelectorPromptContent(userAgentInfo, input)
       );
       logger.debug('AgentSelector result:', result);
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
-        const agent = Array.from(availableAgentsForUser.values()).find(
+        const agent = Array.from(userAgents.values()).find(
           (agent) => agent.getAgentConfig().name === r_trim
         );
         if (agent) {
