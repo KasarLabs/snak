@@ -23,7 +23,9 @@ export class QueueManager {
       }
     } catch (error) {
       logger.error('Failed to load worker config:', error);
-      throw new Error('Failed to initialize QueueManager: invalid configuration');
+      throw new Error(
+        'Failed to initialize QueueManager: invalid configuration'
+      );
     }
 
     // Use provided Redis config or fall back to worker config
@@ -38,7 +40,7 @@ export class QueueManager {
     this.redis.on('error', (error) => {
       logger.error('Redis connection error:', error);
     });
-    
+
     this.redis.on('connect', () => {
       logger.info('Redis connected successfully');
     });

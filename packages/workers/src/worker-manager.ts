@@ -51,7 +51,10 @@ export class WorkerManager {
       fileIngestionWorkerService
     );
 
-    this.jobsMetadataService = new JobsMetadataService(cacheService, this.queueManager);
+    this.jobsMetadataService = new JobsMetadataService(
+      cacheService,
+      this.queueManager
+    );
 
     this.jobProcessor = new JobProcessor(
       this.queueManager,
@@ -91,7 +94,7 @@ export class WorkerManager {
         logger.warn('Cleanup: jobProcessor.stopProcessing failed', e);
       }
       try {
-        await this.queueManager.close()
+        await this.queueManager.close();
       } catch (e) {
         logger.warn('Cleanup: queueManager.close failed', e);
       }

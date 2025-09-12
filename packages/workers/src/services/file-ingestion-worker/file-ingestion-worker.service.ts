@@ -31,21 +31,24 @@ const userMutexes = new Map<string, MutexEntry>();
 
 async function acquireUserMutex(userId: string): Promise<() => void> {
   let entry = userMutexes.get(userId);
-  
+
   if (entry) {
     entry.waiting++;
     await entry.promise;
     entry = userMutexes.get(userId);
     if (!entry) {
-
       let resolve: () => void;
-      const promise = new Promise<void>((r) => { resolve = r; });
+      const promise = new Promise<void>((r) => {
+        resolve = r;
+      });
       entry = { promise, resolve: resolve!, waiting: 1 };
       userMutexes.set(userId, entry);
     }
   } else {
     let resolve: () => void;
-    const promise = new Promise<void>((r) => { resolve = r; });
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
     entry = { promise, resolve: resolve!, waiting: 1 };
     userMutexes.set(userId, entry);
   }

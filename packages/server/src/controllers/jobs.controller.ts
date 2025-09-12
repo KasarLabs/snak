@@ -32,10 +32,12 @@ export class JobsController {
   ) {
     try {
       let userId: string;
-      try{
+      try {
         userId = getUserIdFromHeaders(request);
       } catch {
-        throw new UnauthorizedException('Missing or invalid authentication headers');
+        throw new UnauthorizedException(
+          'Missing or invalid authentication headers'
+        );
       }
       const status = await this.workersService.getJobStatusForUser(
         jobId,
@@ -102,7 +104,6 @@ export class JobsController {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
- 
 
       if (error instanceof JobNotFoundError) {
         throw new NotFoundException(error.message);

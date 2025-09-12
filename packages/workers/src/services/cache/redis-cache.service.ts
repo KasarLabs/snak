@@ -243,7 +243,13 @@ export class RedisCacheService implements OnModuleDestroy {
     let cursor = '0';
     const keys: string[] = [];
     do {
-      const [next, batch] = await this.redis.scan(cursor, 'MATCH', match, 'COUNT', count);
+      const [next, batch] = await this.redis.scan(
+        cursor,
+        'MATCH',
+        match,
+        'COUNT',
+        count
+      );
       cursor = next;
       if (batch.length) keys.push(...batch);
     } while (cursor !== '0');

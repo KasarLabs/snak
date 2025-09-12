@@ -26,7 +26,7 @@ const userMutexes = new Map<string, MutexEntry>();
 
 async function acquireUserMutex(userId: string): Promise<() => void> {
   let entry = userMutexes.get(userId);
-  
+
   if (entry) {
     entry.waiting++;
     await entry.promise;
@@ -35,13 +35,17 @@ async function acquireUserMutex(userId: string): Promise<() => void> {
     if (!entry) {
       // Create new mutex if the previous one was released
       let resolve: () => void;
-      const promise = new Promise<void>((r) => { resolve = r; });
+      const promise = new Promise<void>((r) => {
+        resolve = r;
+      });
       entry = { promise, resolve: resolve!, waiting: 1 };
       userMutexes.set(userId, entry);
     }
   } else {
     let resolve: () => void;
-    const promise = new Promise<void>((r) => { resolve = r; });
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
     entry = { promise, resolve: resolve!, waiting: 1 };
     userMutexes.set(userId, entry);
   }
@@ -118,20 +122,24 @@ export class JobsMetadataService {
   ): Promise<JobMetadata | null> {
     try {
       const updateFields: Record<string, any> = {};
-      
+
       if (data.status !== undefined) updateFields.status = data.status;
       if (data.error !== undefined) updateFields.error = data.error;
-      if (data.startedAt !== undefined) updateFields.started_at = data.startedAt;
-      if (data.completedAt !== undefined) updateFields.completed_at = data.completedAt;
-      
+      if (data.startedAt !== undefined)
+        updateFields.started_at = data.startedAt;
+      if (data.completedAt !== undefined)
+        updateFields.completed_at = data.completedAt;
+
       const fieldNames = Object.keys(updateFields);
       if (fieldNames.length === 0) {
         return await this.getJobMetadata(jobId);
       }
-      
-      const setClause = fieldNames.map((field, index) => `${field} = $${index + 1}`).join(', ');
+
+      const setClause = fieldNames
+        .map((field, index) => `${field} = $${index + 1}`)
+        .join(', ');
       const values = [...Object.values(updateFields), jobId];
-      
+
       const query = `
         UPDATE jobs 
         SET ${setClause}, updated_at = CURRENT_TIMESTAMP
@@ -280,11 +288,13 @@ export class JobsMetadataService {
       }
 
       const releaseMutex = await acquireUserMutex(userId);
-      
+
       try {
         const cachedResult2 = await this.getFromCache(jobId, userId);
         if (cachedResult2) {
-          logger.debug(`Result retrieved from cache (double-check) for job ${jobId}`);
+          logger.debug(
+            `Result retrieved from cache (double-check) for job ${jobId}`
+          );
           return {
             ...cachedResult2,
             source: ResultSource.CACHE,
@@ -294,9 +304,11 @@ export class JobsMetadataService {
         const dbResult = await this.getFromDatabase(jobId, userId);
         if (dbResult) {
           if (this.cacheService) {
-            this.cacheService.setJobRetrievalResult(jobId, dbResult).catch(err => 
-              logger.warn(`Failed to cache result for job ${jobId}:`, err)
-            );
+            this.cacheService
+              .setJobRetrievalResult(jobId, dbResult)
+              .catch((err) =>
+                logger.warn(`Failed to cache result for job ${jobId}:`, err)
+              );
           }
           logger.debug(`Result retrieved from database for job ${jobId}`);
           return {
@@ -309,9 +321,14 @@ export class JobsMetadataService {
           const bullResult = await this.getFromBull(jobId, userId);
           if (bullResult) {
             if (this.cacheService) {
-              this.cacheService.setJobRetrievalResult(jobId, bullResult).catch(err => 
-                logger.warn(`Failed to cache Bull result for job ${jobId}:`, err)
-              );
+              this.cacheService
+                .setJobRetrievalResult(jobId, bullResult)
+                .catch((err) =>
+                  logger.warn(
+                    `Failed to cache Bull result for job ${jobId}:`,
+                    err
+                  )
+                );
             }
             await this.updateDatabaseResult(jobId, userId, bullResult.data);
             logger.debug(`Result retrieved from Bull for job ${jobId}`);
@@ -429,7 +446,7 @@ export class JobsMetadataService {
       if (!jobMetadata.result) {
         return null;
       }
-      
+
       return {
         jobId,
         agentId: jobMetadata.agentId || '',
@@ -451,7 +468,9 @@ export class JobsMetadataService {
     userId: string
   ): Promise<JobRetrievalResult | null> {
     if (!this.queueManager) {
-      logger.debug(`QueueManager not available for Bull retrieval of job ${jobId}`);
+      logger.debug(
+        `QueueManager not available for Bull retrieval of job ${jobId}`
+      );
       return null;
     }
 
@@ -482,7 +501,9 @@ export class JobsMetadataService {
           }
 
           const jobState = await job.getState();
-          logger.debug(`Job ${jobId} found in queue ${queueName} with state: ${jobState}`);
+          logger.debug(
+            `Job ${jobId} found in queue ${queueName} with state: ${jobState}`
+          );
 
           switch (jobState) {
             case 'completed':
@@ -493,7 +514,9 @@ export class JobsMetadataService {
                 status: ResultStatus.COMPLETED,
                 data: job.returnvalue,
                 createdAt: new Date(job.timestamp),
-                completedAt: job.finishedOn ? new Date(job.finishedOn) : undefined,
+                completedAt: job.finishedOn
+                  ? new Date(job.finishedOn)
+                  : undefined,
                 source: ResultSource.BULL,
               };
 
@@ -505,7 +528,9 @@ export class JobsMetadataService {
                 status: ResultStatus.FAILED,
                 error: job.failedReason,
                 createdAt: new Date(job.timestamp),
-                completedAt: job.finishedOn ? new Date(job.finishedOn) : undefined,
+                completedAt: job.finishedOn
+                  ? new Date(job.finishedOn)
+                  : undefined,
                 source: ResultSource.BULL,
               };
 
@@ -522,11 +547,16 @@ export class JobsMetadataService {
               };
 
             default:
-              logger.warn(`Unknown job state ${jobState} for job ${jobId} in queue ${queueName}`);
+              logger.warn(
+                `Unknown job state ${jobState} for job ${jobId} in queue ${queueName}`
+              );
               continue; // Try next queue
           }
         } catch (queueError) {
-          logger.debug(`Error checking job ${jobId} in queue ${queueName}:`, queueError);
+          logger.debug(
+            `Error checking job ${jobId} in queue ${queueName}:`,
+            queueError
+          );
           continue; // Try next queue
         }
       }
@@ -550,14 +580,9 @@ export class JobsMetadataService {
         SET result = $1, status = $2, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE job_id = $3 AND user_id = $4
       `;
-      
-      const values = [
-        JSON.stringify(data),
-        JobStatus.COMPLETED,
-        jobId,
-        userId
-      ];
-      
+
+      const values = [JSON.stringify(data), JobStatus.COMPLETED, jobId, userId];
+
       const q = new Postgres.Query(query, values);
       await Postgres.query(q);
       logger.debug(`Updated database result for job ${jobId}`);
