@@ -126,9 +126,6 @@ export class AgentSelector extends BaseAgent {
         }
       }
 
-      const availableAgentsForUser = userAgents;
-      const agentInfoForUser = userAgentInfo;
-
       logger.debug(
         `AgentSelector: Found ${userAgents.size} agents for user ${userId}`
       );
@@ -136,12 +133,12 @@ export class AgentSelector extends BaseAgent {
         throw new Error('No agents found for user ' + userId);
       }
       const result = await model.invoke(
-        agentSelectorPromptContent(agentInfoForUser, input)
+        agentSelectorPromptContent(userAgentInfo, input)
       );
       logger.debug('AgentSelector result:', result);
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
-        const agent = Array.from(availableAgentsForUser.values()).find(
+        const agent = Array.from(userAgents.values()).find(
           (agent) => agent.getAgentConfig().name === r_trim
         );
         if (agent) {

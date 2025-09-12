@@ -22,7 +22,21 @@ export class FileIngestionProcessor {
     );
 
     try {
-      const content = buffer.toString('base64');
+      // Determine if we need to encode as base64 or can pass buffer directly
+      const isTextFile = mimeType.startsWith('text/') || 
+                        mimeType === 'application/json' ||
+                        mimeType === 'application/csv';
+      
+      let content: string | Buffer;
+      let contentEncoding: 'base64' | 'utf8' | undefined;
+      
+      if (isTextFile) {
+        content = buffer;
+        contentEncoding = undefined;
+      } else {
+        content = buffer.toString('base64');
+        contentEncoding = 'base64';
+      }
 
       const jobResult =
         await this.fileIngestionWorkerService.processFileIngestionJob({
@@ -36,7 +50,7 @@ export class FileIngestionProcessor {
           options: {
             generateEmbeddings: true,
             storeInVectorDB: true,
-            contentEncoding: 'base64',
+            contentEncoding,
           },
         });
 

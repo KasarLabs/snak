@@ -81,7 +81,7 @@ export interface FileIngestionJobData {
   userId: string;
   originalName: string;
   mimeType: SupportedMimeType;
-  content: string | Uint8Array;
+  content: string | Uint8Array | Buffer;
   size: number;
   options?: Partial<FileProcessingOptions>;
 }
