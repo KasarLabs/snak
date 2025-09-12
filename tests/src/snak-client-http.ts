@@ -30,22 +30,22 @@ export class SnakClient {
 
     this.client.interceptors.request.use(
       (config) => {
-        console.log(`🚀 ${config.method?.toUpperCase()} ${config.url}`);
+        console.log(`${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
-        console.error('❌ Request error:', error.message);
+        console.error('Request error:', error.message);
         return Promise.reject(error);
       }
     );
 
     this.client.interceptors.response.use(
       (response) => {
-        console.log(`✅ ${response.status} ${response.config.url}`);
+        console.log(`Success: ${response.status} ${response.config.url}`);
         return response;
       },
       (error) => {
-        console.error(`❌ ${error.response?.status || 'Network Error'} ${error.config?.url}:`, error.message);
+        console.error(`Error: ${error.response?.status || 'Network Error'} ${error.config?.url}:`, error.message);
         return Promise.reject(error);
       }
     );

@@ -14,15 +14,15 @@ const config: SnakConfig = {
 };
 
 async function main() {
-  console.log(chalk.blue.bold('🚀 Snak API Test Suite\n'));
+  console.log(chalk.blue.bold('Snak API Test Suite\n'));
   if (!port) {
-    console.error(chalk.red('❌ SERVER_PORT is required'));
+    console.error(chalk.red('Error: SERVER_PORT is required'));
     process.exit(1);
   }
 
-  console.log(chalk.blue(`📍 Testing against: ${config.baseUrl}`));
+  console.log(chalk.blue(`Testing against: ${config.baseUrl}`));
   if (config.userId) {
-    console.log(chalk.blue(`👤 User ID: ${config.userId}`));
+    console.log(chalk.blue(`User ID: ${config.userId}`));
   }
   console.log('');
 
@@ -35,14 +35,14 @@ async function main() {
     const failedTests = results.filter(r => !r.success);
     
     if (failedTests.length > 0) {
-      console.log(chalk.yellow('\n⚠️  Some tests failed. Check the output above for details.'));
+      console.log(chalk.yellow('\nWarning: Some tests failed. Check the output above for details.'));
       process.exit(1);
     } else {
-      console.log(chalk.green('\n🎉 All tests passed successfully!'));
+      console.log(chalk.green('\nSuccess: All tests passed successfully!'));
       process.exit(0);
     }
   } catch (error) {
-    console.error(chalk.red('\n💥 Test suite crashed:'), error);
+    console.error(chalk.red('\nError: Test suite crashed:'), error);
     process.exit(1);
   }
 }

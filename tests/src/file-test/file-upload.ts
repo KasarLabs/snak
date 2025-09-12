@@ -16,7 +16,7 @@ const config: SnakConfig = {
 };
 
 async function testFiles() {
-  console.log(chalk.blue.bold('📁 Testing File Upload Endpoints\n'));
+  console.log(chalk.blue.bold('Testing File Upload Endpoints\n'));
 
   const testRunner = new TestRunner(config);
 
@@ -55,7 +55,7 @@ async function testFiles() {
   );
 
   if (!createResult.success) {
-    console.log(chalk.red('❌ Failed to create test agent. Cannot proceed with file tests.'));
+    console.log(chalk.red('Error: Failed to create test agent. Cannot proceed with file tests.'));
     return;
   }
   let agentId = '';
@@ -65,26 +65,26 @@ async function testFiles() {
     );
 
     if (!agentsResult.success || !agentsResult.response) {
-      console.log(chalk.red('❌ Failed to get agents list. Cannot proceed with file tests.'));
+      console.log(chalk.red('Error: Failed to get agents list. Cannot proceed with file tests.'));
       return;
     }
 
     const agentsList = (agentsResult.response as any[]) || [];
 
     if (agentsList.length === 0) {
-      console.log(chalk.red('❌ No agents found in the list.'));
+      console.log(chalk.red('Error: No agents found in the list.'));
       return;
     }
 
     const fileTestAgent = agentsList.find((agent: any) => agent.name === 'File Test Agent');
     if (!fileTestAgent) {
-      console.log(chalk.red('❌ File Test Agent not found in agents list.'));
+      console.log(chalk.red('Error: File Test Agent not found in agents list.'));
       console.log(chalk.yellow('Available agents:'), agentsList.map((a: any) => a.name));
       return;
     }
 
     agentId = fileTestAgent.id;
-    console.log(chalk.green(`✅ Using agent ID: ${agentId}`));
+    console.log(chalk.green(`Success: Using agent ID: ${agentId}`));
 
     const textContent = `This is a test document for file upload testing.
 

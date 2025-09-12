@@ -89,7 +89,7 @@ async function waitForJobCompletion(
         return status;
       }
     } catch (error) {
-      console.log(chalk.yellow(`⚠️  Error checking job status: ${error}`));
+      console.log(chalk.yellow(`Warning: Error checking job status: ${error}`));
     }
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
@@ -115,16 +115,16 @@ async function verifyFileInDatabase(
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, retryDelay));
         } else {
-          console.log(chalk.red(`    ❌ File ${filename} NOT found after ${maxRetries} attempts`));
+          console.log(chalk.red(`    Error: File ${filename} NOT found after ${maxRetries} attempts`));
           return false;
         }
       }
     } catch (error) {
       if (attempt < maxRetries) {
-        console.log(chalk.yellow(`    ⚠️  Error checking file list (${attempt}/${maxRetries}): ${error}`));
+        console.log(chalk.yellow(`    Warning: Error checking file list (${attempt}/${maxRetries}): ${error}`));
         await new Promise(resolve => setTimeout(resolve, retryDelay));
       } else {
-        console.log(chalk.red(`    ❌ Failed to verify file ${filename}: ${error}`));
+        console.log(chalk.red(`    Error: Failed to verify file ${filename}: ${error}`));
         return false;
       }
     }
@@ -137,7 +137,7 @@ async function getQueueMetrics(testRunner: TestRunner): Promise<QueueMetrics[]> 
   try {
     return await testRunner.client.getQueueMetrics();
   } catch (error) {
-    console.log(chalk.yellow(`⚠️  Could not fetch queue metrics: ${error}`));
+    console.log(chalk.yellow(`Warning: Could not fetch queue metrics: ${error}`));
     return [];
   }
 }
@@ -157,7 +157,7 @@ async function uploadFileWithJobTracking(
 }
 
 async function testFileStressWithJobQueue() {
-  console.log(chalk.blue.bold('🚀 File Upload Stress Test v2 - Job Queue System\n'));
+  console.log(chalk.blue.bold('File Upload Stress Test v2 - Job Queue System\n'));
   console.log(chalk.yellow('Testing: Concurrent file uploads with job queue monitoring\n'));
 
   const testResults: TestResult[] = [];
@@ -177,13 +177,13 @@ async function testFileStressWithJobQueue() {
 
   // Run test scenarios
   for (const scenario of testScenarios) {
-    console.log(chalk.blue(`\n🧪 Testing ${scenario.name}: ${scenario.files} files with ${scenario.files} different users`));
+    console.log(chalk.blue(`\nTesting ${scenario.name}: ${scenario.files} files with ${scenario.files} different users`));
     
     const scenarioCreatedAgents: { testRunner: TestRunner; agentId: string; userId: string }[] = [];
     
     for (const fileSize of scenario.sizes) {
       const testName = `${scenario.name} - ${fileSize}KB files`;
-      console.log(chalk.blue(`\n📁 Testing ${scenario.files} files of ~${fileSize}KB each with ${scenario.files} different users`));
+      console.log(chalk.blue(`\nTesting ${scenario.files} files of ~${fileSize}KB each with ${scenario.files} different users`));
       
       const startTime = Date.now();
       const jobIds: string[] = [];
@@ -203,7 +203,7 @@ async function testFileStressWithJobQueue() {
       const totalSize = files.reduce((sum, file) => sum + file.size, 0);
       
       // Create users and agents for each file
-      console.log(chalk.blue(`👥 Creating ${scenario.files} users and agents...`));
+      console.log(chalk.blue(`Creating ${scenario.files} users and agents...`));
       const agentCreationPromises = files.map(async (file, index) => {
         const fileConfig = createConfigForFile(scenario.name, index);
         const fileTestRunner = new TestRunner(fileConfig);
@@ -249,7 +249,7 @@ async function testFileStressWithJobQueue() {
         );
 
         if (!createResult.success) {
-          console.log(chalk.red(`  ❌ Failed to create agent for user ${index + 1}: ${createResult.error}`));
+          console.log(chalk.red(`  Error: Failed to create agent for user ${index + 1}: ${createResult.error}`));
           return null;
         }
 
@@ -258,7 +258,7 @@ async function testFileStressWithJobQueue() {
         );
 
         if (!agentsResult.success || !agentsResult.response) {
-          console.log(chalk.red(`  ❌ Failed to get agents list for user ${index + 1}`));
+          console.log(chalk.red(`  Error: Failed to get agents list for user ${index + 1}`));
           return null;
         }
 
@@ -268,7 +268,7 @@ async function testFileStressWithJobQueue() {
 
         const userAgent = agentsList.find((agent: any) => agent.name === uniqueAgentName);
         if (!userAgent) {
-          console.log(chalk.red(`  ❌ Agent not found for user ${index + 1}`));
+          console.log(chalk.red(`  Error: Agent not found for user ${index + 1}`));
           return null;
         }
 
@@ -283,15 +283,15 @@ async function testFileStressWithJobQueue() {
       const validAgents = agentResults.filter(agent => agent !== null) as { testRunner: TestRunner; agentId: string; userId: string }[];
       
       if (validAgents.length === 0) {
-        console.log(chalk.red(`❌ No valid agents created for ${scenario.name}`));
+        console.log(chalk.red(`Error: No valid agents created for ${scenario.name}`));
         continue;
       }
       
-      console.log(chalk.green(`  ✅ Created ${validAgents.length} agents successfully`));
+      console.log(chalk.green(`  Success: Created ${validAgents.length} agents successfully`));
       
       scenarioCreatedAgents.push(...validAgents);
       
-      console.log(chalk.blue(`🚀 Starting concurrent uploads with ${validAgents.length} users...`));
+      console.log(chalk.blue(`Starting concurrent uploads with ${validAgents.length} users...`));
       const uploadPromises = files.map(async (file, index) => {
         if (index >= validAgents.length) {
           return { success: false, error: 'No agent available' };
@@ -317,7 +317,7 @@ async function testFileStressWithJobQueue() {
       
       const successfulUploads = uploadResults.filter(r => r.success).length;
       const failedUploads = uploadResults.filter(r => !r.success).length;
-      console.log(chalk.green(`  ✅ Uploads completed: ${successfulUploads} successful, ${failedUploads} failed`));
+      console.log(chalk.green(`  Success: Uploads completed: ${successfulUploads} successful, ${failedUploads} failed`));
       
       const jobToAgentMap = new Map();
       uploadResults.forEach(result => {
@@ -327,11 +327,11 @@ async function testFileStressWithJobQueue() {
       });
       
       // Wait for all jobs to complete
-      console.log(chalk.blue(`⏳ Waiting for ${jobIds.length} jobs to complete...`));
+      console.log(chalk.blue(`Waiting for ${jobIds.length} jobs to complete...`));
       const jobCompletionPromises = jobIds.map(async (jobId, index) => {
         const agent = jobToAgentMap.get(jobId);
         if (!agent) {
-          console.log(chalk.red(`  ❌ No agent found for job ${jobId}`));
+          console.log(chalk.red(`  Error: No agent found for job ${jobId}`));
           return null;
         }
         
@@ -354,7 +354,7 @@ async function testFileStressWithJobQueue() {
       const completedJobs = jobStatuses.filter(status => status?.status === 'completed').length;
       const failedJobs = jobStatuses.filter(status => status?.status === 'failed').length;
       const timedOutJobs = jobStatuses.filter(status => !status).length;
-      console.log(chalk.green(`  ✅ Jobs completed: ${completedJobs} successful, ${failedJobs} failed, ${timedOutJobs} timed out`));
+      console.log(chalk.green(`  Success: Jobs completed: ${completedJobs} successful, ${failedJobs} failed, ${timedOutJobs} timed out`));
       
       const finalMetrics = await getQueueMetrics(validAgents[0].testRunner);
       
@@ -377,7 +377,7 @@ async function testFileStressWithJobQueue() {
       testResults.push(testResult);
       
       // Verify all files are actually stored for each agent
-      console.log(chalk.blue(`\n🔍 Verifying file storage...`));
+      console.log(chalk.blue(`\nVerifying file storage...`));
       let totalFilesStored = 0;
       for (const agent of validAgents) {
         try {
@@ -388,9 +388,9 @@ async function testFileStressWithJobQueue() {
           console.log(chalk.red(`  • Agent: Failed to list files - ${error}`));
         }
       }
-      console.log(chalk.green(`  ✅ Total files stored: ${totalFilesStored}`));
+      console.log(chalk.green(`  Success: Total files stored: ${totalFilesStored}`));
 
-      console.log(chalk.blue(`\n📊 ${testName}:`));
+      console.log(chalk.blue(`\n${testName}:`));
       console.log(chalk.blue(`  • Time: ${totalTime}ms | Throughput: ${throughput.toFixed(2)} KB/s`));
       console.log(chalk.blue(`  • Average time per file: ${(totalTime / files.length).toFixed(2)}ms`));
       console.log(chalk.blue(`  • Success: ${completedJobs}/${files.length} | Files stored: ${totalFilesStored}`));
@@ -405,7 +405,7 @@ async function testFileStressWithJobQueue() {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
     
-    console.log(chalk.blue(`\n🧹 Cleaning up ${scenarioCreatedAgents.length} agents...`));
+    console.log(chalk.blue(`\nCleaning up ${scenarioCreatedAgents.length} agents...`));
     const cleanupPromises = scenarioCreatedAgents.map(async (agent: { testRunner: TestRunner; agentId: string; userId: string }, index: number) => {
       try {
         await agent.testRunner.runTest(`Cleanup - Delete Agent ${index + 1}`, () => 
@@ -413,7 +413,7 @@ async function testFileStressWithJobQueue() {
         );
         return { success: true, index };
       } catch (error) {
-        console.log(chalk.red(`  ❌ Failed to cleanup agent ${index + 1}: ${error}`));
+        console.log(chalk.red(`  Error: Failed to cleanup agent ${index + 1}: ${error}`));
         return { success: false, index, error };
       }
     });
@@ -421,14 +421,14 @@ async function testFileStressWithJobQueue() {
     const cleanupResults = await Promise.all(cleanupPromises);
     const successfulCleanups = cleanupResults.filter(r => r.success).length;
     const failedCleanups = cleanupResults.filter(r => !r.success).length;
-    console.log(chalk.green(`  ✅ Cleanup completed: ${successfulCleanups} successful, ${failedCleanups} failed`));
+    console.log(chalk.green(`  Success: Cleanup completed: ${successfulCleanups} successful, ${failedCleanups} failed`));
   }
 
-  console.log(chalk.blue.bold('\n📈 Overall Test Summary:'));
+  console.log(chalk.blue.bold('\nOverall Test Summary:'));
   console.log(chalk.blue('='.repeat(50)));
   
   testResults.forEach(result => {
-    const status = result.success ? chalk.green('✅ PASS') : chalk.red('❌ FAIL');
+    const status = result.success ? chalk.green('PASS') : chalk.red('FAIL');
     console.log(chalk.blue(`${status} ${result.testName}`));
     console.log(chalk.blue(`  Duration: ${result.duration}ms, Throughput: ${result.throughput.toFixed(2)} KB/s`));
     if (result.error) {
@@ -445,7 +445,7 @@ async function testFileStressWithJobQueue() {
     return sum + (r.success ? r.jobIds.length : 0);
   }, 0);
   
-  console.log(chalk.blue(`\n📊 Final Statistics:`));
+  console.log(chalk.blue(`\nFinal Statistics:`));
   console.log(chalk.blue(`  • Tests passed: ${passedTests}/${totalTests}`));
   console.log(chalk.blue(`  • Average throughput: ${avgThroughput.toFixed(2)} KB/s`));
   console.log(chalk.blue(`  • Total jobs created: ${totalJobsCreated}`));
