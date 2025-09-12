@@ -7,7 +7,7 @@ export const configSchema = z
       host: z.string().min(1).default('redis'),
       port: z.coerce.number().int().min(1).max(65535).default(6379),
       password: z.string().optional(),
-      db: z.number().int().min(0).default(0),
+      db: z.coerce.number().int().min(0).default(0),
     }),
     queues: z
       .object({
@@ -40,9 +40,9 @@ export function loadWorkerConfig(): WorkerConfig {
     },
     concurrency: {
       fileIngestion: parseInt(process.env.CONCURRENCY_FILE_INGESTION ?? '2'),
-      embeddings: parseInt(process.env.CONCURRENCY_EMBEDDINGS ?? '2'),
+      embeddings: parseInt(process.env.CONCURRENCY_EMBEDDINGS ?? '1'),
       fallbackWorkers: parseInt(
-        process.env.CONCURRENCY_FALLBACK_WORKERS ?? '8'
+        process.env.CONCURRENCY_FALLBACK_WORKERS ?? '1'
       ),
       workerIdleTimeout: parseInt(
         process.env.CONCURRENCY_WORKER_IDLE_TIMEOUT ?? '30000'

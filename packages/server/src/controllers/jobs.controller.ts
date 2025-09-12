@@ -7,6 +7,7 @@ import {
   ForbiddenException,
   Param,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   JobNotFoundError,
@@ -30,7 +31,12 @@ export class JobsController {
     @Req() request: FastifyRequest
   ) {
     try {
-      const userId = getUserIdFromHeaders(request);
+      let userId: string;
+      try{
+        userId = getUserIdFromHeaders(request);
+      } catch {
+        throw new UnauthorizedException('Missing or invalid authentication headers');
+      }
       const status = await this.workersService.getJobStatusForUser(
         jobId,
         userId
@@ -50,9 +56,10 @@ export class JobsController {
         error: status.error,
       };
     } catch (error) {
-      logger.error(`Failed to get job status for ${jobId}:`, error);
-
       if (error instanceof NotFoundException) {
+        throw error;
+      }
+      if (error instanceof UnauthorizedException) {
         throw error;
       }
 
@@ -92,6 +99,10 @@ export class JobsController {
       return result;
     } catch (error) {
       logger.error(`Failed to get job result for ${jobId}:`, error);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+ 
 
       if (error instanceof JobNotFoundError) {
         throw new NotFoundException(error.message);

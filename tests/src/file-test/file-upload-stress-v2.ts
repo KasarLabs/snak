@@ -33,6 +33,9 @@ interface TestResult {
 }
 
 function generateLargeFileContent(file_size: number): string {
+  if (file_size <= 0) {
+    throw new Error('File size must be a positive number');
+  }
   const targetSize = file_size * 1024;
   const baseStrings = [
     'This is a large test file for stress testing the new job queue system.\n',
@@ -74,7 +77,7 @@ async function waitForJobCompletion(
   testRunner: TestRunner,
   jobId: string,
   maxWaitTime: number = 60000,
-  pollInterval: number = 2750
+  pollInterval: number = 100
 ): Promise<JobStatus | null> {
   const startTime = Date.now();
   
@@ -332,7 +335,7 @@ async function testFileStressWithJobQueue() {
           return null;
         }
         
-        const jobStatus = await waitForJobCompletion(agent.testRunner, jobId, 600_000); // 600s timeout
+        const jobStatus = await waitForJobCompletion(agent.testRunner, jobId, 60_000); // 600s timeout
         
         if (jobStatus) {
           if (jobStatus.status === 'completed') {

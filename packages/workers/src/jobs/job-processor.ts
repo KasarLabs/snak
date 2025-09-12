@@ -4,6 +4,7 @@ import { FileIngestionProcessor } from './file-ingestion-processor.js';
 import { logger } from '@snakagent/core';
 import {
   FileIngestionResult,
+  JobStatus,
   ResultSource,
   ResultStatus,
 } from '../types/index.js';
@@ -30,6 +31,10 @@ export class JobProcessor {
   }
 
   async initialize(): Promise<void> {
+    if (this.fileIngestionQueue) {
+      logger.warn('JobProcessor already initialized');
+      return;
+    }
     this.fileIngestionQueue = new FileIngestionQueue(this.queueManager);
   }
 
@@ -41,7 +46,6 @@ export class JobProcessor {
 
     const config = this.queueManager.getConfig();
 
-    // Always try to start processing, the method will handle duplicates
     await this.startFileIngestionProcessing(config.concurrency.fileIngestion);
 
     this.isProcessingStarted = true;
@@ -55,8 +59,6 @@ export class JobProcessor {
       throw new Error('FileIngestionQueue not initialized');
     }
     const queue = this.fileIngestionQueue.getQueue();
-
-    // Check if processor is already registered
     if (this.isFileIngestionProcessorRegistered) {
       logger.info(
         'File ingestion processor already registered, ensuring queue is active'
@@ -69,32 +71,20 @@ export class JobProcessor {
       return;
     }
 
-    // Remove all existing listeners to avoid duplicates
-    queue.removeAllListeners();
+    // Remove only our listeners to avoid duplicates
+    queue.removeListener('error', this.handleQueueError);
+    queue.removeListener('failed', this.handleJobFailed);
+    queue.removeListener('stalled', this.handleJobStalled);
+    queue.removeListener('active', this.handleJobActive);
+    queue.removeListener('completed', this.handleJobCompleted);
+    queue.removeListener('waiting', this.handleJobWaiting);
 
-    queue.on('error', (error) => {
-      logger.error(`File ingestion queue error:`, error);
-    });
-
-    queue.on('failed', (job, err) => {
-      logger.error(`File ingestion job ${job.id} failed:`, err);
-    });
-
-    queue.on('stalled', (job) => {
-      logger.warn(`File ingestion job ${job.id} stalled`);
-    });
-
-    queue.on('active', (job) => {
-      logger.info(`File ingestion job ${job.id} is now active`);
-    });
-
-    queue.on('completed', (job) => {
-      logger.info(`File ingestion job ${job.id} completed successfully`);
-    });
-
-    queue.on('waiting', (jobId) => {
-      logger.info(`File ingestion job ${jobId} is waiting`);
-    });
+    queue.on('error', this.handleQueueError);
+    queue.on('failed', this.handleJobFailed);
+    queue.on('stalled', this.handleJobStalled);
+    queue.on('active', this.handleJobActive);
+    queue.on('completed', this.handleJobCompleted);
+    queue.on('waiting', this.handleJobWaiting);
 
     // Ensure the queue is not paused before processing
     if (await queue.isPaused()) {
@@ -146,7 +136,7 @@ export class JobProcessor {
         });
 
         await this.jobsMetadataService.updateJobMetadata(job.id.toString(), {
-          status: 'completed' as any,
+          status: JobStatus.COMPLETED,
           completedAt: new Date(),
           result: result,
         });
@@ -178,7 +168,7 @@ export class JobProcessor {
         });
 
         await this.jobsMetadataService.updateJobMetadata(job.id.toString(), {
-          status: 'failed' as any, // 'failed' is valid in database
+          status: JobStatus.FAILED, // 'failed' is valid in database
           completedAt: new Date(),
           error: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -210,6 +200,11 @@ export class JobProcessor {
 
     await this.queueManager.pauseQueue(config.queues.fileIngestion);
 
+    if (this.fileIngestionQueue) {
+      const queue = this.fileIngestionQueue.getQueue();
+      await queue.close();
+    }
+
     this.isProcessingStarted = false;
     this.isFileIngestionProcessorRegistered = false;
     logger.info('All job processors stopped');
@@ -237,11 +232,13 @@ export class JobProcessor {
   async forceRestartProcessing(): Promise<void> {
     logger.info('Force restarting job processing...');
 
-    // Reset state
+    if (!this.fileIngestionQueue) {
+      await this.initialize();
+    }
+
     this.isProcessingStarted = false;
     this.isFileIngestionProcessorRegistered = false;
 
-    // Restart processing
     await this.startProcessing();
 
     logger.info('Job processing force restarted');
@@ -271,4 +268,29 @@ export class JobProcessor {
       queueName: queue.name,
     };
   }
+
+  // Event handler methods for proper listener management
+  private readonly handleQueueError = (error: Error): void => {
+    logger.error(`File ingestion queue error:`, error);
+  };
+
+  private readonly handleJobFailed = (job: Job, err: Error): void => {
+    logger.error(`File ingestion job ${job.id} failed:`, err);
+  };
+
+  private readonly handleJobStalled = (job: Job): void => {
+    logger.warn(`File ingestion job ${job.id} stalled`);
+  };
+
+  private readonly handleJobActive = (job: Job): void => {
+    logger.info(`File ingestion job ${job.id} is now active`);
+  };
+
+  private readonly handleJobCompleted = (job: Job): void => {
+    logger.info(`File ingestion job ${job.id} completed successfully`);
+  };
+
+  private readonly handleJobWaiting = (jobId: string): void => {
+    logger.info(`File ingestion job ${jobId} is waiting`);
+  };
 }

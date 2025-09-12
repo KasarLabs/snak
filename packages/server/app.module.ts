@@ -1,20 +1,22 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, Reflector } from '@nestjs/core';
 import { ApiKeyGuard } from './src/guard/ApikeyGuard.js';
 import { ConfigModule } from './config/config.module.js';
 import { CleanupModule } from './common/cleanup/cleanup.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { GatewayModule } from './src/modules/gateway.module.js';
 import { FileIngestionModule } from './src/modules/file-ingestion.module.js';
 import { WorkersModule } from './src/modules/workers.module.js';
 
 @Module({
   imports: [
-    GatewayModule,
+    ScheduleModule.forRoot(),
     ConfigModule,
-    CleanupModule,
+    GatewayModule,
     FileIngestionModule,
     WorkersModule,
+    CleanupModule,
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -25,6 +27,7 @@ import { WorkersModule } from './src/modules/workers.module.js';
     }),
   ],
   providers: [
+    Reflector,
     {
       provide: APP_GUARD,
       useClass: ApiKeyGuard,

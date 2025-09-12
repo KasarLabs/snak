@@ -1,8 +1,8 @@
 import type { Job } from 'bull';
 import { Injectable } from '@nestjs/common';
-import { FileIngestionJobPayload } from '../queues/file-ingestion-queue.schema.js';
+import type { FileIngestionJobPayload } from '../queues/file-ingestion-queue.schema.js';
 import { logger } from '@snakagent/core';
-import { FileIngestionResult } from '../types/index.js';
+import type { FileIngestionResult } from '../types/index.js';
 import { FileIngestionWorkerService } from '../services/file-ingestion-worker/file-ingestion-worker.service.js';
 
 @Injectable()

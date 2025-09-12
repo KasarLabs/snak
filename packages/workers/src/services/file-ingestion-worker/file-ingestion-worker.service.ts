@@ -21,25 +21,44 @@ import {
 } from '../../types/file-ingestion.js';
 import { rag } from '@snakagent/database/queries';
 
-const userMutexes = new Map<string, Promise<void>>();
+interface MutexEntry {
+  promise: Promise<void>;
+  resolve: () => void;
+  waiting: number;
+}
+
+const userMutexes = new Map<string, MutexEntry>();
 
 async function acquireUserMutex(userId: string): Promise<() => void> {
-  const existingMutex = userMutexes.get(userId);
+  let entry = userMutexes.get(userId);
+  
+  if (entry) {
+    entry.waiting++;
+    await entry.promise;
+    entry = userMutexes.get(userId);
+    if (!entry) {
 
-  if (existingMutex) {
-    await existingMutex;
+      let resolve: () => void;
+      const promise = new Promise<void>((r) => { resolve = r; });
+      entry = { promise, resolve: resolve!, waiting: 1 };
+      userMutexes.set(userId, entry);
+    }
+  } else {
+    let resolve: () => void;
+    const promise = new Promise<void>((r) => { resolve = r; });
+    entry = { promise, resolve: resolve!, waiting: 1 };
+    userMutexes.set(userId, entry);
   }
 
-  let releaseMutex: () => void;
-  const mutexPromise = new Promise<void>((resolve) => {
-    releaseMutex = resolve;
-  });
-
-  userMutexes.set(userId, mutexPromise);
-
   return () => {
-    userMutexes.delete(userId);
-    releaseMutex();
+    const currentEntry = userMutexes.get(userId);
+    if (currentEntry) {
+      currentEntry.waiting--;
+      if (currentEntry.waiting <= 0) {
+        userMutexes.delete(userId);
+      }
+      currentEntry.resolve();
+    }
   };
 }
 
@@ -106,10 +125,12 @@ export class FileIngestionWorkerService {
       });
 
       const MAX_CHUNKS = 200;
+      let processedChunks = chunks;
       if (chunks.length > MAX_CHUNKS) {
-        chunks.splice(MAX_CHUNKS);
+        const originalLength = chunks.length;
+        processedChunks = chunks.slice(0, MAX_CHUNKS);
         logger.warn(
-          `File ${originalName} had ${chunks.length} chunks, limited to ${MAX_CHUNKS}`
+          `File ${originalName} had ${originalLength} chunks, limited to ${MAX_CHUNKS}`
         );
       }
 
@@ -504,30 +525,6 @@ export class FileIngestionWorkerService {
       return false; // Storage limit errors are not retryable
     }
 
-    // Network errors, temporary service unavailability, etc. are retryable
     return true;
-  }
-
-  /**
-   * Get file ingestion progress (for future use with progress tracking)
-   * @param documentId - The document ID
-   * @returns The current progress
-   */
-  async getFileIngestionProgress(
-    documentId: string
-  ): Promise<FileIngestionProgress> {
-    // This would typically query a progress tracking system
-    // For now, return a basic progress object
-    return {
-      documentId,
-      status: FileIngestionStatus.COMPLETED,
-      progress: 100,
-      currentStep: 'completed',
-      totalSteps: 1,
-      completedSteps: 1,
-      startedAt: new Date(),
-      updatedAt: new Date(),
-      completedAt: new Date(),
-    };
   }
 }

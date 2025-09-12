@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 -- Agent-based job lookup index
 -- Used for: Finding all jobs for a specific agent
 -- Query pattern: WHERE agent_id = ? ORDER BY created_at DESC
-CREATE INDEX IF NOT EXISTS idx_jobs_agent_id ON jobs(agent_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_agent_id_created_at ON jobs(agent_id, created_at DESC);
 
 -- User status and time-based job filtering index
 -- Used for: Dashboard queries showing user's jobs by status and time

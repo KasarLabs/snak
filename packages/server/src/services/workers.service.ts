@@ -183,6 +183,7 @@ export class WorkersService implements OnModuleInit, OnModuleDestroy {
           logger.error(
             `Job metadata ownership mismatch for job ${jobId}: metadata.userId=${jobMetadata.userId}, requested.userId=${userId}`
           );
+          throw new JobAccessDeniedError(jobId, userId);
         } else {
           const statusString = String(jobMetadata.status);
           const isCompleted = statusString === 'completed';

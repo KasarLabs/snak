@@ -14,16 +14,61 @@ import {
   ResultStatus,
 } from '../../types/jobs.js';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
+import { QueueManager } from '../../queues/queue-manager.js';
+
+interface MutexEntry {
+  promise: Promise<void>;
+  resolve: () => void;
+  waiting: number;
+}
+
+const userMutexes = new Map<string, MutexEntry>();
+
+async function acquireUserMutex(userId: string): Promise<() => void> {
+  let entry = userMutexes.get(userId);
+  
+  if (entry) {
+    entry.waiting++;
+    await entry.promise;
+    // After waiting, check if we need to create a new mutex
+    entry = userMutexes.get(userId);
+    if (!entry) {
+      // Create new mutex if the previous one was released
+      let resolve: () => void;
+      const promise = new Promise<void>((r) => { resolve = r; });
+      entry = { promise, resolve: resolve!, waiting: 1 };
+      userMutexes.set(userId, entry);
+    }
+  } else {
+    let resolve: () => void;
+    const promise = new Promise<void>((r) => { resolve = r; });
+    entry = { promise, resolve: resolve!, waiting: 1 };
+    userMutexes.set(userId, entry);
+  }
+
+  return () => {
+    const currentEntry = userMutexes.get(userId);
+    if (currentEntry) {
+      currentEntry.waiting--;
+      if (currentEntry.waiting <= 0) {
+        userMutexes.delete(userId);
+      }
+      currentEntry.resolve();
+    }
+  };
+}
 
 @Injectable()
 export class JobsMetadataService {
-  constructor(@Optional() private readonly cacheService?: RedisCacheService) {}
+  constructor(
+    @Optional() private readonly cacheService?: RedisCacheService,
+    @Optional() private readonly queueManager?: QueueManager
+  ) {}
 
   async createJobMetadata(data: CreateJobMetadataData): Promise<JobMetadata> {
     const jobId = data.jobId || data.payload?.jobId;
 
     try {
-      // Validate required fields
       if (!jobId) {
         throw new Error(
           'jobId is required (either in data.jobId or data.payload.jobId)'
@@ -44,10 +89,7 @@ export class JobsMetadataService {
         )
         RETURNING *
       `;
-      logger.debug(`query: ${query}`);
-      logger.debug(
-        `Creating job metadata with data:${jobId}, ${data.agentId}, ${data.userId}, ${data.status}`
-      );
+      logger.debug(`Creating job metadata for jobId: ${jobId}`);
 
       const values = [
         jobId,
@@ -75,41 +117,25 @@ export class JobsMetadataService {
     data: UpdateJobMetadataData
   ): Promise<JobMetadata | null> {
     try {
-      const updateFields: string[] = [];
-      const values: any[] = [];
-      let paramIndex = 1;
-
-      if (data.status !== undefined) {
-        updateFields.push(`status = $${paramIndex++}`);
-        values.push(data.status);
-      }
-
-      if (data.error !== undefined) {
-        updateFields.push(`error = $${paramIndex++}`);
-        values.push(data.error);
-      }
-
-      if (data.startedAt !== undefined) {
-        updateFields.push(`started_at = $${paramIndex++}`);
-        values.push(data.startedAt);
-      }
-
-      if (data.completedAt !== undefined) {
-        updateFields.push(`completed_at = $${paramIndex++}`);
-        values.push(data.completedAt);
-      }
-
-      if (updateFields.length === 0) {
+      const updateFields: Record<string, any> = {};
+      
+      if (data.status !== undefined) updateFields.status = data.status;
+      if (data.error !== undefined) updateFields.error = data.error;
+      if (data.startedAt !== undefined) updateFields.started_at = data.startedAt;
+      if (data.completedAt !== undefined) updateFields.completed_at = data.completedAt;
+      
+      const fieldNames = Object.keys(updateFields);
+      if (fieldNames.length === 0) {
         return await this.getJobMetadata(jobId);
       }
-
-      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
-      values.push(jobId);
-
+      
+      const setClause = fieldNames.map((field, index) => `${field} = $${index + 1}`).join(', ');
+      const values = [...Object.values(updateFields), jobId];
+      
       const query = `
         UPDATE jobs 
-        SET ${updateFields.join(', ')}
-        WHERE job_id = $${paramIndex}
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+        WHERE job_id = $${fieldNames.length + 1}
         RETURNING *
       `;
 
@@ -253,58 +279,77 @@ export class JobsMetadataService {
         };
       }
 
-      const dbResult = await this.getFromDatabase(jobId, userId);
-      if (dbResult) {
-        if (this.cacheService) {
-          await this.cacheService.setJobRetrievalResult(jobId, dbResult);
-        }
-        logger.debug(`Result retrieved from database for job ${jobId}`);
-        return {
-          ...dbResult,
-          source: ResultSource.DATABASE,
-        };
-      }
-
-      if (fallbackToBull) {
-        const bullResult = await this.getFromBull(jobId, userId);
-        if (bullResult) {
-          if (this.cacheService) {
-            await this.cacheService.setJobRetrievalResult(jobId, bullResult);
-          }
-          await this.updateDatabaseResult(jobId, userId, bullResult.data);
-          logger.debug(`Result retrieved from Bull for job ${jobId}`);
+      const releaseMutex = await acquireUserMutex(userId);
+      
+      try {
+        const cachedResult2 = await this.getFromCache(jobId, userId);
+        if (cachedResult2) {
+          logger.debug(`Result retrieved from cache (double-check) for job ${jobId}`);
           return {
-            ...bullResult,
-            source: ResultSource.BULL,
+            ...cachedResult2,
+            source: ResultSource.CACHE,
           };
         }
-      }
 
-      const jobMetadata = await this.getJobMetadataForUser(jobId, userId);
-      if (jobMetadata) {
-        if (
-          jobMetadata.status === JobStatus.ACTIVE ||
-          jobMetadata.status === JobStatus.PENDING
-        ) {
+        const dbResult = await this.getFromDatabase(jobId, userId);
+        if (dbResult) {
+          if (this.cacheService) {
+            this.cacheService.setJobRetrievalResult(jobId, dbResult).catch(err => 
+              logger.warn(`Failed to cache result for job ${jobId}:`, err)
+            );
+          }
+          logger.debug(`Result retrieved from database for job ${jobId}`);
           return {
-            jobId,
-            agentId: jobMetadata.agentId || '',
-            userId: jobMetadata.userId,
-            status: ResultStatus.PROCESSING,
-            createdAt: jobMetadata.createdAt,
+            ...dbResult,
             source: ResultSource.DATABASE,
           };
         }
-      }
 
-      return {
-        jobId,
-        agentId: '',
-        userId,
-        status: ResultStatus.NOT_FOUND,
-        createdAt: new Date(),
-        source: ResultSource.DATABASE,
-      };
+        if (fallbackToBull) {
+          const bullResult = await this.getFromBull(jobId, userId);
+          if (bullResult) {
+            if (this.cacheService) {
+              this.cacheService.setJobRetrievalResult(jobId, bullResult).catch(err => 
+                logger.warn(`Failed to cache Bull result for job ${jobId}:`, err)
+              );
+            }
+            await this.updateDatabaseResult(jobId, userId, bullResult.data);
+            logger.debug(`Result retrieved from Bull for job ${jobId}`);
+            return {
+              ...bullResult,
+              source: ResultSource.BULL,
+            };
+          }
+        }
+
+        const jobMetadata = await this.getJobMetadataForUser(jobId, userId);
+        if (jobMetadata) {
+          if (
+            jobMetadata.status === JobStatus.ACTIVE ||
+            jobMetadata.status === JobStatus.PENDING
+          ) {
+            return {
+              jobId,
+              agentId: jobMetadata.agentId || '',
+              userId: jobMetadata.userId,
+              status: ResultStatus.PROCESSING,
+              createdAt: jobMetadata.createdAt,
+              source: ResultSource.DATABASE,
+            };
+          }
+        }
+
+        return {
+          jobId,
+          agentId: '',
+          userId,
+          status: ResultStatus.NOT_FOUND,
+          createdAt: new Date(),
+          source: ResultSource.DATABASE,
+        };
+      } finally {
+        releaseMutex();
+      }
     } catch (error) {
       logger.error(`Failed to retrieve result for job ${jobId}:`, error);
 
@@ -312,7 +357,7 @@ export class JobsMetadataService {
         try {
           const regeneratedResult = await this.regenerateResult(jobId, userId, {
             forceRegeneration: true,
-            timeout: timeout - (Date.now() - startTime),
+            timeout: Math.max(0, timeout - (Date.now() - startTime)),
           });
 
           if (regeneratedResult) {
@@ -381,7 +426,20 @@ export class JobsMetadataService {
         return null;
       }
 
-      return null;
+      if (!jobMetadata.result) {
+        return null;
+      }
+      
+      return {
+        jobId,
+        agentId: jobMetadata.agentId || '',
+        userId: jobMetadata.userId,
+        status: ResultStatus.COMPLETED,
+        data: jobMetadata.result,
+        createdAt: jobMetadata.createdAt,
+        completedAt: jobMetadata.completedAt,
+        source: ResultSource.DATABASE,
+      };
     } catch (error) {
       logger.debug(`Database retrieval failed for job ${jobId}:`, error);
       return null;
@@ -392,7 +450,88 @@ export class JobsMetadataService {
     jobId: string,
     userId: string
   ): Promise<JobRetrievalResult | null> {
+    if (!this.queueManager) {
+      logger.debug(`QueueManager not available for Bull retrieval of job ${jobId}`);
+      return null;
+    }
+
     try {
+      // Get all configured queues
+      const config = this.queueManager.getConfig();
+      const queueNames = Object.values(config.queues);
+
+      // Search through all queues for the job
+      for (const queueName of queueNames) {
+        const queue = this.queueManager.getQueue(queueName);
+        if (!queue) {
+          logger.debug(`Queue ${queueName} not found`);
+          continue;
+        }
+
+        try {
+          const job = await queue.getJob(jobId);
+          if (!job) {
+            continue;
+          }
+
+          if (job.data?.userId !== userId) {
+            logger.warn(
+              `Job ownership mismatch for job ${jobId}: job.userId=${job.data?.userId}, requested.userId=${userId}`
+            );
+            continue;
+          }
+
+          const jobState = await job.getState();
+          logger.debug(`Job ${jobId} found in queue ${queueName} with state: ${jobState}`);
+
+          switch (jobState) {
+            case 'completed':
+              return {
+                jobId,
+                agentId: job.data?.agentId || '',
+                userId: job.data?.userId || userId,
+                status: ResultStatus.COMPLETED,
+                data: job.returnvalue,
+                createdAt: new Date(job.timestamp),
+                completedAt: job.finishedOn ? new Date(job.finishedOn) : undefined,
+                source: ResultSource.BULL,
+              };
+
+            case 'failed':
+              return {
+                jobId,
+                agentId: job.data?.agentId || '',
+                userId: job.data?.userId || userId,
+                status: ResultStatus.FAILED,
+                error: job.failedReason,
+                createdAt: new Date(job.timestamp),
+                completedAt: job.finishedOn ? new Date(job.finishedOn) : undefined,
+                source: ResultSource.BULL,
+              };
+
+            case 'active':
+            case 'waiting':
+            case 'delayed':
+              return {
+                jobId,
+                agentId: job.data?.agentId || '',
+                userId: job.data?.userId || userId,
+                status: ResultStatus.PROCESSING,
+                createdAt: new Date(job.timestamp),
+                source: ResultSource.BULL,
+              };
+
+            default:
+              logger.warn(`Unknown job state ${jobState} for job ${jobId} in queue ${queueName}`);
+              continue; // Try next queue
+          }
+        } catch (queueError) {
+          logger.debug(`Error checking job ${jobId} in queue ${queueName}:`, queueError);
+          continue; // Try next queue
+        }
+      }
+
+      logger.debug(`Job ${jobId} not found in any Bull queue`);
       return null;
     } catch (error) {
       logger.debug(`Bull retrieval failed for job ${jobId}:`, error);
@@ -406,9 +545,25 @@ export class JobsMetadataService {
     data: any
   ): Promise<void> {
     try {
-      logger.debug(`Database update not implemented for job ${jobId}`);
+      const query = `
+        UPDATE jobs 
+        SET result = $1, status = $2, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE job_id = $3 AND user_id = $4
+      `;
+      
+      const values = [
+        JSON.stringify(data),
+        JobStatus.COMPLETED,
+        jobId,
+        userId
+      ];
+      
+      const q = new Postgres.Query(query, values);
+      await Postgres.query(q);
+      logger.debug(`Updated database result for job ${jobId}`);
     } catch (error) {
       logger.error(`Failed to update database result for job ${jobId}:`, error);
+      // Don't throw - this is a best-effort operation
     }
   }
 

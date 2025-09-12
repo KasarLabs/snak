@@ -30,7 +30,6 @@ export class RedisCacheService implements OnModuleDestroy {
       port: config.port,
       password: config.password,
       db: config.db,
-      maxRetriesPerRequest: 3,
       lazyConnect: true,
     });
 
@@ -131,11 +130,11 @@ export class RedisCacheService implements OnModuleDestroy {
    */
   async clear(): Promise<void> {
     try {
-      const keys = await this.redis.keys('job-result:*');
+      const keys = await this.scanKeys('job-result:*');
       if (keys.length > 0) {
-        await this.redis.del(...keys);
+        await this.redis.unlink(...keys);
       }
-      logger.debug('Cleared all Redis cache data');
+      logger.debug('Cleared all job-result:* entries');
     } catch (error) {
       logger.error('Failed to clear Redis cache:', error);
       throw error;
@@ -147,7 +146,7 @@ export class RedisCacheService implements OnModuleDestroy {
    */
   async getCacheStats(): Promise<{ size: number; keys: string[] }> {
     try {
-      const keys = await this.redis.keys('job-result:*');
+      const keys = await this.scanKeys('job-result:*');
       return {
         size: keys.length,
         keys: keys,
@@ -232,5 +231,22 @@ export class RedisCacheService implements OnModuleDestroy {
       logger.error('Failed to manually connect to Redis:', error);
       throw error;
     }
+  }
+
+  /**
+   * Scan for keys matching a pattern using non-blocking SCAN command
+   * @param match - Pattern to match (e.g., 'job-result:*')
+   * @param count - Number of keys to scan per iteration (default: 1000)
+   * @returns Array of matching keys
+   */
+  private async scanKeys(match: string, count = 1000): Promise<string[]> {
+    let cursor = '0';
+    const keys: string[] = [];
+    do {
+      const [next, batch] = await this.redis.scan(cursor, 'MATCH', match, 'COUNT', count);
+      cursor = next;
+      if (batch.length) keys.push(...batch);
+    } while (cursor !== '0');
+    return keys;
   }
 }

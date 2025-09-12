@@ -15,6 +15,7 @@ export class WorkerManager {
   private jobProcessor: JobProcessor;
   private jobsMetadataService: JobsMetadataService;
   private isRunning: boolean = false;
+  private isShuttingDown: boolean = false;
 
   constructor(
     redisConfig?: {
@@ -50,7 +51,7 @@ export class WorkerManager {
       fileIngestionWorkerService
     );
 
-    this.jobsMetadataService = new JobsMetadataService(cacheService);
+    this.jobsMetadataService = new JobsMetadataService(cacheService, this.queueManager);
 
     this.jobProcessor = new JobProcessor(
       this.queueManager,
@@ -85,12 +86,12 @@ export class WorkerManager {
     } catch (error: unknown) {
       logger.error('Failed to start worker manager:', error);
       try {
-        await this.jobProcessor.stopProcessing?.();
+        await this.jobProcessor.stopProcessing();
       } catch (e) {
         logger.warn('Cleanup: jobProcessor.stopProcessing failed', e);
       }
       try {
-        await this.queueManager.close?.();
+        await this.queueManager.close()
       } catch (e) {
         logger.warn('Cleanup: queueManager.close failed', e);
       }
@@ -100,6 +101,10 @@ export class WorkerManager {
   }
 
   async stop(): Promise<void> {
+    if (this.isShuttingDown) {
+      logger.info('Already shutting down');
+      return;
+    }
     if (!this.isRunning) {
       logger.info('Worker manager is not running');
       return;
@@ -157,6 +162,11 @@ export class WorkerManager {
 
   private setupGracefulShutdown(): void {
     const shutdown = async (signal: string) => {
+      if (this.isShuttingDown) {
+        logger.info(`Already shutting down, ignoring ${signal}`);
+        return;
+      }
+      this.isShuttingDown = true;
       logger.info(`Received ${signal}, shutting down gracefully...`);
       await this.stop();
       process.exit(0);

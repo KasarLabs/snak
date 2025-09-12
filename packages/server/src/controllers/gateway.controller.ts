@@ -49,6 +49,9 @@ export class MyGateway {
     @ConnectedSocket() client: Socket
   ): Promise<void> {
     try {
+      if (!client || !client.connected) {
+        throw new WsException('Socket connection is invalid or disconnected');
+      }
       logger.info('handleUserRequest called');
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 

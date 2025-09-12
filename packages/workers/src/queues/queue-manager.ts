@@ -16,7 +16,15 @@ export class QueueManager {
     password?: string;
     db?: number;
   }) {
-    this.config = loadWorkerConfig();
+    try {
+      this.config = loadWorkerConfig();
+      if (!this.config || !this.config.queues) {
+        throw new Error('Invalid worker configuration: missing queues config');
+      }
+    } catch (error) {
+      logger.error('Failed to load worker config:', error);
+      throw new Error('Failed to initialize QueueManager: invalid configuration');
+    }
 
     // Use provided Redis config or fall back to worker config
     const redisSettings = redisConfig || this.config.redis;
@@ -26,6 +34,13 @@ export class QueueManager {
       port: redisSettings.port,
       password: redisSettings.password,
       db: redisSettings.db,
+    });
+    this.redis.on('error', (error) => {
+      logger.error('Redis connection error:', error);
+    });
+    
+    this.redis.on('connect', () => {
+      logger.info('Redis connected successfully');
     });
     this.queues = new Map();
   }
@@ -73,6 +88,9 @@ export class QueueManager {
   }
 
   getQueue(queueName: string): Queue | undefined {
+    if (!this.initialized) {
+      throw new Error('QueueManager not initialized. Call initialize() first.');
+    }
     return this.queues.get(queueName);
   }
 
@@ -82,6 +100,9 @@ export class QueueManager {
     payload: Record<string, any>,
     options?: JobOptions
   ): Promise<Job> {
+    if (!this.initialized) {
+      throw new Error('QueueManager not initialized. Call initialize() first.');
+    }
     const queue = this.queues.get(queueName);
     if (!queue) {
       throw new Error(`Queue ${queueName} not found`);
@@ -91,6 +112,9 @@ export class QueueManager {
   }
 
   async getQueueMetrics(queueName: string): Promise<QueueMetrics> {
+    if (!this.initialized) {
+      throw new Error('QueueManager not initialized. Call initialize() first.');
+    }
     const queue = this.queues.get(queueName);
     if (!queue) {
       throw new Error(`Queue ${queueName} not found`);
@@ -115,6 +139,9 @@ export class QueueManager {
   }
 
   async getAllQueueMetrics(): Promise<QueueMetrics[]> {
+    if (!this.initialized) {
+      throw new Error('QueueManager not initialized. Call initialize() first.');
+    }
     const metrics: QueueMetrics[] = [];
 
     for (const queueName of this.queues.keys()) {
@@ -130,6 +157,9 @@ export class QueueManager {
   }
 
   async pauseQueue(queueName: string): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('QueueManager not initialized. Call initialize() first.');
+    }
     const queue = this.queues.get(queueName);
     if (!queue) {
       throw new Error(`Queue ${queueName} not found`);
@@ -138,6 +168,9 @@ export class QueueManager {
   }
 
   async resumeQueue(queueName: string): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('QueueManager not initialized. Call initialize() first.');
+    }
     const queue = this.queues.get(queueName);
     if (!queue) {
       throw new Error(`Queue ${queueName} not found`);

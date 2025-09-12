@@ -110,7 +110,12 @@ export class AgentSelector extends BaseAgent {
       const userAgentInfo = new Map<string, string>();
 
       for (const [key, agent] of this.availableAgents.entries()) {
-        const [_agentId, agentUserId] = key.split('|');
+        const parts = key.split('|');
+        if (parts.length !== 2) {
+          logger.warn(`AgentSelector: Invalid composite key format: ${key}`);
+          continue;
+        }
+        const [_agentId, agentUserId] = parts;
         if (agentUserId === userId) {
           userAgents.set(key, agent);
           const cfg = agent.getAgentConfig();

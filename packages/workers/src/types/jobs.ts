@@ -3,7 +3,7 @@
  * Defines interfaces and types for job management, metadata, and persistence
  */
 
-import { JobStatus, JobType } from './index.js';
+import type { JobStatus, JobType } from './index.js';
 
 /**
  * Job metadata stored in database
@@ -133,7 +133,7 @@ export interface JobResult<T = any> {
  */
 export interface JobRetrievalResult {
   jobId: string;
-  agentId: string;
+  agentId?: string;
   userId: string;
   status: ResultStatus;
   data?: unknown;

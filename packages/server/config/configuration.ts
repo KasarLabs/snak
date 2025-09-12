@@ -173,7 +173,7 @@ export class ConfigurationService {
   }
 
   get redis() {
-    const host = this.config.REDIS_HOST ?? '127.0.0.1';
+    const host = this.config.REDIS_HOST ?? 'localhost';
     const port = Number(this.config.REDIS_PORT ?? 6379);
     const db =
       this.config.REDIS_DB !== undefined ? Number(this.config.REDIS_DB) : 0;

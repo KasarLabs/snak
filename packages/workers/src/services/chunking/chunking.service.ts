@@ -11,6 +11,9 @@ export class ChunkingService {
     const { chunkSize, overlap, strategy = 'adaptive' } = options;
 
     try {
+      if (!text || text.trim().length === 0) {
+        return [];
+      }
       if (chunkSize <= 0) {
         throw new Error('Chunk size must be positive');
       }

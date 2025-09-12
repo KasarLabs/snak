@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { logger } from '@snakagent/core';
 import { VectorStoreService } from './vector-store.service.js';
@@ -100,7 +101,7 @@ export class FileIngestionService {
     await this.verifyAgentOwnership(agentId, userId);
     const rows = await this.vectorStore.getDocument(agentId, id, userId);
     if (!rows.length) {
-      throw new Error('Document not found');
+      throw new NotFoundException('Document not found');
     }
     const chunks = rows.map((r) => ({
       id: r.id,
