@@ -2,6 +2,8 @@ import { AgentResponse } from '@snakagent/core';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import { ServerError } from '../utils/error.js';
+import { ErrorHandler, ResponseFormatter } from '../utils/error-handler.js';
+import { ControllerHelpers } from '../utils/controller-helpers.js';
 import {
   MessageBody,
   SubscribeMessage,
@@ -21,9 +23,7 @@ import {
 } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
-import { getUserIdFromSocketHeaders } from '../utils/headers.js';
 import { EventType } from '@snakagent/agents';
-import { ValidationError } from '../../common/errors/application.errors.js';
 
 @WebSocketGateway({
   cors: {
@@ -48,14 +48,14 @@ export class MyGateway {
     @MessageBody() userRequest: WebsocketAgentRequestDTO,
     @ConnectedSocket() client: Socket
   ): Promise<void> {
-    try {
+    await ErrorHandler.handleWebSocketError(async () => {
       if (!client || !client.connected) {
         throw new WsException('Socket connection is invalid or disconnected');
       }
       logger.info('handleUserRequest called');
       logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
-      const userId = getUserIdFromSocketHeaders(client);
+      const userId = ControllerHelpers.getUserIdFromSocket(client);
       let agent: SnakAgent | undefined;
 
       if (userRequest.request.agent_id === undefined) {
@@ -124,21 +124,7 @@ export class MyGateway {
         }
         client.emit('onAgentRequest', chunk);
       }
-    } catch (error) {
-      if (error instanceof ServerError) {
-        client.emit('onAgentRequest', error);
-      } else if (error instanceof WsException) {
-        const validationError = new ValidationError(
-          'User ID validation failed',
-          { originalError: error.message }
-        );
-        client.emit('onAgentRequest', validationError);
-      } else {
-        logger.error('Unexpected error in handleUserRequest:', error);
-        const serverError = new ServerError('E01TA400');
-        client.emit('onAgentRequest', serverError);
-      }
-    }
+    }, 'handleUserRequest', client, 'onAgentRequest');
   }
 
   @SubscribeMessage('stop_agent')
@@ -146,27 +132,20 @@ export class MyGateway {
     @MessageBody() userRequest: { agent_id: string; socket_id: string },
     @ConnectedSocket() client: Socket
   ): Promise<void> {
-    try {
+    await ErrorHandler.handleWebSocketError(async () => {
       logger.info('stop_agent called');
-      const userId = getUserIdFromSocketHeaders(client);
-      const agent = this.agentFactory.getAgentInstance(
-        userRequest.agent_id,
-        userId
+      const { userId, agent } = ControllerHelpers.getSocketUserAndVerifyAgentOwnership(
+        client,
+        this.agentFactory,
+        userRequest.agent_id
       );
-      if (!agent) {
-        throw new ServerError('E01TA400');
-      }
 
       agent.stop();
-      const response: AgentResponse = {
-        status: 'success',
-        data: `Agent ${userRequest.agent_id} stopped`,
-      };
+      const response: AgentResponse = ResponseFormatter.success(
+        `Agent ${userRequest.agent_id} stopped`
+      );
       client.emit('onStopAgentRequest', response);
-    } catch (error) {
-      logger.error('Error in stopAgent:', error);
-      throw new ServerError('E02TA100');
-    }
+    }, 'stopAgent', client, 'onStopAgentRequest', 'E02TA100');
   }
 
   @SubscribeMessage('init_agent')
@@ -174,24 +153,20 @@ export class MyGateway {
     @MessageBody() userRequest: WebsocketAgentAddRequestDTO,
     @ConnectedSocket() client: Socket
   ): Promise<void> {
-    try {
+    await ErrorHandler.handleWebSocketError(async () => {
       logger.info('init_agent called');
 
-      const userId = getUserIdFromSocketHeaders(client);
+      const userId = ControllerHelpers.getUserIdFromSocket(client);
       await this.agentFactory.addAgent({
         ...userRequest.agent,
         user_id: userId,
       });
 
-      const response: AgentResponse = {
-        status: 'success',
-        data: `Agent ${userRequest.agent.name} added`,
-      };
+      const response: AgentResponse = ResponseFormatter.success(
+        `Agent ${userRequest.agent.name} added`
+      );
       client.emit('onInitAgentRequest', response);
-    } catch (error) {
-      logger.error('Error in addAgent:', error);
-      throw new ServerError('E02TA200');
-    }
+    }, 'addAgent', client, 'onInitAgentRequest', 'E02TA200');
   }
 
   @SubscribeMessage('delete_agent')
@@ -199,27 +174,20 @@ export class MyGateway {
     @MessageBody() userRequest: WebsocketAgentDeleteRequestDTO,
     @ConnectedSocket() client: Socket
   ): Promise<void> {
-    try {
-      const userId = getUserIdFromSocketHeaders(client);
-      const agentConfig = this.agentFactory.getAgentConfig(
-        userRequest.agent_id,
-        userId
+    await ErrorHandler.handleWebSocketError(async () => {
+      const { userId } = ControllerHelpers.getSocketUserAndVerifyAgentConfigOwnership(
+        client,
+        this.agentFactory,
+        userRequest.agent_id
       );
-      if (!agentConfig) {
-        throw new ServerError('E01TA400');
-      }
 
       await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 
-      const response: AgentResponse = {
-        status: 'success',
-        data: `Agent ${userRequest.agent_id} deleted`,
-      };
+      const response: AgentResponse = ResponseFormatter.success(
+        `Agent ${userRequest.agent_id} deleted`
+      );
       client.emit('onDeleteAgentRequest', response);
-    } catch (error) {
-      logger.error('Error in deleteAgent:', error);
-      throw new ServerError('E02TA300');
-    }
+    }, 'deleteAgent', client, 'onDeleteAgentRequest', 'E02TA300');
   }
 
   @SubscribeMessage('get_agents')
@@ -227,21 +195,15 @@ export class MyGateway {
     @MessageBody() userRequest: WebsocketGetAgentsConfigRequestDTO,
     @ConnectedSocket() client: Socket
   ): Promise<void> {
-    try {
+    await ErrorHandler.handleWebSocketError(async () => {
       logger.info('getAgents called');
 
-      const userId = getUserIdFromSocketHeaders(client);
+      const userId = ControllerHelpers.getUserIdFromSocket(client);
       const agents = await this.agentService.getAllAgentsOfUser(userId);
 
-      const response: AgentResponse = {
-        status: 'success',
-        data: agents,
-      };
+      const response: AgentResponse = ResponseFormatter.success(agents);
       client.emit('onGetAgentsRequest', response);
-    } catch (error) {
-      logger.error('Error in getAgents:', error);
-      throw new ServerError('E05TA100');
-    }
+    }, 'getAgents', client, 'onGetAgentsRequest', 'E05TA100');
   }
 
   @SubscribeMessage('get_messages')
@@ -249,9 +211,9 @@ export class MyGateway {
     @MessageBody() userRequest: WebsocketGetMessagesRequestDTO,
     @ConnectedSocket() client: Socket
   ): Promise<void> {
-    try {
+    await ErrorHandler.handleWebSocketError(async () => {
       logger.info('getMessages called');
-      const userId = getUserIdFromSocketHeaders(client);
+      const userId = ControllerHelpers.getUserIdFromSocket(client);
       const messages = await this.agentService.getMessageFromAgentId(
         {
           agent_id: userRequest.agent_id,
@@ -263,14 +225,8 @@ export class MyGateway {
       if (!messages) {
         throw new ServerError('E01TA400');
       }
-      const response: AgentResponse = {
-        status: 'success',
-        data: messages,
-      };
+      const response: AgentResponse = ResponseFormatter.success(messages);
       client.emit('onGetMessagesRequest', response);
-    } catch (error) {
-      logger.error('Error in getMessages:', error);
-      throw new ServerError('E05TA100');
-    }
+    }, 'getMessages', client, 'onGetMessagesRequest', 'E05TA100');
   }
 }

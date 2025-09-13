@@ -3,7 +3,6 @@ import {
   Post,
   Req,
   BadRequestException,
-  InternalServerErrorException,
   Body,
   ForbiddenException,
 } from '@nestjs/common';
@@ -11,7 +10,8 @@ import { FileIngestionService } from '../services/file-ingestion.service.js';
 import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
 import { ConfigurationService } from '../../config/configuration.js';
-import { getUserIdFromHeaders } from '../utils/index.js';
+import { ErrorHandler } from '../utils/error-handler.js';
+import { ControllerHelpers } from '../utils/controller-helpers.js';
 import { logger } from '@snakagent/core';
 import { randomUUID } from 'crypto';
 import { fileTypeFromBuffer } from 'file-type';
@@ -36,14 +36,14 @@ export class FileIngestionController {
 
   @Post('upload')
   async upload(@Req() request: FastifyRequest): Promise<{ jobId: string }> {
-    try {
+    return ErrorHandler.handleControllerError(async () => {
       const req = request as unknown as MultipartRequest;
       if (!req.isMultipart || !req.isMultipart()) {
         logger.error('Multipart request expected');
         throw new BadRequestException('Multipart request expected');
       }
 
-      const userId = getUserIdFromHeaders(request);
+      const userId = ControllerHelpers.getUserId(request);
 
       let agentId = '';
       let fileBuffer: Buffer | undefined;
@@ -161,18 +161,7 @@ export class FileIngestionController {
       );
 
       return { jobId };
-    } catch (err: unknown) {
-      logger.error(`Upload failed:`, err);
-      request.log?.error?.({ err }, 'File upload failed');
-
-      if (
-        err instanceof ForbiddenException ||
-        err instanceof BadRequestException
-      ) {
-        throw err;
-      }
-      throw new InternalServerErrorException('File processing failed');
-    }
+    }, 'upload');
   }
 
   @Post('list')
@@ -180,7 +169,7 @@ export class FileIngestionController {
     @Body('agentId') agentId: string,
     @Req() req: FastifyRequest
   ) {
-    const userId = getUserIdFromHeaders(req);
+    const userId = ControllerHelpers.getUserId(req);
     return this.service.listFiles(agentId, userId);
   }
 
@@ -190,7 +179,7 @@ export class FileIngestionController {
     @Body('fileId') fileId: string,
     @Req() req: FastifyRequest
   ) {
-    const userId = getUserIdFromHeaders(req);
+    const userId = ControllerHelpers.getUserId(req);
     return this.service.getFile(agentId, fileId, userId);
   }
 
@@ -200,7 +189,7 @@ export class FileIngestionController {
     @Body('fileId') fileId: string,
     @Req() req: FastifyRequest
   ) {
-    const userId = getUserIdFromHeaders(req);
+    const userId = ControllerHelpers.getUserId(req);
     await this.service.deleteFile(agentId, fileId, userId);
     return { deleted: true };
   }

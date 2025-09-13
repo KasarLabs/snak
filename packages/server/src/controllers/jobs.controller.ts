@@ -2,22 +2,13 @@ import {
   Controller,
   Get,
   Req,
-  BadRequestException,
-  InternalServerErrorException,
-  ForbiddenException,
   Param,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  JobNotFoundError,
-  JobNotCompletedError,
-  JobFailedError,
-  JobAccessDeniedError,
-  UnknownJobStatusError,
-} from '../../common/errors/job.errors.js';
 import { FastifyRequest } from 'fastify';
-import { getUserIdFromHeaders } from '../utils/index.js';
+import { ErrorHandler, HandleErrors } from '../utils/error-handler.js';
+import { ControllerHelpers } from '../utils/controller-helpers.js';
 import { logger } from '@snakagent/core';
 import { WorkersService } from '../services/workers.service.js';
 
@@ -30,15 +21,16 @@ export class JobsController {
     @Param('jobId') jobId: string,
     @Req() request: FastifyRequest
   ) {
-    try {
+    return ErrorHandler.handleControllerError(async () => {
       let userId: string;
       try {
-        userId = getUserIdFromHeaders(request);
+        userId = ControllerHelpers.getUserId(request);
       } catch {
         throw new UnauthorizedException(
           'Missing or invalid authentication headers'
         );
       }
+      
       const status = await this.workersService.getJobStatusForUser(
         jobId,
         userId
@@ -57,25 +49,7 @@ export class JobsController {
         finishedOn: status.finishedOn,
         error: status.error,
       };
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-
-      if (
-        error instanceof ForbiddenException ||
-        error instanceof JobAccessDeniedError
-      ) {
-        throw new ForbiddenException(
-          'Access denied: Job does not belong to user'
-        );
-      }
-
-      throw new InternalServerErrorException('Failed to get job status');
-    }
+    }, 'getJobStatus');
   }
 
   @Get('result/:jobId')
@@ -83,8 +57,8 @@ export class JobsController {
     @Param('jobId') jobId: string,
     @Req() request: FastifyRequest
   ) {
-    try {
-      const userId = getUserIdFromHeaders(request);
+    return ErrorHandler.handleControllerError(async () => {
+      const userId = ControllerHelpers.getUserId(request);
       const result = await this.workersService.getJobResultForUser(
         jobId,
         userId
@@ -99,47 +73,12 @@ export class JobsController {
       }
 
       return result;
-    } catch (error) {
-      logger.error(`Failed to get job result for ${jobId}:`, error);
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-
-      if (error instanceof JobNotFoundError) {
-        throw new NotFoundException(error.message);
-      }
-
-      if (error instanceof JobAccessDeniedError) {
-        throw new ForbiddenException(
-          'Access denied: Job does not belong to user'
-        );
-      }
-
-      if (error instanceof JobNotCompletedError) {
-        throw new BadRequestException(error.message);
-      }
-
-      if (error instanceof JobFailedError) {
-        throw new InternalServerErrorException(`Job failed: ${error.message}`);
-      }
-
-      if (error instanceof UnknownJobStatusError) {
-        throw new InternalServerErrorException(
-          `Unknown job status: ${error.message}`
-        );
-      }
-
-      throw new InternalServerErrorException('Failed to get job result');
-    }
+    }, 'getJobResult');
   }
 
   @Get('queues/metrics')
+  @HandleErrors()
   async getQueueMetrics() {
-    try {
-      return await this.workersService.getQueueMetrics();
-    } catch (error) {
-      logger.error('Failed to get queue metrics:', error);
-      throw new InternalServerErrorException('Failed to get queue metrics');
-    }
+    return await this.workersService.getQueueMetrics();
   }
 }
