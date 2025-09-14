@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { logger } from '@snakagent/core';
 import { VectorStoreService } from './vector-store.service.js';
 import { WorkersService } from './workers.service.js';
@@ -18,7 +15,6 @@ export class FileIngestionService {
     private readonly workersService: WorkersService,
     private readonly config: ConfigurationService
   ) {}
-
 
   /**
    * List all files associated with a specific agent

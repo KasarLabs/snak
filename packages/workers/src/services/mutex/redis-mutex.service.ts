@@ -40,18 +40,18 @@ export class RedisMutexService implements OnModuleDestroy {
     if (!config.password || config.password.trim() === '') {
       const isProduction = process.env.NODE_ENV === 'production';
       const isDevelopment = process.env.NODE_ENV === 'development';
-      
+
       if (isProduction) {
         throw new Error(
           'REDIS_PASSWORD is required in production environment for security. ' +
-          'Please set the REDIS_PASSWORD environment variable.'
+            'Please set the REDIS_PASSWORD environment variable.'
         );
       }
-      
+
       if (!isDevelopment) {
         logger.warn(
           'REDIS_PASSWORD not configured for RedisMutexService - using unauthenticated Redis connection. ' +
-          'This is strongly discouraged outside of development environments.'
+            'This is strongly discouraged outside of development environments.'
         );
       }
     }
@@ -84,13 +84,13 @@ export class RedisMutexService implements OnModuleDestroy {
    * @returns A function to release the mutex
    */
   async acquireUserMutex(
-    userId: string, 
+    userId: string,
     options: MutexOptions = {}
   ): Promise<() => Promise<void>> {
     const {
       timeout = this.defaultTimeout,
       retryDelay = this.defaultRetryDelay,
-      maxRetries = this.defaultMaxRetries
+      maxRetries = this.defaultMaxRetries,
     } = options;
 
     const lockKey = `user_mutex:${userId}`;
@@ -104,16 +104,19 @@ export class RedisMutexService implements OnModuleDestroy {
       try {
         // Use SET with NX (only if not exists) and EX (expiry) for atomic lock acquisition
         const result = await this.redis.set(
-          lockKey, 
-          lockValue, 
-          'PX', 
-          timeout, 
+          lockKey,
+          lockValue,
+          'PX',
+          timeout,
           'NX'
         );
 
         if (result === 'OK') {
           acquired = true;
-          logger.debug(`Mutex acquired for user ${userId}`, { lockKey, lockValue });
+          logger.debug(`Mutex acquired for user ${userId}`, {
+            lockKey,
+            lockValue,
+          });
         } else {
           // Lock is held by another process, wait and retry
           retries++;
@@ -140,7 +143,10 @@ export class RedisMutexService implements OnModuleDestroy {
     return async () => {
       try {
         await this.releaseUserMutex(lockKey, lockValue);
-        logger.debug(`Mutex released for user ${userId}`, { lockKey, lockValue });
+        logger.debug(`Mutex released for user ${userId}`, {
+          lockKey,
+          lockValue,
+        });
       } catch (error) {
         logger.error(`Error releasing mutex for user ${userId}:`, error);
         throw error;
@@ -153,7 +159,10 @@ export class RedisMutexService implements OnModuleDestroy {
    * @param lockKey - The lock key
    * @param lockValue - The lock value (must match to release)
    */
-  private async releaseUserMutex(lockKey: string, lockValue: string): Promise<void> {
+  private async releaseUserMutex(
+    lockKey: string,
+    lockValue: string
+  ): Promise<void> {
     // Use Lua script to atomically check and delete the lock
     // This prevents releasing a lock that was acquired by another process
     const script = `
@@ -165,7 +174,7 @@ export class RedisMutexService implements OnModuleDestroy {
     `;
 
     const result = await this.redis.eval(script, 1, lockKey, lockValue);
-    
+
     if (result !== 1) {
       throw new Error(
         `Failed to release mutex: lock not found or value mismatch (key: ${lockKey})`
@@ -215,7 +224,13 @@ export class RedisMutexService implements OnModuleDestroy {
     let cursor = '0';
 
     do {
-      const result = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      const result = await this.redis.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        100
+      );
       cursor = result[0];
       const keys = result[1];
 
@@ -249,7 +264,13 @@ export class RedisMutexService implements OnModuleDestroy {
     let cursor = '0';
 
     do {
-      const result = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      const result = await this.redis.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        100
+      );
       cursor = result[0];
       const keys = result[1];
 
@@ -267,7 +288,7 @@ export class RedisMutexService implements OnModuleDestroy {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async onModuleDestroy(): Promise<void> {

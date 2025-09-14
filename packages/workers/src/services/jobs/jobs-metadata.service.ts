@@ -237,13 +237,13 @@ export class JobsMetadataService {
       }
 
       let releaseMutex: (() => Promise<void>) | null = null;
-      
+
       // Use Redis mutex for thread safety if available
       if (this.redisMutexService) {
         releaseMutex = await this.redisMutexService.acquireUserMutex(jobId, {
           timeout: 60000, // 1 minute timeout
           retryDelay: 100,
-          maxRetries: 300 // Total 30 seconds retry time
+          maxRetries: 300, // Total 30 seconds retry time
         });
       }
 

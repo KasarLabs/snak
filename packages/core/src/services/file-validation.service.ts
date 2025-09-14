@@ -79,7 +79,8 @@ export class FileValidationService {
       }
 
       // Step 3: Validate against whitelist
-      const validatedMimeType = this.validateMimeTypeWhitelist(candidateMimeType);
+      const validatedMimeType =
+        this.validateMimeTypeWhitelist(candidateMimeType);
 
       // Step 4: Security validation - compare detected vs declared if both exist
       if (detectedMimeType && declaredMimeType) {
@@ -154,7 +155,8 @@ export class FileValidationService {
     }
 
     // Check for acceptable variations
-    const acceptableVariations = this.getAcceptableVariations(normalizedDetected);
+    const acceptableVariations =
+      this.getAcceptableVariations(normalizedDetected);
     if (acceptableVariations.includes(normalizedDeclared)) {
       logger.info(
         `MIME type variation accepted: detected=${detectedMimeType}, declared=${declaredMimeType}`
@@ -215,7 +217,10 @@ export class FileValidationService {
     const suspiciousPatterns = [
       // Executable signatures
       { pattern: Buffer.from([0x4d, 0x5a]), description: 'PE executable' },
-      { pattern: Buffer.from([0x7f, 0x45, 0x4c, 0x46]), description: 'ELF executable' },
+      {
+        pattern: Buffer.from([0x7f, 0x45, 0x4c, 0x46]),
+        description: 'ELF executable',
+      },
       // Script signatures
       { pattern: Buffer.from('<?php'), description: 'PHP script' },
       { pattern: Buffer.from('<script'), description: 'JavaScript in HTML' },
@@ -223,7 +228,7 @@ export class FileValidationService {
     if (!skipZipCheck) {
       suspiciousPatterns.push({
         pattern: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
-        description: 'ZIP archive'
+        description: 'ZIP archive',
       });
     }
 
@@ -240,7 +245,8 @@ export class FileValidationService {
     if (mimeType.startsWith('text/') && buffer.indexOf(0) !== -1) {
       return {
         isValid: false,
-        error: 'Text file contains binary data (null bytes), which could indicate malicious content.',
+        error:
+          'Text file contains binary data (null bytes), which could indicate malicious content.',
       };
     }
 
@@ -282,7 +288,7 @@ export class FileValidationService {
    */
   private inferMimeTypeFromExtension(fileName: string): string {
     const extension = fileName.toLowerCase().split('.').pop();
-    
+
     const extensionToMimeType: Record<string, string> = {
       txt: 'text/plain',
       md: 'text/markdown',

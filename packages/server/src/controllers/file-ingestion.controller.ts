@@ -101,7 +101,11 @@ export class FileIngestionController {
       }
 
       // Verify agent ownership before proceeding
-      ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
+      ControllerHelpers.verifyAgentOwnership(
+        this.agentFactory,
+        agentId,
+        userId
+      );
 
       const fileId = randomUUID();
 
@@ -123,14 +127,11 @@ export class FileIngestionController {
       }
 
       const mimeType = validationResult.validatedMimeType;
-      
-      logger.info(
-        `File validation passed for ${fileName}: ${mimeType}`,
-        {
-          detectedMimeType: validationResult.detectedMimeType,
-          declaredMimeType: validationResult.declaredMimeType,
-        }
-      );
+
+      logger.info(`File validation passed for ${fileName}: ${mimeType}`, {
+        detectedMimeType: validationResult.detectedMimeType,
+        declaredMimeType: validationResult.declaredMimeType,
+      });
 
       const { jobId } = await this.service.processFileUpload(
         agentId,

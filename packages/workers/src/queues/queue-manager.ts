@@ -32,24 +32,26 @@ export class QueueManager {
     const redisSettings = redisConfig || this.config.redis;
 
     if (!redisSettings) {
-      throw new Error('Invalid worker configuration: missing Redis connection settings');
+      throw new Error(
+        'Invalid worker configuration: missing Redis connection settings'
+      );
     }
 
     // Security: Validate Redis authentication configuration
     if (!redisSettings.password || redisSettings.password.trim() === '') {
       const isProduction = process.env.NODE_ENV === 'production';
-      
+
       if (isProduction) {
         throw new Error(
           'REDIS_PASSWORD is required in production environment for security. ' +
-          'Please set the REDIS_PASSWORD environment variable.'
+            'Please set the REDIS_PASSWORD environment variable.'
         );
       }
-      
+
       if (process.env.NODE_ENV !== 'development') {
         logger.warn(
           'REDIS_PASSWORD not configured for QueueManager - using unauthenticated Redis connection. ' +
-          'This is strongly discouraged outside of development environments.'
+            'This is strongly discouraged outside of development environments.'
         );
       }
     }

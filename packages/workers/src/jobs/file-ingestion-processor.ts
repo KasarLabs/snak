@@ -23,13 +23,14 @@ export class FileIngestionProcessor {
 
     try {
       // Determine if we need to encode as base64 or can pass buffer directly
-      const isTextFile = mimeType.startsWith('text/') || 
-                        mimeType === 'application/json' ||
-                        mimeType === 'application/csv';
-      
+      const isTextFile =
+        mimeType.startsWith('text/') ||
+        mimeType === 'application/json' ||
+        mimeType === 'application/csv';
+
       let content: string | Buffer;
       let contentEncoding: 'base64' | 'utf8' | undefined;
-      
+
       if (isTextFile) {
         content = buffer;
         contentEncoding = undefined;

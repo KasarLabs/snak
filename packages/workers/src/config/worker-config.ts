@@ -3,22 +3,31 @@ import type { WorkerConfig } from '../types/index.js';
 
 export const configSchema = z
   .object({
-    redis: z.object({
-      host: z.string().min(1).default('redis'),
-      port: z.coerce.number().int().min(1).max(65535).default(6379),
-      password: z.string().optional(),
-      db: z.coerce.number().int().min(0).default(0),
-    }).refine((config) => {
-      // Security: Enforce password in production
-      const isProduction = process.env.NODE_ENV === 'production';
-      if (isProduction && (!config.password || config.password.trim() === '')) {
-        return false;
-      }
-      return true;
-    }, {
-      message: 'Redis password is required in production environment for security',
-      path: ['password'],
-    }),
+    redis: z
+      .object({
+        host: z.string().min(1).default('redis'),
+        port: z.coerce.number().int().min(1).max(65535).default(6379),
+        password: z.string().optional(),
+        db: z.coerce.number().int().min(0).default(0),
+      })
+      .refine(
+        (config) => {
+          // Security: Enforce password in production
+          const isProduction = process.env.NODE_ENV === 'production';
+          if (
+            isProduction &&
+            (!config.password || config.password.trim() === '')
+          ) {
+            return false;
+          }
+          return true;
+        },
+        {
+          message:
+            'Redis password is required in production environment for security',
+          path: ['password'],
+        }
+      ),
     queues: z
       .object({
         fileIngestion: z.string().min(1).default('file-ingestion'),

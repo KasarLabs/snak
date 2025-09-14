@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { FileValidationService } from '@snakagent/core';
 import { RedisMutexService } from '../mutex/redis-mutex.service.js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -64,7 +68,7 @@ export class FileIngestionWorkerService {
       releaseMutex = await this.redisMutexService.acquireUserMutex(userId, {
         timeout: MUTEX_TIMEOUT,
         retryDelay: 100,
-        maxRetries: 50
+        maxRetries: 50,
       });
       await this.checkStorageLimits(agentId, userId, size);
 
@@ -360,7 +364,6 @@ export class FileIngestionWorkerService {
     buffer: Buffer,
     mimeType: SupportedMimeType
   ): Promise<string> {
-
     try {
       let result: string;
 
@@ -511,7 +514,6 @@ export class FileIngestionWorkerService {
       throw err;
     }
   }
-
 
   /**
    * Determine if an error is retryable

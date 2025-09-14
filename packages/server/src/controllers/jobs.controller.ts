@@ -30,7 +30,7 @@ export class JobsController {
           'Missing or invalid authentication headers'
         );
       }
-      
+
       const status = await this.workersService.getJobStatusForUser(
         jobId,
         userId

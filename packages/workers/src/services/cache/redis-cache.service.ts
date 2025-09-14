@@ -29,18 +29,18 @@ export class RedisCacheService implements OnModuleDestroy {
     if (!config.password || config.password.trim() === '') {
       const isProduction = process.env.NODE_ENV === 'production';
       const isDevelopment = process.env.NODE_ENV === 'development';
-      
+
       if (isProduction) {
         throw new Error(
           'REDIS_PASSWORD is required in production environment for security. ' +
-          'Please set the REDIS_PASSWORD environment variable.'
+            'Please set the REDIS_PASSWORD environment variable.'
         );
       }
-      
+
       if (!isDevelopment) {
         logger.warn(
           'REDIS_PASSWORD not configured - using unauthenticated Redis connection. ' +
-          'This is strongly discouraged outside of development environments.'
+            'This is strongly discouraged outside of development environments.'
         );
       }
     }
@@ -271,7 +271,8 @@ export class RedisCacheService implements OnModuleDestroy {
       }
       logger.debug('Redis authentication validated successfully');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const authError = new Error(
         `Redis authentication failed. Please verify REDIS_PASSWORD is correct: ${errorMessage}`
       );

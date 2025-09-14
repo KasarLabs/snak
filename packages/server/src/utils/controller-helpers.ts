@@ -99,7 +99,11 @@ export class ControllerHelpers {
     agentId: string
   ): { userId: string; agentConfig: AgentConfigSQL } {
     const userId = this.getUserId(req);
-    const agentConfig = this.verifyAgentConfigOwnership(agentFactory, agentId, userId);
+    const agentConfig = this.verifyAgentConfigOwnership(
+      agentFactory,
+      agentId,
+      userId
+    );
     return { userId, agentConfig };
   }
 
@@ -133,8 +137,11 @@ export class ControllerHelpers {
     agentId: string
   ): { userId: string; agentConfig: AgentConfigSQL } {
     const userId = this.getUserIdFromSocket(client);
-    const agentConfig = this.verifyAgentConfigOwnership(agentFactory, agentId, userId);
+    const agentConfig = this.verifyAgentConfigOwnership(
+      agentFactory,
+      agentId,
+      userId
+    );
     return { userId, agentConfig };
   }
 }
-

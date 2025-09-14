@@ -19,7 +19,11 @@ import {
 } from '../dto/agents.js';
 import { Reflector } from '@nestjs/core';
 import { ServerError } from '../utils/error.js';
-import { ResponseFormatter, HandleWithBadRequestPreservation, HandleErrors } from '../utils/error-handler.js';
+import {
+  ResponseFormatter,
+  HandleWithBadRequestPreservation,
+  HandleErrors,
+} from '../utils/error-handler.js';
 import { ControllerHelpers } from '../utils/controller-helpers.js';
 import {
   logger,
@@ -119,113 +123,113 @@ export class AgentsController {
   ): Promise<any> {
     const userId = ControllerHelpers.getUserId(req);
 
-      if (!config || !config.id) {
-        throw new BadRequestException('Agent ID is required');
-      }
+    if (!config || !config.id) {
+      throw new BadRequestException('Agent ID is required');
+    }
 
-      const updateFields: string[] = [];
-      const values: any[] = [];
-      let paramIndex = 1;
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
 
-      const updatableFields: (keyof AgentConfigSQL)[] = [
-        'name',
-        'group',
-        'description',
-        'lore',
-        'objectives',
-        'knowledge',
-        'system_prompt',
-        'interval',
-        'plugins',
-        'memory',
-        'mode',
-        'max_iterations',
-        'mcpServers',
-      ];
+    const updatableFields: (keyof AgentConfigSQL)[] = [
+      'name',
+      'group',
+      'description',
+      'lore',
+      'objectives',
+      'knowledge',
+      'system_prompt',
+      'interval',
+      'plugins',
+      'memory',
+      'mode',
+      'max_iterations',
+      'mcpServers',
+    ];
 
-      updatableFields.forEach((field) => {
-        if (config[field] !== undefined && config[field] !== null) {
-          if (field === 'memory') {
-            let memoryData;
+    updatableFields.forEach((field) => {
+      if (config[field] !== undefined && config[field] !== null) {
+        if (field === 'memory') {
+          let memoryData;
 
-            if (typeof config[field] === 'string') {
-              const fieldValue = config[field] as string;
-              if (fieldValue.startsWith('(') && fieldValue.endsWith(')')) {
-                const content = fieldValue.slice(1, -1);
-                const parts = content.split(',');
-                memoryData = {
-                  enabled: parts[0] === 't' || parts[0] === 'true',
-                  shortTermMemorySize: parseInt(parts[1], 10),
-                  memorySize: parseInt(parts[2], 10),
-                };
-              } else {
-                try {
-                  memoryData = JSON.parse(fieldValue);
-                } catch (jsonError) {
-                  throw new BadRequestException(
-                    `Invalid memory format: ${fieldValue}. Expected JSON or PostgreSQL composite type format.`
-                  );
-                }
-              }
+          if (typeof config[field] === 'string') {
+            const fieldValue = config[field] as string;
+            if (fieldValue.startsWith('(') && fieldValue.endsWith(')')) {
+              const content = fieldValue.slice(1, -1);
+              const parts = content.split(',');
+              memoryData = {
+                enabled: parts[0] === 't' || parts[0] === 'true',
+                shortTermMemorySize: parseInt(parts[1], 10),
+                memorySize: parseInt(parts[2], 10),
+              };
             } else {
-              memoryData = config[field];
+              try {
+                memoryData = JSON.parse(fieldValue);
+              } catch (jsonError) {
+                throw new BadRequestException(
+                  `Invalid memory format: ${fieldValue}. Expected JSON or PostgreSQL composite type format.`
+                );
+              }
             }
-
-            const enabled =
-              memoryData.enabled === 'true' ||
-              memoryData.enabled === true ||
-              memoryData.enabled === 't';
-            const parsedShortTerm = Number.parseInt(
-              String(memoryData.shortTermMemorySize ?? ''),
-              10
-            );
-            if (Number.isNaN(parsedShortTerm)) {
-              throw new BadRequestException(
-                'memory.shortTermMemorySize must be a valid integer'
-              );
-            }
-
-            const memorySize = parseInt(memoryData.memorySize) || 20;
-
-            updateFields.push(
-              `"memory" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})::memory`
-            );
-            values.push(enabled, parsedShortTerm, memorySize);
-            paramIndex += 3;
           } else {
-            updateFields.push(`"${String(field)}" = $${paramIndex}`);
-            values.push(config[field]);
-            paramIndex++;
+            memoryData = config[field];
           }
+
+          const enabled =
+            memoryData.enabled === 'true' ||
+            memoryData.enabled === true ||
+            memoryData.enabled === 't';
+          const parsedShortTerm = Number.parseInt(
+            String(memoryData.shortTermMemorySize ?? ''),
+            10
+          );
+          if (Number.isNaN(parsedShortTerm)) {
+            throw new BadRequestException(
+              'memory.shortTermMemorySize must be a valid integer'
+            );
+          }
+
+          const memorySize = parseInt(memoryData.memorySize) || 20;
+
+          updateFields.push(
+            `"memory" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})::memory`
+          );
+          values.push(enabled, parsedShortTerm, memorySize);
+          paramIndex += 3;
+        } else {
+          updateFields.push(`"${String(field)}" = $${paramIndex}`);
+          values.push(config[field]);
+          paramIndex++;
         }
-      });
-
-      if (updateFields.length === 0) {
-        throw new BadRequestException('No valid fields to update');
       }
+    });
 
-      values.push(config.id);
-      values.push(userId);
+    if (updateFields.length === 0) {
+      throw new BadRequestException('No valid fields to update');
+    }
 
-      const query = `
+    values.push(config.id);
+    values.push(userId);
+
+    const query = `
 		UPDATE agents
 		SET ${updateFields.join(', ')}
 		WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}
 		RETURNING *
 	  `;
 
-      const q = new Postgres.Query(query, values);
-      const result = await Postgres.query<AgentConfigSQL>(q);
+    const q = new Postgres.Query(query, values);
+    const result = await Postgres.query<AgentConfigSQL>(q);
 
-      if (result.length === 0) {
-        throw new BadRequestException('Agent not found');
-      }
+    if (result.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
 
-      return {
-        status: 'success',
-        data: result[0],
-        message: 'Agent configuration updated successfully',
-      };
+    return {
+      status: 'success',
+      data: result[0],
+      message: 'Agent configuration updated successfully',
+    };
   }
 
   @Post('upload-avatar')
@@ -236,70 +240,69 @@ export class AgentsController {
   ) {
     const userId = ControllerHelpers.getUserId(req);
 
-      const data = await (req as any).file();
+    const data = await (req as any).file();
 
-      if (!data) {
-        throw new BadRequestException('No file uploaded');
-      }
+    if (!data) {
+      throw new BadRequestException('No file uploaded');
+    }
 
-      const buffer = await data.toBuffer();
-      const mimetype = data.mimetype;
+    const buffer = await data.toBuffer();
+    const mimetype = data.mimetype;
 
-      const allowedMimeTypes = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-      ];
-      if (!allowedMimeTypes.includes(data.mimetype)) {
-        throw new BadRequestException(
-          'Invalid file type. Only images are allowed.'
-        );
-      }
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+    ];
+    if (!allowedMimeTypes.includes(data.mimetype)) {
+      throw new BadRequestException(
+        'Invalid file type. Only images are allowed.'
+      );
+    }
 
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (buffer.length > maxSize) {
-        throw new BadRequestException('File too large. Maximum size is 5MB.');
-      }
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (buffer.length > maxSize) {
+      throw new BadRequestException('File too large. Maximum size is 5MB.');
+    }
 
-      const agentIdField = data.fields?.agent_id;
-      let agentId: string | undefined;
+    const agentIdField = data.fields?.agent_id;
+    let agentId: string | undefined;
 
-      if (agentIdField) {
-        if (Array.isArray(agentIdField)) {
-          const firstField = agentIdField[0];
-          if ('value' in firstField) {
-            agentId = firstField.value as string;
-          }
-        } else {
-          if ('value' in agentIdField) {
-            agentId = agentIdField.value as string;
-          }
+    if (agentIdField) {
+      if (Array.isArray(agentIdField)) {
+        const firstField = agentIdField[0];
+        if ('value' in firstField) {
+          agentId = firstField.value as string;
+        }
+      } else {
+        if ('value' in agentIdField) {
+          agentId = agentIdField.value as string;
         }
       }
+    }
 
-      const q = new Postgres.Query(
-        `UPDATE agents
+    const q = new Postgres.Query(
+      `UPDATE agents
 			 SET avatar_image = $1, avatar_mime_type = $2
 			 WHERE id = $3 AND user_id = $4
 			 RETURNING id, avatar_mime_type`,
-        [buffer, mimetype, agentId, userId]
-      );
+      [buffer, mimetype, agentId, userId]
+    );
 
-      const result = await Postgres.query<AgentAvatarResponseDTO>(q);
+    const result = await Postgres.query<AgentAvatarResponseDTO>(q);
 
-      if (result.length === 0) {
-        throw new BadRequestException('Agent not found');
-      }
-      const avatarDataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
+    if (result.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+    const avatarDataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
 
-      return {
-        status: 'success',
-        data: result[0],
-        avatarUrl: avatarDataUrl,
-      };
+    return {
+      status: 'success',
+      data: result[0],
+      avatarUrl: avatarDataUrl,
+    };
   }
-
 
   @Post('request')
   @HandleErrors('E03TA100')
@@ -309,46 +312,52 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
 
-      const route = this.reflector.get('path', this.handleUserRequest);
-      let agent: SnakAgent | undefined = undefined;
-      if (userRequest.request.agent_id === undefined) {
-        logger.info(
-          'Agent ID not provided in request, Using agent Selector to select agent'
-        );
-
-        const agentSelector = this.agentFactory.getAgentSelector();
-        agent = await agentSelector.execute(
-          userRequest.request.content,
-          false,
-          { userId }
-        );
-        if (agent) {
-          const agentId = agent.getAgentConfig().id;
-          ControllerHelpers.verifyAgentConfigOwnership(this.agentFactory, agentId, userId);
-        }
-      } else {
-        agent = ControllerHelpers.verifyAgentOwnership(this.agentFactory, userRequest.request.agent_id, userId);
-      }
-      if (!agent) {
-        throw new ServerError('E01TA400');
-      }
-
-      const messageRequest = {
-        agent_id: agent.getAgentConfig().id.toString(),
-        user_request: userRequest.request.content,
-      };
-
-      const action = this.agentService.handleUserRequest(agent, messageRequest);
-
-      const response_metrics = await metrics.agentResponseTimeMeasure(
-        messageRequest.agent_id.toString(),
-        'key',
-        route,
-        action
+    const route = this.reflector.get('path', this.handleUserRequest);
+    let agent: SnakAgent | undefined = undefined;
+    if (userRequest.request.agent_id === undefined) {
+      logger.info(
+        'Agent ID not provided in request, Using agent Selector to select agent'
       );
 
-      const response: AgentResponse = ResponseFormatter.success(response_metrics);
-      return response;
+      const agentSelector = this.agentFactory.getAgentSelector();
+      agent = await agentSelector.execute(userRequest.request.content, false, {
+        userId,
+      });
+      if (agent) {
+        const agentId = agent.getAgentConfig().id;
+        ControllerHelpers.verifyAgentConfigOwnership(
+          this.agentFactory,
+          agentId,
+          userId
+        );
+      }
+    } else {
+      agent = ControllerHelpers.verifyAgentOwnership(
+        this.agentFactory,
+        userRequest.request.agent_id,
+        userId
+      );
+    }
+    if (!agent) {
+      throw new ServerError('E01TA400');
+    }
+
+    const messageRequest = {
+      agent_id: agent.getAgentConfig().id.toString(),
+      user_request: userRequest.request.content,
+    };
+
+    const action = this.agentService.handleUserRequest(agent, messageRequest);
+
+    const response_metrics = await metrics.agentResponseTimeMeasure(
+      messageRequest.agent_id.toString(),
+      'key',
+      route,
+      action
+    );
+
+    const response: AgentResponse = ResponseFormatter.success(response_metrics);
+    return response;
   }
 
   @Post('stop_agent')
@@ -410,7 +419,7 @@ export class AgentsController {
       this.agentFactory,
       userRequest.agent_id
     );
-    
+
     const messages = await this.agentService.getMessageFromAgentId(
       userRequest,
       userId
@@ -437,7 +446,7 @@ export class AgentsController {
 
     await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
     metrics.agentDisconnect();
-    
+
     return ResponseFormatter.success(
       `Agent ${userRequest.agent_id} deleted and unregistered from supervisor`
     );
@@ -459,9 +468,13 @@ export class AgentsController {
 
     for (const agentId of userRequest.agent_id) {
       try {
-        ControllerHelpers.verifyAgentConfigOwnership(this.agentFactory, agentId, userId);
+        ControllerHelpers.verifyAgentConfigOwnership(
+          this.agentFactory,
+          agentId,
+          userId
+        );
         await this.agentFactory.deleteAgent(agentId, userId);
-        
+
         responses.push(
           ResponseFormatter.success(
             `Agent ${agentId} deleted and unregistered from supervisor`
@@ -531,7 +544,7 @@ export class AgentsController {
       [userRequest.agent_id, userId]
     );
     await Postgres.query(q);
-    
+
     return ResponseFormatter.success(
       `Messages cleared for agent ${userRequest.agent_id}`
     );
@@ -557,11 +570,11 @@ export class AgentsController {
   async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
     const agents = await this.agentService.getAllAgentsOfUser(userId);
-    
+
     if (!agents) {
       throw new ServerError('E01TA400');
     }
-    
+
     return ResponseFormatter.success(agents);
   }
 
@@ -574,11 +587,11 @@ export class AgentsController {
   async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
     const agents = await this.agentService.getAllAgentsOfUser(userId);
-    
+
     if (!agents) {
       throw new ServerError('E01TA400');
     }
-    
+
     return ResponseFormatter.success(agents);
   }
 
