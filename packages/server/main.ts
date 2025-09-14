@@ -27,7 +27,7 @@ async function bootstrap() {
       app.getHttpAdapter().getInstance() as unknown as FastifyInstance
     ).register(fastifyMultipart as any, {
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB
+        fileSize: 501 * 1024, // 501KB
         files: 1,
       },
     });

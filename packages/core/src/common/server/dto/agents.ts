@@ -137,3 +137,11 @@ export class UpdateModelConfigDTO {
   @IsNotEmpty()
   description: string;
 }
+
+/**
+ * Generic response type for agent operations
+ */
+export type AgentResponse<T = unknown> =
+  | { status: 'success'; data: T }
+  | { status: 'waiting_for_human_input'; data?: T }
+  | { status: 'failure'; error: string; data?: T };
