@@ -17,7 +17,7 @@ function isValidUUID(uuid: string): boolean {
 
 /**
  * Common function to extract and validate userId from headers
- * @param userIdHeader - The x-user-id header value (can be string, string array, or undefined)
+ * @param userIdHeader - The x-auth-request-user header value (can be string, string array, or undefined)
  * @returns string - Validated userId (must be a valid UUID v4)
  * @throws BadRequestException if userId is missing or invalid
  */

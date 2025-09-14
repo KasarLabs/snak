@@ -29,3 +29,11 @@ export {
 } from './embeddings/customEmbedding.js';
 
 export type { Chunk, ChunkMetadata, ChunkOptions } from './types/rag/chunk.js';
+
+export {
+  FileValidationService,
+  type SupportedMimeType,
+  type FileValidationResult,
+  type FileValidationError,
+  type FileValidationResponse,
+} from './services/file-validation.service.js';

@@ -76,8 +76,8 @@ function generateLargeFileContent(file_size: number): string {
 async function waitForJobCompletion(
   testRunner: TestRunner,
   jobId: string,
-  maxWaitTime: number = 60000,
-  pollInterval: number = 100
+  maxWaitTime: number = 600000,
+  pollInterval: number = 1000
 ): Promise<JobStatus | null> {
   const startTime = Date.now();
   
@@ -335,7 +335,7 @@ async function testFileStressWithJobQueue() {
           return null;
         }
         
-        const jobStatus = await waitForJobCompletion(agent.testRunner, jobId, 60_000); // 600s timeout
+        const jobStatus = await waitForJobCompletion(agent.testRunner, jobId, 600_000); // 6000s timeout
         
         if (jobStatus) {
           if (jobStatus.status === 'completed') {

@@ -7,14 +7,15 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { FileIngestionService } from '../services/file-ingestion.service.js';
+import { FileValidationService } from '@snakagent/core';
 import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
 import { ConfigurationService } from '../../config/configuration.js';
 import { ErrorHandler } from '../utils/error-handler.js';
 import { ControllerHelpers } from '../utils/controller-helpers.js';
+import { AgentStorage } from '../agents.storage.js';
 import { logger } from '@snakagent/core';
 import { randomUUID } from 'crypto';
-import { fileTypeFromBuffer } from 'file-type';
 
 interface MultipartField {
   type: 'field';
@@ -31,7 +32,9 @@ interface MultipartRequest {
 export class FileIngestionController {
   constructor(
     private readonly service: FileIngestionService,
-    private readonly config: ConfigurationService
+    private readonly config: ConfigurationService,
+    private readonly fileValidationService: FileValidationService,
+    private readonly agentFactory: AgentStorage
   ) {}
 
   @Post('upload')
@@ -97,54 +100,37 @@ export class FileIngestionController {
         throw new BadRequestException('agentId is required');
       }
 
+      // Verify agent ownership before proceeding
+      ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
+
       const fileId = randomUUID();
 
-      let mimeType = 'application/octet-stream';
-      try {
-        const fileType = await fileTypeFromBuffer(fileBuffer);
-        if (fileType?.mime) {
-          mimeType = fileType.mime;
-        } else {
-          const extension = fileName.toLowerCase().split('.').pop();
-          switch (extension) {
-            case 'txt':
-              mimeType = 'text/plain';
-              break;
-            case 'md':
-            case 'markdown':
-              mimeType = 'text/markdown';
-              break;
-            case 'csv':
-              mimeType = 'text/csv';
-              break;
-            case 'json':
-              mimeType = 'application/json';
-              break;
-            case 'html':
-            case 'htm':
-              mimeType = 'text/html';
-              break;
-            case 'pdf':
-              mimeType = 'application/pdf';
-              break;
-            case 'doc':
-              mimeType = 'application/msword';
-              break;
-            case 'docx':
-              mimeType =
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-              break;
-            default:
-              break;
+      // Secure file validation using centralized service
+      const validationResult = await this.fileValidationService.validateFile(
+        fileBuffer,
+        fileName
+      );
+
+      if (!validationResult.isValid) {
+        logger.error(
+          `File validation failed for ${fileName}: ${validationResult.error}`,
+          {
+            detectedMimeType: validationResult.detectedMimeType,
+            declaredMimeType: validationResult.declaredMimeType,
           }
-        }
-      } catch (error) {
-        logger.warn(
-          `Failed to detect file type for ${fileName}, using extension-based detection`,
-          error
         );
-        throw new BadRequestException('Failed to detect file type');
+        throw new BadRequestException(validationResult.error);
       }
+
+      const mimeType = validationResult.validatedMimeType;
+      
+      logger.info(
+        `File validation passed for ${fileName}: ${mimeType}`,
+        {
+          detectedMimeType: validationResult.detectedMimeType,
+          declaredMimeType: validationResult.declaredMimeType,
+        }
+      );
 
       const { jobId } = await this.service.processFileUpload(
         agentId,
@@ -170,6 +156,7 @@ export class FileIngestionController {
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
+    ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.listFiles(agentId, userId);
   }
 
@@ -180,6 +167,7 @@ export class FileIngestionController {
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
+    ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.getFile(agentId, fileId, userId);
   }
 
@@ -190,6 +178,7 @@ export class FileIngestionController {
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
+    ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     await this.service.deleteFile(agentId, fileId, userId);
     return { deleted: true };
   }

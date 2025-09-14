@@ -5,10 +5,12 @@ import { FileIngestionWorkerService } from './services/file-ingestion-worker/fil
 import { ChunkingService } from './services/chunking/chunking.service.js';
 import { EmbeddingsService } from './services/embeddings/embeddings.service.js';
 import { VectorStoreService } from './services/vector-store/vector-store.service.js';
+import { FileValidationService } from '@snakagent/core';
 import { JobsMetadataService } from './services/jobs/jobs-metadata.service.js';
 import { QueueMetrics } from './types/index.js';
 import { logger } from '@snakagent/core';
 import { RedisCacheService } from './services/cache/redis-cache.service.js';
+import { RedisMutexService } from './services/mutex/redis-mutex.service.js';
 
 export class WorkerManager {
   private queueManager: QueueManager;
@@ -40,12 +42,16 @@ export class WorkerManager {
       ingestionServices?.embeddingsService || new EmbeddingsService();
     const vectorStoreService =
       ingestionServices?.vectorStoreService || new VectorStoreService();
+    const fileValidationService = new FileValidationService();
+    const redisMutexService = new RedisMutexService();
     const fileIngestionWorkerService =
       ingestionServices?.fileIngestionWorkerService ||
       new FileIngestionWorkerService(
         chunkingService,
         embeddingsService,
-        vectorStoreService
+        vectorStoreService,
+        fileValidationService,
+        redisMutexService
       );
     const fileIngestionProcessor = new FileIngestionProcessor(
       fileIngestionWorkerService
@@ -53,7 +59,8 @@ export class WorkerManager {
 
     this.jobsMetadataService = new JobsMetadataService(
       cacheService,
-      this.queueManager
+      this.queueManager,
+      redisMutexService
     );
 
     this.jobProcessor = new JobProcessor(

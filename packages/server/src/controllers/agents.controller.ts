@@ -348,7 +348,6 @@ export class AgentsController {
       );
 
       const response: AgentResponse = ResponseFormatter.success(response_metrics);
-      logger.warn(JSON.stringify(action));
       return response;
   }
 

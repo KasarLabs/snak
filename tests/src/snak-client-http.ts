@@ -23,7 +23,7 @@ export class SnakClient {
       timeout: 1800000,
       headers: {
         'Content-Type': 'application/json',
-        ...(config.userId && { 'x-user-id': config.userId }),
+        ...(config.userId && { 'x-auth-request-user': config.userId }),
         ...(config.apiKey && { 'x-api-key': config.apiKey }),
       },
     });
@@ -95,7 +95,7 @@ export class SnakClient {
     const response: AxiosResponse<FileUploadResponse> = await this.client.post('/api/files/upload', formData, {
       headers: {
         ...formData.getHeaders(),
-        ...(this.config.userId && { 'x-user-id': this.config.userId }),
+        ...(this.config.userId && { 'x-auth-request-user': this.config.userId }),
         ...(this.config.apiKey && { 'x-api-key': this.config.apiKey }),
       },
     });

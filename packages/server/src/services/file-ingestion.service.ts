@@ -1,21 +1,15 @@
 import {
   Injectable,
-  BadRequestException,
-  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { logger } from '@snakagent/core';
 import { VectorStoreService } from './vector-store.service.js';
 import { WorkersService } from './workers.service.js';
 import { ConfigurationService } from '../../config/configuration.js';
-import { randomUUID } from 'crypto';
-import { fileTypeFromBuffer } from 'file-type';
-import { Postgres } from '@snakagent/database';
 import {
   FileContent,
   StoredFile,
 } from '../interfaces/file-content.interface.js';
-import { MultipartFile } from '@fastify/multipart';
 
 @Injectable()
 export class FileIngestionService {
@@ -25,26 +19,6 @@ export class FileIngestionService {
     private readonly config: ConfigurationService
   ) {}
 
-  /**
-   * Verify that the agent belongs to the specified user
-   * @param agentId - The agent ID to verify
-   * @param userId - The user ID to check ownership against
-   * @throws ForbiddenException if the agent doesn't belong to the user
-   */
-  private async verifyAgentOwnership(
-    agentId: string,
-    userId: string
-  ): Promise<void> {
-    const q = new Postgres.Query(
-      'SELECT id FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const result = await Postgres.query(q);
-
-    if (result.length === 0) {
-      throw new ForbiddenException('Agent not found or access denied');
-    }
-  }
 
   /**
    * List all files associated with a specific agent
@@ -54,7 +28,6 @@ export class FileIngestionService {
    * @throws ForbiddenException if the agent doesn't belong to the user
    */
   async listFiles(agentId: string, userId: string): Promise<StoredFile[]> {
-    await this.verifyAgentOwnership(agentId, userId);
     const docs = await this.vectorStore.listDocuments(agentId, userId);
     return docs.map((d) => ({
       id: d.document_id,
@@ -98,7 +71,6 @@ export class FileIngestionService {
     id: string,
     userId: string
   ): Promise<FileContent> {
-    await this.verifyAgentOwnership(agentId, userId);
     const rows = await this.vectorStore.getDocument(agentId, id, userId);
     if (!rows.length) {
       throw new NotFoundException('Document not found');
@@ -132,7 +104,6 @@ export class FileIngestionService {
    * @throws ForbiddenException if the agent doesn't belong to the user
    */
   async deleteFile(agentId: string, id: string, userId: string) {
-    await this.verifyAgentOwnership(agentId, userId);
     await this.vectorStore.deleteDocument(agentId, id, userId);
   }
 
@@ -154,8 +125,6 @@ export class FileIngestionService {
     fileBuffer: Buffer,
     fileSize: number
   ): Promise<{ jobId: string }> {
-    await this.verifyAgentOwnership(agentId, userId);
-
     const jobId = await this.workersService.processFileAsync(
       agentId,
       userId,
@@ -171,67 +140,5 @@ export class FileIngestionService {
     );
 
     return { jobId };
-  }
-
-  /**
-   * Detect MIME type from file buffer and filename
-   * @param fileBuffer - The file buffer
-   * @param fileName - The original filename
-   * @returns string The detected MIME type
-   * @throws BadRequestException if file type detection fails
-   */
-  private async detectMimeType(
-    fileBuffer: Buffer,
-    fileName: string
-  ): Promise<string> {
-    let mimeType = 'application/octet-stream';
-
-    try {
-      const fileType = await fileTypeFromBuffer(fileBuffer);
-      if (fileType?.mime) {
-        mimeType = fileType.mime;
-      } else {
-        const extension = fileName.toLowerCase().split('.').pop();
-        switch (extension) {
-          case 'txt':
-            mimeType = 'text/plain';
-            break;
-          case 'md':
-          case 'markdown':
-            mimeType = 'text/markdown';
-            break;
-          case 'csv':
-            mimeType = 'text/csv';
-            break;
-          case 'json':
-            mimeType = 'application/json';
-            break;
-          case 'html':
-          case 'htm':
-            mimeType = 'text/html';
-            break;
-          case 'pdf':
-            mimeType = 'application/pdf';
-            break;
-          case 'doc':
-            mimeType = 'application/msword';
-            break;
-          case 'docx':
-            mimeType =
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-            break;
-          default:
-            break;
-        }
-      }
-    } catch (error) {
-      logger.warn(
-        `Failed to detect file type for ${fileName}, using extension-based detection`,
-        error
-      );
-      throw new BadRequestException('Failed to detect file type');
-    }
-
-    return mimeType;
   }
 }

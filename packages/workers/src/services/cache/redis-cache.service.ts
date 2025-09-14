@@ -25,6 +25,26 @@ export class RedisCacheService implements OnModuleDestroy {
       db: parseInt(process.env.REDIS_DB || '0'),
     };
 
+    // Security: Validate Redis authentication configuration
+    if (!config.password || config.password.trim() === '') {
+      const isProduction = process.env.NODE_ENV === 'production';
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      if (isProduction) {
+        throw new Error(
+          'REDIS_PASSWORD is required in production environment for security. ' +
+          'Please set the REDIS_PASSWORD environment variable.'
+        );
+      }
+      
+      if (!isDevelopment) {
+        logger.warn(
+          'REDIS_PASSWORD not configured - using unauthenticated Redis connection. ' +
+          'This is strongly discouraged outside of development environments.'
+        );
+      }
+    }
+
     this.redis = new Redis({
       host: config.host,
       port: config.port,
@@ -43,6 +63,10 @@ export class RedisCacheService implements OnModuleDestroy {
 
     this.redis.on('ready', () => {
       logger.info('Redis cache ready');
+      // Validate authentication by attempting a test command
+      this.validateAuthentication().catch((error) => {
+        logger.error('Redis authentication validation failed:', error);
+      });
     });
   }
 
@@ -226,10 +250,33 @@ export class RedisCacheService implements OnModuleDestroy {
   async connect(): Promise<void> {
     try {
       await this.redis.connect();
-      logger.info('Manual Redis connection established');
+      await this.validateAuthentication();
+      logger.info('Manual Redis connection established and authenticated');
     } catch (error) {
       logger.error('Failed to manually connect to Redis:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Validate Redis authentication by executing a test command
+   * @private
+   */
+  private async validateAuthentication(): Promise<void> {
+    try {
+      // Use PING command to validate authentication
+      const response = await this.redis.ping();
+      if (response !== 'PONG') {
+        throw new Error(`Unexpected Redis PING response: ${response}`);
+      }
+      logger.debug('Redis authentication validated successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const authError = new Error(
+        `Redis authentication failed. Please verify REDIS_PASSWORD is correct: ${errorMessage}`
+      );
+      logger.error('Redis authentication validation failed:', authError);
+      throw authError;
     }
   }
 

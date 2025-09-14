@@ -1,5 +1,6 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { fileTypeFromBuffer } from 'file-type';
+import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { FileValidationService } from '@snakagent/core';
+import { RedisMutexService } from '../mutex/redis-mutex.service.js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
 import csv from 'csv-parser';
@@ -15,63 +16,23 @@ import {
   FileProcessingResult,
   FileProcessingOptions,
   VectorStoreEntry,
-  FileIngestionStatus,
-  FileIngestionProgress,
   SupportedMimeType,
 } from '../../types/file-ingestion.js';
 import { rag } from '@snakagent/database/queries';
 
-interface MutexEntry {
-  promise: Promise<void>;
-  resolve: () => void;
-  waiting: number;
-}
-
-const userMutexes = new Map<string, MutexEntry>();
-
-async function acquireUserMutex(userId: string): Promise<() => void> {
-  let entry = userMutexes.get(userId);
-
-  if (entry) {
-    entry.waiting++;
-    await entry.promise;
-    entry = userMutexes.get(userId);
-    if (!entry) {
-      let resolve: () => void;
-      const promise = new Promise<void>((r) => {
-        resolve = r;
-      });
-      entry = { promise, resolve: resolve!, waiting: 1 };
-      userMutexes.set(userId, entry);
-    }
-  } else {
-    let resolve: () => void;
-    const promise = new Promise<void>((r) => {
-      resolve = r;
-    });
-    entry = { promise, resolve: resolve!, waiting: 1 };
-    userMutexes.set(userId, entry);
-  }
-
-  return () => {
-    const currentEntry = userMutexes.get(userId);
-    if (currentEntry) {
-      currentEntry.waiting--;
-      if (currentEntry.waiting <= 0) {
-        userMutexes.delete(userId);
-      }
-      currentEntry.resolve();
-    }
-  };
-}
+const MUTEX_TIMEOUT = 5 * 60 * 1000;
 
 @Injectable()
 export class FileIngestionWorkerService {
   constructor(
     private readonly chunkingService: ChunkingService,
     private readonly embeddingsService: EmbeddingsService,
-    private readonly vectorStore: VectorStoreService
-  ) {}
+    private readonly vectorStore: VectorStoreService,
+    private readonly fileValidationService: FileValidationService,
+    private readonly redisMutexService: RedisMutexService
+  ) {
+    // Redis mutex service handles cleanup automatically
+  }
 
   /**
    * Process a file ingestion job in the worker context
@@ -97,9 +58,14 @@ export class FileIngestionWorkerService {
       `Processing file ingestion for agent ${agentId}, file: ${originalName}`
     );
 
-    const releaseMutex = await acquireUserMutex(userId);
+    let releaseMutex: (() => Promise<void>) | null = null;
 
     try {
+      releaseMutex = await this.redisMutexService.acquireUserMutex(userId, {
+        timeout: MUTEX_TIMEOUT,
+        retryDelay: 100,
+        maxRetries: 50
+      });
       await this.checkStorageLimits(agentId, userId, size);
 
       const contentBuffer = Buffer.isBuffer(content)
@@ -107,9 +73,37 @@ export class FileIngestionWorkerService {
         : options?.contentEncoding === 'base64'
           ? Buffer.from(content as string, 'base64')
           : Buffer.from(content as string, 'utf8');
-      const text = await this.extractRawText(contentBuffer, mimeType);
 
-      const strategy = this.determineProcessingStrategy(mimeType);
+      // Centralized file validation
+      const validationResult = await this.fileValidationService.validateFile(
+        contentBuffer,
+        originalName,
+        mimeType
+      );
+
+      if (!validationResult.isValid) {
+        logger.error(
+          `File validation failed in worker for ${originalName}: ${validationResult.error}`,
+          {
+            detectedMimeType: validationResult.detectedMimeType,
+            declaredMimeType: validationResult.declaredMimeType,
+          }
+        );
+        throw new BadRequestException(validationResult.error);
+      }
+
+      const validatedMimeType = validationResult.validatedMimeType;
+      logger.info(
+        `File validation passed in worker for ${originalName}: ${validatedMimeType}`,
+        {
+          detectedMimeType: validationResult.detectedMimeType,
+          declaredMimeType: validationResult.declaredMimeType,
+        }
+      );
+
+      const text = await this.extractRawText(contentBuffer, validatedMimeType);
+
+      const strategy = this.determineProcessingStrategy(validatedMimeType);
       const { chunkSize, overlap } = this.computeChunkParams(size);
 
       const processingOptions: FileProcessingOptions = {
@@ -165,7 +159,7 @@ export class FileIngestionWorkerService {
           chunks,
           embeddings,
           originalName,
-          mimeType,
+          validatedMimeType,
           size
         );
       }
@@ -174,7 +168,7 @@ export class FileIngestionWorkerService {
       const result: FileProcessingResult = {
         documentId,
         originalName,
-        mimeType,
+        mimeType: validatedMimeType,
         size,
         chunksCount: chunks.length,
         embeddingsCount: embeddings.length,
@@ -202,7 +196,13 @@ export class FileIngestionWorkerService {
         retryable: this.isRetryableError(error),
       };
     } finally {
-      releaseMutex();
+      if (releaseMutex) {
+        try {
+          await releaseMutex();
+        } catch (error) {
+          logger.error('Error releasing mutex:', error);
+        }
+      }
     }
   }
 
@@ -353,30 +353,28 @@ export class FileIngestionWorkerService {
   /**
    * Extract raw text from various file formats
    * @param buffer - The file buffer
-   * @param mimeType - The MIME type of the file
+   * @param mimeType - The validated MIME type of the file
    * @returns The extracted text
    */
   private async extractRawText(
     buffer: Buffer,
-    mimeTypeHint?: string
+    mimeType: SupportedMimeType
   ): Promise<string> {
-    const detected = await fileTypeFromBuffer(buffer);
-    const type = detected?.mime ?? mimeTypeHint ?? 'application/octet-stream';
 
     try {
       let result: string;
 
-      if (type === 'application/pdf') {
+      if (mimeType === 'application/pdf') {
         result = await this.extractPdf(buffer);
       } else if (
-        type ===
+        mimeType ===
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ) {
         result = await this.extractDocx(buffer);
-      } else if (type === 'text/csv' || type === 'application/csv') {
+      } else if (mimeType === 'text/csv' || mimeType === 'application/csv') {
         const csvText = await this.parseCsv(buffer);
         result = this.cleanText(csvText);
-      } else if (type === 'application/json' || type === 'text/json') {
+      } else if (mimeType === 'application/json') {
         const obj = JSON.parse(buffer.toString('utf8'));
         result = JSON.stringify(obj, null, 2);
       } else {
@@ -514,6 +512,7 @@ export class FileIngestionWorkerService {
     }
   }
 
+
   /**
    * Determine if an error is retryable
    * @param error - The error to check
@@ -522,6 +521,10 @@ export class FileIngestionWorkerService {
   private isRetryableError(error: any): boolean {
     if (error instanceof ForbiddenException) {
       return false; // Authorization errors are not retryable
+    }
+
+    if (error instanceof BadRequestException) {
+      return false; // MIME type validation errors are not retryable
     }
 
     if (error.message?.includes('storage limit exceeded')) {

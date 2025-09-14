@@ -6,7 +6,6 @@ import {
   JobMetadata,
   CreateJobMetadataData,
   UpdateJobMetadataData,
-  JobMetadataFilters,
   JobRetrievalResult,
   ResultRetrievalOptions,
   ResultRegenerationOptions,
@@ -15,58 +14,19 @@ import {
 } from '../../types/jobs.js';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { QueueManager } from '../../queues/queue-manager.js';
+import { RedisMutexService } from '../mutex/redis-mutex.service.js';
 
-interface MutexEntry {
-  promise: Promise<void>;
-  resolve: () => void;
-  waiting: number;
-}
-
-const userMutexes = new Map<string, MutexEntry>();
-
-async function acquireUserMutex(userId: string): Promise<() => void> {
-  let entry = userMutexes.get(userId);
-
-  if (entry) {
-    entry.waiting++;
-    await entry.promise;
-    // After waiting, check if we need to create a new mutex
-    entry = userMutexes.get(userId);
-    if (!entry) {
-      // Create new mutex if the previous one was released
-      let resolve: () => void;
-      const promise = new Promise<void>((r) => {
-        resolve = r;
-      });
-      entry = { promise, resolve: resolve!, waiting: 1 };
-      userMutexes.set(userId, entry);
-    }
-  } else {
-    let resolve: () => void;
-    const promise = new Promise<void>((r) => {
-      resolve = r;
-    });
-    entry = { promise, resolve: resolve!, waiting: 1 };
-    userMutexes.set(userId, entry);
-  }
-
-  return () => {
-    const currentEntry = userMutexes.get(userId);
-    if (currentEntry) {
-      currentEntry.waiting--;
-      if (currentEntry.waiting <= 0) {
-        userMutexes.delete(userId);
-      }
-      currentEntry.resolve();
-    }
-  };
-}
+/**
+ * FIXED: Removed race condition-prone local mutex implementation
+ * Now using Redis-based distributed mutex for thread safety
+ */
 
 @Injectable()
 export class JobsMetadataService {
   constructor(
     @Optional() private readonly cacheService?: RedisCacheService,
-    @Optional() private readonly queueManager?: QueueManager
+    @Optional() private readonly queueManager?: QueueManager,
+    @Optional() private readonly redisMutexService?: RedisMutexService
   ) {}
 
   async createJobMetadata(data: CreateJobMetadataData): Promise<JobMetadata> {
@@ -233,16 +193,6 @@ export class JobsMetadataService {
     }
   }
 
-  /**
-   * Generate a unique job ID
-   * @returns A unique job identifier
-   */
-  private generateJobId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return `job_${timestamp}_${random}`;
-  }
-
   private mapRowToJobMetadata(row: any): JobMetadata {
     return {
       id: row.id,
@@ -270,7 +220,6 @@ export class JobsMetadataService {
   ): Promise<JobRetrievalResult> {
     const {
       allowRegeneration = true,
-      maxRetries = 3,
       timeout = 30000,
       fallbackToBull = true,
     } = options;
@@ -287,7 +236,16 @@ export class JobsMetadataService {
         };
       }
 
-      const releaseMutex = await acquireUserMutex(userId);
+      let releaseMutex: (() => Promise<void>) | null = null;
+      
+      // Use Redis mutex for thread safety if available
+      if (this.redisMutexService) {
+        releaseMutex = await this.redisMutexService.acquireUserMutex(jobId, {
+          timeout: 60000, // 1 minute timeout
+          retryDelay: 100,
+          maxRetries: 300 // Total 30 seconds retry time
+        });
+      }
 
       try {
         const cachedResult2 = await this.getFromCache(jobId, userId);
@@ -365,7 +323,14 @@ export class JobsMetadataService {
           source: ResultSource.DATABASE,
         };
       } finally {
-        releaseMutex();
+        // Release Redis mutex if it was acquired
+        if (releaseMutex) {
+          try {
+            await releaseMutex();
+          } catch (error) {
+            logger.error(`Failed to release mutex for job ${jobId}:`, error);
+          }
+        }
       }
     } catch (error) {
       logger.error(`Failed to retrieve result for job ${jobId}:`, error);

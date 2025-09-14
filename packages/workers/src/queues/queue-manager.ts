@@ -31,6 +31,25 @@ export class QueueManager {
     // Use provided Redis config or fall back to worker config
     const redisSettings = redisConfig || this.config.redis;
 
+    // Security: Validate Redis authentication configuration
+    if (!redisSettings.password || redisSettings.password.trim() === '') {
+      const isProduction = process.env.NODE_ENV === 'production';
+      
+      if (isProduction) {
+        throw new Error(
+          'REDIS_PASSWORD is required in production environment for security. ' +
+          'Please set the REDIS_PASSWORD environment variable.'
+        );
+      }
+      
+      if (process.env.NODE_ENV !== 'development') {
+        logger.warn(
+          'REDIS_PASSWORD not configured for QueueManager - using unauthenticated Redis connection. ' +
+          'This is strongly discouraged outside of development environments.'
+        );
+      }
+    }
+
     this.redis = new Redis({
       host: redisSettings.host,
       port: redisSettings.port,

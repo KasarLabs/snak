@@ -14,7 +14,7 @@ const ALLOWED_MIME_TYPES = [
   'application/octet-stream',
 ] as const;
 
-const MAX_FILE_SIZE = 523 * 1024 * 1024; // 523MB
+const MAX_FILE_SIZE = 501 * 1024; // 501KB
 const MIN_FILE_SIZE = 1;
 
 export const FileIngestionJobPayloadSchema = z
