@@ -15,7 +15,6 @@ function isValidUUID(uuid: string): boolean {
   return typeof uuid === 'string' && uuid.length === 36 && uuidRegex.test(uuid);
 }
 
-
 /**
  * Common function to extract and validate userId from headers
  * @param userIdHeader - The x-auth-request-user header value (can be string, string array, or undefined)
