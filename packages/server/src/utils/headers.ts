@@ -4,7 +4,6 @@ import { FastifyRequest } from 'fastify';
 import { Socket } from 'socket.io';
 
 export const USER_ID_HEADER = 'x-auth-request-user' as const;
-
 /**
  * Validates if a string is a valid UUID (v4 format)
  * @param uuid - The string to validate
@@ -15,6 +14,7 @@ function isValidUUID(uuid: string): boolean {
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return typeof uuid === 'string' && uuid.length === 36 && uuidRegex.test(uuid);
 }
+
 
 /**
  * Common function to extract and validate userId from headers
