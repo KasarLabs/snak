@@ -1,4 +1,5 @@
 import {
+  HttpException,
   BadRequestException,
   InternalServerErrorException,
   ForbiddenException,
@@ -28,7 +29,7 @@ export class ErrorHandler {
    * @param fallbackErrorCode - ServerError code to use if no specific handling applies
    */
   static async handleControllerError<T>(
-    operation: () => Promise<T>,
+    operation: () => Promise<T> | T,
     context: string,
     fallbackErrorCode?: string
   ): Promise<T> {
@@ -39,11 +40,7 @@ export class ErrorHandler {
       
       // Re-throw known exceptions as-is
       if (
-        error instanceof BadRequestException ||
-        error instanceof InternalServerErrorException ||
-        error instanceof ForbiddenException ||
-        error instanceof NotFoundException ||
-        error instanceof UnauthorizedException ||
+        error instanceof HttpException ||
         error instanceof ServerError ||
         error instanceof WsException
       ) {
@@ -52,19 +49,19 @@ export class ErrorHandler {
 
       // Handle job-specific errors
       if (error instanceof JobNotFoundError) {
-        throw new NotFoundException(error.message);
+        throw new NotFoundException(error.message, { cause: error });
       }
       if (error instanceof JobAccessDeniedError) {
-        throw new ForbiddenException('Access denied: Job does not belong to user');
+        throw new ForbiddenException('Access denied: Job does not belong to user', { cause: error });
       }
       if (error instanceof JobNotCompletedError) {
-        throw new BadRequestException(error.message);
+        throw new BadRequestException(error.message, { cause: error });
       }
       if (error instanceof JobFailedError) {
-        throw new InternalServerErrorException(`Job failed: ${error.message}`);
+        throw new InternalServerErrorException(`Job failed: ${error.message}`, { cause: error });
       }
       if (error instanceof UnknownJobStatusError) {
-        throw new InternalServerErrorException(`Unknown job status: ${error.message}`);
+        throw new InternalServerErrorException(`Unknown job status: ${error.message}`, { cause: error });
       }
 
       // Fallback error handling
@@ -72,7 +69,7 @@ export class ErrorHandler {
         throw new ServerError(fallbackErrorCode);
       }
       
-      throw new InternalServerErrorException(`${context} failed: ${error.message}`);
+      throw new InternalServerErrorException(`${context} failed`, { cause: error })
     }
   }
 
@@ -83,7 +80,7 @@ export class ErrorHandler {
    * @param errorMessage - Custom error message for wrapped exceptions
    */
   static async handleWithBadRequestPreservation<T>(
-    operation: () => Promise<T>,
+    operation: () => Promise<T> | T,
     context: string,
     errorMessage?: string
   ): Promise<T> {
@@ -110,9 +107,9 @@ export class ErrorHandler {
    * @param fallbackErrorCode - ServerError code for unexpected errors
    */
   static async handleWebSocketError<T>(
-    operation: () => Promise<T>,
+    operation: () => Promise<T> | T,
     context: string,
-    client: any,
+    client: { emit(event: string, payload: unknown): void },
     eventName: string,
     fallbackErrorCode: string = 'E01TA400'
   ): Promise<T | void> {
@@ -125,10 +122,11 @@ export class ErrorHandler {
       }
       
       if (error instanceof WsException) {
-        const validationError = new ValidationError(
-          'User ID validation failed',
-          { originalError: error.message }
-        );
+        const reason =
+          (typeof (error as any).getError === 'function' ? (error as any).getError() : undefined) ??
+          error.message ??
+          'Validation failed';
+        const validationError = new ValidationError(String(reason));
         client.emit(eventName, validationError);
         return;
       }

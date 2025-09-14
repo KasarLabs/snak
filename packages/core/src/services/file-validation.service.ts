@@ -207,7 +207,11 @@ export class FileValidationService {
     mimeType: SupportedMimeType,
     fileName: string
   ): { isValid: boolean; error?: string } {
-    // Check for suspicious file signatures
+    const zipBasedFormats = [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const skipZipCheck = zipBasedFormats.includes(mimeType);
+
     const suspiciousPatterns = [
       // Executable signatures
       { pattern: Buffer.from([0x4d, 0x5a]), description: 'PE executable' },
@@ -215,9 +219,13 @@ export class FileValidationService {
       // Script signatures
       { pattern: Buffer.from('<?php'), description: 'PHP script' },
       { pattern: Buffer.from('<script'), description: 'JavaScript in HTML' },
-      // Archive signatures (potentially dangerous)
-      { pattern: Buffer.from([0x50, 0x4b, 0x03, 0x04]), description: 'ZIP archive' },
     ];
+    if (!skipZipCheck) {
+      suspiciousPatterns.push({
+        pattern: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+        description: 'ZIP archive'
+      });
+    }
 
     for (const { pattern, description } of suspiciousPatterns) {
       if (buffer.indexOf(pattern) === 0) {

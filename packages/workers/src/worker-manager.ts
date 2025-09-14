@@ -58,7 +58,7 @@ export class WorkerManager {
     );
 
     this.jobsMetadataService = new JobsMetadataService(
-      cacheService,
+      cacheService || new RedisCacheService(),
       this.queueManager,
       redisMutexService
     );
@@ -111,10 +111,6 @@ export class WorkerManager {
   }
 
   async stop(): Promise<void> {
-    if (this.isShuttingDown) {
-      logger.info('Already shutting down');
-      return;
-    }
     if (!this.isRunning) {
       logger.info('Worker manager is not running');
       return;
@@ -178,8 +174,13 @@ export class WorkerManager {
       }
       this.isShuttingDown = true;
       logger.info(`Received ${signal}, shutting down gracefully...`);
-      await this.stop();
-      process.exit(0);
+      try {
+        await this.stop();
+        process.exit(0);
+      } catch (err) {
+        logger.error('Graceful shutdown failed:', err);
+        process.exit(1);
+      }
     };
 
     process.once('SIGTERM', () => shutdown('SIGTERM'));

@@ -95,7 +95,6 @@ export class RedisMutexService implements OnModuleDestroy {
 
     const lockKey = `user_mutex:${userId}`;
     const lockValue = randomUUID();
-    const lockExpiry = Math.ceil(timeout / 1000); // Convert to seconds
 
     let retries = 0;
     let acquired = false;
@@ -212,18 +211,24 @@ export class RedisMutexService implements OnModuleDestroy {
    */
   async cleanupOrphanedMutexes(): Promise<number> {
     const pattern = 'user_mutex:*';
-    const keys = await this.redis.keys(pattern);
     let cleaned = 0;
+    let cursor = '0';
 
-    for (const key of keys) {
-      const ttl = await this.redis.pttl(key);
-      // If TTL is -1 (no expiry) or -2 (key doesn't exist), it's orphaned
-      if (ttl === -1 || ttl === -2) {
-        await this.redis.del(key);
-        cleaned++;
-        logger.warn(`Cleaned up orphaned mutex: ${key}`);
+    do {
+      const result = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = result[0];
+      const keys = result[1];
+
+      for (const key of keys) {
+        const ttl = await this.redis.pttl(key);
+        // If TTL is -1 (no expiry)
+        if (ttl === -1) {
+          await this.redis.del(key);
+          cleaned++;
+          logger.warn(`Cleaned up orphaned mutex: ${key}`);
+        }
       }
-    }
+    } while (cursor !== '0');
 
     if (cleaned > 0) {
       logger.info(`Cleaned up ${cleaned} orphaned mutexes`);
@@ -240,14 +245,20 @@ export class RedisMutexService implements OnModuleDestroy {
     mutexes: Array<{ userId: string; ttl: number }>;
   }> {
     const pattern = 'user_mutex:*';
-    const keys = await this.redis.keys(pattern);
     const mutexes = [];
+    let cursor = '0';
 
-    for (const key of keys) {
-      const userId = key.replace('user_mutex:', '');
-      const ttl = await this.redis.pttl(key);
-      mutexes.push({ userId, ttl });
-    }
+    do {
+      const result = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = result[0];
+      const keys = result[1];
+
+      for (const key of keys) {
+        const userId = key.replace('user_mutex:', '');
+        const ttl = await this.redis.pttl(key);
+        mutexes.push({ userId, ttl });
+      }
+    } while (cursor !== '0');
 
     return {
       totalMutexes: mutexes.length,

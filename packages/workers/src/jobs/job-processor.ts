@@ -203,6 +203,7 @@ export class JobProcessor {
     if (this.fileIngestionQueue) {
       const queue = this.fileIngestionQueue.getQueue();
       await queue.close();
+      this.fileIngestionQueue = null;
     }
 
     this.isProcessingStarted = false;

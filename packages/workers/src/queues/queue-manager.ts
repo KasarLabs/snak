@@ -31,6 +31,10 @@ export class QueueManager {
     // Use provided Redis config or fall back to worker config
     const redisSettings = redisConfig || this.config.redis;
 
+    if (!redisSettings) {
+      throw new Error('Invalid worker configuration: missing Redis connection settings');
+    }
+
     // Security: Validate Redis authentication configuration
     if (!redisSettings.password || redisSettings.password.trim() === '') {
       const isProduction = process.env.NODE_ENV === 'production';
