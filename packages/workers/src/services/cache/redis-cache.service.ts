@@ -72,7 +72,7 @@ export class RedisCacheService implements OnModuleDestroy {
 
   async onModuleDestroy() {
     try {
-      await this.redis.disconnect();
+      await this.redis.quit();
       logger.info('Redis cache disconnected');
     } catch (error) {
       logger.error('Error disconnecting Redis cache:', error);
