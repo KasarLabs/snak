@@ -26,6 +26,7 @@ import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js'
 import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
 import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
+import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 
 // Task verification schema
 export const TaskVerificationSchema = z.object({
@@ -62,10 +63,9 @@ const TASK_VERIFICATION_SYSTEM_PROMPT = `You are a task verification specialist.
 ASSESSMENT CRITERIA:
 - Only the Task objectives must be fully met, not partially completed
 - All critical requirements must be addressed
-- Tool executions must have produced meaningful results
 - No essential steps should be missing or failed
 
-Be strict but fair in your assessment. A task is only complete if the original objectives are genuinely fulfilled.`;
+Be fair in your assessment. A task is only complete if the original objectives are genuinely fulfilled.`;
 
 const TASK_VERIFICATION_CONTEXT_PROMPT = `Verify task completion for:
 
@@ -79,7 +79,6 @@ LAST TOOL RESULT:
 {finalToolResult}
 
 Assess whether this task is truly complete or requires additional work.`;
-
 export class TaskVerifierGraph {
   private modelSelector: ModelSelector | null;
   private graph: any;
@@ -107,17 +106,6 @@ export class TaskVerifierGraph {
     return prompt;
   }
 
-  private formatExecutedSteps(steps: readonly (MemoryItem | null)[]): string {
-    return steps
-      .map((step, index) => {
-        if (!step) {
-          return;
-        }
-        return `${index}.${step.content}\n`;
-      })
-      .join('');
-  }
-
   private async verifyTaskCompletion(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -141,7 +129,7 @@ export class TaskVerifierGraph {
         throw new Error('Fast model not available for task verification');
       }
 
-      const currentTask = state.tasks[state.currentTaskIndex];
+      const currentTask = state.tasks[state.tasks.length - 1];
       if (!currentTask) {
         throw new Error('No current task to verify');
       }
@@ -170,7 +158,7 @@ export class TaskVerifierGraph {
         ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 
-      const executedSteps = this.formatExecutedSteps(state.memories.stm.items);
+      const executedSteps = stm_format_for_history(state.memories.stm);
       const lastStep = currentTask.steps[currentTask.steps.length - 1];
       const finalToolResult = lastStep
         ? lastStep.tool.result
@@ -184,8 +172,8 @@ export class TaskVerifierGraph {
 
       logger.info('[TaskVerifier] Starting task completion verification');
       const formattedPrompt = await prompt.formatMessages({
-        originalTask: currentTask.text,
-        taskReasoning: currentTask.reasoning,
+        originalTask: currentTask.task.directive,
+        taskReasoning: currentTask.thought.reasoning,
         executedSteps,
         finalToolResult,
         header: prompts.generateNumberedList(prompts.getHeader()),
@@ -245,7 +233,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
         // Add verification failure context to short-term memory
         const verificationContext = `TASK VERIFICATION FAILED:
-Task: ${currentTask.text}
+Task: ${currentTask.thought.text}
 Reason: ${verificationResult.reasoning}
 Missing Elements: ${verificationResult.missingElements.join(', ')}
 Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specified'}`;

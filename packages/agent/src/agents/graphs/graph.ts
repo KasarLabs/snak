@@ -85,7 +85,7 @@ export async function appendToRunFile(content: string): Promise<void> {
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => y,
+    reducer: (x, y) => x.concat(y),
     default: () => [],
   }),
   last_node: Annotation<
@@ -197,8 +197,6 @@ export class Graph {
       this.memoryAgent = this.snakAgent.getMemoryAgent();
       if (this.memoryAgent) {
         logger.debug('Agent] Memory agent retrieved successfully');
-        // const memoryTools = this.memoryAgent.prepareMemoryTools(); TODO
-        // this.toolsList.push(...memoryTools);
       } else {
         logger.warn(
           'Agent] WARNING: Memory agent not available - memory features will be limited'
@@ -281,11 +279,7 @@ export class Graph {
           },
         };
 
-        STMManager.addMemory(
-          state.memories.stm,
-          verificationContext.content,
-          uuidv4()
-        );
+        STMManager.addMemory(state.memories.stm, [lastMessage], uuidv4());
         logger.info(
           `[Task Updater] Added task verification context to memory: ${verificationContext.content}`
         );

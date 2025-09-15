@@ -43,6 +43,7 @@ import {
   TaskType,
 } from '../../../shared/types/graph.types.js';
 import { formatSteporHistoryForSTM } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
+import { BaseMessage } from '@langchain/core/messages';
 
 export type GraphStateType = typeof GraphState.State;
 
@@ -63,7 +64,7 @@ export class MemoryGraph {
 
   private async summarize_before_inserting(
     content: string
-  ): Promise<{ content: string; tokens: number }> {
+  ): Promise<{ message: BaseMessage; tokens: number }> {
     try {
       if (!this.modelSelector || !this.memoryDBManager) {
         logger.warn(
@@ -84,60 +85,23 @@ export class MemoryGraph {
         new MessagesPlaceholder('content'),
       ]);
 
-      const summaryResult = await model.invoke(
+      const aiMessage = await model.invoke(
         await prompt.formatMessages({
           content: content,
         })
       );
       return {
-        content: summaryResult.content as string,
-        tokens: estimateTokens(summaryResult.content as string),
+        message: aiMessage,
+        tokens: aiMessage.usage_metadata?.total_tokens ?? 0,
       };
     } catch (error: any) {
       throw error;
     }
   }
 
-  private formatTaskForSTM(step: StepType): string {
-    let finalOutput = '';
-
-    try {
-      // Parse thoughts section (same as Python version)
-      if (step.thoughts) {
-        if (step.thoughts.reasoning) {
-          finalOutput = '-Thoughts: ' + step.thoughts.reasoning + '\n';
-        }
-        if (step.thoughts.criticism) {
-          finalOutput += '-Criticism: ' + step.thoughts.criticism + '\n';
-        }
-      }
-      if (step.tool) {
-        finalOutput += '-Tool: ' + step.tool.name + '\n';
-        if (step.tool.args && Object.keys(step.tool.args).length > 0) {
-          const argsEntries = Object.entries(step.tool.args);
-          const argsString = argsEntries
-            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-            .join(', ');
-          finalOutput += '-Arguments: { ' + argsString + ' }\n';
-        }
-        if (step.tool.result) {
-          finalOutput += '-Result: ' + step.tool.result + '\n';
-        }
-        if (step.tool.status) {
-          finalOutput += '-Status: ' + step.tool.status + '\n';
-        }
-      }
-
-      return finalOutput;
-    } catch (error) {
-      // If parsing fails, return a simple string representation
-      return JSON.stringify(step);
-    }
-  }
-
   private formatAllStepsOfCurrentTask(task: TaskType): string {
     try {
-      let formatted = `Task: ${task.text}\n`;
+      let formatted = `Task: ${task.thought.text}\n`;
       if (task.steps && task.steps.length > 0) {
         formatted += `-Steps: `;
         task.steps.forEach((step: any, index: number) => {
@@ -150,7 +114,7 @@ export class MemoryGraph {
             JSON.stringify(step.tool.args).slice(0, 100) +
             (JSON.stringify(step.tool.args).length > 100 ? '...' : '');
 
-          formatted += `${index + 1}.[${step.thoughts.text}|${step.thoughts.reasoning}] ${step.tool.name}(${toolArgs}) → ${step.tool.status}:${toolResult}; `;
+          formatted += `${index + 1}.[${step.thought.text}|${step.thought.reasoning}] ${step.tool.name}(${toolArgs}) → ${step.tool.status}:${toolResult}; `;
         });
         formatted += `\n`;
       } else {
@@ -162,89 +126,7 @@ export class MemoryGraph {
       logger.error(
         `[LTMManager] Error formatting all steps of current task: ${error}`
       );
-      return `Task: ${task.text || 'Unknown task'} - Error formatting steps`;
-    }
-  }
-
-  private async stm_manager(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<
-    | {
-        memories: Memories;
-        last_node: MemoryNode;
-      }
-    | Command
-  > {
-    try {
-      logger.debug('[STMManager] Processing memory update');
-      if (
-        state.currentGraphStep >=
-        (config.configurable?.max_graph_steps ??
-          DEFAULT_GRAPH_CONFIG.maxGraphSteps)
-      ) {
-        logger.warn(
-          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
-        );
-        return {
-          memories: state.memories,
-          last_node: MemoryNode.STM_MANAGER,
-        };
-      }
-      const task = state.tasks[state.currentTaskIndex];
-      if (!task || task.status === 'completed') {
-        if (task && task.status === 'completed') {
-          logger.info(
-            `[STMManager] Current task at index ${state.currentTaskIndex} is already completed, skipping STM update`
-          );
-        } else {
-          logger.warn(
-            `[STMManager] No current task found at index ${state.currentTaskIndex}, skipping STM update`
-          );
-        }
-        return {
-          memories: state.memories,
-          last_node: MemoryNode.STM_MANAGER,
-        };
-      }
-
-      const formattedTask = this.formatTaskForSTM(
-        task.steps[task.steps.length - 1]
-      );
-      const date = Date.now();
-
-      const result = MemoryStateManager.addSTMMemory(
-        state.memories,
-        formattedTask,
-        state.tasks[state.currentTaskIndex].id,
-        date
-      );
-
-      if (!result.success) {
-        logger.error(`[STMManager] Failed to add memory: ${result.error}`);
-        return {
-          memories: result.data || state.memories,
-          last_node: MemoryNode.STM_MANAGER,
-        };
-      }
-
-      const updatedMemories = result.data!;
-      logger.debug(
-        `[STMManager] Memory updated. STM size: ${updatedMemories.stm.size}/${updatedMemories.stm.maxSize}`
-      );
-
-      return {
-        memories: updatedMemories,
-        last_node: MemoryNode.STM_MANAGER,
-      };
-    } catch (error: any) {
-      logger.error(`[STMManager] Critical error in STM processing: ${error}`);
-      return handleNodeError(
-        error,
-        'STM_MANAGER',
-        state,
-        'STM processing failed'
-      );
+      return `Task: ${task.thought.text || 'Unknown task'} - Error formatting steps`;
     }
   }
 
@@ -433,9 +315,6 @@ export class MemoryGraph {
     if (isInEnum(PlannerNode, lastNode)) {
       logger.debug('[MemoryRouter] Plan validated → retrieving memory context');
       return MemoryNode.RETRIEVE_MEMORY;
-    } else if (isInEnum(ExecutorNode, lastNode)) {
-      logger.debug('[MemoryRouter] Execution validated → updating STM');
-      return MemoryNode.STM_MANAGER;
     } else if (isInEnum(MemoryNode, lastNode)) {
       if (lastNode === MemoryNode.RETRIEVE_MEMORY) {
         logger.debug(
@@ -474,7 +353,6 @@ export class MemoryGraph {
       GraphState,
       GraphConfigurableAnnotation
     )
-      .addNode('stm_manager', this.stm_manager.bind(this))
       .addNode('ltm_manager', this.ltm_manager.bind(this))
       .addNode(
         'retrieve_memory',
@@ -482,7 +360,6 @@ export class MemoryGraph {
       )
       .addNode('end_memory_graph', this.end_memory_graph.bind(this))
       .addConditionalEdges(START, this.memory_router.bind(this))
-      .addEdge('stm_manager', 'ltm_manager')
       .addEdge('ltm_manager', 'retrieve_memory')
       .addEdge('retrieve_memory', END);
     this.graph = memory_subgraph.compile();

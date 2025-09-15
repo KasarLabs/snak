@@ -1,3 +1,4 @@
+import { BaseMessage } from '@langchain/core/messages';
 import {
   Memories,
   MemoryOperationResult,
@@ -30,7 +31,7 @@ export namespace MemoryStateManager {
    */
   export function addSTMMemory(
     state: Memories,
-    item: string,
+    item: BaseMessage[],
     task_id: string,
     timestamp: number
   ): MemoryOperationResult<Memories> {

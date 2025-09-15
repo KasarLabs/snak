@@ -1,13 +1,13 @@
 import { memory } from '@snakagent/database/queries';
 import z from 'zod';
-import { HistoryItem, StepInfo } from './graph.types.js';
+import { BaseMessage } from '@langchain/core/messages';
 
 /**
  * Individual memory item with immutable structure
  */
 export interface MemoryItem {
-  readonly content: string;
-  readonly task_id : string;
+  message: BaseMessage[];
+  readonly task_id: string;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
 }

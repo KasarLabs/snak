@@ -1,4 +1,8 @@
-import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  AIMessageChunk,
+  BaseMessage,
+} from '@langchain/core/messages';
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import {
   History,
@@ -52,12 +56,11 @@ import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import { isInEnum } from '@enums/utils.js';
-import TasksSchema, {
+import {
   PlanSchema,
   PlanSchemaType,
   TaskSchema,
   TaskSchemaType,
-  TasksSchemaType,
 } from '@schemas/graph.schemas.js';
 import * as z from 'zod';
 
@@ -66,8 +69,13 @@ import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js'
 import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
 import { INSTRUCTION_TASK_INITALIZER } from '@prompts/agents/instruction.prompts.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
-import { tr } from 'zod/v4/locales';
-import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
+import { th, tr } from 'zod/v4/locales';
+import {
+  CORE_AGENT_PROMPT,
+  TASK_EXECUTOR_MEMORY_PROMPT,
+  TASK_INITIALIZATION_PROMPT,
+  TASK_INITIALIZER_HUMAN_PROMPT,
+} from '@prompts/agents/core.prompts.js';
 import { stat } from 'fs';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 export const parseToolsToJson = (
@@ -245,7 +253,9 @@ export class PlannerGraph {
         PlannerNode.CREATE_INITIAL_PLAN
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', CORE_AGENT_PROMPT],
+        ['system', TASK_INITIALIZATION_PROMPT],
+        ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
+        ['human', TASK_INITIALIZER_HUMAN_PROMPT],
       ]);
 
       const formattedResponseFormat = JSON.stringify(
@@ -256,37 +266,34 @@ export class PlannerGraph {
 
       const formattedPrompt = await prompt.formatMessages({
         header: prompts.generateNumberedList(prompts.getHeader()),
-        goal:
+        objectives:
           config.configurable?.objectives ??
           this.agentConfig.prompt.content.toLocaleString(),
-        constraints: prompts.generateNumberedList(
-          prompts.getConstraints(),
-          'constraint'
-        ),
-        short_term_memory: stm_format_for_history(state.memories.stm),
-        long_term_memory: '',
+        messages: state.memories.stm.items.map((item) => {
+          if (item && item.message) {
+            const messages = item.message.map((msg) => {
+              console.log('Message in STM:', msg);
+              const separator = msg instanceof AIMessage ? 'Ai' : 'Tool';
+              return `<${separator}>\n${msg.content}</${separator}>`;
+            });
+            return messages.join('\n');
+          }
+          return '';
+        }),
         goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
-        instructions: prompts.generateNumberedList(
-          prompts.getInstructions(),
-          'instruction'
-        ),
         tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
-        performance_evaluation: prompts.generateNumberedList(
-          prompts.getPerformanceEvaluation(),
-          'performance evaluation'
-        ),
         output_format: formattedResponseFormat,
       });
       const structuredResult = (await structuredModel.invoke(
         formattedPrompt
       )) as TaskSchemaType;
       logger.info(
-        `[Planner] Successfully created task : ${structuredResult.text}`
+        `[Planner] Successfully created task : ${structuredResult.thought.text}`
       );
       appendToRunFile(JSON.stringify(formattedPrompt, null, 2));
 
       const aiMessage = new AIMessageChunk({
-        content: `Plan created with task : ${structuredResult.text}`,
+        content: `Plan created with task : ${structuredResult.thought.text}`,
         additional_kwargs: {
           error: false,
           final: false,
@@ -296,11 +303,8 @@ export class PlannerGraph {
 
       const tasks = {
         id: uuidv4(),
-        text: structuredResult.text,
-        reasoning: structuredResult.reasoning,
-        plan: structuredResult.plan,
-        criticism: structuredResult.criticism,
-        speak: structuredResult.speak,
+        thought: structuredResult.thought,
+        task: structuredResult.task,
         steps: [],
         status: 'pending' as 'pending',
       };

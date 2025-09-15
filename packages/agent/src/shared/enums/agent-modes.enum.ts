@@ -76,7 +76,6 @@ export enum ExecutorNode {
  * Memory node types
  */
 export enum MemoryNode {
-  STM_MANAGER = 'stm_manager',
   LTM_MANAGER = 'ltm_manager',
   RETRIEVE_MEMORY = 'retrieve_memory',
   END_MEMORY_GRAPH = 'end_memory_graph',

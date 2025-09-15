@@ -12,9 +12,22 @@ import {
   SnakAgentInterface,
   StarknetTool,
 } from '../shared/types/tools.types.js';
+import {
+  TaskSchemaType,
+  ThoughtsSchema,
+  ThoughtsSchemaType,
+} from '@schemas/graph.schemas.js';
 
 const endTask = async (): Promise<string> => {
   return 'Task ended successfully';
+};
+
+const responseTask = async (
+  thoughts: ThoughtsSchemaType
+): Promise<ThoughtsSchemaType> => {
+  console.log('Response task executed');
+  console.log(thoughts);
+  return thoughts;
 };
 
 const noOpTool = async (): Promise<string> => {
@@ -41,7 +54,15 @@ export async function initializeToolsList(
     description: 'End the current task',
   });
 
+  const responseTool = tool(responseTask, {
+    name: 'response_task',
+    description:
+      'Provide a structured response with thoughts, reasoning, criticism, and speak fields',
+    schema: ThoughtsSchema,
+  });
+
   toolsList.push(endTaskTool);
+  toolsList.push(responseTool);
   if (
     agentConfig.mcpServers &&
     Object.keys(agentConfig.mcpServers).length > 0

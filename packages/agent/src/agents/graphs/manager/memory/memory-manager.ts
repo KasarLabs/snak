@@ -9,6 +9,7 @@ import {
   HistoryItem,
 } from '../../../../shared/types/index.js';
 import { memory } from '@snakagent/database/queries';
+import { BaseMessage } from '@langchain/core/messages';
 
 /**
  * Safe Short-Term Memory operations with O(1) complexity
@@ -33,7 +34,7 @@ export class STMManager {
    */
   static addMemory(
     stm: STMContext,
-    item: string,
+    item: BaseMessage[],
     task_id: string
   ): MemoryOperationResult<STMContext> {
     try {
@@ -47,7 +48,7 @@ export class STMManager {
       }
 
       const newItem: MemoryItem = {
-        content: item,
+        message: item,
         task_id: task_id,
         timestamp: Date.now(),
         metadata: { insertIndex: stm.totalInserted },
@@ -58,7 +59,7 @@ export class STMManager {
       newItems[stm.head] = newItem;
 
       const newSTM: STMContext = {
-        items: Object.freeze(newItems),
+        items: newItems,
         maxSize: stm.maxSize,
         head: (stm.head + 1) % stm.maxSize,
         size: Math.min(stm.size + 1, stm.maxSize),
@@ -77,6 +78,54 @@ export class STMManager {
         error: `Failed to add memory: ${error.message}`,
         timestamp: Date.now(),
       };
+    }
+  }
+
+  /**
+   * Updates the most recent memory item in STM - O(1) operation
+   */
+  static updateMessageRecentMemory(
+    stm: STMContext,
+    item: BaseMessage | BaseMessage[]
+  ): MemoryOperationResult<STMContext> {
+    try {
+      if (stm.size === 0) {
+        return {
+          success: false,
+          error: 'No memories to update',
+          timestamp: Date.now(),
+        };
+      }
+      const recentIndex = stm.head - 1; // Index of the most recent item
+      console.log('Recent Index:', recentIndex);
+      const currentItem = stm.items[recentIndex];
+      if (currentItem === null) {
+        throw new Error('Recent memory is null');
+      }
+      if (currentItem.message.length === 0) {
+        throw new Error('Recent memory has empty message array');
+      }
+      currentItem.message = currentItem.message.concat(item);
+      console.log('Updated Recent Memory:', currentItem);
+      const newItems = [...stm.items];
+      newItems[recentIndex] = currentItem;
+
+      const newSTM: STMContext = {
+        items: newItems,
+        maxSize: stm.maxSize,
+        head: stm.head,
+        size: stm.size,
+        totalInserted: stm.totalInserted,
+      };
+
+      return {
+        success: true,
+        data: newSTM,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      logger.error('[STMManager] Error updating recent memory:', error);
+      throw error;
     }
   }
 

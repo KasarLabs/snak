@@ -1,4 +1,5 @@
 import z from 'zod';
+import { th } from 'zod/v4/locales';
 
 export const tools_call = z.object({
   description: z
@@ -80,28 +81,34 @@ export const PlanSchema = z.object({
     .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
 });
 
+export const ThoughtsSchema = z.object({
+  text: z.string().describe('thought'),
+  reasoning: z.string().describe('reasoning'),
+  criticism: z.string().describe('constructive self-criticism'),
+  speak: z.string().describe('thoughts summary to say to user'),
+});
+
+export const TaskObjectSchema = z.object({
+  analysis: z
+    .string()
+    .describe('Detailed task analysis and considerations (max 300 chars)'),
+  directive: z
+    .string()
+    .describe('Clear, actionable directive for the next step (max 200 chars)'),
+  success_check: z
+    .string()
+    .describe(
+      'Criteria to determine successful completion of this task (max 200 chars)'
+    ),
+});
+
 // Define the task schema
 export const TaskSchema = z
   .object({
-    text: z.string().describe('thought'),
-    reasoning: z.string().describe('short reasoning about the goal'),
-    plan: z
-      .string()
-      .describe('- short bulleted\n- list that conveys\n- long-term plan'),
-    criticism: z.string().describe('constructive self-criticism'),
-    speak: z.string().describe('thoughts summary to say to user'),
+    thought: ThoughtsSchema,
+    task: TaskObjectSchema,
   })
   .strict();
-
-// Define the main schema
-const TasksSchema = z
-  .object({
-    tasks: z.array(TaskSchema),
-  })
-  .strict();
-
-// Export the schema
-export default TasksSchema;
 
 export const StepSchema = z.object({
   thoughts: z.object({
@@ -117,9 +124,8 @@ export const StepSchema = z.object({
 });
 
 export type StepSchemaType = z.infer<typeof StepSchema>;
-
+export type ThoughtsSchemaType = z.infer<typeof ThoughtsSchema>;
 // Type inference (optional)
-export type TasksSchemaType = z.infer<typeof TasksSchema>;
 export type TaskSchemaType = z.infer<typeof TaskSchema>;
 export type PlanSchemaType = z.infer<typeof PlanSchema>;
 
