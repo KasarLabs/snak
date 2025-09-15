@@ -56,7 +56,6 @@ export class FileValidationService {
     declaredMimeType?: string
   ): Promise<FileValidationResponse> {
     try {
-      // Step 1: Detect actual MIME type from buffer
       const detected = await fileTypeFromBuffer(buffer);
       const detectedMimeType = detected?.mime;
 
@@ -64,25 +63,19 @@ export class FileValidationService {
         `File validation for ${fileName}: detected=${detectedMimeType || 'none'}, declared=${declaredMimeType || 'none'}`
       );
 
-      // Step 2: Determine the MIME type to validate
       let candidateMimeType: string;
 
       if (detectedMimeType) {
-        // If we can detect the type, use it as primary candidate
         candidateMimeType = detectedMimeType;
       } else if (declaredMimeType) {
-        // Fallback to declared type if detection fails
         candidateMimeType = declaredMimeType;
       } else {
-        // Last resort: infer from file extension
         candidateMimeType = this.inferMimeTypeFromExtension(fileName);
       }
 
-      // Step 3: Validate against whitelist
       const validatedMimeType =
         this.validateMimeTypeWhitelist(candidateMimeType);
 
-      // Step 4: Security validation - compare detected vs declared if both exist
       if (detectedMimeType && declaredMimeType) {
         const securityValidation = this.validateMimeTypeConsistency(
           detectedMimeType,
@@ -99,7 +92,6 @@ export class FileValidationService {
         }
       }
 
-      // Step 5: Additional security checks
       const securityCheck = this.performSecurityChecks(
         buffer,
         validatedMimeType,
@@ -153,8 +145,6 @@ export class FileValidationService {
     if (normalizedDetected === normalizedDeclared) {
       return { isValid: true };
     }
-
-    // Check for acceptable variations
     const acceptableVariations =
       this.getAcceptableVariations(normalizedDetected);
     if (acceptableVariations.includes(normalizedDeclared)) {
@@ -164,7 +154,6 @@ export class FileValidationService {
       return { isValid: true };
     }
 
-    // Special handling for text files that might not be detected
     if (
       normalizedDeclared.startsWith('text/') &&
       normalizedDetected === 'application/octet-stream'

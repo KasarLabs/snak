@@ -273,32 +273,6 @@ export class FileIngestionWorkerService {
       maxProcessSize = 50 * 1024 * 1024; // 50MB total (matching default.rag.json)
     }
 
-    // Log detailed size information for debugging
-    logger.info(
-      `File ingestion size check for agent ${agentId} (user ${userId}):`
-    );
-    logger.info(
-      `  - Current agent size: ${agentSize} bytes (${(agentSize / 1024 / 1024).toFixed(2)} MB)`
-    );
-    logger.info(
-      `  - Current total size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)} MB)`
-    );
-    logger.info(
-      `  - New file size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`
-    );
-    logger.info(
-      `  - Agent size after upload: ${agentSize + fileSize} bytes (${((agentSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`
-    );
-    logger.info(
-      `  - Total size after upload: ${totalSize + fileSize} bytes (${((totalSize + fileSize) / 1024 / 1024).toFixed(2)} MB)`
-    );
-    logger.info(
-      `  - Agent size limit: ${maxAgentSize} bytes (${(maxAgentSize / 1024 / 1024).toFixed(2)} MB)`
-    );
-    logger.info(
-      `  - Process size limit: ${maxProcessSize} bytes (${(maxProcessSize / 1024 / 1024).toFixed(2)} MB)`
-    );
-
     if (agentSize + fileSize > maxAgentSize) {
       logger.error(
         `Agent storage limit exceeded: ${agentSize + fileSize} > ${maxAgentSize}`

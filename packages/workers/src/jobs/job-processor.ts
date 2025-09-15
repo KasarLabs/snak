@@ -110,14 +110,6 @@ export class JobProcessor {
   }
 
   private async handleFileIngestionJob(job: Job): Promise<FileIngestionResult> {
-    logger.info(`Processing file ingestion job ${job.id} with data:`, {
-      agentId: job.data.agentId,
-      userId: job.data.userId,
-      fileId: job.data.fileId,
-      originalName: job.data.originalName,
-      size: job.data.size,
-    });
-
     try {
       const result = await this.processFileIngestion(job);
       logger.info(`File ingestion job ${job.id} completed successfully`);
