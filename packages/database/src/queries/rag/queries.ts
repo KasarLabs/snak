@@ -80,12 +80,13 @@ export namespace rag {
 
   export async function totalSizeForAgent(agentId: string): Promise<number> {
     const q = new Postgres.Query(
-      `SELECT COALESCE(SUM(file_size),0) AS size 
-       FROM (
-         SELECT DISTINCT document_id, file_size 
-         FROM document_vectors 
+      `WITH unique_documents AS (
+         SELECT DISTINCT ON (document_id) document_id, file_size
+         FROM document_vectors
          WHERE agent_id = $1 AND file_size IS NOT NULL
-       ) AS unique_documents`,
+         ORDER BY document_id
+       )
+       SELECT COALESCE(SUM(file_size), 0) AS size FROM unique_documents`,
       [agentId]
     );
     const res = await Postgres.query<{ size: string }>(q);
