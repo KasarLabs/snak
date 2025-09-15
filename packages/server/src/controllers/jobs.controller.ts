@@ -62,7 +62,9 @@ export class JobsController {
       try {
         userId = ControllerHelpers.getUserId(request);
       } catch {
-        throw new UnauthorizedException('Missing or invalid authentication headers');
+        throw new UnauthorizedException(
+          'Missing or invalid authentication headers'
+        );
       }
       const result = await this.workersService.getJobResultForUser(
         jobId,

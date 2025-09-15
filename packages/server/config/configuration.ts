@@ -173,7 +173,12 @@ export class ConfigurationService {
   }
 
   get redis() {
-    const { REDIS_HOST: host, REDIS_PORT: port, REDIS_PASSWORD, REDIS_DB: db } = this.config;
+    const {
+      REDIS_HOST: host,
+      REDIS_PORT: port,
+      REDIS_PASSWORD,
+      REDIS_DB: db,
+    } = this.config;
     return {
       host,
       port,
