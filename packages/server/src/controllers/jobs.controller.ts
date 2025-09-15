@@ -58,7 +58,12 @@ export class JobsController {
     @Req() request: FastifyRequest
   ) {
     return ErrorHandler.handleControllerError(async () => {
-      const userId = ControllerHelpers.getUserId(request);
+      let userId: string;
+      try {
+        userId = ControllerHelpers.getUserId(request);
+      } catch {
+        throw new UnauthorizedException('Missing or invalid authentication headers');
+      }
       const result = await this.workersService.getJobResultForUser(
         jobId,
         userId
