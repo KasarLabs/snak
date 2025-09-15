@@ -2,7 +2,7 @@
 -- JOBS MANAGEMENT SYSTEM
 -- ============================================================================
 -- This file implements a job management system for tracking agent tasks:
--- - Job lifecycle management (pending, running, completed, failed, canceled)
+-- - Job lifecycle management (pending, active, completed, failed, delayed, paused)
 -- - Temporal tracking with proper ordering constraints
 -- - User and agent association with foreign key relationships
 -- - Performance indexes for efficient querying
