@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// MIME types autorisés
 const ALLOWED_MIME_TYPES = [
   'text/plain',
   'text/markdown',

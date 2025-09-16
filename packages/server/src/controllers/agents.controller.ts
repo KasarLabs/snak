@@ -83,7 +83,6 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ) {
     const { id, mcpServers } = updateData;
-    const userId = ControllerHelpers.getUserId(req);
 
     if (!id) {
       throw new BadRequestException('Agent ID is required');
@@ -92,6 +91,8 @@ export class AgentsController {
     if (!mcpServers || typeof mcpServers !== 'object') {
       throw new BadRequestException('MCP servers must be an object');
     }
+
+    const userId = ControllerHelpers.getUserId(req);
 
     // Update agent MCP configuration in database
     const q = new Postgres.Query(

@@ -13,21 +13,25 @@ export type SupportedMimeType =
   | 'text/html'
   | 'application/octet-stream';
 
-export interface FileValidationResult {
+export interface BaseValidationResult {
+  isValid: boolean;
+  detectedMimeType?: string;
+  declaredMimeType?: string;
+}
+
+export interface FileValidationSuccess extends BaseValidationResult {
   isValid: true;
   validatedMimeType: SupportedMimeType;
-  detectedMimeType?: string;
-  declaredMimeType?: string;
 }
 
-export interface FileValidationError {
+export interface FileValidationError extends BaseValidationResult {
   isValid: false;
   error: string;
-  detectedMimeType?: string;
-  declaredMimeType?: string;
 }
 
-export type FileValidationResponse = FileValidationResult | FileValidationError;
+export type FileValidationResponse =
+  | FileValidationSuccess
+  | FileValidationError;
 
 export class FileValidationService {
   private readonly supportedMimeTypes: SupportedMimeType[] = [
@@ -88,7 +92,7 @@ export class FileValidationService {
             error: securityValidation.error || 'MIME type validation failed',
             detectedMimeType,
             declaredMimeType,
-          };
+          } as FileValidationError;
         }
       }
 
@@ -104,7 +108,7 @@ export class FileValidationService {
           error: securityCheck.error || 'Security validation failed',
           detectedMimeType,
           declaredMimeType,
-        };
+        } as FileValidationError;
       }
 
       logger.info(
@@ -116,7 +120,7 @@ export class FileValidationService {
         validatedMimeType,
         detectedMimeType,
         declaredMimeType,
-      };
+      } as FileValidationSuccess;
     } catch (error) {
       logger.error(`File validation failed for ${fileName}:`, error);
       return {
@@ -124,7 +128,7 @@ export class FileValidationService {
         error: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         declaredMimeType,
         detectedMimeType: undefined,
-      };
+      } as FileValidationError;
     }
   }
 

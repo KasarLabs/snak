@@ -33,7 +33,8 @@ export type { Chunk, ChunkMetadata, ChunkOptions } from './types/rag/chunk.js';
 export {
   FileValidationService,
   type SupportedMimeType,
-  type FileValidationResult,
+  type BaseValidationResult,
+  type FileValidationSuccess,
   type FileValidationError,
   type FileValidationResponse,
 } from './services/file-validation.service.js';

@@ -97,7 +97,11 @@ export class AgentSelector extends BaseAgent {
       const model = this.modelSelector.getModels()['fast'];
       logger.info('AgentSelector model:', this.modelSelector.getModels());
 
-      if (!config?.userId) {
+      if (!config) {
+        throw new Error('AgentSelector: config parameter is required');
+      }
+
+      if (!config.userId) {
         throw new Error(
           'AgentSelector: userId is required in config parameter'
         );

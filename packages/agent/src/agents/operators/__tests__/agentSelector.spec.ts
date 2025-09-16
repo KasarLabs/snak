@@ -325,8 +325,16 @@ describe('AgentSelector', () => {
       );
     });
 
-    it('should throw error when userId is not provided in config', async () => {
+    it('should throw error when config is not provided', async () => {
       await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'AgentSelector: config parameter is required'
+      );
+    });
+
+    it('should throw error when userId is not provided in config', async () => {
+      await expect(
+        agentSelector.execute('Some request', false, {})
+      ).rejects.toThrow(
         'AgentSelector: userId is required in config parameter'
       );
     });
