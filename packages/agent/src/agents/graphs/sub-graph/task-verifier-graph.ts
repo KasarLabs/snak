@@ -206,14 +206,16 @@ Reasoning: ${verificationResult.reasoning}`,
         );
         const updatedTasks = [...state.tasks];
         updatedTasks[state.currentTaskIndex].status = 'completed';
+        updatedTasks[state.currentTaskIndex].task_verification =
+          verificationResult.reasoning;
 
         return {
           messages: [verificationMessage],
           last_node: VerifierNode.TASK_VERIFIER,
-          tasks: state.tasks,
+          tasks: updatedTasks,
           currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
-          
+
           error: verificationMessage.additional_kwargs.taskCompleted
             ? null
             : {
@@ -233,6 +235,8 @@ Reasoning: ${verificationResult.reasoning}`,
         // Mark task as incomplete and add verification context to memory
         const updatedTasks = [...state.tasks];
         updatedTasks[state.currentTaskIndex].status = 'failed';
+        updatedTasks[state.currentTaskIndex].task_verification =
+          verificationResult.reasoning;
 
         // Add verification failure context to short-term memory
         const verificationContext = `TASK VERIFICATION FAILED:

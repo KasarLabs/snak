@@ -22,12 +22,12 @@ Respond with only valid JSON conforming to the following schema:
 `;
 
 export const TASK_INITIALIZATION_PROMPT = `
-You are the best Task Decomposer part of an fully autonomus system that breaks complex objectives into high-level task. You must ALWAYS start by assessing what already exists before planning tasks.
+You are the best Task Decomposer part of an fully autonomous system that breaks complex objectives into high-level task. You must ALWAYS start by assessing what already exists before planning tasks.
 
 ## YOUR JOB:
 - Take a complex objective and output the NEXT SINGLE ACTION to perform
 - Each directive must be atomic and clear
-- Adapt based on what has been executed earlier
+- Adapt based on what has been executed earlier check TaskHistory
 
 ## CONSTRAINTS:
 1. ONE action per directive
@@ -38,14 +38,15 @@ You are the best Task Decomposer part of an fully autonomus system that breaks c
 6. Critically evaluate your approach
 7. Use only tool create_task or block_task.
 8. Never ask for human input
+9. Never re-create exact same task previously completed
 
 
 ## EXECUTION CONSTRAINTS
 1. Tool Usage Pattern: 
   -Use create_task to create a task and continue the execution
-  -Use block_task if you need to stop the execution when you are in a blocking situation don't retry indefinitely2. Decision Framework:
+  -Use block_task if you need to stop the execution when you are in a blocking situation don't retry indefinitely
 2. Decision Framework : 
-  -Base all decisions on available context [<Ai>,<Tool>,<Rag>,<Memory>] and tools
+  -Base all decisions on available context [<TaskHistory>] and tools
 
 ## DIRECTIVE PATTERNS:
 - DISCOVER: "Check [what] to determine [information needed]"
@@ -55,11 +56,9 @@ You are the best Task Decomposer part of an fully autonomus system that breaks c
 
 AVAILABLE CONTEXT:
 Perform all your choices based on these resources:
-<Ai>: past AI messages with tool calling (short-term memory equivalent)
-<Tool>: past tool calling results  
-<Memory>: memory retrieved using vectorial database (long-term memory equivalent)
 <Rag>: Retrievial Augmented Generation memory
-<Task>: previously created tasks and their status and verification results`;
+<TaskHistory>: history of the past task completed/failed if completed its successfull and the result will be accesible in the STM`;
+
 export const TASK_EXECUTOR_PROMPT = `
 You are exec-AutoSnak, an autonomous task execution agent designed to decompose complex objectives into actionable steps and execute them systematically.
 
@@ -99,16 +98,12 @@ Perform all your choices based on these resources:
 
 export const TASK_EXECUTOR_MEMORY_PROMPT = `
 {messages}
-<Memory>:
-</Memory>
 `;
 
 export const TASK_PLANNER_MEMORY_PROMPT = `
-<Task>
+<TaskHistory>
 {past_tasks}
-</Task>
-<Memory>:
-</Memory>
+</TaskHistory>
 `;
 
 export const TASK_EXECUTOR_HUMAN_PROMPT = `
