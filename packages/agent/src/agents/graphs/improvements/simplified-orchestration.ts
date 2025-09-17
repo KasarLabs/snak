@@ -70,7 +70,7 @@ export class SimplifiedOrchestration {
   ) {
     const agentConfig = config.configurable?.agent_config;
     const lastMessage = state.messages[state.messages.length - 1];
-    const currentTask = state.tasks[state.currentTaskIndex];
+    const currentTask = state.tasks[state.tasks.length - 1];
     
     return {
       // Basic state

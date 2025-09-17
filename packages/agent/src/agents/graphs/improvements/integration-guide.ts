@@ -199,7 +199,7 @@ export class GraphIntegrationGuide {
       config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
     ) {
       try {
-        const currentTask = state.tasks[state.currentTaskIndex];
+        const currentTask = state.tasks[state.tasks.length - 1];
         if (!currentTask) {
           throw new Error('[Enhanced Task Updater] No tasks found in the state.');
         }

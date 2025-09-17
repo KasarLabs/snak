@@ -13,26 +13,50 @@ import {
   StarknetTool,
 } from '../shared/types/tools.types.js';
 import {
+  TaskSchema,
   TaskSchemaType,
   ThoughtsSchema,
   ThoughtsSchemaType,
 } from '@schemas/graph.schemas.js';
 
-const endTask = async (): Promise<string> => {
+const endTask = (): string => {
   return 'Task ended successfully';
 };
 
-const responseTask = async (
-  thoughts: ThoughtsSchemaType
-): Promise<ThoughtsSchemaType> => {
-  console.log('Response task executed');
-  console.log(thoughts);
+const responseTask = (thoughts: ThoughtsSchemaType): ThoughtsSchemaType => {
   return thoughts;
 };
 
 const noOpTool = async (): Promise<string> => {
   return 'No operation performed';
 };
+
+// Response
+export const responseTool = tool(responseTask, {
+  name: 'response_task',
+  description:
+    'Provide a structured response with thoughts, reasoning, criticism, and speak fields',
+  schema: ThoughtsSchema,
+});
+
+// End of an Task
+export const endTaskTool = tool(endTask, {
+  name: 'end_task',
+  description: 'End the current task',
+});
+
+export const createTask = tool(() => {}, {
+  name: 'create_task',
+  description:
+    'Create a structured task with thoughts, reasoning, criticism, and speak fields',
+  schema: TaskSchema,
+});
+
+export const blockedTask = tool(() => {}, {
+  name: 'block_task',
+  description: `Use when the task cannot be completed due to unresolvable obstacles. Provide details in the response.`,
+  schema: ThoughtsSchema,
+});
 
 /**
  * Initializes the list of tools for the agent based on signature type and configuration
@@ -49,20 +73,10 @@ export async function initializeToolsList(
   toolsList = [...allowedTools];
 
   // Add the two simple tools
-  const endTaskTool = tool(endTask, {
-    name: 'end_task',
-    description: 'End the current task',
-  });
-
-  const responseTool = tool(responseTask, {
-    name: 'response_task',
-    description:
-      'Provide a structured response with thoughts, reasoning, criticism, and speak fields',
-    schema: ThoughtsSchema,
-  });
 
   toolsList.push(endTaskTool);
   toolsList.push(responseTool);
+  toolsList.push(blockedTask);
   if (
     agentConfig.mcpServers &&
     Object.keys(agentConfig.mcpServers).length > 0

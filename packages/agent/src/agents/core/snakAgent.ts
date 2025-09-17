@@ -449,223 +449,213 @@ export class SnakAgent extends BaseAgent {
 
         const executionInput = !isInterrupted ? graphState : command;
         await app.invoke(executionInput, executionConfig);
+        const _true = true;
+        if (_true === true) {
+          return;
+        }
         let chunk: LangGraphEvent;
-        // for await (chunk of await app.invoke(executionInput, executionConfig)) {
-        //   isInterrupted = false;
-        //   lastChunk = chunk;
-        //   const state = await app.getState(executionConfig);
-        //   retryCount = state.values.retry;
-        //   currentCheckpointId = state.config.configurable.checkpoint_id;
-        //   if (
-        //     chunk.metadata?.langgraph_node &&
-        //     isInEnum(PlannerNode, chunk.metadata.langgraph_node)
-        //   ) {
-        //     if (chunk.event === EventType.ON_CHAT_MODEL_START) {
-        //       yield {
-        //         event: chunk.event,
-        //         run_id: chunk.run_id,
-        //         checkpoint_id: state.config.configurable.checkpoint_id,
-        //         thread_id: state.config.configurable.thread_id,
-        //         from: GraphNode.PLANNING_ORCHESTRATOR,
-        //         metadata: {
-        //           executionMode: chunk.metadata.executionMode,
-        //           agent_mode: agentJsonConfig.mode,
-        //           conversation_id: chunk.metadata.conversation_id,
-        //           langgraph_step: chunk.metadata.langgraph_step,
-        //           langgraph_node: chunk.metadata.langgraph_node,
-        //           ls_provider: chunk.metadata.ls_provider,
-        //           ls_model_name: chunk.metadata.ls_model_name,
-        //           ls_model_type: chunk.metadata.ls_model_type,
-        //           ls_temperature: chunk.metadata.ls_temperature,
-        //         },
-        //         timestamp: new Date().toISOString(),
-        //       };
-        //     }
-        //     if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-        //       // Need to add an error verifyer from get State
-        //       yield {
-        //         event: chunk.event,
-        //         run_id: chunk.run_id,
-        //         plan: chunk.data.output.tool_calls?.[0]?.args, // this is in a ParsedPlan format object
-        //         checkpoint_id: state.config.configurable.checkpoint_id,
-        //         thread_id: state.config.configurable.thread_id,
-        //         from: GraphNode.PLANNING_ORCHESTRATOR,
-        //         metadata: {
-        //           tokens: chunk.data.output?.usage_metadata?.total_tokens,
-        //           executionMode: chunk.metadata.executionMode,
-        //           agent_mode: agentJsonConfig.mode,
-        //           conversation_id: chunk.metadata.conversation_id,
-        //           langgraph_step: chunk.metadata.langgraph_step,
-        //           langgraph_node: chunk.metadata.langgraph_node,
-        //           ls_provider: chunk.metadata.ls_provider,
-        //           ls_model_name: chunk.metadata.ls_model_name,
-        //           ls_model_type: chunk.metadata.ls_model_type,
-        //           ls_temperature: chunk.metadata.ls_temperature,
-        //         },
-        //         timestamp: new Date().toISOString(),
-        //       };
-        //     }
-        //   } else if (
-        //     chunk.metadata?.langgraph_node &&
-        //     isInEnum(ExecutorNode, chunk.metadata.langgraph_node)
-        //   ) {
-        //     if (chunk.event === EventType.ON_CHAT_MODEL_START) {
-        //       yield {
-        //         event: chunk.event,
-        //         run_id: chunk.run_id,
-        //         checkpoint_id: state.config.configurable.checkpoint_id,
-        //         thread_id: state.config.configurable.thread_id,
-        //         from: GraphNode.AGENT_EXECUTOR,
-        //         metadata: {
-        //           execution_mode: chunk.metadata.executionMode,
-        //           agent_mode: agentJsonConfig.mode,
-        //           retry: retryCount,
-        //           conversation_id: chunk.metadata.conversation_id,
-        //           langgraph_step: chunk.metadata.langgraph_step,
-        //           langgraph_node: chunk.metadata.langgraph_node,
-        //           ls_provider: chunk.metadata.ls_provider,
-        //           ls_model_name: chunk.metadata.ls_model_name,
-        //           ls_model_type: chunk.metadata.ls_model_type,
-        //           ls_temperature: chunk.metadata.ls_temperature,
-        //         },
-        //         timestamp: new Date().toISOString(),
-        //       };
-        //     }
-        //     if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-        //       yield {
-        //         event: chunk.event,
-        //         run_id: chunk.run_id,
-        //         tools: chunk.data.output.tool_calls,
-        //         content: chunk.data.output.content.toLocaleString(), // Is an ParsedPlan object
-        //         checkpoint_id: state.config.configurable.checkpoint_id,
-        //         thread_id: state.config.configurable.thread_id,
-        //         from: GraphNode.AGENT_EXECUTOR,
-        //         metadata: {
-        //           tokens: chunk.data.output?.usage_metadata?.total_tokens,
-        //           execution_mode: chunk.metadata.executionMode,
-        //           agent_mode: agentJsonConfig.mode,
-        //           conversation_id: chunk.metadata.conversation_id,
-        //           retry: retryCount,
-        //           langgraph_step: chunk.metadata.langgraph_step,
-        //           langgraph_node: chunk.metadata.langgraph_node,
-        //           ls_provider: chunk.metadata.ls_provider,
-        //           ls_model_name: chunk.metadata.ls_model_name,
-        //           ls_model_type: chunk.metadata.ls_model_type,
-        //           ls_temperature: chunk.metadata.ls_temperature,
-        //         },
-        //         timestamp: new Date().toISOString(),
-        //       };
-        //     }
-        //     if (chunk.event === EventType.ON_CHAT_MODEL_STREAM) {
-        //       if (chunk.data.chunk.content && chunk.data.chunk.content != '') {
-        //         yield {
-        //           event: chunk.event,
-        //           run_id: chunk.run_id,
-        //           content: chunk.data.chunk.content.toLocaleString(),
-        //           checkpoint_id: state.config.configurable.checkpoint_id,
-        //           thread_id: state.config.configurable.thread_id,
-        //           from: GraphNode.AGENT_EXECUTOR,
-        //           metadata: {
-        //             execution_mode: chunk.metadata.executionMode,
-        //             agent_mode: agentJsonConfig.mode,
-        //             retry: retryCount,
-        //             conversation_id: chunk.metadata.conversation_id,
-        //             langgraph_step: chunk.metadata.langgraph_step,
-        //             langgraph_node: chunk.metadata.langgraph_node,
-        //             ls_provider: chunk.metadata.ls_provider,
-        //             ls_model_name: chunk.metadata.ls_model_name,
-        //             ls_model_type: chunk.metadata.ls_model_type,
-        //             ls_temperature: chunk.metadata.ls_temperature,
-        //           },
-        //           timestamp: new Date().toISOString(),
-        //         };
-        //       }
-        //     }
-        //   } else if (
-        //     chunk.metadata?.langgraph_node &&
-        //     isInEnum(MemoryNode, chunk.metadata.langgraph_node)
-        //   ) {
-        //     if (chunk.event === EventType.ON_CHAT_MODEL_START) {
-        //       yield {
-        //         event: chunk.event,
-        //         run_id: chunk.run_id,
-        //         checkpoint_id: state.config.configurable.checkpoint_id,
-        //         thread_id: state.config.configurable.thread_id,
-        //         from: GraphNode.MEMORY_ORCHESTRATOR,
-        //         metadata: {
-        //           execution_mode: chunk.metadata.executionMode,
-        //           agent_mode: agentJsonConfig.mode,
-        //           retry: retryCount,
-        //           conversation_id: chunk.metadata.conversation_id,
-        //           langgraph_step: chunk.metadata.langgraph_step,
-        //           langgraph_node: chunk.metadata.langgraph_node,
-        //           ls_provider: chunk.metadata.ls_provider,
-        //           ls_model_name: chunk.metadata.ls_model_name,
-        //           ls_model_type: chunk.metadata.ls_model_type,
-        //           ls_temperature: chunk.metadata.ls_temperature,
-        //         },
-        //         timestamp: new Date().toISOString(),
-        //       };
-        //     }
-        //     if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-        //       yield {
-        //         event: chunk.event,
-        //         run_id: chunk.run_id,
-        //         checkpoint_id: state.config.configurable.checkpoint_id,
-        //         thread_id: state.config.configurable.thread_id,
-        //         from: GraphNode.MEMORY_ORCHESTRATOR,
-        //         metadata: {
-        //           tokens: chunk.data.output?.usage_metadata?.total_tokens,
-        //           agent_mode: agentJsonConfig.mode,
-        //           execution_mode: chunk.metadata.executionMode,
-        //           retry: retryCount,
-        //           conversation_id: chunk.metadata.conversation_id,
-        //           langgraph_step: chunk.metadata.langgraph_step,
-        //           langgraph_node: chunk.metadata.langgraph_node,
-        //           ls_provider: chunk.metadata.ls_provider,
-        //           ls_model_name: chunk.metadata.ls_model_name,
-        //           ls_model_type: chunk.metadata.ls_model_type,
-        //           ls_temperature: chunk.metadata.ls_temperature,
-        //         },
-        //         timestamp: new Date().toISOString(),
-        //       };
-        //     }
-        //   }
-        // }
-        // logger.info('[SnakAgent]  Autonomous execution completed');
-        // if (!lastChunk || !currentCheckpointId) {
-        //   throw new Error('No output from autonomous execution');
-        // }
-        // yield {
-        //   event: lastChunk.event,
-        //   run_id: lastChunk.run_id,
-        //   from: GraphNode.END_GRAPH,
-        //   thread_id: threadId,
-        //   checkpoint_id: currentCheckpointId,
-        //   metadata: {
-        //     conversation_id: lastChunk.metadata?.conversation_id,
-        //     final: true,
-        //   },
-        //   timestamp: new Date().toISOString(),
-        // };
+        for await (chunk of await app.stream(executionInput, executionConfig)) {
+          isInterrupted = false;
+          lastChunk = chunk;
+          const state = await app.getState(executionConfig);
+          retryCount = state.values.retry;
+          currentCheckpointId = state.config.configurable.checkpoint_id;
+          if (
+            chunk.metadata?.langgraph_node &&
+            isInEnum(PlannerNode, chunk.metadata.langgraph_node)
+          ) {
+            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.PLANNING_ORCHESTRATOR,
+                metadata: {
+                  executionMode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
+              // Need to add an error verifyer from get State
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                plan: chunk.data.output.tool_calls?.[0]?.args, // this is in a ParsedPlan format object
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.PLANNING_ORCHESTRATOR,
+                metadata: {
+                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
+                  executionMode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+          } else if (
+            chunk.metadata?.langgraph_node &&
+            isInEnum(ExecutorNode, chunk.metadata.langgraph_node)
+          ) {
+            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.AGENT_EXECUTOR,
+                metadata: {
+                  execution_mode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  retry: retryCount,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                tools: chunk.data.output.tool_calls,
+                content: chunk.data.output.content.toLocaleString(), // Is an ParsedPlan object
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.AGENT_EXECUTOR,
+                metadata: {
+                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
+                  execution_mode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  conversation_id: chunk.metadata.conversation_id,
+                  retry: retryCount,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+            if (chunk.event === EventType.ON_CHAT_MODEL_STREAM) {
+              if (chunk.data.chunk.content && chunk.data.chunk.content != '') {
+                yield {
+                  event: chunk.event,
+                  run_id: chunk.run_id,
+                  content: chunk.data.chunk.content.toLocaleString(),
+                  checkpoint_id: state.config.configurable.checkpoint_id,
+                  thread_id: state.config.configurable.thread_id,
+                  from: GraphNode.AGENT_EXECUTOR,
+                  metadata: {
+                    execution_mode: chunk.metadata.executionMode,
+                    agent_mode: agentJsonConfig.mode,
+                    retry: retryCount,
+                    conversation_id: chunk.metadata.conversation_id,
+                    langgraph_step: chunk.metadata.langgraph_step,
+                    langgraph_node: chunk.metadata.langgraph_node,
+                    ls_provider: chunk.metadata.ls_provider,
+                    ls_model_name: chunk.metadata.ls_model_name,
+                    ls_model_type: chunk.metadata.ls_model_type,
+                    ls_temperature: chunk.metadata.ls_temperature,
+                  },
+                  timestamp: new Date().toISOString(),
+                };
+              }
+            }
+          } else if (
+            chunk.metadata?.langgraph_node &&
+            isInEnum(MemoryNode, chunk.metadata.langgraph_node)
+          ) {
+            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.MEMORY_ORCHESTRATOR,
+                metadata: {
+                  execution_mode: chunk.metadata.executionMode,
+                  agent_mode: agentJsonConfig.mode,
+                  retry: retryCount,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
+              yield {
+                event: chunk.event,
+                run_id: chunk.run_id,
+                checkpoint_id: state.config.configurable.checkpoint_id,
+                thread_id: state.config.configurable.thread_id,
+                from: GraphNode.MEMORY_ORCHESTRATOR,
+                metadata: {
+                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
+                  agent_mode: agentJsonConfig.mode,
+                  execution_mode: chunk.metadata.executionMode,
+                  retry: retryCount,
+                  conversation_id: chunk.metadata.conversation_id,
+                  langgraph_step: chunk.metadata.langgraph_step,
+                  langgraph_node: chunk.metadata.langgraph_node,
+                  ls_provider: chunk.metadata.ls_provider,
+                  ls_model_name: chunk.metadata.ls_model_name,
+                  ls_model_type: chunk.metadata.ls_model_type,
+                  ls_temperature: chunk.metadata.ls_temperature,
+                },
+                timestamp: new Date().toISOString(),
+              };
+            }
+          }
+        }
+        logger.info('[SnakAgent]  Autonomous execution completed');
+        if (!lastChunk || !currentCheckpointId) {
+          throw new Error('No output from autonomous execution');
+        }
+        yield {
+          event: lastChunk.event,
+          run_id: lastChunk.run_id,
+          from: GraphNode.END_GRAPH,
+          thread_id: threadId,
+          checkpoint_id: currentCheckpointId,
+          metadata: {
+            conversation_id: lastChunk.metadata?.conversation_id,
+            final: true,
+          },
+          timestamp: new Date().toISOString(),
+        };
         return;
       } catch (error: any) {
         if (error?.message?.includes('Abort')) {
           logger.info('[SnakAgent]  Execution aborted by user');
-          // if (lastChunk && currentCheckpointId) {
-          //   yield {
-          //     event: EventType.ON_GRAPH_ABORTED,
-          //     run_id: lastChunk.run_id,
-          //     checkpoint_id: currentCheckpointId,
-          //     thread_id: threadId,
-          //     from: GraphNode.END_GRAPH,
-          //     metadata: {
-          //       conversation_id: lastChunk.metadata?.conversation_id,
-          //       final: true,
-          //     },
-          //     timestamp: new Date().toISOString(),
-          //   };
-          // }
           return;
         }
 

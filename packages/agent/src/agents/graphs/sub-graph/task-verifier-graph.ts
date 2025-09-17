@@ -4,11 +4,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
-import {
-  appendToRunFile,
-  GraphConfigurableAnnotation,
-  GraphState,
-} from '../graph.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   TaskType,
@@ -16,6 +12,7 @@ import {
   TasksType,
   validatorResponse,
   MemoryItem,
+  GraphErrorType,
 } from '../../../shared/types/index.js';
 import {
   VerifierNode,
@@ -75,9 +72,6 @@ ORIGINAL TASK GOAL:
 EXECUTED STEPS AND RESULTS:
 {executedSteps}
 
-LAST TOOL RESULT:
-{finalToolResult}
-
 Assess whether this task is truly complete or requires additional work.`;
 export class TaskVerifierGraph {
   private modelSelector: ModelSelector | null;
@@ -116,6 +110,7 @@ export class TaskVerifierGraph {
         tasks?: TaskType[];
         currentTaskIndex?: number;
         currentGraphStep?: number;
+        error?: GraphErrorType | null;
       }
     | Command
   > {
@@ -135,7 +130,7 @@ export class TaskVerifierGraph {
       }
 
       // Check if task was marked as completed by end_task tool
-      if (currentTask.status !== 'completed') {
+      if (currentTask.status !== 'waiting_validation') {
         logger.debug(
           '[TaskVerifier] Task not marked as completed, skipping verification'
         );
@@ -145,6 +140,7 @@ export class TaskVerifierGraph {
           tasks: state.tasks,
           currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
+          error: null,
         };
       }
 
@@ -160,9 +156,6 @@ export class TaskVerifierGraph {
 
       const executedSteps = stm_format_for_history(state.memories.stm);
       const lastStep = currentTask.steps[currentTask.steps.length - 1];
-      const finalToolResult = lastStep
-        ? lastStep.tool.result
-        : 'No final result available';
 
       const formattedResponseFormat = JSON.stringify(
         prompts.getResponseFormat(),
@@ -175,7 +168,6 @@ export class TaskVerifierGraph {
         originalTask: currentTask.task.directive,
         taskReasoning: currentTask.thought.reasoning,
         executedSteps,
-        finalToolResult,
         header: prompts.generateNumberedList(prompts.getHeader()),
         constraints: prompts.generateNumberedList(
           prompts.getConstraints(),
@@ -204,7 +196,6 @@ Reasoning: ${verificationResult.reasoning}`,
           nextActions: verificationResult.nextActions,
         },
       });
-      appendToRunFile(JSON.stringify(formattedPrompt, null, 2));
       if (
         verificationResult.taskCompleted &&
         verificationResult.confidenceScore >= 70
@@ -213,6 +204,8 @@ Reasoning: ${verificationResult.reasoning}`,
         logger.info(
           `[TaskVerifier] Task ${state.currentTaskIndex + 1} verified as complete (${verificationResult.confidenceScore}% confidence)`
         );
+        const updatedTasks = [...state.tasks];
+        updatedTasks[state.currentTaskIndex].status = 'completed';
 
         return {
           messages: [verificationMessage],
@@ -220,6 +213,16 @@ Reasoning: ${verificationResult.reasoning}`,
           tasks: state.tasks,
           currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
+          
+          error: verificationMessage.additional_kwargs.taskCompleted
+            ? null
+            : {
+                type: 'validation_error',
+                hasError: true,
+                message: verificationResult.reasoning,
+                source: 'task_verifier',
+                timestamp: Date.now(),
+              },
         };
       } else {
         // Task needs more work, mark as incomplete and go back to planning
@@ -237,6 +240,7 @@ Task: ${currentTask.thought.text}
 Reason: ${verificationResult.reasoning}
 Missing Elements: ${verificationResult.missingElements.join(', ')}
 Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specified'}`;
+        console.log('AiMessage : ', [verificationMessage].length); // Push task to state
 
         return {
           messages: [verificationMessage],

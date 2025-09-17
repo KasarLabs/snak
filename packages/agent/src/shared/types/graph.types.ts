@@ -85,6 +85,19 @@ export interface HistoryToolsInfo {
   };
 }
 
+export interface GraphErrorType {
+  type:
+    | 'task_error'
+    | 'tool_error'
+    | 'execution_error'
+    | 'validation_error'
+    | 'blocked_task';
+  hasError: boolean;
+  message: string;
+  source: string;
+  timestamp: number;
+}
+
 /**
  * Message information structure
  */
@@ -144,14 +157,17 @@ export interface ThoughtsType {
   speak: string;
 }
 
+export interface ToolCallType {
+  tool_call_id: string;
+  name: string;
+  args: Record<string, any>;
+  result?: string;
+  status: 'pending' | 'completed' | 'failed' | 'in_progress' | 'waiting';
+}
+
 export interface StepType {
   thought: ThoughtsType;
-  tool: {
-    name: string;
-    args: Record<string, any>;
-    result: string;
-    status: 'pending' | 'completed' | 'failed' | 'in_progress' | 'waiting';
-  };
+  tool: ToolCallType[];
 }
 
 export interface TaskType {
@@ -162,10 +178,17 @@ export interface TaskType {
     directive: string;
     success_check: string;
   };
+  task_verification?: string;
   steps: StepType[];
-  status: 'pending' | 'completed' | 'failed' | 'in_progress' | 'waiting';
+  status:
+    | 'pending'
+    | 'completed'
+    | 'failed'
+    | 'in_progress'
+    | 'waiting'
+    | 'waiting_validation';
 }
-
+   
 export interface TasksType {
   tasks: TaskType[];
 }

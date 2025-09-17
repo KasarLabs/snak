@@ -30,6 +30,7 @@ import {
 } from '../../shared/enums/agent-modes.enum.js';
 import { AgentReturn } from '../../shared/types/agents.types.js';
 import {
+  GraphErrorType,
   History,
   Memories,
   ParsedPlan,
@@ -45,47 +46,47 @@ import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgentInterface } from '../../shared/types/tools.types.js';
-import { cat } from '@huggingface/transformers';
-import { handleNodeError } from './utils/graph-utils.js';
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';
-
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function appendToRunFile(content: string): Promise<void> {
-  const fileName = 'run.txt';
-  const filePath = path.resolve(fileName);
+// export async function appendToRunFile(content: string): Promise<void> {
+//   const fileName = 'run.txt';
+//   const filePath = path.resolve(fileName);
 
-  try {
-    // Vérifie si le fichier existe
-    const fileExists = await fs.promises
-      .access(filePath, fs.constants.F_OK)
-      .then(() => true)
-      .catch(() => false);
+//   try {
+//     // Vérifie si le fichier existe
+//     const fileExists = await fs.promises
+//       .access(filePath, fs.constants.F_OK)
+//       .then(() => true)
+//       .catch(() => false);
 
-    if (!fileExists) {
-      console.log(`Le fichier ${fileName} n'existe pas. Création en cours...`);
-      // Crée le fichier vide s'il n'existe pas
-      await fs.promises.writeFile(filePath, '');
-      console.log(`Fichier ${fileName} créé avec succès.`);
-    }
+//     if (!fileExists) {
+//       console.log(`Le fichier ${fileName} n'existe pas. Création en cours...`);
+//       // Crée le fichier vide s'il n'existe pas
+//       await fs.promises.writeFile(filePath, '');
+//       console.log(`Fichier ${fileName} créé avec succès.`);
+//     }
 
-    // Ajoute le contenu au fichier (avec un retour à la ligne)
-    await fs.promises.appendFile(filePath, content + '\n');
-    console.log(`Contenu ajouté au fichier ${fileName}.`);
-  } catch (error) {
-    console.error(
-      `Erreur lors de l'opération sur le fichier ${fileName}:`,
-      error
-    );
-    throw error;
-  }
-}
+//     // Ajoute le contenu au fichier (avec un retour à la ligne)
+//     await fs.promises.appendFile(filePath, content + '\n');
+//     console.log(`Contenu ajouté au fichier ${fileName}.`);
+//   } catch (error) {
+//     console.error(
+//       `Erreur lors de l'opération sur le fichier ${fileName}:`,
+//       error
+//     );
+//     throw error;
+//   }
+// }
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => x.concat(y),
+    reducer: (x, y) => {
+      console.log('Inserting message to state: ', y.length);
+      return y;
+    },
     default: () => [],
   }),
   last_node: Annotation<
@@ -122,12 +123,7 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => ({ skipValidation: false, goto: '' }),
   }),
-  error: Annotation<{
-    hasError: boolean;
-    message: string;
-    source: string;
-    timestamp: number;
-  } | null>({
+  error: Annotation<GraphErrorType | null>({
     reducer: (x, y) => y,
     default: () => null,
   }),
@@ -247,7 +243,7 @@ export class Graph {
         throw new Error('[Task Updater] No tasks found in the state.');
       }
 
-      const currentTask = state.tasks[state.currentTaskIndex];
+      const currentTask = state.tasks[state.tasks.length - 1];
       if (!currentTask) {
         throw new Error(
           `[Task Updater] No current task found at index ${state.currentTaskIndex}.`
@@ -377,8 +373,20 @@ export class Graph {
 
     if (isInEnum(ExecutorNode, state.last_node)) {
       // Check if a task was just completed (end_task tool was called)
-      const currentTask = state.tasks[state.currentTaskIndex];
-      if (currentTask && currentTask.status === 'completed') {
+      if (state.error && state.error.hasError) {
+        logger.error(
+          `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
+        );
+        if (state.error.type === 'blocked_task') {
+          logger.warn(
+            `[Orchestration Router] Blocked task detected, routing to END node`
+          );
+          return GraphNode.PLANNING_ORCHESTRATOR;
+        }
+        return GraphNode.END_GRAPH;
+      }
+      const currentTask = state.tasks[state.tasks.length - 1];
+      if (currentTask && currentTask.status === 'waiting_validation') {
         logger.debug(
           `[Orchestration Router] Task completed, routing to task verifier`
         );
@@ -583,7 +591,14 @@ export class Graph {
         this.snakAgent,
         this.agentConfig
       );
-
+      this.toolsList = this.toolsList.filter(
+        (tool) =>
+          tool.name !== 'mobile_take_screenshot' &&
+          tool.name !== 'mobile_save_screenshot'
+      );
+      this.toolsList.forEach((tool) => {
+        logger.debug(`[Agent] Tool initialized: ${tool.name}`);
+      });
       // Initialize memory agent if enabled
       await this.initializeMemoryAgent();
 

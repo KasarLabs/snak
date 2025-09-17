@@ -5,6 +5,7 @@ import {
 } from '@langchain/core/messages';
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import {
+  GraphErrorType,
   History,
   isPlannerActivateSchema,
   ParsedPlan,
@@ -21,11 +22,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
-import {
-  appendToRunFile,
-  GraphConfigurableAnnotation,
-  GraphState,
-} from '../graph.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   PlannerNode,
@@ -61,6 +58,7 @@ import {
   PlanSchemaType,
   TaskSchema,
   TaskSchemaType,
+  ThoughtsSchemaType,
 } from '@schemas/graph.schemas.js';
 import * as z from 'zod';
 
@@ -75,9 +73,25 @@ import {
   TASK_EXECUTOR_MEMORY_PROMPT,
   TASK_INITIALIZATION_PROMPT,
   TASK_INITIALIZER_HUMAN_PROMPT,
+  TASK_PLANNER_MEMORY_PROMPT,
 } from '@prompts/agents/core.prompts.js';
 import { stat } from 'fs';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
+import { createTask } from '@tools/tools.js';
+
+export function tasks_parser(tasks: TaskType[]): string {
+  try {
+    if (!tasks || tasks.length === 0) {
+      return 'No tasks available.';
+    }
+    const formattedTasks = tasks.map((task, index) => {
+      return `task_id : ${task.id}\n task : ${task.task.directive}\n status : ${task.status}\n verificiation_result : ${task.task_verification}\n`;
+    });
+    return formattedTasks.join('\n');
+  } catch (error) {
+    throw error;
+  }
+}
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
 ): string => {
@@ -235,6 +249,8 @@ export class PlannerGraph {
         tasks?: TaskType[];
         executionMode?: ExecutionMode;
         currentGraphStep: number;
+        error: GraphErrorType | null;
+        skipValidation?: { skipValidation: boolean; goto: string };
       }
     | Command
   > {
@@ -244,7 +260,9 @@ export class PlannerGraph {
       if (!model) {
         throw new Error('Model not found in ModelSelector');
       }
-      const structuredModel = model.withStructuredOutput(TaskSchema);
+      if (!model.bindTools) {
+        throw new Error('Model does not support tool binding');
+      }
       const agent_mode: AgentMode =
         (config.configurable?.agent_config?.mode as AgentMode) ??
         DEFAULT_GRAPH_CONFIG.agent_config.mode;
@@ -254,7 +272,7 @@ export class PlannerGraph {
       );
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', TASK_INITIALIZATION_PROMPT],
-        ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
+        ['ai', TASK_PLANNER_MEMORY_PROMPT],
         ['human', TASK_INITIALIZER_HUMAN_PROMPT],
       ]);
 
@@ -263,58 +281,75 @@ export class PlannerGraph {
         null,
         4
       );
-
+      const modelWithRequiredTool = model.bindTools(
+        [...this.toolsList, createTask],
+        {
+          tool_choice: 'any',
+        }
+      );
       const formattedPrompt = await prompt.formatMessages({
         header: prompts.generateNumberedList(prompts.getHeader()),
         objectives:
           config.configurable?.objectives ??
           this.agentConfig.prompt.content.toLocaleString(),
-        messages: state.memories.stm.items.map((item) => {
-          if (item && item.message) {
-            const messages = item.message.map((msg) => {
-              console.log('Message in STM:', msg);
-              const separator = msg instanceof AIMessage ? 'Ai' : 'Tool';
-              return `<${separator}>\n${msg.content}</${separator}>`;
-            });
-            return messages.join('\n');
-          }
-          return '';
-        }),
+        failed_tasks: state.error
+          ? `The previous task failed due to: ${state.error.message}`
+          : '',
+        messages: stm_format_for_history(state.memories.stm),
+        past_tasks: tasks_parser(state.tasks),
         goals: prompts.generateNumberedList(prompts.getGoals(), 'goal'),
         tools: prompts.generateNumberedList(prompts.getTools(), 'tool'),
         output_format: formattedResponseFormat,
       });
-      const structuredResult = (await structuredModel.invoke(
-        formattedPrompt
-      )) as TaskSchemaType;
-      logger.info(
-        `[Planner] Successfully created task : ${structuredResult.thought.text}`
-      );
-      appendToRunFile(JSON.stringify(formattedPrompt, null, 2));
-
-      const aiMessage = new AIMessageChunk({
-        content: `Plan created with task : ${structuredResult.thought.text}`,
-        additional_kwargs: {
-          error: false,
-          final: false,
-          from: GraphNode.PLANNING_ORCHESTRATOR,
-        },
-      });
-
+      const aiMessage = await modelWithRequiredTool.invoke(formattedPrompt);
+      logger.info(`[Planner] Successfully created task`);
+      if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
+        throw new Error('[Planner] No tool calls found in model response');
+      }
+      if (aiMessage.tool_calls.length > 1) {
+        logger.warn(
+          `[Planner] Multiple tool calls found, only the first will be processed`
+        );
+        throw new Error('[Planner] Multiple tool calls found');
+      }
+      if (
+        aiMessage.tool_calls[0].name !== 'create_task' &&
+        aiMessage.tool_calls[0].name !== 'block_task'
+      ) {
+        throw new Error(
+          `[Planner] Unexpected tool call: ${aiMessage.tool_calls[0].name}`
+        );
+      }
+      if (aiMessage.tool_calls[0].name === 'block_task') {
+        logger.info('[Planner] Task creation aborted by model');
+        return handleNodeError(
+          new Error('Task creation aborted by model'),
+          'PLANNER',
+          state,
+          'Task creation aborted by model'
+        );
+      }
+      const parsed_args = JSON.parse(
+        typeof aiMessage.tool_calls[0].args === 'string'
+          ? aiMessage.tool_calls[0].args
+          : JSON.stringify(aiMessage.tool_calls[0].args)
+      ) as TaskSchemaType;
       const tasks = {
         id: uuidv4(),
-        thought: structuredResult.thought,
-        task: structuredResult.task,
+        thought: parsed_args.thought,
+        task: parsed_args.task,
         steps: [],
         status: 'pending' as 'pending',
       };
-      state.tasks.push(tasks); // Push task to state
+      state.tasks.push(tasks);
+      console.log('AiMessage : ', [aiMessage].length); // Push task to state
       return {
         messages: [aiMessage],
         last_node: PlannerNode.CREATE_INITIAL_PLAN,
         tasks: state.tasks,
         executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
+        error: null,
       };
     } catch (error: any) {
       logger.error(`[Planner] Plan execution failed: ${error}`);

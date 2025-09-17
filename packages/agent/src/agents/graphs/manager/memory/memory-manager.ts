@@ -96,7 +96,8 @@ export class STMManager {
           timestamp: Date.now(),
         };
       }
-      const recentIndex = stm.head - 1; // Index of the most recent item
+      const recentIndex = (stm.head - 1 + stm.maxSize) % stm.maxSize; // Index of the most recent item
+      console.log('STM HEAD', stm.head);
       console.log('Recent Index:', recentIndex);
       const currentItem = stm.items[recentIndex];
       if (currentItem === null) {
@@ -106,7 +107,6 @@ export class STMManager {
         throw new Error('Recent memory has empty message array');
       }
       currentItem.message = currentItem.message.concat(item);
-      console.log('Updated Recent Memory:', currentItem);
       const newItems = [...stm.items];
       newItems[recentIndex] = currentItem;
 

@@ -42,7 +42,6 @@ import {
   StepType,
   TaskType,
 } from '../../../shared/types/graph.types.js';
-import { formatSteporHistoryForSTM } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 import { BaseMessage } from '@langchain/core/messages';
 
 export type GraphStateType = typeof GraphState.State;
@@ -148,7 +147,7 @@ export class MemoryGraph {
         };
       }
 
-      if (state.tasks[state.currentTaskIndex].status != 'completed') {
+      if (state.tasks[state.tasks.length - 1].status != 'completed') {
         logger.debug(
           `[LTMManager] Current task at index ${state.currentTaskIndex} is not completed, skipping LTM update`
         );
@@ -193,7 +192,7 @@ export class MemoryGraph {
       ]);
 
       // Get current task to format all its steps
-      const task = state.tasks[state.currentTaskIndex];
+      const task = state.tasks[state.tasks.length - 1];
       if (!task) {
         logger.warn(
           `[LTMManager] No current task found at index ${state.currentTaskIndex}, skipping LTM processing`
@@ -311,7 +310,9 @@ export class MemoryGraph {
     }
 
     // Route based on previous agent and current state
-
+    if (isInEnum(ExecutorNode, lastNode)) {
+      return MemoryNode.RETRIEVE_MEMORY;
+    }
     if (isInEnum(PlannerNode, lastNode)) {
       logger.debug('[MemoryRouter] Plan validated → retrieving memory context');
       return MemoryNode.RETRIEVE_MEMORY;

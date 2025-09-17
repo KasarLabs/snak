@@ -39,7 +39,7 @@ export class ImprovedExecutorLogic {
       }
 
       // Get the current task
-      const currentTask = state.tasks[state.currentTaskIndex];
+      const currentTask = state.tasks[state.tasks.length - 1];
       if (!currentTask) {
         throw new Error('No current task available');
       }

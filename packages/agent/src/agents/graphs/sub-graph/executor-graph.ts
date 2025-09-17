@@ -20,11 +20,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
-import {
-  appendToRunFile,
-  GraphConfigurableAnnotation,
-  GraphState,
-} from '../graph.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
@@ -60,6 +56,7 @@ import {
   StepInfoSchema,
   StepSchema,
   StepSchemaType,
+  ThoughtsSchemaType,
   ValidatorResponseSchema,
 } from '@schemas/graph.schemas.js';
 import {
@@ -72,6 +69,9 @@ import {
   ToolCall,
   Id,
   TaskType,
+  Memories,
+  ToolCallType,
+  GraphErrorType,
 } from '../../../shared/types/index.js';
 import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js';
 import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
@@ -88,10 +88,8 @@ import {
   TASK_EXECUTOR_PROMPT,
   TASK_INITIALIZATION_PROMPT,
 } from '@prompts/agents/core.prompts.js';
-import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 import { STMManager } from '@lib/memory/index.js';
-import { sep } from 'path';
-import { concat } from '@langchain/core/utils/stream';
+import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig;
@@ -141,20 +139,10 @@ export class AgentExecutorGraph {
     );
     logger.debug(`[Executor] Invoking model with execution`);
     const formattedPrompt = await prompt.formatMessages({
-      messages: state.memories.stm.items.map((item) => {
-        if (item && item.message) {
-          const messages = item.message.map((msg) => {
-            console.log('Message in STM:', msg);
-            const separator = msg instanceof AIMessage ? 'Ai' : 'Tool';
-            return `<${separator}>\n${msg.content}</${separator}>`;
-          });
-          return messages.join('\n');
-        }
-        return '';
-      }),
+      messages: stm_format_for_history(state.memories.stm),
       response_format: formattedResponseFormat,
-      current_task: state.tasks[state.currentTaskIndex].task.directive,
-      success_criteria: state.tasks[state.currentTaskIndex].task.success_check,
+      current_task: state.tasks[state.tasks.length - 1].task.directive,
+      success_criteria: state.tasks[state.tasks.length - 1].task.success_check,
     });
     if (!model.bindTools) {
       throw new Error('Model does not support tool binding');
@@ -162,19 +150,7 @@ export class AgentExecutorGraph {
     const modelBind = model.bindTools(this.toolsList);
 
     const result = await modelBind.invoke(formattedPrompt);
-    let finalMessage = null;
-    const stream = await modelBind.stream(formattedPrompt, config);
-
     // Agréger tous les chunks
-    for await (const chunk of stream) {
-      if (!finalMessage) {
-        finalMessage = chunk;
-      } else {
-        finalMessage = concat(finalMessage, chunk);
-      }
-    }
-    console.log('Final Message:', finalMessage);
-    appendToRunFile(JSON.stringify(formattedPrompt, null, 2));
     TokenTracker.trackCall(result, 'selectedModelType.model_name');
     return result;
   }
@@ -251,12 +227,19 @@ export class AgentExecutorGraph {
         messages: BaseMessage[];
         last_node: ExecutorNode;
         currentGraphStep?: number;
+        memories: Memories;
+        task?: TaskType[];
+        error?: GraphErrorType;
       }
     | Command
   > {
     try {
       if (!this.agentConfig || !this.modelSelector) {
         throw new Error('Agent configuration and ModelSelector are required.');
+      }
+      const currentTask = state.tasks[state.tasks.length - 1];
+      if (!currentTask) {
+        throw new Error('Current task is undefined');
       }
       // Validate current execution context
       logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
@@ -266,17 +249,96 @@ export class AgentExecutorGraph {
         throw new Error('Model returned no response');
       }
       logger.debug(`[Executor] Model response received`);
-      console.log('AI Message:', JSON.stringify(aiMessage, null, 4));
-      STMManager.addMemory(
+      const mewMemories = STMManager.addMemory(
         state.memories.stm,
         [aiMessage],
-        state.tasks[state.currentTaskIndex].id
+        state.tasks[state.tasks.length - 1].id
       );
+      if (!mewMemories.success || !mewMemories.data) {
+        throw new Error(
+          `Failed to add AI message to STM: ${mewMemories.error}`
+        );
+      }
+      let isEnd = false;
+      let isBlocked = false;
+      let thought: ThoughtsSchemaType;
+      let tools: ToolCallType[] = [];
+      if (aiMessage.tool_calls && aiMessage.tool_calls.length >= 2) {
+        aiMessage.tool_calls.forEach((call) => {
+          if (call.name === 'response_task') {
+            thought = JSON.parse(
+              typeof call.args === 'string'
+                ? call.args
+                : JSON.stringify(call.args)
+            ) as ThoughtsSchemaType;
+          } else {
+            tools.push({
+              tool_call_id: uuidv4(),
+              name: call.name,
+              args: call.args,
+              status: 'pending',
+            });
+          }
+          if (call.name === 'end_task') {
+            isEnd = true;
+          }
+          if (call.name === 'block_task') {
+            isBlocked = true;
+          }
+          if (Object.keys(call.args).length === 0) {
+            call.args = { noParams: {} };
+          }
+        });
+      } else {
+        throw new Error(
+          `Model must call minimum 2 tools per task, received ${aiMessage.tool_calls?.length || 0}`
+        );
+      }
+      aiMessage.additional_kwargs = {
+        from: ExecutorNode.REASONING_EXECUTOR,
+        final: isEnd || isBlocked ? true : false,
+      };
 
+      // Parse for task
+      state.memories.stm = mewMemories.data;
+      currentTask.steps.push({
+        thought: thought!, // add verifier and the execition need to be restart to ne sure that their is a though schema
+        tool: tools,
+      });
+      if (isEnd) {
+        currentTask.status = 'waiting_validation';
+      }
+      if (isBlocked) {
+        return {
+          messages: [aiMessage],
+          last_node: ExecutorNode.REASONING_EXECUTOR,
+          currentGraphStep: state.currentGraphStep + 1,
+          memories: state.memories,
+          task: state.tasks,
+          error: {
+            type: 'blocked_task',
+            message: (
+              JSON.parse(
+                JSON.stringify(
+                  aiMessage.tool_calls.find(
+                    (call) => call.name === 'block_task'
+                  )?.args
+                )
+              ) as ThoughtsSchemaType
+            ).reasoning,
+            hasError: true,
+            source: 'reasoning_executor',
+            timestamp: Date.now(),
+          },
+        };
+      }
+      state.tasks[state.tasks.length - 1] = currentTask;
       return {
         messages: [aiMessage],
         last_node: ExecutorNode.REASONING_EXECUTOR,
         currentGraphStep: state.currentGraphStep + 1,
+        memories: state.memories,
+        task: state.tasks,
       };
     } catch (error: any) {
       logger.error(`[Executor] Model invocation failed: ${error.message}`);
@@ -297,7 +359,7 @@ export class AgentExecutorGraph {
     | {
         messages: BaseMessage[];
         last_node: ExecutorNode;
-        taks: TaskType[];
+        memories: Memories;
       }
     | Command
     | null
@@ -340,7 +402,6 @@ export class AgentExecutorGraph {
         timeoutPromise,
       ]);
 
-      console.log('Tool Result:', JSON.stringify(result, null, 4));
       const executionTime = Date.now() - startTime;
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
       result.messages.forEach((res) => {
@@ -350,22 +411,24 @@ export class AgentExecutorGraph {
         };
       });
 
-      const currentTask = state.tasks[state.currentTaskIndex];
+      const currentTask = state.tasks[state.tasks.length - 1];
       if (!currentTask) {
         throw new Error('Current task is undefined');
       }
-      currentTask.steps[currentTask.steps.length - 1].tool = {
-        name: currentTask.steps[currentTask.steps.length - 1].tool.name,
-        args: currentTask.steps[currentTask.steps.length - 1].tool.args,
-        result: result.messages.toLocaleString(),
-        status: 'completed',
-      };
-      state.tasks[state.currentTaskIndex] = currentTask;
-      STMManager.updateMessageRecentMemory(state.memories.stm, result.messages);
+      const newMemories = STMManager.updateMessageRecentMemory(
+        state.memories.stm,
+        result.messages
+      );
+      if (!newMemories.success || !newMemories.data) {
+        throw new Error(
+          `Failed to update memory with tool results: ${newMemories.error}`
+        );
+      }
+      state.memories.stm = newMemories.data;
       return {
         ...result,
         last_node: ExecutorNode.TOOL_EXECUTOR,
-        taks: state.tasks,
+        memories: state.memories,
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
@@ -395,7 +458,7 @@ export class AgentExecutorGraph {
       | {
           messages: BaseMessage[];
           last_node: ExecutorNode;
-          taks: TaskType[];
+          memories: Memories;
         }
       | Command
       | null
@@ -434,6 +497,12 @@ export class AgentExecutorGraph {
   ): ExecutorNode {
     if (state.last_node === ExecutorNode.REASONING_EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
+      if (state.error && state.error.hasError) {
+        if (state.error.type === 'blocked_task') {
+          logger.warn(`[Router] Blocked task detected, routing to END node`);
+          return ExecutorNode.END;
+        }
+      }
       if (
         (lastAiMessage instanceof AIMessageChunk ||
           lastAiMessage instanceof AIMessage) &&

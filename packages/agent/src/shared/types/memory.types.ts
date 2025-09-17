@@ -88,13 +88,13 @@ export interface SemanticMemoryInsertSQL {
  * Comprehensive memory state - IMMUTABLE
  */
 export interface Memories {
-  readonly stm: STMContext;
-  readonly ltm: LTMContext;
-  readonly isProcessing: boolean;
-  readonly lastError?: {
-    readonly type: string;
-    readonly message: string;
-    readonly timestamp: number;
+  stm: STMContext;
+  ltm: LTMContext;
+  isProcessing: boolean;
+  lastError?: {
+    type: string;
+    message: string;
+    timestamp: number;
   };
 }
 

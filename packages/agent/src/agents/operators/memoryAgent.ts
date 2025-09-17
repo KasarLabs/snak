@@ -204,7 +204,7 @@ export class MemoryAgent extends BaseAgent {
       }
       const executionMode = config.configurable?.executionMode;
       if (executionMode === ExecutionMode.PLANNING) {
-        const task = state.tasks[state.currentTaskIndex];
+        const task = state.tasks[state.tasks.length - 1];
         // Build a comprehensive query using all available StepInfo fields
         return task.thought.text;
       } else {

@@ -348,17 +348,17 @@ export class AgentStorage implements OnModuleInit {
 
         const fast: ModelLevelConfig = {
           provider: ModelProviders.Gemini,
-          model_name: 'gemini-2.5-pro',
+          model_name: 'gemini-2.5-flash',
           description: 'Optimized for speed and simple tasks.',
         };
         const smart: ModelLevelConfig = {
           provider: ModelProviders.Gemini,
-          model_name: 'gemini-2.5-pro',
+          model_name: 'gemini-2.5-flash',
           description: 'Optimized for complex reasoning.',
         };
         const cheap: ModelLevelConfig = {
           provider: ModelProviders.Gemini,
-          model_name: 'gemini-2.5-pro',
+          model_name: 'gemini-2.5-flash',
           description: 'Good cost-performance balance.',
         };
 
