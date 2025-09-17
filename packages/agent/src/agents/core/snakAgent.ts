@@ -59,8 +59,6 @@ export class SnakAgent extends BaseAgent {
   private readonly databaseCredentials: DatabaseCredentials;
   private memoryAgent: MemoryAgent | null = null;
   private ragAgent: RagAgent | null = null;
-  private mcpAgent: MCPAgent | null = null;
-  private configAgent: ConfigurationAgent | null = null;
 
   private readonly modelSelectorConfig: ModelSelectorConfig;
 
@@ -425,6 +423,7 @@ export class SnakAgent extends BaseAgent {
           checkpoint_id: checkpoint_id ? checkpoint_id : undefined,
           user_request: input ?? undefined,
           objectives: input,
+          summarization_threshold: 2000,
         },
       };
       let lastChunk;

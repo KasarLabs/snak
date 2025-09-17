@@ -9,7 +9,17 @@ import {
   HistoryItem,
 } from '../../../../shared/types/index.js';
 import { memory } from '@snakagent/database/queries';
-import { BaseMessage } from '@langchain/core/messages';
+import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
+import {
+  BaseChatModel,
+  BaseChatModelCallOptions,
+} from '@langchain/core/language_models/chat_models';
+import { th } from 'zod/v4/locales';
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from '@langchain/core/prompts';
+import { LTN_SUMMARIZE_SYSTEM_PROMPT } from '@prompts/index.js';
 
 /**
  * Safe Short-Term Memory operations with O(1) complexity
@@ -136,10 +146,8 @@ export class STMManager {
     const memories: MemoryItem[] = [];
 
     if (stm.size === 0) return memories;
-    const startIndex = stm.size < stm.maxSize ? 0 : stm.head;
-
-    for (let i = 0; i < stm.size; i++) {
-      const index = (startIndex + i) % stm.maxSize;
+    for (let i = 0; i < stm.maxSize; i++) {
+      const index = (stm.head + i) % stm.maxSize;
       const item = stm.items[index];
       if (item !== null) {
         memories.push(item);
@@ -155,6 +163,33 @@ export class STMManager {
   static getRecentMemories(stm: STMContext, count: number): MemoryItem[] {
     const allMemories = this.getMemories(stm);
     return allMemories.slice(-count);
+  }
+
+  static async summarize_before_inserting(
+    content: string,
+    model: BaseChatModel
+  ): Promise<{ message: BaseMessage; tokens: number }> {
+    try {
+      if (!model) {
+        throw new Error('Model is not defined');
+      }
+      const prompt = ChatPromptTemplate.fromMessages([
+        ['system', LTN_SUMMARIZE_SYSTEM_PROMPT],
+        new MessagesPlaceholder('content'),
+      ]);
+
+      const aiMessage = await model.invoke(
+        await prompt.formatMessages({
+          content: content,
+        })
+      );
+      return {
+        message: aiMessage,
+        tokens: aiMessage.usage_metadata?.total_tokens ?? 0,
+      };
+    } catch (error: any) {
+      throw error;
+    }
   }
 
   /**

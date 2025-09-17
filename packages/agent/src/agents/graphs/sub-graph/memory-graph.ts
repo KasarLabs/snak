@@ -27,6 +27,7 @@ import {
   PlannerNode,
   ExecutorNode,
   ExecutionMode,
+  VerifierNode,
 } from '../../../shared/enums/agent-modes.enum.js';
 import { MemoryStateManager } from '../manager/memory/memory-utils.js';
 import { MemoryDBManager } from '../manager/memory/memory-db-manager.js';
@@ -58,43 +59,6 @@ export class MemoryGraph {
     const embeddings = memoryAgent.getEmbeddings();
     if (embeddings) {
       this.memoryDBManager = new MemoryDBManager(embeddings, 3, 8000);
-    }
-  }
-
-  private async summarize_before_inserting(
-    content: string
-  ): Promise<{ message: BaseMessage; tokens: number }> {
-    try {
-      if (!this.modelSelector || !this.memoryDBManager) {
-        logger.warn(
-          '[LTMManager] Missing dependencies, skipping LTM processing'
-        );
-        throw new Error(
-          `[LTMManager] Missing dependencies, skipping LTM processing`
-        );
-      }
-
-      const model = this.modelSelector.getModels()['cheap'];
-      if (!model) {
-        throw new Error('Smart model not available for LTM processing');
-      }
-
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', LTN_SUMMARIZE_SYSTEM_PROMPT],
-        new MessagesPlaceholder('content'),
-      ]);
-
-      const aiMessage = await model.invoke(
-        await prompt.formatMessages({
-          content: content,
-        })
-      );
-      return {
-        message: aiMessage,
-        tokens: aiMessage.usage_metadata?.total_tokens ?? 0,
-      };
-    } catch (error: any) {
-      throw error;
     }
   }
 
@@ -146,8 +110,9 @@ export class MemoryGraph {
           last_node: MemoryNode.LTM_MANAGER,
         };
       }
-
-      if (state.tasks[state.tasks.length - 1].status != 'completed') {
+      console.log('task status : ', state.tasks[state.tasks.length - 1].status);
+      if (state.tasks[state.tasks.length - 1].status != 'waiting_validation') {
+        // Maybe change it to completed but it can be interssing to know why there is the problem
         logger.debug(
           `[LTMManager] Current task at index ${state.currentTaskIndex} is not completed, skipping LTM update`
         );
@@ -310,13 +275,22 @@ export class MemoryGraph {
     }
 
     // Route based on previous agent and current state
+    // External sub-graphs handle
     if (isInEnum(ExecutorNode, lastNode)) {
       return MemoryNode.RETRIEVE_MEMORY;
     }
     if (isInEnum(PlannerNode, lastNode)) {
       logger.debug('[MemoryRouter] Plan validated → retrieving memory context');
       return MemoryNode.RETRIEVE_MEMORY;
-    } else if (isInEnum(MemoryNode, lastNode)) {
+    }
+    if (isInEnum(VerifierNode, lastNode)) {
+      logger.debug(
+        '[MemoryRouter] Task verification complete → retrieving memory context'
+      );
+      return MemoryNode.LTM_MANAGER;
+    }
+    // Internal memory nodes handling
+    else if (isInEnum(MemoryNode, lastNode)) {
       if (lastNode === MemoryNode.RETRIEVE_MEMORY) {
         logger.debug(
           '[MemoryRouter] Memory context retrieved → ending memory flow'

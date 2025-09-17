@@ -13,6 +13,7 @@ import {
   validatorResponse,
   MemoryItem,
   GraphErrorType,
+  Memories,
 } from '../../../shared/types/index.js';
 import {
   VerifierNode,
@@ -24,7 +25,9 @@ import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
 import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
-
+import { GraphNode } from '../config/default-config.js';
+import { STMManager } from '@lib/memory/index.js';
+import { v4 as uuidv4 } from 'uuid';
 // Task verification schema
 export const TaskVerificationSchema = z.object({
   taskCompleted: z
@@ -155,7 +158,6 @@ export class TaskVerifierGraph {
       ]);
 
       const executedSteps = stm_format_for_history(state.memories.stm);
-      const lastStep = currentTask.steps[currentTask.steps.length - 1];
 
       const formattedResponseFormat = JSON.stringify(
         prompts.getResponseFormat(),
@@ -205,8 +207,8 @@ Reasoning: ${verificationResult.reasoning}`,
           `[TaskVerifier] Task ${state.currentTaskIndex + 1} verified as complete (${verificationResult.confidenceScore}% confidence)`
         );
         const updatedTasks = [...state.tasks];
-        updatedTasks[state.currentTaskIndex].status = 'completed';
-        updatedTasks[state.currentTaskIndex].task_verification =
+        updatedTasks[state.tasks.length - 1].status = 'completed';
+        updatedTasks[state.tasks.length - 1].task_verification =
           verificationResult.reasoning;
 
         return {
@@ -234,17 +236,9 @@ Reasoning: ${verificationResult.reasoning}`,
 
         // Mark task as incomplete and add verification context to memory
         const updatedTasks = [...state.tasks];
-        updatedTasks[state.currentTaskIndex].status = 'failed';
-        updatedTasks[state.currentTaskIndex].task_verification =
+        updatedTasks[state.tasks.length - 1].status = 'failed';
+        updatedTasks[state.tasks.length - 1].task_verification =
           verificationResult.reasoning;
-
-        // Add verification failure context to short-term memory
-        const verificationContext = `TASK VERIFICATION FAILED:
-Task: ${currentTask.thought.text}
-Reason: ${verificationResult.reasoning}
-Missing Elements: ${verificationResult.missingElements.join(', ')}
-Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specified'}`;
-        console.log('AiMessage : ', [verificationMessage].length); // Push task to state
 
         return {
           messages: [verificationMessage],
@@ -341,6 +335,86 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
     };
   }
 
+  private task_updater(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): {
+    tasks?: TaskType[];
+    currentTaskIndex?: number;
+    last_node?: VerifierNode;
+    memories?: Memories;
+  } {
+    try {
+      if (!state.tasks || state.tasks.length === 0) {
+        throw new Error('[Task Updater] No tasks found in the state.');
+      }
+
+      const currentTask = state.tasks[state.tasks.length - 1];
+      if (!currentTask) {
+        throw new Error(
+          `[Task Updater] No current task found at index ${state.currentTaskIndex}.`
+        );
+      }
+
+      // Check if we have task verification context from the previous message
+      const lastMessage = state.messages[state.messages.length - 1];
+      let updatedMemories = state.memories;
+
+      if (
+        lastMessage &&
+        lastMessage.additional_kwargs?.from === 'task_verifier'
+      ) {
+        STMManager.addMemory(state.memories.stm, [lastMessage], uuidv4());
+        logger.info(
+          `[Task Updater] Verfication ${lastMessage.additional_kwargs.taskCompleted ? 'successfull' : 'failed'}`
+        );
+      }
+      // If task is completed and verified successfully, move to next task
+      if (
+        currentTask.status === 'completed' &&
+        lastMessage?.additional_kwargs?.taskCompleted === true
+      ) {
+        logger.info(
+          `[Task Updater] Moving from completed task ${state.currentTaskIndex} to task ${state.currentTaskIndex + 1}`
+        );
+        return {
+          tasks: state.tasks,
+          currentTaskIndex: state.currentTaskIndex,
+          last_node: VerifierNode.TASK_UPDATER,
+          memories: updatedMemories,
+        };
+      }
+
+      // If task verification failed, mark task as failed and keep current index for retry
+      if (
+        currentTask.status === 'completed' &&
+        lastMessage?.additional_kwargs?.taskCompleted === false
+      ) {
+        const updatedTasks = [...state.tasks];
+        updatedTasks[state.currentTaskIndex].status = 'failed';
+
+        logger.warn(
+          `[Task Updater] Task ${state.currentTaskIndex + 1} verification failed, marked as failed for retry`
+        );
+        return {
+          tasks: updatedTasks,
+          currentTaskIndex: state.currentTaskIndex, // Keep same index for retry
+          last_node: VerifierNode.TASK_UPDATER,
+          memories: updatedMemories,
+        };
+      }
+
+      // Default case - no change
+      return {
+        last_node: VerifierNode.TASK_UPDATER,
+        memories: updatedMemories,
+      };
+    } catch (error) {
+      logger.error(`[Task Updater] Error: ${error}`);
+      return { last_node: VerifierNode.TASK_UPDATER };
+    }
+  }
+
   public getVerifierGraph() {
     return this.graph;
   }
@@ -359,13 +433,15 @@ Suggested Actions: ${verificationResult.nextActions?.join(', ') || 'None specifi
         VerifierNode.TASK_FAILURE_HANDLER,
         this.taskFailureHandler.bind(this)
       )
+      .addNode(VerifierNode.TASK_UPDATER, this.task_updater.bind(this))
       .addEdge(START, VerifierNode.TASK_VERIFIER)
       .addConditionalEdges(
         VerifierNode.TASK_VERIFIER,
         this.taskVerifierRouter.bind(this)
       )
-      .addEdge(VerifierNode.TASK_SUCCESS_HANDLER, END)
-      .addEdge(VerifierNode.TASK_FAILURE_HANDLER, END);
+      .addEdge(VerifierNode.TASK_SUCCESS_HANDLER, VerifierNode.TASK_UPDATER)
+      .addEdge(VerifierNode.TASK_FAILURE_HANDLER, VerifierNode.TASK_UPDATER)
+      .addEdge(VerifierNode.TASK_UPDATER, END);
 
     this.graph = verifier_subgraph.compile();
   }

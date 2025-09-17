@@ -366,7 +366,10 @@ export class AgentExecutorGraph {
   > {
     const lastMessage = state.messages[state.messages.length - 1];
     const toolTimeout = DEFAULT_GRAPH_CONFIG.toolTimeout; // TODO add the field in the agent_configuration;
-
+    const model = this.modelSelector?.getModels()['fast'];
+    if (!model) {
+      throw new Error('Model not found in ModelSelector');
+    }
     const toolCalls =
       lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
         ? lastMessage.tool_calls
@@ -397,15 +400,26 @@ export class AgentExecutorGraph {
       });
 
       const executionPromise = await originalInvoke(state, config);
-      const result: { messages: ToolMessage[] } = await Promise.race([
+      const tools: { messages: ToolMessage[] } = await Promise.race([
         executionPromise,
         timeoutPromise,
       ]);
 
       const executionTime = Date.now() - startTime;
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
-      result.messages.forEach((res) => {
-        res.additional_kwargs = {
+      tools.messages.forEach(async (tool) => {
+        if (
+          config.configurable?.summarization_threshold &&
+          estimateTokens(tool.content.toLocaleString()) >=
+            config.configurable.summarization_threshold
+        ) {
+          const summarize_content = await STMManager.summarize_before_inserting(
+            tool.content.toLocaleString(),
+            model
+          ).then((res) => res.message.content);
+          tool.content = summarize_content;
+        }
+        tool.additional_kwargs = {
           from: 'tools',
           final: false,
         };
@@ -417,7 +431,7 @@ export class AgentExecutorGraph {
       }
       const newMemories = STMManager.updateMessageRecentMemory(
         state.memories.stm,
-        result.messages
+        tools.messages
       );
       if (!newMemories.success || !newMemories.data) {
         throw new Error(
@@ -426,7 +440,7 @@ export class AgentExecutorGraph {
       }
       state.memories.stm = newMemories.data;
       return {
-        ...result,
+        ...tools,
         last_node: ExecutorNode.TOOL_EXECUTOR,
         memories: state.memories,
       };
