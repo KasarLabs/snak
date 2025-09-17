@@ -423,7 +423,7 @@ export class SnakAgent extends BaseAgent {
           checkpoint_id: checkpoint_id ? checkpoint_id : undefined,
           user_request: input ?? undefined,
           objectives: input,
-          summarization_threshold: 2000,
+          summarization_threshold: 1500,
         },
       };
       let lastChunk;
