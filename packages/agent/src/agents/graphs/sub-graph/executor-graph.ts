@@ -265,6 +265,7 @@ export class AgentExecutorGraph {
       let tools: ToolCallType[] = [];
       if (aiMessage.tool_calls && aiMessage.tool_calls.length >= 2) {
         aiMessage.tool_calls.forEach((call) => {
+          !call.id ? (call.id = uuidv4()) : call.id;
           if (call.name === 'response_task') {
             thought = JSON.parse(
               typeof call.args === 'string'
@@ -273,7 +274,7 @@ export class AgentExecutorGraph {
             ) as ThoughtsSchemaType;
           } else {
             tools.push({
-              tool_call_id: uuidv4(),
+              tool_call_id: call.id,
               name: call.name,
               args: call.args,
               status: 'pending',
@@ -360,6 +361,7 @@ export class AgentExecutorGraph {
         messages: BaseMessage[];
         last_node: ExecutorNode;
         memories: Memories;
+        task: TaskType[];
       }
     | Command
     | null
@@ -369,6 +371,10 @@ export class AgentExecutorGraph {
     const model = this.modelSelector?.getModels()['fast'];
     if (!model) {
       throw new Error('Model not found in ModelSelector');
+    }
+    const currentTask = state.tasks[state.tasks.length - 1];
+    if (!currentTask) {
+      throw new Error('Current task is undefined');
     }
     const toolCalls =
       lastMessage instanceof AIMessageChunk && lastMessage.tool_calls
@@ -408,6 +414,8 @@ export class AgentExecutorGraph {
       const executionTime = Date.now() - startTime;
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
       tools.messages.forEach(async (tool) => {
+        console.log(estimateTokens(tool.content.toLocaleString()));
+        console.log(config.configurable?.summarization_threshold);
         if (
           config.configurable?.summarization_threshold &&
           estimateTokens(tool.content.toLocaleString()) >=
@@ -419,16 +427,20 @@ export class AgentExecutorGraph {
           ).then((res) => res.message.content);
           tool.content = summarize_content;
         }
+        currentTask.steps[currentTask.steps.length - 1].tool.filter(
+          (t: ToolCallType) => {
+            if (t.tool_call_id === tool.tool_call_id) {
+              t.status = 'completed';
+              t.result = tool.content.toLocaleString();
+            }
+          }
+        );
         tool.additional_kwargs = {
           from: 'tools',
           final: false,
         };
       });
 
-      const currentTask = state.tasks[state.tasks.length - 1];
-      if (!currentTask) {
-        throw new Error('Current task is undefined');
-      }
       const newMemories = STMManager.updateMessageRecentMemory(
         state.memories.stm,
         tools.messages
@@ -441,6 +453,7 @@ export class AgentExecutorGraph {
       state.memories.stm = newMemories.data;
       return {
         ...tools,
+        task: state.tasks,
         last_node: ExecutorNode.TOOL_EXECUTOR,
         memories: state.memories,
       };

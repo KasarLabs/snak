@@ -42,6 +42,7 @@ import {
   StepInfo,
   StepType,
   TaskType,
+  ToolCallType,
 } from '../../../shared/types/graph.types.js';
 import { BaseMessage } from '@langchain/core/messages';
 
@@ -67,17 +68,18 @@ export class MemoryGraph {
       let formatted = `Task: ${task.thought.text}\n`;
       if (task.steps && task.steps.length > 0) {
         formatted += `-Steps: `;
-        task.steps.forEach((step: any, index: number) => {
-          const toolResult =
-            typeof step.tool.result === 'string'
-              ? step.tool.result.slice(0, 150) +
-                (step.tool.result.length > 150 ? '...' : '')
-              : JSON.stringify(step.tool.result).slice(0, 150);
-          const toolArgs =
-            JSON.stringify(step.tool.args).slice(0, 100) +
-            (JSON.stringify(step.tool.args).length > 100 ? '...' : '');
+        task.steps.forEach((step: StepType, index: number) => {
+          const toolResult: string = step.tool
+            .map((t: ToolCallType) => {
+              const toolArgs = JSON.stringify(t.result);
+              if (t.name === 'response_task') {
+                return null;
+              }
+              return `-${t.name}(${toolArgs}) → ${t.status}:${JSON.stringify(t.result) || 'No result'}\n`;
+            })
+            .join('');
 
-          formatted += `${index + 1}.[${step.thought.text}|${step.thought.reasoning}] ${step.tool.name}(${toolArgs}) → ${step.tool.status}:${toolResult}; `;
+          formatted += `${index + 1}.[${step.thought.text}|${step.thought.reasoning}];${toolResult}\n`;
         });
         formatted += `\n`;
       } else {
@@ -111,7 +113,10 @@ export class MemoryGraph {
         };
       }
       console.log('task status : ', state.tasks[state.tasks.length - 1].status);
-      if (state.tasks[state.tasks.length - 1].status != 'waiting_validation') {
+      if (
+        state.tasks[state.tasks.length - 1].status != 'completed' &&
+        state.tasks[state.tasks.length - 1].status != 'failed'
+      ) {
         // Maybe change it to completed but it can be interssing to know why there is the problem
         logger.debug(
           `[LTMManager] Current task at index ${state.currentTaskIndex} is not completed, skipping LTM update`
