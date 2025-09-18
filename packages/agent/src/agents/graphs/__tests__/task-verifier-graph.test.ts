@@ -183,7 +183,7 @@
 //     it('should add verification context to memory on completion', () => {
 //       const state = createMockState();
 //       const verifierGraph = taskVerifier.getVerifierGraph();
-      
+
 //       expect(verifierGraph).toBeDefined();
 //       expect(state.memories.stm.items.length).toBe(0);
 //     });
@@ -191,10 +191,10 @@
 //     it('should retain task context on verification failure', () => {
 //       const state = createMockState();
 //       const config = createMockConfig();
-      
+
 //       // Task marked as failed after verification
 //       state.tasks[0].status = 'failed';
-      
+
 //       const verifierGraph = taskVerifier.getVerifierGraph();
 //       expect(verifierGraph).toBeDefined();
 //     });
@@ -203,14 +203,14 @@
 //   describe('Graph Structure', () => {
 //     it('should create verifier graph with correct nodes', () => {
 //       const verifierGraph = taskVerifier.getVerifierGraph();
-      
+
 //       expect(verifierGraph).toBeDefined();
 //       // The graph should have the verifier nodes configured
 //     });
 
 //     it('should handle routing between verification states', () => {
 //       const verifierGraph = taskVerifier.getVerifierGraph();
-      
+
 //       expect(verifierGraph).toBeDefined();
 //       // Routing logic should be configured properly
 //     });
@@ -230,7 +230,7 @@
 
 //     it('should handle missing model selector', () => {
 //       const taskVerifierWithoutModel = new TaskVerifierGraph(null);
-      
+
 //       expect(() => {
 //         taskVerifierWithoutModel.createTaskVerifierGraph();
 //       }).not.toThrow();

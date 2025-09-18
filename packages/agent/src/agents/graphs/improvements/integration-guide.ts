@@ -5,7 +5,10 @@
 
 import { StateGraph, MemorySaver, Annotation } from '@langchain/langgraph';
 import { GraphState, GraphConfigurableAnnotation } from '../graph.js';
-import { ExecutionConstraintsManager, ExecutionState } from './execution-constraints.js';
+import {
+  ExecutionConstraintsManager,
+  ExecutionState,
+} from './execution-constraints.js';
 import { ImprovedTaskPlanner } from './improved-planner.js';
 import { ImprovedExecutorLogic } from './improved-executor.js';
 import { SimplifiedOrchestration } from './simplified-orchestration.js';
@@ -37,7 +40,6 @@ export const EnhancedGraphState = Annotation.Root({
  * Integration steps for existing Graph class
  */
 export class GraphIntegrationGuide {
-  
   /**
    * Step 1: Update your Graph class constructor to include new dependencies
    */

@@ -47,36 +47,6 @@ export namespace memory {
     });
   }
 
-  // TODO: The current memory setup does not really make sense. It would be
-  // better to have something like
-  //
-  // ```sql
-  // CREATE TABLE IF NOT EXISTS memories(
-  //   id SERIAL PRIMARY KEY,
-  //   user_id VARCHAR(100) NOT NULL,
-  //   embedding vector(384) NOT NULL,
-  // );
-  //
-  // CREATE TABLE IF NOT EXISTS history(
-  //   id SERIAL PRIMARY KEY,
-  //   memory_id INTEGER NOT NULL,
-  //   content TEXT NOT NULL,
-  //   created_ad TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  //   FOREIGN KEY (memory_id) REFERENCES memories(id)
-  // );
-  // ```
-  //
-  // Where we can get `updated_at` using:
-  //
-  // ```sql
-  // SELECT created_at FROM history WHERE memory_id = $1 ORDER BY id DESC TAKE 1;
-  // ```
-  //
-  // And `created_at` by using:
-  //
-  // ```sql
-  // SELECT created_at FROM history WHERE memory_id = $1 ORDER BY id ASC TAKE 1;
-  // ```
   export interface Metadata {
     created_at?: string;
     updated_at: string;
@@ -87,6 +57,8 @@ export namespace memory {
 
   export interface UPSERT_SEMANTIC_MEMORY_OUTPUT {
     memory_id: number;
+    task_id: string;
+    step_id: string;
     operation: string;
     similarity_score: number | null;
     matched_fact: string | null;
@@ -94,6 +66,8 @@ export namespace memory {
 
   export interface INSERT_EPISODIC_MEMORY_OUTPUT {
     memory_id: number;
+    task_id: string;
+    step_id: string;
     operation: string;
     similar_memory_id: number | null;
     similar_memory_content: string | null;
@@ -107,6 +81,8 @@ export namespace memory {
   interface MemoryBase {
     user_id: string;
     run_id: string;
+    task_id: string;
+    step_id: string;
     embedding: number[];
     created_at?: Date;
     accessed_at?: Date;
@@ -155,10 +131,12 @@ export namespace memory {
     memory: EpisodicMemory
   ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5);`,
+      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7);`,
       [
         memory.user_id,
         memory.run_id,
+        memory.task_id,
+        memory.step_id,
         memory.content,
         JSON.stringify(memory.embedding),
         memory.sources,
@@ -172,10 +150,12 @@ export namespace memory {
     memory: SemanticMemory
   ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6);`,
+      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
       [
         memory.user_id,
         memory.run_id,
+        memory.task_id,
+        memory.step_id,
         memory.fact,
         JSON.stringify(memory.embedding),
         memory.category,
@@ -238,6 +218,8 @@ export namespace memory {
   export interface Similarity {
     memory_type: string;
     memory_id: number;
+    task_id: string;
+    step_id: string;
     content: string;
     similarity: number;
     metadata: any; // JSONB from PostgreSQL
@@ -280,7 +262,7 @@ export namespace memory {
          SELECT id FROM agent_memories
          WHERE user_id = $1
          ORDER BY created_at DESC
-         OFFSET $2
+         OFFSET $2~
        );`,
       [userId, limit]
     );

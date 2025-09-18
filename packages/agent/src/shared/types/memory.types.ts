@@ -48,6 +48,8 @@ export interface MemoryContextBase {
 export interface SemanticMemoryContext {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   fact: string;
   category: string;
 }
@@ -58,6 +60,8 @@ export interface SemanticMemoryContext {
 export interface EpisodicMemoryContext {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   content: string;
   sources: Array<string>;
 }
@@ -68,6 +72,8 @@ export interface EpisodicMemoryContext {
 export interface EpisodicMemoryInsertSQL {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   content: string;
   embedding: Array<number>;
   sources: Array<string>;
@@ -79,9 +85,11 @@ export interface EpisodicMemoryInsertSQL {
 export interface SemanticMemoryInsertSQL {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   fact: string;
   embedding: Array<number>;
-  category: 'preference' | 'fact' | 'skill' | 'relationship';
+  category: string; // WOULD BE BETTER AS ENUM
 }
 
 /**
@@ -136,6 +144,24 @@ export const ltmSchema = z.object({
     .default([])
     .describe('Facts and knowledge learned with confidence scoring'),
 });
+
+export function createLtmSchemaMemorySchema(
+  maxEpisodic: number,
+  maxSemantic: number
+) {
+  return z.object({
+    episodic: z
+      .array(episodicEventSchema)
+      .max(maxEpisodic)
+      .default([])
+      .describe('Events and experiences with confidence scoring'),
+    semantic: z
+      .array(semanticFactSchema)
+      .max(maxSemantic)
+      .default([])
+      .describe('Facts and knowledge learned with confidence scoring'),
+  });
+}
 
 export type ltmSchemaType = z.infer<typeof ltmSchema>;
 

@@ -55,7 +55,9 @@ The criticism you provide will be fed back to you in future iterations to help i
 /**
  * Enhanced system prompt template that includes reasoning history feedback
  */
-export const SUPERAGI_SYSTEM_PROMPT_WITH_CONTEXT = (criticismContext: string) => `${SUPERAGI_CORE_PROMPT}
+export const SUPERAGI_SYSTEM_PROMPT_WITH_CONTEXT = (
+  criticismContext: string
+) => `${SUPERAGI_CORE_PROMPT}
 
 ${criticismContext}
 

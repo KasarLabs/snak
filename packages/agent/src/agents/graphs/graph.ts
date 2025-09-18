@@ -31,9 +31,7 @@ import {
 import { AgentReturn } from '../../shared/types/agents.types.js';
 import {
   GraphErrorType,
-  History,
   Memories,
-  ParsedPlan,
   TasksType,
   TaskType,
 } from '../../shared/types/index.js';
@@ -221,13 +219,11 @@ export class Graph {
   }
 
   private end_graph(state: typeof GraphState): {
-    plans_or_histories: Array<ParsedPlan | History> | undefined;
     currentTaskIndex: number;
     retry: number;
   } {
     logger.info('[EndGraph] Cleaning up state for graph termination');
     return {
-      plans_or_histories: undefined,
       currentTaskIndex: 0,
       retry: 0,
     };

@@ -11,4 +11,3 @@ export const EXECUTOR_TASK_GENERATION_INSTRUCTION = `You are a task-generating A
 Your role is to understand the goals presented to you, identify important components, 
 Go through the instruction provided by the user and construct a thorough execution plan.
 Construct a sequence of actions, not exceeding 3 steps,to achieve the following GOAL.`;
-    

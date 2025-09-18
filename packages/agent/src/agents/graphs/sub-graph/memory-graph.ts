@@ -3,8 +3,8 @@ import {
   Memories,
   EpisodicMemoryContext,
   SemanticMemoryContext,
-  ltmSchema,
   ltmSchemaType,
+  createLtmSchemaMemorySchema,
 } from '../../../shared/types/memory.types.js';
 import {
   getCurrentPlanStep,
@@ -37,9 +37,6 @@ import { LTN_SUMMARIZE_SYSTEM_PROMPT } from '@prompts/graph/memory/summary_promp
 import { isInEnum } from '@enums/utils.js';
 import { MEMORY_THRESHOLDS } from '@agents/graphs/constants/execution-constants.js';
 import {
-  HistoryItem,
-  ParsedPlan,
-  StepInfo,
   StepType,
   TaskType,
   ToolCallType,
@@ -155,7 +152,9 @@ export class MemoryGraph {
         };
       }
 
-      const structuredModel = model.withStructuredOutput(ltmSchema);
+      const structuredModel = model.withStructuredOutput(
+        createLtmSchemaMemorySchema(4, 8)
+      );
       const prompt = ChatPromptTemplate.fromMessages([
         ['system', LTM_SYSTEM_PROMPT_RETRIEVE_MEMORY],
         ['human', `TEXT_TO_ANALYZE : {response}`],
@@ -186,7 +185,9 @@ export class MemoryGraph {
       summaryResult.episodic.forEach((memory) => {
         const episodic_memory: EpisodicMemoryContext = {
           user_id: 'default_user',
-          run_id: config.configurable?.thread_id as string, //TODO add DEFAULT CONFIG
+          run_id: config.configurable!.thread_id as string,
+          task_id: task.id,
+          step_id: task.steps[task.steps.length - 1].id,
           content: memory.content,
           sources: memory.source,
         };
@@ -196,7 +197,9 @@ export class MemoryGraph {
       summaryResult.semantic.forEach((memory) => {
         const semantic_memory: SemanticMemoryContext = {
           user_id: 'default_user',
-          run_id: config.configurable?.thread_id as string,
+          run_id: config.configurable!.thread_id as string,
+          task_id: task.id,
+          step_id: task.steps[task.steps.length - 1].id,
           fact: memory.fact,
           category: memory.category,
         };

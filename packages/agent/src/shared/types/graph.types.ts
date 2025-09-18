@@ -30,49 +30,6 @@ export interface GraphExecutionContext {
   metadata?: Record<string, any>;
 }
 
-export type ReturnTypeCheckPlanorHistory =
-  | { type: 'step'; item: StepInfo }
-  | { type: 'history'; item: HistoryItem | null };
-
-/**
- * Step information structure
- */
-export interface StepInfo {
-  stepNumber: number;
-  stepName: string;
-  description: string;
-  type: 'tools' | 'message' | 'human_in_the_loop';
-  tools?: StepToolsInfo[];
-  message?: MessageInfo;
-  status: 'pending' | 'completed' | 'failed';
-}
-
-/**
- * History item structure
- */
-export interface HistoryItem {
-  tools?: HistoryToolsInfo[];
-  message?: MessageInfo;
-  userquery?: string;
-  type: 'tools' | 'message' | 'human_in_the_loop';
-  timestamp: number;
-}
-
-/**
- * Step tools information
- */
-export interface StepToolsInfo {
-  description: string;
-  required: string;
-  expected_result: string;
-  result: string;
-  metadata?: {
-    tool_name: string;
-    tool_call_id: string;
-    timestamp: string;
-  };
-}
-
 /**
  * History tools information
  */
@@ -98,58 +55,6 @@ export interface GraphErrorType {
   timestamp: number;
 }
 
-/**
- * Message information structure
- */
-export interface MessageInfo {
-  content: string;
-  tokens: number;
-}
-
-/**
- * Parsed plan structure
- */
-export interface ParsedPlan {
-  type: 'plan';
-  id: string;
-  steps: StepInfo[];
-  summary: string;
-}
-
-/**
- * History structure
- */
-export interface History {
-  type: 'history';
-  id: string;
-  items: HistoryItem[];
-}
-
-/**
- * Validator response structure
- */
-export interface validatorResponse {
-  success: boolean;
-  results: string[];
-}
-
-/**
- * Step response structure
- */
-interface StepResponse {
-  number: number;
-  validated: boolean;
-}
-
-/**
- * Validator step response structure
- */
-export interface ValidatorStepResponse {
-  steps: StepResponse[];
-  nextSteps: number;
-  isFinal: boolean;
-}
-
 export interface ThoughtsType {
   text: string;
   reasoning: string;
@@ -166,6 +71,7 @@ export interface ToolCallType {
 }
 
 export interface StepType {
+  id: string;
   thought: ThoughtsType;
   tool: ToolCallType[];
 }
@@ -188,7 +94,7 @@ export interface TaskType {
     | 'waiting'
     | 'waiting_validation';
 }
-   
+
 export interface TasksType {
   tasks: TaskType[];
 }

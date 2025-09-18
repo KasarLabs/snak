@@ -2,8 +2,6 @@ import { BaseMessage } from '@langchain/core/messages';
 import {
   Memories,
   MemoryOperationResult,
-  StepInfo,
-  HistoryItem,
   STMContext,
   LTMContext,
 } from '../../../../shared/types/index.js';

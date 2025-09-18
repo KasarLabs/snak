@@ -50,10 +50,14 @@ export class ExecutionConstraintsManager {
     toolName: string,
     executionState: ExecutionState
   ): { allowed: boolean; reason?: string } {
-    const constraints = this.TOOL_CONSTRAINTS[toolName] || this.DEFAULT_CONSTRAINTS;
+    const constraints =
+      this.TOOL_CONSTRAINTS[toolName] || this.DEFAULT_CONSTRAINTS;
 
     // Check for consecutive duplicates
-    if (constraints.preventConsecutiveDuplicates && executionState.lastToolCall === toolName) {
+    if (
+      constraints.preventConsecutiveDuplicates &&
+      executionState.lastToolCall === toolName
+    ) {
       return {
         allowed: false,
         reason: `Consecutive calls to ${toolName} are not allowed`,
@@ -62,8 +66,10 @@ export class ExecutionConstraintsManager {
 
     // Check max consecutive repeats
     const recentCalls = executionState.toolCallHistory.slice(-3);
-    const consecutiveCount = recentCalls.filter(call => call === toolName).length;
-    
+    const consecutiveCount = recentCalls.filter(
+      (call) => call === toolName
+    ).length;
+
     if (consecutiveCount >= constraints.maxRetries) {
       return {
         allowed: false,
@@ -73,8 +79,8 @@ export class ExecutionConstraintsManager {
 
     // Check required precedents
     if (constraints.requiredPrecedents) {
-      const hasRequiredPrecedent = constraints.requiredPrecedents.some(precedent =>
-        executionState.toolCallHistory.includes(precedent)
+      const hasRequiredPrecedent = constraints.requiredPrecedents.some(
+        (precedent) => executionState.toolCallHistory.includes(precedent)
       );
       if (!hasRequiredPrecedent) {
         return {
@@ -86,7 +92,7 @@ export class ExecutionConstraintsManager {
 
     // Check blocked after
     if (constraints.blockedAfter) {
-      const isBlockedAfter = constraints.blockedAfter.some(blocker =>
+      const isBlockedAfter = constraints.blockedAfter.some((blocker) =>
         executionState.toolCallHistory.includes(blocker)
       );
       if (isBlockedAfter) {
@@ -109,7 +115,10 @@ export class ExecutionConstraintsManager {
       lastToolCall: toolName,
       toolCallHistory: [...state.toolCallHistory, toolName].slice(-10), // Keep last 10 calls
       stepInProgress: toolName !== 'end_task',
-      taskCompletionAttempts: toolName === 'end_task' ? state.taskCompletionAttempts + 1 : state.taskCompletionAttempts,
+      taskCompletionAttempts:
+        toolName === 'end_task'
+          ? state.taskCompletionAttempts + 1
+          : state.taskCompletionAttempts,
     };
   }
 

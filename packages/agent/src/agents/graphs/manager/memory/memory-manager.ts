@@ -5,8 +5,6 @@ import {
   STMContext,
   LTMContext,
   MemoryOperationResult,
-  StepInfo,
-  HistoryItem,
 } from '../../../../shared/types/index.js';
 import { memory } from '@snakagent/database/queries';
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';

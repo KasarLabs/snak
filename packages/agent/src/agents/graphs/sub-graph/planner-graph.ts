@@ -6,18 +6,10 @@ import {
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import {
   GraphErrorType,
-  History,
   isPlannerActivateSchema,
-  ParsedPlan,
-  StepInfo,
-  TasksType,
   TaskType,
 } from '../../../shared/types/index.js';
-import {
-  checkAndReturnObjectFromPlansOrHistories,
-  formatParsedPlanSimple,
-  handleNodeError,
-} from '../utils/graph-utils.js';
+import { handleNodeError } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
@@ -26,7 +18,6 @@ import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   PlannerNode,
-  GraphNode,
   ExecutorNode,
   MemoryNode,
   ExecutionMode,
@@ -53,29 +44,17 @@ import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import { isInEnum } from '@enums/utils.js';
-import {
-  PlanSchema,
-  PlanSchemaType,
-  TaskSchema,
-  TaskSchemaType,
-  ThoughtsSchemaType,
-} from '@schemas/graph.schemas.js';
-import * as z from 'zod';
+import { TaskSchemaType } from '@schemas/graph.schemas.js';
 
-import { parseEvolveFromHistoryContext } from '../parser/plan-or-histories/plan-or-histoires.parser.js';
 import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js';
 import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
 import { INSTRUCTION_TASK_INITALIZER } from '@prompts/agents/instruction.prompts.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
-import { th, tr } from 'zod/v4/locales';
 import {
-  CORE_AGENT_PROMPT,
-  TASK_EXECUTOR_MEMORY_PROMPT,
   TASK_INITIALIZATION_PROMPT,
   TASK_INITIALIZER_HUMAN_PROMPT,
   TASK_PLANNER_MEMORY_PROMPT,
 } from '@prompts/agents/core.prompts.js';
-import { stat } from 'fs';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 import { createTask } from '@tools/tools.js';
 
@@ -111,16 +90,6 @@ export const parseToolsToJson = (
   return JSON.stringify(formatTools, null, 2);
 };
 
-export interface PlannerPromptsKeyPairs {
-  mode: AgentMode;
-  context: PlannerNode;
-}
-
-export interface PromptValuePairs {
-  system: string;
-  context: string;
-}
-
 export class PlannerGraph {
   private agentConfig: AgentConfig;
   private modelSelector: ModelSelector | null;
@@ -130,7 +99,6 @@ export class PlannerGraph {
     | Tool
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
-  private planner_prompts: Map<string, PromptValuePairs>;
   constructor(
     agentConfig: AgentConfig,
     modelSelector: ModelSelector,
@@ -139,68 +107,6 @@ export class PlannerGraph {
     this.modelSelector = modelSelector;
     this.agentConfig = agentConfig;
     this.toolsList = toolList;
-    this.planner_prompts = new Map();
-    this.initializePrompts();
-  }
-
-  private initializePrompts(): void {
-    // Plan Execution prompts for different agent modes
-    this.planner_prompts.set(
-      `${AgentMode.HYBRID}-${PlannerNode.CREATE_INITIAL_PLAN}`,
-      {
-        system: HYBRID_PLAN_EXECUTOR_SYSTEM_PROMPT,
-        context: AUTONOMOUS_PLANNER_CONTEXT_PROMPT,
-      }
-    );
-
-    this.planner_prompts.set(
-      `${AgentMode.AUTONOMOUS}-${PlannerNode.CREATE_INITIAL_PLAN}`,
-      {
-        system: AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT,
-        context: AUTONOMOUS_PLANNER_CONTEXT_PROMPT,
-      }
-    );
-
-    this.planner_prompts.set(
-      `${AgentMode.INTERACTIVE}-${PlannerNode.CREATE_INITIAL_PLAN}`,
-      {
-        system: INTERACTIVE_PLAN_EXECUTOR_SYSTEM_PROMPT,
-        context: INTERACTIVE_PLANNER_CONTEXT_PROMPT,
-      }
-    );
-
-    const sharedPrompts = [
-      {
-        node: PlannerNode.PLAN_REVISION,
-        prompts: {
-          system: REPLAN_EXECUTOR_SYSTEM_PROMPT,
-          context: REPLANNER_CONTEXT_PROMPT,
-        },
-      },
-      {
-        node: PlannerNode.EVOLVE_FROM_HISTORY,
-        prompts: {
-          system: ADAPTIVE_PLANNER_SYSTEM_PROMPT,
-          context: ADAPTIVE_PLANNER_CONTEXT_PROMPT,
-        },
-      },
-      {
-        node: PlannerNode.PLANNER_VALIDATOR,
-        prompts: {
-          system: AUTONOMOUS_PLAN_VALIDATOR_SYSTEM_PROMPT,
-          context: '',
-        },
-      },
-    ];
-
-    // Add shared prompts for all agent modes
-    sharedPrompts.forEach(({ node, prompts }) => {
-      [AgentMode.HYBRID, AgentMode.AUTONOMOUS, AgentMode.INTERACTIVE].forEach(
-        (mode) => {
-          this.planner_prompts.set(`${mode}-${node}`, prompts);
-        }
-      );
-    });
   }
 
   private build_prompt_generator(
@@ -357,70 +263,6 @@ export class PlannerGraph {
     }
   }
 
-  private async get_planner_status(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ) {
-    try {
-      const agent_config = config.configurable?.agent_config;
-      if (!agent_config) {
-        throw new Error(
-          '[PLANNING_ROUTER] AgentConfig is not configured. routing to END_GRAPH'
-        );
-      }
-      const user_q = config.configurable?.user_request ?? '';
-      if (!user_q) {
-        throw new Error('[GET_PLANNER_STATUS] User query is undefined.');
-      }
-      if (!this.modelSelector) {
-        logger.warn(
-          '[GET_PLANNER_STATUS] Missing dependencies, skipping LTM processing'
-        );
-        return {};
-      }
-
-      const model = this.modelSelector.getModels()['cheap'];
-      if (!model) {
-        throw new Error(
-          '[GET_PLANNER_STATUS] Cheap model not available for LTM processing'
-        );
-      }
-      const structuredModel = model.withStructuredOutput(
-        isPlannerActivateSchema
-      );
-      const prompt = ChatPromptTemplate.fromMessages([
-        ['system', GET_PLANNER_STATUS_PROMPT],
-      ]);
-
-      const result = await structuredModel.invoke(
-        await prompt.formatMessages({
-          agentConfig: agent_config.prompt,
-          userQuery: user_q,
-        })
-      );
-
-      logger.info(
-        `[GET_PLANNER_STATUS] Planner activation decision: ${result.planner_actived ? 'ENABLED' : 'DISABLED'}`
-      );
-
-      return {
-        executionMode: result.planner_actived
-          ? ExecutionMode.PLANNING
-          : ExecutionMode.REACTIVE,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
-    } catch (error) {
-      logger.error(
-        `[GET_PLANNER_STATUS] Failed to determine planner status: ${error.message}`
-      );
-      // Default to reactive on error to prevent getting stuck in planning loop
-      return {
-        executionMode: ExecutionMode.REACTIVE,
-        currentGraphStep: state.currentGraphStep + 1,
-      };
-    }
-  }
-
   public planning_router(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -518,11 +360,6 @@ export class PlannerGraph {
     logger.info('[CreateInitialHistory] Initializing empty history state');
     return new Command({
       update: {
-        plans_or_histories: {
-          id: uuidv4(),
-          type: 'history',
-          items: [],
-        } as History,
         executionMode: ExecutionMode.REACTIVE,
         currentTaskIndex: 0,
         retry: 0,

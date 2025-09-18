@@ -113,6 +113,8 @@ export class MemoryDBManager {
         const episodicRecord: memory.EpisodicMemory = {
           user_id: e_memory.user_id,
           run_id: e_memory.run_id,
+          task_id: e_memory.task_id,
+          step_id: e_memory.step_id,
           content: e_memory.content,
           embedding: embedding,
           sources: e_memory.sources,
@@ -138,6 +140,8 @@ export class MemoryDBManager {
         const semanticRecord: memory.SemanticMemory = {
           user_id: s_memory.user_id,
           run_id: s_memory.run_id,
+          task_id: s_memory.task_id,
+          step_id: s_memory.step_id,
           fact: s_memory.fact,
           embedding: embedding,
           category: s_memory.category,

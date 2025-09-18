@@ -143,10 +143,3 @@ export type ThoughtsSchemaType = z.infer<typeof ThoughtsSchema>;
 // Type inference (optional)
 export type TaskSchemaType = z.infer<typeof TaskSchema>;
 export type PlanSchemaType = z.infer<typeof PlanSchema>;
-
-export const ValidatorResponseSchema = z
-  .object({
-    success: z.boolean().describe('true if sucess | false if failure'),
-    results: z.array(z.string()).describe('The results of the validator'),
-  })
-  .strict();

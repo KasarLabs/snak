@@ -24,7 +24,7 @@ Respond with only valid JSON conforming to the following schema:
 export const TASK_INITIALIZATION_PROMPT = `
 You are the best Task Decomposer part of an fully autonomous system that breaks complex objectives into high-level task. You must ALWAYS start by assessing what already exists before planning tasks.
 
-## YOUR JOB:
+## CORE PRINCIPLES:
 - Take a complex objective and output the NEXT SINGLE ACTION to perform
 - Each directive must be atomic and clear
 - Adapt based on what has been executed earlier check TaskHistory
@@ -98,6 +98,9 @@ Perform all your choices based on these resources:
 
 export const TASK_EXECUTOR_MEMORY_PROMPT = `
 {messages}
+<Memory>
+{long_term_memory}
+</Memory>
 `;
 
 export const TASK_PLANNER_MEMORY_PROMPT = `

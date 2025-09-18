@@ -8,24 +8,15 @@ import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   TaskType,
-  StepType,
-  TasksType,
-  validatorResponse,
-  MemoryItem,
   GraphErrorType,
   Memories,
 } from '../../../shared/types/index.js';
-import {
-  VerifierNode,
-  ExecutionMode,
-} from '../../../shared/enums/agent-modes.enum.js';
+import { VerifierNode } from '../../../shared/enums/agent-modes.enum.js';
 import { handleNodeError } from '../utils/graph-utils.js';
 import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js';
 import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
 import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
-import { CORE_AGENT_PROMPT } from '@prompts/agents/core.prompts.js';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
-import { GraphNode } from '../config/default-config.js';
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';
 // Task verification schema

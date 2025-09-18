@@ -5,17 +5,7 @@ import {
   ToolMessage,
 } from '@langchain/core/messages';
 import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
-import {
-  checkAndReturnLastItemFromPlansOrHistories,
-  checkAndReturnObjectFromPlansOrHistories,
-  getCurrentPlanStep,
-  getCurrentPlan,
-  getCurrentHistory,
-  createMaxIterationsResponse,
-  estimateTokens,
-  getLatestMessageForMessage,
-  handleNodeError,
-} from '../utils/graph-utils.js';
+import { estimateTokens, handleNodeError } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
@@ -26,7 +16,6 @@ import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
   DynamicStructuredTool,
   StructuredTool,
-  tool,
   Tool,
 } from '@langchain/core/tools';
 import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
@@ -34,59 +23,23 @@ import {
   ExecutionMode,
   ExecutorNode,
 } from '../../../shared/enums/agent-modes.enum.js';
-import {
-  TOOLS_STEP_VALIDATOR_SYSTEM_PROMPT,
-  VALIDATOR_EXECUTOR_CONTEXT,
-} from '../../../shared/prompts/graph/executor/validator_prompt.js';
 import { TokenTracker } from '../../../token/token-tracking.js';
 import {
-  parseReActResponse,
-  createReActObservation,
-  parseActionsToToolCallsReact,
-} from '../utils/react-utils.js';
-import {
   MODEL_TIMEOUTS,
-  DEFAULT_MODELS,
   STRING_LIMITS,
 } from '../constants/execution-constants.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatOpenAI } from '@langchain/openai';
-import { truncateToolResults } from '@agents/utils/tools.utils.js';
+import { ThoughtsSchemaType } from '@schemas/graph.schemas.js';
 import {
-  StepInfoSchema,
-  StepSchema,
-  StepSchemaType,
-  ThoughtsSchemaType,
-  ValidatorResponseSchema,
-} from '@schemas/graph.schemas.js';
-import {
-  HistoryItem,
-  ParsedPlan,
-  History,
-  ReturnTypeCheckPlanorHistory,
-  ToolCallWithId,
-  StepType,
-  ToolCall,
-  Id,
   TaskType,
   Memories,
   ToolCallType,
   GraphErrorType,
 } from '../../../shared/types/index.js';
-import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js';
-import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
-import { parseToolsToJson } from './planner-graph.js';
 import {
-  EXECUTOR_TASK_GENERATION_INSTRUCTION,
-  INSTRUCTION_TASK_INITALIZER,
-} from '@prompts/agents/instruction.prompts.js';
-import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
-import {
-  CORE_AGENT_PROMPT,
   TASK_EXECUTOR_HUMAN_PROMPT,
   TASK_EXECUTOR_MEMORY_PROMPT,
   TASK_EXECUTOR_PROMPT,
-  TASK_INITIALIZATION_PROMPT,
 } from '@prompts/agents/core.prompts.js';
 import { STMManager } from '@lib/memory/index.js';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
@@ -116,37 +69,22 @@ export class AgentExecutorGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<AIMessageChunk> {
     const model = this.modelSelector?.getModels()['fast'];
-    if (!model) {
-      throw new Error('Model not found in ModelSelector');
+    if (!model || !model.bindTools) {
+      throw new Error('Model not found or bindTools undefined');
     }
-    if (model === undefined) {
-      throw new Error('Failed to bind tools to model');
-    }
-    const prompts = this.build_prompt_generator(
-      config.configurable!.agent_config!.mode,
-      ExecutorNode.REASONING_EXECUTOR
-    );
     const prompt = ChatPromptTemplate.fromMessages([
       ['system', TASK_EXECUTOR_PROMPT],
       ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
       ['human', TASK_EXECUTOR_HUMAN_PROMPT],
     ]);
 
-    const formattedResponseFormat = JSON.stringify(
-      prompts.getResponseFormat(),
-      null,
-      4
-    );
     logger.debug(`[Executor] Invoking model with execution`);
     const formattedPrompt = await prompt.formatMessages({
       messages: stm_format_for_history(state.memories.stm),
-      response_format: formattedResponseFormat,
+      long_term_memory: '',
       current_task: state.tasks[state.tasks.length - 1].task.directive,
       success_criteria: state.tasks[state.tasks.length - 1].task.success_check,
     });
-    if (!model.bindTools) {
-      throw new Error('Model does not support tool binding');
-    }
     const modelBind = model.bindTools(this.toolsList);
 
     const result = await modelBind.invoke(formattedPrompt);
@@ -179,45 +117,6 @@ export class AgentExecutorGraph {
     });
     return await Promise.race([modelPromise, timeoutPromise]);
   }
-
-  private build_prompt_generator(
-    mode: AgentMode,
-    context: ExecutorNode
-  ): PromptGenerator {
-    try {
-      let prompt: PromptGenerator;
-      if (mode != AgentMode.AUTONOMOUS) {
-        throw new Error(`[PlannerGraph] Unsupported agent mode: ${mode}`);
-      }
-      if (context === ExecutorNode.REASONING_EXECUTOR) {
-        prompt = new PromptGenerator();
-        prompt.addHeader(headerPromptStandard);
-        // Add constraints based on agent mode
-        prompt.addConstraints([
-          'INDEPENDENT_DECISION_MAKING',
-          'DECISION_BASED_ON_DATA_TOOLS',
-          'DECISITION_SAFEST_POSSIBLE',
-          'NEVER_WAIT_HUMAN',
-          'SUBSEQUENT_TASKS',
-          'DONT_OVERTHINK',
-          'JSON_RESPONSE_MANDATORY',
-          'TOOL_END_TASK',
-          'TOOL_END_TASK_IF',
-          'WORKING_MEMORY_BLOCKED',
-        ]);
-        // add goals
-        prompt.addInstruction(EXECUTOR_TASK_GENERATION_INSTRUCTION);
-        prompt.addTools(parseToolsToJson(this.toolsList));
-        prompt.addPerformanceEvaluation(PERFORMANCE_EVALUATION_PROMPT);
-        prompt.setActiveResponseFormat('executor');
-        return prompt;
-      }
-      throw new Error(`[PlannerGraph] No prompt found for context: ${context}`);
-    } catch (error) {
-      throw error;
-    }
-  }
-
   // --- EXECUTOR NODE ---
   private async reasoning_executor(
     state: typeof GraphState.State,
@@ -303,6 +202,7 @@ export class AgentExecutorGraph {
       // Parse for task
       state.memories.stm = mewMemories.data;
       currentTask.steps.push({
+        id: uuidv4(),
         thought: thought!, // add verifier and the execition need to be restart to ne sure that their is a though schema
         tool: tools,
       });
