@@ -6,16 +6,8 @@ import {
   ltmSchemaType,
   createLtmSchemaMemorySchema,
 } from '../../../shared/types/memory.types.js';
-import {
-  getCurrentPlanStep,
-  getCurrentHistoryItem,
-  estimateTokens,
-  handleNodeError,
-} from '../utils/graph-utils.js';
-import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from '@langchain/core/prompts';
+import { handleNodeError } from '../utils/graph-utils.js';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
 import { ModelSelector } from '../../operators/modelSelector.js';
 import { MemoryAgent } from '../../operators/memoryAgent.js';
@@ -38,21 +30,24 @@ import {
   TaskType,
   ToolCallType,
 } from '../../../shared/types/graph.types.js';
+import { createRetrieveMemoryNode } from '../chain/memory/memory-chain.js';
 
 export type GraphStateType = typeof GraphState.State;
 
 export class MemoryGraph {
   private modelSelector: ModelSelector | null;
-  private memoryAgent: MemoryAgent;
   private memoryDBManager: MemoryDBManager | null = null;
   private graph: any;
 
-  constructor(modelSelector: ModelSelector | null, memoryAgent: MemoryAgent) {
+  constructor(
+    modelSelector: ModelSelector | null,
+    memoryAgent: MemoryAgent,
+    timeout: number
+  ) {
     this.modelSelector = modelSelector;
-    this.memoryAgent = memoryAgent;
     const embeddings = memoryAgent.getEmbeddings();
     if (embeddings) {
-      this.memoryDBManager = new MemoryDBManager(embeddings, 3, 8000);
+      this.memoryDBManager = new MemoryDBManager(embeddings, timeout);
     }
   }
 
@@ -105,7 +100,6 @@ export class MemoryGraph {
           last_node: MemoryNode.LTM_MANAGER,
         };
       }
-      console.log('task status : ', state.tasks[state.tasks.length - 1].status);
       if (
         state.tasks[state.tasks.length - 1].status != 'completed' &&
         state.tasks[state.tasks.length - 1].status != 'failed'
@@ -333,10 +327,7 @@ export class MemoryGraph {
       GraphConfigurableAnnotation
     )
       .addNode('ltm_manager', this.ltm_manager.bind(this))
-      .addNode(
-        'retrieve_memory',
-        this.memoryAgent.createMemoryNode().bind(this)
-      )
+      .addNode('retrieve_memory', createRetrieveMemoryNode().bind(this))
       .addNode('end_memory_graph', this.end_memory_graph.bind(this))
       .addConditionalEdges(START, this.memory_router.bind(this))
       .addEdge('ltm_manager', 'retrieve_memory')

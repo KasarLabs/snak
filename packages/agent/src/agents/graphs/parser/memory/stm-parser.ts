@@ -6,8 +6,6 @@ export function stm_format_for_history(stm: STMContext): string {
     const allMessages = [];
     for (let i = 0; i < stm.maxSize; i++) {
       const index = (stm.head + i) % stm.maxSize;
-      console.log('head : ', stm.head);
-      console.log(index);
       if (stm.items[index] === null || stm.items[index] === undefined) {
         continue;
       }

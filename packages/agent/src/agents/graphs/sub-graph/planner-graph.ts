@@ -248,7 +248,6 @@ export class PlannerGraph {
         status: 'pending' as 'pending',
       };
       state.tasks.push(tasks);
-      console.log('AiMessage : ', [aiMessage].length); // Push task to state
       return {
         messages: [aiMessage],
         last_node: PlannerNode.CREATE_INITIAL_PLAN,

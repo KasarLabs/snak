@@ -16,11 +16,9 @@ export class MemoryDBManager {
 
   constructor(
     embeddings: CustomHuggingFaceEmbeddings,
-    maxRetries: number = 3,
     timeoutMs: number = 5000
   ) {
     this.embeddings = embeddings;
-    this.maxRetries = maxRetries;
     this.timeoutMs = timeoutMs;
   }
 
@@ -31,49 +29,30 @@ export class MemoryDBManager {
     semantic_memories: SemanticMemoryContext[],
     episodic_memories: EpisodicMemoryContext[]
   ): Promise<MemoryOperationResult<string>> {
-    let attempt = 0;
-
-    while (attempt < this.maxRetries) {
-      try {
-        // Create operation timeout
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(
-            () => reject(new Error('Database operation timeout')),
-            this.timeoutMs
-          );
-        });
-
-        // Execute with timeout
-        const result = await Promise.race([
-          this.performUpsert(semantic_memories, episodic_memories),
-          timeoutPromise,
-        ]);
-
-        return result;
-      } catch (error) {
-        attempt++;
-        logger.warn(
-          `[MemoryDBManager] Attempt ${attempt}/${this.maxRetries} failed:`,
-          error
+    try {
+      // Create operation timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Database operation timeout')),
+          this.timeoutMs
         );
+      });
 
-        if (attempt >= this.maxRetries) {
-          return {
-            success: false,
-            error: `Memory upsert failed after ${this.maxRetries} attempts: ${error.message}`,
-            timestamp: Date.now(),
-          };
-        }
-        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-        await this.sleep(waitTime);
-      }
+      // Execute with timeout
+      const result = await Promise.race([
+        this.performUpsert(semantic_memories, episodic_memories),
+        timeoutPromise,
+      ]);
+
+      return result;
+    } catch (error) {
+      logger.error(`[MemoryDBManager] Upsert attempt failed:`, error);
+      return {
+        success: false,
+        error: 'Unexpected error in upsert retry loop',
+        timestamp: Date.now(),
+      };
     }
-
-    return {
-      success: false,
-      error: 'Unexpected error in upsert retry loop',
-      timestamp: Date.now(),
-    };
   }
 
   /**
@@ -263,11 +242,12 @@ export class MemoryDBManager {
       }
 
       // Retrieve similar memories
-      const similarities = await memory.similar_memory(
+      const similarities = await memory.retrieve_memory(
         userId,
         runId,
         embedding,
-        limit
+        limit,
+        similarityThreshold
       );
 
       // Filter by similarity threshold

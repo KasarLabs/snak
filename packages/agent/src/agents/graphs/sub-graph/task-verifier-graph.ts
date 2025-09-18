@@ -10,6 +10,7 @@ import {
   TaskType,
   GraphErrorType,
   Memories,
+  GraphErrorTypeEnum,
 } from '../../../shared/types/index.js';
 import { VerifierNode } from '../../../shared/enums/agent-modes.enum.js';
 import { handleNodeError } from '../utils/graph-utils.js';
@@ -212,7 +213,7 @@ Reasoning: ${verificationResult.reasoning}`,
           error: verificationMessage.additional_kwargs.taskCompleted
             ? null
             : {
-                type: 'validation_error',
+                type: GraphErrorTypeEnum.VALIDATION_ERROR,
                 hasError: true,
                 message: verificationResult.reasoning,
                 source: 'task_verifier',

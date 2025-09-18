@@ -42,7 +42,7 @@ import {
   TASK_EXECUTOR_MEMORY_PROMPT,
   TASK_EXECUTOR_PROMPT,
 } from '@prompts/agents/core.prompts.js';
-import { STMManager } from '@lib/memory/index.js';
+import { LTMManager, STMManager } from '@lib/memory/index.js';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 
 export class AgentExecutorGraph {
@@ -82,7 +82,9 @@ export class AgentExecutorGraph {
     logger.debug(`[Executor] Invoking model with execution`);
     const formattedPrompt = await prompt.formatMessages({
       messages: stm_format_for_history(state.memories.stm),
-      long_term_memory: '',
+      long_term_memory: LTMManager.formatMemoriesForContext(
+        state.memories.ltm.items
+      ),
       current_task: state.tasks[state.tasks.length - 1].task.directive,
       success_criteria: state.tasks[state.tasks.length - 1].task.success_check,
     });
@@ -133,6 +135,7 @@ export class AgentExecutorGraph {
       }
     | {
         retry: number;
+        last_node: ExecutorNode;
         error: GraphErrorType;
       }
     | Command
@@ -200,8 +203,9 @@ export class AgentExecutorGraph {
         );
         return {
           retry: (state.retry ?? 0) + 1,
+          last_node: ExecutorNode.REASONING_EXECUTOR,
           error: {
-            type: GraphErrorTypeEnum.EXECUTION_ERROR,
+            type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
             message: 'No tool calls detected in model response',
             hasError: true,
             source: 'reasoning_executor',
@@ -330,8 +334,6 @@ export class AgentExecutorGraph {
       const executionTime = Date.now() - startTime;
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
       tools.messages.forEach(async (tool) => {
-        console.log(estimateTokens(tool.content.toLocaleString()));
-        console.log(config.configurable?.summarization_threshold);
         if (
           config.configurable?.summarization_threshold &&
           estimateTokens(tool.content.toLocaleString()) >=

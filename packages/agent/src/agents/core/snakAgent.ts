@@ -35,6 +35,7 @@ import { ChunkOutput } from '../../shared/types/streaming.types.js';
 import { LangGraphEvent } from '../../shared/types/event.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
+import { memory } from '@snakagent/database/queries';
 
 export interface SnakAgentConfig {
   provider: RpcProvider;
@@ -424,6 +425,15 @@ export class SnakAgent extends BaseAgent {
           user_request: input ?? undefined,
           objectives: input,
           summarization_threshold: 1500,
+          memory_config: {
+            max_insert_episodic_size: 5,
+            max_insert_semantic_size: 10,
+            max_retrieve_memory_size: 10,
+            insert_semantic_threshold: 0.9,
+            insert_episodic_threshold: 0.9,
+            retrieve_memory_threshold: 0.5,
+          },
+          max_retry: 3,
         },
       };
       let lastChunk;

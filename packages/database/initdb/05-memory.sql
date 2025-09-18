@@ -134,11 +134,11 @@ CREATE OR REPLACE FUNCTION upsert_semantic_memory_smart(
     p_step_id UUID,                 -- Step identifier
     p_fact TEXT,                    -- Knowledge to store
     p_embedding vector(384),        -- Vector representation of the fact
+    p_similarity_threshold FLOAT,   -- Similarity cutoff for updates vs inserts
 
     -- Optional parameters with defaults
     p_category VARCHAR(50) DEFAULT NULL,            -- Knowledge category
-    p_source_events INTEGER[] DEFAULT '{}',         -- Contributing episodic memories
-    p_similarity_threshold FLOAT DEFAULT 0.85      -- Similarity cutoff for updates vs inserts
+    p_source_events INTEGER[] DEFAULT '{}'         -- Contributing episodic memories
 )
 RETURNS TABLE (
     memory_id INTEGER,          -- ID of created/updated memory
@@ -274,11 +274,11 @@ CREATE OR REPLACE FUNCTION insert_episodic_memory_smart(
     p_step_id UUID,
     p_content TEXT,
     p_embedding vector(384),
+    p_similarity_threshold FLOAT,    -- Higher threshold - episodic memories are more specific
 
     -- Optional parameters
     p_sources TEXT[] DEFAULT '{}',
-    p_confidence FLOAT DEFAULT 1.0,
-    p_similarity_threshold FLOAT DEFAULT 0.95    -- Higher threshold - episodic memories are more specific
+    p_confidence FLOAT DEFAULT 1.0
 )
 RETURNS TABLE (
     memory_id INTEGER,
@@ -386,8 +386,8 @@ CREATE OR REPLACE FUNCTION retrieve_similar_memories(
     p_user_id VARCHAR(100),
     p_run_id UUID,
     p_embedding vector(384),
-    p_threshold FLOAT DEFAULT 0.35,    -- Lower threshold allows broader retrieval
-    p_limit INTEGER DEFAULT 10
+    p_threshold FLOAT,    -- Lower threshold allows broader retrieval
+    p_limit INTEGER
 )
 RETURNS TABLE (
     memory_type TEXT,

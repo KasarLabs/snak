@@ -105,8 +105,6 @@ export class STMManager {
         };
       }
       const recentIndex = (stm.head - 1 + stm.maxSize) % stm.maxSize; // Index of the most recent item
-      console.log('STM HEAD', stm.head);
-      console.log('Recent Index:', recentIndex);
       const currentItem = stm.items[recentIndex];
       if (currentItem === null) {
         throw new Error('Recent memory is null');
@@ -256,5 +254,38 @@ export class LTMManager {
       semantic_size: semantic_counter,
       merge_size: newItems.length,
     };
+  }
+
+  /**
+   * Format memories for inclusion in a context
+   * @param memories The memories to format
+   */
+  static formatMemoriesForContext(memories: memory.Similarity[]): string {
+    if (memories.length === 0) {
+      return '';
+    }
+
+    const s_memories: memory.Similarity[] = [];
+    const e_memories: memory.Similarity[] = [];
+    for (const memory of memories) {
+      if (memory.memory_type === 'semantic') {
+        s_memories.push(memory);
+      } else if (memory.memory_type === 'episodic') {
+        e_memories.push(memory);
+      }
+    }
+
+    const formattedEpisodicMemories = e_memories
+      .map((mem) => {
+        return `Episodic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
+      })
+      .join('\n\n');
+    const formattedSemanticMemories = s_memories
+      .map((mem) => {
+        return `Semantic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, category: ${mem.metadata.category}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
+      })
+      .join('\n\n');
+
+    return formattedEpisodicMemories.concat(formattedSemanticMemories);
   }
 }

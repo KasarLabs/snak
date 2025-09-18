@@ -44,10 +44,6 @@ import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgentInterface } from '../../shared/types/tools.types.js';
-import { STMManager } from '@lib/memory/index.js';
-import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // export async function appendToRunFile(content: string): Promise<void> {
 //   const fileName = 'run.txt';
@@ -171,8 +167,10 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   memory_config: Annotation<{
     max_insert_episodic_size: number;
     max_insert_semantic_size: number;
-    max_retrieve_episodic_memory: number;
-    max_retrieve_semantic_memory: number;
+    max_retrieve_memory_size: number;
+    insert_semantic_threshold: number;
+    insert_episodic_threshold: number;
+    retrieve_memory_threshold: number;
   } | null>({
     reducer: (x, y) => y,
     default: () => null,
@@ -180,6 +178,10 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   max_retry: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 3,
+  }),
+  timeout: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 120000,
   }),
 });
 export class Graph {
@@ -418,7 +420,7 @@ export class Graph {
     }
 
     logger.debug('[Agent] Building workflow with initialized components');
-    const memory = new MemoryGraph(this.modelSelector, this.memoryAgent);
+    const memory = new MemoryGraph(this.modelSelector, this.memoryAgent, 5000);
     const planner = new PlannerGraph(
       this.agentConfig,
       this.modelSelector as ModelSelector,

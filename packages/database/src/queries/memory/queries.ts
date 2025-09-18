@@ -233,16 +233,16 @@ export namespace memory {
    *
    * @throws { DatabaseError } If a database operation fails.
    */
-  export async function similar_memory(
+  export async function retrieve_memory(
     userId: string,
     runId: string,
     embedding: number[],
-    limit?: number,
-    threshold?: number
+    limit: number,
+    threshold: number
   ): Promise<Similarity[]> {
     const q = new Postgres.Query(
       `SELECT * FROM retrieve_similar_memories($1, $2, $3, $4, $5)`,
-      [userId, runId, JSON.stringify(embedding), threshold || 0, limit || 10]
+      [userId, runId, JSON.stringify(embedding), threshold, limit]
     );
     const result = await Postgres.query<Similarity>(q);
     return result;
