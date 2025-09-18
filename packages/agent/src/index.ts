@@ -39,3 +39,5 @@ export * from './shared/lib/token/index.js'; // Token tracking (if index.ts exis
 
 // Legacy exports for backward compatibility
 export type { IAgent } from './shared/types/agents.types.js';
+
+export type { AgentConfigSQL } from './agents/studio/studio-graph.js';
