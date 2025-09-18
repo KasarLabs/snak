@@ -177,6 +177,10 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => null,
   }),
+  max_retry: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 3,
+  }),
 });
 export class Graph {
   private modelSelector: ModelSelector | null;

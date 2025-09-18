@@ -35,6 +35,7 @@ import {
   Memories,
   ToolCallType,
   GraphErrorType,
+  GraphErrorTypeEnum,
 } from '../../../shared/types/index.js';
 import {
   TASK_EXECUTOR_HUMAN_PROMPT,
@@ -128,7 +129,11 @@ export class AgentExecutorGraph {
         currentGraphStep?: number;
         memories: Memories;
         task?: TaskType[];
-        error?: GraphErrorType;
+        error: GraphErrorType | null;
+      }
+    | {
+        retry: number;
+        error: GraphErrorType;
       }
     | Command
   > {
@@ -190,9 +195,19 @@ export class AgentExecutorGraph {
           }
         });
       } else {
-        throw new Error(
-          `Model must call minimum 2 tools per task, received ${aiMessage.tool_calls?.length || 0}`
+        logger.warn(
+          `[Executor] No tool calls detected in model response or insufficient tool calls retry the execution`
         );
+        return {
+          retry: (state.retry ?? 0) + 1,
+          error: {
+            type: GraphErrorTypeEnum.EXECUTION_ERROR,
+            message: 'No tool calls detected in model response',
+            hasError: true,
+            source: 'reasoning_executor',
+            timestamp: Date.now(),
+          },
+        };
       }
       aiMessage.additional_kwargs = {
         from: ExecutorNode.REASONING_EXECUTOR,
@@ -217,7 +232,7 @@ export class AgentExecutorGraph {
           memories: state.memories,
           task: state.tasks,
           error: {
-            type: 'blocked_task',
+            type: GraphErrorTypeEnum.BLOCKED_TASK,
             message: (
               JSON.parse(
                 JSON.stringify(
@@ -240,6 +255,7 @@ export class AgentExecutorGraph {
         currentGraphStep: state.currentGraphStep + 1,
         memories: state.memories,
         task: state.tasks,
+        error: null,
       };
     } catch (error: any) {
       logger.error(`[Executor] Model invocation failed: ${error.message}`);
@@ -422,12 +438,22 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): ExecutorNode {
+    if (state.retry > config.configurable!.max_graph_steps) {
+      logger.warn('[Router] Max retries reached, routing to END node');
+      return ExecutorNode.END_EXECUTOR_GRAPH;
+    }
     if (state.last_node === ExecutorNode.REASONING_EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
       if (state.error && state.error.hasError) {
-        if (state.error.type === 'blocked_task') {
+        if (state.error.type === GraphErrorTypeEnum.BLOCKED_TASK) {
           logger.warn(`[Router] Blocked task detected, routing to END node`);
           return ExecutorNode.END;
+        }
+        if (state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS) {
+          logger.warn(
+            `[Router] Wrong number of tools used, routing to reasoning node`
+          );
+          return ExecutorNode.REASONING_EXECUTOR;
         }
       }
       if (

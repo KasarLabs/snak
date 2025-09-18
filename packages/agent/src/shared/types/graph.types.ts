@@ -42,13 +42,17 @@ export interface HistoryToolsInfo {
   };
 }
 
+export enum GraphErrorTypeEnum {
+  TASK_ERROR = 'task_error',
+  TOOL_ERROR = 'tool_error',
+  EXECUTION_ERROR = 'execution_error',
+  VALIDATION_ERROR = 'validation_error',
+  BLOCKED_TASK = 'blocked_task',
+  WRONG_NUMBER_OF_TOOLS = 'wrong_number_of_tools',
+  UNKNOWN_ERROR = 'unknown_error',
+}
 export interface GraphErrorType {
-  type:
-    | 'task_error'
-    | 'tool_error'
-    | 'execution_error'
-    | 'validation_error'
-    | 'blocked_task';
+  type: GraphErrorTypeEnum;
   hasError: boolean;
   message: string;
   source: string;
