@@ -235,20 +235,25 @@ export class AgentStorage implements OnModuleInit {
       };
       this.agentConfigs.push(newAgentDbRecord);
       try {
-        const snakAgent = await this.createSnakAgentFromConfig(newAgentDbRecord);
+        const snakAgent =
+          await this.createSnakAgentFromConfig(newAgentDbRecord);
         const compositeKey = `${newAgentDbRecord.id}|${newAgentDbRecord.user_id}`;
         this.agentInstances.set(compositeKey, snakAgent);
         this.agentSelector.updateAvailableAgents(
           [newAgentDbRecord.id, snakAgent],
           newAgentDbRecord.user_id
         );
-        logger.debug(`Agent ${newAgentDbRecord.id} added to configuration and instance created`);
+        logger.debug(
+          `Agent ${newAgentDbRecord.id} added to configuration and instance created`
+        );
         return newAgentDbRecord;
       } catch (error) {
         logger.error(
           `Failed to create SnakAgent for new agent ${newAgentDbRecord.id}: ${error}`
         );
-        this.agentConfigs = this.agentConfigs.filter(config => config.id !== newAgentDbRecord.id);
+        this.agentConfigs = this.agentConfigs.filter(
+          (config) => config.id !== newAgentDbRecord.id
+        );
         throw error;
       }
     } else {
