@@ -9,10 +9,8 @@
     "dev": "tsx src/index.ts",
     "test": "tsx src/main.ts",
     "demo": "tsx src/demo.ts",
-    "test:agents": "tsx src/test-agents.ts",
-    "test:files": "tsx src/test-files.ts",
-    "test:chat": "tsx src/test-chat.ts",
-    "test:file-stress": "tsx src/file-test/file-upload-stress-v2.ts",
+    "test:file-stress": "tsx src/stress-test/file-upload-stress.ts",
+    "test:agent-stress": "tsx src/stress-test/agent-stress.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -20,12 +18,15 @@
     "dotenv": "^16.4.7",
     "chalk": "^4.1.2",
     "ora": "^8.1.1",
-    "form-data": "^4.0.0"
+    "form-data": "^4.0.0",
+    "@snakagent/core": "workspace:*",
+    "@snakagent/server": "workspace:*",
+    "@snakagent/agents": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.13.5",
     "tsup": "^8.4.0",
-    "tsx": "^4.19.3",
+    "tsx": "^4.20.4",
     "typescript": "^5.7.3"
   },
   "engines": {

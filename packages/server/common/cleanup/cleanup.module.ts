@@ -3,7 +3,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CleanupService } from './cleanup.service.js';
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [ScheduleModule],
   providers: [CleanupService],
   exports: [CleanupService],
 })

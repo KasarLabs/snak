@@ -1,17 +1,18 @@
+import { defaultAgentConfiguration } from './helpers.js';
 import { SnakClient } from './snak-client-http.js';
-import { SnakConfig, TestResult } from './types.js';
+import { SnakConfig, UnitTestResult } from './types.js';
 import chalk from 'chalk';
 import ora from 'ora';
 
 export class TestRunner {
   public client: SnakClient;
-  private results: TestResult[] = [];
+  private results: UnitTestResult[] = [];
 
   constructor(config: SnakConfig) {
     this.client = new SnakClient(config);
   }
 
-  async runTest(testName: string, testFn: () => Promise<any>): Promise<TestResult> {
+  async runTest(testName: string, testFn: () => Promise<any>): Promise<UnitTestResult> {
     const spinner = ora(`Running ${testName}...`).start();
     const startTime = Date.now();
 
@@ -21,7 +22,7 @@ export class TestRunner {
       
       spinner.succeed(chalk.green(`Success: ${testName} passed (${duration}ms)`));
       
-      const result: TestResult = {
+      const result: UnitTestResult = {
         testName,
         success: true,
         durationMs: duration,
@@ -35,7 +36,7 @@ export class TestRunner {
       
       spinner.fail(chalk.red(`Error: ${testName} failed (${duration}ms)`));
       
-      const result: TestResult = {
+      const result: UnitTestResult = {
         testName,
         success: false,
         durationMs: duration,
@@ -59,48 +60,12 @@ export class TestRunner {
     // Try to create a test agent based on the starknet-rpc agent example
     const testAgent = await this.runTest('Create Test Agent', () => 
       this.client.createAgent({
-        agent: {
-          name: 'Test RPC Agent',
-          group: 'test',
-          description: 'A test agent created for testing purposes, based on the Starknet RPC agent configuration.',
-          lore: [
-            'I was created as a test agent to validate the Snak Agent creation system.',
-            'Born from the need to test API endpoints and agent functionality.',
-            'My purpose is to demonstrate that agent creation works correctly.'
-          ],
-          objectives: [
-            'Validate that agent creation endpoints work properly.',
-            'Test agent configuration and initialization.',
-            'Demonstrate successful agent lifecycle management.',
-            'Serve as a reference for other test agents.'
-          ],
-          knowledge: [
-            'I have knowledge of the Snak Agent system architecture.',
-            'I understand how to interact with the test environment.',
-            'I can help validate API functionality and responses.',
-            'I stay updated with the test requirements and specifications.'
-          ],
-          interval: 15000,
-          plugins: ['rpc'],
-          memory: {
-            enabled: true,
-            memorySize: 20,
-            shortTermMemorySize: 15
-          },
-          rag: {
-            enabled: true,
-            embeddingModel: "Xenova/all-MiniLM-L6-v2"
-          },
-          mode: 'interactive'
-        }
+        agent: defaultAgentConfiguration('test-agent')
       })
     );
 
     if (testAgent.success && testAgent.response) {
       console.log('Success: Agent created successfully, response:', testAgent.response);
-
-      // Wait for 1 second to ensure the first agent is created
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const agents = await this.runTest('Get Agents List Again', () => 
         this.client.getAgents()
@@ -111,6 +76,9 @@ export class TestRunner {
       if (agents.success && agents.response && (agents.response as any).data && ((agents.response as any).data as any[]).length > 0) {
         console.log('Success: Found agents:', ((agents.response as any).data as any[]).length);
         const agentId = ((agents.response as any).data as any[])[0].id;
+        
+        console.log('Waiting 0.5 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 500));
           
         await this.runTest('Send Agent Request', () => 
           this.client.sendAgentRequest({
@@ -169,7 +137,7 @@ export class TestRunner {
     console.log(chalk.blue.bold('\nAll tests completed!\n'));
   }
 
-  getResults(): TestResult[] {
+  getResults(): UnitTestResult[] {
     return this.results;
   }
 }
