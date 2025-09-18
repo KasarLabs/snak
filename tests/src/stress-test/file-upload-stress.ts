@@ -1,27 +1,10 @@
 import { TestRunner } from '../test-runner.js';
-import { SnakConfig, JobStatus, QueueMetrics } from '../types.js';
+import { JobStatus, QueueMetrics } from '../types.js';
 import chalk from 'chalk';
-import dotenv from 'dotenv';
-import path from 'path';
-import { randomUUID } from 'crypto';
+import { createConfigForUser, defaultAgentConfiguration } from '../helpers.js';
+import { CleanupAgent, cleanupAgents } from '../agents/cleanup.js';
 
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-
-const port = process.env.SERVER_PORT || '3002';
-
-function generateUserId(scenarioName: string, fileIndex: number): string {
-  return randomUUID();
-}
-
-function createConfigForFile(scenarioName: string, fileIndex: number): SnakConfig {
-  return {
-  baseUrl: `http://localhost:${port}`,
-    userId: generateUserId(scenarioName, fileIndex),
-  apiKey: process.env.SERVER_API_KEY,
-};
-}
-
-interface TestResult {
+interface FileUploadStressTestResult {
   testName: string;
   success: boolean;
   duration: number;
@@ -160,7 +143,7 @@ async function testFileStressWithJobQueue() {
   console.log(chalk.blue.bold('File Upload Stress Test v2 - Job Queue System\n'));
   console.log(chalk.yellow('Testing: Concurrent file uploads with job queue monitoring\n'));
 
-  const testResults: TestResult[] = [];
+  const testResults: FileUploadStressTestResult[] = [];
 
   // Test configurations
   const testScenarios = [
@@ -171,7 +154,7 @@ async function testFileStressWithJobQueue() {
   ];
 
   // Health check with default config
-  const defaultConfig = createConfigForFile('default', 0);
+  const defaultConfig = createConfigForUser();
   const defaultTestRunner = new TestRunner(defaultConfig);
   await defaultTestRunner.runTest('Health Check', () => defaultTestRunner.client.healthCheck());
 
@@ -202,49 +185,15 @@ async function testFileStressWithJobQueue() {
       
       const totalSize = files.reduce((sum, file) => sum + file.size, 0);
       
-      // Create users and agents for each file
       console.log(chalk.blue(`Creating ${scenario.files} users and agents...`));
       const agentCreationPromises = files.map(async (file, index) => {
-        const fileConfig = createConfigForFile(scenario.name, index);
+        const fileConfig = createConfigForUser();
         const fileTestRunner = new TestRunner(fileConfig);
         
         const uniqueAgentName = `FileStressTest-${scenario.name.replace(/\s+/g, '')}-User${index + 1}-${Date.now()}`;
         const createResult = await fileTestRunner.runTest(`Create Agent for User ${index + 1}`, () => 
           fileTestRunner.client.createAgent({
-            agent: {
-              name: uniqueAgentName,
-              group: 'test',
-              description: `Agent for stress testing file uploads - ${scenario.name} - User ${index + 1}`,
-              lore: [
-                `I am designed to handle file uploads for user ${index + 1} in ${scenario.name}.`,
-                'My purpose is to test system performance under concurrent user load.',
-                'I help validate multi-user file processing capabilities.'
-              ],
-              objectives: [
-                'Test concurrent file upload performance with multiple users',
-                'Validate system stability under multi-user load',
-                'Measure processing times for files from different users',
-                'Ensure proper resource management across users'
-              ],
-              knowledge: [
-                'I understand multi-user scenarios and concurrent processing',
-                'I know how to handle file uploads from different users',
-                'I can validate system performance under user load',
-                'I am familiar with stress testing methodologies for multi-user systems'
-              ],
-              interval: 0,
-              mode: 'interactive',
-              memory: {
-                enabled: true,
-                memorySize: 10,
-                shortTermMemorySize: 10
-              },
-              rag: {
-                enabled: true,
-                embeddingModel: 'Xenova/all-MiniLM-L6-v2'
-              },
-              plugins: []
-            }
+            agent: defaultAgentConfiguration(uniqueAgentName)
           })
         );
 
@@ -363,7 +312,7 @@ async function testFileStressWithJobQueue() {
       const throughput = (totalSize / 1024) / (totalTime / 1000); // KB/s
       
       // Store test result
-      const testResult: TestResult = {
+      const testResult: FileUploadStressTestResult = {
         testName,
         success: completedJobs === files.length,
         duration: totalTime,
@@ -405,23 +354,13 @@ async function testFileStressWithJobQueue() {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
     
-    console.log(chalk.blue(`\nCleaning up ${scenarioCreatedAgents.length} agents...`));
-    const cleanupPromises = scenarioCreatedAgents.map(async (agent: { testRunner: TestRunner; agentId: string; userId: string }, index: number) => {
-      try {
-        await agent.testRunner.runTest(`Cleanup - Delete Agent ${index + 1}`, () => 
-          agent.testRunner.client.deleteAgent(agent.agentId)
-        );
-        return { success: true, index };
-      } catch (error) {
-        console.log(chalk.red(`  Error: Failed to cleanup agent ${index + 1}: ${error}`));
-        return { success: false, index, error };
-      }
-    });
+    const cleanupAgentsData: CleanupAgent[] = scenarioCreatedAgents.map((agent, index) => ({
+      testRunner: agent.testRunner,
+      agentId: agent.agentId,
+      userId: agent.userId
+    }));
     
-    const cleanupResults = await Promise.all(cleanupPromises);
-    const successfulCleanups = cleanupResults.filter(r => r.success).length;
-    const failedCleanups = cleanupResults.filter(r => !r.success).length;
-    console.log(chalk.green(`  Success: Cleanup completed: ${successfulCleanups} successful, ${failedCleanups} failed`));
+    await cleanupAgents(cleanupAgentsData, 'File Upload Stress Test Cleanup');
   }
 
   console.log(chalk.blue.bold('\nOverall Test Summary:'));

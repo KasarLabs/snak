@@ -1,3 +1,5 @@
+import { AgentInitializationDTO, AgentMode } from "@snakagent/core";
+
 export interface SnakConfig {
   baseUrl: string;
   userId?: string;
@@ -43,19 +45,6 @@ export interface StoredFile {
 
 export type FileListResponse = StoredFile[];
 
-export interface AgentConfig {
-  id: string;
-  name: string;
-  description: string;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-  systemPrompt: string;
-  tools: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface AgentPrompt {
   lore: string[];
   objectives: string[];
@@ -73,25 +62,17 @@ export interface AgentRag {
   embeddingModel: string | null;
 }
 
-export interface AgentInitializationDTO {
-  name: string;
-  group: string;
-  description: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
-  interval: number;
-  plugins: string[];
-  memory: AgentMemory;
-  rag: AgentRag;
-  mode: string;
-}
-
 export interface CreateAgentRequest {
   agent: AgentInitializationDTO;
 }
 
-export interface TestResult<T = unknown> {
+
+export interface CreateAgentResponse {
+  success: boolean;
+  data: string;
+}
+
+export interface UnitTestResult<T = unknown> {
   testName: string;
   success: boolean;
   durationMs: number;

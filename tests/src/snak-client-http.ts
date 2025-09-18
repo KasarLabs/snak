@@ -1,15 +1,16 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import FormData from 'form-data';
 import { AgentResponse } from '@snakagent/core';
+import { AgentConfigSQL } from '@snakagent/agents';
 import { 
   SnakConfig, 
   AgentRequest, 
   FileUploadResponse, 
   FileListResponse,
-  AgentConfig,
   CreateAgentRequest,
   JobStatus,
-  QueueMetrics
+  QueueMetrics,
+  CreateAgentResponse
 } from './types.js';
 
 export class SnakClient {
@@ -63,28 +64,24 @@ export class SnakClient {
     return response.data;
   }
 
-  async getAgents(): Promise<AgentConfig[]> {
-    const response: AxiosResponse<AgentConfig[]> = await this.client.get('/api/agents/get_agents');
+  async getAgents(): Promise<{ success: boolean; data: AgentConfigSQL[] }> {
+    const response: AxiosResponse<{ success: boolean; data: AgentConfigSQL[] }> = await this.client.get('/api/agents/get_agents');
     return response.data;
   }
 
-  async getAgent(agentId: string): Promise<AgentConfig> {
-    const response: AxiosResponse<AgentConfig> = await this.client.get(`/api/agents/${agentId}`);
+  async createAgent(agentData: CreateAgentRequest): Promise<CreateAgentResponse> {
+    const response: AxiosResponse<CreateAgentResponse> = await this.client.post('/api/agents/init_agent', agentData);
+    return response.data
+  }
+
+  async updateAgent(agentId: string, agentData: Partial<CreateAgentRequest>): Promise<AgentConfigSQL> {
+    const response: AxiosResponse<AgentConfigSQL> = await this.client.put(`/api/agents/${agentId}`, agentData);
     return response.data;
   }
 
-  async createAgent(agentData: CreateAgentRequest): Promise<AgentConfig> {
-    const response: AxiosResponse<AgentConfig> = await this.client.post('/api/agents/init_agent', agentData);
+  async deleteAgent(agentId: string): Promise<{ success: boolean; data: string }> {
+    const response: AxiosResponse<{ success: boolean; data: string }> = await this.client.post('/api/agents/delete_agent', { agent_id: agentId });
     return response.data;
-  }
-
-  async updateAgent(agentId: string, agentData: Partial<CreateAgentRequest>): Promise<AgentConfig> {
-    const response: AxiosResponse<AgentConfig> = await this.client.put(`/api/agents/${agentId}`, agentData);
-    return response.data;
-  }
-
-  async deleteAgent(agentId: string): Promise<void> {
-    await this.client.post('/api/agents/delete_agent', { agent_id: agentId });
   }
 
   async uploadFile(agentId: string, fileBuffer: Buffer, filename: string): Promise<FileUploadResponse> {

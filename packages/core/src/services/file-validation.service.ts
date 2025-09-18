@@ -1,4 +1,4 @@
-import { fileTypeFromBuffer } from 'file-type';
+import { fromBuffer } from 'file-type';
 import logger from '../logger/logger.js';
 
 export type SupportedMimeType =
@@ -60,7 +60,7 @@ export class FileValidationService {
     declaredMimeType?: string
   ): Promise<FileValidationResponse> {
     try {
-      const detected = await fileTypeFromBuffer(buffer);
+      const detected = await fromBuffer(buffer);
       const detectedMimeType = detected?.mime;
 
       logger.debug(
