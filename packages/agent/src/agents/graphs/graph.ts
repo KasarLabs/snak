@@ -168,6 +168,15 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => 5000,
   }),
+  memory_config: Annotation<{
+    max_insert_episodic_size: number;
+    max_insert_semantic_size: number;
+    max_retrieve_episodic_memory: number;
+    max_retrieve_semantic_memory: number;
+  } | null>({
+    reducer: (x, y) => y,
+    default: () => null,
+  }),
 });
 export class Graph {
   private modelSelector: ModelSelector | null;
