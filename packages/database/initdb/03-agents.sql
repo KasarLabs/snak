@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS agents (
     
     -- Human-readable name for the agent
     -- Used in UI displays and logging
-    -- Must be unique within a group for clarity
-    name             VARCHAR(255) NOT NULL,
+    -- Must be unique across the entire system for clarity
+    name             VARCHAR(255) NOT NULL UNIQUE,
 
     -- Reference to the user who owns this agent
     -- Foreign key linking to the user who created and manages this agent
