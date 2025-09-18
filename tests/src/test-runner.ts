@@ -83,7 +83,7 @@ export class TestRunner {
           interval: 15000,
           plugins: ['rpc'],
           memory: {
-            enabled: false,
+            enabled: true,
             memorySize: 20,
             shortTermMemorySize: 15
           },
@@ -98,6 +98,9 @@ export class TestRunner {
 
     if (testAgent.success && testAgent.response) {
       console.log('Success: Agent created successfully, response:', testAgent.response);
+
+      // Wait for 1 second to ensure the first agent is created
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const agents = await this.runTest('Get Agents List Again', () => 
         this.client.getAgents()
