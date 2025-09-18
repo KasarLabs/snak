@@ -131,7 +131,7 @@ export namespace memory {
     memory: EpisodicMemory
   ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7);`,
+      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
       [
         memory.user_id,
         memory.run_id,
@@ -139,6 +139,7 @@ export namespace memory {
         memory.step_id,
         memory.content,
         JSON.stringify(memory.embedding),
+        0.85, // Default similarity threshold for episodic memories
         memory.sources,
       ]
     );
@@ -150,7 +151,7 @@ export namespace memory {
     memory: SemanticMemory
   ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
+      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8, $9);`,
       [
         memory.user_id,
         memory.run_id,
@@ -158,6 +159,7 @@ export namespace memory {
         memory.step_id,
         memory.fact,
         JSON.stringify(memory.embedding),
+        0.8, // Default similarity threshold for semantic memories
         memory.category,
         memory.source_events,
       ]

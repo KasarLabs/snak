@@ -45,6 +45,7 @@ export function createRetrieveMemoryNode(): (
       const stm_current_step_ids = state.memories.stm.items
         .filter((item) => item !== null && item !== undefined)
         .map((item) => item!.task_id);
+      console.log('STM current step ids: ', stm_current_step_ids);
       const filtered_results = result.filter(
         (mem) => !stm_current_step_ids.includes(mem.step_id)
       );
