@@ -228,6 +228,22 @@ export namespace memory {
   }
 
   /**
+   * Memory retrieval result interface for task and step-based queries
+   */
+  export interface MemoryRetrieval {
+    memory_type: string;
+    memory_id: number;
+    content: string;
+    run_id: string;
+    task_id?: string;
+    step_id?: string;
+    created_at: Date;
+    updated_at: Date;
+    confidence: number;
+    metadata: any; // JSONB from PostgreSQL
+  }
+
+  /**
    * Retrieves the 4 most similar user memories to a given embedding.
    *
    * @param { string } userId - User the memories are associated to.
@@ -247,6 +263,55 @@ export namespace memory {
       [userId, runId, JSON.stringify(embedding), threshold, limit]
     );
     const result = await Postgres.query<Similarity>(q);
+    return result;
+  }
+  /**
+   * Retrieves all memories (both episodic and semantic) for a specific task_id
+   *
+   * @param { string } userId - User the memories are associated to.
+   * @param { string } taskId - Task ID to retrieve memories for.
+   * @param { number } limit - Optional limit on number of memories to return.
+   *
+   * @returns { MemoryRetrieval[] } Array of memories for the task.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
+  export async function get_memories_by_task_id(
+    userId: string,
+    runId: string,
+    taskId: string,
+    limit: number | null
+  ): Promise<MemoryRetrieval[]> {
+    const q = new Postgres.Query(
+      `SELECT * FROM get_memories_by_task_id($1, $2, $3,$4)`,
+      [userId, runId, taskId, limit]
+    );
+    const result = await Postgres.query<MemoryRetrieval>(q);
+    return result;
+  }
+
+  /**
+   * Retrieves all memories (both episodic and semantic) for a specific step_id
+   *
+   * @param { string } userId - User the memories are associated to.
+   * @param { string } stepId - Step ID to retrieve memories for.
+   * @param { number } limit - Optional limit on number of memories to return.
+   *
+   * @returns { MemoryRetrieval[] } Array of memories for the step.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
+  export async function get_memories_by_step_id(
+    userId: string,
+    runId: string,
+    stepId: string,
+    limit: number | null
+  ): Promise<MemoryRetrieval[]> {
+    const q = new Postgres.Query(
+      `SELECT * FROM get_memories_by_step_id($1, $2, $3,$4)`,
+      [userId, runId, stepId, limit]
+    );
+    const result = await Postgres.query<MemoryRetrieval>(q);
     return result;
   }
 

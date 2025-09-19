@@ -462,6 +462,7 @@ $$;
 -- Retrieves both episodic and semantic memories for a specific task
 CREATE OR REPLACE FUNCTION get_memories_by_task_id(
     p_user_id VARCHAR(100),
+    p_run_id UUID,
     p_task_id UUID,
     p_limit INTEGER DEFAULT NULL
 )
@@ -497,7 +498,9 @@ BEGIN
                 'category', category
             ) as meta
         FROM semantic_memories sm
-        WHERE user_id = p_user_id AND task_id = p_task_id
+        WHERE user_id = p_user_id 
+        AND run_id = p_run_id 
+        AND task_id = p_task_id
     ),
     task_episodic AS (
         -- Retrieve all episodic memories for the task
@@ -518,6 +521,7 @@ BEGIN
         FROM episodic_memories em
         WHERE user_id = p_user_id
             AND task_id = p_task_id
+            AND run_id = p_run_id
             AND expires_at > NOW()  -- Only non-expired memories
     )
     -- Combine and sort by creation time (most recent first)
@@ -535,6 +539,7 @@ $$;
 -- Retrieves both episodic and semantic memories for a specific step
 CREATE OR REPLACE FUNCTION get_memories_by_step_id(
     p_user_id VARCHAR(100),
+    p_run_id UUID,
     p_step_id UUID,
     p_limit INTEGER DEFAULT NULL
 )
@@ -570,7 +575,7 @@ BEGIN
                 'category', category
             ) as meta
         FROM semantic_memories sm
-        WHERE user_id = p_user_id AND step_id = p_step_id
+        WHERE user_id = p_user_id AND run_id = p_run_id AND step_id = p_step_id
     ),
     step_episodic AS (
         -- Retrieve all episodic memories for the step
@@ -590,6 +595,7 @@ BEGIN
             ) as meta
         FROM episodic_memories em
         WHERE user_id = p_user_id
+            AND run_id = p_run_id
             AND step_id = p_step_id
             AND expires_at > NOW()  -- Only non-expired memories
     )
