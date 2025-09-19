@@ -256,21 +256,21 @@ export class FileIngestionWorkerService {
     const totalSize = await this.getTotalSize(userId);
 
     let maxAgentSize: number;
-    let maxProcessSize: number;
+    let maxUserSize: number;
 
     try {
       const ragConfigPath =
         process.env.RAG_CONFIG_PATH || '../../config/rag/default.rag.json';
       const ragConfig = await loadRagConfig(ragConfigPath);
       maxAgentSize = ragConfig.maxAgentSize;
-      maxProcessSize = ragConfig.maxProcessSize;
+      maxUserSize = ragConfig.maxUserSize;
       logger.info(
-        `Loaded RAG config: maxAgentSize=${maxAgentSize}, maxProcessSize=${maxProcessSize}`
+        `Loaded RAG config: maxAgentSize=${maxAgentSize}, maxUserSize=${maxUserSize}`
       );
     } catch (error) {
       logger.warn(`Failed to load RAG config, using defaults: ${error}`);
       maxAgentSize = 10 * 1024 * 1024; // 10MB per agent (matching default.rag.json)
-      maxProcessSize = 50 * 1024 * 1024; // 50MB total (matching default.rag.json)
+      maxUserSize = 50 * 1024 * 1024; // 50MB total (matching default.rag.json)
     }
 
     if (agentSize + fileSize > maxAgentSize) {
@@ -280,9 +280,9 @@ export class FileIngestionWorkerService {
       throw new Error('Agent rag storage limit exceeded');
     }
 
-    if (totalSize + fileSize > maxProcessSize) {
+    if (totalSize + fileSize > maxUserSize) {
       logger.error(
-        `Process storage limit exceeded: ${totalSize + fileSize} > ${maxProcessSize}`
+        `Process storage limit exceeded: ${totalSize + fileSize} > ${maxUserSize}`
       );
       throw new Error('Process rag storage limit exceeded');
     }

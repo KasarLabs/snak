@@ -1,3 +1,100 @@
 {
-    "max_users": 1000
+  "global": {
+    "max_users": 1000,
+    "max_agents": 10000
+  },
+  "user": {
+    "max_agents": 10,
+    "max_upload_avatar_size": 50000000,
+    "max_token_usage": [10000, 50000, 250000, 2500000]
+  },
+  "execution": {
+    "max_plan_steps": 50,
+    "max_plan_description_length": 1000,
+    "max_step_name_length": 100,
+    "max_step_description_length": 1000,
+    "max_parallel_tools": 5,
+    "max_retry_attempts": 3,
+    "max_message_length": 1000
+  },
+  "mcp": {
+    "max_limit_tools": 100,
+    "max_timeout": 30000
+  },
+  "worker": {
+    "max_worker": 16,
+    "max_file_ingestion": 2,
+    "max_fallback_worker": 8,
+    "max_queue_size": 50
+  },
+  "agents": {
+    "name_max_length": 100,
+    "description_max_length": 1000,
+    "group_max_length": 100,
+    "interval_max": 100,
+    "max_iterations_max": 100,
+    "memory": {
+      "memory_size_max": 1000,
+      "short_term_memory_size_max": 100
+    },
+    "chat_id_max_length": 100,
+    "plugins": {
+      "max_size": 100,
+      "max_length": 100
+    },
+    "mcp_servers": {
+      "max_servers": 100,
+      "max_server_name_length": 100,
+      "command_max_length": 100,
+      "args": {
+        "max_size": 100,
+        "max_length": 100
+      },
+      "env": {
+        "max_size": 100,
+        "max_length": 100
+      }
+    }
+  },
+  "model": {
+    "provider_max_length": 100,
+    "model_name_max_length": 100,
+    "description_max_length": 1000
+  },
+  "rag": {
+    "process_max_size": 10000000,
+    "agent_max_size": 10000000,
+    "user_max_size": 50000000,
+    "rag_max_size": 10000000
+  },
+  "endpoints": {
+    "agent": {
+      "max_update_agent_mcp": [100, 500, 2500, 25000],
+      "max_update_agent_config": [100, 500, 2500, 25000],
+      "max_upload_avatar": [100, 500, 2500, 25000],
+      "max_user_request": [100, 500, 2500, 25000],
+      "max_stop_agent": [100, 500, 2500, 25000],
+      "max_init_agent": [100, 500, 2500, 25000],
+      "max_get_message_from_agent": [100, 500, 2500, 25000],
+      "max_delete_agent": [100, 500, 2500, 25000],
+      "max_get_messages_from_agents": [100, 500, 2500, 25000],
+      "max_clear_message": [100, 500, 2500, 25000],
+      "max_get_agents": [100, 500, 2500, 25000],
+      "max_health": [100, 500, 2500, 25000]
+    },
+    "file_ingestion": {
+      "max_upload_file": [100, 500, 2500, 25000],
+      "max_list_files": [100, 500, 2500, 25000],
+      "max_get_file": [100, 500, 2500, 25000],
+      "max_delete_file": [100, 500, 2500, 25000]
+    },
+    "workers": {
+      "max_get_job_status": [100, 500, 2500, 25000],
+      "max_get_job_result": [100, 500, 2500, 25000],
+      "max_queue_metrics": [100, 500, 2500, 25000]
+    },
+    "metrics": {
+      "max_get_metrics": [100, 500, 2500, 25000]
+    }
+  }
 }

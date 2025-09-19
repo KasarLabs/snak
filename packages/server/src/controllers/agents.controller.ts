@@ -562,39 +562,6 @@ export class AgentsController {
     const agents = await this.agentService.getAllAgentsOfUser(userId);
     return ResponseFormatter.success(agents);
   }
-  /**
-   * Get agent status (alias for get_agents)
-   * @returns Promise<AgentResponse> - Response with agents status
-   */
-  @Get('get_agent_status')
-  @HandleErrors('E05TA100')
-  async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
-    const userId = ControllerHelpers.getUserId(req);
-    const agents = await this.agentService.getAllAgentsOfUser(userId);
-
-    if (!agents) {
-      throw new ServerError('E01TA400');
-    }
-
-    return ResponseFormatter.success(agents);
-  }
-
-  /**
-   * Get agent thread information (alias for get_agents)
-   * @returns Promise<AgentResponse> - Response with agents thread data
-   */
-  @Get('get_agent_thread')
-  @HandleErrors('E05TA100')
-  async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
-    const userId = ControllerHelpers.getUserId(req);
-    const agents = await this.agentService.getAllAgentsOfUser(userId);
-
-    if (!agents) {
-      throw new ServerError('E01TA400');
-    }
-
-    return ResponseFormatter.success(agents);
-  }
 
   /**
    * Health check endpoint
