@@ -113,8 +113,16 @@ export interface MemoryOperationResult<T> {
  * Zod schemas for memory operations
  */
 export const episodicEventSchema = z.object({
-  name: z.string().min(getGuardValue('memory.episodic_event.min_name_length')).max(getGuardValue('memory.episodic_event.max_name_length')).describe('Event name or identifier'),
-  content: z.string().min(getGuardValue('memory.episodic_event.min_content_length')).max(getGuardValue('memory.episodic_event.max_content_length')).describe('Detailed description of what happened'),
+  name: z
+    .string()
+    .min(getGuardValue('memory.episodic_event.min_name_length'))
+    .max(getGuardValue('memory.episodic_event.max_name_length'))
+    .describe('Event name or identifier'),
+  content: z
+    .string()
+    .min(getGuardValue('memory.episodic_event.min_content_length'))
+    .max(getGuardValue('memory.episodic_event.max_content_length'))
+    .describe('Detailed description of what happened'),
   source: z
     .array(z.string())
     .max(getGuardValue('memory.episodic_event.max_source'))
@@ -124,8 +132,17 @@ export const episodicEventSchema = z.object({
 });
 
 export const semanticFactSchema = z.object({
-  fact: z.string().min(getGuardValue('memory.sementic_fact.fact.min_length')).max(getGuardValue('memory.sementic_fact.fact.max_length')).describe('The learned information or insight'),
-  category: z.string().max(getGuardValue('memory.sementic_fact.category.max_length')).optional().default('fact').describe('Type of fact'),
+  fact: z
+    .string()
+    .min(getGuardValue('memory.sementic_fact.fact.min_length'))
+    .max(getGuardValue('memory.sementic_fact.fact.max_length'))
+    .describe('The learned information or insight'),
+  category: z
+    .string()
+    .max(getGuardValue('memory.sementic_fact.category.max_length'))
+    .optional()
+    .default('fact')
+    .describe('Type of fact'),
 });
 
 export const ltmSchema = z.object({

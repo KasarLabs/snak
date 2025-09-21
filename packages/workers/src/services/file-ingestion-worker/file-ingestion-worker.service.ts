@@ -273,7 +273,7 @@ export class FileIngestionWorkerService {
     const maxAgentSize: number = getGuardValue('rag.agent_max_size');
     const maxUserSize: number = getGuardValue('rag.user_max_size');
     const maxProcessSize: number = getGuardValue('rag.process_max_size');
-    
+
     logger.info(
       `Loaded RAG config: maxAgentSize=${maxAgentSize}, maxUserSize=${maxUserSize}, maxProcessSize=${maxProcessSize}`
     );

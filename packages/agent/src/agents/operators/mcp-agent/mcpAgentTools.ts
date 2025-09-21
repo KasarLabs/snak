@@ -67,12 +67,14 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
         'Search for MCP servers on Smithery using a human readable search request',
       schema: z.object({
         query: z
-          .string().max(getGuardValue('mcp.max_query_length'))
+          .string()
+          .max(getGuardValue('mcp.max_query_length'))
           .describe(
             'Human readable search query for MCP servers (e.g., "web search", "file management", "memory")'
           ),
         limit: z
-          .number().max(getGuardValue('mcp.max_limit_tools'))
+          .number()
+          .max(getGuardValue('mcp.max_limit_tools'))
           .optional()
           .describe('Maximum number of results to return (default: 10)'),
         deployedOnly: z
@@ -273,15 +275,18 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
         'Install an MCP server configuration for an agent using Smithery qualified name',
       schema: z.object({
         agentId: z
-          .string().uuid('Invalid agentId format')
+          .string()
+          .uuid('Invalid agentId format')
           .describe('The ID of the agent to install the MCP server for'),
         qualifiedName: z
-          .string().max(getGuardValue('mcp.max_qualified_name_length'))
+          .string()
+          .max(getGuardValue('mcp.max_qualified_name_length'))
           .describe(
             'The Smithery qualified name of the MCP server (from search results)'
           ),
         serverName: z
-          .string().max(getGuardValue('mcp.max_server_name_length'))
+          .string()
+          .max(getGuardValue('mcp.max_server_name_length'))
           .optional()
           .describe('Custom name for the server (defaults to qualified name)'),
         config: z
@@ -289,7 +294,8 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           .optional()
           .describe('Configuration values required by the server'),
         profile: z
-          .string().max(getGuardValue('mcp.max_profile_length'))
+          .string()
+          .max(getGuardValue('mcp.max_profile_length'))
           .optional()
           .describe('Smithery profile to use (if available)'),
       }),
@@ -384,7 +390,8 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
       description: 'List all MCP servers configured for a specific agent',
       schema: z.object({
         agentId: z
-          .string().uuid('Invalid agentId format')
+          .string()
+          .uuid('Invalid agentId format')
           .describe('The ID of the agent to list MCP servers for'),
       }),
       func: async ({ agentId }) => {
@@ -421,9 +428,13 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
       name: 'refresh_mcp_server',
       description: 'Restart an agent with its MCP servers',
       schema: z.object({
-        agentId: z.string().uuid('Invalid agentId format').describe('The ID of the agent to refresh'),
+        agentId: z
+          .string()
+          .uuid('Invalid agentId format')
+          .describe('The ID of the agent to refresh'),
         timeout: z
-          .number().max(getGuardValue("mcp.max_timeout"))
+          .number()
+          .max(getGuardValue('mcp.max_timeout'))
           .optional()
           .describe(
             'Timeout in milliseconds for MCP initialization (default: 30000)'

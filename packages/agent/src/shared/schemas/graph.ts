@@ -3,28 +3,38 @@ import z from 'zod';
 
 export const tools_call = z.object({
   description: z
-    .string().max(getGuardValue('execution_graph.tools.max_description_length'))
+    .string()
+    .max(getGuardValue('execution_graph.tools.max_description_length'))
     .describe(
       'Tool execution details: what it does, parameters used, and configuration'
     ),
   required: z
-    .string().max(getGuardValue('execution_graph.tools.max_required_length'))
+    .string()
+    .max(getGuardValue('execution_graph.tools.max_required_length'))
     .describe(
       'Required inputs and their sources (e.g., "user query, step 2 filters")'
     ),
-  expected_result: z.string().max(getGuardValue('execution_graph.tools.max_expected_result_length')).describe('Expected output data.'),
-  result: z.string().max(getGuardValue('execution_graph.tools.max_result_length')).describe('should be empty'),
+  expected_result: z
+    .string()
+    .max(getGuardValue('execution_graph.tools.max_expected_result_length'))
+    .describe('Expected output data.'),
+  result: z
+    .string()
+    .max(getGuardValue('execution_graph.tools.max_result_length'))
+    .describe('should be empty'),
 });
 
 export const resultSchema = z.object({
   content: z
-    .string().max(getGuardValue('execution_graph.result_schema.max_content_length'))
+    .string()
+    .max(getGuardValue('execution_graph.result_schema.max_content_length'))
     .describe(
       'Output content placeholder - empty during planning, populated during execution'
     )
     .default(''),
   tokens: z
-    .number().max(getGuardValue('execution_graph.result_schema.max_tokens'))
+    .number()
+    .max(getGuardValue('execution_graph.result_schema.max_tokens'))
     .describe('Ouput Token Count - empty during planning')
     .default(0),
 });
@@ -42,7 +52,8 @@ export const StepInfoSchema = z.object({
     .max(getGuardValue('execution_graph.step.max_name_length'))
     .describe('Action-oriented step title under 200 chars'),
   description: z
-    .string().max(getGuardValue('execution_graph.step.max_description_length'))
+    .string()
+    .max(getGuardValue('execution_graph.step.max_description_length'))
     .describe(
       'Full step details: objective, inputs/sources, methodology, outputs, success criteria'
     ),
@@ -78,7 +89,8 @@ export const PlanSchema = z.object({
     .max(getGuardValue('execution_graph.plan.max_steps'))
     .describe('Executable workflow steps (1-20) with clear dependencies'),
   summary: z
-    .string().max(getGuardValue('execution_graph.plan.max_summary_length'))
+    .string()
+    .max(getGuardValue('execution_graph.plan.max_summary_length'))
     .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
 });
 
