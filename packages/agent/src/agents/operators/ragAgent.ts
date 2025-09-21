@@ -5,7 +5,7 @@ import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { rag } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { Runnable, RunnableSequence } from '@langchain/core/runnables';
-import { RagConfig } from '@snakagent/core';
+import { RAGConfig } from '@snakagent/core';
 import { AgentType } from '@enums/agent-modes.enum.js';
 
 export interface RagChainState {
@@ -33,7 +33,7 @@ export class RagAgent extends BaseAgent {
   private topK: number;
   private initialized = false;
 
-  constructor(config: RagConfig = {}) {
+  constructor(config: RAGConfig = {}) {
     super('rag-agent', AgentType.OPERATOR);
     this.topK = config.topK ?? 4;
     this.embeddings = new CustomHuggingFaceEmbeddings({

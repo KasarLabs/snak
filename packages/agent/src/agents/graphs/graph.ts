@@ -1,10 +1,11 @@
-import { AgentConfig, AgentMode, logger } from '@snakagent/core';
+import { AgentConfig, AgentMode, logger, Id } from '@snakagent/core';
 import {
   StateGraph,
   MemorySaver,
   Annotation,
   END,
   task,
+  CompiledStateGraph,
 } from '@langchain/langgraph';
 import {
   DynamicStructuredTool,
@@ -44,36 +45,6 @@ import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgentInterface } from '../../shared/types/tools.types.js';
-
-// export async function appendToRunFile(content: string): Promise<void> {
-//   const fileName = 'run.txt';
-//   const filePath = path.resolve(fileName);
-
-//   try {
-//     // Vérifie si le fichier existe
-//     const fileExists = await fs.promises
-//       .access(filePath, fs.constants.F_OK)
-//       .then(() => true)
-//       .catch(() => false);
-
-//     if (!fileExists) {
-//       console.log(`Le fichier ${fileName} n'existe pas. Création en cours...`);
-//       // Crée le fichier vide s'il n'existe pas
-//       await fs.promises.writeFile(filePath, '');
-//       console.log(`Fichier ${fileName} créé avec succès.`);
-//     }
-
-//     // Ajoute le contenu au fichier (avec un retour à la ligne)
-//     await fs.promises.appendFile(filePath, content + '\n');
-//     console.log(`Contenu ajouté au fichier ${fileName}.`);
-//   } catch (error) {
-//     console.error(
-//       `Erreur lors de l'opération sur le fichier ${fileName}:`,
-//       error
-//     );
-//     throw error;
-//   }
-// }
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -144,7 +115,7 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => 0,
   }),
-  agent_config: Annotation<AgentConfig | undefined>({
+  agent_config: Annotation<AgentConfig<Id.Id> | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
   }),
@@ -195,7 +166,8 @@ export class Graph {
   private agentConfig: AgentConfig;
   private ragAgent: RagAgent | null = null;
   private checkpointer: MemorySaver;
-  private app: any;
+  private app: CompiledStateGraph<any, any, any, any, any, any>;
+  private config: typeof GraphConfigurableAnnotation.State | null = null;
 
   constructor(
     private snakAgent: SnakAgentInterface,
@@ -487,7 +459,6 @@ export class Graph {
 
       // Initialize database
       await initializeDatabase(this.snakAgent.getDatabaseCredentials());
-
       // Initialize tools
       this.toolsList = await initializeToolsList(
         this.snakAgent,
@@ -511,10 +482,8 @@ export class Graph {
 
       // Build and compile the workflow
       const workflow = this.buildWorkflow();
-      this.app = workflow.compile(this.getCompileOptions());
-
+      const app = workflow.compile(this.getCompileOptions());
       logger.info('Agent] Successfully initialized agent');
-
       return {
         app: this.app,
         agent_config: this.agentConfig,
@@ -523,6 +492,16 @@ export class Graph {
       logger.error('Agent] Failed to create agent:', error);
       throw error;
     }
+  }
+
+  public updateConfig(
+    newConfig: typeof GraphConfigurableAnnotation.State
+  ): void {
+    if (!this.app) {
+      throw new Error('Agent not initialized. Call initialize() first.');
+    }
+    this.config = newConfig;
+    logger.debug('[Agent] Configuration updated successfully');
   }
 }
 

@@ -13,19 +13,11 @@ import { GraphConfigurableAnnotation, GraphState } from '../graphs/graph.js';
 import {
   EpisodicMemoryContext,
   Memories,
+  retrieveMemoryFromContentType,
   SemanticMemoryContext,
 } from '../../shared/types/index.js';
 import { MemoryDBManager } from '../graphs/manager/memory/memory-db-manager.js';
-import { MemoryStateManager } from '../graphs/manager/memory/memory-utils.js';
-import { DEFAULT_GRAPH_CONFIG } from '../graphs/config/default-config.js';
-import {
-  AgentType,
-  ExecutionMode,
-  MemoryNode,
-} from '../../shared/enums/agent-modes.enum.js';
-import { checkAndReturnObjectFromPlansOrHistories } from '../graphs/utils/graph-utils.js';
-import { processMessageContent } from '@agents/core/utils.js';
-import { th } from 'zod/v4/locales';
+import { embeddingModel } from '@agents/graphs/chain/memory/memory-chain.js';
 export interface MemoryChainResult {
   memories: string;
 }
@@ -38,11 +30,8 @@ export class MemoryAgent {
   private initialized: boolean = false;
   private dbManager: MemoryDBManager | null = null;
 
-  constructor(config: MemoryConfig) {
-    this.embeddings = new CustomHuggingFaceEmbeddings({
-      model: 'Xenova/all-MiniLM-L6-v2',
-      dtype: 'fp32',
-    });
+  constructor() {
+    this.embeddings = embeddingModel;
   }
 
   /**

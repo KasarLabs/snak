@@ -172,3 +172,70 @@ export const isPlannerActivateSchema = z.object({
 });
 
 export type isPlannerActivateType = z.infer<typeof isPlannerActivateSchema>;
+
+export const retrieveMemoryFromContentSchema = z
+  .object({
+    content: z
+      .string()
+      .min(1)
+      .describe('The content to search for relevant memories.'),
+    topK: z
+      .number()
+      .int()
+      .min(1)
+      .max(20)
+      .default(5)
+      .describe('Number of top relevant memories to retrieve.'),
+    threshold: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0.75)
+      .describe(
+        'Similarity threshold (0 to 1) for filtering relevant memories.'
+      ),
+  })
+  .strict();
+
+export type retrieveMemoryFromContentType = z.infer<
+  typeof retrieveMemoryFromContentSchema
+>;
+
+export const retrieveMemoryFromStepId = z
+  .object({
+    step_id: z
+      .string()
+      .describe(
+        'The unique identifier of a step used as an index to retrieve associated memories from the database.'
+      ),
+    limit: z
+      .number()
+      .optional()
+      .describe(
+        'Maximum number of memories to retrieve. If not specified, returns all available memories.'
+      ),
+  })
+  .strict();
+
+export type retrieveMemoryFromStepIdType = z.infer<
+  typeof retrieveMemoryFromStepId
+>;
+export const retrieveMemoryFromTaskId = z
+  .object({
+    task_id: z
+      .string()
+      .describe(
+        'The unique identifier of a task used as an index to retrieve associated memories from the database.'
+      ),
+    limit: z
+      .number()
+      .optional()
+      .describe(
+        'Maximum number of memories to retrieve. If not specified, returns all available memories.'
+      ),
+  })
+  .strict();
+
+export type retrieveMemoryFromTaskIdType = z.infer<
+  typeof retrieveMemoryFromTaskId
+>;

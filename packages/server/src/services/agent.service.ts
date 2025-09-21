@@ -6,19 +6,17 @@ import {
 } from '../interfaces/agent-service.interface.js';
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
-  MessageFromAgentIdDTO,
-  MessageRequest,
-  UpdateModelConfigDTO,
-} from '@snakagent/core';
-import {
   AgentValidationError,
   AgentExecutionError,
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
-import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 import { ChunkOutput, EventType } from '@snakagent/agents';
+import { AgentConfig, Id } from '@snakagent/core';
+import { MessageFromAgentIdDTO } from '@snakagent/core';
+import { UpdateModelConfigDTO } from '@snakagent/core';
+import { MessageRequest } from '@snakagent/core';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -179,7 +177,7 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async getAllAgents(): Promise<AgentConfigSQL[]> {
+  async getAllAgents(): Promise<AgentConfig<Id.Id>[]> {
     try {
       const q = new Postgres.Query(`
 			SELECT
@@ -194,7 +192,7 @@ export class AgentService implements IAgentService {
 			  avatar_mime_type
 			FROM agents
 		  `);
-      const res = await Postgres.query<AgentConfigSQL>(q);
+      const res = await Postgres.query<AgentConfig<Id.Id>>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
@@ -224,8 +222,8 @@ export class AgentService implements IAgentService {
   async updateModelsConfig(model: UpdateModelConfigDTO) {
     try {
       const q = new Postgres.Query(
-        `UPDATE models_config SET provider = $1, model_name = $2, description = $3 WHERE id = 1`,
-        [model.provider, model.model_name, model.description]
+        `UPDATE models_config SET provider = $1, modelName = $2, description = $3 WHERE id = 1`,
+        [model.provider, model.modelName, model.description]
       );
       const res = await Postgres.query(q);
       this.logger.debug(`Models config updated:', ${JSON.stringify(res)} `);

@@ -28,7 +28,7 @@ jest.mock('../../operators/modelSelector', () => ({
     getModels: jest.fn().mockReturnValue({}),
     selectModelForMessages: jest
       .fn()
-      .mockResolvedValue({ model_name: 'gpt-4', model: {} }),
+      .mockResolvedValue({ modelName: 'gpt-4', model: {} }),
   })),
 }));
 

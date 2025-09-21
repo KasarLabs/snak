@@ -506,18 +506,18 @@ describe('Custom Types Operations', () => {
     const q = new Postgres.Query(
       `SELECT ROW(true, 'text-embedding-ada-002')::rag as rag_config,
        (ROW(true, 'text-embedding-ada-002')::rag).enabled as rag_enabled,
-       (ROW(true, 'text-embedding-ada-002')::rag).embedding_model as model_name`
+       (ROW(true, 'text-embedding-ada-002')::rag).embedding_model as modelName`
     );
 
     interface RagTest {
       rag_config: { enabled: boolean; embedding_model: string };
       rag_enabled: boolean;
-      model_name: string;
+      modelName: string;
     }
 
     const [result] = await Postgres.query<RagTest>(q);
     expect(result.rag_enabled).toBe(true);
-    expect(result.model_name).toBe('text-embedding-ada-002');
+    expect(result.modelName).toBe('text-embedding-ada-002');
   });
 
   it('should work with model composite type', async () => {
@@ -529,7 +529,7 @@ describe('Custom Types Operations', () => {
     interface ModelTest {
       model_config: {
         provider: string;
-        model_name: string;
+        modelName: string;
         description: string;
       };
       provider_name: string;

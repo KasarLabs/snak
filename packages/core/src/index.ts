@@ -1,13 +1,6 @@
-export type {
-  AgentConfig,
-  RawAgentConfig,
-  SnakAgentInterface,
-  StarknetTool,
-  SignatureTool,
-  DatabaseCredentials,
-} from './common/agent.js';
+export type * from './common/agent.js';
 
-export { AgentMode, RagConfig, MemoryConfig } from './common/agent.js';
+export * from './common/agent.js';
 
 export { default as logger } from './logger/logger.js';
 
@@ -16,7 +9,7 @@ export { loadRagConfig } from './config/ragLoader.js';
 export type {
   ModelsConfig,
   ApiKeys,
-  ModelLevelConfig,
+  ModelConfig,
 } from './types/models/modelsConfig.js';
 export type { RagConfigSize } from './types/rag/ragConfig.js';
 export * from './common/server/dto/agents.js';

@@ -99,7 +99,7 @@ export class MemoryGraph {
         return {
           last_node: MemoryNode.LTM_MANAGER,
         };
-      }
+      }1
       if (
         state.tasks[state.tasks.length - 1].status != 'completed' &&
         state.tasks[state.tasks.length - 1].status != 'failed'

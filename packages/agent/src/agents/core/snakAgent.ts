@@ -9,6 +9,8 @@ import {
   AgentConfig,
   CustomHuggingFaceEmbeddings,
   MemoryConfig,
+  Id,
+  StarknetConfig,
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '@snakagent/core';
@@ -16,14 +18,11 @@ import {
   AgentMode,
   AGENT_MODES,
   AgentType,
-  ExecutionMode,
 } from '../../shared/enums/agent-modes.enum.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
 import { createGraph } from '../graphs/graph.js';
 import { Command } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
-import { MCPAgent } from '../operators/mcp-agent/mcpAgent.js';
-import { ConfigurationAgent } from '../operators/config-agent/configAgent.js';
 import { AgentReturn } from '../../shared/types/agents.types.js';
 import {
   ExecutorNode,
@@ -32,20 +31,9 @@ import {
   PlannerNode,
 } from '../../shared/enums/agent-modes.enum.js';
 import { ChunkOutput } from '../../shared/types/streaming.types.js';
-import { LangGraphEvent } from '../../shared/types/event.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
-import { memory } from '@snakagent/database/queries';
-
-export interface SnakAgentConfig {
-  provider: RpcProvider;
-  accountPublicKey: string;
-  accountPrivateKey: string;
-  db_credentials: DatabaseCredentials;
-  agentConfig: AgentConfig;
-  memory?: MemoryConfig;
-  modelSelectorConfig: ModelSelectorConfig;
-}
+import { StreamEvent } from '@langchain/core/tracers/log_stream';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -56,7 +44,7 @@ export class SnakAgent extends BaseAgent {
   private readonly accountPrivateKey: string;
   private readonly accountPublicKey: string;
   private readonly agentMode: string;
-  private readonly agentConfig: AgentConfig;
+  private readonly agentConfig: AgentConfig<Id.Id>;
   private readonly databaseCredentials: DatabaseCredentials;
   private memoryAgent: MemoryAgent | null = null;
   private ragAgent: RagAgent | null = null;
@@ -70,31 +58,19 @@ export class SnakAgent extends BaseAgent {
   private iterationEmbeddings: CustomHuggingFaceEmbeddings;
   private pendingIteration?: { question: string; embedding: number[] };
 
-  constructor(config: SnakAgentConfig) {
+  constructor(
+    starknet_config: StarknetConfig,
+    agent_config: AgentConfig<Id.Id>,
+    database_credentials: DatabaseCredentials
+  ) {
     super('snak', AgentType.SNAK);
 
-    this.provider = config.provider;
-    this.accountPrivateKey = config.accountPrivateKey;
-    this.accountPublicKey = config.accountPublicKey;
-    this.agentMode = AGENT_MODES[config.agentConfig.mode];
-    this.databaseCredentials = config.db_credentials;
-    this.currentMode = AGENT_MODES[config.agentConfig.mode];
-    this.agentConfig = config.agentConfig;
-    this.modelSelectorConfig = config.modelSelectorConfig;
-
-    this.modelSelectorConfig = config.modelSelectorConfig;
-
-    if (!config.accountPrivateKey) {
-      throw new Error('STARKNET_PRIVATE_KEY is required');
-    }
-
-    this.iterationEmbeddings = new CustomHuggingFaceEmbeddings({
-      model:
-        this.agentConfig.memory?.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
-      dtype: 'fp32',
-    });
+    this.provider = starknet_config.provider;
+    this.accountPrivateKey = starknet_config.accountPrivateKey;
+    this.accountPublicKey = starknet_config.accountPublicKey;
+    this.databaseCredentials = database_credentials;
+    this.agentConfig = agent_config;
   }
-
   /**
    * Initialize the SnakAgent and create the appropriate executor
    * @throws {Error} If initialization fails
@@ -188,20 +164,10 @@ export class SnakAgent extends BaseAgent {
   private async initializeMemoryAgent(
     agentConfig: AgentConfig | undefined
   ): Promise<void> {
-    if (agentConfig?.memory?.enabled !== false) {
-      logger.debug('[SnakAgent]  Initializing MemoryAgent...');
-      this.memoryAgent = new MemoryAgent({
-        shortTermMemorySize: agentConfig?.memory?.shortTermMemorySize || 15,
-        memorySize: agentConfig?.memory?.memorySize || 20,
-        embeddingModel: agentConfig?.memory?.embeddingModel,
-      });
-      await this.memoryAgent.init();
-      logger.debug('[SnakAgent]  MemoryAgent initialized');
-    } else {
-      logger.info(
-        '[SnakAgent]  MemoryAgent initialization skipped (disabled in config)'
-      );
-    }
+    logger.debug('[SnakAgent]  Initializing MemoryAgent...');
+    this.memoryAgent = new MemoryAgent();
+    await this.memoryAgent.init();
+    logger.debug('[SnakAgent]  MemoryAgent initialized');
   }
 
   /**
@@ -277,7 +243,7 @@ export class SnakAgent extends BaseAgent {
    * Get agent configuration
    * @returns The agent configuration object
    */
-  public getAgentConfig(): AgentConfig {
+  public getAgentConfig(): AgentConfig<Id.Id> {
     return this.agentConfig;
   }
 
@@ -308,13 +274,13 @@ export class SnakAgent extends BaseAgent {
   /**
    * Execute the agent with the given input
    * @param input - The input message or string
-   * @param config - Optional configuration for execution
+   * @param agent_config - Optional configuration for execution
    * @returns Promise resolving to the agent response
    */
   public async *execute(
     input: string,
     isInterrupted: boolean = false,
-    config?: Record<string, any>
+    agent_config?: Record<string, any>
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.debug(
@@ -399,41 +365,19 @@ export class SnakAgent extends BaseAgent {
       }
 
       const app = this.agentReactExecutor.app;
-      const agentJsonConfig = this.agentReactExecutor.agent_config;
-      const maxGraphSteps = this.agentConfig.maxIterations;
-      const shortTermMemory = this.agentConfig.memory.shortTermMemorySize || 5;
-      const memorySize = this.agentConfig.memory?.memorySize || 20;
-      const humanInTheLoop = this.agentConfig.mode === AgentMode.HYBRID;
       this.controller = new AbortController();
       const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
+      this.agentReactExecutor;
+      const threadId = this.agentConfig.id;
 
-      const threadId = thread_id ?? agentJsonConfig?.id;
       logger.info(`[SnakAgent]  Autonomous execution thread ID: ${threadId}`);
       const threadConfig = {
         configurable: {
           thread_id: threadId,
           max_graph_steps: 100,
-          short_term_memory: shortTermMemory,
-          memory_size: memorySize,
-          agent_config: this.agentConfig,
-          human_in_the_loop: humanInTheLoop,
-          executionMode:
-            agentJsonConfig.mode === AgentMode.AUTONOMOUS
-              ? ExecutionMode.PLANNING
-              : ExecutionMode.REACTIVE,
           checkpoint_id: checkpoint_id ? checkpoint_id : undefined,
           user_request: input ?? undefined,
           objectives: input,
-          summarization_threshold: 1500,
-          memory_config: {
-            max_insert_episodic_size: 5,
-            max_insert_semantic_size: 10,
-            max_retrieve_memory_size: 10,
-            insert_semantic_threshold: 0.9,
-            insert_episodic_threshold: 0.9,
-            retrieve_memory_threshold: 0.5,
-          },
-          max_retry: 3,
         },
       };
       let lastChunk;
@@ -447,7 +391,7 @@ export class SnakAgent extends BaseAgent {
           ...threadConfig,
           signal: this.controller.signal,
           recursionLimit: 500,
-          version: 'v2',
+          version: 'v2' as const,
         };
 
         if (isInterrupted) {
@@ -457,18 +401,21 @@ export class SnakAgent extends BaseAgent {
         }
 
         const executionInput = !isInterrupted ? graphState : command;
-        await app.invoke(executionInput, executionConfig);
+        await app.invoke(executionInput ?? { messages: [] }, executionConfig);
         const _true = true;
         if (_true === true) {
           return;
         }
-        let chunk: LangGraphEvent;
-        for await (chunk of await app.stream(executionInput, executionConfig)) {
+        let chunk: StreamEvent;
+        for await (chunk of app.streamEvents(
+          executionInput ?? { messages: [] },
+          executionConfig
+        )) {
           isInterrupted = false;
           lastChunk = chunk;
           const state = await app.getState(executionConfig);
           retryCount = state.values.retry;
-          currentCheckpointId = state.config.configurable.checkpoint_id;
+          currentCheckpointId = state.config.configurable?.checkpoint_id;
           if (
             chunk.metadata?.langgraph_node &&
             isInEnum(PlannerNode, chunk.metadata.langgraph_node)
@@ -477,12 +424,12 @@ export class SnakAgent extends BaseAgent {
               yield {
                 event: chunk.event,
                 run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable.checkpoint_id,
-                thread_id: state.config.configurable.thread_id,
+                checkpoint_id: state.config.configurable?.checkpoint_id,
+                thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.PLANNING_ORCHESTRATOR,
                 metadata: {
                   executionMode: chunk.metadata.executionMode,
-                  agent_mode: agentJsonConfig.mode,
+                  agent_mode: this.agentConfig.mode,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
@@ -500,13 +447,13 @@ export class SnakAgent extends BaseAgent {
                 event: chunk.event,
                 run_id: chunk.run_id,
                 plan: chunk.data.output.tool_calls?.[0]?.args, // this is in a ParsedPlan format object
-                checkpoint_id: state.config.configurable.checkpoint_id,
-                thread_id: state.config.configurable.thread_id,
+                checkpoint_id: state.config.configurable?.checkpoint_id,
+                thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.PLANNING_ORCHESTRATOR,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
                   executionMode: chunk.metadata.executionMode,
-                  agent_mode: agentJsonConfig.mode,
+                  agent_mode: this.agentConfig.mode,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
@@ -526,12 +473,12 @@ export class SnakAgent extends BaseAgent {
               yield {
                 event: chunk.event,
                 run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable.checkpoint_id,
-                thread_id: state.config.configurable.thread_id,
+                checkpoint_id: state.config.configurable?.checkpoint_id,
+                thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.AGENT_EXECUTOR,
                 metadata: {
                   execution_mode: chunk.metadata.executionMode,
-                  agent_mode: agentJsonConfig.mode,
+                  agent_mode: this.agentConfig.mode,
                   retry: retryCount,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
@@ -550,13 +497,13 @@ export class SnakAgent extends BaseAgent {
                 run_id: chunk.run_id,
                 tools: chunk.data.output.tool_calls,
                 content: chunk.data.output.content.toLocaleString(), // Is an ParsedPlan object
-                checkpoint_id: state.config.configurable.checkpoint_id,
-                thread_id: state.config.configurable.thread_id,
+                checkpoint_id: state.config.configurable?.checkpoint_id,
+                thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.AGENT_EXECUTOR,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
                   execution_mode: chunk.metadata.executionMode,
-                  agent_mode: agentJsonConfig.mode,
+                  agent_mode: this.agentConfig.mode,
                   conversation_id: chunk.metadata.conversation_id,
                   retry: retryCount,
                   langgraph_step: chunk.metadata.langgraph_step,
@@ -575,12 +522,12 @@ export class SnakAgent extends BaseAgent {
                   event: chunk.event,
                   run_id: chunk.run_id,
                   content: chunk.data.chunk.content.toLocaleString(),
-                  checkpoint_id: state.config.configurable.checkpoint_id,
-                  thread_id: state.config.configurable.thread_id,
+                  checkpoint_id: state.config.configurable?.checkpoint_id,
+                  thread_id: state.config.configurable?.thread_id,
                   from: GraphNode.AGENT_EXECUTOR,
                   metadata: {
                     execution_mode: chunk.metadata.executionMode,
-                    agent_mode: agentJsonConfig.mode,
+                    agent_mode: this.agentConfig.mode,
                     retry: retryCount,
                     conversation_id: chunk.metadata.conversation_id,
                     langgraph_step: chunk.metadata.langgraph_step,
@@ -602,12 +549,12 @@ export class SnakAgent extends BaseAgent {
               yield {
                 event: chunk.event,
                 run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable.checkpoint_id,
-                thread_id: state.config.configurable.thread_id,
+                checkpoint_id: state.config.configurable?.checkpoint_id,
+                thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.MEMORY_ORCHESTRATOR,
                 metadata: {
                   execution_mode: chunk.metadata.executionMode,
-                  agent_mode: agentJsonConfig.mode,
+                  agent_mode: this.agentConfig.mode,
                   retry: retryCount,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
@@ -624,12 +571,12 @@ export class SnakAgent extends BaseAgent {
               yield {
                 event: chunk.event,
                 run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable.checkpoint_id,
-                thread_id: state.config.configurable.thread_id,
+                checkpoint_id: state.config.configurable?.checkpoint_id,
+                thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.MEMORY_ORCHESTRATOR,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
-                  agent_mode: agentJsonConfig.mode,
+                  agent_mode: this.agentConfig.mode,
                   execution_mode: chunk.metadata.executionMode,
                   retry: retryCount,
                   conversation_id: chunk.metadata.conversation_id,

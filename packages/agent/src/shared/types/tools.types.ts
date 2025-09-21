@@ -2,11 +2,6 @@ export interface ToolArgs {
   [key: string]: string | number | boolean;
 }
 
-export namespace Id {
-  export type NoId = 'no-id';
-  export type Id = 'id';
-}
-
 // Base type without required id
 export type ToolCallBase = {
   name: string;
@@ -27,7 +22,7 @@ export type ToolCall<HasId extends Id.NoId | Id.Id = Id.NoId> =
 
 import { z as Zod } from 'zod';
 import { RpcProvider } from 'starknet';
-import { AgentConfig } from '@snakagent/core';
+import { AgentConfig, Id } from '@snakagent/core';
 import { MemoryAgent } from '@agents/operators/memoryAgent.js';
 import { RagAgent } from '@agents/operators/ragAgent.js';
 import { DatabaseCredentials } from './database.types.js';
@@ -52,7 +47,7 @@ export interface SnakAgentInterface {
   };
   getDatabaseCredentials: () => DatabaseCredentials;
   getProvider: () => RpcProvider;
-  getAgentConfig: () => AgentConfig;
+  getAgentConfig: () => AgentConfig<Id.Id>;
   getMemoryAgent: () => MemoryAgent | null;
   getRagAgent: () => RagAgent | null;
 }

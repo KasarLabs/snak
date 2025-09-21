@@ -11,23 +11,22 @@ import {
 } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
-import {
-  AgentDeleteRequestDTO,
-  AgentRequestDTO,
-  getMessagesFromAgentsDTO,
-  AgentDeletesRequestDTO,
-} from '../dto/agents.js';
 import { Reflector } from '@nestjs/core';
 import { ServerError } from '../utils/error.js';
 import {
   logger,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
+  AgentConfig,
+  Id,
+  AgentRequestDTO,
+  AgentDeleteRequestDTO,
+  AgentDeletesRequestDTO,
+  getMessagesFromAgentsDTO,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
-import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 import { SnakAgent } from '@snakagent/agents';
 
 export interface AgentResponse {
@@ -118,120 +117,76 @@ export class AgentsController {
   }
 
   @Post('update_agent_config')
-  async updateAgentConfig(@Body() config: AgentConfigSQL): Promise<any> {
+  async updateAgentConfig(
+    @Body() updateRequest: { id: string; config: Partial<AgentConfig<Id.NoId>> }
+  ): Promise<any> {
+    const { id, config } = updateRequest;
+
+    if (!id?.trim()) {
+      throw new BadRequestException('Agent ID is required');
+    }
+
+    if (!config || typeof config !== 'object') {
+      throw new BadRequestException('Configuration object is required');
+    }
+
     try {
-      if (!config || !config.id) {
-        throw new BadRequestException('Agent ID is required');
-      }
-
-      const updateFields: string[] = [];
-      const values: any[] = [];
-      let paramIndex = 1;
-
-      const updatableFields: (keyof AgentConfigSQL)[] = [
-        'name',
-        'group',
-        'description',
-        'lore',
-        'objectives',
-        'knowledge',
-        'system_prompt',
-        'interval',
-        'plugins',
-        'memory',
-        'mode',
-        'max_iterations',
-        'mcpServers',
-      ];
-
-      updatableFields.forEach((field) => {
-        if (config[field] !== undefined && config[field] !== null) {
-          if (field === 'memory') {
-            let memoryData;
-
-            if (typeof config[field] === 'string') {
-              const fieldValue = config[field] as string;
-              if (fieldValue.startsWith('(') && fieldValue.endsWith(')')) {
-                const content = fieldValue.slice(1, -1);
-                const parts = content.split(',');
-                memoryData = {
-                  enabled: parts[0] === 't' || parts[0] === 'true',
-                  shortTermMemorySize: parseInt(parts[1], 10),
-                  memorySize: parseInt(parts[2], 10),
-                };
-              } else {
-                try {
-                  memoryData = JSON.parse(fieldValue);
-                } catch (jsonError) {
-                  throw new BadRequestException(
-                    `Invalid memory format: ${fieldValue}. Expected JSON or PostgreSQL composite type format.`
-                  );
-                }
-              }
-            } else {
-              memoryData = config[field];
-            }
-
-            const enabled =
-              memoryData.enabled === 'true' ||
-              memoryData.enabled === true ||
-              memoryData.enabled === 't';
-            const parsedShortTerm = Number.parseInt(
-              String(memoryData.shortTermMemorySize ?? ''),
-              10
-            );
-            if (Number.isNaN(parsedShortTerm)) {
-              throw new BadRequestException(
-                'memory.shortTermMemorySize must be a valid integer'
-              );
-            }
-
-            const memorySize = parseInt(memoryData.memorySize) || 20;
-
-            updateFields.push(
-              `"memory" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})::memory`
-            );
-            values.push(enabled, parsedShortTerm, memorySize);
-            paramIndex += 3;
-          } else {
-            updateFields.push(`"${String(field)}" = $${paramIndex}`);
-            values.push(config[field]);
-            paramIndex++;
-          }
-        }
-      });
-
-      if (updateFields.length === 0) {
-        throw new BadRequestException('No valid fields to update');
-      }
-
-      values.push(config.id);
-
+      // Use the existing update_agent_complete function
       const query = `
-		UPDATE agents
-		SET ${updateFields.join(', ')}
-		WHERE id = $${paramIndex}
-		RETURNING *
-	  `;
+        SELECT success, message, updated_agent_id
+        FROM update_agent_complete(
+          $1::UUID, $2, $3, $4::agent_profile, $5::agent_mode,
+          $6::JSONB, $7::TEXT[], $8::agent_prompts, $9::graph_config,
+          $10::memory_config, $11::rag_config, $12, $13
+        )
+      `;
 
-      const q = new Postgres.Query(query, values);
-      const result = await Postgres.query<AgentConfigSQL>(q);
+      const result = await Postgres.query(
+        new Postgres.Query(query, [
+          id,
+          config.name || null,
+          config.group || null,
+          config.profile || null,
+          config.mode || null,
+          config.mcpServers ? JSON.stringify(config.mcpServers) : null,
+          config.plugins || null,
+          config.prompts || null,
+          config.graph || null,
+          config.memory || null,
+          config.rag || null,
+          null, // avatarImage
+          null, // avatarMimeType
+        ])
+      );
 
-      if (result.length === 0) {
-        throw new BadRequestException('Agent not found');
+      const updateResult = result[0];
+      if (!updateResult.success) {
+        throw new BadRequestException(updateResult.message);
       }
+
+      // Fetch updated agent
+      const fetchQuery = new Postgres.Query(
+        'SELECT * FROM agents WHERE id = $1',
+        [id]
+      );
+      const agent = await Postgres.query<AgentConfig<Id.Id>>(fetchQuery);
 
       return {
         status: 'success',
-        data: result[0],
+        data: agent[0],
         message: 'Agent configuration updated successfully',
       };
     } catch (error) {
-      logger.error('Error in updateAgentConfig:', error);
+      logger.error('Error in updateAgentConfig:', {
+        agentId: id,
+        error: error.message,
+      });
+
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Update failed: ' + error.message);
+
+      throw new BadRequestException(`Update failed: ${error.message}`);
     }
   }
 

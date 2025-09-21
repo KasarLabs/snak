@@ -116,7 +116,7 @@ jest.mock('../../operators/modelSelector.js', () => {
         return { fast: this.model };
       }
       async selectModelForMessages() {
-        return { model_name: 'fast', model: this.model };
+        return { modelName: 'fast', model: this.model };
       }
     },
   };
@@ -335,17 +335,17 @@ const makeModelSelectorConfig = () => ({
   modelsConfig: {
     fast: {
       provider: 'openai' as any,
-      model_name: 'gpt-4o-mini',
+      modelName: 'gpt-4o-mini',
       description: 'Fast model',
     },
     smart: {
       provider: 'openai' as any,
-      model_name: 'gpt-4o-mini',
+      modelName: 'gpt-4o-mini',
       description: 'Smart model',
     },
     cheap: {
       provider: 'openai' as any,
-      model_name: 'gpt-4o-mini',
+      modelName: 'gpt-4o-mini',
       description: 'Cheap model',
     },
   },

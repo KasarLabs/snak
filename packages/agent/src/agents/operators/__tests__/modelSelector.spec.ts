@@ -63,9 +63,9 @@ jest.mock('../../../token/tokenTracking', () => ({
 const createModelsConfig = (
   overrides: Partial<ModelsConfig> = {}
 ): ModelsConfig => ({
-  fast: { provider: ModelProviders.OpenAI, model_name: 'gpt-fast' },
-  smart: { provider: ModelProviders.Anthropic, model_name: 'claude-smart' },
-  cheap: { provider: ModelProviders.Gemini, model_name: 'gemini-cheap' },
+  fast: { provider: ModelProviders.OpenAI, modelName: 'gpt-fast' },
+  smart: { provider: ModelProviders.Anthropic, modelName: 'claude-smart' },
+  cheap: { provider: ModelProviders.Gemini, modelName: 'gemini-cheap' },
   ...overrides,
 });
 
@@ -204,8 +204,8 @@ describe('ModelSelector', () => {
       const modelsConfig = createModelsConfig({
         fast:
           description === 'unsupported provider'
-            ? { provider: 'unsupported' as any, model_name: 'test' }
-            : { provider: ModelProviders.OpenAI, model_name: 'test' },
+            ? { provider: 'unsupported' as any, modelName: 'test' }
+            : { provider: ModelProviders.OpenAI, modelName: 'test' },
       });
 
       if (description === 'missing API keys') {
@@ -291,7 +291,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('hello');
 
-      expect(result.model_name).toBe(choice);
+      expect(result.modelName).toBe(choice);
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -315,7 +315,7 @@ describe('ModelSelector', () => {
       // The originalUserQuery functionality is no longer implemented with specific debug messages
       // Just verify the method still works with the config parameter
 
-      expect(result.model_name).toBe('smart');
+      expect(result.modelName).toBe('smart');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -329,7 +329,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('simple task');
 
-      expect(result.model_name).toBe('cheap');
+      expect(result.modelName).toBe('cheap');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -347,7 +347,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('placeholder');
 
-      expect(result.model_name).toBe('fast');
+      expect(result.modelName).toBe('fast');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -380,7 +380,7 @@ describe('ModelSelector', () => {
 
       expect(mockDebug).toHaveBeenCalledWith('Using full content analysis.');
 
-      expect(result.model_name).toBe('smart');
+      expect(result.modelName).toBe('smart');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -396,7 +396,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('hello');
 
-      expect(result.model_name).toBe('smart');
+      expect(result.modelName).toBe('smart');
       expect(result.model).toBeDefined();
       // Token is not included when defaulting to smart due to invalid choice
     });
@@ -413,7 +413,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('');
 
-      expect(result.model_name).toBe('smart');
+      expect(result.modelName).toBe('smart');
       expect(result.model).toBeDefined();
     });
 
@@ -554,7 +554,7 @@ describe('ModelSelector', () => {
       const config = createModelsConfig({
         fast: {
           provider: ModelProviders.OpenAI,
-          model_name: 'invalid-model',
+          modelName: 'invalid-model',
         },
       });
 
@@ -582,7 +582,7 @@ describe('ModelSelector', () => {
   describe('Additional functionality', () => {
     it('handles deepseek provider gracefully', async () => {
       const config = createModelsConfig({
-        fast: { provider: 'deepseek' as any, model_name: 'deepseek-model' },
+        fast: { provider: 'deepseek' as any, modelName: 'deepseek-model' },
       });
 
       setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
@@ -598,7 +598,7 @@ describe('ModelSelector', () => {
       const config = createModelsConfig({
         fast: {
           provider: 'unsupported-provider' as any,
-          model_name: 'test-model',
+          modelName: 'test-model',
         },
       });
 

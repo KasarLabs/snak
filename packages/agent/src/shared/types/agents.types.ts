@@ -1,5 +1,9 @@
 import { AgentType } from '@enums/agent-modes.enum.js';
-import { Annotation } from '@langchain/langgraph';
+import {
+  Annotation,
+  CompiledStateGraph,
+  StateGraph,
+} from '@langchain/langgraph';
 import { AgentConfig } from '@snakagent/core';
 import { ChunkOutput } from './streaming.types.js';
 
@@ -48,7 +52,7 @@ export interface IAgent {
  * Agent return structure
  */
 export interface AgentReturn {
-  app: any;
+  app: CompiledStateGraph<any, any, any, any, any, any>;
   agent_config: AgentConfig;
 }
 

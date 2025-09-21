@@ -4,6 +4,7 @@ import { ModelSelector } from './modelSelector.js';
 import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 export interface AgentInfo {
   name: string;
@@ -12,7 +13,7 @@ export interface AgentInfo {
 
 export interface AgentSelectionConfig {
   availableAgents: Map<string, SnakAgent>;
-  modelSelector: ModelSelector;
+  model: BaseChatModel;
   debug?: boolean;
 }
 
@@ -23,12 +24,10 @@ export interface AgentSelectionConfig {
 export class AgentSelector extends BaseAgent {
   private availableAgents: Map<string, SnakAgent> = new Map();
   private agentInfo: Map<string, string> = new Map();
-  private modelSelector: ModelSelector;
-
+  private model: BaseChatModel;
   constructor(config: AgentSelectionConfig) {
     super('agent-selector', AgentType.OPERATOR);
     this.availableAgents = config.availableAgents;
-    this.modelSelector = config.modelSelector;
   }
 
   public async init(): Promise<void> {
@@ -37,7 +36,7 @@ export class AgentSelector extends BaseAgent {
       const agent_config = value.getAgentConfig();
       this.agentInfo.set(
         agent_config.name,
-        agent_config.description || 'No description available'
+        agent_config.profile.description || 'No description available'
       );
     }
     logger.debug(
@@ -45,10 +44,8 @@ export class AgentSelector extends BaseAgent {
         this.agentInfo.keys()
       ).join(', ')}`
     );
-    if (!this.modelSelector) {
-      logger.warn(
-        'AgentSelector: No ModelSelector provided, selection capabilities will be limited'
-      );
+    if (!this.model) {
+      logger.warn('AgentSelector: No Model avaible for the user.');
     }
   }
 
@@ -70,15 +67,14 @@ export class AgentSelector extends BaseAgent {
     this.availableAgents.set(agent[0], agent[1]);
     this.agentInfo.set(
       agent[1].getAgentConfig().name,
-      agent[1].getAgentConfig().description || 'No description available'
+      agent[1].getAgentConfig().profile.description ||
+        'No description available'
     );
   }
 
   public async execute(input: string): Promise<SnakAgent> {
     try {
-      const model = this.modelSelector.getModels()['fast'];
-      logger.info('AgentSelector model:', this.modelSelector.getModels());
-      const result = await model.invoke(
+      const result = await this.model.invoke(
         agentSelectorPromptContent(this.agentInfo, input)
       );
       logger.debug('AgentSelector result:', result);

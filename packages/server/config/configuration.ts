@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import * as path from 'path';
-import { ModelsConfig, ModelLevelConfig, RagConfigSize } from '@snakagent/core'; // Assuming core exports these types
+import { ModelsConfig, ModelConfig, RagConfigSize } from '@snakagent/core'; // Assuming core exports these types
 import { readFileSync } from 'fs';
 
 @Injectable()
@@ -130,7 +130,7 @@ export class ConfigurationService {
 
   get ai() {
     const modelLevel = this.config.AI_MODEL_LEVEL as keyof ModelsConfig;
-    const selectedModelConfig: ModelLevelConfig | undefined =
+    const selectedModelConfig: ModelConfig | undefined =
       this.modelsConfig[modelLevel];
 
     if (!selectedModelConfig) {
@@ -141,7 +141,7 @@ export class ConfigurationService {
     }
 
     const provider = selectedModelConfig.provider;
-    const model = selectedModelConfig.model_name;
+    const model = selectedModelConfig.modelName;
     const apiKey = this.getApiKeyForProvider(provider);
 
     return {

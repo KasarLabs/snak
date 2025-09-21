@@ -1,46 +1,15 @@
-export interface AgentConfig {
-  id?: number;
-  name: string;
-  description?: string;
-  group?: string;
-  lore?: string[];
-  objectives?: string[];
-  knowledge?: string[];
-  system_prompt?: string;
-  interval?: number;
-  plugins?: string[];
-  memory?: {
-    enabled?: boolean;
-    shortTermMemorySize?: number;
-    memorySize?: number;
-  };
-  rag?: {
-    enabled?: boolean;
-    embeddingModel?: string;
-  };
-  mode?: string;
-  max_iterations?: number;
-}
-
-export interface RagConfig {
-  enabled?: boolean;
-  topK?: number;
-  embeddingModel?: string;
-}
-
-export interface ModelLevelConfig {
+export interface ModelConfig {
   provider: string;
-  model_name: string;
-  description?: string;
-  max_input_tokens?: number;
-  max_output_tokens?: number;
+  modelName: string;
+  temperature: number;
+  max_tokens: number;
 }
 
 export interface ModelsConfig {
-  fast: ModelLevelConfig;
-  smart: ModelLevelConfig;
-  cheap: ModelLevelConfig;
-  [levelName: string]: ModelLevelConfig;
+  fast: ModelConfig;
+  smart: ModelConfig;
+  cheap: ModelConfig;
+  [levelName: string]: ModelConfig;
 }
 
 export interface ApiKeys {

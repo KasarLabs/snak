@@ -1,5 +1,5 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { AgentMode, ModelLevelConfig, ModelProviders } from '@snakagent/core';
+import { AgentMode, ModelConfig, ModelProviders } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '../core/snakAgent.js';
 import {
@@ -156,21 +156,21 @@ async function ensureDbConnection(): Promise<void> {
 
 // Model Configuration
 function getModelSelectorConfig(): ModelSelectorConfig {
-  const fast: ModelLevelConfig = {
+  const fast: ModelConfig = {
     provider: ModelProviders.OpenAI,
-    model_name: 'gpt-4o-mini',
+    modelName: 'gpt-4o-mini',
     description: 'Optimized for speed and simple tasks.',
   };
 
-  const smart: ModelLevelConfig = {
+  const smart: ModelConfig = {
     provider: ModelProviders.OpenAI,
-    model_name: 'gpt-4o-mini',
+    modelName: 'gpt-4o-mini',
     description: 'Optimized for complex reasoning.',
   };
 
-  const cheap: ModelLevelConfig = {
+  const cheap: ModelConfig = {
     provider: ModelProviders.OpenAI,
-    model_name: 'gpt-4o-mini',
+    modelName: 'gpt-4o-mini',
     description: 'Good cost-performance balance.',
   };
 

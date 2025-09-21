@@ -17,7 +17,7 @@ import { AgentType } from '@enums/agent-modes.enum.js';
 
 export interface ModelSelectorReturn {
   model: BaseChatModel;
-  model_name: string;
+  modelName: string;
   token?: {
     intput_token: number;
     output_token: number;
@@ -153,7 +153,7 @@ export class ModelSelector extends BaseAgent {
 
     this.models = {};
     for (const [levelName, levelConfig] of Object.entries(this.modelsConfig)) {
-      const { provider, model_name } = levelConfig as any; // Cast to any if structure is dynamic
+      const { provider, modelName } = levelConfig as any; // Cast to any if structure is dynamic
       const apiKey = this.apiKeys[provider];
 
       if (!apiKey) {
@@ -166,7 +166,7 @@ export class ModelSelector extends BaseAgent {
       try {
         let modelInstance: BaseChatModel | null = null;
         const commonConfig = {
-          modelName: model_name,
+          modelName: modelName,
           apiKey: apiKey,
           verbose: this.debugMode, // Pass debugMode for model verbosity
         };
@@ -201,13 +201,13 @@ export class ModelSelector extends BaseAgent {
           this.models[levelName] = modelInstance;
           if (this.debugMode) {
             logger.debug(
-              `Initialized model for level '${levelName}': ${provider} - ${model_name}`
+              `Initialized model for level '${levelName}': ${provider} - ${modelName}`
             );
           }
         }
       } catch (error) {
         logger.error(
-          `Failed to initialize model for level '${levelName}' (${provider} - ${model_name}): ${error}`
+          `Failed to initialize model for level '${levelName}' (${provider} - ${modelName}): ${error}`
         );
       }
     }
@@ -270,7 +270,7 @@ export class ModelSelector extends BaseAgent {
         }
         return {
           model: this.models[modelChoice],
-          model_name: modelChoice,
+          modelName: modelChoice,
           token: {
             intput_token: token.promptTokens,
             output_token: token.responseTokens,
@@ -281,7 +281,7 @@ export class ModelSelector extends BaseAgent {
         logger.warn(
           `Invalid model selection response: "${modelChoice}". Defaulting to "smart".`
         );
-        return { model: this.models['smart'], model_name: 'smart' };
+        return { model: this.models['smart'], modelName: 'smart' };
       }
     } catch (error) {
       logger.warn(
@@ -298,7 +298,7 @@ export class ModelSelector extends BaseAgent {
    * @throws {Error} If the selected or fallback model is unavailable or fails to invoke.
    */
   public async execute(input: string): Promise<any> {
-    const modelType = (await this.selectModelForMessages(input)).model_name;
+    const modelType = (await this.selectModelForMessages(input)).modelName;
 
     let selectedModel = this.models[modelType];
 

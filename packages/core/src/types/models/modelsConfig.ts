@@ -3,7 +3,7 @@ import { ModelProviders } from './models.js';
 /**
  * Configuration for a single AI model level.
  */
-export interface ModelLevelConfig {
+export interface ModelConfig {
   /**
    * The provider of the AI model (e.g., "openai", "anthropic", "gemini").
    */
@@ -12,7 +12,7 @@ export interface ModelLevelConfig {
   /**
    * The specific name of the model (e.g., "gpt-4o-mini", "claude-3-haiku-20240307", "gemini-1.5-flash").
    */
-  model_name: string;
+  modelName: string;
 
   /**
    * An optional description for this model level.
@@ -22,12 +22,12 @@ export interface ModelLevelConfig {
   /**
    * The maximum number of input tokens per request.
    */
-  max_input_tokens?: number;
+  maxInputTokens?: number;
 
   /**
    * The maximum number of output tokens per request.
    */
-  max_output_tokens?: number;
+  maxOutputTokens?: number;
 }
 
 /**
@@ -37,22 +37,22 @@ export interface ModelsConfig {
   /**
    * Configuration for the "fast" model level, optimized for speed and simple tasks.
    */
-  fast: ModelLevelConfig;
+  fast: ModelConfig;
 
   /**
    * Configuration for the "smart" model level, optimized for complex reasoning.
    */
-  smart: ModelLevelConfig;
+  smart: ModelConfig;
 
   /**
    * Configuration for the "cheap" model level, offering a balance between cost and performance.
    */
-  cheap: ModelLevelConfig;
+  cheap: ModelConfig;
 
   /**
    * Allows defining additional custom model levels.
    */
-  [levelName: string]: ModelLevelConfig;
+  [levelName: string]: ModelConfig;
 }
 
 /**

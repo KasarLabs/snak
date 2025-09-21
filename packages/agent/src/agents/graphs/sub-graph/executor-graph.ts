@@ -92,7 +92,7 @@ export class AgentExecutorGraph {
 
     const result = await modelBind.invoke(formattedPrompt);
     // Agréger tous les chunks
-    TokenTracker.trackCall(result, 'selectedModelType.model_name');
+    TokenTracker.trackCall(result, 'selectedModelType.modelName');
     return result;
   }
 

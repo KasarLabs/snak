@@ -12,27 +12,8 @@ CREATE TABLE IF NOT EXISTS models_config (
     -- Unique identifier for each model configuration set
     -- UUID ensures global uniqueness across distributed systems
     id    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    
-    -- Fast Model Configuration
-    -- Optimized for: Quick responses, simple tasks, high throughput
-    -- Use cases: Simple queries, formatting, basic classification
-    -- Typical models: GPT-3.5-turbo, Claude Haiku, smaller local models
-    -- Cost: Low, Speed: High, Capability: Basic
-    fast  model NOT NULL,
-    
-    -- Smart Model Configuration  
-    -- Optimized for: Complex reasoning, detailed analysis, accuracy
-    -- Use cases: Complex problem solving, code generation, deep analysis
-    -- Typical models: GPT-4, Claude Sonnet, larger reasoning models  
-    -- Cost: Medium, Speed: Medium, Capability: High
-    smart model NOT NULL,
-    
-    -- Cheap Model Configuration
-    -- Optimized for: Cost efficiency, bulk operations, simple tasks
-    -- Use cases: Data processing, simple transformations, batch jobs
-    -- Typical models: Local models, older generations, specialized cheap models
-    -- Cost: Very Low, Speed: Variable, Capability: Basic
-    cheap model NOT NULL
+    user_id TEXT NOT NULL DEFAULT 'default_user',
+    model model_config NOT NULL
 );
 
 -- ============================================================================
@@ -41,25 +22,23 @@ CREATE TABLE IF NOT EXISTS models_config (
 --
 -- Example model configurations:
 --
--- OpenAI Configuration:
---   fast:  ROW('openai', 'gpt-3.5-turbo', 'Fast general-purpose model')::model
---   smart: ROW('openai', 'gpt-4', 'Advanced reasoning and analysis')::model  
---   cheap: ROW('openai', 'gpt-3.5-turbo', 'Cost-optimized for bulk tasks')::model
+-- OpenAI GPT-4 Configuration:
+--   ROW('openai', 'gpt-4', 0.7, 8192)::model_config
 --
--- Anthropic Configuration:
---   fast:  ROW('anthropic', 'claude-3-haiku', 'Quick responses and formatting')::model
---   smart: ROW('anthropic', 'claude-3-sonnet', 'Complex reasoning and coding')::model
---   cheap: ROW('anthropic', 'claude-3-haiku', 'Budget-friendly operations')::model
+-- OpenAI GPT-3.5 Turbo Configuration:
+--   ROW('openai', 'gpt-3.5-turbo', 0.7, 4096)::model_config
 --
--- Mixed Provider Configuration:
---   fast:  ROW('openai', 'gpt-3.5-turbo', 'OpenAI fast model')::model
---   smart: ROW('anthropic', 'claude-3-sonnet', 'Anthropic reasoning model')::model
---   cheap: ROW('local', 'llama-2-7b', 'Local cost-free model')::model
+-- Anthropic Claude-3 Sonnet Configuration:
+--   ROW('anthropic', 'claude-3-sonnet-20240229', 0.7, 8192)::model_config
 --
--- Local Model Configuration:
---   fast:  ROW('ollama', 'llama3.1:8b', 'Local fast inference')::model
---   smart: ROW('ollama', 'llama3.1:70b', 'Local high-capability model')::model
---   cheap: ROW('ollama', 'tinyllama:1b', 'Minimal resource usage')::model
+-- Anthropic Claude-3 Haiku Configuration:
+--   ROW('anthropic', 'claude-3-haiku-20240307', 0.7, 4096)::model_config
+--
+-- Local Ollama Configuration:
+--   ROW('ollama', 'llama3.1:8b', 0.7, 4096)::model_config
+--
+-- Azure OpenAI Configuration:
+--   ROW('azure', 'gpt-4', 0.7, 8192)::model_config
 --
 -- ============================================================================
 
@@ -67,34 +46,35 @@ CREATE TABLE IF NOT EXISTS models_config (
 -- USAGE PATTERNS
 -- ============================================================================
 --
--- Inserting a new model configuration set:
---   INSERT INTO models_config (fast, smart, cheap) VALUES (
---     ROW('openai', 'gpt-3.5-turbo', 'Fast OpenAI model for quick responses')::model,
---     ROW('openai', 'gpt-4', 'Smart OpenAI model for complex reasoning')::model,
---     ROW('openai', 'gpt-3.5-turbo', 'Cheap OpenAI model for bulk operations')::model
+-- Inserting a new model configuration:
+--   INSERT INTO models_config (user_id, model) VALUES (
+--     'user123',
+--     ROW('openai', 'gpt-4', 0.7, 8192)::model_config
 --   );
 --
 -- Retrieving model configurations:
---   SELECT 
---     (fast).provider as fast_provider,
---     (fast).model_name as fast_model,
---     (smart).provider as smart_provider,
---     (smart).model_name as smart_model,
---     (cheap).provider as cheap_provider,
---     (cheap).model_name as cheap_model
---   FROM models_config 
---   WHERE id = $1;
+--   SELECT
+--     id,
+--     user_id,
+--     (model).model_provider as provider,
+--     (model).model_name as model_name,
+--     (model).temperature as temperature,
+--     (model).max_tokens as max_tokens
+--   FROM models_config
+--   WHERE user_id = $1;
 --
--- Updating specific model tier:
---   UPDATE models_config 
---   SET smart = ROW('anthropic', 'claude-3-opus', 'Most advanced reasoning model')::model
---   WHERE id = $1;
+-- Updating model configuration:
+--   UPDATE models_config
+--   SET model = ROW('anthropic', 'claude-3-sonnet-20240229', 0.7, 8192)::model_config
+--   WHERE user_id = $1;
 --
 -- Finding configurations by provider:
---   SELECT * FROM models_config 
---   WHERE (fast).provider = 'openai' 
---      OR (smart).provider = 'openai' 
---      OR (cheap).provider = 'openai';
+--   SELECT * FROM models_config
+--   WHERE (model).model_provider = 'openai';
+--
+-- Finding configurations by model name:
+--   SELECT * FROM models_config
+--   WHERE (model).model_name = 'gpt-4';
 --
 -- ============================================================================
 
@@ -102,35 +82,31 @@ CREATE TABLE IF NOT EXISTS models_config (
 -- MODEL SELECTION STRATEGY
 -- ============================================================================
 --
--- Agent Model Selection Logic:
--- 
--- 1. FAST Model Selection Criteria:
---    - Simple text formatting and cleanup
---    - Basic classification tasks
---    - Quick status updates and acknowledgments
---    - High-frequency, low-complexity operations
---    - Response time < 2 seconds preferred
+-- Agent Model Selection Guidelines:
 --
--- 2. SMART Model Selection Criteria:
---    - Complex reasoning and problem-solving
---    - Code generation and debugging
---    - Detailed analysis and research
---    - Multi-step planning and strategy
---    - Critical decision-making tasks
---    - Quality over speed requirements
+-- Model Configuration Considerations:
+--    - Choose appropriate provider based on requirements and availability
+--    - Set temperature based on desired creativity vs consistency
+--      * Lower (0.0-0.3): More deterministic, consistent outputs
+--      * Medium (0.4-0.7): Balanced creativity and consistency
+--      * Higher (0.8-2.0): More creative, varied outputs
+--    - Set max_tokens based on expected response length needs
+--      * Short responses: 1024-2048 tokens
+--      * Medium responses: 4096-8192 tokens
+--      * Long responses: 8192+ tokens
 --
--- 3. CHEAP Model Selection Criteria:
---    - Bulk data processing operations
---    - Repetitive template-based tasks
---    - Non-critical background processing
---    - Cost-sensitive batch operations
---    - Resource-constrained environments
+-- Provider Selection Guidelines:
+--    - OpenAI: General-purpose, well-documented APIs
+--    - Anthropic: Strong reasoning, safety-focused
+--    - Azure: Enterprise integration, compliance features
+--    - Ollama: Local deployment, privacy, cost control
 --
 -- Implementation Notes:
--- - Agents should fallback: smart -> fast -> cheap on failures
--- - Model selection can be overridden per agent or per task
+-- - Each user/agent should have their own model configuration
+-- - Model configuration can be updated per user requirements
 -- - Monitor costs and performance metrics for optimization
--- - Consider rate limits and availability when selecting models
+-- - Consider rate limits and availability when selecting providers
+-- - Validate all required fields before creating configurations
 --
 -- ============================================================================
 
@@ -139,7 +115,7 @@ CREATE TABLE IF NOT EXISTS models_config (
 -- ============================================================================
 
 -- Function to get default model configuration
--- Returns the first available model configuration or creates a default one
+-- Returns the first available model configuration or raises an error if none exists
 CREATE OR REPLACE FUNCTION get_default_models_config()
 RETURNS models_config
 LANGUAGE plpgsql
@@ -149,45 +125,64 @@ DECLARE
 BEGIN
     -- Try to get existing configuration
     SELECT * INTO config FROM models_config LIMIT 1;
-    
-    -- If no configuration exists, return a default configuration
-    -- This prevents system failures when no models are configured
+
+    -- If no configuration exists, raise an error instead of creating defaults
+    -- This forces proper configuration setup
     IF NOT FOUND THEN
-        -- Create default configuration using OpenAI models
-        -- This assumes OpenAI API access; modify as needed for your environment
-        config.id := uuid_generate_v4();
-        config.fast := ROW('openai', 'gpt-3.5-turbo', 'Default fast model for quick responses')::model;
-        config.smart := ROW('openai', 'gpt-4', 'Default smart model for complex tasks')::model;
-        config.cheap := ROW('openai', 'gpt-3.5-turbo', 'Default cheap model for bulk operations')::model;
+        RAISE EXCEPTION 'No model configuration found. Please create a model configuration first.';
     END IF;
-    
+
     RETURN config;
 END;
 $$;
 
 -- Function to validate model configuration
--- Ensures all required fields are present and properly formatted
-CREATE OR REPLACE FUNCTION validate_model_config(config models_config)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-AS $$
+-- Raises specific errors for missing fields instead of returning boolean
+CREATE OR REPLACE FUNCTION validate_models_config_record()
+RETURNS TRIGGER AS $$
 BEGIN
-    -- Check that all model tiers are defined
-    IF config.fast IS NULL OR config.smart IS NULL OR config.cheap IS NULL THEN
-        RETURN FALSE;
+    -- Check that model configuration is defined
+    IF NEW.model IS NULL THEN
+        RAISE EXCEPTION 'Model configuration is required';
     END IF;
-    
-    -- Check that all models have required fields
-    IF (config.fast).provider IS NULL OR (config.fast).model_name IS NULL OR
-       (config.smart).provider IS NULL OR (config.smart).model_name IS NULL OR
-       (config.cheap).provider IS NULL OR (config.cheap).model_name IS NULL THEN
-        RETURN FALSE;
+
+    -- Check that all model fields are present
+    IF (NEW.model).model_provider IS NULL OR length(trim((NEW.model).model_provider)) = 0 THEN
+        RAISE EXCEPTION 'Model configuration missing: model_provider is required';
     END IF;
-    
+
+    IF (NEW.model).model_name IS NULL OR length(trim((NEW.model).model_name)) = 0 THEN
+        RAISE EXCEPTION 'Model configuration missing: model_name is required';
+    END IF;
+
+    IF (NEW.model).temperature IS NULL THEN
+        RAISE EXCEPTION 'Model configuration missing: temperature is required';
+    END IF;
+
+    IF (NEW.model).max_tokens IS NULL THEN
+        RAISE EXCEPTION 'Model configuration missing: max_tokens is required';
+    END IF;
+
+    -- Validate temperature range (0.0 to 2.0 for most models)
+    IF (NEW.model).temperature < 0.0 OR (NEW.model).temperature > 2.0 THEN
+        RAISE EXCEPTION 'Model temperature must be between 0.0 and 2.0, got: %', (NEW.model).temperature;
+    END IF;
+
+    -- Validate max_tokens (must be positive)
+    IF (NEW.model).max_tokens <= 0 THEN
+        RAISE EXCEPTION 'Model max_tokens must be positive, got: %', (NEW.model).max_tokens;
+    END IF;
+
     -- All validations passed
-    RETURN TRUE;
+    RETURN NEW;
 END;
-$$;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to validate models on insert/update
+CREATE TRIGGER validate_models_config_before_insert_update
+    BEFORE INSERT OR UPDATE ON models_config
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_models_config_record();
 
 -- ============================================================================
 -- MONITORING AND ANALYTICS SUPPORT

@@ -1,30 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Query } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import { DatabaseService } from './services/database.service.js';
 import { Postgres } from '@snakagent/database';
-import {
-  AgentConfig,
-  ModelsConfig,
-  ModelProviders,
-  ModelLevelConfig,
-  RawAgentConfig,
-  AgentMode,
-} from '@snakagent/core';
-import {
-  AgentConfigSQL,
-  AgentRagSQL,
-  AgentMemorySQL,
-} from './interfaces/sql_interfaces.js';
-
+import { AgentConfig, ModelConfig, Id, StarknetConfig } from '@snakagent/core';
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.js';
-import {
-  AgentSelector,
-  ModelSelector,
-  SnakAgent,
-  SnakAgentConfig,
-} from '@snakagent/agents';
+import { AgentSelector, SnakAgent } from '@snakagent/agents';
 import { SystemMessage } from '@langchain/core/messages';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
 const logger = new Logger('AgentStorage');
 
@@ -33,7 +19,7 @@ const logger = new Logger('AgentStorage');
  */
 @Injectable()
 export class AgentStorage implements OnModuleInit {
-  private agentConfigs: AgentConfigSQL[] = [];
+  private agentConfigs: AgentConfig<Id.Id>[] = [];
   private agentInstances: Map<string, SnakAgent> = new Map();
   private agentSelector: AgentSelector;
   private initialized: boolean = false;
@@ -53,9 +39,9 @@ export class AgentStorage implements OnModuleInit {
   /**
    * Get an agent configuration by ID
    * @param id - Agent ID
-   * @returns AgentConfigSQL | undefined - The agent configuration or undefined if not found
+   * @returns AgentConfig<Id.Id> | undefined - The agent configuration or undefined if not found
    */
-  public getAgentConfig(id: string): AgentConfigSQL | undefined {
+  public getAgentConfig(id: string): AgentConfig<Id.Id> | undefined {
     if (!this.initialized) {
       return undefined;
     }
@@ -64,9 +50,9 @@ export class AgentStorage implements OnModuleInit {
 
   /**
    * Get all agent configurations
-   * @returns AgentConfigSQL[] - Array of all agent configurations
+   * @returns AgentConfig<Id.Id>[] - Array of all agent configurations
    */
-  public getAllAgentConfigs(): AgentConfigSQL[] {
+  public getAllAgentConfigs(): AgentConfig<Id.Id>[] {
     if (!this.initialized) {
       return [];
     }
@@ -108,6 +94,35 @@ export class AgentStorage implements OnModuleInit {
     return instance;
   }
 
+  public async getModelFromUser(userId: string): Promise<ModelConfig> {
+    if (!userId || userId.length === 0) {
+      throw new Error('User ID is required to fetch model configuration');
+    }
+    const query = new Postgres.Query(
+      `SELECT 
+      (model).model_provider as provider,
+      (model).model_name as model_name,
+      (model).temperature as temperature,
+      (model).max_tokens as max_tokens
+      FROM models_config WHERE user_id = $1`,
+      [userId]
+    );
+    const result = await Postgres.query<ModelConfig>(query);
+    console.log(result);
+    if (result.length === 0) {
+      const create_q = new Postgres.Query(
+        "INSERT INTO models_config (user_id,model) VALUES ('default-user',ROW('gemini', 'gemini-2.5-flash', 0.7, 8192)::model_config)"
+      );
+      await Postgres.query(create_q);
+      const new_r = await Postgres.query<ModelConfig>(query);
+      if (new_r.length <= 0) {
+        throw new Error(`No user found with ID: ${userId}`);
+      }
+      return new_r[0];
+    }
+    return result[0];
+  }
+
   public isInitialized(): boolean {
     return this.initialized;
   }
@@ -117,9 +132,11 @@ export class AgentStorage implements OnModuleInit {
   /**
    * Add a new agent to the system
    * @param agent_config - Raw agent configuration
-   * @returns Promise<AgentConfigSQL> - The newly created agent configuration
+   * @returns Promise<AgentConfig<Id.Id>> - The newly created agent configuration
    */
-  public async addAgent(agent_config: RawAgentConfig): Promise<AgentConfigSQL> {
+  public async addAgent(
+    agent_config: AgentConfig<Id.NoId>
+  ): Promise<AgentConfig<Id.Id>> {
     logger.debug(`Adding agent with config: ${JSON.stringify(agent_config)}`);
 
     if (!this.initialized) {
@@ -160,46 +177,48 @@ export class AgentStorage implements OnModuleInit {
       }
     }
 
-    const systemPrompt = this.buildSystemPromptFromConfig({
-      name: finalName,
-      description: agent_config.description,
-      lore: agent_config.lore,
-      objectives: agent_config.objectives,
-      knowledge: agent_config.knowledge,
-    });
-
     const q = new Postgres.Query(
-      `INSERT INTO agents (name, "group", description, lore, objectives, knowledge, system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12), ROW($13, $14), $15, $16, $17) RETURNING *`,
+      `INSERT INTO agents (
+        name,
+        "group",
+        profile,
+        mode,
+        mcp_servers,
+        plugins,
+        prompts,
+        graph,
+        memory,
+        rag
+      ) VALUES (
+        $1,
+        $2,
+        $3::agent_profile,
+        $4::agent_mode,
+        $5::jsonb,
+        $6::text[],
+        $7::agent_prompts,
+        $8::graph_config,
+        $9::memory_config,
+        $10::rag_config
+      ) RETURNING *`,
       [
-        finalName,
-        group,
-        agent_config.description,
-        agent_config.lore,
-        agent_config.objectives,
-        agent_config.knowledge,
-        systemPrompt,
-        agent_config.interval,
-        agent_config.plugins,
-        agent_config.memory.enabled || false,
-        agent_config.memory.shortTermMemorySize || 5,
-        agent_config.memory.memorySize || 20,
-        agent_config.rag?.enabled || false,
-        agent_config.rag?.embeddingModel || null,
-        agent_config.mode,
-        15,
-        agent_config.mcpServers || '{}',
+        finalName, // $1
+        group, // $2
+        agent_config.profile, // $3
+        agent_config.mode, // $4
+        agent_config.mcpServers || {}, // $5
+        agent_config.plugins, // $6
+        agent_config.prompts, // $7
+        agent_config.graph, // $8
+        agent_config.memory, // $9
+        agent_config.rag, // $10
       ]
     );
-    const q_res = await Postgres.query<AgentConfigSQL>(q);
+    const q_res = await Postgres.query<AgentConfig<Id.Id>>(q);
     logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
-      const newAgentDbRecord = {
-        ...q_res[0],
-        memory: this.parseMemoryConfig(q_res[0].memory),
-        rag: this.parseRagConfig(q_res[0].rag),
-      };
+      const newAgentDbRecord = q_res[0];
       this.agentConfigs.push(newAgentDbRecord);
       this.createSnakAgentFromConfig(newAgentDbRecord)
         .then((snakAgent) => {
@@ -237,7 +256,7 @@ export class AgentStorage implements OnModuleInit {
       `DELETE FROM agents WHERE id = $1 RETURNING *`,
       [id]
     );
-    const q_res = await Postgres.query<AgentConfigSQL>(q);
+    const q_res = await Postgres.query<AgentConfig<Id.Id>>(q);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
     this.agentConfigs = this.agentConfigs.filter((config) => config.id !== id);
@@ -284,24 +303,14 @@ export class AgentStorage implements OnModuleInit {
     this.initializationPromise = this.performInitialize();
     try {
       await this.initializationPromise;
-      const modelConfig = await this.get_models_config();
-      if (!modelConfig) {
-        throw new Error('ModelConfig is not available.');
+      const model = await this.getModelFromUser('default-user');
+      const modelInstance = this.initializeModels(model);
+      if (!modelInstance) {
+        throw new Error('Failed to initialize model for AgentSelector');
       }
-      logger.debug(
-        `Model configuration loaded: ${JSON.stringify(modelConfig)}`
-      );
-
-      // Init Agent Selector
-      const modelSelector = new ModelSelector({
-        debugMode: false,
-        useModelSelector: false,
-        modelsConfig: modelConfig,
-      });
-      await modelSelector.init();
       this.agentSelector = new AgentSelector({
         availableAgents: this.agentInstances,
-        modelSelector: modelSelector,
+        model: modelInstance,
       });
       await this.agentSelector.init();
     } catch (error) {
@@ -321,67 +330,11 @@ export class AgentStorage implements OnModuleInit {
       await this.databaseService.onReady();
 
       await DatabaseStorage.connect();
-      await this.init_models_config();
       await this.init_agents_config();
       this.initialized = true;
     } catch (error) {
       logger.error('Error during agent storage initialization:', error);
       this.initialized = false;
-      throw error;
-    }
-  }
-
-  /**
-   * Initialize models configuration with default values if not exists
-   * @private
-   */
-  private async init_models_config() {
-    try {
-      logger.debug('Initializing models configuration');
-      const q = new Postgres.Query(
-        `SELECT EXISTS(SELECT * FROM models_config)`
-      );
-      const result = await Postgres.query<{ exists: boolean }>(q);
-
-      if (!result[0].exists) {
-        logger.debug('Models configuration not found, creating default config');
-
-        const fast: ModelLevelConfig = {
-          provider: ModelProviders.Gemini,
-          model_name: 'gemini-2.5-flash',
-          description: 'Optimized for speed and simple tasks.',
-        };
-        const smart: ModelLevelConfig = {
-          provider: ModelProviders.Gemini,
-          model_name: 'gemini-2.5-flash',
-          description: 'Optimized for complex reasoning.',
-        };
-        const cheap: ModelLevelConfig = {
-          provider: ModelProviders.Gemini,
-          model_name: 'gemini-2.5-flash',
-          description: 'Good cost-performance balance.',
-        };
-
-        const q = new Postgres.Query(
-          `INSERT INTO models_config (fast, smart, cheap) VALUES (ROW($1, $2, $3), ROW($4, $5, $6), ROW($7, $8, $9))`,
-          [
-            fast.provider,
-            fast.model_name,
-            fast.description,
-            smart.provider,
-            smart.model_name,
-            smart.description,
-            cheap.provider,
-            cheap.model_name,
-            cheap.description,
-          ]
-        );
-        await Postgres.query(q);
-      } else {
-        logger.debug('Models configuration already exists, skipping creation.');
-      }
-    } catch (error) {
-      logger.error('Error during models configuration initialization:', error);
       throw error;
     }
   }
@@ -394,95 +347,15 @@ export class AgentStorage implements OnModuleInit {
     try {
       logger.debug('Initializing agents configuration');
       const q = new Postgres.Query(`SELECT * FROM agents`);
-      const q_res = await Postgres.query<AgentConfigSQL>(q);
-      const parsed = q_res.map((cfg) => ({
-        ...cfg,
-        memory: this.parseMemoryConfig(cfg.memory),
-        rag: this.parseRagConfig(cfg.rag),
-      }));
-      this.agentConfigs = [...parsed];
+      const q_res = await Postgres.query<AgentConfig<Id.Id>>(q);
+      this.agentConfigs = [...q_res];
       await this.registerAgentInstance();
       logger.debug(
         `Agents configuration loaded: ${this.agentConfigs.length} agents`
       );
-      return parsed;
+      return q_res;
     } catch (error) {
       logger.error('Error during agents configuration initialization:', error);
-      throw error;
-    }
-  }
-
-  /* ==================== PRIVATE PARSING METHODS ==================== */
-
-  /**
-   * Parse agent configuration from database format
-   * @param config - Raw configuration string from database
-   * @returns Parsed ModelLevelConfig
-   * @private
-   */
-  private parseAgentConfig(config: any): ModelLevelConfig {
-    try {
-      const content = config.trim().slice(1, -1);
-      const parts = content.split(',');
-      const model: ModelLevelConfig = {
-        provider: parts[0],
-        model_name: parts[1],
-        description: parts[2],
-      };
-      return model;
-    } catch (error) {
-      logger.error('Error parsing agent config:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Parse memory configuration from composite type string
-   * @param config - Raw memory config string e.g. "(true,5)"
-   * @returns Parsed AgentMemorySQL
-   * @private
-   */
-  private parseMemoryConfig(config: string | AgentMemorySQL): AgentMemorySQL {
-    try {
-      if (typeof config !== 'string') {
-        return config as AgentMemorySQL;
-      }
-      const content = config.trim().slice(1, -1);
-      const parts = content.split(',');
-      return {
-        enabled: parts[0] === 't' || parts[0] === 'true',
-        short_term_memory_size: parseInt(parts[1], 10),
-        memory_size: parseInt(parts[2] || '20', 10),
-      };
-    } catch (error) {
-      logger.error('Error parsing memory config:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Parse rag configuration from composite type string
-   * @param config - Raw rag config string e.g. "(false,my-model)"
-   * @returns Parsed AgentRagSQL
-   * @private
-   */
-  private parseRagConfig(config: string | AgentRagSQL): AgentRagSQL {
-    try {
-      if (typeof config !== 'string') {
-        return config as AgentRagSQL;
-      }
-      const content = config.trim().slice(1, -1);
-      const parts = content.split(',');
-      const embedding = parts[1]?.replace(/^"|"$/g, '') || null;
-      return {
-        enabled: parts[0] === 't' || parts[0] === 'true',
-        embedding_model:
-          embedding === '' || embedding?.toLowerCase() === 'null'
-            ? null
-            : embedding,
-      };
-    } catch (error) {
-      logger.error('Error parsing rag config:', error);
       throw error;
     }
   }
@@ -490,10 +363,10 @@ export class AgentStorage implements OnModuleInit {
   /* ==================== PRIVATE AGENT CREATION METHODS ==================== */
 
   private async createSnakAgentFromConfig(
-    agentConfig: AgentConfigSQL
+    agentConfig: AgentConfig<Id.Id>
   ): Promise<SnakAgent> {
     try {
-      const database = {
+      const databaseConfig = {
         database: process.env.POSTGRES_DB as string,
         host: process.env.POSTGRES_HOST as string,
         user: process.env.POSTGRES_USER as string,
@@ -501,62 +374,27 @@ export class AgentStorage implements OnModuleInit {
         port: parseInt(process.env.POSTGRES_PORT as string),
       };
 
-      const systemPrompt =
-        agentConfig.system_prompt ||
-        this.buildSystemPromptFromConfig({
-          name: agentConfig.name,
-          description: agentConfig.description,
-          lore: agentConfig.lore || [],
-          objectives: agentConfig.objectives || [],
-          knowledge: agentConfig.knowledge || [],
-        });
-
-      const systemMessage = new SystemMessage(systemPrompt);
-      const jsonConfig: AgentConfig = {
-        id: agentConfig.id,
-        name: agentConfig.name,
-        group: agentConfig.group,
-        description: agentConfig.description,
-        prompt: systemMessage,
-        plugins: agentConfig.plugins,
-        interval: agentConfig.interval,
-        memory: {
-          enabled: agentConfig.memory.enabled,
-          shortTermMemorySize: agentConfig.memory.short_term_memory_size,
-          memorySize: agentConfig.memory.memory_size,
-        },
-        rag: agentConfig.rag
-          ? {
-              enabled: agentConfig.rag.enabled,
-              embeddingModel: agentConfig.rag.embedding_model || undefined,
-            }
-          : undefined,
-        chatId: `agent_${agentConfig.id}`,
-        maxIterations: agentConfig.max_iterations || 15,
-        mode: agentConfig.mode || AgentMode.INTERACTIVE,
-        mcpServers: agentConfig.mcpServers || {},
-      };
-
-      // Creat model selector
-      const modelConfig = await this.get_models_config();
-      if (!modelConfig) {
-        throw new Error('ModelConfig is not available.');
-      }
-
-      const snakAgentConfig: SnakAgentConfig = {
+      const starknetConfig: StarknetConfig = {
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
-        db_credentials: database,
-        agentConfig: jsonConfig,
-        memory: jsonConfig.memory,
-        modelSelectorConfig: {
-          debugMode: false,
-          useModelSelector: false,
-          modelsConfig: modelConfig,
-        },
       };
-      const snakAgent = new SnakAgent(snakAgentConfig);
+
+      const systemPrompt = this.buildSystemPromptFromConfig({
+        name: agentConfig.name,
+        description: agentConfig.profile.description,
+        lore: agentConfig.profile.lore || [],
+        objectives: agentConfig.profile.objectives || [],
+        knowledge: agentConfig.profile.knowledge || [],
+      });
+
+      agentConfig.profile.mergedProfile = systemPrompt;
+
+      const snakAgent = new SnakAgent(
+        starknetConfig,
+        agentConfig,
+        databaseConfig
+      );
       await snakAgent.init();
 
       return snakAgent;
@@ -637,36 +475,51 @@ export class AgentStorage implements OnModuleInit {
     return contextParts.join('\n');
   }
 
-  /* ==================== PRIVATE CONFIGURATION METHODS ==================== */
-
   /**
-   * Get models configuration from database
-   * @returns Promise<ModelsConfig> - The models configuration
-   * @private
+   * Initializes model instances based on the loaded configuration.
+   * @throws {Error} If models configuration is not loaded.
    */
-  private async get_models_config(): Promise<ModelsConfig> {
+  protected initializeModels(model: ModelConfig): BaseChatModel | null {
+    if (!model) {
+      logger.error;
+    }
+
     try {
-      const q = new Postgres.Query(`SELECT * FROM models_config`);
-      logger.debug(`Query to get models config: ${q}`);
-      const q_res = await Postgres.query<ModelsConfig>(q);
-
-      if (q_res.length === 0) {
-        throw new Error('No models configuration found');
-      }
-
-      const fast = this.parseAgentConfig(q_res[0].fast);
-      const smart = this.parseAgentConfig(q_res[0].smart);
-      const cheap = this.parseAgentConfig(q_res[0].cheap);
-
-      const modelsConfig: ModelsConfig = {
-        fast: fast,
-        smart: smart,
-        cheap: cheap,
+      let modelInstance: BaseChatModel | null = null;
+      const commonConfig = {
+        modelName: model.modelName,
       };
-      return modelsConfig;
+
+      console.log(JSON.stringify(model));
+      switch (model.provider.toLowerCase()) {
+        case 'openai':
+          modelInstance = new ChatOpenAI({
+            ...commonConfig,
+            openAIApiKey: process.env.OPENAI_API_KEY,
+          });
+          break;
+        case 'anthropic':
+          modelInstance = new ChatAnthropic({
+            ...commonConfig,
+            anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+          });
+          break;
+        case 'gemini':
+          modelInstance = new ChatGoogleGenerativeAI({
+            ...commonConfig,
+            apiKey: process.env.GEMINI_API_KEY,
+          });
+          break;
+        // Add case for 'deepseek' if a Langchain integration exists or becomes available
+        default:
+          throw new Error('No valid model provided');
+      }
+      return modelInstance;
     } catch (error) {
-      logger.error('Error getting models configuration:', error);
-      throw error;
+      logger.error(
+        `Failed to initialize model ${model.provider}: ${model.modelName}): ${error}`
+      );
+      return null;
     }
   }
 }

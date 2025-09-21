@@ -4,7 +4,6 @@
  */
 
 // Main agent exports
-export type { SnakAgentConfig } from './agents/core/snakAgent.js';
 export { SnakAgent } from './agents/core/snakAgent.js';
 
 // Core agent utilities

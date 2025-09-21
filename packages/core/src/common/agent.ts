@@ -1,6 +1,7 @@
 import { RpcProvider } from 'starknet';
 import { SystemMessage } from '@langchain/core/messages';
 import { z as Zod } from 'zod';
+import { ModelConfig } from 'types/models/modelsConfig.js';
 
 export interface StarknetTool<P = unknown> {
   name: string;
@@ -33,60 +34,149 @@ export interface SignatureTool<P = any> {
 }
 
 /**
- * Enum for the mode of operation of the agent
+ * Agent profile configuration containing descriptive information
  */
-export enum AgentMode {
-  INTERACTIVE = 'interactive',
-  AUTONOMOUS = 'autonomous',
-  HYBRID = 'hybrid',
-}
-
-/**
- * Interface for the JSON configuration object
- */
-export interface RawAgentConfig {
-  name: string;
-  group: string;
+export interface AgentProfile {
   description: string;
+  group: string;
   lore: string[];
   objectives: string[];
   knowledge: string[];
-  interval: number;
-  plugins: string[];
-  memory: MemoryConfig;
-  rag?: RagConfig;
-  mcpServers?: Record<string, any>;
-  mode: AgentMode;
+  mergedProfile?: string; // Don't set in the user request
 }
 
+/**
+ * Prompt configuration for various agent tasks
+ */
+export interface AgentPrompts {
+  taskMemoryManagerPromptId: string;
+  taskExecutorPromptId: string;
+  taskManagerPromptId: string;
+  taskVerifierPromptId: string;
+}
+
+/**
+ * Graph execution configuration
+ */
+export interface GraphConfig {
+  maxSteps: number;
+  maxIterations: number;
+  maxRetries: number;
+  executionTimeoutMs: number;
+  maxTokenUsage: number;
+  model: ModelConfig;
+}
+
+/**
+ * Memory Strategy enum
+ */
+export enum MemoryStrategy {
+  // Will be implemented later
+  HOLISTIC = 'holistic', // Perfect for interactive agent or autonomus agent with a short-life
+  CATEGORIZED = 'categorized', // Perfect for long-life autonomous agent
+}
+
+/**
+ * Memory thresholds configuration
+ */
+export interface MemoryThresholds {
+  insertSemanticThreshold: number;
+  insertEpisodicThreshold: number;
+  retrieveMemoryThreshold: number;
+  summarizationThreshold: number;
+}
+
+/**
+ * Memory size limits configuration
+ */
+export interface MemorySizeLimits {
+  shortTermMemorySize: number;
+  maxInsertEpisodicSize: number;
+  maxInsertSemanticSize: number;
+  maxRetrieveMemorySize: number;
+}
+
+/**
+ * Memory timeout configuration
+ */
+export interface MemoryTimeouts {
+  retrieveMemoryTimeoutMs: number;
+  insertMemoryTimeoutMs: number;
+}
+
+/**
+ * Memory configuration for the agent
+ */
 export interface MemoryConfig {
-  enabled?: boolean;
-  shortTermMemorySize?: number;
-  memorySize?: number;
-  embeddingModel?: string;
-  isAutonomous?: boolean;
+  ltmEnabled: boolean;
+  summarizationThreshold: number;
+  sizeLimits: MemorySizeLimits;
+  thresholds: MemoryThresholds;
+  timeouts: MemoryTimeouts;
+  strategy: MemoryStrategy;
 }
 
-export interface RagConfig {
+/**
+ * RAG (Retrieval-Augmented Generation) configuration
+ */
+export interface RAGConfig {
   enabled?: boolean;
   topK?: number;
   embeddingModel?: string;
 }
 
-export interface AgentConfig {
-  id: string;
+/**
+ * Execution mode enumeration
+ */
+export enum AgentMode {
+  AUTONOMOUS = 'autonomous',
+  INTERACTIVE = 'interactive',
+  HYBRID = 'hybrid',
+}
+
+export enum Id {
+  NoId = 'NoId',
+  Id = 'Id',
+}
+/**
+ * Main agent configuration interface
+ */
+export interface AgentConfigBase {
+  // Core identification
+  // Agent Name
   name: string;
+  // Group
   group: string;
-  description: string;
-  interval: number;
-  chatId: string;
-  plugins: string[];
-  memory: MemoryConfig;
-  rag?: RagConfig;
-  mcpServers?: Record<string, any>;
+  // Agent Profile
+  profile: AgentProfile;
+  // System configuration
   mode: AgentMode;
-  maxIterations: number;
-  prompt: SystemMessage;
+  // MCPs Servers configurations
+  mcpServers: Record<string, any>;
+  // Plugins configurations
+  plugins: string[];
+  // Prompt configurations
+  prompts: AgentPrompts;
+  // Graph execution settings
+  graph: GraphConfig;
+  // Memory settings
+  memory: MemoryConfig;
+  // RAG settings
+  rag: RAGConfig;
+}
+
+export interface AgentConfigWithId extends AgentConfigBase {
+  id: string;
+}
+
+export type AgentConfig<HasId extends Id = Id.NoId> = HasId extends Id.Id
+  ? AgentConfigWithId
+  : AgentConfigBase;
+
+export interface StarknetConfig {
+  provider: RpcProvider;
+  accountPublicKey: string;
+  accountPrivateKey: string;
 }
 
 export interface DatabaseCredentials {
