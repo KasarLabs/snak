@@ -3,7 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import * as path from 'path';
-import { ModelsConfig, ModelLevelConfig, RagConfigSize } from '@snakagent/core'; // Assuming core exports these types
+import {
+  ModelsConfig,
+  ModelLevelConfig,
+  RagConfigSize,
+  initializeGuards,
+} from '@snakagent/core';
 import { readFileSync } from 'fs';
 
 @Injectable()
@@ -14,6 +19,7 @@ export class ConfigurationService {
   private readonly modelsConfigPath: string;
   private readonly ragConfig: RagConfigSize;
   private readonly ragConfigPath: string;
+  private readonly guardsConfigPath: string;
 
   constructor(private configService: ConfigService) {
     // Collect all env variables specified in the schema
@@ -37,6 +43,7 @@ export class ConfigurationService {
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
       RAG_CONFIG_PATH: this.configService.get<string>('RAG_CONFIG_PATH'),
+      GUARDS_CONFIG_PATH: this.configService.get<string>('GUARDS_CONFIG_PATH'),
       REDIS_HOST: this.configService.get<string>('REDIS_HOST'),
       REDIS_PORT: this.configService.get<string>('REDIS_PORT'),
       REDIS_PASSWORD: this.configService.get<string>('REDIS_PASSWORD'),
@@ -67,6 +74,12 @@ export class ConfigurationService {
       '../..',
       this.config.RAG_CONFIG_PATH
     );
+    this.guardsConfigPath = path.resolve(
+      process.cwd(),
+      '../..',
+      this.config.GUARDS_CONFIG_PATH
+    );
+
     try {
       const content = readFileSync(this.ragConfigPath, 'utf-8');
       this.ragConfig = JSON.parse(content) as RagConfigSize;
@@ -80,6 +93,20 @@ export class ConfigurationService {
         maxUserSize: 50_000_000,
         maxRagSize: 501_000,
       };
+    }
+    try {
+      // Initialize global guards functions for easier access across the application
+      initializeGuards(this.guardsConfigPath);
+
+      this.logger.log('Global guards functions initialized and ready to use');
+    } catch (err) {
+      this.logger.error(
+        `CRITICAL: Failed to load or validate guards config from ${this.guardsConfigPath}:`,
+        err as any
+      );
+      this.logger.error("Snak can't start with invalid guards configuration");
+
+      process.exit(1);
     }
   }
 
@@ -140,7 +167,7 @@ export class ConfigurationService {
     if (!selectedModelConfig) {
       const availableLevels = Object.keys(this.modelsConfig).join(', ');
       throw new Error(
-        `Invalid AI_MODEL_LEVEL: "${modelLevel}". Available levels: ${availableLevels}`
+        `Invalid AI_MODEL_LEVEL: "${String(modelLevel)}". Available levels: ${availableLevels}`
       );
     }
 

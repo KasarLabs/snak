@@ -1,29 +1,30 @@
+import { getGuardValue } from '@snakagent/core';
 import z from 'zod';
 
 export const tools_call = z.object({
   description: z
-    .string()
+    .string().max(getGuardValue('execution_graph.tools.max_description_length'))
     .describe(
       'Tool execution details: what it does, parameters used, and configuration'
     ),
   required: z
-    .string()
+    .string().max(getGuardValue('execution_graph.tools.max_required_length'))
     .describe(
       'Required inputs and their sources (e.g., "user query, step 2 filters")'
     ),
-  expected_result: z.string().describe('Expected output data.'),
-  result: z.string().describe('should be empty'),
+  expected_result: z.string().max(getGuardValue('execution_graph.tools.max_expected_result_length')).describe('Expected output data.'),
+  result: z.string().max(getGuardValue('execution_graph.tools.max_result_length')).describe('should be empty'),
 });
 
 export const resultSchema = z.object({
   content: z
-    .string()
+    .string().max(getGuardValue('execution_graph.result_schema.max_content_length'))
     .describe(
       'Output content placeholder - empty during planning, populated during execution'
     )
     .default(''),
   tokens: z
-    .number()
+    .number().max(getGuardValue('execution_graph.result_schema.max_tokens'))
     .describe('Ouput Token Count - empty during planning')
     .default(0),
 });
@@ -32,16 +33,16 @@ export const StepInfoSchema = z.object({
   stepNumber: z
     .number()
     .int()
-    .min(1)
-    .max(100)
+    .min(getGuardValue('execution_graph.step.min_steps'))
+    .max(getGuardValue('execution_graph.step.max_steps'))
     .describe('Execution order (1-100)'),
   stepName: z
     .string()
-    .min(1)
-    .max(200)
+    .min(getGuardValue('execution_graph.step.min_name_length'))
+    .max(getGuardValue('execution_graph.step.max_name_length'))
     .describe('Action-oriented step title under 200 chars'),
   description: z
-    .string()
+    .string().max(getGuardValue('execution_graph.step.max_description_length'))
     .describe(
       'Full step details: objective, inputs/sources, methodology, outputs, success criteria'
     ),
@@ -53,6 +54,7 @@ export const StepInfoSchema = z.object({
 
   tools: z
     .array(tools_call)
+    .max(getGuardValue('execution_graph.step.max_parallel_tools'))
     .optional()
     .describe(
       'Parallel tool executions (only for type="tools"). Must be independent'
@@ -72,11 +74,11 @@ export const StepInfoSchema = z.object({
 export const PlanSchema = z.object({
   steps: z
     .array(StepInfoSchema)
-    .min(1)
-    .max(20)
+    .min(getGuardValue('execution_graph.plan.min_steps'))
+    .max(getGuardValue('execution_graph.plan.max_steps'))
     .describe('Executable workflow steps (1-20) with clear dependencies'),
   summary: z
-    .string()
+    .string().max(getGuardValue('execution_graph.plan.max_summary_length'))
     .describe('Plan overview: objectives, approach, outcomes (max 300 chars)'),
 });
 

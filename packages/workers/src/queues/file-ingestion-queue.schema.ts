@@ -1,3 +1,4 @@
+import { getGuardValue } from '@core/dist/index.js';
 import { z } from 'zod';
 
 const ALLOWED_MIME_TYPES = [
@@ -13,18 +14,15 @@ const ALLOWED_MIME_TYPES = [
   'application/octet-stream',
 ] as const;
 
-const MAX_FILE_SIZE = 501 * 1024; // 501KB
-const MIN_FILE_SIZE = 1;
-
 export const FileIngestionJobPayloadSchema = z
   .object({
     agentId: z.string().uuid('Invalid agentId format'),
     userId: z.string().uuid('Invalid userId format'),
-    fileId: z.string().min(1, 'fileId is required').max(255, 'fileId too long'),
+    fileId: z.string().uuid('Invalid fileId format'),
     originalName: z
       .string()
-      .min(1, 'originalName is required')
-      .max(255, 'originalName too long')
+      .min(getGuardValue('rag.min_original_name_length'))
+      .max(getGuardValue('rag.max_original_name_length'))
       .regex(/^[^<>:"/\\|?*]+$/, 'Invalid characters in filename'),
     mimeType: z.enum(ALLOWED_MIME_TYPES, {
       errorMap: () => ({ message: 'Unsupported file type' }),
@@ -33,8 +31,8 @@ export const FileIngestionJobPayloadSchema = z
     size: z
       .number()
       .int('Size must be an integer')
-      .min(MIN_FILE_SIZE, 'File too small')
-      .max(MAX_FILE_SIZE, 'File too large'),
+      .min(getGuardValue('rag.rag_min_size'))
+      .max(getGuardValue('rag.rag_max_size')),
   })
   .refine((data) => data.buffer.length === data.size, {
     message: 'Buffer size does not match declared size',

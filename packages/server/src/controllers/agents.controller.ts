@@ -30,6 +30,7 @@ import {
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
   AgentResponse,
+  getGuardValue,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
@@ -94,6 +95,8 @@ export class AgentsController {
 
     const userId = ControllerHelpers.getUserId(req);
 
+    await this.agentFactory.validateAgent({ mcpServers }, false);
+
     // Update agent MCP configuration in database
     const q = new Postgres.Query(
       `UPDATE agents
@@ -128,6 +131,8 @@ export class AgentsController {
       throw new BadRequestException('Agent ID is required');
     }
 
+    await this.agentFactory.validateAgent(config, false);
+
     const updateFields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -141,6 +146,7 @@ export class AgentsController {
       'knowledge',
       'system_prompt',
       'interval',
+      'max_iterations',
       'plugins',
       'memory',
       'mode',
@@ -262,7 +268,7 @@ export class AgentsController {
       );
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = getGuardValue('user.max_upload_avatar_size');
     if (buffer.length > maxSize) {
       throw new BadRequestException('File too large. Maximum size is 5MB.');
     }
@@ -571,7 +577,7 @@ export class AgentsController {
   async getAgentHealth(): Promise<AgentResponse> {
     const response: AgentResponse = {
       status: 'success',
-      data: 'Agent is healthy',
+      data: `Agent is healthy`,
     };
     return response;
   }

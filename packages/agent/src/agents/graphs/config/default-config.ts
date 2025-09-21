@@ -1,5 +1,5 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { AgentConfig } from '@snakagent/core';
+import { AgentConfig, getGuardValue } from '@snakagent/core';
 import { AgentMode } from '@enums/agent-modes.enum.js';
 
 export interface GraphConfig {
@@ -56,10 +56,10 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
 };
 
 export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
-  maxGraphSteps: 100,
+  maxGraphSteps: getGuardValue('execution_graph.plan.max_steps'),
   shortTermMemory: 10,
   memorySize: 20,
-  maxRetries: 3,
+  maxRetries: getGuardValue('execution.max_retry_attempts'),
   toolTimeout: 30000, // 30 seconds
   humanInTheLoop: 0,
   agent_config: DEFAULT_AGENT_CONFIG,

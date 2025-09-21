@@ -13,12 +13,15 @@ export { default as logger } from './logger/logger.js';
 
 export { loadModelsConfig } from './config/modelsLoader.js';
 export { loadRagConfig } from './config/ragLoader.js';
+export { loadGuardsConfig } from './config/guards/guardLoader.js';
+export { GuardsConfigSchema } from './config/guards/guardsSchema.js';
 export type {
   ModelsConfig,
   ApiKeys,
   ModelLevelConfig,
 } from './types/models/modelsConfig.js';
 export type { RagConfigSize } from './types/rag/ragConfig.js';
+export type { GuardsConfig } from './config/guards/guardsSchema.js';
 export * from './common/server/dto/agents.js';
 export * from './common/server/dto/websocket.js';
 
@@ -38,3 +41,18 @@ export {
   type FileValidationError,
   type FileValidationResponse,
 } from './services/file-validation.service.js';
+
+export {
+  GuardsService,
+  initializeGuards,
+  getGuardsConfig,
+  isGuardsInitialized,
+  reloadGuards,
+  getGuardValue,
+} from './services/guards.service.js';
+
+export {
+  AgentValidationService,
+  validateAgent,
+  type AgentDatabaseInterface,
+} from './services/agent-validation.service.js';

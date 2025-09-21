@@ -8,51 +8,126 @@
     "max_upload_avatar_size": 50000000,
     "max_token_usage": [10000, 50000, 250000, 2500000]
   },
+  "execution_graph": {
+    "plan": {
+      "max_steps": 100,
+      "min_steps": 1,
+      "max_summary_length": 350
+    },
+    "step": {
+      "max_steps": 100,
+      "min_steps": 1,
+      "max_name_length": 100,
+      "min_name_length": 3,
+      "max_description_length": 1000,
+      "max_parallel_tools": 5
+    },
+    "tools": {
+      "max_description_length": 1000,
+      "max_required_length": 1000,
+      "max_expected_result_length": 1000,
+      "max_result_length": 100
+    },
+    "result_schema": {
+      "max_content_length": 1000,
+      "max_tokens": 1000
+    },
+    "memory": {
+      "max_timeout": 5000,
+      "max_wait_time": 5000,
+      "max_content_length": 10000
+    }
+  },
+  "memory": {
+    "ltm": {
+      "max_episodic_event_size": 10,
+      "max_semantic_fact_size": 10
+    },
+    "episodic_event": {
+      "max_name_length": 100,
+      "min_name_length": 1,
+      "max_content_length": 1000,
+      "min_content_length": 1,
+      "max_source": 10
+    },
+    "sementic_fact": {
+      "fact": {
+        "max_length": 1000,
+        "min_length": 1
+      },
+      "category": {
+        "max_length": 100
+      }
+    }
+  },
   "execution": {
-    "max_plan_steps": 50,
-    "max_plan_description_length": 1000,
-    "max_step_name_length": 100,
-    "max_step_description_length": 1000,
-    "max_parallel_tools": 5,
+    "max_message_tokens": 3000,
     "max_retry_attempts": 3,
-    "max_message_length": 1000
+    "max_content_preview_length": 150
   },
   "mcp": {
     "max_limit_tools": 100,
-    "max_timeout": 30000
+    "max_timeout": 30000,
+    "max_query_length": 255,
+    "max_qualified_name_length": 255,
+    "max_server_name_length": 255,
+    "max_config_size": 1000,
+    "max_profile_length": 255
   },
   "worker": {
-    "max_worker": 16,
-    "max_file_ingestion": 2,
-    "max_fallback_worker": 8,
-    "max_queue_size": 50
+    "max_queue_name_length": 100,
+    "min_queue_name_length": 3,
+    "max_file_ingestion_workers": 4,
+    "min_file_ingestion_workers": 1,
+    "max_embeddings_workers": 4,
+    "min_embeddings_workers": 1,
+    "max_fallback_workers": 12,
+    "min_fallback_workers": 1,
+    "max_worker_idle_timeout": 60000
   },
   "agents": {
     "name_max_length": 100,
+    "name_min_length": 3,
     "description_max_length": 1000,
+    "description_min_length": 3,
     "group_max_length": 100,
+    "group_min_length": 3,
     "interval_max": 100,
-    "max_iterations_max": 100,
+    "interval_min": 1,
+    "max_max_iterations": 100,
+    "min_max_iterations": 1,
     "memory": {
       "memory_size_max": 1000,
-      "short_term_memory_size_max": 100
+      "memory_size_min": 0,
+      "short_term_memory_size_max": 100,
+      "short_term_memory_size_min": 0
     },
     "chat_id_max_length": 100,
+    "chat_id_min_length": 3,
     "plugins": {
       "max_size": 100,
-      "max_length": 100
+      "min_size": 0,
+      "max_length": 100,
+      "min_length": 3
     },
     "mcp_servers": {
       "max_servers": 100,
+      "min_servers": 0,
       "max_server_name_length": 100,
+      "min_server_name_length": 3,
       "command_max_length": 100,
+      "min_command_length": 0,
       "args": {
         "max_size": 100,
-        "max_length": 100
+        "min_size": 0,
+        "max_length": 100,
+        "min_length": 3
       },
       "env": {
         "max_size": 100,
-        "max_length": 100
+        "min_size": 0,
+        "max_length": 100,
+        "min_length": 3
       }
     }
   },
@@ -65,7 +140,10 @@
     "process_max_size": 10000000,
     "agent_max_size": 10000000,
     "user_max_size": 50000000,
-    "rag_max_size": 10000000
+    "rag_max_size": 10000000,
+    "rag_min_size": 1,
+    "max_original_name_length": 255,
+    "min_original_name_length": 1
   },
   "endpoints": {
     "agent": {

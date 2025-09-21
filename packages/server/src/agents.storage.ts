@@ -9,6 +9,8 @@ import {
   ModelLevelConfig,
   RawAgentConfig,
   AgentMode,
+  AgentValidationService,
+  type AgentDatabaseInterface,
 } from '@snakagent/core';
 import {
   AgentConfigSQL,
@@ -32,17 +34,19 @@ const logger = new Logger('AgentStorage');
  * Service responsible for managing agent storage, configuration, and lifecycle
  */
 @Injectable()
-export class AgentStorage implements OnModuleInit {
+export class AgentStorage implements OnModuleInit, AgentDatabaseInterface {
   private agentConfigs: AgentConfigSQL[] = [];
   private agentInstances: Map<string, SnakAgent> = new Map();
   private agentSelector: AgentSelector;
+  private agentValidationService: AgentValidationService;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
-
   constructor(
     private readonly config: ConfigurationService,
     private readonly databaseService: DatabaseService
-  ) {}
+  ) {
+    this.agentValidationService = new AgentValidationService(this);
+  }
 
   async onModuleInit() {
     await this.initialize();
@@ -192,6 +196,8 @@ export class AgentStorage implements OnModuleInit {
       }
     }
 
+    await this.validateAgent(agent_config, true);
+
     const systemPrompt = this.buildSystemPromptFromConfig({
       name: finalName,
       description: agent_config.description,
@@ -211,15 +217,15 @@ export class AgentStorage implements OnModuleInit {
         agent_config.objectives,
         agent_config.knowledge,
         systemPrompt,
-        agent_config.interval,
+        agent_config.interval || 5,
         agent_config.plugins,
         agent_config.memory.enabled || false,
         agent_config.memory.shortTermMemorySize || 5,
         agent_config.memory.memorySize || 20,
         agent_config.rag?.enabled || false,
         agent_config.rag?.embeddingModel || null,
-        agent_config.mode,
-        15,
+        agent_config.mode || AgentMode.INTERACTIVE,
+        agent_config.max_iterations || 10,
         agent_config.mcpServers || '{}',
         agent_config.user_id,
       ]
@@ -287,6 +293,48 @@ export class AgentStorage implements OnModuleInit {
   }
 
   /* ==================== PUBLIC UTILITIES ==================== */
+
+  /**
+   * Get the total number of agents in the system
+   * @returns Promise<number> - The total number of agents
+   */
+  public async getTotalAgentsCount(): Promise<number> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const q = new Postgres.Query(`SELECT COUNT(*) as count FROM agents`);
+      const result = await Postgres.query<{ count: string }>(q);
+      return parseInt(result[0].count, 10);
+    } catch (error) {
+      logger.error('Error getting total agents count:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the number of agents for a specific user
+   * @param userId - User ID to count agents for
+   * @returns Promise<number> - The number of agents owned by the user
+   */
+  public async getUserAgentsCount(userId: string): Promise<number> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const q = new Postgres.Query(
+        `SELECT COUNT(*) as count FROM agents WHERE user_id = $1`,
+        [userId]
+      );
+      const result = await Postgres.query<{ count: string }>(q);
+      return parseInt(result[0].count, 10);
+    } catch (error) {
+      logger.error(`Error getting agents count for user ${userId}:`, error);
+      throw error;
+    }
+  }
 
   /**
    * Returns a promise that resolves when the agent storage is fully initialized
@@ -676,6 +724,21 @@ export class AgentStorage implements OnModuleInit {
     }
 
     return contextParts.join('\n');
+  }
+
+  /* ==================== PRIVATE VALIDATION METHODS ==================== */
+
+  /**
+   * Unified validation method for both agent creation and update
+   * @param agent_config - Agent configuration to validate (can be partial for updates)
+   * @param isCreation - Whether this is for creation (true) or update (false)
+   * @public
+   */
+  public async validateAgent(
+    agent_config: RawAgentConfig | Partial<RawAgentConfig>,
+    isCreation: boolean = false
+  ): Promise<void> {
+    return this.agentValidationService.validateAgent(agent_config, isCreation);
   }
 
   /* ==================== PRIVATE CONFIGURATION METHODS ==================== */

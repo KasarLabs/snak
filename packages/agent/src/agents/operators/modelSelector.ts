@@ -1,6 +1,6 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { SystemMessage } from '@langchain/core/messages';
-import { logger } from '@snakagent/core';
+import { logger, GuardsService, getGuardValue } from '@snakagent/core';
 import { BaseAgent } from '../core/baseAgent.js';
 import { ModelsConfig, ApiKeys } from '@snakagent/core';
 import { ChatOpenAI } from '@langchain/openai';
@@ -97,6 +97,7 @@ export class ModelSelector extends BaseAgent {
   public async init(): Promise<void> {
     try {
       this.loadApiKeys();
+      this.validateModelConfig();
       await this.initializeModels();
       this.validateModels();
       logger.debug('ModelSelector initialized successfully');
@@ -231,6 +232,67 @@ export class ModelSelector extends BaseAgent {
       logger.debug(
         `ModelSelector initialized with models: ${Object.keys(this.models).join(', ')} (Meta selection: ${this.useModelSelector ? 'enabled' : 'disabled'})`
       );
+    }
+  }
+
+  /**
+   * Validates model configuration against guards constraints.
+   * Checks provider names, model names, and descriptions length limits.
+   */
+  private validateModelConfig(): void {
+    if (!this.modelsConfig) {
+      if (this.debugMode) {
+        logger.debug(
+          'Skipping model config validation: guards service not initialized or models config not available'
+        );
+      }
+      return;
+    }
+
+    const errors: string[] = [];
+
+    for (const [levelName, levelConfig] of Object.entries(this.modelsConfig)) {
+      const { provider, model_name, description } = levelConfig as any;
+
+      // Validate provider name length
+      if (
+        provider &&
+        provider.length > getGuardValue('model.provider_max_length')
+      ) {
+        errors.push(
+          `Model level '${levelName}': provider name '${provider}' exceeds maximum length of ${getGuardValue('model.provider_max_length')} characters`
+        );
+      }
+
+      // Validate model name length
+      if (
+        model_name &&
+        model_name.length > getGuardValue('model.model_name_max_length')
+      ) {
+        errors.push(
+          `Model level '${levelName}': model name '${model_name}' exceeds maximum length of ${getGuardValue('model.model_name_max_length')} characters`
+        );
+      }
+
+      // Validate description length if present
+      if (
+        description &&
+        description.length > getGuardValue('model.description_max_length')
+      ) {
+        errors.push(
+          `Model level '${levelName}': description exceeds maximum length of ${getGuardValue('model.description_max_length')} characters`
+        );
+      }
+    }
+
+    if (errors.length > 0) {
+      const errorMessage = `Model configuration validation failed:\n${errors.join('\n')}`;
+      logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    if (this.debugMode) {
+      logger.debug('Model configuration validation passed successfully');
     }
   }
 

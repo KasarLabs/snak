@@ -214,85 +214,6 @@ export const parseAgentMode = (modeConfig: any): AgentMode => {
 };
 
 /**
- * Validates the agent configuration object
- * @param config - Agent configuration to validate
- * @throws Error if configuration is invalid
- */
-export const validateConfig = (config: AgentConfig) => {
-  const requiredFields = [
-    'name',
-    'interval',
-    'plugins',
-    'prompt',
-    'mode',
-    'maxIterations',
-  ] as const;
-
-  for (const field of requiredFields) {
-    if (config[field as keyof AgentConfig] === undefined) {
-      throw new Error(`Missing required field: ${field}`);
-    }
-  }
-
-  if (!(config.prompt instanceof SystemMessage)) {
-    throw new Error('prompt must be an instance of SystemMessage');
-  }
-
-  if (!Object.values(AgentMode).includes(config.mode)) {
-    throw new Error(
-      `Invalid mode "${config.mode}" specified in configuration. Must be one of: ${Object.values(AgentMode).join(', ')}`
-    );
-  }
-
-  if (typeof config.maxIterations !== 'number' || config.maxIterations < 0) {
-    throw new Error(
-      'maxIterations must be a positive number in mode configuration'
-    );
-  }
-
-  if (config.mcpServers) {
-    if (typeof config.mcpServers !== 'object') {
-      throw new Error('mcpServers must be an object');
-    }
-
-    for (const [serverName, serverConfig] of Object.entries(
-      config.mcpServers
-    )) {
-      if (!serverConfig.command || typeof serverConfig.command !== 'string') {
-        throw new Error(
-          `mcpServers.${serverName} must have a valid command string`
-        );
-      }
-
-      if (!Array.isArray(serverConfig.args)) {
-        throw new Error(`mcpServers.${serverName} must have an args array`);
-      }
-
-      if (serverConfig.env && typeof serverConfig.env !== 'object') {
-        throw new Error(
-          `mcpServers.${serverName} env must be an object if present`
-        );
-      }
-    }
-  }
-
-  if (config.rag && typeof config.rag === 'object') {
-    if (
-      config.rag.enabled !== undefined &&
-      typeof config.rag.enabled !== 'boolean'
-    ) {
-      throw new Error('rag.enabled must be a boolean');
-    }
-    if (
-      config.rag.embeddingModel !== undefined &&
-      typeof config.rag.embeddingModel !== 'string'
-    ) {
-      throw new Error('rag.embeddingModel must be a string');
-    }
-  }
-};
-
-/**
  * Parses and validates the JSON configuration file
  * @param agent_config_name - Name of the agent configuration file
  * @returns Parsed and validated agent configuration
@@ -409,7 +330,6 @@ const checkParseJson = async (
     if (agentConfig.plugins.length === 0) {
       logger.warn("No plugins specified in agent's config");
     }
-    validateConfig(agentConfig);
     return agentConfig;
   } catch (error) {
     logger.error(

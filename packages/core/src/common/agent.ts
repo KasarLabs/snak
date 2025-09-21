@@ -53,6 +53,7 @@ export interface RawAgentConfig {
   objectives: string[];
   knowledge: string[];
   interval: number;
+  max_iterations: number;
   plugins: string[];
   memory: MemoryConfig;
   rag?: RagConfig;

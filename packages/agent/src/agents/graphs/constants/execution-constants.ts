@@ -3,6 +3,8 @@
  * Centralizes magic numbers and configuration values for better maintainability
  */
 
+import { getGuardValue } from '@snakagent/core';
+
 /**
  * Model timeout configurations in milliseconds
  */
@@ -22,7 +24,7 @@ export const MEMORY_THRESHOLDS = {
   /** Token count threshold for content summarization */
   SUMMARIZATION_THRESHOLD: 2000,
   /** Maximum token count for message content */
-  MAX_MESSAGE_TOKENS: 3000,
+  MAX_MESSAGE_TOKENS: getGuardValue('execution.max_message_tokens'),
   /** Default STM capacity */
   DEFAULT_STM_SIZE: 5,
   /** Maximum LTM retrieval count */
@@ -54,7 +56,7 @@ export const TOKEN_ESTIMATION = {
  */
 export const VALIDATION_LIMITS = {
   /** Maximum retry attempts for failed validations */
-  MAX_VALIDATION_RETRIES: 3,
+  MAX_VALIDATION_RETRIES: getGuardValue('execution.max_retry_attempts'),
   /** Default graph execution step limit */
   DEFAULT_MAX_GRAPH_STEPS: 100,
 } as const;
@@ -64,9 +66,13 @@ export const VALIDATION_LIMITS = {
  */
 export const STRING_LIMITS = {
   /** Maximum length for content preview in logs */
-  CONTENT_PREVIEW_LENGTH: 150,
+  CONTENT_PREVIEW_LENGTH: getGuardValue('execution.max_content_preview_length'),
   /** Maximum length for plan descriptions */
-  MAX_PLAN_DESCRIPTION_LENGTH: 300,
+  MAX_PLAN_DESCRIPTION_LENGTH: getGuardValue(
+    'execution_graph.plan.max_summary_length'
+  ),
   /** Maximum length for step descriptions */
-  MAX_STEP_DESCRIPTION_LENGTH: 200,
+  MAX_STEP_DESCRIPTION_LENGTH: getGuardValue(
+    'execution_graph.step.max_description_length'
+  ),
 } as const;

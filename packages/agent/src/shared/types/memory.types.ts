@@ -1,6 +1,7 @@
 import { memory } from '@snakagent/database/queries';
 import z from 'zod';
 import { HistoryItem, StepInfo } from './graph.types.js';
+import { getGuardValue } from '@snakagent/core';
 
 /**
  * Individual memory item with immutable structure
@@ -112,27 +113,30 @@ export interface MemoryOperationResult<T> {
  * Zod schemas for memory operations
  */
 export const episodicEventSchema = z.object({
-  name: z.string().min(1).describe('Event name or identifier'),
-  content: z.string().min(1).describe('Detailed description of what happened'),
+  name: z.string().min(getGuardValue('memory.episodic_event.min_name_length')).max(getGuardValue('memory.episodic_event.max_name_length')).describe('Event name or identifier'),
+  content: z.string().min(getGuardValue('memory.episodic_event.min_content_length')).max(getGuardValue('memory.episodic_event.max_content_length')).describe('Detailed description of what happened'),
   source: z
     .array(z.string())
+    .max(getGuardValue('memory.episodic_event.max_source'))
     .optional()
     .default(['conversation'])
     .describe('Source reference or website URL'),
 });
 
 export const semanticFactSchema = z.object({
-  fact: z.string().min(1).describe('The learned information or insight'),
-  category: z.string().optional().default('fact').describe('Type of fact'),
+  fact: z.string().min(getGuardValue('memory.sementic_fact.fact.min_length')).max(getGuardValue('memory.sementic_fact.fact.max_length')).describe('The learned information or insight'),
+  category: z.string().max(getGuardValue('memory.sementic_fact.category.max_length')).optional().default('fact').describe('Type of fact'),
 });
 
 export const ltmSchema = z.object({
   episodic: z
     .array(episodicEventSchema)
+    .max(getGuardValue('memory.ltm.max_episodic_event_size'))
     .default([])
     .describe('Events and experiences with confidence scoring'),
   semantic: z
     .array(semanticFactSchema)
+    .max(getGuardValue('memory.ltm.max_semantic_fact_size'))
     .default([])
     .describe('Facts and knowledge learned with confidence scoring'),
 });

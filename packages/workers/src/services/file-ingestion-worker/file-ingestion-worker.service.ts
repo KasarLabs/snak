@@ -3,7 +3,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { FileValidationService } from '@snakagent/core';
+import { FileValidationService, getGuardValue } from '@snakagent/core';
 import { RedisMutexService } from '../mutex/redis-mutex.service.js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
@@ -242,6 +242,20 @@ export class FileIngestionWorkerService {
   }
 
   /**
+   * Get the global total size across all users and agents
+   * @returns Promise<number> The total size in bytes
+   */
+  async getGlobalTotalSize(): Promise<number> {
+    try {
+      const size = await rag.globalTotalSize();
+      return size;
+    } catch (err) {
+      logger.error(`Failed to get global total size:`, err);
+      throw err;
+    }
+  }
+
+  /**
    * Check storage limits before processing
    * @param agentId - The agent ID
    * @param userId - The user ID
@@ -254,24 +268,15 @@ export class FileIngestionWorkerService {
   ): Promise<void> {
     const agentSize = await this.getAgentSize(agentId, userId);
     const totalSize = await this.getTotalSize(userId);
+    const globalTotalSize = await this.getGlobalTotalSize();
 
-    let maxAgentSize: number;
-    let maxUserSize: number;
-
-    try {
-      const ragConfigPath =
-        process.env.RAG_CONFIG_PATH || '../../config/rag/default.rag.json';
-      const ragConfig = await loadRagConfig(ragConfigPath);
-      maxAgentSize = ragConfig.maxAgentSize;
-      maxUserSize = ragConfig.maxUserSize;
-      logger.info(
-        `Loaded RAG config: maxAgentSize=${maxAgentSize}, maxUserSize=${maxUserSize}`
-      );
-    } catch (error) {
-      logger.warn(`Failed to load RAG config, using defaults: ${error}`);
-      maxAgentSize = 10 * 1024 * 1024; // 10MB per agent (matching default.rag.json)
-      maxUserSize = 50 * 1024 * 1024; // 50MB total (matching default.rag.json)
-    }
+    const maxAgentSize: number = getGuardValue('rag.agent_max_size');
+    const maxUserSize: number = getGuardValue('rag.user_max_size');
+    const maxProcessSize: number = getGuardValue('rag.process_max_size');
+    
+    logger.info(
+      `Loaded RAG config: maxAgentSize=${maxAgentSize}, maxUserSize=${maxUserSize}, maxProcessSize=${maxProcessSize}`
+    );
 
     if (agentSize + fileSize > maxAgentSize) {
       logger.error(
@@ -282,7 +287,14 @@ export class FileIngestionWorkerService {
 
     if (totalSize + fileSize > maxUserSize) {
       logger.error(
-        `Process storage limit exceeded: ${totalSize + fileSize} > ${maxUserSize}`
+        `User storage limit exceeded: ${totalSize + fileSize} > ${maxUserSize}`
+      );
+      throw new Error('User rag storage limit exceeded');
+    }
+
+    if (globalTotalSize + fileSize > maxProcessSize) {
+      logger.error(
+        `Process storage limit exceeded: ${globalTotalSize + fileSize} > ${maxProcessSize}`
       );
       throw new Error('Process rag storage limit exceeded');
     }

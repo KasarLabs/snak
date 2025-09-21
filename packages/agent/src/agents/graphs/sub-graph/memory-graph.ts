@@ -55,7 +55,7 @@ export class MemoryGraph {
     this.memoryAgent = memoryAgent;
     const embeddings = memoryAgent.getEmbeddings();
     if (embeddings) {
-      this.memoryDBManager = new MemoryDBManager(embeddings, 3, 8000);
+      this.memoryDBManager = new MemoryDBManager(embeddings);
     }
   }
 

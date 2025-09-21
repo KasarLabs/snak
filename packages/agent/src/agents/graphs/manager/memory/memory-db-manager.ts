@@ -1,4 +1,4 @@
-import { logger } from '@snakagent/core';
+import { getGuardValue, logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import {
@@ -13,8 +13,8 @@ export class MemoryDBManager {
 
   constructor(
     embeddings: CustomHuggingFaceEmbeddings,
-    maxRetries: number = 3,
-    timeoutMs: number = 5000
+    maxRetries: number = getGuardValue('execution.max_retry_attempts'),
+    timeoutMs: number = getGuardValue('execution_graph.memory.max_timeout')
   ) {
     if (!embeddings) {
       throw new Error('Embeddings parameter is required');
@@ -70,7 +70,10 @@ export class MemoryDBManager {
             timestamp: Date.now(),
           };
         }
-        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        const waitTime = Math.min(
+          1000 * Math.pow(2, attempt - 1),
+          getGuardValue('execution_graph.memory.max_wait_time')
+        );
         await this.sleep(waitTime);
       }
     }
@@ -316,7 +319,10 @@ export class MemoryDBManager {
         };
       }
 
-      if (memory.content.length > 10000) {
+      if (
+        memory.content.length >
+        getGuardValue('execution_graph.memory.max_content_length')
+      ) {
         return {
           success: false,
           error: 'Content too long (max 10000 characters)',
@@ -367,7 +373,10 @@ export class MemoryDBManager {
         };
       }
 
-      if (memory.fact.length > 10000) {
+      if (
+        memory.fact.length >
+        getGuardValue('execution_graph.memory.max_content_length')
+      ) {
         return {
           success: false,
           error: 'Content too long (max 10000 characters)',

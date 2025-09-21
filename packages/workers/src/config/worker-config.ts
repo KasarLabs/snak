@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { WorkerConfig } from '../types/index.js';
+import { getGuardValue } from '@core/dist/index.js';
 
 export const configSchema = z
   .object({
@@ -30,16 +31,44 @@ export const configSchema = z
       ),
     queues: z
       .object({
-        fileIngestion: z.string().min(1).default('file-ingestion'),
-        embeddings: z.string().min(1).default('embeddings'),
+        fileIngestion: z
+          .string()
+          .min(getGuardValue('worker.min_queue_name_length'))
+          .max(getGuardValue('worker.max_queue_name_length'))
+          .default('file-ingestion'),
+        embeddings: z
+          .string()
+          .min(getGuardValue('worker.min_queue_name_length'))
+          .max(getGuardValue('worker.max_queue_name_length'))
+          .default('embeddings'),
       })
       .strict(),
     concurrency: z
       .object({
-        fileIngestion: z.coerce.number().int().min(1).default(2),
-        embeddings: z.coerce.number().int().min(1).default(2),
-        fallbackWorkers: z.coerce.number().int().min(0).default(8),
-        workerIdleTimeout: z.coerce.number().int().min(0).default(30000),
+        fileIngestion: z.coerce
+          .number()
+          .int()
+          .min(getGuardValue('worker.min_file_ingestion_workers'))
+          .max(getGuardValue('worker.max_file_ingestion_workers'))
+          .default(2),
+        embeddings: z.coerce
+          .number()
+          .int()
+          .min(getGuardValue('worker.min_embeddings_workers'))
+          .max(getGuardValue('worker.max_embeddings_workers'))
+          .default(2),
+        fallbackWorkers: z.coerce
+          .number()
+          .int()
+          .min(getGuardValue('worker.min_fallback_workers'))
+          .max(getGuardValue('worker.max_fallback_workers'))
+          .default(8),
+        workerIdleTimeout: z.coerce
+          .number()
+          .int()
+          .min(0)
+          .max(getGuardValue('worker.max_worker_idle_timeout'))
+          .default(30000),
       })
       .strict(),
   })
