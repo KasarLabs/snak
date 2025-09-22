@@ -6,7 +6,7 @@
  * Graph execution modes
  */
 export interface GraphConfig {
-  maxSteps?: number;
+  max_steps?: number;
   timeout?: number;
 }
 
@@ -25,7 +25,7 @@ export interface GraphNodeResult {
  */
 export interface GraphExecutionContext {
   currentStep: number;
-  maxSteps: number;
+  max_steps: number;
   startTime: number;
   metadata?: Record<string, any>;
 }
@@ -102,3 +102,5 @@ export interface TaskType {
 export interface TasksType {
   tasks: TaskType[];
 }
+
+

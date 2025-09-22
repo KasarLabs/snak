@@ -39,6 +39,7 @@ export enum ExecutionMode {
  */
 export enum GraphNode {
   START = 'start',
+  INIT_STATE_VALUE = 'init_state_value',
   PLANNING_ORCHESTRATOR = 'planning_orchestrator',
   AGENT_EXECUTOR = 'agent_executor',
   MEMORY_ORCHESTRATOR = 'memory_orchestrator',

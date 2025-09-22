@@ -6,7 +6,7 @@ export interface GraphConfig {
   maxGraphSteps: number;
   shortTermMemory: number;
   memorySize: number;
-  maxRetries: number;
+  max_retries: number;
   toolTimeout: number;
   humanInTheLoop: number;
   planValidationEnabled: boolean;
@@ -30,9 +30,9 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   rag: {
     enabled: true,
   },
-  mcpServers: {},
+  mcp_servers: {},
   mode: AgentMode.INTERACTIVE,
-  maxIterations: 15,
+  max_iterations: 15,
   prompt: new SystemMessage({
     content: [
       // Lore
@@ -59,7 +59,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   maxGraphSteps: 100,
   shortTermMemory: 7,
   memorySize: 20,
-  maxRetries: 3,
+  max_retries: 3,
   toolTimeout: 30000, // 30 seconds
   humanInTheLoop: 0,
   agent_config: DEFAULT_AGENT_CONFIG,
@@ -117,8 +117,8 @@ export class ConfigValidator {
     if (validated.memorySize <= 0) {
       throw new Error('memorySize must be greater than 0');
     }
-    if (validated.maxRetries < 0) {
-      throw new Error('maxRetries must be non-negative');
+    if (validated.max_retries < 0) {
+      throw new Error('max_retries must be non-negative');
     }
     if (validated.toolTimeout <= 0) {
       throw new Error('toolTimeout must be greater than 0');

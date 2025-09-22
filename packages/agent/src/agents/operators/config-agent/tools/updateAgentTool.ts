@@ -207,7 +207,7 @@ export const updateAgentTool = new DynamicStructuredTool({
           );
           updateValues.push(
             memory?.enabled ?? null,
-            memory?.shortTermMemorySize ?? null,
+            memory?short_term_memory_size ?? null,
             memory?.memorySize ?? null
           );
           paramIndex += 3;
@@ -222,7 +222,7 @@ export const updateAgentTool = new DynamicStructuredTool({
           );
           updateValues.push(
             rag?.enabled ?? null,
-            (rag as any)?.embeddingModel ?? null
+            (rag as any)?.embedding_model ?? null
           );
           paramIndex += 2;
         } else {

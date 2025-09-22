@@ -18,7 +18,6 @@ import {
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
   AgentConfig,
-  Id,
   AgentRequestDTO,
   AgentDeleteRequestDTO,
   AgentDeletesRequestDTO,
@@ -49,12 +48,12 @@ export interface AgentAvatarResponseDTO {
 interface UpdateAgentMcpDTO {
   id: string;
   plugins: string[];
-  mcpServers: Record<string, any>;
+  mcp_servers: Record<string, any>;
 }
 
 interface AgentMcpResponseDTO {
   id: string;
-  mcpServers: Record<string, any>;
+  mcp_servers: Record<string, any>;
 }
 
 /**
@@ -75,22 +74,22 @@ export class AgentsController {
   @Post('update_agent_mcp')
   async updateAgentMcp(@Body() updateData: UpdateAgentMcpDTO) {
     try {
-      const { id, mcpServers } = updateData;
+      const { id, mcp_servers } = updateData;
       if (!id) {
         throw new BadRequestException('Agent ID is required');
       }
 
-      if (!mcpServers || typeof mcpServers !== 'object') {
+      if (!mcp_servers || typeof mcp_servers !== 'object') {
         throw new BadRequestException('MCP servers must be an object');
       }
 
       // Update agent MCP configuration in database
       const q = new Postgres.Query(
         `UPDATE agents
-       SET "mcpServers" = $1
+       SET "mcp_servers" = $1
        WHERE id = $2
-       RETURNING id, "mcpServers"`,
-        [JSON.stringify(mcpServers), id]
+       RETURNING id, "mcp_servers"`,
+        [JSON.stringify(mcp_servers), id]
       );
 
       const result = await Postgres.query<AgentMcpResponseDTO>(q);
@@ -104,7 +103,7 @@ export class AgentsController {
         status: 'success',
         data: {
           id: updatedAgent.id,
-          mcpServers: updatedAgent.mcpServers,
+          mcp_servers: updatedAgent.mcp_servers,
         },
       };
     } catch (error) {
@@ -148,7 +147,7 @@ export class AgentsController {
           config.group || null,
           config.profile || null,
           config.mode || null,
-          config.mcpServers ? JSON.stringify(config.mcpServers) : null,
+          config.mcp_servers ? JSON.stringify(config.mcp_servers) : null,
           config.plugins || null,
           config.prompts || null,
           config.graph || null,

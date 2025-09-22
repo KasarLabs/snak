@@ -32,7 +32,7 @@ const mockIterations = jest.mocked(
 const makeSnakAgent = (): any => ({}) as any;
 const makeAgentConfig = (overrides: any = {}): any => ({
   plugins: ['test-plugin'],
-  mcpServers: {},
+  mcp_servers: {},
   ...overrides,
 });
 const makeCredentials = (): any =>
@@ -77,7 +77,7 @@ describe('utils functions', () => {
       expect(result).toEqual(mockTools);
     });
 
-    it('should add MCP tools when mcpServers are configured', async () => {
+    it('should add MCP tools when mcp_servers are configured', async () => {
       const mockAllowedTools = [{ name: 'allowed-tool' }];
       const mockMCPTools = [{ name: 'mcp-tool' }];
       const mockMCP = {
@@ -89,7 +89,7 @@ describe('utils functions', () => {
       mockMCPController.fromAgentConfig.mockReturnValue(mockMCP);
 
       const agentConfigWithMCP = makeAgentConfig({
-        mcpServers: { test: 'config' },
+        mcp_servers: { test: 'config' },
       });
 
       const result = await initializeToolsList(
@@ -113,7 +113,7 @@ describe('utils functions', () => {
       });
 
       const agentConfigWithMCP = makeAgentConfig({
-        mcpServers: { test: 'config' },
+        mcp_servers: { test: 'config' },
       });
 
       const result = await initializeToolsList(
@@ -128,13 +128,13 @@ describe('utils functions', () => {
     });
 
     it.each([
-      { mcpServers: {}, description: 'empty mcpServers object' },
-      { mcpServers: undefined, description: 'undefined mcpServers' },
-    ])('should handle $description', async ({ mcpServers }) => {
+      { mcp_servers: {}, description: 'empty mcp_servers object' },
+      { mcp_servers: undefined, description: 'undefined mcp_servers' },
+    ])('should handle $description', async ({ mcp_servers }) => {
       const mockAllowedTools = [{ name: 'allowed-tool' }];
       mockCreateAllowedTools.mockResolvedValue(mockAllowedTools);
 
-      const agentConfig = makeAgentConfig({ mcpServers });
+      const agentConfig = makeAgentConfig({ mcp_servers });
 
       const result = await initializeToolsList(mockSnakAgent, agentConfig);
 

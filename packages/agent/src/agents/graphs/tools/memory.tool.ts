@@ -12,8 +12,7 @@ import {
 } from '@stypes/memory.types.js';
 import { logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
-import { embeddingModel } from '../chain/memory/memory-chain.js';
-
+import { embeddingModel } from '../manager/memory/memory-db-manager.js';
 export class MemoryToolRegistry extends GraphToolRegistry {
   constructor(config: typeof GraphConfigurableAnnotation.State) {
     super(config);

@@ -20,7 +20,7 @@
     "I stay updated with the evolving Starknet protocol and RPC standards."
   ],
   "interval": 15000,
-  "maxIterations": 15,
+  "max_iterations": 15,
   "mode": "autonomous",
   "memory": {
     "enabled": true,

@@ -23,7 +23,6 @@ export type ToolCall<HasId extends Id.NoId | Id.Id = Id.NoId> =
 import { z as Zod } from 'zod';
 import { RpcProvider } from 'starknet';
 import { AgentConfig, Id } from '@snakagent/core';
-import { MemoryAgent } from '@agents/operators/memoryAgent.js';
 import { RagAgent } from '@agents/operators/ragAgent.js';
 import { DatabaseCredentials } from './database.types.js';
 
@@ -48,7 +47,6 @@ export interface SnakAgentInterface {
   getDatabaseCredentials: () => DatabaseCredentials;
   getProvider: () => RpcProvider;
   getAgentConfig: () => AgentConfig.Runtime;
-  getMemoryAgent: () => MemoryAgent | null;
   getRagAgent: () => RagAgent | null;
 }
 

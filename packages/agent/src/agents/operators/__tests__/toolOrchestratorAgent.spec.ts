@@ -52,7 +52,7 @@ describe('ToolsOrchestrator', () => {
     snakAgent: { name: 'test-agent', description: 'Test agent' } as any,
     agentConfig: {
       plugins: ['test-plugin'],
-      mcpServers: { testServer: { command: 'test-command', args: ['--test'] } },
+      mcp_servers: { testServer: { command: 'test-command', args: ['--test'] } },
     },
     modelSelector: {
       getModels: jest.fn().mockReturnValue({
@@ -285,8 +285,8 @@ describe('ToolsOrchestrator', () => {
   describe('edge cases and configuration handling', () => {
     it.each([
       [
-        'empty mcpServers',
-        { agentConfig: { plugins: ['test-plugin'], mcpServers: {} } },
+        'empty mcp_servers',
+        { agentConfig: { plugins: ['test-plugin'], mcp_servers: {} } },
       ],
       ['null SnakAgent', { snakAgent: null, agentConfig: {} }],
       ['null model selector', { modelSelector: null }],

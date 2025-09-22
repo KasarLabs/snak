@@ -42,7 +42,6 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_EXECUTOR_HUMAN_PROMPT,
   TASK_EXECUTOR_MEMORY_PROMPT,
-  TASK_EXECUTOR_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
 
 export class AgentExecutorGraph {
@@ -69,11 +68,8 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<AIMessageChunk> {
-    if (!this.model || !this.model.bindTools) {
-      throw new Error('Model not found or bindTools undefined');
-    }
     const prompt = ChatPromptTemplate.fromMessages([
-      this.agentConfig.prompts.taskExecutorPrompt,
+      config.configurable!.agent_config!.prompts.task_executor_prompt,
       ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
       ['human', TASK_EXECUTOR_HUMAN_PROMPT],
     ]);
@@ -87,11 +83,10 @@ export class AgentExecutorGraph {
       current_task: state.tasks[state.tasks.length - 1].task.directive,
       success_criteria: state.tasks[state.tasks.length - 1].task.success_check,
     });
-    const modelBind = this.model.bindTools(this.toolsList);
+    const modelBind = this.model.bindTools!(this.toolsList);
 
     const result = await modelBind.invoke(formattedPrompt);
-    // Agréger tous les chunks
-    TokenTracker.trackCall(result, 'selectedModelType.modelName');
+    TokenTracker.trackCall(result, 'selectedModelType.model_name');
     return result;
   }
 
@@ -333,9 +328,9 @@ export class AgentExecutorGraph {
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
       tools.messages.forEach(async (tool) => {
         if (
-          config.configurable?.agent_config?.memory.summarizationThreshold &&
+          config.configurable?.agent_config?.memory.summarization_threshold &&
           estimateTokens(tool.content.toLocaleString()) >=
-            config.configurable?.agent_config?.memory.summarizationThreshold
+            config.configurable?.agent_config?.memory.summarization_threshold
         ) {
           const summarize_content = await STMManager.summarize_before_inserting(
             tool.content.toLocaleString(),
@@ -439,7 +434,7 @@ export class AgentExecutorGraph {
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required for routing decisions.');
     }
-    if (state.retry > config.configurable?.agent_config?.graph.maxRetries) {
+    if (state.retry > config.configurable?.agent_config?.graph.max_retries) {
       logger.warn('[Router] Max retries reached, routing to END node');
       return ExecutorNode.END_EXECUTOR_GRAPH;
     }
@@ -469,7 +464,7 @@ export class AgentExecutorGraph {
       }
     } else if (state.last_node === ExecutorNode.TOOL_EXECUTOR) {
       if (
-        config.configurable.agent_config.graph.maxSteps <=
+        config.configurable.agent_config.graph.max_steps <=
         state.currentGraphStep
       ) {
         logger.warn('[Router] Max graph steps reached, routing to END node');

@@ -1,13 +1,11 @@
-import { Injectable, Logger, OnModuleInit, Query } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import { DatabaseService } from './services/database.service.js';
 import { Postgres } from '@snakagent/database';
 import {
   AgentConfig,
   ModelConfig,
-  Id,
   StarknetConfig,
-  AgentPrompts,
   DEFAULT_PROMPT_ID,
   DEFAULT_USER_ID,
   DEFAULT_AGENT_ID,
@@ -119,11 +117,11 @@ export class AgentStorage implements OnModuleInit {
       throw new Error('User ID is required to fetch model configuration');
     }
     const query = new Postgres.Query(
-      `SELECT 
-      (model).model_provider as provider,
-      (model).model_name as model_name,
-      (model).temperature as temperature,
-      (model).max_tokens as max_tokens
+      `SELECT
+      (model).model_provider as "provider",
+      (model).model_name as "model_name",
+      (model).temperature as "temperature",
+      (model).max_tokens as "max_tokens"
       FROM models_config WHERE user_id = $1`,
       [userId]
     );
@@ -134,7 +132,7 @@ export class AgentStorage implements OnModuleInit {
         [
           'default-user',
           DEFAULT_AGENT_MODEL.provider,
-          DEFAULT_AGENT_MODEL.modelName,
+          DEFAULT_AGENT_MODEL.model_name,
           DEFAULT_AGENT_MODEL.temperature,
           DEFAULT_AGENT_MODEL.max_tokens,
         ]
@@ -232,7 +230,7 @@ export class AgentStorage implements OnModuleInit {
         "group",
         row_to_json(profile) as profile,
         mode,
-        mcp_servers,
+        mcp_servers as "mcp_servers",
         plugins,
         row_to_json(prompts) as prompts,
         row_to_json(graph) as graph,
@@ -250,45 +248,45 @@ export class AgentStorage implements OnModuleInit {
         agent_config.profile.lore, // $5
         agent_config.profile.objectives, // $6
         agent_config.profile.knowledge, // $7
-        agent_config.profile.agentConfigPrompt || null, // $8
+        agent_config.profile.agent_config_prompt || null, // $8
         agent_config.mode, // $9
-        agent_config.mcpServers || {}, // $10
+        agent_config.mcp_servers || {}, // $10
         agent_config.plugins, // $11
         // agent_prompts
         agent_config.prompts.id, // $12
         // graph_config
-        agent_config.graph.maxSteps, // $13
-        agent_config.graph.maxIterations, // $14
-        agent_config.graph.maxRetries, // $15
-        agent_config.graph.executionTimeoutMs, // $16
-        agent_config.graph.maxTokenUsage, // $17
+        agent_config.graph.max_steps, // $13
+        agent_config.graph.max_iterations, // $14
+        agent_config.graph.max_retries, // $15
+        agent_config.graph.execution_timeout_ms, // $16
+        agent_config.graph.max_token_usage, // $17
         // model_config (nested in graph_config)
         agent_config.graph.model.provider, // $18
-        agent_config.graph.model.modelName, // $19
+        agent_config.graph.model.model_name, // $19
         agent_config.graph.model.temperature, // $20
         agent_config.graph.model.max_tokens || 4096, // $21
         // memory_config
-        agent_config.memory.ltmEnabled, // $22
-        agent_config.memory.summarizationThreshold, // $23
+        agent_config.memory.ltm_enabled, // $22
+        agent_config.memory.summarization_threshold, // $23
         // memory_size_limits
-        agent_config.memory.sizeLimits.shortTermMemorySize, // $24
-        agent_config.memory.sizeLimits.maxInsertEpisodicSize, // $25
-        agent_config.memory.sizeLimits.maxInsertSemanticSize, // $26
-        agent_config.memory.sizeLimits.maxRetrieveMemorySize, // $27
+        agent_config.memory.size_limits.short_term_memory_size, // $24
+        agent_config.memory.size_limits.max_insert_episodic_size, // $25
+        agent_config.memory.size_limits.max_insert_semantic_size, // $26
+        agent_config.memory.size_limits.max_retrieve_memory_size, // $27
         // memory_thresholds
-        agent_config.memory.thresholds.insertSemanticThreshold, // $28
-        agent_config.memory.thresholds.insertEpisodicThreshold, // $29
-        agent_config.memory.thresholds.retrieveMemoryThreshold, // $30
-        agent_config.memory.thresholds.summarizationThreshold, // $31
+        agent_config.memory.thresholds.insert_semantic_threshold, // $28
+        agent_config.memory.thresholds.insert_episodic_threshold, // $29
+        agent_config.memory.thresholds.retrieve_memory_threshold, // $30
+        agent_config.memory.thresholds.summarization_threshold, // $31
         // memory_timeouts
-        agent_config.memory.timeouts.retrieveMemoryTimeoutMs, // $32
-        agent_config.memory.timeouts.insertMemoryTimeoutMs, // $33
+        agent_config.memory.timeouts.retrieve_memory_timeout_ms, // $32
+        agent_config.memory.timeouts.insert_memory_timeout_ms, // $33
         // memory_strategy
         agent_config.memory.strategy, // $34
         // rag_config
         agent_config.rag.enabled, // $35
-        agent_config.rag.topK, // $36
-        agent_config.rag.embeddingModel, // $37
+        agent_config.rag.top_k, // $36
+        agent_config.rag.embedding_model, // $37
       ]
     );
     const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
@@ -382,12 +380,12 @@ export class AgentStorage implements OnModuleInit {
       await this.initializationPromise;
 
       // Initialize default agent and prompts in database
-      await this.initializeDefaultAgent();
-      await this.initializeDefaultPrompts();
+      await this.initializeDefaultAgent(); // TODO remove
+      await this.initializeDefaultPrompts(); // TODO remove
 
       const model = await this.getModelFromUser('default-user');
       const modelInstance = this.initializeModels(model);
-      if (!modelInstance) {
+      if (!modelInstance || modelInstance.bindTools === undefined) {
         throw new Error('Failed to initialize model for AgentSelector');
       }
       this.agentSelector = new AgentSelector({
@@ -435,7 +433,7 @@ export class AgentStorage implements OnModuleInit {
           "group",
           row_to_json(profile) as profile,
           mode,
-          mcp_servers,
+          mcp_servers as "mcp_servers",
           plugins,
           row_to_json(prompts) as prompts,
           row_to_json(graph) as graph,
@@ -479,7 +477,7 @@ export class AgentStorage implements OnModuleInit {
         accountPublicKey: this.config.starknet.publicKey,
       };
 
-      const agentConfigPrompt = this.buildSystemPromptFromConfig({
+      const agent_config_prompt = this.buildSystemPromptFromConfig({
         name: agentConfig.name,
         description: agentConfig.profile.description,
         lore: agentConfig.profile.lore || [],
@@ -487,7 +485,7 @@ export class AgentStorage implements OnModuleInit {
         knowledge: agentConfig.profile.knowledge || [],
       });
 
-      agentConfig.profile.agentConfigPrompt = agentConfigPrompt;
+      agentConfig.profile.agent_config_prompt = agent_config_prompt;
 
       // JUST FOR TESTING PURPOSES
       const model = await this.getModelFromUser('default-user');
@@ -499,27 +497,20 @@ export class AgentStorage implements OnModuleInit {
       const promptsFromDb = await this.getPromptsFromDatabase(
         agentConfig.prompts.id
       );
-      const agentPrompts = promptsFromDb || {
-        taskExecutorPrompt: new SystemMessage('You are a task execution AI.'),
-        taskManagerPrompt: new SystemMessage('You are a task management AI.'),
-        taskVerifierPrompt: new SystemMessage(
-          'You are a task verification AI.'
-        ),
-        taskMemoryManagerPrompt: new SystemMessage(
-          'You are a task and memory management AI.'
-        ),
-      };
+      if (!promptsFromDb) {
+        throw new Error(
+          `Failed to load prompts for agent ${agentConfig.id}, prompts ID: ${agentConfig.prompts.id}`
+        );
+      }
 
       const AgentConfigRuntime: AgentConfig.Runtime = {
         ...agentConfig,
-        prompts: agentPrompts,
+        prompts: promptsFromDb,
         graph: {
           ...agentConfig.graph,
           model: modelInstance,
         },
       };
-
-      console.log('AgentConfigRuntime:', AgentConfigRuntime);
       const snakAgent = new SnakAgent(
         starknetConfig,
         AgentConfigRuntime,
@@ -601,7 +592,6 @@ export class AgentStorage implements OnModuleInit {
         `Your knowledge : [${promptComponents.knowledge.join(']\n[')}]`
       );
     }
-
     return contextParts.join('\n');
   }
 
@@ -610,16 +600,16 @@ export class AgentStorage implements OnModuleInit {
    * @throws {Error} If models configuration is not loaded.
    */
   protected initializeModels(model: ModelConfig): BaseChatModel | null {
-    if (!model) {
-      logger.error;
-    }
-
     try {
+      if (!model) {
+        throw new Error('Model configuration is not defined');
+      }
       let modelInstance: BaseChatModel | null = null;
       const commonConfig = {
-        modelName: model.modelName,
+        modelName: model.model_name,
+        verbose: false,
+        temperature: model.temperature,
       };
-
       switch (model.provider.toLowerCase()) {
         case 'openai':
           modelInstance = new ChatOpenAI({
@@ -635,7 +625,9 @@ export class AgentStorage implements OnModuleInit {
           break;
         case 'gemini':
           modelInstance = new ChatGoogleGenerativeAI({
-            ...commonConfig,
+            modelName: model.model_name, // Updated to valid Gemini model name
+            verbose: false,
+            temperature: model.temperature,
             apiKey: process.env.GEMINI_API_KEY,
           });
           break;
@@ -646,7 +638,7 @@ export class AgentStorage implements OnModuleInit {
       return modelInstance;
     } catch (error) {
       logger.error(
-        `Failed to initialize model ${model.provider}: ${model.modelName}): ${error}`
+        `Failed to initialize model ${model.provider}: ${model.model_name}): ${error}`
       );
       return null;
     }
@@ -658,22 +650,24 @@ export class AgentStorage implements OnModuleInit {
    * @param promptId - UUID of the prompt configuration
    * @returns Promise<AgentConfig.Prompts | null> - Parsed prompts or null if not found
    */
-  private async getPromptsFromDatabase(promptId: string): Promise<any | null> {
+  private async getPromptsFromDatabase(
+    promptId: string
+  ): Promise<AgentPromptsInitialized<SystemMessage> | null> {
     try {
       const query = new Postgres.Query(
-        `SELECT row_to_json(row(
-          task_executor_prompt,
-          task_manager_prompt,
-          task_verifier_prompt,
-          task_memory_manager_prompt
-        )) as prompts_json
+        `SELECT json_build_object(
+          'task_executor_prompt', task_executor_prompt,
+          'task_manager_prompt', task_manager_prompt,
+          'task_verifier_prompt', task_verifier_prompt,
+          'task_memory_manager_prompt', task_memory_manager_prompt
+        ) as prompts_json
          FROM prompts
          WHERE id = $1`,
         [promptId]
       );
 
       const result = await Postgres.query<{
-        prompts_json: AgentPromptsInitialized;
+        prompts_json: AgentPromptsInitialized<string>;
       }>(query);
 
       if (result.length === 0) {
@@ -682,14 +676,24 @@ export class AgentStorage implements OnModuleInit {
       }
 
       const promptData = result[0].prompts_json;
+      // Validate that we have valid prompt data
+      if (!promptData || typeof promptData !== 'object') {
+        logger.warn(`Invalid prompt data structure for ID: ${promptId}`);
+        return null;
+      }
 
       // Parse to proper format and return as SystemMessage objects
+      // The type suggests it should have camelCase properties
       return {
-        taskExecutorPrompt: new SystemMessage(promptData.taskExecutorPrompt),
-        taskManagerPrompt: new SystemMessage(promptData.taskManagerPrompt),
-        taskVerifierPrompt: new SystemMessage(promptData.taskVerifierPrompt),
-        taskMemoryManagerPrompt: new SystemMessage(
-          promptData.taskMemoryManagerPrompt
+        task_executor_prompt: new SystemMessage(
+          promptData.task_executor_prompt
+        ),
+        task_manager_prompt: new SystemMessage(promptData.task_manager_prompt),
+        task_memory_manager_prompt: new SystemMessage(
+          promptData.task_verifier_prompt
+        ),
+        task_verifier_prompt: new SystemMessage(
+          promptData.task_memory_manager_prompt
         ),
       };
     } catch (error) {
@@ -747,54 +751,54 @@ export class AgentStorage implements OnModuleInit {
           ROW($36, $37, $38)::rag_config
         )`,
         [
-          DEFAULT_AGENT_ID,                                    // $1
-          DEFAULT_AGENT_CONFIG.name,                           // $2
-          DEFAULT_AGENT_CONFIG.group,                          // $3
+          DEFAULT_AGENT_ID, // $1
+          DEFAULT_AGENT_CONFIG.name, // $2
+          DEFAULT_AGENT_CONFIG.group, // $3
           // agent_profile
-          DEFAULT_AGENT_CONFIG.profile.description,            // $4
-          DEFAULT_AGENT_CONFIG.profile.group,                  // $5
-          DEFAULT_AGENT_CONFIG.profile.lore,                   // $6
-          DEFAULT_AGENT_CONFIG.profile.objectives,             // $7
-          DEFAULT_AGENT_CONFIG.profile.knowledge,              // $8
-          DEFAULT_AGENT_CONFIG.profile.merged_profile,         // $9
-          DEFAULT_AGENT_CONFIG.mode,                           // $10
-          DEFAULT_AGENT_CONFIG.mcp_servers,                    // $11
-          DEFAULT_AGENT_CONFIG.plugins,                        // $12
+          DEFAULT_AGENT_CONFIG.profile.description, // $4
+          DEFAULT_AGENT_CONFIG.profile.group, // $5
+          DEFAULT_AGENT_CONFIG.profile.lore, // $6
+          DEFAULT_AGENT_CONFIG.profile.objectives, // $7
+          DEFAULT_AGENT_CONFIG.profile.knowledge, // $8
+          DEFAULT_AGENT_CONFIG.profile.agent_config_prompt || null, // $9
+          DEFAULT_AGENT_CONFIG.mode, // $10
+          DEFAULT_AGENT_CONFIG.mcp_servers, // $11
+          DEFAULT_AGENT_CONFIG.plugins, // $12
           // agent_prompts
-          DEFAULT_AGENT_CONFIG.prompts.id,                     // $13
+          DEFAULT_AGENT_CONFIG.prompts.id, // $13
           // graph_config
-          DEFAULT_AGENT_CONFIG.graph.max_steps,                // $14
-          DEFAULT_AGENT_CONFIG.graph.max_iterations,           // $15
-          DEFAULT_AGENT_CONFIG.graph.max_retries,              // $16
-          DEFAULT_AGENT_CONFIG.graph.execution_timeout_ms,     // $17
-          DEFAULT_AGENT_CONFIG.graph.max_token_usage,          // $18
+          DEFAULT_AGENT_CONFIG.graph.max_steps, // $14
+          DEFAULT_AGENT_CONFIG.graph.max_iterations, // $15
+          DEFAULT_AGENT_CONFIG.graph.max_retries, // $16
+          DEFAULT_AGENT_CONFIG.graph.execution_timeout_ms, // $17
+          DEFAULT_AGENT_CONFIG.graph.max_token_usage, // $18
           // model_config (nested in graph_config)
-          DEFAULT_AGENT_CONFIG.graph.model.provider,           // $19
-          DEFAULT_AGENT_CONFIG.graph.model.modelName,          // $20
-          DEFAULT_AGENT_CONFIG.graph.model.temperature,        // $21
-          DEFAULT_AGENT_CONFIG.graph.model.max_tokens,         // $22
+          DEFAULT_AGENT_CONFIG.graph.model.provider, // $19
+          DEFAULT_AGENT_CONFIG.graph.model.model_name, // $20
+          DEFAULT_AGENT_CONFIG.graph.model.temperature, // $21
+          DEFAULT_AGENT_CONFIG.graph.model.max_tokens, // $22
           // memory_config
-          DEFAULT_AGENT_CONFIG.memory.ltm_enabled,             // $23
+          DEFAULT_AGENT_CONFIG.memory.ltm_enabled, // $23
           DEFAULT_AGENT_CONFIG.memory.summarization_threshold, // $24
           // memory_size_limits
-          DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size,      // $25
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size,    // $26
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size,    // $27
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size,    // $28
+          DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size, // $25
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size, // $26
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size, // $27
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size, // $28
           // memory_thresholds
-          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold,    // $29
-          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold,    // $30
-          DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold,    // $31
-          DEFAULT_AGENT_CONFIG.memory.thresholds.summarization_threshold,      // $32
+          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold, // $29
+          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold, // $30
+          DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold, // $31
+          DEFAULT_AGENT_CONFIG.memory.thresholds.summarization_threshold, // $32
           // memory_timeouts
-          DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms,     // $33
-          DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms,       // $34
+          DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms, // $33
+          DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms, // $34
           // memory_strategy
-          DEFAULT_AGENT_CONFIG.memory.strategy,                                // $35
+          DEFAULT_AGENT_CONFIG.memory.strategy, // $35
           // rag_config
-          DEFAULT_AGENT_CONFIG.rag.enabled,                                    // $36
-          DEFAULT_AGENT_CONFIG.rag.top_k,                                      // $37
-          DEFAULT_AGENT_CONFIG.rag.embedding_model,                            // $38
+          DEFAULT_AGENT_CONFIG.rag.enabled, // $36
+          DEFAULT_AGENT_CONFIG.rag.top_k, // $37
+          DEFAULT_AGENT_CONFIG.rag.embedding_model, // $38
         ]
       );
 

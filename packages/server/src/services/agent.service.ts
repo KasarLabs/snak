@@ -183,7 +183,7 @@ export class AgentService implements IAgentService {
 			SELECT
 			  id, name, "group", description, lore, objectives, knowledge,
 			  system_prompt, interval, plugins, memory, mode, max_iterations,
-			  "mcpServers",
+			  "mcp_servers",
 			  CASE
 				WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
 				THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))

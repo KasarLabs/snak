@@ -78,8 +78,8 @@ export class ToolsOrchestrator extends BaseAgent {
       }
 
       if (
-        this.agentConfig.mcpServers &&
-        Object.keys(this.agentConfig.mcpServers).length > 0
+        this.agentConfig.mcp_servers &&
+        Object.keys(this.agentConfig.mcp_servers).length > 0
       ) {
         try {
           const mcp = MCP_CONTROLLER.fromAgentConfig(this.agentConfig);

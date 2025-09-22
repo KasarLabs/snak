@@ -10,13 +10,13 @@ export interface StarknetTool<P = unknown> {
   plugins: string;
   description: string;
   schema?: Zod.AnyZodObject;
-  responseFormat?: string;
+  response_format?: string;
   execute: (agent: any, params: P, plugins_manager?: any) => Promise<unknown>;
 }
 
 export interface ModelConfig {
   provider: string;
-  modelName: string;
+  model_name: string;
   description?: string;
   temperature: number;
   max_tokens: number;
@@ -31,7 +31,7 @@ export interface AgentProfile {
   lore: string[];
   objectives: string[];
   knowledge: string[];
-  agentConfigPrompt?: string; // Don't set in the user request
+  agent_config_prompt?: string; // Don't set in the user request
 }
 
 /**
@@ -42,10 +42,10 @@ export interface AgentPrompts {
 }
 
 export interface AgentPromptsInitialized<T> {
-  taskMemoryManagerPrompt: T;
-  taskExecutorPrompt: T;
-  taskManagerPrompt: T;
-  taskVerifierPrompt: T;
+  task_memory_manager_prompt: T;
+  task_executor_prompt: T;
+  task_manager_prompt: T;
+  task_verifier_prompt: T;
   // Add resolved prompts or other runtime data as needed
 }
 
@@ -53,11 +53,11 @@ export interface AgentPromptsInitialized<T> {
  * Graph execution configuration
  */
 export interface GraphConfig {
-  maxSteps: number;
-  maxIterations: number;
-  maxRetries: number;
-  executionTimeoutMs: number;
-  maxTokenUsage: number;
+  max_steps: number;
+  max_iterations: number;
+  max_retries: number;
+  execution_timeout_ms: number;
+  max_token_usage: number;
   model: ModelConfig;
 }
 
@@ -85,37 +85,37 @@ export enum MemoryStrategy {
  * Memory thresholds configuration
  */
 export interface MemoryThresholds {
-  insertSemanticThreshold: number;
-  insertEpisodicThreshold: number;
-  retrieveMemoryThreshold: number;
-  summarizationThreshold: number;
+  insert_semantic_threshold: number;
+  insert_episodic_threshold: number;
+  retrieve_memory_threshold: number;
+  summarization_threshold: number;
 }
 
 /**
  * Memory size limits configuration
  */
 export interface MemorySizeLimits {
-  shortTermMemorySize: number;
-  maxInsertEpisodicSize: number;
-  maxInsertSemanticSize: number;
-  maxRetrieveMemorySize: number;
+  short_term_memory_size: number;
+  max_insert_episodic_size: number;
+  max_insert_semantic_size: number;
+  max_retrieve_memory_size: number;
 }
 
 /**
  * Memory timeout configuration
  */
 export interface MemoryTimeouts {
-  retrieveMemoryTimeoutMs: number;
-  insertMemoryTimeoutMs: number;
+  retrieve_memory_timeout_ms: number;
+  insert_memory_timeout_ms: number;
 }
 
 /**
  * Memory configuration for the agent
  */
 export interface MemoryConfig {
-  ltmEnabled: boolean;
-  summarizationThreshold: number;
-  sizeLimits: MemorySizeLimits;
+  ltm_enabled: boolean;
+  summarization_threshold: number;
+  size_limits: MemorySizeLimits;
   thresholds: MemoryThresholds;
   timeouts: MemoryTimeouts;
   strategy: MemoryStrategy;
@@ -126,8 +126,8 @@ export interface MemoryConfig {
  */
 export interface RAGConfig {
   enabled?: boolean;
-  topK?: number;
-  embeddingModel?: string;
+  top_k?: number;
+  embedding_model?: string;
 }
 
 /**
@@ -155,7 +155,7 @@ export namespace AgentConfig {
     group: string;
     profile: AgentProfile;
     mode: AgentMode;
-    mcpServers: Record<string, any>;
+    mcp_servers: Record<string, any>;
     plugins: string[];
     memory: MemoryConfig;
     rag: RAGConfig;

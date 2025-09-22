@@ -78,7 +78,7 @@ CREATE TYPE model AS (
   - `rag`: RAG configuration (composite type)
   - `mode`: Agent execution mode ('interactive' default)
   - `max_iterations`: Processing limit (15 default)
-  - `mcpServers`: MCP server configuration (JSONB)
+  - `mcp_servers`: MCP server configuration (JSONB)
   - `avatar_image`, `avatar_mime_type`: Agent visual representation
 
 #### Agent Iterations Table

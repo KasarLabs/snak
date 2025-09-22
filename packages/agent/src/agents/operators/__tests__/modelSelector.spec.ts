@@ -291,7 +291,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('hello');
 
-      expect(result.modelName).toBe(choice);
+      expect(result.model_name).toBe(choice);
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -315,7 +315,7 @@ describe('ModelSelector', () => {
       // The originalUserQuery functionality is no longer implemented with specific debug messages
       // Just verify the method still works with the config parameter
 
-      expect(result.modelName).toBe('smart');
+      expect(result.model_name).toBe('smart');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -329,7 +329,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('simple task');
 
-      expect(result.modelName).toBe('cheap');
+      expect(result.model_name).toBe('cheap');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -347,7 +347,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('placeholder');
 
-      expect(result.modelName).toBe('fast');
+      expect(result.model_name).toBe('fast');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -380,7 +380,7 @@ describe('ModelSelector', () => {
 
       expect(mockDebug).toHaveBeenCalledWith('Using full content analysis.');
 
-      expect(result.modelName).toBe('smart');
+      expect(result.model_name).toBe('smart');
       expect(result.model).toBeDefined();
       expect(result.token).toBeDefined();
     });
@@ -396,7 +396,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('hello');
 
-      expect(result.modelName).toBe('smart');
+      expect(result.model_name).toBe('smart');
       expect(result.model).toBeDefined();
       // Token is not included when defaulting to smart due to invalid choice
     });
@@ -413,7 +413,7 @@ describe('ModelSelector', () => {
 
       const result = await selector.selectModelForMessages('');
 
-      expect(result.modelName).toBe('smart');
+      expect(result.model_name).toBe('smart');
       expect(result.model).toBeDefined();
     });
 

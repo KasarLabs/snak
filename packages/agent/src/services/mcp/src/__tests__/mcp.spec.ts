@@ -71,8 +71,8 @@ describe('MCP_CONTROLLER', () => {
       memorySize: 100,
     },
     mode: AgentMode.INTERACTIVE,
-    maxIterations: 10,
-    mcpServers: createMockServers(),
+    max_iterations: 10,
+    mcp_servers: createMockServers(),
     prompt: new SystemMessage('Test prompt'),
     ...overrides,
   });
@@ -100,7 +100,7 @@ describe('MCP_CONTROLLER', () => {
   });
 
   describe('constructor', () => {
-    it('should initialize successfully with valid mcpServers', () => {
+    it('should initialize successfully with valid mcp_servers', () => {
       const servers = createMockServers();
       const controller = new MCP_CONTROLLER(servers);
 
@@ -115,13 +115,13 @@ describe('MCP_CONTROLLER', () => {
       ['null', null],
       ['undefined', undefined],
       ['empty object', {}],
-    ])('should throw error when mcpServers is %s', (_, servers) => {
+    ])('should throw error when mcp_servers is %s', (_, servers) => {
       expect(() => new MCP_CONTROLLER(servers as any)).toThrow(
         'MCP servers configuration is required'
       );
     });
 
-    it('should handle non-object mcpServers gracefully', () => {
+    it('should handle non-object mcp_servers gracefully', () => {
       expect(() => new MCP_CONTROLLER('invalid' as any)).not.toThrow();
     });
   });
@@ -132,21 +132,21 @@ describe('MCP_CONTROLLER', () => {
       const controller = MCP_CONTROLLER.fromAgentConfig(config);
 
       expect(controller).toBeInstanceOf(MCP_CONTROLLER);
-      expect(MultiServerMCPClient).toHaveBeenCalledWith(config.mcpServers);
+      expect(MultiServerMCPClient).toHaveBeenCalledWith(config.mcp_servers);
     });
 
     it.each([
       ['null config', null],
       ['undefined config', undefined],
       [
-        'missing mcpServers',
-        createMockConfig({ mcpServers: undefined as any }),
+        'missing mcp_servers',
+        createMockConfig({ mcp_servers: undefined as any }),
       ],
-      ['empty mcpServers', createMockConfig({ mcpServers: {} })],
-      ['null mcpServers', createMockConfig({ mcpServers: null as any })],
+      ['empty mcp_servers', createMockConfig({ mcp_servers: {} })],
+      ['null mcp_servers', createMockConfig({ mcp_servers: null as any })],
     ])('should throw error for %s', (_, config) => {
       expect(() => MCP_CONTROLLER.fromAgentConfig(config as any)).toThrow(
-        'Agent configuration must include mcpServers'
+        'Agent configuration must include mcp_servers'
       );
     });
   });

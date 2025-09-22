@@ -26,7 +26,7 @@
     "Proficiency in blockchain data analysis and interpretation techniques"
   ],
   "interval": 15000,
-  "maxIterations": 15,
+  "max_iterations": 15,
   "mode": "hybrid",
   "memory": {
     "enabled": true,
@@ -38,7 +38,7 @@
   },
   "chatId": "ethereum_rpc",
   "plugins": ["rpc"],
-  "mcpServers": {
+  "mcp_servers": {
     "ethereum-rpc": {
       "command": "npx",
       "args": [

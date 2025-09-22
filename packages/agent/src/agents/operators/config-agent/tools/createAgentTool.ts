@@ -115,10 +115,10 @@ export const createAgentTool = new DynamicStructuredTool({
           normalizedConfig.interval,
           input.plugins || null,
           normalizedConfig.memory.enabled,
-          normalizedConfig.memory.shortTermMemorySize,
+          normalizedConfig.memoryshort_term_memory_size,
           normalizedConfig.memory.memorySize,
           normalizedConfig.rag.enabled,
-          normalizedConfig.rag.embeddingModel,
+          normalizedConfig.rag.embedding_model,
           normalizedConfig.mode,
           normalizedConfig.max_iterations,
         ]

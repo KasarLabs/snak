@@ -191,7 +191,7 @@ describe('SnakAgent', () => {
         memorySize: 20,
         embeddingModel: 'Xenova/all-MiniLM-L6-v2',
       },
-      maxIterations: 10,
+      max_iterations: 10,
       plugins: [],
       prompt: { content: 'Test prompt' } as any,
     },

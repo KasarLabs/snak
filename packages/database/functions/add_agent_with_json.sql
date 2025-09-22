@@ -79,7 +79,7 @@ BEGIN
         'group', "group",
         'profile', row_to_json(profile),
         'mode', mode,
-        'mcpServers', mcp_servers,
+        'mcp_servers', mcp_servers,
         'plugins', plugins,
         'prompts', row_to_json(prompts),
         'graph', row_to_json(graph),

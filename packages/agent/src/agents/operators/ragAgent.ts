@@ -30,14 +30,14 @@ const SIMILARITY_THRESHOLD = (() => {
 
 export class RagAgent extends BaseAgent {
   private embeddings: CustomHuggingFaceEmbeddings;
-  private topK: number;
+  private top_k: number;
   private initialized = false;
 
   constructor(config: RAGConfig = {}) {
     super('rag-agent', AgentType.OPERATOR);
-    this.topK = config.topK ?? 4;
+    this.top_k = config.top_k ?? 4;
     this.embeddings = new CustomHuggingFaceEmbeddings({
-      model: config.embeddingModel || 'Xenova/all-MiniLM-L6-v2',
+      model: config.embedding_model || 'Xenova/all-MiniLM-L6-v2',
       dtype: 'fp32',
     });
   }
@@ -49,7 +49,7 @@ export class RagAgent extends BaseAgent {
 
   public async retrieveRelevantRag(
     message: string | BaseMessage,
-    k: number = this.topK,
+    k: number = this.top_k,
     agentId: string = ''
   ): Promise<rag.SearchResult[]> {
     if (!this.initialized) {
@@ -83,7 +83,7 @@ export class RagAgent extends BaseAgent {
   public async enrichPromptWithRag(
     prompt: ChatPromptTemplate,
     message: string | BaseMessage,
-    k: number = this.topK,
+    k: number = this.top_k,
     agentId: string
   ): Promise<ChatPromptTemplate> {
     const docs = await this.retrieveRelevantRag(message, k, agentId);
@@ -113,7 +113,7 @@ export class RagAgent extends BaseAgent {
 
     logger.debug(`RagAgent: Searching rag for query "${query}"`);
 
-    const k = config?.topK ?? this.topK;
+    const k = config?.top_k ?? this.top_k;
     const agentId = config?.agentId;
     const results = await this.retrieveRelevantRag(query, k, agentId);
 
@@ -139,7 +139,7 @@ export class RagAgent extends BaseAgent {
     };
 
     const retrieve = async (query: string) => {
-      const docs = await this.retrieveRelevantRag(query, this.topK, agentId);
+      const docs = await this.retrieveRelevantRag(query, this.top_k, agentId);
       return this.formatRagForContext(docs);
     };
 

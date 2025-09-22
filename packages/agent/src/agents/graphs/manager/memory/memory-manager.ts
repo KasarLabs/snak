@@ -8,11 +8,7 @@ import {
 } from '../../../../shared/types/index.js';
 import { memory } from '@snakagent/database/queries';
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
-import {
-  BaseChatModel,
-  BaseChatModelCallOptions,
-} from '@langchain/core/language_models/chat_models';
-import { th } from 'zod/v4/locales';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -27,7 +23,7 @@ export class STMManager {
   /**
    * Creates an empty STM state
    */
-  static createEmpty(maxSize: number = 15): STMContext {
+  static createEmpty(maxSize: number): STMContext {
     return {
       items: new Array(maxSize).fill(null),
       maxSize,
@@ -156,9 +152,9 @@ export class STMManager {
   /**
    * Gets the most recent N memories
    */
-  static getRecentMemories(stm: STMContext, count: number): MemoryItem[] {
+  static getRecentMemories(stm: STMContext, limit: number): MemoryItem[] {
     const allMemories = this.getMemories(stm);
-    return allMemories.slice(-count);
+    return allMemories.slice(-limit);
   }
 
   static async summarize_before_inserting(

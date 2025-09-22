@@ -16,7 +16,7 @@
     "Les pertes de mémoire peuvent provenir de la limite imposée"
   ],
   "interval": 15000,
-  "maxIterations": 15,
+  "max_iterations": 15,
   "mode": "hybrid",
   "chatId": "memory",
   "memory": {
@@ -28,5 +28,5 @@
     "enabled": true
   },
   "plugins": ["rpc"],
-  "mcpServers": {}
+  "mcp_servers": {}
 }

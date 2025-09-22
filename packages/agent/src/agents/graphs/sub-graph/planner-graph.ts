@@ -1,24 +1,18 @@
-import {
-  AIMessage,
-  AIMessageChunk,
-  BaseMessage,
-} from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
+import { GraphErrorType, TaskType } from '../../../shared/types/index.js';
 import {
-  GraphErrorType,
-  isPlannerActivateSchema,
-  TaskType,
-} from '../../../shared/types/index.js';
-import { handleNodeError } from '../utils/graph-utils.js';
+  handleNodeError,
+  hasReachedMaxSteps,
+  isValidConfiguration,
+  isValidConfigurationType,
+} from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
-import { AgentConfig, AgentMode, logger } from '@snakagent/core';
+import { logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
-import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   PlannerNode,
-  ExecutorNode,
-  MemoryNode,
   ExecutionMode,
 } from '../../../shared/enums/agent-modes.enum.js';
 import {
@@ -29,16 +23,13 @@ import {
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
-import { isInEnum } from '@enums/utils.js';
 import { TaskSchemaType } from '@schemas/graph.schemas.js';
 import { createTask } from '@tools/tools.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_MANAGER_HUMAN_PROMPT,
   TASK_MANAGER_MEMORY_PROMPT,
-  TASK_MANAGER_SYSTEM_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
-import { th } from 'zod/v4/locales';
 
 export function tasks_parser(tasks: TaskType[]): string {
   try {
@@ -73,7 +64,6 @@ export const parseToolsToJson = (
 };
 
 export class PlannerGraph {
-  private agentConfig: AgentConfig.Runtime;
   private model: BaseChatModel;
   private graph: any;
   private toolsList: (
@@ -82,12 +72,10 @@ export class PlannerGraph {
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
   constructor(
-    agentConfig: AgentConfig.Runtime,
     model: BaseChatModel,
     toolList: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
   ) {
     this.model = model;
-    this.agentConfig = agentConfig;
     this.toolsList = toolList;
   }
   private async planExecution(
@@ -106,26 +94,40 @@ export class PlannerGraph {
     | Command
   > {
     try {
-      logger.info('[Planner] Starting plan_or_history execution');
-      if (!this.model) {
-        throw new Error('Model not found in ModelSelector');
+      const _isValidConfiguration: isValidConfigurationType =
+        isValidConfiguration(config);
+      if (_isValidConfiguration.isValid === false) {
+        throw new Error(_isValidConfiguration.error);
       }
-      if (!this.model.bindTools) {
-        throw new Error('Model does not support tool binding');
+      if (
+        hasReachedMaxSteps(
+          state.currentGraphStep,
+          config.configurable!.agent_config!
+        )
+      ) {
+        logger.warn(
+          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+        );
+        throw new Error('Max steps reached');
       }
+      const agentConfig = config.configurable!.agent_config!;
       const prompt = ChatPromptTemplate.fromMessages([
-        this.agentConfig.prompts.taskManagerPrompt,
+        agentConfig.prompts.task_manager_prompt,
         ['ai', TASK_MANAGER_MEMORY_PROMPT],
         ['human', TASK_MANAGER_HUMAN_PROMPT],
       ]);
 
-      const modelWithRequiredTool = this.model.bindTools(
-        [...this.toolsList, createTask],
-        {
-          tool_choice: 'any',
-        }
-      );
-      const formattedPrompt = await prompt.formatMessages({});
+      const modelWithRequiredTool = this.model.bindTools!([
+        ...this.toolsList,
+        createTask,
+      ]);
+      const formattedPrompt = await prompt.formatMessages({
+        past_tasks: tasks_parser(state.tasks),
+        objectives: agentConfig.profile.objectives.join(', '),
+        failed_tasks: state.error
+          ? `The previous task failed due to: ${state.error.message}`
+          : '',
+      });
       const aiMessage = await modelWithRequiredTool.invoke(formattedPrompt);
       logger.info(`[Planner] Successfully created task`);
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
@@ -149,9 +151,8 @@ export class PlannerGraph {
         logger.info('[Planner] Task creation aborted by model');
         return handleNodeError(
           new Error('Task creation aborted by model'),
-          'PLANNER',
-          state,
-          'Task creation aborted by model'
+          'Planner',
+          state
         );
       }
       const parsed_args = JSON.parse(
@@ -164,7 +165,7 @@ export class PlannerGraph {
         thought: parsed_args.thought,
         task: parsed_args.task,
         steps: [],
-        status: 'pending' as 'pending',
+        status: 'pending' as const,
       };
       state.tasks.push(tasks);
       return {

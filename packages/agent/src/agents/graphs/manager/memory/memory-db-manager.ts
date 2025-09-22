@@ -15,19 +15,21 @@ import {
   MemoryOperationResult,
   SemanticMemoryContext,
 } from '../../../../shared/types/memory.types.js';
+
+export const embeddingModel = new CustomHuggingFaceEmbeddings({
+  model: 'Xenova/all-MiniLM-L6-v2',
+  dtype: 'fp32',
+});
 export class MemoryDBManager {
   private embeddings: CustomHuggingFaceEmbeddings;
-  private readonly maxRetries: number;
+  private readonly max_retries: number = 3; // Make configurable later
   private readonly memoryTimeouts: MemoryTimeouts;
   private readonly memorySizeLimit: MemorySizeLimits;
   private readonly memoryThreshold: MemoryThresholds;
-  constructor(
-    embeddings: CustomHuggingFaceEmbeddings,
-    memoryConfig: MemoryConfig
-  ) {
-    this.embeddings = embeddings;
+  constructor(memoryConfig: MemoryConfig) {
+    this.embeddings = embeddingModel;
     this.memoryTimeouts = memoryConfig.timeouts;
-    this.memorySizeLimit = memoryConfig.sizeLimits;
+    this.memorySizeLimit = memoryConfig.size_limits;
     this.memoryThreshold = memoryConfig.thresholds;
   }
 
@@ -43,7 +45,7 @@ export class MemoryDBManager {
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(
           () => reject(new Error('Database operation timeout')),
-          this.memoryTimeouts.insertMemoryTimeoutMs
+          this.memoryTimeouts.insert_memory_timeout_ms
         );
       });
 
@@ -161,14 +163,13 @@ export class MemoryDBManager {
     runId: string
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
     let attempt = 0;
-
-    while (attempt < this.maxRetries) {
+    while (attempt < this.max_retries) {
       try {
         // Create timeout
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(
             () => reject(new Error('Memory retrieval timeout')),
-            this.memoryTimeouts.retrieveMemoryTimeoutMs
+            this.memoryTimeouts.retrieve_memory_timeout_ms
           );
         });
 
@@ -181,14 +182,14 @@ export class MemoryDBManager {
       } catch (error) {
         attempt++;
         logger.warn(
-          `[MemoryDBManager] Retrieval attempt ${attempt}/${this.maxRetries} failed:`,
+          `[MemoryDBManager] Retrieval attempt ${attempt}/${this.max_retries} failed:`,
           error
         );
 
-        if (attempt >= this.maxRetries) {
+        if (attempt >= this.max_retries) {
           return {
             success: false,
-            error: `Memory retrieval failed after ${this.maxRetries} attempts: ${error.message}`,
+            error: `Memory retrieval failed after ${this.max_retries} attempts: ${error.message}`,
             timestamp: Date.now(),
           };
         }
@@ -196,7 +197,6 @@ export class MemoryDBManager {
         await this.sleep(Math.min(500 * attempt, 2000));
       }
     }
-
     return {
       success: false,
       error: 'Unexpected error in retrieval retry loop',
@@ -245,8 +245,8 @@ export class MemoryDBManager {
         userId,
         runId,
         embedding,
-        this.memorySizeLimit.maxRetrieveMemorySize,
-        this.memoryThreshold.retrieveMemoryThreshold
+        this.memorySizeLimit.max_retrieve_memory_size,
+        this.memoryThreshold.retrieve_memory_threshold
       );
 
       logger.debug(

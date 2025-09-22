@@ -12,38 +12,23 @@ import {
   GraphErrorTypeEnum,
 } from '../../../shared/types/index.js';
 import { VerifierNode } from '../../../shared/enums/agent-modes.enum.js';
-import { handleNodeError } from '../utils/graph-utils.js';
+import {
+  getCurrentTask,
+  handleNodeError,
+  hasReachedMaxSteps,
+  isValidConfiguration,
+  isValidConfigurationType,
+} from '../utils/graph-utils.js';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { TASK_VERIFICATION_CONTEXT_PROMPT } from '@prompts/agents/task-verifier.prompts.js';
 import {
-  TASK_VERIFICATION_CONTEXT_PROMPT,
-  TASK_VERIFIER_SYSTEM_PROMPT,
-} from '@prompts/agents/task-verifier.prompts.js';
+  TaskVerificationSchema,
+  TaskVerificationSchemaType,
+} from '@schemas/graph.schemas.js';
 // Task verification schema
-export const TaskVerificationSchema = z.object({
-  taskCompleted: z
-    .boolean()
-    .describe('true if the task was successfully completed, false otherwise'),
-  confidenceScore: z
-    .number()
-    .min(0)
-    .max(100)
-    .describe('Confidence level (0-100) in the completion assessment'),
-  reasoning: z
-    .string()
-    .describe('Detailed reasoning for the completion assessment'),
-  missingElements: z
-    .array(z.string())
-    .describe('List of missing elements or requirements if task is incomplete'),
-  nextActions: z
-    .array(z.string())
-    .optional()
-    .describe('Suggested next actions if task needs to continue'),
-});
-
-export type TaskVerificationResult = z.infer<typeof TaskVerificationSchema>;
 
 export class TaskVerifierGraph {
   private model: BaseChatModel;
@@ -68,19 +53,24 @@ export class TaskVerifierGraph {
     | Command
   > {
     try {
-      if (!config.configurable?.agent_config) {
-        throw new Error(
-          'Agent configuration is required for task verification.'
+      const _isValidConfiguration: isValidConfigurationType =
+        isValidConfiguration(config);
+      if (_isValidConfiguration.isValid === false) {
+        throw new Error(_isValidConfiguration.error);
+      }
+      if (
+        hasReachedMaxSteps(
+          state.currentGraphStep,
+          config.configurable!.agent_config!
+        )
+      ) {
+        logger.warn(
+          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
+        throw new Error('Max memory graph steps reached');
       }
-      if (!this.model) {
-        throw new Error('model is required for task verification');
-      }
-      const currentTask = state.tasks[state.tasks.length - 1];
-      if (!currentTask) {
-        throw new Error('No current task to verify');
-      }
-
+      const agentConfig = config.configurable!.agent_config!;
+      const currentTask = getCurrentTask(state.tasks);
       // Check if task was marked as completed by end_task tool
       if (currentTask.status !== 'waiting_validation') {
         logger.debug(
@@ -101,7 +91,7 @@ export class TaskVerifierGraph {
       );
 
       const prompt = ChatPromptTemplate.fromMessages([
-        config.configurable?.agent_config?.prompts.taskVerifierPrompt,
+        agentConfig.prompts.task_verifier_prompt,
         ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 
@@ -115,7 +105,7 @@ export class TaskVerifierGraph {
       });
       const verificationResult = (await structuredModel.invoke(
         formattedPrompt
-      )) as TaskVerificationResult;
+      )) as TaskVerificationSchemaType;
 
       const verificationMessage = new AIMessageChunk({
         content: `Task verification completed: ${verificationResult.taskCompleted ? 'SUCCESS' : 'INCOMPLETE'}

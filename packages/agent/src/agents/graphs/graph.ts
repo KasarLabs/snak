@@ -58,7 +58,7 @@ export const GraphState = Annotation.Root({
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
-    default: () => MemoryStateManager.createInitialState(5),
+    default: () => MemoryStateManager.createInitialState(0),
   }),
   rag: Annotation<string>({
     reducer: (x, y) => y,
@@ -101,6 +101,10 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => null,
   }),
+  user_request: Annotation<string | undefined>({
+    reducer: (x, y) => y,
+    default: () => undefined,
+  }),
 });
 export class Graph {
   private toolsList: (
@@ -123,11 +127,11 @@ export class Graph {
       this.ragAgent = this.snakAgent.getRagAgent();
       if (!this.ragAgent) {
         logger.warn(
-          'Agent] WARNING: RAG agent not available - RAG context will be skipped'
+          '[Agent] WARNING: RAG agent not available - RAG context will be skipped'
         );
       }
     } catch (error) {
-      logger.error(`Agent] Failed to retrieve RAG agent: ${error}`);
+      logger.error(`[Agent] Failed to retrieve RAG agent: ${error}`);
     }
   }
 
@@ -266,6 +270,22 @@ export class Graph {
     };
   }
 
+  private initGraphStateValue(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): GraphStateType {
+    logger.debug('[Agent] Initializing graph state values');
+    if (!config.configurable?.agent_config) {
+      throw new Error('Agent configuration is required in config');
+    }
+    const memorySize =
+      config.configurable.agent_config.memory.size_limits
+        .short_term_memory_size;
+    state.memories = MemoryStateManager.createInitialState(memorySize);
+    console.log('Initial state:', state.memories);
+    return state;
+  }
+
   private buildWorkflow(): StateGraph<
     typeof GraphState.State,
     typeof GraphConfigurableAnnotation.State
@@ -276,7 +296,6 @@ export class Graph {
       this.agentConfig.memory
     );
     const planner = new PlannerGraph(
-      this.agentConfig,
       this.agentConfig.graph.model,
       this.toolsList
     );
@@ -299,12 +318,14 @@ export class Graph {
     const planner_graph = planner.getPlannerGraph();
     const task_verifier_graph = taskVerifier.getVerifierGraph();
     const workflow = new StateGraph(GraphState, GraphConfigurableAnnotation)
+      .addNode(GraphNode.INIT_STATE_VALUE, this.initGraphStateValue.bind(this))
       .addNode(GraphNode.PLANNING_ORCHESTRATOR, planner_graph)
       .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
       .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
       .addNode(GraphNode.TASK_VERIFIER, task_verifier_graph)
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
-      .addConditionalEdges('__start__', GraphNode.PLANNING_ORCHESTRATOR)
+      .addEdge('__start__', GraphNode.INIT_STATE_VALUE)
+      .addEdge(GraphNode.INIT_STATE_VALUE, GraphNode.PLANNING_ORCHESTRATOR)
       .addConditionalEdges(
         GraphNode.PLANNING_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
@@ -362,7 +383,7 @@ export class Graph {
       logger.info('Agent] Successfully initialized agent');
       return app;
     } catch (error) {
-      logger.error('Agent] Failed to create agent:', error);
+      logger.error('[Agent] Failed to create agent:', error);
       throw error;
     }
   }

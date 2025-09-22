@@ -1,9 +1,14 @@
-import { AgentConfig, AgentMode, MemoryStrategy } from '@common/agent.js';
+import {
+  AgentConfig,
+  AgentMode,
+  MemoryStrategy,
+  ModelConfig,
+} from '@common/agent.js';
 import { DEFAULT_PROMPT_ID } from '@common/constant/default-database.constant.js';
 
-export const DEFAULT_AGENT_MODEL = {
+export const DEFAULT_AGENT_MODEL: ModelConfig = {
   provider: 'gemini',
-  modelName: 'gemini-2.5-flash',
+  model_name: 'gemini-2.5-flash',
   temperature: 0.7,
   max_tokens: 4096,
 };
@@ -22,43 +27,43 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
     knowledge: ['System operations', 'Basic agent capabilities'],
   },
   mode: AgentMode.AUTONOMOUS,
-  mcpServers: {},
+  mcp_servers: {},
   plugins: [],
   prompts: {
     id: DEFAULT_PROMPT_ID,
   },
   graph: {
-    maxSteps: 100,
-    maxIterations: 10,
-    maxRetries: 3,
-    executionTimeoutMs: 300000,
-    maxTokenUsage: 100000,
+    max_steps: 100,
+    max_iterations: 10,
+    max_retries: 3,
+    execution_timeout_ms: 300000,
+    max_token_usage: 100000,
     model: DEFAULT_AGENT_MODEL,
   },
   memory: {
-    ltmEnabled: true,
-    summarizationThreshold: 0.8,
-    sizeLimits: {
-      maxInsertEpisodicSize: 10,
-      maxInsertSemanticSize: 10,
-      maxRetrieveMemorySize: 10,
-      shortTermMemorySize: 5,
+    ltm_enabled: true,
+    summarization_threshold: 0.8,
+    size_limits: {
+      max_insert_episodic_size: 10,
+      max_insert_semantic_size: 10,
+      max_retrieve_memory_size: 10,
+      short_term_memory_size: 5,
     },
     thresholds: {
-      summarizationThreshold: 0.8,
-      insertEpisodicThreshold: 0.7,
-      insertSemanticThreshold: 0.7,
-      retrieveMemoryThreshold: 0.7,
+      summarization_threshold: 0.8,
+      insert_episodic_threshold: 0.7,
+      insert_semantic_threshold: 0.7,
+      retrieve_memory_threshold: 0.7,
     },
     timeouts: {
-      insertMemoryTimeoutMs: 5000,
-      retrieveMemoryTimeoutMs: 5000,
+      insert_memory_timeout_ms: 5000,
+      retrieve_memory_timeout_ms: 5000,
     },
     strategy: MemoryStrategy.CATEGORIZED,
   },
   rag: {
     enabled: false,
-    topK: 5,
-    embeddingModel: 'text-embedding-ada-002',
+    top_k: 5,
+    embedding_model: 'text-embedding-ada-002',
   },
 };

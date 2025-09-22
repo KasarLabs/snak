@@ -8,7 +8,6 @@ import {
   AGENT_MODES,
   AgentType,
 } from '../../shared/enums/agent-modes.enum.js';
-import { MemoryAgent } from '../operators/memoryAgent.js';
 import { createGraph } from '../graphs/graph.js';
 import { Command, CompiledStateGraph } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
@@ -35,7 +34,6 @@ export class SnakAgent extends BaseAgent {
   private readonly agentMode: string;
   private readonly agentConfig: AgentConfig.Runtime;
   private readonly databaseCredentials: DatabaseCredentials;
-  private memoryAgent: MemoryAgent | null = null;
   private ragAgent: RagAgent | null = null;
   private compiledGraph: CompiledStateGraph<any, any, any, any, any>;
   private controller: AbortController;
@@ -61,7 +59,6 @@ export class SnakAgent extends BaseAgent {
       if (!this.agentConfig) {
         throw new Error('Agent configuration is required for initialization');
       }
-      await this.initializeMemoryAgent(this.agentConfig);
       await this.initializeRagAgent(this.agentConfig);
       try {
         await this.createAgentReactExecutor();
@@ -96,19 +93,15 @@ export class SnakAgent extends BaseAgent {
       logger.info(
         `[SnakAgent]  Creating agent executor for mode: ${this.agentConfig.mode}`
       );
-      switch (this.agentConfig.mode) {
-        case AGENT_MODES[AgentMode.AUTONOMOUS]:
-          this.compiledGraph = await createGraph(this);
-          break;
-        case AGENT_MODES[AgentMode.HYBRID]:
-          this.compiledGraph = await createGraph(this);
-          break;
-        case AGENT_MODES[AgentMode.INTERACTIVE]:
-          this.compiledGraph = await createGraph(this);
-          break;
-        default:
-          throw new Error(`Invalid mode: ${this.agentConfig.mode}`);
+      this.compiledGraph = await createGraph(this);
+      if (!this.compiledGraph) {
+        throw new Error(
+          `Failed to create agent executor for mode ${this.agentConfig.mode}: result is null`
+        );
       }
+      logger.info(
+        `[SnakAgent]  Agent executor created successfully for mode: ${this.agentConfig.mode}`
+      );
 
       if (!this.compiledGraph) {
         throw new Error(
@@ -124,20 +117,6 @@ export class SnakAgent extends BaseAgent {
       }
       throw error;
     }
-  }
-
-  /**
-   * Initializes the MemoryAgent component if enabled
-   * @param agentConfig - Agent configuration
-   * @private
-   */
-  private async initializeMemoryAgent(
-    agentConfig: AgentConfig.Runtime | undefined
-  ): Promise<void> {
-    logger.debug('[SnakAgent]  Initializing MemoryAgent...');
-    this.memoryAgent = new MemoryAgent();
-    await this.memoryAgent.init();
-    logger.debug('[SnakAgent]  MemoryAgent initialized');
   }
 
   /**
@@ -157,19 +136,11 @@ export class SnakAgent extends BaseAgent {
     }
     logger.debug('[SnakAgent]  Initializing RagAgent...');
     this.ragAgent = new RagAgent({
-      topK: ragConfig?.topK,
-      embeddingModel: ragConfig?.embeddingModel,
+      top_k: ragConfig?.top_k,
+      embedding_model: ragConfig?.embedding_model,
     });
     await this.ragAgent.init();
     logger.debug('[SnakAgent]  RagAgent initialized');
-  }
-
-  public getMemoryAgent(): MemoryAgent | null {
-    if (!this.memoryAgent) {
-      logger.warn('[SnakAgent]  MemoryAgent is not initialized');
-      return null;
-    }
-    return this.memoryAgent;
   }
 
   public getRagAgent(): RagAgent | null {
@@ -342,10 +313,7 @@ export class SnakAgent extends BaseAgent {
       const threadConfig = {
         configurable: {
           thread_id: threadId,
-          max_graph_steps: 100,
-          checkpoint_id: checkpoint_id ? checkpoint_id : undefined,
-          user_request: input ?? undefined,
-          objectives: input,
+          agent_config: this.agentConfig,
         },
       };
       let lastChunk;

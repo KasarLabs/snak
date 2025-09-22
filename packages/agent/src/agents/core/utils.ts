@@ -30,8 +30,8 @@ export async function initializeToolsList(
   const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
   toolsList = [...allowedTools];
   if (
-    agentConfig.mcpServers &&
-    Object.keys(agentConfig.mcpServers).length > 0
+    agentConfig.mcp_servers &&
+    Object.keys(agentConfig.mcp_servers).length > 0
   ) {
     try {
       const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);

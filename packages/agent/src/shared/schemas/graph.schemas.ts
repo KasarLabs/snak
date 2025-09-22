@@ -143,3 +143,26 @@ export type ThoughtsSchemaType = z.infer<typeof ThoughtsSchema>;
 // Type inference (optional)
 export type TaskSchemaType = z.infer<typeof TaskSchema>;
 export type PlanSchemaType = z.infer<typeof PlanSchema>;
+
+export const TaskVerificationSchema = z.object({
+  taskCompleted: z
+    .boolean()
+    .describe('true if the task was successfully completed, false otherwise'),
+  confidenceScore: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe('Confidence level (0-100) in the completion assessment'),
+  reasoning: z
+    .string()
+    .describe('Detailed reasoning for the completion assessment'),
+  missingElements: z
+    .array(z.string())
+    .describe('List of missing elements or requirements if task is incomplete'),
+  nextActions: z
+    .array(z.string())
+    .optional()
+    .describe('Suggested next actions if task needs to continue'),
+});
+
+export type TaskVerificationSchemaType = z.infer<typeof TaskVerificationSchema>;

@@ -136,8 +136,8 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
 
   const promptCopy = new SystemMessage(config.prompt.content as string);
 
-  const mcpServersCopy = config.mcpServers
-    ? JSON.parse(JSON.stringify(config.mcpServers))
+  const mcpServersCopy = config.mcp_servers
+    ? JSON.parse(JSON.stringify(config.mcp_servers))
     : undefined;
 
   const memoryCopy = config.memory
@@ -159,9 +159,9 @@ export const deepCopyAgentConfig = (config: AgentConfig): AgentConfig => {
     plugins: [...config.plugins],
     memory: memoryCopy,
     rag: ragCopy,
-    mcpServers: mcpServersCopy,
+    mcp_servers: mcpServersCopy,
     mode: config.mode,
-    maxIterations: config.maxIterations,
+    max_iterations: config.max_iterations,
   };
 
   return configCopy;
@@ -225,7 +225,7 @@ export const validateConfig = (config: AgentConfig) => {
     'plugins',
     'prompt',
     'mode',
-    'maxIterations',
+    'max_iterations',
   ] as const;
 
   for (const field of requiredFields) {
@@ -244,33 +244,33 @@ export const validateConfig = (config: AgentConfig) => {
     );
   }
 
-  if (typeof config.maxIterations !== 'number' || config.maxIterations < 0) {
+  if (typeof config.max_iterations !== 'number' || config.max_iterations < 0) {
     throw new Error(
-      'maxIterations must be a positive number in mode configuration'
+      'max_iterations must be a positive number in mode configuration'
     );
   }
 
-  if (config.mcpServers) {
-    if (typeof config.mcpServers !== 'object') {
-      throw new Error('mcpServers must be an object');
+  if (config.mcp_servers) {
+    if (typeof config.mcp_servers !== 'object') {
+      throw new Error('mcp_servers must be an object');
     }
 
     for (const [serverName, serverConfig] of Object.entries(
-      config.mcpServers
+      config.mcp_servers
     )) {
       if (!serverConfig.command || typeof serverConfig.command !== 'string') {
         throw new Error(
-          `mcpServers.${serverName} must have a valid command string`
+          `mcp_servers.${serverName} must have a valid command string`
         );
       }
 
       if (!Array.isArray(serverConfig.args)) {
-        throw new Error(`mcpServers.${serverName} must have an args array`);
+        throw new Error(`mcp_servers.${serverName} must have an args array`);
       }
 
       if (serverConfig.env && typeof serverConfig.env !== 'object') {
         throw new Error(
-          `mcpServers.${serverName} env must be an object if present`
+          `mcp_servers.${serverName} env must be an object if present`
         );
       }
     }
@@ -284,10 +284,10 @@ export const validateConfig = (config: AgentConfig) => {
       throw new Error('rag.enabled must be a boolean');
     }
     if (
-      config.rag.embeddingModel !== undefined &&
-      typeof config.rag.embeddingModel !== 'string'
+      config.rag.embedding_model !== undefined &&
+      typeof config.rag.embedding_model !== 'string'
     ) {
-      throw new Error('rag.embeddingModel must be a string');
+      throw new Error('rag.embedding_model must be a string');
     }
   }
 };
@@ -368,11 +368,11 @@ const checkParseJson = async (
       memory: json.memory || null,
       rag: json.rag || null,
       max_iterations:
-        json.maxIterations ||
+        json.max_iterations ||
         (json.mode &&
         typeof json.mode === 'object' &&
-        typeof json.mode.maxIterations === 'number'
-          ? json.mode.maxIterations
+        typeof json.mode.max_iterations === 'number'
+          ? json.mode.max_iterations
           : 10),
       interval: json.interval || 5,
     };
@@ -401,8 +401,8 @@ const checkParseJson = async (
         : [],
       memory: normalizedConfig.memory,
       rag: normalizedConfig.rag,
-      mcpServers: json.mcpServers || {},
-      maxIterations: normalizedConfig.max_iterations,
+      mcp_servers: json.mcp_servers || {},
+      max_iterations: normalizedConfig.max_iterations,
       prompt: systemMessagefromjson,
     };
 

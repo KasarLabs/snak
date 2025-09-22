@@ -14,7 +14,6 @@ import {
 } from '../shared/types/tools.types.js';
 import {
   TaskSchema,
-  TaskSchemaType,
   ThoughtsSchema,
   ThoughtsSchemaType,
 } from '@schemas/graph.schemas.js';
@@ -26,11 +25,6 @@ const endTask = (): string => {
 const responseTask = (thoughts: ThoughtsSchemaType): ThoughtsSchemaType => {
   return thoughts;
 };
-
-const noOpTool = async (): Promise<string> => {
-  return 'No operation performed';
-};
-
 // Response
 export const responseTool = tool(responseTask, {
   name: 'response_task',
@@ -73,13 +67,18 @@ export async function initializeToolsList(
   toolsList = [...allowedTools];
 
   // Add the two simple tools
-
+  console.log(agentConfig);
   toolsList.push(endTaskTool);
   toolsList.push(responseTool);
   toolsList.push(blockedTask);
+  console.log(
+    'Tools initialized:',
+    toolsList.map((t) => t.name)
+  );
+  console.log('MCP Servers:', agentConfig.mcp_servers);
   if (
-    agentConfig.mcpServers &&
-    Object.keys(agentConfig.mcpServers).length > 0
+    agentConfig.mcp_servers &&
+    Object.keys(agentConfig.mcp_servers).length > 0
   ) {
     try {
       const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
