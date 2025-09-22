@@ -50,13 +50,7 @@ export enum GraphNode {
  * Planner node types
  */
 export enum PlannerNode {
-  CREATE_INITIAL_HISTORY = 'create_initial_history',
   CREATE_INITIAL_PLAN = 'create_initial_plan',
-  PLAN_REVISION = 'plan_revision',
-  EVOLVE_FROM_HISTORY = 'evolve_from_history',
-  END_PLANNER_GRAPH = 'end_planner_graph',
-  PLANNER_VALIDATOR = 'planner_validator',
-  GET_PLANNER_STATUS = 'get_planner_status',
   END = 'end',
 }
 

@@ -15,7 +15,6 @@ import {
 import { AnyZodObject, object, z } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { MemoryAgent } from '../operators/memoryAgent.js';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
   DEFAULT_GRAPH_CONFIG,
@@ -91,65 +90,16 @@ export const GraphState = Annotation.Root({
   }),
 });
 
+export type GraphStateType = typeof GraphState.State;
+
 export const GraphConfigurableAnnotation = Annotation.Root({
   thread_id: Annotation<string | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
   }),
-  max_graph_steps: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 1000,
-  }),
-  short_term_memory: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 5,
-  }),
-  memory_size: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 20,
-  }),
-  human_in_the_loop: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 0,
-  }),
-  agent_config: Annotation<AgentConfig.Runtime | undefined>({
-    reducer: (x, y) => y,
-    default: () => undefined,
-  }),
-  user_request: Annotation<string | undefined>({
-    reducer: (x, y) => y,
-    default: () => undefined,
-  }),
-  executionMode: Annotation<ExecutionMode>({
-    reducer: (x, y) => y,
-    default: () => ExecutionMode.REACTIVE,
-  }),
-  objectives: Annotation<string>({
-    reducer: (x, y) => y,
-    default: () => 'undefined',
-  }),
-  summarization_threshold: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 5000,
-  }),
-  memory_config: Annotation<{
-    max_insert_episodic_size: number;
-    max_insert_semantic_size: number;
-    max_retrieve_memory_size: number;
-    insert_semantic_threshold: number;
-    insert_episodic_threshold: number;
-    retrieve_memory_threshold: number;
-  } | null>({
+  agent_config: Annotation<AgentConfig.Runtime | null>({
     reducer: (x, y) => y,
     default: () => null,
-  }),
-  max_retry: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 3,
-  }),
-  timeout: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 120000,
   }),
 });
 export class Graph {
@@ -158,7 +108,6 @@ export class Graph {
     | Tool
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
-  private memoryAgent: MemoryAgent | null = null;
   private agentConfig: AgentConfig.Runtime;
   private ragAgent: RagAgent | null = null;
   private checkpointer: MemorySaver;
@@ -167,21 +116,6 @@ export class Graph {
 
   constructor(private snakAgent: SnakAgent) {
     this.checkpointer = new MemorySaver();
-  }
-
-  private async initializeMemoryAgent(): Promise<void> {
-    try {
-      this.memoryAgent = this.snakAgent.getMemoryAgent();
-      if (this.memoryAgent) {
-        logger.debug('Agent] Memory agent retrieved successfully');
-      } else {
-        logger.warn(
-          'Agent] WARNING: Memory agent not available - memory features will be limited'
-        );
-      }
-    } catch (error) {
-      logger.error(`Agent] Failed to retrieve memory agent: ${error}`);
-    }
   }
 
   private async initializeRagAgent(): Promise<void> {
@@ -213,12 +147,6 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
     logger.debug(`[Orchestration Router] Last agent: ${state.last_node}`);
-    const executionMode = config.configurable?.executionMode;
-    if (!executionMode) {
-      throw new Error(
-        '[Orchestration Router] ExecutionMode is undefined in configurable state.'
-      );
-    }
     // Check for errors first
     if (state.error?.hasError && state.error.type !== 'blocked_task') {
       logger.error(
@@ -310,43 +238,6 @@ export class Graph {
     logger.debug(`[Orchestration Router] Default routing to executor`);
     return GraphNode.AGENT_EXECUTOR;
   }
-
-  private startOrchestrationRouter(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): GraphNode {
-    try {
-      const agentConfig = config.configurable?.agent_config;
-      if (!agentConfig) {
-        throw new Error(
-          '[Start Orchestration Router] AgentConfig is undefined.'
-        );
-      }
-      const currentMode: AgentMode = agentConfig.mode;
-      const executionMode = config.configurable?.executionMode;
-
-      switch (currentMode) {
-        case AgentMode.INTERACTIVE:
-          if (executionMode !== ExecutionMode.REACTIVE) {
-            return GraphNode.PLANNING_ORCHESTRATOR;
-          } else {
-            return GraphNode.AGENT_EXECUTOR;
-          }
-        case AgentMode.AUTONOMOUS:
-          return GraphNode.PLANNING_ORCHESTRATOR;
-        case AgentMode.HYBRID:
-          return GraphNode.END_GRAPH;
-        default:
-          throw new Error(
-            `[Start Orchestration Router] No Agent entry point Found find for mode : ${currentMode}`
-          );
-      }
-    } catch (error) {
-      logger.error(error);
-      return GraphNode.END_GRAPH;
-    }
-  }
-
   private getCompileOptions(): {
     checkpointer?: MemorySaver;
     configurable?: Record<string, any>;
@@ -379,13 +270,10 @@ export class Graph {
     typeof GraphState.State,
     typeof GraphConfigurableAnnotation.State
   > {
-    if (!this.memoryAgent) {
-      throw new Error('MemoryAgent is not setup');
-    }
     logger.debug('[Agent] Building workflow with initialized components');
     const memory = new MemoryGraph(
       this.agentConfig.graph.model,
-      this.memoryAgent
+      this.agentConfig.memory
     );
     const planner = new PlannerGraph(
       this.agentConfig,
@@ -416,10 +304,7 @@ export class Graph {
       .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
       .addNode(GraphNode.TASK_VERIFIER, task_verifier_graph)
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
-      .addConditionalEdges(
-        '__start__',
-        this.startOrchestrationRouter.bind(this)
-      )
+      .addConditionalEdges('__start__', GraphNode.PLANNING_ORCHESTRATOR)
       .addConditionalEdges(
         GraphNode.PLANNING_ORCHESTRATOR,
         this.orchestrationRouter.bind(this)
@@ -466,9 +351,6 @@ export class Graph {
       this.toolsList.forEach((tool) => {
         logger.debug(`[Agent] Tool initialized: ${tool.name}`);
       });
-      // Initialize memory agent if enabled
-      await this.initializeMemoryAgent();
-
       // Initialize RAG agent if enabled
       if (this.agentConfig.rag?.enabled !== false) {
         await this.initializeRagAgent();

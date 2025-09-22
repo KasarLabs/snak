@@ -1,4 +1,10 @@
-import { logger } from '@snakagent/core';
+import {
+  logger,
+  MemoryConfig,
+  MemorySizeLimits,
+  MemoryTimeouts,
+  MemoryThresholds,
+} from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core'; /**
  * Transaction-safe memory database operations
@@ -12,14 +18,17 @@ import {
 export class MemoryDBManager {
   private embeddings: CustomHuggingFaceEmbeddings;
   private readonly maxRetries: number;
-  private readonly timeoutMs: number;
-
+  private readonly memoryTimeouts: MemoryTimeouts;
+  private readonly memorySizeLimit: MemorySizeLimits;
+  private readonly memoryThreshold: MemoryThresholds;
   constructor(
     embeddings: CustomHuggingFaceEmbeddings,
-    timeoutMs: number = 5000
+    memoryConfig: MemoryConfig
   ) {
     this.embeddings = embeddings;
-    this.timeoutMs = timeoutMs;
+    this.memoryTimeouts = memoryConfig.timeouts;
+    this.memorySizeLimit = memoryConfig.sizeLimits;
+    this.memoryThreshold = memoryConfig.thresholds;
   }
 
   /**
@@ -34,7 +43,7 @@ export class MemoryDBManager {
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(
           () => reject(new Error('Database operation timeout')),
-          this.timeoutMs
+          this.memoryTimeouts.insertMemoryTimeoutMs
         );
       });
 
@@ -149,9 +158,7 @@ export class MemoryDBManager {
   async retrieveSimilarMemories(
     query: string,
     userId: string,
-    runId: string,
-    limit: number = 4,
-    similarityThreshold: number = 0.7
+    runId: string
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
     let attempt = 0;
 
@@ -161,18 +168,12 @@ export class MemoryDBManager {
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(
             () => reject(new Error('Memory retrieval timeout')),
-            this.timeoutMs
+            this.memoryTimeouts.retrieveMemoryTimeoutMs
           );
         });
 
         const result = await Promise.race([
-          this.performRetrieval(
-            query,
-            userId,
-            runId,
-            limit,
-            similarityThreshold
-          ),
+          this.performRetrieval(query, userId, runId),
           timeoutPromise,
         ]);
 
@@ -209,9 +210,7 @@ export class MemoryDBManager {
   private async performRetrieval(
     query: string,
     userId: string,
-    runId: string,
-    limit: number,
-    similarityThreshold: number
+    runId: string
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
     try {
       // Validate inputs
@@ -246,22 +245,16 @@ export class MemoryDBManager {
         userId,
         runId,
         embedding,
-        limit,
-        similarityThreshold
-      );
-
-      // Filter by similarity threshold
-      const filteredSimilarities = similarities.filter(
-        (sim) => sim.similarity >= similarityThreshold
+        this.memorySizeLimit.maxRetrieveMemorySize,
+        this.memoryThreshold.retrieveMemoryThreshold
       );
 
       logger.debug(
-        `[MemoryDBManager] Retrieved ${filteredSimilarities.length}/${similarities.length} memories above threshold ${similarityThreshold} for user ${userId}`
+        `[MemoryDBManager] Retrieved ${similarities.length} similar memories for user: ${userId}`
       );
-
       return {
         success: true,
-        data: filteredSimilarities,
+        data: similarities,
         timestamp: Date.now(),
       };
     } catch (error) {

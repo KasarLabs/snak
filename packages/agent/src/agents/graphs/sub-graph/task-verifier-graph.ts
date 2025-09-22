@@ -68,6 +68,11 @@ export class TaskVerifierGraph {
     | Command
   > {
     try {
+      if (!config.configurable?.agent_config) {
+        throw new Error(
+          'Agent configuration is required for task verification.'
+        );
+      }
       if (!this.model) {
         throw new Error('model is required for task verification');
       }
@@ -96,7 +101,7 @@ export class TaskVerifierGraph {
       );
 
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', TASK_VERIFIER_SYSTEM_PROMPT],
+        config.configurable?.agent_config?.prompts.taskVerifierPrompt,
         ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 

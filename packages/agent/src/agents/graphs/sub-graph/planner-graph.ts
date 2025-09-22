@@ -38,6 +38,7 @@ import {
   TASK_MANAGER_MEMORY_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
+import { th } from 'zod/v4/locales';
 
 export function tasks_parser(tasks: TaskType[]): string {
   try {
@@ -112,12 +113,8 @@ export class PlannerGraph {
       if (!this.model.bindTools) {
         throw new Error('Model does not support tool binding');
       }
-      const agent_mode: AgentMode =
-        (config.configurable?.agent_config?.mode as AgentMode) ??
-        DEFAULT_GRAPH_CONFIG.agent_config.mode;
-      const prompts = '';
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', TASK_MANAGER_SYSTEM_PROMPT],
+        this.agentConfig.prompts.taskManagerPrompt,
         ['ai', TASK_MANAGER_MEMORY_PROMPT],
         ['human', TASK_MANAGER_HUMAN_PROMPT],
       ]);
@@ -128,15 +125,7 @@ export class PlannerGraph {
           tool_choice: 'any',
         }
       );
-      const formattedPrompt = await prompt.formatMessages({
-        header: '', //TODO
-        objectives: '', // TODO
-        messages: '', // TODO
-        past_tasks: '',
-        goals: '',
-        tools: '',
-        output_format: '',
-      });
+      const formattedPrompt = await prompt.formatMessages({});
       const aiMessage = await modelWithRequiredTool.invoke(formattedPrompt);
       logger.info(`[Planner] Successfully created task`);
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
@@ -192,110 +181,6 @@ export class PlannerGraph {
     }
   }
 
-  public planning_router(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): PlannerNode {
-    const agent_config = config.configurable?.agent_config;
-    if (!agent_config) {
-      throw new Error(
-        '[PLANNING_ROUTER] AgentConfig is not configured. routing to END_GRAPH'
-      );
-    }
-    const currentMode = agent_config.mode;
-    const l_msg = state.messages[state.messages.length - 1];
-    const maxRetries = DEFAULT_GRAPH_CONFIG.maxRetries;
-
-    if (
-      state.currentGraphStep >=
-      (config.configurable?.max_graph_steps ??
-        DEFAULT_GRAPH_CONFIG.maxGraphSteps)
-    ) {
-      logger.warn(
-        `[PLANNING_ROUTER] PlannerOrchestrator sub-graph limit reached (${state.currentGraphStep}), routing to END_GRAPH`
-      );
-      return PlannerNode.END_PLANNER_GRAPH;
-    }
-    // INTERACTIVE START PART
-    const executionMode = config.configurable?.executionMode;
-    if (currentMode === AgentMode.INTERACTIVE) {
-      if (executionMode === ExecutionMode.REACTIVE) {
-        logger.debug(
-          `[PLANNING_ROUTER] ExecutionMode is REACTIVE. routing to create_initial_history`
-        );
-        return PlannerNode.CREATE_INITIAL_HISTORY;
-      }
-      if (executionMode === ExecutionMode.AUTOMATIC) {
-        logger.debug(
-          '[PLANNING_ROUTER] ExecutionMode is AUTOMATIC. routing to get_planner_status'
-        );
-        return PlannerNode.GET_PLANNER_STATUS;
-      }
-      // Default to PLANNING for INTERACTIVE mode if not specified
-      if (executionMode === ExecutionMode.PLANNING) {
-        logger.debug(`[PLANNING_ROUTER]: Routing to create_initial_plan`);
-        return PlannerNode.CREATE_INITIAL_PLAN;
-      }
-    }
-
-    // GLOBAL START PART
-    if (!state.last_node || state.last_node === 'start') {
-      logger.debug(`[PLANNING_ROUTER]: Routing to create_initial_plan`);
-      return PlannerNode.CREATE_INITIAL_PLAN;
-    }
-    if (
-      state.last_node === PlannerNode.PLANNER_VALIDATOR &&
-      l_msg.additional_kwargs.success
-    ) {
-      logger.debug(`[PLANNING_ROUTER]: Routing to end`);
-      return PlannerNode.END;
-    }
-
-    if (
-      state.last_node === PlannerNode.PLANNER_VALIDATOR &&
-      !l_msg.additional_kwargs.success
-    ) {
-      if (state.retry >= maxRetries) {
-        logger.debug(
-          `[PLANNING_ROUTER]: Max retries (${maxRetries}) reached, routing to end`
-        );
-        return PlannerNode.END_PLANNER_GRAPH;
-      }
-      logger.debug(
-        `[PLANNING_ROUTER]: Retry ${state.retry + 1}/${maxRetries}, routing to plan_revision`
-      );
-      return PlannerNode.PLAN_REVISION;
-    }
-    if (
-      currentMode === AgentMode.AUTONOMOUS ||
-      currentMode === AgentMode.HYBRID
-    ) {
-      if (
-        isInEnum(ExecutorNode, state.last_node) ||
-        isInEnum(MemoryNode, state.last_node)
-      ) {
-        logger.debug(`[PLANNING_ROUTER]: Routing to evolve_from_history`);
-        return PlannerNode.EVOLVE_FROM_HISTORY;
-      }
-    }
-    logger.warn(`[PLANNER_ROUTER] No routing find. routing to END`);
-    return PlannerNode.END_PLANNER_GRAPH;
-  }
-
-  private createInitialHistory(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ) {
-    logger.info('[CreateInitialHistory] Initializing empty history state');
-    return new Command({
-      update: {
-        executionMode: ExecutionMode.REACTIVE,
-        currentTaskIndex: 0,
-        retry: 0,
-      },
-      goto: 'end',
-    });
-  }
   private end_planner_graph(state: typeof GraphState.State) {
     logger.info('[EndPlannerGraph] Cleaning up state for graph termination');
     return new Command({

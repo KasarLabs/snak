@@ -73,7 +73,7 @@ export class AgentExecutorGraph {
       throw new Error('Model not found or bindTools undefined');
     }
     const prompt = ChatPromptTemplate.fromMessages([
-      ['system', TASK_EXECUTOR_PROMPT],
+      this.agentConfig.prompts.taskExecutorPrompt,
       ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
       ['human', TASK_EXECUTOR_HUMAN_PROMPT],
     ]);
@@ -333,9 +333,9 @@ export class AgentExecutorGraph {
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
       tools.messages.forEach(async (tool) => {
         if (
-          config.configurable?.summarization_threshold &&
+          config.configurable?.agent_config?.memory.summarizationThreshold &&
           estimateTokens(tool.content.toLocaleString()) >=
-            config.configurable.summarization_threshold
+            config.configurable?.agent_config?.memory.summarizationThreshold
         ) {
           const summarize_content = await STMManager.summarize_before_inserting(
             tool.content.toLocaleString(),
@@ -436,7 +436,10 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): ExecutorNode {
-    if (state.retry > config.configurable!.max_graph_steps) {
+    if (!config.configurable?.agent_config) {
+      throw new Error('Agent configuration is required for routing decisions.');
+    }
+    if (state.retry > config.configurable?.agent_config?.graph.maxRetries) {
       logger.warn('[Router] Max retries reached, routing to END node');
       return ExecutorNode.END_EXECUTOR_GRAPH;
     }
@@ -465,8 +468,10 @@ export class AgentExecutorGraph {
         return ExecutorNode.TOOL_EXECUTOR;
       }
     } else if (state.last_node === ExecutorNode.TOOL_EXECUTOR) {
-      const maxSteps = config.configurable?.max_graph_steps ?? 0;
-      if (maxSteps <= state.currentGraphStep) {
+      if (
+        config.configurable.agent_config.graph.maxSteps <=
+        state.currentGraphStep
+      ) {
         logger.warn('[Router] Max graph steps reached, routing to END node');
         return ExecutorNode.END_EXECUTOR_GRAPH;
       } else {
@@ -486,7 +491,10 @@ export class AgentExecutorGraph {
     ) {
       logger.debug('[Router] Hybrid mode routing decision');
       return this.shouldContinue(state, config);
-    } else if (config.configurable?.executionMode === ExecutionMode.REACTIVE) {
+    } else if (
+      (config.configurable?.agent_config?.mode as unknown as ExecutionMode) ===
+      ExecutionMode.REACTIVE
+    ) {
       logger.debug('[Router] Reactive mode routing decision');
       return this.shouldContinue(state, config);
     } else {

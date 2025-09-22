@@ -8,8 +8,12 @@ import {
 } from '../../../shared/types/memory.types.js';
 import { handleNodeError } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { logger } from '@snakagent/core';
-import { MemoryAgent } from '../../operators/memoryAgent.js';
+import {
+  logger,
+  MemoryConfig,
+  MemorySizeLimits,
+  MemoryTimeouts,
+} from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
@@ -28,28 +32,24 @@ import {
   TaskType,
   ToolCallType,
 } from '../../../shared/types/graph.types.js';
-import { createRetrieveMemoryNode } from '../chain/memory/memory-chain.js';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
-  TASK_MEMEMORY_MANAGER_HUMAN_PROMPT,
-  TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
-} from '@prompts/graph/memory/task-memory-manager.prompt.js';
-
-export type GraphStateType = typeof GraphState.State;
+  createRetrieveMemoryNode,
+  embeddingModel,
+} from '../chain/memory/memory-chain.js';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { TASK_MEMEMORY_MANAGER_HUMAN_PROMPT } from '@prompts/graph/memory/task-memory-manager.prompt.js';
 
 export class MemoryGraph {
   private memoryDBManager: MemoryDBManager;
   private model: BaseChatModel;
+  private memorySizeLimit: MemorySizeLimits;
   private graph: any;
 
-  constructor(model: BaseChatModel, memoryAgent: MemoryAgent) {
-    const embeddings = memoryAgent.getEmbeddings();
+  constructor(model: BaseChatModel, memoryConfig: MemoryConfig) {
     this.model = model;
-    if (embeddings) {
-      this.memoryDBManager = new MemoryDBManager(embeddings, 560000);
-      if (!this.memoryDBManager) {
-        throw new Error('MemoryDBManager initialization failed');
-      }
+    this.memoryDBManager = new MemoryDBManager(embeddingModel, memoryConfig);
+    if (!this.memoryDBManager) {
+      throw new Error('MemoryDBManager initialization failed');
     }
   }
 
@@ -90,9 +90,12 @@ export class MemoryGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{ memories?: Memories; last_node: MemoryNode } | Command> {
     try {
+      if (!config.configurable?.agent_config) {
+        throw new Error('Agent configuration is required for LTM processing.');
+      }
       if (
         state.currentGraphStep >=
-        (config.configurable?.max_graph_steps ??
+        (config.configurable?.agent_config?.graph.maxSteps ??
           DEFAULT_GRAPH_CONFIG.maxGraphSteps)
       ) {
         logger.warn(
@@ -138,7 +141,7 @@ export class MemoryGraph {
         createLtmSchemaMemorySchema(4, 8)
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT],
+        config.configurable?.agent_config?.prompts.taskMemoryManagerPrompt,
         ['human', TASK_MEMEMORY_MANAGER_HUMAN_PROMPT],
       ]);
 
@@ -239,7 +242,7 @@ export class MemoryGraph {
 
     if (
       state.currentGraphStep >=
-      (config.configurable?.max_graph_steps ??
+      (config.configurable?.agent_config?.graph.maxSteps ??
         DEFAULT_GRAPH_CONFIG.maxGraphSteps)
     ) {
       logger.warn(
@@ -256,7 +259,7 @@ export class MemoryGraph {
       return MemoryNode.END_MEMORY_GRAPH;
     }
 
-    const maxSteps = config.configurable?.max_graph_steps ?? 0;
+    const maxSteps = config.configurable?.agent_config?.graph.maxSteps ?? 0;
     if (maxSteps <= state.currentGraphStep) {
       logger.warn(
         `[Router] Max graph steps reached(${maxSteps}), routing to END node`
