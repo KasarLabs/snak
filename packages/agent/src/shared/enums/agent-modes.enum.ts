@@ -1,13 +1,4 @@
 /**
- * Agent operation modes
- */
-export enum AgentMode {
-  INTERACTIVE = 'interactive',
-  AUTONOMOUS = 'autonomous',
-  HYBRID = 'hybrid',
-}
-
-/**
  * Available agent types in the system
  */
 export enum AgentType {
@@ -15,15 +6,6 @@ export enum AgentType {
   OPERATOR = 'operator',
   SNAK = 'snak',
 }
-
-/**
- * Maps mode enum values to their string representations
- */
-export const AGENT_MODES = {
-  [AgentMode.AUTONOMOUS]: 'autonomous',
-  [AgentMode.HYBRID]: 'hybrid',
-  [AgentMode.INTERACTIVE]: 'interactive',
-};
 
 /**
  * Graph execution modes
