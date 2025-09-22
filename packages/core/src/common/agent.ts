@@ -41,11 +41,11 @@ export interface AgentPrompts {
   id: string;
 }
 
-export interface AgentPromptsInitialized {
-  taskMemoryManagerPrompt: SystemMessage;
-  taskExecutorPrompt: SystemMessage;
-  taskManagerPrompt: SystemMessage;
-  taskVerifierPrompt: SystemMessage;
+export interface AgentPromptsInitialized<T> {
+  taskMemoryManagerPrompt: T;
+  taskExecutorPrompt: T;
+  taskManagerPrompt: T;
+  taskVerifierPrompt: T;
   // Add resolved prompts or other runtime data as needed
 }
 
@@ -181,7 +181,7 @@ export namespace AgentConfig {
    */
   export interface Runtime extends Base {
     id: string;
-    prompts: AgentPromptsInitialized;
+    prompts: AgentPromptsInitialized<SystemMessage>;
     graph: GraphConfigInitialized;
   }
 
