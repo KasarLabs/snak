@@ -23,7 +23,7 @@ export const DEFAULT_AGENT_CONFIG = {
   },
   mode: 'autonomous',
   mcp_servers: {},
-  plugins: ['core'],
+  plugins: [],
   prompts: {
     id: DEFAULT_PROMPT_ID,
   },
