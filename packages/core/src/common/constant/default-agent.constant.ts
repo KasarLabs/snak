@@ -1,6 +1,5 @@
 import {
   AgentConfig,
-  AgentMode,
   MemoryStrategy,
   ModelConfig,
 } from '@common/agent.js';
@@ -26,7 +25,6 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
     ],
     knowledge: ['System operations', 'Basic agent capabilities'],
   },
-  mode: AgentMode.AUTONOMOUS,
   mcp_servers: {},
   plugins: [],
   prompts: {
@@ -42,15 +40,15 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
   },
   memory: {
     ltm_enabled: true,
-    summarization_threshold: 0.8,
     size_limits: {
       max_insert_episodic_size: 10,
       max_insert_semantic_size: 10,
       max_retrieve_memory_size: 10,
       short_term_memory_size: 5,
+      limit_before_summarization: 100,
     },
     thresholds: {
-      summarization_threshold: 0.8,
+      hitl_threshold: 0.8,
       insert_episodic_threshold: 0.7,
       insert_semantic_threshold: 0.7,
       retrieve_memory_threshold: 0.7,

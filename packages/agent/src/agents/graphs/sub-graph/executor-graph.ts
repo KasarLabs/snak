@@ -8,7 +8,7 @@ import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
 import { estimateTokens, handleNodeError } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
-import { AgentConfig, AgentMode, logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
@@ -43,6 +43,7 @@ import {
   TASK_EXECUTOR_HUMAN_PROMPT,
   TASK_EXECUTOR_MEMORY_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
+import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig.Runtime;
@@ -60,7 +61,9 @@ export class AgentExecutorGraph {
   ) {
     this.model = model;
     this.agentConfig = agentConfig;
-    this.toolsList = toolList;
+    this.toolsList = toolList.concat(
+      new TaskExecutorToolRegistry(agentConfig).getTools()
+    );
   }
 
   // Invoke Model with Messages
@@ -326,11 +329,18 @@ export class AgentExecutorGraph {
 
       const executionTime = Date.now() - startTime;
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
+      console.log('summarization size limits', {
+        limit_before_summarization:
+          config.configurable?.agent_config?.memory.size_limits
+            .limit_before_summarization,
+      });
       tools.messages.forEach(async (tool) => {
         if (
-          config.configurable?.agent_config?.memory.summarization_threshold &&
+          config.configurable?.agent_config?.memory.size_limits
+            .limit_before_summarization &&
           estimateTokens(tool.content.toLocaleString()) >=
-            config.configurable?.agent_config?.memory.summarization_threshold
+            config.configurable?.agent_config?.memory.size_limits
+              .limit_before_summarization
         ) {
           const summarize_content = await STMManager.summarize_before_inserting(
             tool.content.toLocaleString(),
@@ -480,21 +490,7 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): ExecutorNode {
-    if (
-      (config.configurable?.agent_config?.mode ??
-        DEFAULT_GRAPH_CONFIG.agent_config.mode) === AgentMode.HYBRID
-    ) {
-      logger.debug('[Router] Hybrid mode routing decision');
-      return this.shouldContinue(state, config);
-    } else if (
-      (config.configurable?.agent_config?.mode as unknown as ExecutionMode) ===
-      ExecutionMode.REACTIVE
-    ) {
-      logger.debug('[Router] Reactive mode routing decision');
-      return this.shouldContinue(state, config);
-    } else {
-      return this.shouldContinue(state, config);
-    }
+    return this.shouldContinue(state, config);
   }
 
   private end_planner_graph(state: typeof GraphState.State) {

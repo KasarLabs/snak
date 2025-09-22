@@ -1,6 +1,5 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
-import { GraphConfigurableAnnotation } from '../graph.js';
-import { GraphToolRegistry } from './graph.tools.js';
+import { BaseToolRegistry } from './base-tool-registry.js';
 import { AnyZodObject } from 'zod';
 import {
   retrieveMemoryFromContentSchema,
@@ -10,12 +9,12 @@ import {
   retrieveMemoryFromTaskId,
   retrieveMemoryFromTaskIdType,
 } from '@stypes/memory.types.js';
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 import { embeddingModel } from '../manager/memory/memory-db-manager.js';
-export class MemoryToolRegistry extends GraphToolRegistry {
-  constructor(config: typeof GraphConfigurableAnnotation.State) {
-    super(config);
+export class MemoryToolRegistry extends BaseToolRegistry {
+  constructor(agentConfig: AgentConfig.Runtime) {
+    super(agentConfig);
     this.tools = this.registerTools();
   }
 
@@ -24,7 +23,7 @@ export class MemoryToolRegistry extends GraphToolRegistry {
       this.retrieveMemoryFromContextTool.bind(this),
       {
         name: 'retrieve_memory_from_content',
-        description: `Search and retrieve relevant memories based on semantic similarity to provided content. 
+        description: `[SNAK Tool] Search and retrieve relevant memories based on semantic similarity to provided content. 
         This tool uses embeddings to find memories that are contextually similar to the input text. 
         Use this when you need to find memories related to a specific topic, concept, or context 
         without knowing the exact step or task ID.`,
@@ -41,7 +40,7 @@ export class MemoryToolRegistry extends GraphToolRegistry {
       this.retrieveMemoriesFromStepId.bind(this),
       {
         name: 'retrieve_memory_from_step_id',
-        description: `Retrieve all memories associated with a specific step in the workflow or process. 
+        description: `[SNAK Tool] Retrieve all memories associated with a specific step in the workflow or process. 
         This tool fetches memories that were created or linked to a particular step ID. 
         Use this when you need to access historical data, decisions, or context from a 
         specific step in the execution flow.`,
@@ -57,7 +56,7 @@ export class MemoryToolRegistry extends GraphToolRegistry {
       this.retrieveMemoriesFromTaskId.bind(this),
       {
         name: 'retrieve_memory_from_task_id',
-        description: `Retrieve all memories associated with a specific task in the system. 
+        description: `[SNAK Tool] Retrieve all memories associated with a specific task in the system. 
         This tool fetches memories that were created or linked to a particular task ID. 
         Use this when you need to access all information, context, and historical data 
         related to a specific task, including its subtasks and related operations.`,
@@ -83,6 +82,7 @@ export class MemoryToolRegistry extends GraphToolRegistry {
     return tools;
   }
 
+
   private async retrieveMemoriesFromStepId(
     request: retrieveMemoryFromStepIdType
   ): Promise<memory.MemoryRetrieval[]> {
@@ -96,7 +96,7 @@ export class MemoryToolRegistry extends GraphToolRegistry {
         `[MemoryAgent] Retrieving memory for step ID: ${request.step_id}`
       );
       const userId = 'default_user'; // Replace with actual user ID retrieval logic
-      const runId = this.config!.thread_id as string;
+      const runId = this.agentConfig!.id as string;
       const result = await memory.get_memories_by_step_id(
         userId,
         runId,
@@ -125,7 +125,7 @@ export class MemoryToolRegistry extends GraphToolRegistry {
         `[MemoryAgent] Retrieving memory for task ID: ${request.task_id}`
       );
       const userId = 'default_user'; // Replace with actual user ID retrieval logic
-      const runId = this.config!.thread_id as string;
+      const runId = this.agentConfig!.id as string;
       const result = await memory.get_memories_by_task_id(
         userId,
         runId,
@@ -153,7 +153,7 @@ export class MemoryToolRegistry extends GraphToolRegistry {
         `[MemoryAgent] Retrieving memory for content with length ${request.content.length}`
       );
       const userId = 'default_user'; // Replace with actual user ID retrieval logic
-      const runId = this.config!.thread_id as string;
+      const runId = this.agentConfig!.id as string;
       const embedding = await embeddingModel.embedQuery(request.content);
       const result = await memory.retrieve_memory(
         userId,

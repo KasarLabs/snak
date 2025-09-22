@@ -9,7 +9,7 @@ import {
 } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import {
   PlannerNode,
@@ -24,12 +24,12 @@ import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
 import { TaskSchemaType } from '@schemas/graph.schemas.js';
-import { createTask } from '@tools/tools.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_MANAGER_HUMAN_PROMPT,
   TASK_MANAGER_MEMORY_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
+import { TaskManagerToolRegistry } from '../tools/task-manager.tools.js';
 
 export function tasks_parser(tasks: TaskType[]): string {
   try {
@@ -72,11 +72,13 @@ export class PlannerGraph {
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
   constructor(
-    model: BaseChatModel,
+    agentConfig: AgentConfig.Runtime,
     toolList: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
   ) {
-    this.model = model;
-    this.toolsList = toolList;
+    this.model = agentConfig.graph.model;
+    this.toolsList = toolList.concat(
+      new TaskManagerToolRegistry(agentConfig).getTools()
+    );
   }
   private async planExecution(
     state: typeof GraphState.State,
@@ -117,10 +119,7 @@ export class PlannerGraph {
         ['human', TASK_MANAGER_HUMAN_PROMPT],
       ]);
 
-      const modelWithRequiredTool = this.model.bindTools!([
-        ...this.toolsList,
-        createTask,
-      ]);
+      const modelBind = this.model.bindTools!(this.toolsList);
       const formattedPrompt = await prompt.formatMessages({
         past_tasks: tasks_parser(state.tasks),
         objectives: agentConfig.profile.objectives.join(', '),
@@ -128,7 +127,7 @@ export class PlannerGraph {
           ? `The previous task failed due to: ${state.error.message}`
           : '',
       });
-      const aiMessage = await modelWithRequiredTool.invoke(formattedPrompt);
+      const aiMessage = await modelBind.invoke(formattedPrompt);
       logger.info(`[Planner] Successfully created task`);
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
         throw new Error('[Planner] No tool calls found in model response');

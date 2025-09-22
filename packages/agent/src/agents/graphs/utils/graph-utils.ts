@@ -13,7 +13,11 @@ import { ErrorContext, TaskType } from '../../../shared/types/index.js';
 import { AgentConfig, logger } from '@snakagent/core';
 import { Command } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import {
+  GraphConfigurableAnnotation,
+  GraphState,
+  GraphStateType,
+} from '../graph.js';
 
 // --- Response Generators ---
 export function createMaxIterationsResponse<T>(
@@ -152,9 +156,10 @@ export function handleNodeError(
   additionalContext?: string
 ): Command {
   // Avoid redundant context if additionalContext is same as error message
-  const fullMessage = additionalContext && additionalContext !== error.message
-    ? `${error.message} - Context: ${additionalContext}`
-    : error.message;
+  const fullMessage =
+    additionalContext && additionalContext !== error.message
+      ? `${error.message} - Context: ${additionalContext}`
+      : error.message;
 
   const enhancedError = new Error(fullMessage);
   enhancedError.stack = error.stack;
@@ -204,5 +209,37 @@ export function getCurrentTask(tasks: TaskType[]): TaskType {
     return currentTask;
   } catch (error) {
     throw error; // Propaged error to be handled by caller
+  }
+}
+
+export function getRetrieveMemoryRequestFromGraph(
+  state: GraphStateType,
+  config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+): string {
+  try {
+    if (
+      state.tasks &&
+      state.tasks.length > 0 &&
+      state.tasks[state.tasks.length - 1].steps.length > 0
+    ) {
+      const currentTask = getCurrentTask(state.tasks);
+      return currentTask.steps[currentTask.steps.length - 1].thought.reasoning;
+    } else {
+      if (
+        config.configurable!.agent_config!.memory.thresholds.hitl_threshold ===
+        1
+      ) {
+        return config.configurable!.user_request!;
+      } else {
+        return config.configurable!.agent_config!.profile.objectives.join(' ');
+      }
+    }
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    logger.error(
+      `Helper: Error in getRetrieveMemoryRequestFromGraph - ${errorMessage}`
+    );
+    throw error;
   }
 }

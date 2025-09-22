@@ -146,7 +146,6 @@ export class AgentsController {
           config.name || null,
           config.group || null,
           config.profile || null,
-          config.mode || null,
           config.mcp_servers ? JSON.stringify(config.mcp_servers) : null,
           config.plugins || null,
           config.prompts || null,

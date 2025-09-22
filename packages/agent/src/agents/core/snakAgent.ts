@@ -91,21 +91,21 @@ export class SnakAgent extends BaseAgent {
   private async createAgentReactExecutor(): Promise<void> {
     try {
       logger.info(
-        `[SnakAgent]  Creating agent executor for mode: ${this.agentConfig.mode}`
+        `[SnakAgent]  Creating Graph for agent : ${this.agentConfig.name}`
       );
       this.compiledGraph = await createGraph(this);
       if (!this.compiledGraph) {
         throw new Error(
-          `Failed to create agent executor for mode ${this.agentConfig.mode}: result is null`
+          `Failed to create agent executor for agent : ${this.agentConfig.name}: result is null`
         );
       }
       logger.info(
-        `[SnakAgent]  Agent executor created successfully for mode: ${this.agentConfig.mode}`
+        `[SnakAgent]  Agent executor created successfully for agent : ${this.agentConfig.name}`
       );
 
       if (!this.compiledGraph) {
         throw new Error(
-          `Failed to create agent executor for mode ${this.agentConfig.mode}: result is null`
+          `Failed to create agent executor for agent : ${this.agentConfig.name}: result is null`
         );
       }
     } catch (error) {
@@ -171,16 +171,6 @@ export class SnakAgent extends BaseAgent {
   }
 
   /**
-   * Get current agent mode
-   * @returns Object containing the current agent mode string
-   */
-  public getAgent() {
-    return {
-      agentMode: this.agentConfig.mode,
-    };
-  }
-
-  /**
    * Get agent configuration
    * @returns The agent configuration object
    */
@@ -225,29 +215,21 @@ export class SnakAgent extends BaseAgent {
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.debug(
-        `[SnakAgent] Execute called - mode: ${this.agentConfig.mode}, interrupted: ${isInterrupted}`
+        `[SnakAgent] Execute called - agent : ${this.agentConfig.name}, interrupted: ${isInterrupted}`
       );
 
       if (!this.compiledGraph) {
         throw new Error('Agent executor is not initialized');
       }
-      if (
-        this.agentConfig.mode == AGENT_MODES[AgentMode.AUTONOMOUS] ||
-        this.agentConfig.mode == AGENT_MODES[AgentMode.HYBRID] ||
-        this.agentConfig.mode == AGENT_MODES[AgentMode.INTERACTIVE]
-      ) {
-        for await (const chunk of this.executeAsyncGenerator(
-          input,
-          isInterrupted
-        )) {
-          if (chunk.metadata.final) {
-            yield chunk;
-            return;
-          }
+      for await (const chunk of this.executeAsyncGenerator(
+        input,
+        isInterrupted
+      )) {
+        if (chunk.metadata.final) {
           yield chunk;
+          return;
         }
-      } else {
-        return `The mode: ${this.agentConfig.mode} is not supported in this method.`;
+        yield chunk;
       }
     } catch (error) {
       logger.error(`[SnakAgent]  Execute failed: ${error}`);
@@ -293,9 +275,6 @@ export class SnakAgent extends BaseAgent {
     checkpoint_id?: string
   ): AsyncGenerator<ChunkOutput> {
     let autonomousResponseContent: string | any;
-    const originalMode = this.agentConfig.mode;
-    const totalIterationCount = 0;
-
     try {
       logger.info(
         `[SnakAgent]  Starting autonomous execution - interrupted: ${isInterrupted}`
@@ -368,7 +347,6 @@ export class SnakAgent extends BaseAgent {
                 from: GraphNode.PLANNING_ORCHESTRATOR,
                 metadata: {
                   executionMode: chunk.metadata.executionMode,
-                  agent_mode: this.agentConfig.mode,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
@@ -392,7 +370,6 @@ export class SnakAgent extends BaseAgent {
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
                   executionMode: chunk.metadata.executionMode,
-                  agent_mode: this.agentConfig.mode,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
                   langgraph_node: chunk.metadata.langgraph_node,
@@ -417,7 +394,6 @@ export class SnakAgent extends BaseAgent {
                 from: GraphNode.AGENT_EXECUTOR,
                 metadata: {
                   execution_mode: chunk.metadata.executionMode,
-                  agent_mode: this.agentConfig.mode,
                   retry: retryCount,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
@@ -442,7 +418,6 @@ export class SnakAgent extends BaseAgent {
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
                   execution_mode: chunk.metadata.executionMode,
-                  agent_mode: this.agentConfig.mode,
                   conversation_id: chunk.metadata.conversation_id,
                   retry: retryCount,
                   langgraph_step: chunk.metadata.langgraph_step,
@@ -466,7 +441,6 @@ export class SnakAgent extends BaseAgent {
                   from: GraphNode.AGENT_EXECUTOR,
                   metadata: {
                     execution_mode: chunk.metadata.executionMode,
-                    agent_mode: this.agentConfig.mode,
                     retry: retryCount,
                     conversation_id: chunk.metadata.conversation_id,
                     langgraph_step: chunk.metadata.langgraph_step,
@@ -493,7 +467,6 @@ export class SnakAgent extends BaseAgent {
                 from: GraphNode.MEMORY_ORCHESTRATOR,
                 metadata: {
                   execution_mode: chunk.metadata.executionMode,
-                  agent_mode: this.agentConfig.mode,
                   retry: retryCount,
                   conversation_id: chunk.metadata.conversation_id,
                   langgraph_step: chunk.metadata.langgraph_step,
@@ -515,7 +488,6 @@ export class SnakAgent extends BaseAgent {
                 from: GraphNode.MEMORY_ORCHESTRATOR,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
-                  agent_mode: this.agentConfig.mode,
                   execution_mode: chunk.metadata.executionMode,
                   retry: retryCount,
                   conversation_id: chunk.metadata.conversation_id,
@@ -560,16 +532,6 @@ export class SnakAgent extends BaseAgent {
             'Error: Token limit likely exceeded during autonomous execution.';
         }
       }
-
-      return new AIMessage({
-        content: autonomousResponseContent,
-        additional_kwargs: {
-          from: 'snak',
-          final: true,
-          agent_mode: this.agentConfig.mode,
-          iterations: totalIterationCount,
-        },
-      });
     } catch (error: any) {
       logger.error(`[SnakAgent]  Autonomous execution failed: ${error}`);
       return new AIMessage({
@@ -580,10 +542,6 @@ export class SnakAgent extends BaseAgent {
           error: 'autonomous_execution_error',
         },
       });
-    } finally {
-      if (this.agentConfig.mode !== originalMode) {
-        this.agentConfig.mode = originalMode;
-      }
     }
   }
 }

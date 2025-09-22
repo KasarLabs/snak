@@ -1,5 +1,3 @@
-import { AgentMode } from '@snakagent/core';
-
 export interface ConversationSQL {
   conversation_id: number;
   conversation_name: string;

@@ -206,7 +206,6 @@ export class AgentStorage implements OnModuleInit {
         name,
         "group",
         profile,
-        mode,
         mcp_servers,
         plugins,
         prompts,
@@ -217,19 +216,17 @@ export class AgentStorage implements OnModuleInit {
         $1,
         $2,
         ROW($3, $4, $5::text[], $6::text[], $7::text[], $8)::agent_profile,
-        $9::agent_mode,
-        $10::jsonb,
-        $11::text[],
-        ROW($12)::agent_prompts,
-        ROW($13, $14, $15, $16, $17, ROW($18, $19, $20, $21)::model_config)::graph_config,
-        ROW($22, $23, ROW($24, $25, $26, $27)::memory_size_limits, ROW($28, $29, $30, $31)::memory_thresholds, ROW($32, $33)::memory_timeouts, $34::memory_strategy)::memory_config,
-        ROW($35, $36, $37)::rag_config
+        $9::jsonb,
+        $10::text[],
+        ROW($11)::agent_prompts,
+        ROW($12, $13, $14, $15, $16, ROW($17, $18, $19, $20)::model_config)::graph_config,
+        ROW($21, ROW($22, $23, $24, $25, $26)::memory_size_limits, ROW($27, $28, $29, $30)::memory_thresholds, ROW($31, $32)::memory_timeouts, $33::memory_strategy)::memory_config,
+        ROW($34, $35, $36)::rag_config
       ) RETURNING
         id,
         name,
         "group",
         row_to_json(profile) as profile,
-        mode,
         mcp_servers as "mcp_servers",
         plugins,
         row_to_json(prompts) as prompts,
@@ -249,44 +246,43 @@ export class AgentStorage implements OnModuleInit {
         agent_config.profile.objectives, // $6
         agent_config.profile.knowledge, // $7
         agent_config.profile.agent_config_prompt || null, // $8
-        agent_config.mode, // $9
-        agent_config.mcp_servers || {}, // $10
-        agent_config.plugins, // $11
+        agent_config.mcp_servers || {}, // $9
+        agent_config.plugins, // $10
         // agent_prompts
-        agent_config.prompts.id, // $12
+        agent_config.prompts.id, // $11
         // graph_config
-        agent_config.graph.max_steps, // $13
-        agent_config.graph.max_iterations, // $14
-        agent_config.graph.max_retries, // $15
-        agent_config.graph.execution_timeout_ms, // $16
-        agent_config.graph.max_token_usage, // $17
+        agent_config.graph.max_steps, // $12
+        agent_config.graph.max_iterations, // $13
+        agent_config.graph.max_retries, // $14
+        agent_config.graph.execution_timeout_ms, // $15
+        agent_config.graph.max_token_usage, // $16
         // model_config (nested in graph_config)
-        agent_config.graph.model.provider, // $18
-        agent_config.graph.model.model_name, // $19
-        agent_config.graph.model.temperature, // $20
-        agent_config.graph.model.max_tokens || 4096, // $21
+        agent_config.graph.model.provider, // $17
+        agent_config.graph.model.model_name, // $18
+        agent_config.graph.model.temperature, // $19
+        agent_config.graph.model.max_tokens || 4096, // $20
         // memory_config
-        agent_config.memory.ltm_enabled, // $22
-        agent_config.memory.summarization_threshold, // $23
+        agent_config.memory.ltm_enabled, // $21
         // memory_size_limits
-        agent_config.memory.size_limits.short_term_memory_size, // $24
-        agent_config.memory.size_limits.max_insert_episodic_size, // $25
-        agent_config.memory.size_limits.max_insert_semantic_size, // $26
-        agent_config.memory.size_limits.max_retrieve_memory_size, // $27
+        agent_config.memory.size_limits.short_term_memory_size, // $22
+        agent_config.memory.size_limits.max_insert_episodic_size, // $23
+        agent_config.memory.size_limits.max_insert_semantic_size, // $24
+        agent_config.memory.size_limits.max_retrieve_memory_size, // $25
+        agent_config.memory.size_limits.limit_before_summarization, // $26
         // memory_thresholds
-        agent_config.memory.thresholds.insert_semantic_threshold, // $28
-        agent_config.memory.thresholds.insert_episodic_threshold, // $29
-        agent_config.memory.thresholds.retrieve_memory_threshold, // $30
-        agent_config.memory.thresholds.summarization_threshold, // $31
+        agent_config.memory.thresholds.insert_semantic_threshold, // $27
+        agent_config.memory.thresholds.insert_episodic_threshold, // $28
+        agent_config.memory.thresholds.retrieve_memory_threshold, // $29
+        agent_config.memory.thresholds.hitl_threshold, // $30
         // memory_timeouts
-        agent_config.memory.timeouts.retrieve_memory_timeout_ms, // $32
-        agent_config.memory.timeouts.insert_memory_timeout_ms, // $33
+        agent_config.memory.timeouts.retrieve_memory_timeout_ms, // $31
+        agent_config.memory.timeouts.insert_memory_timeout_ms, // $32
         // memory_strategy
-        agent_config.memory.strategy, // $34
+        agent_config.memory.strategy, // $33
         // rag_config
-        agent_config.rag.enabled, // $35
-        agent_config.rag.top_k, // $36
-        agent_config.rag.embedding_model, // $37
+        agent_config.rag.enabled, // $34
+        agent_config.rag.top_k, // $35
+        agent_config.rag.embedding_model, // $36
       ]
     );
     const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
@@ -432,7 +428,6 @@ export class AgentStorage implements OnModuleInit {
           name,
           "group",
           row_to_json(profile) as profile,
-          mode,
           mcp_servers as "mcp_servers",
           plugins,
           row_to_json(prompts) as prompts,
@@ -730,7 +725,6 @@ export class AgentStorage implements OnModuleInit {
           name,
           "group",
           profile,
-          mode,
           mcp_servers,
           plugins,
           prompts,
@@ -742,13 +736,12 @@ export class AgentStorage implements OnModuleInit {
           $2,
           $3,
           ROW($4, $5, $6::text[], $7::text[], $8::text[], $9)::agent_profile,
-          $10::agent_mode,
-          $11::jsonb,
-          $12::text[],
-          ROW($13)::agent_prompts,
-          ROW($14, $15, $16, $17, $18, ROW($19, $20, $21, $22)::model_config)::graph_config,
-          ROW($23, $24, ROW($25, $26, $27, $28)::memory_size_limits, ROW($29, $30, $31, $32)::memory_thresholds, ROW($33, $34)::memory_timeouts, $35::memory_strategy)::memory_config,
-          ROW($36, $37, $38)::rag_config
+          $10::jsonb,
+          $11::text[],
+          ROW($12)::agent_prompts,
+          ROW($13, $14, $15, $16, $17, ROW($18, $19, $20, $21)::model_config)::graph_config,
+          ROW($22, ROW($23, $24, $25, $26, $27)::memory_size_limits, ROW($28, $29, $30, $31)::memory_thresholds, ROW($32, $33)::memory_timeouts, $34::memory_strategy)::memory_config,
+          ROW($35, $36, $37)::rag_config
         )`,
         [
           DEFAULT_AGENT_ID, // $1
@@ -761,44 +754,43 @@ export class AgentStorage implements OnModuleInit {
           DEFAULT_AGENT_CONFIG.profile.objectives, // $7
           DEFAULT_AGENT_CONFIG.profile.knowledge, // $8
           DEFAULT_AGENT_CONFIG.profile.agent_config_prompt || null, // $9
-          DEFAULT_AGENT_CONFIG.mode, // $10
-          DEFAULT_AGENT_CONFIG.mcp_servers, // $11
-          DEFAULT_AGENT_CONFIG.plugins, // $12
+          DEFAULT_AGENT_CONFIG.mcp_servers, // $10
+          DEFAULT_AGENT_CONFIG.plugins, // $11
           // agent_prompts
-          DEFAULT_AGENT_CONFIG.prompts.id, // $13
+          DEFAULT_AGENT_CONFIG.prompts.id, // $12
           // graph_config
-          DEFAULT_AGENT_CONFIG.graph.max_steps, // $14
-          DEFAULT_AGENT_CONFIG.graph.max_iterations, // $15
-          DEFAULT_AGENT_CONFIG.graph.max_retries, // $16
-          DEFAULT_AGENT_CONFIG.graph.execution_timeout_ms, // $17
-          DEFAULT_AGENT_CONFIG.graph.max_token_usage, // $18
+          DEFAULT_AGENT_CONFIG.graph.max_steps, // $13
+          DEFAULT_AGENT_CONFIG.graph.max_iterations, // $14
+          DEFAULT_AGENT_CONFIG.graph.max_retries, // $15
+          DEFAULT_AGENT_CONFIG.graph.execution_timeout_ms, // $16
+          DEFAULT_AGENT_CONFIG.graph.max_token_usage, // $17
           // model_config (nested in graph_config)
-          DEFAULT_AGENT_CONFIG.graph.model.provider, // $19
-          DEFAULT_AGENT_CONFIG.graph.model.model_name, // $20
-          DEFAULT_AGENT_CONFIG.graph.model.temperature, // $21
-          DEFAULT_AGENT_CONFIG.graph.model.max_tokens, // $22
+          DEFAULT_AGENT_CONFIG.graph.model.provider, // $18
+          DEFAULT_AGENT_CONFIG.graph.model.model_name, // $19
+          DEFAULT_AGENT_CONFIG.graph.model.temperature, // $20
+          DEFAULT_AGENT_CONFIG.graph.model.max_tokens, // $21
           // memory_config
-          DEFAULT_AGENT_CONFIG.memory.ltm_enabled, // $23
-          DEFAULT_AGENT_CONFIG.memory.summarization_threshold, // $24
+          DEFAULT_AGENT_CONFIG.memory.ltm_enabled, // $22
           // memory_size_limits
-          DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size, // $25
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size, // $26
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size, // $27
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size, // $28
+          DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size, // $23
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size, // $24
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size, // $25
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size, // $26
+          DEFAULT_AGENT_CONFIG.memory.size_limits.limit_before_summarization, // $27
           // memory_thresholds
-          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold, // $29
-          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold, // $30
-          DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold, // $31
-          DEFAULT_AGENT_CONFIG.memory.thresholds.summarization_threshold, // $32
+          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold, // $28
+          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold, // $29
+          DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold, // $30
+          DEFAULT_AGENT_CONFIG.memory.thresholds.hitl_threshold, // $31
           // memory_timeouts
-          DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms, // $33
-          DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms, // $34
+          DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms, // $32
+          DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms, // $33
           // memory_strategy
-          DEFAULT_AGENT_CONFIG.memory.strategy, // $35
+          DEFAULT_AGENT_CONFIG.memory.strategy, // $34
           // rag_config
-          DEFAULT_AGENT_CONFIG.rag.enabled, // $36
-          DEFAULT_AGENT_CONFIG.rag.top_k, // $37
-          DEFAULT_AGENT_CONFIG.rag.embedding_model, // $38
+          DEFAULT_AGENT_CONFIG.rag.enabled, // $35
+          DEFAULT_AGENT_CONFIG.rag.top_k, // $36
+          DEFAULT_AGENT_CONFIG.rag.embedding_model, // $37
         ]
       );
 

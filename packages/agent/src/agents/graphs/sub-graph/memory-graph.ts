@@ -8,6 +8,7 @@ import {
 } from '../../../shared/types/memory.types.js';
 import {
   getCurrentTask,
+  getRetrieveMemoryRequestFromGraph,
   handleNodeError,
   hasReachedMaxSteps,
   isValidConfiguration,
@@ -271,13 +272,11 @@ export class MemoryGraph {
           last_node: MemoryNode.RETRIEVE_MEMORY,
         };
       }
-      const objectives = agentConfig.profile.objectives;
-      if (!objectives || objectives.length === 0) {
-        throw new Error('Agent objectives are required for memory retrieval');
-      }
+      const request = getRetrieveMemoryRequestFromGraph(state, config);
+      console.log('memory retrieve request', request);
       const retrievedMemories =
         await this.memoryDBManager.retrieveSimilarMemories(
-          objectives.join(' '),
+          request,
           DEFAULT_USER_ID,
           config.configurable!.thread_id!
         );

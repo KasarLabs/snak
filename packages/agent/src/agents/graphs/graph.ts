@@ -1,4 +1,4 @@
-import { AgentConfig, AgentMode, logger, Id } from '@snakagent/core';
+import { AgentConfig, logger, Id } from '@snakagent/core';
 import {
   StateGraph,
   MemorySaver,
@@ -45,7 +45,6 @@ import { SnakAgent } from '@agents/core/snakAgent.js';
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => {
-      console.log('Inserting message to state: ', y.length);
       return y;
     },
     default: () => [],
@@ -296,7 +295,7 @@ export class Graph {
       this.agentConfig.memory
     );
     const planner = new PlannerGraph(
-      this.agentConfig.graph.model,
+      this.agentConfig,
       this.toolsList
     );
 

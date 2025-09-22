@@ -88,7 +88,7 @@ export interface MemoryThresholds {
   insert_semantic_threshold: number;
   insert_episodic_threshold: number;
   retrieve_memory_threshold: number;
-  summarization_threshold: number;
+  hitl_threshold: number;
 }
 
 /**
@@ -99,6 +99,7 @@ export interface MemorySizeLimits {
   max_insert_episodic_size: number;
   max_insert_semantic_size: number;
   max_retrieve_memory_size: number;
+  limit_before_summarization: number;
 }
 
 /**
@@ -114,7 +115,6 @@ export interface MemoryTimeouts {
  */
 export interface MemoryConfig {
   ltm_enabled: boolean;
-  summarization_threshold: number;
   size_limits: MemorySizeLimits;
   thresholds: MemoryThresholds;
   timeouts: MemoryTimeouts;
@@ -130,14 +130,6 @@ export interface RAGConfig {
   embedding_model?: string;
 }
 
-/**
- * Execution mode enumeration
- */
-export enum AgentMode {
-  AUTONOMOUS = 'autonomous',
-  INTERACTIVE = 'interactive',
-  HYBRID = 'hybrid',
-}
 
 export enum Id {
   NoId = 'NoId',
@@ -154,7 +146,6 @@ export namespace AgentConfig {
     name: string;
     group: string;
     profile: AgentProfile;
-    mode: AgentMode;
     mcp_servers: Record<string, any>;
     plugins: string[];
     memory: MemoryConfig;

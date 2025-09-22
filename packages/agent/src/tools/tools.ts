@@ -12,46 +12,30 @@ import {
   SnakAgentInterface,
   StarknetTool,
 } from '../shared/types/tools.types.js';
-import {
-  TaskSchema,
-  ThoughtsSchema,
-  ThoughtsSchemaType,
-} from '@schemas/graph.schemas.js';
+import { MemoryToolRegistry } from '@agents/graphs/tools/memory.tool.js';
+import { CoreToolRegistry } from '@agents/graphs/tools/core.tools.js';
 
-const endTask = (): string => {
-  return 'Task ended successfully';
-};
+export async function initializeMcpTools(
+  agentConfig: AgentConfig.Runtime
+): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
+  let MCPToolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+  if (
+    agentConfig.mcp_servers &&
+    Object.keys(agentConfig.mcp_servers).length > 0
+  ) {
+    try {
+      const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
+      await mcp.initializeConnections();
 
-const responseTask = (thoughts: ThoughtsSchemaType): ThoughtsSchemaType => {
-  return thoughts;
-};
-// Response
-export const responseTool = tool(responseTask, {
-  name: 'response_task',
-  description:
-    'Provide a structured response with thoughts, reasoning, criticism, and speak fields',
-  schema: ThoughtsSchema,
-});
-
-// End of an Task
-export const endTaskTool = tool(endTask, {
-  name: 'end_task',
-  description: 'End the current task',
-});
-
-export const createTask = tool(() => {}, {
-  name: 'create_task',
-  description:
-    'Create a structured task with thoughts, reasoning, criticism, and speak fields',
-  schema: TaskSchema,
-});
-
-export const blockedTask = tool(() => {}, {
-  name: 'block_task',
-  description: `Use when the task cannot be completed due to unresolvable obstacles. Provide details in the response.`,
-  schema: ThoughtsSchema,
-});
-
+      const mcpTools = mcp.getTools();
+      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+      MCPToolsList = [...MCPToolsList, ...mcpTools];
+    } catch (error) {
+      logger.error(`Failed to initialize MCP tools: ${error}`);
+    }
+  }
+  return MCPToolsList;
+}
 /**
  * Initializes the list of tools for the agent based on signature type and configuration
  * @param snakAgent - The agent interface instance
@@ -65,32 +49,15 @@ export async function initializeToolsList(
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
   toolsList = [...allowedTools];
+  const mcpTools = await initializeMcpTools(agentConfig);
+  toolsList = [...toolsList, ...mcpTools];
+  // Register memory tools
+  const memoryRegistry = new MemoryToolRegistry(agentConfig);
+  toolsList.push(...memoryRegistry.getTools());
 
-  // Add the two simple tools
-  console.log(agentConfig);
-  toolsList.push(endTaskTool);
-  toolsList.push(responseTool);
-  toolsList.push(blockedTask);
-  console.log(
-    'Tools initialized:',
-    toolsList.map((t) => t.name)
-  );
-  console.log('MCP Servers:', agentConfig.mcp_servers);
-  if (
-    agentConfig.mcp_servers &&
-    Object.keys(agentConfig.mcp_servers).length > 0
-  ) {
-    try {
-      const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
-      await mcp.initializeConnections();
-
-      const mcpTools = mcp.getTools();
-      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-      toolsList = [...toolsList, ...mcpTools];
-    } catch (error) {
-      logger.error(`Failed to initialize MCP tools: ${error}`);
-    }
-  }
+  // Register core tools
+  const coreRegistry = new CoreToolRegistry(agentConfig);
+  toolsList.push(...coreRegistry.getTools());
   return toolsList;
 }
 
@@ -195,19 +162,13 @@ export const registerTools = async (
           const tools_new = new Array<StarknetTool>();
           await imported_tool.registerTools(tools_new, agent);
           const agentId = agent.getAgentConfig().id;
-          const agentMode = agent.getAgentConfig().mode;
-
-          if (!agentId || !agentMode) {
-            logger.warn(
-              `Agent ID or mode is not defined for agent: ${JSON.stringify(
-                agent.getAgentConfig()
-              )}`
-            );
-            return false;
-          }
 
           for (const tool of tools_new) {
-            metrics.agentToolUseCount(agentId.toString(), agentMode, tool.name);
+            metrics.agentToolUseCount(
+              agentId.toString(),
+              'autonomous',
+              tool.name
+            );
           }
 
           tools.push(...tools_new);

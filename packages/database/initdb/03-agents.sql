@@ -2,13 +2,6 @@
 -- ENUM TYPES
 -- ============================================================================
 
--- Agent execution mode enumeration
--- As per PostgreSQL manual 8.7: Enums are static, ordered sets of values
-CREATE TYPE agent_mode AS ENUM (
-    'autonomous',
-    'interactive', 
-    'hybrid'
-);
 
 -- Memory strategy enumeration
 CREATE TYPE memory_strategy AS ENUM (
@@ -60,7 +53,8 @@ CREATE TYPE memory_size_limits AS (
     short_term_memory_size INTEGER,
     max_insert_episodic_size INTEGER,
     max_insert_semantic_size INTEGER,
-    max_retrieve_memory_size INTEGER
+    max_retrieve_memory_size INTEGER,
+    limit_before_summarization INTEGER
 );
 
 -- Memory thresholds configuration
@@ -68,7 +62,7 @@ CREATE TYPE memory_thresholds AS (
     insert_semantic_threshold NUMERIC(3,2),
     insert_episodic_threshold NUMERIC(3,2),
     retrieve_memory_threshold NUMERIC(3,2),
-    summarization_threshold NUMERIC(3,2)
+    hitl_threshold NUMERIC(3,2)
 );
 
 -- Memory timeout configuration
@@ -80,7 +74,6 @@ CREATE TYPE memory_timeouts AS (
 -- Memory configuration
 CREATE TYPE memory_config AS (
     ltm_enabled BOOLEAN,
-    summarization_threshold NUMERIC(3,2),
     size_limits memory_size_limits,
     thresholds memory_thresholds,
     timeouts memory_timeouts,
@@ -114,8 +107,6 @@ CREATE TABLE agents (
     -- Agent Profile (composite type) - MANDATORY
     profile agent_profile NOT NULL,
     
-    -- System configuration - MANDATORY
-    mode agent_mode NOT NULL,
     
     -- MCP Servers configurations (using JSONB as per manual 8.14) - MANDATORY
     mcp_servers JSONB NOT NULL,
@@ -153,7 +144,6 @@ CREATE TABLE agents (
 -- Create indexes for better query performance
 CREATE INDEX idx_agents_name ON agents (name);
 CREATE INDEX idx_agents_group ON agents ("group");
-CREATE INDEX idx_agents_mode ON agents (mode);
 CREATE INDEX idx_agents_created_at ON agents (created_at);
 
 -- GIN index for JSONB mcp_servers for efficient queries
@@ -216,10 +206,6 @@ BEGIN
         RAISE EXCEPTION 'Agent profile.knowledge is required (can be empty array)';
     END IF;
     
-    -- Check mode
-    IF NEW.mode IS NULL THEN
-        RAISE EXCEPTION 'Agent mode is required';
-    END IF;
     
     -- Check mcp_servers
     IF NEW.mcp_servers IS NULL THEN
@@ -326,7 +312,6 @@ CREATE OR REPLACE FUNCTION update_agent_complete(
     p_name VARCHAR(255) DEFAULT NULL,
     p_group VARCHAR(255) DEFAULT NULL,
     p_profile agent_profile DEFAULT NULL,
-    p_mode agent_mode DEFAULT NULL,
     p_mcp_servers JSONB DEFAULT NULL,
     p_plugins TEXT[] DEFAULT NULL,
     p_prompts agent_prompts DEFAULT NULL,
@@ -362,7 +347,6 @@ BEGIN
         name = COALESCE(p_name, name),
         "group" = COALESCE(p_group, "group"),
         profile = COALESCE(p_profile, profile),
-        mode = COALESCE(p_mode, mode),
         mcp_servers = COALESCE(p_mcp_servers, mcp_servers),
         plugins = COALESCE(p_plugins, plugins),
         prompts = COALESCE(p_prompts, prompts),
@@ -404,7 +388,6 @@ CREATE OR REPLACE FUNCTION replace_agent_complete(
     p_name VARCHAR(255),
     p_group VARCHAR(255),
     p_profile agent_profile,
-    p_mode agent_mode,
     p_mcp_servers JSONB,
     p_plugins TEXT[],
     p_prompts agent_prompts,
@@ -437,7 +420,6 @@ BEGIN
         name = p_name,
         "group" = p_group,
         profile = p_profile,
-        mode = p_mode,
         mcp_servers = p_mcp_servers,
         plugins = p_plugins,
         prompts = p_prompts,
@@ -551,7 +533,6 @@ INSERT INTO agents (
     name,
     "group",
     profile,
-    mode,
     mcp_servers,
     plugins,
     prompts,
@@ -569,7 +550,6 @@ INSERT INTO agents (
         ARRAY['product-catalog', 'return-policy', 'shipping-info'],
         NULL
     )::agent_profile,
-    'interactive'::agent_mode,
     '{"slack": {"url": "https://slack.api", "token": "xxx"}}'::jsonb,
     ARRAY['email-plugin', 'calendar-plugin'],
     ROW('prompt_config_001')::agent_prompts,
@@ -599,7 +579,6 @@ INSERT INTO agents (name) VALUES ('Test Bot');
 INSERT INTO agents (
     name,
     profile,
-    mode,
     mcp_servers,
     plugins,
     prompts,
@@ -616,7 +595,6 @@ INSERT INTO agents (
         ARRAY[]::TEXT[],  -- empty knowledge
         NULL
     )::agent_profile,
-    'interactive'::agent_mode,
     '{}'::jsonb,  -- empty mcp_servers
     ARRAY[]::TEXT[],  -- empty plugins
     ROW('minimal_prompt_config')::agent_prompts,
@@ -663,7 +641,6 @@ SELECT * FROM update_agent_complete(
     'Updated Agent Name',                            -- new name
     'production',                                    -- new group
     NULL,                                           -- keep existing profile
-    'autonomous'::agent_mode,                       -- change mode
     NULL,                                           -- keep existing mcp_servers
     ARRAY['new-plugin', 'another-plugin'],          -- update plugins
     NULL,                                           -- keep existing prompts
@@ -687,7 +664,6 @@ SELECT * FROM replace_agent_complete(
         ARRAY['New knowledge'],
         NULL
     )::agent_profile,
-    'interactive'::agent_mode,
     '{"newservice": {"url": "https://api.new", "key": "xxx"}}'::jsonb,
     ARRAY['plugin1', 'plugin2'],
     ROW('complete_prompt_config')::agent_prompts,
