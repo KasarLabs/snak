@@ -1,17 +1,6 @@
 import { BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
-import {
-  ModelSelectorConfig,
-  ModelSelector,
-} from '../operators/modelSelector.js';
-import {
-  logger,
-  AgentConfig,
-  CustomHuggingFaceEmbeddings,
-  MemoryConfig,
-  Id,
-  StarknetConfig,
-} from '@snakagent/core';
+import { logger, AgentConfig, Id, StarknetConfig } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '@snakagent/core';
 import {
@@ -21,9 +10,8 @@ import {
 } from '../../shared/enums/agent-modes.enum.js';
 import { MemoryAgent } from '../operators/memoryAgent.js';
 import { createGraph } from '../graphs/graph.js';
-import { Command } from '@langchain/langgraph';
+import { Command, CompiledStateGraph } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
-import { AgentReturn } from '../../shared/types/agents.types.js';
 import {
   ExecutorNode,
   GraphNode,
@@ -34,6 +22,7 @@ import { ChunkOutput } from '../../shared/types/streaming.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -44,23 +33,15 @@ export class SnakAgent extends BaseAgent {
   private readonly accountPrivateKey: string;
   private readonly accountPublicKey: string;
   private readonly agentMode: string;
-  private readonly agentConfig: AgentConfig<Id.Id>;
+  private readonly agentConfig: AgentConfig.Runtime;
   private readonly databaseCredentials: DatabaseCredentials;
   private memoryAgent: MemoryAgent | null = null;
   private ragAgent: RagAgent | null = null;
-
-  private readonly modelSelectorConfig: ModelSelectorConfig;
-
-  private currentMode: string;
-  private agentReactExecutor: AgentReturn;
-  private modelSelector: ModelSelector | null = null;
+  private compiledGraph: CompiledStateGraph<any, any, any, any, any>;
   private controller: AbortController;
-  private iterationEmbeddings: CustomHuggingFaceEmbeddings;
-  private pendingIteration?: { question: string; embedding: number[] };
-
   constructor(
     starknet_config: StarknetConfig,
-    agent_config: AgentConfig<Id.Id>,
+    agent_config: AgentConfig.Runtime,
     database_credentials: DatabaseCredentials
   ) {
     super('snak', AgentType.SNAK);
@@ -77,24 +58,14 @@ export class SnakAgent extends BaseAgent {
    */
   public async init(): Promise<void> {
     try {
-      if (!this.modelSelector) {
-        logger.warn(
-          '[SnakAgent]  No ModelSelector provided - functionality will be limited'
-        );
+      if (!this.agentConfig) {
+        throw new Error('Agent configuration is required for initialization');
       }
-
-      if (this.agentConfig) {
-        this.agentConfig.plugins = this.agentConfig.plugins || [];
-      }
-
-      this.modelSelector = new ModelSelector(this.modelSelectorConfig);
-      await this.modelSelector.init();
       await this.initializeMemoryAgent(this.agentConfig);
       await this.initializeRagAgent(this.agentConfig);
-
       try {
         await this.createAgentReactExecutor();
-        if (!this.agentReactExecutor) {
+        if (!this.compiledGraph) {
           logger.warn(
             '[SnakAgent]  Agent executor creation succeeded but result is null'
           );
@@ -123,26 +94,25 @@ export class SnakAgent extends BaseAgent {
   private async createAgentReactExecutor(): Promise<void> {
     try {
       logger.info(
-        `[SnakAgent]  Creating agent executor for mode: ${this.currentMode}`
+        `[SnakAgent]  Creating agent executor for mode: ${this.agentConfig.mode}`
       );
-
-      switch (this.currentMode) {
+      switch (this.agentConfig.mode) {
         case AGENT_MODES[AgentMode.AUTONOMOUS]:
-          this.agentReactExecutor = await createGraph(this, this.modelSelector);
+          this.compiledGraph = await createGraph(this);
           break;
         case AGENT_MODES[AgentMode.HYBRID]:
-          this.agentReactExecutor = await createGraph(this, this.modelSelector);
+          this.compiledGraph = await createGraph(this);
           break;
         case AGENT_MODES[AgentMode.INTERACTIVE]:
-          this.agentReactExecutor = await createGraph(this, this.modelSelector);
+          this.compiledGraph = await createGraph(this);
           break;
         default:
-          throw new Error(`Invalid mode: ${this.currentMode}`);
+          throw new Error(`Invalid mode: ${this.agentConfig.mode}`);
       }
 
-      if (!this.agentReactExecutor) {
+      if (!this.compiledGraph) {
         throw new Error(
-          `Failed to create agent executor for mode ${this.currentMode}: result is null`
+          `Failed to create agent executor for mode ${this.agentConfig.mode}: result is null`
         );
       }
     } catch (error) {
@@ -162,7 +132,7 @@ export class SnakAgent extends BaseAgent {
    * @private
    */
   private async initializeMemoryAgent(
-    agentConfig: AgentConfig | undefined
+    agentConfig: AgentConfig.Runtime | undefined
   ): Promise<void> {
     logger.debug('[SnakAgent]  Initializing MemoryAgent...');
     this.memoryAgent = new MemoryAgent();
@@ -176,7 +146,7 @@ export class SnakAgent extends BaseAgent {
    * @private
    */
   private async initializeRagAgent(
-    agentConfig: AgentConfig | undefined
+    agentConfig: AgentConfig.Runtime | undefined
   ): Promise<void> {
     const ragConfig = agentConfig?.rag;
     if (!ragConfig || ragConfig.enabled !== true) {
@@ -235,7 +205,7 @@ export class SnakAgent extends BaseAgent {
    */
   public getAgent() {
     return {
-      agentMode: this.currentMode,
+      agentMode: this.agentConfig.mode,
     };
   }
 
@@ -243,7 +213,7 @@ export class SnakAgent extends BaseAgent {
    * Get agent configuration
    * @returns The agent configuration object
    */
-  public getAgentConfig(): AgentConfig<Id.Id> {
+  public getAgentConfig(): AgentConfig.Runtime {
     return this.agentConfig;
   }
 
@@ -284,16 +254,16 @@ export class SnakAgent extends BaseAgent {
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.debug(
-        `[SnakAgent] Execute called - mode: ${this.currentMode}, interrupted: ${isInterrupted}`
+        `[SnakAgent] Execute called - mode: ${this.agentConfig.mode}, interrupted: ${isInterrupted}`
       );
 
-      if (!this.agentReactExecutor) {
+      if (!this.compiledGraph) {
         throw new Error('Agent executor is not initialized');
       }
       if (
-        this.currentMode == AGENT_MODES[AgentMode.AUTONOMOUS] ||
-        this.currentMode == AGENT_MODES[AgentMode.HYBRID] ||
-        this.currentMode == AGENT_MODES[AgentMode.INTERACTIVE]
+        this.agentConfig.mode == AGENT_MODES[AgentMode.AUTONOMOUS] ||
+        this.agentConfig.mode == AGENT_MODES[AgentMode.HYBRID] ||
+        this.agentConfig.mode == AGENT_MODES[AgentMode.INTERACTIVE]
       ) {
         for await (const chunk of this.executeAsyncGenerator(
           input,
@@ -306,7 +276,7 @@ export class SnakAgent extends BaseAgent {
           yield chunk;
         }
       } else {
-        return `The mode: ${this.currentMode} is not supported in this method.`;
+        return `The mode: ${this.agentConfig.mode} is not supported in this method.`;
       }
     } catch (error) {
       logger.error(`[SnakAgent]  Execute failed: ${error}`);
@@ -352,7 +322,7 @@ export class SnakAgent extends BaseAgent {
     checkpoint_id?: string
   ): AsyncGenerator<ChunkOutput> {
     let autonomousResponseContent: string | any;
-    const originalMode = this.currentMode;
+    const originalMode = this.agentConfig.mode;
     const totalIterationCount = 0;
 
     try {
@@ -360,14 +330,12 @@ export class SnakAgent extends BaseAgent {
         `[SnakAgent]  Starting autonomous execution - interrupted: ${isInterrupted}`
       );
 
-      if (!this.agentReactExecutor) {
-        throw new Error('Agent executor is not initialized');
+      if (!this.compiledGraph) {
+        throw new Error('CompiledGraph is not initialized');
       }
-
-      const app = this.agentReactExecutor.app;
       this.controller = new AbortController();
       const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
-      this.agentReactExecutor;
+      this.compiledGraph;
       const threadId = this.agentConfig.id;
 
       logger.info(`[SnakAgent]  Autonomous execution thread ID: ${threadId}`);
@@ -401,19 +369,22 @@ export class SnakAgent extends BaseAgent {
         }
 
         const executionInput = !isInterrupted ? graphState : command;
-        await app.invoke(executionInput ?? { messages: [] }, executionConfig);
+        await this.compiledGraph.invoke(
+          executionInput ?? { messages: [] },
+          executionConfig
+        );
         const _true = true;
         if (_true === true) {
           return;
         }
         let chunk: StreamEvent;
-        for await (chunk of app.streamEvents(
+        for await (chunk of this.compiledGraph.streamEvents(
           executionInput ?? { messages: [] },
           executionConfig
         )) {
           isInterrupted = false;
           lastChunk = chunk;
-          const state = await app.getState(executionConfig);
+          const state = await this.compiledGraph.getState(executionConfig);
           retryCount = state.values.retry;
           currentCheckpointId = state.config.configurable?.checkpoint_id;
           if (
@@ -627,7 +598,7 @@ export class SnakAgent extends BaseAgent {
         additional_kwargs: {
           from: 'snak',
           final: true,
-          agent_mode: this.currentMode,
+          agent_mode: this.agentConfig.mode,
           iterations: totalIterationCount,
         },
       });
@@ -642,8 +613,8 @@ export class SnakAgent extends BaseAgent {
         },
       });
     } finally {
-      if (this.currentMode !== originalMode) {
-        this.currentMode = originalMode;
+      if (this.agentConfig.mode !== originalMode) {
+        this.agentConfig.mode = originalMode;
       }
     }
   }

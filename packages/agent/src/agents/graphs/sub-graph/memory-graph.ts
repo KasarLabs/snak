@@ -9,7 +9,6 @@ import {
 import { handleNodeError } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
-import { ModelSelector } from '../../operators/modelSelector.js';
 import { MemoryAgent } from '../../operators/memoryAgent.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -23,7 +22,6 @@ import {
 import { MemoryStateManager } from '../manager/memory/memory-utils.js';
 import { MemoryDBManager } from '../manager/memory/memory-db-manager.js';
 import { STMManager } from '@agents/graphs/manager/memory/memory-manager.js';
-import { LTM_SYSTEM_PROMPT_RETRIEVE_MEMORY } from '@prompts/graph/memory/ltm_prompt.js';
 import { isInEnum } from '@enums/utils.js';
 import {
   StepType,
@@ -31,23 +29,27 @@ import {
   ToolCallType,
 } from '../../../shared/types/graph.types.js';
 import { createRetrieveMemoryNode } from '../chain/memory/memory-chain.js';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import {
+  TASK_MEMEMORY_MANAGER_HUMAN_PROMPT,
+  TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+} from '@prompts/graph/memory/task-memory-manager.prompt.js';
 
 export type GraphStateType = typeof GraphState.State;
 
 export class MemoryGraph {
-  private modelSelector: ModelSelector | null;
-  private memoryDBManager: MemoryDBManager | null = null;
+  private memoryDBManager: MemoryDBManager;
+  private model: BaseChatModel;
   private graph: any;
 
-  constructor(
-    modelSelector: ModelSelector | null,
-    memoryAgent: MemoryAgent,
-    timeout: number
-  ) {
-    this.modelSelector = modelSelector;
+  constructor(model: BaseChatModel, memoryAgent: MemoryAgent) {
     const embeddings = memoryAgent.getEmbeddings();
+    this.model = model;
     if (embeddings) {
-      this.memoryDBManager = new MemoryDBManager(embeddings, timeout);
+      this.memoryDBManager = new MemoryDBManager(embeddings, 560000);
+      if (!this.memoryDBManager) {
+        throw new Error('MemoryDBManager initialization failed');
+      }
     }
   }
 
@@ -99,7 +101,8 @@ export class MemoryGraph {
         return {
           last_node: MemoryNode.LTM_MANAGER,
         };
-      }1
+      }
+      1;
       if (
         state.tasks[state.tasks.length - 1].status != 'completed' &&
         state.tasks[state.tasks.length - 1].status != 'failed'
@@ -113,18 +116,7 @@ export class MemoryGraph {
         };
       }
 
-      // Validate prerequisites
-      if (!this.modelSelector || !this.memoryDBManager) {
-        logger.warn(
-          '[LTMManager] Missing dependencies, skipping LTM processing'
-        );
-        return {
-          last_node: MemoryNode.LTM_MANAGER,
-        };
-      }
-
-      const model = this.modelSelector.getModels()['cheap'];
-      if (!model) {
+      if (!this.model) {
         throw new Error('Fast model not available for LTM processing');
       }
 
@@ -142,12 +134,12 @@ export class MemoryGraph {
         };
       }
 
-      const structuredModel = model.withStructuredOutput(
+      const structuredModel = this.model.withStructuredOutput(
         createLtmSchemaMemorySchema(4, 8)
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', LTM_SYSTEM_PROMPT_RETRIEVE_MEMORY],
-        ['human', `TEXT_TO_ANALYZE : {response}`],
+        ['system', TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT],
+        ['human', TASK_MEMEMORY_MANAGER_HUMAN_PROMPT],
       ]);
 
       // Get current task to format all its steps

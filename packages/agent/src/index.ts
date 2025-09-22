@@ -17,14 +17,12 @@ export type {
 export { createGraph } from './agents/graphs/graph.js';
 
 // Agent operators
-export { ModelSelector } from './agents/operators/modelSelector.js';
 export { AgentSelector } from './agents/operators/agentSelector.js';
 
 // Tool-related exports
 export type {
   SnakAgentInterface,
   StarknetTool,
-  SignatureTool,
 } from './shared/types/tools.types.js';
 
 export { createAllowedTools, registerTools } from './tools/tools.js';
@@ -35,6 +33,6 @@ export * from './shared/types/index.js'; // All types
 export * from './shared/enums/index.js'; // All enums
 export * from './shared/lib/memory/index.js'; // Memory utilities (if index.ts exists)
 export * from './shared/lib/token/index.js'; // Token tracking (if index.ts exists)
-
+export * from './shared/prompts/index.js'; // All prompts
 // Legacy exports for backward compatibility
 export type { IAgent } from './shared/types/agents.types.js';

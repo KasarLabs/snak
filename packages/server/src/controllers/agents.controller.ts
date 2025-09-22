@@ -118,7 +118,7 @@ export class AgentsController {
 
   @Post('update_agent_config')
   async updateAgentConfig(
-    @Body() updateRequest: { id: string; config: Partial<AgentConfig<Id.NoId>> }
+    @Body() updateRequest: { id: string; config: Partial<AgentConfig.Input> }
   ): Promise<any> {
     const { id, config } = updateRequest;
 
@@ -166,10 +166,26 @@ export class AgentsController {
 
       // Fetch updated agent
       const fetchQuery = new Postgres.Query(
-        'SELECT * FROM agents WHERE id = $1',
+        `SELECT
+          id,
+          name,
+          "group",
+          row_to_json(profile) as profile,
+          mode,
+          mcp_servers,
+          plugins,
+          row_to_json(prompts) as prompts,
+          row_to_json(graph) as graph,
+          row_to_json(memory) as memory,
+          row_to_json(rag) as rag,
+          created_at,
+          updated_at,
+          avatar_image,
+          avatar_mime_type
+        FROM agents WHERE id = $1`,
         [id]
       );
-      const agent = await Postgres.query<AgentConfig<Id.Id>>(fetchQuery);
+      const agent = await Postgres.query<AgentConfig.InputWithId>(fetchQuery);
 
       return {
         status: 'success',

@@ -1,17 +1,3 @@
-export interface ModelConfig {
-  provider: string;
-  modelName: string;
-  temperature: number;
-  max_tokens: number;
-}
-
-export interface ModelsConfig {
-  fast: ModelConfig;
-  smart: ModelConfig;
-  cheap: ModelConfig;
-  [levelName: string]: ModelConfig;
-}
-
 export interface ApiKeys {
   openai?: string;
   anthropic?: string;

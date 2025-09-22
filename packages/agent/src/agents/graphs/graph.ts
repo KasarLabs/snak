@@ -14,7 +14,6 @@ import {
 } from '@langchain/core/tools';
 import { AnyZodObject, object, z } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
-import { ModelSelector } from '../operators/modelSelector.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { MemoryAgent } from '../operators/memoryAgent.js';
 import { RagAgent } from '../operators/ragAgent.js';
@@ -29,11 +28,9 @@ import {
   MemoryNode,
   VerifierNode,
 } from '../../shared/enums/agent-modes.enum.js';
-import { AgentReturn } from '../../shared/types/agents.types.js';
 import {
   GraphErrorType,
   Memories,
-  TasksType,
   TaskType,
 } from '../../shared/types/index.js';
 import { MemoryStateManager } from './manager/memory/memory-utils.js';
@@ -44,7 +41,7 @@ import { TaskVerifierGraph } from './sub-graph/task-verifier-graph.js';
 import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
-import { SnakAgentInterface } from '../../shared/types/tools.types.js';
+import { SnakAgent } from '@agents/core/snakAgent.js';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -115,7 +112,7 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => 0,
   }),
-  agent_config: Annotation<AgentConfig<Id.Id> | undefined>({
+  agent_config: Annotation<AgentConfig.Runtime | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
   }),
@@ -156,24 +153,19 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   }),
 });
 export class Graph {
-  private modelSelector: ModelSelector | null;
   private toolsList: (
     | StructuredTool
     | Tool
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
   private memoryAgent: MemoryAgent | null = null;
-  private agentConfig: AgentConfig;
+  private agentConfig: AgentConfig.Runtime;
   private ragAgent: RagAgent | null = null;
   private checkpointer: MemorySaver;
   private app: CompiledStateGraph<any, any, any, any, any, any>;
   private config: typeof GraphConfigurableAnnotation.State | null = null;
 
-  constructor(
-    private snakAgent: SnakAgentInterface,
-    modelSelector: ModelSelector | null
-  ) {
-    this.modelSelector = modelSelector;
+  constructor(private snakAgent: SnakAgent) {
     this.checkpointer = new MemorySaver();
   }
 
@@ -390,22 +382,24 @@ export class Graph {
     if (!this.memoryAgent) {
       throw new Error('MemoryAgent is not setup');
     }
-
     logger.debug('[Agent] Building workflow with initialized components');
-    const memory = new MemoryGraph(this.modelSelector, this.memoryAgent, 5000);
+    const memory = new MemoryGraph(
+      this.agentConfig.graph.model,
+      this.memoryAgent
+    );
     const planner = new PlannerGraph(
       this.agentConfig,
-      this.modelSelector as ModelSelector,
+      this.agentConfig.graph.model,
       this.toolsList
     );
 
     const executor = new AgentExecutorGraph(
       this.agentConfig,
-      this.modelSelector as ModelSelector,
+      this.agentConfig.graph.model,
       this.toolsList
     );
 
-    const taskVerifier = new TaskVerifierGraph(this.modelSelector);
+    const taskVerifier = new TaskVerifierGraph(this.agentConfig.graph.model);
 
     executor.createAgentExecutorGraph();
     memory.createGraphMemory();
@@ -449,7 +443,7 @@ export class Graph {
     >;
   }
 
-  async initialize(): Promise<AgentReturn> {
+  async initialize(): Promise<CompiledStateGraph<any, any, any, any, any>> {
     try {
       // Get agent configuration
       this.agentConfig = this.snakAgent.getAgentConfig();
@@ -484,10 +478,7 @@ export class Graph {
       const workflow = this.buildWorkflow();
       const app = workflow.compile(this.getCompileOptions());
       logger.info('Agent] Successfully initialized agent');
-      return {
-        app: this.app,
-        agent_config: this.agentConfig,
-      };
+      return app;
     } catch (error) {
       logger.error('Agent] Failed to create agent:', error);
       throw error;
@@ -510,9 +501,8 @@ export class Graph {
 // ============================================
 
 export const createGraph = async (
-  snakAgent: SnakAgentInterface,
-  modelSelector: ModelSelector | null
-): Promise<AgentReturn> => {
-  const agent = new Graph(snakAgent, modelSelector);
+  snakAgent: SnakAgent
+): Promise<CompiledStateGraph<any, any, any, any, any>> => {
+  const agent = new Graph(snakAgent);
   return agent.initialize();
 };

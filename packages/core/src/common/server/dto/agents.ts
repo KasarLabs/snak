@@ -1,15 +1,13 @@
-import { AgentConfig, AgentMode, Id } from '../../agent.js';
+import { AgentConfig } from '../../agent.js';
 import {
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   IsArray,
-  IsObject,
   Length,
   Min,
   Max,
-  ValidateNested,
   IsInt,
   Matches,
   ArrayNotEmpty,
@@ -39,7 +37,7 @@ export interface AgentRag {
  */
 export class AddAgentRequestDTO {
   @IsNotEmpty()
-  agent: AgentConfig<Id.NoId>;
+  agent: AgentConfig.Input;
 }
 
 /**
@@ -147,8 +145,6 @@ export class Message {
 
 export class AgentRequestDTO {
   @IsNotEmpty()
-  @IsObject()
-  @ValidateNested()
   request: Message;
 }
 
@@ -166,8 +162,6 @@ export class SupervisorRequest {
 
 export class SupervisorRequestDTO {
   @IsNotEmpty()
-  @IsObject()
-  @ValidateNested()
   request: SupervisorRequest;
 }
 
@@ -186,8 +180,7 @@ export class InitializesRequestDTO {
   @ArrayNotEmpty()
   @ArrayMinSize(1)
   @ArrayMaxSize(50)
-  @ValidateNested({ each: true })
-  agents: AgentConfig<Id.NoId>[];
+  agents: AgentConfig.Input[];
 }
 
 export class AgentDeleteRequestDTO {
@@ -208,9 +201,7 @@ export class AgentDeletesRequestDTO {
 
 export class AgentAddRequestDTO {
   @IsNotEmpty()
-  @IsObject()
-  @ValidateNested()
-  agent: AgentConfig<Id.NoId>;
+  agent: AgentConfig.Input;
 }
 
 export class AgentAvatarResponseDTO {

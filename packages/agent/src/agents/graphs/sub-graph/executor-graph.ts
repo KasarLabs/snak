@@ -9,7 +9,6 @@ import { estimateTokens, handleNodeError } from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
-import { ModelSelector } from '../../operators/modelSelector.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
@@ -37,17 +36,18 @@ import {
   GraphErrorType,
   GraphErrorTypeEnum,
 } from '../../../shared/types/index.js';
+import { LTMManager, STMManager } from '@lib/memory/index.js';
+import { stm_format_for_history } from '../parser/memory/stm-parser.js';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_EXECUTOR_HUMAN_PROMPT,
   TASK_EXECUTOR_MEMORY_PROMPT,
   TASK_EXECUTOR_PROMPT,
-} from '@prompts/agents/core.prompts.js';
-import { LTMManager, STMManager } from '@lib/memory/index.js';
-import { stm_format_for_history } from '../parser/memory/stm-parser.js';
+} from '@prompts/agents/task-executor.prompt.js';
 
 export class AgentExecutorGraph {
-  private agentConfig: AgentConfig;
-  private modelSelector: ModelSelector | null;
+  private agentConfig: AgentConfig.Runtime;
+  private model: BaseChatModel;
   private toolsList: (
     | StructuredTool
     | Tool
@@ -55,11 +55,11 @@ export class AgentExecutorGraph {
   )[] = [];
   private graph: any;
   constructor(
-    agentConfig: AgentConfig,
-    modelSelector: ModelSelector,
+    agentConfig: AgentConfig.Runtime,
+    model: BaseChatModel,
     toolList: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
   ) {
-    this.modelSelector = modelSelector;
+    this.model = model;
     this.agentConfig = agentConfig;
     this.toolsList = toolList;
   }
@@ -69,8 +69,7 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<AIMessageChunk> {
-    const model = this.modelSelector?.getModels()['fast'];
-    if (!model || !model.bindTools) {
+    if (!this.model || !this.model.bindTools) {
       throw new Error('Model not found or bindTools undefined');
     }
     const prompt = ChatPromptTemplate.fromMessages([
@@ -88,7 +87,7 @@ export class AgentExecutorGraph {
       current_task: state.tasks[state.tasks.length - 1].task.directive,
       success_criteria: state.tasks[state.tasks.length - 1].task.success_check,
     });
-    const modelBind = model.bindTools(this.toolsList);
+    const modelBind = this.model.bindTools(this.toolsList);
 
     const result = await modelBind.invoke(formattedPrompt);
     // Agréger tous les chunks
@@ -141,7 +140,7 @@ export class AgentExecutorGraph {
     | Command
   > {
     try {
-      if (!this.agentConfig || !this.modelSelector) {
+      if (!this.agentConfig || !this.model) {
         throw new Error('Agent configuration and ModelSelector are required.');
       }
       const currentTask = state.tasks[state.tasks.length - 1];
@@ -288,8 +287,7 @@ export class AgentExecutorGraph {
   > {
     const lastMessage = state.messages[state.messages.length - 1];
     const toolTimeout = DEFAULT_GRAPH_CONFIG.toolTimeout; // TODO add the field in the agent_configuration;
-    const model = this.modelSelector?.getModels()['fast'];
-    if (!model) {
+    if (!this.model) {
       throw new Error('Model not found in ModelSelector');
     }
     const currentTask = state.tasks[state.tasks.length - 1];
@@ -341,7 +339,7 @@ export class AgentExecutorGraph {
         ) {
           const summarize_content = await STMManager.summarize_before_inserting(
             tool.content.toLocaleString(),
-            model
+            this.model
           ).then((res) => res.message.content);
           tool.content = summarize_content;
         }
@@ -379,9 +377,7 @@ export class AgentExecutorGraph {
       const executionTime = Date.now() - startTime;
 
       if (error.message.includes('timed out')) {
-        logger.error(
-          `[Tools] ⏱️ Tool execution timed out after ${toolTimeout}ms`
-        );
+        logger.error(`[Tools] Tool execution timed out after ${toolTimeout}ms`);
       } else {
         logger.error(
           `[Tools] Tool execution failed after ${executionTime}ms: ${error}`

@@ -47,7 +47,7 @@ export interface SnakAgentInterface {
   };
   getDatabaseCredentials: () => DatabaseCredentials;
   getProvider: () => RpcProvider;
-  getAgentConfig: () => AgentConfig<Id.Id>;
+  getAgentConfig: () => AgentConfig.Runtime;
   getMemoryAgent: () => MemoryAgent | null;
   getRagAgent: () => RagAgent | null;
 }

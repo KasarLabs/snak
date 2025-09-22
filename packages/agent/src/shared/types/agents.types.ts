@@ -1,10 +1,5 @@
 import { AgentType } from '@enums/agent-modes.enum.js';
-import {
-  Annotation,
-  CompiledStateGraph,
-  StateGraph,
-} from '@langchain/langgraph';
-import { AgentConfig } from '@snakagent/core';
+import { Annotation } from '@langchain/langgraph';
 import { ChunkOutput } from './streaming.types.js';
 
 /**
@@ -46,14 +41,6 @@ export interface IAgent {
    * Optional method to clean up resources used by the agent.
    */
   dispose?: () => Promise<void>;
-}
-
-/**
- * Agent return structure
- */
-export interface AgentReturn {
-  app: CompiledStateGraph<any, any, any, any, any, any>;
-  agent_config: AgentConfig;
 }
 
 /**

@@ -87,7 +87,7 @@ export class PromptGenerator {
       },
     });
 
-    this.addResponseFormat('task_initializer', {
+    this.addResponseFormat('TASK_MANAGER', {
       tasks: {
         text: 'thought',
         reasoning: 'reasoning',

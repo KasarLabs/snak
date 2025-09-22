@@ -3,7 +3,6 @@ import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { AgentConfig, AgentMode, logger } from '@snakagent/core';
-import { ModelSelector } from '../../operators/modelSelector.js';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
@@ -14,12 +13,14 @@ import {
 } from '../../../shared/types/index.js';
 import { VerifierNode } from '../../../shared/enums/agent-modes.enum.js';
 import { handleNodeError } from '../utils/graph-utils.js';
-import { PromptGenerator } from '../manager/prompts/prompt-generator-manager.js';
-import { headerPromptStandard } from '@prompts/agents/header.prompt.js';
-import { PERFORMANCE_EVALUATION_PROMPT } from '@prompts/agents/performance-evaluation.prompt.js';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import {
+  TASK_VERIFICATION_CONTEXT_PROMPT,
+  TASK_VERIFIER_SYSTEM_PROMPT,
+} from '@prompts/agents/task-verifier.prompts.js';
 // Task verification schema
 export const TaskVerificationSchema = z.object({
   taskCompleted: z
@@ -44,55 +45,12 @@ export const TaskVerificationSchema = z.object({
 
 export type TaskVerificationResult = z.infer<typeof TaskVerificationSchema>;
 
-// Task verification prompts
-const TASK_VERIFICATION_SYSTEM_PROMPT = `You are a task verification specialist. Your role is to objectively assess whether a task has been truly completed based on:
-
-1. ORIGINAL TASK REQUIREMENTS: Compare the initial task goal with what was actually accomplished
-2. EXECUTION STEPS ANALYSIS: Review all executed steps and their results
-3. TOOL OUTPUTS EVALUATION: Analyze the actual outputs and results from tool executions
-4. COMPLETENESS CHECK: Identify any missing elements or unfulfilled requirements
-
-ASSESSMENT CRITERIA:
-- Only the Task objectives must be fully met, not partially completed
-- All critical requirements must be addressed
-- No essential steps should be missing or failed
-
-Be fair in your assessment. A task is only complete if the original objectives are genuinely fulfilled.`;
-
-const TASK_VERIFICATION_CONTEXT_PROMPT = `Verify task completion for:
-
-ORIGINAL TASK GOAL:
-{originalTask}
-
-EXECUTED STEPS AND RESULTS:
-{executedSteps}
-
-Assess whether this task is truly complete or requires additional work.`;
 export class TaskVerifierGraph {
-  private modelSelector: ModelSelector | null;
+  private model: BaseChatModel;
   private graph: any;
 
-  constructor(modelSelector: ModelSelector | null) {
-    this.modelSelector = modelSelector;
-  }
-
-  private buildPromptGenerator(): PromptGenerator {
-    const prompt = new PromptGenerator();
-    prompt.addHeader(headerPromptStandard);
-
-    // Add verification-specific constraints
-    prompt.addConstraints([
-      'OBJECTIVE_ANALYSIS_REQUIRED',
-      'EVIDENCE_BASED_ASSESSMENT',
-      'STRICT_COMPLETION_CRITERIA',
-      'DETAILED_REASONING_MANDATORY',
-      'JSON_RESPONSE_MANDATORY',
-    ]);
-
-    prompt.addPerformanceEvaluation(PERFORMANCE_EVALUATION_PROMPT);
-    prompt.setActiveResponseFormat('task_verifier');
-
-    return prompt;
+  constructor(model: BaseChatModel) {
+    this.model = model;
   }
 
   private async verifyTaskCompletion(
@@ -110,15 +68,9 @@ export class TaskVerifierGraph {
     | Command
   > {
     try {
-      if (!this.modelSelector) {
-        throw new Error('ModelSelector is required for task verification');
+      if (!this.model) {
+        throw new Error('model is required for task verification');
       }
-
-      const model = this.modelSelector.getModels()['fast'];
-      if (!model) {
-        throw new Error('Fast model not available for task verification');
-      }
-
       const currentTask = state.tasks[state.tasks.length - 1];
       if (!currentTask) {
         throw new Error('No current task to verify');
@@ -139,39 +91,22 @@ export class TaskVerifierGraph {
         };
       }
 
-      const prompts = this.buildPromptGenerator();
-      const structuredModel = model.withStructuredOutput(
+      const structuredModel = this.model.withStructuredOutput(
         TaskVerificationSchema
       );
 
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', TASK_VERIFICATION_SYSTEM_PROMPT],
+        ['system', TASK_VERIFIER_SYSTEM_PROMPT],
         ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 
       const executedSteps = stm_format_for_history(state.memories.stm);
 
-      const formattedResponseFormat = JSON.stringify(
-        prompts.getResponseFormat(),
-        null,
-        4
-      );
-
       logger.info('[TaskVerifier] Starting task completion verification');
       const formattedPrompt = await prompt.formatMessages({
         originalTask: currentTask.task.directive,
         taskReasoning: currentTask.thought.reasoning,
-        executedSteps,
-        header: prompts.generateNumberedList(prompts.getHeader()),
-        constraints: prompts.generateNumberedList(
-          prompts.getConstraints(),
-          'constraint'
-        ),
-        performance_evaluation: prompts.generateNumberedList(
-          prompts.getPerformanceEvaluation(),
-          'performance evaluation'
-        ),
-        output_format: formattedResponseFormat,
+        executedSteps: executedSteps || 'No prior steps executed',
       });
       const verificationResult = (await structuredModel.invoke(
         formattedPrompt

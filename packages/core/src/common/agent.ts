@@ -1,7 +1,9 @@
 import { RpcProvider } from 'starknet';
 import { SystemMessage } from '@langchain/core/messages';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { z as Zod } from 'zod';
-import { ModelConfig } from 'types/models/modelsConfig.js';
+
+export type Modify<T, R> = Omit<T, keyof R> & R;
 
 export interface StarknetTool<P = unknown> {
   name: string;
@@ -9,28 +11,15 @@ export interface StarknetTool<P = unknown> {
   description: string;
   schema?: Zod.AnyZodObject;
   responseFormat?: string;
-  execute: (
-    agent: SnakAgentInterface,
-    params: P,
-    plugins_manager?: any
-  ) => Promise<unknown>;
+  execute: (agent: any, params: P, plugins_manager?: any) => Promise<unknown>;
 }
 
-/**
- * @interface SignatureTool
- * @description Interface for the signature tool
- * @property {string} name - The name of the tool
- * @property {string} category - The category of the tool
- * @property {string} description - The description of the tool
- * @property {object} schema - The schema for the tool
- * @property {(params: any) => Promise<unknown>} execute - Function to execute the tool
- */
-export interface SignatureTool<P = any> {
-  name: string;
-  category?: string;
-  description: string;
-  schema?: object;
-  execute: (params: P) => Promise<unknown>;
+export interface ModelConfig {
+  provider: string;
+  modelName: string;
+  description?: string;
+  temperature: number;
+  max_tokens: number;
 }
 
 /**
@@ -42,17 +31,22 @@ export interface AgentProfile {
   lore: string[];
   objectives: string[];
   knowledge: string[];
-  mergedProfile?: string; // Don't set in the user request
+  agentConfigPrompt?: string; // Don't set in the user request
 }
 
 /**
  * Prompt configuration for various agent tasks
  */
 export interface AgentPrompts {
-  taskMemoryManagerPromptId: string;
-  taskExecutorPromptId: string;
-  taskManagerPromptId: string;
-  taskVerifierPromptId: string;
+  id: string;
+}
+
+export interface AgentPromptsInitialized {
+  taskMemoryManagerPrompt: SystemMessage;
+  taskExecutorPrompt: SystemMessage;
+  taskManagerPrompt: SystemMessage;
+  taskVerifierPrompt: SystemMessage;
+  // Add resolved prompts or other runtime data as needed
 }
 
 /**
@@ -68,6 +62,17 @@ export interface GraphConfig {
 }
 
 /**
+ * Initialized graph configuration with runtime data
+ */
+export type GraphConfigInitialized = Modify<
+  GraphConfig,
+  {
+    model: BaseChatModel;
+  }
+>;
+
+/**
+ *
  * Memory Strategy enum
  */
 export enum MemoryStrategy {
@@ -139,39 +144,54 @@ export enum Id {
   Id = 'Id',
 }
 /**
- * Main agent configuration interface
+ * Agent configuration namespace providing clean separation between input and runtime types
  */
-export interface AgentConfigBase {
-  // Core identification
-  // Agent Name
-  name: string;
-  // Group
-  group: string;
-  // Agent Profile
-  profile: AgentProfile;
-  // System configuration
-  mode: AgentMode;
-  // MCPs Servers configurations
-  mcpServers: Record<string, any>;
-  // Plugins configurations
-  plugins: string[];
-  // Prompt configurations
-  prompts: AgentPrompts;
-  // Graph execution settings
-  graph: GraphConfig;
-  // Memory settings
-  memory: MemoryConfig;
-  // RAG settings
-  rag: RAGConfig;
-}
+export namespace AgentConfig {
+  /**
+   * Base configuration properties shared across all agent config types
+   */
+  interface Base {
+    name: string;
+    group: string;
+    profile: AgentProfile;
+    mode: AgentMode;
+    mcpServers: Record<string, any>;
+    plugins: string[];
+    memory: MemoryConfig;
+    rag: RAGConfig;
+  }
 
-export interface AgentConfigWithId extends AgentConfigBase {
-  id: string;
-}
+  /**
+   * Input configuration for creating/updating agents
+   */
+  export interface Input extends Base {
+    prompts: AgentPrompts;
+    graph: GraphConfig;
+  }
 
-export type AgentConfig<HasId extends Id = Id.NoId> = HasId extends Id.Id
-  ? AgentConfigWithId
-  : AgentConfigBase;
+  /**
+   * Input configuration with ID for existing agents
+   */
+  export interface InputWithId extends Input {
+    id: string;
+  }
+
+  /**
+   * Runtime configuration with initialized/resolved data
+   */
+  export interface Runtime extends Base {
+    id: string;
+    prompts: AgentPromptsInitialized;
+    graph: GraphConfigInitialized;
+  }
+
+  /**
+   * Helper type for ID handling
+   */
+  export type WithOptionalId<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? InputWithId
+    : Input;
+}
 
 export interface StarknetConfig {
   provider: RpcProvider;
@@ -187,13 +207,14 @@ export interface DatabaseCredentials {
   database: string;
 }
 
+// TODO REMOVE WHEN REMOVED PLUGINS
 /**
  * @interface SnakAgentInterface
  * @description Interface for the Starknet agent
  * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
  * @property {() => DatabaseCredentials} getDatabaseCredentials - Function to get the database credentials
  * @property {() => RpcProvider} getProvider - Function to get the provider
- * @property {() => AgentConfig} getAgentConfig - Function to get the agent configuration
+ * @property {() => AgentConfigInput} getAgentConfig - Function to get the agent configuration
  * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
  * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
  * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
@@ -205,5 +226,5 @@ export interface SnakAgentInterface {
   };
   getDatabaseCredentials: () => DatabaseCredentials;
   getProvider: () => RpcProvider;
-  getAgentConfig: () => AgentConfig;
+  getAgentConfig: () => AgentConfig.Input;
 }

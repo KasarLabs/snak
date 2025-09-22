@@ -177,7 +177,7 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async getAllAgents(): Promise<AgentConfig<Id.Id>[]> {
+  async getAllAgents(): Promise<AgentConfig.InputWithId[]> {
     try {
       const q = new Postgres.Query(`
 			SELECT
@@ -192,7 +192,7 @@ export class AgentService implements IAgentService {
 			  avatar_mime_type
 			FROM agents
 		  `);
-      const res = await Postgres.query<AgentConfig<Id.Id>>(q);
+      const res = await Postgres.query<AgentConfig.InputWithId>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
@@ -243,13 +243,6 @@ export class AgentService implements IAgentService {
 
       // Check if the AI provider API keys are configured
       let apiKeyValid = false;
-      try {
-        const aiConfig = this.config.ai;
-        apiKeyValid = Boolean(aiConfig && aiConfig.apiKey);
-      } catch (error) {
-        this.logger.debug('AI API key verification failed', error);
-      }
-
       return {
         isReady: Boolean(credentials && apiKeyValid),
         walletConnected: Boolean(credentials.accountPrivateKey),

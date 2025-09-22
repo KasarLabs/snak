@@ -33,10 +33,7 @@ CREATE TYPE agent_profile AS (
 
 -- Agent Prompts configuration
 CREATE TYPE agent_prompts AS (
-    task_memory_manager_prompt_id VARCHAR(255),
-    task_executor_prompt_id VARCHAR(255),
-    task_manager_prompt_id VARCHAR(255),
-    task_verifier_prompt_id VARCHAR(255)
+    id VARCHAR(255)
 );
 
 -- Model Level Configuration (nested in graph_config)
@@ -238,21 +235,9 @@ BEGIN
     IF NEW.prompts IS NULL THEN
         RAISE EXCEPTION 'Agent prompts configuration is required';
     END IF;
-    
-    IF (NEW.prompts).task_memory_manager_prompt_id IS NULL THEN
-        RAISE EXCEPTION 'Agent prompts.task_memory_manager_prompt_id is required';
-    END IF;
-    
-    IF (NEW.prompts).task_executor_prompt_id IS NULL THEN
-        RAISE EXCEPTION 'Agent prompts.task_executor_prompt_id is required';
-    END IF;
-    
-    IF (NEW.prompts).task_manager_prompt_id IS NULL THEN
-        RAISE EXCEPTION 'Agent prompts.task_manager_prompt_id is required';
-    END IF;
-    
-    IF (NEW.prompts).task_verifier_prompt_id IS NULL THEN
-        RAISE EXCEPTION 'Agent prompts.task_verifier_prompt_id is required';
+
+    IF (NEW.prompts).id IS NULL THEN
+        RAISE EXCEPTION 'Agent prompts.id is required';
     END IF;
     
     -- Check graph configuration
@@ -587,7 +572,7 @@ INSERT INTO agents (
     'interactive'::agent_mode,
     '{"slack": {"url": "https://slack.api", "token": "xxx"}}'::jsonb,
     ARRAY['email-plugin', 'calendar-plugin'],
-    ROW('mem_mgr_001', 'exec_001', 'mgr_001', 'ver_001')::agent_prompts,
+    ROW('prompt_config_001')::agent_prompts,
     ROW(
         200, 30, 5, 600000, 150000,
         ROW('gpt-4-turbo', 0.8, 8192, 0.9, 0.1, 0.1)::model_config
@@ -634,7 +619,7 @@ INSERT INTO agents (
     'interactive'::agent_mode,
     '{}'::jsonb,  -- empty mcp_servers
     ARRAY[]::TEXT[],  -- empty plugins
-    ROW('prompt1', 'prompt2', 'prompt3', 'prompt4')::agent_prompts,
+    ROW('minimal_prompt_config')::agent_prompts,
     ROW(
         100, 15, 3, 300000, 100000,
         ROW('gpt-4', 0.7, 4096, 0.95, 0.0, 0.0)::model_config
@@ -705,7 +690,7 @@ SELECT * FROM replace_agent_complete(
     'interactive'::agent_mode,
     '{"newservice": {"url": "https://api.new", "key": "xxx"}}'::jsonb,
     ARRAY['plugin1', 'plugin2'],
-    ROW('new_mem_prompt', 'new_exec_prompt', 'new_mgr_prompt', 'new_ver_prompt')::agent_prompts,
+    ROW('complete_prompt_config')::agent_prompts,
     ROW(
         150, 25, 4, 500000, 120000,
         ROW('gpt-4', 0.7, 6144, 0.85, 0.2, 0.1)::model_config
