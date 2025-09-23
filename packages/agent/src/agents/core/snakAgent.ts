@@ -23,6 +23,7 @@ import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { request } from 'http';
 import { ErrorContext } from '@stypes/error.types.js';
 import { GraphErrorType } from '@stypes/graph.types.js';
+import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -226,9 +227,6 @@ export class SnakAgent extends BaseAgent {
         input,
         isInterrupted
       )) {
-        logger.debug(
-          `[SnakAgent]  Chunk received: ${JSON.stringify(chunk, null, 2)}`
-        );
         if (chunk.metadata.final) {
           yield chunk;
           return;
@@ -322,8 +320,6 @@ export class SnakAgent extends BaseAgent {
     const nodeType = chunk.metadata?.langgraph_node;
     const eventType = chunk.event;
 
-    console.log(eventType);
-
     // Only process chat model start/end events
     if (
       eventType !== EventType.ON_CHAT_MODEL_START &&
@@ -384,6 +380,8 @@ export class SnakAgent extends BaseAgent {
         throw new Error('CompiledGraph is not initialized');
       }
       this.controller = new AbortController();
+      const checkpointer = await CheckpointerService.getInstance();
+
       const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
       this.compiledGraph;
       const threadId = this.agentConfig.id;

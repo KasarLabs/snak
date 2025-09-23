@@ -52,8 +52,8 @@ export async function initializeToolsList(
   const mcpTools = await initializeMcpTools(agentConfig);
   toolsList = [...toolsList, ...mcpTools];
   // Register memory tools
-  const memoryRegistry = new MemoryToolRegistry(agentConfig);
-  toolsList.push(...memoryRegistry.getTools());
+  // const memoryRegistry = new MemoryToolRegistry(agentConfig);
+  // toolsList.push(...memoryRegistry.getTools());
 
   // Register core tools
   const coreRegistry = new CoreToolRegistry(agentConfig);

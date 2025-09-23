@@ -33,7 +33,7 @@ import { MemoryGraph } from './sub-graph/task-memory.graph.js';
 import { TaskManagerGraph } from './sub-graph/task-manager.graph.js';
 import { AgentExecutorGraph } from './sub-graph/task-executor.graph.js';
 import { TaskVerifierGraph } from './sub-graph/task-verifier.graph.js';
-import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
+import { isInEnum } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';

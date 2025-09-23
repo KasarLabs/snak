@@ -7,7 +7,6 @@ import {
 } from '../../../shared/types/index.js';
 import {
   GenerateToolCallsFromMessage,
-  getRetrieveMemoryRequestFromGraph,
   handleEndGraph,
   handleNodeError,
   hasReachedMaxSteps,
@@ -135,7 +134,10 @@ export class TaskManagerGraph {
       const modelBind = this.model.bindTools!(this.toolsList);
       const formattedPrompt = await prompt.formatMessages({
         past_tasks: tasks_parser(state.tasks),
-        objectives: getRetrieveMemoryRequestFromGraph(state, config),
+        objectives:
+          config.configurable?.user_request?.hitl_threshold === 1
+            ? config.configurable.user_request.request
+            : agentConfig.profile.objectives.join(' '),
         failed_tasks: state.error
           ? `The previous task failed due to: ${state.error.message}`
           : '',

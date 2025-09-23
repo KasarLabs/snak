@@ -13,7 +13,7 @@ import {
   DEFAULT_AGENT_MODEL,
 } from '@snakagent/core';
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
-import DatabaseStorage from '../common/database/database.js';
+import DatabaseStorage from '../common/database/database.storage.js';
 import {
   AgentSelector,
   SnakAgent,
