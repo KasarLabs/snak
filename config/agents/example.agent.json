@@ -1,40 +1,75 @@
 {
-  "name": "Your Agent name",
-  "group": "Your Agent group",
-  "description": "Your AI Agent Description",
-  "lore": ["Some lore of your AI Agent 1", "Some lore of your AI Agent 1"],
-  "objectives": [
-    "first objective that your AI Agent need to follow",
-    "second objective that your AI Agent need to follow"
-  ],
-  "knowledge": [
-    "first knowledge of your AI Agent",
-    "second knowledge of your AI Agent"
-  ],
-  "interval": "Your agent interval beetween each transaction of the Agent in ms,",
-  "chatId": "Your Agent Chat-id for isolating memory",
-  "max_iterations": "The number of iterations your agent will execute before stopping",
-  "mode": "The mode of your agent, can be interactive, autonomous or hybrid",
-  "memory": {
-    "enabled": "true or false to enable or disable memory",
-    "memorySize": "The number of pertinent elements your agent will remember",
-    "shortTermMemorySize": "The number of messages your agent will remember"
-  },
-  "rag": {
-    "enabled": "true or false to enable or disable rag context"
-  },
-  "plugins": ["Your first plugin", "Your second plugin"],
-  "mcp_servers": {
-    "nxp_server_example": {
-      "command": "npx",
-      "args": ["-y", "@npm_package_example/npx_server_example"],
-      "env": {
-        "API_KEY": "YOUR_API_KEY"
+  "agent": {
+    "name": "Your Agent name",
+    "group": "Your Agent group",
+    "profile": {
+      "description": "Your AI Agent Description",
+      "group": "Your Agent group",
+      "lore": ["Some lore of your AI Agent 1", "Some lore of your AI Agent 1"],
+      "objectives": [
+        "first objective that your AI Agent need to follow",
+        "second objective that your AI Agent need to follow"
+      ],
+      "knowledge": [
+        "first knowledge of your AI Agent",
+        "second knowledge of your AI Agent"
+      ]
+    },
+    "mcp_servers": {
+      "nxp_server_example": {
+        "command": "npx",
+        "args": ["-y", "@npm_package_example/npx_server_example"],
+        "env": {
+          "API_KEY": "YOUR_API_KEY"
+        }
+      },
+      "local_server_example": {
+        "command": "node",
+        "args": ["node /path/to/local_server/dist/index.js"]
       }
     },
-    "local_server_example": {
-      "command": "node",
-      "args": ["node /path/to/local_server/dist/index.js"]
+    "plugins": ["Your first plugin", "Your second plugin"],
+    "prompts": {
+      "id": "00000000-0000-4000-8000-000000000001"
+    },
+    "graph": {
+      "max_steps": 200,
+      "max_iterations": 15,
+      "max_retries": 3,
+      "execution_timeout_ms": 300000,
+      "max_token_usage": 100000,
+      "model": {
+        "provider": "openai",
+        "model_name": "gpt-4o",
+        "temperature": 0.7,
+        "max_tokens": 4096
+      }
+    },
+    "memory": {
+      "ltm_enabled": true,
+      "size_limits": {
+        "short_term_memory_size": 10,
+        "max_insert_episodic_size": 20,
+        "max_insert_semantic_size": 20,
+        "max_retrieve_memory_size": 20,
+        "limit_before_summarization": 10000
+      },
+      "thresholds": {
+        "insert_semantic_threshold": 0.7,
+        "insert_episodic_threshold": 0.6,
+        "retrieve_memory_threshold": 0.5,
+        "hitl_threshold": 0.7
+      },
+      "timeouts": {
+        "retrieve_memory_timeout_ms": 20000,
+        "insert_memory_timeout_ms": 10000
+      },
+      "strategy": "holistic"
+    },
+    "rag": {
+      "enabled": true,
+      "top_k": 5,
+      "embedding_model": "text-embedding-ada-002"
     }
   }
 }

@@ -1,34 +1,69 @@
 {
-  "name": "Supervisor Agent",
-  "group": "system",
-  "description": "I coordinate the execution of specialized agents in the system, routing requests to the most appropriate agent based on query content and agent capabilities.",
-  "lore": [
-    "I was designed to be lightweight and efficient, focusing solely on agent orchestration.",
-    "My purpose is to analyze user requests and determine which specialized agent is best suited to handle them."
-  ],
-  "objectives": [
-    "Analyze incoming user requests and determine the most appropriate agent to handle them",
-    "Route requests efficiently between specialized agents",
-    "Ensure a coherent user experience across multiple agent interactions",
-    "Maintain minimal overhead in the multi-agent system"
-  ],
-  "knowledge": [
-    "I understand the capabilities and specializations of each agent in the system",
-    "I know how to analyze requests to identify the subject matter and required expertise",
-    "I can manage agent selection without requiring additional tools or plugins"
-  ],
-  "interval": 1000,
-  "chatId": "supervisor_main",
-  "max_iterations": 15,
-  "mode": "interactive",
-  "memory": {
-    "enabled": true,
-    "memorySize": 20,
-    "shortTermMemorySize": 10
-  },
-  "rag": {
-    "enabled": true
-  },
-  "plugins": [],
-  "mcp_servers": {}
+  "agent": {
+    "name": "Supervisor Agent",
+    "group": "system",
+    "profile": {
+      "description": "I coordinate the execution of specialized agents in the system, routing requests to the most appropriate agent based on query content and agent capabilities.",
+      "group": "system",
+      "lore": [
+        "I was designed to be lightweight and efficient, focusing solely on agent orchestration.",
+        "My purpose is to analyze user requests and determine which specialized agent is best suited to handle them."
+      ],
+      "objectives": [
+        "Analyze incoming user requests and determine the most appropriate agent to handle them",
+        "Route requests efficiently between specialized agents",
+        "Ensure a coherent user experience across multiple agent interactions",
+        "Maintain minimal overhead in the multi-agent system"
+      ],
+      "knowledge": [
+        "I understand the capabilities and specializations of each agent in the system",
+        "I know how to analyze requests to identify the subject matter and required expertise",
+        "I can manage agent selection without requiring additional tools or plugins"
+      ]
+    },
+    "mcp_servers": {},
+    "plugins": [],
+    "prompts": {
+      "id": "00000000-0000-4000-8000-000000000001"
+    },
+    "graph": {
+      "max_steps": 200,
+      "max_iterations": 15,
+      "max_retries": 3,
+      "execution_timeout_ms": 300000,
+      "max_token_usage": 100000,
+      "model": {
+        "provider": "openai",
+        "model_name": "gpt-4o",
+        "temperature": 0.7,
+        "max_tokens": 4096
+      }
+    },
+    "memory": {
+      "ltm_enabled": true,
+      "size_limits": {
+        "short_term_memory_size": 10,
+        "max_insert_episodic_size": 20,
+        "max_insert_semantic_size": 20,
+        "max_retrieve_memory_size": 20,
+        "limit_before_summarization": 10000
+      },
+      "thresholds": {
+        "insert_semantic_threshold": 0.7,
+        "insert_episodic_threshold": 0.6,
+        "retrieve_memory_threshold": 0.5,
+        "hitl_threshold": 0.7
+      },
+      "timeouts": {
+        "retrieve_memory_timeout_ms": 20000,
+        "insert_memory_timeout_ms": 10000
+      },
+      "strategy": "holistic"
+    },
+    "rag": {
+      "enabled": true,
+      "top_k": 5,
+      "embedding_model": "text-embedding-ada-002"
+    }
+  }
 }
