@@ -90,3 +90,8 @@ export interface TaskType {
 export interface TasksType {
   tasks: TaskType[];
 }
+
+export interface UserRequest {
+  request: string;
+  hitl_threshold: number;
+}

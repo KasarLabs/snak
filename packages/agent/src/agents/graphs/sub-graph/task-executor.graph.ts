@@ -161,6 +161,7 @@ export class AgentExecutorGraph {
       ) {
         aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
+      aiMessage.content = ''; // Clear content because we are using tool calls only
       logger.debug(`[Executor] Model response received`);
       const mewMemories = STMManager.addMemory(
         state.memories.stm,

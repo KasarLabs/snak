@@ -4,7 +4,7 @@ import { logger, AgentConfig, Id, StarknetConfig } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '@snakagent/core';
 import { AgentType } from '../../shared/enums/agent.enum.js';
-import { createGraph } from '../graphs/graph.js';
+import { createGraph, GraphConfigurableType } from '../graphs/graph.js';
 import { Command, CompiledStateGraph } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
@@ -17,6 +17,9 @@ import { ChunkOutput } from '../../shared/types/streaming.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
+import { request } from 'http';
+import { ErrorContext } from '@stypes/error.types.js';
+import { GraphErrorType } from '@stypes/graph.types.js';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -220,6 +223,9 @@ export class SnakAgent extends BaseAgent {
         input,
         isInterrupted
       )) {
+        logger.debug(
+          `[SnakAgent]  Chunk received: ${JSON.stringify(chunk, null, 2)}`
+        );
         if (chunk.metadata.final) {
           yield chunk;
           return;
@@ -266,6 +272,7 @@ export class SnakAgent extends BaseAgent {
   public async *executeAsyncGenerator(
     input?: string,
     isInterrupted: boolean = false,
+    hitl_threshold?: number,
     thread_id?: string,
     checkpoint_id?: string
   ): AsyncGenerator<ChunkOutput> {
@@ -282,17 +289,23 @@ export class SnakAgent extends BaseAgent {
       const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
       this.compiledGraph;
       const threadId = this.agentConfig.id;
-
+      const configurable: GraphConfigurableType = {
+        thread_id: threadId,
+        user_request: {
+          request: input ?? '',
+          hitl_threshold:
+            hitl_threshold ?? this.agentConfig.memory.thresholds.hitl_threshold,
+        },
+        agent_config: this.agentConfig,
+      };
       logger.info(`[SnakAgent]  Autonomous execution thread ID: ${threadId}`);
       const threadConfig = {
-        configurable: {
-          thread_id: threadId,
-          agent_config: this.agentConfig,
-        },
+        configurable: configurable,
       };
       let lastChunk;
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;
+      let graphError: GraphErrorType | null = null;
 
       try {
         let command: Command | undefined;
@@ -321,6 +334,7 @@ export class SnakAgent extends BaseAgent {
           const state = await this.compiledGraph.getState(executionConfig);
           retryCount = state.values.retry;
           currentCheckpointId = state.config.configurable?.checkpoint_id;
+          graphError = state.config.configurable?.error;
           if (
             chunk.metadata?.langgraph_node &&
             isInEnum(TaskManagerNode, chunk.metadata.langgraph_node)
@@ -332,6 +346,9 @@ export class SnakAgent extends BaseAgent {
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.TASK_MANAGER,
+                tools: null,
+                message: null,
+                error: graphError,
                 metadata: {
                   executionMode: chunk.metadata.executionMode,
                   conversation_id: chunk.metadata.conversation_id,
@@ -350,10 +367,12 @@ export class SnakAgent extends BaseAgent {
               yield {
                 event: chunk.event,
                 run_id: chunk.run_id,
-                plan: chunk.data.output.tool_calls?.[0]?.args, // this is in a ParsedPlan format object
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.TASK_MANAGER,
+                tools: chunk.data.output.tool_calls ?? null,
+                message: chunk.data.output.content.toLocaleString(),
+                error: graphError,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
                   executionMode: chunk.metadata.executionMode,
@@ -379,6 +398,9 @@ export class SnakAgent extends BaseAgent {
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.AGENT_EXECUTOR,
+                tools: null,
+                message: null,
+                error: graphError,
                 metadata: {
                   execution_mode: chunk.metadata.executionMode,
                   retry: retryCount,
@@ -397,10 +419,11 @@ export class SnakAgent extends BaseAgent {
               yield {
                 event: chunk.event,
                 run_id: chunk.run_id,
-                tools: chunk.data.output.tool_calls,
-                content: chunk.data.output.content.toLocaleString(), // Is an ParsedPlan object
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
+                tools: chunk.data.output.tool_calls ?? null,
+                message: chunk.data.output.content.toLocaleString(),
+                error: graphError,
                 from: GraphNode.AGENT_EXECUTOR,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
@@ -417,30 +440,6 @@ export class SnakAgent extends BaseAgent {
                 timestamp: new Date().toISOString(),
               };
             }
-            if (chunk.event === EventType.ON_CHAT_MODEL_STREAM) {
-              if (chunk.data.chunk.content && chunk.data.chunk.content != '') {
-                yield {
-                  event: chunk.event,
-                  run_id: chunk.run_id,
-                  content: chunk.data.chunk.content.toLocaleString(),
-                  checkpoint_id: state.config.configurable?.checkpoint_id,
-                  thread_id: state.config.configurable?.thread_id,
-                  from: GraphNode.AGENT_EXECUTOR,
-                  metadata: {
-                    execution_mode: chunk.metadata.executionMode,
-                    retry: retryCount,
-                    conversation_id: chunk.metadata.conversation_id,
-                    langgraph_step: chunk.metadata.langgraph_step,
-                    langgraph_node: chunk.metadata.langgraph_node,
-                    ls_provider: chunk.metadata.ls_provider,
-                    ls_model_name: chunk.metadata.ls_model_name,
-                    ls_model_type: chunk.metadata.ls_model_type,
-                    ls_temperature: chunk.metadata.ls_temperature,
-                  },
-                  timestamp: new Date().toISOString(),
-                };
-              }
-            }
           } else if (
             chunk.metadata?.langgraph_node &&
             isInEnum(TaskMemoryNode, chunk.metadata.langgraph_node)
@@ -452,6 +451,9 @@ export class SnakAgent extends BaseAgent {
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
                 from: GraphNode.MEMORY_ORCHESTRATOR,
+                tools: null,
+                message: null,
+                error: graphError,
                 metadata: {
                   execution_mode: chunk.metadata.executionMode,
                   retry: retryCount,
@@ -472,6 +474,9 @@ export class SnakAgent extends BaseAgent {
                 run_id: chunk.run_id,
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
+                tools: chunk.data.output.tool_calls ?? null,
+                message: chunk.data.output.content.toLocaleString(),
+                error: graphError,
                 from: GraphNode.MEMORY_ORCHESTRATOR,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
@@ -500,6 +505,9 @@ export class SnakAgent extends BaseAgent {
           from: GraphNode.END_GRAPH,
           thread_id: threadId,
           checkpoint_id: currentCheckpointId,
+          tools: lastChunk.data.output.tool_calls ?? null,
+          message: lastChunk.data.output.content.toLocaleString(),
+          error: graphError,
           metadata: {
             conversation_id: lastChunk.metadata?.conversation_id,
             final: true,

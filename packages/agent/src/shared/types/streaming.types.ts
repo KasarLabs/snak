@@ -1,6 +1,7 @@
 import { GraphNode } from '@enums/agent.enum.js';
 import { EventType } from '@enums/event.enums.js';
 import { ToolCall } from './tools.types.js';
+import { GraphErrorType } from './graph.types.js';
 
 export interface ChunkOutputMetadata {
   execution_mode?: string;
@@ -22,9 +23,9 @@ export interface ChunkOutput {
   thread_id: string;
   checkpoint_id: string;
   from: GraphNode;
-  tools?: ToolCall[];
-  content?: string;
-  plan?: Record<string, any>;
+  tools: ToolCall[] | null;
+  message: string | null;
+  error: GraphErrorType | null;
   metadata: ChunkOutputMetadata;
   timestamp?: string;
 }

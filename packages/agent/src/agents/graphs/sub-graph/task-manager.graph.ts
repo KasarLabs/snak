@@ -7,6 +7,7 @@ import {
 } from '../../../shared/types/index.js';
 import {
   GenerateToolCallsFromMessage,
+  getRetrieveMemoryRequestFromGraph,
   handleEndGraph,
   handleNodeError,
   hasReachedMaxSteps,
@@ -134,7 +135,7 @@ export class TaskManagerGraph {
       const modelBind = this.model.bindTools!(this.toolsList);
       const formattedPrompt = await prompt.formatMessages({
         past_tasks: tasks_parser(state.tasks),
-        objectives: agentConfig.profile.objectives.join(', '),
+        objectives: getRetrieveMemoryRequestFromGraph(state, config),
         failed_tasks: state.error
           ? `The previous task failed due to: ${state.error.message}`
           : '',
@@ -148,6 +149,7 @@ export class TaskManagerGraph {
       ) {
         aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
+      aiMessage.content = ''; // Clear content because we are using tool calls only
       logger.info(`[Task Manager] Successfully created task`);
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
         logger.warn(

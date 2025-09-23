@@ -26,10 +26,11 @@ import {
   GraphErrorType,
   Memories,
   TaskType,
+  UserRequest,
 } from '../../shared/types/index.js';
 import { MemoryStateManager } from './manager/memory/memory-utils.js';
 import { MemoryGraph } from './sub-graph/task-memory.graph.js';
-import { TaskManagerGraph } from './sub-graph/task_manager.graph.js';
+import { TaskManagerGraph } from './sub-graph/task-manager.graph.js';
 import { AgentExecutorGraph } from './sub-graph/task-executor.graph.js';
 import { TaskVerifierGraph } from './sub-graph/task-verifier.graph.js';
 import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
@@ -99,7 +100,7 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => null,
   }),
-  user_request: Annotation<string | undefined>({
+  user_request: Annotation<UserRequest | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
   }),

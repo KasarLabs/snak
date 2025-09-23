@@ -250,7 +250,7 @@ export function getRetrieveMemoryRequestFromGraph(
         config.configurable!.agent_config!.memory.thresholds.hitl_threshold ===
         1
       ) {
-        return config.configurable!.user_request!;
+        return config.configurable!.user_request?.request!;
       } else {
         return config.configurable!.agent_config!.profile.objectives.join(' ');
       }
