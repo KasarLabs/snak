@@ -13,7 +13,10 @@ import {
   TaskMemoryNode,
   TaskManagerNode,
 } from '../../shared/enums/agent.enum.js';
-import { ChunkOutput } from '../../shared/types/streaming.types.js';
+import {
+  ChunkOutput,
+  ChunkOutputMetadata,
+} from '../../shared/types/streaming.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
@@ -265,6 +268,101 @@ export class SnakAgent extends BaseAgent {
   }
 
   /**
+   * Creates a standardized chunk output
+   */
+  private createChunkOutput(
+    chunk: StreamEvent,
+    state: any,
+    graphError: GraphErrorType | null,
+    retryCount: number,
+    from: GraphNode
+  ): ChunkOutput {
+    const metadata: ChunkOutputMetadata = {
+      langgraph_step: chunk.metadata.langgraph_step,
+      langgraph_node: chunk.metadata.langgraph_node,
+      ls_provider: chunk.metadata.ls_provider,
+      ls_model_name: chunk.metadata.ls_model_name,
+      ls_model_type: chunk.metadata.ls_model_type,
+      ls_temperature: chunk.metadata.ls_temperature,
+      tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
+      error: graphError,
+      retry_count: retryCount,
+    };
+
+    const chunkOutput: ChunkOutput = {
+      event: chunk.event,
+      run_id: chunk.run_id,
+      checkpoint_id: state.config.configurable?.checkpoint_id,
+      thread_id: state.config.configurable?.thread_id,
+      from,
+      tools:
+        chunk.event === EventType.ON_CHAT_MODEL_END
+          ? (chunk.data.output.tool_calls ?? null)
+          : null,
+      message:
+        chunk.event === EventType.ON_CHAT_MODEL_END
+          ? chunk.data.output.content.toLocaleString()
+          : null,
+      metadata,
+      timestamp: new Date().toISOString(),
+    };
+
+    return chunkOutput;
+  }
+
+  /**
+   * Processes chunk output for supported events and node types
+   */
+  private processChunkOutput(
+    chunk: StreamEvent,
+    state: any,
+    retryCount: number,
+    graphError: GraphErrorType | null
+  ): ChunkOutput | null {
+    const nodeType = chunk.metadata?.langgraph_node;
+    const eventType = chunk.event;
+
+    console.log(eventType);
+
+    // Only process chat model start/end events
+    if (
+      eventType !== EventType.ON_CHAT_MODEL_START &&
+      eventType !== EventType.ON_CHAT_MODEL_END
+    ) {
+      return null;
+    }
+
+    // Map node types to graph nodes and determine if retry should be included
+    if (isInEnum(TaskManagerNode, nodeType)) {
+      return this.createChunkOutput(
+        chunk,
+        state,
+        graphError,
+        retryCount,
+        GraphNode.TASK_MANAGER
+      );
+    } else if (isInEnum(TaskExecutorNode, nodeType)) {
+      return this.createChunkOutput(
+        chunk,
+        state,
+        graphError,
+        retryCount,
+        GraphNode.AGENT_EXECUTOR
+      );
+    } else if (isInEnum(TaskMemoryNode, nodeType)) {
+      return this.createChunkOutput(
+        chunk,
+        state,
+        graphError,
+        retryCount,
+        GraphNode.MEMORY_ORCHESTRATOR
+      );
+    }
+
+    return null;
+  }
+
+  /**
    * Executes the agent in autonomous mode
    * This mode allows the agent to operate continuously based on an initial goal or prompt
    * @returns Promise resolving to the result of the autonomous execution
@@ -315,6 +413,7 @@ export class SnakAgent extends BaseAgent {
           signal: this.controller.signal,
           recursionLimit: 500,
           version: 'v2' as const,
+          streamMode: 'messages' as const,
         };
 
         if (isInterrupted) {
@@ -335,164 +434,16 @@ export class SnakAgent extends BaseAgent {
           retryCount = state.values.retry;
           currentCheckpointId = state.config.configurable?.checkpoint_id;
           graphError = state.config.configurable?.error;
-          if (
-            chunk.metadata?.langgraph_node &&
-            isInEnum(TaskManagerNode, chunk.metadata.langgraph_node)
-          ) {
-            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
-              yield {
-                event: chunk.event,
-                run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable?.checkpoint_id,
-                thread_id: state.config.configurable?.thread_id,
-                from: GraphNode.TASK_MANAGER,
-                tools: null,
-                message: null,
-                error: graphError,
-                metadata: {
-                  executionMode: chunk.metadata.executionMode,
-                  conversation_id: chunk.metadata.conversation_id,
-                  langgraph_step: chunk.metadata.langgraph_step,
-                  langgraph_node: chunk.metadata.langgraph_node,
-                  ls_provider: chunk.metadata.ls_provider,
-                  ls_model_name: chunk.metadata.ls_model_name,
-                  ls_model_type: chunk.metadata.ls_model_type,
-                  ls_temperature: chunk.metadata.ls_temperature,
-                },
-                timestamp: new Date().toISOString(),
-              };
-            }
-            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-              // Need to add an error verifyer from get State
-              yield {
-                event: chunk.event,
-                run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable?.checkpoint_id,
-                thread_id: state.config.configurable?.thread_id,
-                from: GraphNode.TASK_MANAGER,
-                tools: chunk.data.output.tool_calls ?? null,
-                message: chunk.data.output.content.toLocaleString(),
-                error: graphError,
-                metadata: {
-                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
-                  executionMode: chunk.metadata.executionMode,
-                  conversation_id: chunk.metadata.conversation_id,
-                  langgraph_step: chunk.metadata.langgraph_step,
-                  langgraph_node: chunk.metadata.langgraph_node,
-                  ls_provider: chunk.metadata.ls_provider,
-                  ls_model_name: chunk.metadata.ls_model_name,
-                  ls_model_type: chunk.metadata.ls_model_type,
-                  ls_temperature: chunk.metadata.ls_temperature,
-                },
-                timestamp: new Date().toISOString(),
-              };
-            }
-          } else if (
-            chunk.metadata?.langgraph_node &&
-            isInEnum(TaskExecutorNode, chunk.metadata.langgraph_node)
-          ) {
-            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
-              yield {
-                event: chunk.event,
-                run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable?.checkpoint_id,
-                thread_id: state.config.configurable?.thread_id,
-                from: GraphNode.AGENT_EXECUTOR,
-                tools: null,
-                message: null,
-                error: graphError,
-                metadata: {
-                  execution_mode: chunk.metadata.executionMode,
-                  retry: retryCount,
-                  conversation_id: chunk.metadata.conversation_id,
-                  langgraph_step: chunk.metadata.langgraph_step,
-                  langgraph_node: chunk.metadata.langgraph_node,
-                  ls_provider: chunk.metadata.ls_provider,
-                  ls_model_name: chunk.metadata.ls_model_name,
-                  ls_model_type: chunk.metadata.ls_model_type,
-                  ls_temperature: chunk.metadata.ls_temperature,
-                },
-                timestamp: new Date().toISOString(),
-              };
-            }
-            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-              yield {
-                event: chunk.event,
-                run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable?.checkpoint_id,
-                thread_id: state.config.configurable?.thread_id,
-                tools: chunk.data.output.tool_calls ?? null,
-                message: chunk.data.output.content.toLocaleString(),
-                error: graphError,
-                from: GraphNode.AGENT_EXECUTOR,
-                metadata: {
-                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
-                  execution_mode: chunk.metadata.executionMode,
-                  conversation_id: chunk.metadata.conversation_id,
-                  retry: retryCount,
-                  langgraph_step: chunk.metadata.langgraph_step,
-                  langgraph_node: chunk.metadata.langgraph_node,
-                  ls_provider: chunk.metadata.ls_provider,
-                  ls_model_name: chunk.metadata.ls_model_name,
-                  ls_model_type: chunk.metadata.ls_model_type,
-                  ls_temperature: chunk.metadata.ls_temperature,
-                },
-                timestamp: new Date().toISOString(),
-              };
-            }
-          } else if (
-            chunk.metadata?.langgraph_node &&
-            isInEnum(TaskMemoryNode, chunk.metadata.langgraph_node)
-          ) {
-            if (chunk.event === EventType.ON_CHAT_MODEL_START) {
-              yield {
-                event: chunk.event,
-                run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable?.checkpoint_id,
-                thread_id: state.config.configurable?.thread_id,
-                from: GraphNode.MEMORY_ORCHESTRATOR,
-                tools: null,
-                message: null,
-                error: graphError,
-                metadata: {
-                  execution_mode: chunk.metadata.executionMode,
-                  retry: retryCount,
-                  conversation_id: chunk.metadata.conversation_id,
-                  langgraph_step: chunk.metadata.langgraph_step,
-                  langgraph_node: chunk.metadata.langgraph_node,
-                  ls_provider: chunk.metadata.ls_provider,
-                  ls_model_name: chunk.metadata.ls_model_name,
-                  ls_model_type: chunk.metadata.ls_model_type,
-                  ls_temperature: chunk.metadata.ls_temperature,
-                },
-                timestamp: new Date().toISOString(),
-              };
-            }
-            if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-              yield {
-                event: chunk.event,
-                run_id: chunk.run_id,
-                checkpoint_id: state.config.configurable?.checkpoint_id,
-                thread_id: state.config.configurable?.thread_id,
-                tools: chunk.data.output.tool_calls ?? null,
-                message: chunk.data.output.content.toLocaleString(),
-                error: graphError,
-                from: GraphNode.MEMORY_ORCHESTRATOR,
-                metadata: {
-                  tokens: chunk.data.output?.usage_metadata?.total_tokens,
-                  execution_mode: chunk.metadata.executionMode,
-                  retry: retryCount,
-                  conversation_id: chunk.metadata.conversation_id,
-                  langgraph_step: chunk.metadata.langgraph_step,
-                  langgraph_node: chunk.metadata.langgraph_node,
-                  ls_provider: chunk.metadata.ls_provider,
-                  ls_model_name: chunk.metadata.ls_model_name,
-                  ls_model_type: chunk.metadata.ls_model_type,
-                  ls_temperature: chunk.metadata.ls_temperature,
-                },
-                timestamp: new Date().toISOString(),
-              };
-            }
+
+          // Process chunk using the centralized handler
+          const processedChunk = this.processChunkOutput(
+            chunk,
+            state,
+            retryCount,
+            graphError
+          );
+          if (processedChunk) {
+            yield processedChunk;
           }
         }
         logger.info('[SnakAgent]  Autonomous execution completed');
@@ -507,9 +458,8 @@ export class SnakAgent extends BaseAgent {
           checkpoint_id: currentCheckpointId,
           tools: lastChunk.data.output.tool_calls ?? null,
           message: lastChunk.data.output.content.toLocaleString(),
-          error: graphError,
           metadata: {
-            conversation_id: lastChunk.metadata?.conversation_id,
+            error: graphError,
             final: true,
           },
           timestamp: new Date().toISOString(),

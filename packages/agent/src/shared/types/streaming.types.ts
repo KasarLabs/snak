@@ -13,6 +13,7 @@ export interface ChunkOutputMetadata {
   ls_model_type?: string;
   ls_model_name?: string;
   ls_temperature?: number;
+  error?: GraphErrorType | null;
   final?: boolean;
   [key: string]: any;
 }
@@ -25,7 +26,6 @@ export interface ChunkOutput {
   from: GraphNode;
   tools: ToolCall[] | null;
   message: string | null;
-  error: GraphErrorType | null;
   metadata: ChunkOutputMetadata;
   timestamp?: string;
 }

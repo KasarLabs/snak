@@ -95,3 +95,13 @@ export interface UserRequest {
   request: string;
   hitl_threshold: number;
 }
+
+export interface TaskVerificationToolOutput {
+  taskCompleted: boolean;
+  confidenceScore: number;
+  reasoning: string;
+  missingElements: string[];
+  nextActions: string[] | undefined;
+  toolCallValidated: boolean;
+  timestamp: number;
+}

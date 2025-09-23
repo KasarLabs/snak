@@ -91,36 +91,34 @@ export class MyGateway {
           userRequest.request,
           userId
         )) {
-        //   if (chunk.event != EventType.ON_CHAT_MODEL_STREAM) {
-        //     const q = new Postgres.Query(
-        //       `
-        //   INSERT INTO message (
-        //     event, run_id, thread_id, checkpoint_id, "from", agent_id,
-        //     content, tools, plan, metadata, "timestamp"
-        //   )
-        //   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        //   RETURNING id;
-        // `,
-        //       [
-        //         chunk.event,
-        //         chunk.run_id,
-        //         chunk.thread_id,
-        //         chunk.checkpoint_id,
-        //         chunk.from,
-        //         agentId,
-        //         chunk.content ?? null,
-        //         chunk.tools ? JSON.stringify(chunk.tools) : null,
-        //         chunk.plan ? JSON.stringify(chunk.plan) : null,
-        //         JSON.stringify(chunk.metadata || {}),
-        //         chunk.timestamp || new Date(),
-        //       ]
-        //     );
+          const q = new Postgres.Query(
+            `
+          INSERT INTO message (
+            event, run_id, thread_id, checkpoint_id, "from", agent_id, user_id,
+            message, tools, metadata, "timestamp"
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING id;
+        `,
+            [
+              chunk.event,
+              chunk.run_id,
+              chunk.thread_id,
+              chunk.checkpoint_id,
+              chunk.from,
+              agentId,
+              userId,
+              chunk.message ?? null,
+              chunk.tools ? JSON.stringify(chunk.tools) : null,
+              JSON.stringify(chunk.metadata || {}),
+              chunk.timestamp || new Date(),
+            ]
+          );
 
-        //     const result = await Postgres.query<number>(q);
-        //     logger.info(
-        //       `Inserted message with ID: ${result[0].toLocaleString()}`
-        //     );
-        //   }
+          const result = await Postgres.query<number>(q);
+          logger.info(
+            `Inserted message with ID: ${result[0].toLocaleString()}`
+          );
           client.emit('onAgentRequest', chunk);
         }
       },

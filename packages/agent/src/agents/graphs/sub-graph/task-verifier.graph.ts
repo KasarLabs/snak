@@ -2,7 +2,7 @@ import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
@@ -28,12 +28,13 @@ import {
   TaskVerificationSchema,
   TaskVerificationSchemaType,
 } from '@schemas/graph.schemas.js';
+import { DynamicStructuredTool } from '@langchain/core/tools';
 // Task verification schema
 
 export class TaskVerifierGraph {
   private model: BaseChatModel;
   private graph: any;
-
+  private readonly toolsList: DynamicStructuredTool<AnyZodObject>[] = [];
   constructor(model: BaseChatModel) {
     this.model = model;
   }
