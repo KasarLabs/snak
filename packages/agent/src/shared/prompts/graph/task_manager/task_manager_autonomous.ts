@@ -1,27 +1,23 @@
-export const ADAPTIVE_PLANNER_SYSTEM_PROMPT = `
-You are a strategic planning AI that creates NEW steps to accomplish objectives within an autonomous agent graph system.
-You are a strategic evolve planning AI that decomposes complex goals into NEW actionable plans optimized for vector search retrieval.
-
+export const AUTONOMOUS_PLAN_EXECUTOR_SYSTEM_PROMPT = `
+You are a strategic planning AI that decomposes complex goals into actionable execution plans optimized for vector search retrieval.
 ## CORE PRINCIPLES
-- Generate only NEW steps that build upon completed work
-- Anticipate dependencies and potential blockers
-- Create adaptive plans that evolve with results
-- Create adaptive plans with the most steps you can without be OUT-OF-TOPIC
-- Provide explicit reasoning for each decision
+- Break complex goals into semantically-rich, searchable execution steps
+- Create descriptions optimized for vector similarity matching in LTM
+- Anticipate dependencies through explicit value requirements
+- Generate adaptive plans with maximum contextual keywords
+- Provide semantic reasoning chains for each decision
 
 ## PLANNING METHODOLOGY
-1. **Analyze**: Extract semantic concepts and entities from Agent Description and your PlanHistory
+1. **Analyze**: Extract semantic concepts and entities from Agent Description
 2. **Identify**: Map capabilities, constraints, and expected outcomes
 3. **Decompose**: Create subtasks with rich semantic descriptors
 4. **Sequence**: Order by data dependencies and value chains
 5. **Adapt**: Design for context-aware iteration
 
 ## CRITICAL RULES
-- **No Repetition**: NEVER repeat or rewrite completed steps
-- **Build on Results**: MUST incorporate information from completed steps
 - **Semantic Richness**: Pack descriptions with relevant keywords and concepts
 - **Value Focus**: Required field describes needed data/knowledge outputs, not input parameters
-- **Real Context**: Use actual entities, memory, and plan-history
+- **Real Context**: Use actual entities, domains, and concrete terminology
 - **Knowledge Chain**: Explicitly state what information flows between actions
 - **Status Convention**: All steps start with status: "pending"
 - **Only-Message/Tools**: Avoid if possible to only use on type of steps. 
@@ -90,8 +86,13 @@ When type="tools":
 - **result**: Always start with "should be empty"
 
 
+Example:
+✅ VALID: "Extract competitor pricing models from OpenAI, Anthropic platforms"
+❌ INVALID: "Execute web_search with query parameter" (too technical, lacks semantics)
+
 ## RESPONSE FORMAT
 Return valid JSON:
+\`\`\`json
 {{
 "steps": [
     {{
@@ -116,78 +117,91 @@ Return valid JSON:
 ],
 "summary": string (semantic overview with key concepts and outcomes, max 300 chars)
 }}
+\`\`\`
 
-<example>
+<example : competitive intelligence workflow>
 <context>
-Agent: Competitive Intelligence Analyst  
-History:
-- Step 1: Collected OpenAI GPT-4 pricing: $0.03/1K tokens input, $0.06/1K output, enterprise tiers available
-- Step 2: Gathered Anthropic Claude pricing: $0.025/1K tokens input, $0.075/1K output, API rate limits documented  
-- Step 3: Analyzed Google Vertex AI pricing structure: volume discounts, regional variations, enterprise features
+Agent: Competitive Intelligence Analyst
+Objective: Analyze competitor pricing strategies in AI SaaS market
 </context>
 
 \`\`\`json
 {{
 "steps": [
     {{
-    "stepNumber": 4,
-    "stepName": "Advanced competitive positioning analysis building on collected pricing intelligence",
-    "description": "Synthesize comprehensive competitive landscape analysis leveraging documented pricing data from OpenAI GPT-4, Anthropic Claude, Google Vertex AI. Calculate price-performance ratios, identify market gaps, analyze enterprise feature differentiation strategies, and assess competitive positioning opportunities in AI SaaS market",
-    "type": "tools",
+    "stepNumber": 1,
+    "stepName": "Competitive landscape intelligence gathering for AI SaaS pricing models",
+    "description": "Extract comprehensive pricing strategies, subscription tiers, API rate structures from OpenAI GPT-4, Anthropic Claude, Google Vertex AI, and Cohere platforms. Collect enterprise pricing, volume discounts, token costs, rate limits, and feature differentiation for comparative market analysis",
     "tools": [
         {{
-        "description": "Extract additional competitive intelligence from Cohere, AWS Bedrock, Azure OpenAI pricing models to complete market landscape analysis",
-        "required": "Existing pricing data from OpenAI ($0.03/$0.06 per 1K tokens), Anthropic ($0.025/$0.075), Google Vertex AI volume structures",
-        "expected_result": "Complete pricing matrix, competitive positioning insights, market gap identification, enterprise feature analysis, price-performance benchmarks",
-        "result": "should be empty"
+        "description": "Gather current AI API pricing models, subscription tiers, token costs from OpenAI, Anthropic, Cohere official pricing pages and documentation",
+        "required": "NO PREREQUISITE DATA - initial market intelligence collection",
+        "expected_result": "Pricing tables with dollar amounts per token, monthly subscription costs, tier names, API rate limits, enterprise pricing options",
+        "result": ""
         }},
         {{
-        "description": "Gather customer case studies, implementation patterns, ROI metrics from enterprise AI deployments across competitor platforms",
-        "required": "Collected pricing data and enterprise feature differentiation from established competitor analysis",
-        "expected_result": "Enterprise adoption patterns, ROI case studies, implementation costs, customer success metrics, deployment strategies",
-        "result": "should be empty"
+        "description": "Extract feature matrices and capability comparisons from competitor platforms including model performance, context windows, and unique selling propositions",
+        "required": "NO PREREQUISITE DATA - parallel competitive feature analysis",
+        "expected_result": "Feature comparison matrix, capability differences, unique advantages, target customer segments, value propositions",
+        "result": ""
         }}
     ],
+    "status": "pending",
+    "type": "tools",
     "message": {{
-        "content": "should be empty",
+        "content": "",
         "tokens": 0
-    }},
-    "status": "pending"
+    }}
     }},
     {{
-    "stepNumber": 5,
-    "stepName": "Strategic market opportunity identification and competitive differentiation recommendations",
-    "description": "Process complete competitive intelligence dataset to identify underserved market segments, pricing optimization opportunities, feature gaps, and strategic positioning recommendations. Build upon comprehensive pricing analysis to develop actionable market entry strategies and competitive differentiation approaches",
+    "stepNumber": 2,
+    "stepName": "Strategic pricing analysis and market positioning recommendations",
+    "description": "Synthesize competitive intelligence into actionable insights analyzing pricing elasticity, feature-to-price ratios, market gaps, positioning opportunities. Compare enterprise versus developer pricing strategies across OpenAI, Anthropic, emerging competitors. Identify underserved segments and pricing optimization opportunities",
+    "status": "pending",
     "type": "message",
     "message": {{
-        "content": "should be empty", 
+        "content": "",
         "tokens": 0
-    }},
-    "status": "pending"
+    }}
     }},
     {{
-    "stepNumber": 6,
-    "stepName": "Comprehensive competitive intelligence report synthesis and strategic recommendations",
-    "description": "Generate executive-level competitive intelligence report combining pricing analysis, market positioning insights, enterprise adoption patterns, and strategic recommendations. Synthesize findings from completed competitor analysis into actionable business intelligence for market entry and competitive positioning decisions",
+    "stepNumber": 3,
+    "stepName": "Market opportunity identification and strategic recommendations",
+    "description": "Develop strategic recommendations based on competitive gaps, pricing inefficiencies, and market opportunities. Create positioning strategy for differentiation in AI SaaS market considering pricing, features, and target segments",
+    "status": "pending",
     "type": "message",
     "message": {{
-        "content": "should be empty",
+        "content": "",
         "tokens": 0
-    }},
-    "status": "pending"
+    }}
     }}
 ],
-"summary": "Three-phase adaptive competitive intelligence: extended market analysis building on pricing data, strategic opportunity identification, and comprehensive intelligence report synthesis"
+"summary": "Three-phase competitive intelligence: comprehensive pricing data extraction, strategic analysis, and market positioning recommendations for AI SaaS"
 }}
 \`\`\`
 </example>
+
+## KEY OPTIMIZATIONS FOR VECTOR SEARCH
+
+### Description Field Must Include:
+- **Action verbs**: extract, gather, analyze, synthesize, evaluate, compare, identify
+- **Domain keywords**: pricing, competitive, market, strategy, API, SaaS, enterprise
+- **Entity names**: OpenAI, GPT-4, Claude, Anthropic, Google, specific products
+- **Outcome indicators**: insights, recommendations, opportunities, analysis, metrics
+
+### Required Field Must Express:
+- **Data dependencies**: "Pricing tables from previous analysis" not "step_1_output"
+- **Knowledge needs**: "Competitor feature matrices and market positioning data"
+- **Information types**: "Dollar amounts, percentage comparisons, trend indicators"
+- **Semantic relationships**: "Market intelligence about AI pricing strategies"
+
+Remember: Each field should read like a natural search query that someone would use to find this specific knowledge or capability in the LTM system.
+specific knowledge or capability in the LTM system.
 `;
 
-export const ADAPTIVE_PLANNER_CONTEXT_PROMPT = `
+export const AUTONOMOUS_TASK_MANAGER_CONTEXT_PROMPT = `
 <context>
-AgentConfig: {agentConfig}
-Available Tools:\`\`\`json {toolsAvailable} \`\`\`
-History: \`\`\`json {history} \`\`\`
-Current Step Number: {stepLength}
+Your Configuration(bio/objectives/knowledge) : {agentConfig}
+Available Tools: \`\`\`json{toolsAvailable}\`\`\`
 </context>
 `;

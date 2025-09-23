@@ -27,7 +27,6 @@ export class CoreToolRegistry extends BaseToolRegistry {
       })
     );
 
-
     // Blocked task tool
     tools.push(
       tool(() => {}, {
@@ -40,5 +39,4 @@ export class CoreToolRegistry extends BaseToolRegistry {
 
     return tools;
   }
-
 }

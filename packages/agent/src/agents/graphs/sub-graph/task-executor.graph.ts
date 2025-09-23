@@ -17,11 +17,10 @@ import {
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { DEFAULT_GRAPH_CONFIG } from '../config/default-config.js';
 import {
   ExecutionMode,
-  ExecutorNode,
-} from '../../../shared/enums/agent-modes.enum.js';
+  TaskExecutorNode,
+} from '../../../shared/enums/agent.enum.js';
 import { TokenTracker } from '../../../token/token-tracking.js';
 import {
   MODEL_TIMEOUTS,
@@ -124,7 +123,7 @@ export class AgentExecutorGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: ExecutorNode;
+        last_node: TaskExecutorNode;
         currentGraphStep?: number;
         memories: Memories;
         task?: TaskType[];
@@ -132,7 +131,7 @@ export class AgentExecutorGraph {
       }
     | {
         retry: number;
-        last_node: ExecutorNode;
+        last_node: TaskExecutorNode;
         error: GraphErrorType;
       }
     | Command
@@ -200,7 +199,7 @@ export class AgentExecutorGraph {
         );
         return {
           retry: (state.retry ?? 0) + 1,
-          last_node: ExecutorNode.REASONING_EXECUTOR,
+          last_node: TaskExecutorNode.REASONING_EXECUTOR,
           error: {
             type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
             message: 'No tool calls detected in model response',
@@ -211,7 +210,7 @@ export class AgentExecutorGraph {
         };
       }
       aiMessage.additional_kwargs = {
-        from: ExecutorNode.REASONING_EXECUTOR,
+        from: TaskExecutorNode.REASONING_EXECUTOR,
         final: isEnd || isBlocked ? true : false,
       };
 
@@ -228,7 +227,7 @@ export class AgentExecutorGraph {
       if (isBlocked) {
         return {
           messages: [aiMessage],
-          last_node: ExecutorNode.REASONING_EXECUTOR,
+          last_node: TaskExecutorNode.REASONING_EXECUTOR,
           currentGraphStep: state.currentGraphStep + 1,
           memories: state.memories,
           task: state.tasks,
@@ -252,7 +251,7 @@ export class AgentExecutorGraph {
       state.tasks[state.tasks.length - 1] = currentTask;
       return {
         messages: [aiMessage],
-        last_node: ExecutorNode.REASONING_EXECUTOR,
+        last_node: TaskExecutorNode.REASONING_EXECUTOR,
         currentGraphStep: state.currentGraphStep + 1,
         memories: state.memories,
         task: state.tasks,
@@ -276,7 +275,7 @@ export class AgentExecutorGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: ExecutorNode;
+        last_node: TaskExecutorNode;
         memories: Memories;
         task: TaskType[];
       }
@@ -284,7 +283,8 @@ export class AgentExecutorGraph {
     | null
   > {
     const lastMessage = state.messages[state.messages.length - 1];
-    const toolTimeout = DEFAULT_GRAPH_CONFIG.toolTimeout; // TODO add the field in the agent_configuration;
+    const toolTimeout =
+      config.configurable?.agent_config?.graph.execution_timeout_ms; // TODO add the field in the agent_configuration;
     if (!this.model) {
       throw new Error('Model not found in ModelSelector');
     }
@@ -375,7 +375,7 @@ export class AgentExecutorGraph {
       return {
         ...tools,
         task: state.tasks,
-        last_node: ExecutorNode.TOOL_EXECUTOR,
+        last_node: TaskExecutorNode.TOOL_EXECUTOR,
         memories: state.memories,
       };
     } catch (error) {
@@ -403,7 +403,7 @@ export class AgentExecutorGraph {
     ): Promise<
       | {
           messages: BaseMessage[];
-          last_node: ExecutorNode;
+          last_node: TaskExecutorNode;
           memories: Memories;
         }
       | Command
@@ -417,7 +417,7 @@ export class AgentExecutorGraph {
 
   public async humanNode(state: typeof GraphState.State): Promise<{
     messages: BaseMessage[];
-    last_node: ExecutorNode;
+    last_node: TaskExecutorNode;
     currentGraphStep?: number;
   }> {
     logger.info(`[Human] Awaiting human input for: `);
@@ -425,14 +425,14 @@ export class AgentExecutorGraph {
     const message = new AIMessageChunk({
       content: input,
       additional_kwargs: {
-        from: ExecutorNode.HUMAN,
+        from: TaskExecutorNode.HUMAN,
         final: false,
       },
     });
 
     return {
       messages: [message],
-      last_node: ExecutorNode.HUMAN,
+      last_node: TaskExecutorNode.HUMAN,
       currentGraphStep: state.currentGraphStep + 1,
     };
   }
@@ -440,26 +440,26 @@ export class AgentExecutorGraph {
   private shouldContinue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): ExecutorNode {
+  ): TaskExecutorNode {
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required for routing decisions.');
     }
     if (state.retry > config.configurable?.agent_config?.graph.max_retries) {
       logger.warn('[Router] Max retries reached, routing to END node');
-      return ExecutorNode.END_EXECUTOR_GRAPH;
+      return TaskExecutorNode.END_EXECUTOR_GRAPH;
     }
-    if (state.last_node === ExecutorNode.REASONING_EXECUTOR) {
+    if (state.last_node === TaskExecutorNode.REASONING_EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
       if (state.error && state.error.hasError) {
         if (state.error.type === GraphErrorTypeEnum.BLOCKED_TASK) {
           logger.warn(`[Router] Blocked task detected, routing to END node`);
-          return ExecutorNode.END;
+          return TaskExecutorNode.END;
         }
         if (state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS) {
           logger.warn(
             `[Router] Wrong number of tools used, routing to reasoning node`
           );
-          return ExecutorNode.REASONING_EXECUTOR;
+          return TaskExecutorNode.REASONING_EXECUTOR;
         }
       }
       if (
@@ -470,26 +470,26 @@ export class AgentExecutorGraph {
         logger.debug(
           `[Router] Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
         );
-        return ExecutorNode.TOOL_EXECUTOR;
+        return TaskExecutorNode.TOOL_EXECUTOR;
       }
-    } else if (state.last_node === ExecutorNode.TOOL_EXECUTOR) {
+    } else if (state.last_node === TaskExecutorNode.TOOL_EXECUTOR) {
       if (
         config.configurable.agent_config.graph.max_steps <=
         state.currentGraphStep
       ) {
         logger.warn('[Router] Max graph steps reached, routing to END node');
-        return ExecutorNode.END_EXECUTOR_GRAPH;
+        return TaskExecutorNode.END_EXECUTOR_GRAPH;
       } else {
-        return ExecutorNode.END;
+        return TaskExecutorNode.END;
       }
     }
-    return ExecutorNode.END;
+    return TaskExecutorNode.END;
   }
 
   private executor_router(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): ExecutorNode {
+  ): TaskExecutorNode {
     return this.shouldContinue(state, config);
   }
 
@@ -519,22 +519,22 @@ export class AgentExecutorGraph {
       GraphConfigurableAnnotation
     )
       .addNode(
-        ExecutorNode.REASONING_EXECUTOR,
+        TaskExecutorNode.REASONING_EXECUTOR,
         this.reasoning_executor.bind(this)
       )
-      .addNode(ExecutorNode.TOOL_EXECUTOR, tool_executor)
+      .addNode(TaskExecutorNode.TOOL_EXECUTOR, tool_executor)
       .addNode('human', this.humanNode.bind(this))
       .addNode(
-        ExecutorNode.END_EXECUTOR_GRAPH,
+        TaskExecutorNode.END_EXECUTOR_GRAPH,
         this.end_planner_graph.bind(this)
       )
-      .addEdge(START, ExecutorNode.REASONING_EXECUTOR)
+      .addEdge(START, TaskExecutorNode.REASONING_EXECUTOR)
       .addConditionalEdges(
-        ExecutorNode.REASONING_EXECUTOR,
+        TaskExecutorNode.REASONING_EXECUTOR,
         this.executor_router.bind(this)
       )
       .addConditionalEdges(
-        ExecutorNode.TOOL_EXECUTOR,
+        TaskExecutorNode.TOOL_EXECUTOR,
         this.executor_router.bind(this)
       );
 

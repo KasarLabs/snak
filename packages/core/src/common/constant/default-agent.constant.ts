@@ -1,8 +1,4 @@
-import {
-  AgentConfig,
-  MemoryStrategy,
-  ModelConfig,
-} from '@common/agent.js';
+import { AgentConfig, MemoryStrategy, ModelConfig } from '@common/agent.js';
 import { DEFAULT_PROMPT_ID } from '@common/constant/default-database.constant.js';
 
 export const DEFAULT_AGENT_MODEL: ModelConfig = {

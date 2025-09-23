@@ -1,4 +1,4 @@
-import { GraphNode } from '@enums/agent-modes.enum.js';
+import { GraphNode } from '@enums/agent.enum.js';
 import { EventType } from '@enums/event.enums.js';
 import { ToolCall } from './tools.types.js';
 

@@ -25,5 +25,4 @@ export class TaskManagerToolRegistry extends BaseToolRegistry {
 
     return tools;
   }
-
 }

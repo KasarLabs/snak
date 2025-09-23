@@ -82,7 +82,6 @@ export class MemoryToolRegistry extends BaseToolRegistry {
     return tools;
   }
 
-
   private async retrieveMemoriesFromStepId(
     request: retrieveMemoryFromStepIdType
   ): Promise<memory.MemoryRetrieval[]> {

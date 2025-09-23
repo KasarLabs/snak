@@ -9,7 +9,7 @@ import {
 import { MemoryAgent } from '../../operators/memoryAgent.js';
 import { RagAgent } from '../../operators/ragAgent.js';
 import { Graph, createGraph } from '../graph.js';
-import { ExecutionMode } from '../../../shared/enums/agent-modes.enum.js';
+import { ExecutionMode } from '../../../shared/enums/agent.enum.js';
 
 // Mock all the modules first before importing the main module
 jest.mock('../sub-graph/memory-graph.js', () => ({
@@ -19,10 +19,10 @@ jest.mock('../sub-graph/memory-graph.js', () => ({
   })),
 }));
 
-jest.mock('../sub-graph/planner-graph.js', () => ({
-  PlannerGraph: jest.fn().mockImplementation(() => ({
-    createPlannerGraph: jest.fn(),
-    getPlannerGraph: jest.fn(() => jest.fn()),
+jest.mock('../sub-graph/task_manager_graph.js', () => ({
+  TaskManagerGraph: jest.fn().mockImplementation(() => ({
+    createTaskManagerGraph: jest.fn(),
+    getTaskManagerGraph: jest.fn(() => jest.fn()),
   })),
 }));
 
@@ -269,18 +269,18 @@ jest.mock('../../operators/ragAgent.js', () => ({
 }));
 
 jest.mock('../../../shared/enums/agent-modes.enum.js', () => ({
-  ExecutorNode: {
+  TaskExecutorNode: {
     AGENT_EXECUTOR: 'agent_executor',
   },
   PlannerNode: {
-    PLANNING_ORCHESTRATOR: 'planning_orchestrator',
+    TASK_MANAGER: 'planning_orchestrator',
   },
-  MemoryNode: {
+  TaskMemoryNode: {
     MEMORY_ORCHESTRATOR: 'memory_orchestrator',
   },
   GraphNode: {
     AGENT_EXECUTOR: 'agent_executor',
-    PLANNING_ORCHESTRATOR: 'planning_orchestrator',
+    TASK_MANAGER: 'planning_orchestrator',
     MEMORY_ORCHESTRATOR: 'memory_orchestrator',
     END_GRAPH: 'end_graph',
   },

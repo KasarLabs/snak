@@ -130,7 +130,6 @@ export interface RAGConfig {
   embedding_model?: string;
 }
 
-
 export enum Id {
   NoId = 'NoId',
   Id = 'Id',

@@ -17,26 +17,22 @@ import { BaseMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
-  DEFAULT_GRAPH_CONFIG,
-  ConfigValidator,
-} from './config/default-config.js';
-import {
   GraphNode,
-  ExecutorNode,
-  PlannerNode,
-  MemoryNode,
-  VerifierNode,
-} from '../../shared/enums/agent-modes.enum.js';
+  TaskExecutorNode,
+  TaskManagerNode,
+  TaskMemoryNode,
+  TaskVerifierNode,
+} from '../../shared/enums/agent.enum.js';
 import {
   GraphErrorType,
   Memories,
   TaskType,
 } from '../../shared/types/index.js';
 import { MemoryStateManager } from './manager/memory/memory-utils.js';
-import { MemoryGraph } from './sub-graph/memory-graph.js';
-import { PlannerGraph } from './sub-graph/planner-graph.js';
-import { AgentExecutorGraph } from './sub-graph/executor-graph.js';
-import { TaskVerifierGraph } from './sub-graph/task-verifier-graph.js';
+import { MemoryGraph } from './sub-graph/task-memory.graph.js';
+import { TaskManagerGraph } from './sub-graph/task_manager.graph.js';
+import { AgentExecutorGraph } from './sub-graph/task-executor.graph.js';
+import { TaskVerifierGraph } from './sub-graph/task-verifier.graph.js';
 import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
@@ -50,7 +46,11 @@ export const GraphState = Annotation.Root({
     default: () => [],
   }),
   last_node: Annotation<
-    ExecutorNode | PlannerNode | MemoryNode | GraphNode | VerifierNode
+    | TaskExecutorNode
+    | TaskManagerNode
+    | TaskMemoryNode
+    | GraphNode
+    | TaskVerifierNode
   >({
     reducer: (x, y) => y,
     default: () => GraphNode.START,
@@ -178,8 +178,8 @@ export class Graph {
       }
     }
 
-    if (isInEnum(VerifierNode, state.last_node))
-      if (state.last_node === VerifierNode.TASK_UPDATER) {
+    if (isInEnum(TaskVerifierNode, state.last_node))
+      if (state.last_node === TaskVerifierNode.TASK_UPDATER) {
         if (
           currentTask.status === 'completed' ||
           currentTask.status === 'failed'
@@ -190,15 +190,15 @@ export class Graph {
           return GraphNode.MEMORY_ORCHESTRATOR;
         }
       }
-    if (isInEnum(MemoryNode, state.last_node)) {
+    if (isInEnum(TaskMemoryNode, state.last_node)) {
       if (
         currentTask.status === 'completed' ||
         currentTask.status === 'failed'
       ) {
         logger.debug(
-          `[Orchestration Router] Memory operations complete, routing to planner`
+          `[Orchestration Router] Memory operations complete, routing to task manager`
         );
-        return GraphNode.PLANNING_ORCHESTRATOR;
+        return GraphNode.TASK_MANAGER;
       } else {
         logger.debug(
           `[Orchestration Router] Memory operations complete, routing to agent executor`
@@ -206,7 +206,7 @@ export class Graph {
         return GraphNode.AGENT_EXECUTOR;
       }
     }
-    if (isInEnum(ExecutorNode, state.last_node)) {
+    if (isInEnum(TaskExecutorNode, state.last_node)) {
       // Check if a task was just completed (end_task tool was called)
       if (state.error && state.error.hasError) {
         logger.error(
@@ -216,7 +216,7 @@ export class Graph {
           logger.warn(
             `[Orchestration Router] Blocked task detected, routing to END node`
           );
-          return GraphNode.PLANNING_ORCHESTRATOR;
+          return GraphNode.TASK_MANAGER;
         }
         return GraphNode.END_GRAPH;
       }
@@ -233,7 +233,7 @@ export class Graph {
       }
     }
 
-    if (isInEnum(PlannerNode, state.last_node)) {
+    if (isInEnum(TaskManagerNode, state.last_node)) {
       logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
       return GraphNode.MEMORY_ORCHESTRATOR;
     }
@@ -250,20 +250,9 @@ export class Graph {
           checkpointer: this.checkpointer,
         }
       : {};
-    const validatedConfig = ConfigValidator.validate({
-      maxGraphSteps: DEFAULT_GRAPH_CONFIG.maxGraphSteps,
-      shortTermMemory: DEFAULT_GRAPH_CONFIG.shortTermMemory,
-      memorySize: DEFAULT_GRAPH_CONFIG.memorySize,
-      humanInTheLoop: DEFAULT_GRAPH_CONFIG.humanInTheLoop,
-    });
-
     return {
       ...baseOptions,
       configurable: {
-        max_graph_steps: validatedConfig.maxGraphSteps,
-        short_term_memory: validatedConfig.shortTermMemory,
-        memory_size: validatedConfig.memorySize,
-        human_in_the_loop: validatedConfig.humanInTheLoop,
         agent_config: this.agentConfig,
       },
     };
@@ -294,10 +283,7 @@ export class Graph {
       this.agentConfig.graph.model,
       this.agentConfig.memory
     );
-    const planner = new PlannerGraph(
-      this.agentConfig,
-      this.toolsList
-    );
+    const taskManager = new TaskManagerGraph(this.agentConfig, this.toolsList);
 
     const executor = new AgentExecutorGraph(
       this.agentConfig,
@@ -309,24 +295,24 @@ export class Graph {
 
     executor.createAgentExecutorGraph();
     memory.createGraphMemory();
-    planner.createPlannerGraph();
+    taskManager.createTaskManagerGraph();
     taskVerifier.createTaskVerifierGraph();
 
     const executor_graph = executor.getExecutorGraph();
     const memory_graph = memory.getMemoryGraph();
-    const planner_graph = planner.getPlannerGraph();
+    const task_manager_graph = taskManager.getTaskManagerGraph();
     const task_verifier_graph = taskVerifier.getVerifierGraph();
     const workflow = new StateGraph(GraphState, GraphConfigurableAnnotation)
       .addNode(GraphNode.INIT_STATE_VALUE, this.initGraphStateValue.bind(this))
-      .addNode(GraphNode.PLANNING_ORCHESTRATOR, planner_graph)
+      .addNode(GraphNode.TASK_MANAGER, task_manager_graph)
       .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
       .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
       .addNode(GraphNode.TASK_VERIFIER, task_verifier_graph)
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
       .addEdge('__start__', GraphNode.INIT_STATE_VALUE)
-      .addEdge(GraphNode.INIT_STATE_VALUE, GraphNode.PLANNING_ORCHESTRATOR)
+      .addEdge(GraphNode.INIT_STATE_VALUE, GraphNode.TASK_MANAGER)
       .addConditionalEdges(
-        GraphNode.PLANNING_ORCHESTRATOR,
+        GraphNode.TASK_MANAGER,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(

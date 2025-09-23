@@ -75,7 +75,7 @@ jest.mock('../../../shared/enums/agent-modes.enum', () => ({
     AUTOMATIC: 'AUTOMATIC',
   },
   GraphNode: {
-    PLANNING_ORCHESTRATOR: 'planning_orchestrator',
+    TASK_MANAGER: 'planning_orchestrator',
     AGENT_EXECUTOR: 'agent_executor',
     MEMORY_ORCHESTRATOR: 'memory_orchestrator',
     END_GRAPH: 'end_graph',
@@ -90,7 +90,7 @@ jest.mock('../../../shared/enums/agent-modes.enum', () => ({
     GET_PLANNER_STATUS: 'get_planner_status',
     END: 'end',
   },
-  ExecutorNode: {
+  TaskExecutorNode: {
     REASONING_EXECUTOR: 'reasoning_executor',
     TOOL_EXECUTOR: 'tool_executor',
     EXECUTOR_VALIDATOR: 'executor_validator',
@@ -98,7 +98,7 @@ jest.mock('../../../shared/enums/agent-modes.enum', () => ({
     END_EXECUTOR_GRAPH: 'end_executor_graph',
     END: 'end',
   },
-  MemoryNode: {
+  TaskMemoryNode: {
     STM_MANAGER: 'stm_manager',
     LTM_MANAGER: 'ltm_manager',
     RETRIEVE_MEMORY: 'retrieve_memory',

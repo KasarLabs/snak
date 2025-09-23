@@ -2,7 +2,7 @@
 // import { TaskVerifierGraph, TaskVerificationSchema } from '../sub-graph/task-verifier-graph.js';
 // import { ModelSelector } from '../../operators/modelSelector.js';
 // import { GraphState, GraphConfigurableAnnotation } from '../graph.js';
-// import { VerifierNode } from '../../../shared/enums/agent-modes.enum.js';
+// import { TaskVerifierNode } from '../../../shared/enums/agent-modes.enum.js';
 // import { TaskType } from '../../../shared/types/graph.types.js';
 
 // // Mock dependencies
@@ -44,7 +44,7 @@
 
 //   const createMockState = (taskIndex: number = 0) => ({
 //     messages: [],
-//     last_node: VerifierNode.TASK_VERIFIER,
+//     last_node: TaskVerifierNode.TASK_VERIFIER,
 //     memories: {
 //       stm: { items: [], maxSize: 5, head: 0, size: 0, totalInserted: 0 },
 //       ltm: { items: [], episodic_size: 0, semantic_size: 0, merge_size: 0 },

@@ -12,9 +12,9 @@ import { AnyZodObject } from 'zod';
 import { AgentConfig, logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import {
-  PlannerNode,
+  TaskManagerNode,
   ExecutionMode,
-} from '../../../shared/enums/agent-modes.enum.js';
+} from '../../../shared/enums/agent.enum.js';
 import {
   DynamicStructuredTool,
   StructuredTool,
@@ -63,7 +63,7 @@ export const parseToolsToJson = (
   return JSON.stringify(formatTools, null, 2);
 };
 
-export class PlannerGraph {
+export class TaskManagerGraph {
   private model: BaseChatModel;
   private graph: any;
   private toolsList: (
@@ -86,7 +86,7 @@ export class PlannerGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: PlannerNode;
+        last_node: TaskManagerNode;
         tasks?: TaskType[];
         executionMode?: ExecutionMode;
         currentGraphStep: number;
@@ -128,29 +128,29 @@ export class PlannerGraph {
           : '',
       });
       const aiMessage = await modelBind.invoke(formattedPrompt);
-      logger.info(`[Planner] Successfully created task`);
+      logger.info(`[Task Manager] Successfully created task`);
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
-        throw new Error('[Planner] No tool calls found in model response');
+        throw new Error('[Task Manager] No tool calls found in model response');
       }
       if (aiMessage.tool_calls.length > 1) {
         logger.warn(
-          `[Planner] Multiple tool calls found, only the first will be processed`
+          `[Task Manager] Multiple tool calls found, only the first will be processed`
         );
-        throw new Error('[Planner] Multiple tool calls found');
+        throw new Error('[Task Manager] Multiple tool calls found');
       }
       if (
         aiMessage.tool_calls[0].name !== 'create_task' &&
         aiMessage.tool_calls[0].name !== 'block_task'
       ) {
         throw new Error(
-          `[Planner] Unexpected tool call: ${aiMessage.tool_calls[0].name}`
+          `[Task Manager] Unexpected tool call: ${aiMessage.tool_calls[0].name}`
         );
       }
       if (aiMessage.tool_calls[0].name === 'block_task') {
-        logger.info('[Planner] Task creation aborted by model');
+        logger.info('[Task Manager] Task creation aborted by model');
         return handleNodeError(
           new Error('Task creation aborted by model'),
-          'Planner',
+          'Task Manager',
           state
         );
       }
@@ -169,20 +169,27 @@ export class PlannerGraph {
       state.tasks.push(tasks);
       return {
         messages: [aiMessage],
-        last_node: PlannerNode.CREATE_INITIAL_PLAN,
+        last_node: TaskManagerNode.CREATE_TASK,
         tasks: state.tasks,
         executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
         error: null,
       };
     } catch (error: any) {
-      logger.error(`[Planner] Plan execution failed: ${error}`);
-      return handleNodeError(error, 'PLANNER', state, 'Plan creation failed');
+      logger.error(`[Task Manager] Plan execution failed: ${error}`);
+      return handleNodeError(
+        error,
+        'TASK_MANAGER',
+        state,
+        'Plan creation failed'
+      );
     }
   }
 
-  private end_planner_graph(state: typeof GraphState.State) {
-    logger.info('[EndPlannerGraph] Cleaning up state for graph termination');
+  private end_task_manager_graph(state: typeof GraphState.State) {
+    logger.info(
+      '[EndTaskManagerGraph] Cleaning up state for graph termination'
+    );
     return new Command({
       update: {
         currentTaskIndex: 0,
@@ -194,19 +201,19 @@ export class PlannerGraph {
     });
   }
 
-  public getPlannerGraph() {
+  public getTaskManagerGraph() {
     return this.graph;
   }
 
-  public createPlannerGraph() {
-    const planner_subgraph = new StateGraph(
+  public createTaskManagerGraph() {
+    const task_manager_subgraph = new StateGraph(
       GraphState,
       GraphConfigurableAnnotation
     )
-      .addNode('create_initial_plan', this.planExecution.bind(this))
-      .addEdge('create_initial_plan', END)
-      .addEdge(START, 'create_initial_plan');
+      .addNode(TaskManagerNode.CREATE_TASK, this.planExecution.bind(this))
+      .addEdge(TaskManagerNode.CREATE_TASK, END)
+      .addEdge(START, TaskManagerNode.CREATE_TASK);
 
-    this.graph = planner_subgraph.compile();
+    this.graph = task_manager_subgraph.compile();
   }
 }

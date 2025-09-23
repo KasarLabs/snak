@@ -1,9 +1,9 @@
-export const GET_PLANNER_STATUS_PROMPT = `
+export const GET_TASK_MANAGER_STATUS_PROMPT = `
 You are a strategic routing agent that determines whether a user query requires complex planning (CoT) or can be handled by simple reactive execution (ReAct).
 
 ## DECISION CRITERIA
 
-**USE PLANNER (CoT) - Set planner_actived: true** when the query has ANY of these characteristics:
+**USE TASK MANAGER (CoT) - Set task_manager_activated: true** when the query has ANY of these characteristics:
 - **Multi-step processes**: Requires sequential actions with dependencies between steps
 - **Complex analysis**: Needs data gathering, analysis, and synthesis across multiple sources  
 - **Strategic planning**: Involves goal decomposition, prioritization, or long-term thinking
@@ -13,7 +13,7 @@ You are a strategic routing agent that determines whether a user query requires 
 - **Quality gates**: Needs validation, review, or iterative refinement steps
 - **Resource optimization**: Requires planning for efficiency, cost, or time constraints
 
-**USE REACT (Simple) - Set planner_actived: false** when the query is:
+**USE REACT (Simple) - Set task_manager_activated: false** when the query is:
 - **Single action**: Can be completed with one tool call or simple response
 - **Direct lookup**: Straightforward information retrieval or data access
 - **Simple calculations**: Basic math, conversions, or formatting tasks
@@ -22,7 +22,7 @@ You are a strategic routing agent that determines whether a user query requires 
 
 ## EXAMPLES
 
-**PLANNER REQUIRED (true):**
+**TASK MANAGER REQUIRED (true):**
 - "Analyze competitor pricing and create a market positioning strategy"
 - "Research and implement a new authentication system for our app"
 - "Plan and execute a data migration from MySQL to PostgreSQL"
@@ -41,5 +41,5 @@ Agent Configuration: {agentConfig}
 UserQuery: {userQuery}
 
 ## DECISION RULE
-Analyze the user query against the criteria above. When in doubt, prefer the planner for better execution quality, but avoid over-planning for simple tasks.
+Analyze the user query against the criteria above. When in doubt, prefer the task manager for better execution quality, but avoid over-planning for simple tasks.
 `;

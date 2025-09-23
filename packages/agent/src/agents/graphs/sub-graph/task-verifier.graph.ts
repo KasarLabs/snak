@@ -11,7 +11,7 @@ import {
   Memories,
   GraphErrorTypeEnum,
 } from '../../../shared/types/index.js';
-import { VerifierNode } from '../../../shared/enums/agent-modes.enum.js';
+import { TaskVerifierNode } from '../../../shared/enums/agent.enum.js';
 import {
   getCurrentTask,
   handleNodeError,
@@ -44,7 +44,7 @@ export class TaskVerifierGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: VerifierNode;
+        last_node: TaskVerifierNode;
         tasks?: TaskType[];
         currentTaskIndex?: number;
         currentGraphStep?: number;
@@ -78,7 +78,7 @@ export class TaskVerifierGraph {
         );
         return {
           messages: [],
-          last_node: VerifierNode.TASK_VERIFIER,
+          last_node: TaskVerifierNode.TASK_VERIFIER,
           tasks: state.tasks,
           currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
@@ -135,7 +135,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
         return {
           messages: [verificationMessage],
-          last_node: VerifierNode.TASK_VERIFIER,
+          last_node: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
           currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
@@ -164,7 +164,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
         return {
           messages: [verificationMessage],
-          last_node: VerifierNode.TASK_VERIFIER,
+          last_node: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
           currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
@@ -184,19 +184,19 @@ Reasoning: ${verificationResult.reasoning}`,
   private taskVerifierRouter(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): VerifierNode {
+  ): TaskVerifierNode {
     const lastMessage = state.messages[state.messages.length - 1];
 
     if (lastMessage?.additional_kwargs?.taskCompleted === true) {
       logger.debug(
         '[TaskVerifierRouter] Task verified as complete, routing to success handler'
       );
-      return VerifierNode.TASK_SUCCESS_HANDLER;
+      return TaskVerifierNode.TASK_SUCCESS_HANDLER;
     } else {
       logger.debug(
         '[TaskVerifierRouter] Task verification failed, routing to failure handler'
       );
-      return VerifierNode.TASK_FAILURE_HANDLER;
+      return TaskVerifierNode.TASK_FAILURE_HANDLER;
     }
   }
 
@@ -205,7 +205,7 @@ Reasoning: ${verificationResult.reasoning}`,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{
     messages: BaseMessage[];
-    last_node: VerifierNode;
+    last_node: TaskVerifierNode;
     currentTaskIndex?: number;
   }> {
     logger.info('[TaskSuccessHandler] Processing successful task completion');
@@ -225,7 +225,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
     return {
       messages: [successMessage],
-      last_node: VerifierNode.TASK_SUCCESS_HANDLER,
+      last_node: TaskVerifierNode.TASK_SUCCESS_HANDLER,
       currentTaskIndex: hasMoreTasks ? nextTaskIndex : state.currentTaskIndex,
     };
   }
@@ -235,7 +235,7 @@ Reasoning: ${verificationResult.reasoning}`,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{
     messages: BaseMessage[];
-    last_node: VerifierNode;
+    last_node: TaskVerifierNode;
     retry?: number;
   }> {
     logger.info('[TaskFailureHandler] Processing failed task verification');
@@ -252,7 +252,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
     return {
       messages: [failureMessage],
-      last_node: VerifierNode.TASK_FAILURE_HANDLER,
+      last_node: TaskVerifierNode.TASK_FAILURE_HANDLER,
       retry: state.retry + 1,
     };
   }
@@ -263,7 +263,7 @@ Reasoning: ${verificationResult.reasoning}`,
   ): {
     tasks?: TaskType[];
     currentTaskIndex?: number;
-    last_node?: VerifierNode;
+    last_node?: TaskVerifierNode;
     memories?: Memories;
   } {
     try {
@@ -302,7 +302,7 @@ Reasoning: ${verificationResult.reasoning}`,
         return {
           tasks: state.tasks,
           currentTaskIndex: state.currentTaskIndex,
-          last_node: VerifierNode.TASK_UPDATER,
+          last_node: TaskVerifierNode.TASK_UPDATER,
           memories: updatedMemories,
         };
       }
@@ -321,19 +321,19 @@ Reasoning: ${verificationResult.reasoning}`,
         return {
           tasks: updatedTasks,
           currentTaskIndex: state.currentTaskIndex, // Keep same index for retry
-          last_node: VerifierNode.TASK_UPDATER,
+          last_node: TaskVerifierNode.TASK_UPDATER,
           memories: updatedMemories,
         };
       }
 
       // Default case - no change
       return {
-        last_node: VerifierNode.TASK_UPDATER,
+        last_node: TaskVerifierNode.TASK_UPDATER,
         memories: updatedMemories,
       };
     } catch (error) {
       logger.error(`[Task Updater] Error: ${error}`);
-      return { last_node: VerifierNode.TASK_UPDATER };
+      return { last_node: TaskVerifierNode.TASK_UPDATER };
     }
   }
 
@@ -346,24 +346,33 @@ Reasoning: ${verificationResult.reasoning}`,
       GraphState,
       GraphConfigurableAnnotation
     )
-      .addNode(VerifierNode.TASK_VERIFIER, this.verifyTaskCompletion.bind(this))
       .addNode(
-        VerifierNode.TASK_SUCCESS_HANDLER,
+        TaskVerifierNode.TASK_VERIFIER,
+        this.verifyTaskCompletion.bind(this)
+      )
+      .addNode(
+        TaskVerifierNode.TASK_SUCCESS_HANDLER,
         this.taskSuccessHandler.bind(this)
       )
       .addNode(
-        VerifierNode.TASK_FAILURE_HANDLER,
+        TaskVerifierNode.TASK_FAILURE_HANDLER,
         this.taskFailureHandler.bind(this)
       )
-      .addNode(VerifierNode.TASK_UPDATER, this.task_updater.bind(this))
-      .addEdge(START, VerifierNode.TASK_VERIFIER)
+      .addNode(TaskVerifierNode.TASK_UPDATER, this.task_updater.bind(this))
+      .addEdge(START, TaskVerifierNode.TASK_VERIFIER)
       .addConditionalEdges(
-        VerifierNode.TASK_VERIFIER,
+        TaskVerifierNode.TASK_VERIFIER,
         this.taskVerifierRouter.bind(this)
       )
-      .addEdge(VerifierNode.TASK_SUCCESS_HANDLER, VerifierNode.TASK_UPDATER)
-      .addEdge(VerifierNode.TASK_FAILURE_HANDLER, VerifierNode.TASK_UPDATER)
-      .addEdge(VerifierNode.TASK_UPDATER, END);
+      .addEdge(
+        TaskVerifierNode.TASK_SUCCESS_HANDLER,
+        TaskVerifierNode.TASK_UPDATER
+      )
+      .addEdge(
+        TaskVerifierNode.TASK_FAILURE_HANDLER,
+        TaskVerifierNode.TASK_UPDATER
+      )
+      .addEdge(TaskVerifierNode.TASK_UPDATER, END);
 
     this.graph = verifier_subgraph.compile();
   }

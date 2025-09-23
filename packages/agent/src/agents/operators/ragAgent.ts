@@ -6,7 +6,7 @@ import { rag } from '@snakagent/database/queries';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { Runnable, RunnableSequence } from '@langchain/core/runnables';
 import { RAGConfig } from '@snakagent/core';
-import { AgentType } from '@enums/agent-modes.enum.js';
+import { AgentType } from '@enums/agent.enum.js';
 
 export interface RagChainState {
   messages: BaseMessage[];

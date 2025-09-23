@@ -3,25 +3,20 @@ import { RpcProvider } from 'starknet';
 import { logger, AgentConfig, Id, StarknetConfig } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '@snakagent/core';
-import {
-  AgentMode,
-  AGENT_MODES,
-  AgentType,
-} from '../../shared/enums/agent-modes.enum.js';
+import { AgentType } from '../../shared/enums/agent.enum.js';
 import { createGraph } from '../graphs/graph.js';
 import { Command, CompiledStateGraph } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
-  ExecutorNode,
+  TaskExecutorNode,
   GraphNode,
-  MemoryNode,
-  PlannerNode,
-} from '../../shared/enums/agent-modes.enum.js';
+  TaskMemoryNode,
+  TaskManagerNode,
+} from '../../shared/enums/agent.enum.js';
 import { ChunkOutput } from '../../shared/types/streaming.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -336,7 +331,7 @@ export class SnakAgent extends BaseAgent {
           currentCheckpointId = state.config.configurable?.checkpoint_id;
           if (
             chunk.metadata?.langgraph_node &&
-            isInEnum(PlannerNode, chunk.metadata.langgraph_node)
+            isInEnum(TaskManagerNode, chunk.metadata.langgraph_node)
           ) {
             if (chunk.event === EventType.ON_CHAT_MODEL_START) {
               yield {
@@ -344,7 +339,7 @@ export class SnakAgent extends BaseAgent {
                 run_id: chunk.run_id,
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
-                from: GraphNode.PLANNING_ORCHESTRATOR,
+                from: GraphNode.TASK_MANAGER,
                 metadata: {
                   executionMode: chunk.metadata.executionMode,
                   conversation_id: chunk.metadata.conversation_id,
@@ -366,7 +361,7 @@ export class SnakAgent extends BaseAgent {
                 plan: chunk.data.output.tool_calls?.[0]?.args, // this is in a ParsedPlan format object
                 checkpoint_id: state.config.configurable?.checkpoint_id,
                 thread_id: state.config.configurable?.thread_id,
-                from: GraphNode.PLANNING_ORCHESTRATOR,
+                from: GraphNode.TASK_MANAGER,
                 metadata: {
                   tokens: chunk.data.output?.usage_metadata?.total_tokens,
                   executionMode: chunk.metadata.executionMode,
@@ -383,7 +378,7 @@ export class SnakAgent extends BaseAgent {
             }
           } else if (
             chunk.metadata?.langgraph_node &&
-            isInEnum(ExecutorNode, chunk.metadata.langgraph_node)
+            isInEnum(TaskExecutorNode, chunk.metadata.langgraph_node)
           ) {
             if (chunk.event === EventType.ON_CHAT_MODEL_START) {
               yield {
@@ -456,7 +451,7 @@ export class SnakAgent extends BaseAgent {
             }
           } else if (
             chunk.metadata?.langgraph_node &&
-            isInEnum(MemoryNode, chunk.metadata.langgraph_node)
+            isInEnum(TaskMemoryNode, chunk.metadata.langgraph_node)
           ) {
             if (chunk.event === EventType.ON_CHAT_MODEL_START) {
               yield {

@@ -171,7 +171,7 @@ Agent Configuration: Technical Research Assistant specializing in AI/ML technolo
 </example>
 `;
 
-export const INTERACTIVE_PLANNER_CONTEXT_PROMPT = `
+export const INTERACTIVE_TASK_MANAGER_CONTEXT_PROMPT = `
 <context>
 User Query: {userQuery}
 Agent Configuration: {agentConfig}

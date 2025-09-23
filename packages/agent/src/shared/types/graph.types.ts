@@ -102,5 +102,3 @@ export interface TaskType {
 export interface TasksType {
   tasks: TaskType[];
 }
-
-

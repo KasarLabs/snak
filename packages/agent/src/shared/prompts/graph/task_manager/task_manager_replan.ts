@@ -108,7 +108,7 @@ Objective: Analyze market trends for product launch
 \`\`\`
 </example>`;
 
-export const REPLANNER_CONTEXT_PROMPT = `
+export const RETASK_MANAGER_CONTEXT_PROMPT = `
 ## INPUTS
 AgentConfig: {agentConfig}
 Previous Plan: {formatPlan}

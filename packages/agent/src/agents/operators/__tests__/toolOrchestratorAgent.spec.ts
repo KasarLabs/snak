@@ -52,7 +52,9 @@ describe('ToolsOrchestrator', () => {
     snakAgent: { name: 'test-agent', description: 'Test agent' } as any,
     agentConfig: {
       plugins: ['test-plugin'],
-      mcp_servers: { testServer: { command: 'test-command', args: ['--test'] } },
+      mcp_servers: {
+        testServer: { command: 'test-command', args: ['--test'] },
+      },
     },
     modelSelector: {
       getModels: jest.fn().mockReturnValue({

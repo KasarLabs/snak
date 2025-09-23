@@ -10,7 +10,7 @@ export * from './core/mcpAgentPrompts.js';
 export * from './agents/selector.prompts.js';
 
 // Graph prompts
-export * from './graph/planner/index.js';
+export * from './graph/task_manager/index.js';
 export * from './graph/executor/index.js';
 export * from './graph/memory/summary_prompts.js';
 export * from './graph/memory/task-memory-manager.prompt.js';

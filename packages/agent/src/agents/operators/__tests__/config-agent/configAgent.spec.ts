@@ -1,4 +1,4 @@
-import { AgentType } from '@enums/agent-modes.enum.js';
+import { AgentType } from '@enums/agent.enum.js';
 import {
   ConfigurationAgent,
   ConfigurationAgentConfig,

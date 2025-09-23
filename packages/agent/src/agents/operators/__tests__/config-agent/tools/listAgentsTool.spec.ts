@@ -19,7 +19,7 @@ describe('listAgentsTool', () => {
     mockPostgres = jest.mocked(Postgres);
     mockLogger = jest.mocked(logger);
     mockPostgres.Query.mockImplementation(
-      (query: string, params: unknown[]) => ({ query, params })
+      (query: string, params: unknown[]) => new Postgres.Query(query, params)
     );
   });
 

@@ -1,4 +1,4 @@
-import { AgentType } from '@enums/agent-modes.enum.js';
+import { AgentType } from '@enums/agent.enum.js';
 import { Annotation } from '@langchain/langgraph';
 import { ChunkOutput } from './streaming.types.js';
 
@@ -46,9 +46,9 @@ export interface IAgent {
 /**
  * Orchestrator types for different agent operations
  */
-export type PLANNER_ORCHESTRATOR =
-  | 'planner'
-  | 'planner_validator'
+export type TASK_MANAGER_ORCHESTRATOR =
+  | 'task_manager'
+  | 'task_manager_validator'
   | 'evolve_from_history'
   | 'plan_revision';
 

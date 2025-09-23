@@ -22,7 +22,7 @@ export enum ExecutionMode {
 export enum GraphNode {
   START = 'start',
   INIT_STATE_VALUE = 'init_state_value',
-  PLANNING_ORCHESTRATOR = 'planning_orchestrator',
+  TASK_MANAGER = 'task_manager',
   AGENT_EXECUTOR = 'agent_executor',
   MEMORY_ORCHESTRATOR = 'memory_orchestrator',
   TASK_VERIFIER = 'task_verifier',
@@ -30,17 +30,17 @@ export enum GraphNode {
 }
 
 /**
- * Planner node types
+ * Task Manager node types
  */
-export enum PlannerNode {
-  CREATE_INITIAL_PLAN = 'create_initial_plan',
+export enum TaskManagerNode {
+  CREATE_TASK = 'create_task',
   END = 'end',
 }
 
 /**
  * Executor node types
  */
-export enum ExecutorNode {
+export enum TaskExecutorNode {
   REASONING_EXECUTOR = 'reasoning_executor',
   TOOL_EXECUTOR = 'tool_executor',
   HUMAN = 'human',
@@ -51,7 +51,7 @@ export enum ExecutorNode {
 /**
  * Memory node types
  */
-export enum MemoryNode {
+export enum TaskMemoryNode {
   LTM_MANAGER = 'ltm_manager',
   RETRIEVE_MEMORY = 'retrieve_memory',
   END_MEMORY_GRAPH = 'end_memory_graph',
@@ -61,7 +61,7 @@ export enum MemoryNode {
 /**
  * Task verifier node types
  */
-export enum VerifierNode {
+export enum TaskVerifierNode {
   TASK_VERIFIER = 'task_verifier',
   TASK_SUCCESS_HANDLER = 'task_success_handler',
   TASK_FAILURE_HANDLER = 'task_failure_handler',

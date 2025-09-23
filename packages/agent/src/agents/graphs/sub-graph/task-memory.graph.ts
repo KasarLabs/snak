@@ -19,11 +19,11 @@ import { logger, MemoryConfig } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
-  MemoryNode,
-  PlannerNode,
-  ExecutorNode,
-  VerifierNode,
-} from '../../../shared/enums/agent-modes.enum.js';
+  TaskMemoryNode,
+  TaskManagerNode,
+  TaskExecutorNode,
+  TaskVerifierNode,
+} from '../../../shared/enums/agent.enum.js';
 import { MemoryStateManager } from '../manager/memory/memory-utils.js';
 import { MemoryDBManager } from '../manager/memory/memory-db-manager.js';
 import { STMManager } from '@agents/graphs/manager/memory/memory-manager.js';
@@ -124,7 +124,7 @@ export class MemoryGraph {
   private async ltm_manager(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{ memories?: Memories; last_node: MemoryNode } | Command> {
+  ): Promise<{ memories?: Memories; last_node: TaskMemoryNode } | Command> {
     try {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
@@ -148,7 +148,7 @@ export class MemoryGraph {
         logger.debug(
           `[LTMManager] Current task at index ${state.currentTaskIndex} is not completed or failed, skipping LTM update`
         );
-        return { last_node: MemoryNode.LTM_MANAGER };
+        return { last_node: TaskMemoryNode.LTM_MANAGER };
       }
 
       const recentMemories = STMManager.getRecentMemories(
@@ -159,7 +159,7 @@ export class MemoryGraph {
         logger.warn(
           '[LTMManager] No recent STM items available for LTM upsert'
         );
-        return { last_node: MemoryNode.LTM_MANAGER };
+        return { last_node: TaskMemoryNode.LTM_MANAGER };
       }
 
       const structuredModel = this.model.withStructuredOutput(
@@ -218,7 +218,7 @@ export class MemoryGraph {
         );
       }
 
-      return { last_node: MemoryNode.LTM_MANAGER };
+      return { last_node: TaskMemoryNode.LTM_MANAGER };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -239,7 +239,7 @@ export class MemoryGraph {
   private async retrieve_memory(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{ memories?: Memories; last_node: MemoryNode } | Command> {
+  ): Promise<{ memories?: Memories; last_node: TaskMemoryNode } | Command> {
     try {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
@@ -269,7 +269,7 @@ export class MemoryGraph {
         );
         return {
           memories: state.memories,
-          last_node: MemoryNode.RETRIEVE_MEMORY,
+          last_node: TaskMemoryNode.RETRIEVE_MEMORY,
         };
       }
       const request = getRetrieveMemoryRequestFromGraph(state, config);
@@ -290,7 +290,7 @@ export class MemoryGraph {
           (mem) => !stmCurrentStepIds.includes(mem.step_id)
         );
         logger.debug(
-          `[MemoryNode] Filtered to ${filteredResults.length} memories after STM check`
+          `[TaskMemoryNode] Filtered to ${filteredResults.length} memories after STM check`
         );
         const updatedMemories = MemoryStateManager.updateLTM(
           state.memories,
@@ -298,7 +298,7 @@ export class MemoryGraph {
         );
         return {
           memories: updatedMemories,
-          last_node: MemoryNode.RETRIEVE_MEMORY,
+          last_node: TaskMemoryNode.RETRIEVE_MEMORY,
         };
       } else {
         logger.warn(
@@ -306,7 +306,7 @@ export class MemoryGraph {
         );
         return {
           memories: state.memories,
-          last_node: MemoryNode.RETRIEVE_MEMORY,
+          last_node: TaskMemoryNode.RETRIEVE_MEMORY,
         };
       }
     } catch (error: unknown) {
@@ -329,7 +329,7 @@ export class MemoryGraph {
   private memory_router(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): MemoryNode {
+  ): TaskMemoryNode {
     try {
       const lastNode = state.last_node;
       logger.debug(`[MemoryRouter] Routing from agent: ${lastNode}`);
@@ -338,42 +338,42 @@ export class MemoryGraph {
         logger.error(
           '[MemoryRouter] Invalid memory state detected, routing to end'
         );
-        return MemoryNode.END_MEMORY_GRAPH;
+        return TaskMemoryNode.END_MEMORY_GRAPH;
       }
       // Route based on previous agent and current state
       switch (true) {
-        case isInEnum(ExecutorNode, lastNode):
-          return MemoryNode.RETRIEVE_MEMORY;
+        case isInEnum(TaskExecutorNode, lastNode):
+          return TaskMemoryNode.RETRIEVE_MEMORY;
 
-        case isInEnum(PlannerNode, lastNode):
+        case isInEnum(TaskManagerNode, lastNode):
           logger.debug(
             '[MemoryRouter] Plan validated → retrieving memory context'
           );
-          return MemoryNode.RETRIEVE_MEMORY;
+          return TaskMemoryNode.RETRIEVE_MEMORY;
 
-        case isInEnum(VerifierNode, lastNode):
+        case isInEnum(TaskVerifierNode, lastNode):
           logger.debug(
             '[MemoryRouter] Task verification complete → retrieving memory context'
           );
-          return MemoryNode.LTM_MANAGER;
+          return TaskMemoryNode.LTM_MANAGER;
 
-        case isInEnum(MemoryNode, lastNode):
-          if (lastNode === MemoryNode.RETRIEVE_MEMORY) {
+        case isInEnum(TaskMemoryNode, lastNode):
+          if (lastNode === TaskMemoryNode.RETRIEVE_MEMORY) {
             logger.debug(
               '[MemoryRouter] Memory context retrieved → ending memory flow'
             );
-            return MemoryNode.END;
+            return TaskMemoryNode.END;
           }
-          return MemoryNode.END_MEMORY_GRAPH;
+          return TaskMemoryNode.END_MEMORY_GRAPH;
         default:
           logger.warn(
             `[MemoryRouter] Unknown agent ${lastNode}, routing to end`
           );
-          return MemoryNode.END_MEMORY_GRAPH;
+          return TaskMemoryNode.END_MEMORY_GRAPH;
       }
     } catch (error: any) {
       logger.error(`[MemoryRouter] Error in routing logic: ${error.message}`);
-      return MemoryNode.END_MEMORY_GRAPH;
+      return TaskMemoryNode.END_MEMORY_GRAPH;
     }
   }
 

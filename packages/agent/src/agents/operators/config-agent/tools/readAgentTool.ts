@@ -39,7 +39,7 @@ export const readAgentTool = new DynamicStructuredTool({
         ]);
       }
 
-      const result = await Postgres.query<AgentConfig>(query);
+      const result = await Postgres.query<AgentConfig.Input>(query);
 
       if (result.length > 0) {
         return JSON.stringify({
