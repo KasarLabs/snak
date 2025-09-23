@@ -171,17 +171,17 @@ function normalizeMemoryConfig(memory: InputMemoryConfig | null | undefined): {
     // Start with default values and override with provided values
     const config: OutputMemoryConfig = {
       enabled: DEFAULT_VALUES.memory.enabled,
-      shortTermMemorySize: DEFAULT_VALUES.memoryshort_term_memory_size,
+      shortTermMemorySize: DEFAULT_VALUES.memory.shortTermMemorySize,
       memorySize: DEFAULT_VALUES.memory.memorySize,
     };
 
     // Normalize shortTermMemorySize
     const shortTermResult = normalizeNumericValue(
-      memoryshort_term_memory_size,
-      DEFAULT_VALUES.memoryshort_term_memory_size,
+      memory.shortTermMemorySize,
+      DEFAULT_VALUES.memory.shortTermMemorySize,
       'memoryshort_term_memory_size'
     );
-    configshort_term_memory_size = shortTermResult.value;
+    config.shortTermMemorySize = shortTermResult.value;
     if (shortTermResult.appliedDefault) {
       appliedDefaults.push(shortTermResult.appliedDefault);
     }
@@ -212,7 +212,7 @@ function normalizeMemoryConfig(memory: InputMemoryConfig | null | undefined): {
   } else {
     // Initialize with defaults
     appliedDefaults.push(
-      `memory initialized with default values (enabled: ${DEFAULT_VALUES.memory.enabled}, shortTermMemorySize: ${DEFAULT_VALUES.memoryshort_term_memory_size}, memorySize: ${DEFAULT_VALUES.memory.memorySize})`
+      `memory initialized with default values (enabled: ${DEFAULT_VALUES.memory.enabled}, shortTermMemorySize: ${DEFAULT_VALUES.memory.shortTermMemorySize}, memorySize: ${DEFAULT_VALUES.memory.memorySize})`
     );
     return { config: { ...DEFAULT_VALUES.memory }, appliedDefaults };
   }
@@ -231,17 +231,17 @@ function normalizeRagConfig(rag: InputRagConfig | null | undefined): {
     // Start with default values and override with provided values
     const config: OutputRagConfig = {
       enabled: DEFAULT_VALUES.rag.enabled,
-      topK: DEFAULT_VALUES.rag.top_k,
-      embeddingModel: DEFAULT_VALUES.rag.embedding_model,
+      topK: DEFAULT_VALUES.rag.topK,
+      embeddingModel: DEFAULT_VALUES.rag.embeddingModel,
     };
 
     // Normalize topK
     const topKResult = normalizeNumericValue(
-      rag.top_k,
-      DEFAULT_VALUES.rag.top_k,
+      rag.topK,
+      DEFAULT_VALUES.rag.topK,
       'rag.top_k'
     );
-    config.top_k = topKResult.value;
+    config.topK = topKResult.value;
     if (topKResult.appliedDefault) {
       appliedDefaults.push(topKResult.appliedDefault);
     }
@@ -259,11 +259,11 @@ function normalizeRagConfig(rag: InputRagConfig | null | undefined): {
 
     // Normalize embeddingModel
     const embeddingModelResult = normalizeStringValue(
-      rag.embedding_model,
-      DEFAULT_VALUES.rag.embedding_model,
+      rag.embeddingModel,
+      DEFAULT_VALUES.rag.embeddingModel,
       'rag.embedding_model'
     );
-    config.embedding_model = embeddingModelResult.value;
+    config.embeddingModel = embeddingModelResult.value;
     if (embeddingModelResult.appliedDefault) {
       appliedDefaults.push(embeddingModelResult.appliedDefault);
     }
@@ -272,7 +272,7 @@ function normalizeRagConfig(rag: InputRagConfig | null | undefined): {
   } else {
     // Initialize with defaults
     appliedDefaults.push(
-      `rag initialized with default values (enabled: ${DEFAULT_VALUES.rag.enabled}, topK: ${DEFAULT_VALUES.rag.top_k}, embeddingModel: ${DEFAULT_VALUES.rag.embedding_model})`
+      `rag initialized with default values (enabled: ${DEFAULT_VALUES.rag.enabled}, topK: ${DEFAULT_VALUES.rag.topK}, embeddingModel: ${DEFAULT_VALUES.rag.embeddingModel})`
     );
     return { config: { ...DEFAULT_VALUES.rag }, appliedDefaults };
   }
@@ -294,13 +294,13 @@ export function normalizeNumericValues(
     mode: DEFAULT_VALUES.mode,
     memory: {
       enabled: DEFAULT_VALUES.memory.enabled,
-      shortTermMemorySize: DEFAULT_VALUES.memoryshort_term_memory_size,
+      shortTermMemorySize: DEFAULT_VALUES.memory.shortTermMemorySize,
       memorySize: DEFAULT_VALUES.memory.memorySize,
     },
     rag: {
       enabled: DEFAULT_VALUES.rag.enabled,
-      topK: DEFAULT_VALUES.rag.top_k,
-      embeddingModel: DEFAULT_VALUES.rag.embedding_model,
+      topK: DEFAULT_VALUES.rag.topK,
+      embeddingModel: DEFAULT_VALUES.rag.embeddingModel,
     },
   };
   const appliedDefaults: string[] = [];
