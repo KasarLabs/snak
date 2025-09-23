@@ -12,6 +12,7 @@ import ErrorLoggingInterceptor from './common/interceptors/error-logging.interce
 import { ConfigurationService } from './config/configuration.js';
 import { FastifyInstance } from 'fastify';
 import fastifyMultipart from '@fastify/multipart';
+import { USER_ID_HEADER } from './src/utils/headers.js';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -26,7 +27,7 @@ async function bootstrap() {
       app.getHttpAdapter().getInstance() as unknown as FastifyInstance
     ).register(fastifyMultipart as any, {
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB
+        fileSize: 501 * 1024, // 501KB
         files: 1,
       },
     });
@@ -69,7 +70,12 @@ async function bootstrap() {
       origin: true,
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'x-api-key',
+        USER_ID_HEADER,
+      ],
     });
 
     await app.listen(config.port, '0.0.0.0');

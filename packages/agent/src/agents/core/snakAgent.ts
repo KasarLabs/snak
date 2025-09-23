@@ -108,7 +108,7 @@ export class SnakAgent extends BaseAgent {
         `[SnakAgent]  Failed to create Agent React Executor: ${error}`
       );
       if (error instanceof Error && error.stack) {
-        logger.error(`[SnakAgent] Stack trace: ${error.stack}`);
+        logger.error(`[SnakAgent] 📋 Stack trace: ${error.stack}`);
       }
       throw error;
     }
@@ -191,7 +191,7 @@ export class SnakAgent extends BaseAgent {
 
   public getController(): AbortController | undefined {
     if (!this.controller) {
-      logger.warn('[SnakAgent] Controller is not initialized');
+      logger.warn('[SnakAgent]  Controller is not initialized');
       return undefined;
     }
     return this.controller;

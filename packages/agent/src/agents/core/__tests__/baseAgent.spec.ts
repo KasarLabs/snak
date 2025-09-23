@@ -1,12 +1,8 @@
-import {
-  BaseAgent,
-  AgentType,
-  IAgent,
-  IModelAgent,
-  AgentMessage,
-} from '../baseAgent.js';
+import { ChunkOutput, IAgent } from '@stypes/index.js';
+import { BaseAgent } from '../baseAgent.js';
 import { BaseMessage } from '@langchain/core/messages';
-import { StreamChunk } from '../types.js';
+import { AgentType, AgentMode, GraphNode } from '@enums/agent-modes.enum.js';
+import { EventType } from '@enums/event.enums.js';
 
 jest.mock('@snakagent/core', () => ({
   logger: {
@@ -16,6 +12,14 @@ jest.mock('@snakagent/core', () => ({
     info: jest.fn(),
   },
 }));
+
+export interface AgentMessage {
+  from: string;
+  to: string;
+  content: any;
+  metadata?: Record<string, any>;
+  modelType?: string;
+}
 
 const makeMessage = (overrides: Partial<AgentMessage> = {}) => {
   const defaults = {
@@ -55,7 +59,7 @@ class TestAgent extends BaseAgent {
   }
 }
 
-class TestModelAgent extends BaseAgent implements IModelAgent {
+class TestModelAgent extends BaseAgent implements IAgent {
   constructor(
     id: string,
     type: AgentType = AgentType.OPERATOR,
@@ -111,31 +115,58 @@ class TestAsyncAgent extends BaseAgent {
   async *executeAsyncGenerator(
     input: BaseMessage[] | any,
     config?: Record<string, any>
-  ): AsyncGenerator<StreamChunk> {
-    const mockChunks: StreamChunk[] = [
+  ): AsyncGenerator<ChunkOutput> {
+    const mockChunks: ChunkOutput[] = [
       {
-        chunk: { content: `Starting execution for ${this.id}`, input },
-        graph_step: 1,
-        langgraph_step: 1,
-        retry_count: 0,
-        final: false,
-      },
-      {
-        chunk: { content: `Processing input: ${input}`, config },
-        graph_step: 1,
-        langgraph_step: 2,
-        retry_count: 0,
-        final: false,
-      },
-      {
-        chunk: {
-          content: `Completed execution for ${this.id}`,
-          result: 'success',
+        event: EventType.ON_CHAIN_START,
+        run_id: 'mock-run-1',
+        thread_id: 'mock-thread-1',
+        checkpoint_id: 'mock-checkpoint-1',
+        from: GraphNode.AGENT_EXECUTOR,
+        metadata: {
+          execution_mode: 'test',
+          agent_mode: AgentMode.AUTONOMOUS,
+          retry: 0,
+          langgraph_step: 1,
+          langgraph_node: 'start',
+          final: false,
         },
-        graph_step: 1,
-        langgraph_step: 3,
-        retry_count: 0,
-        final: true,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        event: EventType.ON_CHAIN_STREAM,
+        run_id: 'mock-run-1',
+        thread_id: 'mock-thread-1',
+        checkpoint_id: 'mock-checkpoint-2',
+        from: GraphNode.AGENT_EXECUTOR,
+        content: `Processing input: ${input}`,
+        metadata: {
+          execution_mode: 'test',
+          agent_mode: AgentMode.AUTONOMOUS,
+          retry: 0,
+          langgraph_step: 2,
+          langgraph_node: 'processing',
+          final: false,
+          config,
+        },
+        timestamp: new Date().toISOString(),
+      },
+      {
+        event: EventType.ON_CHAIN_END,
+        run_id: 'mock-run-1',
+        thread_id: 'mock-thread-1',
+        checkpoint_id: 'mock-checkpoint-3',
+        from: GraphNode.AGENT_EXECUTOR,
+        content: `Completed execution for ${this.id}`,
+        metadata: {
+          execution_mode: 'test',
+          agent_mode: AgentMode.AUTONOMOUS,
+          retry: 0,
+          langgraph_step: 3,
+          langgraph_node: 'end',
+          final: true,
+        },
+        timestamp: new Date().toISOString(),
       },
     ];
 
@@ -321,38 +352,32 @@ describe('BaseAgent', () => {
     });
   });
 
-  describe('executeAsyncGenerator method', () => {
-    it('should be optional on BaseAgent', () => {
-      const agent = new TestAgent('test-agent');
-      expect(typeof agent.executeAsyncGenerator).toBe('undefined');
-    });
+  it('should be available when implemented', () => {
+    const asyncAgent = new TestAsyncAgent('async-agent');
+    expect(typeof asyncAgent.executeAsyncGenerator).toBe('function');
+  });
 
-    it('should be available when implemented', () => {
-      const asyncAgent = new TestAsyncAgent('async-agent');
-      expect(typeof asyncAgent.executeAsyncGenerator).toBe('function');
-    });
+  it('should return AsyncGenerator<ChunkOutput>', async () => {
+    const asyncAgent = new TestAsyncAgent('async-agent');
+    const generator = asyncAgent.executeAsyncGenerator('test input');
+    expect(generator).toBeDefined();
+    expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+  });
 
-    it('should return AsyncGenerator<StreamChunk>', async () => {
-      const asyncAgent = new TestAsyncAgent('async-agent');
-      const generator = asyncAgent.executeAsyncGenerator('test input');
-      expect(generator).toBeDefined();
-      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
-    });
+  it.each([
+    ['string input', 'String input'],
+    ['BaseMessage array', [makeBaseMessage('Hello')]],
+  ])('should handle %s correctly', async (_, input) => {
+    const asyncAgent = new TestAsyncAgent('async-agent');
+    const generator = asyncAgent.executeAsyncGenerator(input);
+    const chunks: ChunkOutput[] = [];
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
 
-    it.each([
-      ['string input', 'String input'],
-      ['BaseMessage array', [makeBaseMessage('Hello')]],
-    ])('should handle %s correctly', async (_, input) => {
-      const asyncAgent = new TestAsyncAgent('async-agent');
-      const generator = asyncAgent.executeAsyncGenerator(input);
-      const chunks: StreamChunk[] = [];
-      for await (const chunk of generator) {
-        chunks.push(chunk);
-      }
-
-      expect(chunks).toHaveLength(3);
-      expect(chunks[0].chunk.input).toEqual(input);
-    });
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0].event).toBe(EventType.ON_CHAIN_START);
+  });
 
     it('should pass configuration through to chunks', async () => {
       const asyncAgent = new TestAsyncAgent('async-agent');
@@ -360,119 +385,118 @@ describe('BaseAgent', () => {
       const generator = asyncAgent.executeAsyncGenerator('Test input', config);
       const chunks: StreamChunk[] = [];
 
-      for await (const chunk of generator) {
-        chunks.push(chunk);
-      }
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
 
-      expect(chunks[1].chunk.config).toEqual(config);
-    });
+    expect(chunks[1].metadata.config).toEqual(config);
+  });
 
-    it('should maintain proper step progression', async () => {
-      const asyncAgent = new TestAsyncAgent('async-agent');
-      const generator = asyncAgent.executeAsyncGenerator('Test input');
-      const chunks: StreamChunk[] = [];
+  it('should maintain proper step progression', async () => {
+    const asyncAgent = new TestAsyncAgent('async-agent');
+    const generator = asyncAgent.executeAsyncGenerator('Test input');
+    const chunks: ChunkOutput[] = [];
 
-      for await (const chunk of generator) {
-        chunks.push(chunk);
-      }
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
 
-      expect(chunks[0].graph_step).toBe(1);
-      expect(chunks[1].langgraph_step).toBe(2);
-      expect(chunks[2].langgraph_step).toBe(3);
-      expect(chunks[2].final).toBe(true);
-    });
+    expect(chunks[0].metadata.langgraph_step).toBe(1);
+    expect(chunks[1].metadata.langgraph_step).toBe(2);
+    expect(chunks[2].metadata.langgraph_step).toBe(3);
+    expect(chunks[2].metadata.final).toBe(true);
+  });
 
-    it('should work with empty input', async () => {
-      const asyncAgent = new TestAsyncAgent('async-agent');
-      const generator = asyncAgent.executeAsyncGenerator('');
-      const chunks: StreamChunk[] = [];
+  it('should work with empty input', async () => {
+    const asyncAgent = new TestAsyncAgent('async-agent');
+    const generator = asyncAgent.executeAsyncGenerator('');
+    const chunks: ChunkOutput[] = [];
 
-      for await (const chunk of generator) {
-        chunks.push(chunk);
-      }
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
 
-      expect(chunks).toHaveLength(3);
-      expect(chunks[0].chunk.input).toBe('');
-    });
+    expect(chunks).toHaveLength(3);
+    expect(chunks[1].content).toContain('');
+  });
 
-    it('should work without config parameter', async () => {
-      const asyncAgent = new TestAsyncAgent('async-agent');
-      const generator = asyncAgent.executeAsyncGenerator('Test input');
-      const chunks: StreamChunk[] = [];
+  it('should work without config parameter', async () => {
+    const asyncAgent = new TestAsyncAgent('async-agent');
+    const generator = asyncAgent.executeAsyncGenerator('Test input');
+    const chunks: ChunkOutput[] = [];
 
-      for await (const chunk of generator) {
-        chunks.push(chunk);
-      }
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
 
-      expect(chunks).toHaveLength(3);
-    });
+    expect(chunks).toHaveLength(3);
+  });
 
-    it('should be iterable with for await...of', async () => {
-      const asyncAgent = new TestAsyncAgent('async-agent');
-      const generator = asyncAgent.executeAsyncGenerator('Test input');
+  it('should be iterable with for await...of', async () => {
+    const asyncAgent = new TestAsyncAgent('async-agent');
+    const generator = asyncAgent.executeAsyncGenerator('Test input');
 
-      let chunkCount = 0;
-      for await (const chunk of generator) {
-        chunkCount++;
-        expect(chunk).toHaveProperty('chunk');
-        expect(chunk).toHaveProperty('graph_step');
-        expect(chunk).toHaveProperty('langgraph_step');
-        expect(chunk).toHaveProperty('final');
-      }
+    let chunkCount = 0;
+    for await (const chunk of generator) {
+      chunkCount++;
+      expect(chunk).toHaveProperty('event');
+      expect(chunk).toHaveProperty('run_id');
+      expect(chunk).toHaveProperty('thread_id');
+      expect(chunk).toHaveProperty('metadata');
+    }
 
-      expect(chunkCount).toBe(3);
+    expect(chunkCount).toBe(3);
+  });
+});
+
+describe('Integration tests', () => {
+  it('should work with different agent types in a system', async () => {
+    const agents = [
+      new TestAgent('supervisor', AgentType.SUPERVISOR, 'Supervisor agent'),
+      new TestAgent('operator', AgentType.OPERATOR, 'Operator agent'),
+      new TestAgent('snak', AgentType.SNAK, 'Snak agent'),
+    ];
+
+    const results = await Promise.all(
+      agents.map((agent) => agent.execute(`${agent.type} task`))
+    );
+
+    results.forEach((result, index) => {
+      expect(result.result).toContain(agents[index].type);
     });
   });
 
-  describe('Integration tests', () => {
-    it('should work with different agent types in a system', async () => {
-      const agents = [
-        new TestAgent('supervisor', AgentType.SUPERVISOR, 'Supervisor agent'),
-        new TestAgent('operator', AgentType.OPERATOR, 'Operator agent'),
-        new TestAgent('snak', AgentType.SNAK, 'Snak agent'),
-      ];
+  it('should work with async generator agents', async () => {
+    const asyncAgent = new TestAsyncAgent(
+      'async-operator',
+      AgentType.OPERATOR,
+      'Async operator agent'
+    );
 
-      const results = await Promise.all(
-        agents.map((agent) => agent.execute(`${agent.type} task`))
-      );
+    const syncResult = await asyncAgent.execute('sync task');
+    expect(syncResult.result).toContain('async-operator');
 
-      results.forEach((result, index) => {
-        expect(result.result).toContain(agents[index].type);
-      });
-    });
+    const generator = asyncAgent.executeAsyncGenerator('async task');
+    const chunks: ChunkOutput[] = [];
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
 
-    it('should work with async generator agents', async () => {
-      const asyncAgent = new TestAsyncAgent(
-        'async-operator',
-        AgentType.OPERATOR,
-        'Async operator agent'
-      );
+    expect(chunks).toHaveLength(3);
+    expect(chunks[1].content).toContain('async task');
+    expect(chunks[2].metadata.final).toBe(true);
+  });
 
-      const syncResult = await asyncAgent.execute('sync task');
-      expect(syncResult.result).toContain('async-operator');
+  it('should handle agent lifecycle', async () => {
+    const agent = new TestAgent(
+      'lifecycle-agent',
+      AgentType.OPERATOR,
+      'Lifecycle test'
+    );
 
-      const generator = asyncAgent.executeAsyncGenerator('async task');
-      const chunks: StreamChunk[] = [];
-      for await (const chunk of generator) {
-        chunks.push(chunk);
-      }
-
-      expect(chunks).toHaveLength(3);
-      expect(chunks[0].chunk.input).toBe('async task');
-      expect(chunks[2].final).toBe(true);
-    });
-
-    it('should handle agent lifecycle', async () => {
-      const agent = new TestAgent(
-        'lifecycle-agent',
-        AgentType.OPERATOR,
-        'Lifecycle test'
-      );
-
-      await agent.init();
-      const result = await agent.execute('lifecycle test');
-      expect(result.result).toContain('lifecycle-agent');
-      await agent.dispose();
-    });
+    await agent.init();
+    const result = await agent.execute('lifecycle test');
+    expect(result.result).toContain('lifecycle-agent');
+    await agent.dispose();
   });
 });

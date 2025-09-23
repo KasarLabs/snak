@@ -1,5 +1,5 @@
 {
   "maxAgentSize": "Maximum total document size allowed per agent in bytes",
-  "maxProcessSize": "Maximum cumulative document size allowed across all agents in bytes",
-  "maxDocumentSize": "Maximum size of a single document in bytes"
+  "maxProcessSize": "Maximum cumulative document size allowed across all agents of one user in bytes",
+  "maxRagSize": "Maximum size of a single document in bytes"
 }

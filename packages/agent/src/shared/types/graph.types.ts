@@ -30,17 +30,6 @@ export interface GraphExecutionContext {
   metadata?: Record<string, any>;
 }
 
-/**
- * History tools information
- */
-export interface HistoryToolsInfo {
-  result: string;
-  metadata?: {
-    tool_name: string;
-    tool_call_id: string;
-    timestamp: string;
-  };
-}
 
 export enum GraphErrorTypeEnum {
   TASK_ERROR = 'task_error',

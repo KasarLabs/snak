@@ -62,14 +62,41 @@ const llmErr = (msg = 'LLM error') => new Error(msg);
 function makeAgents() {
   return new Map([
     [
-      'agent1',
+      'agent1|user1',
       new MockSnakAgent('agent1', 'Handles blockchain operations') as any,
     ],
     [
-      'agent2',
+      'agent2|user1',
       new MockSnakAgent('agent2', 'Handles configuration management') as any,
     ],
-    ['agent3', new MockSnakAgent('agent3', 'Handles MCP operations') as any],
+    [
+      'agent3|user1',
+      new MockSnakAgent('agent3', 'Handles MCP operations') as any,
+    ],
+  ]);
+}
+
+function makeAgentsForMultipleUsers() {
+  return new Map([
+    [
+      'agent1|user1',
+      new MockSnakAgent('agent1', 'Handles blockchain operations') as any,
+    ],
+    [
+      'agent2|user1',
+      new MockSnakAgent('agent2', 'Handles configuration management') as any,
+    ],
+    [
+      'agent3|user2',
+      new MockSnakAgent(
+        'agent3',
+        'Handles blockchain operations for user2'
+      ) as any,
+    ],
+    [
+      'agent4|user2',
+      new MockSnakAgent('agent4', 'Handles MCP operations for user2') as any,
+    ],
   ]);
 }
 
@@ -95,9 +122,9 @@ describe('AgentSelector', () => {
     it('should initialize with available agents', async () => {
       await agentSelector.init();
       expect(mockAgents.size).toBe(3);
-      expect(mockAgents.has('agent1')).toBe(true);
-      expect(mockAgents.has('agent2')).toBe(true);
-      expect(mockAgents.has('agent3')).toBe(true);
+      expect(mockAgents.has('agent1|user1')).toBe(true);
+      expect(mockAgents.has('agent2|user1')).toBe(true);
+      expect(mockAgents.has('agent3|user1')).toBe(true);
     });
 
     it('should handle initialization without model selector', async () => {
@@ -111,10 +138,13 @@ describe('AgentSelector', () => {
 
     it('should handle agents without description', async () => {
       const agentsWithoutDescription = new Map([
-        ['agent-no-desc', new MockSnakAgent('agent-no-desc') as any],
-        ['agent-empty-desc', new MockSnakAgent('agent-empty-desc', '') as any],
+        ['agent-no-desc|user1', new MockSnakAgent('agent-no-desc') as any],
         [
-          'agent-undefined-desc',
+          'agent-empty-desc|user1',
+          new MockSnakAgent('agent-empty-desc', '') as any,
+        ],
+        [
+          'agent-undefined-desc|user1',
           new MockSnakAgent('agent-undefined-desc', undefined) as any,
         ],
       ]);
@@ -128,7 +158,7 @@ describe('AgentSelector', () => {
       await agentSelectorNoDesc.init();
       // Exercise prompt path and assert default description is used
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent-no-desc'));
-      await agentSelectorNoDesc.execute('Request');
+      await agentSelectorNoDesc.execute('Request', false, { userId: 'user1' });
       expect(agentSelectorPromptContent).toHaveBeenCalled();
       const [agentInfo] = (
         agentSelectorPromptContent as jest.Mock
@@ -151,13 +181,19 @@ describe('AgentSelector', () => {
     });
 
     it('should remove an agent successfully', async () => {
-      await agentSelector.removeAgent('agent1');
-      expect(mockAgents.has('agent1')).toBe(false);
+      await agentSelector.removeAgent('agent1', 'user1');
+      expect(mockAgents.has('agent1|user1')).toBe(false);
       expect(mockAgents.size).toBe(2);
     });
 
     it('should handle removing non-existent agent', async () => {
-      await agentSelector.removeAgent('non-existent');
+      await agentSelector.removeAgent('non-existent', 'user1');
+      expect(mockAgents.size).toBe(3);
+    });
+
+    it('should handle removing agent for different user', async () => {
+      await agentSelector.removeAgent('agent1', 'user2');
+      expect(mockAgents.has('agent1|user1')).toBe(true);
       expect(mockAgents.size).toBe(3);
     });
 
@@ -166,22 +202,58 @@ describe('AgentSelector', () => {
         'agent4',
         'Handles new operations'
       ) as any;
-      await agentSelector.updateAvailableAgents(['agent4', newAgent]);
-      expect(mockAgents.has('agent4')).toBe(true);
+      await agentSelector.updateAvailableAgents(['agent4', newAgent], 'user1');
+      expect(mockAgents.has('agent4|user1')).toBe(true);
       expect(mockAgents.size).toBe(4);
     });
 
     it('should update available agents without description', async () => {
       const agentWithoutDescription = new MockSnakAgent('agent-no-desc') as any;
-      await agentSelector.updateAvailableAgents([
-        'agent-no-desc',
-        agentWithoutDescription,
-      ]);
-      expect(mockAgents.has('agent-no-desc')).toBe(true);
+      await agentSelector.updateAvailableAgents(
+        ['agent-no-desc', agentWithoutDescription],
+        'user1'
+      );
+      expect(mockAgents.has('agent-no-desc|user1')).toBe(true);
       expect(mockAgents.size).toBe(4);
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent-no-desc'));
-      const result = await agentSelector.execute('Some request');
+      const result = await agentSelector.execute('Some request', false, {
+        userId: 'user1',
+      });
       expect(result.getAgentConfig().name).toBe('agent-no-desc');
+    });
+
+    it('should handle multiple users with unique agent names', async () => {
+      const multiUserAgents = makeAgentsForMultipleUsers();
+      const multiUserAgentSelector = new AgentSelector({
+        availableAgents: multiUserAgents,
+        modelSelector,
+        debug: true,
+      });
+      await multiUserAgentSelector.init();
+
+      // Test user1 agents
+      mockModel.invoke.mockResolvedValueOnce(llmOk('agent1'));
+      const resultUser1 = await multiUserAgentSelector.execute(
+        'Request',
+        false,
+        { userId: 'user1' }
+      );
+      expect(resultUser1.getAgentConfig().name).toBe('agent1');
+      expect(resultUser1.getAgentConfig().description).toBe(
+        'Handles blockchain operations'
+      );
+
+      // Test user2 agents
+      mockModel.invoke.mockResolvedValueOnce(llmOk('agent3'));
+      const resultUser2 = await multiUserAgentSelector.execute(
+        'Request',
+        false,
+        { userId: 'user2' }
+      );
+      expect(resultUser2.getAgentConfig().name).toBe('agent3');
+      expect(resultUser2.getAgentConfig().description).toBe(
+        'Handles blockchain operations for user2'
+      );
     });
   });
 
@@ -210,7 +282,9 @@ describe('AgentSelector', () => {
       'should select $expectedAgent for $description',
       async ({ llmContent, expectedAgent }) => {
         mockModel.invoke.mockResolvedValueOnce(llmOk(llmContent));
-        const result = await agentSelector.execute('Some request');
+        const result = await agentSelector.execute('Some request', false, {
+          userId: 'user1',
+        });
         expect(result.getAgentConfig().name).toBe(expectedAgent);
         expect(mockModel.invoke).toHaveBeenCalledTimes(1);
       }
@@ -223,11 +297,13 @@ describe('AgentSelector', () => {
     ])('should handle $description', async ({ content }) => {
       mockModel.invoke.mockResolvedValueOnce(llmOk(content));
       if (typeof content === 'string' && content.trim() === '') {
-        await expect(agentSelector.execute('Some request')).rejects.toThrow(
-          'No matching agent found'
-        );
+        await expect(
+          agentSelector.execute('Some request', false, { userId: 'user1' })
+        ).rejects.toThrow('No matching agent found');
       } else {
-        await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        await expect(
+          agentSelector.execute('Some request', false, { userId: 'user1' })
+        ).rejects.toThrow(
           'AgentSelector did not return a valid string response'
         );
       }
@@ -235,16 +311,53 @@ describe('AgentSelector', () => {
 
     it('should throw error when LLM returns non-existent agent', async () => {
       mockModel.invoke.mockResolvedValueOnce(llmOk('non-existent-agent'));
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'No matching agent found'
-      );
+      await expect(
+        agentSelector.execute('Some request', false, { userId: 'user1' })
+      ).rejects.toThrow('No matching agent found');
     });
 
     it('should handle LLM invocation errors', async () => {
       mockModel.invoke.mockRejectedValueOnce(llmErr('LLM service unavailable'));
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+      await expect(
+        agentSelector.execute('Some request', false, { userId: 'user1' })
+      ).rejects.toThrow(
         'AgentSelector execution failed: LLM service unavailable'
       );
+    });
+
+    it('should throw error when config is not provided', async () => {
+      await expect(agentSelector.execute('Some request')).rejects.toThrow(
+        'AgentSelector: config parameter is required'
+      );
+    });
+
+    it('should throw error when userId is not provided in config', async () => {
+      await expect(
+        agentSelector.execute('Some request', false, {})
+      ).rejects.toThrow(
+        'AgentSelector: userId is required in config parameter'
+      );
+    });
+
+    it('should filter agents by userId correctly', async () => {
+      const multiUserAgents = makeAgentsForMultipleUsers();
+      const multiUserAgentSelector = new AgentSelector({
+        availableAgents: multiUserAgents,
+        modelSelector,
+        debug: true,
+      });
+      await multiUserAgentSelector.init();
+
+      mockModel.invoke.mockResolvedValueOnce(llmOk('agent2'));
+      const result = await multiUserAgentSelector.execute('Request', false, {
+        userId: 'user1',
+      });
+      expect(result.getAgentConfig().name).toBe('agent2');
+
+      mockModel.invoke.mockResolvedValueOnce(llmOk('agent2'));
+      await expect(
+        multiUserAgentSelector.execute('Request', false, { userId: 'user2' })
+      ).rejects.toThrow('No matching agent found');
     });
   });
 
@@ -253,11 +366,11 @@ describe('AgentSelector', () => {
       await agentSelector.init();
     });
 
-    it('should handle case-insensitive agent name matching', async () => {
+    it('should reject case-mismatched agent names', async () => {
       mockModel.invoke.mockResolvedValueOnce(llmOk('AGENT1'));
-      await expect(agentSelector.execute('Some request')).rejects.toThrow(
-        'No matching agent found'
-      );
+      await expect(
+        agentSelector.execute('Some request', false, { userId: 'user1' })
+      ).rejects.toThrow('No matching agent found');
     });
 
     it('should handle special characters in agent names', async () => {
@@ -265,10 +378,30 @@ describe('AgentSelector', () => {
         'agent-special',
         'Handles special operations'
       ) as any;
-      mockAgents.set('agent-special', specialAgent);
+      mockAgents.set('agent-special|user1', specialAgent);
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent-special'));
-      const result = await agentSelector.execute('Special operation request');
+      const result = await agentSelector.execute(
+        'Special operation request',
+        false,
+        { userId: 'user1' }
+      );
       expect(result.getAgentConfig().name).toBe('agent-special');
+    });
+
+    it('should handle empty userId in config', async () => {
+      await expect(
+        agentSelector.execute('Some request', false, { userId: '' })
+      ).rejects.toThrow(
+        'AgentSelector: userId is required in config parameter'
+      );
+    });
+
+    it('should handle undefined userId in config', async () => {
+      await expect(
+        agentSelector.execute('Some request', false, { userId: undefined })
+      ).rejects.toThrow(
+        'AgentSelector: userId is required in config parameter'
+      );
     });
   });
 });

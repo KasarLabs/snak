@@ -111,7 +111,8 @@
   },
   "pnpm": {
     "overrides": {
-      "tough-cookie": "^4.1.3"
+      "tough-cookie": "^4.1.3",
+      "is-core-module": "2.13.1"
     }
   }
 }

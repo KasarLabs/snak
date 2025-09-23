@@ -1,3 +1,4 @@
+import { AgentType } from '@enums/agent-modes.enum.js';
 import { MCPAgent, MCPAgentConfig } from '../../mcp-agent/mcpAgent.js';
 import {
   BaseMessage,
@@ -5,7 +6,6 @@ import {
   HumanMessage,
   SystemMessage,
 } from '@langchain/core/messages';
-import { AgentType } from '../../../core/baseAgent.js';
 
 // Mock the logger from @snakagent/core
 jest.mock('@snakagent/core', () => ({

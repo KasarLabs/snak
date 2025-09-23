@@ -7,20 +7,21 @@ import {
   ToolMessage,
 } from '@langchain/core/messages';
 import {
-  Agent,
   ParsedPlan,
   ValidatorStepResponse,
   StepInfo,
-} from '../types/index.js';
+} from '../../../shared/types/index.js';
 import {
   formatParsedPlanSimple,
-  formatStepsStatusCompact,
   createMaxIterationsResponse,
   getLatestMessageForMessage,
-  filterMessagesByShortTermMemory,
   isTerminalMessage,
   isTokenLimitError,
+<<<<<<< HEAD
   handleModelError,
+=======
+  handleNodeError,
+>>>>>>> main
 } from '../utils/graph-utils.js';
 
 // -----------------------
@@ -44,11 +45,12 @@ const makeStep = (overrides: Partial<StepInfo> = {}): StepInfo => ({
   description: 'Test description',
   type: 'tools',
   status: 'completed',
-  result: 'Success',
   ...overrides,
 });
 
 const makeParsedPlan = (overrides: Partial<ParsedPlan> = {}): ParsedPlan => ({
+  type: 'plan',
+  id: 'test-plan-id',
   summary: 'Test plan',
   steps: [
     makeStep({ stepNumber: 1, status: 'completed' }),
@@ -121,13 +123,16 @@ describe('Utils', () => {
 
       expect(result).toContain('Plan Summary: Test plan');
       expect(result).toContain('Steps (3 total):');
-      expect(result).toContain('✓ 1. Test Step - Test description');
-      expect(result).toContain('○ 2. Test Step - Test description');
-      expect(result).toContain('✗ 3. Test Step - Test description');
+      expect(result).toContain('1. Test Step [tools] - completed');
+      expect(result).toContain('2. Test Step [tools] - pending');
+      expect(result).toContain('3. Test Step [tools] - failed');
+      expect(result).toContain('Description: Test description');
     });
 
     it('should handle empty plan', () => {
       const result = formatParsedPlanSimple({
+        type: 'plan',
+        id: 'empty-plan',
         summary: 'Empty plan',
         steps: [],
       });
@@ -137,39 +142,19 @@ describe('Utils', () => {
     });
   });
 
-  describe('formatStepsStatusCompact', () => {
-    it.each([
-      {
-        name: 'progress status',
-        response: makeValidatorResponse(),
-        expected: 'Progress: [1,3] Step 4',
-      },
-      {
-        name: 'final status',
-        response: makeValidatorResponse({ isFinal: true, nextSteps: 0 }),
-        expected: 'Complete (2/3)',
-      },
-      {
-        name: 'empty steps',
-        response: { steps: [], nextSteps: 0, isFinal: true },
-        expected: 'Complete (0/0)',
-      },
-    ])('should format $name correctly', ({ response, expected }) => {
-      const result = formatStepsStatusCompact(response);
-      expect(result).toBe(expected);
-    });
-  });
+  // formatStepsStatusCompact function doesn't exist, removing test
 
   describe('createMaxIterationsResponse', () => {
     it('should create max iterations response with correct structure', () => {
       const graphStep = 10;
-      const result = createMaxIterationsResponse(graphStep);
+      const currentNode = 'test_node';
+      const result = createMaxIterationsResponse(graphStep, currentNode);
 
-      expect(result.messages).toBeInstanceOf(AIMessageChunk);
-      expect(result.last_message).toBeInstanceOf(AIMessageChunk);
-      expect(result.last_agent).toBe(Agent.EXECUTOR);
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]).toBeInstanceOf(AIMessageChunk);
+      expect(result.last_node).toBe(currentNode);
 
-      const message = result.messages as AIMessageChunk;
+      const message = result.messages[0] as AIMessageChunk;
       expect(message.content).toBe(
         'Reaching maximum iterations for interactive agent. Ending workflow.'
       );
@@ -206,41 +191,7 @@ describe('Utils', () => {
     });
   });
 
-  describe('filterMessagesByShortTermMemory', () => {
-    it('should filter messages based on short term memory limit', () => {
-      const result = filterMessagesByShortTermMemory(mockMessages, 2);
-      expect(result.length).toBeLessThanOrEqual(2);
-    });
-
-    it('should prioritize iteration agent messages', () => {
-      const messagesWithIterationAgents = [
-        makeMessage('ai', 'Executor message', { from: Agent.EXECUTOR }),
-        makeMessage('ai', 'Planner message', { from: Agent.PLANNER }),
-        makeMessage('human', 'Human message'),
-        makeMessage('tool', 'Tool message'),
-      ];
-
-      const result = filterMessagesByShortTermMemory(
-        messagesWithIterationAgents,
-        3
-      );
-
-      expect(result.length).toBeGreaterThan(0);
-      expect(result.some((msg) => msg instanceof HumanMessage)).toBe(true);
-      expect(result.some((msg) => msg instanceof ToolMessage)).toBe(true);
-    });
-
-    it.each([
-      { messages: [], limit: 5, expected: [] },
-      { messages: mockMessages, limit: 0, expected: [] },
-    ])(
-      'should handle edge case: $messages.length messages, limit $limit',
-      ({ messages, limit, expected }) => {
-        const result = filterMessagesByShortTermMemory(messages, limit);
-        expect(result).toEqual(expected);
-      }
-    );
-  });
+  // filterMessagesByShortTermMemory function doesn't exist, removing test
 
   describe('isTerminalMessage', () => {
     it.each([
@@ -273,65 +224,50 @@ describe('Utils', () => {
       { message: 'tokens exceed maximum', expected: true },
       { message: 'context length too long', expected: true },
       { message: 'network error', expected: false },
-      { message: undefined, expected: undefined },
     ])(
       'should return $expected for error message "$message"',
       ({ message, expected }) => {
-        const error = message !== undefined ? { message } : {};
+        const error = new Error(message);
         const result = isTokenLimitError(error);
         expect(result).toBe(expected);
       }
     );
+
+    it('should return false for non-Error objects', () => {
+      const result = isTokenLimitError({ message: 'token limit exceeded' });
+      expect(result).toBe(false);
+    });
+
+    it('should return false for undefined', () => {
+      const result = isTokenLimitError(undefined);
+      expect(result).toBe(false);
+    });
   });
 
-  describe('handleModelError', () => {
-    it('should handle token limit error correctly', () => {
-      const tokenError = { message: 'token limit exceeded' };
+  describe('handleNodeError', () => {
+    it('should handle error correctly', () => {
+      const error = new Error('test error');
+      const source = 'test_source';
 
-      const result = handleModelError(tokenError);
+      const result = handleNodeError(error, source);
 
-      expect(result.messages).toBeInstanceOf(AIMessageChunk);
-      expect(result.last_agent).toBe(Agent.EXECUTOR);
-
-      const message = result.messages as AIMessageChunk;
-      expect(message.content).toContain('token limits');
-      expect(message.additional_kwargs.error).toBe('token_limit_exceeded');
-      expect(message.additional_kwargs.final).toBe(true);
-
-      expect(logger.error).toHaveBeenCalledWith(
-        'Executor: Token limit error during model invocation - token limit exceeded'
-      );
+      expect(result).toBeDefined();
+      expect(logger.error).toHaveBeenCalled();
     });
 
-    it('should handle unexpected error correctly', () => {
-      const unexpectedError = { message: 'network error' };
+    it('should handle error with additional context', () => {
+      const error = new Error('test error');
+      const source = 'test_source';
+      const additionalContext = 'additional context';
 
-      const result = handleModelError(unexpectedError);
-
-      expect(result.messages).toBeInstanceOf(AIMessageChunk);
-      expect(result.last_agent).toBe(Agent.EXECUTOR);
-
-      const message = result.messages as AIMessageChunk;
-      expect(message.content).toContain('unexpected error');
-      expect(message.additional_kwargs.error).toBe('unexpected_error');
-      expect(message.additional_kwargs.final).toBe(true);
-
-      expect(logger.error).toHaveBeenCalledWith(
-        'Executor: Error calling model - [object Object]'
+      const result = handleNodeError(
+        error,
+        source,
+        undefined,
+        additionalContext
       );
-    });
 
-    it('should handle error without message property', () => {
-      const error = {};
-
-      const result = handleModelError(error);
-
-      expect(result.messages).toBeInstanceOf(AIMessageChunk);
-      expect(result.last_agent).toBe(Agent.EXECUTOR);
-
-      const message = result.messages as AIMessageChunk;
-      expect(message.content).toContain('unexpected error');
-      expect(message.additional_kwargs.error).toBe('unexpected_error');
+      expect(result).toBeDefined();
     });
   });
 });

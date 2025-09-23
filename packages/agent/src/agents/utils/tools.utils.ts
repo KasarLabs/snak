@@ -27,7 +27,7 @@ const truncateStringContentHelper = (
  * Truncates tool response content to prevent oversized results
  * Handles both array and object formats with nested message structures
  * @param result - Tool invocation result
- * @param maxLength - Maximum content length (default: 5000)
+ * @param maxLength - Maximum content length (default: 20000)
  * @returns Result with truncated content strings
  */
 export function truncateToolResults(

@@ -34,6 +34,10 @@ export class ConfigurationService {
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
       RAG_CONFIG_PATH: this.configService.get<string>('RAG_CONFIG_PATH'),
+      REDIS_HOST: this.configService.get<string>('REDIS_HOST'),
+      REDIS_PORT: this.configService.get<string>('REDIS_PORT'),
+      REDIS_PASSWORD: this.configService.get<string>('REDIS_PASSWORD'),
+      REDIS_DB: this.configService.get<string>('REDIS_DB'),
       // Add others if needed
     };
 
@@ -41,7 +45,7 @@ export class ConfigurationService {
 
     if (!result.success) {
       this.logger.error(
-        'Invalid environment variables:',
+        ' Invalid environment variables:',
         JSON.stringify(result.error.format(), null, 2)
       );
       throw new Error('Invalid environment variables');
@@ -57,9 +61,9 @@ export class ConfigurationService {
         err as any
       );
       this.ragConfig = {
-        maxAgentSize: 10_000_000,
+        maxAgentSize: 1_000_000,
         maxProcessSize: 50_000_000,
-        maxRagSize: 10_000_000,
+        maxRagSize: 501_000,
       };
     }
   }
@@ -97,5 +101,20 @@ export class ConfigurationService {
 
   get isTest(): boolean {
     return this.config.NODE_ENV === 'test';
+  }
+
+  get redis() {
+    const {
+      REDIS_HOST: host,
+      REDIS_PORT: port,
+      REDIS_PASSWORD,
+      REDIS_DB: db,
+    } = this.config;
+    return {
+      host,
+      port,
+      password: REDIS_PASSWORD || '',
+      db,
+    };
   }
 }

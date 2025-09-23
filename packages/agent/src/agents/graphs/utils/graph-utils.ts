@@ -15,7 +15,6 @@ import { Command } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   GraphConfigurableAnnotation,
-  GraphState,
   GraphStateType,
 } from '../graph.js';
 

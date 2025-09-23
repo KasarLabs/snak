@@ -107,7 +107,11 @@ CREATE TABLE agents (
     -- Agent Profile (composite type) - MANDATORY
     profile agent_profile NOT NULL,
     
-    
+    -- Reference to the user who owns this agent
+    -- Foreign key linking to the user who created and manages this agent
+    -- Ensures proper access control and ownership tracking
+    user_id          UUID NOT NULL,
+
     -- MCP Servers configurations (using JSONB as per manual 8.14) - MANDATORY
     mcp_servers JSONB NOT NULL,
     

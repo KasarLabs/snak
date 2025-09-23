@@ -6,17 +6,19 @@ import {
 } from '../interfaces/agent-service.interface.js';
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
+  MessageFromAgentIdDTO,
+  MessageRequest,
+  UpdateModelConfigDTO,
+} from '@snakagent/core';
+import {
   AgentValidationError,
   AgentExecutionError,
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
+import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 import { ChunkOutput, EventType } from '@snakagent/agents';
-import { AgentConfig, Id } from '@snakagent/core';
-import { MessageFromAgentIdDTO } from '@snakagent/core';
-import { UpdateModelConfigDTO } from '@snakagent/core';
-import { MessageRequest } from '@snakagent/core';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -104,7 +106,8 @@ export class AgentService implements IAgentService {
 
   async *handleUserRequestWebsocket(
     agent: any,
-    userRequest: MessageRequest
+    userRequest: MessageRequest,
+    userId: string
   ): AsyncGenerator<ChunkOutput> {
     this.logger.debug({
       message: 'Processing agent request',
@@ -112,12 +115,13 @@ export class AgentService implements IAgentService {
     });
     try {
       const q = new Postgres.Query(
-        `SELECT event, id 
-     FROM message 
-     WHERE agent_id = $1
-     ORDER BY created_at DESC
+        `SELECT m.event, m.id 
+     FROM message m
+     INNER JOIN agents a ON m.agent_id = a.id
+     WHERE m.agent_id = $1 AND a.user_id = $2
+     ORDER BY m.created_at DESC
      LIMIT 1;`,
-        [userRequest.agent_id]
+        [userRequest.agent_id, userId]
       );
       const result = await Postgres.query<{ event: EventType; id: string }>(q);
       if (
@@ -177,13 +181,14 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async getAllAgents(): Promise<AgentConfig.InputWithId[]> {
+  async getAllAgentsOfUser(userId: string): Promise<AgentConfigSQL[]> {
     try {
-      const q = new Postgres.Query(`
+      const q = new Postgres.Query(
+        `
 			SELECT
 			  id, name, "group", description, lore, objectives, knowledge,
 			  system_prompt, interval, plugins, memory, mode, max_iterations,
-			  "mcp_servers",
+			  "mcpServers",
 			  CASE
 				WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
 				THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
@@ -191,8 +196,11 @@ export class AgentService implements IAgentService {
 			  END as "avatarUrl",
 			  avatar_mime_type
 			FROM agents
-		  `);
-      const res = await Postgres.query<AgentConfig.InputWithId>(q);
+      WHERE user_id = $1
+		  `,
+        [userId]
+      );
+      const res = await Postgres.query<AgentConfigSQL>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
@@ -202,13 +210,14 @@ export class AgentService implements IAgentService {
   }
 
   async getMessageFromAgentId(
-    userRequest: MessageFromAgentIdDTO
+    userRequest: MessageFromAgentIdDTO,
+    userId: string
   ): Promise<ChunkOutput[]> {
     try {
       const limit = userRequest.limit_message || 10;
       const q = new Postgres.Query(
-        `SELECT * FROM get_messages_optimized($1::UUID,$2,$3,$4,$5)`,
-        [userRequest.agent_id, userRequest.thread_id, false, limit, 0]
+        `SELECT * FROM get_messages_optimized($1::UUID,$2,$3::UUID,$4,$5,$6)`,
+        [userRequest.agent_id, userRequest.thread_id, userId, false, limit, 0]
       );
       const res = await Postgres.query<ChunkOutput>(q);
       this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
@@ -222,8 +231,8 @@ export class AgentService implements IAgentService {
   async updateModelsConfig(model: UpdateModelConfigDTO) {
     try {
       const q = new Postgres.Query(
-        `UPDATE models_config SET provider = $1, modelName = $2, description = $3 WHERE id = 1`,
-        [model.provider, model.modelName, model.description]
+        `UPDATE models_config SET provider = $1, model_name = $2, description = $3 WHERE id = 1`,
+        [model.provider, model.model_name, model.description]
       );
       const res = await Postgres.query(q);
       this.logger.debug(`Models config updated:', ${JSON.stringify(res)} `);
@@ -243,6 +252,13 @@ export class AgentService implements IAgentService {
 
       // Check if the AI provider API keys are configured
       let apiKeyValid = false;
+      try {
+        const aiConfig = this.config.ai;
+        apiKeyValid = Boolean(aiConfig && aiConfig.apiKey);
+      } catch (error) {
+        this.logger.debug('AI API key verification failed', error);
+      }
+
       return {
         isReady: Boolean(credentials && apiKeyValid),
         walletConnected: Boolean(credentials.accountPrivateKey),
