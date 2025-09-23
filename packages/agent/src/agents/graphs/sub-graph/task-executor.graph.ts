@@ -5,7 +5,11 @@ import {
   ToolMessage,
 } from '@langchain/core/messages';
 import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
-import { estimateTokens, handleNodeError } from '../utils/graph-utils.js';
+import {
+  estimateTokens,
+  GenerateToolCallsFromMessage,
+  handleNodeError,
+} from '../utils/graph-utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, logger } from '@snakagent/core';
@@ -15,6 +19,7 @@ import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
   DynamicStructuredTool,
   StructuredTool,
+  tool,
   Tool,
 } from '@langchain/core/tools';
 import { TaskExecutorNode } from '../../../shared/enums/agent.enum.js';
@@ -144,9 +149,17 @@ export class AgentExecutorGraph {
       // Validate current execution context
       logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
       // Execute model with timeout protection
-      const aiMessage = await this.executeModelWithTimeout(state, config);
+      let aiMessage = await this.executeModelWithTimeout(state, config);
       if (!aiMessage) {
         throw new Error('Model returned no response');
+      }
+      if (
+        aiMessage.tool_calls &&
+        aiMessage.tool_calls?.length === 0 &&
+        aiMessage.invalid_tool_calls &&
+        aiMessage.invalid_tool_calls.length > 0
+      ) {
+        aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
       logger.debug(`[Executor] Model response received`);
       const mewMemories = STMManager.addMemory(

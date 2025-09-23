@@ -13,11 +13,9 @@ import { ErrorContext, TaskType } from '../../../shared/types/index.js';
 import { AgentConfig, logger } from '@snakagent/core';
 import { Command } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
-import {
-  GraphConfigurableAnnotation,
-  GraphStateType,
-} from '../graph.js';
-
+import { GraphConfigurableAnnotation, GraphStateType } from '../graph.js';
+import { ToolCallChunk, ToolCall } from '@langchain/core/messages/tool';
+import { v4 as uuidv4 } from 'uuid';
 // --- Response Generators ---
 export function createMaxIterationsResponse<T>(
   graph_step: number,
@@ -168,6 +166,30 @@ export function handleNodeError(
   });
 }
 
+export function handleEndGraph(
+  source: string,
+  state?: any,
+  successMessage?: string,
+  additionalUpdates?: Record<string, any>
+): Command {
+  const message = successMessage || 'Graph execution completed successfully';
+
+  logger.info(`[${source}] ${message}`);
+
+  const updates = {
+    error: null,
+    skipValidation: { skipValidation: true, goto: 'end_graph' },
+    currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
+    ...additionalUpdates,
+  };
+
+  return new Command({
+    update: updates,
+    goto: 'end_graph',
+    graph: Command.PARENT,
+  });
+}
+
 export type isValidConfigurationType = {
   isValid: boolean;
   error?: string;
@@ -240,5 +262,66 @@ export function getRetrieveMemoryRequestFromGraph(
       `Helper: Error in getRetrieveMemoryRequestFromGraph - ${errorMessage}`
     );
     throw error;
+  }
+}
+
+export function GenerateToolCallFromToolCallChunks(
+  toolCallChunks: ToolCallChunk[]
+): ToolCall[] {
+  try {
+    const toolCall: Array<ToolCall> = [];
+    if (!toolCallChunks || toolCallChunks.length === 0) {
+      return toolCall;
+    }
+    toolCallChunks.forEach((tool: ToolCallChunk) => {
+      if (tool) {
+        console.log(tool);
+        if (
+          !tool.name ||
+          tool.index === undefined ||
+          tool.index === null ||
+          !tool.args
+        ) {
+          throw new Error(
+            'Invalid tool call chunk structure expected name,args and index'
+          );
+        } else {
+          toolCall.push({
+            name: tool.name,
+            args: tool.args ? JSON.parse(tool.args) : { noParams: {} },
+            id: tool.id ?? uuidv4(),
+            type: 'tool_call',
+          });
+        }
+      }
+    });
+    return toolCall;
+  } catch (error) {
+    logger.error(error);
+    return [];
+  }
+}
+
+export function GenerateToolCallsFromMessage(
+  message: AIMessageChunk
+): AIMessageChunk {
+  try {
+    if (!message.tool_call_chunks || message.tool_call_chunks.length === 0) {
+      return message;
+    }
+    const toolCalls = GenerateToolCallFromToolCallChunks(
+      message.tool_call_chunks
+    );
+    message.tool_calls = toolCalls;
+    const tools_name = toolCalls.map((t) => t.name);
+    if (message.invalid_tool_calls && message.invalid_tool_calls.length > 0) {
+      message.invalid_tool_calls = message.invalid_tool_calls.filter(
+        (invalid_t) => !tools_name.includes(invalid_t.name ?? '')
+      );
+    }
+    return message;
+  } catch (error) {
+    logger.error(error);
+    return message;
   }
 }

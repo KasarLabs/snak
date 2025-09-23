@@ -2,6 +2,8 @@ import { BaseMessage } from '@langchain/core/messages';
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import { GraphErrorType, TaskType } from '../../../shared/types/index.js';
 import {
+  GenerateToolCallsFromMessage,
+  handleEndGraph,
   handleNodeError,
   hasReachedMaxSteps,
   isValidConfiguration,
@@ -71,6 +73,7 @@ export class TaskManagerGraph {
     | Tool
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
+  private readonly avaibleToolsName = ['create_task', 'block_task', 'end_task'];
   constructor(
     agentConfig: AgentConfig.Runtime,
     toolList: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
@@ -127,7 +130,15 @@ export class TaskManagerGraph {
           ? `The previous task failed due to: ${state.error.message}`
           : '',
       });
-      const aiMessage = await modelBind.invoke(formattedPrompt);
+      let aiMessage = await modelBind.invoke(formattedPrompt);
+      if (
+        aiMessage.tool_calls &&
+        aiMessage.tool_calls?.length === 0 &&
+        aiMessage.invalid_tool_calls &&
+        aiMessage.invalid_tool_calls.length > 0
+      ) {
+        aiMessage = GenerateToolCallsFromMessage(aiMessage);
+      }
       logger.info(`[Task Manager] Successfully created task`);
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
         throw new Error('[Task Manager] No tool calls found in model response');
@@ -138,12 +149,9 @@ export class TaskManagerGraph {
         );
         throw new Error('[Task Manager] Multiple tool calls found');
       }
-      if (
-        aiMessage.tool_calls[0].name !== 'create_task' &&
-        aiMessage.tool_calls[0].name !== 'block_task'
-      ) {
+      if (!this.avaibleToolsName.includes(aiMessage.tool_calls[0].name)) {
         throw new Error(
-          `[Task Manager] Unexpected tool call: ${aiMessage.tool_calls[0].name}`
+          `[Task Manager] Tool call name "${aiMessage.tool_calls[0].name}" is not recognized`
         );
       }
       if (aiMessage.tool_calls[0].name === 'block_task') {
@@ -152,6 +160,15 @@ export class TaskManagerGraph {
           new Error('Task creation aborted by model'),
           'Task Manager',
           state
+        );
+      } else if (aiMessage.tool_calls[0].name === 'end_task') {
+        logger.info(
+          '[Task Manager] Ending task manager graph as model request'
+        );
+        return handleEndGraph(
+          'task_manager',
+          state,
+          'Ending task manager graph as model request'
         );
       }
       const parsed_args = JSON.parse(
@@ -184,21 +201,6 @@ export class TaskManagerGraph {
         'Plan creation failed'
       );
     }
-  }
-
-  private end_task_manager_graph(state: typeof GraphState.State) {
-    logger.info(
-      '[EndTaskManagerGraph] Cleaning up state for graph termination'
-    );
-    return new Command({
-      update: {
-        currentTaskIndex: 0,
-        retry: 0,
-        skipValidation: { skipValidation: true, goto: 'end_graph' },
-      },
-      goto: 'end_graph',
-      graph: Command.PARENT,
-    });
   }
 
   public getTaskManagerGraph() {

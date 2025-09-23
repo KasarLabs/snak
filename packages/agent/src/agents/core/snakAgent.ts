@@ -311,14 +311,6 @@ export class SnakAgent extends BaseAgent {
         }
 
         const executionInput = !isInterrupted ? graphState : command;
-        await this.compiledGraph.invoke(
-          executionInput ?? { messages: [] },
-          executionConfig
-        );
-        const _true = true;
-        if (_true === true) {
-          return;
-        }
         let chunk: StreamEvent;
         for await (chunk of this.compiledGraph.streamEvents(
           executionInput ?? { messages: [] },
