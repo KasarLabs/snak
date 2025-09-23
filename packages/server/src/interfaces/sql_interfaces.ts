@@ -12,4 +12,3 @@ export interface MessageSQL {
   agent_iteration: any;
   created_at: Date;
 }
-

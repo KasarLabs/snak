@@ -54,6 +54,12 @@ export class FileIngestionController {
       let fileSize = 0;
 
       const parts = req.parts();
+      if (!parts) {
+        logger.error('Unable to access multipart parts from request');
+        throw new BadRequestException(
+          'Invalid multipart request - parts not accessible'
+        );
+      }
       let partCount = 0;
 
       for await (const part of parts) {

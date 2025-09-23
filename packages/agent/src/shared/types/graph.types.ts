@@ -30,7 +30,6 @@ export interface GraphExecutionContext {
   metadata?: Record<string, any>;
 }
 
-
 export enum GraphErrorTypeEnum {
   TASK_ERROR = 'task_error',
   TOOL_ERROR = 'tool_error',

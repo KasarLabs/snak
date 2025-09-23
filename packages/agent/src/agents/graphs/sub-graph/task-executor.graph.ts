@@ -339,11 +339,6 @@ export class AgentExecutorGraph {
 
       const executionTime = Date.now() - startTime;
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
-      console.log('summarization size limits', {
-        limit_before_summarization:
-          config.configurable?.agent_config?.memory.size_limits
-            .limit_before_summarization,
-      });
       tools.messages.forEach(async (tool) => {
         if (
           config.configurable?.agent_config?.memory.size_limits

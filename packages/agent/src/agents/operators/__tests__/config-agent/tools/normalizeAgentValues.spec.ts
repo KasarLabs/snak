@@ -172,7 +172,7 @@ describe('normalizeNumericValues', () => {
 
         expect(result.normalizedConfig.memory).toBeDefined();
         expect(result.normalizedConfig.memory?.enabled).toBe(false);
-        expect(result.normalizedConfig.memory?short_term_memory_size).toBe(5);
+        expect(result.normalizedConfig.memory?.shortTermMemorySize).toBe(5);
         expect(result.normalizedConfig.memory?.memorySize).toBe(20);
 
         const expectedMessage =
@@ -195,8 +195,8 @@ describe('normalizeNumericValues', () => {
 
         expect(result.normalizedConfig.rag).toBeDefined();
         expect(result.normalizedConfig.rag?.enabled).toBe(false);
-        expect(result.normalizedConfig.rag?.top_k).toBe(4);
-        expect(result.normalizedConfig.rag?.embedding_model).toBe(
+        expect(result.normalizedConfig.rag?.topK).toBe(4);
+        expect(result.normalizedConfig.rag?.embeddingModel).toBe(
           'Xenova/all-MiniLM-L6-v2'
         );
 
@@ -292,11 +292,11 @@ describe('normalizeNumericValues', () => {
       expect(result.normalizedConfig.max_iterations).toBe(25);
       expect(result.normalizedConfig.interval).toBe(10);
       expect(result.normalizedConfig.memory?.enabled).toBe(true);
-      expect(result.normalizedConfig.memory?short_term_memory_size).toBe(30);
+      expect(result.normalizedConfig.memory?.shortTermMemorySize).toBe(30);
       expect(result.normalizedConfig.memory?.memorySize).toBe(100);
       expect(result.normalizedConfig.rag?.enabled).toBe(true);
-      expect(result.normalizedConfig.rag?.top_k).toBe(20);
-      expect(result.normalizedConfig.rag?.embedding_model).toBe('custom-model');
+      expect(result.normalizedConfig.rag?.topK).toBe(20);
+      expect(result.normalizedConfig.rag?.embeddingModel).toBe('custom-model');
 
       expect(result.appliedDefaults).toHaveLength(0);
     });

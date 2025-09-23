@@ -1,6 +1,10 @@
 import { BaseMessage } from '@langchain/core/messages';
-import { START, StateGraph, Command, END } from '@langchain/langgraph';
-import { GraphErrorType, TaskType } from '../../../shared/types/index.js';
+import { START, StateGraph, Command } from '@langchain/langgraph';
+import {
+  GraphErrorType,
+  TaskType,
+  GraphErrorTypeEnum,
+} from '../../../shared/types/index.js';
 import {
   GenerateToolCallsFromMessage,
   handleEndGraph,
@@ -38,7 +42,7 @@ export function tasks_parser(tasks: TaskType[]): string {
     if (!tasks || tasks.length === 0) {
       return 'No tasks available.';
     }
-    const formattedTasks = tasks.map((task, index) => {
+    const formattedTasks = tasks.map((task) => {
       return `task_id : ${task.id}\n task : ${task.task.directive}\n status : ${task.status}\n verificiation_result : ${task.task_verification}\n`;
     });
     return formattedTasks.join('\n');
@@ -96,6 +100,11 @@ export class TaskManagerGraph {
         error: GraphErrorType | null;
         skipValidation?: { skipValidation: boolean; goto: string };
       }
+    | {
+        retry: number;
+        last_node: TaskManagerNode;
+        error: GraphErrorType;
+      }
     | Command
   > {
     try {
@@ -141,18 +150,52 @@ export class TaskManagerGraph {
       }
       logger.info(`[Task Manager] Successfully created task`);
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
-        throw new Error('[Task Manager] No tool calls found in model response');
+        logger.warn(
+          `[Task Manager] No tool calls detected in model response, retrying execution`
+        );
+        return {
+          retry: (state.retry ?? 0) + 1,
+          last_node: TaskManagerNode.CREATE_TASK,
+          error: {
+            type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
+            message: 'No tool calls found in model response',
+            hasError: true,
+            source: 'task_manager',
+            timestamp: Date.now(),
+          },
+        };
       }
       if (aiMessage.tool_calls.length > 1) {
         logger.warn(
-          `[Task Manager] Multiple tool calls found, only the first will be processed`
+          `[Task Manager] Multiple tool calls found, retrying with single tool call expectation`
         );
-        throw new Error('[Task Manager] Multiple tool calls found');
+        return {
+          retry: (state.retry ?? 0) + 1,
+          last_node: TaskManagerNode.CREATE_TASK,
+          error: {
+            type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
+            message: 'Multiple tool calls found, expected single tool call',
+            hasError: true,
+            source: 'task_manager',
+            timestamp: Date.now(),
+          },
+        };
       }
       if (!this.avaibleToolsName.includes(aiMessage.tool_calls[0].name)) {
-        throw new Error(
-          `[Task Manager] Tool call name "${aiMessage.tool_calls[0].name}" is not recognized`
+        logger.warn(
+          `[Task Manager] Unrecognized tool call "${aiMessage.tool_calls[0].name}", retrying`
         );
+        return {
+          retry: (state.retry ?? 0) + 1,
+          last_node: TaskManagerNode.CREATE_TASK,
+          error: {
+            type: GraphErrorTypeEnum.TOOL_ERROR,
+            message: `Tool call name "${aiMessage.tool_calls[0].name}" is not recognized`,
+            hasError: true,
+            source: 'task_manager',
+            timestamp: Date.now(),
+          },
+        };
       }
       if (aiMessage.tool_calls[0].name === 'block_task') {
         logger.info('[Task Manager] Task creation aborted by model');
@@ -203,6 +246,42 @@ export class TaskManagerGraph {
     }
   }
 
+  private shouldContinue(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): TaskManagerNode | 'END' {
+    if (!config.configurable?.agent_config) {
+      throw new Error('Agent configuration is required for routing decisions.');
+    }
+    if (state.retry > config.configurable?.agent_config?.graph.max_retries) {
+      logger.warn(
+        '[Task Manager Router] Max retries reached, routing to END node'
+      );
+      return 'END';
+    }
+    if (state.last_node === TaskManagerNode.CREATE_TASK) {
+      if (state.error && state.error.hasError) {
+        if (
+          state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS ||
+          state.error.type === GraphErrorTypeEnum.TOOL_ERROR
+        ) {
+          logger.warn(
+            `[Task Manager Router] Retry condition met, routing back to CREATE_TASK`
+          );
+          return TaskManagerNode.CREATE_TASK;
+        }
+      }
+    }
+    return 'END';
+  }
+
+  private task_manager_router(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): TaskManagerNode | 'END' {
+    return this.shouldContinue(state, config);
+  }
+
   public getTaskManagerGraph() {
     return this.graph;
   }
@@ -213,8 +292,11 @@ export class TaskManagerGraph {
       GraphConfigurableAnnotation
     )
       .addNode(TaskManagerNode.CREATE_TASK, this.planExecution.bind(this))
-      .addEdge(TaskManagerNode.CREATE_TASK, END)
-      .addEdge(START, TaskManagerNode.CREATE_TASK);
+      .addEdge(START, TaskManagerNode.CREATE_TASK)
+      .addConditionalEdges(
+        TaskManagerNode.CREATE_TASK,
+        this.task_manager_router.bind(this)
+      );
 
     this.graph = task_manager_subgraph.compile();
   }

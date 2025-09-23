@@ -207,8 +207,9 @@ export const updateAgentTool = new DynamicStructuredTool({
           );
           updateValues.push(
             memory?.enabled ?? null,
-            memory?short_term_memory_size ?? null,
-            memory?.memorySize ?? null
+            memory
+              ? (short_term_memory_size ?? null)
+              : (memory?.memorySize ?? null)
           );
           paramIndex += 3;
         } else if (

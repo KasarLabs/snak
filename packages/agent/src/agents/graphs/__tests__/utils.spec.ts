@@ -17,11 +17,7 @@ import {
   getLatestMessageForMessage,
   isTerminalMessage,
   isTokenLimitError,
-<<<<<<< HEAD
   handleModelError,
-=======
-  handleNodeError,
->>>>>>> main
 } from '../utils/graph-utils.js';
 
 // -----------------------
