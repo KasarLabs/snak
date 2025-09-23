@@ -6,6 +6,7 @@ import {
 } from '../interfaces/agent-service.interface.js';
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
+  AgentConfig,
   MessageFromAgentIdDTO,
   MessageRequest,
   UpdateModelConfigDTO,
@@ -17,7 +18,6 @@ import {
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
-import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
 import { ChunkOutput, EventType } from '@snakagent/agents';
 
 @Injectable()
@@ -181,7 +181,7 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async getAllAgentsOfUser(userId: string): Promise<AgentConfigSQL[]> {
+  async getAllAgentsOfUser(userId: string): Promise<AgentConfig.InputWithId[]> {
     try {
       const q = new Postgres.Query(
         `
@@ -200,7 +200,7 @@ export class AgentService implements IAgentService {
 		  `,
         [userId]
       );
-      const res = await Postgres.query<AgentConfigSQL>(q);
+      const res = await Postgres.query<AgentConfig.InputWithId>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
@@ -232,7 +232,7 @@ export class AgentService implements IAgentService {
     try {
       const q = new Postgres.Query(
         `UPDATE models_config SET provider = $1, model_name = $2, description = $3 WHERE id = 1`,
-        [model.provider, model.model_name, model.description]
+        [model.provider, model.modelName, model.description]
       );
       const res = await Postgres.query(q);
       this.logger.debug(`Models config updated:', ${JSON.stringify(res)} `);
@@ -251,14 +251,7 @@ export class AgentService implements IAgentService {
       const credentials = agent.getAccountCredentials();
 
       // Check if the AI provider API keys are configured
-      let apiKeyValid = false;
-      try {
-        const aiConfig = this.config.ai;
-        apiKeyValid = Boolean(aiConfig && aiConfig.apiKey);
-      } catch (error) {
-        this.logger.debug('AI API key verification failed', error);
-      }
-
+      let apiKeyValid = true; // TODO add actual check for API key validity on the agent model
       return {
         isReady: Boolean(credentials && apiKeyValid),
         walletConnected: Boolean(credentials.accountPrivateKey),

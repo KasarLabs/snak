@@ -11,7 +11,7 @@ import {
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { AnyZodObject, object, z } from 'zod';
+import { AnyZodObject } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { RagAgent } from '../operators/ragAgent.js';
@@ -104,6 +104,8 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     default: () => undefined,
   }),
 });
+
+export type GraphConfigurableType = typeof GraphConfigurableAnnotation.State;
 export class Graph {
   private toolsList: (
     | StructuredTool

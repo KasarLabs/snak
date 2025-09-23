@@ -1,4 +1,3 @@
-import { AgentResponse } from '@snakagent/core';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import { ServerError } from '../utils/error.js';
@@ -24,6 +23,7 @@ import {
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
 import { EventType } from '@snakagent/agents';
+import { AgentResponse } from '@snakagent/core';
 
 @WebSocketGateway({
   cors: {
@@ -70,9 +70,7 @@ export class MyGateway {
           }
           try {
             agent = await agentSelector.execute(
-              userRequest.request.user_request,
-              false,
-              { userId }
+              userRequest.request.user_request
             );
           } catch (error) {
             logger.error('Error in agentSelector:', error);
@@ -170,11 +168,7 @@ export class MyGateway {
         logger.info('init_agent called');
 
         const userId = ControllerHelpers.getUserIdFromSocket(client);
-        await this.agentFactory.addAgent({
-          ...userRequest.agent,
-          user_id: userId,
-        });
-
+        await this.agentFactory.addAgent(userRequest.agent, userId);
         const response: AgentResponse = ResponseFormatter.success(
           `Agent ${userRequest.agent.name} added`
         );

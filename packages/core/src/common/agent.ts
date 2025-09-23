@@ -164,6 +164,7 @@ export namespace AgentConfig {
    */
   export interface InputWithId extends Input {
     id: string;
+    user_id: string;
   }
 
   /**
@@ -171,6 +172,7 @@ export namespace AgentConfig {
    */
   export interface Runtime extends Base {
     id: string;
+    user_id: string;
     prompts: AgentPromptsInitialized<SystemMessage>;
     graph: GraphConfigInitialized;
   }

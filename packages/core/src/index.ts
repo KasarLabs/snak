@@ -14,3 +14,8 @@ export {
   CustomHuggingFaceEmbeddings,
   type CustomHuggingFaceEmbeddingsParams,
 } from './embeddings/customEmbedding.js';
+
+export { FileValidationService } from './services/file-validation.service.js';
+export * from './types/rag/chunk.js';
+export * from './types/rag/ragConfig.js';
+export * from './types/models/modelsConfig.js';

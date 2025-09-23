@@ -5,7 +5,7 @@ import { getUserIdFromHeaders } from './index.js';
 import { getUserIdFromSocketHeaders } from './headers.js';
 import { AgentStorage } from '../agents.storage.js';
 import { SnakAgent } from '@snakagent/agents';
-import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
+import { AgentConfig } from '@snakagent/core';
 
 /**
  * Utility class for common controller operations
@@ -61,7 +61,7 @@ export class ControllerHelpers {
     agentFactory: AgentStorage,
     agentId: string,
     userId: string
-  ): AgentConfigSQL {
+  ): AgentConfig.InputWithId {
     const agentConfig = agentFactory.getAgentConfig(agentId, userId);
     if (!agentConfig) {
       throw new ForbiddenException('Agent not found or access denied');
@@ -97,7 +97,7 @@ export class ControllerHelpers {
     req: FastifyRequest,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agentConfig: AgentConfigSQL } {
+  ): { userId: string; agentConfig: AgentConfig.InputWithId } {
     const userId = this.getUserId(req);
     const agentConfig = this.verifyAgentConfigOwnership(
       agentFactory,
@@ -135,7 +135,7 @@ export class ControllerHelpers {
     client: Socket,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agentConfig: AgentConfigSQL } {
+  ): { userId: string; agentConfig: AgentConfig.InputWithId } {
     const userId = this.getUserIdFromSocket(client);
     const agentConfig = this.verifyAgentConfigOwnership(
       agentFactory,

@@ -57,42 +57,73 @@ export class AgentStorage implements OnModuleInit {
   /**
    * Get an agent configuration by ID
    * @param id - Agent ID
-   * @returns AgentConfig.InputWithId | undefined - The agent configuration or undefined if not found
+   * @param userId - User ID to verify ownership
+   * @returns AgentConfigSQL | undefined - The agent configuration or undefined if not found or not owned by user
    */
-  public getAgentConfig(id: string): AgentConfig.InputWithId | undefined {
+  public getAgentConfig(
+    id: string,
+    userId: string
+  ): AgentConfig.InputWithId | undefined {
     if (!this.initialized) {
       return undefined;
     }
-    return this.agentConfigs.find((config) => config.id === id);
+
+    const config = this.agentConfigs.find(
+      (config) => config.id === id && config.user_id === userId
+    );
+
+    if (!config) {
+      logger.debug(`Agent ${id} not found for user ${userId}`);
+    }
+
+    return config;
   }
 
   /**
-   * Get all agent configurations
-   * @returns AgentConfig.InputWithId[] - Array of all agent configurations
+   * Get all agent configurations for a specific user
+   * @param userId - User ID to filter configurations
+   * @returns AgentConfigSQL[] - Array of agent configurations owned by the user
    */
-  public getAllAgentConfigs(): AgentConfig.InputWithId[] {
+  public getAllAgentConfigs(userId: string): AgentConfig.InputWithId[] {
     if (!this.initialized) {
       return [];
     }
-    return [...this.agentConfigs];
+    return this.agentConfigs.filter((config) => config.user_id === userId);
   }
 
   /**
    * Get a SnakAgent instance by ID
    * @param {string} id - The agent ID
-   * @returns {SnakAgent | undefined} The agent instance or undefined if not found
+   * @param {string} userId - User ID to verify ownership (required)
+   * @returns {SnakAgent | undefined} The agent instance or undefined if not found or not owned by user
    */
-  public getAgentInstance(id: string): SnakAgent | undefined {
-    const instance = this.agentInstances.get(id);
-    return instance ? instance : undefined;
+  public getAgentInstance(id: string, userId: string): SnakAgent | undefined {
+    const compositeKey = `${id}|${userId}`;
+    return this.agentInstances.get(compositeKey);
+  }
+  /**
+   * Get all agent instances for a specific user
+   * @param {string} userId - The user ID
+   * @returns {SnakAgent[]} Array of agent instances owned by the user
+   */
+  public getAgentInstancesByUser(userId: string): SnakAgent[] {
+    const userAgents: SnakAgent[] = [];
+    for (const [key, instance] of this.agentInstances.entries()) {
+      const [_agentId, agentUserId] = key.split('|');
+      if (agentUserId === userId) {
+        userAgents.push(instance);
+      }
+    }
+    return userAgents;
   }
 
   /**
    * Get all agent instances
+   * @param userId - Optional user ID to filter instances
    * @returns {SnakAgent[]} Array of all agent instances
    */
-  public getAllAgentInstances(): SnakAgent[] {
-    return Array.from(this.agentInstances.values()).map((instance) => instance);
+  public getAllAgentInstances(userId: string): SnakAgent[] {
+    return this.getAgentInstancesByUser(userId);
   }
 
   public getAgentSelector(): AgentSelector {
@@ -100,16 +131,6 @@ export class AgentStorage implements OnModuleInit {
       throw new Error('AgentSelector is not initialized');
     }
     return this.agentSelector;
-  }
-
-  public getAgentInstancesByName(name: string): SnakAgent {
-    const instance = Array.from(this.agentInstances.values()).find(
-      (agent) => agent.getAgentConfig().name === name
-    );
-    if (!instance) {
-      throw new Error(`No agent found with name: ${name}`);
-    }
-    return instance;
   }
 
   public async getModelFromUser(userId: string): Promise<ModelConfig> {
@@ -155,20 +176,21 @@ export class AgentStorage implements OnModuleInit {
 
   /**
    * Add a new agent to the system
-   * @param agent_config - Raw agent configuration
+   * @param agentConfig - Raw agent configuration
    * @returns Promise<AgentConfig.InputWithId> - The newly created agent configuration
    */
   public async addAgent(
-    agent_config: AgentConfig.Input
+    agentConfig: AgentConfig.Input,
+    userId: string
   ): Promise<AgentConfig.InputWithId> {
-    logger.debug(`Adding agent with config: ${JSON.stringify(agent_config)}`);
+    logger.debug(`Adding agent with config: ${JSON.stringify(agentConfig)}`);
 
     if (!this.initialized) {
       await this.initialize();
     }
 
-    const baseName = agent_config.name;
-    const group = agent_config.group;
+    const baseName = agentConfig.name;
+    const group = agentConfig.group;
 
     let finalName = baseName;
     const nameCheckQuery = new Postgres.Query(
@@ -240,49 +262,49 @@ export class AgentStorage implements OnModuleInit {
       [
         finalName, // $1
         group, // $2
-        agent_config.profile.description, // $3
-        agent_config.profile.group, // $4
-        agent_config.profile.lore, // $5
-        agent_config.profile.objectives, // $6
-        agent_config.profile.knowledge, // $7
-        agent_config.profile.agent_config_prompt || null, // $8
-        agent_config.mcp_servers || {}, // $9
-        agent_config.plugins, // $10
+        agentConfig.profile.description, // $3
+        agentConfig.profile.group, // $4
+        agentConfig.profile.lore, // $5
+        agentConfig.profile.objectives, // $6
+        agentConfig.profile.knowledge, // $7
+        agentConfig.profile.agent_config_prompt || null, // $8
+        agentConfig.mcp_servers || {}, // $9
+        agentConfig.plugins, // $10
         // agent_prompts
-        agent_config.prompts.id, // $11
+        agentConfig.prompts.id, // $11
         // graph_config
-        agent_config.graph.max_steps, // $12
-        agent_config.graph.max_iterations, // $13
-        agent_config.graph.max_retries, // $14
-        agent_config.graph.execution_timeout_ms, // $15
-        agent_config.graph.max_token_usage, // $16
+        agentConfig.graph.max_steps, // $12
+        agentConfig.graph.max_iterations, // $13
+        agentConfig.graph.max_retries, // $14
+        agentConfig.graph.execution_timeout_ms, // $15
+        agentConfig.graph.max_token_usage, // $16
         // model_config (nested in graph_config)
-        agent_config.graph.model.provider, // $17
-        agent_config.graph.model.model_name, // $18
-        agent_config.graph.model.temperature, // $19
-        agent_config.graph.model.max_tokens || 4096, // $20
+        agentConfig.graph.model.provider, // $17
+        agentConfig.graph.model.model_name, // $18
+        agentConfig.graph.model.temperature, // $19
+        agentConfig.graph.model.max_tokens || 4096, // $20
         // memory_config
-        agent_config.memory.ltm_enabled, // $21
+        agentConfig.memory.ltm_enabled, // $21
         // memory_size_limits
-        agent_config.memory.size_limits.short_term_memory_size, // $22
-        agent_config.memory.size_limits.max_insert_episodic_size, // $23
-        agent_config.memory.size_limits.max_insert_semantic_size, // $24
-        agent_config.memory.size_limits.max_retrieve_memory_size, // $25
-        agent_config.memory.size_limits.limit_before_summarization, // $26
+        agentConfig.memory.size_limits.short_term_memory_size, // $22
+        agentConfig.memory.size_limits.max_insert_episodic_size, // $23
+        agentConfig.memory.size_limits.max_insert_semantic_size, // $24
+        agentConfig.memory.size_limits.max_retrieve_memory_size, // $25
+        agentConfig.memory.size_limits.limit_before_summarization, // $26
         // memory_thresholds
-        agent_config.memory.thresholds.insert_semantic_threshold, // $27
-        agent_config.memory.thresholds.insert_episodic_threshold, // $28
-        agent_config.memory.thresholds.retrieve_memory_threshold, // $29
-        agent_config.memory.thresholds.hitl_threshold, // $30
+        agentConfig.memory.thresholds.insert_semantic_threshold, // $27
+        agentConfig.memory.thresholds.insert_episodic_threshold, // $28
+        agentConfig.memory.thresholds.retrieve_memory_threshold, // $29
+        agentConfig.memory.thresholds.hitl_threshold, // $30
         // memory_timeouts
-        agent_config.memory.timeouts.retrieve_memory_timeout_ms, // $31
-        agent_config.memory.timeouts.insert_memory_timeout_ms, // $32
+        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $31
+        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $32
         // memory_strategy
-        agent_config.memory.strategy, // $33
+        agentConfig.memory.strategy, // $33
         // rag_config
-        agent_config.rag.enabled, // $34
-        agent_config.rag.top_k, // $35
-        agent_config.rag.embedding_model, // $36
+        agentConfig.rag.enabled, // $34
+        agentConfig.rag.top_k, // $35
+        agentConfig.rag.embedding_model, // $36
       ]
     );
     const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
@@ -294,10 +316,10 @@ export class AgentStorage implements OnModuleInit {
       this.createSnakAgentFromConfig(newAgentDbRecord)
         .then((snakAgent) => {
           this.agentInstances.set(newAgentDbRecord.id, snakAgent);
-          this.agentSelector.updateAvailableAgents([
-            newAgentDbRecord.id,
-            snakAgent,
-          ]);
+          this.agentSelector.updateAvailableAgents(
+            [newAgentDbRecord.id, snakAgent],
+            userId
+          );
         })
         .catch((error) => {
           logger.error(
@@ -318,7 +340,7 @@ export class AgentStorage implements OnModuleInit {
    * @param id - Agent ID to delete
    * @returns Promise<void>
    */
-  public async deleteAgent(id: string): Promise<void> {
+  public async deleteAgent(id: string, userId: string): Promise<void> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -332,7 +354,7 @@ export class AgentStorage implements OnModuleInit {
 
     this.agentConfigs = this.agentConfigs.filter((config) => config.id !== id);
     this.agentInstances.delete(id);
-    this.agentSelector.removeAgent(id);
+    this.agentSelector.removeAgent(id, userId);
     logger.debug(`Agent ${id} removed from local configuration`);
   }
 
@@ -384,10 +406,10 @@ export class AgentStorage implements OnModuleInit {
       if (!modelInstance || modelInstance.bindTools === undefined) {
         throw new Error('Failed to initialize model for AgentSelector');
       }
-      this.agentSelector = new AgentSelector({
-        availableAgents: this.agentInstances,
-        model: modelInstance,
-      });
+      this.agentSelector = new AgentSelector(
+        this.agentInstances,
+        modelInstance
+      );
       await this.agentSelector.init();
     } catch (error) {
       // Reset promise on failure so we can retry

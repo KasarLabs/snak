@@ -23,6 +23,13 @@ import {
   logger,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
+  AgentRequestDTO,
+  AgentConfig,
+  AgentResponse,
+  AgentDeleteRequestDTO,
+  AgentDeletesRequestDTO,
+  getMessagesFromAgentsDTO,
+  MessageRequest,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
@@ -89,9 +96,9 @@ export class AgentsController {
     // Update agent MCP configuration in database
     const q = new Postgres.Query(
       `UPDATE agents
-       SET "mcpServers" = $1::jsonb
+       SET "mcp_servers" = $1::jsonb
        WHERE id = $2 AND user_id = $3
-       RETURNING id, "mcpServers"`,
+       RETURNING id, "mcp_servers"`,
       [mcpServers, id, userId]
     );
 
@@ -111,118 +118,91 @@ export class AgentsController {
   @Post('update_agent_config')
   @HandleWithBadRequestPreservation('Update failed')
   async updateAgentConfig(
-    @Body() config: AgentConfigSQL,
+    @Body() config: AgentConfig.InputWithId,
     @Req() req: FastifyRequest
-  ): Promise<any> {
+  ): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
 
-    if (!config || !config.id) {
+    if (!config || typeof config !== 'object') {
+      throw new BadRequestException('Configuration object is required');
+    }
+
+    const id = config.id;
+    if (!id) {
       throw new BadRequestException('Agent ID is required');
     }
+    try {
+      // Use the existing update_agent_complete function
+      const query = `
+        SELECT success, message, updated_agent_id
+        FROM update_agent_complete(
+          $1::UUID, $2, $3, $4::agent_profile,
+          $5::JSONB, $6::TEXT[], $7::agent_prompts, $8::graph_config,
+          $9::memory_config, $10::rag_config, $11, $12
+        )
+      `;
 
-    const updateFields: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+      const result = await Postgres.query(
+        new Postgres.Query(query, [
+          id,
+          config.name || null,
+          config.group || null,
+          config.profile || null,
+          config.mcp_servers ? JSON.stringify(config.mcp_servers) : null,
+          config.plugins || null,
+          config.prompts || null,
+          config.graph || null,
+          config.memory || null,
+          config.rag || null,
+          null, // avatarImage
+          null, // avatarMimeType
+        ])
+      );
 
-    const updatableFields: (keyof AgentConfigSQL)[] = [
-      'name',
-      'group',
-      'description',
-      'lore',
-      'objectives',
-      'knowledge',
-      'system_prompt',
-      'interval',
-      'plugins',
-      'memory',
-      'mode',
-      'max_iterations',
-      'mcpServers',
-    ];
-
-    updatableFields.forEach((field) => {
-      if (config[field] !== undefined && config[field] !== null) {
-        if (field === 'memory') {
-          let memoryData;
-
-          if (typeof config[field] === 'string') {
-            const fieldValue = config[field] as string;
-            if (fieldValue.startsWith('(') && fieldValue.endsWith(')')) {
-              const content = fieldValue.slice(1, -1);
-              const parts = content.split(',');
-              memoryData = {
-                enabled: parts[0] === 't' || parts[0] === 'true',
-                shortTermMemorySize: parseInt(parts[1], 10),
-                memorySize: parseInt(parts[2], 10),
-              };
-            } else {
-              try {
-                memoryData = JSON.parse(fieldValue);
-              } catch (jsonError) {
-                throw new BadRequestException(
-                  `Invalid memory format: ${fieldValue}. Expected JSON or PostgreSQL composite type format.`
-                );
-              }
-            }
-          } else {
-            memoryData = config[field];
-          }
-
-          const enabled =
-            memoryData.enabled === 'true' ||
-            memoryData.enabled === true ||
-            memoryData.enabled === 't';
-          const parsedShortTerm = Number.parseInt(
-            String(memoryData.shortTermMemorySize ?? ''),
-            10
-          );
-          if (Number.isNaN(parsedShortTerm)) {
-            throw new BadRequestException(
-              'memory.shortTermMemorySize must be a valid integer'
-            );
-          }
-
-          const memorySize = parseInt(memoryData.memorySize) || 20;
-
-          updateFields.push(
-            `"memory" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})::memory`
-          );
-          values.push(enabled, parsedShortTerm, memorySize);
-          paramIndex += 3;
-        } else {
-          updateFields.push(`"${String(field)}" = $${paramIndex}`);
-          values.push(config[field]);
-          paramIndex++;
-        }
+      const updateResult = result[0];
+      if (!updateResult.success) {
+        throw new BadRequestException(updateResult.message);
       }
-    });
 
-    if (updateFields.length === 0) {
-      throw new BadRequestException('No valid fields to update');
+      // Fetch updated agent
+      const fetchQuery = new Postgres.Query(
+        `SELECT
+          id,
+          name,
+          "group",
+          row_to_json(profile) as profile,
+          mode,
+          mcp_servers,
+          plugins,
+          row_to_json(prompts) as prompts,
+          row_to_json(graph) as graph,
+          row_to_json(memory) as memory,
+          row_to_json(rag) as rag,
+          created_at,
+          updated_at,
+          avatar_image,
+          avatar_mime_type
+        FROM agents WHERE id = $1`,
+        [id]
+      );
+      const agent = await Postgres.query<AgentConfig.InputWithId>(fetchQuery);
+
+      return {
+        status: 'success',
+        data: agent[0],
+      };
+    } catch (error) {
+      logger.error('Error in updateAgentConfig:', {
+        agentId: id,
+        error: error.message,
+      });
+
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      throw new BadRequestException(`Update failed: ${error.message}`);
     }
-
-    values.push(config.id);
-    values.push(userId);
-
-    const query = `
-		UPDATE agents
-		SET ${updateFields.join(', ')}
-		WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}
-		RETURNING *
-	  `;
-
-    const q = new Postgres.Query(query, values);
-    const result = await Postgres.query<AgentConfigSQL>(q);
-
-    if (result.length === 0) {
-      throw new BadRequestException('Agent not found');
-    }
-
-    return {
-      status: 'success',
-      data: result[0],
-      message: 'Agent configuration updated successfully',
-    };
   }
 
   @Post('upload-avatar')
@@ -313,9 +293,7 @@ export class AgentsController {
       );
 
       const agentSelector = this.agentFactory.getAgentSelector();
-      agent = await agentSelector.execute(userRequest.request.content, false, {
-        userId,
-      });
+      agent = await agentSelector.execute(userRequest.request.content);
       if (agent) {
         const agentId = agent.getAgentConfig().id;
         ControllerHelpers.verifyAgentConfigOwnership(
@@ -335,9 +313,10 @@ export class AgentsController {
       throw new ServerError('E01TA400');
     }
 
-    const messageRequest = {
+    const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
       user_request: userRequest.request.content,
+      user_id: userId,
     };
 
     const action = this.agentService.handleUserRequest(agent, messageRequest);
@@ -384,10 +363,10 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
 
-    const newAgentConfig = await this.agentFactory.addAgent({
-      ...userRequest.agent,
-      user_id: userId,
-    });
+    const newAgentConfig = await this.agentFactory.addAgent(
+      userRequest.agent,
+      userId
+    );
 
     metrics.agentConnect();
 

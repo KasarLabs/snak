@@ -13,6 +13,8 @@ import {
   ArrayNotEmpty,
   ArrayMinSize,
   ArrayMaxSize,
+  isNotEmpty,
+  isUUID,
 } from 'class-validator';
 
 /**
@@ -67,6 +69,10 @@ export class MessageRequest {
   @IsNotEmpty()
   @IsString()
   @IsUUID()
+  user_id: string;
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
   agent_id: string;
 
   @IsNotEmpty()
@@ -79,6 +85,10 @@ export class MessageRequest {
  * DTO for deleting multiple agents
  */
 export class AgentsDeleteRequestDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
   @IsArray()
   @ArrayNotEmpty()
   @ArrayMinSize(1)
@@ -91,6 +101,10 @@ export class AgentsDeleteRequestDTO {
  * DTO for updating model configuration
  */
 export class UpdateModelConfigDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
   @IsNotEmpty()
   @IsString()
   @Length(1, 50)
@@ -116,6 +130,10 @@ export class UpdateModelConfigDTO {
 }
 
 export class Message {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
   @IsOptional()
   @IsString()
   @IsUUID()
@@ -145,10 +163,18 @@ export class Message {
 
 export class AgentRequestDTO {
   @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
+  @IsNotEmpty()
   request: Message;
 }
 
 export class SupervisorRequest {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
   @IsNotEmpty()
   @IsString()
   @Length(1, 10000)
@@ -162,10 +188,18 @@ export class SupervisorRequest {
 
 export class SupervisorRequestDTO {
   @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
+  @IsNotEmpty()
   request: SupervisorRequest;
 }
 
 export class getMessagesFromAgentsDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
   @IsNotEmpty()
   @IsString()
   @IsUUID()
@@ -187,10 +221,18 @@ export class AgentDeleteRequestDTO {
   @IsNotEmpty()
   @IsString()
   @IsUUID()
+  user_id: string;
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
   agent_id: string;
 }
 
 export class AgentDeletesRequestDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
   @IsArray()
   @ArrayNotEmpty()
   @ArrayMinSize(1)
@@ -201,10 +243,19 @@ export class AgentDeletesRequestDTO {
 
 export class AgentAddRequestDTO {
   @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
+  @IsNotEmpty()
   agent: AgentConfig.Input;
 }
 
 export class AgentAvatarResponseDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  user_id: string;
+
   @IsNotEmpty()
   @IsString()
   @IsUUID()
@@ -218,3 +269,8 @@ export class AgentAvatarResponseDTO {
   })
   avatar_mime_type: string;
 }
+
+export type AgentResponse<T = unknown> =
+  | { status: 'success'; data: T }
+  | { status: 'waiting_for_human_input'; data?: T }
+  | { status: 'failure'; error: string; data?: T };

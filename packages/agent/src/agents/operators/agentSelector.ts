@@ -1,19 +1,13 @@
 import { BaseAgent } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import { ModelSelector } from './modelSelector.js';
 import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 export interface AgentInfo {
   name: string;
   description: string;
-}
-
-export interface AgentSelectionConfig {
-  availableAgents: Map<string, SnakAgent>;
-  modelSelector: ModelSelector;
-  debug?: boolean;
 }
 
 /**
@@ -23,12 +17,12 @@ export interface AgentSelectionConfig {
 export class AgentSelector extends BaseAgent {
   private availableAgents: Map<string, SnakAgent> = new Map();
   private agentInfo: Map<string, string> = new Map();
-  private modelSelector: ModelSelector;
+  private model: BaseChatModel;
 
-  constructor(config: AgentSelectionConfig) {
+  constructor(availableAgents: Map<string, SnakAgent>, model: BaseChatModel) {
     super('agent-selector', AgentType.OPERATOR);
-    this.availableAgents = config.availableAgents;
-    this.modelSelector = config.modelSelector;
+    this.availableAgents = availableAgents;
+    this.model = model;
   }
 
   public async init(): Promise<void> {
@@ -45,7 +39,7 @@ export class AgentSelector extends BaseAgent {
         this.agentInfo.keys()
       ).join(', ')}`
     );
-    if (!this.modelSelector) {
+    if (!this.model) {
       logger.warn(
         'AgentSelector: No ModelSelector provided, selection capabilities will be limited'
       );
@@ -95,18 +89,15 @@ export class AgentSelector extends BaseAgent {
     config?: Record<string, unknown>
   ): Promise<SnakAgent> {
     try {
-      const model = this.modelSelector.getModels()['fast'];
-      logger.info('AgentSelector model:', this.modelSelector.getModels());
-
       if (!config) {
         throw new Error('AgentSelector: config parameter is required');
       }
-
       if (!config.userId) {
         throw new Error(
           'AgentSelector: userId is required in config parameter'
         );
       }
+      const model = this.model;
 
       const userId = config.userId;
       logger.debug(`AgentSelector: Filtering agents for user ${userId}`);

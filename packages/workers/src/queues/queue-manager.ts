@@ -62,7 +62,7 @@ export class QueueManager {
       password: redisSettings.password,
       db: redisSettings.db,
     });
-    this.redis.on('error', (error) => {
+    this.redis.on('error', (error: any) => {
       logger.error('Redis connection error:', error);
     });
 
@@ -102,11 +102,11 @@ export class QueueManager {
 
       this.queues.set(queueName, queue);
 
-      queue.on('error', (error) => {
+      queue.on('error', (error: any) => {
         logger.error(`Queue ${queueName} error:`, error);
       });
 
-      queue.on('failed', (job, err) => {
+      queue.on('failed', (job: Job, err: any) => {
         logger.error(`Job ${job.id} in queue ${queueName} failed:`, err);
       });
     }
