@@ -6,7 +6,6 @@ import {
   AgentConfig,
   ModelConfig,
   StarknetConfig,
-  DEFAULT_PROMPT_ID,
   DEFAULT_USER_ID,
   DEFAULT_AGENT_ID,
   AgentPromptsInitialized,
@@ -18,7 +17,7 @@ import DatabaseStorage from '../common/database/database.js';
 import {
   AgentSelector,
   SnakAgent,
-  TASK_EXECUTOR_PROMPT,
+  TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
   TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
@@ -223,35 +222,41 @@ export class AgentStorage implements OnModuleInit {
       }
     }
 
+    const prompt_id = agentConfig.prompts
+      ? agentConfig.prompts.id
+      : await this.initializeDefaultPrompts(userId);
     const q = new Postgres.Query(
       `INSERT INTO agents (
+        user_id,
         name,
         "group",
         profile,
         mcp_servers,
         plugins,
-        prompts,
+        prompts_id,
         graph,
         memory,
         rag
       ) VALUES (
         $1,
         $2,
-        ROW($3, $4, $5::text[], $6::text[], $7::text[], $8)::agent_profile,
-        $9::jsonb,
-        $10::text[],
-        ROW($11)::agent_prompts,
-        ROW($12, $13, $14, $15, $16, ROW($17, $18, $19, $20)::model_config)::graph_config,
-        ROW($21, ROW($22, $23, $24, $25, $26)::memory_size_limits, ROW($27, $28, $29, $30)::memory_thresholds, ROW($31, $32)::memory_timeouts, $33::memory_strategy)::memory_config,
-        ROW($34, $35, $36)::rag_config
+        $3,
+        ROW($4, $5, $6::text[], $7::text[], $8::text[], $9)::agent_profile,
+        $10::jsonb,
+        $11::text[],
+        $12,
+        ROW($13, $14, $15, $16, $17, ROW($18, $19, $20, $21)::model_config)::graph_config,
+        ROW($22, ROW($23, $24, $25, $26, $27)::memory_size_limits, ROW($28, $29, $30, $31)::memory_thresholds, ROW($32, $33)::memory_timeouts, $34::memory_strategy)::memory_config,
+        ROW($35, $36, $37)::rag_config
       ) RETURNING
         id,
+        user_id,
         name,
         "group",
         row_to_json(profile) as profile,
         mcp_servers as "mcp_servers",
         plugins,
-        row_to_json(prompts) as prompts,
+        prompts_id,
         row_to_json(graph) as graph,
         row_to_json(memory) as memory,
         row_to_json(rag) as rag,
@@ -260,51 +265,52 @@ export class AgentStorage implements OnModuleInit {
         avatar_image,
         avatar_mime_type`,
       [
-        finalName, // $1
-        group, // $2
-        agentConfig.profile.description, // $3
-        agentConfig.profile.group, // $4
-        agentConfig.profile.lore, // $5
-        agentConfig.profile.objectives, // $6
-        agentConfig.profile.knowledge, // $7
-        agentConfig.profile.agent_config_prompt || null, // $8
-        agentConfig.mcp_servers || {}, // $9
-        agentConfig.plugins, // $10
-        // agent_prompts
-        agentConfig.prompts.id, // $11
+        userId, // $1
+        finalName, // $2
+        group, // $3
+        agentConfig.profile.description, // $4
+        agentConfig.profile.group, // $5
+        agentConfig.profile.lore, // $6
+        agentConfig.profile.objectives, // $7
+        agentConfig.profile.knowledge, // $8
+        agentConfig.profile.agent_config_prompt || null, // $9
+        agentConfig.mcp_servers || {}, // $10
+        agentConfig.plugins, // $11
+        // prompts_id
+        prompt_id, // $12
         // graph_config
-        agentConfig.graph.max_steps, // $12
-        agentConfig.graph.max_iterations, // $13
-        agentConfig.graph.max_retries, // $14
-        agentConfig.graph.execution_timeout_ms, // $15
-        agentConfig.graph.max_token_usage, // $16
+        agentConfig.graph.max_steps, // $13
+        agentConfig.graph.max_iterations, // $14
+        agentConfig.graph.max_retries, // $15
+        agentConfig.graph.execution_timeout_ms, // $16
+        agentConfig.graph.max_token_usage, // $17
         // model_config (nested in graph_config)
-        agentConfig.graph.model.provider, // $17
-        agentConfig.graph.model.model_name, // $18
-        agentConfig.graph.model.temperature, // $19
-        agentConfig.graph.model.max_tokens || 4096, // $20
+        agentConfig.graph.model.provider, // $18
+        agentConfig.graph.model.model_name, // $19
+        agentConfig.graph.model.temperature, // $20
+        agentConfig.graph.model.max_tokens || 4096, // $21
         // memory_config
-        agentConfig.memory.ltm_enabled, // $21
+        agentConfig.memory.ltm_enabled, // $22
         // memory_size_limits
-        agentConfig.memory.size_limits.short_term_memory_size, // $22
-        agentConfig.memory.size_limits.max_insert_episodic_size, // $23
-        agentConfig.memory.size_limits.max_insert_semantic_size, // $24
-        agentConfig.memory.size_limits.max_retrieve_memory_size, // $25
-        agentConfig.memory.size_limits.limit_before_summarization, // $26
+        agentConfig.memory.size_limits.short_term_memory_size, // $23
+        agentConfig.memory.size_limits.max_insert_episodic_size, // $24
+        agentConfig.memory.size_limits.max_insert_semantic_size, // $25
+        agentConfig.memory.size_limits.max_retrieve_memory_size, // $26
+        agentConfig.memory.size_limits.limit_before_summarization, // $27
         // memory_thresholds
-        agentConfig.memory.thresholds.insert_semantic_threshold, // $27
-        agentConfig.memory.thresholds.insert_episodic_threshold, // $28
-        agentConfig.memory.thresholds.retrieve_memory_threshold, // $29
-        agentConfig.memory.thresholds.hitl_threshold, // $30
+        agentConfig.memory.thresholds.insert_semantic_threshold, // $28
+        agentConfig.memory.thresholds.insert_episodic_threshold, // $29
+        agentConfig.memory.thresholds.retrieve_memory_threshold, // $30
+        agentConfig.memory.thresholds.hitl_threshold, // $31
         // memory_timeouts
-        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $31
-        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $32
+        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $32
+        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $33
         // memory_strategy
-        agentConfig.memory.strategy, // $33
+        agentConfig.memory.strategy, // $34
         // rag_config
-        agentConfig.rag.enabled, // $34
-        agentConfig.rag.top_k, // $35
-        agentConfig.rag.embedding_model, // $36
+        agentConfig.rag.enabled, // $35
+        agentConfig.rag.top_k, // $36
+        agentConfig.rag.embedding_model, // $37
       ]
     );
     const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
@@ -346,13 +352,15 @@ export class AgentStorage implements OnModuleInit {
     }
 
     const q = new Postgres.Query(
-      `DELETE FROM agents WHERE id = $1 RETURNING *`,
-      [id]
+      `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [id, userId]
     );
     const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
-    this.agentConfigs = this.agentConfigs.filter((config) => config.id !== id);
+    this.agentConfigs = this.agentConfigs.filter(
+      (config) => config.id !== id && config.user_id !== userId
+    );
     this.agentInstances.delete(id);
     this.agentSelector.removeAgent(id, userId);
     logger.debug(`Agent ${id} removed from local configuration`);
@@ -397,11 +405,13 @@ export class AgentStorage implements OnModuleInit {
     try {
       await this.initializationPromise;
 
-      // Initialize default agent and prompts in database
-      await this.initializeDefaultAgent(); // TODO remove
-      await this.initializeDefaultPrompts(); // TODO remove
-
-      const model = await this.getModelFromUser('default-user');
+      // const model = await this.getModelFromUser(userId); // Need to be used when user_id table will be created
+      const model: ModelConfig = {
+        provider: process.env.DEFAULT_MODEL_PROVIDER as string,
+        model_name: process.env.DEFAULT_MODEL_NAME as string,
+        temperature: parseFloat(process.env.DEFAULT_TEMPERATURE ?? '0.7'),
+        max_tokens: parseInt(process.env.DEFAULT_MAX_TOKENS ?? '4096'),
+      };
       const modelInstance = this.initializeModels(model);
       if (!modelInstance || modelInstance.bindTools === undefined) {
         throw new Error('Failed to initialize model for AgentSelector');
@@ -447,12 +457,13 @@ export class AgentStorage implements OnModuleInit {
       const q = new Postgres.Query(`
         SELECT
           id,
+          user_id,
           name,
           "group",
           row_to_json(profile) as profile,
           mcp_servers as "mcp_servers",
           plugins,
-          row_to_json(prompts) as prompts,
+          prompts_id,
           row_to_json(graph) as graph,
           row_to_json(memory) as memory,
           row_to_json(rag) as rag,
@@ -719,156 +730,56 @@ export class AgentStorage implements OnModuleInit {
     }
   }
 
-  /**
-   * Initialize default agent in the database
-   * @private
-   */
-  private async initializeDefaultAgent(): Promise<void> {
+  private async initializeDefaultPrompts(userId: string): Promise<string> {
     try {
-      logger.log('Initializing default agent...');
-
-      // Check if default agent already exists
-      const checkQuery = new Postgres.Query(
-        `SELECT id FROM agents WHERE id = $1`,
-        [DEFAULT_AGENT_ID]
+      // First, check if prompts already exist for this user
+      const existingQuery = new Postgres.Query(
+        `SELECT id FROM prompts WHERE user_id = $1 LIMIT 1`,
+        [userId]
       );
+      const existing = await Postgres.query<{ id: string }>(existingQuery);
 
-      const existingAgent = await Postgres.query(checkQuery);
-
-      if (existingAgent.length > 0) {
-        logger.log('Default agent already exists, skipping creation');
-        return;
+      if (existing.length > 0) {
+        logger.debug(
+          `Default prompts already exist for user ${userId}, returning existing ID`
+        );
+        return existing[0].id;
       }
 
-      // Create default agent configuration using constants
+      // Insert new default prompts for the user
       const insertQuery = new Postgres.Query(
-        `INSERT INTO agents (
-          id,
-          name,
-          "group",
-          profile,
-          mcp_servers,
-          plugins,
-          prompts,
-          graph,
-          memory,
-          rag
-        ) VALUES (
-          $1,
-          $2,
-          $3,
-          ROW($4, $5, $6::text[], $7::text[], $8::text[], $9)::agent_profile,
-          $10::jsonb,
-          $11::text[],
-          ROW($12)::agent_prompts,
-          ROW($13, $14, $15, $16, $17, ROW($18, $19, $20, $21)::model_config)::graph_config,
-          ROW($22, ROW($23, $24, $25, $26, $27)::memory_size_limits, ROW($28, $29, $30, $31)::memory_thresholds, ROW($32, $33)::memory_timeouts, $34::memory_strategy)::memory_config,
-          ROW($35, $36, $37)::rag_config
-        )`,
+        `INSERT INTO prompts (
+          user_id,
+          task_executor_prompt,
+          task_manager_prompt,
+          task_verifier_prompt,
+          task_memory_manager_prompt,
+          public
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id`,
         [
-          DEFAULT_AGENT_ID, // $1
-          DEFAULT_AGENT_CONFIG.name, // $2
-          DEFAULT_AGENT_CONFIG.group, // $3
-          // agent_profile
-          DEFAULT_AGENT_CONFIG.profile.description, // $4
-          DEFAULT_AGENT_CONFIG.profile.group, // $5
-          DEFAULT_AGENT_CONFIG.profile.lore, // $6
-          DEFAULT_AGENT_CONFIG.profile.objectives, // $7
-          DEFAULT_AGENT_CONFIG.profile.knowledge, // $8
-          DEFAULT_AGENT_CONFIG.profile.agent_config_prompt || null, // $9
-          DEFAULT_AGENT_CONFIG.mcp_servers, // $10
-          DEFAULT_AGENT_CONFIG.plugins, // $11
-          // agent_prompts
-          DEFAULT_AGENT_CONFIG.prompts.id, // $12
-          // graph_config
-          DEFAULT_AGENT_CONFIG.graph.max_steps, // $13
-          DEFAULT_AGENT_CONFIG.graph.max_iterations, // $14
-          DEFAULT_AGENT_CONFIG.graph.max_retries, // $15
-          DEFAULT_AGENT_CONFIG.graph.execution_timeout_ms, // $16
-          DEFAULT_AGENT_CONFIG.graph.max_token_usage, // $17
-          // model_config (nested in graph_config)
-          DEFAULT_AGENT_CONFIG.graph.model.provider, // $18
-          DEFAULT_AGENT_CONFIG.graph.model.model_name, // $19
-          DEFAULT_AGENT_CONFIG.graph.model.temperature, // $20
-          DEFAULT_AGENT_CONFIG.graph.model.max_tokens, // $21
-          // memory_config
-          DEFAULT_AGENT_CONFIG.memory.ltm_enabled, // $22
-          // memory_size_limits
-          DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size, // $23
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size, // $24
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size, // $25
-          DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size, // $26
-          DEFAULT_AGENT_CONFIG.memory.size_limits.limit_before_summarization, // $27
-          // memory_thresholds
-          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold, // $28
-          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold, // $29
-          DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold, // $30
-          DEFAULT_AGENT_CONFIG.memory.thresholds.hitl_threshold, // $31
-          // memory_timeouts
-          DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms, // $32
-          DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms, // $33
-          // memory_strategy
-          DEFAULT_AGENT_CONFIG.memory.strategy, // $34
-          // rag_config
-          DEFAULT_AGENT_CONFIG.rag.enabled, // $35
-          DEFAULT_AGENT_CONFIG.rag.top_k, // $36
-          DEFAULT_AGENT_CONFIG.rag.embedding_model, // $37
+          userId,
+          TASK_EXECUTOR_SYSTEM_PROMPT,
+          TASK_MANAGER_SYSTEM_PROMPT,
+          TASK_VERIFIER_SYSTEM_PROMPT,
+          TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+          false,
         ]
       );
 
-      await Postgres.query(insertQuery);
-      logger.log('Default agent created successfully');
+      const result = await Postgres.query<{ id: string }>(insertQuery);
+      if (result.length > 0) {
+        const promptId = result[0].id;
+        logger.debug(
+          `Default prompts created successfully for user ${userId} with ID: ${promptId}`
+        );
+        return promptId;
+      } else {
+        throw new Error('Failed to create default prompts - no ID returned');
+      }
     } catch (error) {
-      logger.warn(`Failed to initialize default agent: ${error.message}`);
-      // Don't throw error - this is not critical for basic functionality
-    }
-  }
-
-  /**
-   * Initialize default prompts in the database
-   * @private
-   */
-  private async initializeDefaultPrompts(): Promise<void> {
-    try {
-      logger.log('Initializing default prompts...');
-      // Call the database function to create default prompts
-      const query = new Postgres.Query(
-        `
-        SELECT * FROM upsert_default_prompt(
-          $1::UUID,
-          $2::UUID,
-          $3::UUID,
-          $4::TEXT,
-          $5::TEXT,
-          $6::TEXT,
-          $7::TEXT,
-          $8::BOOLEAN,
-          $9::INTEGER,
-          $10::INTEGER
-        )
-      `,
-        [
-          DEFAULT_PROMPT_ID,
-          DEFAULT_USER_ID,
-          DEFAULT_AGENT_ID,
-          TASK_EXECUTOR_PROMPT, // task_executor_pcrompt
-          TASK_MANAGER_SYSTEM_PROMPT, // task_manager_prompt
-          TASK_VERIFIER_SYSTEM_PROMPT, // task_verifier_prompt
-          TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT, // task_memory_manager_prompt
-          false, // public
-          0, // upvote
-          0,
-        ]
-      );
-      const result = await Postgres.query(query);
-
-      const promptResult = result[0];
-      logger.log(
-        `Default prompts: ${promptResult.action_taken} - ${promptResult.message}`
-      );
-    } catch (error) {
-      logger.warn(`Failed to initialize default prompts: ${error.message}`);
-      // Don't throw error - this is not critical for basic functionality
+      logger.error('Failed to initialize default prompts:', error);
+      throw error;
     }
   }
 }

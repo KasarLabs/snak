@@ -123,10 +123,14 @@ export class UpdateModelConfigDTO {
   })
   modelName: string;
 
-  @IsNotEmpty()
-  @IsString()
-  @Length(1, 500)
-  description: string;
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  temperature: number;
+
+  @IsInt()
+  @Min(1)
+  maxTokens: number;
 }
 
 export class Message {

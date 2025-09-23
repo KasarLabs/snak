@@ -186,15 +186,22 @@ export class AgentService implements IAgentService {
       const q = new Postgres.Query(
         `
 			SELECT
-			  id, name, "group", description, lore, objectives, knowledge,
-			  system_prompt, interval, plugins, memory, mode, max_iterations,
-			  "mcpServers",
+			  id, user_id, name, "group",
+			  row_to_json(profile) as profile,
+			  mcp_servers as "mcp_servers",
+			  plugins,
+			  row_to_json(prompts) as prompts,
+			  row_to_json(graph) as graph,
+			  row_to_json(memory) as memory,
+			  row_to_json(rag) as rag,
 			  CASE
 				WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
 				THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
 				ELSE NULL
 			  END as "avatarUrl",
-			  avatar_mime_type
+			  avatar_mime_type,
+			  created_at,
+			  updated_at
 			FROM agents
       WHERE user_id = $1
 		  `,
@@ -231,8 +238,8 @@ export class AgentService implements IAgentService {
   async updateModelsConfig(model: UpdateModelConfigDTO) {
     try {
       const q = new Postgres.Query(
-        `UPDATE models_config SET provider = $1, model_name = $2, description = $3 WHERE id = 1`,
-        [model.provider, model.modelName, model.description]
+        `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
+        [model.provider, model.modelName, model || 0.7, model.maxTokens || 4096, 'default-user']
       );
       const res = await Postgres.query(q);
       this.logger.debug(`Models config updated:', ${JSON.stringify(res)} `);

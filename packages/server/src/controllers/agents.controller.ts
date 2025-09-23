@@ -136,15 +136,16 @@ export class AgentsController {
       const query = `
         SELECT success, message, updated_agent_id
         FROM update_agent_complete(
-          $1::UUID, $2, $3, $4::agent_profile,
-          $5::JSONB, $6::TEXT[], $7::agent_prompts, $8::graph_config,
-          $9::memory_config, $10::rag_config, $11, $12
+          $1::UUID, $2::UUID, $3, $4, $5::agent_profile,
+          $6::JSONB, $7::TEXT[], $8::agent_prompts, $9::graph_config,
+          $10::memory_config, $11::rag_config, $12, $13
         )
       `;
 
       const result = await Postgres.query(
         new Postgres.Query(query, [
           id,
+          userId,
           config.name || null,
           config.group || null,
           config.profile || null,
@@ -168,10 +169,10 @@ export class AgentsController {
       const fetchQuery = new Postgres.Query(
         `SELECT
           id,
+          user_id,
           name,
           "group",
           row_to_json(profile) as profile,
-          mode,
           mcp_servers,
           plugins,
           row_to_json(prompts) as prompts,
@@ -182,8 +183,8 @@ export class AgentsController {
           updated_at,
           avatar_image,
           avatar_mime_type
-        FROM agents WHERE id = $1`,
-        [id]
+        FROM agents WHERE id = $1 AND user_id = $2`,
+        [id, userId]
       );
       const agent = await Postgres.query<AgentConfig.InputWithId>(fetchQuery);
 
