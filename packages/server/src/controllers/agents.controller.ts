@@ -151,7 +151,7 @@ export class AgentsController {
           config.profile || null,
           config.mcp_servers ? JSON.stringify(config.mcp_servers) : null,
           config.plugins || null,
-          config.prompts || null,
+          config.prompts_id || null,
           config.graph || null,
           config.memory || null,
           config.rag || null,
@@ -317,7 +317,6 @@ export class AgentsController {
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
       user_request: userRequest.request.content,
-      user_id: userId,
     };
 
     const action = this.agentService.handleUserRequest(agent, messageRequest);

@@ -155,7 +155,7 @@ export namespace AgentConfig {
    * Input configuration for creating/updating agents
    */
   export interface Input extends Base {
-    prompts?: AgentPrompts;
+    prompts_id?: string;
     graph: GraphConfig;
   }
 
@@ -164,7 +164,7 @@ export namespace AgentConfig {
    */
   export interface InputWithId extends Input {
     id: string;
-    prompts: AgentPrompts;
+    prompts_id: string;
     user_id: string;
   }
 

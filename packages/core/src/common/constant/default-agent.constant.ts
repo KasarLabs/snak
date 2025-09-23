@@ -26,9 +26,6 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
   },
   mcp_servers: {},
   plugins: [],
-  prompts: {
-    id: DEFAULT_PROMPT_ID,
-  },
   graph: {
     max_steps: 100,
     max_iterations: 10,

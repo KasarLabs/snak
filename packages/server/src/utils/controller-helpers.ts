@@ -42,6 +42,7 @@ export class ControllerHelpers {
     agentId: string,
     userId: string
   ): SnakAgent {
+    console.log("Hello2")
     const agent = agentFactory.getAgentInstance(agentId, userId);
     if (!agent) {
       throw new ForbiddenException('Agent not found or access denied');
@@ -62,6 +63,7 @@ export class ControllerHelpers {
     agentId: string,
     userId: string
   ): AgentConfig.InputWithId {
+    console.log("Hello")
     const agentConfig = agentFactory.getAgentConfig(agentId, userId);
     if (!agentConfig) {
       throw new ForbiddenException('Agent not found or access denied');

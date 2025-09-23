@@ -18,7 +18,7 @@ import {
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
-import { ChunkOutput, EventType } from '@snakagent/agents';
+import { ChunkOutput, EventType, SnakAgent } from '@snakagent/agents';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -27,7 +27,7 @@ export class AgentService implements IAgentService {
   constructor(private readonly config: ConfigurationService) {}
 
   async handleUserRequest(
-    agent: IAgent,
+    agent: SnakAgent,
     userRequest: MessageRequest
   ): Promise<AgentExecutionResponse> {
     this.logger.debug({
@@ -52,7 +52,7 @@ export class AgentService implements IAgentService {
 
         if (isAsyncGenerator(executionResult)) {
           for await (const chunk of executionResult) {
-            if (chunk.final === true) {
+            if (chunk.metadata.final === true) {
               this.logger.debug('SupervisorService: Execution completed');
               result = chunk;
               break;
@@ -239,7 +239,13 @@ export class AgentService implements IAgentService {
     try {
       const q = new Postgres.Query(
         `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
-        [model.provider, model.modelName, model || 0.7, model.maxTokens || 4096, 'default-user']
+        [
+          model.provider,
+          model.modelName,
+          model || 0.7,
+          model.maxTokens || 4096,
+          'default-user',
+        ]
       );
       const res = await Postgres.query(q);
       this.logger.debug(`Models config updated:', ${JSON.stringify(res)} `);

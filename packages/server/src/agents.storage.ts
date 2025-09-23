@@ -222,9 +222,8 @@ export class AgentStorage implements OnModuleInit {
       }
     }
 
-    const prompt_id = agentConfig.prompts
-      ? agentConfig.prompts.id
-      : await this.initializeDefaultPrompts(userId);
+    const prompt_id =
+      agentConfig.prompts_id ?? (await this.initializeDefaultPrompts(userId));
     const q = new Postgres.Query(
       `INSERT INTO agents (
         user_id,
@@ -318,10 +317,11 @@ export class AgentStorage implements OnModuleInit {
 
     if (q_res.length > 0) {
       const newAgentDbRecord = q_res[0];
+      const compositeKey = `${newAgentDbRecord.id}|${userId}`;
       this.agentConfigs.push(newAgentDbRecord);
       this.createSnakAgentFromConfig(newAgentDbRecord)
         .then((snakAgent) => {
-          this.agentInstances.set(newAgentDbRecord.id, snakAgent);
+          this.agentInstances.set(compositeKey, snakAgent);
           this.agentSelector.updateAvailableAgents(
             [newAgentDbRecord.id, snakAgent],
             userId
@@ -523,11 +523,11 @@ export class AgentStorage implements OnModuleInit {
       }
       // Get prompts from database or use fallback
       const promptsFromDb = await this.getPromptsFromDatabase(
-        agentConfig.prompts.id
+        agentConfig.prompts_id
       );
       if (!promptsFromDb) {
         throw new Error(
-          `Failed to load prompts for agent ${agentConfig.id}, prompts ID: ${agentConfig.prompts.id}`
+          `Failed to load prompts for agent ${agentConfig.id}, prompts ID: ${agentConfig.prompts_id}`
         );
       }
 
@@ -563,7 +563,8 @@ export class AgentStorage implements OnModuleInit {
           );
           continue;
         }
-        this.agentInstances.set(agentConfig.id, snakAgent);
+        const compositeKey = `${agentConfig.id}|${agentConfig.user_id}`;
+        this.agentInstances.set(compositeKey, snakAgent);
         logger.debug(
           `Created SnakAgent: ${agentConfig.name} (${agentConfig.id})`
         );
