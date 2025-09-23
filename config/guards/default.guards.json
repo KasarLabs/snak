@@ -50,7 +50,7 @@
       "min_content_length": 1,
       "max_source": 10
     },
-    "sementic_fact": {
+    "semantic_fact": {
       "fact": {
         "max_length": 1000,
         "min_length": 1
@@ -73,17 +73,6 @@
     "max_server_name_length": 255,
     "max_config_size": 1000,
     "max_profile_length": 255
-  },
-  "worker": {
-    "max_queue_name_length": 100,
-    "min_queue_name_length": 3,
-    "max_file_ingestion_workers": 4,
-    "min_file_ingestion_workers": 1,
-    "max_embeddings_workers": 4,
-    "min_embeddings_workers": 1,
-    "max_fallback_workers": 12,
-    "min_fallback_workers": 1,
-    "max_worker_idle_timeout": 60000
   },
   "agents": {
     "name_max_length": 100,

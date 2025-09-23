@@ -290,7 +290,15 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           .optional()
           .describe('Custom name for the server (defaults to qualified name)'),
         config: z
-          .record(z.any()) // TODO: add max config size
+          .record(z.any())
+          .refine(
+            (val) =>
+              JSON.stringify(val).length <=
+              getGuardValue('mcp.max_config_size'),
+            {
+              message: 'Configuration object exceeds maximum size limit',
+            }
+          )
           .optional()
           .describe('Configuration values required by the server'),
         profile: z

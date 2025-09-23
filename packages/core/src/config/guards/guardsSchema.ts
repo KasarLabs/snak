@@ -99,7 +99,7 @@ const MemorySemanticFactConfigSchema = z.object({
 const MemoryConfigSchema = z.object({
   ltm: MemoryLtmConfigSchema,
   episodic_event: MemoryEpisodicEventConfigSchema,
-  sementic_fact: MemorySemanticFactConfigSchema, // Note: keeping the typo from JSON
+  semantic_fact: MemorySemanticFactConfigSchema,
 });
 
 // Execution configuration schema
@@ -118,19 +118,6 @@ const McpConfigSchema = z.object({
   max_server_name_length: positiveInteger,
   max_config_size: positiveInteger,
   max_profile_length: positiveInteger,
-});
-
-// Worker configuration schema
-const WorkerConfigSchema = z.object({
-  max_queue_name_length: positiveInteger,
-  min_queue_name_length: positiveInteger,
-  max_file_ingestion_workers: positiveInteger,
-  min_file_ingestion_workers: positiveInteger,
-  max_embeddings_workers: positiveInteger,
-  min_embeddings_workers: positiveInteger,
-  max_fallback_workers: positiveInteger,
-  min_fallback_workers: positiveInteger,
-  max_worker_idle_timeout: positiveInteger,
 });
 
 // Agent memory configuration schema
@@ -266,7 +253,6 @@ export const GuardsConfigSchema = z.object({
   memory: MemoryConfigSchema,
   execution: ExecutionConfigSchema,
   mcp: McpConfigSchema,
-  worker: WorkerConfigSchema,
   agents: AgentsConfigSchema,
   model: ModelConfigSchema,
   rag: GuardsRagConfigSchema,

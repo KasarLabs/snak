@@ -157,22 +157,5 @@ export function reloadGuards(): void {
  * @throws Error if the path is invalid or service is not initialized
  */
 export function getGuardValue(path: string): any {
-  if (!guardsConfig) {
-    throw new Error(
-      'GuardsService is not initialized. Call initializeGuards() first.'
-    );
-  }
-
-  const keys = path.split('.');
-  let current: any = guardsConfig;
-
-  for (const key of keys) {
-    if (current && typeof current === 'object' && key in current) {
-      current = current[key];
-    } else {
-      throw new Error(`Invalid guard path: ${path}`);
-    }
-  }
-
-  return current;
+  return GuardsService.getInstance().getGuardValue(path);
 }

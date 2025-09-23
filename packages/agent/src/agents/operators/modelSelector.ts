@@ -250,37 +250,31 @@ export class ModelSelector extends BaseAgent {
     }
 
     const errors: string[] = [];
+    const providerMaxLength = getGuardValue('model.provider_max_length');
+    const modelNameMaxLength = getGuardValue('model.model_name_max_length');
+    const descriptionMaxLength = getGuardValue('model.description_max_length');
 
     for (const [levelName, levelConfig] of Object.entries(this.modelsConfig)) {
       const { provider, model_name, description } = levelConfig as any;
 
       // Validate provider name length
-      if (
-        provider &&
-        provider.length > getGuardValue('model.provider_max_length')
-      ) {
+      if (provider && provider.length > providerMaxLength) {
         errors.push(
-          `Model level '${levelName}': provider name '${provider}' exceeds maximum length of ${getGuardValue('model.provider_max_length')} characters`
+          `Model level '${levelName}': provider name '${provider}' exceeds maximum length of ${providerMaxLength} characters`
         );
       }
 
       // Validate model name length
-      if (
-        model_name &&
-        model_name.length > getGuardValue('model.model_name_max_length')
-      ) {
+      if (model_name && model_name.length > modelNameMaxLength) {
         errors.push(
-          `Model level '${levelName}': model name '${model_name}' exceeds maximum length of ${getGuardValue('model.model_name_max_length')} characters`
+          `Model level '${levelName}': model name '${model_name}' exceeds maximum length of ${modelNameMaxLength} characters`
         );
       }
 
       // Validate description length if present
-      if (
-        description &&
-        description.length > getGuardValue('model.description_max_length')
-      ) {
+      if (description && description.length > descriptionMaxLength) {
         errors.push(
-          `Model level '${levelName}': description exceeds maximum length of ${getGuardValue('model.description_max_length')} characters`
+          `Model level '${levelName}': description exceeds maximum length of ${descriptionMaxLength} characters`
         );
       }
     }

@@ -1,3 +1,6 @@
+// CRITICAL: Initialize Guards BEFORE any other imports that might use getGuardValue
+import './init-guards.js';
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
@@ -29,7 +32,7 @@ async function bootstrap() {
     ).register(fastifyMultipart as any, {
       limits: {
         fileSize: getGuardValue('rag.rag_max_size'), // 501KB
-        files: getGuardValue('rag.rag_min_files'),
+        files: getGuardValue('rag.rag_min_size'),
       },
     });
 

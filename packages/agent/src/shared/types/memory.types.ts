@@ -134,12 +134,12 @@ export const episodicEventSchema = z.object({
 export const semanticFactSchema = z.object({
   fact: z
     .string()
-    .min(getGuardValue('memory.sementic_fact.fact.min_length'))
-    .max(getGuardValue('memory.sementic_fact.fact.max_length'))
+    .min(getGuardValue('memory.semantic_fact.fact.min_length'))
+    .max(getGuardValue('memory.semantic_fact.fact.max_length'))
     .describe('The learned information or insight'),
   category: z
     .string()
-    .max(getGuardValue('memory.sementic_fact.category.max_length'))
+    .max(getGuardValue('memory.semantic_fact.category.max_length'))
     .optional()
     .default('fact')
     .describe('Type of fact'),

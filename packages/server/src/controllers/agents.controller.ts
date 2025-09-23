@@ -270,7 +270,9 @@ export class AgentsController {
 
     const maxSize = getGuardValue('user.max_upload_avatar_size');
     if (buffer.length > maxSize) {
-      throw new BadRequestException('File too large. Maximum size is 5MB.');
+      throw new BadRequestException(
+        `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`
+      );
     }
 
     const agentIdField = data.fields?.agent_id;
