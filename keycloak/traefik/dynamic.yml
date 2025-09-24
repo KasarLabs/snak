@@ -1,0 +1,79 @@
+tls:
+  certificates:
+    - certFile: /certs/mysnakagent.crt
+      keyFile: /certs/mysnakagent.key
+
+http:
+  routers:
+    keycloak-public:
+      rule: "Host(`auth.mysnakagent.com`)"
+      entryPoints: [websecure]
+      service: keycloak
+      tls: {}
+
+    # OAuth2 Proxy flow
+    oauth2:
+      rule: "Host(`mysnakagent.com`) && PathPrefix(`/oauth2`)"
+      entryPoints: [websecure]
+      service: oauth2-proxy
+      tls: {}
+
+    frontend:
+      rule: "Host(`mysnakagent.com`) && PathPrefix(`/`)"
+      entryPoints: [websecure]
+      service: dummy-frontend
+      tls: {}
+
+    backend:
+      rule: "Host(`mysnakagent.com`) && PathPrefix(`/api`)"
+      entryPoints: [websecure]
+      service: snak-api
+      middlewares: [oauth-auth]
+      tls: {}
+
+  services:
+    keycloak:
+      loadBalancer:
+        servers:
+          - url: "http://keycloak:8080"
+
+    oauth2-proxy:
+      loadBalancer:
+        servers:
+          - url: "http://oauth2-proxy:4180"
+
+    dummy-frontend:
+      loadBalancer:
+        servers:
+          - url: "http://dummy-frontend:8080"
+
+    # dummy-backend:
+    #   loadBalancer:
+    #     servers:
+    #       - url: "http://dummy-backend:8081"
+
+    snak-api:
+      loadBalancer:
+        servers:
+          - url: "http://snak-api:3002"
+
+    deny-403:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:9" # invalid target → always 502/403
+
+  middlewares:
+    oauth-auth:
+      forwardAuth:
+        address: http://oauth2-proxy:4180/
+        trustForwardHeader: true
+        authRequestHeaders:
+          - Cookie
+          - Authorization
+          - Upgrade
+          - Connection
+        authResponseHeaders:
+          - X-Auth-Request-User
+          - X-Auth-Request-Email
+          - Authorization
+          - X-Auth-Request-Access-Token
