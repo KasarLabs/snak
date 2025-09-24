@@ -77,7 +77,11 @@ export class TaskManagerGraph {
     | Tool
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
-  private readonly avaibleToolsName = ['create_task', 'block_task', 'end_task'];
+  private readonly availableToolsName = [
+    'create_task',
+    'block_task',
+    'end_task',
+  ];
   constructor(
     agentConfig: AgentConfig.Runtime,
     toolList: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
@@ -203,7 +207,7 @@ export class TaskManagerGraph {
           },
         };
       }
-      if (!this.avaibleToolsName.includes(aiMessage.tool_calls[0].name)) {
+      if (!this.availableToolsName.includes(aiMessage.tool_calls[0].name)) {
         logger.warn(
           `[Task Manager] Unrecognized tool call "${aiMessage.tool_calls[0].name}", retrying`
         );

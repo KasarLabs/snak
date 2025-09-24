@@ -45,6 +45,7 @@ import {
 } from '@prompts/agents/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
 import { TokenTracker } from '@lib/token/token-tracking.js';
+import { cat } from '@huggingface/transformers';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig.Runtime;
@@ -163,14 +164,14 @@ export class AgentExecutorGraph {
       }
       aiMessage.content = ''; // Clear content because we are using tool calls only
       logger.debug(`[Executor] Model response received`);
-      const mewMemories = STMManager.addMemory(
+      const newMemories = STMManager.addMemory(
         state.memories.stm,
         [aiMessage],
         state.tasks[state.tasks.length - 1].id
       );
-      if (!mewMemories.success || !mewMemories.data) {
+      if (!newMemories.success || !newMemories.data) {
         throw new Error(
-          `Failed to add AI message to STM: ${mewMemories.error}`
+          `Failed to add AI message to STM: ${newMemories.error}`
         );
       }
       let isEnd = false;
@@ -181,11 +182,17 @@ export class AgentExecutorGraph {
         aiMessage.tool_calls.forEach((call) => {
           !call.id ? (call.id = uuidv4()) : call.id;
           if (call.name === 'response_task') {
-            thought = JSON.parse(
-              typeof call.args === 'string'
-                ? call.args
-                : JSON.stringify(call.args)
-            ) as ThoughtsSchemaType;
+            try {
+              thought = JSON.parse(
+                typeof call.args === 'string'
+                  ? call.args
+                  : JSON.stringify(call.args)
+              ) as ThoughtsSchemaType;
+            } catch (e) {
+              throw new Error(
+                `Failed to parse thought from model response: ${e.message}`
+              );
+            }
           } else {
             tools.push({
               tool_call_id: call.id,
@@ -226,7 +233,7 @@ export class AgentExecutorGraph {
       };
 
       // Parse for task
-      state.memories.stm = mewMemories.data;
+      state.memories.stm = newMemories.data;
       currentTask.steps.push({
         id: uuidv4(),
         thought: thought!, // add verifier and the execition need to be restart to ne sure that their is a though schema
@@ -296,7 +303,7 @@ export class AgentExecutorGraph {
   > {
     const lastMessage = state.messages[state.messages.length - 1];
     const toolTimeout =
-      config.configurable?.agent_config?.graph.execution_timeout_ms; // TODO add the field in the agent_configuration;
+      config.configurable?.agent_config?.graph.execution_timeout_ms;
     if (!this.model) {
       throw new Error('Model not found in ModelSelector');
     }
@@ -333,7 +340,7 @@ export class AgentExecutorGraph {
         }, toolTimeout);
       });
 
-      const executionPromise = await originalInvoke(state, config);
+      const executionPromise = originalInvoke(state, config);
       const tools: { messages: ToolMessage[] } = await Promise.race([
         executionPromise,
         timeoutPromise,
@@ -355,7 +362,7 @@ export class AgentExecutorGraph {
           ).then((res) => res.message.content);
           tool.content = summarize_content;
         }
-        currentTask.steps[currentTask.steps.length - 1].tool.filter(
+        currentTask.steps[currentTask.steps.length - 1].tool.forEach(
           (t: ToolCallType) => {
             if (t.tool_call_id === tool.tool_call_id) {
               t.status = 'completed';

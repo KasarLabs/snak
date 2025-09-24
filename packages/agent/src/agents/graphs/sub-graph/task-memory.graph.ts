@@ -139,7 +139,7 @@ export class MemoryGraph {
         )
       ) {
         logger.warn(
-          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[TaskManagerMemory] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
         throw new Error('Max memory graph steps reached');
       }
@@ -255,7 +255,7 @@ export class MemoryGraph {
         )
       ) {
         logger.warn(
-          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[TaskManagerMemory] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
         throw new Error('Max memory graph steps reached');
       }
@@ -292,7 +292,7 @@ export class MemoryGraph {
           (mem) => !stmCurrentStepIds.includes(mem.step_id)
         );
         logger.debug(
-          `[TaskMemoryNode] Filtered to ${filteredResults.length} memories after STM check`
+          `[RetrieveMemory] Filtered to ${filteredResults.length} memories after STM check`
         );
         const updatedMemories = MemoryStateManager.updateLTM(
           state.memories,
@@ -335,11 +335,11 @@ export class MemoryGraph {
   ): TaskMemoryNode {
     try {
       const lastNode = state.last_node;
-      logger.debug(`[MemoryRouter] Routing from agent: ${lastNode}`);
+      logger.debug(`[TaskManagerMemory] Routing from agent: ${lastNode}`);
       // Validate memory state
       if (!MemoryStateManager.validate(state.memories)) {
         logger.error(
-          '[MemoryRouter] Invalid memory state detected, routing to end'
+          '[TaskManagerMemory] Invalid memory state detected, routing to end'
         );
         return TaskMemoryNode.END_MEMORY_GRAPH;
       }
@@ -350,32 +350,34 @@ export class MemoryGraph {
 
         case isInEnum(TaskManagerNode, lastNode):
           logger.debug(
-            '[MemoryRouter] Plan validated → retrieving memory context'
+            '[TaskManagerMemory] Plan validated → retrieving memory context'
           );
           return TaskMemoryNode.RETRIEVE_MEMORY;
 
         case isInEnum(TaskVerifierNode, lastNode):
           logger.debug(
-            '[MemoryRouter] Task verification complete → retrieving memory context'
+            '[TaskManagerMemory] Task verification complete → retrieving memory context'
           );
           return TaskMemoryNode.LTM_MANAGER;
 
         case isInEnum(TaskMemoryNode, lastNode):
           if (lastNode === TaskMemoryNode.RETRIEVE_MEMORY) {
             logger.debug(
-              '[MemoryRouter] Memory context retrieved → ending memory flow'
+              '[TaskManagerMemory] Memory context retrieved → ending memory flow'
             );
             return TaskMemoryNode.END;
           }
           return TaskMemoryNode.END_MEMORY_GRAPH;
         default:
           logger.warn(
-            `[MemoryRouter] Unknown agent ${lastNode}, routing to end`
+            `[TaskManagerMemory] Unknown agent ${lastNode}, routing to end`
           );
           return TaskMemoryNode.END_MEMORY_GRAPH;
       }
     } catch (error: any) {
-      logger.error(`[MemoryRouter] Error in routing logic: ${error.message}`);
+      logger.error(
+        `[TaskManagerMemory] Error in routing logic: ${error.message}`
+      );
       return TaskMemoryNode.END_MEMORY_GRAPH;
     }
   }
@@ -406,12 +408,15 @@ export class MemoryGraph {
       GraphState,
       GraphConfigurableAnnotation
     )
-      .addNode('ltm_manager', this.ltm_manager.bind(this))
-      .addNode('retrieve_memory', this.retrieve_memory.bind(this))
-      .addNode('end_memory_graph', this.end_memory_graph.bind(this))
+      .addNode(TaskMemoryNode.LTM_MANAGER, this.ltm_manager.bind(this))
+      .addNode(TaskMemoryNode.RETRIEVE_MEMORY, this.retrieve_memory.bind(this))
+      .addNode(
+        TaskMemoryNode.END_MEMORY_GRAPH,
+        this.end_memory_graph.bind(this)
+      )
       .addConditionalEdges(START, this.memory_router.bind(this))
-      .addEdge('ltm_manager', 'retrieve_memory')
-      .addEdge('retrieve_memory', END);
+      .addEdge(TaskMemoryNode.LTM_MANAGER, TaskMemoryNode.RETRIEVE_MEMORY)
+      .addEdge(TaskMemoryNode.LTM_MANAGER, END);
     this.graph = memory_subgraph.compile();
   }
 }

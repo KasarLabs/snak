@@ -7,7 +7,7 @@ import {
   MemoryOperationResult,
 } from '../../../../shared/types/index.js';
 import { memory } from '@snakagent/database/queries';
-import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   ChatPromptTemplate,
@@ -24,8 +24,14 @@ export class STMManager {
    * Creates an empty STM state
    */
   static createEmpty(maxSize: number): STMContext {
-    if (maxSize < 0 || !Number.isInteger(maxSize) || !Number.isFinite(maxSize)) {
-      throw new Error(`Invalid maxSize for STM: ${maxSize}. Must be a non-negative integer.`);
+    if (
+      maxSize < 0 ||
+      !Number.isInteger(maxSize) ||
+      !Number.isFinite(maxSize)
+    ) {
+      throw new Error(
+        `Invalid maxSize for STM: ${maxSize}. Must be a non-negative integer.`
+      );
     }
     return {
       items: new Array(maxSize).fill(null),
@@ -130,7 +136,11 @@ export class STMManager {
       };
     } catch (error) {
       logger.error('[STMManager] Error updating recent memory:', error);
-      throw error;
+      return {
+        success: false,
+        error: `Failed to update recent memory: ${error.message}`,
+        timestamp: Date.now(),
+      };
     }
   }
 
@@ -285,6 +295,6 @@ export class LTMManager {
       })
       .join('\n\n');
 
-    return formattedEpisodicMemories.concat(formattedSemanticMemories);
+    return formattedEpisodicMemories.concat('\n\n', formattedSemanticMemories);
   }
 }
