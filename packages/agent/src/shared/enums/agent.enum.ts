@@ -34,6 +34,7 @@ export enum GraphNode {
  */
 export enum TaskManagerNode {
   CREATE_TASK = 'create_task',
+  END_GRAPH = 'end_graph',
   END = 'end',
 }
 
@@ -44,7 +45,7 @@ export enum TaskExecutorNode {
   REASONING_EXECUTOR = 'reasoning_executor',
   TOOL_EXECUTOR = 'tool_executor',
   HUMAN = 'human',
-  END_EXECUTOR_GRAPH = 'end_executor_graph',
+  END_GRAPH = 'end_graph',
   END = 'end',
 }
 
@@ -54,7 +55,7 @@ export enum TaskExecutorNode {
 export enum TaskMemoryNode {
   LTM_MANAGER = 'ltm_manager',
   RETRIEVE_MEMORY = 'retrieve_memory',
-  END_MEMORY_GRAPH = 'end_memory_graph',
+  END_GRAPH = 'end_graph',
   END = 'end',
 }
 
@@ -66,6 +67,6 @@ export enum TaskVerifierNode {
   TASK_SUCCESS_HANDLER = 'task_success_handler',
   TASK_FAILURE_HANDLER = 'task_failure_handler',
   TASK_UPDATER = 'task_updater',
-  END_VERIFIER_GRAPH = 'end_verifier_graph',
+  END_GRAPH = 'end_graph',
   END = 'end',
 }

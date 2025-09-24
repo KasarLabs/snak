@@ -18,7 +18,7 @@ import {
   hasReachedMaxSteps,
   isValidConfiguration,
   isValidConfigurationType,
-} from '../utils/graph-utils.js';
+} from '../utils/graph.utils.js';
 import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';

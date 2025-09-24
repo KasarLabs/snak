@@ -9,7 +9,8 @@ import {
   estimateTokens,
   GenerateToolCallsFromMessage,
   handleNodeError,
-} from '../utils/graph-utils.js';
+  routingFromSubGraphToParentGraphEndNode,
+} from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, logger } from '@snakagent/core';
@@ -476,7 +477,7 @@ export class AgentExecutorGraph {
     }
     if (state.retry > config.configurable?.agent_config?.graph.max_retries) {
       logger.warn('[Router] Max retries reached, routing to END node');
-      return TaskExecutorNode.END_EXECUTOR_GRAPH;
+      return TaskExecutorNode.END_GRAPH;
     }
     if (state.last_node === TaskExecutorNode.REASONING_EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
@@ -508,12 +509,16 @@ export class AgentExecutorGraph {
         state.currentGraphStep
       ) {
         logger.warn('[Router] Max graph steps reached, routing to END node');
-        return TaskExecutorNode.END_EXECUTOR_GRAPH;
+        return TaskExecutorNode.END_GRAPH;
       } else {
         return TaskExecutorNode.END;
       }
     }
     return TaskExecutorNode.END;
+  }
+
+  public getExecutorGraph() {
+    return this.graph;
   }
 
   private executor_router(
@@ -523,24 +528,6 @@ export class AgentExecutorGraph {
     return this.shouldContinue(state, config);
   }
 
-  private end_planner_graph(state: typeof GraphState.State) {
-    logger.info('[EndExecutorGraph] Cleaning up state for graph termination');
-    return new Command({
-      update: {
-        plans_or_histories: undefined,
-        currentTaskIndex: 0,
-        retry: 0,
-        skipValidation: { skipValidation: true, goto: 'end_graph' },
-      },
-      goto: 'end_graph',
-      graph: Command.PARENT,
-    });
-  }
-  public getExecutorGraph() {
-    return this.graph;
-  }
-
-  // TODO ADD End graph and add router for executor validator
   public createAgentExecutorGraph() {
     const tool_executor = this.createToolNode();
 
@@ -553,10 +540,10 @@ export class AgentExecutorGraph {
         this.reasoning_executor.bind(this)
       )
       .addNode(TaskExecutorNode.TOOL_EXECUTOR, tool_executor)
-      .addNode('human', this.humanNode.bind(this))
+      .addNode(TaskExecutorNode.HUMAN, this.humanNode.bind(this))
       .addNode(
-        TaskExecutorNode.END_EXECUTOR_GRAPH,
-        this.end_planner_graph.bind(this)
+        TaskExecutorNode.END_GRAPH,
+        routingFromSubGraphToParentGraphEndNode.bind(this)
       )
       .addEdge(START, TaskExecutorNode.REASONING_EXECUTOR)
       .addConditionalEdges(

@@ -17,7 +17,6 @@ CREATE TYPE memory_strategy AS ENUM (
 -- As per manual 8.16: Composite types represent row/record structure
 CREATE TYPE agent_profile AS (
     description TEXT,
-    "group" VARCHAR(255),
     lore TEXT[],
     objectives TEXT[],
     knowledge TEXT[],
@@ -554,7 +553,6 @@ INSERT INTO agents (
     'support',
     ROW(
         'Handles customer inquiries and support tickets',
-        'support',
         ARRAY['Friendly and helpful', 'Patient with customers'],
         ARRAY['Resolve customer issues', 'Provide accurate information'],
         ARRAY['product-catalog', 'return-policy', 'shipping-info'],
@@ -601,7 +599,6 @@ INSERT INTO agents (
     'Minimal Bot',
     ROW(
         'A minimal agent configuration',
-        'default_group',
         ARRAY[]::TEXT[],  -- empty lore
         ARRAY[]::TEXT[],  -- empty objectives
         ARRAY[]::TEXT[],  -- empty knowledge
@@ -675,7 +672,6 @@ SELECT * FROM replace_agent_complete(
     'new_group',
     ROW(
         'Brand new description',
-        'new_group',
         ARRAY['New personality trait'],
         ARRAY['New objective'],
         ARRAY['New knowledge'],

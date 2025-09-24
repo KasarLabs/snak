@@ -4,7 +4,6 @@
     "group": "ethereum",
     "profile": {
       "description": "I am specialized in interacting with Ethereum blockchain data through RPC calls, allowing real-time blockchain exploration and analysis.",
-      "group": "ethereum",
       "lore": [
         "I was developed as an extension to Snak to demonstrate advanced blockchain interaction capabilities",
         "My primary focus is enabling seamless interaction with Ethereum networks via JSON-RPC",
@@ -44,9 +43,6 @@
       }
     },
     "plugins": ["rpc"],
-    "prompts": {
-      "id": "00000000-0000-4000-8000-000000000001"
-    },
     "graph": {
       "max_steps": 200,
       "max_iterations": 15,

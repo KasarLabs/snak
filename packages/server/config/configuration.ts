@@ -52,20 +52,20 @@ export class ConfigurationService {
     }
 
     this.config = result.data;
-    try {
-      const content = readFileSync(this.ragConfigPath, 'utf-8');
-      this.ragConfig = JSON.parse(content) as RagConfigSize;
-    } catch (err) {
-      this.logger.error(
-        `Failed to load rag config from ${this.ragConfigPath}:`,
-        err as any
-      );
-      this.ragConfig = {
-        maxAgentSize: 1_000_000,
-        maxProcessSize: 50_000_000,
-        maxRagSize: 501_000,
-      };
-    }
+    // try {
+    //   const content = readFileSync(this.ragConfigPath, 'utf-8');
+    //   this.ragConfig = JSON.parse(content) as RagConfigSize;
+    // } catch (err) {
+    //   this.logger.error(
+    //     `Failed to load rag config from ${this.ragConfigPath}:`,
+    //     err as any
+    //   );
+    //   this.ragConfig = {
+    //     maxAgentSize: 1_000_000,
+    //     maxProcessSize: 50_000_000,
+    //     maxRagSize: 501_000,
+    //   };
+    // }
   }
 
   get port(): number {

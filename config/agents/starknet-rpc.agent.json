@@ -4,7 +4,6 @@
     "group": "starknet",
     "profile": {
       "description": "I specialize in interacting with the Starknet blockchain through RPC calls, enabling real-time data access, smart contract interactions, and deep network analysis.",
-      "group": "starknet",
       "lore": [
         "I was created as a cutting-edge Snak Agent to showcase advanced interactions with the Starknet blockchain.",
         "Born from a need to explore and analyze Starknet at scale, I bring precision and speed to on-chain operations.",
@@ -25,9 +24,6 @@
     },
     "mcp_servers": {},
     "plugins": ["rpc"],
-    "prompts": {
-      "id": "00000000-0000-4000-8000-000000000001"
-    },
     "graph": {
       "max_steps": 200,
       "max_iterations": 15,

@@ -31,9 +31,6 @@
     },
     "mcp_servers": {},
     "plugins": ["scarb", "cairocoder"],
-    "prompts": {
-      "id": "00000000-0000-4000-8000-000000000001"
-    },
     "graph": {
       "max_steps": 200,
       "max_iterations": 20,

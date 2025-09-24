@@ -186,12 +186,11 @@ export class AgentStorage implements OnModuleInit {
     }
 
     const baseName = agentConfig.name;
-    const group = agentConfig.group;
 
     let finalName = baseName;
     const nameCheckQuery = new Postgres.Query(
       `SELECT name FROM agents WHERE "group" = $1 AND (name = $2 OR name LIKE $2 || '-%') ORDER BY LENGTH(name) DESC, name DESC LIMIT 1`,
-      [group, baseName]
+      [agentConfig.group, baseName]
     );
     logger.debug(`Name check query: ${nameCheckQuery}`);
     const nameCheckResult = await Postgres.query<{ name: string }>(
@@ -212,7 +211,7 @@ export class AgentStorage implements OnModuleInit {
           finalName = `${baseName}-${lastIndex + 1}`;
         } else {
           logger.warn(
-            `Unexpected name format found: ${existingName} for baseName: ${baseName} in group: ${group}. Attempting to suffix with -1.`
+            `Unexpected name format found: ${existingName} for baseName: ${baseName} in group: ${agentConfig.group}. Attempting to suffix with -1.`
           );
           finalName = `${baseName}-1`;
         }
@@ -237,13 +236,13 @@ export class AgentStorage implements OnModuleInit {
         $1,
         $2,
         $3,
-        ROW($4, $5, $6::text[], $7::text[], $8::text[], $9)::agent_profile,
-        $10::jsonb,
-        $11::text[],
-        $12,
-        ROW($13, $14, $15, $16, $17, ROW($18, $19, $20, $21)::model_config)::graph_config,
-        ROW($22, ROW($23, $24, $25, $26, $27)::memory_size_limits, ROW($28, $29, $30, $31)::memory_thresholds, ROW($32, $33)::memory_timeouts, $34::memory_strategy)::memory_config,
-        ROW($35, $36, $37)::rag_config
+        ROW($4, $5::text[], $6::text[], $7::text[], $8)::agent_profile,
+        $9::jsonb,
+        $10::text[],
+        $11,
+        ROW($12, $13, $14, $15, $16, ROW($17, $18, $19, $20)::model_config)::graph_config,
+        ROW($21, ROW($22, $23, $24, $25, $26)::memory_size_limits, ROW($27, $28, $29, $30)::memory_thresholds, ROW($31, $32)::memory_timeouts, $33::memory_strategy)::memory_config,
+        ROW($34, $35, $36)::rag_config
       ) RETURNING
         id,
         user_id,
@@ -263,50 +262,49 @@ export class AgentStorage implements OnModuleInit {
       [
         userId, // $1
         finalName, // $2
-        group, // $3
+        agentConfig.group, // $3
         agentConfig.profile.description, // $4
-        agentConfig.profile.group, // $5
-        agentConfig.profile.lore, // $6
-        agentConfig.profile.objectives, // $7
-        agentConfig.profile.knowledge, // $8
-        agentConfig.profile.agent_config_prompt || null, // $9
-        agentConfig.mcp_servers || {}, // $10
-        agentConfig.plugins, // $11
+        agentConfig.profile.lore, // $5
+        agentConfig.profile.objectives, // $6
+        agentConfig.profile.knowledge, // $7
+        agentConfig.profile.agent_config_prompt || null, // $8
+        agentConfig.mcp_servers || {}, // $9
+        agentConfig.plugins, // $10
         // prompts_id
-        prompt_id, // $12
+        prompt_id, // $11
         // graph_config
-        agentConfig.graph.max_steps, // $13
-        agentConfig.graph.max_iterations, // $14
-        agentConfig.graph.max_retries, // $15
-        agentConfig.graph.execution_timeout_ms, // $16
-        agentConfig.graph.max_token_usage, // $17
+        agentConfig.graph.max_steps, // $12
+        agentConfig.graph.max_iterations, // $13
+        agentConfig.graph.max_retries, // $14
+        agentConfig.graph.execution_timeout_ms, // $15
+        agentConfig.graph.max_token_usage, // $16
         // model_config (nested in graph_config)
-        agentConfig.graph.model.provider, // $18
-        agentConfig.graph.model.model_name, // $19
-        agentConfig.graph.model.temperature, // $20
-        agentConfig.graph.model.max_tokens || 4096, // $21
+        agentConfig.graph.model.provider, // $17
+        agentConfig.graph.model.model_name, // $18
+        agentConfig.graph.model.temperature, // $19
+        agentConfig.graph.model.max_tokens || 4096, // $20
         // memory_config
-        agentConfig.memory.ltm_enabled, // $22
+        agentConfig.memory.ltm_enabled, // $21
         // memory_size_limits
-        agentConfig.memory.size_limits.short_term_memory_size, // $23
-        agentConfig.memory.size_limits.max_insert_episodic_size, // $24
-        agentConfig.memory.size_limits.max_insert_semantic_size, // $25
-        agentConfig.memory.size_limits.max_retrieve_memory_size, // $26
-        agentConfig.memory.size_limits.limit_before_summarization, // $27
+        agentConfig.memory.size_limits.short_term_memory_size, // $22
+        agentConfig.memory.size_limits.max_insert_episodic_size, // $23
+        agentConfig.memory.size_limits.max_insert_semantic_size, // $24
+        agentConfig.memory.size_limits.max_retrieve_memory_size, // $25
+        agentConfig.memory.size_limits.limit_before_summarization, // $26
         // memory_thresholds
-        agentConfig.memory.thresholds.insert_semantic_threshold, // $28
-        agentConfig.memory.thresholds.insert_episodic_threshold, // $29
-        agentConfig.memory.thresholds.retrieve_memory_threshold, // $30
-        agentConfig.memory.thresholds.hitl_threshold, // $31
+        agentConfig.memory.thresholds.insert_semantic_threshold, // $27
+        agentConfig.memory.thresholds.insert_episodic_threshold, // $28
+        agentConfig.memory.thresholds.retrieve_memory_threshold, // $29
+        agentConfig.memory.thresholds.hitl_threshold, // $30
         // memory_timeouts
-        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $32
-        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $33
+        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $31
+        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $32
         // memory_strategy
-        agentConfig.memory.strategy, // $34
+        agentConfig.memory.strategy, // $33
         // rag_config
-        agentConfig.rag.enabled, // $35
-        agentConfig.rag.top_k, // $36
-        agentConfig.rag.embedding_model, // $37
+        agentConfig.rag.enabled, // $34
+        agentConfig.rag.top_k, // $35
+        agentConfig.rag.embedding_model, // $36
       ]
     );
     const q_res = await Postgres.query<AgentConfig.InputWithId>(q);

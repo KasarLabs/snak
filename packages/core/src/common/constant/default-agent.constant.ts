@@ -12,7 +12,6 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
   group: 'system',
   profile: {
     description: 'Default system agent for basic operations',
-    group: 'system',
     lore: ['System agent', 'Default configuration'],
     objectives: [
       'Provide basic agent functionality',

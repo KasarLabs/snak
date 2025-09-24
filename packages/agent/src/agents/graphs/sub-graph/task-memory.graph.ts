@@ -14,7 +14,8 @@ import {
   hasReachedMaxSteps,
   isValidConfiguration,
   isValidConfigurationType,
-} from '../utils/graph-utils.js';
+  routingFromSubGraphToParentGraphEndNode,
+} from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { logger, MemoryConfig } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
@@ -144,6 +145,12 @@ export class MemoryGraph {
         );
         throw new Error('Max memory graph steps reached');
       }
+      if (config.configurable?.agent_config?.memory.ltm_enabled === false) {
+        logger.info(
+          '[TaskManagerMemory] Memory disabled in configuration skipping LTM update'
+        );
+        return { last_node: TaskMemoryNode.END_GRAPH };
+      }
       const agentConfig = config.configurable!.agent_config!;
       const currentTask = getCurrentTask(state.tasks);
       if (!['completed', 'failed'].includes(currentTask.status)) {
@@ -262,6 +269,12 @@ export class MemoryGraph {
         );
         throw new Error('Max memory graph steps reached');
       } // Fetch relevant memories from DB based on recent STM context
+      if (config.configurable?.agent_config?.memory.ltm_enabled === false) {
+        logger.info(
+          '[TaskManagerMemory] Memory disabled in configuration skipping retrieve memory'
+        );
+        return { last_node: TaskMemoryNode.END_GRAPH };
+      }
       const agentConfig = config.configurable!.agent_config!;
       const recentSTM = STMManager.getRecentMemories(state.memories.stm, 1);
       if (recentSTM.length === 0) {
@@ -342,7 +355,7 @@ export class MemoryGraph {
         logger.error(
           '[TaskManagerMemory] Invalid memory state detected, routing to end'
         );
-        return TaskMemoryNode.END_MEMORY_GRAPH;
+        return TaskMemoryNode.END_GRAPH;
       }
       // Route based on previous agent and current state
       switch (true) {
@@ -368,36 +381,19 @@ export class MemoryGraph {
             );
             return TaskMemoryNode.END;
           }
-          return TaskMemoryNode.END_MEMORY_GRAPH;
+          return TaskMemoryNode.END_GRAPH;
         default:
           logger.warn(
             `[TaskManagerMemory] Unknown agent ${lastNode}, routing to end`
           );
-          return TaskMemoryNode.END_MEMORY_GRAPH;
+          return TaskMemoryNode.END_GRAPH;
       }
     } catch (error: any) {
       logger.error(
         `[TaskManagerMemory] Error in routing logic: ${error.message}`
       );
-      return TaskMemoryNode.END_MEMORY_GRAPH;
+      return TaskMemoryNode.END_GRAPH;
     }
-  }
-
-  private end_memory_graph(
-    _state: typeof GraphState.State,
-    _config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ) {
-    logger.info('[EndMemoryGraph] Cleaning up memory graph state');
-    return new Command({
-      update: {
-        plans_or_histories: undefined,
-        currentTaskIndex: 0,
-        retry: 0,
-        skipValidation: { skipValidation: true, goto: 'end_graph' },
-      },
-      goto: 'end_graph',
-      graph: Command.PARENT,
-    });
   }
 
   public getMemoryGraph() {
@@ -412,8 +408,8 @@ export class MemoryGraph {
       .addNode(TaskMemoryNode.LTM_MANAGER, this.ltm_manager.bind(this))
       .addNode(TaskMemoryNode.RETRIEVE_MEMORY, this.retrieve_memory.bind(this))
       .addNode(
-        TaskMemoryNode.END_MEMORY_GRAPH,
-        this.end_memory_graph.bind(this)
+        TaskMemoryNode.END_GRAPH,
+        routingFromSubGraphToParentGraphEndNode.bind(this)
       )
       .addConditionalEdges(START, this.memory_router.bind(this))
       .addEdge(TaskMemoryNode.LTM_MANAGER, TaskMemoryNode.RETRIEVE_MEMORY)

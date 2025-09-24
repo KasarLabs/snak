@@ -12,7 +12,8 @@ import {
   hasReachedMaxSteps,
   isValidConfiguration,
   isValidConfigurationType,
-} from '../utils/graph-utils.js';
+  routingFromSubGraphToParentGraphEndNode,
+} from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, logger } from '@snakagent/core';
@@ -277,7 +278,7 @@ export class TaskManagerGraph {
   private shouldContinue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): TaskManagerNode | 'END' {
+  ): TaskManagerNode {
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required for routing decisions.');
     }
@@ -285,7 +286,7 @@ export class TaskManagerGraph {
       logger.warn(
         '[Task Manager Router] Max retries reached, routing to END node'
       );
-      return 'END';
+      return TaskManagerNode.END_GRAPH;
     }
     if (state.last_node === TaskManagerNode.CREATE_TASK) {
       if (state.error && state.error.hasError) {
@@ -298,15 +299,19 @@ export class TaskManagerGraph {
           );
           return TaskManagerNode.CREATE_TASK;
         }
+      } else {
+        logger.info('[Task Manager Router] Task created, routing to END');
+        return TaskManagerNode.END;
       }
     }
-    return 'END';
+    logger.warn('[Task Manager Router] Routing to END_GRAPH node');
+    return TaskManagerNode.END_GRAPH;
   }
 
   private task_manager_router(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): TaskManagerNode | 'END' {
+  ): TaskManagerNode {
     return this.shouldContinue(state, config);
   }
 
@@ -320,6 +325,10 @@ export class TaskManagerGraph {
       GraphConfigurableAnnotation
     )
       .addNode(TaskManagerNode.CREATE_TASK, this.planExecution.bind(this))
+      .addNode(
+        TaskManagerNode.END_GRAPH,
+        routingFromSubGraphToParentGraphEndNode.bind(this)
+      )
       .addEdge(START, TaskManagerNode.CREATE_TASK)
       .addConditionalEdges(
         TaskManagerNode.CREATE_TASK,

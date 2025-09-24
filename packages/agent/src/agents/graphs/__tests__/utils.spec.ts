@@ -15,7 +15,7 @@ import {
   createMaxIterationsResponse,
   getLatestMessageForMessage,
   isTokenLimitError,
-} from '../utils/graph-utils.js';
+} from '../utils/graph.utils.js';
 
 // -----------------------
 // Mocks

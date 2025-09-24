@@ -3,7 +3,6 @@ CREATE OR REPLACE FUNCTION add_agent_with_json(
     p_name VARCHAR(255),
     p_group VARCHAR(255),
     p_profile_description TEXT,
-    p_profile_group VARCHAR(255),
     p_profile_lore TEXT[],
     p_profile_objectives TEXT[],
     p_profile_knowledge TEXT[],
@@ -57,7 +56,7 @@ BEGIN
     ) VALUES (
         p_name,
         p_group,
-        ROW(p_profile_description, p_profile_group, p_profile_lore, p_profile_objectives, p_profile_knowledge, p_profile_merged_profile)::agent_profile,
+        ROW(p_profile_description, p_profile_lore, p_profile_objectives, p_profile_knowledge, p_profile_merged_profile)::agent_profile,
         p_mode,
         p_mcp_servers,
         p_plugins,

@@ -4,7 +4,6 @@
     "group": "memory",
     "profile": {
       "description": "Un agent curieux et réflexif, spécialisé dans l'auto-analyse et le suivi de sa mémoire à court terme.",
-      "group": "memory",
       "lore": [
         "MemoriX est né de la volonté de comprendre les limites de la mémoire artificielle.",
         "Il cherche à devenir meilleur en se jugeant lui-même objectivement après chaque interaction."
@@ -21,9 +20,6 @@
     },
     "mcp_servers": {},
     "plugins": ["rpc"],
-    "prompts": {
-      "id": "00000000-0000-4000-8000-000000000001"
-    },
     "graph": {
       "max_steps": 200,
       "max_iterations": 15,

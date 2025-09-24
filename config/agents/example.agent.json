@@ -4,7 +4,6 @@
     "group": "Your Agent group",
     "profile": {
       "description": "Your AI Agent Description",
-      "group": "Your Agent group",
       "lore": ["Some lore of your AI Agent 1", "Some lore of your AI Agent 1"],
       "objectives": [
         "first objective that your AI Agent need to follow",
@@ -29,9 +28,6 @@
       }
     },
     "plugins": ["Your first plugin", "Your second plugin"],
-    "prompts": {
-      "id": "00000000-0000-4000-8000-000000000001"
-    },
     "graph": {
       "max_steps": 200,
       "max_iterations": 15,

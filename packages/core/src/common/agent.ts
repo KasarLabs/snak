@@ -27,7 +27,6 @@ export interface ModelConfig {
  */
 export interface AgentProfile {
   description: string;
-  group: string;
   lore: string[];
   objectives: string[];
   knowledge: string[];

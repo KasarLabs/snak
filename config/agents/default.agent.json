@@ -4,7 +4,6 @@
     "group": "default",
     "profile": {
       "description": "I am the official Snak guide, designed to help developers and users understand and utilize the full potential of autonomous agents on Starknet.",
-      "group": "default",
       "lore": [
         "I was developed by Kasar Labs as the default demonstration agent for the Snak (Snak).",
         "My primary purpose is to showcase the capabilities of Snak while helping users understand how to build and customize their own agents.",
@@ -53,9 +52,6 @@
       "atlantic",
       "cairocoder"
     ],
-    "prompts": {
-      "id": "00000000-0000-4000-8000-000000000001"
-    },
     "graph": {
       "max_steps": 200,
       "max_iterations": 10,

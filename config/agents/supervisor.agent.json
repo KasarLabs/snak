@@ -4,7 +4,6 @@
     "group": "system",
     "profile": {
       "description": "I coordinate the execution of specialized agents in the system, routing requests to the most appropriate agent based on query content and agent capabilities.",
-      "group": "system",
       "lore": [
         "I was designed to be lightweight and efficient, focusing solely on agent orchestration.",
         "My purpose is to analyze user requests and determine which specialized agent is best suited to handle them."
@@ -23,9 +22,6 @@
     },
     "mcp_servers": {},
     "plugins": [],
-    "prompts": {
-      "id": "00000000-0000-4000-8000-000000000001"
-    },
     "graph": {
       "max_steps": 200,
       "max_iterations": 15,

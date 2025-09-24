@@ -17,7 +17,11 @@ import {
 import { AgentConfig, logger } from '@snakagent/core';
 import { Command } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { GraphConfigurableAnnotation, GraphStateType } from '../graph.js';
+import {
+  GraphConfigurableAnnotation,
+  GraphState,
+  GraphStateType,
+} from '../graph.js';
 import { ToolCallChunk, ToolCall } from '@langchain/core/messages/tool';
 import { v4 as uuidv4 } from 'uuid';
 // --- Response Generators ---
@@ -350,4 +354,20 @@ export function GenerateToolCallsFromMessage(
     logger.error(error);
     return message;
   }
+}
+
+export function routingFromSubGraphToParentGraphEndNode(
+  state: typeof GraphState.State,
+  config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+): Command {
+  const lastNode = state.last_node;
+  logger.info(`[${lastNode}] Routing to parent graph end node`);
+
+  return new Command({
+    update: {
+      skipValidation: { skipValidation: true, goto: 'end_graph' },
+    },
+    goto: 'end_graph',
+    graph: Command.PARENT,
+  });
 }
