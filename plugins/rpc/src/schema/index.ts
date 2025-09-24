@@ -9,12 +9,13 @@ export const blockIdSchema = z.object({
   blockId: z
     .string()
     .describe(
-      "Block identifier - either block number (as string) or block hash"
+      'Block identifier - either block number (as string) or block hash'
     ),
 });
 
-export const blockIdAndContractAddressSchema = blockIdSchema
-  .merge(contractAddressSchema);
+export const blockIdAndContractAddressSchema = blockIdSchema.merge(
+  contractAddressSchema
+);
 
 export const getStorageAtSchema = blockIdAndContractAddressSchema.merge(
   z.object({
