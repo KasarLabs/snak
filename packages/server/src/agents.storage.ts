@@ -147,7 +147,7 @@ export class AgentStorage implements OnModuleInit {
       const create_q = new Postgres.Query(
         'INSERT INTO models_config (user_id,model) VALUES ($1,ROW($2, $3, $4, $5)::model_config)',
         [
-          'default-user',
+          userId,
           DEFAULT_AGENT_MODEL.provider,
           DEFAULT_AGENT_MODEL.model_name,
           DEFAULT_AGENT_MODEL.temperature,
@@ -356,7 +356,7 @@ export class AgentStorage implements OnModuleInit {
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
     this.agentConfigs = this.agentConfigs.filter(
-      (config) => config.id !== id && config.user_id !== userId
+      (config) => !(config.id === id && config.user_id === userId)
     );
     this.agentInstances.delete(id);
     this.agentSelector.removeAgent(id, userId);
@@ -513,7 +513,7 @@ export class AgentStorage implements OnModuleInit {
       agentConfig.profile.agent_config_prompt = agent_config_prompt;
 
       // JUST FOR TESTING PURPOSES
-      const model = await this.getModelFromUser('default-user');
+      const model = await this.getModelFromUser(agentConfig.user_id);
       const modelInstance = this.initializeModels(model);
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
@@ -716,10 +716,10 @@ export class AgentStorage implements OnModuleInit {
         ),
         task_manager_prompt: new SystemMessage(promptData.task_manager_prompt),
         task_memory_manager_prompt: new SystemMessage(
-          promptData.task_verifier_prompt
+          promptData.task_memory_manager_prompt
         ),
         task_verifier_prompt: new SystemMessage(
-          promptData.task_memory_manager_prompt
+          promptData.task_verifier_prompt
         ),
       };
     } catch (error) {
