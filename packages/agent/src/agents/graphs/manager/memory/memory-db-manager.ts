@@ -91,66 +91,128 @@ export class MemoryDBManager {
           data: undefined,
         };
       }
+
       const event_ids: Array<number> = [];
+      const errors: string[] = [];
+      let successfulEpisodicCount = 0;
+      let successfulSemanticCount = 0;
 
-      for (const e_memory of episodic_memories) {
-        const embedding = await this.embeddings.embedQuery(e_memory.content);
-        if (!embedding || embedding.length === 0) {
-          return {
-            success: false,
-            error: 'Failed to generate embedding for content',
-            timestamp: Date.now(),
+      // Process episodic memories in parallel with Promise.all
+      const episodicPromises = episodic_memories.map(async (e_memory, i) => {
+        try {
+          const embedding = await this.embeddings.embedQuery(e_memory.content);
+          if (!embedding || embedding.length === 0) {
+            throw new Error(
+              `Failed to generate embedding for episodic memory ${i + 1}`
+            );
+          }
+
+          const episodicRecord: memory.EpisodicMemory = {
+            user_id: e_memory.user_id,
+            run_id: e_memory.run_id,
+            task_id: e_memory.task_id,
+            step_id: e_memory.step_id,
+            content: e_memory.content,
+            embedding: embedding,
+            sources: e_memory.sources,
           };
+
+          const result = await memory.insert_episodic_memory(episodicRecord);
+          logger.debug(
+            `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${e_memory.user_id}`
+          );
+          return { success: true, memory_id: result.memory_id, index: i };
+        } catch (error) {
+          const errorMsg = `Failed to process episodic memory ${i + 1}: ${error.message}`;
+          logger.error(`[MemoryDBManager] ${errorMsg}`, error);
+          return { success: false, error: errorMsg, index: i };
         }
+      });
 
-        const episodicRecord: memory.EpisodicMemory = {
-          user_id: e_memory.user_id,
-          run_id: e_memory.run_id,
-          task_id: e_memory.task_id,
-          step_id: e_memory.step_id,
-          content: e_memory.content,
-          embedding: embedding,
-          sources: e_memory.sources,
-        };
+      const episodicResults = await Promise.all(episodicPromises);
 
-        const result = await memory.insert_episodic_memory(episodicRecord);
-        event_ids.push(result.memory_id);
-        logger.debug(
-          `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${e_memory.user_id}`
-        );
-      }
+      // Collect results and errors
+      episodicResults.forEach((result) => {
+        if (result.success) {
+          event_ids.push(result.memory_id!);
+          successfulEpisodicCount++;
+        } else {
+          errors.push(result.error!);
+        }
+      });
 
-      for (const s_memory of semantic_memories) {
-        const embedding = await this.embeddings.embedQuery(s_memory.fact);
-        if (!embedding || embedding.length === 0) {
-          return {
-            success: false,
-            error: 'Failed to generate embedding for fact',
-            timestamp: Date.now(),
+      // Process semantic memories in parallel with Promise.all
+      const semanticPromises = semantic_memories.map(async (s_memory, i) => {
+        try {
+          const embedding = await this.embeddings.embedQuery(s_memory.fact);
+          if (!embedding || embedding.length === 0) {
+            throw new Error(
+              `Failed to generate embedding for semantic memory ${i + 1}`
+            );
+          }
+
+          const semanticRecord: memory.SemanticMemory = {
+            user_id: s_memory.user_id,
+            run_id: s_memory.run_id,
+            task_id: s_memory.task_id,
+            step_id: s_memory.step_id,
+            fact: s_memory.fact,
+            embedding: embedding,
+            category: s_memory.category,
+            source_events: event_ids,
           };
+          const result = await memory.insert_semantic_memory(semanticRecord);
+          logger.debug(
+            `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${s_memory.user_id}`
+          );
+          return { success: true, index: i };
+        } catch (error) {
+          const errorMsg = `Failed to process semantic memory ${i + 1}: ${error.message}`;
+          logger.error(`[MemoryDBManager] ${errorMsg}`, error);
+          return { success: false, error: errorMsg, index: i };
         }
+      });
 
-        const semanticRecord: memory.SemanticMemory = {
-          user_id: s_memory.user_id,
-          run_id: s_memory.run_id,
-          task_id: s_memory.task_id,
-          step_id: s_memory.step_id,
-          fact: s_memory.fact,
-          embedding: embedding,
-          category: s_memory.category,
-          source_events: event_ids,
+      const semanticResults = await Promise.all(semanticPromises);
+
+      // Collect semantic results and errors
+      semanticResults.forEach((result) => {
+        if (result.success) {
+          successfulSemanticCount++;
+        } else {
+          errors.push(result.error!);
+        }
+      });
+
+      // Determine result based on success/failure counts
+      const totalMemories = episodic_memories.length + semantic_memories.length;
+      const totalSuccessful = successfulEpisodicCount + successfulSemanticCount;
+
+      if (totalSuccessful === 0) {
+        // Complete failure
+        return {
+          success: false,
+          error: `All memory operations failed: ${errors.join('; ')}`,
+          timestamp: Date.now(),
         };
-        const result = await memory.insert_semantic_memory(semanticRecord);
-        logger.debug(
-          `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${s_memory.user_id}`
+      } else if (errors.length === 0) {
+        // Complete success
+        return {
+          success: true,
+          data: `Memory updated successfully: ${totalSuccessful}/${totalMemories} processed`,
+          timestamp: Date.now(),
+        };
+      } else {
+        // Partial success
+        logger.warn(
+          `[MemoryDBManager] Partial success: ${totalSuccessful}/${totalMemories} memories processed. Errors: ${errors.join('; ')}`
         );
+        return {
+          success: true,
+          data: `Memory updated with partial success: ${totalSuccessful}/${totalMemories} processed. Some operations failed: ${errors.join('; ')}`,
+          timestamp: Date.now(),
+        };
       }
-
-      return {
-        success: true,
-        data: `Memory updated successfully`,
-        timestamp: Date.now(),
-      };
     } catch (error) {
       logger.error(`[MemoryDBManager] Upsert operation failed:`, error);
       throw error;
@@ -261,6 +323,7 @@ export class MemoryDBManager {
         timestamp: Date.now(),
       };
     } catch (error) {
+      console.log(query);
       logger.error(`[MemoryDBManager] Retrieval operation failed:`, error);
       throw error;
     }
@@ -272,10 +335,17 @@ export class MemoryDBManager {
     episodic_memories: EpisodicMemoryContext[]
   ): MemoryOperationResult<void> {
     for (const memory of episodic_memories) {
+      if (!memory) {
+        return {
+          success: false,
+          error: 'Episodic memory entry cannot be null or undefined',
+          timestamp: Date.now(),
+        };
+      }
       if (!memory.content.trim()) {
         return {
           success: false,
-          error: 'Content cannot be empty',
+          error: 'Episodic Content cannot be empty',
           timestamp: Date.now(),
         };
       }
@@ -323,10 +393,17 @@ export class MemoryDBManager {
     semantic_memories: SemanticMemoryContext[]
   ): MemoryOperationResult<void> {
     for (const memory of semantic_memories) {
+      if (!memory) {
+        return {
+          success: false,
+          error: 'Semantic memory entry cannot be null or undefined',
+          timestamp: Date.now(),
+        };
+      }
       if (!memory.fact.trim()) {
         return {
           success: false,
-          error: 'Content cannot be empty',
+          error: 'Semantic Fact cannot be empty',
           timestamp: Date.now(),
         };
       }

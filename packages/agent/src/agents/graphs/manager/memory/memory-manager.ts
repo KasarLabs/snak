@@ -24,6 +24,9 @@ export class STMManager {
    * Creates an empty STM state
    */
   static createEmpty(maxSize: number): STMContext {
+    if (maxSize < 0 || !Number.isInteger(maxSize) || !Number.isFinite(maxSize)) {
+      throw new Error(`Invalid maxSize for STM: ${maxSize}. Must be a non-negative integer.`);
+    }
     return {
       items: new Array(maxSize).fill(null),
       maxSize,

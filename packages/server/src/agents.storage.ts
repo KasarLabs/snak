@@ -651,7 +651,7 @@ export class AgentStorage implements OnModuleInit {
           break;
         case 'gemini':
           modelInstance = new ChatGoogleGenerativeAI({
-            modelName: model.model_name, // Updated to valid Gemini model name
+            model: model.model_name, // Updated to valid Gemini model name
             verbose: false,
             temperature: model.temperature,
             apiKey: process.env.GEMINI_API_KEY,

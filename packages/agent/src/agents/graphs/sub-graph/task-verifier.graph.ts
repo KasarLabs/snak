@@ -174,6 +174,7 @@ Reasoning: ${verificationResult.reasoning}`,
     } catch (error: any) {
       logger.error(`[TaskVerifier] Task verification failed: ${error.message}`);
       return handleNodeError(
+        GraphErrorTypeEnum.VALIDATION_ERROR,
         error,
         'TASK_VERIFIER',
         state,

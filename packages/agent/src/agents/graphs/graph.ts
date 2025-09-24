@@ -260,9 +260,14 @@ export class Graph {
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required in config');
     }
-    const memorySize =~
+    const memorySize =
       config.configurable.agent_config.memory.size_limits
         .short_term_memory_size;
+
+    if (typeof memorySize !== 'number' || memorySize < 0 || !Number.isInteger(memorySize)) {
+      throw new Error(`Invalid memory size configuration: ${memorySize}. Must be a non-negative integer.`);
+    }
+
     state.memories = MemoryStateManager.createInitialState(memorySize);
     return state;
   }

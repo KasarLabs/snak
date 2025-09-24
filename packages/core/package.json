@@ -32,8 +32,6 @@
   "license": "ISC",
   "description": "The Agent Kit engine of Snak",
   "dependencies": {
-    "@langchain/core": "^0.3.72",
-    "@langchain/community": "^0.3.34",
     "@types/pg": "^8.11.11",
     "file-type": "^19.0.0",
     "pg": "^8.13.3",
