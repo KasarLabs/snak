@@ -72,6 +72,9 @@ export class MessageRequest {
   @IsUUID()
   agent_id: string;
 
+  @IsOptional()
+  @IsString()
+  @Length(1, 10000)
   user_request?: string;
 }
 
@@ -109,9 +112,9 @@ export class UpdateModelConfigDTO {
   })
   modelName: string;
 
-  @IsInt()
   @Min(0)
-  @Max(1)
+  @Max(2)
+  @Matches(/^-?\d+(\.\d+)?$/, { message: 'Temperature must be a number' })
   temperature: number;
 
   @IsInt()

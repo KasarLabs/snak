@@ -124,7 +124,7 @@ export class TaskManagerGraph {
         )
       ) {
         logger.warn(
-          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[TaskManager] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
         throw new Error('Max steps reached');
       }

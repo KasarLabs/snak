@@ -13,7 +13,7 @@ import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
-import { LTN_SUMMARIZE_SYSTEM_PROMPT } from '@prompts/index.js';
+import { LTN_SUMMARIZE_SYSTEM_PROMPT } from '@prompts/agents/ltm-summarization.prompt.js';
 
 /**
  * Safe Short-Term Memory operations with O(1) complexity
@@ -48,7 +48,8 @@ export class STMManager {
   static addMemory(
     stm: STMContext,
     item: BaseMessage[],
-    task_id: string
+    taskId: string,
+    stepId: string
   ): MemoryOperationResult<STMContext> {
     try {
       // Validate input
@@ -62,7 +63,8 @@ export class STMManager {
 
       const newItem: MemoryItem = {
         message: item,
-        task_id: task_id,
+        taskId: taskId,
+        stepId: stepId,
         timestamp: Date.now(),
         metadata: { insertIndex: stm.totalInserted },
       };
@@ -167,6 +169,9 @@ export class STMManager {
    */
   static getRecentMemories(stm: STMContext, limit: number): MemoryItem[] {
     const allMemories = this.getMemories(stm);
+    if (limit >= allMemories.length) {
+      return allMemories;
+    }
     return allMemories.slice(-limit);
   }
 

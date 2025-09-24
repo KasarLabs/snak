@@ -30,7 +30,8 @@ export namespace MemoryStateManager {
   export function addSTMMemory(
     state: Memories,
     item: BaseMessage[],
-    task_id: string,
+    taskId: string,
+    stepId: string,
     timestamp: number
   ): MemoryOperationResult<Memories> {
     if (state.isProcessing) {
@@ -41,7 +42,7 @@ export namespace MemoryStateManager {
       };
     }
 
-    const stmResult = STMManager.addMemory(state.stm, item, task_id);
+    const stmResult = STMManager.addMemory(state.stm, item, taskId, stepId);
 
     if (!stmResult.success || !stmResult.data) {
       return {

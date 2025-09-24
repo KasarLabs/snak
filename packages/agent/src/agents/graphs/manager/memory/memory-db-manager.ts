@@ -77,18 +77,24 @@ export class MemoryDBManager {
     episodic_memories: EpisodicMemoryContext[]
   ): Promise<MemoryOperationResult<string>> {
     try {
-      // Validate inputs
-      const episodic_validation =
-        this.validateEpisodicUpsertInputs(episodic_memories);
-      const semantic_validation =
-        this.validateSemanticUpsertInputs(semantic_memories);
-      if (!episodic_validation.success || !semantic_validation) {
+      console.log(semantic_memories, episodic_memories);
+      episodic_memories = episodic_memories.filter(
+        (mem) =>
+          mem !== null &&
+          mem !== undefined &&
+          this.validateEpisodicUpsertInputs(mem).success
+      );
+      semantic_memories = semantic_memories.filter(
+        (mem) =>
+          mem !== null &&
+          mem !== undefined &&
+          this.validateSemanticUpsertInputs(mem).success
+      );
+      if (episodic_memories.length === 0 && semantic_memories.length === 0) {
         return {
           success: false,
-          error: episodic_validation.error || semantic_validation.error,
-          timestamp:
-            episodic_validation.timestamp || semantic_validation.timestamp,
-          data: undefined,
+          error: 'No valid memories to upsert',
+          timestamp: Date.now(),
         };
       }
 
@@ -101,7 +107,11 @@ export class MemoryDBManager {
       const episodicPromises = episodic_memories.map(async (e_memory, i) => {
         try {
           const embedding = await this.embeddings.embedQuery(e_memory.content);
-          if (!embedding || embedding.length === 0) {
+          if (
+            !embedding ||
+            !Array.isArray(embedding) ||
+            embedding.length === 0
+          ) {
             throw new Error(
               `Failed to generate embedding for episodic memory ${i + 1}`
             );
@@ -145,7 +155,11 @@ export class MemoryDBManager {
       const semanticPromises = semantic_memories.map(async (s_memory, i) => {
         try {
           const embedding = await this.embeddings.embedQuery(s_memory.fact);
-          if (!embedding || embedding.length === 0) {
+          if (
+            !embedding ||
+            !Array.isArray(embedding) ||
+            embedding.length === 0
+          ) {
             throw new Error(
               `Failed to generate embedding for semantic memory ${i + 1}`
             );
@@ -313,7 +327,7 @@ export class MemoryDBManager {
         this.memorySizeLimit.max_retrieve_memory_size,
         this.memoryThreshold.retrieve_memory_threshold
       );
-
+      logger.debug(similarities);
       logger.debug(
         `[MemoryDBManager] Retrieved ${similarities.length} similar memories for user: ${userId}`
       );
@@ -332,113 +346,105 @@ export class MemoryDBManager {
    * Validates upsert inputs
    */
   private validateEpisodicUpsertInputs(
-    episodic_memories: EpisodicMemoryContext[]
+    episodic_memory: EpisodicMemoryContext
   ): MemoryOperationResult<void> {
-    for (const memory of episodic_memories) {
-      if (!memory) {
-        return {
-          success: false,
-          error: 'Episodic memory entry cannot be null or undefined',
-          timestamp: Date.now(),
-        };
-      }
-      if (!memory.content.trim()) {
-        return {
-          success: false,
-          error: 'Episodic Content cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
-
-      if (memory.content.length > 10000) {
-        return {
-          success: false,
-          error: 'Content too long (max 10000 characters)',
-          timestamp: Date.now(),
-        };
-      }
-
-      if (!memory.user_id.trim()) {
-        return {
-          success: false,
-          error: 'User ID cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
-
-      if (!memory.run_id.trim()) {
-        return {
-          success: false,
-          error: 'User ID cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
-
-      if (memory.sources.length <= 0) {
-        return {
-          success: false,
-          error: 'Sources Array cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
+    if (!episodic_memory) {
+      return {
+        success: false,
+        error: 'Episodic memory entry cannot be null or undefined',
+        timestamp: Date.now(),
+      };
+    }
+    if (!episodic_memory.content.trim()) {
+      return {
+        success: false,
+        error: 'Episodic Content cannot be empty',
+        timestamp: Date.now(),
+      };
     }
 
-    return {
-      success: true,
-      timestamp: Date.now(),
-    };
+    if (episodic_memory.content.length > 10000) {
+      return {
+        success: false,
+        error: 'Content too long (max 10000 characters)',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!episodic_memory.user_id.trim()) {
+      return {
+        success: false,
+        error: 'User ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!episodic_memory.run_id.trim()) {
+      return {
+        success: false,
+        error: 'User ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (episodic_memory.sources.length <= 0) {
+      return {
+        success: false,
+        error: 'Sources Array cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+    return { success: true, timestamp: Date.now() };
   }
 
   private validateSemanticUpsertInputs(
-    semantic_memories: SemanticMemoryContext[]
+    semantic_memory: SemanticMemoryContext
   ): MemoryOperationResult<void> {
-    for (const memory of semantic_memories) {
-      if (!memory) {
-        return {
-          success: false,
-          error: 'Semantic memory entry cannot be null or undefined',
-          timestamp: Date.now(),
-        };
-      }
-      if (!memory.fact.trim()) {
-        return {
-          success: false,
-          error: 'Semantic Fact cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
+    if (!semantic_memory) {
+      return {
+        success: false,
+        error: 'Semantic memory entry cannot be null or undefined',
+        timestamp: Date.now(),
+      };
+    }
+    if (!semantic_memory.fact.trim()) {
+      return {
+        success: false,
+        error: 'Semantic Fact cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
 
-      if (memory.fact.length > 10000) {
-        return {
-          success: false,
-          error: 'Content too long (max 10000 characters)',
-          timestamp: Date.now(),
-        };
-      }
+    if (semantic_memory.fact.length > 10000) {
+      return {
+        success: false,
+        error: 'Content too long (max 10000 characters)',
+        timestamp: Date.now(),
+      };
+    }
 
-      if (!memory.user_id.trim()) {
-        return {
-          success: false,
-          error: 'User ID cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
+    if (!semantic_memory.user_id.trim()) {
+      return {
+        success: false,
+        error: 'User ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
 
-      if (!memory.run_id.trim()) {
-        return {
-          success: false,
-          error: 'User ID cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
+    if (!semantic_memory.run_id.trim()) {
+      return {
+        success: false,
+        error: 'User ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
 
-      if (!memory.category.trim()) {
-        return {
-          success: false,
-          error: 'Sources Array cannot be empty',
-          timestamp: Date.now(),
-        };
-      }
+    if (!semantic_memory.category.trim()) {
+      return {
+        success: false,
+        error: 'Sources Array cannot be empty',
+        timestamp: Date.now(),
+      };
     }
 
     return {

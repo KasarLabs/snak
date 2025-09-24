@@ -90,8 +90,7 @@ export class AgentExecutorGraph {
     });
     const modelBind = this.model.bindTools!(this.toolsList);
 
-    const result = await modelBind.invoke(formattedPrompt);
-    TokenTracker.trackCall(result, 'selectedModelType.model_name');
+    const result = modelBind.invoke(formattedPrompt);
     return result;
   }
 
@@ -114,7 +113,8 @@ export class AgentExecutorGraph {
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(
         () => reject(new Error('Model invocation timeout')),
-        MODEL_TIMEOUTS.DEFAULT_MODEL_TIMEOUT
+        config.configurable?.agent_config?.graph.execution_timeout_ms ??
+          MODEL_TIMEOUTS.DEFAULT_MODEL_TIMEOUT
       );
     });
     return await Promise.race([modelPromise, timeoutPromise]);
@@ -147,6 +147,13 @@ export class AgentExecutorGraph {
       if (!currentTask) {
         throw new Error('Current task is undefined');
       }
+
+      const stepId = uuidv4();
+      logger.info(
+        `[Executor] Executing task: ${currentTask.task.directive} (Step ${
+          state.currentGraphStep + 1
+        })`
+      );
       // Validate current execution context
       logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
       // Execute model with timeout protection
@@ -164,16 +171,6 @@ export class AgentExecutorGraph {
       }
       aiMessage.content = ''; // Clear content because we are using tool calls only
       logger.debug(`[Executor] Model response received`);
-      const newMemories = STMManager.addMemory(
-        state.memories.stm,
-        [aiMessage],
-        state.tasks[state.tasks.length - 1].id
-      );
-      if (!newMemories.success || !newMemories.data) {
-        throw new Error(
-          `Failed to add AI message to STM: ${newMemories.error}`
-        );
-      }
       let isEnd = false;
       let isBlocked = false;
       let thought: ThoughtsSchemaType;
@@ -233,10 +230,9 @@ export class AgentExecutorGraph {
       };
 
       // Parse for task
-      state.memories.stm = newMemories.data;
       currentTask.steps.push({
-        id: uuidv4(),
-        thought: thought!, // add verifier and the execition need to be restart to ne sure that their is a though schema
+        id: stepId,
+        thought: thought!,
         tool: tools,
       });
       if (isEnd) {
@@ -267,6 +263,20 @@ export class AgentExecutorGraph {
         };
       }
       state.tasks[state.tasks.length - 1] = currentTask;
+
+      const newMemories = STMManager.addMemory(
+        state.memories.stm,
+        [aiMessage],
+        currentTask.id,
+        currentTask.steps[currentTask.steps.length - 1].id
+      );
+      if (!newMemories.success || !newMemories.data) {
+        throw new Error(
+          `Failed to add AI message to STM: ${newMemories.error}`
+        );
+      }
+      state.memories.stm = newMemories.data;
+
       return {
         messages: [aiMessage],
         last_node: TaskExecutorNode.REASONING_EXECUTOR,

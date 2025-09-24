@@ -2,7 +2,7 @@ import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
-import { AgentConfig, logger } from '@snakagent/core';
+import { logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
@@ -66,7 +66,7 @@ export class TaskVerifierGraph {
         )
       ) {
         logger.warn(
-          `[MemoryRouter] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[TaskVerifier] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
         throw new Error('Max memory graph steps reached');
       }
@@ -288,7 +288,12 @@ Reasoning: ${verificationResult.reasoning}`,
         lastMessage &&
         lastMessage.additional_kwargs?.from === 'task_verifier'
       ) {
-        STMManager.addMemory(state.memories.stm, [lastMessage], uuidv4());
+        STMManager.addMemory(
+          state.memories.stm,
+          [lastMessage],
+          currentTask.id,
+          uuidv4() // New step ID for the verification message
+        );
         logger.info(
           `[Task Updater] Verfication ${lastMessage.additional_kwargs.taskCompleted ? 'successfull' : 'failed'}`
         );

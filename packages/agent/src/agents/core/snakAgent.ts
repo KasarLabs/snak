@@ -4,8 +4,17 @@ import { logger, AgentConfig, Id, StarknetConfig } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { DatabaseCredentials } from '@snakagent/core';
 import { AgentType } from '../../shared/enums/agent.enum.js';
-import { createGraph, GraphConfigurableType } from '../graphs/graph.js';
-import { Command, CompiledStateGraph } from '@langchain/langgraph';
+import {
+  createGraph,
+  GraphConfigurableAnnotation,
+  GraphConfigurableType,
+  GraphStateType,
+} from '../graphs/graph.js';
+import {
+  Command,
+  CompiledStateGraph,
+  StateSnapshot,
+} from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
   TaskExecutorNode,
@@ -23,6 +32,7 @@ import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { GraphErrorType } from '@stypes/graph.types.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { Runnable } from '@langchain/core/runnables';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -32,13 +42,13 @@ export class SnakAgent extends BaseAgent {
   private readonly provider: RpcProvider;
   private readonly accountPrivateKey: string;
   private readonly accountPublicKey: string;
-  private readonly agentMode: string;
   private readonly agentConfig: AgentConfig.Runtime;
   private readonly databaseCredentials: DatabaseCredentials;
   private ragAgent: RagAgent | null = null;
-  private compiledGraph: CompiledStateGraph<any, any, any, any, any>;
-  private controller: AbortController;
-  private pg_checkpointer: PostgresSaver;
+  private compiledGraph: CompiledStateGraph<any, any, any, any, any> | null =
+    null;
+  private controller: AbortController | null = null;
+  private pg_checkpointer: PostgresSaver | null = null;
   constructor(
     starknet_config: StarknetConfig,
     agent_config: AgentConfig.Runtime,
@@ -64,6 +74,9 @@ export class SnakAgent extends BaseAgent {
       await this.initializeRagAgent(this.agentConfig);
       try {
         this.pg_checkpointer = await CheckpointerService.getInstance();
+        if (!this.pg_checkpointer) {
+          throw new Error('Failed to initialize Postgres checkpointer');
+        }
         await this.createAgentReactExecutor();
         if (!this.compiledGraph) {
           logger.warn(
@@ -182,14 +195,6 @@ export class SnakAgent extends BaseAgent {
   }
 
   /**
-   * Get original agent mode from initialization
-   * @returns The agent mode string set during construction
-   */
-  public getAgentMode(): string {
-    return this.agentMode;
-  }
-
-  /**
    * Get Starknet RPC provider
    * @returns The RpcProvider instance
    */
@@ -220,8 +225,7 @@ export class SnakAgent extends BaseAgent {
    */
   public async *execute(
     input?: string,
-    isInterrupted: boolean = false,
-    agent_config?: Record<string, any>
+    isInterrupted: boolean = false
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.debug(
@@ -278,7 +282,7 @@ export class SnakAgent extends BaseAgent {
    */
   private createChunkOutput(
     chunk: StreamEvent,
-    state: any,
+    state: StateSnapshot,
     graphError: GraphErrorType | null,
     retryCount: number,
     from: GraphNode
@@ -292,7 +296,7 @@ export class SnakAgent extends BaseAgent {
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
       error: graphError,
-      retry_count: retryCount,
+      retry: retryCount,
     };
 
     const chunkOutput: ChunkOutput = {
@@ -374,9 +378,7 @@ export class SnakAgent extends BaseAgent {
   public async *executeAsyncGenerator(
     input?: string,
     isInterrupted: boolean = false,
-    hitl_threshold?: number,
-    thread_id?: string,
-    checkpoint_id?: string
+    hitl_threshold?: number
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.info(
@@ -416,7 +418,6 @@ export class SnakAgent extends BaseAgent {
           signal: this.controller.signal,
           recursionLimit: 500,
           version: 'v2' as const,
-          streamMode: 'messages' as const,
         };
 
         if (isInterrupted) {

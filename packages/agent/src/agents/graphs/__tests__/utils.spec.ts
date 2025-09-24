@@ -12,12 +12,9 @@ import {
   StepInfo,
 } from '../../../shared/types/index.js';
 import {
-  formatParsedPlanSimple,
   createMaxIterationsResponse,
   getLatestMessageForMessage,
-  isTerminalMessage,
   isTokenLimitError,
-  handleModelError,
 } from '../utils/graph-utils.js';
 
 // -----------------------

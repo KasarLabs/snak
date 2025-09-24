@@ -5,6 +5,7 @@ import {
   SemanticMemoryContext,
   ltmSchemaType,
   createLtmSchemaMemorySchema,
+  STMContext,
 } from '../../../shared/types/memory.types.js';
 import {
   getCurrentTask,
@@ -35,10 +36,8 @@ import {
   ToolCallType,
 } from '../../../shared/types/graph.types.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { TASK_MEMEMORY_MANAGER_HUMAN_PROMPT } from '@prompts/graph/memory/task-memory-manager.prompt.js';
+import { TASK_MEMEMORY_MANAGER_HUMAN_PROMPT } from '@prompts/agents/task-memory-manager.prompt.js';
 
-const DEFAULT_USER_ID = 'default_user';
-const RECENT_MEMORIES_LIMIT = 1;
 export class MemoryGraph {
   private readonly memoryDBManager: MemoryDBManager;
   private readonly model: BaseChatModel;
@@ -53,12 +52,13 @@ export class MemoryGraph {
   }
 
   private createEpisodicMemories(
+    user_id: string,
     memories: Array<{ content: string; source: string[]; name: string }>,
     task: TaskType,
     threadId: string
   ): EpisodicMemoryContext[] {
     return memories.map((memory) => ({
-      user_id: DEFAULT_USER_ID,
+      user_id: user_id,
       run_id: threadId,
       task_id: task.id,
       step_id: task.steps[task.steps.length - 1].id,
@@ -68,12 +68,13 @@ export class MemoryGraph {
   }
 
   private createSemanticMemories(
+    user_id: string,
     memories: Array<{ fact: string; category: string }>,
     task: TaskType,
     threadId: string
   ): SemanticMemoryContext[] {
     return memories.map((memory) => ({
-      user_id: DEFAULT_USER_ID,
+      user_id: user_id,
       run_id: threadId,
       task_id: task.id,
       step_id: task.steps[task.steps.length - 1].id,
@@ -86,8 +87,8 @@ export class MemoryGraph {
     return tools
       .map((tool) => {
         if (tool.name === 'response_task') return null;
-        const toolArgs = JSON.stringify(tool.result);
-        const result = JSON.stringify(tool.result) || 'No result';
+        const toolArgs = JSON.stringify(tool.args ?? {});
+        const result = JSON.stringify(tool.result ?? 'No result');
         return `-${tool.name}(${toolArgs}) → ${tool.status}:${result}\n`;
       })
       .filter(Boolean)
@@ -154,7 +155,7 @@ export class MemoryGraph {
 
       const recentMemories = STMManager.getRecentMemories(
         state.memories.stm,
-        RECENT_MEMORIES_LIMIT
+        1
       );
       if (recentMemories.length === 0) {
         logger.warn(
@@ -186,6 +187,7 @@ export class MemoryGraph {
 
       episodic_memories.push(
         ...this.createEpisodicMemories(
+          agentConfig.user_id,
           summaryResult.episodic,
           currentTask,
           config.configurable!.thread_id!
@@ -194,6 +196,7 @@ export class MemoryGraph {
 
       semantic_memories.push(
         ...this.createSemanticMemories(
+          agentConfig.user_id,
           summaryResult.semantic,
           currentTask,
           config.configurable!.thread_id!
@@ -258,13 +261,9 @@ export class MemoryGraph {
           `[TaskManagerMemory] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
         );
         throw new Error('Max memory graph steps reached');
-      }
+      } // Fetch relevant memories from DB based on recent STM context
       const agentConfig = config.configurable!.agent_config!;
-      // Fetch relevant memories from DB based on recent STM context
-      const recentSTM = STMManager.getRecentMemories(
-        state.memories.stm,
-        RECENT_MEMORIES_LIMIT
-      );
+      const recentSTM = STMManager.getRecentMemories(state.memories.stm, 1);
       if (recentSTM.length === 0) {
         logger.warn(
           '[RetrieveMemory] No recent STM items available for memory retrieval'
@@ -275,21 +274,23 @@ export class MemoryGraph {
         };
       }
       const request = getRetrieveMemoryRequestFromGraph(state, config);
-      console.log(request);
+      if (!request) {
+        throw new Error('Failed to construct memory retrieval request');
+      }
       const retrievedMemories =
         await this.memoryDBManager.retrieveSimilarMemories(
           request,
-          DEFAULT_USER_ID,
+          agentConfig.user_id,
           config.configurable!.thread_id!
         );
 
       if (retrievedMemories.success && retrievedMemories.data) {
-        const stmCurrentStepIds = state.memories.stm.items
-          .filter(Boolean)
-          .map((item) => item!.task_id);
-        logger.debug('STM current step ids: ', stmCurrentStepIds);
+        const stepIdInMemory: string[] = [];
+        state.memories.stm.items.map((item) =>
+          item ? stepIdInMemory.push(item.stepId) : null
+        );
         const filteredResults = retrievedMemories.data.filter(
-          (mem) => !stmCurrentStepIds.includes(mem.step_id)
+          (mem) => mem.step_id && !stepIdInMemory.includes(mem.step_id)
         );
         logger.debug(
           `[RetrieveMemory] Filtered to ${filteredResults.length} memories after STM check`

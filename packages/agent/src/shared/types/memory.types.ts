@@ -3,11 +3,12 @@ import z from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
 
 /**
- * Individual memory item with immutable structure
+ * Individual memory item structure~
  */
 export interface MemoryItem {
   message: BaseMessage[];
-  readonly task_id: string;
+  readonly taskId: string;
+  readonly stepId: string;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
 }

@@ -1,35 +1,3 @@
-/**
- * Graph-related types and interfaces
- */
-
-/**
- * Graph execution modes
- */
-export interface GraphConfig {
-  max_steps?: number;
-  timeout?: number;
-}
-
-/**
- * Graph node execution result
- */
-export interface GraphNodeResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-  timestamp: number;
-}
-
-/**
- * Graph execution context
- */
-export interface GraphExecutionContext {
-  currentStep: number;
-  max_steps: number;
-  startTime: number;
-  metadata?: Record<string, any>;
-}
-
 export enum GraphErrorTypeEnum {
   TASK_ERROR = 'task_error',
   TOOL_ERROR = 'tool_error',

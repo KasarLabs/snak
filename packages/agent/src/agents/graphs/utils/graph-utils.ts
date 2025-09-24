@@ -243,32 +243,52 @@ export function getCurrentTask(tasks: TaskType[]): TaskType {
 export function getRetrieveMemoryRequestFromGraph(
   state: GraphStateType,
   config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-): string {
+): string | null {
   try {
+    // Check if we have tasks with steps
     if (
-      state.tasks &&
-      state.tasks.length > 0 &&
-      state.tasks[state.tasks.length - 1].steps.length > 0
+      state.tasks?.length > 0 &&
+      state.tasks[state.tasks.length - 1].steps?.length > 0
     ) {
       const currentTask = getCurrentTask(state.tasks);
-      return currentTask.steps[currentTask.steps.length - 1].thought.reasoning;
-    } else {
-      if (
-        config.configurable!.agent_config!.memory.thresholds.hitl_threshold ===
-        1
-      ) {
-        return config.configurable!.user_request?.request!;
-      } else {
-        return config.configurable!.agent_config!.profile.objectives.join(' ');
+      const reasoning =
+        currentTask.steps[currentTask.steps.length - 1]?.thought?.reasoning;
+
+      if (!reasoning) {
+        throw new Error('Current task step is missing reasoning');
+      }
+      return reasoning;
+    }
+
+    // Fallback to user request or objectives
+    const configurable = config?.configurable;
+    if (!configurable?.agent_config) {
+      throw new Error('Missing agent configuration');
+    }
+
+    // Check HITL threshold for user request
+    if (configurable.agent_config.memory?.thresholds?.hitl_threshold === 1) {
+      const userRequest = configurable.user_request?.request;
+      if (userRequest) {
+        return userRequest;
       }
     }
+
+    // Fallback to objectives
+    const objectives = configurable.agent_config.profile?.objectives;
+    if (objectives?.length > 0) {
+      return objectives.join(' ');
+    }
+
+    // If we get here, we have no valid request source
+    throw new Error('No valid memory request source found');
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     logger.error(
       `Helper: Error in getRetrieveMemoryRequestFromGraph - ${errorMessage}`
     );
-    throw error;
+    return null;
   }
 }
 
