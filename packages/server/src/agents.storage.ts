@@ -6,10 +6,7 @@ import {
   AgentConfig,
   ModelConfig,
   StarknetConfig,
-  DEFAULT_USER_ID,
-  DEFAULT_AGENT_ID,
   AgentPromptsInitialized,
-  DEFAULT_AGENT_CONFIG,
   DEFAULT_AGENT_MODEL,
 } from '@snakagent/core';
 // Add this import if ModelSelectorConfig is exported from @snakagent/core

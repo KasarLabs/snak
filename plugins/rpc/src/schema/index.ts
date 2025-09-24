@@ -14,8 +14,7 @@ export const blockIdSchema = z.object({
 });
 
 export const blockIdAndContractAddressSchema = blockIdSchema
-  .merge(contractAddressSchema)
-  .strict();
+  .merge(contractAddressSchema);
 
 export const getStorageAtSchema = blockIdAndContractAddressSchema.merge(
   z.object({

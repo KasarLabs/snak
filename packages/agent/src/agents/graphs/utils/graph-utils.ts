@@ -275,7 +275,6 @@ export function GenerateToolCallFromToolCallChunks(
     }
     toolCallChunks.forEach((tool: ToolCallChunk) => {
       if (tool) {
-        console.log(tool);
         if (
           !tool.name ||
           tool.index === undefined ||

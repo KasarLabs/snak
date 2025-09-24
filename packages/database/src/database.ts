@@ -193,8 +193,6 @@ export class LanggraphDatabase {
     if (this.pool) {
       return;
     }
-    console.log('Connecting to LangGraph database...');
-    console.log(credentials);
 
     this.pool = new Pool({
       user: credentials.user,
@@ -207,10 +205,9 @@ export class LanggraphDatabase {
     this.pool.on('error', (err: any) => {
       console.error('LangGraph database pool error:', err.stack);
     });
-    console.log('Connected to LangGraph database');
   }
 
-  /**
+  /**s
    * Executes a query against the langgraph schema
    */
   public async query<Model = Record<string, unknown>>(

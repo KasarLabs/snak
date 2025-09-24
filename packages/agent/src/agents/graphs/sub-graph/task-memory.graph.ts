@@ -273,7 +273,6 @@ export class MemoryGraph {
         };
       }
       const request = getRetrieveMemoryRequestFromGraph(state, config);
-      console.log('memory retrieve request', request);
       const retrievedMemories =
         await this.memoryDBManager.retrieveSimilarMemories(
           request,

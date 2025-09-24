@@ -141,7 +141,18 @@ export class TaskManagerGraph {
           ? `The previous task failed due to: ${state.error.message}`
           : '',
       });
-      let aiMessage = await modelBind.invoke(formattedPrompt);
+      let aiMessage;
+      try {
+        aiMessage = await modelBind.invoke(formattedPrompt);
+      } catch (error: any) {
+        // Handle Google Gemini API specific errors
+        if (error.name === 'GoogleGenerativeAIError' || error.message?.includes('Failed to parse stream') || error.message?.includes('Cannot read properties of undefined')) {
+          logger.error(`[Task Manager] Google Gemini API error: ${error.message}`);
+          throw new Error(`Google Gemini API error - possibly due to incompatible function declarations: ${error.message}`);
+        }
+        // Re-throw other errors
+        throw error;
+      }
       if (
         aiMessage.tool_calls &&
         aiMessage.tool_calls?.length === 0 &&
