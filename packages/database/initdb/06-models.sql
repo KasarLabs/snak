@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS models_config (
     -- Unique identifier for each model configuration set
     -- UUID ensures global uniqueness across distributed systems
     id    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id TEXT NOT NULL DEFAULT 'default_user',
+    user_id TEXT NOT NULL ,
     model model_config NOT NULL
 );
 

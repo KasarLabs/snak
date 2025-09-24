@@ -94,8 +94,8 @@ export class MemoryToolRegistry extends BaseToolRegistry {
       logger.debug(
         `[MemoryAgent] Retrieving memory for step ID: ${request.step_id}`
       );
-      const userId = 'default_user'; // Replace with actual user ID retrieval logic
-      const runId = this.agentConfig!.id as string;
+      const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
+      const runId = this.agentConfig.id;
       const result = await memory.get_memories_by_step_id(
         userId,
         runId,
@@ -123,8 +123,8 @@ export class MemoryToolRegistry extends BaseToolRegistry {
       logger.debug(
         `[MemoryAgent] Retrieving memory for task ID: ${request.task_id}`
       );
-      const userId = 'default_user'; // Replace with actual user ID retrieval logic
-      const runId = this.agentConfig!.id as string;
+      const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
+      const runId = this.agentConfig.id;
       const result = await memory.get_memories_by_task_id(
         userId,
         runId,
@@ -151,8 +151,8 @@ export class MemoryToolRegistry extends BaseToolRegistry {
       logger.debug(
         `[MemoryAgent] Retrieving memory for content with length ${request.content.length}`
       );
-      const userId = 'default_user'; // Replace with actual user ID retrieval logic
-      const runId = this.agentConfig!.id as string;
+      const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
+      const runId = this.agentConfig.id;
       const embedding = await embeddingModel.embedQuery(request.content);
       const result = await memory.retrieve_memory(
         userId,
