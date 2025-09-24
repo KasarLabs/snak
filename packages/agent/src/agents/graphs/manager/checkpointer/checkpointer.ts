@@ -2,18 +2,26 @@ import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { LanggraphDatabase } from '@snakagent/database';
 
 export class CheckpointerService {
-  private static instance: PostgresSaver;
-
+  private static instance: PostgresSaver | undefined;
+  private static initializing?: Promise<PostgresSaver>;
   static async getInstance(): Promise<PostgresSaver> {
-    if (!this.instance) {
-      const lg_pool = LanggraphDatabase.getInstance().getPool();
-      if (!lg_pool) {
-        throw new Error('LanggraphDatabase pool is not initialized');
-      }
-      this.instance = new PostgresSaver(lg_pool);
-      await this.instance.setup();
+    if (this.instance) {
+      return this.instance;
     }
-
-    return this.instance;
+    if (!this.initializing) {
+      const pool = LanggraphDatabase.getInstance().getPool();
+      if (!pool) {
+        throw new Error('LangGraph database pool not initialized');
+      }
+      this.initializing = (async () => {
+        const saver = new PostgresSaver(pool);
+        await saver.setup();
+        this.instance = saver;
+        return saver;
+      })().finally(() => {
+        this.initializing = undefined;
+      });
+    }
+    return this.initializing!;
   }
 }
