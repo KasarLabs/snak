@@ -2,7 +2,7 @@ ENV_FILE=.env.keycloak
 REALM_TEMPLATE=realm-template.json
 REALM_OUTPUT=realm.json
 
-all: snak-api keycloak
+all: certs snak-api keycloak
 
 certs:
 	@cd keycloak/traefik/certs && \
