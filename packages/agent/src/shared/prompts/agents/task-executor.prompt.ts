@@ -33,7 +33,7 @@ Perform all your choices based on these resources:
 <Ai>: past AI messages with tool calling (short-term memory equivalent)
 <Tool>: past tool calling results  
 <Memory>: memory retrieved using vectorial database (long-term memory equivalent)
-<Rag>: Retrievial Augmented Generation memory`;
+<RAG>: Retrieval Augmented Generation memory`;
 
 export const TASK_EXECUTOR_MEMORY_PROMPT = `
 {messages}

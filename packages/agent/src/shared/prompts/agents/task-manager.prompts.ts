@@ -40,13 +40,15 @@ Example: listing resources → selecting from list → using selected resource =
 
 AVAILABLE CONTEXT:
 Perform all your choices based on these resources:
-<Rag>: Retrievial Augmented Generation memory
+<RAG>: Retrieval Augmented Generation memory
 <TaskHistory>: history of the past task completed/failed if completed its successfull and the result will be accessible in the STM`;
 
 export const TASK_MANAGER_MEMORY_PROMPT = `
 <TaskHistory>
 {past_tasks}
 </TaskHistory>
+<RAG>
+</RAG>
 `;
 
 export const TASK_MANAGER_HUMAN_PROMPT = `
