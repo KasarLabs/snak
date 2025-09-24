@@ -131,20 +131,21 @@ export class TaskManagerGraph {
       }
       const agentConfig = config.configurable!.agent_config!;
       const prompt = ChatPromptTemplate.fromMessages([
-        agentConfig.prompts.task_manager_prompt,
+        ['system', agentConfig.prompts.task_manager_prompt],
         ['ai', TASK_MANAGER_MEMORY_PROMPT],
         ['human', TASK_MANAGER_HUMAN_PROMPT],
       ]);
 
       const modelBind = this.model.bindTools!(this.toolsList);
       const formattedPrompt = await prompt.formatMessages({
+        agent_name: agentConfig.name,
+        agent_description: agentConfig.profile.description,
         past_tasks: tasks_parser(state.tasks),
-        objectives: config.configurable?.user_request?.request
-          ? config.configurable.user_request.request
-          : config.configurable?.agent_config?.profile.objectives.join(','),
+        objectives: config.configurable!.user_request?.request,
         failed_tasks: state.error
           ? `The previous task failed due to: ${state.error.message}`
           : '',
+        rag_content: '', // RAG content can be added here if available
       });
       let aiMessage;
       try {

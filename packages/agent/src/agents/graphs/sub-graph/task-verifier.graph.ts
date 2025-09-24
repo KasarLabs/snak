@@ -92,7 +92,7 @@ export class TaskVerifierGraph {
       );
 
       const prompt = ChatPromptTemplate.fromMessages([
-        agentConfig.prompts.task_verifier_prompt,
+        ['system', agentConfig.prompts.task_verifier_prompt],
         ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 

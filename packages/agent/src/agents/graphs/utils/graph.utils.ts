@@ -271,17 +271,9 @@ export function getRetrieveMemoryRequestFromGraph(
     }
 
     // Check HITL threshold for user request
-    if (configurable.agent_config.memory?.thresholds?.hitl_threshold === 1) {
-      const userRequest = configurable.user_request?.request;
-      if (userRequest) {
-        return userRequest;
-      }
-    }
-
-    // Fallback to objectives
-    const objectives = configurable.agent_config.profile?.objectives;
-    if (objectives?.length > 0) {
-      return objectives.join(' ');
+    const userRequest = configurable.user_request?.request;
+    if (userRequest) {
+      return userRequest;
     }
 
     // If we get here, we have no valid request source

@@ -676,7 +676,7 @@ export class AgentStorage implements OnModuleInit {
    */
   private async getPromptsFromDatabase(
     promptId: string
-  ): Promise<AgentPromptsInitialized<SystemMessage> | null> {
+  ): Promise<AgentPromptsInitialized<string> | null> {
     try {
       const query = new Postgres.Query(
         `SELECT json_build_object(
@@ -709,16 +709,12 @@ export class AgentStorage implements OnModuleInit {
       // Parse to proper format and return as SystemMessage objects
       // The type suggests it should have camelCase properties
       return {
-        task_executor_prompt: new SystemMessage(
-          promptData.task_executor_prompt
-        ),
-        task_manager_prompt: new SystemMessage(promptData.task_manager_prompt),
-        task_memory_manager_prompt: new SystemMessage(
-          promptData.task_memory_manager_prompt
-        ),
-        task_verifier_prompt: new SystemMessage(
-          promptData.task_verifier_prompt
-        ),
+        task_executor_prompt: promptData.task_executor_prompt,
+
+        task_manager_prompt: promptData.task_manager_prompt,
+        task_memory_manager_prompt: promptData.task_memory_manager_prompt,
+
+        task_verifier_prompt: promptData.task_verifier_prompt,
       };
     } catch (error) {
       logger.error(`Failed to fetch prompts from database: ${error.message}`);

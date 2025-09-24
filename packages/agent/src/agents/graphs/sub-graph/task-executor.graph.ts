@@ -75,7 +75,10 @@ export class AgentExecutorGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<AIMessageChunk> {
     const prompt = ChatPromptTemplate.fromMessages([
-      config.configurable!.agent_config!.prompts.task_executor_prompt,
+      [
+        'system',
+        config.configurable!.agent_config!.prompts.task_executor_prompt,
+      ],
       ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
       ['human', TASK_EXECUTOR_HUMAN_PROMPT],
     ]);

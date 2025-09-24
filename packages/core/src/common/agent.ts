@@ -173,7 +173,7 @@ export namespace AgentConfig {
   export interface Runtime extends Base {
     id: string;
     user_id: string;
-    prompts: AgentPromptsInitialized<SystemMessage>;
+    prompts: AgentPromptsInitialized<string>;
     graph: GraphConfigInitialized;
   }
 

@@ -395,7 +395,7 @@ export class SnakAgent extends BaseAgent {
       const configurable: GraphConfigurableType = {
         thread_id: threadId,
         user_request: {
-          request: input ?? null,
+          request: input ?? this.agentConfig.profile.objectives.join(' '),
           hitl_threshold:
             hitl_threshold ?? this.agentConfig.memory.thresholds.hitl_threshold,
         },

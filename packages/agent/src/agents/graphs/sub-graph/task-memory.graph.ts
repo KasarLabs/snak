@@ -178,7 +178,7 @@ export class MemoryGraph {
         )
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        agentConfig.prompts.task_memory_manager_prompt,
+        ['system', agentConfig.prompts.task_memory_manager_prompt],
         ['human', TASK_MEMEMORY_MANAGER_HUMAN_PROMPT],
       ]);
       // Use content of all steps of current task instead of just recent memories
