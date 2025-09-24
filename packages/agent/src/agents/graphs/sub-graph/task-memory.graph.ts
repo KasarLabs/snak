@@ -29,6 +29,7 @@ import { MemoryDBManager } from '../manager/memory/memory-db-manager.js';
 import { STMManager } from '@agents/graphs/manager/memory/memory-manager.js';
 import { isInEnum } from '@enums/utils.js';
 import {
+  GraphErrorTypeEnum,
   StepType,
   TaskType,
   ToolCallType,
@@ -228,6 +229,7 @@ export class MemoryGraph {
       const errorObject =
         error instanceof Error ? error : new Error(errorMessage);
       return handleNodeError(
+        GraphErrorTypeEnum.MEMORY_ERROR,
         errorObject,
         'LTM_MANAGER',
         state,
@@ -317,6 +319,7 @@ export class MemoryGraph {
       const errorObject =
         error instanceof Error ? error : new Error(errorMessage);
       return handleNodeError(
+        GraphErrorTypeEnum.MEMORY_ERROR,
         errorObject,
         'RETRIEVE_MEMORY',
         state,

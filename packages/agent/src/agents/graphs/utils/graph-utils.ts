@@ -9,7 +9,11 @@ import {
   HumanMessage,
   ToolMessage,
 } from '@langchain/core/messages';
-import { ErrorContext, TaskType } from '../../../shared/types/index.js';
+import {
+  GraphErrorType,
+  GraphErrorTypeEnum,
+  TaskType,
+} from '../../../shared/types/index.js';
 import { AgentConfig, logger } from '@snakagent/core';
 import { Command } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -120,11 +124,13 @@ export function estimateTokens(text: string): number {
 }
 
 export function createErrorCommand(
+  type: GraphErrorTypeEnum,
   error: Error,
   source: string,
   additionalUpdates?: Record<string, any>
 ): Command {
-  const errorContext: ErrorContext = {
+  const errorContext: GraphErrorType = {
+    type: type,
     hasError: true,
     message: error.message,
     source,
@@ -147,6 +153,7 @@ export function createErrorCommand(
 }
 
 export function handleNodeError(
+  type: GraphErrorTypeEnum,
   error: Error,
   source: string,
   state?: any,
@@ -161,7 +168,7 @@ export function handleNodeError(
   const enhancedError = new Error(fullMessage);
   enhancedError.stack = error.stack;
 
-  return createErrorCommand(enhancedError, source, {
+  return createErrorCommand(type, enhancedError, source, {
     currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
   });
 }

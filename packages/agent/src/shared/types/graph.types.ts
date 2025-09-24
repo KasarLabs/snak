@@ -33,12 +33,17 @@ export interface GraphExecutionContext {
 export enum GraphErrorTypeEnum {
   TASK_ERROR = 'task_error',
   TOOL_ERROR = 'tool_error',
+  TASK_ABORTED = 'task_aborted',
   EXECUTION_ERROR = 'execution_error',
   VALIDATION_ERROR = 'validation_error',
+  MEMORY_ERROR = 'memory_error',
+  MANAGER_ERROR = 'manager_error',
   BLOCKED_TASK = 'blocked_task',
   WRONG_NUMBER_OF_TOOLS = 'wrong_number_of_tools',
+  TIMEAOUT_ERROR = 'timeout_error',
   UNKNOWN_ERROR = 'unknown_error',
 }
+
 export interface GraphErrorType {
   type: GraphErrorTypeEnum;
   hasError: boolean;

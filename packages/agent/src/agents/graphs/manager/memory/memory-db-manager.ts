@@ -4,12 +4,10 @@ import {
   MemorySizeLimits,
   MemoryTimeouts,
   MemoryThresholds,
+  CustomHuggingFaceEmbeddings,
 } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
-import { CustomHuggingFaceEmbeddings } from '@snakagent/core'; /**
- * Transaction-safe memory database operations
- * Fixes the race conditions and data corruption issues in the original implementation
- */
+
 import {
   EpisodicMemoryContext,
   MemoryOperationResult,
@@ -20,6 +18,11 @@ export const embeddingModel = new CustomHuggingFaceEmbeddings({
   model: 'Xenova/all-MiniLM-L6-v2',
   dtype: 'fp32',
 });
+
+/**
+ * Transaction-safe memory database operations
+ * Fixes the race conditions and data corruption issues in the original implementation
+ */
 export class MemoryDBManager {
   private embeddings: CustomHuggingFaceEmbeddings;
   private readonly max_retries: number = 3; // Make configurable later

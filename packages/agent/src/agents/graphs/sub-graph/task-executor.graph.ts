@@ -271,6 +271,7 @@ export class AgentExecutorGraph {
     } catch (error: any) {
       logger.error(`[Executor] Model invocation failed: ${error.message}`);
       return handleNodeError(
+        GraphErrorTypeEnum.EXECUTION_ERROR,
         error,
         'EXECUTOR',
         state,
@@ -395,7 +396,13 @@ export class AgentExecutorGraph {
         );
       }
 
-      return handleNodeError(error, 'TOOLS', state, 'Tool execution failed');
+      return handleNodeError(
+        GraphErrorTypeEnum.TIMEAOUT_ERROR,
+        error,
+        'TOOLS',
+        state,
+        'Tool execution failed'
+      );
     }
   }
 

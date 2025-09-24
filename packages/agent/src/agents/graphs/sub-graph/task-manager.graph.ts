@@ -222,6 +222,7 @@ export class TaskManagerGraph {
       if (aiMessage.tool_calls[0].name === 'block_task') {
         logger.info('[Task Manager] Task creation aborted by model');
         return handleNodeError(
+          GraphErrorTypeEnum.TASK_ABORTED,
           new Error('Task creation aborted by model'),
           'Task Manager',
           state
@@ -260,6 +261,7 @@ export class TaskManagerGraph {
     } catch (error: any) {
       logger.error(`[Task Manager] Plan execution failed: ${error}`);
       return handleNodeError(
+        GraphErrorTypeEnum.MANAGER_ERROR,
         error,
         'TASK_MANAGER',
         state,
