@@ -55,3 +55,19 @@ packages/database/data/pg_wal/
 
 # LangGraph API
 .langgraph_api
+
+# Keycloak
+keycloak/.env.keycloak
+keycloak/realm.json
+
+# Data
+kc_postgres_data/
+postgres_data/
+redis_data/
+
+# Docker 
+**/.docker
+
+# Certs
+**/certs/*.crt
+**/certs/*.key
