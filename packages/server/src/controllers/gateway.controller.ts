@@ -68,6 +68,9 @@ export class MyGateway {
           if (!agentSelector) {
             throw new ServerError('E01TA400');
           }
+          if (!userRequest.request.user_request) {
+            throw new ServerError('E01TA400'); // Bad request if no content
+          }
           try {
             agent = await agentSelector.execute(
               userRequest.request.user_request

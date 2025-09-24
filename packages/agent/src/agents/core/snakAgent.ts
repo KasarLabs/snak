@@ -20,10 +20,9 @@ import {
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
-import { request } from 'http';
-import { ErrorContext } from '@stypes/error.types.js';
 import { GraphErrorType } from '@stypes/graph.types.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -39,6 +38,7 @@ export class SnakAgent extends BaseAgent {
   private ragAgent: RagAgent | null = null;
   private compiledGraph: CompiledStateGraph<any, any, any, any, any>;
   private controller: AbortController;
+  private pg_checkpointer: PostgresSaver;
   constructor(
     starknet_config: StarknetConfig,
     agent_config: AgentConfig.Runtime,
@@ -63,6 +63,7 @@ export class SnakAgent extends BaseAgent {
       }
       await this.initializeRagAgent(this.agentConfig);
       try {
+        this.pg_checkpointer = await CheckpointerService.getInstance();
         await this.createAgentReactExecutor();
         if (!this.compiledGraph) {
           logger.warn(
@@ -203,6 +204,13 @@ export class SnakAgent extends BaseAgent {
     }
     return this.controller;
   }
+  public getPgCheckpointer(): PostgresSaver | undefined {
+    if (!this.pg_checkpointer) {
+      logger.warn('[SnakAgent]  Checkpointer is not initialized');
+      return undefined;
+    }
+    return this.pg_checkpointer;
+  }
 
   /**
    * Execute the agent with the given input
@@ -211,7 +219,7 @@ export class SnakAgent extends BaseAgent {
    * @returns Promise resolving to the agent response
    */
   public async *execute(
-    input: string,
+    input?: string,
     isInterrupted: boolean = false,
     agent_config?: Record<string, any>
   ): AsyncGenerator<ChunkOutput> {
@@ -370,7 +378,6 @@ export class SnakAgent extends BaseAgent {
     thread_id?: string,
     checkpoint_id?: string
   ): AsyncGenerator<ChunkOutput> {
-    let autonomousResponseContent: string | any;
     try {
       logger.info(
         `[SnakAgent]  Starting autonomous execution - interrupted: ${isInterrupted}`
@@ -380,15 +387,13 @@ export class SnakAgent extends BaseAgent {
         throw new Error('CompiledGraph is not initialized');
       }
       this.controller = new AbortController();
-      const checkpointer = await CheckpointerService.getInstance();
-
       const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
       this.compiledGraph;
       const threadId = this.agentConfig.id;
       const configurable: GraphConfigurableType = {
         thread_id: threadId,
         user_request: {
-          request: input ?? '',
+          request: input ?? null,
           hitl_threshold:
             hitl_threshold ?? this.agentConfig.memory.thresholds.hitl_threshold,
         },
@@ -455,7 +460,9 @@ export class SnakAgent extends BaseAgent {
           thread_id: threadId,
           checkpoint_id: currentCheckpointId,
           tools: lastChunk.data.output.tool_calls ?? null,
-          message: lastChunk.data.output.content.toLocaleString(),
+          message: lastChunk.data.output.content
+            ? lastChunk.data.output.content.toLocaleString()
+            : null,
           metadata: {
             error: graphError,
             final: true,
@@ -471,8 +478,10 @@ export class SnakAgent extends BaseAgent {
 
         logger.error(`[SnakAgent]  Autonomous execution error: ${error}`);
         if (this.isTokenRelatedError(error)) {
-          autonomousResponseContent =
-            'Error: Token limit likely exceeded during autonomous execution.';
+          logger.warn('[SnakAgent]  Token limit error encountered');
+          throw new Error(
+            'The request could not be completed because it exceeded the token limit. Please try again with a shorter input or reduce the complexity of the task.'
+          );
         }
       }
     } catch (error: any) {

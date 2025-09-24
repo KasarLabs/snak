@@ -293,6 +293,12 @@ export class AgentsController {
         'Agent ID not provided in request, Using agent Selector to select agent'
       );
 
+      if (
+        !userRequest.request.content ||
+        userRequest.request.content?.length === 0
+      ) {
+        throw new ServerError('E01TA400'); // Bad request if no content
+      }
       const agentSelector = this.agentFactory.getAgentSelector();
       agent = await agentSelector.execute(userRequest.request.content);
       if (agent) {
@@ -316,7 +322,7 @@ export class AgentsController {
 
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
-      user_request: userRequest.request.content,
+      user_request: userRequest.request.content ?? undefined,
     };
 
     const action = this.agentService.handleUserRequest(agent, messageRequest);

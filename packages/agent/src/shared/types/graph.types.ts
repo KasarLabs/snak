@@ -92,7 +92,7 @@ export interface TasksType {
 }
 
 export interface UserRequest {
-  request: string;
+  request: string | null;
   hitl_threshold: number;
 }
 
@@ -104,4 +104,9 @@ export interface TaskVerificationToolOutput {
   nextActions: string[] | undefined;
   toolCallValidated: boolean;
   timestamp: number;
+}
+
+export interface skipValidationType {
+  skipValidation: boolean;
+  goto: string;
 }

@@ -1,7 +1,6 @@
-import { AgentConfig, logger, Id } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import {
   StateGraph,
-  MemorySaver,
   Annotation,
   END,
   CompiledStateGraph,
@@ -25,6 +24,7 @@ import {
 import {
   GraphErrorType,
   Memories,
+  skipValidationType,
   TaskType,
   UserRequest,
 } from '../../shared/types/index.js';
@@ -37,6 +37,7 @@ import { isInEnum } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -79,7 +80,7 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => 0,
   }),
-  skipValidation: Annotation<{ skipValidation: boolean; goto: string }>({
+  skipValidation: Annotation<skipValidationType>({
     reducer: (x, y) => y,
     default: () => ({ skipValidation: false, goto: '' }),
   }),
@@ -115,12 +116,16 @@ export class Graph {
   )[] = [];
   private agentConfig: AgentConfig.Runtime;
   private ragAgent: RagAgent | null = null;
-  private checkpointer: MemorySaver;
+  private checkpointer: PostgresSaver;
   private app: CompiledStateGraph<any, any, any, any, any, any>;
   private config: typeof GraphConfigurableAnnotation.State | null = null;
 
   constructor(private snakAgent: SnakAgent) {
-    this.checkpointer = new MemorySaver();
+    const pg_checkpointer = snakAgent.getPgCheckpointer();
+    if (!pg_checkpointer) {
+      throw new Error('Checkpointer is required for graph initialization');
+    }
+    this.checkpointer = pg_checkpointer;
   }
 
   private async initializeRagAgent(): Promise<void> {
@@ -139,11 +144,15 @@ export class Graph {
   private end_graph(state: typeof GraphState): {
     currentTaskIndex: number;
     retry: number;
+    skipValidation: skipValidationType;
+    error: null;
   } {
     logger.info('[EndGraph] Cleaning up state for graph termination');
     return {
       currentTaskIndex: 0,
       retry: 0,
+      skipValidation: { skipValidation: false, goto: '' },
+      error: null,
     };
   }
 
@@ -243,23 +252,6 @@ export class Graph {
     logger.debug(`[Orchestration Router] Default routing to executor`);
     return GraphNode.AGENT_EXECUTOR;
   }
-  private getCompileOptions(): {
-    checkpointer?: MemorySaver;
-    configurable?: Record<string, any>;
-  } {
-    const baseOptions = this.agentConfig.memory
-      ? {
-          checkpointer: this.checkpointer,
-        }
-      : {};
-    return {
-      ...baseOptions,
-      configurable: {
-        agent_config: this.agentConfig,
-      },
-    };
-  }
-
   private initGraphStateValue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
@@ -268,6 +260,7 @@ export class Graph {
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required in config');
     }
+    console.log(config);
     const memorySize =
       config.configurable.agent_config.memory.size_limits
         .short_term_memory_size;
@@ -366,7 +359,7 @@ export class Graph {
 
       // Build and compile the workflow
       const workflow = this.buildWorkflow();
-      const app = workflow.compile(this.getCompileOptions());
+      const app = workflow.compile({ checkpointer: this.checkpointer });
       logger.info('Agent] Successfully initialized agent');
       return app;
     } catch (error) {

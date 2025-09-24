@@ -1,3 +1,4 @@
+import { isNull } from 'util';
 import { AgentConfig } from '../../agent.js';
 import {
   IsNotEmpty,
@@ -71,10 +72,7 @@ export class MessageRequest {
   @IsUUID()
   agent_id: string;
 
-  @IsNotEmpty()
-  @IsString()
-  @Length(1, 10000)
-  user_request: string;
+  user_request?: string;
 }
 
 /**
@@ -135,10 +133,11 @@ export class Message {
   })
   sender_type: string;
 
+  @IsOptional()
   @IsNotEmpty()
   @IsString()
   @Length(1, 10000)
-  content: string;
+  content?: string;
 
   @IsNotEmpty()
   @IsString()
