@@ -254,9 +254,9 @@ export class SnakAgent extends BaseAgent {
   public stop(): void {
     if (this.controller) {
       this.controller.abort();
-      logger.info('[SnakAgent]  Execution stopped');
+      logger.info('[SnakAgent] Execution stopped');
     } else {
-      logger.warn('[SnakAgent]  No controller found to stop execution');
+      logger.warn('[SnakAgent] No controller found to stop execution');
     }
   }
 
@@ -370,6 +370,20 @@ export class SnakAgent extends BaseAgent {
     return null;
   }
 
+  private isInterrupt(stateSnapshot: StateSnapshot): boolean {
+    if (
+      stateSnapshot.tasks?.length > 0 &&
+      stateSnapshot.tasks[0].interrupts?.length > 0
+    ) {
+      console.log('Graph is interrupted');
+      const interrupt = stateSnapshot.tasks[0].interrupts[0];
+      console.log('Interrupt value:', interrupt.value);
+      console.log('Id:', interrupt.id);
+      return false;
+    }
+    return true;
+  }
+
   /**
    * Executes the agent in autonomous mode
    * This mode allows the agent to operate continuously based on an initial goal or prompt
@@ -409,7 +423,6 @@ export class SnakAgent extends BaseAgent {
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;
       let graphError: GraphErrorType | null = null;
-
       try {
         let command: Command | undefined;
         const graphState = { messages: initialMessages };
@@ -420,12 +433,11 @@ export class SnakAgent extends BaseAgent {
           version: 'v2' as const,
         };
 
-        if (isInterrupted) {
-          command = new Command({
-            resume: input,
-          });
+        let state = await this.compiledGraph.getState(executionConfig);
+        if (!state) {
+          throw new Error('Failed to retrieve initial graph state');
         }
-
+        // WE NEED TO KNOW IF IT WAS INTERRUPTED TO PASS THE SAME INPUT AGAIN
         const executionInput = !isInterrupted ? graphState : command;
         let chunk: StreamEvent;
         for await (chunk of this.compiledGraph.streamEvents(
@@ -434,7 +446,6 @@ export class SnakAgent extends BaseAgent {
         )) {
           isInterrupted = false;
           lastChunk = chunk;
-          const state = await this.compiledGraph.getState(executionConfig);
           retryCount = state.values.retry;
           currentCheckpointId = state.config.configurable?.checkpoint_id;
           graphError = state.config.configurable?.error;

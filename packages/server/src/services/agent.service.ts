@@ -105,7 +105,7 @@ export class AgentService implements IAgentService {
   }
 
   async *handleUserRequestWebsocket(
-    agent: any,
+    agent: SnakAgent,
     userRequest: MessageRequest,
     userId: string
   ): AsyncGenerator<ChunkOutput> {
@@ -133,7 +133,7 @@ export class AgentService implements IAgentService {
           userRequest.user_request,
           true
         )) {
-          if (chunk.final === true) {
+          if (chunk.metadata.final === true) {
             this.logger.debug('SupervisorService: Execution completed');
             yield chunk;
             return;
@@ -145,7 +145,7 @@ export class AgentService implements IAgentService {
           userRequest.user_request,
           false
         )) {
-          if (chunk.final === true) {
+          if (chunk.metadata.final === true) {
             this.logger.debug('SupervisorService: Execution completed');
             yield chunk;
             return;

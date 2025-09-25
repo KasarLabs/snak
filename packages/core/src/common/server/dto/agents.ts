@@ -14,26 +14,7 @@ import {
   ArrayNotEmpty,
   ArrayMinSize,
   ArrayMaxSize,
-  isNotEmpty,
-  isUUID,
 } from 'class-validator';
-
-/**
- * Configuration for agent memory settings
- */
-export interface AgentMemory {
-  enabled: boolean;
-  short_term_memory_size: number;
-  memory_size: number;
-}
-
-/**
- * Configuration for agent rag settings
- */
-export interface AgentRag {
-  enabled: boolean;
-  embedding_model: string | null;
-}
 
 /**
  * DTO for adding a new agent
@@ -76,6 +57,12 @@ export class MessageRequest {
   @IsString()
   @Length(1, 10000)
   user_request?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  hitl_threshold?: number;
 }
 
 /**

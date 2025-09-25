@@ -9,6 +9,9 @@ import {
   estimateTokens,
   GenerateToolCallsFromMessage,
   handleNodeError,
+  hasReachedMaxSteps,
+  isValidConfiguration,
+  isValidConfigurationType,
   routingFromSubGraphToParentGraphEndNode,
 } from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
@@ -64,9 +67,7 @@ export class AgentExecutorGraph {
   ) {
     this.model = model;
     this.agentConfig = agentConfig;
-    this.toolsList = toolList.concat(
-      new TaskExecutorToolRegistry(agentConfig).getTools()
-    );
+    this.toolsList = toolList.concat(new TaskExecutorToolRegistry().getTools());
   }
 
   // Invoke Model with Messages
@@ -144,14 +145,36 @@ export class AgentExecutorGraph {
     | Command
   > {
     try {
-      if (!this.agentConfig || !this.model) {
-        throw new Error('Agent configuration and ModelSelector are required.');
+      const _isValidConfiguration: isValidConfigurationType =
+        isValidConfiguration(config);
+      if (_isValidConfiguration.isValid === false) {
+        throw new Error(_isValidConfiguration.error);
+      }
+      if (
+        hasReachedMaxSteps(
+          state.currentGraphStep,
+          config.configurable!.agent_config!
+        )
+      ) {
+        logger.warn(
+          `[TaskManager] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+        );
+        throw new Error('Max steps reached');
+      }
+      const agentConfig = config.configurable!.agent_config!; // Safe due to validation above
+      const userRequest = config.configurable!.user_request!;
+      if (!userRequest) {
+        throw new Error('User request is missing in configuration');
+      }
+      if (userRequest.hitl_threshold === 0) {
+        this.toolsList = this.toolsList.filter(
+          (tool) => tool.name !== 'ask_human'
+        );
       }
       const currentTask = state.tasks[state.tasks.length - 1];
       if (!currentTask) {
         throw new Error('Current task is undefined');
       }
-
       const stepId = uuidv4();
       logger.info(
         `[Executor] Executing task: ${currentTask.task.directive} (Step ${

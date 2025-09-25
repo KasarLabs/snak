@@ -24,6 +24,12 @@ import {
 } from '../graph.js';
 import { ToolCallChunk, ToolCall } from '@langchain/core/messages/tool';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  HITL_CONSTRAINT_LEVEL_0,
+  HITL_CONSTRAINT_LEVEL_1,
+  HITL_CONSTRAINT_LEVEL_2,
+  HITL_CONSTRAINT_LEVEL_3,
+} from '@prompts/agents/hitl-contraint.prompt.js';
 // --- Response Generators ---
 export function createMaxIterationsResponse<T>(
   graph_step: number,
@@ -362,4 +368,22 @@ export function routingFromSubGraphToParentGraphEndNode(
     goto: 'end_graph',
     graph: Command.PARENT,
   });
+}
+
+export function getHITLContraintFromTreshold(threshold: number): string | null {
+  if (threshold <= 0 || threshold > 1) return null;
+  switch (true) {
+    case threshold > 0 && threshold <= 0.25:
+      return HITL_CONSTRAINT_LEVEL_0;
+    case threshold > 0.25 && threshold <= 0.5:
+      return HITL_CONSTRAINT_LEVEL_1;
+    case threshold > 0.5 && threshold < 0.75:
+      return HITL_CONSTRAINT_LEVEL_2;
+    case threshold >= 0.75 && threshold < 1:
+      return HITL_CONSTRAINT_LEVEL_3;
+    case threshold === 1:
+      return 'always';
+    default:
+      return null;
+  }
 }

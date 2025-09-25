@@ -36,7 +36,10 @@ import {
   TASK_MANAGER_HUMAN_PROMPT,
   TASK_MANAGER_MEMORY_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
-import { TaskManagerToolRegistry } from '../tools/task-manager.tools.js';
+import {
+  TaskManagerToolRegistry,
+  TaskManagerToolRegistryInstance,
+} from '../tools/task-manager.tools.js';
 
 export function tasks_parser(tasks: TaskType[]): string {
   try {
@@ -89,7 +92,7 @@ export class TaskManagerGraph {
   ) {
     this.model = agentConfig.graph.model;
     this.toolsList = toolList.concat(
-      new TaskManagerToolRegistry(agentConfig).getTools()
+      TaskManagerToolRegistryInstance.getTools()
     );
   }
   private async planExecution(

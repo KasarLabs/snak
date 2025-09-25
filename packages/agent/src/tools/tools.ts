@@ -56,7 +56,7 @@ export async function initializeToolsList(
   // toolsList.push(...memoryRegistry.getTools());
 
   // Register core tools
-  const coreRegistry = new CoreToolRegistry(agentConfig);
+  const coreRegistry = new CoreToolRegistry();
   toolsList.push(...coreRegistry.getTools());
   return toolsList;
 }

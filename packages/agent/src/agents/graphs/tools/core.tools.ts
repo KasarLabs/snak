@@ -10,8 +10,8 @@ const endTask = (): string => {
 };
 
 export class CoreToolRegistry extends BaseToolRegistry {
-  constructor(agentConfig: AgentConfig.Runtime) {
-    super(agentConfig);
+  constructor() {
+    super();
     this.tools = this.registerTools();
   }
 
@@ -22,8 +22,9 @@ export class CoreToolRegistry extends BaseToolRegistry {
     tools.push(
       tool(endTask, {
         name: 'end_task',
-        description: '[SNAK Tool] End the current task successfully',
-        schema: z.object({}),
+        description:
+          '[SNAK Tool] Use this tool to end the task execution when the task is completed or cannot be completed. Provide a clear and concise summary in the "speak" field of the response.',
+        schema: ThoughtsSchema,
       })
     );
 
@@ -37,6 +38,16 @@ export class CoreToolRegistry extends BaseToolRegistry {
       })
     );
 
+    // HITL tool
+    tools.push(
+      tool(() => {}, {
+        name: 'ask_human',
+        description: `[SNAK Tool] Use this tool to ask the user for input when necessary don't violate your system constraint. Provide a clear and concise question in the "speak" field of the response.`,
+        schema: ThoughtsSchema,
+      })
+    );
     return tools;
   }
 }
+
+export const CoreToolRegistryInstance = new CoreToolRegistry();

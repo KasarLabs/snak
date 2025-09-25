@@ -1,4 +1,4 @@
-import { AgentConfig, logger } from '@snakagent/core';
+import { AgentConfig, DEFAULT_AGENT_CONFIG, logger } from '@snakagent/core';
 import {
   StateGraph,
   Annotation,
@@ -101,9 +101,11 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => null,
   }),
-  user_request: Annotation<UserRequest | undefined>({
+  user_request: Annotation<UserRequest>({
     reducer: (x, y) => y,
-    default: () => undefined,
+    default: () => {
+      return { request: '', hitl_threshold: 0 };
+    },
   }),
 });
 

@@ -22,7 +22,6 @@ import {
 } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
-import { EventType } from '@snakagent/agents';
 import { AgentResponse } from '@snakagent/core';
 
 @WebSocketGateway({
