@@ -285,76 +285,109 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to completely update an agent record
--- This function allows updating ALL fields of an agent in a single transaction
 CREATE OR REPLACE FUNCTION update_agent_complete(
-    p_agent_id UUID,
-    p_user_id UUID,
-    p_profile agent_profile DEFAULT NULL,
-    p_mcp_servers JSONB DEFAULT NULL,
-    p_prompts_id UUID DEFAULT NULL,
-    p_graph graph_config DEFAULT NULL,
-    p_memory memory_config DEFAULT NULL,
-    p_rag rag_config DEFAULT NULL,
-    p_avatar_image BYTEA DEFAULT NULL,
-    p_avatar_mime_type VARCHAR(50) DEFAULT NULL
-) RETURNS TABLE (
-    success BOOLEAN,
-    message TEXT,
-    updated_agent_id UUID
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    existing_agent agents%ROWTYPE;
-    rows_updated INTEGER;
+  p_agent_id UUID,
+  p_user_id UUID,
+  p_config JSONB
+) RETURNS TABLE(
+  success BOOLEAN,
+  message TEXT,
+  updated_agent_id UUID
+) AS $$
 BEGIN
-    -- Check if agent exists and belongs to the user
-    SELECT * INTO existing_agent FROM agents WHERE id = p_agent_id AND user_id = p_user_id;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT
-            FALSE AS success,
-            'Agent not found with ID: ' || p_agent_id::TEXT || ' for user: ' || p_user_id::TEXT AS message,
-            NULL::UUID AS updated_agent_id;
-        RETURN;
-    END IF;
-
-    -- Perform the update with COALESCE to keep existing values when NULL is passed
-    UPDATE agents SET
-        profile = COALESCE(p_profile, profile),
-        mcp_servers = COALESCE(p_mcp_servers, mcp_servers),
-        prompts_id = COALESCE(p_prompts_id, prompts_id),
-        graph = COALESCE(p_graph, graph),
-        memory = COALESCE(p_memory, memory),
-        rag = COALESCE(p_rag, rag),
-        avatar_image = COALESCE(p_avatar_image, avatar_image),
-        avatar_mime_type = COALESCE(p_avatar_mime_type, avatar_mime_type),
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = p_agent_id AND user_id = p_user_id;
-
-    GET DIAGNOSTICS rows_updated = ROW_COUNT;
-
-    IF rows_updated > 0 THEN
-        RETURN QUERY SELECT
-            TRUE AS success,
-            'Agent updated successfully' AS message,
-            p_agent_id AS updated_agent_id;
-    ELSE
-        RETURN QUERY SELECT
-            FALSE AS success,
-            'Failed to update agent' AS message,
-            NULL::UUID AS updated_agent_id;
-    END IF;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN QUERY SELECT
-            FALSE AS success,
-            'Error updating agent: ' || SQLERRM AS message,
-            NULL::UUID AS updated_agent_id;
+  -- Update only provided fields
+  UPDATE agents
+  SET
+    profile = CASE 
+      WHEN p_config->'profile' IS NOT NULL THEN
+        ROW(
+          COALESCE(p_config->'profile'->>'name', (profile).name),
+          COALESCE(p_config->'profile'->>'group', (profile)."group"),
+          COALESCE(p_config->'profile'->>'description', (profile).description),
+          COALESCE(
+            CASE 
+              WHEN p_config->'profile'->'contexts' IS NOT NULL THEN
+                ARRAY(SELECT jsonb_array_elements_text(p_config->'profile'->'contexts'))
+              ELSE NULL
+            END,
+            (profile).contexts
+          )
+        )::agent_profile
+      ELSE profile
+    END,
+    mcp_servers = COALESCE(p_config->'mcp_servers', mcp_servers),
+    prompts_id = COALESCE((p_config->>'prompts_id')::UUID, prompts_id),
+    graph = CASE
+      WHEN p_config->'graph' IS NOT NULL THEN
+        ROW(
+          COALESCE((p_config->'graph'->>'max_steps')::integer, (graph).max_steps),
+          COALESCE((p_config->'graph'->>'max_iterations')::integer, (graph).max_iterations),
+          COALESCE((p_config->'graph'->>'max_retries')::integer, (graph).max_retries),
+          COALESCE((p_config->'graph'->>'execution_timeout_ms')::bigint, (graph).execution_timeout_ms),
+          COALESCE((p_config->'graph'->>'max_token_usage')::integer, (graph).max_token_usage),
+          ROW(
+            COALESCE(p_config->'graph'->'model'->>'model_provider', ((graph).model).model_provider),
+            COALESCE(p_config->'graph'->'model'->>'model_name', ((graph).model).model_name),
+            COALESCE((p_config->'graph'->'model'->>'temperature')::numeric(3,2), ((graph).model).temperature),
+            COALESCE((p_config->'graph'->'model'->>'max_tokens')::integer, ((graph).model).max_tokens)
+          )::model_config
+        )::graph_config
+      ELSE graph
+    END,
+    memory = CASE
+      WHEN p_config->'memory' IS NOT NULL THEN
+        ROW(
+          COALESCE((p_config->'memory'->>'ltm_enabled')::boolean, (memory).ltm_enabled),
+          ROW(
+            COALESCE((p_config->'memory'->'size_limits'->>'short_term_memory_size')::integer, ((memory).size_limits).short_term_memory_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'max_insert_episodic_size')::integer, ((memory).size_limits).max_insert_episodic_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'max_insert_semantic_size')::integer, ((memory).size_limits).max_insert_semantic_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'max_retrieve_memory_size')::integer, ((memory).size_limits).max_retrieve_memory_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'limit_before_summarization')::integer, ((memory).size_limits).limit_before_summarization)
+          )::memory_size_limits,
+          ROW(
+            COALESCE((p_config->'memory'->'thresholds'->>'insert_semantic_threshold')::numeric(3,2), ((memory).thresholds).insert_semantic_threshold),
+            COALESCE((p_config->'memory'->'thresholds'->>'insert_episodic_threshold')::numeric(3,2), ((memory).thresholds).insert_episodic_threshold),
+            COALESCE((p_config->'memory'->'thresholds'->>'retrieve_memory_threshold')::numeric(3,2), ((memory).thresholds).retrieve_memory_threshold),
+            COALESCE((p_config->'memory'->'thresholds'->>'hitl_threshold')::numeric(3,2), ((memory).thresholds).hitl_threshold)
+          )::memory_thresholds,
+          ROW(
+            COALESCE((p_config->'memory'->'timeouts'->>'retrieve_memory_timeout_ms')::bigint, ((memory).timeouts).retrieve_memory_timeout_ms),
+            COALESCE((p_config->'memory'->'timeouts'->>'insert_memory_timeout_ms')::bigint, ((memory).timeouts).insert_memory_timeout_ms)
+          )::memory_timeouts,
+          -- Fixed: Cast to memory_strategy first, then COALESCE with matching types
+          COALESCE(
+            (p_config->'memory'->>'strategy')::memory_strategy, 
+            (memory).strategy
+          )
+        )::memory_config
+      ELSE memory
+    END,
+    rag = CASE
+      WHEN p_config->'rag' IS NOT NULL THEN
+        ROW(
+          COALESCE((p_config->'rag'->>'enabled')::boolean, (rag).enabled),
+          COALESCE((p_config->'rag'->>'top_k')::integer, (rag).top_k),
+          COALESCE(p_config->'rag'->>'embedding_model', (rag).embedding_model)
+        )::rag_config
+      ELSE rag
+    END,
+    avatar_image = CASE 
+      WHEN p_config ? 'avatar_image' AND p_config->>'avatar_image' IS NOT NULL THEN
+        decode(p_config->>'avatar_image', 'base64')
+      ELSE avatar_image
+    END,
+    avatar_mime_type = COALESCE(p_config->>'avatar_mime_type', avatar_mime_type),
+    updated_at = NOW()
+  WHERE id = p_agent_id AND user_id = p_user_id;
+  
+  IF FOUND THEN
+    RETURN QUERY SELECT TRUE, 'Agent updated successfully', p_agent_id;
+  ELSE
+    RETURN QUERY SELECT FALSE, 'Agent not found or unauthorized', NULL::UUID;
+  END IF;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
 -- Function to update agent with full replacement (all fields required)
 -- This function requires ALL mandatory fields and completely replaces the record
@@ -438,7 +471,93 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+-- Create this function in your database once
+CREATE OR REPLACE FUNCTION insert_agent_from_json(
+  p_user_id UUID,
+  p_config JSONB
+) RETURNS agents AS $$  -- Return the entire agents row type
+DECLARE
+  v_prompts_id UUID;
+  v_result agents;
+BEGIN
+  -- Extract prompts_id, use NULL if not present
+  v_prompts_id := (p_config->>'prompts_id')::UUID;
+  
+  -- If NULL, initialize default prompts
+  IF v_prompts_id IS NULL THEN
+    v_prompts_id := initialize_default_prompts(p_user_id);
+  END IF;
+  
+  INSERT INTO agents (
+    user_id,
+    profile,
+    mcp_servers,
+    prompts_id,
+    graph,
+    memory,
+    rag,
+    avatar_image,
+    avatar_mime_type
+  ) VALUES (
+    p_user_id,
+    ROW(
+      p_config->'profile'->>'name',
+      p_config->'profile'->>'group',
+      p_config->'profile'->>'description',
+      ARRAY(SELECT jsonb_array_elements_text(p_config->'profile'->'contexts'))
+    )::agent_profile,
+    p_config->'mcp_servers',
+    v_prompts_id,
+    ROW(
+      (p_config->'graph'->>'max_steps')::integer,
+      (p_config->'graph'->>'max_iterations')::integer,
+      (p_config->'graph'->>'max_retries')::integer,
+      (p_config->'graph'->>'execution_timeout_ms')::bigint,
+      (p_config->'graph'->>'max_token_usage')::integer,
+      ROW(
+        p_config->'graph'->'model'->>'model_provider',
+        p_config->'graph'->'model'->>'model_name',
+        (p_config->'graph'->'model'->>'temperature')::numeric(3,2),
+        (p_config->'graph'->'model'->>'max_tokens')::integer
+      )::model_config
+    )::graph_config,
+    ROW(
+      (p_config->'memory'->>'ltm_enabled')::boolean,
+      ROW(
+        (p_config->'memory'->'size_limits'->>'short_term_memory_size')::integer,
+        (p_config->'memory'->'size_limits'->>'max_insert_episodic_size')::integer,
+        (p_config->'memory'->'size_limits'->>'max_insert_semantic_size')::integer,
+        (p_config->'memory'->'size_limits'->>'max_retrieve_memory_size')::integer,
+        (p_config->'memory'->'size_limits'->>'limit_before_summarization')::integer
+      )::memory_size_limits,
+      ROW(
+        (p_config->'memory'->'thresholds'->>'insert_semantic_threshold')::numeric(3,2),
+        (p_config->'memory'->'thresholds'->>'insert_episodic_threshold')::numeric(3,2),
+        (p_config->'memory'->'thresholds'->>'retrieve_memory_threshold')::numeric(3,2),
+        (p_config->'memory'->'thresholds'->>'hitl_threshold')::numeric(3,2)
+      )::memory_thresholds,
+      ROW(
+        (p_config->'memory'->'timeouts'->>'retrieve_memory_timeout_ms')::bigint,
+        (p_config->'memory'->'timeouts'->>'insert_memory_timeout_ms')::bigint
+      )::memory_timeouts,
+      (p_config->'memory'->>'strategy')::memory_strategy
+    )::memory_config,
+    ROW(
+      (p_config->'rag'->>'enabled')::boolean,
+      (p_config->'rag'->>'top_k')::integer,
+      p_config->'rag'->>'embedding_model'
+    )::rag_config,
+    CASE 
+      WHEN p_config ? 'avatar_image' AND p_config->>'avatar_image' IS NOT NULL THEN
+        decode(p_config->>'avatar_image', 'base64')
+      ELSE NULL
+    END,
+    p_config->>'avatar_mime_type'
+  ) RETURNING * INTO v_result;
+  
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql;
 -- Bulk Agent Deletion Function for specific user
 CREATE OR REPLACE FUNCTION delete_all_agents(p_user_id UUID)
 RETURNS TABLE (

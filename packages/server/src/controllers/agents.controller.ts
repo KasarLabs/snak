@@ -133,25 +133,15 @@ export class AgentsController {
     try {
       // Use the existing update_agent_complete function
       const query = `
-        SELECT success, message, updated_agent_id
-        FROM update_agent_complete(
-          $1::UUID, $2::UUID, $3::agent_profile,
-          $4::JSONB, $5::UUID, $6::graph_config,
-          $7::memory_config, $8::rag_config, $9, $10
-        )
-      `;
+  SELECT success, message, updated_agent_id
+  FROM update_agent_complete($1::UUID, $2::UUID, $3::JSONB)
+`;
+
       const result = await Postgres.query(
         new Postgres.Query(query, [
           id,
           userId,
-          config.profile || null,
-          config.mcp_servers ? JSON.stringify(config.mcp_servers) : null,
-          config.prompts_id || null,
-          config.graph || null,
-          config.memory || null,
-          config.rag || null,
-          null, // avatarImage
-          null, // avatarMimeType
+          JSON.stringify(config), // Pass entire config as JSONB
         ])
       );
 

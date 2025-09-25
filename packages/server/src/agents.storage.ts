@@ -220,81 +220,14 @@ export class AgentStorage implements OnModuleInit {
 
     const prompt_id =
       agentConfig.prompts_id ?? (await this.initializeDefaultPrompts(userId));
+
+    agentConfig.prompts_id = prompt_id;
     const q = new Postgres.Query(
-      `INSERT INTO agents (
-        user_id,
-        profile,
-        mcp_servers,
-        prompts_id,
-        graph,
-        memory,
-        rag
-      ) VALUES (
-        $1,
-        ROW($2, $3, $4, $5::text[])::agent_profile,
-        $6::jsonb,
-        $7,
-        ROW($8, $9, $10, $11, $12, ROW($13, $14, $15, $16)::model_config)::graph_config,
-        ROW($17, ROW($18, $19, $20, $21, $22)::memory_size_limits, ROW($23, $24, $25, $26)::memory_thresholds, ROW($27, $28)::memory_timeouts, $29::memory_strategy)::memory_config,
-        ROW($30, $31, $32)::rag_config
-      ) RETURNING
-        id,
-        user_id,
-        row_to_json(profile) as profile,
-        mcp_servers as "mcp_servers",
-        prompts_id,
-        row_to_json(graph) as graph,
-        row_to_json(memory) as memory,
-        row_to_json(rag) as rag,
-        created_at,
-        updated_at,
-        avatar_image,
-        avatar_mime_type`,
-      [
-        userId, // $1
-        finalName, // $2
-        agentConfig.profile.group, // $3
-        agentConfig.profile.description, // $4
-        agentConfig.profile.contexts || [], // $5
-        agentConfig.mcp_servers || {}, // $6
-        // prompts_id
-        prompt_id, // $7
-        // graph_config
-        agentConfig.graph.max_steps, // $8
-        agentConfig.graph.max_iterations, // $9
-        agentConfig.graph.max_retries, // $10
-        agentConfig.graph.execution_timeout_ms, // $11
-        agentConfig.graph.max_token_usage, // $12
-        // model_config (nested in graph_config)
-        agentConfig.graph.model.provider, // $13
-        agentConfig.graph.model.model_name, // $14
-        agentConfig.graph.model.temperature, // $15
-        agentConfig.graph.model.max_tokens || 4096, // $16
-        // memory_config
-        agentConfig.memory.ltm_enabled, // $17
-        // memory_size_limits
-        agentConfig.memory.size_limits.short_term_memory_size, // $18
-        agentConfig.memory.size_limits.max_insert_episodic_size, // $19
-        agentConfig.memory.size_limits.max_insert_semantic_size, // $20
-        agentConfig.memory.size_limits.max_retrieve_memory_size, // $21
-        agentConfig.memory.size_limits.limit_before_summarization, // $22
-        // memory_thresholds
-        agentConfig.memory.thresholds.insert_semantic_threshold, // $23
-        agentConfig.memory.thresholds.insert_episodic_threshold, // $24
-        agentConfig.memory.thresholds.retrieve_memory_threshold, // $25
-        agentConfig.memory.thresholds.hitl_threshold, // $26
-        // memory_timeouts
-        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $27
-        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $28
-        // memory_strategy
-        agentConfig.memory.strategy, // $29
-        // rag_config
-        agentConfig.rag.enabled, // $30
-        agentConfig.rag.top_k, // $31
-        agentConfig.rag.embedding_model, // $32
-      ]
+      'SELECT * FROM insert_agent_from_json($1, $2)',
+      [userId, JSON.stringify(agentConfig)]
     );
-    const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
+    console.log(q);
+    const q_res = await Postgres.query<any>(q);
     logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
