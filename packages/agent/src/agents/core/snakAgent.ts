@@ -328,6 +328,7 @@ export class SnakAgent extends BaseAgent {
     state: any,
     retryCount: number,
     graphError: GraphErrorType | null
+    isLast : boolean,
   ): ChunkOutput | null {
     const nodeType = chunk.metadata?.langgraph_node;
     const eventType = chunk.event;
@@ -384,6 +385,14 @@ export class SnakAgent extends BaseAgent {
     return true;
   }
 
+  private getInterruptCommand(): Command {
+    return {
+      type: 'command',
+      command: 'interrupt',
+      args: {},
+    };
+  }
+
   /**
    * Executes the agent in autonomous mode
    * This mode allows the agent to operate continuously based on an initial goal or prompt
@@ -391,20 +400,17 @@ export class SnakAgent extends BaseAgent {
    */
   public async *executeAsyncGenerator(
     input?: string,
-    isInterrupted: boolean = false,
     hitl_threshold?: number
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.info(
-        `[SnakAgent]  Starting autonomous execution - interrupted: ${isInterrupted}`
+        `[SnakAgent]  Starting autonomous execution for agent : ${this.agentConfig.name}`
       );
-
       if (!this.compiledGraph) {
         throw new Error('CompiledGraph is not initialized');
       }
       this.controller = new AbortController();
       const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
-      this.compiledGraph;
       const threadId = this.agentConfig.id;
       const configurable: GraphConfigurableType = {
         thread_id: threadId,
@@ -424,8 +430,6 @@ export class SnakAgent extends BaseAgent {
       let currentCheckpointId: string | undefined = undefined;
       let graphError: GraphErrorType | null = null;
       try {
-        let command: Command | undefined;
-        const graphState = { messages: initialMessages };
         const executionConfig = {
           ...threadConfig,
           signal: this.controller.signal,
@@ -438,13 +442,16 @@ export class SnakAgent extends BaseAgent {
           throw new Error('Failed to retrieve initial graph state');
         }
         // WE NEED TO KNOW IF IT WAS INTERRUPTED TO PASS THE SAME INPUT AGAIN
-        const executionInput = !isInterrupted ? graphState : command;
-        let chunk: StreamEvent;
-        for await (chunk of this.compiledGraph.streamEvents(
+        const executionInput = this.isInterrupt(state)
+          ? { messages: initialMessages }
+          : this.getInterruptCommand();
+        logger.debug(
+          `[SnakAgent]  Initial state retrieved, starting graph execution`
+        );
+        for await (const chunk of this.compiledGraph.streamEvents(
           executionInput ?? { messages: [] },
           executionConfig
         )) {
-          isInterrupted = false;
           lastChunk = chunk;
           retryCount = state.values.retry;
           currentCheckpointId = state.config.configurable?.checkpoint_id;
