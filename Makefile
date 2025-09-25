@@ -1,61 +1,46 @@
-ENV_FILE=.env.keycloak
-REALM_TEMPLATE=realm-template.json
-REALM_OUTPUT=realm.json
+ENV_FILE=keycloak/.env.keycloak
+REALM_TEMPLATE=keycloak/realm-template.json
+REALM_OUTPUT=keycloak/realm.json
 
-all: certs snak-api keycloak
+all: certs realms up
 
 certs:
 	@cd keycloak/traefik/certs && \
 	./certs.sh
-	@echo "→ Ensuring hosts entries"
+	@printf "%b\n" "→ Ensuring hosts entries"
 	@grep -q "mysnakagent.com" /etc/hosts || \
 		echo "127.0.0.1 mysnakagent.com auth.mysnakagent.com" | sudo tee -a /etc/hosts >/dev/null
-	@echo "✔ Hosts updated"
-	@echo "→ /etc/hosts content:"
+	@printf "%b\n" "✔ Hosts updated"
+	@printf "%b\n" "→ /etc/hosts content:"
 	@cat /etc/hosts
 
-snak-api:
-	@echo "$(_BLUE)→ Starting Snak stack (root)$(_NO)"
+up:
+	@printf "%b\n" "$(_BLUE)→ Starting snak + keycloak stack$(_NO)"
 	@docker compose up -d
-	@echo "$(_GREEN)✔ Snak stack running$(_NO)"
+	@printf "%b\n" "$(_GREEN)✔ Snak + Keycloak running$(_NO)"
 
-snak_down:
-	@echo "$(_STARLIGHT_BLUE)→ Stopping snak$(_NO)"
-	@docker compose down
-	@echo "$(_GREEN)✔ Snak stopped$(_NO)"
-
-keycloak:
-	@cd keycloak && \
-	echo "$(_STARLIGHT_BLUE)→ Generating realm.json from template$(_NO)" && \
-	export $$(grep -v '^#' $(ENV_FILE) | xargs) && \
-	envsubst < $(REALM_TEMPLATE) > $(REALM_OUTPUT) && \
-	echo "$(_GREEN)✔ Realm file generated: $(REALM_OUTPUT)$(_NO)" && \
-	echo "$(_BLUE)→ Starting Keycloak stack (keycloak/)$(_NO)" && \
-	docker compose up -d && \
-	echo "$(_GREEN)✔ Keycloak stack running$(_NO)"
-
-keycloak_down:
-	@echo "$(_STARLIGHT_BLUE)→ Stopping keycloak$(_NO)"
-	@cd keycloak && \
-	docker compose down
-	@echo "$(_GREEN)✔ Keycloak stopped$(_NO)"
+realms: 
+	@printf "%b\n" "$(_STARLIGHT_BLUE)→ Generating realm.json from template$(_NO)"
+	@export $$(grep -v '^#' $(ENV_FILE) | xargs) && \
+	envsubst < $(REALM_TEMPLATE) > $(REALM_OUTPUT)
+	@printf "%b\n" "$(_GREEN)✔ Realm file generated: $(REALM_OUTPUT)$(_NO)"
 
 down:
-	@echo "$(_STARLIGHT_BLUE)→ Stopping all stacks$(_NO)"
+	@printf "%b\n" "$(_STARLIGHT_BLUE)→ Stopping all stacks$(_NO)"
 	@docker compose down
-	@cd keycloak && docker compose down
-	@echo "$(_GREEN)✔ All stacks stopped$(_NO)"
+	@printf "%b\n" "$(_GREEN)✔ All stacks stopped$(_NO)"
 
 clean:
-	@echo "$(_STARLIGHT_BLUE)→ Cleaning all (stacks + realm.json)$(_NO)"
+	@printf "%b\n" "$(_STARLIGHT_BLUE)→ Cleaning all (stacks + realm.json)$(_NO)"
 	@docker compose down -v
-	@cd keycloak && docker compose down && docker volume prune -af && docker system prune -af
+	@docker volume prune -af
+	@docker system prune -af
 	rm -f $(REALM_OUTPUT)
-	rm keycloak/traefik/certs/mysnakagent.crt
-	rm keycloak/traefik/certs/mysnakagent.key
-	@echo "$(_GREEN)✔ Clean done$(_NO)"
+	rm -f keycloak/traefik/certs/mysnakagent.crt
+	rm -f keycloak/traefik/certs/mysnakagent.key
+	@printf "%b\n" "$(_GREEN)✔ Clean done$(_NO)"
 
-.PHONY: keycloak snak-api all down clean 
+.PHONY: all certs up realms down clean
 
 # -------------- Syntaxing -------------- #
 _NO                    = \033[0m
@@ -72,4 +57,3 @@ _DEEP_BLUE             = \033[38;5;69m
 _YELLOW                = \033[38;5;226m
 _ORANGE                = \033[38;5;209m\e[1m
 # ------------------------------------- #
-
