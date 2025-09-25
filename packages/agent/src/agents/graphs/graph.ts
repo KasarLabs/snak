@@ -138,14 +138,12 @@ export class Graph {
   }
 
   private end_graph(state: typeof GraphState): {
-    currentTaskIndex: number;
     retry: number;
     skipValidation: skipValidationType;
     error: null;
   } {
     logger.info('[EndGraph] Cleaning up state for graph termination');
     return {
-      currentTaskIndex: 0,
       retry: 0,
       skipValidation: { skipValidation: false, goto: '' },
       error: null,
@@ -191,7 +189,7 @@ export class Graph {
           currentTask.status === 'failed'
         ) {
           logger.debug(
-            `[Orchestration Router] Memory operations complete, routing to task verifier`
+            `[Orchestration Router] Memory operations complete, routing to task memory manager`
           );
           return GraphNode.MEMORY_ORCHESTRATOR;
         }
@@ -364,7 +362,7 @@ export class Graph {
       // Build and compile the workflow
       const workflow = this.buildWorkflow();
       const app = workflow.compile({ checkpointer: this.checkpointer });
-      logger.info('Agent] Successfully initialized agent');
+      logger.info('[Agent] Successfully initialized agent');
       return app;
     } catch (error) {
       logger.error('[Agent] Failed to create agent:', error);

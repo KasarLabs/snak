@@ -47,7 +47,6 @@ export class TaskVerifierGraph {
         messages: BaseMessage[];
         last_node: TaskVerifierNode;
         tasks?: TaskType[];
-        currentTaskIndex?: number;
         currentGraphStep?: number;
         error?: GraphErrorType | null;
       }
@@ -205,12 +204,11 @@ Reasoning: ${verificationResult.reasoning}`,
   ): Promise<{
     messages: BaseMessage[];
     last_node: TaskVerifierNode;
-    currentTaskIndex?: number;
   }> {
     logger.info('[TaskSuccessHandler] Processing successful task completion');
     const currentTask = getCurrentTask(state.tasks);
     const successMessage = new AIMessageChunk({
-      content: `Task ${currentTask} successfully completed and verified.`,
+      content: `Task ${currentTask.id} successfully completed and verified.`,
       additional_kwargs: {
         from: 'task_success_handler',
         final: false,
@@ -256,7 +254,6 @@ Reasoning: ${verificationResult.reasoning}`,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): {
     tasks?: TaskType[];
-    currentTaskIndex?: number;
     last_node?: TaskVerifierNode;
     memories?: Memories;
   } {
@@ -285,7 +282,7 @@ Reasoning: ${verificationResult.reasoning}`,
           uuidv4() // New step ID for the verification message
         );
         logger.info(
-          `[Task Updater] Verfication ${lastMessage.additional_kwargs.taskCompleted ? 'successfull' : 'failed'}`
+          `[Task Updater] Verification ${lastMessage.additional_kwargs.taskCompleted ? 'successful' : 'failed'}`
         );
       }
       // If task is completed and verified successfully, move to next task

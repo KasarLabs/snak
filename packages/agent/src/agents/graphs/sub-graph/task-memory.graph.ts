@@ -58,11 +58,15 @@ export class MemoryGraph {
     task: TaskType,
     threadId: string
   ): EpisodicMemoryContext[] {
+    const lastStep = task.steps[task.steps.length - 1];
+    if (!lastStep) {
+      throw new Error('Last step is not accessile.');
+    }
     return memories.map((memory) => ({
       user_id: user_id,
       run_id: threadId,
       task_id: task.id,
-      step_id: task.steps[task.steps.length - 1].id,
+      step_id: lastStep.id,
       content: memory.content,
       sources: memory.source,
     }));
@@ -74,11 +78,15 @@ export class MemoryGraph {
     task: TaskType,
     threadId: string
   ): SemanticMemoryContext[] {
+    const lastStep = task.steps[task.steps.length - 1];
+    if (!lastStep) {
+      throw new Error('Last step is not accessile.');
+    }
     return memories.map((memory) => ({
       user_id: user_id,
       run_id: threadId,
       task_id: task.id,
-      step_id: task.steps[task.steps.length - 1].id,
+      step_id: lastStep.id,
       fact: memory.fact,
       category: memory.category,
     }));

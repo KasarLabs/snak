@@ -471,23 +471,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create this function in your database once
 CREATE OR REPLACE FUNCTION insert_agent_from_json(
   p_user_id UUID,
   p_config JSONB
-) RETURNS agents AS $$  -- Return the entire agents row type
+) RETURNS TABLE(
+  id UUID,
+  user_id UUID,
+  profile JSONB,
+  mcp_servers JSONB,
+  prompts_id UUID,
+  graph JSONB,
+  memory JSONB,
+  rag JSONB,
+  created_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE,
+  avatar_image BYTEA,
+  avatar_mime_type VARCHAR(50)
+) AS $$
 DECLARE
   v_prompts_id UUID;
-  v_result agents;
+  v_inserted_id UUID;
 BEGIN
   -- Extract prompts_id, use NULL if not present
   v_prompts_id := (p_config->>'prompts_id')::UUID;
-  
+
   -- If NULL, initialize default prompts
   IF v_prompts_id IS NULL THEN
-    v_prompts_id := initialize_default_prompts(p_user_id);
+    RAISE EXCEPTION 'prompts_id is required in the configuration JSON';
   END IF;
-  
+
   INSERT INTO agents (
     user_id,
     profile,
@@ -553,36 +565,26 @@ BEGIN
       ELSE NULL
     END,
     p_config->>'avatar_mime_type'
-  ) RETURNING * INTO v_result;
-  
-  RETURN v_result;
+  ) RETURNING agents.id INTO v_inserted_id;  
+
+  RETURN QUERY
+  SELECT
+    a.id,
+    a.user_id,
+    to_jsonb(a.profile) as profile,        
+    a.mcp_servers as mcp_servers,
+    a.prompts_id,
+    to_jsonb(a.graph) as graph,           
+    to_jsonb(a.memory) as memory,          
+    to_jsonb(a.rag) as rag,          
+    a.created_at,
+    a.updated_at,
+    a.avatar_image,
+    a.avatar_mime_type
+  FROM agents a
+  WHERE a.id = v_inserted_id;
 END;
 $$ LANGUAGE plpgsql;
--- Bulk Agent Deletion Function for specific user
-CREATE OR REPLACE FUNCTION delete_all_agents(p_user_id UUID)
-RETURNS TABLE (
-    deleted_count INTEGER,
-    message TEXT
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    agent_count INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO agent_count FROM agents WHERE user_id = p_user_id;
-    DELETE FROM agents WHERE user_id = p_user_id;
-
-    RETURN QUERY
-    SELECT
-        agent_count AS deleted_count,
-        CASE
-            WHEN agent_count > 0 THEN
-                format('%s agent(s) deleted successfully for user: %s', agent_count, p_user_id::TEXT)
-            ELSE
-                format('No agents to delete for user: %s', p_user_id::TEXT)
-        END AS message;
-END;
-$$;
 
 -- ============================================================================
 -- USAGE EXAMPLES

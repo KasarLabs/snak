@@ -390,6 +390,9 @@ export class SnakAgent extends BaseAgent {
       const initialMessages: BaseMessage[] = [
         new HumanMessage(request.request),
       ];
+
+      console.log(request)
+      console.log(this.agentConfig.memory.thresholds)
       this.compiledGraph;
       const threadId = this.agentConfig.id;
       const configurable: GraphConfigurableType = {

@@ -192,11 +192,10 @@ export class AgentStorage implements OnModuleInit {
       `SELECT (profile).name FROM agents WHERE (profile)."group" = $1 AND ((profile).name = $2 OR (profile).name LIKE $2 || '-%') ORDER BY LENGTH((profile).name) DESC, (profile).name DESC LIMIT 1`,
       [agentConfig.profile.group, baseName]
     );
-    logger.debug(`Name check query: ${nameCheckQuery}`);
     const nameCheckResult = await Postgres.query<{ name: string }>(
       nameCheckQuery
     );
-
+    console.log(nameCheckResult);
     if (nameCheckResult.length > 0) {
       const existingName = nameCheckResult[0].name;
       if (existingName === baseName) {
@@ -222,11 +221,12 @@ export class AgentStorage implements OnModuleInit {
       agentConfig.prompts_id ?? (await this.initializeDefaultPrompts(userId));
 
     agentConfig.prompts_id = prompt_id;
+    agentConfig.profile.name = finalName;
     const q = new Postgres.Query(
       'SELECT * FROM insert_agent_from_json($1, $2)',
       [userId, JSON.stringify(agentConfig)]
     );
-    const q_res = await Postgres.query<any>(q);
+    const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
     logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
@@ -440,6 +440,7 @@ export class AgentStorage implements OnModuleInit {
           model: modelInstance,
         },
       };
+      console.log(AgentConfigRuntime);
       const snakAgent = new SnakAgent(
         starknetConfig,
         AgentConfigRuntime,
