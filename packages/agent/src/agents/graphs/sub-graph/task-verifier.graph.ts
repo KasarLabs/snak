@@ -81,7 +81,6 @@ export class TaskVerifierGraph {
           messages: [],
           last_node: TaskVerifierNode.TASK_VERIFIER,
           tasks: state.tasks,
-          currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
           error: null,
         };
@@ -127,7 +126,7 @@ Reasoning: ${verificationResult.reasoning}`,
       ) {
         // Task is truly complete, proceed to next task
         logger.info(
-          `[TaskVerifier] Task ${state.currentTaskIndex + 1} verified as complete (${verificationResult.confidenceScore}% confidence)`
+          `[TaskVerifier] Task ${currentTask.id} verified as complete (${verificationResult.confidenceScore}% confidence)`
         );
         const updatedTasks = [...state.tasks];
         updatedTasks[state.tasks.length - 1].status = 'completed';
@@ -138,7 +137,6 @@ Reasoning: ${verificationResult.reasoning}`,
           messages: [verificationMessage],
           last_node: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
-          currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
 
           error: verificationMessage.additional_kwargs.taskCompleted
@@ -154,7 +152,7 @@ Reasoning: ${verificationResult.reasoning}`,
       } else {
         // Task needs more work, mark as incomplete and go back to planning
         logger.warn(
-          `[TaskVerifier] Task ${state.currentTaskIndex + 1} verification failed (${verificationResult.confidenceScore}% confidence)`
+          `[TaskVerifier] Task ${currentTask.id} verification failed (${verificationResult.confidenceScore}% confidence)`
         );
 
         // Mark task as incomplete and add verification context to memory
@@ -167,7 +165,6 @@ Reasoning: ${verificationResult.reasoning}`,
           messages: [verificationMessage],
           last_node: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
-          currentTaskIndex: state.currentTaskIndex,
           currentGraphStep: state.currentGraphStep + 1,
         };
       }
@@ -211,9 +208,9 @@ Reasoning: ${verificationResult.reasoning}`,
     currentTaskIndex?: number;
   }> {
     logger.info('[TaskSuccessHandler] Processing successful task completion');
-
+    const currentTask = getCurrentTask(state.tasks);
     const successMessage = new AIMessageChunk({
-      content: `Task ${state.currentTaskIndex + 1} successfully completed and verified.`,
+      content: `Task ${currentTask} successfully completed and verified.`,
       additional_kwargs: {
         from: 'task_success_handler',
         final: false,
@@ -221,14 +218,9 @@ Reasoning: ${verificationResult.reasoning}`,
       },
     });
 
-    // Move to next task
-    const nextTaskIndex = state.currentTaskIndex + 1;
-    const hasMoreTasks = nextTaskIndex < state.tasks.length;
-
     return {
       messages: [successMessage],
       last_node: TaskVerifierNode.TASK_SUCCESS_HANDLER,
-      currentTaskIndex: hasMoreTasks ? nextTaskIndex : state.currentTaskIndex,
     };
   }
 
@@ -241,9 +233,9 @@ Reasoning: ${verificationResult.reasoning}`,
     retry?: number;
   }> {
     logger.info('[TaskFailureHandler] Processing failed task verification');
-
+    const currentTask = getCurrentTask(state.tasks);
     const failureMessage = new AIMessageChunk({
-      content: `Task ${state.currentTaskIndex + 1} verification failed. Returning to planning phase.`,
+      content: `Task ${currentTask.id} verification failed. Returning to planning phase.`,
       additional_kwargs: {
         from: 'task_failure_handler',
         final: false,
@@ -273,11 +265,9 @@ Reasoning: ${verificationResult.reasoning}`,
         throw new Error('[Task Updater] No tasks found in the state.');
       }
 
-      const currentTask = state.tasks[state.tasks.length - 1];
+      const currentTask = getCurrentTask(state.tasks);
       if (!currentTask) {
-        throw new Error(
-          `[Task Updater] No current task found at index ${state.currentTaskIndex}.`
-        );
+        throw new Error(`[Task Updater] No current task found.`);
       }
 
       // Check if we have task verification context from the previous message
@@ -304,11 +294,10 @@ Reasoning: ${verificationResult.reasoning}`,
         lastMessage?.additional_kwargs?.taskCompleted === true
       ) {
         logger.info(
-          `[Task Updater] Moving from completed task ${state.currentTaskIndex} to task ${state.currentTaskIndex + 1}`
+          `[Task Updater] Moving from completed task ${currentTask.id} to next task`
         );
         return {
           tasks: state.tasks,
-          currentTaskIndex: state.currentTaskIndex,
           last_node: TaskVerifierNode.TASK_UPDATER,
           memories: updatedMemories,
         };
@@ -320,14 +309,13 @@ Reasoning: ${verificationResult.reasoning}`,
         lastMessage?.additional_kwargs?.taskCompleted === false
       ) {
         const updatedTasks = [...state.tasks];
-        updatedTasks[state.currentTaskIndex].status = 'failed';
+        updatedTasks[state.tasks.length - 1].status = 'failed';
 
         logger.warn(
-          `[Task Updater] Task ${state.currentTaskIndex + 1} verification failed, marked as failed for retry`
+          `[Task Updater] Task ${currentTask.id} verification failed, marked as failed for retry`
         );
         return {
           tasks: updatedTasks,
-          currentTaskIndex: state.currentTaskIndex, // Keep same index for retry
           last_node: TaskVerifierNode.TASK_UPDATER,
           memories: updatedMemories,
         };

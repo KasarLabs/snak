@@ -16,11 +16,10 @@ CREATE TYPE memory_strategy AS ENUM (
 -- Agent Profile composite type
 -- As per manual 8.16: Composite types represent row/record structure
 CREATE TYPE agent_profile AS (
+    name VARCHAR(255),
+    "group" VARCHAR(255),
     description TEXT,
-    lore TEXT[],
-    objectives TEXT[],
-    knowledge TEXT[],
-    merged_profile TEXT  -- Can be null, system-generated
+    contexts TEXT[]
 );
 
 -- Model Level Configuration (nested in graph_config)
@@ -89,29 +88,18 @@ CREATE TYPE rag_config AS (
 DROP TABLE IF EXISTS agents CASCADE;
 
 -- Primary Agents Table with new structure
--- ALL FIELDS ARE MANDATORY (NOT NULL) except id and group
 CREATE TABLE agents (
     -- Unique identifier for each agent (auto-generated)
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- Reference to the user who owns this agent
-    -- Foreign key linking to the user who created and manages this agent
-    -- Ensures proper access control and ownership tracking
     user_id UUID NOT NULL,
-
-    -- Core identification (from AgentConfigBase)
-    name VARCHAR(255) NOT NULL,
-    "group" VARCHAR(255) NOT NULL DEFAULT 'default_group',
     
     -- Agent Profile (composite type) - MANDATORY
     profile agent_profile NOT NULL,
     
-
     -- MCP Servers configurations (using JSONB as per manual 8.14) - MANDATORY
     mcp_servers JSONB NOT NULL,
-    
-    -- Plugins configurations (array of strings) - MANDATORY
-    plugins TEXT[] NOT NULL,
     
     -- Prompt configurations (composite type) - MANDATORY
     prompts_id UUID NOT NULL,
@@ -133,29 +121,26 @@ CREATE TABLE agents (
     avatar_image BYTEA,
     avatar_mime_type VARCHAR(50),
     
-    -- Constraints
-    CONSTRAINT agents_name_user_unique UNIQUE (user_id, name),
-    CONSTRAINT agents_name_group_unique UNIQUE (name, "group"),
-    
-    CONSTRAINT agents_name_not_empty CHECK (length(trim(name)) > 0),
-    -- Ensure mcp_servers is at least an empty object, not null
+    -- Constraints (WITHOUT the problematic UNIQUE constraints)
+    CONSTRAINT agents_name_not_empty CHECK (length(trim((profile).name)) > 0),
     CONSTRAINT agents_mcp_servers_not_null CHECK (mcp_servers IS NOT NULL),
     CONSTRAINT fk_agents_prompts_id FOREIGN KEY (prompts_id) REFERENCES prompts(id) ON DELETE CASCADE
-
 );
 
--- Create indexes for better query performance
+
+-- Indexes for performance optimization
+-- Unique index on (user_id, profile.name, profile.group) to enforce uniqueness per user
+CREATE UNIQUE INDEX agents_user_name_group_unique 
+    ON agents (user_id, ((profile).name), ((profile)."group"));
 CREATE INDEX idx_agents_user_id ON agents (user_id);
-CREATE INDEX idx_agents_name ON agents (name);
-CREATE INDEX idx_agents_group ON agents ("group");
+CREATE INDEX idx_agents_name ON agents (((profile).name));
+CREATE INDEX idx_agents_group ON agents (((profile)."group"));
 CREATE INDEX idx_agents_created_at ON agents (created_at);
 CREATE INDEX idx_agents_prompts_id ON agents (prompts_id);
 
 -- GIN index for JSONB mcp_servers for efficient queries
 CREATE INDEX idx_agents_mcp_servers ON agents USING GIN (mcp_servers);
 
--- GIN index for plugins array
-CREATE INDEX idx_agents_plugins ON agents USING GIN (plugins);
 
 -- ============================================================================
 -- HELPER FUNCTIONS
@@ -185,9 +170,14 @@ CREATE TRIGGER update_agents_updated_at
 CREATE OR REPLACE FUNCTION validate_agent_data()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Check name
-    IF NEW.name IS NULL OR length(trim(NEW.name)) = 0 THEN
-        RAISE EXCEPTION 'Agent name is required and cannot be empty';
+    -- Check profile name
+    IF (NEW.profile).name IS NULL OR length(trim((NEW.profile).name)) = 0 THEN
+        RAISE EXCEPTION 'Agent profile.name is required and cannot be empty';
+    END IF;
+
+    -- Check profile group
+    IF (NEW.profile)."group" IS NULL THEN
+        RAISE EXCEPTION 'Agent profile.group is required';
     END IF;
     
     -- Check profile fields
@@ -199,16 +189,8 @@ BEGIN
         RAISE EXCEPTION 'Agent profile.description is required';
     END IF;
     
-    IF (NEW.profile).lore IS NULL THEN
-        RAISE EXCEPTION 'Agent profile.lore is required (can be empty array)';
-    END IF;
-    
-    IF (NEW.profile).objectives IS NULL THEN
-        RAISE EXCEPTION 'Agent profile.objectives is required (can be empty array)';
-    END IF;
-    
-    IF (NEW.profile).knowledge IS NULL THEN
-        RAISE EXCEPTION 'Agent profile.knowledge is required (can be empty array)';
+    IF (NEW.profile).contexts IS NULL THEN
+        RAISE EXCEPTION 'Agent profile.contexts is required (can be empty array)';
     END IF;
     
     
@@ -217,10 +199,6 @@ BEGIN
         RAISE EXCEPTION 'Agent mcp_servers is required (can be empty object {})';
     END IF;
     
-    -- Check plugins
-    IF NEW.plugins IS NULL THEN
-        RAISE EXCEPTION 'Agent plugins is required (can be empty array)';
-    END IF;
     
     -- Check prompts_id
     IF NEW.prompts_id IS NULL THEN
@@ -312,11 +290,8 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION update_agent_complete(
     p_agent_id UUID,
     p_user_id UUID,
-    p_name VARCHAR(255) DEFAULT NULL,
-    p_group VARCHAR(255) DEFAULT NULL,
     p_profile agent_profile DEFAULT NULL,
     p_mcp_servers JSONB DEFAULT NULL,
-    p_plugins TEXT[] DEFAULT NULL,
     p_prompts_id UUID DEFAULT NULL,
     p_graph graph_config DEFAULT NULL,
     p_memory memory_config DEFAULT NULL,
@@ -347,11 +322,8 @@ BEGIN
 
     -- Perform the update with COALESCE to keep existing values when NULL is passed
     UPDATE agents SET
-        name = COALESCE(p_name, name),
-        "group" = COALESCE(p_group, "group"),
         profile = COALESCE(p_profile, profile),
         mcp_servers = COALESCE(p_mcp_servers, mcp_servers),
-        plugins = COALESCE(p_plugins, plugins),
         prompts_id = COALESCE(p_prompts_id, prompts_id),
         graph = COALESCE(p_graph, graph),
         memory = COALESCE(p_memory, memory),
@@ -389,11 +361,8 @@ $$;
 CREATE OR REPLACE FUNCTION replace_agent_complete(
     p_agent_id UUID,
     p_user_id UUID,
-    p_name VARCHAR(255),
-    p_group VARCHAR(255),
     p_profile agent_profile,
     p_mcp_servers JSONB,
-    p_plugins TEXT[],
     p_prompts_id UUID,
     p_graph graph_config,
     p_memory memory_config,
@@ -421,11 +390,8 @@ BEGIN
 
     -- Completely replace all fields (mandatory fields must be provided)
     UPDATE agents SET
-        name = p_name,
-        "group" = p_group,
         profile = p_profile,
         mcp_servers = p_mcp_servers,
-        plugins = p_plugins,
         prompts_id = p_prompts_id,
         graph = p_graph,
         memory = p_memory,
@@ -457,7 +423,6 @@ EXCEPTION
             NULL::UUID AS updated_agent_id;
 END;
 $$;
-
 -- Function to enable/disable RAG for an agent
 CREATE OR REPLACE FUNCTION toggle_agent_rag(
     p_agent_id UUID,
@@ -473,36 +438,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to add a plugin to an agent
-CREATE OR REPLACE FUNCTION add_agent_plugin(
-    p_agent_id UUID,
-    p_user_id UUID,
-    p_plugin_name TEXT
-) RETURNS BOOLEAN AS $$
-BEGIN
-    UPDATE agents
-    SET plugins = array_append(plugins, p_plugin_name)
-    WHERE id = p_agent_id AND user_id = p_user_id
-    AND NOT (p_plugin_name = ANY(plugins));  -- Prevent duplicates
-
-    RETURN FOUND;
-END;
-$$ LANGUAGE plpgsql;
-
--- Function to remove a plugin from an agent
-CREATE OR REPLACE FUNCTION remove_agent_plugin(
-    p_agent_id UUID,
-    p_user_id UUID,
-    p_plugin_name TEXT
-) RETURNS BOOLEAN AS $$
-BEGIN
-    UPDATE agents
-    SET plugins = array_remove(plugins, p_plugin_name)
-    WHERE id = p_agent_id AND user_id = p_user_id;
-
-    RETURN FOUND;
-END;
-$$ LANGUAGE plpgsql;
 
 -- Bulk Agent Deletion Function for specific user
 CREATE OR REPLACE FUNCTION delete_all_agents(p_user_id UUID)
@@ -630,13 +565,6 @@ WHERE user_id = '123e4567-e89b-12d3-a456-426614174000'::UUID
 AND (memory).strategy = 'categorized';
 */
 
--- Example 5: Finding agents with specific plugins for a specific user
-/*
-SELECT name, plugins
-FROM agents
-WHERE user_id = '123e4567-e89b-12d3-a456-426614174000'::UUID
-AND 'email-plugin' = ANY(plugins);
-*/
 
 -- Example 6: Updating MCP server configuration for a specific user's agent
 /*
@@ -651,11 +579,13 @@ AND name = 'Development Assistant';
 SELECT * FROM update_agent_complete(
     '456e7890-e89b-12d3-a456-426614174001'::UUID,  -- agent_id
     '123e4567-e89b-12d3-a456-426614174000'::UUID,  -- user_id
-    'Updated Agent Name',                            -- new name
-    'production',                                    -- new group
-    NULL,                                           -- keep existing profile
+    ROW(
+        'Updated Agent Name',
+        'production',
+        'Updated description',
+        ARRAY['updated context']
+    )::agent_profile,                               -- new profile
     NULL,                                           -- keep existing mcp_servers
-    ARRAY['new-plugin', 'another-plugin'],          -- update plugins
     NULL,                                           -- keep existing prompts
     NULL,                                           -- keep existing graph config
     NULL,                                           -- keep existing memory config
@@ -668,17 +598,13 @@ SELECT * FROM update_agent_complete(
 SELECT * FROM replace_agent_complete(
     '456e7890-e89b-12d3-a456-426614174001'::UUID,  -- agent_id
     '123e4567-e89b-12d3-a456-426614174000'::UUID,  -- user_id
-    'Completely New Agent',
-    'new_group',
     ROW(
+        'Completely New Agent',
+        'new_group',
         'Brand new description',
-        ARRAY['New personality trait'],
-        ARRAY['New objective'],
-        ARRAY['New knowledge'],
-        NULL
+        ARRAY['New context']
     )::agent_profile,
     '{"newservice": {"url": "https://api.new", "key": "xxx"}}'::jsonb,
-    ARRAY['plugin1', 'plugin2'],
     '550e8400-e29b-41d4-a716-446655440003'::UUID,
     ROW(
         150, 25, 4, 500000, 120000,

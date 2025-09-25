@@ -301,11 +301,13 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
         profile,
       }) => {
         try {
+          // PostgresQuery relation : agents
           const findQuery = new Postgres.Query(
             'SELECT * FROM agents WHERE id = $1',
             [agentId]
           );
-          const existingAgent = await Postgres.query<AgentConfig>(findQuery);
+          const existingAgent =
+            await Postgres.query<AgentConfig.InputWithId>(findQuery);
 
           if (existingAgent.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -354,7 +356,8 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             [currentMcpServers, agentId]
           );
 
-          const result = await Postgres.query<AgentConfig>(updateQuery);
+          const result =
+            await Postgres.query<AgentConfig.InputWithId>(updateQuery);
 
           return JSON.stringify(
             {
@@ -393,7 +396,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             'SELECT id, name, "mcp_servers" FROM agents WHERE id = $1',
             [agentId]
           );
-          const result = await Postgres.query<AgentConfig>(query);
+          const result = await Postgres.query<AgentConfig.InputWithId>(query);
 
           if (result.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -404,7 +407,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             {
               success: true,
               agentId: agent.id,
-              agentName: agent.name,
+              agentName: agent.profile.name,
               mcp_servers: agent.mcp_servers || {},
             },
             null,
@@ -437,7 +440,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             'SELECT "mcp_servers" FROM agents WHERE id = $1',
             [agentId]
           );
-          const result = await Postgres.query<AgentConfig>(query);
+          const result = await Postgres.query<AgentConfig.InputWithId>(query);
 
           if (result.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -561,7 +564,8 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             'SELECT * FROM agents WHERE id = $1',
             [agentId]
           );
-          const existingAgent = await Postgres.query<AgentConfig>(findQuery);
+          const existingAgent =
+            await Postgres.query<AgentConfig.InputWithId>(findQuery);
 
           if (existingAgent.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -583,7 +587,8 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             [currentMcpServers, agentId]
           );
 
-          const result = await Postgres.query<AgentConfig>(updateQuery);
+          const result =
+            await Postgres.query<AgentConfig.InputWithId>(updateQuery);
 
           return JSON.stringify({
             success: true,

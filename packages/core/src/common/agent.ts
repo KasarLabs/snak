@@ -26,11 +26,10 @@ export interface ModelConfig {
  * Agent profile configuration containing descriptive information
  */
 export interface AgentProfile {
+  name: string;
+  group: string;
   description: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
-  agent_config_prompt?: string; // Don't set in the user request
+  contexts: string[];
 }
 
 /**
@@ -141,8 +140,6 @@ export namespace AgentConfig {
    * Base configuration properties shared across all agent config types
    */
   interface Base {
-    name: string;
-    group: string;
     profile: AgentProfile;
     mcp_servers: Record<string, any>;
     plugins: string[];
@@ -151,7 +148,7 @@ export namespace AgentConfig {
   }
 
   /**
-   * Input configuration for creating/updating agents
+   * Input configuration for creating agents
    */
   export interface Input extends Base {
     prompts_id?: string;
@@ -165,6 +162,14 @@ export namespace AgentConfig {
     id: string;
     prompts_id: string;
     user_id: string;
+  }
+
+  /**
+   * Input configuration with optional parameters for updates
+   */
+  export interface WithOptionalParam extends Partial<InputWithId> {
+    user_id: string;
+    id: string;
   }
 
   /**

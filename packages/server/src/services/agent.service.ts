@@ -18,7 +18,12 @@ import {
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
-import { ChunkOutput, EventType, SnakAgent } from '@snakagent/agents';
+import {
+  ChunkOutput,
+  EventType,
+  SnakAgent,
+  UserRequest,
+} from '@snakagent/agents';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -38,7 +43,11 @@ export class AgentService implements IAgentService {
       let result: any;
 
       if (agent && typeof agent.execute === 'function') {
-        const executionResult = agent.execute(userRequest.user_request);
+        const user_request: UserRequest = {
+          request: userRequest.user_request || '',
+          hitl_threshold: userRequest.hitl_threshold ?? undefined,
+        };
+        const executionResult = agent.execute(user_request);
 
         function isAsyncGenerator(
           obj: any
@@ -186,10 +195,9 @@ export class AgentService implements IAgentService {
       const q = new Postgres.Query(
         `
 			SELECT
-			  id, user_id, name, "group",
+			  id, user_id,
 			  row_to_json(profile) as profile,
 			  mcp_servers as "mcp_servers",
-			  plugins,
 			  prompts_id,
 			  row_to_json(graph) as graph,
 			  row_to_json(memory) as memory,

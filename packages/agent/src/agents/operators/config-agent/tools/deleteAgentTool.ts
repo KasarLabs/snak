@@ -46,16 +46,19 @@ export const deleteAgentTool = new DynamicStructuredTool({
       let findQuery: Postgres.Query;
       const searchBy = input.searchBy || 'name';
       if (searchBy === 'id') {
+        // PostgresQuery relation : agents
         findQuery = new Postgres.Query('SELECT * FROM agents WHERE id = $1', [
           input.identifier,
         ]);
       } else {
+        // PostgresQuery relation : agents
         findQuery = new Postgres.Query('SELECT * FROM agents WHERE name = $1', [
           input.identifier,
         ]);
       }
 
-      const existingAgent = await Postgres.query<AgentConfig>(findQuery);
+      const existingAgent =
+        await Postgres.query<AgentConfig.InputWithId>(findQuery);
       if (existingAgent.length === 0) {
         return JSON.stringify({
           success: false,

@@ -155,7 +155,7 @@ export class MemoryGraph {
       const currentTask = getCurrentTask(state.tasks);
       if (!['completed', 'failed'].includes(currentTask.status)) {
         logger.debug(
-          `[LTMManager] Current task at index ${state.currentTaskIndex} is not completed or failed, skipping LTM update`
+          `[LTMManager] Current task at index ${currentTask.id} is not completed or failed, skipping LTM update`
         );
         return { last_node: TaskMemoryNode.LTM_MANAGER };
       }
@@ -183,7 +183,7 @@ export class MemoryGraph {
       ]);
       // Use content of all steps of current task instead of just recent memories
       const allStepsContent = this.formatAllStepsOfCurrentTask(currentTask);
-      const summaryResult = (await structuredModel.invoke(
+      const summaryResult: ltmSchemaType = (await structuredModel.invoke(
         await prompt.formatMessages({
           response: allStepsContent,
         })

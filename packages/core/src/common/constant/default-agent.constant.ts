@@ -8,16 +8,11 @@ export const DEFAULT_AGENT_MODEL: ModelConfig = {
 };
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
-  name: 'Default System Agent',
-  group: 'system',
   profile: {
+    name: 'Default System Agent',
+    group: 'system',
     description: 'Default system agent for basic operations',
-    lore: ['System agent', 'Default configuration'],
-    objectives: [
-      'Provide basic agent functionality',
-      'Serve as fallback agent',
-    ],
-    knowledge: ['System operations', 'Basic agent capabilities'],
+    contexts: ['Default context-1', 'Default-context-2'],
   },
   mcp_servers: {},
   plugins: [],

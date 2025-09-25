@@ -171,7 +171,7 @@ export class MyGateway {
         const userId = ControllerHelpers.getUserIdFromSocket(client);
         await this.agentFactory.addAgent(userRequest.agent, userId);
         const response: AgentResponse = ResponseFormatter.success(
-          `Agent ${userRequest.agent.name} added`
+          `Agent ${userRequest.agent.profile.name} added`
         );
         client.emit('onInitAgentRequest', response);
       },

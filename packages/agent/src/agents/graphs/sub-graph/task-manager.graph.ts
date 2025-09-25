@@ -138,7 +138,7 @@ export class TaskManagerGraph {
 
       const modelBind = this.model.bindTools!(this.toolsList);
       const formattedPrompt = await prompt.formatMessages({
-        agent_name: agentConfig.name,
+        agent_name: agentConfig.profile.name,
         agent_description: agentConfig.profile.description,
         past_tasks: tasks_parser(state.tasks),
         objectives: config.configurable!.user_request?.request,

@@ -185,12 +185,12 @@ export class AgentStorage implements OnModuleInit {
       await this.initialize();
     }
 
-    const baseName = agentConfig.name;
+    const baseName = agentConfig.profile.name;
 
     let finalName = baseName;
     const nameCheckQuery = new Postgres.Query(
-      `SELECT name FROM agents WHERE "group" = $1 AND (name = $2 OR name LIKE $2 || '-%') ORDER BY LENGTH(name) DESC, name DESC LIMIT 1`,
-      [agentConfig.group, baseName]
+      `SELECT (profile).name FROM agents WHERE (profile)."group" = $1 AND ((profile).name = $2 OR (profile).name LIKE $2 || '-%') ORDER BY LENGTH((profile).name) DESC, (profile).name DESC LIMIT 1`,
+      [agentConfig.profile.group, baseName]
     );
     logger.debug(`Name check query: ${nameCheckQuery}`);
     const nameCheckResult = await Postgres.query<{ name: string }>(
@@ -211,7 +211,7 @@ export class AgentStorage implements OnModuleInit {
           finalName = `${baseName}-${lastIndex + 1}`;
         } else {
           logger.warn(
-            `Unexpected name format found: ${existingName} for baseName: ${baseName} in group: ${agentConfig.group}. Attempting to suffix with -1.`
+            `Unexpected name format found: ${existingName} for baseName: ${baseName} in group: ${agentConfig.profile.group}. Attempting to suffix with -1.`
           );
           finalName = `${baseName}-1`;
         }
@@ -223,34 +223,25 @@ export class AgentStorage implements OnModuleInit {
     const q = new Postgres.Query(
       `INSERT INTO agents (
         user_id,
-        name,
-        "group",
         profile,
         mcp_servers,
-        plugins,
         prompts_id,
         graph,
         memory,
         rag
       ) VALUES (
         $1,
-        $2,
-        $3,
-        ROW($4, $5::text[], $6::text[], $7::text[], $8)::agent_profile,
-        $9::jsonb,
-        $10::text[],
-        $11,
-        ROW($12, $13, $14, $15, $16, ROW($17, $18, $19, $20)::model_config)::graph_config,
-        ROW($21, ROW($22, $23, $24, $25, $26)::memory_size_limits, ROW($27, $28, $29, $30)::memory_thresholds, ROW($31, $32)::memory_timeouts, $33::memory_strategy)::memory_config,
-        ROW($34, $35, $36)::rag_config
+        ROW($2, $3, $4, $5::text[])::agent_profile,
+        $6::jsonb,
+        $7,
+        ROW($8, $9, $10, $11, $12, ROW($13, $14, $15, $16)::model_config)::graph_config,
+        ROW($17, ROW($18, $19, $20, $21, $22)::memory_size_limits, ROW($23, $24, $25, $26)::memory_thresholds, ROW($27, $28)::memory_timeouts, $29::memory_strategy)::memory_config,
+        ROW($30, $31, $32)::rag_config
       ) RETURNING
         id,
         user_id,
-        name,
-        "group",
         row_to_json(profile) as profile,
         mcp_servers as "mcp_servers",
-        plugins,
         prompts_id,
         row_to_json(graph) as graph,
         row_to_json(memory) as memory,
@@ -262,49 +253,45 @@ export class AgentStorage implements OnModuleInit {
       [
         userId, // $1
         finalName, // $2
-        agentConfig.group, // $3
+        agentConfig.profile.group, // $3
         agentConfig.profile.description, // $4
-        agentConfig.profile.lore, // $5
-        agentConfig.profile.objectives, // $6
-        agentConfig.profile.knowledge, // $7
-        agentConfig.profile.agent_config_prompt || null, // $8
-        agentConfig.mcp_servers || {}, // $9
-        agentConfig.plugins, // $10
+        agentConfig.profile.contexts || [], // $5
+        agentConfig.mcp_servers || {}, // $6
         // prompts_id
-        prompt_id, // $11
+        prompt_id, // $7
         // graph_config
-        agentConfig.graph.max_steps, // $12
-        agentConfig.graph.max_iterations, // $13
-        agentConfig.graph.max_retries, // $14
-        agentConfig.graph.execution_timeout_ms, // $15
-        agentConfig.graph.max_token_usage, // $16
+        agentConfig.graph.max_steps, // $8
+        agentConfig.graph.max_iterations, // $9
+        agentConfig.graph.max_retries, // $10
+        agentConfig.graph.execution_timeout_ms, // $11
+        agentConfig.graph.max_token_usage, // $12
         // model_config (nested in graph_config)
-        agentConfig.graph.model.provider, // $17
-        agentConfig.graph.model.model_name, // $18
-        agentConfig.graph.model.temperature, // $19
-        agentConfig.graph.model.max_tokens || 4096, // $20
+        agentConfig.graph.model.provider, // $13
+        agentConfig.graph.model.model_name, // $14
+        agentConfig.graph.model.temperature, // $15
+        agentConfig.graph.model.max_tokens || 4096, // $16
         // memory_config
-        agentConfig.memory.ltm_enabled, // $21
+        agentConfig.memory.ltm_enabled, // $17
         // memory_size_limits
-        agentConfig.memory.size_limits.short_term_memory_size, // $22
-        agentConfig.memory.size_limits.max_insert_episodic_size, // $23
-        agentConfig.memory.size_limits.max_insert_semantic_size, // $24
-        agentConfig.memory.size_limits.max_retrieve_memory_size, // $25
-        agentConfig.memory.size_limits.limit_before_summarization, // $26
+        agentConfig.memory.size_limits.short_term_memory_size, // $18
+        agentConfig.memory.size_limits.max_insert_episodic_size, // $19
+        agentConfig.memory.size_limits.max_insert_semantic_size, // $20
+        agentConfig.memory.size_limits.max_retrieve_memory_size, // $21
+        agentConfig.memory.size_limits.limit_before_summarization, // $22
         // memory_thresholds
-        agentConfig.memory.thresholds.insert_semantic_threshold, // $27
-        agentConfig.memory.thresholds.insert_episodic_threshold, // $28
-        agentConfig.memory.thresholds.retrieve_memory_threshold, // $29
-        agentConfig.memory.thresholds.hitl_threshold, // $30
+        agentConfig.memory.thresholds.insert_semantic_threshold, // $23
+        agentConfig.memory.thresholds.insert_episodic_threshold, // $24
+        agentConfig.memory.thresholds.retrieve_memory_threshold, // $25
+        agentConfig.memory.thresholds.hitl_threshold, // $26
         // memory_timeouts
-        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $31
-        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $32
+        agentConfig.memory.timeouts.retrieve_memory_timeout_ms, // $27
+        agentConfig.memory.timeouts.insert_memory_timeout_ms, // $28
         // memory_strategy
-        agentConfig.memory.strategy, // $33
+        agentConfig.memory.strategy, // $29
         // rag_config
-        agentConfig.rag.enabled, // $34
-        agentConfig.rag.top_k, // $35
-        agentConfig.rag.embedding_model, // $36
+        agentConfig.rag.enabled, // $30
+        agentConfig.rag.top_k, // $31
+        agentConfig.rag.embedding_model, // $32
       ]
     );
     const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
@@ -453,11 +440,8 @@ export class AgentStorage implements OnModuleInit {
         SELECT
           id,
           user_id,
-          name,
-          "group",
           row_to_json(profile) as profile,
           mcp_servers as "mcp_servers",
-          plugins,
           prompts_id,
           row_to_json(graph) as graph,
           row_to_json(memory) as memory,
@@ -499,16 +483,6 @@ export class AgentStorage implements OnModuleInit {
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
       };
-
-      const agent_config_prompt = this.buildSystemPromptFromConfig({
-        name: agentConfig.name,
-        description: agentConfig.profile.description,
-        lore: agentConfig.profile.lore || [],
-        objectives: agentConfig.profile.objectives || [],
-        knowledge: agentConfig.profile.knowledge || [],
-      });
-
-      agentConfig.profile.agent_config_prompt = agent_config_prompt;
 
       // JUST FOR TESTING PURPOSES
       const model = await this.getModelFromUser(agentConfig.user_id);
@@ -561,62 +535,13 @@ export class AgentStorage implements OnModuleInit {
         const compositeKey = `${agentConfig.id}|${agentConfig.user_id}`;
         this.agentInstances.set(compositeKey, snakAgent);
         logger.debug(
-          `Created SnakAgent: ${agentConfig.name} (${agentConfig.id})`
+          `Created SnakAgent: ${agentConfig.profile.name} (${agentConfig.id})`
         );
       }
     } catch (error) {
       logger.error('Error registering agent instance:', error);
       throw error;
     }
-  }
-
-  /**
-   * Build system prompt from configuration components
-   * @param promptComponents - Components to build the prompt from
-   * @returns string - The built system prompt
-   * @private
-   */
-  private buildSystemPromptFromConfig(promptComponents: {
-    name?: string;
-    description?: string;
-    lore: string[];
-    objectives: string[];
-    knowledge: string[];
-  }): string {
-    const contextParts: string[] = [];
-
-    if (promptComponents.name) {
-      contextParts.push(`Your name : [${promptComponents.name}]`);
-    }
-    if (promptComponents.description) {
-      contextParts.push(`Your Description : [${promptComponents.description}]`);
-    }
-
-    if (
-      Array.isArray(promptComponents.lore) &&
-      promptComponents.lore.length > 0
-    ) {
-      contextParts.push(`Your lore : [${promptComponents.lore.join(']\n[')}]`);
-    }
-
-    if (
-      Array.isArray(promptComponents.objectives) &&
-      promptComponents.objectives.length > 0
-    ) {
-      contextParts.push(
-        `Your objectives : [${promptComponents.objectives.join(']\n[')}]`
-      );
-    }
-
-    if (
-      Array.isArray(promptComponents.knowledge) &&
-      promptComponents.knowledge.length > 0
-    ) {
-      contextParts.push(
-        `Your knowledge : [${promptComponents.knowledge.join(']\n[')}]`
-      );
-    }
-    return contextParts.join('\n');
   }
 
   /**

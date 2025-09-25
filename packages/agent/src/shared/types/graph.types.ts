@@ -65,7 +65,11 @@ export interface TasksType {
 }
 
 export interface UserRequest {
-  request: string | null;
+  request: string;
+  hitl_threshold?: number;
+}
+
+export interface userRequestWithHITL extends UserRequest {
   hitl_threshold: number;
 }
 

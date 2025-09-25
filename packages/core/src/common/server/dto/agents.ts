@@ -16,6 +16,7 @@ import {
   ArrayMaxSize,
   isNotEmpty,
   isUUID,
+  IsIn,
 } from 'class-validator';
 
 /**
@@ -72,10 +73,15 @@ export class MessageRequest {
   @IsUUID()
   agent_id: string;
 
-  @IsOptional()
   @IsString()
   @Length(1, 10000)
   user_request?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  hitl_threshold?: number;
 }
 
 /**

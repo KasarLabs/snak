@@ -27,6 +27,7 @@ import {
   skipValidationType,
   TaskType,
   UserRequest,
+  userRequestWithHITL,
 } from '../../shared/types/index.js';
 import { MemoryStateManager } from './manager/memory/memory-utils.js';
 import { MemoryGraph } from './sub-graph/task-memory.graph.js';
@@ -97,7 +98,7 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => null,
   }),
-  user_request: Annotation<UserRequest | undefined>({
+  user_request: Annotation<userRequestWithHITL | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
   }),
@@ -163,7 +164,6 @@ export class Graph {
       );
       return GraphNode.END_GRAPH;
     }
-
     const currentTask = state.tasks[state.tasks.length - 1];
 
     // Skip validation if flagged

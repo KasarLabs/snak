@@ -29,10 +29,9 @@ import {
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
-import { GraphErrorType } from '@stypes/graph.types.js';
+import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
-import { Runnable } from '@langchain/core/runnables';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -107,21 +106,21 @@ export class SnakAgent extends BaseAgent {
   private async createAgentReactExecutor(): Promise<void> {
     try {
       logger.info(
-        `[SnakAgent]  Creating Graph for agent : ${this.agentConfig.name}`
+        `[SnakAgent]  Creating Graph for agent : ${this.agentConfig.profile.name}`
       );
       this.compiledGraph = await createGraph(this);
       if (!this.compiledGraph) {
         throw new Error(
-          `Failed to create agent executor for agent : ${this.agentConfig.name}: result is null`
+          `Failed to create agent executor for agent : ${this.agentConfig.profile.name}: result is null`
         );
       }
       logger.info(
-        `[SnakAgent]  Agent executor created successfully for agent : ${this.agentConfig.name}`
+        `[SnakAgent]  Agent executor created successfully for agent : ${this.agentConfig.profile.name}`
       );
 
       if (!this.compiledGraph) {
         throw new Error(
-          `Failed to create agent executor for agent : ${this.agentConfig.name}: result is null`
+          `Failed to create agent executor for agent : ${this.agentConfig.profile.name}: result is null`
         );
       }
     } catch (error) {
@@ -224,19 +223,19 @@ export class SnakAgent extends BaseAgent {
    * @returns Promise resolving to the agent response
    */
   public async *execute(
-    input?: string,
+    userRequest: UserRequest,
     isInterrupted: boolean = false
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.debug(
-        `[SnakAgent] Execute called - agent : ${this.agentConfig.name}, interrupted: ${isInterrupted}`
+        `[SnakAgent] Execute called - agent : ${this.agentConfig.profile.name}, interrupted: ${isInterrupted}`
       );
 
       if (!this.compiledGraph) {
         throw new Error('Agent executor is not initialized');
       }
       for await (const chunk of this.executeAsyncGenerator(
-        input,
+        userRequest,
         isInterrupted
       )) {
         if (chunk.metadata.final) {
@@ -376,9 +375,8 @@ export class SnakAgent extends BaseAgent {
    * @returns Promise resolving to the result of the autonomous execution
    */
   public async *executeAsyncGenerator(
-    input?: string,
-    isInterrupted: boolean = false,
-    hitl_threshold?: number
+    request: UserRequest,
+    isInterrupted: boolean = false
   ): AsyncGenerator<ChunkOutput> {
     try {
       logger.info(
@@ -389,15 +387,18 @@ export class SnakAgent extends BaseAgent {
         throw new Error('CompiledGraph is not initialized');
       }
       this.controller = new AbortController();
-      const initialMessages: BaseMessage[] = [new HumanMessage(input ?? '')];
+      const initialMessages: BaseMessage[] = [
+        new HumanMessage(request.request),
+      ];
       this.compiledGraph;
       const threadId = this.agentConfig.id;
       const configurable: GraphConfigurableType = {
         thread_id: threadId,
         user_request: {
-          request: input ?? this.agentConfig.profile.objectives.join(' '),
+          request: request.request,
           hitl_threshold:
-            hitl_threshold ?? this.agentConfig.memory.thresholds.hitl_threshold,
+            request.hitl_threshold ??
+            this.agentConfig.memory.thresholds.hitl_threshold,
         },
         agent_config: this.agentConfig,
       };
@@ -422,7 +423,7 @@ export class SnakAgent extends BaseAgent {
 
         if (isInterrupted) {
           command = new Command({
-            resume: input,
+            resume: request.request,
           });
         }
 
