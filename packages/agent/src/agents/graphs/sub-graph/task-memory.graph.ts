@@ -413,7 +413,7 @@ export class MemoryGraph {
       )
       .addConditionalEdges(START, this.memory_router.bind(this))
       .addEdge(TaskMemoryNode.LTM_MANAGER, TaskMemoryNode.RETRIEVE_MEMORY)
-      .addEdge(TaskMemoryNode.LTM_MANAGER, END);
+      .addEdge(TaskMemoryNode.RETRIEVE_MEMORY, END);
     this.graph = memory_subgraph.compile();
   }
 }

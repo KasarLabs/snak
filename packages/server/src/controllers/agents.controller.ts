@@ -137,7 +137,7 @@ export class AgentsController {
         SELECT success, message, updated_agent_id
         FROM update_agent_complete(
           $1::UUID, $2::UUID, $3, $4, $5::agent_profile,
-          $6::JSONB, $7::TEXT[], $8::agent_prompts, $9::graph_config,
+          $6::JSONB, $7::TEXT[], $8::prompts_id, $9::graph_config,
           $10::memory_config, $11::rag_config, $12, $13
         )
       `;
@@ -175,7 +175,7 @@ export class AgentsController {
           row_to_json(profile) as profile,
           mcp_servers,
           plugins,
-          row_to_json(prompts) as prompts,
+          prompts_id,
           row_to_json(graph) as graph,
           row_to_json(memory) as memory,
           row_to_json(rag) as rag,

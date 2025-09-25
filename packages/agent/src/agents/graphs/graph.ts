@@ -68,10 +68,6 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => [],
   }),
-  currentTaskIndex: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 0,
-  }),
   retry: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 0,
@@ -127,7 +123,6 @@ export class Graph {
     }
     this.checkpointer = pg_checkpointer;
   }
-
   private async initializeRagAgent(): Promise<void> {
     try {
       this.ragAgent = this.snakAgent.getRagAgent();
@@ -225,7 +220,7 @@ export class Graph {
         );
         if (state.error.type === 'blocked_task') {
           logger.warn(
-            `[Orchestration Router] Blocked task detected, routing to END node`
+            `[Orchestration Router] Blocked task detected, routing to task manager`
           );
           return GraphNode.TASK_MANAGER;
         }
