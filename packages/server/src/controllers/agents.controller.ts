@@ -125,7 +125,6 @@ export class AgentsController {
     if (!config || typeof config !== 'object') {
       throw new BadRequestException('Configuration object is required');
     }
-    console.log('Received config for update:', config);
     const id = config.id;
     if (!id) {
       throw new BadRequestException('Agent ID is required');

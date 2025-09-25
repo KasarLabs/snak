@@ -226,7 +226,6 @@ export class AgentStorage implements OnModuleInit {
       'SELECT * FROM insert_agent_from_json($1, $2)',
       [userId, JSON.stringify(agentConfig)]
     );
-    console.log(q);
     const q_res = await Postgres.query<any>(q);
     logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
