@@ -23,7 +23,11 @@ export class CoreToolRegistry extends BaseToolRegistry {
       tool(endTask, {
         name: 'end_task',
         description: '[SNAK Tool] End the current task successfully',
-        schema: z.object({}),
+        schema: z
+          .object({
+            noParams: z.object({}).strict(),
+          })
+          .strict(),
       })
     );
 

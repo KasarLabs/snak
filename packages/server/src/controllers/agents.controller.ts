@@ -80,6 +80,7 @@ export class AgentsController {
     @Body() updateData: UpdateAgentMcpDTO,
     @Req() req: FastifyRequest
   ) {
+    const userId = ControllerHelpers.getUserId(req);
     const { id, mcp_servers } = updateData;
 
     if (!id) {
@@ -89,9 +90,10 @@ export class AgentsController {
     if (!mcp_servers || typeof mcp_servers !== 'object') {
       throw new BadRequestException('MCP servers must be an object');
     }
-
-    const userId = ControllerHelpers.getUserId(req);
-
+    const agent = this.agentFactory.getAgentInstance(id, userId);
+    if (!agent) {
+      throw new BadRequestException('Agent not found or access denied');
+    }
     // Update agent MCP configuration in database
     const q = new Postgres.Query(
       `UPDATE agents
@@ -153,7 +155,6 @@ export class AgentsController {
       const fetchQuery = new Postgres.Query(
         `SELECT
           id,
-          user_id,
           row_to_json(profile) as profile,
           mcp_servers,
           prompts_id,
@@ -167,7 +168,8 @@ export class AgentsController {
         FROM agents WHERE id = $1 AND user_id = $2`,
         [id, userId]
       );
-      const agent = await Postgres.query<AgentConfig.InputWithId>(fetchQuery);
+      const agent =
+        await Postgres.query<AgentConfig.OutputWithoutUserId>(fetchQuery);
 
       return {
         status: 'success',
@@ -303,7 +305,7 @@ export class AgentsController {
 
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
-      user_request: userRequest.request.content ?? undefined,
+      request: userRequest.request.content ?? '',
     };
 
     const action = this.agentService.handleUserRequest(agent, messageRequest);

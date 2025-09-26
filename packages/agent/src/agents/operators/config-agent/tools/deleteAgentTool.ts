@@ -58,7 +58,7 @@ export const deleteAgentTool = new DynamicStructuredTool({
       }
 
       const existingAgent =
-        await Postgres.query<AgentConfig.InputWithId>(findQuery);
+        await Postgres.query<AgentConfig.OutputWithId>(findQuery);
       if (existingAgent.length === 0) {
         return JSON.stringify({
           success: false,

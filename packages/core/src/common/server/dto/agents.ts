@@ -75,7 +75,7 @@ export class MessageRequest {
 
   @IsString()
   @Length(1, 10000)
-  user_request?: string;
+  request: string;
 
   @IsOptional()
   @IsInt()

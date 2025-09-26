@@ -173,6 +173,7 @@ export class TaskManagerGraph {
         aiMessage.invalid_tool_calls &&
         aiMessage.invalid_tool_calls.length > 0
       ) {
+        logger.info('[Task Manager] Regenerating tool calls from message');
         aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
       aiMessage.content = ''; // Clear content because we are using tool calls only

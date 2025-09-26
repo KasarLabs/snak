@@ -33,7 +33,7 @@ const logger = new Logger('AgentStorage');
  */
 @Injectable()
 export class AgentStorage implements OnModuleInit {
-  private agentConfigs: AgentConfig.InputWithId[] = [];
+  private agentConfigs: AgentConfig.OutputWithId[] = [];
   private agentInstances: Map<string, SnakAgent> = new Map();
   private agentSelector: AgentSelector;
   private initialized: boolean = false;
@@ -59,7 +59,7 @@ export class AgentStorage implements OnModuleInit {
   public getAgentConfig(
     id: string,
     userId: string
-  ): AgentConfig.InputWithId | undefined {
+  ): AgentConfig.OutputWithId | undefined {
     if (!this.initialized) {
       return undefined;
     }
@@ -80,7 +80,7 @@ export class AgentStorage implements OnModuleInit {
    * @param userId - User ID to filter configurations
    * @returns AgentConfigSQL[] - Array of agent configurations owned by the user
    */
-  public getAllAgentConfigs(userId: string): AgentConfig.InputWithId[] {
+  public getAllAgentConfigs(userId: string): AgentConfig.OutputWithId[] {
     if (!this.initialized) {
       return [];
     }
@@ -173,12 +173,12 @@ export class AgentStorage implements OnModuleInit {
   /**
    * Add a new agent to the system
    * @param agentConfig - Raw agent configuration
-   * @returns Promise<AgentConfig.InputWithId> - The newly created agent configuration
+   * @returns Promise<AgentConfig.OutputWithId> - The newly created agent configuration
    */
   public async addAgent(
     agentConfig: AgentConfig.Input,
     userId: string
-  ): Promise<AgentConfig.InputWithId> {
+  ): Promise<AgentConfig.OutputWithId> {
     logger.debug(`Adding agent with config: ${JSON.stringify(agentConfig)}`);
 
     if (!this.initialized) {
@@ -195,7 +195,6 @@ export class AgentStorage implements OnModuleInit {
     const nameCheckResult = await Postgres.query<{ name: string }>(
       nameCheckQuery
     );
-    console.log(nameCheckResult);
     if (nameCheckResult.length > 0) {
       const existingName = nameCheckResult[0].name;
       if (existingName === baseName) {
@@ -226,7 +225,7 @@ export class AgentStorage implements OnModuleInit {
       'SELECT * FROM insert_agent_from_json($1, $2)',
       [userId, JSON.stringify(agentConfig)]
     );
-    const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
+    const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
     logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
@@ -269,7 +268,7 @@ export class AgentStorage implements OnModuleInit {
       `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
       [id, userId]
     );
-    const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
+    const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
     this.agentConfigs = this.agentConfigs.filter(
@@ -384,7 +383,7 @@ export class AgentStorage implements OnModuleInit {
           avatar_mime_type
         FROM agents
       `);
-      const q_res = await Postgres.query<AgentConfig.InputWithId>(q);
+      const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
       this.agentConfigs = [...q_res];
       await this.registerAgentInstance();
       logger.debug(
@@ -400,7 +399,7 @@ export class AgentStorage implements OnModuleInit {
   /* ==================== PRIVATE AGENT CREATION METHODS ==================== */
 
   private async createSnakAgentFromConfig(
-    agentConfig: AgentConfig.InputWithId
+    agentConfig: AgentConfig.OutputWithId
   ): Promise<SnakAgent> {
     try {
       const databaseConfig = {
@@ -440,7 +439,6 @@ export class AgentStorage implements OnModuleInit {
           model: modelInstance,
         },
       };
-      console.log(AgentConfigRuntime);
       const snakAgent = new SnakAgent(
         starknetConfig,
         AgentConfigRuntime,

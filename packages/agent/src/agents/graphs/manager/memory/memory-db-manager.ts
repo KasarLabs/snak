@@ -77,7 +77,6 @@ export class MemoryDBManager {
     episodic_memories: EpisodicMemoryContext[]
   ): Promise<MemoryOperationResult<string>> {
     try {
-      console.log(semantic_memories, episodic_memories);
       episodic_memories = episodic_memories.filter(
         (mem) =>
           mem !== null &&
@@ -337,7 +336,6 @@ export class MemoryDBManager {
         timestamp: Date.now(),
       };
     } catch (error) {
-      console.log(query);
       logger.error(`[MemoryDBManager] Retrieval operation failed:`, error);
       throw error;
     }

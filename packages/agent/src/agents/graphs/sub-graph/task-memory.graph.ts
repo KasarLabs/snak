@@ -5,7 +5,6 @@ import {
   SemanticMemoryContext,
   ltmSchemaType,
   createLtmSchemaMemorySchema,
-  STMContext,
 } from '../../../shared/types/memory.types.js';
 import {
   getCurrentTask,
@@ -196,7 +195,13 @@ export class MemoryGraph {
           response: allStepsContent,
         })
       )) as ltmSchemaType;
-
+      if (
+        !summaryResult ||
+        !summaryResult.episodic ||
+        !summaryResult.semantic
+      ) {
+        throw new Error('LTM summary result is empty');
+      }
       const episodic_memories: EpisodicMemoryContext[] = [];
       const semantic_memories: SemanticMemoryContext[] = [];
 

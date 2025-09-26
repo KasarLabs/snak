@@ -76,8 +76,7 @@ CREATE TYPE memory_config AS (
 -- RAG configuration
 CREATE TYPE rag_config AS (
     enabled BOOLEAN,
-    top_k INTEGER,
-    embedding_model VARCHAR(255)
+    top_k INTEGER
 );
 
 -- ============================================================================
@@ -367,8 +366,7 @@ BEGIN
       WHEN p_config->'rag' IS NOT NULL THEN
         ROW(
           COALESCE((p_config->'rag'->>'enabled')::boolean, (rag).enabled),
-          COALESCE((p_config->'rag'->>'top_k')::integer, (rag).top_k),
-          COALESCE(p_config->'rag'->>'embedding_model', (rag).embedding_model)
+          COALESCE((p_config->'rag'->>'top_k')::integer, (rag).top_k)
         )::rag_config
       ELSE rag
     END,
@@ -556,9 +554,8 @@ BEGIN
     )::memory_config,
     ROW(
       (p_config->'rag'->>'enabled')::boolean,
-      (p_config->'rag'->>'top_k')::integer,
-      p_config->'rag'->>'embedding_model'
-    )::rag_config,
+      (p_config->'rag'->>'top_k')::integer
+      )::rag_config,
     CASE 
       WHEN p_config ? 'avatar_image' AND p_config->>'avatar_image' IS NOT NULL THEN
         decode(p_config->>'avatar_image', 'base64')

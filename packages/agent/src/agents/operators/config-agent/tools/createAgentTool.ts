@@ -125,7 +125,7 @@ export const createAgentTool = new DynamicStructuredTool({
         ]
       );
 
-      const result = await Postgres.query<AgentConfig.InputWithId>(query);
+      const result = await Postgres.query<AgentConfig.OutputWithId>(query);
 
       if (result.length > 0) {
         logger.info(`Created new agent "${input.name}" successfully`);

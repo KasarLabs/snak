@@ -307,7 +307,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             [agentId]
           );
           const existingAgent =
-            await Postgres.query<AgentConfig.InputWithId>(findQuery);
+            await Postgres.query<AgentConfig.OutputWithId>(findQuery);
 
           if (existingAgent.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -357,7 +357,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           );
 
           const result =
-            await Postgres.query<AgentConfig.InputWithId>(updateQuery);
+            await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
 
           return JSON.stringify(
             {
@@ -396,7 +396,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             'SELECT id, name, "mcp_servers" FROM agents WHERE id = $1',
             [agentId]
           );
-          const result = await Postgres.query<AgentConfig.InputWithId>(query);
+          const result = await Postgres.query<AgentConfig.OutputWithId>(query);
 
           if (result.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -440,7 +440,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             'SELECT "mcp_servers" FROM agents WHERE id = $1',
             [agentId]
           );
-          const result = await Postgres.query<AgentConfig.InputWithId>(query);
+          const result = await Postgres.query<AgentConfig.OutputWithId>(query);
 
           if (result.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -565,7 +565,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             [agentId]
           );
           const existingAgent =
-            await Postgres.query<AgentConfig.InputWithId>(findQuery);
+            await Postgres.query<AgentConfig.OutputWithId>(findQuery);
 
           if (existingAgent.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -588,7 +588,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           );
 
           const result =
-            await Postgres.query<AgentConfig.InputWithId>(updateQuery);
+            await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
 
           return JSON.stringify({
             success: true,

@@ -152,7 +152,6 @@ export class SnakAgent extends BaseAgent {
     logger.debug('[SnakAgent]  Initializing RagAgent...');
     this.ragAgent = new RagAgent({
       top_k: ragConfig?.top_k,
-      embedding_model: ragConfig?.embedding_model,
     });
     await this.ragAgent.init();
     logger.debug('[SnakAgent]  RagAgent initialized');
@@ -222,11 +221,9 @@ export class SnakAgent extends BaseAgent {
    * @param agent_config - Optional configuration for execution
    * @returns Promise resolving to the agent response
    */
-  public async *execute(
-    userRequest: UserRequest,
-    isInterrupted: boolean = false
-  ): AsyncGenerator<ChunkOutput> {
+  public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
+      let isInterrupted = false; // Will be killed
       logger.debug(
         `[SnakAgent] Execute called - agent : ${this.agentConfig.profile.name}, interrupted: ${isInterrupted}`
       );
@@ -391,8 +388,6 @@ export class SnakAgent extends BaseAgent {
         new HumanMessage(request.request),
       ];
 
-      console.log(request)
-      console.log(this.agentConfig.memory.thresholds)
       this.compiledGraph;
       const threadId = this.agentConfig.id;
       const configurable: GraphConfigurableType = {

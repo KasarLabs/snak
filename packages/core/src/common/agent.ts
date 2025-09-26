@@ -125,7 +125,6 @@ export interface MemoryConfig {
 export interface RAGConfig {
   enabled?: boolean;
   top_k?: number;
-  embedding_model?: string;
 }
 
 export enum Id {
@@ -158,16 +157,20 @@ export namespace AgentConfig {
   /**
    * Input configuration with ID for existing agents
    */
-  export interface InputWithId extends Input {
+  export interface OutputWithId extends Input {
     id: string;
     prompts_id: string;
     user_id: string;
   }
 
+  export interface OutputWithoutUserId extends Omit<OutputWithId, 'user_id'> {
+    user_id?: string;
+  }
+
   /**
    * Input configuration with optional parameters for updates
    */
-  export interface WithOptionalParam extends Partial<InputWithId> {
+  export interface WithOptionalParam extends Partial<OutputWithId> {
     user_id: string;
     id: string;
   }
@@ -186,7 +189,7 @@ export namespace AgentConfig {
    * Helper type for ID handling
    */
   export type WithOptionalId<HasId extends Id = Id.NoId> = HasId extends Id.Id
-    ? InputWithId
+    ? OutputWithId
     : Input;
 }
 

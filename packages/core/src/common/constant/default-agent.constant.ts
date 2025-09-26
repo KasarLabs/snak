@@ -48,6 +48,5 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
   rag: {
     enabled: false,
     top_k: 5,
-    embedding_model: 'text-embedding-ada-002',
   },
 };

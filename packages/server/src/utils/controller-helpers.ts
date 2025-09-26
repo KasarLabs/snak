@@ -61,7 +61,7 @@ export class ControllerHelpers {
     agentFactory: AgentStorage,
     agentId: string,
     userId: string
-  ): AgentConfig.InputWithId {
+  ): AgentConfig.OutputWithId {
     const agentConfig = agentFactory.getAgentConfig(agentId, userId);
     if (!agentConfig) {
       throw new ForbiddenException('Agent not found or access denied');
@@ -97,7 +97,7 @@ export class ControllerHelpers {
     req: FastifyRequest,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agentConfig: AgentConfig.InputWithId } {
+  ): { userId: string; agentConfig: AgentConfig.OutputWithId } {
     const userId = this.getUserId(req);
     const agentConfig = this.verifyAgentConfigOwnership(
       agentFactory,
@@ -135,7 +135,7 @@ export class ControllerHelpers {
     client: Socket,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agentConfig: AgentConfig.InputWithId } {
+  ): { userId: string; agentConfig: AgentConfig.OutputWithId } {
     const userId = this.getUserIdFromSocket(client);
     const agentConfig = this.verifyAgentConfigOwnership(
       agentFactory,
