@@ -8,7 +8,7 @@ export enum GraphErrorTypeEnum {
   MANAGER_ERROR = 'manager_error',
   BLOCKED_TASK = 'blocked_task',
   WRONG_NUMBER_OF_TOOLS = 'wrong_number_of_tools',
-  TIMEAOUT_ERROR = 'timeout_error',
+  TIMEOUT_ERROR = 'timeout_error',
   UNKNOWN_ERROR = 'unknown_error',
 }
 
@@ -65,7 +65,11 @@ export interface TasksType {
 }
 
 export interface UserRequest {
-  request: string | null;
+  request: string;
+  hitl_threshold?: number;
+}
+
+export interface userRequestWithHITL extends UserRequest {
   hitl_threshold: number;
 }
 

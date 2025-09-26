@@ -53,10 +53,9 @@ export class MessageRequest {
   @IsUUID()
   agent_id: string;
 
-  @IsOptional()
   @IsString()
   @Length(1, 10000)
-  user_request?: string;
+  request: string;
 
   @IsOptional()
   @IsInt()

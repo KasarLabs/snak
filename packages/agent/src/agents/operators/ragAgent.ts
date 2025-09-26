@@ -37,7 +37,7 @@ export class RagAgent extends BaseAgent {
     super('rag-agent', AgentType.OPERATOR);
     this.top_k = config.top_k ?? 4;
     this.embeddings = new CustomHuggingFaceEmbeddings({
-      model: config.embedding_model || 'Xenova/all-MiniLM-L6-v2',
+      model: 'Xenova/all-MiniLM-L6-v2',
       dtype: 'fp32',
     });
   }

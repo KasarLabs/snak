@@ -120,59 +120,59 @@ export interface MemoryOperationResult<T> {
 /**
  * Zod schemas for memory operations
  */
-export const episodicEventSchema = z.object({
-  name: z.string().min(1).describe('Event name or identifier'),
-  content: z.string().min(1).describe('Detailed description of what happened'),
-  source: z
-    .array(z.string())
-    .optional()
-    .default(['conversation'])
-    .describe('Source reference or website URL'),
-});
+export const episodicEventSchema = z
+  .object({
+    name: z.string().min(1).describe('Event name or identifier'),
+    content: z
+      .string()
+      .min(1)
+      .describe('Detailed description of what happened'),
+    source: z
+      .array(z.string())
+      .default(['conversation'])
+      .describe('Source reference or website URL'),
+  })
+  .strict();
 
 export const semanticFactSchema = z.object({
   fact: z.string().min(1).describe('The learned information or insight'),
-  category: z.string().optional().default('fact').describe('Type of fact'),
+  category: z.string().default('fact').describe('Type of fact'),
 });
 
-export const ltmSchema = z.object({
-  episodic: z
-    .array(episodicEventSchema)
-    .default([])
-    .describe('Events and experiences with confidence scoring'),
-  semantic: z
-    .array(semanticFactSchema)
-    .default([])
-    .describe('Facts and knowledge learned with confidence scoring'),
-});
+export const ltmSchema = z
+  .object({
+    episodic: z
+      .array(episodicEventSchema)
+      .default([])
+      .describe('Events and experiences with confidence scoring'),
+    semantic: z
+      .array(semanticFactSchema)
+      .default([])
+      .describe('Facts and knowledge learned with confidence scoring'),
+  })
+  .strict();
 
 export function createLtmSchemaMemorySchema(
   maxEpisodic: number,
   maxSemantic: number
 ) {
-  return z.object({
-    episodic: z
-      .array(episodicEventSchema)
-      .max(maxEpisodic)
-      .default([])
-      .describe('Events and experiences with confidence scoring'),
-    semantic: z
-      .array(semanticFactSchema)
-      .max(maxSemantic)
-      .default([])
-      .describe('Facts and knowledge learned with confidence scoring'),
-  });
+  return z
+    .object({
+      episodic: z
+        .array(episodicEventSchema)
+        .max(maxEpisodic)
+        .default([])
+        .describe('Events and experiences with confidence scoring'),
+      semantic: z
+        .array(semanticFactSchema)
+        .max(maxSemantic)
+        .default([])
+        .describe('Facts and knowledge learned with confidence scoring'),
+    })
+    .strict();
 }
 
 export type ltmSchemaType = z.infer<typeof ltmSchema>;
-
-export const isPlannerActivateSchema = z.object({
-  planner_actived: z
-    .boolean()
-    .describe('You need to set the state of the planner in a boolean.'),
-});
-
-export type isPlannerActivateType = z.infer<typeof isPlannerActivateSchema>;
 
 export const retrieveMemoryFromContentSchema = z
   .object({
@@ -211,10 +211,9 @@ export const retrieveMemoryFromStepId = z
       ),
     limit: z
       .number()
-      .optional()
-      .describe(
-        'Maximum number of memories to retrieve. If not specified, returns all available memories.'
-      ),
+      .max(100)
+      .default(10)
+      .describe('Maximum number of memories to retrieve.'),
   })
   .strict();
 
@@ -230,10 +229,9 @@ export const retrieveMemoryFromTaskId = z
       ),
     limit: z
       .number()
-      .optional()
-      .describe(
-        'Maximum number of memories to retrieve. If not specified, returns all available memories.'
-      ),
+      .max(100)
+      .default(10)
+      .describe('Maximum number of memories to retrieve.'),
   })
   .strict();
 

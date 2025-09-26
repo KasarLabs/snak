@@ -30,7 +30,7 @@ export class AgentSelector extends BaseAgent {
     for (const value of this.availableAgents.values()) {
       const agent_config = value.getAgentConfig();
       this.agentInfo.set(
-        agent_config.name,
+        agent_config.profile.name,
         agent_config.profile.description || 'No description available'
       );
     }
@@ -54,7 +54,7 @@ export class AgentSelector extends BaseAgent {
 
     const agent = this.availableAgents.get(compositeKey);
     if (agent) {
-      const agentName = agent.getAgentConfig().name;
+      const agentName = agent.getAgentConfig().profile.name;
       this.availableAgents.delete(compositeKey);
       this.agentInfo.delete(agentName);
       logger.debug(
@@ -77,7 +77,7 @@ export class AgentSelector extends BaseAgent {
     );
     this.availableAgents.set(compositeKey, agent[1]);
     this.agentInfo.set(
-      agent[1].getAgentConfig().name,
+      agent[1].getAgentConfig().profile.name,
       agent[1].getAgentConfig().profile.description ||
         'No description available'
     );
@@ -116,7 +116,7 @@ export class AgentSelector extends BaseAgent {
           userAgents.set(key, agent);
           const cfg = agent.getAgentConfig();
           userAgentInfo.set(
-            cfg.name,
+            cfg.profile.name,
             cfg.profile.description || 'No description available'
           );
         }
@@ -135,7 +135,7 @@ export class AgentSelector extends BaseAgent {
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
         const agent = Array.from(userAgents.values()).find(
-          (agent) => agent.getAgentConfig().name === r_trim
+          (agent) => agent.getAgentConfig().profile.name === r_trim
         );
         if (agent) {
           logger.debug(`AgentSelector: Selected agent ${r_trim}`);

@@ -5,7 +5,6 @@ import {
   SemanticMemoryContext,
   ltmSchemaType,
   createLtmSchemaMemorySchema,
-  STMContext,
 } from '../../../shared/types/memory.types.js';
 import {
   getCurrentTask,
@@ -58,11 +57,15 @@ export class MemoryGraph {
     task: TaskType,
     threadId: string
   ): EpisodicMemoryContext[] {
+    const lastStep = task.steps[task.steps.length - 1];
+    if (!lastStep) {
+      throw new Error('Last step is not accessile.');
+    }
     return memories.map((memory) => ({
       user_id: user_id,
       run_id: threadId,
       task_id: task.id,
-      step_id: task.steps[task.steps.length - 1].id,
+      step_id: lastStep.id,
       content: memory.content,
       sources: memory.source,
     }));
@@ -74,11 +77,15 @@ export class MemoryGraph {
     task: TaskType,
     threadId: string
   ): SemanticMemoryContext[] {
+    const lastStep = task.steps[task.steps.length - 1];
+    if (!lastStep) {
+      throw new Error('Last step is not accessile.');
+    }
     return memories.map((memory) => ({
       user_id: user_id,
       run_id: threadId,
       task_id: task.id,
-      step_id: task.steps[task.steps.length - 1].id,
+      step_id: lastStep.id,
       fact: memory.fact,
       category: memory.category,
     }));
@@ -155,7 +162,7 @@ export class MemoryGraph {
       const currentTask = getCurrentTask(state.tasks);
       if (!['completed', 'failed'].includes(currentTask.status)) {
         logger.debug(
-          `[LTMManager] Current task at index ${state.currentTaskIndex} is not completed or failed, skipping LTM update`
+          `[LTMManager] Current task at index ${currentTask.id} is not completed or failed, skipping LTM update`
         );
         return { last_node: TaskMemoryNode.LTM_MANAGER };
       }
@@ -183,12 +190,18 @@ export class MemoryGraph {
       ]);
       // Use content of all steps of current task instead of just recent memories
       const allStepsContent = this.formatAllStepsOfCurrentTask(currentTask);
-      const summaryResult = (await structuredModel.invoke(
+      const summaryResult: ltmSchemaType = (await structuredModel.invoke(
         await prompt.formatMessages({
           response: allStepsContent,
         })
       )) as ltmSchemaType;
-
+      if (
+        !summaryResult ||
+        !summaryResult.episodic ||
+        !summaryResult.semantic
+      ) {
+        throw new Error('LTM summary result is empty');
+      }
       const episodic_memories: EpisodicMemoryContext[] = [];
       const semantic_memories: SemanticMemoryContext[] = [];
 
@@ -413,7 +426,7 @@ export class MemoryGraph {
       )
       .addConditionalEdges(START, this.memory_router.bind(this))
       .addEdge(TaskMemoryNode.LTM_MANAGER, TaskMemoryNode.RETRIEVE_MEMORY)
-      .addEdge(TaskMemoryNode.LTM_MANAGER, END);
+      .addEdge(TaskMemoryNode.RETRIEVE_MEMORY, END);
     this.graph = memory_subgraph.compile();
   }
 }

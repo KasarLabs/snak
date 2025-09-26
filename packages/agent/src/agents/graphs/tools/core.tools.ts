@@ -22,9 +22,12 @@ export class CoreToolRegistry extends BaseToolRegistry {
     tools.push(
       tool(endTask, {
         name: 'end_task',
-        description:
-          '[SNAK Tool] Use this tool to end the task execution when the task is completed or cannot be completed. Provide a clear and concise summary in the "speak" field of the response.',
-        schema: ThoughtsSchema,
+        description: '[SNAK Tool] End the current task successfully',
+        schema: z
+          .object({
+            noParams: z.object({}).strict(),
+          })
+          .strict(),
       })
     );
 

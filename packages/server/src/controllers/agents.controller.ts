@@ -50,8 +50,7 @@ export interface AgentAvatarResponseDTO {
 
 interface UpdateAgentMcpDTO {
   id: string;
-  plugins: string[];
-  mcpServers: Record<string, any>;
+  mcp_servers: Record<string, any>;
 }
 
 interface AgentMcpResponseDTO {
@@ -81,25 +80,27 @@ export class AgentsController {
     @Body() updateData: UpdateAgentMcpDTO,
     @Req() req: FastifyRequest
   ) {
-    const { id, mcpServers } = updateData;
+    const userId = ControllerHelpers.getUserId(req);
+    const { id, mcp_servers } = updateData;
 
     if (!id) {
       throw new BadRequestException('Agent ID is required');
     }
 
-    if (!mcpServers || typeof mcpServers !== 'object') {
+    if (!mcp_servers || typeof mcp_servers !== 'object') {
       throw new BadRequestException('MCP servers must be an object');
     }
-
-    const userId = ControllerHelpers.getUserId(req);
-
+    const agent = this.agentFactory.getAgentInstance(id, userId);
+    if (!agent) {
+      throw new BadRequestException('Agent not found or access denied');
+    }
     // Update agent MCP configuration in database
     const q = new Postgres.Query(
       `UPDATE agents
        SET "mcp_servers" = $1::jsonb
        WHERE id = $2 AND user_id = $3
        RETURNING id, "mcp_servers"`,
-      [mcpServers, id, userId]
+      [mcp_servers, id, userId]
     );
 
     const result = await Postgres.query<AgentMcpResponseDTO>(q);
@@ -118,7 +119,7 @@ export class AgentsController {
   @Post('update_agent_config')
   @HandleWithBadRequestPreservation('Update failed')
   async updateAgentConfig(
-    @Body() config: AgentConfig.InputWithId,
+    @Body() config: AgentConfig.WithOptionalParam,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
@@ -126,7 +127,6 @@ export class AgentsController {
     if (!config || typeof config !== 'object') {
       throw new BadRequestException('Configuration object is required');
     }
-
     const id = config.id;
     if (!id) {
       throw new BadRequestException('Agent ID is required');
@@ -134,29 +134,15 @@ export class AgentsController {
     try {
       // Use the existing update_agent_complete function
       const query = `
-        SELECT success, message, updated_agent_id
-        FROM update_agent_complete(
-          $1::UUID, $2::UUID, $3, $4, $5::agent_profile,
-          $6::JSONB, $7::TEXT[], $8::agent_prompts, $9::graph_config,
-          $10::memory_config, $11::rag_config, $12, $13
-        )
-      `;
+  SELECT success, message, updated_agent_id
+  FROM update_agent_complete($1::UUID, $2::UUID, $3::JSONB)
+`;
 
       const result = await Postgres.query(
         new Postgres.Query(query, [
           id,
           userId,
-          config.name || null,
-          config.group || null,
-          config.profile || null,
-          config.mcp_servers ? JSON.stringify(config.mcp_servers) : null,
-          config.plugins || null,
-          config.prompts_id || null,
-          config.graph || null,
-          config.memory || null,
-          config.rag || null,
-          null, // avatarImage
-          null, // avatarMimeType
+          JSON.stringify(config), // Pass entire config as JSONB
         ])
       );
 
@@ -169,13 +155,9 @@ export class AgentsController {
       const fetchQuery = new Postgres.Query(
         `SELECT
           id,
-          user_id,
-          name,
-          "group",
           row_to_json(profile) as profile,
           mcp_servers,
-          plugins,
-          row_to_json(prompts) as prompts,
+          prompts_id,
           row_to_json(graph) as graph,
           row_to_json(memory) as memory,
           row_to_json(rag) as rag,
@@ -186,7 +168,8 @@ export class AgentsController {
         FROM agents WHERE id = $1 AND user_id = $2`,
         [id, userId]
       );
-      const agent = await Postgres.query<AgentConfig.InputWithId>(fetchQuery);
+      const agent =
+        await Postgres.query<AgentConfig.OutputWithoutUserId>(fetchQuery);
 
       return {
         status: 'success',
@@ -322,7 +305,7 @@ export class AgentsController {
 
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
-      user_request: userRequest.request.content ?? undefined,
+      request: userRequest.request.content ?? '',
     };
 
     const action = this.agentService.handleUserRequest(agent, messageRequest);
@@ -377,7 +360,7 @@ export class AgentsController {
     metrics.agentConnect();
 
     return ResponseFormatter.success(
-      `Agent ${newAgentConfig.name} added and registered with supervisor`
+      `Agent ${newAgentConfig.profile.name} added and registered with supervisor`
     );
   }
 

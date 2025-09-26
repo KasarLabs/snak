@@ -98,6 +98,7 @@ export const createAgentTool = new DynamicStructuredTool({
       const { normalizedConfig, appliedDefaults } =
         normalizeNumericValues(input);
 
+      // PostgresQuery relation : agents
       const query = new Postgres.Query(
         `INSERT INTO agents (
 			    name, "group", description, lore, objectives, knowledge,
@@ -124,7 +125,7 @@ export const createAgentTool = new DynamicStructuredTool({
         ]
       );
 
-      const result = await Postgres.query<AgentConfig.InputWithId>(query);
+      const result = await Postgres.query<AgentConfig.OutputWithId>(query);
 
       if (result.length > 0) {
         logger.info(`Created new agent "${input.name}" successfully`);

@@ -67,13 +67,11 @@ export class MyGateway {
           if (!agentSelector) {
             throw new ServerError('E01TA400');
           }
-          if (!userRequest.request.user_request) {
+          if (!userRequest.request.request) {
             throw new ServerError('E01TA400'); // Bad request if no content
           }
           try {
-            agent = await agentSelector.execute(
-              userRequest.request.user_request
-            );
+            agent = await agentSelector.execute(userRequest.request.request);
           } catch (error) {
             logger.error('Error in agentSelector:', error);
             throw new ServerError('E01TA400');
@@ -170,7 +168,7 @@ export class MyGateway {
         const userId = ControllerHelpers.getUserIdFromSocket(client);
         await this.agentFactory.addAgent(userRequest.agent, userId);
         const response: AgentResponse = ResponseFormatter.success(
-          `Agent ${userRequest.agent.name} added`
+          `Agent ${userRequest.agent.profile.name} added`
         );
         client.emit('onInitAgentRequest', response);
       },

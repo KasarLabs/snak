@@ -16,11 +16,10 @@ CREATE TYPE memory_strategy AS ENUM (
 -- Agent Profile composite type
 -- As per manual 8.16: Composite types represent row/record structure
 CREATE TYPE agent_profile AS (
+    name VARCHAR(255),
+    "group" VARCHAR(255),
     description TEXT,
-    lore TEXT[],
-    objectives TEXT[],
-    knowledge TEXT[],
-    merged_profile TEXT  -- Can be null, system-generated
+    contexts TEXT[]
 );
 
 -- Model Level Configuration (nested in graph_config)
@@ -77,8 +76,7 @@ CREATE TYPE memory_config AS (
 -- RAG configuration
 CREATE TYPE rag_config AS (
     enabled BOOLEAN,
-    top_k INTEGER,
-    embedding_model VARCHAR(255)
+    top_k INTEGER
 );
 
 -- ============================================================================
@@ -89,29 +87,18 @@ CREATE TYPE rag_config AS (
 DROP TABLE IF EXISTS agents CASCADE;
 
 -- Primary Agents Table with new structure
--- ALL FIELDS ARE MANDATORY (NOT NULL) except id and group
 CREATE TABLE agents (
     -- Unique identifier for each agent (auto-generated)
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- Reference to the user who owns this agent
-    -- Foreign key linking to the user who created and manages this agent
-    -- Ensures proper access control and ownership tracking
     user_id UUID NOT NULL,
-
-    -- Core identification (from AgentConfigBase)
-    name VARCHAR(255) NOT NULL,
-    "group" VARCHAR(255) NOT NULL DEFAULT 'default_group',
     
     -- Agent Profile (composite type) - MANDATORY
     profile agent_profile NOT NULL,
     
-
     -- MCP Servers configurations (using JSONB as per manual 8.14) - MANDATORY
     mcp_servers JSONB NOT NULL,
-    
-    -- Plugins configurations (array of strings) - MANDATORY
-    plugins TEXT[] NOT NULL,
     
     -- Prompt configurations (composite type) - MANDATORY
     prompts_id UUID NOT NULL,
@@ -133,29 +120,26 @@ CREATE TABLE agents (
     avatar_image BYTEA,
     avatar_mime_type VARCHAR(50),
     
-    -- Constraints
-    CONSTRAINT agents_name_user_unique UNIQUE (user_id, name),
-    CONSTRAINT agents_name_group_unique UNIQUE (name, "group"),
-    
-    CONSTRAINT agents_name_not_empty CHECK (length(trim(name)) > 0),
-    -- Ensure mcp_servers is at least an empty object, not null
+    -- Constraints (WITHOUT the problematic UNIQUE constraints)
+    CONSTRAINT agents_name_not_empty CHECK (length(trim((profile).name)) > 0),
     CONSTRAINT agents_mcp_servers_not_null CHECK (mcp_servers IS NOT NULL),
     CONSTRAINT fk_agents_prompts_id FOREIGN KEY (prompts_id) REFERENCES prompts(id) ON DELETE CASCADE
-
 );
 
--- Create indexes for better query performance
+
+-- Indexes for performance optimization
+-- Unique index on (user_id, profile.name, profile.group) to enforce uniqueness per user
+CREATE UNIQUE INDEX agents_user_name_group_unique 
+    ON agents (user_id, ((profile).name), ((profile)."group"));
 CREATE INDEX idx_agents_user_id ON agents (user_id);
-CREATE INDEX idx_agents_name ON agents (name);
-CREATE INDEX idx_agents_group ON agents ("group");
+CREATE INDEX idx_agents_name ON agents (((profile).name));
+CREATE INDEX idx_agents_group ON agents (((profile)."group"));
 CREATE INDEX idx_agents_created_at ON agents (created_at);
 CREATE INDEX idx_agents_prompts_id ON agents (prompts_id);
 
 -- GIN index for JSONB mcp_servers for efficient queries
 CREATE INDEX idx_agents_mcp_servers ON agents USING GIN (mcp_servers);
 
--- GIN index for plugins array
-CREATE INDEX idx_agents_plugins ON agents USING GIN (plugins);
 
 -- ============================================================================
 -- HELPER FUNCTIONS
@@ -185,9 +169,14 @@ CREATE TRIGGER update_agents_updated_at
 CREATE OR REPLACE FUNCTION validate_agent_data()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Check name
-    IF NEW.name IS NULL OR length(trim(NEW.name)) = 0 THEN
-        RAISE EXCEPTION 'Agent name is required and cannot be empty';
+    -- Check profile name
+    IF (NEW.profile).name IS NULL OR length(trim((NEW.profile).name)) = 0 THEN
+        RAISE EXCEPTION 'Agent profile.name is required and cannot be empty';
+    END IF;
+
+    -- Check profile group
+    IF (NEW.profile)."group" IS NULL THEN
+        RAISE EXCEPTION 'Agent profile.group is required';
     END IF;
     
     -- Check profile fields
@@ -199,16 +188,8 @@ BEGIN
         RAISE EXCEPTION 'Agent profile.description is required';
     END IF;
     
-    IF (NEW.profile).lore IS NULL THEN
-        RAISE EXCEPTION 'Agent profile.lore is required (can be empty array)';
-    END IF;
-    
-    IF (NEW.profile).objectives IS NULL THEN
-        RAISE EXCEPTION 'Agent profile.objectives is required (can be empty array)';
-    END IF;
-    
-    IF (NEW.profile).knowledge IS NULL THEN
-        RAISE EXCEPTION 'Agent profile.knowledge is required (can be empty array)';
+    IF (NEW.profile).contexts IS NULL THEN
+        RAISE EXCEPTION 'Agent profile.contexts is required (can be empty array)';
     END IF;
     
     
@@ -217,10 +198,6 @@ BEGIN
         RAISE EXCEPTION 'Agent mcp_servers is required (can be empty object {})';
     END IF;
     
-    -- Check plugins
-    IF NEW.plugins IS NULL THEN
-        RAISE EXCEPTION 'Agent plugins is required (can be empty array)';
-    END IF;
     
     -- Check prompts_id
     IF NEW.prompts_id IS NULL THEN
@@ -307,93 +284,116 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to completely update an agent record
--- This function allows updating ALL fields of an agent in a single transaction
 CREATE OR REPLACE FUNCTION update_agent_complete(
-    p_agent_id UUID,
-    p_user_id UUID,
-    p_name VARCHAR(255) DEFAULT NULL,
-    p_group VARCHAR(255) DEFAULT NULL,
-    p_profile agent_profile DEFAULT NULL,
-    p_mcp_servers JSONB DEFAULT NULL,
-    p_plugins TEXT[] DEFAULT NULL,
-    p_prompts_id UUID DEFAULT NULL,
-    p_graph graph_config DEFAULT NULL,
-    p_memory memory_config DEFAULT NULL,
-    p_rag rag_config DEFAULT NULL,
-    p_avatar_image BYTEA DEFAULT NULL,
-    p_avatar_mime_type VARCHAR(50) DEFAULT NULL
-) RETURNS TABLE (
-    success BOOLEAN,
-    message TEXT,
-    updated_agent_id UUID
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    existing_agent agents%ROWTYPE;
-    rows_updated INTEGER;
+  p_agent_id UUID,
+  p_user_id UUID,
+  p_config JSONB
+) RETURNS TABLE(
+  success BOOLEAN,
+  message TEXT,
+  updated_agent_id UUID
+) AS $$
 BEGIN
-    -- Check if agent exists and belongs to the user
-    SELECT * INTO existing_agent FROM agents WHERE id = p_agent_id AND user_id = p_user_id;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT
-            FALSE AS success,
-            'Agent not found with ID: ' || p_agent_id::TEXT || ' for user: ' || p_user_id::TEXT AS message,
-            NULL::UUID AS updated_agent_id;
-        RETURN;
-    END IF;
-
-    -- Perform the update with COALESCE to keep existing values when NULL is passed
-    UPDATE agents SET
-        name = COALESCE(p_name, name),
-        "group" = COALESCE(p_group, "group"),
-        profile = COALESCE(p_profile, profile),
-        mcp_servers = COALESCE(p_mcp_servers, mcp_servers),
-        plugins = COALESCE(p_plugins, plugins),
-        prompts_id = COALESCE(p_prompts_id, prompts_id),
-        graph = COALESCE(p_graph, graph),
-        memory = COALESCE(p_memory, memory),
-        rag = COALESCE(p_rag, rag),
-        avatar_image = COALESCE(p_avatar_image, avatar_image),
-        avatar_mime_type = COALESCE(p_avatar_mime_type, avatar_mime_type),
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = p_agent_id AND user_id = p_user_id;
-
-    GET DIAGNOSTICS rows_updated = ROW_COUNT;
-
-    IF rows_updated > 0 THEN
-        RETURN QUERY SELECT
-            TRUE AS success,
-            'Agent updated successfully' AS message,
-            p_agent_id AS updated_agent_id;
-    ELSE
-        RETURN QUERY SELECT
-            FALSE AS success,
-            'Failed to update agent' AS message,
-            NULL::UUID AS updated_agent_id;
-    END IF;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN QUERY SELECT
-            FALSE AS success,
-            'Error updating agent: ' || SQLERRM AS message,
-            NULL::UUID AS updated_agent_id;
+  -- Update only provided fields
+  UPDATE agents
+  SET
+    profile = CASE 
+      WHEN p_config->'profile' IS NOT NULL THEN
+        ROW(
+          COALESCE(p_config->'profile'->>'name', (profile).name),
+          COALESCE(p_config->'profile'->>'group', (profile)."group"),
+          COALESCE(p_config->'profile'->>'description', (profile).description),
+          COALESCE(
+            CASE 
+              WHEN p_config->'profile'->'contexts' IS NOT NULL THEN
+                ARRAY(SELECT jsonb_array_elements_text(p_config->'profile'->'contexts'))
+              ELSE NULL
+            END,
+            (profile).contexts
+          )
+        )::agent_profile
+      ELSE profile
+    END,
+    mcp_servers = COALESCE(p_config->'mcp_servers', mcp_servers),
+    prompts_id = COALESCE((p_config->>'prompts_id')::UUID, prompts_id),
+    graph = CASE
+      WHEN p_config->'graph' IS NOT NULL THEN
+        ROW(
+          COALESCE((p_config->'graph'->>'max_steps')::integer, (graph).max_steps),
+          COALESCE((p_config->'graph'->>'max_iterations')::integer, (graph).max_iterations),
+          COALESCE((p_config->'graph'->>'max_retries')::integer, (graph).max_retries),
+          COALESCE((p_config->'graph'->>'execution_timeout_ms')::bigint, (graph).execution_timeout_ms),
+          COALESCE((p_config->'graph'->>'max_token_usage')::integer, (graph).max_token_usage),
+          ROW(
+            COALESCE(p_config->'graph'->'model'->>'model_provider', ((graph).model).model_provider),
+            COALESCE(p_config->'graph'->'model'->>'model_name', ((graph).model).model_name),
+            COALESCE((p_config->'graph'->'model'->>'temperature')::numeric(3,2), ((graph).model).temperature),
+            COALESCE((p_config->'graph'->'model'->>'max_tokens')::integer, ((graph).model).max_tokens)
+          )::model_config
+        )::graph_config
+      ELSE graph
+    END,
+    memory = CASE
+      WHEN p_config->'memory' IS NOT NULL THEN
+        ROW(
+          COALESCE((p_config->'memory'->>'ltm_enabled')::boolean, (memory).ltm_enabled),
+          ROW(
+            COALESCE((p_config->'memory'->'size_limits'->>'short_term_memory_size')::integer, ((memory).size_limits).short_term_memory_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'max_insert_episodic_size')::integer, ((memory).size_limits).max_insert_episodic_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'max_insert_semantic_size')::integer, ((memory).size_limits).max_insert_semantic_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'max_retrieve_memory_size')::integer, ((memory).size_limits).max_retrieve_memory_size),
+            COALESCE((p_config->'memory'->'size_limits'->>'limit_before_summarization')::integer, ((memory).size_limits).limit_before_summarization)
+          )::memory_size_limits,
+          ROW(
+            COALESCE((p_config->'memory'->'thresholds'->>'insert_semantic_threshold')::numeric(3,2), ((memory).thresholds).insert_semantic_threshold),
+            COALESCE((p_config->'memory'->'thresholds'->>'insert_episodic_threshold')::numeric(3,2), ((memory).thresholds).insert_episodic_threshold),
+            COALESCE((p_config->'memory'->'thresholds'->>'retrieve_memory_threshold')::numeric(3,2), ((memory).thresholds).retrieve_memory_threshold),
+            COALESCE((p_config->'memory'->'thresholds'->>'hitl_threshold')::numeric(3,2), ((memory).thresholds).hitl_threshold)
+          )::memory_thresholds,
+          ROW(
+            COALESCE((p_config->'memory'->'timeouts'->>'retrieve_memory_timeout_ms')::bigint, ((memory).timeouts).retrieve_memory_timeout_ms),
+            COALESCE((p_config->'memory'->'timeouts'->>'insert_memory_timeout_ms')::bigint, ((memory).timeouts).insert_memory_timeout_ms)
+          )::memory_timeouts,
+          -- Fixed: Cast to memory_strategy first, then COALESCE with matching types
+          COALESCE(
+            (p_config->'memory'->>'strategy')::memory_strategy, 
+            (memory).strategy
+          )
+        )::memory_config
+      ELSE memory
+    END,
+    rag = CASE
+      WHEN p_config->'rag' IS NOT NULL THEN
+        ROW(
+          COALESCE((p_config->'rag'->>'enabled')::boolean, (rag).enabled),
+          COALESCE((p_config->'rag'->>'top_k')::integer, (rag).top_k)
+        )::rag_config
+      ELSE rag
+    END,
+    avatar_image = CASE 
+      WHEN p_config ? 'avatar_image' AND p_config->>'avatar_image' IS NOT NULL THEN
+        decode(p_config->>'avatar_image', 'base64')
+      ELSE avatar_image
+    END,
+    avatar_mime_type = COALESCE(p_config->>'avatar_mime_type', avatar_mime_type),
+    updated_at = NOW()
+  WHERE id = p_agent_id AND user_id = p_user_id;
+  
+  IF FOUND THEN
+    RETURN QUERY SELECT TRUE, 'Agent updated successfully', p_agent_id;
+  ELSE
+    RETURN QUERY SELECT FALSE, 'Agent not found or unauthorized', NULL::UUID;
+  END IF;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
 -- Function to update agent with full replacement (all fields required)
 -- This function requires ALL mandatory fields and completely replaces the record
 CREATE OR REPLACE FUNCTION replace_agent_complete(
     p_agent_id UUID,
     p_user_id UUID,
-    p_name VARCHAR(255),
-    p_group VARCHAR(255),
     p_profile agent_profile,
     p_mcp_servers JSONB,
-    p_plugins TEXT[],
     p_prompts_id UUID,
     p_graph graph_config,
     p_memory memory_config,
@@ -421,11 +421,8 @@ BEGIN
 
     -- Completely replace all fields (mandatory fields must be provided)
     UPDATE agents SET
-        name = p_name,
-        "group" = p_group,
         profile = p_profile,
         mcp_servers = p_mcp_servers,
-        plugins = p_plugins,
         prompts_id = p_prompts_id,
         graph = p_graph,
         memory = p_memory,
@@ -457,7 +454,6 @@ EXCEPTION
             NULL::UUID AS updated_agent_id;
 END;
 $$;
-
 -- Function to enable/disable RAG for an agent
 CREATE OR REPLACE FUNCTION toggle_agent_rag(
     p_agent_id UUID,
@@ -473,62 +469,119 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to add a plugin to an agent
-CREATE OR REPLACE FUNCTION add_agent_plugin(
-    p_agent_id UUID,
-    p_user_id UUID,
-    p_plugin_name TEXT
-) RETURNS BOOLEAN AS $$
-BEGIN
-    UPDATE agents
-    SET plugins = array_append(plugins, p_plugin_name)
-    WHERE id = p_agent_id AND user_id = p_user_id
-    AND NOT (p_plugin_name = ANY(plugins));  -- Prevent duplicates
-
-    RETURN FOUND;
-END;
-$$ LANGUAGE plpgsql;
-
--- Function to remove a plugin from an agent
-CREATE OR REPLACE FUNCTION remove_agent_plugin(
-    p_agent_id UUID,
-    p_user_id UUID,
-    p_plugin_name TEXT
-) RETURNS BOOLEAN AS $$
-BEGIN
-    UPDATE agents
-    SET plugins = array_remove(plugins, p_plugin_name)
-    WHERE id = p_agent_id AND user_id = p_user_id;
-
-    RETURN FOUND;
-END;
-$$ LANGUAGE plpgsql;
-
--- Bulk Agent Deletion Function for specific user
-CREATE OR REPLACE FUNCTION delete_all_agents(p_user_id UUID)
-RETURNS TABLE (
-    deleted_count INTEGER,
-    message TEXT
-)
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION insert_agent_from_json(
+  p_user_id UUID,
+  p_config JSONB
+) RETURNS TABLE(
+  id UUID,
+  user_id UUID,
+  profile JSONB,
+  mcp_servers JSONB,
+  prompts_id UUID,
+  graph JSONB,
+  memory JSONB,
+  rag JSONB,
+  created_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE,
+  avatar_image BYTEA,
+  avatar_mime_type VARCHAR(50)
+) AS $$
 DECLARE
-    agent_count INTEGER;
+  v_prompts_id UUID;
+  v_inserted_id UUID;
 BEGIN
-    SELECT COUNT(*) INTO agent_count FROM agents WHERE user_id = p_user_id;
-    DELETE FROM agents WHERE user_id = p_user_id;
+  -- Extract prompts_id, use NULL if not present
+  v_prompts_id := (p_config->>'prompts_id')::UUID;
 
-    RETURN QUERY
-    SELECT
-        agent_count AS deleted_count,
-        CASE
-            WHEN agent_count > 0 THEN
-                format('%s agent(s) deleted successfully for user: %s', agent_count, p_user_id::TEXT)
-            ELSE
-                format('No agents to delete for user: %s', p_user_id::TEXT)
-        END AS message;
+  -- If NULL, initialize default prompts
+  IF v_prompts_id IS NULL THEN
+    RAISE EXCEPTION 'prompts_id is required in the configuration JSON';
+  END IF;
+
+  INSERT INTO agents (
+    user_id,
+    profile,
+    mcp_servers,
+    prompts_id,
+    graph,
+    memory,
+    rag,
+    avatar_image,
+    avatar_mime_type
+  ) VALUES (
+    p_user_id,
+    ROW(
+      p_config->'profile'->>'name',
+      p_config->'profile'->>'group',
+      p_config->'profile'->>'description',
+      ARRAY(SELECT jsonb_array_elements_text(p_config->'profile'->'contexts'))
+    )::agent_profile,
+    p_config->'mcp_servers',
+    v_prompts_id,
+    ROW(
+      (p_config->'graph'->>'max_steps')::integer,
+      (p_config->'graph'->>'max_iterations')::integer,
+      (p_config->'graph'->>'max_retries')::integer,
+      (p_config->'graph'->>'execution_timeout_ms')::bigint,
+      (p_config->'graph'->>'max_token_usage')::integer,
+      ROW(
+        p_config->'graph'->'model'->>'model_provider',
+        p_config->'graph'->'model'->>'model_name',
+        (p_config->'graph'->'model'->>'temperature')::numeric(3,2),
+        (p_config->'graph'->'model'->>'max_tokens')::integer
+      )::model_config
+    )::graph_config,
+    ROW(
+      (p_config->'memory'->>'ltm_enabled')::boolean,
+      ROW(
+        (p_config->'memory'->'size_limits'->>'short_term_memory_size')::integer,
+        (p_config->'memory'->'size_limits'->>'max_insert_episodic_size')::integer,
+        (p_config->'memory'->'size_limits'->>'max_insert_semantic_size')::integer,
+        (p_config->'memory'->'size_limits'->>'max_retrieve_memory_size')::integer,
+        (p_config->'memory'->'size_limits'->>'limit_before_summarization')::integer
+      )::memory_size_limits,
+      ROW(
+        (p_config->'memory'->'thresholds'->>'insert_semantic_threshold')::numeric(3,2),
+        (p_config->'memory'->'thresholds'->>'insert_episodic_threshold')::numeric(3,2),
+        (p_config->'memory'->'thresholds'->>'retrieve_memory_threshold')::numeric(3,2),
+        (p_config->'memory'->'thresholds'->>'hitl_threshold')::numeric(3,2)
+      )::memory_thresholds,
+      ROW(
+        (p_config->'memory'->'timeouts'->>'retrieve_memory_timeout_ms')::bigint,
+        (p_config->'memory'->'timeouts'->>'insert_memory_timeout_ms')::bigint
+      )::memory_timeouts,
+      (p_config->'memory'->>'strategy')::memory_strategy
+    )::memory_config,
+    ROW(
+      (p_config->'rag'->>'enabled')::boolean,
+      (p_config->'rag'->>'top_k')::integer
+      )::rag_config,
+    CASE 
+      WHEN p_config ? 'avatar_image' AND p_config->>'avatar_image' IS NOT NULL THEN
+        decode(p_config->>'avatar_image', 'base64')
+      ELSE NULL
+    END,
+    p_config->>'avatar_mime_type'
+  ) RETURNING agents.id INTO v_inserted_id;  
+
+  RETURN QUERY
+  SELECT
+    a.id,
+    a.user_id,
+    to_jsonb(a.profile) as profile,        
+    a.mcp_servers as mcp_servers,
+    a.prompts_id,
+    to_jsonb(a.graph) as graph,           
+    to_jsonb(a.memory) as memory,          
+    to_jsonb(a.rag) as rag,          
+    a.created_at,
+    a.updated_at,
+    a.avatar_image,
+    a.avatar_mime_type
+  FROM agents a
+  WHERE a.id = v_inserted_id;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- USAGE EXAMPLES
@@ -630,13 +683,6 @@ WHERE user_id = '123e4567-e89b-12d3-a456-426614174000'::UUID
 AND (memory).strategy = 'categorized';
 */
 
--- Example 5: Finding agents with specific plugins for a specific user
-/*
-SELECT name, plugins
-FROM agents
-WHERE user_id = '123e4567-e89b-12d3-a456-426614174000'::UUID
-AND 'email-plugin' = ANY(plugins);
-*/
 
 -- Example 6: Updating MCP server configuration for a specific user's agent
 /*
@@ -651,11 +697,13 @@ AND name = 'Development Assistant';
 SELECT * FROM update_agent_complete(
     '456e7890-e89b-12d3-a456-426614174001'::UUID,  -- agent_id
     '123e4567-e89b-12d3-a456-426614174000'::UUID,  -- user_id
-    'Updated Agent Name',                            -- new name
-    'production',                                    -- new group
-    NULL,                                           -- keep existing profile
+    ROW(
+        'Updated Agent Name',
+        'production',
+        'Updated description',
+        ARRAY['updated context']
+    )::agent_profile,                               -- new profile
     NULL,                                           -- keep existing mcp_servers
-    ARRAY['new-plugin', 'another-plugin'],          -- update plugins
     NULL,                                           -- keep existing prompts
     NULL,                                           -- keep existing graph config
     NULL,                                           -- keep existing memory config
@@ -668,17 +716,13 @@ SELECT * FROM update_agent_complete(
 SELECT * FROM replace_agent_complete(
     '456e7890-e89b-12d3-a456-426614174001'::UUID,  -- agent_id
     '123e4567-e89b-12d3-a456-426614174000'::UUID,  -- user_id
-    'Completely New Agent',
-    'new_group',
     ROW(
+        'Completely New Agent',
+        'new_group',
         'Brand new description',
-        ARRAY['New personality trait'],
-        ARRAY['New objective'],
-        ARRAY['New knowledge'],
-        NULL
+        ARRAY['New context']
     )::agent_profile,
     '{"newservice": {"url": "https://api.new", "key": "xxx"}}'::jsonb,
-    ARRAY['plugin1', 'plugin2'],
     '550e8400-e29b-41d4-a716-446655440003'::UUID,
     ROW(
         150, 25, 4, 500000, 120000,

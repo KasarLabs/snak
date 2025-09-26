@@ -141,7 +141,7 @@ export class TaskManagerGraph {
 
       const modelBind = this.model.bindTools!(this.toolsList);
       const formattedPrompt = await prompt.formatMessages({
-        agent_name: agentConfig.name,
+        agent_name: agentConfig.profile.name,
         agent_description: agentConfig.profile.description,
         past_tasks: tasks_parser(state.tasks),
         objectives: config.configurable!.user_request?.request,
@@ -176,6 +176,7 @@ export class TaskManagerGraph {
         aiMessage.invalid_tool_calls &&
         aiMessage.invalid_tool_calls.length > 0
       ) {
+        logger.info('[Task Manager] Regenerating tool calls from message');
         aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
       aiMessage.content = ''; // Clear content because we are using tool calls only

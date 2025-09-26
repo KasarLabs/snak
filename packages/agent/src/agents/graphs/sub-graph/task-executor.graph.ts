@@ -441,7 +441,7 @@ export class AgentExecutorGraph {
       }
 
       return handleNodeError(
-        GraphErrorTypeEnum.TIMEAOUT_ERROR,
+        GraphErrorTypeEnum.TIMEOUT_ERROR,
         error,
         'TOOLS',
         state,

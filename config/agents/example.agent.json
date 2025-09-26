@@ -1,15 +1,14 @@
 {
   "agent": {
-    "name": "Your Agent name",
-    "group": "Your Agent group",
     "profile": {
+      "name": "Your Agent name",
+      "group": "Your Agent group",
       "description": "Your AI Agent Description",
-      "lore": ["Some lore of your AI Agent 1", "Some lore of your AI Agent 1"],
-      "objectives": [
+      "contexts": [
+        "Some lore of your AI Agent 1",
+        "Some lore of your AI Agent 2",
         "first objective that your AI Agent need to follow",
-        "second objective that your AI Agent need to follow"
-      ],
-      "knowledge": [
+        "second objective that your AI Agent need to follow",
         "first knowledge of your AI Agent",
         "second knowledge of your AI Agent"
       ]
@@ -27,7 +26,6 @@
         "args": ["node /path/to/local_server/dist/index.js"]
       }
     },
-    "plugins": ["Your first plugin", "Your second plugin"],
     "graph": {
       "max_steps": 200,
       "max_iterations": 15,

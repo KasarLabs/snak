@@ -18,7 +18,12 @@ import {
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
-import { ChunkOutput, EventType, SnakAgent } from '@snakagent/agents';
+import {
+  ChunkOutput,
+  EventType,
+  SnakAgent,
+  UserRequest,
+} from '@snakagent/agents';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -32,13 +37,17 @@ export class AgentService implements IAgentService {
   ): Promise<AgentExecutionResponse> {
     this.logger.debug({
       message: 'Processing agent request',
-      request: userRequest.user_request,
+      request: userRequest.request,
     });
     try {
       let result: any;
 
       if (agent && typeof agent.execute === 'function') {
-        const executionResult = agent.execute(userRequest.user_request);
+        const user_request: UserRequest = {
+          request: userRequest.request || '',
+          hitl_threshold: userRequest.hitl_threshold ?? undefined,
+        };
+        const executionResult = agent.execute(user_request);
 
         function isAsyncGenerator(
           obj: any
@@ -83,7 +92,7 @@ export class AgentService implements IAgentService {
           name: error.name,
           stack: error.stack,
         },
-        request: userRequest.user_request,
+        request: userRequest.request,
       });
 
       if (error instanceof AgentValidationError) {
@@ -111,47 +120,20 @@ export class AgentService implements IAgentService {
   ): AsyncGenerator<ChunkOutput> {
     this.logger.debug({
       message: 'Processing agent request',
-      request: userRequest.user_request,
+      request: userRequest.request,
     });
     try {
-      const q = new Postgres.Query(
-        `SELECT m.event, m.id 
-     FROM message m
-     INNER JOIN agents a ON m.agent_id = a.id
-     WHERE m.agent_id = $1 AND a.user_id = $2
-     ORDER BY m.created_at DESC
-     LIMIT 1;`,
-        [userRequest.agent_id, userId]
-      );
-      const result = await Postgres.query<{ event: EventType; id: string }>(q);
-      if (
-        result &&
-        result.length != 0 &&
-        result[0].event === EventType.ON_GRAPH_INTERRUPTED
-      ) {
-        for await (const chunk of agent.execute(
-          userRequest.user_request,
-          true
-        )) {
-          if (chunk.metadata.final === true) {
-            this.logger.debug('SupervisorService: Execution completed');
-            yield chunk;
-            return;
-          }
+      const user_request: UserRequest = {
+        request: userRequest.request || '',
+        hitl_threshold: userRequest.hitl_threshold ?? undefined,
+      };
+      for await (const chunk of agent.execute(user_request)) {
+        if (chunk.metadata.final === true) {
+          this.logger.debug('SupervisorService: Execution completed');
           yield chunk;
+          return;
         }
-      } else {
-        for await (const chunk of agent.execute(
-          userRequest.user_request,
-          false
-        )) {
-          if (chunk.metadata.final === true) {
-            this.logger.debug('SupervisorService: Execution completed');
-            yield chunk;
-            return;
-          }
-          yield chunk;
-        }
+        yield chunk;
       }
     } catch (error: any) {
       this.logger.error('Error processing agent request', {
@@ -160,7 +142,7 @@ export class AgentService implements IAgentService {
           name: error.name,
           stack: error.stack,
         },
-        request: userRequest.user_request,
+        request: userRequest,
       });
 
       if (error instanceof AgentValidationError) {
@@ -181,16 +163,17 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async getAllAgentsOfUser(userId: string): Promise<AgentConfig.InputWithId[]> {
+  async getAllAgentsOfUser(
+    userId: string
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
     try {
       const q = new Postgres.Query(
         `
 			SELECT
-			  id, user_id, name, "group",
+			  id,
 			  row_to_json(profile) as profile,
 			  mcp_servers as "mcp_servers",
-			  plugins,
-			  row_to_json(prompts) as prompts,
+			  prompts_id,
 			  row_to_json(graph) as graph,
 			  row_to_json(memory) as memory,
 			  row_to_json(rag) as rag,
@@ -207,7 +190,7 @@ export class AgentService implements IAgentService {
 		  `,
         [userId]
       );
-      const res = await Postgres.query<AgentConfig.InputWithId>(q);
+      const res = await Postgres.query<AgentConfig.OutputWithoutUserId>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
@@ -235,7 +218,7 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async updateModelsConfig(model: UpdateModelConfigDTO) {
+  async updateModelsConfig(model: UpdateModelConfigDTO, userId: string) {
     try {
       const q = new Postgres.Query(
         `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
@@ -244,7 +227,7 @@ export class AgentService implements IAgentService {
           model.modelName,
           model || 0.7,
           model.maxTokens || 4096,
-          'default-user',
+          userId,
         ]
       );
       const res = await Postgres.query(q);

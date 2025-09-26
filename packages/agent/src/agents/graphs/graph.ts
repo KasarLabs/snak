@@ -27,6 +27,7 @@ import {
   skipValidationType,
   TaskType,
   UserRequest,
+  userRequestWithHITL,
 } from '../../shared/types/index.js';
 import { MemoryStateManager } from './manager/memory/memory-utils.js';
 import { MemoryGraph } from './sub-graph/task-memory.graph.js';
@@ -68,10 +69,6 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => [],
   }),
-  currentTaskIndex: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 0,
-  }),
   retry: Annotation<number>({
     reducer: (x, y) => y,
     default: () => 0,
@@ -101,7 +98,7 @@ export const GraphConfigurableAnnotation = Annotation.Root({
     reducer: (x, y) => y,
     default: () => null,
   }),
-  user_request: Annotation<UserRequest>({
+  user_request: Annotation<userRequestWithHITL | undefined>({
     reducer: (x, y) => y,
     default: () => {
       return { request: '', hitl_threshold: 0 };
@@ -129,7 +126,6 @@ export class Graph {
     }
     this.checkpointer = pg_checkpointer;
   }
-
   private async initializeRagAgent(): Promise<void> {
     try {
       this.ragAgent = this.snakAgent.getRagAgent();
@@ -144,14 +140,12 @@ export class Graph {
   }
 
   private end_graph(state: typeof GraphState): {
-    currentTaskIndex: number;
     retry: number;
     skipValidation: skipValidationType;
     error: null;
   } {
     logger.info('[EndGraph] Cleaning up state for graph termination');
     return {
-      currentTaskIndex: 0,
       retry: 0,
       skipValidation: { skipValidation: false, goto: '' },
       error: null,
@@ -170,7 +164,6 @@ export class Graph {
       );
       return GraphNode.END_GRAPH;
     }
-
     const currentTask = state.tasks[state.tasks.length - 1];
 
     // Skip validation if flagged
@@ -198,7 +191,7 @@ export class Graph {
           currentTask.status === 'failed'
         ) {
           logger.debug(
-            `[Orchestration Router] Memory operations complete, routing to task verifier`
+            `[Orchestration Router] Memory operations complete, routing to task memory manager`
           );
           return GraphNode.MEMORY_ORCHESTRATOR;
         }
@@ -227,7 +220,7 @@ export class Graph {
         );
         if (state.error.type === 'blocked_task') {
           logger.warn(
-            `[Orchestration Router] Blocked task detected, routing to END node`
+            `[Orchestration Router] Blocked task detected, routing to task manager`
           );
           return GraphNode.TASK_MANAGER;
         }
@@ -371,7 +364,7 @@ export class Graph {
       // Build and compile the workflow
       const workflow = this.buildWorkflow();
       const app = workflow.compile({ checkpointer: this.checkpointer });
-      logger.info('Agent] Successfully initialized agent');
+      logger.info('[Agent] Successfully initialized agent');
       return app;
     } catch (error) {
       logger.error('[Agent] Failed to create agent:', error);
