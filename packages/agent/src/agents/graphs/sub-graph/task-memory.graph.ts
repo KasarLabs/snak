@@ -198,7 +198,9 @@ export class MemoryGraph {
       if (
         !summaryResult ||
         !summaryResult.episodic ||
-        !summaryResult.semantic
+        !summaryResult.semantic ||
+        !Array.isArray(summaryResult.episodic) ||
+        !Array.isArray(summaryResult.semantic)
       ) {
         throw new Error('LTM summary result is empty');
       }
