@@ -1,10 +1,6 @@
 import { MessageContent } from '@langchain/core/messages';
 import { AgentConfig } from '@snakagent/core';
 
-export const baseSystemPrompt = (agent_config: AgentConfig): string => {
-  return agent_config.prompt.content.toString();
-};
-
 export const modelSelectorSystemPrompt = (nextStepsSection: string): string => {
   return `You are a model selector responsible for analyzing user queries and determining which AI model should handle each request.\n
 ${nextStepsSection ? "Focus primarily on the 'Next planned actions' which represents upcoming tasks.\n" : ''}

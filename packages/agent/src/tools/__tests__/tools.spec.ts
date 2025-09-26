@@ -1,8 +1,8 @@
 import SnakToolRegistry, {
   registerTools,
   createAllowedTools,
-} from '../../tools/tools.js';
-import { SnakAgentInterface, StarknetTool } from '../../shared/types/index.js';
+} from '@tools/tools.js';
+import { SnakAgentInterface, StarknetTool } from '@stypes/index.js';
 
 // Mock external dependencies
 jest.mock('@snakagent/core', () => ({

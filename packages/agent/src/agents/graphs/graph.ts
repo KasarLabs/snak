@@ -1,80 +1,73 @@
-import { AgentConfig, AgentMode, logger } from '@snakagent/core';
-import { StateGraph, MemorySaver, Annotation, END } from '@langchain/langgraph';
+import { AgentConfig, logger } from '@snakagent/core';
+import {
+  StateGraph,
+  Annotation,
+  END,
+  CompiledStateGraph,
+} from '@langchain/langgraph';
 import {
   DynamicStructuredTool,
   StructuredTool,
   Tool,
 } from '@langchain/core/tools';
-import { AnyZodObject, z } from 'zod';
+import { AnyZodObject } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
-import { ModelSelector } from '../operators/modelSelector.js';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { MemoryAgent } from '../operators/memoryAgent.js';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
-  DEFAULT_GRAPH_CONFIG,
-  ConfigValidator,
-} from './config/default-config.js';
-import {
   GraphNode,
-  ExecutorNode,
-  PlannerNode,
-  MemoryNode,
-} from '../../shared/enums/agent-modes.enum.js';
-import { AgentReturn } from '../../shared/types/agents.types.js';
-import { History, Memories, ParsedPlan } from '../../shared/types/index.js';
-import { MemoryStateManager } from '../../shared/lib/memory/memory-utils.js';
-import { MemoryGraph } from './sub-graph/memory-graph.js';
-import { PlannerGraph } from './sub-graph/planner-graph.js';
-import { AgentExecutorGraph } from './sub-graph/executor-graph.js';
-import { isInEnum, ExecutionMode } from '../../shared/enums/index.js';
+  TaskExecutorNode,
+  TaskManagerNode,
+  TaskMemoryNode,
+  TaskVerifierNode,
+} from '../../shared/enums/agent.enum.js';
+import {
+  GraphErrorType,
+  Memories,
+  skipValidationType,
+  TaskType,
+  UserRequest,
+  userRequestWithHITL,
+} from '../../shared/types/index.js';
+import { MemoryStateManager } from './manager/memory/memory-utils.js';
+import { MemoryGraph } from './sub-graph/task-memory.graph.js';
+import { TaskManagerGraph } from './sub-graph/task-manager.graph.js';
+import { AgentExecutorGraph } from './sub-graph/task-executor.graph.js';
+import { TaskVerifierGraph } from './sub-graph/task-verifier.graph.js';
+import { isInEnum } from '../../shared/enums/index.js';
 import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
-import { SnakAgentInterface } from '../../shared/types/tools.types.js';
+import { SnakAgent } from '@agents/core/snakAgent.js';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
-    reducer: (x, y) => y,
+    reducer: (x, y) => {
+      return y;
+    },
     default: () => [],
   }),
-  last_node: Annotation<ExecutorNode | PlannerNode | MemoryNode | 'start'>({
+  last_node: Annotation<
+    | TaskExecutorNode
+    | TaskManagerNode
+    | TaskMemoryNode
+    | GraphNode
+    | TaskVerifierNode
+  >({
     reducer: (x, y) => y,
-    default: () => 'start',
+    default: () => GraphNode.START,
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
-    default: () => MemoryStateManager.createInitialState(5),
+    default: () => MemoryStateManager.createInitialState(0),
   }),
   rag: Annotation<string>({
     reducer: (x, y) => y,
     default: () => '',
   }),
-  plans_or_histories: Annotation<Array<ParsedPlan | History>>({
-    reducer: (
-      x: Array<ParsedPlan | History>,
-      y: ParsedPlan | History | Array<ParsedPlan | History>
-    ) => {
-      logger.debug('Plans Or Histories Reducer Called');
-      if (y === undefined) return x;
-      if (Array.isArray(y)) return y;
-      if (x === undefined || x.length === 0) {
-        logger.debug(`First Plan/History Added.`);
-        return [y];
-      }
-      if (x[x.length - 1].id === y.id) {
-        logger.debug('Plan/History Updated.');
-        return [...x.slice(0, -1), y];
-      } else {
-        logger.debug('Plan/History Added.');
-        x.push(y);
-        return x;
-      }
-    },
-    default: () => [],
-  }),
-  currentStepIndex: Annotation<number>({
+  tasks: Annotation<TaskType[]>({
     reducer: (x, y) => y,
-    default: () => 0,
+    default: () => [],
   }),
   retry: Annotation<number>({
     reducer: (x, y) => y,
@@ -84,93 +77,53 @@ export const GraphState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => 0,
   }),
-  skipValidation: Annotation<{ skipValidation: boolean; goto: string }>({
+  skipValidation: Annotation<skipValidationType>({
     reducer: (x, y) => y,
     default: () => ({ skipValidation: false, goto: '' }),
   }),
-  error: Annotation<{
-    hasError: boolean;
-    message: string;
-    source: string;
-    timestamp: number;
-  } | null>({
+  error: Annotation<GraphErrorType | null>({
     reducer: (x, y) => y,
     default: () => null,
   }),
 });
+
+export type GraphStateType = typeof GraphState.State;
 
 export const GraphConfigurableAnnotation = Annotation.Root({
   thread_id: Annotation<string | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
   }),
-  max_graph_steps: Annotation<number>({
+  agent_config: Annotation<AgentConfig.Runtime | null>({
     reducer: (x, y) => y,
-    default: () => DEFAULT_GRAPH_CONFIG.maxGraphSteps,
+    default: () => null,
   }),
-  short_term_memory: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => DEFAULT_GRAPH_CONFIG.shortTermMemory,
-  }),
-  memory_size: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => DEFAULT_GRAPH_CONFIG.memorySize,
-  }),
-  human_in_the_loop: Annotation<number>({
-    reducer: (x, y) => y,
-    default: () => 0,
-  }),
-  agent_config: Annotation<AgentConfig | undefined>({
+  user_request: Annotation<userRequestWithHITL | undefined>({
     reducer: (x, y) => y,
     default: () => undefined,
-  }),
-  user_request: Annotation<string | undefined>({
-    reducer: (x, y) => y,
-    default: () => undefined,
-  }),
-  executionMode: Annotation<ExecutionMode>({
-    reducer: (x, y) => y,
-    default: () => ExecutionMode.REACTIVE,
   }),
 });
+
+export type GraphConfigurableType = typeof GraphConfigurableAnnotation.State;
 export class Graph {
-  private modelSelector: ModelSelector | null;
   private toolsList: (
     | StructuredTool
     | Tool
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
-  private memoryAgent: MemoryAgent | null = null;
-  private agentConfig: AgentConfig;
+  private agentConfig: AgentConfig.Runtime;
   private ragAgent: RagAgent | null = null;
-  private checkpointer: MemorySaver;
-  private app: any;
+  private checkpointer: PostgresSaver;
+  private app: CompiledStateGraph<any, any, any, any, any, any>;
+  private config: typeof GraphConfigurableAnnotation.State | null = null;
 
-  constructor(
-    private snakAgent: SnakAgentInterface,
-    modelSelector: ModelSelector | null
-  ) {
-    this.modelSelector = modelSelector;
-    this.checkpointer = new MemorySaver();
-  }
-
-  private async initializeMemoryAgent(): Promise<void> {
-    try {
-      this.memoryAgent = this.snakAgent.getMemoryAgent();
-      if (this.memoryAgent) {
-        logger.debug('[Agent] Memory agent retrieved successfully');
-        // const memoryTools = this.memoryAgent.prepareMemoryTools(); TODO
-        // this.toolsList.push(...memoryTools);
-      } else {
-        logger.warn(
-          '[Agent] WARNING: Memory agent not available - memory features will be limited'
-        );
-      }
-    } catch (error) {
-      logger.error(`Agent] Failed to retrieve memory agent: ${error}`);
+  constructor(private snakAgent: SnakAgent) {
+    const pg_checkpointer = snakAgent.getPgCheckpointer();
+    if (!pg_checkpointer) {
+      throw new Error('Checkpointer is required for graph initialization');
     }
+    this.checkpointer = pg_checkpointer;
   }
-
   private async initializeRagAgent(): Promise<void> {
     try {
       this.ragAgent = this.snakAgent.getRagAgent();
@@ -180,20 +133,20 @@ export class Graph {
         );
       }
     } catch (error) {
-      logger.error(`Agent] Failed to retrieve RAG agent: ${error}`);
+      logger.error(`[Agent] Failed to retrieve RAG agent: ${error}`);
     }
   }
 
   private end_graph(state: typeof GraphState): {
-    plans_or_histories: Array<ParsedPlan | History> | undefined;
-    currentStepIndex: number;
     retry: number;
+    skipValidation: skipValidationType;
+    error: null;
   } {
     logger.info('[EndGraph] Cleaning up state for graph termination');
     return {
-      plans_or_histories: undefined,
-      currentStepIndex: 0,
       retry: 0,
+      skipValidation: { skipValidation: false, goto: '' },
+      error: null,
     };
   }
 
@@ -202,21 +155,16 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
     logger.debug(`[Orchestration Router] Last agent: ${state.last_node}`);
-    const executionMode = config.configurable?.executionMode;
-    if (!executionMode) {
-      throw new Error(
-        '[Orchestration Router] ExecutionMode is undefined in configurable state.'
-      );
-    }
     // Check for errors first
-    if (state.error?.hasError) {
+    if (state.error?.hasError && state.error.type !== 'blocked_task') {
       logger.error(
         `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
       );
       return GraphNode.END_GRAPH;
     }
+    const currentTask = state.tasks[state.tasks.length - 1];
 
-    const l_msg = state.messages[state.messages.length - 1];
+    // Skip validation if flagged
     if (state.skipValidation.skipValidation) {
       const validTargets = Object.values(GraphNode);
       const goto = state.skipValidation.goto as GraphNode;
@@ -234,145 +182,134 @@ export class Graph {
       }
     }
 
-    if (isInEnum(ExecutorNode, state.last_node)) {
-      logger.debug(
-        `[Orchestration Router] Execution complete, routing to memory`
-      );
-      return GraphNode.MEMORY_ORCHESTRATOR;
-    }
-
-    if (isInEnum(PlannerNode, state.last_node)) {
-      logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
-      return GraphNode.MEMORY_ORCHESTRATOR;
-    }
-
-    if (isInEnum(MemoryNode, state.last_node)) {
+    if (isInEnum(TaskVerifierNode, state.last_node))
+      if (state.last_node === TaskVerifierNode.TASK_UPDATER) {
+        if (
+          currentTask.status === 'completed' ||
+          currentTask.status === 'failed'
+        ) {
+          logger.debug(
+            `[Orchestration Router] Memory operations complete, routing to task memory manager`
+          );
+          return GraphNode.MEMORY_ORCHESTRATOR;
+        }
+      }
+    if (isInEnum(TaskMemoryNode, state.last_node)) {
       if (
-        l_msg.additional_kwargs.final === true &&
-        executionMode === ExecutionMode.PLANNING
+        currentTask.status === 'completed' ||
+        currentTask.status === 'failed'
       ) {
         logger.debug(
-          `[Orchestration Router] Final execution reached in PLANNING mode, routing to planner`
+          `[Orchestration Router] Memory operations complete, routing to task manager`
         );
-        return GraphNode.PLANNING_ORCHESTRATOR;
-      } else if (
-        l_msg.additional_kwargs.final === true &&
-        executionMode === ExecutionMode.REACTIVE
-      ) {
+        return GraphNode.TASK_MANAGER;
+      } else {
         logger.debug(
-          `[Orchestration Router] Final execution reached in REACTIVE mode, routing to end`
+          `[Orchestration Router] Memory operations complete, routing to agent executor`
         );
+        return GraphNode.AGENT_EXECUTOR;
+      }
+    }
+    if (isInEnum(TaskExecutorNode, state.last_node)) {
+      // Check if a task was just completed (end_task tool was called)
+      if (state.error && state.error.hasError) {
+        logger.error(
+          `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
+        );
+        if (state.error.type === 'blocked_task') {
+          logger.warn(
+            `[Orchestration Router] Blocked task detected, routing to task manager`
+          );
+          return GraphNode.TASK_MANAGER;
+        }
         return GraphNode.END_GRAPH;
       }
+      if (currentTask && currentTask.status === 'waiting_validation') {
+        logger.debug(
+          `[Orchestration Router] Task completed, routing to task verifier`
+        );
+        return GraphNode.TASK_VERIFIER;
+      } else {
+        logger.debug(
+          `[Orchestration Router] Execution complete, routing to memory`
+        );
+        return GraphNode.MEMORY_ORCHESTRATOR;
+      }
+    }
+
+    if (isInEnum(TaskManagerNode, state.last_node)) {
+      logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
+      return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
     logger.debug(`[Orchestration Router] Default routing to executor`);
     return GraphNode.AGENT_EXECUTOR;
   }
-
-  private startOrchestrationRouter(
+  private initGraphStateValue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): GraphNode {
-    try {
-      const agentConfig = config.configurable?.agent_config;
-      if (!agentConfig) {
-        throw new Error(
-          '[Start Orchestration Router] AgentConfig is undefined.'
-        );
-      }
-      const currentMode: AgentMode = agentConfig.mode;
-      const executionMode = config.configurable?.executionMode;
-
-      switch (currentMode) {
-        case AgentMode.INTERACTIVE:
-          if (executionMode !== ExecutionMode.REACTIVE) {
-            return GraphNode.PLANNING_ORCHESTRATOR;
-          } else {
-            return GraphNode.AGENT_EXECUTOR;
-          }
-        case AgentMode.AUTONOMOUS:
-          return GraphNode.PLANNING_ORCHESTRATOR;
-        case AgentMode.HYBRID:
-          return GraphNode.END_GRAPH;
-        default:
-          throw new Error(
-            `[Start Orchestration Router] No Agent entry point Found find for mode : ${currentMode}`
-          );
-      }
-    } catch (error) {
-      logger.error(error);
-      return GraphNode.END_GRAPH;
+  ): GraphStateType {
+    logger.debug('[Agent] Initializing graph state values');
+    if (!config.configurable?.agent_config) {
+      throw new Error('Agent configuration is required in config');
     }
-  }
+    const memorySize =
+      config.configurable.agent_config.memory.size_limits
+        .short_term_memory_size;
 
-  private getCompileOptions(): {
-    checkpointer?: MemorySaver;
-    configurable?: Record<string, any>;
-  } {
-    const baseOptions = this.agentConfig.memory
-      ? {
-          checkpointer: this.checkpointer,
-        }
-      : {};
-    const validatedConfig = ConfigValidator.validate({
-      maxGraphSteps: DEFAULT_GRAPH_CONFIG.maxGraphSteps,
-      shortTermMemory: DEFAULT_GRAPH_CONFIG.shortTermMemory,
-      memorySize: DEFAULT_GRAPH_CONFIG.memorySize,
-      humanInTheLoop: DEFAULT_GRAPH_CONFIG.humanInTheLoop,
-    });
+    if (
+      typeof memorySize !== 'number' ||
+      memorySize < 0 ||
+      !Number.isInteger(memorySize)
+    ) {
+      throw new Error(
+        `Invalid memory size configuration: ${memorySize}. Must be a non-negative integer.`
+      );
+    }
 
-    return {
-      ...baseOptions,
-      configurable: {
-        max_graph_steps: validatedConfig.maxGraphSteps,
-        short_term_memory: validatedConfig.shortTermMemory,
-        memory_size: validatedConfig.memorySize,
-        human_in_the_loop: validatedConfig.humanInTheLoop,
-        agent_config: this.agentConfig,
-      },
-    };
+    state.memories = MemoryStateManager.createInitialState(memorySize);
+    return state;
   }
 
   private buildWorkflow(): StateGraph<
     typeof GraphState.State,
     typeof GraphConfigurableAnnotation.State
   > {
-    if (!this.memoryAgent) {
-      throw new Error('MemoryAgent is not setup');
-    }
-
-    logger.debug(' Agent] Building workflow with initialized components');
-    const memory = new MemoryGraph(this.modelSelector, this.memoryAgent);
-    const planner = new PlannerGraph(
-      this.agentConfig,
-      this.modelSelector as ModelSelector,
-      this.toolsList
+    logger.debug('[Agent] Building workflow with initialized components');
+    const memory = new MemoryGraph(
+      this.agentConfig.graph.model,
+      this.agentConfig.memory
     );
+    const taskManager = new TaskManagerGraph(this.agentConfig, this.toolsList);
 
     const executor = new AgentExecutorGraph(
       this.agentConfig,
-      this.modelSelector as ModelSelector,
+      this.agentConfig.graph.model,
       this.toolsList
     );
 
+    const taskVerifier = new TaskVerifierGraph(this.agentConfig.graph.model);
+
     executor.createAgentExecutorGraph();
     memory.createGraphMemory();
-    planner.createPlannerGraph();
+    taskManager.createTaskManagerGraph();
+    taskVerifier.createTaskVerifierGraph();
+
     const executor_graph = executor.getExecutorGraph();
     const memory_graph = memory.getMemoryGraph();
-    const planner_graph = planner.getPlannerGraph();
+    const task_manager_graph = taskManager.getTaskManagerGraph();
+    const task_verifier_graph = taskVerifier.getVerifierGraph();
     const workflow = new StateGraph(GraphState, GraphConfigurableAnnotation)
-      .addNode(GraphNode.PLANNING_ORCHESTRATOR, planner_graph)
+      .addNode(GraphNode.INIT_STATE_VALUE, this.initGraphStateValue.bind(this))
+      .addNode(GraphNode.TASK_MANAGER, task_manager_graph)
       .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
       .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
+      .addNode(GraphNode.TASK_VERIFIER, task_verifier_graph)
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
+      .addEdge('__start__', GraphNode.INIT_STATE_VALUE)
+      .addEdge(GraphNode.INIT_STATE_VALUE, GraphNode.TASK_MANAGER)
       .addConditionalEdges(
-        '__start__',
-        this.startOrchestrationRouter.bind(this)
-      )
-      .addConditionalEdges(
-        GraphNode.PLANNING_ORCHESTRATOR,
+        GraphNode.TASK_MANAGER,
         this.orchestrationRouter.bind(this)
       )
       .addConditionalEdges(
@@ -383,6 +320,10 @@ export class Graph {
         GraphNode.AGENT_EXECUTOR,
         this.orchestrationRouter.bind(this)
       )
+      .addConditionalEdges(
+        GraphNode.TASK_VERIFIER,
+        this.orchestrationRouter.bind(this)
+      )
       .addEdge(GraphNode.END_GRAPH, END);
     return workflow as unknown as StateGraph<
       typeof GraphState.State,
@@ -390,7 +331,7 @@ export class Graph {
     >;
   }
 
-  async initialize(): Promise<AgentReturn> {
+  async initialize(): Promise<CompiledStateGraph<any, any, any, any, any>> {
     try {
       // Get agent configuration
       this.agentConfig = this.snakAgent.getAgentConfig();
@@ -400,16 +341,19 @@ export class Graph {
 
       // Initialize database
       await initializeDatabase(this.snakAgent.getDatabaseCredentials());
-
       // Initialize tools
       this.toolsList = await initializeToolsList(
         this.snakAgent,
         this.agentConfig
       );
-
-      // Initialize memory agent if enabled
-      await this.initializeMemoryAgent();
-
+      this.toolsList = this.toolsList.filter(
+        (tool) =>
+          tool.name !== 'mobile_take_screenshot' &&
+          tool.name !== 'mobile_save_screenshot'
+      );
+      this.toolsList.forEach((tool) => {
+        logger.debug(`[Agent] Tool initialized: ${tool.name}`);
+      });
       // Initialize RAG agent if enabled
       if (this.agentConfig.rag?.enabled !== false) {
         await this.initializeRagAgent();
@@ -417,18 +361,23 @@ export class Graph {
 
       // Build and compile the workflow
       const workflow = this.buildWorkflow();
-      this.app = workflow.compile(this.getCompileOptions());
-
+      const app = workflow.compile({ checkpointer: this.checkpointer });
       logger.info('[Agent] Successfully initialized agent');
-
-      return {
-        app: this.app,
-        agent_config: this.agentConfig,
-      };
+      return app;
     } catch (error) {
       logger.error('[Agent] Failed to create agent:', error);
       throw error;
     }
+  }
+
+  public updateConfig(
+    newConfig: typeof GraphConfigurableAnnotation.State
+  ): void {
+    if (!this.app) {
+      throw new Error('Agent not initialized. Call initialize() first.');
+    }
+    this.config = newConfig;
+    logger.debug('[Agent] Configuration updated successfully');
   }
 }
 
@@ -437,9 +386,8 @@ export class Graph {
 // ============================================
 
 export const createGraph = async (
-  snakAgent: SnakAgentInterface,
-  modelSelector: ModelSelector | null
-): Promise<AgentReturn> => {
-  const agent = new Graph(snakAgent, modelSelector);
+  snakAgent: SnakAgent
+): Promise<CompiledStateGraph<any, any, any, any, any>> => {
+  const agent = new Graph(snakAgent);
   return agent.initialize();
 };

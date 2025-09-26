@@ -26,7 +26,6 @@
     "prepublishOnly": "npm run format && npm run build",
     "prepack": "npm run build",
     "pgvector": "../scripts/pgvector.sh",
-    "start": "npx tsx -r tsconfig-paths/register ./start.ts ",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix"
   },
@@ -36,16 +35,7 @@
   "description": "The Agent Kit engine of Snak",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
-    "@google/generative-ai": "^0.24.1",
     "@huggingface/transformers": "^3.4.0",
-    "@langchain/anthropic": "^0.3.11",
-    "@langchain/community": "^0.3.34",
-    "@langchain/core": "^0.3.72",
-    "@langchain/deepseek": "^0.0.1",
-    "@langchain/google-genai": "^0.1.6",
-    "@langchain/langgraph": "^0.3.0",
-    "@langchain/ollama": "^0.1.4",
-    "@langchain/openai": "^0.3.17",
     "@snakagent/core": "workspace:*",
     "@snakagent/database": "workspace:*",
     "@snakagent/metrics": "workspace:*",
@@ -73,7 +63,6 @@
     "discord.js": "^14.17.3",
     "gpt-tokenizer": "^2.9.0",
     "inquirer": "^12.4.1",
-    "langchain": "^0.3.10",
     "nanospinner": "^1.2.2",
     "snak-mcps": "^0.1.2",
     "zod-to-json-schema": "^3.24.6"

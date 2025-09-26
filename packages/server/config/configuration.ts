@@ -2,16 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
-import * as path from 'path';
-import { ModelsConfig, ModelLevelConfig, RagConfigSize } from '@snakagent/core';
+import { RagConfigSize } from '@snakagent/core'; // Assuming core exports these types
 import { readFileSync } from 'fs';
 
 @Injectable()
 export class ConfigurationService {
   private readonly logger = new Logger(ConfigurationService.name);
   private readonly config: EnvConfig;
-  private readonly modelsConfig: ModelsConfig;
-  private readonly modelsConfigPath: string;
+  private readonly ragConfig: RagConfigSize;
+  private readonly ragConfigPath: string;
 
   constructor(private configService: ConfigService) {
     // Collect all env variables specified in the schema
@@ -53,16 +52,20 @@ export class ConfigurationService {
     }
 
     this.config = result.data;
-
-    // Resolve and load models config
-    this.modelsConfigPath = path.resolve(
-      process.cwd(),
-      '..',
-      this.config.AI_MODELS_CONFIG_PATH
-    );
-
-    // Note: Guards are now initialized early in main.ts bootstrap process
-    this.logger.log('ConfigurationService initialized - Guards already loaded');
+    // try {
+    //   const content = readFileSync(this.ragConfigPath, 'utf-8');
+    //   this.ragConfig = JSON.parse(content) as RagConfigSize;
+    // } catch (err) {
+    //   this.logger.error(
+    //     `Failed to load rag config from ${this.ragConfigPath}:`,
+    //     err as any
+    //   );
+    //   this.ragConfig = {
+    //     maxAgentSize: 1_000_000,
+    //     maxProcessSize: 50_000_000,
+    //     maxRagSize: 501_000,
+    //   };
+    // }
   }
 
   get port(): number {
@@ -84,58 +87,8 @@ export class ConfigurationService {
       provider: new RpcProvider({ nodeUrl: this.config.STARKNET_RPC_URL }),
     };
   }
-
-  private getApiKeyForProvider(provider: string): string {
-    let apiKey: string | undefined;
-    switch (provider.toLowerCase()) {
-      case 'openai':
-        apiKey = this.config.OPENAI_API_KEY;
-        break;
-      case 'anthropic':
-        apiKey = this.config.ANTHROPIC_API_KEY;
-        break;
-      case 'gemini':
-        apiKey = this.config.GEMINI_API_KEY;
-        break;
-      case 'deepseek':
-        apiKey = this.config.DEEPSEEK_API_KEY;
-        break;
-      // Add cases for other providers
-      default:
-        this.logger.warn(`API key requested for unknown provider: ${provider}`);
-      // Optionally throw an error or return undefined based on requirements
-      // For now, we allow it but it might fail later if the key is actually needed
-    }
-    if (!apiKey) {
-      throw new Error(
-        `API key for provider "${provider}" is not configured in environment variables.`
-      );
-    }
-    return apiKey;
-  }
-
-  get ai() {
-    const modelLevel = this.config.AI_MODEL_LEVEL as keyof ModelsConfig;
-    const selectedModelConfig: ModelLevelConfig | undefined =
-      this.modelsConfig[modelLevel];
-
-    if (!selectedModelConfig) {
-      const availableLevels = Object.keys(this.modelsConfig).join(', ');
-      throw new Error(
-        `Invalid AI_MODEL_LEVEL: "${String(modelLevel)}". Available levels: ${availableLevels}`
-      );
-    }
-
-    const provider = selectedModelConfig.provider;
-    const model = selectedModelConfig.model_name;
-    const apiKey = this.getApiKeyForProvider(provider);
-
-    return {
-      provider,
-      model,
-      apiKey,
-      modelsConfigPath: this.modelsConfigPath,
-    };
+  get rag() {
+    return this.ragConfig;
   }
 
   get isDevelopment(): boolean {

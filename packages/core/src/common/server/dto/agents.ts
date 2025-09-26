@@ -1,5 +1,23 @@
-import { IsNotEmpty } from 'class-validator';
-import { AgentMode } from '../../agent.js';
+import { isNull } from 'util';
+import { AgentConfig } from '../../agent.js';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsArray,
+  Length,
+  Min,
+  Max,
+  IsInt,
+  Matches,
+  ArrayNotEmpty,
+  ArrayMinSize,
+  ArrayMaxSize,
+  isNotEmpty,
+  isUUID,
+  IsIn,
+} from 'class-validator';
 
 /**
  * Configuration for agent memory settings
@@ -19,30 +37,11 @@ export interface AgentRag {
 }
 
 /**
- * Unified agent configuration interface for database storage
- */
-export interface AgentConfigDatabase {
-  name: string;
-  group: string;
-  description: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
-  system_prompt?: string;
-  interval: number;
-  plugins: string[];
-  memory: AgentMemory;
-  rag: AgentRag;
-  mode: AgentMode;
-  max_iterations: number;
-}
-
-/**
  * DTO for adding a new agent
  */
 export class AddAgentRequestDTO {
   @IsNotEmpty()
-  agent: AgentConfigDatabase;
+  agent: AgentConfig.Input;
 }
 
 /**
@@ -50,80 +49,51 @@ export class AddAgentRequestDTO {
  */
 export class MessageFromAgentIdDTO {
   @IsNotEmpty()
+  @IsString()
+  @IsUUID()
   agent_id: string;
+
   @IsNotEmpty()
+  @IsString()
   thread_id: string;
-  limit_message: number | undefined;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit_message?: number;
 }
 
 /**
  * Interface for message requests to agents
  */
-export interface MessageRequest {
-  agent_id: string;
-  user_request: string;
-}
-
-/**
- * DTO for agent initialization configuration
- */
-export class AgentInitializationDTO {
-  name: string;
-  group: string;
-  description: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
-  system_prompt?: string;
-  interval: number;
-  plugins: string[];
-  memory: AgentMemory;
-  rag: AgentRag;
-  mode: AgentMode;
-  max_iterations: number;
-}
-
-/**
- * DTO for initializing multiple agents
- */
-export class InitializesRequestDTO {
+export class MessageRequest {
   @IsNotEmpty()
-  agents: AgentInitializationDTO[];
-}
-
-/**
- * DTO for deleting a single agent
- */
-export class AgentDeleteRequestDTO {
-  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
   agent_id: string;
+
+  @IsString()
+  @Length(1, 10000)
+  request: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  hitl_threshold?: number;
 }
 
 /**
  * DTO for deleting multiple agents
  */
 export class AgentsDeleteRequestDTO {
-  @IsNotEmpty()
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID(undefined, { each: true })
   agent_id: string[];
-}
-
-/**
- * DTO for adding an agent with initialization data
- */
-export class AgentAddRequestDTO {
-  @IsNotEmpty()
-  agent: AgentInitializationDTO;
-}
-
-/**
- * DTO for agent requests with user input
- */
-export class AgentRequestDTO {
-  @IsNotEmpty()
-  request: {
-    agent_id: string;
-    user_request: string;
-  };
 }
 
 /**
@@ -131,16 +101,138 @@ export class AgentRequestDTO {
  */
 export class UpdateModelConfigDTO {
   @IsNotEmpty()
+  @IsString()
+  @Length(1, 50)
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      'Provider must contain only alphanumeric characters, hyphens, and underscores',
+  })
   provider: string;
+
   @IsNotEmpty()
-  model_name: string;
-  @IsNotEmpty()
-  description: string;
+  @IsString()
+  @Length(1, 100)
+  @Matches(/^[a-zA-Z0-9._:-]+$/, {
+    message:
+      'Model name must contain only alphanumeric characters, dots, colons, hyphens, and underscores',
+  })
+  modelName: string;
+
+  @Min(0)
+  @Max(2)
+  @Matches(/^-?\d+(\.\d+)?$/, { message: 'Temperature must be a number' })
+  temperature: number;
+
+  @IsInt()
+  @Min(1)
+  maxTokens: number;
 }
 
-/**
- * Generic response type for agent operations
- */
+export class Message {
+  @IsOptional()
+  @IsString()
+  @IsUUID()
+  agent_id?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Length(1, 50)
+  @Matches(/^[a-zA-Z_]+$/, {
+    message: 'Sender type must contain only letters and underscores',
+  })
+  sender_type: string;
+
+  @IsOptional()
+  @IsNotEmpty()
+  @IsString()
+  @Length(1, 10000)
+  content?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Length(1, 50)
+  @Matches(/^[a-zA-Z_]+$/, {
+    message: 'Status must contain only letters and underscores',
+  })
+  status: string;
+}
+
+export class AgentRequestDTO {
+  @IsNotEmpty()
+  request: Message;
+}
+
+export class SupervisorRequest {
+  @IsNotEmpty()
+  @IsString()
+  @Length(1, 10000)
+  content: string;
+
+  @IsOptional()
+  @IsString()
+  @IsUUID()
+  agentId?: string; // Optional: specify which agent to use
+}
+
+export class SupervisorRequestDTO {
+  @IsNotEmpty()
+  request: SupervisorRequest;
+}
+
+export class getMessagesFromAgentsDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  thread_id: string;
+}
+export class InitializesRequestDTO {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  agents: AgentConfig.Input[];
+}
+
+export class AgentDeleteRequestDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+}
+
+export class AgentDeletesRequestDTO {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID(undefined, { each: true })
+  agent_id: string[];
+}
+
+export class AgentAddRequestDTO {
+  @IsNotEmpty()
+  agent: AgentConfig.Input;
+}
+
+export class AgentAvatarResponseDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Length(1, 50)
+  @Matches(/^image\/(jpeg|png|gif|webp)$/, {
+    message: 'MIME type must be a valid image format',
+  })
+  avatar_mime_type: string;
+}
+
 export type AgentResponse<T = unknown> =
   | { status: 'success'; data: T }
   | { status: 'waiting_for_human_input'; data?: T }

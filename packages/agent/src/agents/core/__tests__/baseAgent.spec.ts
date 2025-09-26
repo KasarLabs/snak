@@ -381,9 +381,9 @@ describe('BaseAgent', () => {
 
   it('should pass configuration through to chunks', async () => {
     const asyncAgent = new TestAsyncAgent('async-agent');
-    const config = { timeout: 5000, maxIterations: 10 };
+    const config = { timeout: 5000, max_iterations: 10 };
     const generator = asyncAgent.executeAsyncGenerator('Test input', config);
-    const chunks: ChunkOutput[] = [];
+    const chunks: StreamChunk[] = [];
 
     for await (const chunk of generator) {
       chunks.push(chunk);

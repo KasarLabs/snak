@@ -1,19 +1,13 @@
 import { BaseAgent } from '../core/baseAgent.js';
 import { logger } from '@snakagent/core';
-import { ModelSelector } from './modelSelector.js';
 import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 export interface AgentInfo {
   name: string;
   description: string;
-}
-
-export interface AgentSelectionConfig {
-  availableAgents: Map<string, SnakAgent>;
-  modelSelector: ModelSelector;
-  debug?: boolean;
 }
 
 /**
@@ -23,12 +17,12 @@ export interface AgentSelectionConfig {
 export class AgentSelector extends BaseAgent {
   private availableAgents: Map<string, SnakAgent> = new Map();
   private agentInfo: Map<string, string> = new Map();
-  private modelSelector: ModelSelector;
+  private model: BaseChatModel;
 
-  constructor(config: AgentSelectionConfig) {
+  constructor(availableAgents: Map<string, SnakAgent>, model: BaseChatModel) {
     super('agent-selector', AgentType.OPERATOR);
-    this.availableAgents = config.availableAgents;
-    this.modelSelector = config.modelSelector;
+    this.availableAgents = availableAgents;
+    this.model = model;
   }
 
   public async init(): Promise<void> {
@@ -36,8 +30,8 @@ export class AgentSelector extends BaseAgent {
     for (const value of this.availableAgents.values()) {
       const agent_config = value.getAgentConfig();
       this.agentInfo.set(
-        agent_config.name,
-        agent_config.description || 'No description available'
+        agent_config.profile.name,
+        agent_config.profile.description || 'No description available'
       );
     }
     logger.debug(
@@ -45,7 +39,7 @@ export class AgentSelector extends BaseAgent {
         this.agentInfo.keys()
       ).join(', ')}`
     );
-    if (!this.modelSelector) {
+    if (!this.model) {
       logger.warn(
         'AgentSelector: No ModelSelector provided, selection capabilities will be limited'
       );
@@ -60,7 +54,7 @@ export class AgentSelector extends BaseAgent {
 
     const agent = this.availableAgents.get(compositeKey);
     if (agent) {
-      const agentName = agent.getAgentConfig().name;
+      const agentName = agent.getAgentConfig().profile.name;
       this.availableAgents.delete(compositeKey);
       this.agentInfo.delete(agentName);
       logger.debug(
@@ -83,8 +77,9 @@ export class AgentSelector extends BaseAgent {
     );
     this.availableAgents.set(compositeKey, agent[1]);
     this.agentInfo.set(
-      agent[1].getAgentConfig().name,
-      agent[1].getAgentConfig().description || 'No description available'
+      agent[1].getAgentConfig().profile.name,
+      agent[1].getAgentConfig().profile.description ||
+        'No description available'
     );
   }
 
@@ -94,18 +89,15 @@ export class AgentSelector extends BaseAgent {
     config?: Record<string, unknown>
   ): Promise<SnakAgent> {
     try {
-      const model = this.modelSelector.getModels()['fast'];
-      logger.info('AgentSelector model:', this.modelSelector.getModels());
-
       if (!config) {
         throw new Error('AgentSelector: config parameter is required');
       }
-
       if (!config.userId) {
         throw new Error(
           'AgentSelector: userId is required in config parameter'
         );
       }
+      const model = this.model;
 
       const userId = config.userId;
       logger.debug(`AgentSelector: Filtering agents for user ${userId}`);
@@ -124,8 +116,8 @@ export class AgentSelector extends BaseAgent {
           userAgents.set(key, agent);
           const cfg = agent.getAgentConfig();
           userAgentInfo.set(
-            cfg.name,
-            cfg.description || 'No description available'
+            cfg.profile.name,
+            cfg.profile.description || 'No description available'
           );
         }
       }
@@ -143,7 +135,7 @@ export class AgentSelector extends BaseAgent {
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
         const agent = Array.from(userAgents.values()).find(
-          (agent) => agent.getAgentConfig().name === r_trim
+          (agent) => agent.getAgentConfig().profile.name === r_trim
         );
         if (agent) {
           logger.debug(`AgentSelector: Selected agent ${r_trim}`);

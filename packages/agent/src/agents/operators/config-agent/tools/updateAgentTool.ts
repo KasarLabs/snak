@@ -132,7 +132,7 @@ export const updateAgentTool = new DynamicStructuredTool({
         ]);
       }
 
-      const existingAgent = await Postgres.query<AgentConfig>(findQuery);
+      const existingAgent = await Postgres.query<AgentConfig.Input>(findQuery);
       if (existingAgent.length === 0) {
         return JSON.stringify({
           success: false,
@@ -143,7 +143,7 @@ export const updateAgentTool = new DynamicStructuredTool({
       const agent = existingAgent[0];
       const updates = input.updates;
 
-      const fieldsToUpdate: Partial<AgentConfig> = {};
+      const fieldsToUpdate: Partial<AgentConfig.Input> = {};
       Object.entries(updates).forEach(([key, value]) => {
         // Skip the entire field if it's null or undefined
         if (value === undefined || value === null) {
@@ -151,39 +151,39 @@ export const updateAgentTool = new DynamicStructuredTool({
         }
 
         if (key === 'memory' && typeof value === 'object' && value !== null) {
-          const existingMemory: AgentConfig['memory'] | undefined =
+          const existingMemory: AgentConfig.Input['memory'] | undefined =
             agent.memory;
-          const memoryUpdate = value as Partial<AgentConfig['memory']>;
+          const memoryUpdate = value as Partial<AgentConfig.Input['memory']>;
           const filteredMemoryUpdate = Object.fromEntries(
             Object.entries(memoryUpdate).filter(
               ([_, val]) => val !== null && val !== undefined
             )
-          ) as Partial<AgentConfig['memory']>;
+          ) as Partial<AgentConfig.Input['memory']>;
 
           if (Object.keys(filteredMemoryUpdate).length > 0) {
             fieldsToUpdate.memory = {
               ...existingMemory,
               ...filteredMemoryUpdate,
-            } as AgentConfig['memory'];
+            } as AgentConfig.Input['memory'];
           }
         } else if (
           key === 'rag' &&
           typeof value === 'object' &&
           value !== null
         ) {
-          const existingRag: AgentConfig['rag'] | undefined = agent.rag;
-          const ragUpdate = value as Partial<AgentConfig['rag']>;
+          const existingRag: AgentConfig.Input['rag'] | undefined = agent.rag;
+          const ragUpdate = value as Partial<AgentConfig.Input['rag']>;
           const filteredRagUpdate = Object.fromEntries(
             Object.entries(ragUpdate as Record<string, any>).filter(
               ([_, val]) => val !== null && val !== undefined
             )
-          ) as Partial<AgentConfig['rag']>;
+          ) as Partial<AgentConfig.Input['rag']>;
 
           if (filteredRagUpdate && Object.keys(filteredRagUpdate).length > 0) {
             fieldsToUpdate.rag = {
               ...existingRag,
               ...filteredRagUpdate,
-            } as AgentConfig['rag'];
+            } as AgentConfig.Input['rag'];
           }
         } else {
           (fieldsToUpdate as any)[key] = value;
@@ -201,14 +201,15 @@ export const updateAgentTool = new DynamicStructuredTool({
         const value = normalizedUpdates[key as keyof typeof normalizedUpdates];
 
         if (key === 'memory' && typeof value === 'object' && value !== null) {
-          const memory = value as AgentConfig['memory'];
+          const memory = value as AgentConfig.Input['memory'];
           updateFields.push(
             `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`
           );
           updateValues.push(
             memory?.enabled ?? null,
-            memory?.shortTermMemorySize ?? null,
-            memory?.memorySize ?? null
+            memory
+              ? (short_term_memory_size ?? null)
+              : (memory?.memorySize ?? null)
           );
           paramIndex += 3;
         } else if (
@@ -216,13 +217,13 @@ export const updateAgentTool = new DynamicStructuredTool({
           typeof value === 'object' &&
           value !== null
         ) {
-          const rag = value as AgentConfig['rag'];
+          const rag = value as AgentConfig.Input['rag'];
           updateFields.push(
             `"${key}" = ROW($${paramIndex}, $${paramIndex + 1})`
           );
           updateValues.push(
             rag?.enabled ?? null,
-            (rag as any)?.embeddingModel ?? null
+            (rag as any)?.embedding_model ?? null
           );
           paramIndex += 2;
         } else {
@@ -254,7 +255,7 @@ export const updateAgentTool = new DynamicStructuredTool({
         updateValues
       );
 
-      const result = await Postgres.query<AgentConfig>(updateQuery);
+      const result = await Postgres.query<AgentConfig.Input>(updateQuery);
 
       if (result.length > 0) {
         logger.info(`Updated agent "${agent.name}" successfully`);

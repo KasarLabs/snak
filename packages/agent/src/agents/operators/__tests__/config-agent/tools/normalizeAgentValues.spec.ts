@@ -21,13 +21,13 @@ describe('normalizeNumericValues', () => {
       ['interval', 1, 1, false],
       ['interval', 10, 10, false],
 
-      ['memory.shortTermMemorySize', undefined, 5, true],
-      ['memory.shortTermMemorySize', null, 5, true],
-      ['memory.shortTermMemorySize', 0, 5, true],
-      ['memory.shortTermMemorySize', -1, 5, true],
-      ['memory.shortTermMemorySize', NaN, 5, true],
-      ['memory.shortTermMemorySize', 1, 1, false],
-      ['memory.shortTermMemorySize', 30, 30, false],
+      ['memoryshort_term_memory_size', undefined, 5, true],
+      ['memoryshort_term_memory_size', null, 5, true],
+      ['memoryshort_term_memory_size', 0, 5, true],
+      ['memoryshort_term_memory_size', -1, 5, true],
+      ['memoryshort_term_memory_size', NaN, 5, true],
+      ['memoryshort_term_memory_size', 1, 1, false],
+      ['memoryshort_term_memory_size', 30, 30, false],
 
       ['memory.memorySize', undefined, 20, true],
       ['memory.memorySize', null, 20, true],
@@ -37,13 +37,13 @@ describe('normalizeNumericValues', () => {
       ['memory.memorySize', 1, 1, false],
       ['memory.memorySize', 100, 100, false],
 
-      ['rag.topK', undefined, 4, true],
-      ['rag.topK', null, 4, true],
-      ['rag.topK', 0, 4, true],
-      ['rag.topK', -1, 4, true],
-      ['rag.topK', NaN, 4, true],
-      ['rag.topK', 1, 1, false],
-      ['rag.topK', 25, 25, false],
+      ['rag.top_k', undefined, 4, true],
+      ['rag.top_k', null, 4, true],
+      ['rag.top_k', 0, 4, true],
+      ['rag.top_k', -1, 4, true],
+      ['rag.top_k', NaN, 4, true],
+      ['rag.top_k', 1, 1, false],
+      ['rag.top_k', 25, 25, false],
     ])(
       'should normalize %s: %p → %p',
       (path, inputValue, expected, shouldApplyDefault) => {
@@ -105,9 +105,9 @@ describe('normalizeNumericValues', () => {
 
   describe('string properties normalization', () => {
     it.each([
-      ['rag.embeddingModel', undefined, 'Xenova/all-MiniLM-L6-v2', true],
-      ['rag.embeddingModel', null, 'Xenova/all-MiniLM-L6-v2', true],
-      ['rag.embeddingModel', 'test-model', 'test-model', false],
+      ['rag.embedding_model', undefined, 'Xenova/all-MiniLM-L6-v2', true],
+      ['rag.embedding_model', null, 'Xenova/all-MiniLM-L6-v2', true],
+      ['rag.embedding_model', 'test-model', 'test-model', false],
     ])(
       'should normalize %s: %p → %p',
       (path, inputValue, expected, shouldApplyDefault) => {
@@ -249,7 +249,7 @@ describe('normalizeNumericValues', () => {
         'memory.enabled set to default value (false)'
       );
       expect(result.appliedDefaults).toContain(
-        'memory.shortTermMemorySize set to default value (5)'
+        'memoryshort_term_memory_size set to default value (5)'
       );
       expect(result.appliedDefaults).toContain(
         'memory.memorySize set to default value (20)'
@@ -258,10 +258,10 @@ describe('normalizeNumericValues', () => {
         'rag.enabled set to default value (false)'
       );
       expect(result.appliedDefaults).toContain(
-        'rag.topK set to default value (4)'
+        'rag.top_k set to default value (4)'
       );
       expect(result.appliedDefaults).toContain(
-        'rag.embeddingModel set to default value (Xenova/all-MiniLM-L6-v2)'
+        'rag.embedding_model set to default value (Xenova/all-MiniLM-L6-v2)'
       );
 
       expect(result.appliedDefaults.length).toBeGreaterThanOrEqual(9);

@@ -315,18 +315,20 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
         profile,
       }) => {
         try {
+          // PostgresQuery relation : agents
           const findQuery = new Postgres.Query(
             'SELECT * FROM agents WHERE id = $1',
             [agentId]
           );
-          const existingAgent = await Postgres.query<AgentConfig>(findQuery);
+          const existingAgent =
+            await Postgres.query<AgentConfig.OutputWithId>(findQuery);
 
           if (existingAgent.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
           }
 
           const agent = existingAgent[0];
-          const currentMcpServers = agent.mcpServers || {};
+          const currentMcpServers = agent.mcp_servers || {};
 
           const finalServerName =
             serverName || qualifiedName.split('/').pop() || qualifiedName;
@@ -364,11 +366,12 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           currentMcpServers[finalServerName] = smitheryConfig;
 
           const updateQuery = new Postgres.Query(
-            'UPDATE agents SET "mcpServers" = $1 WHERE id = $2 RETURNING *',
+            'UPDATE agents SET "mcp_servers" = $1 WHERE id = $2 RETURNING *',
             [currentMcpServers, agentId]
           );
 
-          const result = await Postgres.query<AgentConfig>(updateQuery);
+          const result =
+            await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
 
           return JSON.stringify(
             {
@@ -405,10 +408,10 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
       func: async ({ agentId }) => {
         try {
           const query = new Postgres.Query(
-            'SELECT id, name, "mcpServers" FROM agents WHERE id = $1',
+            'SELECT id, name, "mcp_servers" FROM agents WHERE id = $1',
             [agentId]
           );
-          const result = await Postgres.query<AgentConfig>(query);
+          const result = await Postgres.query<AgentConfig.OutputWithId>(query);
 
           if (result.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
@@ -419,8 +422,8 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             {
               success: true,
               agentId: agent.id,
-              agentName: agent.name,
-              mcpServers: agent.mcpServers || {},
+              agentName: agent.profile.name,
+              mcp_servers: agent.mcp_servers || {},
             },
             null,
             2
@@ -453,18 +456,18 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           logger.info(`Starting MCP server refresh for agent ${agentId}`);
 
           const query = new Postgres.Query(
-            'SELECT "mcpServers" FROM agents WHERE id = $1',
+            'SELECT "mcp_servers" FROM agents WHERE id = $1',
             [agentId]
           );
-          const result = await Postgres.query<AgentConfig>(query);
+          const result = await Postgres.query<AgentConfig.OutputWithId>(query);
 
           if (result.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
           }
 
-          const mcpServers = result[0].mcpServers || {};
+          const mcp_servers = result[0].mcp_servers || {};
 
-          if (!mcpServers || Object.keys(mcpServers).length === 0) {
+          if (!mcp_servers || Object.keys(mcp_servers).length === 0) {
             logger.info(`No MCP servers configured for agent ${agentId}`);
             return JSON.stringify({
               success: true,
@@ -474,14 +477,14 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           }
 
           logger.info(
-            `Found ${Object.keys(mcpServers).length} MCP servers configured for agent ${agentId}`
+            `Found ${Object.keys(mcp_servers).length} MCP servers configured for agent ${agentId}`
           );
 
           const initializeMcpWithTimeout = async () => {
             return Promise.race([
               (async () => {
                 logger.info('Creating new MCP controller...');
-                const mcp = new MCP_CONTROLLER(mcpServers);
+                const mcp = new MCP_CONTROLLER(mcp_servers);
 
                 logger.info('Initializing MCP connections...');
                 await mcp.initializeConnections();
@@ -535,7 +538,7 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             success: true,
             message: `Successfully refreshed MCP servers for agent ${agentId}`,
             mcpToolsCount: mcpTools.length,
-            serversRefreshed: Object.keys(mcpServers),
+            serversRefreshed: Object.keys(mcp_servers),
             timeoutUsed: timeout,
           });
         } catch (error) {
@@ -580,14 +583,15 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
             'SELECT * FROM agents WHERE id = $1',
             [agentId]
           );
-          const existingAgent = await Postgres.query<AgentConfig>(findQuery);
+          const existingAgent =
+            await Postgres.query<AgentConfig.OutputWithId>(findQuery);
 
           if (existingAgent.length === 0) {
             throw new Error(`Agent not found: ${agentId}`);
           }
 
           const agent = existingAgent[0];
-          const currentMcpServers = agent.mcpServers || {};
+          const currentMcpServers = agent.mcp_servers || {};
 
           if (!currentMcpServers[serverName]) {
             throw new Error(
@@ -598,11 +602,12 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           delete currentMcpServers[serverName];
 
           const updateQuery = new Postgres.Query(
-            'UPDATE agents SET "mcpServers" = $1 WHERE id = $2 RETURNING *',
+            'UPDATE agents SET "mcp_servers" = $1 WHERE id = $2 RETURNING *',
             [currentMcpServers, agentId]
           );
 
-          const result = await Postgres.query<AgentConfig>(updateQuery);
+          const result =
+            await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
 
           return JSON.stringify({
             success: true,

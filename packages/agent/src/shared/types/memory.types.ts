@@ -1,14 +1,15 @@
 import { memory } from '@snakagent/database/queries';
 import z from 'zod';
-import { HistoryItem, StepInfo } from './graph.types.js';
+import { BaseMessage } from '@langchain/core/messages';
 import { getGuardValue } from '@snakagent/core';
 
 /**
- * Individual memory item with immutable structure
+ * Individual memory item structure~
  */
 export interface MemoryItem {
-  readonly step_or_history: StepInfo | HistoryItem;
-  readonly memories_id: string;
+  message: BaseMessage[];
+  readonly taskId: string;
+  readonly stepId: string;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
 }
@@ -49,6 +50,8 @@ export interface MemoryContextBase {
 export interface SemanticMemoryContext {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   fact: string;
   category: string;
 }
@@ -59,6 +62,8 @@ export interface SemanticMemoryContext {
 export interface EpisodicMemoryContext {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   content: string;
   sources: Array<string>;
 }
@@ -69,6 +74,8 @@ export interface EpisodicMemoryContext {
 export interface EpisodicMemoryInsertSQL {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   content: string;
   embedding: Array<number>;
   sources: Array<string>;
@@ -80,22 +87,24 @@ export interface EpisodicMemoryInsertSQL {
 export interface SemanticMemoryInsertSQL {
   user_id: string;
   run_id: string;
+  task_id: string;
+  step_id: string;
   fact: string;
   embedding: Array<number>;
-  category: 'preference' | 'fact' | 'skill' | 'relationship';
+  category: string; // WOULD BE BETTER AS ENUM
 }
 
 /**
  * Comprehensive memory state - IMMUTABLE
  */
 export interface Memories {
-  readonly stm: STMContext;
-  readonly ltm: LTMContext;
-  readonly isProcessing: boolean;
-  readonly lastError?: {
-    readonly type: string;
-    readonly message: string;
-    readonly timestamp: number;
+  stm: STMContext;
+  ltm: LTMContext;
+  isProcessing: boolean;
+  lastError?: {
+    type: string;
+    message: string;
+    timestamp: number;
   };
 }
 
@@ -112,58 +121,121 @@ export interface MemoryOperationResult<T> {
 /**
  * Zod schemas for memory operations
  */
-export const episodicEventSchema = z.object({
-  name: z
-    .string()
-    .min(getGuardValue('memory.episodic_event.min_name_length'))
-    .max(getGuardValue('memory.episodic_event.max_name_length'))
-    .describe('Event name or identifier'),
-  content: z
-    .string()
-    .min(getGuardValue('memory.episodic_event.min_content_length'))
-    .max(getGuardValue('memory.episodic_event.max_content_length'))
-    .describe('Detailed description of what happened'),
-  source: z
-    .array(z.string())
-    .max(getGuardValue('memory.episodic_event.max_source'))
-    .optional()
-    .default(['conversation'])
-    .describe('Source reference or website URL'),
-});
+export const episodicEventSchema = z
+  .object({
+    name: z.string().min(1).describe('Event name or identifier'),
+    content: z
+      .string()
+      .min(1)
+      .describe('Detailed description of what happened'),
+    source: z
+      .array(z.string())
+      .default(['conversation'])
+      .describe('Source reference or website URL'),
+  })
+  .strict();
 
 export const semanticFactSchema = z.object({
-  fact: z
-    .string()
-    .min(getGuardValue('memory.semantic_fact.fact.min_length'))
-    .max(getGuardValue('memory.semantic_fact.fact.max_length'))
-    .describe('The learned information or insight'),
-  category: z
-    .string()
-    .max(getGuardValue('memory.semantic_fact.category.max_length'))
-    .optional()
-    .default('fact')
-    .describe('Type of fact'),
+  fact: z.string().min(1).describe('The learned information or insight'),
+  category: z.string().default('fact').describe('Type of fact'),
 });
 
-export const ltmSchema = z.object({
-  episodic: z
-    .array(episodicEventSchema)
-    .max(getGuardValue('memory.ltm.max_episodic_event_size'))
-    .default([])
-    .describe('Events and experiences with confidence scoring'),
-  semantic: z
-    .array(semanticFactSchema)
-    .max(getGuardValue('memory.ltm.max_semantic_fact_size'))
-    .default([])
-    .describe('Facts and knowledge learned with confidence scoring'),
-});
+export const ltmSchema = z
+  .object({
+    episodic: z
+      .array(episodicEventSchema)
+      .default([])
+      .describe('Events and experiences with confidence scoring'),
+    semantic: z
+      .array(semanticFactSchema)
+      .default([])
+      .describe('Facts and knowledge learned with confidence scoring'),
+  })
+  .strict();
+
+export function createLtmSchemaMemorySchema(
+  maxEpisodic: number,
+  maxSemantic: number
+) {
+  return z
+    .object({
+      episodic: z
+        .array(episodicEventSchema)
+        .max(maxEpisodic)
+        .default([])
+        .describe('Events and experiences with confidence scoring'),
+      semantic: z
+        .array(semanticFactSchema)
+        .max(maxSemantic)
+        .default([])
+        .describe('Facts and knowledge learned with confidence scoring'),
+    })
+    .strict();
+}
 
 export type ltmSchemaType = z.infer<typeof ltmSchema>;
 
-export const isPlannerActivateSchema = z.object({
-  planner_actived: z
-    .boolean()
-    .describe('You need to set the state of the planner in a boolean.'),
-});
+export const retrieveMemoryFromContentSchema = z
+  .object({
+    content: z
+      .string()
+      .min(1)
+      .describe('The content to search for relevant memories.'),
+    topK: z
+      .number()
+      .int()
+      .min(1)
+      .max(20)
+      .default(5)
+      .describe('Number of top relevant memories to retrieve.'),
+    threshold: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0.75)
+      .describe(
+        'Similarity threshold (0 to 1) for filtering relevant memories.'
+      ),
+  })
+  .strict();
 
-export type isPlannerActivateType = z.infer<typeof isPlannerActivateSchema>;
+export type retrieveMemoryFromContentType = z.infer<
+  typeof retrieveMemoryFromContentSchema
+>;
+
+export const retrieveMemoryFromStepId = z
+  .object({
+    step_id: z
+      .string()
+      .describe(
+        'The unique identifier of a step used as an index to retrieve associated memories from the database.'
+      ),
+    limit: z
+      .number()
+      .max(100)
+      .default(10)
+      .describe('Maximum number of memories to retrieve.'),
+  })
+  .strict();
+
+export type retrieveMemoryFromStepIdType = z.infer<
+  typeof retrieveMemoryFromStepId
+>;
+export const retrieveMemoryFromTaskId = z
+  .object({
+    task_id: z
+      .string()
+      .describe(
+        'The unique identifier of a task used as an index to retrieve associated memories from the database.'
+      ),
+    limit: z
+      .number()
+      .max(100)
+      .default(10)
+      .describe('Maximum number of memories to retrieve.'),
+  })
+  .strict();
+
+export type retrieveMemoryFromTaskIdType = z.infer<
+  typeof retrieveMemoryFromTaskId
+>;

@@ -63,7 +63,7 @@ describe('mcpAgentTools', () => {
   const makeAgent = (overrides: any = {}) => ({
     id: 'test-agent',
     name: 'Test Agent',
-    mcpServers: {},
+    mcp_servers: {},
     ...overrides,
   });
 
@@ -299,7 +299,7 @@ describe('mcpAgentTools', () => {
       ['agent not found', [], 'Agent not found: test-agent'],
       [
         'duplicate server',
-        [makeAgent({ mcpServers: { 'existing-server': { command: 'npx' } } })],
+        [makeAgent({ mcp_servers: { 'existing-server': { command: 'npx' } } })],
         'MCP server "existing-server" already exists for agent "test-agent"',
       ],
       [
@@ -409,15 +409,15 @@ describe('mcpAgentTools', () => {
         { server1: { config: 'value1' }, server2: { config: 'value2' } },
       ],
       ['no servers', {}],
-      ['null mcpServers', null],
-      ['undefined mcpServers', undefined],
-    ])('should handle successful listing %s', async (_, mcpServers) => {
-      makeDbResult.rows([makeAgent({ mcpServers })]);
+      ['null mcp_servers', null],
+      ['undefined mcp_servers', undefined],
+    ])('should handle successful listing %s', async (_, mcp_servers) => {
+      makeDbResult.rows([makeAgent({ mcp_servers })]);
 
       const result = await listTool.func({ agentId: 'test-agent' });
       expect(result).toContain('test-agent');
 
-      if (mcpServers && Object.keys(mcpServers).length > 0) {
+      if (mcp_servers && Object.keys(mcp_servers).length > 0) {
         expect(result).toContain('server1');
       } else {
         expect(result).toContain('{}');
@@ -463,7 +463,7 @@ describe('mcpAgentTools', () => {
     });
 
     it('should handle no servers configured', async () => {
-      makeDbResult.rows([makeAgent({ mcpServers: {} })]);
+      makeDbResult.rows([makeAgent({ mcp_servers: {} })]);
 
       const result = await refreshTool.func({ agentId: 'test-agent' });
 
@@ -475,7 +475,7 @@ describe('mcpAgentTools', () => {
 
     it('should handle successful refresh', async () => {
       makeDbResult.rows([
-        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+        makeAgent({ mcp_servers: { server1: { config: 'value1' } } }),
       ]);
 
       const mockMcpInstance = {
@@ -516,7 +516,7 @@ describe('mcpAgentTools', () => {
       ],
     ])('should handle %s', async (_, errorMessage, expectedError) => {
       makeDbResult.rows([
-        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+        makeAgent({ mcp_servers: { server1: { config: 'value1' } } }),
       ]);
 
       const mockMcpInstance = {
@@ -534,7 +534,7 @@ describe('mcpAgentTools', () => {
 
     it('should handle registry update errors with warning', async () => {
       makeDbResult.rows([
-        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+        makeAgent({ mcp_servers: { server1: { config: 'value1' } } }),
       ]);
 
       const mockMcpInstance = {
@@ -561,7 +561,7 @@ describe('mcpAgentTools', () => {
 
     it('should filter out existing mcp_ tools when updating registry', async () => {
       makeDbResult.rows([
-        makeAgent({ mcpServers: { server1: { config: 'value1' } } }),
+        makeAgent({ mcp_servers: { server1: { config: 'value1' } } }),
       ]);
 
       const mockMcpInstance = {
@@ -611,7 +611,7 @@ describe('mcpAgentTools', () => {
       ['agent not found', [], 'Agent not found: test-agent'],
       [
         'server not found',
-        [makeAgent({ mcpServers: { 'other-server': { config: 'value' } } })],
+        [makeAgent({ mcp_servers: { 'other-server': { config: 'value' } } })],
         'MCP server "test-server" not found in agent "test-agent"',
       ],
       [
@@ -637,9 +637,9 @@ describe('mcpAgentTools', () => {
     it('should handle successful deletion', async () => {
       mockPostgres.query
         .mockResolvedValueOnce([
-          makeAgent({ mcpServers: { 'test-server': { config: 'value' } } }),
+          makeAgent({ mcp_servers: { 'test-server': { config: 'value' } } }),
         ])
-        .mockResolvedValueOnce([makeAgent({ mcpServers: {} })]);
+        .mockResolvedValueOnce([makeAgent({ mcp_servers: {} })]);
 
       const result = await deleteTool.func({
         agentId: 'test-agent',
@@ -653,12 +653,12 @@ describe('mcpAgentTools', () => {
     });
 
     it.each([
-      ['null mcpServers', null],
-      ['undefined mcpServers', undefined],
-    ])('should handle deletion with %s', async (_, mcpServers) => {
+      ['null mcp_servers', null],
+      ['undefined mcp_servers', undefined],
+    ])('should handle deletion with %s', async (_, mcp_servers) => {
       mockPostgres.query
-        .mockResolvedValueOnce([makeAgent({ mcpServers })])
-        .mockResolvedValueOnce([makeAgent({ mcpServers: {} })]);
+        .mockResolvedValueOnce([makeAgent({ mcp_servers })])
+        .mockResolvedValueOnce([makeAgent({ mcp_servers: {} })]);
 
       await expect(
         deleteTool.func({

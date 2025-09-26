@@ -12,7 +12,30 @@ import {
   SnakAgentInterface,
   StarknetTool,
 } from '../shared/types/tools.types.js';
+import { MemoryToolRegistry } from '@agents/graphs/tools/memory.tool.js';
+import { CoreToolRegistry } from '@agents/graphs/tools/core.tools.js';
 
+export async function initializeMcpTools(
+  agentConfig: AgentConfig.Runtime
+): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
+  let MCPToolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
+  if (
+    agentConfig.mcp_servers &&
+    Object.keys(agentConfig.mcp_servers).length > 0
+  ) {
+    try {
+      const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
+      await mcp.initializeConnections();
+
+      const mcpTools = mcp.getTools();
+      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
+      MCPToolsList = [...MCPToolsList, ...mcpTools];
+    } catch (error) {
+      logger.error(`Failed to initialize MCP tools: ${error}`);
+    }
+  }
+  return MCPToolsList;
+}
 /**
  * Initializes the list of tools for the agent based on signature type and configuration
  * @param snakAgent - The agent interface instance
@@ -21,26 +44,20 @@ import {
  */
 export async function initializeToolsList(
   snakAgent: SnakAgentInterface,
-  agentConfig: AgentConfig
+  agentConfig: AgentConfig.Runtime
 ): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const allowedTools = await createAllowedTools(snakAgent, agentConfig.plugins);
   toolsList = [...allowedTools];
-  if (
-    agentConfig.mcpServers &&
-    Object.keys(agentConfig.mcpServers).length > 0
-  ) {
-    try {
-      const mcp = MCP_CONTROLLER.fromAgentConfig(agentConfig);
-      await mcp.initializeConnections();
+  const mcpTools = await initializeMcpTools(agentConfig);
+  toolsList = [...toolsList, ...mcpTools];
+  // Register memory tools
+  // const memoryRegistry = new MemoryToolRegistry(agentConfig);
+  // toolsList.push(...memoryRegistry.getTools());
 
-      const mcpTools = mcp.getTools();
-      logger.info(`Added ${mcpTools.length} MCP tools to the agent`);
-      toolsList = [...toolsList, ...mcpTools];
-    } catch (error) {
-      logger.error(`Failed to initialize MCP tools: ${error}`);
-    }
-  }
+  // Register core tools
+  const coreRegistry = new CoreToolRegistry(agentConfig);
+  toolsList.push(...coreRegistry.getTools());
   return toolsList;
 }
 
@@ -85,7 +102,7 @@ export class SnakToolRegistry {
     this.clearTools();
 
     if (!allowed_tools || allowed_tools.length === 0) {
-      logger.warn('SnakToolRegistry: No tools allowed');
+      logger.warn('SnakToolRegistry: No External tools allowed');
       return [];
     }
 
@@ -145,19 +162,13 @@ export const registerTools = async (
           const tools_new = new Array<StarknetTool>();
           await imported_tool.registerTools(tools_new, agent);
           const agentId = agent.getAgentConfig().id;
-          const agentMode = agent.getAgentConfig().mode;
-
-          if (!agentId || !agentMode) {
-            logger.warn(
-              `Agent ID or mode is not defined for agent: ${JSON.stringify(
-                agent.getAgentConfig()
-              )}`
-            );
-            return false;
-          }
 
           for (const tool of tools_new) {
-            metrics.agentToolUseCount(agentId.toString(), agentMode, tool.name);
+            metrics.agentToolUseCount(
+              agentId.toString(),
+              'autonomous',
+              tool.name
+            );
           }
 
           tools.push(...tools_new);
@@ -189,7 +200,7 @@ export const createAllowedTools = async (
   allowed_tools: string[] = []
 ): Promise<DynamicStructuredTool<any>[]> => {
   if (!allowed_tools || allowed_tools.length === 0) {
-    logger.warn('No tools allowed');
+    logger.warn('No External tools allowed');
     return [];
   }
   return SnakToolRegistry.createAllowedTools(agent, allowed_tools);

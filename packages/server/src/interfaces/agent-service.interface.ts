@@ -1,5 +1,6 @@
 import { MessageRequest } from '@snakagent/core';
 import { IAgent } from './agent.interface.js';
+import { SnakAgent } from '@snakagent/agents';
 
 export interface AgentExecutionResponse {
   status: 'success' | 'failure';
@@ -22,7 +23,10 @@ export interface AgentExecutionCallDataResponse {
 }
 
 export interface IAgentService {
-  handleUserRequest(agent: IAgent, userRequest: MessageRequest): Promise<any>;
+  handleUserRequest(
+    agent: SnakAgent,
+    userRequest: MessageRequest
+  ): Promise<any>;
   getAgentStatus(agent: IAgent): Promise<{
     isReady: boolean;
     walletConnected: boolean;

@@ -7,7 +7,7 @@ import { getConfigAgentTools } from './configAgentTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { configurationAgentSystemPrompt } from '../../../shared/prompts/agents/config.prompts.js';
 import { ModelSelector } from '../modelSelector.js';
-import { AgentType } from '@enums/agent-modes.enum.js';
+import { AgentType } from '@enums/agent.enum.js';
 
 /**
  * Interface defining the configuration options for the ConfigurationAgent

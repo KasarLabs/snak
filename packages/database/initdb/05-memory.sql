@@ -22,6 +22,14 @@ CREATE TABLE IF NOT EXISTS episodic_memories (
     -- Execution run identifier linking memory to specific agent runs
     -- UUID format ensures global uniqueness across system
     run_id UUID NOT NULL,
+
+    -- Task identifier linking memory to specific tasks
+    -- UUID format for consistency with run_id, mandatory field
+    task_id UUID NOT NULL,
+
+    -- Step identifier linking memory to specific steps within a task
+    -- UUID format for consistency, mandatory field
+    step_id UUID NOT NULL,
     
     -- The actual memory content - what happened or was experienced
     -- Stored as TEXT to accommodate detailed descriptions
@@ -73,6 +81,14 @@ CREATE TABLE IF NOT EXISTS semantic_memories (
     
     -- Run identifier linking to when this knowledge was learned
     run_id UUID NOT NULL,
+
+    -- Task identifier linking memory to specific tasks
+    -- UUID format for consistency with run_id, mandatory field
+    task_id UUID NOT NULL,
+
+    -- Step identifier linking memory to specific steps within a task
+    -- UUID format for consistency, mandatory field
+    step_id UUID NOT NULL,
     
     -- The factual information or learned insight
     -- Examples: "User prefers JSON format", "API endpoint X requires authentication"
@@ -114,13 +130,15 @@ CREATE OR REPLACE FUNCTION upsert_semantic_memory_smart(
     -- Required parameters
     p_user_id VARCHAR(100),         -- User/agent identifier
     p_run_id UUID,                  -- Current execution run
+    p_task_id UUID,                 -- Task identifier
+    p_step_id UUID,                 -- Step identifier
     p_fact TEXT,                    -- Knowledge to store
     p_embedding vector(384),        -- Vector representation of the fact
-    
+    p_similarity_threshold FLOAT,   -- Similarity cutoff for updates vs inserts
+
     -- Optional parameters with defaults
     p_category VARCHAR(50) DEFAULT NULL,            -- Knowledge category
-    p_source_events INTEGER[] DEFAULT '{}',         -- Contributing episodic memories
-    p_similarity_threshold FLOAT DEFAULT 0.85      -- Similarity cutoff for updates vs inserts
+    p_source_events INTEGER[] DEFAULT '{}'         -- Contributing episodic memories
 )
 RETURNS TABLE (
     memory_id INTEGER,          -- ID of created/updated memory
@@ -142,7 +160,7 @@ DECLARE
     v_created_at TIMESTAMP;
 BEGIN
     -- Input validation to prevent null pointer errors
-    IF p_user_id IS NULL OR p_fact IS NULL OR p_run_id IS NULL OR p_embedding IS NULL THEN
+    IF p_user_id IS NULL OR p_fact IS NULL OR p_run_id IS NULL OR p_task_id IS NULL OR p_step_id IS NULL OR p_embedding IS NULL THEN
         RAISE EXCEPTION 'Required fields cannot be null'
             USING ERRCODE = '23502';  -- NOT NULL violation code
     END IF;
@@ -160,6 +178,8 @@ BEGIN
     FROM semantic_memories
     WHERE user_id = p_user_id
         AND run_id = p_run_id
+        AND task_id = p_task_id
+        AND step_id = p_step_id
         AND 1 - (embedding <=> p_embedding) >= p_similarity_threshold
     ORDER BY embedding <=> p_embedding  -- Closest match first
     LIMIT 1
@@ -205,6 +225,8 @@ BEGIN
         INSERT INTO semantic_memories (
             user_id,
             run_id,
+            task_id,
+            step_id,
             fact,
             embedding,
             category,
@@ -214,12 +236,14 @@ BEGIN
         ) VALUES (
             p_user_id,
             p_run_id,
+            p_task_id,
+            p_step_id,
             p_fact,
             p_embedding,
             p_category,
             p_source_events,
             v_created_at,
-            v_created_at 
+            v_created_at
         )
         RETURNING id INTO v_memory_id;
         
@@ -246,13 +270,15 @@ CREATE OR REPLACE FUNCTION insert_episodic_memory_smart(
     -- Required parameters
     p_user_id VARCHAR(100),
     p_run_id UUID,
+    p_task_id UUID,
+    p_step_id UUID,
     p_content TEXT,
     p_embedding vector(384),
-    
+    p_similarity_threshold FLOAT,    -- Higher threshold - episodic memories are more specific
+
     -- Optional parameters
     p_sources TEXT[] DEFAULT '{}',
-    p_confidence FLOAT DEFAULT 1.0,
-    p_similarity_threshold FLOAT DEFAULT 0.95    -- Higher threshold - episodic memories are more specific
+    p_confidence FLOAT DEFAULT 1.0
 )
 RETURNS TABLE (
     memory_id INTEGER,
@@ -273,7 +299,7 @@ DECLARE
     v_created_at TIMESTAMP;
 BEGIN
     -- Input validation
-    IF p_user_id IS NULL OR p_run_id IS NULL OR 
+    IF p_user_id IS NULL OR p_run_id IS NULL OR p_task_id IS NULL OR p_step_id IS NULL OR
        p_content IS NULL OR p_embedding IS NULL THEN
         RAISE EXCEPTION 'Required fields cannot be null'
             USING ERRCODE = '23502';
@@ -289,6 +315,8 @@ BEGIN
     FROM episodic_memories
     WHERE user_id = p_user_id
         AND run_id = p_run_id
+        AND task_id = p_task_id
+        AND step_id = p_step_id
         AND 1 - (embedding <=> p_embedding) >= p_similarity_threshold
     ORDER BY embedding <=> p_embedding
     LIMIT 1;
@@ -315,6 +343,8 @@ BEGIN
         INSERT INTO episodic_memories (
             user_id,
             run_id,
+            task_id,
+            step_id,
             content,
             embedding,
             sources,
@@ -324,6 +354,8 @@ BEGIN
         ) VALUES (
             p_user_id,
             p_run_id,
+            p_task_id,
+            p_step_id,
             p_content,
             p_embedding,
             p_sources,
@@ -354,12 +386,14 @@ CREATE OR REPLACE FUNCTION retrieve_similar_memories(
     p_user_id VARCHAR(100),
     p_run_id UUID,
     p_embedding vector(384),
-    p_threshold FLOAT DEFAULT 0.35,    -- Lower threshold allows broader retrieval
-    p_limit INTEGER DEFAULT 10
+    p_threshold FLOAT,    -- Lower threshold allows broader retrieval
+    p_limit INTEGER
 )
 RETURNS TABLE (
     memory_type TEXT,
     memory_id INTEGER,
+    task_id UUID,
+    step_id UUID,
     content TEXT,
     similarity FLOAT,
     metadata JSONB
@@ -371,40 +405,44 @@ BEGIN
     RETURN QUERY
     WITH similar_semantic AS (
         -- Retrieve relevant semantic memories (facts/knowledge)
-        SELECT 
+        SELECT
             'semantic'::TEXT as type,
-            id,
-            fact as content,
-            1 - (embedding <=> p_embedding) as sim,
+            sm.id,
+            sm.task_id,
+            sm.step_id,
+            sm.fact as content,
+            1 - (sm.embedding <=> p_embedding) as sim,
             jsonb_build_object(
-                'confidence', confidence,
-                'access_count', access_count,
-                'category', category,
-                'updated_at', updated_at
+                'confidence', sm.confidence,
+                'access_count', sm.access_count,
+                'category', sm.category,
+                'updated_at', sm.updated_at
             ) as meta
-        FROM semantic_memories
-        WHERE user_id = p_user_id
-            AND run_id = p_run_id
-            AND 1 - (embedding <=> p_embedding) >= p_threshold
+        FROM semantic_memories sm
+        WHERE sm.user_id = p_user_id
+            AND sm.run_id = p_run_id
+            AND 1 - (sm.embedding <=> p_embedding) >= p_threshold
     ),
     similar_episodic AS (
         -- Retrieve relevant episodic memories (experiences)
-        SELECT 
+        SELECT
             'episodic'::TEXT as type,
-            id,
+            em.id,
+            em.task_id,
+            em.step_id,
             em.content as content,
-            1 - (embedding <=> p_embedding) as sim,
+            1 - (em.embedding <=> p_embedding) as sim,
             jsonb_build_object(
-                'run_id', run_id,
-                'created_at', created_at,
-                'confidence', confidence,
-                'updated_at', updated_at
+                'run_id', em.run_id,
+                'created_at', em.created_at,
+                'confidence', em.confidence,
+                'updated_at', em.updated_at
             ) as meta
         FROM episodic_memories em
-        WHERE user_id = p_user_id
-            AND run_id = p_run_id
-            AND 1 - (embedding <=> p_embedding) >= p_threshold
-            AND expires_at > NOW()  -- Only non-expired memories
+        WHERE em.user_id = p_user_id
+            AND em.run_id = p_run_id
+            AND 1 - (em.embedding <=> p_embedding) >= p_threshold
+            AND em.expires_at > NOW()  -- Only non-expired memories
     )
     -- Combine and sort by relevance
     SELECT * FROM (
@@ -414,6 +452,161 @@ BEGIN
     ) combined
     ORDER BY sim DESC  -- Most similar first
     LIMIT p_limit;
+END;
+$$;
+
+-- New Memory Retrieval Functions by ID
+-- ============================================================================
+
+-- Get All Memories by Task ID
+-- Retrieves both episodic and semantic memories for a specific task
+CREATE OR REPLACE FUNCTION get_memories_by_task_id(
+    p_user_id VARCHAR(100),
+    p_run_id UUID,
+    p_task_id UUID,
+    p_limit INTEGER DEFAULT NULL
+)
+RETURNS TABLE (
+    memory_type TEXT,
+    memory_id INTEGER,
+    content TEXT,
+    run_id UUID,
+    step_id UUID,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    confidence FLOAT,
+    metadata JSONB
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH task_semantic AS (
+        -- Retrieve all semantic memories for the task
+        SELECT
+            'semantic'::TEXT as type,
+            id,
+            fact as content,
+            sm.run_id,
+            sm.step_id,
+            sm.created_at,
+            sm.updated_at,
+            sm.confidence,
+            jsonb_build_object(
+                'access_count', access_count,
+                'category', category
+            ) as meta
+        FROM semantic_memories sm
+        WHERE user_id = p_user_id 
+        AND run_id = p_run_id 
+        AND task_id = p_task_id
+    ),
+    task_episodic AS (
+        -- Retrieve all episodic memories for the task
+        SELECT
+            'episodic'::TEXT as type,
+            id,
+            em.content as content,
+            em.run_id,
+            em.step_id,
+            em.created_at,
+            em.updated_at,
+            em.confidence,
+            jsonb_build_object(
+                'access_count', access_count,
+                'sources', sources,
+                'expires_at', expires_at
+            ) as meta
+        FROM episodic_memories em
+        WHERE user_id = p_user_id
+            AND task_id = p_task_id
+            AND run_id = p_run_id
+            AND expires_at > NOW()  -- Only non-expired memories
+    )
+    -- Combine and sort by creation time (most recent first)
+    SELECT * FROM (
+        SELECT * FROM task_semantic
+        UNION ALL
+        SELECT * FROM task_episodic
+    ) combined
+    ORDER BY created_at DESC
+    LIMIT COALESCE(p_limit, 2147483647);
+END;
+$$;
+
+-- Get All Memories by Step ID
+-- Retrieves both episodic and semantic memories for a specific step
+CREATE OR REPLACE FUNCTION get_memories_by_step_id(
+    p_user_id VARCHAR(100),
+    p_run_id UUID,
+    p_step_id UUID,
+    p_limit INTEGER DEFAULT NULL
+)
+RETURNS TABLE (
+    memory_type TEXT,
+    memory_id INTEGER,
+    content TEXT,
+    run_id UUID,
+    task_id UUID,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    confidence FLOAT,
+    metadata JSONB
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH step_semantic AS (
+        -- Retrieve all semantic memories for the step
+        SELECT
+            'semantic'::TEXT as type,
+            id,
+            fact as content,
+            sm.run_id,
+            sm.task_id,
+            sm.created_at,
+            sm.updated_at,
+            sm.confidence,
+            jsonb_build_object(
+                'access_count', access_count,
+                'category', category
+            ) as meta
+        FROM semantic_memories sm
+        WHERE user_id = p_user_id AND run_id = p_run_id AND step_id = p_step_id
+    ),
+    step_episodic AS (
+        -- Retrieve all episodic memories for the step
+        SELECT
+            'episodic'::TEXT as type,
+            id,
+            em.content as content,
+            em.run_id,
+            em.task_id,
+            em.created_at,
+            em.updated_at,
+            em.confidence,
+            jsonb_build_object(
+                'access_count', access_count,
+                'sources', sources,
+                'expires_at', expires_at
+            ) as meta
+        FROM episodic_memories em
+        WHERE user_id = p_user_id
+            AND run_id = p_run_id
+            AND step_id = p_step_id
+            AND expires_at > NOW()  -- Only non-expired memories
+    )
+    -- Combine and sort by creation time (most recent first)
+    SELECT * FROM (
+        SELECT * FROM step_semantic
+        UNION ALL
+        SELECT * FROM step_episodic
+    ) combined
+    ORDER BY created_at DESC
+    LIMIT COALESCE(p_limit, 2147483647);
 END;
 $$;
 
@@ -443,6 +636,25 @@ $$;
 -- Optimizes temporal memory access patterns
 CREATE INDEX IF NOT EXISTS idx_episodic_time ON episodic_memories(user_id, created_at DESC);
 
+-- Task-based episodic memory index
+-- Used for: Retrieving all memories for a specific task
+-- Query pattern: WHERE user_id = ? AND task_id = ?
+-- Optimizes get_memories_by_task_id function performance
+CREATE INDEX IF NOT EXISTS idx_episodic_task ON episodic_memories(user_id, task_id);
+
+-- Step-based episodic memory index
+-- Used for: Retrieving all memories for a specific step
+-- Query pattern: WHERE user_id = ? AND step_id = ?
+-- Optimizes get_memories_by_step_id function performance
+CREATE INDEX IF NOT EXISTS idx_episodic_step ON episodic_memories(user_id, step_id);
+
+-- Composite index for episodic similarity search with task/step context
+-- Used for: Similarity search within specific task/step context
+-- Query pattern: WHERE user_id = ? AND task_id = ? AND step_id = ? ORDER BY embedding <=> ?
+-- Optimizes insert_episodic_memory_smart and retrieve_similar_memories functions
+-- Note: Vector columns must use specialized vector indexes (ivfflat/hnsw), not btree
+CREATE INDEX IF NOT EXISTS idx_episodic_task_step ON episodic_memories(user_id, task_id, step_id);
+
 -- Vector similarity search index for episodic memories
 -- Used for: Semantic similarity search in episodic memories
 -- Query pattern: ORDER BY embedding <=> query_vector
@@ -469,6 +681,25 @@ CREATE INDEX IF NOT EXISTS idx_semantic_embedding ON semantic_memories
 -- Categories: 'preference', 'fact', 'skill', 'relationship'
 CREATE INDEX IF NOT EXISTS idx_semantic_category ON semantic_memories(user_id, category);
 
+-- Task-based semantic memory index
+-- Used for: Retrieving all semantic memories for a specific task
+-- Query pattern: WHERE user_id = ? AND task_id = ?
+-- Optimizes get_memories_by_task_id function performance
+CREATE INDEX IF NOT EXISTS idx_semantic_task ON semantic_memories(user_id, task_id);
+
+-- Step-based semantic memory index
+-- Used for: Retrieving all semantic memories for a specific step
+-- Query pattern: WHERE user_id = ? AND step_id = ?
+-- Optimizes get_memories_by_step_id function performance
+CREATE INDEX IF NOT EXISTS idx_semantic_step ON semantic_memories(user_id, step_id);
+
+-- Composite index for semantic similarity search with task/step context
+-- Used for: Similarity search within specific task/step context
+-- Query pattern: WHERE user_id = ? AND task_id = ? AND step_id = ? ORDER BY embedding <=> ?
+-- Optimizes upsert_semantic_memory_smart and retrieve_similar_memories functions
+-- Note: Vector columns must use specialized vector indexes (ivfflat/hnsw), not btree
+CREATE INDEX IF NOT EXISTS idx_semantic_task_step ON semantic_memories(user_id, task_id, step_id);
+
 -- Database Statistics Updates for Memory Tables
 -- ============================================================================
 -- ANALYZE commands update table statistics for query optimization
@@ -489,20 +720,26 @@ ANALYZE semantic_memories;
 --
 -- Storing an episodic memory:
 --   SELECT * FROM insert_episodic_memory_smart(
---       'user123', 'run-uuid', 'User completed registration process',
+--       'user123', 'run-uuid', 'task-uuid', 'step-uuid', 'User completed registration process',
 --       '[0.1, 0.2, ...]'::vector(384), ARRAY['user_action'], 1.0, 0.95
 --   );
 --
 -- Storing semantic knowledge:
 --   SELECT * FROM upsert_semantic_memory_smart(
---       'user123', 'run-uuid', 'User prefers dark theme',
+--       'user123', 'run-uuid', 'task-uuid', 'step-uuid', 'User prefers dark theme',
 --       '[0.3, 0.4, ...]'::vector(384), 'preference', ARRAY[123], 0.85
 --   );
 --
 -- Retrieving relevant memories:
 --   SELECT * FROM retrieve_similar_memories(
---       'user123', 'run-uuid', '[0.5, 0.6, ...]'::vector(384), 0.35, 5
+--       'user123', 'run-uuid', 'task-uuid', 'step-uuid', '[0.5, 0.6, ...]'::vector(384), 0.35, 5
 --   );
+--
+-- Getting all memories for a task:
+--   SELECT * FROM get_memories_by_task_id('user123', 'task-uuid', 20);
+--
+-- Getting all memories for a step:
+--   SELECT * FROM get_memories_by_step_id('user123', 'step-uuid', 10);
 --
 -- High-Performance Query Patterns (using indexes):
 --

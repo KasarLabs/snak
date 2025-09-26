@@ -1,6 +1,6 @@
 import { IAgent } from '@stypes/index.js';
 import { OperatorRegistry } from '../operatorRegistry.js';
-import { AgentType } from '@enums/agent-modes.enum.js';
+import { AgentType } from '@enums/agent.enum.js';
 
 // Mock the logger from @snakagent/core
 jest.mock('@snakagent/core', () => ({

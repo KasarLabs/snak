@@ -63,9 +63,9 @@ jest.mock('../../../token/tokenTracking', () => ({
 const createModelsConfig = (
   overrides: Partial<ModelsConfig> = {}
 ): ModelsConfig => ({
-  fast: { provider: ModelProviders.OpenAI, model_name: 'gpt-fast' },
-  smart: { provider: ModelProviders.Anthropic, model_name: 'claude-smart' },
-  cheap: { provider: ModelProviders.Gemini, model_name: 'gemini-cheap' },
+  fast: { provider: ModelProviders.OpenAI, modelName: 'gpt-fast' },
+  smart: { provider: ModelProviders.Anthropic, modelName: 'claude-smart' },
+  cheap: { provider: ModelProviders.Gemini, modelName: 'gemini-cheap' },
   ...overrides,
 });
 
@@ -204,8 +204,8 @@ describe('ModelSelector', () => {
       const modelsConfig = createModelsConfig({
         fast:
           description === 'unsupported provider'
-            ? { provider: 'unsupported' as any, model_name: 'test' }
-            : { provider: ModelProviders.OpenAI, model_name: 'test' },
+            ? { provider: 'unsupported' as any, modelName: 'test' }
+            : { provider: ModelProviders.OpenAI, modelName: 'test' },
       });
 
       if (description === 'missing API keys') {
@@ -554,7 +554,7 @@ describe('ModelSelector', () => {
       const config = createModelsConfig({
         fast: {
           provider: ModelProviders.OpenAI,
-          model_name: 'invalid-model',
+          modelName: 'invalid-model',
         },
       });
 
@@ -582,7 +582,7 @@ describe('ModelSelector', () => {
   describe('Additional functionality', () => {
     it('handles deepseek provider gracefully', async () => {
       const config = createModelsConfig({
-        fast: { provider: 'deepseek' as any, model_name: 'deepseek-model' },
+        fast: { provider: 'deepseek' as any, modelName: 'deepseek-model' },
       });
 
       setupApiKeys({ OPENAI_API_KEY: 'openai-key' });
@@ -598,7 +598,7 @@ describe('ModelSelector', () => {
       const config = createModelsConfig({
         fast: {
           provider: 'unsupported-provider' as any,
-          model_name: 'test-model',
+          modelName: 'test-model',
         },
       });
 

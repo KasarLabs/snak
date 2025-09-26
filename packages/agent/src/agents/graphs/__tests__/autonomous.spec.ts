@@ -9,7 +9,7 @@ import {
 import { MemoryAgent } from '../../operators/memoryAgent.js';
 import { RagAgent } from '../../operators/ragAgent.js';
 import { Graph, createGraph } from '../graph.js';
-import { ExecutionMode } from '../../../shared/enums/agent-modes.enum.js';
+import { ExecutionMode } from '../../../shared/enums/agent.enum.js';
 
 // Mock all the modules first before importing the main module
 jest.mock('../sub-graph/memory-graph.js', () => ({
@@ -19,10 +19,10 @@ jest.mock('../sub-graph/memory-graph.js', () => ({
   })),
 }));
 
-jest.mock('../sub-graph/planner-graph.js', () => ({
-  PlannerGraph: jest.fn().mockImplementation(() => ({
-    createPlannerGraph: jest.fn(),
-    getPlannerGraph: jest.fn(() => jest.fn()),
+jest.mock('../sub-graph/task_manager_graph.js', () => ({
+  TaskManagerGraph: jest.fn().mockImplementation(() => ({
+    createTaskManagerGraph: jest.fn(),
+    getTaskManagerGraph: jest.fn(() => jest.fn()),
   })),
 }));
 
@@ -100,7 +100,7 @@ jest.mock('../../operators/modelSelector.js', () => ({
       return { fast: this.model };
     }
     async selectModelForMessages() {
-      return { model_name: 'fast', model: this.model };
+      return { modelName: 'fast', model: this.model };
     }
   },
 }));
@@ -269,18 +269,18 @@ jest.mock('../../operators/ragAgent.js', () => ({
 }));
 
 jest.mock('../../../shared/enums/agent-modes.enum.js', () => ({
-  ExecutorNode: {
+  TaskExecutorNode: {
     AGENT_EXECUTOR: 'agent_executor',
   },
   PlannerNode: {
-    PLANNING_ORCHESTRATOR: 'planning_orchestrator',
+    TASK_MANAGER: 'planning_orchestrator',
   },
-  MemoryNode: {
+  TaskMemoryNode: {
     MEMORY_ORCHESTRATOR: 'memory_orchestrator',
   },
   GraphNode: {
     AGENT_EXECUTOR: 'agent_executor',
-    PLANNING_ORCHESTRATOR: 'planning_orchestrator',
+    TASK_MANAGER: 'planning_orchestrator',
     MEMORY_ORCHESTRATOR: 'memory_orchestrator',
     END_GRAPH: 'end_graph',
   },
@@ -314,17 +314,17 @@ const makeModelSelectorConfig = () => ({
   modelsConfig: {
     fast: {
       provider: 'openai' as any,
-      model_name: 'gpt-4o-mini',
+      modelName: 'gpt-4o-mini',
       description: 'Fast model',
     },
     smart: {
       provider: 'openai' as any,
-      model_name: 'gpt-4o-mini',
+      modelName: 'gpt-4o-mini',
       description: 'Smart model',
     },
     cheap: {
       provider: 'openai' as any,
-      model_name: 'gpt-4o-mini',
+      modelName: 'gpt-4o-mini',
       description: 'Cheap model',
     },
   },
@@ -355,7 +355,7 @@ const makeState = (over: Partial<any> = {}) => ({
   },
   rag: '',
   plans_or_histories: [],
-  currentStepIndex: 0,
+  currentTaskIndex: 0,
   retry: 0,
   currentGraphStep: 0,
   skipValidation: { skipValidation: false, goto: '' },
@@ -521,7 +521,7 @@ describe('Graph (Autonomous Mode)', () => {
     it('end_graph resets state correctly', () => {
       const res = (agent as any).end_graph({});
       expect(res.plans_or_histories).toBeUndefined();
-      expect(res.currentStepIndex).toBe(0);
+      expect(res.currentTaskIndex).toBe(0);
       expect(res.retry).toBe(0);
     });
   });

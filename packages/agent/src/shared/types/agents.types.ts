@@ -1,6 +1,5 @@
-import { AgentType } from '@enums/agent-modes.enum.js';
+import { AgentType } from '@enums/agent.enum.js';
 import { Annotation } from '@langchain/langgraph';
-import { AgentConfig } from '@snakagent/core';
 import { ChunkOutput } from './streaming.types.js';
 
 /**
@@ -45,19 +44,11 @@ export interface IAgent {
 }
 
 /**
- * Agent return structure
- */
-export interface AgentReturn {
-  app: any;
-  agent_config: AgentConfig;
-}
-
-/**
  * Orchestrator types for different agent operations
  */
-export type PLANNER_ORCHESTRATOR =
-  | 'planner'
-  | 'planner_validator'
+export type TASK_MANAGER_ORCHESTRATOR =
+  | 'task_manager'
+  | 'task_manager_validator'
   | 'evolve_from_history'
   | 'plan_revision';
 

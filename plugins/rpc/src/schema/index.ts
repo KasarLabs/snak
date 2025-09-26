@@ -6,19 +6,16 @@ export const contractAddressSchema = z.object({
 });
 
 export const blockIdSchema = z.object({
-  blockId: z.union([
-    z
-      .string()
-      .describe(
-        "The block identifier. Can be 'latest', 'pending', or a block hash."
-      ),
-    z.number().describe('A block number.'),
-  ]),
+  blockId: z
+    .string()
+    .describe(
+      'Block identifier - either block number (as string) or block hash'
+    ),
 });
 
-export const blockIdAndContractAddressSchema = blockIdSchema
-  .merge(contractAddressSchema)
-  .strict();
+export const blockIdAndContractAddressSchema = blockIdSchema.merge(
+  contractAddressSchema
+);
 
 export const getStorageAtSchema = blockIdAndContractAddressSchema.merge(
   z.object({
@@ -74,6 +71,4 @@ export type GetTransactionByBlockIdAndIndexParams = z.infer<
 export type ContractAddressParams = z.infer<typeof contractAddressSchema>;
 export type TransactionHashParams = z.infer<typeof transactionHashSchema>;
 
-export const emptyInputSchema = z.object({
-  input: z.object({}).optional().nullable(),
-});
+export const emptyInputSchema = z.object({});

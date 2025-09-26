@@ -6,6 +6,7 @@ import {
 } from '../interfaces/agent-service.interface.js';
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
+  AgentConfig,
   MessageFromAgentIdDTO,
   MessageRequest,
   UpdateModelConfigDTO,
@@ -17,8 +18,12 @@ import {
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
-import { AgentConfigSQL } from '../interfaces/sql_interfaces.js';
-import { ChunkOutput, EventType } from '@snakagent/agents';
+import {
+  ChunkOutput,
+  EventType,
+  SnakAgent,
+  UserRequest,
+} from '@snakagent/agents';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -27,18 +32,22 @@ export class AgentService implements IAgentService {
   constructor(private readonly config: ConfigurationService) {}
 
   async handleUserRequest(
-    agent: IAgent,
+    agent: SnakAgent,
     userRequest: MessageRequest
   ): Promise<AgentExecutionResponse> {
     this.logger.debug({
       message: 'Processing agent request',
-      request: userRequest.user_request,
+      request: userRequest.request,
     });
     try {
       let result: any;
 
       if (agent && typeof agent.execute === 'function') {
-        const executionResult = agent.execute(userRequest.user_request);
+        const user_request: UserRequest = {
+          request: userRequest.request || '',
+          hitl_threshold: userRequest.hitl_threshold ?? undefined,
+        };
+        const executionResult = agent.execute(user_request);
 
         function isAsyncGenerator(
           obj: any
@@ -52,7 +61,7 @@ export class AgentService implements IAgentService {
 
         if (isAsyncGenerator(executionResult)) {
           for await (const chunk of executionResult) {
-            if (chunk.final === true) {
+            if (chunk.metadata.final === true) {
               this.logger.debug('SupervisorService: Execution completed');
               result = chunk;
               break;
@@ -83,7 +92,7 @@ export class AgentService implements IAgentService {
           name: error.name,
           stack: error.stack,
         },
-        request: userRequest.user_request,
+        request: userRequest.request,
       });
 
       if (error instanceof AgentValidationError) {
@@ -105,53 +114,26 @@ export class AgentService implements IAgentService {
   }
 
   async *handleUserRequestWebsocket(
-    agent: any,
+    agent: SnakAgent,
     userRequest: MessageRequest,
     userId: string
   ): AsyncGenerator<ChunkOutput> {
     this.logger.debug({
       message: 'Processing agent request',
-      request: userRequest.user_request,
+      request: userRequest.request,
     });
     try {
-      const q = new Postgres.Query(
-        `SELECT m.event, m.id 
-     FROM message m
-     INNER JOIN agents a ON m.agent_id = a.id
-     WHERE m.agent_id = $1 AND a.user_id = $2
-     ORDER BY m.created_at DESC
-     LIMIT 1;`,
-        [userRequest.agent_id, userId]
-      );
-      const result = await Postgres.query<{ event: EventType; id: string }>(q);
-      if (
-        result &&
-        result.length != 0 &&
-        result[0].event === EventType.ON_GRAPH_INTERRUPTED
-      ) {
-        for await (const chunk of agent.execute(
-          userRequest.user_request,
-          true
-        )) {
-          if (chunk.final === true) {
-            this.logger.debug('SupervisorService: Execution completed');
-            yield chunk;
-            return;
-          }
+      const user_request: UserRequest = {
+        request: userRequest.request || '',
+        hitl_threshold: userRequest.hitl_threshold ?? undefined,
+      };
+      for await (const chunk of agent.execute(user_request)) {
+        if (chunk.metadata.final === true) {
+          this.logger.debug('SupervisorService: Execution completed');
           yield chunk;
+          return;
         }
-      } else {
-        for await (const chunk of agent.execute(
-          userRequest.user_request,
-          false
-        )) {
-          if (chunk.final === true) {
-            this.logger.debug('SupervisorService: Execution completed');
-            yield chunk;
-            return;
-          }
-          yield chunk;
-        }
+        yield chunk;
       }
     } catch (error: any) {
       this.logger.error('Error processing agent request', {
@@ -160,7 +142,7 @@ export class AgentService implements IAgentService {
           name: error.name,
           stack: error.stack,
         },
-        request: userRequest.user_request,
+        request: userRequest,
       });
 
       if (error instanceof AgentValidationError) {
@@ -181,26 +163,34 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async getAllAgentsOfUser(userId: string): Promise<AgentConfigSQL[]> {
+  async getAllAgentsOfUser(
+    userId: string
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
     try {
       const q = new Postgres.Query(
         `
 			SELECT
-			  id, name, "group", description, lore, objectives, knowledge,
-			  system_prompt, interval, plugins, memory, mode, max_iterations,
-			  "mcpServers",
+			  id,
+			  row_to_json(profile) as profile,
+			  mcp_servers as "mcp_servers",
+			  prompts_id,
+			  row_to_json(graph) as graph,
+			  row_to_json(memory) as memory,
+			  row_to_json(rag) as rag,
 			  CASE
 				WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
 				THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
 				ELSE NULL
 			  END as "avatarUrl",
-			  avatar_mime_type
+			  avatar_mime_type,
+			  created_at,
+			  updated_at
 			FROM agents
       WHERE user_id = $1
 		  `,
         [userId]
       );
-      const res = await Postgres.query<AgentConfigSQL>(q);
+      const res = await Postgres.query<AgentConfig.OutputWithoutUserId>(q);
       this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
@@ -228,11 +218,17 @@ export class AgentService implements IAgentService {
     }
   }
 
-  async updateModelsConfig(model: UpdateModelConfigDTO) {
+  async updateModelsConfig(model: UpdateModelConfigDTO, userId: string) {
     try {
       const q = new Postgres.Query(
-        `UPDATE models_config SET provider = $1, model_name = $2, description = $3 WHERE id = 1`,
-        [model.provider, model.model_name, model.description]
+        `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
+        [
+          model.provider,
+          model.modelName,
+          model || 0.7,
+          model.maxTokens || 4096,
+          userId,
+        ]
       );
       const res = await Postgres.query(q);
       this.logger.debug(`Models config updated:', ${JSON.stringify(res)} `);
@@ -251,14 +247,7 @@ export class AgentService implements IAgentService {
       const credentials = agent.getAccountCredentials();
 
       // Check if the AI provider API keys are configured
-      let apiKeyValid = false;
-      try {
-        const aiConfig = this.config.ai;
-        apiKeyValid = Boolean(aiConfig && aiConfig.apiKey);
-      } catch (error) {
-        this.logger.debug('AI API key verification failed', error);
-      }
-
+      let apiKeyValid = true; // TODO add actual check for API key validity on the agent model
       return {
         isReady: Boolean(credentials && apiKeyValid),
         walletConnected: Boolean(credentials.accountPrivateKey),

@@ -31,7 +31,7 @@ interface Agent {
   };
   mode: string;
   max_iterations: number;
-  mcpServers: Record<string, any>;
+  mcp_servers: Record<string, any>;
   avatar_image?: Buffer;
   avatar_mime_type?: string;
 }
@@ -161,7 +161,7 @@ describe('Agent Table Operations', () => {
     plugins: ['test-plugin-1', 'test-plugin-2'],
     mode: 'interactive',
     max_iterations: 20,
-    mcpServers: { testServer: { url: 'test://server' } },
+    mcp_servers: { testServer: { url: 'test://server' } },
   };
 
   it('should create agent with default values', async () => {
@@ -186,7 +186,7 @@ describe('Agent Table Operations', () => {
     const q = new Postgres.Query(
       `INSERT INTO agents (
         name, "group", description, lore, objectives, knowledge, 
-        system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcpServers"
+        system_prompt, interval, plugins, memory, rag, mode, max_iterations, "mcp_servers"
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ROW($10, $11, $12)::memory, 
                  ROW($13, $14)::rag, $15, $16, $17) 
        RETURNING *`,
@@ -207,7 +207,7 @@ describe('Agent Table Operations', () => {
         'text-embedding-ada-002', // rag fields
         testAgent.mode,
         testAgent.max_iterations,
-        JSON.stringify(testAgent.mcpServers),
+        JSON.stringify(testAgent.mcp_servers),
       ]
     );
 
@@ -506,13 +506,13 @@ describe('Custom Types Operations', () => {
     const q = new Postgres.Query(
       `SELECT ROW(true, 'text-embedding-ada-002')::rag as rag_config,
        (ROW(true, 'text-embedding-ada-002')::rag).enabled as rag_enabled,
-       (ROW(true, 'text-embedding-ada-002')::rag).embedding_model as model_name`
+       (ROW(true, 'text-embedding-ada-002')::rag).embedding_model as modelName`
     );
 
     interface RagTest {
       rag_config: { enabled: boolean; embedding_model: string };
       rag_enabled: boolean;
-      model_name: string;
+      modelName: string;
     }
 
     const [result] = await Postgres.query<RagTest>(q);
@@ -529,7 +529,7 @@ describe('Custom Types Operations', () => {
     interface ModelTest {
       model_config: {
         provider: string;
-        model_name: string;
+        modelName: string;
         description: string;
       };
       provider_name: string;

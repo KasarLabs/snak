@@ -3,14 +3,13 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { FileValidationService, getGuardValue } from '@snakagent/core';
+import { Chunk, FileValidationService, getGuardValue } from '@snakagent/core';
 import { RedisMutexService } from '../mutex/redis-mutex.service.js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
-import { Postgres } from '@snakagent/database';
-import { logger, loadRagConfig, Chunk } from '@snakagent/core';
+import { logger, loadRagConfig } from '@snakagent/core';
 import { ChunkingService } from '../chunking/chunking.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
 import { VectorStoreService } from '../vector-store/vector-store.service.js';
@@ -141,7 +140,7 @@ export class FileIngestionWorkerService {
         (processingOptions.generateEmbeddings ||
           processingOptions.storeInVectorDB)
       ) {
-        const texts = chunks.map((c: Chunk) => c.text);
+        const texts = chunks.map((c: Chunk) => c.text); // TODO typings of c not sure about the old Chunk
         embeddings = await this.embeddingsService.embedDocuments(texts);
       }
       if (embeddings.length && embeddings.length !== chunks.length) {

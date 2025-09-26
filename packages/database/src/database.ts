@@ -56,7 +56,6 @@ export namespace Postgres {
   export class Query {
     public readonly query: string;
     public readonly values?: any[];
-    private pool: pg.Pool | undefined = undefined;
 
     public constructor(query: string, values?: any[]) {
       this.query = query;
@@ -164,5 +163,124 @@ export namespace Postgres {
     } catch (err: any) {
       throw DatabaseError.handlePgError(err);
     }
+  }
+}
+
+/**
+ * Singleton class for managing LangGraph schema database connections
+ * Provides a dedicated connection pool for the langgraph schema
+ */
+export class LanggraphDatabase {
+  private static instance: LanggraphDatabase;
+  private pool: pg.Pool | undefined;
+
+  private constructor() {}
+
+  /**
+   * Gets the singleton instance of LanggraphDatabase
+   */
+  public static getInstance(): LanggraphDatabase {
+    if (!LanggraphDatabase.instance) {
+      LanggraphDatabase.instance = new LanggraphDatabase();
+    }
+    return LanggraphDatabase.instance;
+  }
+
+  /**
+   * Connects to the database with langgraph schema as default search path
+   */
+  public async connect(credentials: DatabaseCredentials): Promise<void> {
+    if (this.pool) {
+      return;
+    }
+
+    this.pool = new Pool({
+      user: credentials.user,
+      host: credentials.host,
+      database: credentials.database,
+      password: credentials.password,
+      port: credentials.port,
+    });
+
+    this.pool.on('error', (err: any) => {
+      console.error('LangGraph database pool error:', err.stack);
+    });
+  }
+
+  /**s
+   * Executes a query against the langgraph schema
+   */
+  public async query<Model = Record<string, unknown>>(
+    q: Postgres.Query
+  ): Promise<Model[]> {
+    try {
+      if (!this.pool) {
+        throw new Error('LangGraph database pool not initialized!');
+      }
+      const result = await this.pool.query(q.query, q.values);
+      return result.rows;
+    } catch (err: any) {
+      throw DatabaseError.handlePgError(err);
+    }
+  }
+
+  /**
+   * Executes a transaction against the langgraph schema
+   */
+  public async transaction<Model = Record<string, unknown>>(
+    queries: Postgres.Query[]
+  ): Promise<Model[]> {
+    let client: PoolClient | undefined;
+    let result: QueryResult | undefined;
+
+    try {
+      if (!this.pool) {
+        throw new Error('LangGraph database pool not initialized!');
+      }
+
+      client = await this.pool.connect();
+      if (!client) {
+        throw new Error('Failed to acquire client from LangGraph pool');
+      }
+
+      await client.query('BEGIN;');
+      for (const q of queries) {
+        result = await client.query(q.query, q.values);
+      }
+      await client.query('COMMIT;');
+
+      return result ? result.rows : [];
+    } catch (err: any) {
+      if (client) {
+        await client.query('ROLLBACK;');
+      }
+      throw DatabaseError.handlePgError(err);
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  }
+
+  /**
+   * Closes the LangGraph database connection pool
+   */
+  public async shutdown(): Promise<void> {
+    try {
+      if (this.pool) {
+        const poolToEnd = this.pool;
+        this.pool = undefined;
+        await poolToEnd.end();
+      }
+    } catch (err: any) {
+      throw DatabaseError.handlePgError(err);
+    }
+  }
+
+  /**
+   * Gets the current pool instance (for advanced usage)
+   */
+  public getPool(): pg.Pool | undefined {
+    return this.pool;
   }
 }

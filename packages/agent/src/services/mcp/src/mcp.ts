@@ -15,16 +15,16 @@ export class MCP_CONTROLLER {
   /**
    * @constructor
    * @description Initializes the MCP_CONTROLLER with configuration
-   * @param {Record<string, any>} mcpServers - MCP servers configuration from agent config
+   * @param {Record<string, any>} mcp_servers - MCP servers configuration from agent config
    * @throws {Error} Throws an error if initialization fails
    */
-  constructor(mcpServers: Record<string, any>) {
-    if (!mcpServers || Object.keys(mcpServers).length === 0) {
+  constructor(mcp_servers: Record<string, any>) {
+    if (!mcp_servers || Object.keys(mcp_servers).length === 0) {
       throw new Error('MCP servers configuration is required');
     }
 
     logger.info('Initializing MCP_CONTROLLER with provided servers config');
-    this.client = new MultiServerMCPClient(mcpServers);
+    this.client = new MultiServerMCPClient(mcp_servers);
     logger.info('MCP_CONTROLLER initialized');
   }
 
@@ -38,13 +38,13 @@ export class MCP_CONTROLLER {
   public static fromAgentConfig(agentConfig: AgentConfig): MCP_CONTROLLER {
     if (
       !agentConfig ||
-      !agentConfig.mcpServers ||
-      Object.keys(agentConfig.mcpServers).length === 0
+      !agentConfig.mcp_servers ||
+      Object.keys(agentConfig.mcp_servers).length === 0
     ) {
-      throw new Error('Agent configuration must include mcpServers');
+      throw new Error('Agent configuration must include mcp_servers');
     }
 
-    return new MCP_CONTROLLER(agentConfig.mcpServers);
+    return new MCP_CONTROLLER(agentConfig.mcp_servers);
   }
 
   /**

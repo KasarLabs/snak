@@ -1,4 +1,3 @@
-import { AgentResponse } from '@snakagent/core';
 import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import { ServerError } from '../utils/error.js';
@@ -24,6 +23,7 @@ import {
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
 import { EventType } from '@snakagent/agents';
+import { AgentResponse } from '@snakagent/core';
 
 @WebSocketGateway({
   cors: {
@@ -68,12 +68,11 @@ export class MyGateway {
           if (!agentSelector) {
             throw new ServerError('E01TA400');
           }
+          if (!userRequest.request.request) {
+            throw new ServerError('E01TA400'); // Bad request if no content
+          }
           try {
-            agent = await agentSelector.execute(
-              userRequest.request.user_request,
-              false,
-              { userId }
-            );
+            agent = await agentSelector.execute(userRequest.request.request);
           } catch (error) {
             logger.error('Error in agentSelector:', error);
             throw new ServerError('E01TA400');
@@ -93,36 +92,34 @@ export class MyGateway {
           userRequest.request,
           userId
         )) {
-          if (chunk.event != EventType.ON_CHAT_MODEL_STREAM) {
-            const q = new Postgres.Query(
-              `
+          const q = new Postgres.Query(
+            `
           INSERT INTO message (
-            event, run_id, thread_id, checkpoint_id, "from", agent_id,
-            content, tools, plan, metadata, "timestamp"
+            event, run_id, thread_id, checkpoint_id, "from", agent_id, user_id,
+            message, tools, metadata, "timestamp"
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING id;
         `,
-              [
-                chunk.event,
-                chunk.run_id,
-                chunk.thread_id,
-                chunk.checkpoint_id,
-                chunk.from,
-                agentId,
-                chunk.content ?? null,
-                chunk.tools ? JSON.stringify(chunk.tools) : null,
-                chunk.plan ? JSON.stringify(chunk.plan) : null,
-                JSON.stringify(chunk.metadata || {}),
-                chunk.timestamp || new Date(),
-              ]
-            );
+            [
+              chunk.event,
+              chunk.run_id,
+              chunk.thread_id,
+              chunk.checkpoint_id,
+              chunk.from,
+              agentId,
+              userId,
+              chunk.message ?? null,
+              chunk.tools ? JSON.stringify(chunk.tools) : null,
+              JSON.stringify(chunk.metadata || {}),
+              chunk.timestamp || new Date(),
+            ]
+          );
 
-            const result = await Postgres.query<number>(q);
-            logger.info(
-              `Inserted message with ID: ${result[0].toLocaleString()}`
-            );
-          }
+          const result = await Postgres.query<number>(q);
+          logger.info(
+            `Inserted message with ID: ${result[0].toLocaleString()}`
+          );
           client.emit('onAgentRequest', chunk);
         }
       },
@@ -170,13 +167,9 @@ export class MyGateway {
         logger.info('init_agent called');
 
         const userId = ControllerHelpers.getUserIdFromSocket(client);
-        await this.agentFactory.addAgent({
-          ...userRequest.agent,
-          user_id: userId,
-        });
-
+        await this.agentFactory.addAgent(userRequest.agent, userId);
         const response: AgentResponse = ResponseFormatter.success(
-          `Agent ${userRequest.agent.name} added`
+          `Agent ${userRequest.agent.profile.name} added`
         );
         client.emit('onInitAgentRequest', response);
       },
@@ -194,6 +187,7 @@ export class MyGateway {
   ): Promise<void> {
     await ErrorHandler.handleWebSocketError(
       async () => {
+        logger.info('delete_agent called');
         const { userId } =
           ControllerHelpers.getSocketUserAndVerifyAgentConfigOwnership(
             client,

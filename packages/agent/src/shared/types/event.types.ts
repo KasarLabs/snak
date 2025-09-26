@@ -5,7 +5,7 @@ import { ChatPromptValue } from '@langchain/core/prompt_values';
 export interface BaseEvent {
   event: EventType;
   name: string;
-  agent_id: string;
+  agent_id?: string;
   run_id: string;
   tags?: string[];
   metadata?: {

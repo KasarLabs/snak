@@ -181,7 +181,7 @@ function normalizeMemoryConfig(memory: InputMemoryConfig | null | undefined): {
     const shortTermResult = normalizeNumericValue(
       memory.shortTermMemorySize,
       DEFAULT_VALUES.memory.shortTermMemorySize,
-      'memory.shortTermMemorySize'
+      'memoryshort_term_memory_size'
     );
     config.shortTermMemorySize = shortTermResult.value;
     if (shortTermResult.appliedDefault) {
@@ -241,7 +241,7 @@ function normalizeRagConfig(rag: InputRagConfig | null | undefined): {
     const topKResult = normalizeNumericValue(
       rag.topK,
       DEFAULT_VALUES.rag.topK,
-      'rag.topK'
+      'rag.top_k'
     );
     config.topK = topKResult.value;
     if (topKResult.appliedDefault) {
@@ -263,7 +263,7 @@ function normalizeRagConfig(rag: InputRagConfig | null | undefined): {
     const embeddingModelResult = normalizeStringValue(
       rag.embeddingModel,
       DEFAULT_VALUES.rag.embeddingModel,
-      'rag.embeddingModel'
+      'rag.embedding_model'
     );
     config.embeddingModel = embeddingModelResult.value;
     if (embeddingModelResult.appliedDefault) {

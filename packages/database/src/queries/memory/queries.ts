@@ -47,36 +47,6 @@ export namespace memory {
     });
   }
 
-  // TODO: The current memory setup does not really make sense. It would be
-  // better to have something like
-  //
-  // ```sql
-  // CREATE TABLE IF NOT EXISTS memories(
-  //   id SERIAL PRIMARY KEY,
-  //   user_id VARCHAR(100) NOT NULL,
-  //   embedding vector(384) NOT NULL,
-  // );
-  //
-  // CREATE TABLE IF NOT EXISTS history(
-  //   id SERIAL PRIMARY KEY,
-  //   memory_id INTEGER NOT NULL,
-  //   content TEXT NOT NULL,
-  //   created_ad TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  //   FOREIGN KEY (memory_id) REFERENCES memories(id)
-  // );
-  // ```
-  //
-  // Where we can get `updated_at` using:
-  //
-  // ```sql
-  // SELECT created_at FROM history WHERE memory_id = $1 ORDER BY id DESC TAKE 1;
-  // ```
-  //
-  // And `created_at` by using:
-  //
-  // ```sql
-  // SELECT created_at FROM history WHERE memory_id = $1 ORDER BY id ASC TAKE 1;
-  // ```
   export interface Metadata {
     created_at?: string;
     updated_at: string;
@@ -87,6 +57,8 @@ export namespace memory {
 
   export interface UPSERT_SEMANTIC_MEMORY_OUTPUT {
     memory_id: number;
+    task_id: string;
+    step_id: string;
     operation: string;
     similarity_score: number | null;
     matched_fact: string | null;
@@ -94,6 +66,8 @@ export namespace memory {
 
   export interface INSERT_EPISODIC_MEMORY_OUTPUT {
     memory_id: number;
+    task_id: string;
+    step_id: string;
     operation: string;
     similar_memory_id: number | null;
     similar_memory_content: string | null;
@@ -107,6 +81,8 @@ export namespace memory {
   interface MemoryBase {
     user_id: string;
     run_id: string;
+    task_id: string;
+    step_id: string;
     embedding: number[];
     created_at?: Date;
     accessed_at?: Date;
@@ -155,12 +131,15 @@ export namespace memory {
     memory: EpisodicMemory
   ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5);`,
+      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
       [
         memory.user_id,
         memory.run_id,
+        memory.task_id,
+        memory.step_id,
         memory.content,
         JSON.stringify(memory.embedding),
+        0.85, // Default similarity threshold for episodic memories
         memory.sources,
       ]
     );
@@ -172,12 +151,15 @@ export namespace memory {
     memory: SemanticMemory
   ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6);`,
+      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8, $9);`,
       [
         memory.user_id,
         memory.run_id,
+        memory.task_id,
+        memory.step_id,
         memory.fact,
         JSON.stringify(memory.embedding),
+        0.8, // Default similarity threshold for semantic memories
         memory.category,
         memory.source_events,
       ]
@@ -238,8 +220,26 @@ export namespace memory {
   export interface Similarity {
     memory_type: string;
     memory_id: number;
+    task_id: string;
+    step_id: string;
     content: string;
     similarity: number;
+    metadata: any; // JSONB from PostgreSQL
+  }
+
+  /**
+   * Memory retrieval result interface for task and step-based queries
+   */
+  export interface MemoryRetrieval {
+    memory_type: string;
+    memory_id: number;
+    content: string;
+    run_id: string;
+    task_id?: string;
+    step_id?: string;
+    created_at: Date;
+    updated_at: Date;
+    confidence: number;
     metadata: any; // JSONB from PostgreSQL
   }
 
@@ -251,18 +251,67 @@ export namespace memory {
    *
    * @throws { DatabaseError } If a database operation fails.
    */
-  export async function similar_memory(
+  export async function retrieve_memory(
     userId: string,
     runId: string,
     embedding: number[],
-    limit?: number,
-    threshold?: number
+    limit: number,
+    threshold: number
   ): Promise<Similarity[]> {
     const q = new Postgres.Query(
       `SELECT * FROM retrieve_similar_memories($1, $2, $3, $4, $5)`,
-      [userId, runId, JSON.stringify(embedding), threshold || 0, limit || 10]
+      [userId, runId, JSON.stringify(embedding), threshold, limit]
     );
     const result = await Postgres.query<Similarity>(q);
+    return result;
+  }
+  /**
+   * Retrieves all memories (both episodic and semantic) for a specific task_id
+   *
+   * @param { string } userId - User the memories are associated to.
+   * @param { string } taskId - Task ID to retrieve memories for.
+   * @param { number } limit - Optional limit on number of memories to return.
+   *
+   * @returns { MemoryRetrieval[] } Array of memories for the task.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
+  export async function get_memories_by_task_id(
+    userId: string,
+    runId: string,
+    taskId: string,
+    limit: number | null
+  ): Promise<MemoryRetrieval[]> {
+    const q = new Postgres.Query(
+      `SELECT * FROM get_memories_by_task_id($1, $2, $3,$4)`,
+      [userId, runId, taskId, limit]
+    );
+    const result = await Postgres.query<MemoryRetrieval>(q);
+    return result;
+  }
+
+  /**
+   * Retrieves all memories (both episodic and semantic) for a specific step_id
+   *
+   * @param { string } userId - User the memories are associated to.
+   * @param { string } stepId - Step ID to retrieve memories for.
+   * @param { number } limit - Optional limit on number of memories to return.
+   *
+   * @returns { MemoryRetrieval[] } Array of memories for the step.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
+  export async function get_memories_by_step_id(
+    userId: string,
+    runId: string,
+    stepId: string,
+    limit: number | null
+  ): Promise<MemoryRetrieval[]> {
+    const q = new Postgres.Query(
+      `SELECT * FROM get_memories_by_step_id($1, $2, $3,$4)`,
+      [userId, runId, stepId, limit]
+    );
+    const result = await Postgres.query<MemoryRetrieval>(q);
     return result;
   }
 
@@ -280,7 +329,7 @@ export namespace memory {
          SELECT id FROM agent_memories
          WHERE user_id = $1
          ORDER BY created_at DESC
-         OFFSET $2
+         OFFSET $2~
        );`,
       [userId, limit]
     );

@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS message (
     -- Links message to its originating agent for filtering and analysis
     agent_id UUID NOT NULL,
 
+    -- User who owns or initiated the agent
+    -- Ensures messages are associated with the correct user context
+    user_id UUID NOT NULL,
+    
     -- Core Message Event Fields
     -- These fields define the message structure and context
     
@@ -51,7 +55,7 @@ CREATE TABLE IF NOT EXISTS message (
     -- Primary text content of the message
     -- User input, agent responses, tool outputs, etc.
     -- NULL for non-text events like state transitions
-    content TEXT,
+    message TEXT,
     
     -- Complex Data Fields (JSONB for Performance)
     -- PostgreSQL documentation Section 8.14: "most applications should prefer jsonb"
@@ -62,10 +66,6 @@ CREATE TABLE IF NOT EXISTS message (
     -- NULL when message doesn't involve tool usage
     tools JSONB,
     
-    -- Agent planning and decision-making data
-    -- Includes: current_plan, next_actions, reasoning, confidence_scores
-    -- NULL for messages that don't involve planning
-    plan JSONB,
     
     -- Flexible metadata storage for extensibility
     -- Any additional context, debugging info, or custom data
@@ -130,9 +130,8 @@ RETURNS TABLE (
     thread_id TEXT,
     checkpoint_id TEXT,
     "from" TEXT,
-    content TEXT,
+    message TEXT,
     tools JSONB,
-    plan JSONB,
     metadata JSONB,
     "timestamp" TIMESTAMP WITH TIME ZONE
     )
@@ -146,7 +145,7 @@ BEGIN
         -- Descending order: Most recent messages first
         -- Useful for displaying latest conversation activity
         RETURN QUERY
-        SELECT 
+        SELECT
             m.agent_id,
             a.user_id,
             m.event,
@@ -154,9 +153,8 @@ BEGIN
             m.thread_id,
             m.checkpoint_id,
             m."from",
-            m.content,
+            m.message,
             m.tools,
-            m.plan,
             m.metadata,
             m."timestamp"
         FROM message m
@@ -171,7 +169,7 @@ BEGIN
         -- Ascending order: Chronological conversation flow
         -- Standard for displaying conversation history
         RETURN QUERY
-        SELECT 
+        SELECT
             m.agent_id,
             a.user_id,
             m.event,
@@ -179,9 +177,8 @@ BEGIN
             m.thread_id,
             m.checkpoint_id,
             m."from",
-            m.content,
+            m.message,
             m.tools,
-            m.plan,
             m.metadata,
             m."timestamp"
         FROM message m
@@ -256,25 +253,20 @@ CREATE INDEX IF NOT EXISTS idx_message_metadata ON message USING GIN (metadata);
 -- Supports tool performance monitoring and usage analytics
 CREATE INDEX IF NOT EXISTS idx_message_tools ON message USING GIN (tools);
 
--- Planning data analysis index
--- Used for: Agent planning analysis and decision tracking
--- Query patterns: plan @> '{"status": "completed"}', plan ? 'next_action'
--- Enables planning behavior analysis and optimization
-CREATE INDEX IF NOT EXISTS idx_message_plan ON message USING GIN (plan);
 
 -- ============================================================================
 -- USAGE PATTERNS
 -- ============================================================================
 --
 -- Recording a user message:
---   INSERT INTO message (agent_id, event, run_id, thread_id, checkpoint_id, "from", content)
---   VALUES ('agent-uuid', 'user_input', 'run-123', 'thread-456', 'checkpoint-789', 
+--   INSERT INTO message (agent_id, user_id, event, run_id, thread_id, checkpoint_id, "from", message)
+--   VALUES ('agent-uuid', 'user-uuid', 'user_input', 'run-123', 'thread-456', 'checkpoint-789',
 --           'user', 'Hello, can you help me?');
 --
 -- Recording an agent response with tool usage:
---   INSERT INTO message (agent_id, event, run_id, thread_id, checkpoint_id, "from", 
---                       content, tools, metadata)
---   VALUES ('agent-uuid', 'agent_response', 'run-123', 'thread-456', 'checkpoint-790',
+--   INSERT INTO message (agent_id, user_id, event, run_id, thread_id, checkpoint_id, "from",
+--                       message, tools, metadata)
+--   VALUES ('agent-uuid', 'user-uuid', 'agent_response', 'run-123', 'thread-456', 'checkpoint-790',
 --           'agent', 'I can help! Let me search for information.',
 --           '{"tool": "web_search", "query": "user question"}',
 --           '{"confidence": 0.9, "processing_time_ms": 150}');
