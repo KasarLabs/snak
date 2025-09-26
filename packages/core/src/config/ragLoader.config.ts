@@ -11,7 +11,7 @@ export async function loadRagConfig(
     const config = JSON.parse(fileContent);
     if (
       typeof config.maxAgentSize !== 'number' ||
-      typeof config.maxProcessSize !== 'number' ||
+      typeof config.maxUserSize !== 'number' ||
       typeof config.maxRagSize !== 'number'
     ) {
       throw new Error('Invalid configuration: missing size limits');

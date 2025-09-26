@@ -25,6 +25,12 @@ export const envSchema = z.object({
   // Rag max size configuration
   RAG_CONFIG_PATH: z.string().optional().default('config/rag/default.rag.json'),
 
+  // Guards configuration
+  GUARDS_CONFIG_PATH: z
+    .string()
+    .optional()
+    .default('config/guards/default.guards.json'),
+
   // Redis configuration
   REDIS_HOST: z.string().optional().default('redis'),
   REDIS_PORT: z.coerce

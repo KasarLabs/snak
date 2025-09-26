@@ -1,6 +1,7 @@
 import { memory } from '@snakagent/database/queries';
 import z from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
+import { getGuardValue } from '@snakagent/core';
 
 /**
  * Individual memory item structure~

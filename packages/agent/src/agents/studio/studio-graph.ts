@@ -1,5 +1,10 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { AgentMode, ModelConfig, ModelProviders } from '@snakagent/core';
+import {
+  AgentMode,
+  ModelConfig,
+  ModelProviders,
+  validateAgent,
+} from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '../core/snakAgent.js';
 import {
@@ -227,6 +232,7 @@ export async function createAgentById(agentId: string): Promise<{
   const systemMessage = new SystemMessage(systemPrompt);
   const modelSelectorConfig = getModelSelectorConfig();
 
+  validateAgent(agentConfig as Partial<RawAgentConfig>);
   // Create agent instance
   const agent = new SnakAgent({
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),

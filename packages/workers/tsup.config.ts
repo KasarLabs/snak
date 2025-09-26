@@ -8,4 +8,13 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   external: ['@snakagent/core', '@snakagent/database', '@snakagent/metrics'],
+  platform: 'node',
+  target: 'node18',
+  bundle: true,
+  noExternal: [],
+  esbuildOptions(options) {
+    options.banner = {
+      js: 'import { createRequire } from "module"; const require = createRequire(import.meta.url);',
+    };
+  },
 });

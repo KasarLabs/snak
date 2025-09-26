@@ -1,3 +1,5 @@
+import { AgentConfig, RawAgentConfig, validateAgent } from '@snakagent/core';
+
 /**
  * Interface for memory configuration properties (input - can contain null)
  */
@@ -356,6 +358,8 @@ export function normalizeNumericValues(
       (normalizedConfig as any)[key] = config[key];
     }
   });
+
+  validateAgent(normalizedConfig as RawAgentConfig);
 
   return { normalizedConfig, appliedDefaults };
 }

@@ -107,4 +107,17 @@ export namespace rag {
     const res = await Postgres.query<{ size: string }>(q);
     return parseInt(res[0]?.size || '0', 10);
   }
+
+  export async function globalTotalSize(): Promise<number> {
+    const q = new Postgres.Query(
+      `SELECT COALESCE(SUM(file_size),0) AS size 
+       FROM (
+         SELECT DISTINCT dv.document_id, dv.file_size 
+         FROM document_vectors dv
+         WHERE dv.file_size IS NOT NULL
+       ) AS unique_documents`
+    );
+    const res = await Postgres.query<{ size: string }>(q);
+    return parseInt(res[0]?.size || '0', 10);
+  }
 }

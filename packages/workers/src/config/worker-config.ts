@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { WorkerConfig } from '../types/index.js';
+import { getGuardValue } from '@core/dist/index.js';
 
 export const configSchema = z
   .object({
@@ -36,9 +37,9 @@ export const configSchema = z
       .strict(),
     concurrency: z
       .object({
-        fileIngestion: z.coerce.number().int().min(1).default(2),
-        embeddings: z.coerce.number().int().min(1).default(2),
-        fallbackWorkers: z.coerce.number().int().min(0).default(8),
+        fileIngestion: z.coerce.number().int().default(2),
+        embeddings: z.coerce.number().int().default(2),
+        fallbackWorkers: z.coerce.number().int().default(8),
         workerIdleTimeout: z.coerce.number().int().min(0).default(30000),
       })
       .strict(),
