@@ -1,5 +1,5 @@
-import { BaseMessage } from '@langchain/core/messages';
-import { START, StateGraph, Command } from '@langchain/langgraph';
+import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
+import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
 import {
   GraphErrorType,
   TaskType,
@@ -7,6 +7,8 @@ import {
 } from '../../../shared/types/index.js';
 import {
   GenerateToolCallsFromMessage,
+  getCurrentTask,
+  getHITLContraintFromTreshold,
   handleEndGraph,
   handleNodeError,
   hasReachedMaxSteps,
@@ -21,6 +23,7 @@ import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import {
   TaskManagerNode,
   ExecutionMode,
+  TaskExecutorNode,
 } from '../../../shared/enums/agent.enum.js';
 import {
   DynamicStructuredTool,
@@ -30,11 +33,12 @@ import {
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
-import { TaskSchemaType } from '@schemas/graph.schemas.js';
+import { TaskSchemaType, ThoughtsSchemaType } from '@schemas/graph.schemas.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_MANAGER_HUMAN_PROMPT,
   TASK_MANAGER_MEMORY_PROMPT,
+  TASK_MANAGER_SYSTEM_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
 import {
   TaskManagerToolRegistry,
@@ -47,7 +51,11 @@ export function tasks_parser(tasks: TaskType[]): string {
       return 'No tasks available.';
     }
     const formattedTasks = tasks.map((task) => {
-      return `task_id : ${task.id}\n task : ${task.task.directive}\n status : ${task.status}\n verificiation_result : ${task.task_verification}\n`;
+      if (task.task) {
+        return `task_id : ${task.id}\n task : ${task.task.directive}\n status : ${task.status}\n verificiation_result : ${task.task_verification}\n`;
+      } else if (task.human) {
+        return `task_id : ${task.id}\n task : ${task.thought}\n status : ${task.status}\n`;
+      }
     });
     return formattedTasks.join('\n');
   } catch (error) {
@@ -85,6 +93,7 @@ export class TaskManagerGraph {
     'create_task',
     'block_task',
     'end_task',
+    'ask_human',
   ];
   constructor(
     agentConfig: AgentConfig.Runtime,
@@ -103,7 +112,6 @@ export class TaskManagerGraph {
         messages: BaseMessage[];
         last_node: TaskManagerNode;
         tasks?: TaskType[];
-        executionMode?: ExecutionMode;
         currentGraphStep: number;
         error: GraphErrorType | null;
         skipValidation?: { skipValidation: boolean; goto: string };
@@ -134,7 +142,12 @@ export class TaskManagerGraph {
       }
       const agentConfig = config.configurable!.agent_config!;
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', agentConfig.prompts.task_manager_prompt],
+        [
+          'system',
+          process.env.DEV_PROMPT === 'true'
+            ? TASK_MANAGER_SYSTEM_PROMPT
+            : agentConfig.prompts.task_manager_prompt,
+        ],
         ['ai', TASK_MANAGER_MEMORY_PROMPT],
         ['human', TASK_MANAGER_HUMAN_PROMPT],
       ]);
@@ -149,6 +162,10 @@ export class TaskManagerGraph {
           ? `The previous task failed due to: ${state.error.message}`
           : '',
         rag_content: '', // RAG content can be added here if available
+        hitl_constraints: getHITLContraintFromTreshold(
+          config.configurable!.user_request?.hitl_threshold ?? 0
+        ),
+        tools: parseToolsToJson(this.toolsList),
       });
       let aiMessage;
       try {
@@ -229,6 +246,32 @@ export class TaskManagerGraph {
           },
         };
       }
+      if (aiMessage.tool_calls[0].name === 'ask_human') {
+        logger.info(
+          '[Task Manager] Routing to human-in-the-loop for task creation'
+        );
+        const parsed_args = JSON.parse(
+          typeof aiMessage.tool_calls[0].args === 'string'
+            ? aiMessage.tool_calls[0].args
+            : JSON.stringify(aiMessage.tool_calls[0].args)
+        ) as ThoughtsSchemaType;
+        const task: TaskType = {
+          id: uuidv4(),
+          thought: parsed_args,
+          human: '',
+          request: config.configurable?.user_request?.request ?? '',
+          steps: [],
+          status: 'waiting_human' as const,
+        };
+        state.tasks.push(task);
+        return {
+          messages: [aiMessage],
+          last_node: TaskManagerNode.CREATE_TASK,
+          tasks: state.tasks,
+          currentGraphStep: state.currentGraphStep + 1,
+          error: null,
+        };
+      }
       if (aiMessage.tool_calls[0].name === 'block_task') {
         logger.info('[Task Manager] Task creation aborted by model');
         return handleNodeError(
@@ -252,19 +295,19 @@ export class TaskManagerGraph {
           ? aiMessage.tool_calls[0].args
           : JSON.stringify(aiMessage.tool_calls[0].args)
       ) as TaskSchemaType;
-      const tasks = {
+      const task: TaskType = {
         id: uuidv4(),
         thought: parsed_args.thought,
         task: parsed_args.task,
+        request: config.configurable?.user_request?.request ?? '',
         steps: [],
         status: 'pending' as const,
       };
-      state.tasks.push(tasks);
+      state.tasks.push(task);
       return {
         messages: [aiMessage],
         last_node: TaskManagerNode.CREATE_TASK,
         tasks: state.tasks,
-        executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
         error: null,
       };
@@ -280,10 +323,44 @@ export class TaskManagerGraph {
     }
   }
 
-  private shouldContinue(
+  public async humanNode(state: typeof GraphState.State): Promise<{
+    messages: BaseMessage[];
+    tasks: TaskType[];
+    last_node: TaskManagerNode;
+    currentGraphStep?: number;
+  }> {
+    logger.info(`[Human] Awaiting human input for: `);
+    const currentTask = getCurrentTask(state.tasks);
+    const h_input = interrupt(currentTask.thought.speak);
+    if (!currentTask) {
+    }
+    const message = new AIMessageChunk({
+      content: h_input,
+      additional_kwargs: {
+        from: TaskManagerNode.HUMAN,
+        final: false,
+      },
+    });
+
+    currentTask.human = h_input;
+    currentTask.status = 'completed';
+    state.tasks[state.tasks.length - 1] = currentTask;
+    return {
+      messages: [message],
+      tasks: state.tasks,
+      last_node: TaskManagerNode.HUMAN,
+      currentGraphStep: state.currentGraphStep + 1,
+    };
+  }
+  private task_manager_router(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): TaskManagerNode {
+    const currentTask = getCurrentTask(state.tasks);
+    if (!currentTask) {
+      throw new Error('No current task avaible');
+    }
+    console.log(currentTask);
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required for routing decisions.');
     }
@@ -294,6 +371,9 @@ export class TaskManagerGraph {
       return TaskManagerNode.END_GRAPH;
     }
     if (state.last_node === TaskManagerNode.CREATE_TASK) {
+      if (currentTask.status === 'waiting_human') {
+        return TaskManagerNode.HUMAN;
+      }
       if (state.error && state.error.hasError) {
         if (
           state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS ||
@@ -309,15 +389,11 @@ export class TaskManagerGraph {
         return TaskManagerNode.END;
       }
     }
+    if (state.last_node === TaskExecutorNode.HUMAN) {
+      return TaskManagerNode.CREATE_TASK;
+    }
     logger.warn('[Task Manager Router] Routing to END_GRAPH node');
     return TaskManagerNode.END_GRAPH;
-  }
-
-  private task_manager_router(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): TaskManagerNode {
-    return this.shouldContinue(state, config);
   }
 
   public getTaskManagerGraph() {
@@ -334,6 +410,7 @@ export class TaskManagerGraph {
         TaskManagerNode.END_GRAPH,
         routingFromSubGraphToParentGraphEndNode.bind(this)
       )
+      .addNode(TaskExecutorNode.HUMAN, this.humanNode.bind(this))
       .addEdge(START, TaskManagerNode.CREATE_TASK)
       .addConditionalEdges(
         TaskManagerNode.CREATE_TASK,

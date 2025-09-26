@@ -23,7 +23,10 @@ import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { TASK_VERIFICATION_CONTEXT_PROMPT } from '@prompts/agents/task-verifier.prompts.js';
+import {
+  TASK_VERIFICATION_CONTEXT_PROMPT,
+  TASK_VERIFIER_SYSTEM_PROMPT,
+} from '@prompts/agents/task-verifier.prompts.js';
 import {
   TaskVerificationSchema,
   TaskVerificationSchemaType,
@@ -90,7 +93,12 @@ export class TaskVerifierGraph {
       );
 
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', agentConfig.prompts.task_verifier_prompt],
+        [
+          'system',
+          process.env.DEV_PROMPT === 'true'
+            ? TASK_VERIFIER_SYSTEM_PROMPT
+            : agentConfig.prompts.task_verifier_prompt,
+        ],
         ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 
@@ -98,7 +106,7 @@ export class TaskVerifierGraph {
 
       logger.info('[TaskVerifier] Starting task completion verification');
       const formattedPrompt = await prompt.formatMessages({
-        originalTask: currentTask.task.directive,
+        originalTask: currentTask.task?.directive,
         taskReasoning: currentTask.thought.reasoning,
         executedSteps: executedSteps || 'No prior steps executed',
       });

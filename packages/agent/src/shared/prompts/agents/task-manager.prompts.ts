@@ -29,9 +29,13 @@ You create tasks FOR {agent_name} to execute. Consider:
 5. Think step-by-step before deciding
 6. Critically evaluate your approach
 7. Use only tool create_task or block_task
-8. Never ask for human input
-9. Never re-create exact same task previously completed
-10. NEVER separate "check", "verify", "select", or "connect" steps when they're part of achieving the same goal
+8. Never re-create exact same task previously completed
+9. NEVER separate "check", "verify", "select", or "connect" steps when they're part of achieving the same goal
+
+## HUMAN IN THE LOOP (HITL)
+<contraints>
+{hitl_constraints}
+</contraints>
 
 ## EXECUTION CONSTRAINTS
 1. Tool Usage Pattern: 

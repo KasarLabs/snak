@@ -46,6 +46,7 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_EXECUTOR_HUMAN_PROMPT,
   TASK_EXECUTOR_MEMORY_PROMPT,
+  TASK_EXECUTOR_SYSTEM_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
 import { TokenTracker } from '@lib/token/token-tracking.js';
@@ -78,7 +79,9 @@ export class AgentExecutorGraph {
     const prompt = ChatPromptTemplate.fromMessages([
       [
         'system',
-        config.configurable!.agent_config!.prompts.task_executor_prompt,
+        process.env.DEV_PROMPT === 'true'
+          ? TASK_EXECUTOR_SYSTEM_PROMPT
+          : config.configurable!.agent_config!.prompts.task_executor_prompt,
       ],
       ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
       ['human', TASK_EXECUTOR_HUMAN_PROMPT],
@@ -90,8 +93,8 @@ export class AgentExecutorGraph {
       long_term_memory: LTMManager.formatMemoriesForContext(
         state.memories.ltm.items
       ),
-      current_task: state.tasks[state.tasks.length - 1].task.directive,
-      success_criteria: state.tasks[state.tasks.length - 1].task.success_check,
+      current_task: state.tasks[state.tasks.length - 1].task?.directive,
+      success_criteria: state.tasks[state.tasks.length - 1].task?.success_check,
     });
     const modelBind = this.model.bindTools!(this.toolsList);
 
@@ -177,7 +180,7 @@ export class AgentExecutorGraph {
       }
       const stepId = uuidv4();
       logger.info(
-        `[Executor] Executing task: ${currentTask.task.directive} (Step ${
+        `[Executor] Executing task: ${currentTask.task?.directive} (Step ${
           state.currentGraphStep + 1
         })`
       );
@@ -259,6 +262,7 @@ export class AgentExecutorGraph {
       // Parse for task
       currentTask.steps.push({
         id: stepId,
+        type: 'tools',
         thought: thought!,
         tool: tools,
       });

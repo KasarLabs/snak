@@ -36,7 +36,10 @@ import {
   ToolCallType,
 } from '../../../shared/types/graph.types.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { TASK_MEMEMORY_MANAGER_HUMAN_PROMPT } from '@prompts/agents/task-memory-manager.prompt.js';
+import {
+  TASK_MEMEMORY_MANAGER_HUMAN_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+} from '@prompts/agents/task-memory-manager.prompt.js';
 
 export class MemoryGraph {
   private readonly memoryDBManager: MemoryDBManager;
@@ -185,7 +188,12 @@ export class MemoryGraph {
         )
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', agentConfig.prompts.task_memory_manager_prompt],
+        [
+          'system',
+          process.env.DEV_PROMPT === 'true'
+            ? TASK_MEMORY_MANAGER_SYSTEM_PROMPT
+            : agentConfig.prompts.task_memory_manager_prompt,
+        ],
         ['human', TASK_MEMEMORY_MANAGER_HUMAN_PROMPT],
       ]);
       // Use content of all steps of current task instead of just recent memories

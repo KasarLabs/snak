@@ -37,28 +37,38 @@ export interface ToolCallType {
 
 export interface StepType {
   id: string;
+  type: 'tools' | 'human'; // only two types for now
   thought: ThoughtsType;
   tool: ToolCallType[];
 }
 
-export interface TaskType {
+export type TaskCreatedType = {
+  analysis: string;
+  directive: string;
+  success_check: string;
+};
+
+export type TaskStatusType =
+  | 'pending'
+  | 'completed'
+  | 'failed'
+  | 'in_progress'
+  | 'waiting'
+  | 'aborted'
+  | 'blocked'
+  | 'waiting_human'
+  | 'waiting_validation';
+
+export type TaskType = {
   id: string;
   thought: ThoughtsType;
-  task: {
-    analysis: string;
-    directive: string;
-    success_check: string;
-  };
+  task?: TaskCreatedType;
+  human?: string; // human input if ask_human throw
+  request: string;
   task_verification?: string;
-  steps: StepType[];
-  status:
-    | 'pending'
-    | 'completed'
-    | 'failed'
-    | 'in_progress'
-    | 'waiting'
-    | 'waiting_validation';
-}
+  steps: StepType[];  
+  status: TaskStatusType;
+};
 
 export interface TasksType {
   tasks: TaskType[];

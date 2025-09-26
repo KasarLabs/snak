@@ -35,6 +35,7 @@ export enum GraphNode {
 export enum TaskManagerNode {
   CREATE_TASK = 'create_task',
   END_GRAPH = 'end_graph',
+  HUMAN = 'human',
   END = 'end',
 }
 
