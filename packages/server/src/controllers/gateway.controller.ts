@@ -187,6 +187,7 @@ export class MyGateway {
   ): Promise<void> {
     await ErrorHandler.handleWebSocketError(
       async () => {
+        logger.info('delete_agent called');
         const { userId } =
           ControllerHelpers.getSocketUserAndVerifyAgentConfigOwnership(
             client,

@@ -40,6 +40,7 @@ export class FileIngestionController {
   @Post('upload')
   async upload(@Req() request: FastifyRequest): Promise<{ jobId: string }> {
     return ErrorHandler.handleControllerError(async () => {
+      logger.info('files.upload called');
       const req = request as unknown as MultipartRequest;
       if (!req.isMultipart || !req.isMultipart()) {
         logger.error('Multipart request expected');
@@ -162,6 +163,7 @@ export class FileIngestionController {
     @Body('agentId') agentId: string,
     @Req() req: FastifyRequest
   ) {
+    logger.info('files.list called');
     const userId = ControllerHelpers.getUserId(req);
     ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.listFiles(agentId, userId);
@@ -173,6 +175,7 @@ export class FileIngestionController {
     @Body('fileId') fileId: string,
     @Req() req: FastifyRequest
   ) {
+    logger.info('files.get called');
     const userId = ControllerHelpers.getUserId(req);
     ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.getFile(agentId, fileId, userId);
@@ -184,6 +187,7 @@ export class FileIngestionController {
     @Body('fileId') fileId: string,
     @Req() req: FastifyRequest
   ) {
+    logger.info('files.delete called');
     const userId = ControllerHelpers.getUserId(req);
     ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     await this.service.deleteFile(agentId, fileId, userId);

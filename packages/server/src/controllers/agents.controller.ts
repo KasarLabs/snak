@@ -80,6 +80,7 @@ export class AgentsController {
     @Body() updateData: UpdateAgentMcpDTO,
     @Req() req: FastifyRequest
   ) {
+    logger.info('update_agent_mcp called');
     const userId = ControllerHelpers.getUserId(req);
     const { id, mcp_servers } = updateData;
 
@@ -122,6 +123,7 @@ export class AgentsController {
     @Body() config: AgentConfig.WithOptionalParam,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('update_agent_config called');
     const userId = ControllerHelpers.getUserId(req);
 
     if (!config || typeof config !== 'object') {
@@ -195,6 +197,7 @@ export class AgentsController {
     @Headers('x-api-key') apiKey: string,
     @Req() req: FastifyRequest
   ) {
+    logger.info('upload_avatar called');
     const userId = ControllerHelpers.getUserId(req);
 
     const data = await (req as any).file();
@@ -267,6 +270,7 @@ export class AgentsController {
     @Body() userRequest: AgentRequestDTO,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('request called');
     const userId = ControllerHelpers.getUserId(req);
 
     const route = this.reflector.get('path', this.handleUserRequest);
@@ -327,6 +331,7 @@ export class AgentsController {
     @Body() userRequest: { agent_id: string },
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('stop_agent called');
     const { userId, agent } = ControllerHelpers.getUserAndVerifyAgentOwnership(
       req,
       this.agentFactory,
@@ -350,6 +355,7 @@ export class AgentsController {
     @Body() userRequest: AgentAddRequestDTO,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('init_agent called');
     const userId = ControllerHelpers.getUserId(req);
 
     const newAgentConfig = await this.agentFactory.addAgent(
@@ -375,6 +381,7 @@ export class AgentsController {
     @Body() userRequest: MessageFromAgentIdDTO,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('get_messages_from_agent called');
     const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
@@ -399,6 +406,7 @@ export class AgentsController {
     @Body() userRequest: AgentDeleteRequestDTO,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('delete_agent called');
     const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
@@ -424,6 +432,7 @@ export class AgentsController {
     @Body() userRequest: AgentDeletesRequestDTO,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse[]> {
+    logger.info('delete_agents called');
     const userId = ControllerHelpers.getUserId(req);
     const responses: AgentResponse[] = [];
 
@@ -466,6 +475,7 @@ export class AgentsController {
     @Body() userRequest: getMessagesFromAgentsDTO,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('get_messages_from_agents called');
     const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
@@ -490,6 +500,7 @@ export class AgentsController {
     @Body() userRequest: getMessagesFromAgentsDTO,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
+    logger.info('clear_message called');
     const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
@@ -518,6 +529,7 @@ export class AgentsController {
   @Get('get_agents')
   @HandleErrors('E06TA100')
   async getAgents(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    logger.info('get_agents called');
     const userId = ControllerHelpers.getUserId(req);
     const agents = await this.agentService.getAllAgentsOfUser(userId);
     return ResponseFormatter.success(agents);
@@ -529,6 +541,7 @@ export class AgentsController {
   @Get('get_agent_status')
   @HandleErrors('E05TA100')
   async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    logger.info('get_agent_status called');
     const userId = ControllerHelpers.getUserId(req);
     const agents = await this.agentService.getAllAgentsOfUser(userId);
 
@@ -546,6 +559,7 @@ export class AgentsController {
   @Get('get_agent_thread')
   @HandleErrors('E05TA100')
   async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    logger.info('get_agent_thread called');
     const userId = ControllerHelpers.getUserId(req);
     const agents = await this.agentService.getAllAgentsOfUser(userId);
 
@@ -562,6 +576,7 @@ export class AgentsController {
    */
   @Get('health')
   async getAgentHealth(): Promise<AgentResponse> {
+    logger.info('health called');
     const response: AgentResponse = {
       status: 'success',
       data: 'Agent is healthy',
