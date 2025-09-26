@@ -22,52 +22,6 @@ const UserConfigSchema = z.object({
   max_token_usage: positiveIntegerArray,
 });
 
-// Execution graph plan configuration schema
-const ExecutionGraphPlanConfigSchema = z.object({
-  max_steps: positiveInteger,
-  min_steps: positiveInteger,
-  max_summary_length: positiveInteger,
-});
-
-// Execution graph step configuration schema
-const ExecutionGraphStepConfigSchema = z.object({
-  max_steps: positiveInteger,
-  min_steps: positiveInteger,
-  max_name_length: positiveInteger,
-  min_name_length: positiveInteger,
-  max_description_length: positiveInteger,
-  max_parallel_tools: positiveInteger,
-});
-
-// Execution graph tools configuration schema
-const ExecutionGraphToolsConfigSchema = z.object({
-  max_description_length: positiveInteger,
-  max_required_length: positiveInteger,
-  max_expected_result_length: positiveInteger,
-  max_result_length: positiveInteger,
-});
-
-// Execution graph result schema configuration
-const ExecutionGraphResultSchemaConfigSchema = z.object({
-  max_content_length: positiveInteger,
-  max_tokens: positiveInteger,
-});
-
-// Execution graph memory configuration schema
-const ExecutionGraphMemoryConfigSchema = z.object({
-  max_timeout: positiveInteger,
-  max_wait_time: positiveInteger,
-  max_content_length: positiveInteger,
-});
-
-// Execution graph configuration schema
-const ExecutionGraphConfigSchema = z.object({
-  plan: ExecutionGraphPlanConfigSchema,
-  step: ExecutionGraphStepConfigSchema,
-  tools: ExecutionGraphToolsConfigSchema,
-  result_schema: ExecutionGraphResultSchemaConfigSchema,
-  memory: ExecutionGraphMemoryConfigSchema,
-});
 
 // Memory LTM configuration schema
 const MemoryLtmConfigSchema = z.object({
@@ -77,11 +31,10 @@ const MemoryLtmConfigSchema = z.object({
 
 // Memory episodic event configuration schema
 const MemoryEpisodicEventConfigSchema = z.object({
-  max_name_length: positiveInteger,
-  min_name_length: positiveInteger,
   max_content_length: positiveInteger,
   min_content_length: positiveInteger,
   max_source: positiveInteger,
+  min_source: positiveInteger,
 });
 
 // Memory semantic fact configuration schema
@@ -107,6 +60,8 @@ const ExecutionConfigSchema = z.object({
   max_message_tokens: positiveInteger,
   max_retry_attempts: nonNegativeInteger,
   max_content_preview_length: positiveInteger,
+  max_summary_length: positiveInteger,
+  max_description_length: positiveInteger,
 });
 
 // MCP configuration schema
@@ -120,74 +75,107 @@ const McpConfigSchema = z.object({
   max_profile_length: positiveInteger,
 });
 
-// Agent memory configuration schema
-const AgentMemoryConfigSchema = z.object({
-  memory_size_max: positiveInteger,
-  memory_size_min: nonNegativeInteger,
-  short_term_memory_size_max: positiveInteger,
-  short_term_memory_size_min: nonNegativeInteger,
-});
-
-// Agent plugins configuration schema
-const AgentPluginsConfigSchema = z.object({
-  max_size: positiveInteger,
-  min_size: nonNegativeInteger,
-  max_length: positiveInteger,
-  min_length: positiveInteger,
-});
-
-// MCP server arguments configuration schema
-const McpServerArgsConfigSchema = z.object({
-  max_size: positiveInteger,
-  min_size: nonNegativeInteger,
-  max_length: positiveInteger,
-  min_length: positiveInteger,
-});
-
-// MCP server environment configuration schema
-const McpServerEnvConfigSchema = z.object({
-  max_size: positiveInteger,
-  min_size: nonNegativeInteger,
-  max_length: positiveInteger,
-  min_length: positiveInteger,
-});
-
-// MCP servers configuration schema
-const McpServersConfigSchema = z.object({
-  max_servers: positiveInteger,
-  min_servers: nonNegativeInteger,
-  max_server_name_length: positiveInteger,
-  min_server_name_length: positiveInteger,
-  command_max_length: positiveInteger,
-  min_command_length: nonNegativeInteger,
-  args: McpServerArgsConfigSchema,
-  env: McpServerEnvConfigSchema,
-});
-
-// Agents configuration schema
-const AgentsConfigSchema = z.object({
+// Agent profile configuration schema
+const AgentProfileConfigSchema = z.object({
   name_max_length: positiveInteger,
   name_min_length: positiveInteger,
   description_max_length: positiveInteger,
   description_min_length: positiveInteger,
   group_max_length: positiveInteger,
   group_min_length: positiveInteger,
-  interval_max: positiveInteger,
-  interval_min: positiveInteger,
-  max_max_iterations: positiveInteger,
-  min_max_iterations: positiveInteger,
-  memory: AgentMemoryConfigSchema,
-  chat_id_max_length: positiveInteger,
-  chat_id_min_length: positiveInteger,
-  plugins: AgentPluginsConfigSchema,
-  mcp_servers: McpServersConfigSchema,
+  contexts_max_size: positiveInteger,
+  context_max_length: positiveInteger,
+  context_min_length: positiveInteger,
 });
 
-// Model configuration schema
-const ModelConfigSchema = z.object({
+// MCP server arguments configuration schema
+const McpServerArgsConfigSchema = z.object({
+  max_size: positiveInteger,
+  max_length: positiveInteger,
+});
+
+// MCP server environment configuration schema
+const McpServerEnvConfigSchema = z.object({
+  max_size: positiveInteger,
+  max_length: positiveInteger,
+});
+
+// MCP servers configuration schema
+const McpServersConfigSchema = z.object({
+  max_servers: positiveInteger,
+  max_server_name_length: positiveInteger,
+  min_server_name_length: positiveInteger,
+  command_max_length: positiveInteger,
+  args: McpServerArgsConfigSchema,
+  env: McpServerEnvConfigSchema,
+});
+
+// Agent graph model configuration schema
+const AgentGraphModelConfigSchema = z.object({
   provider_max_length: positiveInteger,
+  provider_min_length: positiveInteger,
   model_name_max_length: positiveInteger,
-  description_max_length: positiveInteger,
+  model_name_min_length: positiveInteger,
+  max_temperature: z.number().max(0.7),
+  max_tokens: positiveInteger,
+});
+
+// Agent graph configuration schema
+const AgentGraphConfigSchema = z.object({
+  max_steps: positiveInteger,
+  min_steps: positiveInteger,
+  max_iterations: positiveInteger,
+  max_retries: positiveInteger,
+  max_execution_timeout_ms: positiveInteger,
+  max_token_usage: positiveInteger,
+  model: AgentGraphModelConfigSchema,
+});
+
+// Agent memory size limits configuration schema
+const AgentMemorySizeLimitsConfigSchema = z.object({
+  max_short_term_memory_size: positiveInteger,
+  max_insert_episodic_size: positiveInteger,
+  max_insert_semantic_size: positiveInteger,
+  max_retrieve_memory_size: positiveInteger,
+  max_limit_before_summarization: positiveInteger,
+});
+
+// Agent memory thresholds configuration schema
+const AgentMemoryThresholdsConfigSchema = z.object({
+  max_insert_semantic_threshold: z.number().max(1),
+  max_insert_episodic_threshold: z.number().max(1),
+  max_retrieve_memory_threshold: z.number().max(1),
+  max_hitl_threshold: z.number().max(1),
+});
+
+// Agent memory timeouts configuration schema
+const AgentMemoryTimeoutsConfigSchema = z.object({
+  max_retrieve_memory_timeout_ms: positiveInteger,
+  max_insert_memory_timeout_ms: positiveInteger,
+});
+
+// Agent memory configuration schema
+const AgentMemoryConfigSchema = z.object({
+  size_limits: AgentMemorySizeLimitsConfigSchema,
+  thresholds: AgentMemoryThresholdsConfigSchema,
+  timeouts: AgentMemoryTimeoutsConfigSchema,
+  strategy_max_lenght: positiveInteger,
+  strategy_min_length: positiveInteger,
+});
+
+// Agent RAG configuration schema
+const AgentRagConfigSchema = z.object({
+  max_top_k: positiveInteger,
+});
+
+// Agents configuration schema
+const AgentsConfigSchema = z.object({
+  prompts_id_max_length: positiveInteger,
+  profile: AgentProfileConfigSchema,
+  mcp_servers: McpServersConfigSchema,
+  graph: AgentGraphConfigSchema,
+  memory: AgentMemoryConfigSchema,
+  rag: AgentRagConfigSchema,
 });
 
 // RAG configuration schema
@@ -249,12 +237,10 @@ const EndpointsConfigSchema = z.object({
 export const GuardsConfigSchema = z.object({
   global: GlobalConfigSchema,
   user: UserConfigSchema,
-  execution_graph: ExecutionGraphConfigSchema,
   memory: MemoryConfigSchema,
   execution: ExecutionConfigSchema,
   mcp: McpConfigSchema,
   agents: AgentsConfigSchema,
-  model: ModelConfigSchema,
   rag: GuardsRagConfigSchema,
   endpoints: EndpointsConfigSchema,
 });

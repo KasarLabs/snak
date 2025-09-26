@@ -71,59 +71,33 @@ export class AgentValidationService {
         }
       }
 
-      // Validate agent profile section
+      // Validate each section using dedicated methods
       if (agent_config.profile) {
-        this.validateAgentProfile(agent_config.profile);
+        this.validateProfile(agent_config.profile);
       }
 
-      // Validate graph configuration
       if (agent_config.graph) {
-        this.validateGraphConfig(agent_config.graph);
+        this.validateGraph(agent_config.graph);
       }
 
-      // Validate memory configuration
       if (agent_config.memory) {
-        this.validateMemoryConfig(agent_config.memory);
+        this.validateMemory(agent_config.memory);
       }
 
-      // Validate RAG configuration
       if (agent_config.rag) {
-        this.validateRAGConfig(agent_config.rag);
+        this.validateRAG(agent_config.rag);
       }
 
-      // Validate plugins configuration
       if (agent_config.plugins) {
-        this.validatePluginsConfig(agent_config.plugins);
+        this.validatePlugins(agent_config.plugins);
       }
 
-      // Validate MCP servers configuration
       if (agent_config.mcp_servers) {
-        this.validateMCPServersConfig(agent_config.mcp_servers);
+        this.validateMCPServers(agent_config.mcp_servers);
       }
 
-      // Validate chatId length (if present in the config)
-      if (
-        'chatId' in agent_config &&
-        agent_config.chatId &&
-        typeof agent_config.chatId === 'string'
-      ) {
-        if (
-          agent_config.chatId.length >
-          getGuardValue('agents.chat_id_max_length')
-        ) {
-          throw new Error(
-            `Agent chatId too long. Maximum length: ${getGuardValue('agents.chat_id_max_length')}`
-          );
-        }
-        if (
-          agent_config.chatId.length <
-          getGuardValue('agents.chat_id_min_length')
-        ) {
-          throw new Error(
-            `Agent chatId too short. Minimum length: ${getGuardValue('agents.chat_id_min_length')}`
-          );
-        }
-      }
+      // Validate identifiers (chatId and prompts_id)
+      this.validateIdentifiers(agent_config);
 
       logger.debug(
         `Agent ${isCreation ? 'creation' : 'update'} validation passed successfully`
@@ -143,75 +117,75 @@ export class AgentValidationService {
    * @private
    */
   private validateAgentProfile(profile: any): void {
+    // Load guard values once for performance
+    const nameMaxLength = getGuardValue('agents.profile.name_max_length');
+    const nameMinLength = getGuardValue('agents.profile.name_min_length');
+    const descriptionMaxLength = getGuardValue('agents.profile.description_max_length');
+    const descriptionMinLength = getGuardValue('agents.profile.description_min_length');
+    const groupMaxLength = getGuardValue('agents.profile.group_max_length');
+    const groupMinLength = getGuardValue('agents.profile.group_min_length');
+    const contextsMaxSize = getGuardValue('agents.profile.contexts_max_size');
+    const contextMaxLength = getGuardValue('agents.profile.context_max_length');
+    const contextMinLength = getGuardValue('agents.profile.context_min_length');
+
     // Validate agent name length
     if (profile.name) {
-      if (profile.name.length > getGuardValue('agents.name_max_length')) {
+      if (profile.name.length > nameMaxLength) {
         throw new Error(
-          `Agent name too long. Maximum length: ${getGuardValue('agents.name_max_length')}`
+          `Agent name too long. Maximum length: ${nameMaxLength}`
         );
       }
-      if (profile.name.length < getGuardValue('agents.name_min_length')) {
+      if (profile.name.length < nameMinLength) {
         throw new Error(
-          `Agent name too short. Minimum length: ${getGuardValue('agents.name_min_length')}`
+          `Agent name too short. Minimum length: ${nameMinLength}`
         );
       }
     }
 
     // Validate agent description length
     if (profile.description) {
-      if (
-        profile.description.length >
-        getGuardValue('agents.description_max_length')
-      ) {
+      if (profile.description.length > descriptionMaxLength) {
         throw new Error(
-          `Agent description too long. Maximum length: ${getGuardValue('agents.description_max_length')}`
+          `Agent description too long. Maximum length: ${descriptionMaxLength}`
         );
       }
-      if (
-        profile.description.length <
-        getGuardValue('agents.description_min_length')
-      ) {
+      if (profile.description.length < descriptionMinLength) {
         throw new Error(
-          `Agent description too short. Minimum length: ${getGuardValue('agents.description_min_length')}`
+          `Agent description too short. Minimum length: ${descriptionMinLength}`
         );
       }
     }
 
     // Validate agent group length
     if (profile.group) {
-      if (profile.group.length > getGuardValue('agents.group_max_length')) {
+      if (profile.group.length > groupMaxLength) {
         throw new Error(
-          `Agent group too long. Maximum length: ${getGuardValue('agents.group_max_length')}`
+          `Agent group too long. Maximum length: ${groupMaxLength}`
         );
       }
-      if (profile.group.length < getGuardValue('agents.group_min_length')) {
+      if (profile.group.length < groupMinLength) {
         throw new Error(
-          `Agent group too short. Minimum length: ${getGuardValue('agents.group_min_length')}`
+          `Agent group too short. Minimum length: ${groupMinLength}`
         );
       }
     }
 
     // Validate contexts array
     if (profile.contexts && Array.isArray(profile.contexts)) {
-      if (profile.contexts.length > getGuardValue('agents.contexts.max_size')) {
+      if (profile.contexts.length > contextsMaxSize) {
         throw new Error(
-          `Too many contexts. Maximum allowed: ${getGuardValue('agents.contexts.max_size')}`
-        );
-      }
-      if (profile.contexts.length < getGuardValue('agents.contexts.min_size')) {
-        throw new Error(
-          `Too few contexts. Minimum required: ${getGuardValue('agents.contexts.min_size')}`
+          `Too many contexts. Maximum allowed: ${contextsMaxSize}`
         );
       }
       for (const context of profile.contexts) {
-        if (context.length > getGuardValue('agents.contexts.max_length')) {
+        if (context.length > contextMaxLength) {
           throw new Error(
-            `Context too long. Maximum length: ${getGuardValue('agents.contexts.max_length')}`
+            `Context too long. Maximum length: ${contextMaxLength}`
           );
         }
-        if (context.length < getGuardValue('agents.contexts.min_length')) {
+        if (context.length < contextMinLength) {
           throw new Error(
-            `Context too short. Minimum length: ${getGuardValue('agents.contexts.min_length')}`
+            `Context too short. Minimum length: ${contextMinLength}`
           );
         }
       }
@@ -224,88 +198,60 @@ export class AgentValidationService {
    * @private
    */
   private validateGraphConfig(graph: any): void {
+    // Load guard values once for performance
+    const maxSteps = getGuardValue('agents.graph.max_steps');
+    const minSteps = getGuardValue('agents.graph.min_steps');
+    const maxIterations = getGuardValue('agents.graph.max_iterations');
+    const maxRetries = getGuardValue('agents.graph.max_retries');
+    const maxExecutionTimeout = getGuardValue('agents.graph.max_execution_timeout_ms');
+    const maxTokenUsage = getGuardValue('agents.graph.max_token_usage');
+
     // Validate max_steps
     if (graph.max_steps) {
-      if (graph.max_steps > getGuardValue('agents.graph.max_steps_max')) {
+      if (graph.max_steps > maxSteps) {
         throw new Error(
-          `Max steps too high. Maximum value: ${getGuardValue('agents.graph.max_steps_max')}`
+          `Max steps too high. Maximum value: ${maxSteps}`
         );
       }
-      if (graph.max_steps < getGuardValue('agents.graph.max_steps_min')) {
+      if (graph.max_steps < minSteps) {
         throw new Error(
-          `Max steps too low. Minimum value: ${getGuardValue('agents.graph.max_steps_min')}`
+          `Max steps too low. Minimum value: ${minSteps}`
         );
       }
     }
 
     // Validate max_iterations
     if (graph.max_iterations) {
-      if (
-        graph.max_iterations > getGuardValue('agents.graph.max_iterations_max')
-      ) {
+      if (graph.max_iterations > maxIterations) {
         throw new Error(
-          `Max iterations too high. Maximum value: ${getGuardValue('agents.graph.max_iterations_max')}`
-        );
-      }
-      if (
-        graph.max_iterations < getGuardValue('agents.graph.max_iterations_min')
-      ) {
-        throw new Error(
-          `Max iterations too low. Minimum value: ${getGuardValue('agents.graph.max_iterations_min')}`
+          `Max iterations too high. Maximum value: ${maxIterations}`
         );
       }
     }
 
     // Validate max_retries
     if (graph.max_retries) {
-      if (graph.max_retries > getGuardValue('agents.graph.max_retries_max')) {
+      if (graph.max_retries > maxRetries) {
         throw new Error(
-          `Max retries too high. Maximum value: ${getGuardValue('agents.graph.max_retries_max')}`
-        );
-      }
-      if (graph.max_retries < getGuardValue('agents.graph.max_retries_min')) {
-        throw new Error(
-          `Max retries too low. Minimum value: ${getGuardValue('agents.graph.max_retries_min')}`
+          `Max retries too high. Maximum value: ${maxRetries}`
         );
       }
     }
 
     // Validate execution_timeout_ms
     if (graph.execution_timeout_ms) {
-      if (
-        graph.execution_timeout_ms >
-        getGuardValue('agents.graph.execution_timeout_max')
-      ) {
+      if (graph.execution_timeout_ms > maxExecutionTimeout) {
         throw new Error(
-          `Execution timeout too high. Maximum value: ${getGuardValue('agents.graph.execution_timeout_max')}`
-        );
-      }
-      if (
-        graph.execution_timeout_ms <
-        getGuardValue('agents.graph.execution_timeout_min')
-      ) {
-        throw new Error(
-          `Execution timeout too low. Minimum value: ${getGuardValue('agents.graph.execution_timeout_min')}`
+          `Execution timeout too high. Maximum value: ${maxExecutionTimeout}`
         );
       }
     }
 
     // Validate max_token_usage
     if (graph.max_token_usage) {
-      if (
-        graph.max_token_usage >
-        getGuardValue('agents.graph.max_token_usage_max')
-      ) {
+      if (graph.max_token_usage > maxTokenUsage) {
         throw new Error(
-          `Max token usage too high. Maximum value: ${getGuardValue('agents.graph.max_token_usage_max')}`
-        );
-      }
-      if (
-        graph.max_token_usage <
-        getGuardValue('agents.graph.max_token_usage_min')
-      ) {
-        throw new Error(
-          `Max token usage too low. Minimum value: ${getGuardValue('agents.graph.max_token_usage_min')}`
+          `Max token usage too high. Maximum value: ${maxTokenUsage}`
         );
       }
     }
@@ -322,70 +268,56 @@ export class AgentValidationService {
    * @private
    */
   private validateModelConfig(model: any): void {
+    // Load guard values once for performance
+    const providerMaxLength = getGuardValue('agents.graph.model.provider_max_length');
+    const providerMinLength = getGuardValue('agents.graph.model.provider_min_length');
+    const modelNameMaxLength = getGuardValue('agents.graph.model.model_name_max_length');
+    const modelNameMinLength = getGuardValue('agents.graph.model.model_name_min_length');
+    const maxTemperature = getGuardValue('agents.graph.model.max_temperature');
+    const maxTokens = getGuardValue('agents.graph.model.max_tokens');
+
     // Validate provider
     if (model.provider) {
-      if (
-        model.provider.length >
-        getGuardValue('agents.model.provider_max_length')
-      ) {
+      if (model.provider.length > providerMaxLength) {
         throw new Error(
-          `Model provider too long. Maximum length: ${getGuardValue('agents.model.provider_max_length')}`
+          `Model provider too long. Maximum length: ${providerMaxLength}`
         );
       }
-      if (
-        model.provider.length <
-        getGuardValue('agents.model.provider_min_length')
-      ) {
+      if (model.provider.length < providerMinLength) {
         throw new Error(
-          `Model provider too short. Minimum length: ${getGuardValue('agents.model.provider_min_length')}`
+          `Model provider too short. Minimum length: ${providerMinLength}`
         );
       }
     }
 
     // Validate model_name
     if (model.model_name) {
-      if (
-        model.model_name.length >
-        getGuardValue('agents.model.model_name_max_length')
-      ) {
+      if (model.model_name.length > modelNameMaxLength) {
         throw new Error(
-          `Model name too long. Maximum length: ${getGuardValue('agents.model.model_name_max_length')}`
+          `Model name too long. Maximum length: ${modelNameMaxLength}`
         );
       }
-      if (
-        model.model_name.length <
-        getGuardValue('agents.model.model_name_min_length')
-      ) {
+      if (model.model_name.length < modelNameMinLength) {
         throw new Error(
-          `Model name too short. Minimum length: ${getGuardValue('agents.model.model_name_min_length')}`
+          `Model name too short. Minimum length: ${modelNameMinLength}`
         );
       }
     }
 
     // Validate temperature
     if (model.temperature !== undefined) {
-      if (model.temperature > getGuardValue('agents.model.temperature_max')) {
+      if (model.temperature > maxTemperature) {
         throw new Error(
-          `Temperature too high. Maximum value: ${getGuardValue('agents.model.temperature_max')}`
-        );
-      }
-      if (model.temperature < getGuardValue('agents.model.temperature_min')) {
-        throw new Error(
-          `Temperature too low. Minimum value: ${getGuardValue('agents.model.temperature_min')}`
+          `Temperature too high. Maximum value: ${maxTemperature}`
         );
       }
     }
 
     // Validate max_tokens
     if (model.max_tokens) {
-      if (model.max_tokens > getGuardValue('agents.model.max_tokens_max')) {
+      if (model.max_tokens > maxTokens) {
         throw new Error(
-          `Max tokens too high. Maximum value: ${getGuardValue('agents.model.max_tokens_max')}`
-        );
-      }
-      if (model.max_tokens < getGuardValue('agents.model.max_tokens_min')) {
-        throw new Error(
-          `Max tokens too low. Minimum value: ${getGuardValue('agents.model.max_tokens_min')}`
+          `Max tokens too high. Maximum value: ${maxTokens}`
         );
       }
     }
@@ -397,6 +329,10 @@ export class AgentValidationService {
    * @private
    */
   private validateMemoryConfig(memory: any): void {
+    // Load guard values once for performance
+    const strategyMaxLength = getGuardValue('agents.memory.strategy_max_lenght');
+    const strategyMinLength = getGuardValue('agents.memory.strategy_min_length');
+
     // Validate size_limits
     if (memory.size_limits) {
       this.validateMemorySizeLimits(memory.size_limits);
@@ -414,6 +350,16 @@ export class AgentValidationService {
 
     // Validate strategy
     if (memory.strategy) {
+      if (memory.strategy.length > strategyMaxLength) {
+        throw new Error(
+          `Memory strategy too long. Maximum length: ${strategyMaxLength}`
+        );
+      }
+      if (memory.strategy.length < strategyMinLength) {
+        throw new Error(
+          `Memory strategy too short. Minimum length: ${strategyMinLength}`
+        );
+      }
       const validStrategies = ['holistic', 'categorized'];
       if (!validStrategies.includes(memory.strategy)) {
         throw new Error(
@@ -429,30 +375,26 @@ export class AgentValidationService {
    * @private
    */
   private validateMemorySizeLimits(sizeLimits: any): void {
+    // Load guard values once for performance
+    const maxShortTermMemorySize = getGuardValue('agents.memory.size_limits.max_short_term_memory_size');
+    const maxInsertEpisodicSize = getGuardValue('agents.memory.size_limits.max_insert_episodic_size');
+    const maxInsertSemanticSize = getGuardValue('agents.memory.size_limits.max_insert_semantic_size');
+    const maxRetrieveMemorySize = getGuardValue('agents.memory.size_limits.max_retrieve_memory_size');
+    const maxLimitBeforeSummarization = getGuardValue('agents.memory.size_limits.max_limit_before_summarization');
+
     const limits = [
-      'short_term_memory_size',
-      'max_insert_episodic_size',
-      'max_insert_semantic_size',
-      'max_retrieve_memory_size',
-      'limit_before_summarization',
+      { key: 'short_term_memory_size', max: maxShortTermMemorySize },
+      { key: 'insert_episodic_size', max: maxInsertEpisodicSize },
+      { key: 'insert_semantic_size', max: maxInsertSemanticSize },
+      { key: 'retrieve_memory_size', max: maxRetrieveMemorySize },
+      { key: 'limit_before_summarization', max: maxLimitBeforeSummarization },
     ];
 
     for (const limit of limits) {
-      if (sizeLimits[limit] !== undefined) {
-        if (
-          sizeLimits[limit] >
-          getGuardValue(`agents.memory.size_limits.${limit}_max`)
-        ) {
+      if (sizeLimits[limit.key] !== undefined) {
+        if (sizeLimits[limit.key] > limit.max) {
           throw new Error(
-            `Memory ${limit} too high. Maximum value: ${getGuardValue(`agents.memory.size_limits.${limit}_max`)}`
-          );
-        }
-        if (
-          sizeLimits[limit] <
-          getGuardValue(`agents.memory.size_limits.${limit}_min`)
-        ) {
-          throw new Error(
-            `Memory ${limit} too low. Minimum value: ${getGuardValue(`agents.memory.size_limits.${limit}_min`)}`
+            `Memory ${limit.key} too high. Maximum value: ${limit.max}`
           );
         }
       }
@@ -465,27 +407,24 @@ export class AgentValidationService {
    * @private
    */
   private validateMemoryThresholds(thresholds: any): void {
+    // Load guard values once for performance
+    const maxInsertSemanticThreshold = getGuardValue('agents.memory.thresholds.max_insert_semantic_threshold');
+    const maxInsertEpisodicThreshold = getGuardValue('agents.memory.thresholds.max_insert_episodic_threshold');
+    const maxRetrieveMemoryThreshold = getGuardValue('agents.memory.thresholds.max_retrieve_memory_threshold');
+    const maxHitlThreshold = getGuardValue('agents.memory.thresholds.max_hitl_threshold');
+
     const thresholdKeys = [
-      'insert_semantic_threshold',
-      'insert_episodic_threshold',
-      'retrieve_memory_threshold',
-      'hitl_threshold',
+      { key: 'insert_semantic_threshold', max: maxInsertSemanticThreshold },
+      { key: 'insert_episodic_threshold', max: maxInsertEpisodicThreshold },
+      { key: 'retrieve_memory_threshold', max: maxRetrieveMemoryThreshold },
+      { key: 'hitl_threshold', max: maxHitlThreshold },
     ];
 
-    for (const key of thresholdKeys) {
-      if (thresholds[key] !== undefined) {
-        if (
-          thresholds[key] > getGuardValue(`agents.memory.thresholds.${key}_max`)
-        ) {
+    for (const threshold of thresholdKeys) {
+      if (thresholds[threshold.key] !== undefined) {
+        if (thresholds[threshold.key] > threshold.max) {
           throw new Error(
-            `Memory ${key} too high. Maximum value: ${getGuardValue(`agents.memory.thresholds.${key}_max`)}`
-          );
-        }
-        if (
-          thresholds[key] < getGuardValue(`agents.memory.thresholds.${key}_min`)
-        ) {
-          throw new Error(
-            `Memory ${key} too low. Minimum value: ${getGuardValue(`agents.memory.thresholds.${key}_min`)}`
+            `Memory ${threshold.key} too high. Maximum value: ${threshold.max}`
           );
         }
       }
@@ -498,25 +437,20 @@ export class AgentValidationService {
    * @private
    */
   private validateMemoryTimeouts(timeouts: any): void {
+    // Load guard values once for performance
+    const maxRetrieveMemoryTimeout = getGuardValue('agents.memory.timeouts.max_retrieve_memory_timeout_ms');
+    const maxInsertMemoryTimeout = getGuardValue('agents.memory.timeouts.max_insert_memory_timeout_ms');
+
     const timeoutKeys = [
-      'retrieve_memory_timeout_ms',
-      'insert_memory_timeout_ms',
+      { key: 'retrieve_memory_timeout_ms', max: maxRetrieveMemoryTimeout },
+      { key: 'insert_memory_timeout_ms', max: maxInsertMemoryTimeout },
     ];
 
-    for (const key of timeoutKeys) {
-      if (timeouts[key] !== undefined) {
-        if (
-          timeouts[key] > getGuardValue(`agents.memory.timeouts.${key}_max`)
-        ) {
+    for (const timeout of timeoutKeys) {
+      if (timeouts[timeout.key] !== undefined) {
+        if (timeouts[timeout.key] > timeout.max) {
           throw new Error(
-            `Memory ${key} too high. Maximum value: ${getGuardValue(`agents.memory.timeouts.${key}_max`)}`
-          );
-        }
-        if (
-          timeouts[key] < getGuardValue(`agents.memory.timeouts.${key}_min`)
-        ) {
-          throw new Error(
-            `Memory ${key} too low. Minimum value: ${getGuardValue(`agents.memory.timeouts.${key}_min`)}`
+            `Memory ${timeout.key} too high. Maximum value: ${timeout.max}`
           );
         }
       }
@@ -529,36 +463,14 @@ export class AgentValidationService {
    * @private
    */
   private validateRAGConfig(rag: any): void {
+    // Load guard values once for performance
+    const maxTopK = getGuardValue('agents.rag.max_top_k');
+
     // Validate top_k
     if (rag.top_k !== undefined) {
-      if (rag.top_k > getGuardValue('agents.rag.top_k_max')) {
+      if (rag.top_k > maxTopK) {
         throw new Error(
-          `RAG top_k too high. Maximum value: ${getGuardValue('agents.rag.top_k_max')}`
-        );
-      }
-      if (rag.top_k < getGuardValue('agents.rag.top_k_min')) {
-        throw new Error(
-          `RAG top_k too low. Minimum value: ${getGuardValue('agents.rag.top_k_min')}`
-        );
-      }
-    }
-
-    // Validate embedding_model
-    if (rag.embedding_model) {
-      if (
-        rag.embedding_model.length >
-        getGuardValue('agents.rag.embedding_model_max_length')
-      ) {
-        throw new Error(
-          `RAG embedding model too long. Maximum length: ${getGuardValue('agents.rag.embedding_model_max_length')}`
-        );
-      }
-      if (
-        rag.embedding_model.length <
-        getGuardValue('agents.rag.embedding_model_min_length')
-      ) {
-        throw new Error(
-          `RAG embedding model too short. Minimum length: ${getGuardValue('agents.rag.embedding_model_min_length')}`
+          `RAG top_k too high. Maximum value: ${maxTopK}`
         );
       }
     }
@@ -570,25 +482,96 @@ export class AgentValidationService {
    * @private
    */
   private validatePluginsConfig(plugins: string[]): void {
-    if (plugins.length > getGuardValue('agents.plugins.max_size')) {
-      throw new Error(
-        `Too many plugins. Maximum allowed: ${getGuardValue('agents.plugins.max_size')}`
-      );
-    }
-    if (plugins.length < getGuardValue('agents.plugins.min_size')) {
-      throw new Error(
-        `Too few plugins. Minimum required: ${getGuardValue('agents.plugins.min_size')}`
-      );
-    }
-    for (const plugin of plugins) {
-      if (plugin.length > getGuardValue('agents.plugins.max_length')) {
+    // Note: Plugins validation is not defined in the guards configuration
+    // This method is kept for future implementation
+  }
+
+  // ============================================================================
+  // PUBLIC VALIDATION METHODS - Individual section validation
+  // ============================================================================
+
+  /**
+   * Validate only the agent profile section
+   * @param profile - Agent profile to validate
+   * @public
+   */
+  public validateProfile(profile: any): void {
+    this.validateAgentProfile(profile);
+  }
+
+  /**
+   * Validate only the graph configuration section
+   * @param graph - Graph configuration to validate
+   * @public
+   */
+  public validateGraph(graph: any): void {
+    this.validateGraphConfig(graph);
+  }
+
+  /**
+   * Validate only the memory configuration section
+   * @param memory - Memory configuration to validate
+   * @public
+   */
+  public validateMemory(memory: any): void {
+    this.validateMemoryConfig(memory);
+  }
+
+  /**
+   * Validate only the RAG configuration section
+   * @param rag - RAG configuration to validate
+   * @public
+   */
+  public validateRAG(rag: any): void {
+    this.validateRAGConfig(rag);
+  }
+
+  /**
+   * Validate only the plugins configuration section
+   * @param plugins - Plugins configuration to validate
+   * @public
+   */
+  public validatePlugins(plugins: string[]): void {
+    this.validatePluginsConfig(plugins);
+  }
+
+  /**
+   * Validate only the MCP servers configuration section
+   * @param mcpServers - MCP servers configuration to validate
+   * @public
+   */
+  public validateMCPServers(mcpServers: Record<string, any>): void {
+    this.validateMCPServersConfig(mcpServers);
+  }
+
+  /**
+   * Validate only the chatId and prompts_id fields
+   * @param agent_config - Agent configuration containing chatId and prompts_id
+   * @public
+   */
+  public validateIdentifiers(agent_config: any): void {
+    const promptsIdMaxLength = getGuardValue('agents.prompts_id_max_length');
+    
+    if (
+      'chatId' in agent_config &&
+      agent_config.chatId &&
+      typeof agent_config.chatId === 'string'
+    ) {
+      if (agent_config.chatId.length > promptsIdMaxLength) {
         throw new Error(
-          `Plugin name too long. Maximum length: ${getGuardValue('agents.plugins.max_length')}`
+          `Agent chatId too long. Maximum length: ${promptsIdMaxLength}`
         );
       }
-      if (plugin.length < getGuardValue('agents.plugins.min_length')) {
+    }
+
+    if (
+      'prompts_id' in agent_config &&
+      agent_config.prompts_id &&
+      typeof agent_config.prompts_id === 'string'
+    ) {
+      if (agent_config.prompts_id.length > promptsIdMaxLength) {
         throw new Error(
-          `Plugin name too short. Minimum length: ${getGuardValue('agents.plugins.min_length')}`
+          `Agent prompts_id too long. Maximum length: ${promptsIdMaxLength}`
         );
       }
     }
@@ -600,33 +583,32 @@ export class AgentValidationService {
    * @private
    */
   private validateMCPServersConfig(mcpServers: Record<string, any>): void {
+    // Load guard values once for performance
+    const maxServers = getGuardValue('agents.mcp_servers.max_servers');
+    const maxServerNameLength = getGuardValue('agents.mcp_servers.max_server_name_length');
+    const minServerNameLength = getGuardValue('agents.mcp_servers.min_server_name_length');
+    const commandMaxLength = getGuardValue('agents.mcp_servers.command_max_length');
+    const argsMaxSize = getGuardValue('agents.mcp_servers.args.max_size');
+    const argsMaxLength = getGuardValue('agents.mcp_servers.args.max_length');
+    const envMaxSize = getGuardValue('agents.mcp_servers.env.max_size');
+    const envMaxLength = getGuardValue('agents.mcp_servers.env.max_length');
+
     const serverNames = Object.keys(mcpServers);
-    if (serverNames.length > getGuardValue('agents.mcp_servers.max_servers')) {
+    if (serverNames.length > maxServers) {
       throw new Error(
-        `Too many MCP servers. Maximum allowed: ${getGuardValue('agents.mcp_servers.max_servers')}`
-      );
-    }
-    if (serverNames.length < getGuardValue('agents.mcp_servers.min_servers')) {
-      throw new Error(
-        `Too few MCP servers. Minimum required: ${getGuardValue('agents.mcp_servers.min_servers')}`
+        `Too many MCP servers. Maximum allowed: ${maxServers}`
       );
     }
 
     for (const serverName of serverNames) {
-      if (
-        serverName.length >
-        getGuardValue('agents.mcp_servers.max_server_name_length')
-      ) {
+      if (serverName.length > maxServerNameLength) {
         throw new Error(
-          `MCP server name too long. Maximum length: ${getGuardValue('agents.mcp_servers.max_server_name_length')}`
+          `MCP server name too long. Maximum length: ${maxServerNameLength}`
         );
       }
-      if (
-        serverName.length <
-        getGuardValue('agents.mcp_servers.min_server_name_length')
-      ) {
+      if (serverName.length < minServerNameLength) {
         throw new Error(
-          `MCP server name too short. Minimum length: ${getGuardValue('agents.mcp_servers.min_server_name_length')}`
+          `MCP server name too short. Minimum length: ${minServerNameLength}`
         );
       }
 
@@ -634,53 +616,24 @@ export class AgentValidationService {
 
       // Validate command length
       if (server.command) {
-        if (
-          server.command.length >
-          getGuardValue('agents.mcp_servers.command_max_length')
-        ) {
+        if (server.command.length > commandMaxLength) {
           throw new Error(
-            `MCP server command too long. Maximum length: ${getGuardValue('agents.mcp_servers.command_max_length')}`
-          );
-        }
-        if (
-          server.command.length <
-          getGuardValue('agents.mcp_servers.min_command_length')
-        ) {
-          throw new Error(
-            `MCP server command too short. Minimum length: ${getGuardValue('agents.mcp_servers.min_command_length')}`
+            `MCP server command too long. Maximum length: ${commandMaxLength}`
           );
         }
       }
 
       // Validate args configuration
       if (server.args) {
-        if (
-          server.args.length > getGuardValue('agents.mcp_servers.args.max_size')
-        ) {
+        if (server.args.length > argsMaxSize) {
           throw new Error(
-            `Too many MCP server args. Maximum allowed: ${getGuardValue('agents.mcp_servers.args.max_size')}`
-          );
-        }
-        if (
-          server.args.length < getGuardValue('agents.mcp_servers.args.min_size')
-        ) {
-          throw new Error(
-            `Too few MCP server args. Minimum required: ${getGuardValue('agents.mcp_servers.args.min_size')}`
+            `Too many MCP server args. Maximum allowed: ${argsMaxSize}`
           );
         }
         for (const arg of server.args) {
-          if (
-            arg.length > getGuardValue('agents.mcp_servers.args.max_length')
-          ) {
+          if (arg.length > argsMaxLength) {
             throw new Error(
-              `MCP server arg too long. Maximum length: ${getGuardValue('agents.mcp_servers.args.max_length')}`
-            );
-          }
-          if (
-            arg.length < getGuardValue('agents.mcp_servers.args.min_length')
-          ) {
-            throw new Error(
-              `MCP server arg too short. Minimum length: ${getGuardValue('agents.mcp_servers.args.min_length')}`
+              `MCP server arg too long. Maximum length: ${argsMaxLength}`
             );
           }
         }
@@ -689,40 +642,21 @@ export class AgentValidationService {
       // Validate env configuration
       if (server.env) {
         const envKeys = Object.keys(server.env);
-        if (envKeys.length > getGuardValue('agents.mcp_servers.env.max_size')) {
+        if (envKeys.length > envMaxSize) {
           throw new Error(
-            `Too many MCP server env variables. Maximum allowed: ${getGuardValue('agents.mcp_servers.env.max_size')}`
-          );
-        }
-        if (envKeys.length < getGuardValue('agents.mcp_servers.env.min_size')) {
-          throw new Error(
-            `Too few MCP server env variables. Minimum required: ${getGuardValue('agents.mcp_servers.env.min_size')}`
+            `Too many MCP server env variables. Maximum allowed: ${envMaxSize}`
           );
         }
         for (const [key, value] of Object.entries(server.env)) {
-          if (key.length > getGuardValue('agents.mcp_servers.env.max_length')) {
+          if (key.length > envMaxLength) {
             throw new Error(
-              `MCP server env key too long. Maximum length: ${getGuardValue('agents.mcp_servers.env.max_length')}`
-            );
-          }
-          if (key.length < getGuardValue('agents.mcp_servers.env.min_length')) {
-            throw new Error(
-              `MCP server env key too short. Minimum length: ${getGuardValue('agents.mcp_servers.env.min_length')}`
+              `MCP server env key too long. Maximum length: ${envMaxLength}`
             );
           }
           if (value && typeof value === 'string') {
-            if (
-              value.length > getGuardValue('agents.mcp_servers.env.max_length')
-            ) {
+            if (value.length > envMaxLength) {
               throw new Error(
-                `MCP server env value too long. Maximum length: ${getGuardValue('agents.mcp_servers.env.max_length')}`
-              );
-            }
-            if (
-              value.length < getGuardValue('agents.mcp_servers.env.min_length')
-            ) {
-              throw new Error(
-                `MCP server env value too short. Minimum length: ${getGuardValue('agents.mcp_servers.env.min_length')}`
+                `MCP server env value too long. Maximum length: ${envMaxLength}`
               );
             }
           }
@@ -752,4 +686,71 @@ export async function validateAgent(
     isCreation,
     databaseInterface
   );
+}
+
+// ============================================================================
+// GLOBAL VALIDATION FUNCTIONS - Individual section validation
+// ============================================================================
+
+/**
+ * Validate only the agent profile section
+ * @param profile - Agent profile to validate
+ */
+export function validateProfile(profile: any): void {
+  const validationService = new AgentValidationService();
+  validationService.validateProfile(profile);
+}
+
+/**
+ * Validate only the graph configuration section
+ * @param graph - Graph configuration to validate
+ */
+export function validateGraph(graph: any): void {
+  const validationService = new AgentValidationService();
+  validationService.validateGraph(graph);
+}
+
+/**
+ * Validate only the memory configuration section
+ * @param memory - Memory configuration to validate
+ */
+export function validateMemory(memory: any): void {
+  const validationService = new AgentValidationService();
+  validationService.validateMemory(memory);
+}
+
+/**
+ * Validate only the RAG configuration section
+ * @param rag - RAG configuration to validate
+ */
+export function validateRAG(rag: any): void {
+  const validationService = new AgentValidationService();
+  validationService.validateRAG(rag);
+}
+
+/**
+ * Validate only the plugins configuration section
+ * @param plugins - Plugins configuration to validate
+ */
+export function validatePlugins(plugins: string[]): void {
+  const validationService = new AgentValidationService();
+  validationService.validatePlugins(plugins);
+}
+
+/**
+ * Validate only the MCP servers configuration section
+ * @param mcpServers - MCP servers configuration to validate
+ */
+export function validateMCPServers(mcpServers: Record<string, any>): void {
+  const validationService = new AgentValidationService();
+  validationService.validateMCPServers(mcpServers);
+}
+
+/**
+ * Validate only the chatId and prompts_id fields
+ * @param agent_config - Agent configuration containing chatId and prompts_id
+ */
+export function validateIdentifiers(agent_config: any): void {
+  const validationService = new AgentValidationService();
+  validationService.validateIdentifiers(agent_config);
 }

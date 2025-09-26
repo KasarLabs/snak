@@ -69,10 +69,10 @@ export const STRING_LIMITS = {
   CONTENT_PREVIEW_LENGTH: getGuardValue('execution.max_content_preview_length'),
   /** Maximum length for plan descriptions */
   MAX_PLAN_DESCRIPTION_LENGTH: getGuardValue(
-    'execution_graph.plan.max_summary_length'
+    'execution.plan.max_summary_length'
   ),
   /** Maximum length for step descriptions */
   MAX_STEP_DESCRIPTION_LENGTH: getGuardValue(
-    'execution_graph.step.max_description_length'
+    'execution.step.max_description_length'
   ),
 } as const;

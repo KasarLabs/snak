@@ -30,6 +30,13 @@ export {
 export {
   AgentValidationService,
   validateAgent,
+  validateProfile,
+  validateGraph,
+  validateMemory,
+  validateRAG,
+  validatePlugins,
+  validateMCPServers,
+  validateIdentifiers,
   type AgentDatabaseInterface,
 } from './services/agent-validation.service.js';
 

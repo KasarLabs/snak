@@ -8,47 +8,16 @@
     "max_upload_avatar_size": 50000000,
     "max_token_usage": [10000, 50000, 250000, 2500000]
   },
-  "execution_graph": {
-    "plan": {
-      "max_steps": 100,
-      "min_steps": 1,
-      "max_summary_length": 350
-    },
-    "step": {
-      "max_steps": 100,
-      "min_steps": 1,
-      "max_name_length": 100,
-      "min_name_length": 3,
-      "max_description_length": 1000,
-      "max_parallel_tools": 5
-    },
-    "tools": {
-      "max_description_length": 1000,
-      "max_required_length": 1000,
-      "max_expected_result_length": 1000,
-      "max_result_length": 100
-    },
-    "result_schema": {
-      "max_content_length": 1000,
-      "max_tokens": 1000
-    },
-    "memory": {
-      "max_timeout": 5000,
-      "max_wait_time": 5000,
-      "max_content_length": 10000
-    }
-  },
   "memory": {
     "ltm": {
       "max_episodic_event_size": 10,
       "max_semantic_fact_size": 10
     },
     "episodic_event": {
-      "max_name_length": 100,
-      "min_name_length": 1,
       "max_content_length": 1000,
       "min_content_length": 1,
-      "max_source": 10
+      "max_source": 10,
+      "min_source": 1
     },
     "semantic_fact": {
       "fact": {
@@ -63,7 +32,9 @@
   "execution": {
     "max_message_tokens": 3000,
     "max_retry_attempts": 3,
-    "max_content_preview_length": 150
+    "max_content_preview_length": 150,
+    "max_summary_length": 350,
+    "max_description_length": 1000
   },
   "mcp": {
     "max_limit_tools": 100,
@@ -75,55 +46,72 @@
     "max_profile_length": 255
   },
   "agents": {
-    "name_max_length": 100,
-    "name_min_length": 3,
-    "description_max_length": 1000,
-    "description_min_length": 3,
-    "group_max_length": 100,
-    "group_min_length": 3,
-    "interval_max": 100,
-    "interval_min": 1,
-    "max_max_iterations": 100,
-    "min_max_iterations": 1,
-    "memory": {
-      "memory_size_max": 1000,
-      "memory_size_min": 0,
-      "short_term_memory_size_max": 100,
-      "short_term_memory_size_min": 0
-    },
-    "chat_id_max_length": 100,
-    "chat_id_min_length": 3,
-    "plugins": {
-      "max_size": 100,
-      "min_size": 0,
-      "max_length": 100,
-      "min_length": 3
+    "prompts_id_max_length": 255,
+    "profile": {
+      "name_max_length": 100,
+      "name_min_length": 3,
+      "description_max_length": 1000,
+      "description_min_length": 3,
+      "group_max_length": 100,
+      "group_min_length": 3,
+      "contexts_max_size": 1000,
+      "context_max_length": 1000,
+      "context_min_length": 3
     },
     "mcp_servers": {
       "max_servers": 100,
-      "min_servers": 0,
       "max_server_name_length": 100,
       "min_server_name_length": 3,
       "command_max_length": 100,
-      "min_command_length": 0,
       "args": {
         "max_size": 100,
-        "min_size": 0,
-        "max_length": 100,
-        "min_length": 3
+        "max_length": 100
       },
       "env": {
         "max_size": 100,
-        "min_size": 0,
-        "max_length": 100,
-        "min_length": 3
+        "max_length": 100
       }
+    },
+    "graph": {
+      "max_steps": 200,
+      "min_steps": 1,
+      "max_iterations": 15,
+      "max_retries": 3,
+      "max_execution_timeout_ms": 500000,
+      "max_token_usage": 200000,
+      "model": {
+        "provider_max_length": 100,
+        "provider_min_length": 3,
+        "model_name_max_length": 100,
+        "model_name_min_length": 3,
+        "max_temperature": 0.7,
+        "max_tokens": 4096
+      }
+    },
+    "memory": {
+      "size_limits": {
+        "max_short_term_memory_size": 10,
+        "max_insert_episodic_size": 20,
+        "max_insert_semantic_size": 20,
+        "max_retrieve_memory_size": 20,
+        "max_limit_before_summarization": 10000
+      },
+      "thresholds": {
+        "max_insert_semantic_threshold": 1,
+        "max_insert_episodic_threshold": 1,
+        "max_retrieve_memory_threshold": 1,
+        "max_hitl_threshold": 1
+      },
+      "timeouts": {
+        "max_retrieve_memory_timeout_ms": 20000,
+        "max_insert_memory_timeout_ms": 10000
+      },
+      "strategy_max_lenght": 100,
+      "strategy_min_length": 3
+    },
+    "rag": {
+      "max_top_k": 6
     }
-  },
-  "model": {
-    "provider_max_length": 100,
-    "model_name_max_length": 100,
-    "description_max_length": 1000
   },
   "rag": {
     "process_max_size": 10000000,
