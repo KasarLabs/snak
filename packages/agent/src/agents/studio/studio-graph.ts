@@ -1,5 +1,6 @@
 import { SystemMessage } from '@langchain/core/messages';
 import {
+  AgentConfig,
   AgentMode,
   ModelConfig,
   ModelProviders,
@@ -17,12 +18,11 @@ import { Graph } from '@agents/graphs/graph.js';
 // Types and Interfaces
 export interface AgentConfigSQL {
   id: string;
+  user_id: string;
   name: string;
   group: string;
   description: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
+  contexts: string[];
   system_prompt?: string;
   interval: number;
   plugins: string[];
@@ -54,9 +54,7 @@ export interface AgentRagSQL {
 function buildSystemPromptFromConfig(promptComponents: {
   name?: string;
   description?: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
+  contexts: string[];
 }): string {
   const contextParts: string[] = [];
 
@@ -68,27 +66,11 @@ function buildSystemPromptFromConfig(promptComponents: {
   }
 
   if (
-    Array.isArray(promptComponents.lore) &&
-    promptComponents.lore.length > 0
-  ) {
-    contextParts.push(`Your lore : [${promptComponents.lore.join(']\n[')}]`);
-  }
-
-  if (
-    Array.isArray(promptComponents.objectives) &&
-    promptComponents.objectives.length > 0
+    Array.isArray(promptComponents.contexts) &&
+    promptComponents.contexts.length > 0
   ) {
     contextParts.push(
-      `Your objectives : [${promptComponents.objectives.join(']\n[')}]`
-    );
-  }
-
-  if (
-    Array.isArray(promptComponents.knowledge) &&
-    promptComponents.knowledge.length > 0
-  ) {
-    contextParts.push(
-      `Your knowledge : [${promptComponents.knowledge.join(']\n[')}]`
+      `Your contexts : [${promptComponents.contexts.join(']\n[')}]`
     );
   }
 
@@ -207,7 +189,7 @@ export async function createAgentById(agentId: string): Promise<{
   const query = new Postgres.Query('SELECT * from agents WHERE id = $1', [
     agentId,
   ]);
-  const queryResult = await Postgres.query<AgentConfigSQL>(query);
+  const queryResult = await Postgres.query<AgentConfig.Input>(query);
 
   if (!queryResult || queryResult.length === 0) {
     throw new Error(`No agent found for id: ${agentId}`);
@@ -216,23 +198,19 @@ export async function createAgentById(agentId: string): Promise<{
   // Parse agent configuration
   const agentConfig = {
     ...queryResult[0],
-    memory: parseMemoryConfig(queryResult[0].memory),
-    rag: parseRagConfig(queryResult[0].rag),
   };
 
   // Build system prompt
   const systemPrompt = buildSystemPromptFromConfig({
     name: agentConfig.profile.name,
-    description: agentConfig.description,
-    lore: agentConfig.lore,
-    objectives: agentConfig.objectives,
-    knowledge: agentConfig.knowledge,
+    description: agentConfig.profile.description,
+    contexts: agentConfig.profile.contexts,
   });
 
   const systemMessage = new SystemMessage(systemPrompt);
   const modelSelectorConfig = getModelSelectorConfig();
 
-  validateAgent(agentConfig as Partial<RawAgentConfig>);
+  validateAgent(agentConfig as AgentConfig.WithOptionalParam);
   // Create agent instance
   const agent = new SnakAgent({
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),

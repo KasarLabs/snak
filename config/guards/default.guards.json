@@ -38,14 +38,8 @@
         "max": 6,
         "min": 1
       },
-      "threshold": {
-        "max": 1,
-        "min": 0
-      },
-      "limit": {
-        "max": 100,
-        "min": 1
-      }
+      "max_threshold": 1,
+      "max_limit": 100
     }
   },
   "execution": {
@@ -125,7 +119,7 @@
         "max_retrieve_memory_timeout_ms": 20000,
         "max_insert_memory_timeout_ms": 10000
       },
-      "strategy_max_lenght": 100,
+      "strategy_max_length": 100,
       "strategy_min_length": 3
     },
     "rag": {
@@ -136,8 +130,8 @@
     "process_max_size": 10000000,
     "agent_max_size": 10000000,
     "user_max_size": 50000000,
-    "rag_max_size": 10000000,
-    "rag_min_size": 1,
+    "max_size": 10000000,
+    "min_size": 1,
     "max_original_name_length": 255,
     "min_original_name_length": 1
   },

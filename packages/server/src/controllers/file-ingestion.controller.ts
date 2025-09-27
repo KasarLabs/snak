@@ -81,7 +81,7 @@ export class FileIngestionController {
               `Chunk ${chunkCount}: ${chunk.length} bytes (total: ${size} bytes)`
             );
 
-            const maxRagSize = getGuardValue('rag.rag_max_size');
+            const maxRagSize = getGuardValue('rag.max_size');
 
             if (size > maxRagSize) {
               logger.error(`File size ${size} exceeds limit ${maxRagSize}`);

@@ -213,7 +213,10 @@ export class AgentValidationService {
     const maxTokenUsage = getGuardValue('agents.graph.max_token_usage');
 
     // Validate max_steps
-    if (graph.max_steps) {
+    if (graph.max_steps !== undefined && graph.max_steps !== null) {
+      if (Number.isNaN(graph.max_steps)) {
+        throw new Error('Max steps must be a valid number');
+      }
       if (graph.max_steps > maxSteps) {
         throw new Error(`Max steps too high. Maximum value: ${maxSteps}`);
       }
@@ -223,7 +226,10 @@ export class AgentValidationService {
     }
 
     // Validate max_iterations
-    if (graph.max_iterations) {
+    if (graph.max_iterations !== undefined && graph.max_iterations !== null) {
+      if (Number.isNaN(graph.max_iterations)) {
+        throw new Error('Max iterations must be a valid number');
+      }
       if (graph.max_iterations > maxIterations) {
         throw new Error(
           `Max iterations too high. Maximum value: ${maxIterations}`
@@ -232,14 +238,23 @@ export class AgentValidationService {
     }
 
     // Validate max_retries
-    if (graph.max_retries) {
+    if (graph.max_retries !== undefined && graph.max_retries !== null) {
+      if (Number.isNaN(graph.max_retries)) {
+        throw new Error('Max retries must be a valid number');
+      }
       if (graph.max_retries > maxRetries) {
         throw new Error(`Max retries too high. Maximum value: ${maxRetries}`);
       }
     }
 
     // Validate execution_timeout_ms
-    if (graph.execution_timeout_ms) {
+    if (
+      graph.execution_timeout_ms !== undefined &&
+      graph.execution_timeout_ms !== null
+    ) {
+      if (Number.isNaN(graph.execution_timeout_ms)) {
+        throw new Error('Execution timeout must be a valid number');
+      }
       if (graph.execution_timeout_ms > maxExecutionTimeout) {
         throw new Error(
           `Execution timeout too high. Maximum value: ${maxExecutionTimeout}`
@@ -248,7 +263,10 @@ export class AgentValidationService {
     }
 
     // Validate max_token_usage
-    if (graph.max_token_usage) {
+    if (graph.max_token_usage !== undefined && graph.max_token_usage !== null) {
+      if (Number.isNaN(graph.max_token_usage)) {
+        throw new Error('Max token usage must be a valid number');
+      }
       if (graph.max_token_usage > maxTokenUsage) {
         throw new Error(
           `Max token usage too high. Maximum value: ${maxTokenUsage}`
@@ -337,7 +355,7 @@ export class AgentValidationService {
   private validateMemoryConfig(memory: any): void {
     // Load guard values once for performance
     const strategyMaxLength = getGuardValue(
-      'agents.memory.strategy_max_lenght'
+      'agents.memory.strategy_max_length'
     );
     const strategyMinLength = getGuardValue(
       'agents.memory.strategy_min_length'

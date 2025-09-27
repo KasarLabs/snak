@@ -31,8 +31,8 @@ async function bootstrap() {
       app.getHttpAdapter().getInstance() as unknown as FastifyInstance
     ).register(fastifyMultipart as any, {
       limits: {
-        fileSize: getGuardValue('rag.rag_max_size'), // 501KB
-        files: getGuardValue('rag.rag_min_size'),
+        fileSize: getGuardValue('rag.max_size'), // 501KB
+        files: getGuardValue('rag.min_size'),
       },
     });
 

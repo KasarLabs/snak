@@ -7,7 +7,7 @@ import { readFileSync } from 'fs';
  * Loads and validates the guards configuration from a JSON file using Zod schema validation.
  *
  * @param configPath The relative path to the configuration file.
- * @returns A promise that resolves with the validated GuardsConfig object.
+ * @returns The validated GuardsConfig object.
  * @throws Error if the file cannot be read, parsed, or does not contain valid configuration.
  */
 export function loadGuardsConfig(configPath: string): GuardsConfig {

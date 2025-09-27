@@ -58,14 +58,8 @@ const MemoryRetrieveConfigSchema = z.object({
     max: positiveInteger,
     min: positiveInteger,
   }),
-  threshold: z.object({
-    max: z.number().max(1),
-    min: z.number().min(0),
-  }),
-  limit: z.object({
-    max: positiveInteger,
-    min: positiveInteger,
-  }),
+  max_threshold: z.number().min(0).max(1),
+  max_limit: positiveInteger,
 });
 
 // Memory configuration schema
@@ -137,7 +131,7 @@ const AgentGraphModelConfigSchema = z.object({
   provider_min_length: positiveInteger,
   model_name_max_length: positiveInteger,
   model_name_min_length: positiveInteger,
-  max_temperature: z.number().max(0.7),
+  max_temperature: z.number().min(0).max(1),
   max_tokens: positiveInteger,
 });
 
@@ -163,10 +157,10 @@ const AgentMemorySizeLimitsConfigSchema = z.object({
 
 // Agent memory thresholds configuration schema
 const AgentMemoryThresholdsConfigSchema = z.object({
-  max_insert_semantic_threshold: z.number().max(1),
-  max_insert_episodic_threshold: z.number().max(1),
-  max_retrieve_memory_threshold: z.number().max(1),
-  max_hitl_threshold: z.number().max(1),
+  max_insert_semantic_threshold: z.number().min(0).max(1),
+  max_insert_episodic_threshold: z.number().min(0).max(1),
+  max_retrieve_memory_threshold: z.number().min(0).max(1),
+  max_hitl_threshold: z.number().min(0).max(1),
 });
 
 // Agent memory timeouts configuration schema
@@ -180,7 +174,7 @@ const AgentMemoryConfigSchema = z.object({
   size_limits: AgentMemorySizeLimitsConfigSchema,
   thresholds: AgentMemoryThresholdsConfigSchema,
   timeouts: AgentMemoryTimeoutsConfigSchema,
-  strategy_max_lenght: positiveInteger,
+  strategy_max_length: positiveInteger,
   strategy_min_length: positiveInteger,
 });
 
@@ -204,8 +198,8 @@ const GuardsRagConfigSchema = z.object({
   process_max_size: positiveInteger,
   agent_max_size: positiveInteger,
   user_max_size: positiveInteger,
-  rag_max_size: positiveInteger,
-  rag_min_size: positiveInteger,
+  max_size: positiveInteger,
+  min_size: positiveInteger,
   max_original_name_length: positiveInteger,
   min_original_name_length: positiveInteger,
 });

@@ -690,6 +690,9 @@ export class AgentStorage implements OnModuleInit {
     agentConfig: AgentConfig.Input | AgentConfig.WithOptionalParam,
     isCreation: boolean = false
   ): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
     return this.agentValidationService.validateAgent(
       agentConfig,
       isCreation,

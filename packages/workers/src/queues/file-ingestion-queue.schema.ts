@@ -32,8 +32,8 @@ function createFileIngestionJobPayloadSchema() {
       size: z
         .number()
         .int('Size must be an integer')
-        .min(getGuardValue('rag.rag_min_size'))
-        .max(getGuardValue('rag.rag_max_size')),
+        .min(getGuardValue('rag.min_size'))
+        .max(getGuardValue('rag.max_size')),
     })
     .refine((data) => data.buffer.length === data.size, {
       message: 'Buffer size does not match declared size',

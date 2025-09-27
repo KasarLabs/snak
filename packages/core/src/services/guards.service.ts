@@ -35,8 +35,9 @@ export class GuardsService {
    */
   public initialize(configPathParam: string): void {
     try {
+      const loadedConfig = loadGuardsConfig(configPathParam);
+      guardsConfig = loadedConfig;
       configPath = configPathParam;
-      guardsConfig = loadGuardsConfig(configPathParam);
       logger.debug('GuardsService initialized successfully');
     } catch (error) {
       logger.error(`Failed to initialize GuardsService: ${error}`);

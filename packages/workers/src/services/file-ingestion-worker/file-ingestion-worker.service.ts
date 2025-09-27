@@ -9,7 +9,7 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
-import { logger, loadRagConfig } from '@snakagent/core';
+import { logger } from '@snakagent/core';
 import { ChunkingService } from '../chunking/chunking.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
 import { VectorStoreService } from '../vector-store/vector-store.service.js';

@@ -230,7 +230,7 @@ export interface AgentsConfig {
   /**
    * Maximum number of iterations.
    */
-  max_iterations_max: number;
+  max_iterations: number;
 
   /**
    * Memory configuration for agents.
@@ -295,7 +295,7 @@ export interface GuardsRagConfig {
   /**
    * Maximum size for RAG data.
    */
-  rag_max_size: number;
+  max_size: number;
 }
 
 /**
