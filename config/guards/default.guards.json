@@ -17,7 +17,11 @@
       "max_content_length": 1000,
       "min_content_length": 1,
       "max_source": 10,
-      "min_source": 1
+      "min_source": 1,
+      "name": {
+        "max_length": 100,
+        "min_length": 1
+      }
     },
     "semantic_fact": {
       "fact": {
@@ -25,7 +29,22 @@
         "min_length": 1
       },
       "category": {
-        "max_length": 100
+        "max_length": 100,
+        "min_length": 1
+      }
+    },
+    "retrieve": {
+      "top_k": {
+        "max": 6,
+        "min": 1
+      },
+      "threshold": {
+        "max": 1,
+        "min": 0
+      },
+      "limit": {
+        "max": 100,
+        "min": 1
       }
     }
   },

@@ -22,7 +22,6 @@ const UserConfigSchema = z.object({
   max_token_usage: positiveIntegerArray,
 });
 
-
 // Memory LTM configuration schema
 const MemoryLtmConfigSchema = z.object({
   max_episodic_event_size: positiveInteger,
@@ -35,6 +34,10 @@ const MemoryEpisodicEventConfigSchema = z.object({
   min_content_length: positiveInteger,
   max_source: positiveInteger,
   min_source: positiveInteger,
+  name: z.object({
+    max_length: positiveInteger,
+    min_length: positiveInteger,
+  }),
 });
 
 // Memory semantic fact configuration schema
@@ -45,6 +48,23 @@ const MemorySemanticFactConfigSchema = z.object({
   }),
   category: z.object({
     max_length: positiveInteger,
+    min_length: positiveInteger,
+  }),
+});
+
+// Memory retrieve configuration schema
+const MemoryRetrieveConfigSchema = z.object({
+  top_k: z.object({
+    max: positiveInteger,
+    min: positiveInteger,
+  }),
+  threshold: z.object({
+    max: z.number().max(1),
+    min: z.number().min(0),
+  }),
+  limit: z.object({
+    max: positiveInteger,
+    min: positiveInteger,
   }),
 });
 
@@ -53,6 +73,7 @@ const MemoryConfigSchema = z.object({
   ltm: MemoryLtmConfigSchema,
   episodic_event: MemoryEpisodicEventConfigSchema,
   semantic_fact: MemorySemanticFactConfigSchema,
+  retrieve: MemoryRetrieveConfigSchema,
 });
 
 // Execution configuration schema

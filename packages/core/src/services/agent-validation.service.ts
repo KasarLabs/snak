@@ -120,8 +120,12 @@ export class AgentValidationService {
     // Load guard values once for performance
     const nameMaxLength = getGuardValue('agents.profile.name_max_length');
     const nameMinLength = getGuardValue('agents.profile.name_min_length');
-    const descriptionMaxLength = getGuardValue('agents.profile.description_max_length');
-    const descriptionMinLength = getGuardValue('agents.profile.description_min_length');
+    const descriptionMaxLength = getGuardValue(
+      'agents.profile.description_max_length'
+    );
+    const descriptionMinLength = getGuardValue(
+      'agents.profile.description_min_length'
+    );
     const groupMaxLength = getGuardValue('agents.profile.group_max_length');
     const groupMinLength = getGuardValue('agents.profile.group_min_length');
     const contextsMaxSize = getGuardValue('agents.profile.contexts_max_size');
@@ -203,20 +207,18 @@ export class AgentValidationService {
     const minSteps = getGuardValue('agents.graph.min_steps');
     const maxIterations = getGuardValue('agents.graph.max_iterations');
     const maxRetries = getGuardValue('agents.graph.max_retries');
-    const maxExecutionTimeout = getGuardValue('agents.graph.max_execution_timeout_ms');
+    const maxExecutionTimeout = getGuardValue(
+      'agents.graph.max_execution_timeout_ms'
+    );
     const maxTokenUsage = getGuardValue('agents.graph.max_token_usage');
 
     // Validate max_steps
     if (graph.max_steps) {
       if (graph.max_steps > maxSteps) {
-        throw new Error(
-          `Max steps too high. Maximum value: ${maxSteps}`
-        );
+        throw new Error(`Max steps too high. Maximum value: ${maxSteps}`);
       }
       if (graph.max_steps < minSteps) {
-        throw new Error(
-          `Max steps too low. Minimum value: ${minSteps}`
-        );
+        throw new Error(`Max steps too low. Minimum value: ${minSteps}`);
       }
     }
 
@@ -232,9 +234,7 @@ export class AgentValidationService {
     // Validate max_retries
     if (graph.max_retries) {
       if (graph.max_retries > maxRetries) {
-        throw new Error(
-          `Max retries too high. Maximum value: ${maxRetries}`
-        );
+        throw new Error(`Max retries too high. Maximum value: ${maxRetries}`);
       }
     }
 
@@ -269,10 +269,18 @@ export class AgentValidationService {
    */
   private validateModelConfig(model: any): void {
     // Load guard values once for performance
-    const providerMaxLength = getGuardValue('agents.graph.model.provider_max_length');
-    const providerMinLength = getGuardValue('agents.graph.model.provider_min_length');
-    const modelNameMaxLength = getGuardValue('agents.graph.model.model_name_max_length');
-    const modelNameMinLength = getGuardValue('agents.graph.model.model_name_min_length');
+    const providerMaxLength = getGuardValue(
+      'agents.graph.model.provider_max_length'
+    );
+    const providerMinLength = getGuardValue(
+      'agents.graph.model.provider_min_length'
+    );
+    const modelNameMaxLength = getGuardValue(
+      'agents.graph.model.model_name_max_length'
+    );
+    const modelNameMinLength = getGuardValue(
+      'agents.graph.model.model_name_min_length'
+    );
     const maxTemperature = getGuardValue('agents.graph.model.max_temperature');
     const maxTokens = getGuardValue('agents.graph.model.max_tokens');
 
@@ -316,9 +324,7 @@ export class AgentValidationService {
     // Validate max_tokens
     if (model.max_tokens) {
       if (model.max_tokens > maxTokens) {
-        throw new Error(
-          `Max tokens too high. Maximum value: ${maxTokens}`
-        );
+        throw new Error(`Max tokens too high. Maximum value: ${maxTokens}`);
       }
     }
   }
@@ -330,8 +336,12 @@ export class AgentValidationService {
    */
   private validateMemoryConfig(memory: any): void {
     // Load guard values once for performance
-    const strategyMaxLength = getGuardValue('agents.memory.strategy_max_lenght');
-    const strategyMinLength = getGuardValue('agents.memory.strategy_min_length');
+    const strategyMaxLength = getGuardValue(
+      'agents.memory.strategy_max_lenght'
+    );
+    const strategyMinLength = getGuardValue(
+      'agents.memory.strategy_min_length'
+    );
 
     // Validate size_limits
     if (memory.size_limits) {
@@ -376,11 +386,21 @@ export class AgentValidationService {
    */
   private validateMemorySizeLimits(sizeLimits: any): void {
     // Load guard values once for performance
-    const maxShortTermMemorySize = getGuardValue('agents.memory.size_limits.max_short_term_memory_size');
-    const maxInsertEpisodicSize = getGuardValue('agents.memory.size_limits.max_insert_episodic_size');
-    const maxInsertSemanticSize = getGuardValue('agents.memory.size_limits.max_insert_semantic_size');
-    const maxRetrieveMemorySize = getGuardValue('agents.memory.size_limits.max_retrieve_memory_size');
-    const maxLimitBeforeSummarization = getGuardValue('agents.memory.size_limits.max_limit_before_summarization');
+    const maxShortTermMemorySize = getGuardValue(
+      'agents.memory.size_limits.max_short_term_memory_size'
+    );
+    const maxInsertEpisodicSize = getGuardValue(
+      'agents.memory.size_limits.max_insert_episodic_size'
+    );
+    const maxInsertSemanticSize = getGuardValue(
+      'agents.memory.size_limits.max_insert_semantic_size'
+    );
+    const maxRetrieveMemorySize = getGuardValue(
+      'agents.memory.size_limits.max_retrieve_memory_size'
+    );
+    const maxLimitBeforeSummarization = getGuardValue(
+      'agents.memory.size_limits.max_limit_before_summarization'
+    );
 
     const limits = [
       { key: 'short_term_memory_size', max: maxShortTermMemorySize },
@@ -408,10 +428,18 @@ export class AgentValidationService {
    */
   private validateMemoryThresholds(thresholds: any): void {
     // Load guard values once for performance
-    const maxInsertSemanticThreshold = getGuardValue('agents.memory.thresholds.max_insert_semantic_threshold');
-    const maxInsertEpisodicThreshold = getGuardValue('agents.memory.thresholds.max_insert_episodic_threshold');
-    const maxRetrieveMemoryThreshold = getGuardValue('agents.memory.thresholds.max_retrieve_memory_threshold');
-    const maxHitlThreshold = getGuardValue('agents.memory.thresholds.max_hitl_threshold');
+    const maxInsertSemanticThreshold = getGuardValue(
+      'agents.memory.thresholds.max_insert_semantic_threshold'
+    );
+    const maxInsertEpisodicThreshold = getGuardValue(
+      'agents.memory.thresholds.max_insert_episodic_threshold'
+    );
+    const maxRetrieveMemoryThreshold = getGuardValue(
+      'agents.memory.thresholds.max_retrieve_memory_threshold'
+    );
+    const maxHitlThreshold = getGuardValue(
+      'agents.memory.thresholds.max_hitl_threshold'
+    );
 
     const thresholdKeys = [
       { key: 'insert_semantic_threshold', max: maxInsertSemanticThreshold },
@@ -438,8 +466,12 @@ export class AgentValidationService {
    */
   private validateMemoryTimeouts(timeouts: any): void {
     // Load guard values once for performance
-    const maxRetrieveMemoryTimeout = getGuardValue('agents.memory.timeouts.max_retrieve_memory_timeout_ms');
-    const maxInsertMemoryTimeout = getGuardValue('agents.memory.timeouts.max_insert_memory_timeout_ms');
+    const maxRetrieveMemoryTimeout = getGuardValue(
+      'agents.memory.timeouts.max_retrieve_memory_timeout_ms'
+    );
+    const maxInsertMemoryTimeout = getGuardValue(
+      'agents.memory.timeouts.max_insert_memory_timeout_ms'
+    );
 
     const timeoutKeys = [
       { key: 'retrieve_memory_timeout_ms', max: maxRetrieveMemoryTimeout },
@@ -469,9 +501,7 @@ export class AgentValidationService {
     // Validate top_k
     if (rag.top_k !== undefined) {
       if (rag.top_k > maxTopK) {
-        throw new Error(
-          `RAG top_k too high. Maximum value: ${maxTopK}`
-        );
+        throw new Error(`RAG top_k too high. Maximum value: ${maxTopK}`);
       }
     }
   }
@@ -551,7 +581,7 @@ export class AgentValidationService {
    */
   public validateIdentifiers(agent_config: any): void {
     const promptsIdMaxLength = getGuardValue('agents.prompts_id_max_length');
-    
+
     if (
       'chatId' in agent_config &&
       agent_config.chatId &&
@@ -585,9 +615,15 @@ export class AgentValidationService {
   private validateMCPServersConfig(mcpServers: Record<string, any>): void {
     // Load guard values once for performance
     const maxServers = getGuardValue('agents.mcp_servers.max_servers');
-    const maxServerNameLength = getGuardValue('agents.mcp_servers.max_server_name_length');
-    const minServerNameLength = getGuardValue('agents.mcp_servers.min_server_name_length');
-    const commandMaxLength = getGuardValue('agents.mcp_servers.command_max_length');
+    const maxServerNameLength = getGuardValue(
+      'agents.mcp_servers.max_server_name_length'
+    );
+    const minServerNameLength = getGuardValue(
+      'agents.mcp_servers.min_server_name_length'
+    );
+    const commandMaxLength = getGuardValue(
+      'agents.mcp_servers.command_max_length'
+    );
     const argsMaxSize = getGuardValue('agents.mcp_servers.args.max_size');
     const argsMaxLength = getGuardValue('agents.mcp_servers.args.max_length');
     const envMaxSize = getGuardValue('agents.mcp_servers.env.max_size');
@@ -595,9 +631,7 @@ export class AgentValidationService {
 
     const serverNames = Object.keys(mcpServers);
     if (serverNames.length > maxServers) {
-      throw new Error(
-        `Too many MCP servers. Maximum allowed: ${maxServers}`
-      );
+      throw new Error(`Too many MCP servers. Maximum allowed: ${maxServers}`);
     }
 
     for (const serverName of serverNames) {
