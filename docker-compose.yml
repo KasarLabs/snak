@@ -129,9 +129,15 @@ services:
       - "4180:4180"
       - "44180:44180"
   
-  dummy-frontend:
-    build:
-      context: ./keycloak/dummy-frontend
-    container_name: dummy-frontend
+  snak-bff:
+    image: ghcr.io/kasarlabs/snak-app/snak-bff:sha-105be74
+    ports:
+      - "3001:3001"
+    networks: [snaknet]
+  
+  snak-frontend:
+    image: ghcr.io/kasarlabs/snak-app/snak-frontend:sha-105be74
+    ports:
+      - "3000:3000"
     networks: [snaknet]
 

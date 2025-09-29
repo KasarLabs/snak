@@ -25,10 +25,17 @@ http:
       middlewares: [oauth-auth]
       tls: {}
 
+    bff:
+      rule: "Host(`mysnakagent.com`) && PathPrefix(`/bff`)"
+      entryPoints: [websecure]
+      service: snak-bff
+      middlewares: [strip-bff]
+      tls: {}
+
     frontend:
       rule: "Host(`mysnakagent.com`)"
       entryPoints: [websecure]
-      service: dummy-frontend
+      service: snak-frontend
       tls: {}
 
   services:
@@ -42,15 +49,20 @@ http:
         servers:
           - url: "http://oauth2-proxy:4180"
 
-    dummy-frontend:
-      loadBalancer:
-        servers:
-          - url: "http://dummy-frontend:8080"
-
     snak-api:
       loadBalancer:
         servers:
           - url: "http://snak-api:3002"
+        
+    snak-bff:
+      loadBalancer:
+        servers:
+          - url: "http://snak-bff:3001"
+    
+    snak-frontend:
+      loadBalancer:
+        servers:
+          - url: "http://snak-frontend:3000"
 
     deny-403:
       loadBalancer:
@@ -70,3 +82,7 @@ http:
           - X-Auth-Request-Email
           - Authorization
           - X-Auth-Request-Access-Token
+    strip-bff:
+      stripPrefix:
+        prefixes:
+          - /bff
