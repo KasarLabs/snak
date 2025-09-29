@@ -14,13 +14,13 @@ export class ApiKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     const apiKey = request.headers['x-api-key'] as string;
 
-    if (!apiKey) {
-      throw new UnauthorizedError('API key is missing');
-    }
+    // if (!apiKey) {
+    //   throw new UnauthorizedError('API key is missing');
+    // }
 
-    if (apiKey != this.config.apiKey) {
-      throw new UnauthorizedError('API key is not valid');
-    }
+    // if (apiKey != this.config.apiKey) {
+    //   throw new UnauthorizedError('API key is not valid');
+    // }
 
     return true;
   }
