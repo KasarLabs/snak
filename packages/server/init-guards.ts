@@ -1,4 +1,4 @@
-import { initializeGuards } from '@snakagent/core';
+import { initializeGuards, logger } from '@snakagent/core';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
@@ -15,11 +15,11 @@ try {
   );
 
   initializeGuards(guardsConfigPath);
-  console.log(
+  logger.info(
     '[EARLY-INIT] Guards initialized successfully before all imports'
   );
 } catch (error) {
-  console.error(
+  logger.error(
     '[EARLY-INIT] CRITICAL: Failed to initialize Guards early:',
     error
   );

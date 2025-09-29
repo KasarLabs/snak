@@ -160,10 +160,12 @@ export const ltmSchema = z
   .object({
     episodic: z
       .array(episodicEventSchema)
+      .max(getGuardValue('memory.ltm.max_episodic_event_size'))
       .default([])
       .describe('Events and experiences with confidence scoring'),
     semantic: z
       .array(semanticFactSchema)
+      .max(getGuardValue('memory.ltm.max_semantic_fact_size'))
       .default([])
       .describe('Facts and knowledge learned with confidence scoring'),
   })
