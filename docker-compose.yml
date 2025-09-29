@@ -75,6 +75,7 @@ services:
       - --entrypoints.websecure.address=:443
       - --providers.file.directory=/etc/traefik/dynamic
       - --api.dashboard=true
+      - --log.level="DEBUG"
     ports:
       - "443:443"
       - "8081:8080" # dashboard

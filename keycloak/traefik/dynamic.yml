@@ -18,17 +18,17 @@ http:
       service: oauth2-proxy
       tls: {}
 
-    frontend:
-      rule: "Host(`mysnakagent.com`) && PathPrefix(`/`)"
-      entryPoints: [websecure]
-      service: dummy-frontend
-      tls: {}
-
     backend:
       rule: "Host(`mysnakagent.com`) && PathPrefix(`/api`)"
       entryPoints: [websecure]
       service: snak-api
       middlewares: [oauth-auth]
+      tls: {}
+
+    frontend:
+      rule: "Host(`mysnakagent.com`)"
+      entryPoints: [websecure]
+      service: dummy-frontend
       tls: {}
 
   services:
@@ -46,11 +46,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://dummy-frontend:8080"
-
-    # dummy-backend:
-    #   loadBalancer:
-    #     servers:
-    #       - url: "http://dummy-backend:8081"
 
     snak-api:
       loadBalancer:
@@ -70,8 +65,6 @@ http:
         authRequestHeaders:
           - Cookie
           - Authorization
-          - Upgrade
-          - Connection
         authResponseHeaders:
           - X-Auth-Request-User
           - X-Auth-Request-Email
