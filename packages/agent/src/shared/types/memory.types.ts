@@ -206,8 +206,7 @@ export const retrieveMemoryFromContentSchema = z
       .describe('Number of top relevant memories to retrieve.'),
     threshold: z
       .number()
-      .min(getGuardValue('memory.retrieve.threshold.min'))
-      .max(getGuardValue('memory.retrieve.threshold.max'))
+      .max(getGuardValue('memory.retrieve.max_threshold'))
       .default(0.75)
       .describe(
         'Similarity threshold (0 to 1) for filtering relevant memories.'
@@ -228,8 +227,7 @@ export const retrieveMemoryFromStepId = z
       ),
     limit: z
       .number()
-      .min(getGuardValue('memory.retrieve.limit.min'))
-      .max(getGuardValue('memory.retrieve.limit.max'))
+      .max(getGuardValue('memory.retrieve.max_limit'))
       .default(10)
       .describe('Maximum number of memories to retrieve.'),
   })
@@ -247,8 +245,7 @@ export const retrieveMemoryFromTaskId = z
       ),
     limit: z
       .number()
-      .min(getGuardValue('memory.retrieve.limit.min'))
-      .max(getGuardValue('memory.retrieve.limit.max'))
+      .max(getGuardValue('memory.retrieve.max_limit'))
       .default(10)
       .describe('Maximum number of memories to retrieve.'),
   })

@@ -280,12 +280,14 @@ export function getMcpAgentTools(): DynamicStructuredTool[] {
           .describe('The ID of the agent to install the MCP server for'),
         qualifiedName: z
           .string()
+          .trim()
           .max(getGuardValue('mcp.max_qualified_name_length'))
           .describe(
             'The Smithery qualified name of the MCP server (from search results)'
           ),
         serverName: z
           .string()
+          .trim()
           .max(getGuardValue('mcp.max_server_name_length'))
           .optional()
           .describe('Custom name for the server (defaults to qualified name)'),
