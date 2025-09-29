@@ -32,6 +32,8 @@ import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { notify } from '@snakagent/database/queries';
+import { fa } from 'zod/v4/locales';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -369,15 +371,15 @@ export class SnakAgent extends BaseAgent {
   private isInterrupt(stateSnapshot: StateSnapshot): boolean {
     if (
       stateSnapshot.tasks?.length > 0 &&
-      stateSnapshot.tasks[0].interrupts?.length > 0
+      stateSnapshot.tasks[0]?.interrupts?.length > 0
     ) {
       console.log('Graph is interrupted');
       const interrupt = stateSnapshot.tasks[0].interrupts[0];
-      console.log('Interrupt value:', interrupt.value);
-      console.log('Id:', interrupt.id);
-      return false;
+      console.log('Interrupt value:', interrupt?.value);
+      console.log('Id:', interrupt?.id);
+      return true;
     }
-    return true;
+    return false;
   }
 
   private getInterruptCommand(request: string): Command {
@@ -397,6 +399,11 @@ export class SnakAgent extends BaseAgent {
     isInterrupted: boolean = false
   ): AsyncGenerator<ChunkOutput> {
     try {
+      let lastChunk;
+      let retryCount: number = 0;
+      let currentCheckpointId: string | undefined = undefined;
+      let graphError: GraphErrorType | null = null;
+      let stateSnapshot: StateSnapshot;
       logger.info(
         `[SnakAgent]  Starting autonomous execution for agent : ${this.agentConfig.profile.name}`
       );
@@ -407,8 +414,6 @@ export class SnakAgent extends BaseAgent {
       const initialMessages: BaseMessage[] = [
         new HumanMessage(request.request),
       ];
-
-      this.compiledGraph;
       const threadId = this.agentConfig.id;
       const configurable: GraphConfigurableType = {
         thread_id: threadId,
@@ -420,14 +425,10 @@ export class SnakAgent extends BaseAgent {
         },
         agent_config: this.agentConfig,
       };
-      logger.info(`[SnakAgent]  Autonomous execution thread ID: ${threadId}`);
       const threadConfig = {
         configurable: configurable,
       };
-      let lastChunk;
-      let retryCount: number = 0;
-      let currentCheckpointId: string | undefined = undefined;
-      let graphError: GraphErrorType | null = null;
+      logger.info(`[SnakAgent]  Autonomous execution thread ID: ${threadId}`);
       try {
         const executionConfig = {
           ...threadConfig,
@@ -436,14 +437,14 @@ export class SnakAgent extends BaseAgent {
           version: 'v2' as const,
         };
 
-        let state = await this.compiledGraph.getState(executionConfig);
-        if (!state) {
+        stateSnapshot = await this.compiledGraph.getState(executionConfig);
+        if (!stateSnapshot) {
           throw new Error('Failed to retrieve initial graph state');
         }
         // WE NEED TO KNOW IF IT WAS INTERRUPTED TO PASS THE SAME INPUT AGAIN
-        const executionInput = this.isInterrupt(state)
-          ? { messages: initialMessages }
-          : this.getInterruptCommand(request.request);
+        const executionInput = this.isInterrupt(stateSnapshot)
+          ? this.getInterruptCommand(request.request)
+          : { messages: initialMessages };
         logger.debug(
           `[SnakAgent]  Initial state retrieved, starting graph execution`
         );
@@ -451,15 +452,34 @@ export class SnakAgent extends BaseAgent {
           executionInput ?? { messages: [] },
           executionConfig
         )) {
+          // Setter
           lastChunk = chunk;
-          retryCount = state.values.retry;
-          currentCheckpointId = state.config.configurable?.checkpoint_id;
-          graphError = state.config.configurable?.error;
+          retryCount = stateSnapshot.values.retry;
+          currentCheckpointId =
+            stateSnapshot.config.configurable?.checkpoint_id;
+          graphError = stateSnapshot.config.configurable?.error;
 
+          stateSnapshot = await this.compiledGraph.getState(executionConfig);
+          if (!stateSnapshot) {
+            throw new Error('Failed to retrieve graph state during execution');
+          }
+
+          // Notify creation if interrupted
+          if (
+            chunk.event === 'on_chain_end' &&
+            this.isInterrupt(stateSnapshot)
+          ) {
+            console.log('Graph interrupted for human input');
+            await notify.insertNotify(
+              this.agentConfig.user_id,
+              this.agentConfig.id,
+              stateSnapshot.tasks[0].interrupts[0].value
+            );
+          }
           // Process chunk using the centralized handler
           const processedChunk = this.processChunkOutput(
             chunk,
-            state,
+            stateSnapshot,
             retryCount,
             graphError
           );

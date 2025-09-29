@@ -8,6 +8,7 @@ import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
 import {
   estimateTokens,
   GenerateToolCallsFromMessage,
+  getCurrentTask,
   handleNodeError,
   hasReachedMaxSteps,
   isValidConfiguration,
@@ -49,8 +50,6 @@ import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
-import { TokenTracker } from '@lib/token/token-tracking.js';
-import { cat } from '@huggingface/transformers';
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig.Runtime;
@@ -227,6 +226,31 @@ export class AgentExecutorGraph {
               args: call.args,
               status: 'pending',
             });
+          }
+
+          if (call.name === 'ask_human') {
+            logger.info(
+              `[Executor] Human input requested, routing to HUMAN node`
+            );
+            currentTask.steps.push({
+              id: stepId,
+              type: 'human',
+              thought: thought!,
+              tool: tools,
+            });
+            state.tasks[state.tasks.length - 1] = currentTask;
+            aiMessage.additional_kwargs = {
+              from: TaskExecutorNode.REASONING_EXECUTOR,
+              final: false,
+            };
+            return {
+              messages: [aiMessage],
+              last_node: TaskExecutorNode.REASONING_EXECUTOR,
+              currentGraphStep: state.currentGraphStep + 1,
+              memories: state.memories,
+              task: state.tasks,
+              error: null,
+            };
           }
           if (call.name === 'end_task') {
             isEnd = true;
@@ -479,26 +503,46 @@ export class AgentExecutorGraph {
   public async humanNode(state: typeof GraphState.State): Promise<{
     messages: BaseMessage[];
     last_node: TaskExecutorNode;
+    tasks: TaskType[];
     currentGraphStep?: number;
   }> {
-    logger.info(`[Human] Awaiting human input for: `);
-    const input = interrupt('input_content');
+    const currentTask = state.tasks[state.tasks.length - 1];
+    if (!currentTask) {
+      throw new Error('Current task is undefined');
+    }
+    const currentStep = currentTask.steps[currentTask.steps.length - 1];
+    if (currentStep.type !== 'human') {
+      throw new Error('Current step is not a human step');
+    }
+    logger.info(
+      `[Human] Awaiting human input for: ${currentStep.thought.speak}`
+    );
+
+    const h_input = interrupt(currentStep.thought.speak);
     const message = new AIMessageChunk({
-      content: input,
+      content: h_input,
       additional_kwargs: {
         from: TaskExecutorNode.HUMAN,
         final: false,
       },
     });
-
+    currentStep.tool.forEach((t: ToolCallType) => {
+      if (t.name === 'ask_human') {
+        t.status = 'completed';
+        t.result = h_input;
+      }
+    });
+    currentTask.steps[currentTask.steps.length - 1] = currentStep;
+    state.tasks[state.tasks.length - 1] = currentTask;
     return {
       messages: [message],
       last_node: TaskExecutorNode.HUMAN,
+      tasks: state.tasks,
       currentGraphStep: state.currentGraphStep + 1,
     };
   }
 
-  private shouldContinue(
+  private executor_router(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): TaskExecutorNode {
@@ -511,6 +555,11 @@ export class AgentExecutorGraph {
     }
     if (state.last_node === TaskExecutorNode.REASONING_EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
+      const currentTask = getCurrentTask(state.tasks);
+      if (!currentTask) {
+        logger.error('[Router] Current task is undefined, routing to END node');
+        return TaskExecutorNode.END_GRAPH;
+      }
       if (state.error && state.error.hasError) {
         if (state.error.type === GraphErrorTypeEnum.BLOCKED_TASK) {
           logger.warn(`[Router] Blocked task detected, routing to END node`);
@@ -528,6 +577,12 @@ export class AgentExecutorGraph {
           lastAiMessage instanceof AIMessage) &&
         lastAiMessage.tool_calls?.length
       ) {
+        if (currentTask.steps[currentTask.steps.length - 1].type === 'human') {
+          logger.info(
+            `[Router] Resuming from human input, routing to reasoning node`
+          );
+          return TaskExecutorNode.HUMAN;
+        }
         logger.debug(
           `[Router] Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
         );
@@ -543,21 +598,19 @@ export class AgentExecutorGraph {
       } else {
         return TaskExecutorNode.END;
       }
+    } else if (state.last_node === TaskExecutorNode.HUMAN) {
+      logger.debug(
+        `[Router] No tool calls detected after human input, routing to reasoning node`
+      );
+      return TaskExecutorNode.REASONING_EXECUTOR;
     }
+    logger.debug(`[Router] Default routing to END node`);
     return TaskExecutorNode.END;
   }
 
   public getExecutorGraph() {
     return this.graph;
   }
-
-  private executor_router(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): TaskExecutorNode {
-    return this.shouldContinue(state, config);
-  }
-
   public createAgentExecutorGraph() {
     const tool_executor = this.createToolNode();
 

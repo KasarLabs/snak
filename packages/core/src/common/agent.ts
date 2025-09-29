@@ -141,7 +141,6 @@ export namespace AgentConfig {
   interface Base {
     profile: AgentProfile;
     mcp_servers: Record<string, any>;
-    plugins: string[];
     memory: MemoryConfig;
     rag: RAGConfig;
   }

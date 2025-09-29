@@ -35,6 +35,7 @@ import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
+import { notify } from '@snakagent/database/queries';
 
 export interface SupervisorRequestDTO {
   request: {
@@ -567,5 +568,27 @@ export class AgentsController {
       data: 'Agent is healthy',
     };
     return response;
+  }
+
+  @Get('notify')
+  async getNotify(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    const result = await notify.getUserNotifications(userId); // TODO: Implement notification logic
+    return ResponseFormatter.success({
+      status: 'Notification endpoint',
+      data: result,
+    });
+  }
+
+  @Post('mark_notify_as_read')
+  async markNotifyAsRead(
+    @Body() body: { notify_id: string },
+    @Req() req: FastifyRequest
+  ): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    await notify.markAsRead(body.notify_id, userId);
+    return ResponseFormatter.success({
+      status: 'Notification marked as read',
+    });
   }
 }

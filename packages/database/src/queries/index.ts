@@ -5,5 +5,5 @@ import { iterations } from './iterations/queries.js';
 import { contract } from './contract/queries.js';
 import { rag } from './rag/queries.js';
 import { Postgres } from '../database.js';
-
-export { scarb, chat, memory, iterations, contract, rag, Postgres };
+import { notify } from './notify/queries.js';
+export { scarb, chat, memory, iterations, contract, rag, Postgres, notify };
