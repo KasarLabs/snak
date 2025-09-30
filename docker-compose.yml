@@ -130,13 +130,13 @@ services:
       - "44180:44180"
   
   snak-bff:
-    image: ghcr.io/kasarlabs/snak-app/snak-bff:sha-105be74
+    image: ghcr.io/kasarlabs/snak-app/snak-bff:sha-93469bd
     ports:
       - "3001:3001"
     networks: [snaknet]
   
   snak-frontend:
-    image: ghcr.io/kasarlabs/snak-app/snak-frontend:sha-105be74
+    image: ghcr.io/kasarlabs/snak-app/snak-frontend:sha-93469bd
     ports:
       - "3000:3000"
     networks: [snaknet]
