@@ -104,7 +104,9 @@ export class AgentsController {
         false
       );
     } catch (validationError) {
-      throw new UnprocessableEntityException(`Validation failed: ${validationError.message}`);
+      throw new UnprocessableEntityException(
+        `Validation failed: ${validationError.message}`
+      );
     }
 
     const agent = this.agentFactory.getAgentInstance(id, userId);
@@ -141,11 +143,13 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     logger.info('update_agent_config called');
     const userId = ControllerHelpers.getUserId(req);
-    
+
     try {
       await this.agentFactory.validateAgent(config, false);
     } catch (validationError) {
-      throw new UnprocessableEntityException(`Validation failed: ${validationError.message}`);
+      throw new UnprocessableEntityException(
+        `Validation failed: ${validationError.message}`
+      );
     }
 
     if (!config || typeof config !== 'object') {
