@@ -1,6 +1,7 @@
 // packages/server/src/agents.controller.ts
 import {
   BadRequestException,
+  UnprocessableEntityException,
   Body,
   Controller,
   Get,
@@ -93,14 +94,18 @@ export class AgentsController {
       throw new BadRequestException('MCP servers must be an object');
     }
 
-    await this.agentFactory.validateAgent(
-      {
-        id: id,
-        user_id: userId,
-        mcp_servers: mcp_servers,
-      },
-      false
-    );
+    try {
+      await this.agentFactory.validateAgent(
+        {
+          id: id,
+          user_id: userId,
+          mcp_servers: mcp_servers,
+        },
+        false
+      );
+    } catch (validationError) {
+      throw new UnprocessableEntityException(`Validation failed: ${validationError.message}`);
+    }
 
     const agent = this.agentFactory.getAgentInstance(id, userId);
     if (!agent) {
@@ -136,7 +141,12 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     logger.info('update_agent_config called');
     const userId = ControllerHelpers.getUserId(req);
-    await this.agentFactory.validateAgent(config, false);
+    
+    try {
+      await this.agentFactory.validateAgent(config, false);
+    } catch (validationError) {
+      throw new UnprocessableEntityException(`Validation failed: ${validationError.message}`);
+    }
 
     if (!config || typeof config !== 'object') {
       throw new BadRequestException('Configuration object is required');
