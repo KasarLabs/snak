@@ -2,6 +2,7 @@ import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import { ServerError } from '../utils/error.js';
 import { ErrorHandler, ResponseFormatter } from '../utils/error-handler.js';
+import { SupervisorService } from '../services/supervisor.service.js';
 import { ControllerHelpers } from '../utils/controller-helpers.js';
 import {
   MessageBody,
@@ -35,7 +36,8 @@ import { AgentResponse } from '@snakagent/core';
 export class MyGateway {
   constructor(
     private readonly agentService: AgentService,
-    private readonly agentFactory: AgentStorage
+    private readonly agentFactory: AgentStorage,
+    private readonly supervisorService: SupervisorService
   ) {
     logger.info('Gateway initialized');
   }
@@ -144,6 +146,12 @@ export class MyGateway {
             userRequest.agent_id
           );
 
+        // Check if the agent is a supervisor agent
+        await this.supervisorService.validateNotSupervisorForModification(
+          userRequest.agent_id,
+          userId
+        );
+
         agent.stop();
         const response: AgentResponse = ResponseFormatter.success(
           `Agent ${userRequest.agent_id} stopped`
@@ -167,6 +175,10 @@ export class MyGateway {
         logger.info('init_agent called');
 
         const userId = ControllerHelpers.getUserIdFromSocket(client);
+
+        // Validate that the agent is not a supervisor agent
+        this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
+
         await this.agentFactory.addAgent(userRequest.agent, userId);
         const response: AgentResponse = ResponseFormatter.success(
           `Agent ${userRequest.agent.profile.name} added`
@@ -194,6 +206,12 @@ export class MyGateway {
             this.agentFactory,
             userRequest.agent_id
           );
+
+        // Check if the agent is a supervisor agent
+        await this.supervisorService.validateNotSupervisorForDeletion(
+          userRequest.agent_id,
+          userId
+        );
 
         await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 

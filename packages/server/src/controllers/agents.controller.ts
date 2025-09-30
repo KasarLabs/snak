@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
+import { SupervisorService } from '../services/supervisor.service.js';
 import { Reflector } from '@nestjs/core';
 import { ServerError } from '../utils/error.js';
 import {
@@ -30,6 +31,7 @@ import {
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
   MessageRequest,
+  MemoryStrategy,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
@@ -66,7 +68,8 @@ export class AgentsController {
   constructor(
     private readonly agentService: AgentService,
     private readonly agentFactory: AgentStorage,
-    private readonly reflector: Reflector
+    private readonly reflector: Reflector,
+    private readonly supervisorService: SupervisorService
   ) {}
 
   /**
@@ -87,6 +90,11 @@ export class AgentsController {
     if (!id) {
       throw new BadRequestException('Agent ID is required');
     }
+
+    await this.supervisorService.validateNotSupervisorForModification(
+      id,
+      userId
+    );
 
     if (!mcp_servers || typeof mcp_servers !== 'object') {
       throw new BadRequestException('MCP servers must be an object');
@@ -133,6 +141,15 @@ export class AgentsController {
     if (!id) {
       throw new BadRequestException('Agent ID is required');
     }
+
+    // Check if the agent is a supervisor agent
+    await this.supervisorService.validateNotSupervisorForModification(
+      id,
+      userId
+    );
+
+    // Validate that the updated configuration is not a supervisor agent
+    this.supervisorService.validateNotSupervisorAgent(config);
     try {
       // Use the existing update_agent_complete function
       const query = `
@@ -358,6 +375,9 @@ export class AgentsController {
     logger.info('init_agent called');
     const userId = ControllerHelpers.getUserId(req);
 
+    // Validate that the agent is not a supervisor agent
+    this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
+
     const newAgentConfig = await this.agentFactory.addAgent(
       userRequest.agent,
       userId
@@ -368,6 +388,112 @@ export class AgentsController {
     return ResponseFormatter.success(
       `Agent ${newAgentConfig.profile.name} added and registered with supervisor`
     );
+  }
+
+  /**
+   * Initialize supervisor agent
+   * Creates a unique supervisor agent for the user if it doesn't exist
+   * @param req - Fastify request object
+   * @returns Promise<AgentResponse> - Response with supervisor agent creation status
+   */
+  @Post('init_supervisor')
+  @HandleErrors('E07TA100')
+  async initSupervisor(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+
+    // Check if user already has a supervisor agent
+    const existingSupervisorQuery = new Postgres.Query(
+      `SELECT id, (profile).name FROM agents 
+         WHERE user_id = $1 AND (profile)."group" = 'system'`,
+      [userId]
+    );
+
+    const existingSupervisor = await Postgres.query(existingSupervisorQuery);
+
+    if (existingSupervisor.length > 0) {
+      return ResponseFormatter.success({
+        message: 'Supervisor agent already exists for this user',
+        agent_id: existingSupervisor[0].id,
+        agent_name: existingSupervisor[0].name,
+        is_new: false,
+      });
+    }
+
+    const randomNumber = Math.floor(Math.random() * 900000) + 100000;
+
+    const supervisorConfig = {
+      profile: {
+        name: `Supervisor Agent ${randomNumber}`,
+        group: 'system',
+        description:
+          'I coordinate the execution of specialized agents in the system, routing requests to the most appropriate agent based on query content and agent capabilities.',
+        contexts: [
+          'I was designed to be lightweight and efficient, focusing solely on agent orchestration.',
+          'My purpose is to analyze user requests and determine which specialized agent is best suited to handle them.',
+          'I understand the capabilities and specializations of each agent in the system',
+          'I know how to analyze requests to identify the subject matter and required expertise',
+          'For agent configuration requests, I delegate to my configuration toolset: use create_agent, read_agent, update_agent, delete_agent, or list_agents as appropriate.',
+          'Always confirm before destructive actions and surface tool outcomes clearly to the user.',
+          'Analyze incoming user requests and determine the most appropriate agent to handle them',
+          'Route requests efficiently between specialized agents',
+          'Ensure a coherent user experience across multiple agent interactions',
+          'Maintain minimal overhead in the multi-agent system',
+        ],
+      },
+      mcp_servers: {},
+      plugins: [],
+      graph: {
+        max_steps: 200,
+        max_iterations: 15,
+        max_retries: 3,
+        execution_timeout_ms: 300000,
+        max_token_usage: 100000,
+        model: {
+          provider: 'openai',
+          model_name: 'gpt-4o',
+          temperature: 0.7,
+          max_tokens: 4096,
+        },
+      },
+      memory: {
+        ltm_enabled: false,
+        size_limits: {
+          short_term_memory_size: 10,
+          max_insert_episodic_size: 20,
+          max_insert_semantic_size: 20,
+          max_retrieve_memory_size: 20,
+          limit_before_summarization: 10000,
+        },
+        thresholds: {
+          insert_semantic_threshold: 0.7,
+          insert_episodic_threshold: 0.6,
+          retrieve_memory_threshold: 0.5,
+          hitl_threshold: 0.7,
+        },
+        timeouts: {
+          retrieve_memory_timeout_ms: 20000,
+          insert_memory_timeout_ms: 10000,
+        },
+        strategy: MemoryStrategy.HOLISTIC,
+      },
+      rag: {
+        enabled: false,
+      },
+    };
+
+    const newAgentConfig = await this.agentFactory.addAgent(
+      supervisorConfig,
+      userId
+    );
+
+    metrics.agentConnect();
+
+    return ResponseFormatter.success({
+      message: 'Supervisor agent created successfully for user account',
+      agent_id: newAgentConfig.id,
+      agent_name: newAgentConfig.profile.name,
+      is_new: true,
+    });
   }
 
   /**
@@ -413,6 +539,12 @@ export class AgentsController {
       userRequest.agent_id
     );
 
+    // Check if the agent is a supervisor agent
+    await this.supervisorService.validateNotSupervisorForDeletion(
+      userRequest.agent_id,
+      userId
+    );
+
     await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
     metrics.agentDisconnect();
 
@@ -443,6 +575,22 @@ export class AgentsController {
           agentId,
           userId
         );
+
+        // Check if the agent is a supervisor agent
+        try {
+          await this.supervisorService.validateNotSupervisorForDeletion(
+            agentId,
+            userId
+          );
+        } catch (error) {
+          responses.push(
+            ResponseFormatter.failure(
+              `Cannot delete supervisor agent ${agentId}. Supervisor agents are managed by the system.`
+            )
+          );
+          continue;
+        }
+
         await this.agentFactory.deleteAgent(agentId, userId);
 
         responses.push(
