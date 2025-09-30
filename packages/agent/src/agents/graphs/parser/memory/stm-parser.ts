@@ -9,38 +9,6 @@ import { STMManager } from '@lib/memory/index.js';
 import { logger } from '@snakagent/core';
 import { STMContext } from '@stypes/memory.types.js';
 
-export function stm_format_for_history(stm: STMContext): string {
-  try {
-    const allMessages = [];
-    for (let i = 0; i < stm.maxSize; i++) {
-      const index = (stm.head + i) % stm.maxSize;
-      if (stm.items[index] === null || stm.items[index] === undefined) {
-        continue;
-      }
-      for (let y = 0; y < stm.items[index].message.length; y++) {
-        let msg = stm.items[index]?.message[y];
-        if (
-          msg === undefined ||
-          (msg instanceof ToolMessage && msg.name === 'response_task')
-        ) {
-          continue;
-        }
-        const separator = msg instanceof AIMessage ? 'Ai' : 'Tool';
-
-        let content;
-        if (typeof msg === 'object') {
-          content = JSON.stringify(msg, null, 4);
-        }
-        allMessages.push(`<${separator}>\n${content}\n</${separator}>`);
-      }
-    }
-
-    return allMessages.join('\n\n');
-  } catch (error) {
-    throw new Error('Error formatting STM context: ' + error);
-  }
-}
-
 function formatAiMessagetoXML(
   message: AIMessage | AIMessageChunk,
   indent: number = 0
@@ -102,7 +70,7 @@ function formatToolMessagetoXML(
 ): string {
   const result_formated: string[] = [];
   const baseIndent = '  '.repeat(indent);
-
+  console.log('Formatting ToolMessage to XML:', message);
   result_formated.push(
     `${baseIndent}<message type="tool_response" id="${message.tool_call_id}">`
   );
@@ -153,10 +121,20 @@ function formatBaseMessageToXML(
   indent: number = 0
 ): string {
   try {
+    console.log('Formatting BaseMessage to XML:');
+    console.log('Message constructor:', message.constructor.name);
+    console.log('Is AIMessageChunk:', message instanceof AIMessageChunk);
+    console.log('Is AIMessage:', message instanceof AIMessage);
+    console.log('Is ToolMessage:', message instanceof ToolMessage);
+    console.log('Is HumanMessage:', message instanceof HumanMessage);
+
     if (message instanceof AIMessageChunk || message instanceof AIMessage) {
       return formatAiMessagetoXML(message, indent);
-    } else if (message instanceof ToolMessage) {
-      return formatToolMessagetoXML(message, indent);
+    } else if (
+      message instanceof ToolMessage ||
+      message.constructor.name === 'ToolMessage'
+    ) {
+      return formatToolMessagetoXML(message as ToolMessage, indent);
     } else if (message instanceof HumanMessage) {
       return formatHumanMessagetoXML(message, indent);
     }

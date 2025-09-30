@@ -100,6 +100,7 @@ export function tasks_parser(
     throw error;
   }
 }
+
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
 ): string => {
@@ -201,7 +202,7 @@ export class TaskManagerGraph {
           : '',
         rag_content: '', // RAG content can be added here if available
         hitl_constraints: getHITLContraintFromTreshold(
-          config.configurable!.user_request?.hitl_threshold ?? 0
+          config.configurable?.user_request?.hitl_threshold ?? 0
         ),
         tools: parseToolsToJson(this.toolsList),
       });

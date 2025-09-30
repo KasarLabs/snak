@@ -54,11 +54,6 @@ interface UpdateAgentMcpDTO {
   mcp_servers: Record<string, any>;
 }
 
-interface AgentMcpResponseDTO {
-  id: string;
-  mcpServers: Record<string, any>;
-}
-
 /**
  * Controller for handling agent-related operations
  */
@@ -104,7 +99,7 @@ export class AgentsController {
       [mcp_servers, id, userId]
     );
 
-    const result = await Postgres.query<AgentMcpResponseDTO>(q);
+    const result = await Postgres.query<UpdateAgentMcpDTO>(q);
 
     if (result.length === 0) {
       throw new BadRequestException('Agent not found');
@@ -113,7 +108,7 @@ export class AgentsController {
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
-      mcpServers: updatedAgent.mcpServers,
+      mcpServers: updatedAgent.mcp_servers,
     });
   }
 
@@ -185,7 +180,7 @@ export class AgentsController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-
+      
       throw new BadRequestException(`Update failed: ${error.message}`);
     }
   }
@@ -461,7 +456,7 @@ export class AgentsController {
    * @param userRequest - Request containing agent ID
    * @returns Promise<AgentResponse> - Response with messages from all agents
    */
-  @Post(' ')
+  @Post('get_messages_from_agents')
   @HandleErrors('E04TA100')
   async getMessageFromAgentsId(
     @Body() userRequest: getMessagesFromAgentsDTO,

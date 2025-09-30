@@ -19,7 +19,6 @@ import {
   isValidConfiguration,
   isValidConfigurationType,
 } from '../utils/graph.utils.js';
-import { stm_format_for_history } from '../parser/memory/stm-parser.js';
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
@@ -32,6 +31,7 @@ import {
   TaskVerificationSchemaType,
 } from '@schemas/graph.schemas.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
+import { formatSTMToXML } from '../parser/memory/stm-parser.js';
 // Task verification schema
 
 export class TaskVerifierGraph {
@@ -102,7 +102,7 @@ export class TaskVerifierGraph {
         ['user', TASK_VERIFICATION_CONTEXT_PROMPT],
       ]);
 
-      const executedSteps = stm_format_for_history(state.memories.stm);
+      const executedSteps = formatSTMToXML(state.memories.stm);
 
       logger.info('[TaskVerifier] Starting task completion verification');
       const formattedPrompt = await prompt.formatMessages({

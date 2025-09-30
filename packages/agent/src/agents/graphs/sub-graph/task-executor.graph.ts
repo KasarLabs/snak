@@ -423,35 +423,40 @@ export class AgentExecutorGraph {
 
       const executionTime = Date.now() - startTime;
       logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
-      tools.messages.forEach(async (tool) => {
-        if (
-          config.configurable?.agent_config?.memory.size_limits
-            .limit_before_summarization &&
-          estimateTokens(tool.content.toLocaleString()) >=
+      await Promise.all(
+        tools.messages.map(async (tool) => {
+          logger.info(tool instanceof ToolMessage);
+          if (
             config.configurable?.agent_config?.memory.size_limits
-              .limit_before_summarization
-        ) {
-          const summarize_content = await STMManager.summarize_before_inserting(
-            tool.content.toLocaleString(),
-            this.model
-          );
-          tool.content = summarize_content.message.content;
-        }
-        currentTask.steps[currentTask.steps.length - 1].tool.forEach(
-          (t: ToolCallType) => {
-            console.log(t);
-            console.log(tool);
-            if (t.id === tool.tool_call_id) {
-              t.status = 'completed';
-              t.result = tool.content.toLocaleString();
-            }
+              .limit_before_summarization &&
+            estimateTokens(tool.content.toLocaleString()) >=
+              config.configurable?.agent_config?.memory.size_limits
+                .limit_before_summarization
+          ) {
+            const summarize_content =
+              await STMManager.summarize_before_inserting(
+                tool.content.toLocaleString(),
+                this.model
+              );
+            tool.content = summarize_content.message.content.toLocaleString();
+            logger.info(tool instanceof ToolMessage);
           }
-        );
-        tool.additional_kwargs = {
-          from: 'tools',
-          final: false,
-        };
-      });
+
+          currentTask.steps[currentTask.steps.length - 1].tool.forEach(
+            (t: ToolCallType) => {
+              if (t.id === tool.tool_call_id) {
+                t.status = 'completed';
+                t.result = tool.content.toLocaleString();
+              }
+            }
+          );
+
+          tool.additional_kwargs = {
+            from: 'tools',
+            final: false,
+          };
+        })
+      );
 
       const newMemories = STMManager.updateMessageRecentMemory(
         state.memories.stm,
@@ -463,8 +468,9 @@ export class AgentExecutorGraph {
         );
       }
       state.memories.stm = newMemories.data;
+      console.log(tools.messages);
       return {
-        ...tools,
+        messages: tools.messages,
         task: state.tasks,
         last_node: TaskExecutorNode.TOOL_EXECUTOR,
         memories: state.memories,
