@@ -22,7 +22,6 @@ import { AgentConfig, logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import {
   TaskManagerNode,
-  ExecutionMode,
   TaskExecutorNode,
 } from '../../../shared/enums/agent.enum.js';
 import {
@@ -40,23 +39,62 @@ import {
   TASK_MANAGER_MEMORY_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
-import {
-  TaskManagerToolRegistry,
-  TaskManagerToolRegistryInstance,
-} from '../tools/task-manager.tools.js';
+import { TaskManagerToolRegistryInstance } from '../tools/task-manager.tools.js';
 
-export function tasks_parser(tasks: TaskType[]): string {
+export function tasks_parser(
+  tasks: TaskType[],
+  isHumanTask: boolean = false
+): string {
   try {
     if (!tasks || tasks.length === 0) {
-      return 'No tasks available.';
+      return '<tasks-history>\n  <!-- No tasks available -->\n</tasks-history>';
     }
-    const formattedTasks = tasks.map((task) => {
-      if (task.task) {
-        return `task_id : ${task.id}\n task : ${task.task.directive}\n status : ${task.status}\n verificiation_result : ${task.task_verification}\n`;
+
+    // Filter tasks based on isHumanTask parameter
+    let filteredTasks = tasks;
+    if (isHumanTask) {
+      // For human tasks, only include tasks that have human steps or human responses
+      filteredTasks = tasks.filter(
+        (task) =>
+          task.isHumanTask ||
+          task.human ||
+          (task.steps && task.steps.some((step) => step.type === 'human'))
+      );
+    }
+
+    const formattedTasks: string[] = [];
+    formattedTasks.push('<tasks-history>');
+
+    filteredTasks.forEach((task) => {
+      const escapeXML = (str: string) => {
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&apos;');
+      };
+
+      formattedTasks.push(
+        `  <task name="${task.task?.directive}" id="${task.id}"">`
+      );
+      formattedTasks.push(`    <status>${escapeXML(task.status)}</status>`);
+      if (task.task_verification) {
+        formattedTasks.push(
+          `    <verification_result>${escapeXML(task.task_verification)}</verification_result>`
+        );
       } else if (task.human) {
-        return `task_id : ${task.id}\n task : ${task.thought}\n status : ${task.status}\n`;
+        formattedTasks.push(
+          `    <ai_request>${escapeXML(JSON.stringify(task.thought.speak))}</ai_request>`
+        );
+        formattedTasks.push(
+          `    <human_response>${escapeXML(task.human)}</human_response>`
+        );
       }
+      formattedTasks.push(`</task>`);
     });
+
+    formattedTasks.push('</tasks-history>');
     return formattedTasks.join('\n');
   } catch (error) {
     throw error;
@@ -261,6 +299,7 @@ export class TaskManagerGraph {
           human: '',
           request: config.configurable?.user_request?.request ?? '',
           steps: [],
+          isHumanTask: true,
           status: 'waiting_human' as const,
         };
         state.tasks.push(task);
@@ -301,6 +340,7 @@ export class TaskManagerGraph {
         task: parsed_args.task,
         request: config.configurable?.user_request?.request ?? '',
         steps: [],
+        isHumanTask: false,
         status: 'pending' as const,
       };
       state.tasks.push(task);
@@ -329,11 +369,23 @@ export class TaskManagerGraph {
     last_node: TaskManagerNode;
     currentGraphStep?: number;
   }> {
-    logger.info(`[Human] Awaiting human input for: `);
     const currentTask = getCurrentTask(state.tasks);
-    const h_input = interrupt(currentTask.thought.speak);
     if (!currentTask) {
+      logger.error('[HUMAN] No current task available for human input');
+      throw new Error('No current task available for human input');
     }
+
+    logger.info(
+      `[Human] Awaiting human input for: ${currentTask.thought.speak}`
+    );
+
+    const h_input = interrupt(currentTask.thought.speak);
+
+    if (!h_input) {
+      logger.error('[HUMAN] No human input received');
+      throw new Error('No human input received');
+    }
+
     const message = new AIMessageChunk({
       content: h_input,
       additional_kwargs: {
@@ -345,6 +397,8 @@ export class TaskManagerGraph {
     currentTask.human = h_input;
     currentTask.status = 'completed';
     state.tasks[state.tasks.length - 1] = currentTask;
+
+    logger.info('[Human] Successfully processed human input');
     return {
       messages: [message],
       tasks: state.tasks,
@@ -389,7 +443,10 @@ export class TaskManagerGraph {
         return TaskManagerNode.END;
       }
     }
-    if (state.last_node === TaskExecutorNode.HUMAN) {
+    if (state.last_node === TaskManagerNode.HUMAN) {
+      logger.info(
+        '[Task Manager Router] Routing from HUMAN back to CREATE_TASK'
+      );
       return TaskManagerNode.CREATE_TASK;
     }
     logger.warn('[Task Manager Router] Routing to END_GRAPH node');

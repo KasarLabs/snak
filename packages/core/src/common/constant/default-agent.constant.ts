@@ -15,7 +15,6 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig.Input = {
     contexts: ['Default context-1', 'Default-context-2'],
   },
   mcp_servers: {},
-  plugins: [],
   graph: {
     max_steps: 100,
     max_iterations: 10,

@@ -28,7 +28,7 @@ export interface ThoughtsType {
 }
 
 export interface ToolCallType {
-  tool_call_id: string;
+  id: string;
   name: string;
   args: Record<string, any>;
   result?: string;
@@ -66,7 +66,8 @@ export type TaskType = {
   human?: string; // human input if ask_human throw
   request: string;
   task_verification?: string;
-  steps: StepType[];  
+  steps: StepType[];
+  isHumanTask: boolean;
   status: TaskStatusType;
 };
 

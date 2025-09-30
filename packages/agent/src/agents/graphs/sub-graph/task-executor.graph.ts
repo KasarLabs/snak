@@ -2,6 +2,7 @@ import {
   AIMessage,
   AIMessageChunk,
   BaseMessage,
+  HumanMessage,
   ToolMessage,
 } from '@langchain/core/messages';
 import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
@@ -33,7 +34,7 @@ import {
   STRING_LIMITS,
 } from '../constants/execution-constants.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ThoughtsSchemaType } from '@schemas/graph.schemas.js';
+import { ThoughtsSchema, ThoughtsSchemaType } from '@schemas/graph.schemas.js';
 import {
   TaskType,
   Memories,
@@ -42,7 +43,7 @@ import {
   GraphErrorTypeEnum,
 } from '../../../shared/types/index.js';
 import { LTMManager, STMManager } from '@lib/memory/index.js';
-import { stm_format_for_history } from '../parser/memory/stm-parser.js';
+import { formatSTMToXML } from '../parser/memory/stm-parser.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_EXECUTOR_HUMAN_PROMPT,
@@ -50,6 +51,14 @@ import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
+import { ToolCall } from '@langchain/core/messages/tool';
+
+const EXECUTOR_CORE_TOOLS = new Set([
+  'response_task',
+  'end_task',
+  'ask_human',
+  'block_task',
+]);
 
 export class AgentExecutorGraph {
   private agentConfig: AgentConfig.Runtime;
@@ -69,7 +78,6 @@ export class AgentExecutorGraph {
     this.agentConfig = agentConfig;
     this.toolsList = toolList.concat(new TaskExecutorToolRegistry().getTools());
   }
-
   // Invoke Model with Messages
   private async invokeModelWithMessages(
     state: typeof GraphState.State,
@@ -88,7 +96,7 @@ export class AgentExecutorGraph {
 
     logger.debug(`[Executor] Invoking model with execution`);
     const formattedPrompt = await prompt.formatMessages({
-      messages: stm_format_for_history(state.memories.stm),
+      messages: formatSTMToXML(state.memories.stm),
       long_term_memory: LTMManager.formatMemoriesForContext(
         state.memories.ltm.items
       ),
@@ -200,100 +208,88 @@ export class AgentExecutorGraph {
       }
       aiMessage.content = ''; // Clear content because we are using tool calls only
       logger.debug(`[Executor] Model response received`);
-      let isEnd = false;
-      let isBlocked = false;
       let thought: ThoughtsSchemaType;
-      let tools: ToolCallType[] = [];
-      if (aiMessage.tool_calls && aiMessage.tool_calls.length >= 2) {
-        aiMessage.tool_calls.forEach((call) => {
-          !call.id ? (call.id = uuidv4()) : call.id;
-          if (call.name === 'response_task') {
-            try {
-              thought = JSON.parse(
-                typeof call.args === 'string'
-                  ? call.args
-                  : JSON.stringify(call.args)
-              ) as ThoughtsSchemaType;
-            } catch (e) {
-              throw new Error(
-                `Failed to parse thought from model response: ${e.message}`
-              );
-            }
+      if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
+        throw new Error('No tool calls detected in model response'); // Force retry after
+      }
+      const { filteredTools, filteredCoreTools } = aiMessage.tool_calls.reduce(
+        (acc, call) => {
+          if (!call.id || call.id === undefined || call.id === '') {
+            call.id = uuidv4();
+          }
+          if (EXECUTOR_CORE_TOOLS.has(call.name)) {
+            acc.filteredCoreTools.push({
+              ...call,
+              id: call.id!, // Non-null assertion since we just ensured it exists
+              result: undefined,
+              status: 'pending',
+            });
           } else {
-            tools.push({
-              tool_call_id: call.id,
-              name: call.name,
-              args: call.args,
+            acc.filteredTools.push({
+              ...call,
+              id: call.id!, // Non-null assertion since we just ensured it exists
+              result: undefined,
               status: 'pending',
             });
           }
-
-          if (call.name === 'ask_human') {
-            logger.info(
-              `[Executor] Human input requested, routing to HUMAN node`
-            );
-            currentTask.steps.push({
-              id: stepId,
-              type: 'human',
-              thought: thought!,
-              tool: tools,
-            });
-            state.tasks[state.tasks.length - 1] = currentTask;
-            aiMessage.additional_kwargs = {
-              from: TaskExecutorNode.REASONING_EXECUTOR,
-              final: false,
-            };
-            return {
-              messages: [aiMessage],
-              last_node: TaskExecutorNode.REASONING_EXECUTOR,
-              currentGraphStep: state.currentGraphStep + 1,
-              memories: state.memories,
-              task: state.tasks,
-              error: null,
-            };
-          }
-          if (call.name === 'end_task') {
-            isEnd = true;
-          }
-          if (call.name === 'block_task') {
-            isBlocked = true;
-          }
-          if (Object.keys(call.args).length === 0) {
-            call.args = { noParams: {} };
-          }
-        });
-      } else {
+          return acc;
+        },
+        {
+          filteredTools: [] as ToolCallType[],
+          filteredCoreTools: [] as ToolCallType[],
+        }
+      );
+      if (filteredCoreTools.length != 1) {
         logger.warn(
-          `[Executor] No tool calls detected in model response or insufficient tool calls retry the execution`
+          `[Executor] Invalid number of core tools used: ${filteredCoreTools.length}`
         );
         return {
-          retry: (state.retry ?? 0) + 1,
+          retry: state.retry + 1,
           last_node: TaskExecutorNode.REASONING_EXECUTOR,
           error: {
             type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
-            message: 'No tool calls detected in model response',
+            message: `Invalid number of core tools used: ${filteredCoreTools.length}`,
             hasError: true,
             source: 'reasoning_executor',
             timestamp: Date.now(),
           },
         };
       }
-      aiMessage.additional_kwargs = {
-        from: TaskExecutorNode.REASONING_EXECUTOR,
-        final: isEnd || isBlocked ? true : false,
-      };
+      if (filteredCoreTools[0].name === 'ask_human') {
+        logger.info(`[Executor] Human input requested, routing to HUMAN node`);
+        thought = JSON.parse(
+          typeof filteredCoreTools[0].args === 'string'
+            ? filteredCoreTools[0].args
+            : JSON.stringify(filteredCoreTools[0].args)
+        ) as ThoughtsSchemaType;
+        if (!thought) {
+          throw new Error('Failed to parse thought from model response');
+        }
+        currentTask.steps.push({
+          id: stepId,
+          type: 'human',
+          thought: thought,
+          tool: [filteredCoreTools[0]],
+        });
+        state.tasks[state.tasks.length - 1] = currentTask;
+        aiMessage.additional_kwargs = {
+          from: TaskExecutorNode.REASONING_EXECUTOR,
+          final: false,
+        };
+        return {
+          messages: [aiMessage],
+          last_node: TaskExecutorNode.REASONING_EXECUTOR,
+          currentGraphStep: state.currentGraphStep + 1,
+          memories: state.memories,
+          task: state.tasks,
+          error: null,
+        };
+      }
 
-      // Parse for task
-      currentTask.steps.push({
-        id: stepId,
-        type: 'tools',
-        thought: thought!,
-        tool: tools,
-      });
-      if (isEnd) {
+      if (filteredCoreTools[0].name === 'end_task') {
         currentTask.status = 'waiting_validation';
       }
-      if (isBlocked) {
+      if (filteredCoreTools[0].name === 'block_task') {
         return {
           messages: [aiMessage],
           last_node: TaskExecutorNode.REASONING_EXECUTOR,
@@ -317,6 +313,20 @@ export class AgentExecutorGraph {
           },
         };
       }
+      thought = JSON.parse(
+        typeof filteredCoreTools[0].args === 'string'
+          ? filteredCoreTools[0].args
+          : JSON.stringify(filteredCoreTools[0].args)
+      ) as ThoughtsSchemaType;
+      if (!thought) {
+        throw new Error('Failed to parse thought from model response');
+      }
+      currentTask.steps.push({
+        id: stepId,
+        type: 'tools',
+        thought: thought!, // Assertion since we checked above
+        tool: filteredCoreTools.concat(filteredTools),
+      });
       state.tasks[state.tasks.length - 1] = currentTask;
 
       const newMemories = STMManager.addMemory(
@@ -424,12 +434,14 @@ export class AgentExecutorGraph {
           const summarize_content = await STMManager.summarize_before_inserting(
             tool.content.toLocaleString(),
             this.model
-          ).then((res) => res.message.content);
-          tool.content = summarize_content;
+          );
+          tool.content = summarize_content.message.content;
         }
         currentTask.steps[currentTask.steps.length - 1].tool.forEach(
           (t: ToolCallType) => {
-            if (t.tool_call_id === tool.tool_call_id) {
+            console.log(t);
+            console.log(tool);
+            if (t.id === tool.tool_call_id) {
               t.status = 'completed';
               t.result = tool.content.toLocaleString();
             }
@@ -500,13 +512,16 @@ export class AgentExecutorGraph {
     return toolNode;
   }
 
-  public async humanNode(state: typeof GraphState.State): Promise<{
-    messages: BaseMessage[];
-    last_node: TaskExecutorNode;
-    tasks: TaskType[];
-    currentGraphStep?: number;
-  }> {
-    const currentTask = state.tasks[state.tasks.length - 1];
+  public async humanNode(state: typeof GraphState.State): Promise<
+    | {
+        messages: BaseMessage[];
+        last_node: TaskExecutorNode;
+        tasks: TaskType[];
+        currentGraphStep?: number;
+      }
+    | Command
+  > {
+    const currentTask = getCurrentTask(state.tasks);
     if (!currentTask) {
       throw new Error('Current task is undefined');
     }
@@ -517,15 +532,27 @@ export class AgentExecutorGraph {
     logger.info(
       `[Human] Awaiting human input for: ${currentStep.thought.speak}`
     );
-
     const h_input = interrupt(currentStep.thought.speak);
-    const message = new AIMessageChunk({
+    if (!h_input) {
+      throw new Error('No human input received');
+    }
+    const human_message = new HumanMessage({
       content: h_input,
       additional_kwargs: {
         from: TaskExecutorNode.HUMAN,
         final: false,
       },
     });
+    const newMemories = STMManager.addMemory(
+      state.memories.stm,
+      [human_message],
+      currentTask.id,
+      currentTask.steps[currentTask.steps.length - 1].id
+    );
+    if (!newMemories.success || !newMemories.data) {
+      throw new Error(`Failed to add AI message to STM: ${newMemories.error}`);
+    }
+    state.memories.stm = newMemories.data;
     currentStep.tool.forEach((t: ToolCallType) => {
       if (t.name === 'ask_human') {
         t.status = 'completed';
@@ -535,7 +562,7 @@ export class AgentExecutorGraph {
     currentTask.steps[currentTask.steps.length - 1] = currentStep;
     state.tasks[state.tasks.length - 1] = currentTask;
     return {
-      messages: [message],
+      messages: [human_message],
       last_node: TaskExecutorNode.HUMAN,
       tasks: state.tasks,
       currentGraphStep: state.currentGraphStep + 1,

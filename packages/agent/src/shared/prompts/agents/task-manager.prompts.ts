@@ -68,7 +68,6 @@ AVAILABLE CONTEXT:
 Perform all your choices based on these resources:
 <RAG>: Retrieval Augmented Generation memory
 <TaskHistory>: history of the past task completed/failed if completed its successful and the result will be accessible in the STM
-
 Check <system_identity>, analyze context, then create the NEXT comprehensive task for {agent_name}.
 `;
 

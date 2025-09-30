@@ -22,12 +22,9 @@ export class CoreToolRegistry extends BaseToolRegistry {
     tools.push(
       tool(endTask, {
         name: 'end_task',
-        description: '[SNAK Tool] End the current task successfully',
-        schema: z
-          .object({
-            noParams: z.object({}).strict(),
-          })
-          .strict(),
+        description:
+          '[SNAK CORE TOOL] End the current task successfully. Provide details in the response.',
+        schema: ThoughtsSchema,
       })
     );
 
@@ -36,7 +33,7 @@ export class CoreToolRegistry extends BaseToolRegistry {
       tool(() => {}, {
         name: 'block_task',
         description:
-          '[SNAK Tool] Use when the task cannot be completed due to unresolvable obstacles. Provide details in the response.',
+          '[SNAK CORE TOOL] Use when the task cannot be completed due to unresolvable obstacles. Provide details in the response.',
         schema: ThoughtsSchema,
       })
     );
@@ -45,7 +42,7 @@ export class CoreToolRegistry extends BaseToolRegistry {
     tools.push(
       tool(() => {}, {
         name: 'ask_human',
-        description: `[SNAK Tool] Use this tool to ask the user for input when necessary don't violate your system constraint. Provide a clear and concise question in the "speak" field of the response.`,
+        description: `[SNAK CORE TOOL] Use this tool to ask the user for input when necessary don't violate your system constraint. Provide a clear and concise question in the "speak" field of the response.`,
         schema: ThoughtsSchema,
       })
     );

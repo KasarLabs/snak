@@ -415,7 +415,7 @@ export class SnakAgent extends BaseAgent {
         new HumanMessage(request.request),
       ];
       const threadId = this.agentConfig.id;
-      const configurable: GraphConfigurableType = {
+      const configurable = {
         thread_id: threadId,
         user_request: {
           request: request.request,
@@ -445,11 +445,14 @@ export class SnakAgent extends BaseAgent {
         const executionInput = this.isInterrupt(stateSnapshot)
           ? this.getInterruptCommand(request.request)
           : { messages: initialMessages };
+        console.log('Execution Input:', executionInput);
         logger.debug(
           `[SnakAgent]  Initial state retrieved, starting graph execution`
         );
         for await (const chunk of this.compiledGraph.streamEvents(
-          executionInput ?? { messages: [] },
+          executionInput ?? {
+            messages: []
+          },
           executionConfig
         )) {
           // Setter

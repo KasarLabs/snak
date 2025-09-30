@@ -39,6 +39,7 @@ import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { agent } from 'supertest';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -84,6 +85,16 @@ export const GraphState = Annotation.Root({
   error: Annotation<GraphErrorType | null>({
     reducer: (x, y) => y,
     default: () => null,
+  }),
+  agent_config: Annotation<AgentConfig.Runtime | null>({
+    reducer: (x, y) => y,
+    default: () => null,
+  }),
+  user_request: Annotation<userRequestWithHITL | undefined>({
+    reducer: (x, y) => y,
+    default: () => {
+      return { request: '', hitl_threshold: 0 };
+    },
   }),
 });
 
@@ -252,6 +263,7 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphStateType {
     logger.debug('[Agent] Initializing graph state values');
+    console.log(state);
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required in config');
     }
@@ -347,11 +359,6 @@ export class Graph {
       this.toolsList = await initializeToolsList(
         this.snakAgent,
         this.agentConfig
-      );
-      this.toolsList = this.toolsList.filter(
-        (tool) =>
-          tool.name !== 'mobile_take_screenshot' &&
-          tool.name !== 'mobile_save_screenshot'
       );
       this.toolsList.forEach((tool) => {
         logger.debug(`[Agent] Tool initialized: ${tool.name}`);

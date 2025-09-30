@@ -461,7 +461,7 @@ export class AgentsController {
    * @param userRequest - Request containing agent ID
    * @returns Promise<AgentResponse> - Response with messages from all agents
    */
-  @Post('get_messages_from_agents')
+  @Post(' ')
   @HandleErrors('E04TA100')
   async getMessageFromAgentsId(
     @Body() userRequest: getMessagesFromAgentsDTO,
