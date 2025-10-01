@@ -107,6 +107,63 @@ CREATE TABLE IF NOT EXISTS message (
 -- Message Retrieval Functions
 -- ============================================================================
 
+-- Simple Message Retrieval by Agent ID
+-- Provides efficient message querying with optional limit
+-- If limit is NULL, returns all messages for the agent
+CREATE OR REPLACE FUNCTION get_messages_by_agent(
+    -- Required: Which agent's messages to retrieve
+    p_agent_id UUID,
+    -- Optional: Maximum number of messages to return
+    -- NULL means no limit (returns all matching messages)
+    p_limit INTEGER DEFAULT NULL
+)
+-- Return Type: Table with all message fields including ID
+RETURNS TABLE (
+    id INTEGER,
+    agent_id UUID,
+    user_id UUID,
+    event TEXT,
+    run_id TEXT,
+    thread_id TEXT,
+    checkpoint_id TEXT,
+    task_id UUID,
+    step_id UUID,
+    "from" TEXT,
+    message TEXT,
+    tools JSONB,
+    metadata JSONB,
+    "timestamp" TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Returns messages ordered by timestamp descending (newest first)
+    -- If p_limit is NULL, COALESCE converts it to max INT value (all messages)
+    RETURN QUERY
+    SELECT
+        m.id,
+        m.agent_id,
+        m.user_id,
+        m.event,
+        m.run_id,
+        m.thread_id,
+        m.checkpoint_id,
+        m.task_id,
+        m.step_id,
+        m."from",
+        m.message,
+        m.tools,
+        m.metadata,
+        m."timestamp",
+        m.created_at
+    FROM message m
+    WHERE m.agent_id = p_agent_id
+    ORDER BY m."timestamp" DESC
+    LIMIT COALESCE(p_limit, 2147483647);  -- Max INT when p_limit is NULL
+END;
+$$;
+
 -- Optimized Message Retrieval Function
 -- Provides efficient, flexible message querying with pagination and ordering
 CREATE OR REPLACE FUNCTION get_messages_optimized(

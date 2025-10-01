@@ -1,9 +1,7 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { AgentConfig } from '@snakagent/core';
 import { BaseToolRegistry } from './base-tool-registry.js';
 import { ThoughtsSchema } from '@schemas/graph.schemas.js';
-import { z } from 'zod';
 
 const endTask = (): string => {
   return 'Task ended successfully';

@@ -227,3 +227,4 @@ export interface SnakAgentInterface {
   getProvider: () => RpcProvider;
   getAgentConfig: () => AgentConfig.Input;
 }
+

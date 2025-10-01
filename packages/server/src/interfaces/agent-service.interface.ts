@@ -25,6 +25,7 @@ export interface AgentExecutionCallDataResponse {
 export interface IAgentService {
   handleUserRequest(
     agent: SnakAgent,
+    userId: string,
     userRequest: MessageRequest
   ): Promise<any>;
   getAgentStatus(agent: IAgent): Promise<{

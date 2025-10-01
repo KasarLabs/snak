@@ -35,7 +35,7 @@ import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
-import { notify } from '@snakagent/database/queries';
+import { notify, message } from '@snakagent/database/queries';
 
 export interface SupervisorRequestDTO {
   request: {
@@ -304,7 +304,11 @@ export class AgentsController {
       request: userRequest.request.content ?? '',
     };
 
-    const action = this.agentService.handleUserRequest(agent, messageRequest);
+    const action = this.agentService.handleUserRequest(
+      agent,
+      userId,
+      messageRequest
+    );
 
     const response_metrics = await metrics.agentResponseTimeMeasure(
       messageRequest.agent_id.toString(),
@@ -492,15 +496,7 @@ export class AgentsController {
       userRequest.agent_id
     );
 
-    const q = new Postgres.Query(
-      `DELETE FROM message m
-       USING agents a 
-       WHERE m.agent_id = a.id 
-       AND m.agent_id = $1 
-       AND a.user_id = $2`,
-      [userRequest.agent_id, userId]
-    );
-    await Postgres.query(q);
+    await message.delete_messages_by_agent(userRequest.agent_id, userId);
 
     return ResponseFormatter.success(
       `Messages cleared for agent ${userRequest.agent_id}`

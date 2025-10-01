@@ -20,7 +20,7 @@ import {
   WebsocketGetAgentsConfigRequestDTO,
   WebsocketGetMessagesRequestDTO,
 } from '@snakagent/core';
-import { Postgres } from '@snakagent/database';
+import { message } from '@snakagent/database/queries';
 import { EventType, SnakAgent } from '@snakagent/agents';
 import { AgentResponse } from '@snakagent/core';
 
@@ -95,35 +95,14 @@ export class MyGateway {
             chunk.event === EventType.ON_CHAT_MODEL_END ||
             chunk.event === EventType.ON_CHAIN_END
           ) {
-            const q = new Postgres.Query(
-              `
-          INSERT INTO message (
-            event, run_id, thread_id, checkpoint_id, task_id, step_id, "from", agent_id, user_id,
-            message, tools, metadata, "timestamp"
-          )
-          VALUES ($1, $2, $3, $4, $5::UUID, $6::UUID, $7, $8, $9, $10, $11, $12, $13)
-          RETURNING id;
-        `,
-              [
-                chunk.event,
-                chunk.run_id,
-                chunk.thread_id,
-                chunk.checkpoint_id,
-                chunk.task_id,
-                chunk.step_id,
-                chunk.from,
-                agentId,
-                userId,
-                chunk.message ?? null,
-                chunk.tools ? JSON.stringify(chunk.tools) : null,
-                JSON.stringify(chunk.metadata || {}),
-                chunk.timestamp || new Date(),
-              ]
+            const messageId = await message.insert_message(
+              agentId,
+              userId,
+              chunk
             );
 
-            const result = await Postgres.query<{ id: number }>(q);
             logger.info(
-              `Inserted message with ID: ${result[0].id.toLocaleString()}`
+              `Inserted message with ID: ${messageId.toLocaleString()}`
             );
           }
           client.emit('onAgentRequest', chunk);
