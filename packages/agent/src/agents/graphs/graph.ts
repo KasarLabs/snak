@@ -286,7 +286,6 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphStateType {
     logger.debug('[Agent] Initializing graph state values');
-    console.log(state);
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required in config');
     }

@@ -293,7 +293,6 @@ export class SnakAgent extends BaseAgent {
     from: GraphNode
   ): ChunkOutput {
     if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-      console.log('Chunk Data:', chunk.data);
       console.log('Current Task ID:', currentTaskId);
       console.log('Current Step ID:', currentStepId);
     }
@@ -482,6 +481,10 @@ export class SnakAgent extends BaseAgent {
           executionConfig
         )) {
           // Setter
+          stateSnapshot = await this.compiledGraph.getState(executionConfig);
+          if (!stateSnapshot) {
+            throw new Error('Failed to retrieve graph state during execution');
+          }
           lastChunk = chunk;
           retryCount = stateSnapshot.values.retry;
           currentCheckpointId =
@@ -497,11 +500,6 @@ export class SnakAgent extends BaseAgent {
               ? chunk.data.output.additional_kwargs.step_id
               : null;
           graphError = stateSnapshot.values.error;
-          stateSnapshot = await this.compiledGraph.getState(executionConfig);
-          if (!stateSnapshot) {
-            throw new Error('Failed to retrieve graph state during execution');
-          }
-
           // Notify creation if interrupted
           if (
             chunk.event === 'on_chain_end' &&

@@ -293,6 +293,12 @@ export class AgentExecutorGraph {
         currentTask.status = 'waiting_validation';
       }
       if (filteredCoreTools[0].name === 'block_task') {
+        aiMessage.additional_kwargs = {
+          task_id: currentTask.id,
+          step_id: stepId,
+          from: TaskExecutorNode.REASONING_EXECUTOR,
+          final: false,
+        };
         return {
           messages: [aiMessage],
           lastNode: TaskExecutorNode.REASONING_EXECUTOR,

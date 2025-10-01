@@ -391,7 +391,6 @@ export class MemoryDBManager {
         this.memorySizeLimit.max_retrieve_memory_size,
         this.memoryThreshold.retrieve_memory_threshold
       );
-      logger.debug(similarities);
       logger.debug(
         `[MemoryDBManager] Retrieved ${similarities.length} similar memories for user: ${userId}`
       );
