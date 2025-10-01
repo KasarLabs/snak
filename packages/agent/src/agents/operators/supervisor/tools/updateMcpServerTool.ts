@@ -64,16 +64,9 @@ export function updateMcpServerTool(
         const searchBy = input.searchBy || 'name';
 
         if (searchBy === 'id') {
-          const id = parseInt(input.identifier);
-          if (isNaN(id)) {
-            return JSON.stringify({
-              success: false,
-              message: `Invalid ID format: ${input.identifier}`,
-            });
-          }
           findQuery = new Postgres.Query(
             'SELECT * FROM agents WHERE id = $1 AND user_id = $2',
-            [id, userId]
+            [input.identifier, userId]
           );
         } else {
           findQuery = new Postgres.Query(

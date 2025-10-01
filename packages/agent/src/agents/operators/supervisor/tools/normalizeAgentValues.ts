@@ -636,6 +636,7 @@ export function normalizeNumericValues(
     graph: { ...DEFAULT_AGENT_CONFIG.graph },
     memory: { ...DEFAULT_AGENT_CONFIG.memory },
     rag: { ...DEFAULT_AGENT_CONFIG.rag },
+    prompts_id: config.prompts_id || undefined,
   };
   const appliedDefaults: string[] = [];
 

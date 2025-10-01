@@ -1,10 +1,43 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
-import { logger } from '@snakagent/core';
+import { logger, AgentProfile, GraphConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { normalizeNumericValues } from './normalizeAgentValues.js';
-import { UpdateAgentSchema, UpdateAgentInput } from './schemas/index.js';
+import { UpdateAgentSchema } from './schemas/index.js';
+
+/**
+ * Helper function to deep merge two objects, filtering out null/undefined values
+ */
+function deepMerge<T extends Record<string, any>>(
+  existing: T,
+  updates: Partial<T>
+): T {
+  const result = { ...existing };
+
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value === null || value === undefined) {
+      return;
+    }
+
+    // If both are objects (and not arrays), recursively merge
+    if (
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      typeof result[key as keyof T] === 'object' &&
+      !Array.isArray(result[key as keyof T]) &&
+      result[key as keyof T] !== null
+    ) {
+      result[key as keyof T] = deepMerge(
+        result[key as keyof T] as any,
+        value
+      ) as any;
+    } else {
+      result[key as keyof T] = value;
+    }
+  });
+
+  return result;
+}
 
 export function updateAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -23,16 +56,9 @@ export function updateAgentTool(
         const searchBy = input.searchBy || 'name';
 
         if (searchBy === 'id') {
-          const id = parseInt(input.identifier);
-          if (isNaN(id)) {
-            return JSON.stringify({
-              success: false,
-              message: `Invalid ID format: ${input.identifier}`,
-            });
-          }
           findQuery = new Postgres.Query(
             'SELECT * FROM agents WHERE id = $1 AND user_id = $2',
-            [id, userId]
+            [input.identifier, userId]
           );
         } else {
           findQuery = new Postgres.Query(
@@ -86,52 +112,59 @@ export function updateAgentTool(
         // Start with the complete existing agent configuration
         const mergedConfig: AgentConfig.Input = { ...agent };
 
-        // Apply updates to the merged configuration (overwrite existing values)
+        // Apply updates to the merged configuration with deep merge for composite types
         Object.entries(updates).forEach(([key, value]) => {
           // Skip the entire field if it's null or undefined
           if (value === undefined || value === null) {
             return;
           }
 
-          if (key === 'memory' && typeof value === 'object' && value !== null) {
-            const existingMemory: AgentConfig.Input['memory'] | undefined =
-              agent.memory;
-            const memoryUpdate = value as Partial<AgentConfig.Input['memory']>;
-            const filteredMemoryUpdate = Object.fromEntries(
-              Object.entries(memoryUpdate).filter(
-                ([_, val]) => val !== null && val !== undefined
-              )
-            ) as Partial<AgentConfig.Input['memory']>;
-
-            if (Object.keys(filteredMemoryUpdate).length > 0) {
-              mergedConfig.memory = {
-                ...existingMemory,
-                ...filteredMemoryUpdate,
-              } as AgentConfig.Input['memory'];
-            }
-          } else if (
+          // Deep merge for profile (composite type with name, group, description, contexts)
+          if (
+            key === 'profile' &&
+            typeof value === 'object' &&
+            value !== null
+          ) {
+            mergedConfig.profile = deepMerge(
+              agent.profile,
+              value as Partial<AgentProfile>
+            );
+          }
+          // Deep merge for memory (composite type with nested size_limits, thresholds, timeouts)
+          else if (
+            key === 'memory' &&
+            typeof value === 'object' &&
+            value !== null
+          ) {
+            mergedConfig.memory = deepMerge(
+              agent.memory,
+              value as Partial<AgentConfig.Input['memory']>
+            );
+          }
+          // Deep merge for rag (composite type with enabled, top_k)
+          else if (
             key === 'rag' &&
             typeof value === 'object' &&
             value !== null
           ) {
-            const existingRag: AgentConfig.Input['rag'] | undefined = agent.rag;
-            const ragUpdate = value as Partial<AgentConfig.Input['rag']>;
-            const filteredRagUpdate = Object.fromEntries(
-              Object.entries(ragUpdate as Record<string, any>).filter(
-                ([_, val]) => val !== null && val !== undefined
-              )
-            ) as Partial<AgentConfig.Input['rag']>;
-
-            if (
-              filteredRagUpdate &&
-              Object.keys(filteredRagUpdate).length > 0
-            ) {
-              mergedConfig.rag = {
-                ...existingRag,
-                ...filteredRagUpdate,
-              } as AgentConfig.Input['rag'];
-            }
-          } else {
+            mergedConfig.rag = deepMerge(
+              agent.rag,
+              value as Partial<AgentConfig.Input['rag']>
+            );
+          }
+          // Deep merge for graph (composite type with nested model)
+          else if (
+            key === 'graph' &&
+            typeof value === 'object' &&
+            value !== null
+          ) {
+            mergedConfig.graph = deepMerge(
+              agent.graph,
+              value as Partial<GraphConfig>
+            );
+          }
+          // For other fields, simple assignment
+          else {
             (mergedConfig as any)[key] = value;
           }
         });
@@ -157,16 +190,71 @@ export function updateAgentTool(
           const value =
             normalizedMergedConfig[key as keyof typeof normalizedMergedConfig];
 
-          if (key === 'memory' && typeof value === 'object' && value !== null) {
+          // Handle profile composite type (name, group, description, contexts)
+          if (key === 'profile' && typeof value === 'object' && value !== null) {
+            const profile = value as AgentProfile;
+            updateFields.push(
+              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`
+            );
+            updateValues.push(profile?.name ?? null);
+            updateValues.push(profile?.group ?? null);
+            updateValues.push(profile?.description ?? null);
+            updateValues.push(profile?.contexts ?? null);
+            paramIndex += 4;
+          }
+          // Handle graph composite type (max_steps, max_iterations, max_retries, execution_timeout_ms, max_token_usage, model)
+          else if (
+            key === 'graph' &&
+            typeof value === 'object' &&
+            value !== null
+          ) {
+            const graph = value as GraphConfig;
+            updateFields.push(
+              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, ROW($${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8})::model_config)::graph_config`
+            );
+            updateValues.push(graph?.max_steps ?? null);
+            updateValues.push(graph?.max_iterations ?? null);
+            updateValues.push(graph?.max_retries ?? null);
+            updateValues.push(graph?.execution_timeout_ms ?? null);
+            updateValues.push(graph?.max_token_usage ?? null);
+            // Nested model composite type - proper ROW syntax
+            updateValues.push(graph?.model?.provider ?? null);
+            updateValues.push(graph?.model?.model_name ?? null);
+            updateValues.push(graph?.model?.temperature ?? null);
+            updateValues.push(graph?.model?.max_tokens ?? null);
+            paramIndex += 9;
+          }
+          // Handle memory composite type (ltm_enabled, size_limits, thresholds, timeouts, strategy)
+          else if (
+            key === 'memory' &&
+            typeof value === 'object' &&
+            value !== null
+          ) {
             const memory = value as AgentConfig.Input['memory'];
             updateFields.push(
-              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`
+              `"${key}" = ROW($${paramIndex}, ROW($${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})::memory_size_limits, ROW($${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})::memory_thresholds, ROW($${paramIndex + 10}, $${paramIndex + 11})::memory_timeouts, $${paramIndex + 12})::memory_config`
             );
             updateValues.push(memory?.ltm_enabled ?? null);
-            updateValues.push(JSON.stringify(memory?.size_limits ?? null));
-            updateValues.push(JSON.stringify(memory?.thresholds ?? null));
-            paramIndex += 3;
-          } else if (
+            // size_limits composite type
+            updateValues.push(memory?.size_limits?.short_term_memory_size ?? null);
+            updateValues.push(memory?.size_limits?.max_insert_episodic_size ?? null);
+            updateValues.push(memory?.size_limits?.max_insert_semantic_size ?? null);
+            updateValues.push(memory?.size_limits?.max_retrieve_memory_size ?? null);
+            updateValues.push(memory?.size_limits?.limit_before_summarization ?? null);
+            // thresholds composite type
+            updateValues.push(memory?.thresholds?.insert_semantic_threshold ?? null);
+            updateValues.push(memory?.thresholds?.insert_episodic_threshold ?? null);
+            updateValues.push(memory?.thresholds?.retrieve_memory_threshold ?? null);
+            updateValues.push(memory?.thresholds?.hitl_threshold ?? null);
+            // timeouts composite type
+            updateValues.push(memory?.timeouts?.retrieve_memory_timeout_ms ?? null);
+            updateValues.push(memory?.timeouts?.insert_memory_timeout_ms ?? null);
+            // strategy enum
+            updateValues.push(memory?.strategy ?? null);
+            paramIndex += 13;
+          }
+          // Handle rag composite type (enabled, top_k)
+          else if (
             key === 'rag' &&
             typeof value === 'object' &&
             value !== null
@@ -178,8 +266,9 @@ export function updateAgentTool(
             updateValues.push(rag?.enabled ?? null);
             updateValues.push(rag?.top_k ?? null);
             paramIndex += 2;
-          } else {
-            // Handle regular fields
+          }
+          // Handle regular fields (prompts_id, mcp_servers, plugins, etc.)
+          else {
             updateFields.push(`"${key}" = $${paramIndex}`);
             updateValues.push(value);
             paramIndex++;
@@ -196,7 +285,7 @@ export function updateAgentTool(
         let whereClause: string;
         if (searchBy === 'id') {
           whereClause = `WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}`;
-          updateValues.push(parseInt(input.identifier));
+          updateValues.push(input.identifier);
           updateValues.push(userId);
         } else {
           whereClause = `WHERE (profile).name = $${paramIndex} AND user_id = $${paramIndex + 1}`;
