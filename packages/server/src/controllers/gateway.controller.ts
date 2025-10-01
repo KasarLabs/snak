@@ -121,9 +121,9 @@ export class MyGateway {
               ]
             );
 
-            const result = await Postgres.query<number>(q);
+            const result = await Postgres.query<{ id: number }>(q);
             logger.info(
-              `Inserted message with ID: ${result[0].toLocaleString()}`
+              `Inserted message with ID: ${result[0].id.toLocaleString()}`
             );
           }
           client.emit('onAgentRequest', chunk);

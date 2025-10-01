@@ -106,9 +106,7 @@ export class SnakAgent extends BaseAgent {
         );
       }
     } catch (error) {
-      logger.error(
-        `[SnakAgent] Failed to create graph: ${error}`
-      );
+      logger.error(`[SnakAgent] Failed to create graph: ${error}`);
       if (error instanceof Error && error.stack) {
         logger.error(`[SnakAgent] Stack trace: ${error.stack}`);
       }
@@ -200,15 +198,10 @@ export class SnakAgent extends BaseAgent {
    */
   public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
-      let isInterrupted = false;
-
       if (!this.compiledGraph) {
         throw new Error('Agent executor is not initialized');
       }
-      for await (const chunk of this.executeAsyncGenerator(
-        userRequest,
-        isInterrupted
-      )) {
+      for await (const chunk of this.executeAsyncGenerator(userRequest)) {
         if (chunk.metadata.final) {
           yield chunk;
           return;
@@ -377,8 +370,7 @@ export class SnakAgent extends BaseAgent {
    * @returns Promise resolving to the result of the autonomous execution
    */
   public async *executeAsyncGenerator(
-    request: UserRequest,
-    isInterrupted: boolean = false
+    request: UserRequest
   ): AsyncGenerator<ChunkOutput> {
     try {
       let lastChunk: StreamEvent | null = null;
@@ -388,9 +380,8 @@ export class SnakAgent extends BaseAgent {
       let currentStepId: string | null = null;
       let graphError: GraphErrorType | null = null;
       let stateSnapshot: StateSnapshot;
-      logger.info(
-        `[SnakAgent] Starting execution: "${request.request}"`
-      );
+      let isInterruptHandle = false;
+      logger.info(`[SnakAgent] Starting execution: "${request.request}"`);
       if (!this.compiledGraph) {
         throw new Error('CompiledGraph is not initialized');
       }
@@ -455,6 +446,7 @@ export class SnakAgent extends BaseAgent {
           graphError = stateSnapshot.values.error;
           if (
             chunk.event === 'on_chain_end' &&
+            isInterruptHandle === false &&
             this.isInterrupt(stateSnapshot)
           ) {
             await notify.insertNotify(
@@ -462,6 +454,7 @@ export class SnakAgent extends BaseAgent {
               this.agentConfig.id,
               stateSnapshot.tasks[0].interrupts[0].value
             );
+            isInterruptHandle = true;
           }
           // Process chunk using the centralized handler
           const processedChunk = this.processChunkOutput(

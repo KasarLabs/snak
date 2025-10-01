@@ -23,7 +23,6 @@ export namespace notify {
       `INSERT INTO notify (user_id, agent_id, message) VALUES ($1, $2, $3) RETURNING "id", "agent_id", "message", "read", "created_at"`,
       [user_id, agent_id, message]
     );
-    console.log(query);
     const result = await Postgres.query(query);
     return result;
   }
