@@ -78,18 +78,11 @@ export class SnakAgent extends BaseAgent {
           throw new Error('Failed to initialize Postgres checkpointer');
         }
         await this.createAgentReactExecutor();
-        if (!this.compiledGraph) {
-          logger.warn(
-            '[SnakAgent]  Agent executor creation succeeded but result is null'
-          );
-        }
       } catch (executorError) {
         logger.error(
-          `[SnakAgent]  Failed to create agent executor: ${executorError}`
+          `[SnakAgent] Failed to create agent executor: ${executorError}`
         );
-        logger.warn(
-          '[SnakAgent]  Will attempt to recover during execute() calls'
-        );
+        throw executorError;
       }
 
       logger.info('[SnakAgent]  Initialized successfully');
@@ -106,24 +99,18 @@ export class SnakAgent extends BaseAgent {
    */
   private async createAgentReactExecutor(): Promise<void> {
     try {
-      logger.info(
-        `[SnakAgent]  Creating Graph for agent : ${this.agentConfig.profile.name}`
-      );
       this.compiledGraph = await createGraph(this);
       if (!this.compiledGraph) {
         throw new Error(
-          `Failed to create agent executor for agent : ${this.agentConfig.profile.name}: result is null`
+          `Failed to create graph for agent: ${this.agentConfig.profile.name}`
         );
       }
-      logger.info(
-        `[SnakAgent]  Agent executor created successfully for agent : ${this.agentConfig.profile.name}`
-      );
     } catch (error) {
       logger.error(
-        `[SnakAgent]  Failed to create Agent React Executor: ${error}`
+        `[SnakAgent] Failed to create graph: ${error}`
       );
       if (error instanceof Error && error.stack) {
-        logger.error(`[SnakAgent] 📋 Stack trace: ${error.stack}`);
+        logger.error(`[SnakAgent] Stack trace: ${error.stack}`);
       }
       throw error;
     }
@@ -139,17 +126,12 @@ export class SnakAgent extends BaseAgent {
   ): Promise<void> {
     const ragConfig = agentConfig?.rag;
     if (!ragConfig || ragConfig.enabled !== true) {
-      logger.info(
-        '[SnakAgent]  RagAgent initialization skipped (disabled or not configured)'
-      );
       return;
     }
-    logger.debug('[SnakAgent]  Initializing RagAgent...');
     this.ragAgent = new RagAgent({
       top_k: ragConfig?.top_k,
     });
     await this.ragAgent.init();
-    logger.debug('[SnakAgent]  RagAgent initialized');
   }
 
   public getRagAgent(): RagAgent | null {
@@ -218,10 +200,7 @@ export class SnakAgent extends BaseAgent {
    */
   public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
-      let isInterrupted = false; // Will be killed
-      logger.debug(
-        `[SnakAgent] Execute called - agent : ${this.agentConfig.profile.name}, interrupted: ${isInterrupted}`
-      );
+      let isInterrupted = false;
 
       if (!this.compiledGraph) {
         throw new Error('Agent executor is not initialized');
@@ -237,7 +216,7 @@ export class SnakAgent extends BaseAgent {
         yield chunk;
       }
     } catch (error) {
-      logger.error(`[SnakAgent]  Execute failed: ${error}`);
+      logger.error(`[SnakAgent] Execute failed: ${error}`);
       throw error;
     }
   }
@@ -246,8 +225,6 @@ export class SnakAgent extends BaseAgent {
     if (this.controller) {
       this.controller.abort();
       logger.info('[SnakAgent] Execution stopped');
-    } else {
-      logger.warn('[SnakAgent] No controller found to stop execution');
     }
   }
 
@@ -380,10 +357,8 @@ export class SnakAgent extends BaseAgent {
       stateSnapshot.tasks?.length > 0 &&
       stateSnapshot.tasks[0]?.interrupts?.length > 0
     ) {
-      logger.info('Graph is interrupted');
       const interrupt = stateSnapshot.tasks[0].interrupts[0];
-      logger.debug('Interrupt value:', interrupt?.value);
-      logger.debug('Id:', interrupt?.id);
+      logger.info(`[SnakAgent] Interrupt detected: ${interrupt?.value}`);
       return true;
     }
     return false;
@@ -414,7 +389,7 @@ export class SnakAgent extends BaseAgent {
       let graphError: GraphErrorType | null = null;
       let stateSnapshot: StateSnapshot;
       logger.info(
-        `[SnakAgent]  Starting autonomous execution for agent : ${this.agentConfig.profile.name}`
+        `[SnakAgent] Starting execution: "${request.request}"`
       );
       if (!this.compiledGraph) {
         throw new Error('CompiledGraph is not initialized');
@@ -437,7 +412,6 @@ export class SnakAgent extends BaseAgent {
       const threadConfig = {
         configurable: configurable,
       };
-      logger.info(`[SnakAgent]  Autonomous execution thread ID: ${threadId}`);
       try {
         const executionConfig = {
           ...threadConfig,
@@ -450,14 +424,9 @@ export class SnakAgent extends BaseAgent {
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve initial graph state');
         }
-        // WE NEED TO KNOW IF IT WAS INTERRUPTED TO PASS THE SAME INPUT AGAIN
         const executionInput = this.isInterrupt(stateSnapshot)
           ? this.getInterruptCommand(request.request)
           : { messages: initialMessages };
-        console.log('Execution Input:', executionInput);
-        logger.debug(
-          `[SnakAgent]  Initial state retrieved, starting graph execution`
-        );
         for await (const chunk of this.compiledGraph.streamEvents(
           executionInput ?? {
             messages: [],
@@ -484,13 +453,10 @@ export class SnakAgent extends BaseAgent {
               ? chunk.data.output.additional_kwargs.step_id
               : null;
           graphError = stateSnapshot.values.error;
-          // Notify creation if interrupted
           if (
             chunk.event === 'on_chain_end' &&
             this.isInterrupt(stateSnapshot)
           ) {
-            console.log(chunk.event);
-            console.log('Graph interrupted for human input');
             await notify.insertNotify(
               this.agentConfig.user_id,
               this.agentConfig.id,
@@ -510,7 +476,7 @@ export class SnakAgent extends BaseAgent {
             yield processedChunk;
           }
         }
-        logger.info('[SnakAgent]  Autonomous execution completed');
+        logger.info('[SnakAgent] Execution completed');
         if (!lastChunk || !currentCheckpointId) {
           throw new Error('No output from autonomous execution');
         }
@@ -535,20 +501,20 @@ export class SnakAgent extends BaseAgent {
         return;
       } catch (error: any) {
         if (error?.message?.includes('Abort')) {
-          logger.info('[SnakAgent]  Execution aborted by user');
+          logger.info('[SnakAgent] Execution aborted');
           return;
         }
 
-        logger.error(`[SnakAgent]  Autonomous execution error: ${error}`);
+        logger.error(`[SnakAgent] Execution error: ${error}`);
         if (this.isTokenRelatedError(error)) {
-          logger.warn('[SnakAgent]  Token limit error encountered');
+          logger.warn('[SnakAgent] Token limit exceeded');
           throw new Error(
             'The request could not be completed because it exceeded the token limit. Please try again with a shorter input or reduce the complexity of the task.'
           );
         }
       }
     } catch (error: any) {
-      logger.error(`[SnakAgent]  Autonomous execution failed: ${error}`);
+      logger.error(`[SnakAgent] Execution failed: ${error}`);
       return;
     }
   }

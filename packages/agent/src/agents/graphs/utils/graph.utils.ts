@@ -396,7 +396,6 @@ export function routingFromSubGraphToParentGraphHumanHandlerNode(
 }
 
 export function getHITLContraintFromTreshold(threshold: number): string | null {
-  console.log('Threshold:', threshold);
   if (threshold <= 0 || threshold > 1) return HITL_CONSTRAINT_LEVEL_0;
   switch (true) {
     case threshold > 0 && threshold <= 0.25:

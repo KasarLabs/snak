@@ -68,17 +68,13 @@ export class TaskVerifierGraph {
         )
       ) {
         logger.warn(
-          `[TaskVerifier] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[TaskVerifier] Max steps reached (${state.currentGraphStep})`
         );
         throw new Error('Max memory graph steps reached');
       }
       const agentConfig = config.configurable!.agent_config!;
       const currentTask = getCurrentTask(state.tasks);
-      // Check if task was marked as completed by end_task tool
       if (currentTask.status !== 'waiting_validation') {
-        logger.debug(
-          '[TaskVerifier] Task not marked as completed, skipping verification'
-        );
         return {
           messages: [],
           lastNode: TaskVerifierNode.TASK_VERIFIER,
@@ -104,7 +100,7 @@ export class TaskVerifierGraph {
 
       const executedSteps = formatSTMToXML(state.memories.stm);
 
-      logger.info('[TaskVerifier] Starting task completion verification');
+      logger.info('[TaskVerifier] Verifying task completion');
       const formattedPrompt = await prompt.formatMessages({
         originalTask: currentTask.task?.directive,
         taskReasoning: currentTask.thought.reasoning,
@@ -131,9 +127,8 @@ Reasoning: ${verificationResult.reasoning}`,
         verificationResult.taskCompleted &&
         verificationResult.confidenceScore >= 70
       ) {
-        // Task is truly complete, proceed to next task
         logger.info(
-          `[TaskVerifier] Task ${currentTask.id} verified as complete (${verificationResult.confidenceScore}% confidence)`
+          `[TaskVerifier] Task verified (${verificationResult.confidenceScore}% confidence)`
         );
         const updatedTasks = [...state.tasks];
         updatedTasks[state.tasks.length - 1].status = 'completed';
@@ -157,12 +152,10 @@ Reasoning: ${verificationResult.reasoning}`,
               },
         };
       } else {
-        // Task needs more work, mark as incomplete and go back to planning
         logger.warn(
-          `[TaskVerifier] Task ${currentTask.id} verification failed (${verificationResult.confidenceScore}% confidence)`
+          `[TaskVerifier] Verification failed (${verificationResult.confidenceScore}% confidence)`
         );
 
-        // Mark task as incomplete and add verification context to memory
         const updatedTasks = [...state.tasks];
         updatedTasks[state.tasks.length - 1].status = 'failed';
         updatedTasks[state.tasks.length - 1].task_verification =
@@ -194,14 +187,8 @@ Reasoning: ${verificationResult.reasoning}`,
     const lastMessage = state.messages[state.messages.length - 1];
 
     if (lastMessage?.additional_kwargs?.taskCompleted === true) {
-      logger.debug(
-        '[TaskVerifierRouter] Task verified as complete, routing to success handler'
-      );
       return TaskVerifierNode.TASK_SUCCESS_HANDLER;
     } else {
-      logger.debug(
-        '[TaskVerifierRouter] Task verification failed, routing to failure handler'
-      );
       return TaskVerifierNode.TASK_FAILURE_HANDLER;
     }
   }

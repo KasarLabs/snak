@@ -94,7 +94,6 @@ export class AgentExecutorGraph {
       ['human', TASK_EXECUTOR_HUMAN_PROMPT],
     ]);
 
-    logger.debug(`[Executor] Invoking model with execution`);
     const formattedPrompt = await prompt.formatMessages({
       messages: formatSTMToXML(state.memories.stm),
       long_term_memory: LTMManager.formatMemoriesForContext(
@@ -167,11 +166,11 @@ export class AgentExecutorGraph {
         )
       ) {
         logger.warn(
-          `[TaskManager] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[Executor] Max steps reached (${state.currentGraphStep})`
         );
         throw new Error('Max steps reached');
       }
-      const agentConfig = config.configurable!.agent_config!; // Safe due to validation above
+      const agentConfig = config.configurable!.agent_config!;
       const userRequest = config.configurable!.user_request!;
       if (!userRequest) {
         throw new Error('User request is missing in configuration');
@@ -187,13 +186,8 @@ export class AgentExecutorGraph {
       }
       const stepId = uuidv4();
       logger.info(
-        `[Executor] Executing task: ${currentTask.task?.directive} (Step ${
-          state.currentGraphStep + 1
-        })`
+        `[Executor] Step ${state.currentGraphStep + 1}: ${currentTask.task?.directive}`
       );
-      // Validate current execution context
-      logger.debug(`[Executor] Current graph step: ${state.currentGraphStep}`);
-      // Execute model with timeout protection
       let aiMessage = await this.executeModelWithTimeout(state, config);
       if (!aiMessage) {
         throw new Error('Model returned no response');
@@ -206,8 +200,7 @@ export class AgentExecutorGraph {
       ) {
         aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
-      aiMessage.content = ''; // Clear content because we are using tool calls only
-      logger.debug(`[Executor] Model response received`);
+      aiMessage.content = '';
       let thought: ThoughtsSchemaType;
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
         throw new Error('No tool calls detected in model response'); // Force retry after
@@ -256,7 +249,6 @@ export class AgentExecutorGraph {
         };
       }
       if (filteredCoreTools[0].name === 'ask_human') {
-        logger.info(`[Executor] Human input requested, routing to HUMAN node`);
         thought = JSON.parse(
           typeof filteredCoreTools[0].args === 'string'
             ? filteredCoreTools[0].args
@@ -436,10 +428,8 @@ export class AgentExecutorGraph {
       ]);
 
       const executionTime = Date.now() - startTime;
-      logger.debug(`[Tools] Tool execution completed in ${executionTime}ms`);
       await Promise.all(
         tools.messages.map(async (tool) => {
-          logger.info(tool instanceof ToolMessage);
           if (
             config.configurable?.agent_config?.memory.size_limits
               .limit_before_summarization &&
@@ -453,7 +443,6 @@ export class AgentExecutorGraph {
                 this.model
               );
             tool.content = summarize_content.message.content.toLocaleString();
-            logger.info(tool instanceof ToolMessage);
           }
 
           currentTask.steps[currentTask.steps.length - 1].tool.forEach(
@@ -488,14 +477,14 @@ export class AgentExecutorGraph {
         lastNode: TaskExecutorNode.TOOL_EXECUTOR,
         memories: state.memories,
       };
-    } catch (error) {
+    } catch (error: any) {
       const executionTime = Date.now() - startTime;
 
-      if (error.message.includes('timed out')) {
-        logger.error(`[Tools] Tool execution timed out after ${toolTimeout}ms`);
+      if (error?.message?.includes('timed out')) {
+        logger.error(`[Tools] Execution timed out after ${toolTimeout}ms`);
       } else {
         logger.error(
-          `[Tools] Tool execution failed after ${executionTime}ms: ${error}`
+          `[Tools] Execution failed after ${executionTime}ms: ${error}`
         );
       }
 
@@ -535,9 +524,6 @@ export class AgentExecutorGraph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<Command> {
-    logger.info(
-      '[TaskExecutor:Human] Using Command to goto parent graph human_handler'
-    );
     return routingFromSubGraphToParentGraphHumanHandlerNode(state, config);
   }
 
@@ -561,13 +547,9 @@ export class AgentExecutorGraph {
       }
       if (state.error && state.error.hasError) {
         if (state.error.type === GraphErrorTypeEnum.BLOCKED_TASK) {
-          logger.warn(`[Router] Blocked task detected, routing to END node`);
           return TaskExecutorNode.END;
         }
         if (state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS) {
-          logger.warn(
-            `[Router] Wrong number of tools used, routing to reasoning node`
-          );
           return TaskExecutorNode.REASONING_EXECUTOR;
         }
       }
@@ -577,12 +559,9 @@ export class AgentExecutorGraph {
         lastAiMessage.tool_calls?.length
       ) {
         if (currentTask.steps[currentTask.steps.length - 1]?.type === 'human') {
-          logger.info(`[Router] Human step detected, routing to HUMAN node`);
+          logger.info(`[Executor] Human input requested`);
           return TaskExecutorNode.HUMAN;
         }
-        logger.debug(
-          `[Router] Detected ${lastAiMessage.tool_calls.length} tool calls, routing to tools node`
-        );
         return TaskExecutorNode.TOOL_EXECUTOR;
       }
     } else if (state.lastNode === TaskExecutorNode.TOOL_EXECUTOR) {
@@ -590,16 +569,14 @@ export class AgentExecutorGraph {
         config.configurable.agent_config.graph.max_steps <=
         state.currentGraphStep
       ) {
-        logger.warn('[Router] Max graph steps reached, routing to END node');
+        logger.warn('[Executor] Max steps reached');
         return TaskExecutorNode.END_GRAPH;
       } else {
         return TaskExecutorNode.END;
       }
     } else if (state.lastNode === TaskExecutorNode.HUMAN) {
-      logger.debug(`[Router] Routing from HUMAN back to REASONING_EXECUTOR`);
       return TaskExecutorNode.REASONING_EXECUTOR;
     }
-    logger.debug(`[Router] Default routing to END node`);
     return TaskExecutorNode.END;
   }
 

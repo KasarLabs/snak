@@ -325,14 +325,11 @@ export class MemoryGraph {
         )
       ) {
         logger.warn(
-          `[TaskManagerMemory] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[Memory] Max steps reached (${state.currentGraphStep})`
         );
         throw new Error('Max memory graph steps reached');
       }
       if (config.configurable?.agent_config?.memory.ltm_enabled === false) {
-        logger.info(
-          '[TaskManagerMemory] Memory disabled in configuration skipping LTM update'
-        );
         return { lastNode: TaskMemoryNode.END_GRAPH };
       }
       const agentConfig = config.configurable!.agent_config!;
@@ -342,18 +339,12 @@ export class MemoryGraph {
         1
       );
       if (recentMemories.length === 0) {
-        logger.warn(
-          '[LTMManager] No recent STM items available for LTM upsert'
-        );
         return { lastNode: TaskMemoryNode.END_GRAPH };
       }
       if (
         config.configurable?.agent_config?.memory.strategy ===
         MemoryStrategy.CATEGORIZED
       ) {
-        logger.info(
-          '[LTMManager] Using categorized memory strategy for LTM update'
-        );
         await this.categorized_memory_manager(
           agentConfig,
           currentTask,
@@ -363,22 +354,19 @@ export class MemoryGraph {
         state.tasks[state.tasks.length - 1].steps.forEach((step) => {
           step.isSavedInMemory = true;
         });
-        return { lastNode: TaskMemoryNode.LTM_MANAGER, tasks: state.tasks }; // This return updated task with steps marked as saved
+        return { lastNode: TaskMemoryNode.LTM_MANAGER, tasks: state.tasks };
       }
 
       if (
         config.configurable?.agent_config?.memory.strategy ===
         MemoryStrategy.HOLISTIC
       ) {
-        logger.info(
-          '[LTMManager] Using holistic memory strategy for LTM update'
-        );
         const result = await this.holistic_memory_manager(
           agentConfig,
           currentTask
         );
         state.tasks[state.tasks.length - 1] = result.updatedTask;
-        return { lastNode: TaskMemoryNode.LTM_MANAGER, tasks: state.tasks }; // This return updated task with steps marked as saved
+        return { lastNode: TaskMemoryNode.LTM_MANAGER, tasks: state.tasks };
       }
       return {
         lastNode: TaskMemoryNode.LTM_MANAGER,
@@ -418,25 +406,19 @@ export class MemoryGraph {
         )
       ) {
         logger.warn(
-          `[TaskManagerMemory] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[Memory] Max steps reached (${state.currentGraphStep})`
         );
         throw new Error('Max memory graph steps reached');
-      } // Fetch relevant memories from DB based on recent STM context
+      }
       const agentConfig = config.configurable!.agent_config!;
       const recentSTM = STMManager.getRecentMemories(state.memories.stm, 1);
       if (recentSTM.length === 0) {
-        logger.warn(
-          '[RetrieveMemory] No recent STM items available for memory retrieval'
-        );
         return {
           memories: state.memories,
           lastNode: TaskMemoryNode.RETRIEVE_MEMORY,
         };
       }
       if (agentConfig.memory.ltm_enabled === false) {
-        logger.info(
-          '[TaskManagerMemory] Memory disabled in configuration skipping retrieve memory'
-        );
         return { lastNode: TaskMemoryNode.END_GRAPH };
       }
       const request = getRetrieveMemoryRequestFromGraph(state, config);
@@ -498,52 +480,31 @@ export class MemoryGraph {
   ): TaskMemoryNode {
     try {
       const lastNode = state.lastNode;
-      logger.debug(`[TaskManagerMemory] Routing from agent: ${lastNode}`);
-      // Validate memory state
       if (!MemoryStateManager.validate(state.memories)) {
-        logger.error(
-          '[TaskManagerMemory] Invalid memory state detected, routing to end'
-        );
+        logger.error('[Memory] Invalid memory state');
         return TaskMemoryNode.END_GRAPH;
       }
-      // Route based on previous agent and current state
       switch (true) {
         case isInEnum(TaskExecutorNode, lastNode):
-          logger.debug(
-            '[TaskManagerMemory] Task execution complete → managing long-term memory'
-          );
           return TaskMemoryNode.LTM_MANAGER;
 
         case isInEnum(TaskManagerNode, lastNode):
-          logger.debug(
-            '[TaskManagerMemory] Plan validated → retrieving memory context'
-          );
           return TaskMemoryNode.RETRIEVE_MEMORY;
 
         case isInEnum(TaskVerifierNode, lastNode):
-          logger.debug(
-            '[TaskManagerMemory] Task verification complete → retrieving memory context'
-          );
           return TaskMemoryNode.LTM_MANAGER;
 
         case isInEnum(TaskMemoryNode, lastNode):
           if (lastNode === TaskMemoryNode.RETRIEVE_MEMORY) {
-            logger.debug(
-              '[TaskManagerMemory] Memory context retrieved → ending memory flow'
-            );
             return TaskMemoryNode.END;
           }
           return TaskMemoryNode.END_GRAPH;
         default:
-          logger.warn(
-            `[TaskManagerMemory] Unknown agent ${lastNode}, routing to end`
-          );
+          logger.warn(`[Memory] Unknown node: ${lastNode}`);
           return TaskMemoryNode.END_GRAPH;
       }
     } catch (error: any) {
-      logger.error(
-        `[TaskManagerMemory] Error in routing logic: ${error.message}`
-      );
+      logger.error(`[Memory] Routing error: ${error.message}`);
       return TaskMemoryNode.END_GRAPH;
     }
   }

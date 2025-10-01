@@ -176,7 +176,7 @@ export class TaskManagerGraph {
         )
       ) {
         logger.warn(
-          `[TaskManager] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[TaskManager] Max steps reached (${state.currentGraphStep})`
         );
         throw new Error('Max steps reached');
       }
@@ -233,14 +233,13 @@ export class TaskManagerGraph {
         aiMessage.invalid_tool_calls &&
         aiMessage.invalid_tool_calls.length > 0
       ) {
-        logger.info('[Task Manager] Regenerating tool calls from message');
+        logger.warn('[Task Manager] Invalid tool calls, regenerating');
         aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
-      aiMessage.content = ''; // Clear content because we are using tool calls only
-      logger.info(`[Task Manager] Successfully created task`);
+      aiMessage.content = '';
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
         logger.warn(
-          `[Task Manager] No tool calls detected in model response, retrying execution`
+          `[Task Manager] No tool calls detected, retrying`
         );
         return {
           retry: (state.retry ?? 0) + 1,
@@ -287,9 +286,6 @@ export class TaskManagerGraph {
         };
       }
       if (aiMessage.tool_calls[0].name === 'ask_human') {
-        logger.info(
-          '[Task Manager] Routing to human-in-the-loop for task creation'
-        );
         const parsed_args = JSON.parse(
           typeof aiMessage.tool_calls[0].args === 'string'
             ? aiMessage.tool_calls[0].args
@@ -321,7 +317,6 @@ export class TaskManagerGraph {
         };
       }
       if (aiMessage.tool_calls[0].name === 'block_task') {
-        logger.info('[Task Manager] Task creation aborted by model');
         return handleNodeError(
           GraphErrorTypeEnum.TASK_ABORTED,
           new Error('Task creation aborted by model'),
@@ -329,9 +324,6 @@ export class TaskManagerGraph {
           state
         );
       } else if (aiMessage.tool_calls[0].name === 'end_task') {
-        logger.info(
-          '[Task Manager] Ending task manager graph as model request'
-        );
         return handleEndGraph(
           'task_manager',
           state,
@@ -400,9 +392,7 @@ export class TaskManagerGraph {
       throw new Error('Agent configuration is required for routing decisions.');
     }
     if (state.retry > config.configurable?.agent_config?.graph.max_retries) {
-      logger.warn(
-        '[Task Manager Router] Max retries reached, routing to END node'
-      );
+      logger.warn('[Task Manager] Max retries reached');
       return TaskManagerNode.END_GRAPH;
     }
     if (state.lastNode === TaskManagerNode.CREATE_TASK) {
@@ -414,23 +404,16 @@ export class TaskManagerGraph {
           state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS ||
           state.error.type === GraphErrorTypeEnum.TOOL_ERROR
         ) {
-          logger.warn(
-            `[Task Manager Router] Retry condition met, routing back to CREATE_TASK`
-          );
           return TaskManagerNode.CREATE_TASK;
         }
       } else {
-        logger.info('[Task Manager Router] Task created, routing to END');
+        logger.info(`[Task Manager] Task created: ${currentTask.thought?.text || currentTask.task?.directive}`);
         return TaskManagerNode.END;
       }
     }
     if (state.lastNode === TaskManagerNode.HUMAN) {
-      logger.info(
-        '[Task Manager Router] Routing from HUMAN back to CREATE_TASK'
-      );
       return TaskManagerNode.CREATE_TASK;
     }
-    logger.warn('[Task Manager Router] Routing to END_GRAPH node');
     return TaskManagerNode.END_GRAPH;
   }
 

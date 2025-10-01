@@ -164,29 +164,23 @@ export class Graph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
-    logger.debug(`[Orchestration Router] Last agent: ${state.lastNode}`);
-    // Check for errors first
     if (state.error?.hasError && state.error.type !== 'blocked_task') {
       logger.error(
-        `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
+        `[Router] Error: ${state.error.source} -> ${state.error.message}`
       );
       return GraphNode.END_GRAPH;
     }
     const currentTask = state.tasks[state.tasks.length - 1];
 
-    // Skip validation if flagged
     if (state.skipValidation.skipValidation) {
       const validTargets = Object.values(GraphNode);
       const goto = state.skipValidation.goto as GraphNode;
 
       if (validTargets.includes(goto)) {
-        logger.debug(
-          `[Orchestration Router] Skip validation routing to: ${goto}`
-        );
         return goto;
       } else {
         logger.warn(
-          `[Orchestration Router] Invalid skip validation target: ${goto}, defaulting to end_graph`
+          `[Router] Invalid skip target: ${goto}`
         );
         return GraphNode.END_GRAPH;
       }
@@ -198,9 +192,6 @@ export class Graph {
           currentTask.status === 'completed' ||
           currentTask.status === 'failed'
         ) {
-          logger.debug(
-            `[Orchestration Router] Memory operations complete, routing to task memory manager`
-          );
           return GraphNode.MEMORY_ORCHESTRATOR;
         }
       }
@@ -209,82 +200,56 @@ export class Graph {
         currentTask.status === 'completed' ||
         currentTask.status === 'failed'
       ) {
-        logger.debug(
-          `[Orchestration Router] Memory operations complete, routing to task manager`
-        );
         return GraphNode.TASK_MANAGER;
       } else {
-        logger.debug(
-          `[Orchestration Router] Memory operations complete, routing to agent executor`
-        );
         return GraphNode.AGENT_EXECUTOR;
       }
     }
-    // Handle routing from HUMAN_HANDLER back to sub-graphs
     if (isInEnum(GraphNode, state.lastNode)) {
       if (state.lastNode === GraphNode.HUMAN_HANDLER) {
         const lastMessage = state.messages[state.messages.length - 1];
         const from = lastMessage?.additional_kwargs?.from;
 
         if (from === TaskManagerNode.HUMAN) {
-          logger.debug(
-            `[Orchestration Router] Human input processed, routing back to task manager`
-          );
           return GraphNode.TASK_MANAGER;
         }
         if (from === TaskExecutorNode.HUMAN) {
-          logger.debug(
-            `[Orchestration Router] Human input processed, routing back to agent executor`
-          );
           return GraphNode.AGENT_EXECUTOR;
         }
         logger.warn(
-          `[Orchestration Router] Unknown human handler source, routing to memory`
+          `[Router] Unknown human handler source`
         );
         return GraphNode.MEMORY_ORCHESTRATOR;
       }
     }
 
     if (isInEnum(TaskExecutorNode, state.lastNode)) {
-      // Check if a task was just completed (end_task tool was called)
       if (state.error && state.error.hasError) {
-        logger.error(
-          `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
-        );
         if (state.error.type === 'blocked_task') {
           logger.warn(
-            `[Orchestration Router] Blocked task detected, routing to task manager`
+            `[Router] Blocked task, routing to task manager`
           );
           return GraphNode.TASK_MANAGER;
         }
         return GraphNode.END_GRAPH;
       }
       if (currentTask && currentTask.status === 'waiting_validation') {
-        logger.debug(
-          `[Orchestration Router] Task completed, routing to task verifier`
-        );
         return GraphNode.TASK_VERIFIER;
       } else {
-        logger.debug(
-          `[Orchestration Router] Execution complete, routing to memory`
-        );
         return GraphNode.MEMORY_ORCHESTRATOR;
       }
     }
 
     if (isInEnum(TaskManagerNode, state.lastNode)) {
-      logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
       return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
-    logger.debug(`[Orchestration Router] Default routing to executor`);
     return GraphNode.AGENT_EXECUTOR;
   }
   private initGraphStateValue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphStateType {
-    logger.debug('[Agent] Initializing graph state values');
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required in config');
     }
@@ -302,12 +267,7 @@ export class Graph {
       );
     }
     if (!state.memories || state.memories.stm.items.length === 0) {
-      // TODO IF SHORT TERM MEMORY SIZE CHANGED, MANAGE STM TO REFLECT NEW SIZE
       state.memories = MemoryStateManager.createInitialState(memorySize);
-    } else {
-      logger.info(
-        '[Agent] Existing memory state detected, preserving current state'
-      );
     }
     return state;
   }
@@ -326,21 +286,16 @@ export class Graph {
     }
 
     const requestSource = state.lastNode;
-    logger.info(`[HumanHandler] Processing human input from: ${requestSource}`);
+    logger.info(`[HumanHandler] Processing input from: ${requestSource}`);
 
-    // Handle task-manager human input
     if (
       requestSource === TaskManagerNode.HUMAN ||
       requestSource === TaskManagerNode.CREATE_TASK
     ) {
-      logger.info(
-        `[HumanHandler:Manager] Awaiting input: ${currentTask.thought.speak}`
-      );
       const h_input = interrupt(currentTask.thought.speak);
       if (!h_input) {
         throw new Error('[HumanHandler:Manager] No input received');
       }
-      logger.info('[HumanHandler:Manager] Input processed');
 
       currentTask.human = h_input;
       currentTask.status = 'completed';
@@ -360,7 +315,6 @@ export class Graph {
       };
     }
 
-    // Handle task-executor human input
     if (
       requestSource === TaskExecutorNode.HUMAN ||
       requestSource === TaskExecutorNode.REASONING_EXECUTOR
@@ -370,14 +324,10 @@ export class Graph {
         throw new Error('[HumanHandler:Executor] Invalid step');
       }
 
-      logger.info(
-        `[HumanHandler:Executor] Awaiting input: ${currentStep.thought.speak}`
-      );
       const h_input = interrupt(currentStep.thought.speak);
       if (!h_input) {
         throw new Error('[HumanHandler:Executor] No input received');
       }
-      logger.info('[HumanHandler:Executor] Input processed');
 
       const human_message = new HumanMessage({
         content: h_input,
@@ -424,7 +374,6 @@ export class Graph {
     typeof GraphState.State,
     typeof GraphConfigurableAnnotation.State
   > {
-    logger.debug('[Agent] Building workflow with initialized components');
     const memory = new MemoryGraph(
       this.agentConfig.graph.model,
       this.agentConfig.memory
@@ -495,14 +444,10 @@ export class Graph {
 
       // Initialize database
       await initializeDatabase(this.snakAgent.getDatabaseCredentials());
-      // Initialize tools
       this.toolsList = await initializeToolsList(
         this.snakAgent,
         this.agentConfig
       );
-      this.toolsList.forEach((tool) => {
-        logger.debug(`[Agent] Tool initialized: ${tool.name}`);
-      });
       // Initialize RAG agent if enabled
       if (this.agentConfig.rag?.enabled !== false) {
         await this.initializeRagAgent();
@@ -526,7 +471,6 @@ export class Graph {
       throw new Error('Agent not initialized. Call initialize() first.');
     }
     this.config = newConfig;
-    logger.debug('[Agent] Configuration updated successfully');
   }
 }
 
