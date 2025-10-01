@@ -305,6 +305,12 @@ export class TaskManagerGraph {
           status: 'waiting_human' as const,
         };
         state.tasks.push(task);
+        aiMessage.additional_kwargs = {
+          task_id: task.id,
+          step_id: null,
+          final: false,
+          from: TaskManagerNode.CREATE_TASK,
+        };
         return {
           messages: [aiMessage],
           lastNode: TaskManagerNode.CREATE_TASK,
@@ -346,6 +352,12 @@ export class TaskManagerGraph {
         status: 'pending' as const,
       };
       state.tasks.push(task);
+      aiMessage.additional_kwargs = {
+        task_id: task.id,
+        step_id: null,
+        final: false,
+        from: TaskManagerNode.CREATE_TASK,
+      };
       return {
         messages: [aiMessage],
         lastNode: TaskManagerNode.CREATE_TASK,

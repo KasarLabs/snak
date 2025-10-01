@@ -274,6 +274,8 @@ export class AgentExecutorGraph {
         });
         state.tasks[state.tasks.length - 1] = currentTask;
         aiMessage.additional_kwargs = {
+          task_id: currentTask.id,
+          step_id: currentTask.steps[currentTask.steps.length - 1].id,
           from: TaskExecutorNode.REASONING_EXECUTOR,
           final: false,
         };
@@ -330,7 +332,6 @@ export class AgentExecutorGraph {
         isSavedInMemory: false,
       });
       state.tasks[state.tasks.length - 1] = currentTask;
-
       const newMemories = STMManager.addMemory(
         state.memories.stm,
         [aiMessage],
@@ -343,7 +344,12 @@ export class AgentExecutorGraph {
         );
       }
       state.memories.stm = newMemories.data;
-
+      aiMessage.additional_kwargs = {
+        task_id: currentTask.id,
+        step_id: currentTask.steps[currentTask.steps.length - 1].id,
+        from: TaskExecutorNode.REASONING_EXECUTOR,
+        final: false,
+      };
       return {
         messages: [aiMessage],
         lastNode: TaskExecutorNode.REASONING_EXECUTOR,

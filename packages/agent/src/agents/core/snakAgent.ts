@@ -286,12 +286,18 @@ export class SnakAgent extends BaseAgent {
   private createChunkOutput(
     chunk: StreamEvent,
     state: StateSnapshot,
-    currentTask: TaskType | null,
-    currentStep: StepType | null,
+    currentTaskId: string | null,
+    currentStepId: string | null,
     graphError: GraphErrorType | null,
     retryCount: number,
     from: GraphNode
   ): ChunkOutput {
+    if (chunk.event === EventType.ON_CHAT_MODEL_END) {
+      console.log('Chunk Data:', chunk.data);
+      console.log('Current Task ID:', currentTaskId);
+      console.log('Current Step ID:', currentStepId);
+    }
+
     const metadata: ChunkOutputMetadata = {
       langgraph_step: chunk.metadata.langgraph_step,
       langgraph_node: chunk.metadata.langgraph_node,
@@ -300,10 +306,6 @@ export class SnakAgent extends BaseAgent {
       ls_model_type: chunk.metadata.ls_model_type,
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
-      task_title:
-        currentTask && currentTask.task?.directive
-          ? currentTask.task?.directive
-          : undefined,
       error: graphError,
       retry: retryCount,
     };
@@ -313,8 +315,8 @@ export class SnakAgent extends BaseAgent {
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
-      task_id: currentTask ? currentTask.id : null,
-      step_id: currentStep ? currentStep.id : null,
+      task_id: currentTaskId ? currentTaskId : null,
+      step_id: currentStepId ? currentStepId : null,
       from,
       tools:
         chunk.event === EventType.ON_CHAT_MODEL_END
@@ -337,8 +339,8 @@ export class SnakAgent extends BaseAgent {
   private processChunkOutput(
     chunk: StreamEvent,
     state: any,
-    currentTask: TaskType | null,
-    currentStep: StepType | null,
+    currentTaskId: string | null,
+    currentStepId: string | null,
     retryCount: number,
     graphError: GraphErrorType | null
   ): ChunkOutput | null {
@@ -358,8 +360,8 @@ export class SnakAgent extends BaseAgent {
       return this.createChunkOutput(
         chunk,
         state,
-        currentTask,
-        currentStep,
+        currentTaskId,
+        currentStepId,
         graphError,
         retryCount,
         GraphNode.TASK_MANAGER
@@ -368,8 +370,8 @@ export class SnakAgent extends BaseAgent {
       return this.createChunkOutput(
         chunk,
         state,
-        currentTask,
-        currentStep,
+        currentTaskId,
+        currentStepId,
 
         graphError,
         retryCount,
@@ -379,8 +381,8 @@ export class SnakAgent extends BaseAgent {
       return this.createChunkOutput(
         chunk,
         state,
-        currentTask,
-        currentStep,
+        currentTaskId,
+        currentStepId,
         graphError,
         retryCount,
         GraphNode.MEMORY_ORCHESTRATOR
@@ -421,11 +423,11 @@ export class SnakAgent extends BaseAgent {
     isInterrupted: boolean = false
   ): AsyncGenerator<ChunkOutput> {
     try {
-      let lastChunk;
+      let lastChunk: StreamEvent | null = null;
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;
-      let currentTask: TaskType | null = null;
-      let currentStep: StepType | null = null;
+      let currentTaskId: string | null = null;
+      let currentStepId: string | null = null;
       let graphError: GraphErrorType | null = null;
       let stateSnapshot: StateSnapshot;
       logger.info(
@@ -480,23 +482,21 @@ export class SnakAgent extends BaseAgent {
           executionConfig
         )) {
           // Setter
-
           lastChunk = chunk;
           retryCount = stateSnapshot.values.retry;
           currentCheckpointId =
             stateSnapshot.config.configurable?.checkpoint_id;
-          currentTask =
-            stateSnapshot.values.tasks && stateSnapshot.values.tasks.length > 0
-              ? (stateSnapshot.values.tasks[
-                  stateSnapshot.values.tasks.length - 1
-                ] as TaskType)
+          currentTaskId =
+            chunk.event === 'on_chat_model_end' &&
+            chunk.data?.output?.additional_kwargs?.task_id
+              ? chunk.data.output.additional_kwargs.task_id
               : null;
-          currentStep =
-            currentTask && currentTask.steps.length > 0
-              ? (currentTask.steps[currentTask.steps.length - 1] as StepType)
+          currentStepId =
+            chunk.event === 'on_chat_model_end' &&
+            chunk.data?.output?.additional_kwargs?.task_id
+              ? chunk.data.output.additional_kwargs.step_id
               : null;
           graphError = stateSnapshot.values.error;
-
           stateSnapshot = await this.compiledGraph.getState(executionConfig);
           if (!stateSnapshot) {
             throw new Error('Failed to retrieve graph state during execution');
@@ -519,8 +519,8 @@ export class SnakAgent extends BaseAgent {
           const processedChunk = this.processChunkOutput(
             chunk,
             stateSnapshot,
-            currentTask,
-            currentStep,
+            currentTaskId,
+            currentStepId,
             retryCount,
             graphError
           );
@@ -538,8 +538,8 @@ export class SnakAgent extends BaseAgent {
           from: GraphNode.END_GRAPH,
           thread_id: threadId,
           checkpoint_id: currentCheckpointId,
-          task_id: currentTask ? currentTask.id : null,
-          step_id: currentStep ? currentStep.id : null,
+          task_id: currentTaskId ? currentTaskId : null,
+          step_id: currentStepId ? currentStepId : null,
           tools: lastChunk.data.output.tool_calls ?? null,
           message: lastChunk.data.output.content
             ? lastChunk.data.output.content.toLocaleString()
