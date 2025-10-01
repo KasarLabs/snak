@@ -10,7 +10,7 @@ import {
 import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
-  TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@prompts/index.js';
 import { normalizeNumericValues } from './normalizeAgentValues.js';
@@ -262,7 +262,7 @@ async function ensurePromptsId(
       TASK_EXECUTOR_SYSTEM_PROMPT,
       TASK_MANAGER_SYSTEM_PROMPT,
       TASK_VERIFIER_SYSTEM_PROMPT,
-      TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+      TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
       false,
     ]
   );

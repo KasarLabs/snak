@@ -111,7 +111,8 @@ export function addMcpServerTool(
           [updatedMcpServers, agent.id, userId]
         );
 
-        const result = await Postgres.query<AgentConfig.Input>(updateQuery);
+        const result =
+          await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
 
         if (result.length > 0) {
           logger.info(

@@ -521,7 +521,7 @@ function normalizeRagConfig(
     // Normalize enabled
     const enabledResult = normalizeBooleanValue(
       rag.enabled,
-      DEFAULT_AGENT_CONFIG.rag.enabled || false,
+      DEFAULT_AGENT_CONFIG.rag.enabled ?? false,
       'rag.enabled'
     );
     config.enabled = enabledResult.value;
@@ -532,7 +532,7 @@ function normalizeRagConfig(
     // Normalize top_k
     const topKResult = normalizeNumericValue(
       rag.top_k,
-      DEFAULT_AGENT_CONFIG.rag.top_k || 4,
+      DEFAULT_AGENT_CONFIG.rag.top_k ?? 4,
       'rag.top_k'
     );
     config.top_k = topKResult.value;

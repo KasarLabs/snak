@@ -37,7 +37,7 @@ export function deleteAgentTool(
     func: async (input) => {
       try {
         const userId = agentConfig.user_id;
-        const confirm = input.confirm ?? true;
+        const confirm = input.confirm ?? false;
         if (!confirm) {
           return JSON.stringify({
             success: false,

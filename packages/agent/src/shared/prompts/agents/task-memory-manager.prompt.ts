@@ -1,4 +1,4 @@
-export const TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT = `
+export const TASK_MEMORY_MANAGER_SYSTEM_PROMPT = `
 You are memory-SNAK a memory integration agent that processes responses into Long-Term Memory (LTM) with episodic and semantic components. Your task is to EXHAUSTIVELY analyze the given response and create structured memory entries.
 
 ## CORE PRINCIPLES

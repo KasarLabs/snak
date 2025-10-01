@@ -7,7 +7,7 @@ import {
   McpServerConfigSchema,
 } from './common.schemas.js';
 
-// Main schema matching Partial<AgentConfig.Input>
+// Main schema for creating an agent (profile required, other fields optional)
 export const CreateAgentSchema = z
   .object({
     profile: AgentProfileSchema.describe('Agent profile configuration'),

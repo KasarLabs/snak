@@ -17,7 +17,7 @@ export const UpdateAgentSchema = z.object({
   searchBy: z
     .enum(['id', 'name'])
     .optional()
-    .nullable()
+    .default('name')
     .describe(
       'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
     ),
