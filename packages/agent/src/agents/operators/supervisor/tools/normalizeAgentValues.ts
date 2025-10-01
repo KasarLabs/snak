@@ -1,6 +1,9 @@
-
-import { AgentConfig, MemoryStrategy, McpServerConfig, DEFAULT_AGENT_CONFIG } from '@snakagent/core';
-
+import {
+  AgentConfig,
+  MemoryStrategy,
+  McpServerConfig,
+  DEFAULT_AGENT_CONFIG,
+} from '@snakagent/core';
 
 interface NormalizationResult {
   normalizedConfig: AgentConfig.Input;
@@ -83,7 +86,9 @@ function normalizeStringValue(
 /**
  * Normalizes model configuration
  */
-function normalizeModelConfig(model: Partial<AgentConfig.Input['graph']['model']> | null | undefined): {
+function normalizeModelConfig(
+  model: Partial<AgentConfig.Input['graph']['model']> | null | undefined
+): {
   config: AgentConfig.Input['graph']['model'];
   appliedDefaults: string[];
 } {
@@ -98,28 +103,44 @@ function normalizeModelConfig(model: Partial<AgentConfig.Input['graph']['model']
     };
 
     // Normalize provider
-    const providerResult = normalizeStringValue(model.provider, DEFAULT_AGENT_CONFIG.graph.model.provider, 'model.provider');
+    const providerResult = normalizeStringValue(
+      model.provider,
+      DEFAULT_AGENT_CONFIG.graph.model.provider,
+      'model.provider'
+    );
     config.provider = providerResult.value;
     if (providerResult.appliedDefault) {
       appliedDefaults.push(providerResult.appliedDefault);
     }
 
     // Normalize model_name
-    const modelNameResult = normalizeStringValue(model.model_name, DEFAULT_AGENT_CONFIG.graph.model.model_name, 'model.model_name');
+    const modelNameResult = normalizeStringValue(
+      model.model_name,
+      DEFAULT_AGENT_CONFIG.graph.model.model_name,
+      'model.model_name'
+    );
     config.model_name = modelNameResult.value;
     if (modelNameResult.appliedDefault) {
       appliedDefaults.push(modelNameResult.appliedDefault);
     }
 
     // Normalize temperature
-    const temperatureResult = normalizeNumericValue(model.temperature, DEFAULT_AGENT_CONFIG.graph.model.temperature, 'model.temperature');
+    const temperatureResult = normalizeNumericValue(
+      model.temperature,
+      DEFAULT_AGENT_CONFIG.graph.model.temperature,
+      'model.temperature'
+    );
     config.temperature = temperatureResult.value;
     if (temperatureResult.appliedDefault) {
       appliedDefaults.push(temperatureResult.appliedDefault);
     }
 
     // Normalize max_tokens
-    const maxTokensResult = normalizeNumericValue(model.max_tokens, DEFAULT_AGENT_CONFIG.graph.model.max_tokens, 'model.max_tokens');
+    const maxTokensResult = normalizeNumericValue(
+      model.max_tokens,
+      DEFAULT_AGENT_CONFIG.graph.model.max_tokens,
+      'model.max_tokens'
+    );
     config.max_tokens = maxTokensResult.value;
     if (maxTokensResult.appliedDefault) {
       appliedDefaults.push(maxTokensResult.appliedDefault);
@@ -135,7 +156,9 @@ function normalizeModelConfig(model: Partial<AgentConfig.Input['graph']['model']
 /**
  * Normalizes graph configuration
  */
-function normalizeGraphConfig(graph: Partial<AgentConfig.Input['graph']> | null | undefined): {
+function normalizeGraphConfig(
+  graph: Partial<AgentConfig.Input['graph']> | null | undefined
+): {
   config: AgentConfig.Input['graph'];
   appliedDefaults: string[];
 } {
@@ -152,11 +175,31 @@ function normalizeGraphConfig(graph: Partial<AgentConfig.Input['graph']> | null 
     };
 
     const properties = [
-      { key: 'max_steps', value: graph.max_steps, default: DEFAULT_AGENT_CONFIG.graph.max_steps },
-      { key: 'max_iterations', value: graph.max_iterations, default: DEFAULT_AGENT_CONFIG.graph.max_iterations },
-      { key: 'max_retries', value: graph.max_retries, default: DEFAULT_AGENT_CONFIG.graph.max_retries },
-      { key: 'execution_timeout_ms', value: graph.execution_timeout_ms, default: DEFAULT_AGENT_CONFIG.graph.execution_timeout_ms },
-      { key: 'max_token_usage', value: graph.max_token_usage, default: DEFAULT_AGENT_CONFIG.graph.max_token_usage },
+      {
+        key: 'max_steps',
+        value: graph.max_steps,
+        default: DEFAULT_AGENT_CONFIG.graph.max_steps,
+      },
+      {
+        key: 'max_iterations',
+        value: graph.max_iterations,
+        default: DEFAULT_AGENT_CONFIG.graph.max_iterations,
+      },
+      {
+        key: 'max_retries',
+        value: graph.max_retries,
+        default: DEFAULT_AGENT_CONFIG.graph.max_retries,
+      },
+      {
+        key: 'execution_timeout_ms',
+        value: graph.execution_timeout_ms,
+        default: DEFAULT_AGENT_CONFIG.graph.execution_timeout_ms,
+      },
+      {
+        key: 'max_token_usage',
+        value: graph.max_token_usage,
+        default: DEFAULT_AGENT_CONFIG.graph.max_token_usage,
+      },
     ];
 
     properties.forEach(({ key, value, default: defaultValue }) => {
@@ -182,7 +225,12 @@ function normalizeGraphConfig(graph: Partial<AgentConfig.Input['graph']> | null 
 /**
  * Normalizes memory size limits configuration
  */
-function normalizeMemorySizeLimits(sizeLimits: Partial<AgentConfig.Input['memory']['size_limits']> | null | undefined): {
+function normalizeMemorySizeLimits(
+  sizeLimits:
+    | Partial<AgentConfig.Input['memory']['size_limits']>
+    | null
+    | undefined
+): {
   config: AgentConfig.Input['memory']['size_limits'];
   appliedDefaults: string[];
 } {
@@ -190,23 +238,56 @@ function normalizeMemorySizeLimits(sizeLimits: Partial<AgentConfig.Input['memory
 
   if (sizeLimits && isPlainObject(sizeLimits)) {
     const config: AgentConfig.Input['memory']['size_limits'] = {
-      short_term_memory_size: DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size,
-      max_insert_episodic_size: DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size,
-      max_insert_semantic_size: DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size,
-      max_retrieve_memory_size: DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size,
-      limit_before_summarization: DEFAULT_AGENT_CONFIG.memory.size_limits.limit_before_summarization,
+      short_term_memory_size:
+        DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size,
+      max_insert_episodic_size:
+        DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size,
+      max_insert_semantic_size:
+        DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size,
+      max_retrieve_memory_size:
+        DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size,
+      limit_before_summarization:
+        DEFAULT_AGENT_CONFIG.memory.size_limits.limit_before_summarization,
     };
 
     const properties = [
-      { key: 'short_term_memory_size', value: sizeLimits.short_term_memory_size, default: DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size },
-      { key: 'max_insert_episodic_size', value: sizeLimits.max_insert_episodic_size, default: DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size },
-      { key: 'max_insert_semantic_size', value: sizeLimits.max_insert_semantic_size, default: DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size },
-      { key: 'max_retrieve_memory_size', value: sizeLimits.max_retrieve_memory_size, default: DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size },
-      { key: 'limit_before_summarization', value: sizeLimits.limit_before_summarization, default: DEFAULT_AGENT_CONFIG.memory.size_limits.limit_before_summarization },
+      {
+        key: 'short_term_memory_size',
+        value: sizeLimits.short_term_memory_size,
+        default: DEFAULT_AGENT_CONFIG.memory.size_limits.short_term_memory_size,
+      },
+      {
+        key: 'max_insert_episodic_size',
+        value: sizeLimits.max_insert_episodic_size,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_episodic_size,
+      },
+      {
+        key: 'max_insert_semantic_size',
+        value: sizeLimits.max_insert_semantic_size,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_insert_semantic_size,
+      },
+      {
+        key: 'max_retrieve_memory_size',
+        value: sizeLimits.max_retrieve_memory_size,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.size_limits.max_retrieve_memory_size,
+      },
+      {
+        key: 'limit_before_summarization',
+        value: sizeLimits.limit_before_summarization,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.size_limits.limit_before_summarization,
+      },
     ];
 
     properties.forEach(({ key, value, default: defaultValue }) => {
-      const result = normalizeNumericValue(value, defaultValue, `memory.size_limits.${key}`);
+      const result = normalizeNumericValue(
+        value,
+        defaultValue,
+        `memory.size_limits.${key}`
+      );
       (config as any)[key] = result.value;
       if (result.appliedDefault) {
         appliedDefaults.push(result.appliedDefault);
@@ -216,14 +297,22 @@ function normalizeMemorySizeLimits(sizeLimits: Partial<AgentConfig.Input['memory
     return { config, appliedDefaults };
   } else {
     appliedDefaults.push(`memory.size_limits initialized with default values`);
-    return { config: { ...DEFAULT_AGENT_CONFIG.memory.size_limits }, appliedDefaults };
+    return {
+      config: { ...DEFAULT_AGENT_CONFIG.memory.size_limits },
+      appliedDefaults,
+    };
   }
 }
 
 /**
  * Normalizes memory thresholds configuration
  */
-function normalizeMemoryThresholds(thresholds: Partial<AgentConfig.Input['memory']['thresholds']> | null | undefined): {
+function normalizeMemoryThresholds(
+  thresholds:
+    | Partial<AgentConfig.Input['memory']['thresholds']>
+    | null
+    | undefined
+): {
   config: AgentConfig.Input['memory']['thresholds'];
   appliedDefaults: string[];
 } {
@@ -231,22 +320,48 @@ function normalizeMemoryThresholds(thresholds: Partial<AgentConfig.Input['memory
 
   if (thresholds && isPlainObject(thresholds)) {
     const config: AgentConfig.Input['memory']['thresholds'] = {
-      insert_semantic_threshold: DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold,
-      insert_episodic_threshold: DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold,
-      retrieve_memory_threshold: DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold,
+      insert_semantic_threshold:
+        DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold,
+      insert_episodic_threshold:
+        DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold,
+      retrieve_memory_threshold:
+        DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold,
       hitl_threshold: DEFAULT_AGENT_CONFIG.memory.thresholds.hitl_threshold,
     };
 
     // Normalize each property
     const properties = [
-      { key: 'insert_semantic_threshold', value: thresholds.insert_semantic_threshold, default: DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold },
-      { key: 'insert_episodic_threshold', value: thresholds.insert_episodic_threshold, default: DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold },
-      { key: 'retrieve_memory_threshold', value: thresholds.retrieve_memory_threshold, default: DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold },
-      { key: 'hitl_threshold', value: thresholds.hitl_threshold, default: DEFAULT_AGENT_CONFIG.memory.thresholds.hitl_threshold },
+      {
+        key: 'insert_semantic_threshold',
+        value: thresholds.insert_semantic_threshold,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_semantic_threshold,
+      },
+      {
+        key: 'insert_episodic_threshold',
+        value: thresholds.insert_episodic_threshold,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.thresholds.insert_episodic_threshold,
+      },
+      {
+        key: 'retrieve_memory_threshold',
+        value: thresholds.retrieve_memory_threshold,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.thresholds.retrieve_memory_threshold,
+      },
+      {
+        key: 'hitl_threshold',
+        value: thresholds.hitl_threshold,
+        default: DEFAULT_AGENT_CONFIG.memory.thresholds.hitl_threshold,
+      },
     ];
 
     properties.forEach(({ key, value, default: defaultValue }) => {
-      const result = normalizeNumericValue(value, defaultValue, `memory.thresholds.${key}`);
+      const result = normalizeNumericValue(
+        value,
+        defaultValue,
+        `memory.thresholds.${key}`
+      );
       (config as any)[key] = result.value;
       if (result.appliedDefault) {
         appliedDefaults.push(result.appliedDefault);
@@ -256,14 +371,19 @@ function normalizeMemoryThresholds(thresholds: Partial<AgentConfig.Input['memory
     return { config, appliedDefaults };
   } else {
     appliedDefaults.push(`memory.thresholds initialized with default values`);
-    return { config: { ...DEFAULT_AGENT_CONFIG.memory.thresholds }, appliedDefaults };
+    return {
+      config: { ...DEFAULT_AGENT_CONFIG.memory.thresholds },
+      appliedDefaults,
+    };
   }
 }
 
 /**
  * Normalizes memory timeouts configuration
  */
-function normalizeMemoryTimeouts(timeouts: Partial<AgentConfig.Input['memory']['timeouts']> | null | undefined): {
+function normalizeMemoryTimeouts(
+  timeouts: Partial<AgentConfig.Input['memory']['timeouts']> | null | undefined
+): {
   config: AgentConfig.Input['memory']['timeouts'];
   appliedDefaults: string[];
 } {
@@ -271,18 +391,33 @@ function normalizeMemoryTimeouts(timeouts: Partial<AgentConfig.Input['memory']['
 
   if (timeouts && isPlainObject(timeouts)) {
     const config: AgentConfig.Input['memory']['timeouts'] = {
-      retrieve_memory_timeout_ms: DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms,
-      insert_memory_timeout_ms: DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms,
+      retrieve_memory_timeout_ms:
+        DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms,
+      insert_memory_timeout_ms:
+        DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms,
     };
 
     // Normalize each property
     const properties = [
-      { key: 'retrieve_memory_timeout_ms', value: timeouts.retrieve_memory_timeout_ms, default: DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms },
-      { key: 'insert_memory_timeout_ms', value: timeouts.insert_memory_timeout_ms, default: DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms },
+      {
+        key: 'retrieve_memory_timeout_ms',
+        value: timeouts.retrieve_memory_timeout_ms,
+        default:
+          DEFAULT_AGENT_CONFIG.memory.timeouts.retrieve_memory_timeout_ms,
+      },
+      {
+        key: 'insert_memory_timeout_ms',
+        value: timeouts.insert_memory_timeout_ms,
+        default: DEFAULT_AGENT_CONFIG.memory.timeouts.insert_memory_timeout_ms,
+      },
     ];
 
     properties.forEach(({ key, value, default: defaultValue }) => {
-      const result = normalizeNumericValue(value, defaultValue, `memory.timeouts.${key}`);
+      const result = normalizeNumericValue(
+        value,
+        defaultValue,
+        `memory.timeouts.${key}`
+      );
       (config as any)[key] = result.value;
       if (result.appliedDefault) {
         appliedDefaults.push(result.appliedDefault);
@@ -292,14 +427,19 @@ function normalizeMemoryTimeouts(timeouts: Partial<AgentConfig.Input['memory']['
     return { config, appliedDefaults };
   } else {
     appliedDefaults.push(`memory.timeouts initialized with default values`);
-    return { config: { ...DEFAULT_AGENT_CONFIG.memory.timeouts }, appliedDefaults };
+    return {
+      config: { ...DEFAULT_AGENT_CONFIG.memory.timeouts },
+      appliedDefaults,
+    };
   }
 }
 
 /**
  * Normalizes memory configuration
  */
-function normalizeMemoryConfig(memory: Partial<AgentConfig.Input['memory']> | null | undefined): {
+function normalizeMemoryConfig(
+  memory: Partial<AgentConfig.Input['memory']> | null | undefined
+): {
   config: AgentConfig.Input['memory'];
   appliedDefaults: string[];
 } {
@@ -363,7 +503,9 @@ function normalizeMemoryConfig(memory: Partial<AgentConfig.Input['memory']> | nu
 /**
  * Normalizes RAG configuration
  */
-function normalizeRagConfig(rag: Partial<AgentConfig.Input['rag']> | null | undefined): {
+function normalizeRagConfig(
+  rag: Partial<AgentConfig.Input['rag']> | null | undefined
+): {
   config: AgentConfig.Input['rag'];
   appliedDefaults: string[];
 } {
@@ -411,7 +553,9 @@ function normalizeRagConfig(rag: Partial<AgentConfig.Input['rag']> | null | unde
 /**
  * Normalizes MCP servers configuration
  */
-function normalizeMcpServersConfig(mcpServers: Partial<AgentConfig.Input['mcp_servers']> | null | undefined): {
+function normalizeMcpServersConfig(
+  mcpServers: Partial<AgentConfig.Input['mcp_servers']> | null | undefined
+): {
   config: AgentConfig.Input['mcp_servers'];
   appliedDefaults: string[];
 } {
@@ -419,39 +563,55 @@ function normalizeMcpServersConfig(mcpServers: Partial<AgentConfig.Input['mcp_se
 
   if (mcpServers && isPlainObject(mcpServers)) {
     const normalizedConfig: AgentConfig.Input['mcp_servers'] = {};
-    
+
     for (const [serverName, serverConfig] of Object.entries(mcpServers)) {
-      if (serverConfig && typeof serverConfig === 'object' && !Array.isArray(serverConfig)) {
+      if (
+        serverConfig &&
+        typeof serverConfig === 'object' &&
+        !Array.isArray(serverConfig)
+      ) {
         const configObj = serverConfig;
         const normalizedServerConfig: McpServerConfig = {};
-        
+
         // Normalize command
         if (typeof configObj.command === 'string') {
           normalizedServerConfig.command = configObj.command;
         } else if (configObj.command !== undefined) {
-          appliedDefaults.push(`mcp_servers.${serverName}.command normalized from invalid type to undefined`);
+          appliedDefaults.push(
+            `mcp_servers.${serverName}.command normalized from invalid type to undefined`
+          );
         }
-        
+
         // Normalize args
         if (Array.isArray(configObj.args)) {
           normalizedServerConfig.args = configObj.args;
         } else if (configObj.args !== undefined) {
-          appliedDefaults.push(`mcp_servers.${serverName}.args normalized from invalid type to undefined`);
+          appliedDefaults.push(
+            `mcp_servers.${serverName}.args normalized from invalid type to undefined`
+          );
         }
-        
+
         // Normalize env
-        if (configObj.env && typeof configObj.env === 'object' && !Array.isArray(configObj.env)) {
+        if (
+          configObj.env &&
+          typeof configObj.env === 'object' &&
+          !Array.isArray(configObj.env)
+        ) {
           normalizedServerConfig.env = configObj.env as Record<string, string>;
         } else if (configObj.env !== undefined) {
-          appliedDefaults.push(`mcp_servers.${serverName}.env normalized from invalid type to undefined`);
+          appliedDefaults.push(
+            `mcp_servers.${serverName}.env normalized from invalid type to undefined`
+          );
         }
-        
+
         normalizedConfig[serverName] = normalizedServerConfig;
       } else {
-        appliedDefaults.push(`mcp_servers.${serverName} skipped due to invalid configuration`);
+        appliedDefaults.push(
+          `mcp_servers.${serverName} skipped due to invalid configuration`
+        );
       }
     }
-    
+
     return { config: normalizedConfig, appliedDefaults };
   } else {
     appliedDefaults.push(`mcp_servers initialized with default values`);

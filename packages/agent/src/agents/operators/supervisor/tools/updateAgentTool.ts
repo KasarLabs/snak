@@ -4,82 +4,7 @@ import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { normalizeNumericValues } from './normalizeAgentValues.js';
-
-const UpdateAgentSchema = z.object({
-  identifier: z
-    .string()
-    .describe(
-      'The current agent ID or name to update (extract from user request, usually in quotes like "Ethereum RPC Agent")'
-    ),
-  searchBy: z
-    .enum(['id', 'name'])
-    .optional()
-    .nullable()
-    .describe(
-      'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
-    ),
-  updates: z
-    .object({
-      name: z
-        .string()
-        .optional()
-        .nullable()
-        .describe(
-          'New name for the agent (use when user wants to rename/change name)'
-        ),
-      group: z
-        .string()
-        .optional()
-        .nullable()
-        .describe(
-          'New group for the agent (use when user wants to change group)'
-        ),
-      description: z
-        .string()
-        .optional()
-        .nullable()
-        .describe(
-          'New description (use when user wants to change/update description)'
-        ),
-      contexts: z
-        .array(z.string())
-        .optional()
-        .nullable()
-        .describe('Optional contextual strings for the agent profile'),
-      plugins: z
-        .array(z.string())
-        .optional()
-        .nullable()
-        .describe('Optional list of plugins to attach to this agent'),
-      mcp_servers: z
-        .record(z.unknown())
-        .optional()
-        .nullable()
-        .describe('Optional MCP servers configuration object'),
-      prompts_id: z
-        .string()
-        .uuid()
-        .optional()
-        .nullable()
-        .describe('Optional existing prompts configuration identifier'),
-      graph: z
-        .record(z.unknown())
-        .optional()
-        .nullable()
-        .describe('Optional overrides for the agent graph configuration'),
-      memory: z
-        .record(z.unknown())
-        .optional()
-        .nullable()
-        .describe('Optional overrides for the agent memory configuration'),
-      rag: z
-        .record(z.unknown())
-        .optional()
-        .nullable()
-        .describe('Optional overrides for the agent RAG configuration'),
-    })
-    .describe('Object containing only the fields that need to be updated'),
-});
+import { UpdateAgentSchema, UpdateAgentInput } from './schemas/index.js';
 
 export function updateAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -138,7 +63,10 @@ export function updateAgentTool(
 
         const updates = input.updates;
 
-        const fieldsToUpdate: Record<string, any> = {};
+        // Start with the complete existing agent configuration
+        const mergedConfig: AgentConfig.Input = { ...agent };
+
+        // Apply updates to the merged configuration (overwrite existing values)
         Object.entries(updates).forEach(([key, value]) => {
           // Skip the entire field if it's null or undefined
           if (value === undefined || value === null) {
@@ -156,7 +84,7 @@ export function updateAgentTool(
             ) as Partial<AgentConfig.Input['memory']>;
 
             if (Object.keys(filteredMemoryUpdate).length > 0) {
-              fieldsToUpdate.memory = {
+              mergedConfig.memory = {
                 ...existingMemory,
                 ...filteredMemoryUpdate,
               } as AgentConfig.Input['memory'];
@@ -178,32 +106,45 @@ export function updateAgentTool(
               filteredRagUpdate &&
               Object.keys(filteredRagUpdate).length > 0
             ) {
-              fieldsToUpdate.rag = {
+              mergedConfig.rag = {
                 ...existingRag,
                 ...filteredRagUpdate,
               } as AgentConfig.Input['rag'];
             }
           } else {
-            (fieldsToUpdate as any)[key] = value;
+            (mergedConfig as any)[key] = value;
           }
         });
 
-        const { normalizedConfig: normalizedUpdates, appliedDefaults } =
-          normalizeNumericValues(fieldsToUpdate as any);
+        // Normalize the complete merged configuration
+        const { normalizedConfig: normalizedMergedConfig, appliedDefaults } =
+          normalizeNumericValues(mergedConfig);
 
         const updateFields: string[] = [];
         const updateValues: any[] = [];
         let paramIndex = 1;
 
-        Object.keys(fieldsToUpdate).forEach((key) => {
+        // Use the complete normalized configuration for all fields that were updated
+        Object.keys(updates).forEach((key) => {
+          // Skip fields that were null or undefined in the updates
+          if (
+            updates[key as keyof typeof updates] === undefined ||
+            updates[key as keyof typeof updates] === null
+          ) {
+            return;
+          }
+
           const value =
-            normalizedUpdates[key as keyof typeof normalizedUpdates];
+            normalizedMergedConfig[key as keyof typeof normalizedMergedConfig];
 
           if (key === 'memory' && typeof value === 'object' && value !== null) {
             const memory = value as AgentConfig.Input['memory'];
             updateFields.push(
               `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`
             );
+            updateValues.push(memory?.ltm_enabled ?? null);
+            updateValues.push(JSON.stringify(memory?.size_limits ?? null));
+            updateValues.push(JSON.stringify(memory?.thresholds ?? null));
             paramIndex += 3;
           } else if (
             key === 'rag' &&
@@ -215,6 +156,7 @@ export function updateAgentTool(
               `"${key}" = ROW($${paramIndex}, $${paramIndex + 1})`
             );
             updateValues.push(rag?.enabled ?? null);
+            updateValues.push(rag?.top_k ?? null);
             paramIndex += 2;
           } else {
             // Handle regular fields

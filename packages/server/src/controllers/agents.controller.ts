@@ -128,7 +128,7 @@ export class AgentsController {
   @Post('update_agent_config')
   @HandleWithBadRequestPreservation('Update failed')
   async updateAgentConfig(
-    @Body() config: AgentConfig.WithOptionalParam,
+    @Body() config: AgentConfig.InputWithOptionalParam,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('update_agent_config called');
@@ -147,9 +147,6 @@ export class AgentsController {
       id,
       userId
     );
-
-    // Validate that the updated configuration is not a supervisor agent
-    this.supervisorService.validateNotSupervisorAgent(config);
     try {
       // Use the existing update_agent_complete function
       const query = `
@@ -375,7 +372,6 @@ export class AgentsController {
     logger.info('init_agent called');
     const userId = ControllerHelpers.getUserId(req);
 
-    // Validate that the agent is not a supervisor agent
     this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
 
     const newAgentConfig = await this.agentFactory.addAgent(

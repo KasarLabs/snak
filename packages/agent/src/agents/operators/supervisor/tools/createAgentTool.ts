@@ -1,74 +1,23 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
-import { AgentConfig, DEFAULT_AGENT_CONFIG, logger } from '@snakagent/core';
+import {
+  AgentConfig,
+  DEFAULT_AGENT_CONFIG,
+  McpServerConfig,
+  logger,
+} from '@snakagent/core';
 import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
   TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@prompts/index.js';
+import { normalizeNumericValues } from './normalizeAgentValues.js';
+import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
 
 const RESERVED_GROUP = 'system';
-
-const CreateAgentSchema = z
-  .object({
-    name: z.string().min(1).describe('The display name of the agent to create'),
-    group: z
-      .string()
-      .min(1)
-      .describe('The functional group/category for the agent'),
-    description: z
-      .string()
-      .min(1)
-      .describe('A concise description of what the agent does'),
-    contexts: z
-      .array(z.string())
-      .optional()
-      .nullable()
-      .describe('Optional contextual strings for the agent profile'),
-    plugins: z
-      .array(z.string())
-      .optional()
-      .nullable()
-      .describe('Optional list of plugins to attach to this agent'),
-    mcp_servers: z
-      .record(z.unknown())
-      .optional()
-      .nullable()
-      .describe('Optional MCP servers configuration object'),
-    prompts_id: z
-      .string()
-      .uuid()
-      .optional()
-      .nullable()
-      .describe('Optional existing prompts configuration identifier'),
-    graph: z
-      .record(z.unknown())
-      .optional()
-      .describe('Optional overrides for the agent graph configuration'),
-    memory: z
-      .record(z.unknown())
-      .optional()
-      .describe('Optional overrides for the agent memory configuration'),
-    rag: z
-      .record(z.unknown())
-      .optional()
-      .describe('Optional overrides for the agent RAG configuration'),
-    avatar_image: z
-      .string()
-      .optional()
-      .nullable()
-      .describe('Optional base64 encoded avatar image'),
-    avatar_mime_type: z
-      .string()
-      .optional()
-      .nullable()
-      .describe('Optional MIME type of the avatar image'),
-  })
-  .strict();
-
-type CreateAgentInput = z.infer<typeof CreateAgentSchema>;
+const RESERVED_NAME = 'supervisor agent';
 
 export function createAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -76,7 +25,7 @@ export function createAgentTool(
   return new DynamicStructuredTool({
     name: 'create_agent',
     description:
-      'Create/add/make a new agent configuration for a specific user. Provide the desired name, group, description, and optional overrides (graph, memory, rag, prompts).',
+      'Create/add/make a new agent configuration for a specific user. Provide the agent profile (name, group, description) and optional configuration overrides for graph, memory, rag, plugins, mcp_servers, and prompts.',
     schema: CreateAgentSchema,
     func: async (rawInput) => {
       let input: CreateAgentInput;
@@ -96,8 +45,17 @@ export function createAgentTool(
 
       try {
         const userId = agentConfig.user_id;
-        const trimmedName = input.name.trim();
-        const trimmedGroup = input.group.trim();
+
+        const trimmedName = input.profile.name.trim();
+        const trimmedGroup = input.profile.group.trim();
+
+        if (trimmedName.toLowerCase().includes(RESERVED_NAME)) {
+          return JSON.stringify({
+            success: false,
+            message:
+              'The name "supervisor agent" is reserved and cannot be used for new agents.',
+          });
+        }
 
         if (trimmedGroup.toLowerCase() === RESERVED_GROUP) {
           return JSON.stringify({
@@ -107,11 +65,7 @@ export function createAgentTool(
           });
         }
 
-        const agentConfigData = buildAgentConfigFromInput(
-          input,
-          trimmedName,
-          trimmedGroup
-        );
+        const agentConfigData = buildAgentConfigFromInput(input);
         const notes: string[] = [];
 
         const { name: uniqueName, note: nameNote } =
@@ -135,13 +89,6 @@ export function createAgentTool(
           ...agentConfigData,
         };
 
-        if (input.avatar_image) {
-          payload.avatar_image = input.avatar_image;
-        }
-        if (input.avatar_mime_type) {
-          payload.avatar_mime_type = input.avatar_mime_type;
-        }
-
         const insertQuery = new Postgres.Query(
           'SELECT * FROM insert_agent_from_json($1, $2)',
           [userId, JSON.stringify(payload)]
@@ -156,7 +103,8 @@ export function createAgentTool(
           );
           return JSON.stringify({
             success: false,
-            message: 'Failed to create agent - no data returned',
+            message:
+              'Failed to create agent - database insertion no data returned',
           });
         }
 
@@ -187,418 +135,61 @@ export function createAgentTool(
   });
 }
 
-function buildAgentConfigFromInput(
-  input: CreateAgentInput,
-  name: string,
-  group: string
-): AgentConfig.Input {
-  const config: AgentConfig.Input = JSON.parse(
-    JSON.stringify(DEFAULT_AGENT_CONFIG)
-  );
+function buildAgentConfigFromInput(input: CreateAgentInput): AgentConfig.Input {
+  // Build partial config from input - normalizeNumericValues will handle the rest
+  const partialConfig: Partial<AgentConfig.Input> = {};
 
-  config.profile = {
-    name,
-    group,
-    description: input.description.trim(),
-    contexts: parseStringArray(input.contexts, []),
-  };
+  // Only add properties that are actually provided
+  if (input.profile) {
+    partialConfig.profile = {
+      name: input.profile.name.trim(),
+      group: input.profile.group.trim(),
+      description: input.profile.description.trim(),
+      contexts: input.profile.contexts || [],
+    };
+  }
 
-  config.plugins = parseStringArray(input.plugins, []);
-  config.mcp_servers = parseRecord(input.mcp_servers, {});
+  if (input.plugins) {
+    partialConfig.plugins = input.plugins.filter(
+      (plugin) => typeof plugin === 'string' && plugin.trim().length > 0
+    );
+  }
 
-  config.graph = applyGraphOverrides(config.graph, input.graph);
-  config.memory = applyMemoryOverrides(config.memory, input.memory);
-  config.rag = applyRagOverrides(config.rag, input.rag);
+  if (input.mcp_servers)
+    partialConfig.mcp_servers = parseMcpServers(input.mcp_servers, {});
 
-  return config;
+  if (input.graph)
+    partialConfig.graph = input.graph as AgentConfig.Input['graph'];
+
+  if (input.memory)
+    partialConfig.memory = input.memory as AgentConfig.Input['memory'];
+
+  if (input.rag) partialConfig.rag = input.rag;
+
+  if (input.prompts_id) partialConfig.prompts_id = input.prompts_id;
+
+  // Apply normalization using the centralized function - it handles all defaults and validation
+  const { normalizedConfig, appliedDefaults } =
+    normalizeNumericValues(partialConfig);
+
+  // Log any applied defaults for debugging
+  if (appliedDefaults.length > 0) {
+    logger.info(
+      `Applied defaults during agent creation: ${appliedDefaults.join(', ')}`
+    );
+  }
+
+  return normalizedConfig;
 }
 
-function applyGraphOverrides(
-  baseGraph: AgentConfig.Input['graph'],
-  overrides?: Record<string, unknown>
-): AgentConfig.Input['graph'] {
-  if (!overrides) {
-    return baseGraph;
-  }
-
-  const nextGraph = { ...baseGraph };
-
-  assignPositiveInt(
-    nextGraph,
-    overrides,
-    ['max_steps', 'maxSteps'],
-    'graph.max_steps'
-  );
-  assignPositiveInt(
-    nextGraph,
-    overrides,
-    ['max_iterations', 'maxIterations'],
-    'graph.max_iterations'
-  );
-  assignNonNegativeInt(
-    nextGraph,
-    overrides,
-    ['max_retries', 'maxRetries'],
-    'graph.max_retries'
-  );
-  assignPositiveInt(
-    nextGraph,
-    overrides,
-    ['execution_timeout_ms', 'executionTimeoutMs'],
-    'graph.execution_timeout_ms'
-  );
-  assignPositiveInt(
-    nextGraph,
-    overrides,
-    ['max_token_usage', 'maxTokenUsage'],
-    'graph.max_token_usage'
-  );
-
-  const modelOverride = getObjectOverride(overrides, ['model', 'modelConfig']);
-  if (modelOverride) {
-    const nextModel = { ...nextGraph.model };
-
-    const provider = getStringOverride(modelOverride, [
-      'provider',
-      'model_provider',
-    ]);
-    if (provider) {
-      nextModel.provider = provider;
-    }
-
-    const modelName = getStringOverride(modelOverride, [
-      'model_name',
-      'modelName',
-    ]);
-    if (modelName) {
-      nextModel.model_name = modelName;
-    }
-
-    const temperature = parseNumberValue(
-      getOverrideValue(modelOverride, ['temperature']),
-      'graph.model.temperature'
-    );
-    if (temperature !== undefined) {
-      nextModel.temperature = temperature;
-    }
-
-    const maxTokens = parsePositiveInt(
-      getOverrideValue(modelOverride, ['max_tokens', 'maxTokens']),
-      'graph.model.max_tokens'
-    );
-    if (maxTokens !== undefined) {
-      nextModel.max_tokens = maxTokens;
-    }
-
-    nextGraph.model = nextModel;
-  }
-
-  return nextGraph;
-}
-
-function applyMemoryOverrides(
-  baseMemory: AgentConfig.Input['memory'],
-  overrides?: Record<string, unknown>
-): AgentConfig.Input['memory'] {
-  if (!overrides) {
-    return baseMemory;
-  }
-
-  const nextMemory: AgentConfig.Input['memory'] = JSON.parse(
-    JSON.stringify(baseMemory)
-  );
-
-  const ltmEnabled = parseBooleanValue(
-    getOverrideValue(overrides, ['ltm_enabled', 'ltmEnabled']),
-    'memory.ltm_enabled'
-  );
-  if (ltmEnabled !== undefined) {
-    nextMemory.ltm_enabled = ltmEnabled;
-  }
-
-  const strategy = getStringOverride(overrides, ['strategy']);
-  if (strategy) {
-    nextMemory.strategy = strategy as AgentConfig.Input['memory']['strategy'];
-  }
-
-  const sizeLimits = getObjectOverride(overrides, [
-    'size_limits',
-    'sizeLimits',
-  ]);
-  if (sizeLimits) {
-    assignPositiveInt(
-      nextMemory.size_limits,
-      sizeLimits,
-      ['short_term_memory_size', 'shortTermMemorySize'],
-      'memory.size_limits.short_term_memory_size'
-    );
-    assignPositiveInt(
-      nextMemory.size_limits,
-      sizeLimits,
-      ['max_insert_episodic_size', 'maxInsertEpisodicSize'],
-      'memory.size_limits.max_insert_episodic_size'
-    );
-    assignPositiveInt(
-      nextMemory.size_limits,
-      sizeLimits,
-      ['max_insert_semantic_size', 'maxInsertSemanticSize'],
-      'memory.size_limits.max_insert_semantic_size'
-    );
-    assignPositiveInt(
-      nextMemory.size_limits,
-      sizeLimits,
-      ['max_retrieve_memory_size', 'maxRetrieveMemorySize'],
-      'memory.size_limits.max_retrieve_memory_size'
-    );
-    assignPositiveInt(
-      nextMemory.size_limits,
-      sizeLimits,
-      ['limit_before_summarization', 'limitBeforeSummarization'],
-      'memory.size_limits.limit_before_summarization'
-    );
-  }
-
-  const thresholds = getObjectOverride(overrides, ['thresholds']);
-  if (thresholds) {
-    assignNumber(
-      nextMemory.thresholds,
-      thresholds,
-      ['insert_semantic_threshold', 'insertSemanticThreshold'],
-      'memory.thresholds.insert_semantic_threshold'
-    );
-    assignNumber(
-      nextMemory.thresholds,
-      thresholds,
-      ['insert_episodic_threshold', 'insertEpisodicThreshold'],
-      'memory.thresholds.insert_episodic_threshold'
-    );
-    assignNumber(
-      nextMemory.thresholds,
-      thresholds,
-      ['retrieve_memory_threshold', 'retrieveMemoryThreshold'],
-      'memory.thresholds.retrieve_memory_threshold'
-    );
-    assignNumber(
-      nextMemory.thresholds,
-      thresholds,
-      ['hitl_threshold', 'hitlThreshold'],
-      'memory.thresholds.hitl_threshold'
-    );
-  }
-
-  const timeouts = getObjectOverride(overrides, ['timeouts']);
-  if (timeouts) {
-    assignPositiveInt(
-      nextMemory.timeouts,
-      timeouts,
-      ['retrieve_memory_timeout_ms', 'retrieveMemoryTimeoutMs'],
-      'memory.timeouts.retrieve_memory_timeout_ms'
-    );
-    assignPositiveInt(
-      nextMemory.timeouts,
-      timeouts,
-      ['insert_memory_timeout_ms', 'insertMemoryTimeoutMs'],
-      'memory.timeouts.insert_memory_timeout_ms'
-    );
-  }
-
-  return nextMemory;
-}
-
-function applyRagOverrides(
-  baseRag: AgentConfig.Input['rag'],
-  overrides?: Record<string, unknown>
-): AgentConfig.Input['rag'] {
-  if (!overrides) {
-    return baseRag;
-  }
-
-  const nextRag = { ...baseRag };
-
-  const enabled = parseBooleanValue(
-    getOverrideValue(overrides, ['enabled']),
-    'rag.enabled'
-  );
-  if (enabled !== undefined) {
-    nextRag.enabled = enabled;
-  }
-
-  const topK = parsePositiveInt(
-    getOverrideValue(overrides, ['top_k', 'topK']),
-    'rag.top_k'
-  );
-  if (topK !== undefined) {
-    nextRag.top_k = topK;
-  }
-
-  return nextRag;
-}
-
-function parseStringArray(
-  value: string[] | null | undefined,
-  fallback: string[]
-): string[] {
-  if (!value) {
-    return [...fallback];
-  }
-  return value.filter(
-    (entry) => typeof entry === 'string' && entry.trim().length > 0
-  );
-}
-
-function parseRecord(
-  value: Record<string, unknown> | null | undefined,
-  fallback: Record<string, unknown>
-): Record<string, unknown> {
+function parseMcpServers(
+  value: Record<string, McpServerConfig> | undefined,
+  fallback: Record<string, McpServerConfig>
+): Record<string, McpServerConfig> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     return value;
   }
   return { ...fallback };
-}
-
-function getOverrideValue(
-  source: Record<string, unknown>,
-  keys: string[]
-): unknown {
-  for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      return source[key];
-    }
-  }
-  return undefined;
-}
-
-function getObjectOverride(
-  source: Record<string, unknown>,
-  keys: string[]
-): Record<string, unknown> | undefined {
-  const value = getOverrideValue(source, keys);
-  if (!value) {
-    return undefined;
-  }
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`Expected object for ${keys[0]}`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function getStringOverride(
-  source: Record<string, unknown>,
-  keys: string[]
-): string | undefined {
-  const value = getOverrideValue(source, keys);
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  if (typeof value !== 'string') {
-    throw new Error(`${keys[0]} must be a string`);
-  }
-  return value.trim();
-}
-
-function assignPositiveInt(
-  target: Record<string, any>,
-  source: Record<string, unknown>,
-  keys: string[],
-  fieldName: string
-) {
-  const value = parsePositiveInt(getOverrideValue(source, keys), fieldName);
-  if (value !== undefined) {
-    target[keys[0]] = value;
-  }
-}
-
-function assignNonNegativeInt(
-  target: Record<string, any>,
-  source: Record<string, unknown>,
-  keys: string[],
-  fieldName: string
-) {
-  const value = parseNonNegativeInt(getOverrideValue(source, keys), fieldName);
-  if (value !== undefined) {
-    target[keys[0]] = value;
-  }
-}
-
-function assignNumber(
-  target: Record<string, any>,
-  source: Record<string, unknown>,
-  keys: string[],
-  fieldName: string
-) {
-  const value = parseNumberValue(getOverrideValue(source, keys), fieldName);
-  if (value !== undefined) {
-    target[keys[0]] = value;
-  }
-}
-
-function parsePositiveInt(
-  value: unknown,
-  fieldName: string
-): number | undefined {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  const parsed = parseNumeric(value, fieldName);
-  if (parsed <= 0) {
-    throw new Error(`${fieldName} must be a positive integer`);
-  }
-  return Math.trunc(parsed);
-}
-
-function parseNonNegativeInt(
-  value: unknown,
-  fieldName: string
-): number | undefined {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  const parsed = parseNumeric(value, fieldName);
-  if (parsed < 0) {
-    throw new Error(`${fieldName} must be a non-negative integer`);
-  }
-  return Math.trunc(parsed);
-}
-
-function parseNumberValue(
-  value: unknown,
-  fieldName: string
-): number | undefined {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  return parseNumeric(value, fieldName);
-}
-
-function parseNumeric(value: unknown, fieldName: string): number {
-  const raw =
-    typeof value === 'string' ? Number(value.trim()) : Number(value as number);
-  if (!Number.isFinite(raw)) {
-    throw new Error(`${fieldName} must be a numeric value`);
-  }
-  return raw;
-}
-
-function parseBooleanValue(
-  value: unknown,
-  fieldName: string
-): boolean | undefined {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  if (typeof value === 'boolean') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (['true', '1', 'yes', 'y'].includes(normalized)) {
-      return true;
-    }
-    if (['false', '0', 'no', 'n'].includes(normalized)) {
-      return false;
-    }
-  }
-  throw new Error(`${fieldName} must be a boolean value`);
 }
 
 async function resolveUniqueAgentName(

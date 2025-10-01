@@ -176,7 +176,6 @@ export class MyGateway {
 
         const userId = ControllerHelpers.getUserIdFromSocket(client);
 
-        // Validate that the agent is not a supervisor agent
         this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
 
         await this.agentFactory.addAgent(userRequest.agent, userId);

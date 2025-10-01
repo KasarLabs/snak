@@ -13,7 +13,7 @@ export class SupervisorService {
    * @throws BadRequestException if the agent is a supervisor
    */
   validateNotSupervisorAgent(
-    agentConfig: AgentConfig.Input | AgentConfig.WithOptionalParam
+    agentConfig: AgentConfig.Input | AgentConfig.InputWithOptionalParam
   ): void {
     if (agentConfig.profile?.group === 'system') {
       throw new BadRequestException(
