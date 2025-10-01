@@ -156,31 +156,29 @@ $$;
 
 CREATE OR REPLACE FUNCTION retrieve_similar_holistic_memories(
     p_user_id VARCHAR(100),
-    p_task_id UUID,
     p_embedding vector(384),
     p_similarity_threshold FLOAT,
     p_limit INTEGER
 )
 RETURNS TABLE (
+    memory_type TEXT,
     memory_id INTEGER,
+    task_id UUID,
     step_id UUID,
-    type memory_holistic_type,
     content TEXT,
-    request TEXT,
     similarity FLOAT,
-    access_count INTEGER,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
+    metadata JSONB
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_memory RECORD;
 BEGIN
-    -- Retrieve similar memories and update access count
+    -- Retrieve similar memories across all tasks and update access count
     FOR v_memory IN
         SELECT
             id,
+            hm.task_id,
             hm.step_id,
             hm.type,
             hm.content,
@@ -191,7 +189,6 @@ BEGIN
             hm.updated_at
         FROM holistic_memories hm
         WHERE user_id = p_user_id
-            AND task_id = p_task_id
             AND 1 - (embedding <=> p_embedding) >= p_similarity_threshold
         ORDER BY embedding <=> p_embedding
         LIMIT p_limit
@@ -203,18 +200,22 @@ BEGIN
             updated_at = NOW()
         WHERE id = v_memory.id;
 
-        -- Return the memory with updated access count
+        -- Return the memory with updated access count in the expected format
         RETURN QUERY
         SELECT
+            'holistic'::TEXT,
             v_memory.id,
+            v_memory.task_id,
             v_memory.step_id,
-            v_memory.type,
             v_memory.content,
-            v_memory.request,
             v_memory.sim,
-            v_memory.access_count + 1,  -- Return incremented value
-            v_memory.created_at,
-            v_memory.updated_at;
+            jsonb_build_object(
+                'type', v_memory.type,
+                'request', v_memory.request,
+                'access_count', v_memory.access_count + 1,
+                'created_at', v_memory.created_at,
+                'updated_at', v_memory.updated_at
+            );
     END LOOP;
 END;
 $$;
@@ -270,10 +271,9 @@ ANALYZE holistic_memories;
 --       0.85
 --   );
 --
--- Retrieve similar memories (automatically tracks access):
+-- Retrieve similar memories across all tasks (automatically tracks access):
 --   SELECT * FROM retrieve_similar_holistic_memories(
 --       'user123',
---       'task-uuid'::UUID,
 --       '[0.5, 0.6, ...]'::vector(384),
 --       0.7,
 --       10

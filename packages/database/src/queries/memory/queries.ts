@@ -319,8 +319,7 @@ export namespace memory {
       );
       const result = await Postgres.query<Similarity>(q);
       return result;
-    } else if (strategy !== 'holistic') {
-      console.log();
+    } else if (strategy === 'holistic') {
       const q = new Postgres.Query(
         `SELECT * FROM retrieve_similar_holistic_memories($1, $2, $3, $4)`,
         [userId, JSON.stringify(embedding), threshold, limit]

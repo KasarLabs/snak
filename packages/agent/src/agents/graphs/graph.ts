@@ -303,8 +303,14 @@ export class Graph {
         `Invalid memory size configuration: ${memorySize}. Must be a non-negative integer.`
       );
     }
-
-    state.memories = MemoryStateManager.createInitialState(memorySize);
+    if (!state.memories || state.memories.stm.items.length === 0) {
+      // TODO IF SHORT TERM MEMORY SIZE CHANGED, MANAGE STM TO REFLECT NEW SIZE
+      state.memories = MemoryStateManager.createInitialState(memorySize);
+    } else {
+      logger.info(
+        '[Agent] Existing memory state detected, preserving current state'
+      );
+    }
     return state;
   }
 

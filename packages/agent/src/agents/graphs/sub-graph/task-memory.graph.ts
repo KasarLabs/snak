@@ -423,6 +423,7 @@ export class MemoryGraph {
         throw new Error('Max memory graph steps reached');
       } // Fetch relevant memories from DB based on recent STM context
       const agentConfig = config.configurable!.agent_config!;
+      console.log
       const recentSTM = STMManager.getRecentMemories(state.memories.stm, 1);
       if (recentSTM.length === 0) {
         logger.warn(
