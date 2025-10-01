@@ -63,6 +63,21 @@ export function updateAgentTool(
 
         const updates = input.updates;
 
+        // Validate updates before processing
+        if (updates.profile?.group === 'system') {
+          return JSON.stringify({
+            success: false,
+            message: 'Cannot update agent to "system" group - this group is protected.',
+          });
+        }
+
+        if (updates.profile?.name && updates.profile.name.toLowerCase().includes('supervisor agent')) {
+          return JSON.stringify({
+            success: false,
+            message: 'Agent name cannot contain "supervisor agent" - this name is reserved.',
+          });
+        }
+
         // Start with the complete existing agent configuration
         const mergedConfig: AgentConfig.Input = { ...agent };
 
