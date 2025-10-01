@@ -315,8 +315,8 @@ export class SnakAgent extends BaseAgent {
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
-      task_id: currentTaskId ? currentTaskId : null,
-      step_id: currentStepId ? currentStepId : null,
+      task_id: currentTaskId,
+      step_id: currentStepId,
       from,
       tools:
         chunk.event === EventType.ON_CHAT_MODEL_END
