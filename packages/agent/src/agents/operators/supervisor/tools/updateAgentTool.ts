@@ -191,7 +191,11 @@ export function updateAgentTool(
             normalizedMergedConfig[key as keyof typeof normalizedMergedConfig];
 
           // Handle profile composite type (name, group, description, contexts)
-          if (key === 'profile' && typeof value === 'object' && value !== null) {
+          if (
+            key === 'profile' &&
+            typeof value === 'object' &&
+            value !== null
+          ) {
             const profile = value as AgentProfile;
             updateFields.push(
               `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`
@@ -236,19 +240,39 @@ export function updateAgentTool(
             );
             updateValues.push(memory?.ltm_enabled ?? null);
             // size_limits composite type
-            updateValues.push(memory?.size_limits?.short_term_memory_size ?? null);
-            updateValues.push(memory?.size_limits?.max_insert_episodic_size ?? null);
-            updateValues.push(memory?.size_limits?.max_insert_semantic_size ?? null);
-            updateValues.push(memory?.size_limits?.max_retrieve_memory_size ?? null);
-            updateValues.push(memory?.size_limits?.limit_before_summarization ?? null);
+            updateValues.push(
+              memory?.size_limits?.short_term_memory_size ?? null
+            );
+            updateValues.push(
+              memory?.size_limits?.max_insert_episodic_size ?? null
+            );
+            updateValues.push(
+              memory?.size_limits?.max_insert_semantic_size ?? null
+            );
+            updateValues.push(
+              memory?.size_limits?.max_retrieve_memory_size ?? null
+            );
+            updateValues.push(
+              memory?.size_limits?.limit_before_summarization ?? null
+            );
             // thresholds composite type
-            updateValues.push(memory?.thresholds?.insert_semantic_threshold ?? null);
-            updateValues.push(memory?.thresholds?.insert_episodic_threshold ?? null);
-            updateValues.push(memory?.thresholds?.retrieve_memory_threshold ?? null);
+            updateValues.push(
+              memory?.thresholds?.insert_semantic_threshold ?? null
+            );
+            updateValues.push(
+              memory?.thresholds?.insert_episodic_threshold ?? null
+            );
+            updateValues.push(
+              memory?.thresholds?.retrieve_memory_threshold ?? null
+            );
             updateValues.push(memory?.thresholds?.hitl_threshold ?? null);
             // timeouts composite type
-            updateValues.push(memory?.timeouts?.retrieve_memory_timeout_ms ?? null);
-            updateValues.push(memory?.timeouts?.insert_memory_timeout_ms ?? null);
+            updateValues.push(
+              memory?.timeouts?.retrieve_memory_timeout_ms ?? null
+            );
+            updateValues.push(
+              memory?.timeouts?.insert_memory_timeout_ms ?? null
+            );
             // strategy enum
             updateValues.push(memory?.strategy ?? null);
             paramIndex += 13;
