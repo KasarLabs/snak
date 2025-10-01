@@ -396,7 +396,6 @@ export class TaskManagerGraph {
     if (!currentTask) {
       throw new Error('No current task avaible');
     }
-    console.log(currentTask);
     if (!config.configurable?.agent_config) {
       throw new Error('Agent configuration is required for routing decisions.');
     }

@@ -29,16 +29,10 @@ import {
 import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
-import {
-  GraphErrorType,
-  StepType,
-  TaskType,
-  UserRequest,
-} from '@stypes/graph.types.js';
+import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { notify } from '@snakagent/database/queries';
-import { fa } from 'zod/v4/locales';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -124,12 +118,6 @@ export class SnakAgent extends BaseAgent {
       logger.info(
         `[SnakAgent]  Agent executor created successfully for agent : ${this.agentConfig.profile.name}`
       );
-
-      if (!this.compiledGraph) {
-        throw new Error(
-          `Failed to create agent executor for agent : ${this.agentConfig.profile.name}: result is null`
-        );
-      }
     } catch (error) {
       logger.error(
         `[SnakAgent]  Failed to create Agent React Executor: ${error}`
@@ -292,11 +280,6 @@ export class SnakAgent extends BaseAgent {
     retryCount: number,
     from: GraphNode
   ): ChunkOutput {
-    if (chunk.event === EventType.ON_CHAT_MODEL_END) {
-      console.log('Current Task ID:', currentTaskId);
-      console.log('Current Step ID:', currentStepId);
-    }
-
     const metadata: ChunkOutputMetadata = {
       langgraph_step: chunk.metadata.langgraph_step,
       langgraph_node: chunk.metadata.langgraph_node,
@@ -397,10 +380,10 @@ export class SnakAgent extends BaseAgent {
       stateSnapshot.tasks?.length > 0 &&
       stateSnapshot.tasks[0]?.interrupts?.length > 0
     ) {
-      console.log('Graph is interrupted');
+      logger.info('Graph is interrupted');
       const interrupt = stateSnapshot.tasks[0].interrupts[0];
-      console.log('Interrupt value:', interrupt?.value);
-      console.log('Id:', interrupt?.id);
+      logger.debug('Interrupt value:', interrupt?.value);
+      logger.debug('Id:', interrupt?.id);
       return true;
     }
     return false;
@@ -566,14 +549,7 @@ export class SnakAgent extends BaseAgent {
       }
     } catch (error: any) {
       logger.error(`[SnakAgent]  Autonomous execution failed: ${error}`);
-      return new AIMessage({
-        content: `Autonomous execution error: ${error.message}`,
-        additional_kwargs: {
-          from: 'snak',
-          final: true,
-          error: 'autonomous_execution_error',
-        },
-      });
+      return;
     }
   }
 }
