@@ -22,6 +22,7 @@ import {
 import { STMManager } from '@lib/memory/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { GraphError } from '../utils/error.utils.js';
 import {
   TASK_VERIFICATION_CONTEXT_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
@@ -59,7 +60,12 @@ export class TaskVerifierGraph {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
       if (_isValidConfiguration.isValid === false) {
-        throw new Error(_isValidConfiguration.error);
+        throw new GraphError(
+          'E08GC270',
+          'TaskVerifier.task_verifier',
+          undefined,
+          { error: _isValidConfiguration.error }
+        );
       }
       if (
         hasReachedMaxSteps(
@@ -70,7 +76,12 @@ export class TaskVerifierGraph {
         logger.warn(
           `[TaskVerifier] Max steps reached (${state.currentGraphStep})`
         );
-        throw new Error('Max memory graph steps reached');
+        throw new GraphError(
+          'E08NE370',
+          'TaskVerifier.task_verifier',
+          undefined,
+          { currentGraphStep: state.currentGraphStep }
+        );
       }
       const agentConfig = config.configurable!.agent_config!;
       const currentTask = getCurrentTask(state.tasks);
@@ -254,12 +265,12 @@ Reasoning: ${verificationResult.reasoning}`,
   } {
     try {
       if (!state.tasks || state.tasks.length === 0) {
-        throw new Error('[Task Updater] No tasks found in the state.');
+        throw new GraphError('E08ST1050', 'TaskVerifier.task_updater');
       }
 
       const currentTask = getCurrentTask(state.tasks);
       if (!currentTask) {
-        throw new Error(`[Task Updater] No current task found.`);
+        throw new GraphError('E08ST1050', 'TaskVerifier.task_updater');
       }
 
       // Check if we have task verification context from the previous message

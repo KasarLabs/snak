@@ -52,6 +52,7 @@ import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
+import { GraphError } from '../utils/error.utils.js';
 
 export const EXECUTOR_CORE_TOOLS = new Set([
   'response_task',
@@ -157,7 +158,12 @@ export class AgentExecutorGraph {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
       if (_isValidConfiguration.isValid === false) {
-        throw new Error(_isValidConfiguration.error);
+        throw new GraphError(
+          'E08GC270',
+          'Executor.reasoning_executor',
+          undefined,
+          { error: _isValidConfiguration.error }
+        );
       }
       if (
         hasReachedMaxSteps(
@@ -168,12 +174,17 @@ export class AgentExecutorGraph {
         logger.warn(
           `[Executor] Max steps reached (${state.currentGraphStep})`
         );
-        throw new Error('Max steps reached');
+        throw new GraphError(
+          'E08NE370',
+          'Executor.reasoning_executor',
+          undefined,
+          { currentGraphStep: state.currentGraphStep }
+        );
       }
       const agentConfig = config.configurable!.agent_config!;
       const userRequest = config.configurable!.user_request!;
       if (!userRequest) {
-        throw new Error('User request is missing in configuration');
+        throw new GraphError('E08GC220', 'Executor.reasoning_executor');
       }
       if (userRequest.hitl_threshold === 0) {
         this.toolsList = this.toolsList.filter(
@@ -182,7 +193,7 @@ export class AgentExecutorGraph {
       }
       const currentTask = state.tasks[state.tasks.length - 1];
       if (!currentTask) {
-        throw new Error('Current task is undefined');
+        throw new GraphError('E08ST1050', 'Executor.reasoning_executor');
       }
       const stepId = uuidv4();
       logger.info(
@@ -190,7 +201,7 @@ export class AgentExecutorGraph {
       );
       let aiMessage = await this.executeModelWithTimeout(state, config);
       if (!aiMessage) {
-        throw new Error('Model returned no response');
+        throw new GraphError('E08MI510', 'Executor.reasoning_executor');
       }
       if (
         aiMessage.tool_calls &&
@@ -203,7 +214,7 @@ export class AgentExecutorGraph {
       aiMessage.content = '';
       let thought: ThoughtsSchemaType;
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
-        throw new Error('No tool calls detected in model response'); // Force retry after
+        throw new GraphError('E08TE640', 'Executor.reasoning_executor'); // Force retry after
       }
       const { filteredTools, filteredCoreTools } = aiMessage.tool_calls.reduce(
         (acc, call) => {
@@ -255,7 +266,7 @@ export class AgentExecutorGraph {
             : JSON.stringify(filteredCoreTools[0].args)
         ) as ThoughtsSchemaType;
         if (!thought) {
-          throw new Error('Failed to parse thought from model response');
+          throw new GraphError('E08PR1320', 'Executor.reasoning_executor');
         }
         currentTask.steps.push({
           id: stepId,
@@ -320,7 +331,7 @@ export class AgentExecutorGraph {
           : JSON.stringify(filteredCoreTools[0].args)
       ) as ThoughtsSchemaType;
       if (!thought) {
-        throw new Error('Failed to parse thought from model response');
+        throw new GraphError('E08PR1320', 'Executor.reasoning_executor');
       }
       currentTask.steps.push({
         id: stepId,
@@ -386,11 +397,11 @@ export class AgentExecutorGraph {
     const toolTimeout =
       config.configurable?.agent_config?.graph.execution_timeout_ms;
     if (!this.model) {
-      throw new Error('Model not found in ModelSelector');
+      throw new GraphError('E08MI550', 'Executor.toolExecutor');
     }
     const currentTask = state.tasks[state.tasks.length - 1];
     if (!currentTask) {
-      throw new Error('Current task is undefined');
+      throw new GraphError('E08ST1050', 'Executor.toolExecutor');
     }
     const toolCalls =
       lastMessage instanceof AIMessageChunk && lastMessage.tool_calls

@@ -41,6 +41,7 @@ import {
   TASK_MANAGER_SYSTEM_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
 import { TaskManagerToolRegistryInstance } from '../tools/task-manager.tools.js';
+import { GraphError } from '../utils/error.utils.js';
 
 export function tasks_parser(
   tasks: TaskType[],
@@ -167,7 +168,12 @@ export class TaskManagerGraph {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
       if (_isValidConfiguration.isValid === false) {
-        throw new Error(_isValidConfiguration.error);
+        throw new GraphError(
+          'E08GC270',
+          'TaskManager.planExecution',
+          undefined,
+          { error: _isValidConfiguration.error }
+        );
       }
       if (
         hasReachedMaxSteps(
@@ -178,7 +184,12 @@ export class TaskManagerGraph {
         logger.warn(
           `[TaskManager] Max steps reached (${state.currentGraphStep})`
         );
-        throw new Error('Max steps reached');
+        throw new GraphError(
+          'E08NE370',
+          'TaskManager.planExecution',
+          undefined,
+          { currentGraphStep: state.currentGraphStep }
+        );
       }
       const agentConfig = config.configurable!.agent_config!;
       const prompt = ChatPromptTemplate.fromMessages([
@@ -220,8 +231,11 @@ export class TaskManagerGraph {
           logger.error(
             `[Task Manager] Google Gemini API error: ${error.message}`
           );
-          throw new Error(
-            `Google Gemini API error - possibly due to incompatible function declarations: ${error.message}`
+          throw new GraphError(
+            'E08MI570',
+            'TaskManager.planExecution',
+            error,
+            { errorType: 'GoogleGenerativeAIError' }
           );
         }
         // Re-throw other errors
@@ -386,10 +400,10 @@ export class TaskManagerGraph {
   ): TaskManagerNode {
     const currentTask = getCurrentTask(state.tasks);
     if (!currentTask) {
-      throw new Error('No current task avaible');
+      throw new GraphError('E08ST1050', 'TaskManager.task_manager_router');
     }
     if (!config.configurable?.agent_config) {
-      throw new Error('Agent configuration is required for routing decisions.');
+      throw new GraphError('E08GC210', 'TaskManager.task_manager_router');
     }
     if (state.retry > config.configurable?.agent_config?.graph.max_retries) {
       logger.warn('[Task Manager] Max retries reached');

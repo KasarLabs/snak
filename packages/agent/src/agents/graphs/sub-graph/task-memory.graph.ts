@@ -49,6 +49,7 @@ import {
 } from '@prompts/agents/task-memory-manager.prompt.js';
 import { memory } from '@snakagent/database/queries';
 import { EXECUTOR_CORE_TOOLS } from './task-executor.graph.js';
+import { GraphError } from '../utils/error.utils.js';
 
 export class MemoryGraph {
   private readonly memoryDBManager: MemoryDBManager;
@@ -59,7 +60,7 @@ export class MemoryGraph {
     this.model = model;
     this.memoryDBManager = new MemoryDBManager(memoryConfig);
     if (!this.memoryDBManager) {
-      throw new Error('MemoryDBManager initialization failed');
+      throw new GraphError('E08MM470', 'MemoryGraph.constructor');
     }
   }
 
@@ -71,7 +72,7 @@ export class MemoryGraph {
   ): EpisodicMemoryContext[] {
     const lastStep = task.steps[task.steps.length - 1];
     if (!lastStep) {
-      throw new Error('Last step is not accessible.');
+      throw new GraphError('E08ST1050', 'MemoryGraph.createEpisodicMemories');
     }
     return memories.map((memory) => ({
       user_id: user_id,
@@ -91,7 +92,7 @@ export class MemoryGraph {
   ): SemanticMemoryContext[] {
     const lastStep = task.steps[task.steps.length - 1];
     if (!lastStep) {
-      throw new Error('Last step is not accessible.');
+      throw new GraphError('E08ST1050', 'MemoryGraph.createSemanticMemories');
     }
     return memories.map((memory) => ({
       user_id: user_id,
@@ -261,7 +262,7 @@ export class MemoryGraph {
         !summaryResult.episodic ||
         !summaryResult.semantic
       ) {
-        throw new Error('LTM summary result is empty');
+        throw new GraphError('E08MM420', 'MemoryGraph.holistic_memory_manager');
       }
       const episodic_memories: EpisodicMemoryContext[] = [];
       const semantic_memories: SemanticMemoryContext[] = [];
@@ -316,7 +317,9 @@ export class MemoryGraph {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
       if (_isValidConfiguration.isValid === false) {
-        throw new Error(_isValidConfiguration.error);
+        throw new GraphError('E08GC270', 'MemoryGraph.ltm_manager', undefined, {
+          error: _isValidConfiguration.error,
+        });
       }
       if (
         hasReachedMaxSteps(
@@ -324,10 +327,10 @@ export class MemoryGraph {
           config.configurable!.agent_config!
         )
       ) {
-        logger.warn(
-          `[Memory] Max steps reached (${state.currentGraphStep})`
-        );
-        throw new Error('Max memory graph steps reached');
+        logger.warn(`[Memory] Max steps reached (${state.currentGraphStep})`);
+        throw new GraphError('E08NE370', 'MemoryGraph.ltm_manager', undefined, {
+          currentGraphStep: state.currentGraphStep,
+        });
       }
       if (config.configurable?.agent_config?.memory.ltm_enabled === false) {
         return { lastNode: TaskMemoryNode.END_GRAPH };
@@ -405,9 +408,7 @@ export class MemoryGraph {
           config.configurable!.agent_config!
         )
       ) {
-        logger.warn(
-          `[Memory] Max steps reached (${state.currentGraphStep})`
-        );
+        logger.warn(`[Memory] Max steps reached (${state.currentGraphStep})`);
         throw new Error('Max memory graph steps reached');
       }
       const agentConfig = config.configurable!.agent_config!;

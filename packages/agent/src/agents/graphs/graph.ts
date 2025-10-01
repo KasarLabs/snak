@@ -47,6 +47,7 @@ import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { getCurrentTask } from './utils/graph.utils.js';
 import { STMManager } from '@lib/memory/index.js';
 import { ToolCallType } from '../../shared/types/index.js';
+import { GraphError } from './utils/error.utils.js';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -130,7 +131,7 @@ export class Graph {
   constructor(private snakAgent: SnakAgent) {
     const pg_checkpointer = snakAgent.getPgCheckpointer();
     if (!pg_checkpointer) {
-      throw new Error('Checkpointer is required for graph initialization');
+      throw new GraphError('E08GI110', 'Graph.constructor');
     }
     this.checkpointer = pg_checkpointer;
   }
@@ -251,7 +252,7 @@ export class Graph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphStateType {
     if (!config.configurable?.agent_config) {
-      throw new Error('Agent configuration is required in config');
+      throw new GraphError('E08GC210', 'Graph.initGraphStateValue');
     }
     const memorySize =
       config.configurable.agent_config.memory.size_limits
@@ -262,8 +263,11 @@ export class Graph {
       memorySize < 0 ||
       !Number.isInteger(memorySize)
     ) {
-      throw new Error(
-        `Invalid memory size configuration: ${memorySize}. Must be a non-negative integer.`
+      throw new GraphError(
+        'E08GC240',
+        'Graph.initGraphStateValue',
+        undefined,
+        { memorySize }
       );
     }
     if (!state.memories || state.memories.stm.items.length === 0) {
@@ -282,7 +286,7 @@ export class Graph {
   }> {
     const currentTask = getCurrentTask(state.tasks);
     if (!currentTask) {
-      throw new Error('[HumanHandler] No current task available');
+      throw new GraphError('E08HI710', 'Graph.human_handler');
     }
 
     const requestSource = state.lastNode;
@@ -294,7 +298,7 @@ export class Graph {
     ) {
       const h_input = interrupt(currentTask.thought.speak);
       if (!h_input) {
-        throw new Error('[HumanHandler:Manager] No input received');
+        throw new GraphError('E08HI720', 'Graph.human_handler[Manager]');
       }
 
       currentTask.human = h_input;
@@ -321,12 +325,12 @@ export class Graph {
     ) {
       const currentStep = currentTask.steps[currentTask.steps.length - 1];
       if (!currentStep || currentStep.type !== 'human') {
-        throw new Error('[HumanHandler:Executor] Invalid step');
+        throw new GraphError('E08HI730', 'Graph.human_handler[Executor]');
       }
 
       const h_input = interrupt(currentStep.thought.speak);
       if (!h_input) {
-        throw new Error('[HumanHandler:Executor] No input received');
+        throw new GraphError('E08HI720', 'Graph.human_handler[Executor]');
       }
 
       const human_message = new HumanMessage({
@@ -341,8 +345,11 @@ export class Graph {
         currentStep.id
       );
       if (!newMemories.success || !newMemories.data) {
-        throw new Error(
-          `[HumanHandler:Executor] Memory update failed: ${newMemories.error}`
+        throw new GraphError(
+          'E08MM410',
+          'Graph.human_handler[Executor]',
+          undefined,
+          { error: newMemories.error }
         );
       }
       state.memories.stm = newMemories.data;
@@ -367,7 +374,12 @@ export class Graph {
       };
     }
 
-    throw new Error(`[HumanHandler] Unknown source: ${requestSource}`);
+    throw new GraphError(
+      'E08HI740',
+      'Graph.human_handler',
+      undefined,
+      { requestSource }
+    );
   }
 
   private buildWorkflow(): StateGraph<
@@ -439,7 +451,7 @@ export class Graph {
       // Get agent configuration
       this.agentConfig = this.snakAgent.getAgentConfig();
       if (!this.agentConfig) {
-        throw new Error('Agent configuration is required');
+        throw new GraphError('E08GI140', 'Graph.initialize');
       }
 
       // Initialize database
@@ -468,7 +480,7 @@ export class Graph {
     newConfig: typeof GraphConfigurableAnnotation.State
   ): void {
     if (!this.app) {
-      throw new Error('Agent not initialized. Call initialize() first.');
+      throw new GraphError('E08GI100', 'Graph.updateConfig');
     }
     this.config = newConfig;
   }
