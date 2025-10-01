@@ -147,6 +147,8 @@ export class AgentsController {
       id,
       userId
     );
+
+    this.supervisorService.validateNotSupervisorAgent(config);
     try {
       // Use the existing update_agent_complete function
       const query = `

@@ -67,14 +67,19 @@ export function updateAgentTool(
         if (updates.profile?.group === 'system') {
           return JSON.stringify({
             success: false,
-            message: 'Cannot update agent to "system" group - this group is protected.',
+            message:
+              'Cannot update agent to "system" group - this group is protected.',
           });
         }
 
-        if (updates.profile?.name && updates.profile.name.toLowerCase().includes('supervisor agent')) {
+        if (
+          updates.profile?.name &&
+          updates.profile.name.toLowerCase().includes('supervisor agent')
+        ) {
           return JSON.stringify({
             success: false,
-            message: 'Agent name cannot contain "supervisor agent" - this name is reserved.',
+            message:
+              'Agent name cannot contain "supervisor agent" - this name is reserved.',
           });
         }
 
