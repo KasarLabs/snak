@@ -35,7 +35,7 @@ http:
     frontend:
       rule: "Host(`mysnakagent.com`)"
       entryPoints: [websecure]
-      service: snak-frontend
+      service: dummy-frontend # change to snak-frontend for real app
       tls: {}
 
   services:
@@ -63,6 +63,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://snak-frontend:3000"
+    
+    dummy-frontend:
+      loadBalancer:
+        servers:
+          - url: "http://dummy-frontend:8080"
 
     deny-403:
       loadBalancer:
