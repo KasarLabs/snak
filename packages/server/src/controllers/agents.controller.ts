@@ -32,8 +32,9 @@ import {
   MessageRequest,
   GetAgentMcpsRequestDTO,
   GetMcpSecretsRequestDTO,
+  UpdateMcpSecretNameRequestDTO,
+  UpdateMcpSecretValueRequestDTO,
   UpdateMcpConfigRequestDTO,
-  UpdateMcpSecretRequestDTO,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
@@ -74,10 +75,7 @@ export class AgentsController {
    * for all agents belonging to the current user.
    *
    * @param req - HTTP request containing the authenticated userId
-   * @returns Array of agents with their identifier and MCP configurations:
-   *          [
-   *            { agent_id: string, mcp_servers: Record<string, any> }
-   *          ]
+   * @returns  { agent_id: string, mcp_servers: Record<string, any> } 
    */
   @Get('get_user_mcps')
   @HandleErrors('E01MCP100')
@@ -100,7 +98,7 @@ export class AgentsController {
   }
 
   /**
-   * Retrieve MCP configuration (mcp_servers column)
+   * Retrieve MCP configuration
    * for a single agent belonging to the current user.
    *
    * @param body - Contains agent_id of the agent to fetch
@@ -134,9 +132,9 @@ export class AgentsController {
   }
 
   /**
-   * Fetch all MCP configs across all agents for a given user.
+   * Retrieve mcp secret for one agent and one mcp for a given user.
    * @param { agent_id, mcp_id }. - IDs of the agent and MCP to fetch secrets
-   * @returns  - { agent_id, mcp_id, secrets: { key: value } }.
+   * @returns secret_key: secret_value
    */
   @Post('get_mcp_secrets')
   @HandleErrors('E03MCP100')
@@ -169,21 +167,23 @@ export class AgentsController {
         ? (mcpConfig.env as Record<string, any>)
         : {};
 
-    return ResponseFormatter.success({
-      agent_id: agentId,
-      mcp_id: mcpId,
-      secrets: env,
-    });
+    return ResponseFormatter.success(env);
+
   }
 
-  @Post('update_mcp_config')
-  @HandleWithBadRequestPreservation('MCP config update failed')
-  async updateMcpConfig(
-    @Body() body: UpdateMcpConfigRequestDTO,
+  /**
+   * Update mcp secret for one agent and one mcp for a given user.
+   * @param { agent_id, mcp_id }. - IDs of the agent and MCP to fetch secrets
+   * @returns secret_key: secret_value
+   */
+  @Post('update_mcp_secret_value')
+  @HandleWithBadRequestPreservation('MCP secret update failed')
+  async updateMcpSecretValue(
+    @Body() body: UpdateMcpSecretValueRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
-    const { agent_id: agentId, mcp_id: mcpId, config } = body;
+    const { agent_id: agentId, mcp_id: mcpId, secret_name, secret_value } = body;
 
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
@@ -197,49 +197,6 @@ export class AgentsController {
     }
 
     const currentServers = agents[0].mcp_servers ?? {};
-    const updatedServers = {
-      ...currentServers,
-      [mcpId]: config,
-    };
-
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updatedServers, agentId, userId]
-    );
-
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-
-    if (result.length === 0) {
-      throw new BadRequestException('Failed to update MCP configuration');
-    }
-
-    return ResponseFormatter.success({
-      agent_id: result[0].id,
-      mcp_servers: result[0].mcp_servers,
-    });
-  }
-
-  @Post('update_mcp_secret')
-  @HandleWithBadRequestPreservation('MCP secret update failed')
-  async updateMcpSecret(
-    @Body() body: UpdateMcpSecretRequestDTO,
-    @Req() req: FastifyRequest
-  ) {
-    const userId = ControllerHelpers.getUserId(req);
-    const { agent_id: agentId, mcp_id: mcpId, secret_name, secret_value } = body;
-
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcpServers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-
-    if (agents.length === 0) {
-      throw new BadRequestException('Agent not found');
-    }
-
-    const currentServers = agents[0].mcp_servers ?? {}; 
     const currentConfig = currentServers[mcpId];
 
     if (!currentConfig || typeof currentConfig !== 'object') {
@@ -251,7 +208,7 @@ export class AgentsController {
         ? { ...currentConfig.env }
         : {};
 
-    env[secret_name] = secret_value;
+    env[secret_name] = secret_value; // <-- update value of given key
 
     const updatedServers = {
       ...currentServers,
@@ -262,7 +219,7 @@ export class AgentsController {
     };
 
     const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcpServers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcpServers"',
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
       [updatedServers, agentId, userId]
     );
 
@@ -274,10 +231,319 @@ export class AgentsController {
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
-      mcpServers: result[0].mcp_servers,
+      mcp_servers: result[0].mcp_servers,
     });
   }
-  
+
+  /**
+   * Update mcp secret name for one agent and one mcp for a given user.
+   * @param { agent_id, mcp_id, old_name, new_name }. - IDs of the agent and MCP to fetch secrets
+   * @returns secret_key: secret_value
+   */
+  @Post('update_mcp_secret_name')
+  @HandleWithBadRequestPreservation('MCP secret rename failed')
+  async renameMcpSecret(
+    @Body() body: UpdateMcpSecretNameRequestDTO,
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_id: mcpId, old_name, new_name } =
+      body;
+
+    const selectQuery = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
+
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const currentServers = agents[0].mcp_servers ?? {};
+    const currentConfig = currentServers[mcpId];
+
+    if (!currentConfig || typeof currentConfig !== 'object') {
+      throw new BadRequestException('MCP server not found');
+    }
+
+    const env =
+      currentConfig.env && typeof currentConfig.env === 'object'
+        ? { ...currentConfig.env }
+        : {};
+
+    if (!(old_name in env)) {
+      throw new BadRequestException(
+        `Secret key "${old_name}" does not exist`
+      );
+    }
+
+    // move value to new key and delete old
+    env[new_name] = env[old_name];
+    delete env[old_name];
+
+    const updatedServers = {
+      ...currentServers,
+      [mcpId]: {
+        ...currentConfig,
+        env,
+      },
+    };
+
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [updatedServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+
+    if (result.length === 0) {
+      throw new BadRequestException('Failed to rename MCP secret');
+    }
+
+    return ResponseFormatter.success({
+      agent_id: result[0].id,
+      mcp_servers: result[0].mcp_servers,
+    });
+  }
+
+  /**
+   * Delete a secret from one MCP server of a given agent.
+   * @param { agent_id, mcp_id, secret_name }
+   * @returns Updated mcp_servers config
+   */
+  @Post('delete_mcp_secret')
+  @HandleWithBadRequestPreservation('MCP secret delete failed')
+  async deleteMcpSecret(
+    @Body() body: { agent_id: string; mcp_id: string; secret_name: string },
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_id: mcpId, secret_name } = body;
+
+    const selectQuery = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const currentServers = agents[0].mcp_servers ?? {};
+    const currentConfig = currentServers[mcpId];
+
+    if (!currentConfig || typeof currentConfig !== 'object') {
+      throw new BadRequestException('MCP server not found');
+    }
+
+    const env = { ...(currentConfig.env ?? {}) };
+    if (!(secret_name in env)) {
+      throw new BadRequestException(`Secret key "${secret_name}" not found`);
+    }
+    delete env[secret_name];
+
+    const updatedServers = {
+      ...currentServers,
+      [mcpId]: {
+        ...currentConfig,
+        env,
+      },
+    };
+
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [updatedServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    return ResponseFormatter.success(result[0]);
+  }
+
+  /**
+   * Delete one MCP server configuration from an agent.
+   * @param { agent_id, mcp_id }
+   * @returns Updated mcp_servers config
+   */
+  @Post('delete_mcp_server')
+  @HandleWithBadRequestPreservation('MCP server delete failed')
+  async deleteMcpServer(
+    @Body() body: { agent_id: string; mcp_id: string },
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_id: mcpId } = body;
+
+    const selectQuery = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const currentServers = agents[0].mcp_servers ?? {};
+    if (!(mcpId in currentServers)) {
+      throw new BadRequestException(`MCP server "${mcpId}" not found`);
+    }
+
+    delete currentServers[mcpId];
+
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [currentServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    return ResponseFormatter.success(result[0]);
+
+  }
+
+    /**
+   * Delete multiple MCP servers from an agent.
+   * @param { agent_id, mcp_ids[] }
+   * @returns Updated mcp_servers config
+   */
+  @Post('delete_multiple_mcp_server')
+  @HandleWithBadRequestPreservation('MCP servers delete failed')
+  async deleteMcpServers(
+    @Body() body: { agent_id: string; mcp_ids: string[] },
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_ids } = body;
+
+    const selectQuery = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const currentServers = agents[0].mcp_servers ?? {};
+    for (const mcpId of mcp_ids) {
+      delete currentServers[mcpId];
+    }
+
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [currentServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    return ResponseFormatter.success(result[0]);
+  }
+
+  /**
+   * Delete all MCP servers for an agent.
+   * @param { agent_id }
+   * @returns { mcp_servers = {} }
+   */
+  @Post('delete_all_mcp_servers')
+  @HandleWithBadRequestPreservation('Delete all MCP servers failed')
+  async deleteAllMcpServers(
+    @Body() body: { agent_id: string },
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId } = body;
+
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [{}, agentId, userId]
+    );
+
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    if (result.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    return ResponseFormatter.success(result[0]);
+  }
+
+  /**
+   * Add a new MCP server to an agent and start it immediately.
+   * @param { agent_id, mcp_id, config } 
+   * - agent_id: UUID of the agent
+   * - mcp_id: identifier for the new MCP server
+   * - config: MCP server config { command, args, env }
+   * @returns updated agent with mcp_servers
+   */
+  @Post('add_mcp_server')
+  @HandleWithBadRequestPreservation('MCP server addition failed')
+  async addMcpServer(
+    @Body() body: { agent_id: string; mcp_id: string; config: Record<string, any> },
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_id: mcpId, config } = body;
+
+    // Validate input
+    if (!agentId || !mcpId || !config) {
+      throw new BadRequestException('agent_id, mcp_id and config are required');
+    }
+
+    // Fetch agent
+    const selectQuery = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const currentServers = agents[0].mcp_servers ?? {};
+
+    if (currentServers[mcpId]) {
+      throw new BadRequestException(`MCP server "${mcpId}" already exists`);
+    }
+
+    // Add the new server config
+    const updatedServers = {
+      ...currentServers,
+      [mcpId]: config,
+    };
+
+    // Persist in DB
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [updatedServers, agentId, userId]
+    );
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    if (result.length === 0) {
+      throw new BadRequestException('Failed to add MCP server');
+    }
+
+    // // ⚡ Start the MCP server process
+    // try {
+    //   // You might replace this with a proper MCP manager service
+    //   const { command, args, env } = config;
+    //   const { spawn } = await import('child_process');
+    //   const proc = spawn(command, args, { env: { ...process.env, ...env } });
+    //   proc.on('error', (err) =>
+    //     logger.error(`Failed to start MCP server ${mcpId}: ${err.message}`)
+    //   );
+    //   logger.info(`MCP server ${mcpId} started for agent ${agentId}`);
+    // } catch (err) {
+    //   logger.error('Error while launching MCP server', err);
+    //   // Note: the MCP is stored, but the process might not be running
+    // }
+
+    return ResponseFormatter.success({
+      agent_id: result[0].id,
+      mcp_servers: result[0].mcp_servers,
+    });
+  }
+
+
 
   /**
    * Handle user request to a specific agent
@@ -404,7 +670,6 @@ export class AgentsController {
   @Post('upload-avatar')
   @HandleWithBadRequestPreservation('Upload failed')
   async uploadAvatar(
-    @Headers('x-api-key') apiKey: string,
     @Req() req: FastifyRequest
   ) {
     logger.info('upload_avatar called');

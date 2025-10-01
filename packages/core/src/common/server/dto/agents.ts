@@ -265,7 +265,21 @@ export class UpdateMcpConfigRequestDTO {
   config: Record<string, any>;
 }
 
-export class UpdateMcpSecretRequestDTO {
+export class UpdateMcpSecretNameRequestDTO {
+  @IsNotEmpty()
+  agent_id: string;
+
+  @IsNotEmpty()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  old_name: string;
+
+  @IsNotEmpty()
+  new_name: string;
+}
+
+export class UpdateMcpSecretValueRequestDTO {
   @IsNotEmpty()
   agent_id: string;
 
@@ -278,4 +292,5 @@ export class UpdateMcpSecretRequestDTO {
   @IsNotEmpty()
   secret_value: string;
 }
+
 
