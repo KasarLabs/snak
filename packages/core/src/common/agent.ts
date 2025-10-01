@@ -127,6 +127,12 @@ export interface RAGConfig {
   top_k?: number;
 }
 
+export interface McpServerConfig {
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+}
+
 export enum Id {
   NoId = 'NoId',
   Id = 'Id',
@@ -140,7 +146,7 @@ export namespace AgentConfig {
    */
   interface Base {
     profile: AgentProfile;
-    mcp_servers: Record<string, any>;
+    mcp_servers: Record<string, McpServerConfig>;
     plugins: string[];
     memory: MemoryConfig;
     rag: RAGConfig;
@@ -152,6 +158,13 @@ export namespace AgentConfig {
   export interface Input extends Base {
     prompts_id?: string;
     graph: GraphConfig;
+  }
+
+  /**
+   * Input configuration with optional parameters for updates
+   */
+  export interface InputWithOptionalParam extends Partial<Input> {
+    id?: string;
   }
 
   /**
@@ -168,9 +181,9 @@ export namespace AgentConfig {
   }
 
   /**
-   * Input configuration with optional parameters for updates
+   * Output configuration with optional parameters for updates
    */
-  export interface WithOptionalParam extends Partial<OutputWithId> {
+  export interface OutputWithOptionalParam extends Partial<OutputWithId> {
     user_id: string;
     id: string;
   }

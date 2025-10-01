@@ -18,6 +18,7 @@ export { createGraph } from './agents/graphs/graph.js';
 
 // Agent operators
 export { AgentSelector } from './agents/operators/agentSelector.js';
+export * from './agents/operators/supervisor/index.js';
 
 // Tool-related exports
 export type {

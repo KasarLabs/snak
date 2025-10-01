@@ -16,7 +16,7 @@ import {
   SnakAgent,
   TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
-  TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@snakagent/agents';
 import { SystemMessage } from '@langchain/core/messages';
@@ -610,7 +610,7 @@ export class AgentStorage implements OnModuleInit {
           TASK_EXECUTOR_SYSTEM_PROMPT,
           TASK_MANAGER_SYSTEM_PROMPT,
           TASK_VERIFIER_SYSTEM_PROMPT,
-          TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+          TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
           false,
         ]
       );

@@ -7,6 +7,7 @@ import { MetricsController } from '../controllers/metrics.controller.js';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AgentStorage } from '../agents.storage.js';
+import { SupervisorService } from '../services/supervisor.service.js';
 
 @Module({
   imports: [
@@ -22,12 +23,13 @@ import { AgentStorage } from '../agents.storage.js';
     DatabaseService,
     AgentService,
     AgentStorage,
+    SupervisorService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
   ],
   controllers: [AgentsController, MetricsController],
-  exports: [DatabaseService, AgentService, AgentStorage],
+  exports: [DatabaseService, AgentService, AgentStorage, SupervisorService],
 })
 export class AgentsModule {}
