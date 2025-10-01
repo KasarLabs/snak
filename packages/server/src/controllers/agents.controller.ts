@@ -180,7 +180,7 @@ export class AgentsController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
+
       throw new BadRequestException(`Update failed: ${error.message}`);
     }
   }
@@ -565,7 +565,7 @@ export class AgentsController {
     return response;
   }
 
-  @Get('notify')
+  @Get('get_notify')
   async getNotify(@Req() req: FastifyRequest): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
     const result = await notify.getUserNotifications(userId); // TODO: Implement notification logic

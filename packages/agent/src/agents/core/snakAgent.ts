@@ -451,11 +451,12 @@ export class SnakAgent extends BaseAgent {
         );
         for await (const chunk of this.compiledGraph.streamEvents(
           executionInput ?? {
-            messages: []
+            messages: [],
           },
           executionConfig
         )) {
           // Setter
+          
           lastChunk = chunk;
           retryCount = stateSnapshot.values.retry;
           currentCheckpointId =
@@ -472,6 +473,7 @@ export class SnakAgent extends BaseAgent {
             chunk.event === 'on_chain_end' &&
             this.isInterrupt(stateSnapshot)
           ) {
+            console.log(chunk.event)
             console.log('Graph interrupted for human input');
             await notify.insertNotify(
               this.agentConfig.user_id,

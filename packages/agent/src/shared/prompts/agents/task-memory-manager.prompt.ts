@@ -40,7 +40,7 @@ Extract ALL factual information, discoveries, and knowledge:
 - **Universal truths**: Shared understanding, conventions, general knowledge, cultural facts
 `;
 
-export const TASK_MEMEMORY_MANAGER_HUMAN_PROMPT = `
+export const TASK_MEMORY_MANAGER_HUMAN_PROMPT = `
 Here is the response you need to analyze and extract memory entries from:
 {response}
 `;

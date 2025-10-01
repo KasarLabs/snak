@@ -29,6 +29,7 @@ import {
   HITL_CONSTRAINT_LEVEL_1,
   HITL_CONSTRAINT_LEVEL_2,
   HITL_CONSTRAINT_LEVEL_3,
+  HITL_CONSTRAINT_LEVEL_4,
 } from '@prompts/agents/hitl-contraint.prompt.js';
 // --- Response Generators ---
 export function createMaxIterationsResponse<T>(
@@ -36,7 +37,7 @@ export function createMaxIterationsResponse<T>(
   current_node: T
 ): {
   messages: BaseMessage[];
-  last_node: T;
+  lastNode: T;
 } {
   const message = new AIMessageChunk({
     content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
@@ -47,7 +48,7 @@ export function createMaxIterationsResponse<T>(
   });
   return {
     messages: [message],
-    last_node: current_node,
+    lastNode: current_node,
   };
 }
 
@@ -358,7 +359,7 @@ export function routingFromSubGraphToParentGraphEndNode(
   state: typeof GraphState.State,
   config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
 ): Command {
-  const lastNode = state.last_node;
+  const lastNode = state.lastNode;
   logger.info(`[${lastNode}] Routing to parent graph end node`);
 
   return new Command({
@@ -370,17 +371,42 @@ export function routingFromSubGraphToParentGraphEndNode(
   });
 }
 
+export function routingFromSubGraphToParentGraphHumanHandlerNode(
+  state: typeof GraphState.State,
+  config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+): Command {
+  const lastNode = state.lastNode;
+  logger.info(`[${lastNode}] Routing to parent graph human handler node`);
+
+  return new Command({
+    update: {
+      skipValidation: { skipValidation: true, goto: 'human_handler' },
+      lastNode: lastNode,
+      currentGraphStep: state.currentGraphStep,
+      tasks: state.tasks,
+      messages: state.messages,
+      memories: state.memories,
+      rag: state.rag,
+      retry: state.retry,
+      error: state.error,
+    },
+    goto: 'human_handler',
+    graph: Command.PARENT,
+  });
+}
+
 export function getHITLContraintFromTreshold(threshold: number): string | null {
-  if (threshold <= 0 || threshold > 1) return null;
+  console.log('Threshold:', threshold);
+  if (threshold <= 0 || threshold > 1) return HITL_CONSTRAINT_LEVEL_0;
   switch (true) {
     case threshold > 0 && threshold <= 0.25:
-      return HITL_CONSTRAINT_LEVEL_0;
-    case threshold > 0.25 && threshold <= 0.5:
       return HITL_CONSTRAINT_LEVEL_1;
-    case threshold > 0.5 && threshold < 0.75:
+    case threshold > 0.25 && threshold <= 0.5:
       return HITL_CONSTRAINT_LEVEL_2;
-    case threshold >= 0.75 && threshold < 1:
+    case threshold > 0.5 && threshold < 0.75:
       return HITL_CONSTRAINT_LEVEL_3;
+    case threshold >= 0.75 && threshold < 1:
+      return HITL_CONSTRAINT_LEVEL_4;
     case threshold === 1:
       return 'always';
     default:

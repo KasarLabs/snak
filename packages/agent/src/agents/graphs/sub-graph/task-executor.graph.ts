@@ -15,6 +15,7 @@ import {
   isValidConfiguration,
   isValidConfigurationType,
   routingFromSubGraphToParentGraphEndNode,
+  routingFromSubGraphToParentGraphHumanHandlerNode,
 } from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
@@ -51,9 +52,8 @@ import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
-import { ToolCall } from '@langchain/core/messages/tool';
 
-const EXECUTOR_CORE_TOOLS = new Set([
+export const EXECUTOR_CORE_TOOLS = new Set([
   'response_task',
   'end_task',
   'ask_human',
@@ -141,7 +141,7 @@ export class AgentExecutorGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: TaskExecutorNode;
+        lastNode: TaskExecutorNode;
         currentGraphStep?: number;
         memories: Memories;
         task?: TaskType[];
@@ -149,7 +149,7 @@ export class AgentExecutorGraph {
       }
     | {
         retry: number;
-        last_node: TaskExecutorNode;
+        lastNode: TaskExecutorNode;
         error: GraphErrorType;
       }
     | Command
@@ -245,7 +245,7 @@ export class AgentExecutorGraph {
         );
         return {
           retry: state.retry + 1,
-          last_node: TaskExecutorNode.REASONING_EXECUTOR,
+          lastNode: TaskExecutorNode.REASONING_EXECUTOR,
           error: {
             type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
             message: `Invalid number of core tools used: ${filteredCoreTools.length}`,
@@ -270,6 +270,7 @@ export class AgentExecutorGraph {
           type: 'human',
           thought: thought,
           tool: [filteredCoreTools[0]],
+          isSavedInMemory: false,
         });
         state.tasks[state.tasks.length - 1] = currentTask;
         aiMessage.additional_kwargs = {
@@ -278,7 +279,7 @@ export class AgentExecutorGraph {
         };
         return {
           messages: [aiMessage],
-          last_node: TaskExecutorNode.REASONING_EXECUTOR,
+          lastNode: TaskExecutorNode.REASONING_EXECUTOR,
           currentGraphStep: state.currentGraphStep + 1,
           memories: state.memories,
           task: state.tasks,
@@ -292,7 +293,7 @@ export class AgentExecutorGraph {
       if (filteredCoreTools[0].name === 'block_task') {
         return {
           messages: [aiMessage],
-          last_node: TaskExecutorNode.REASONING_EXECUTOR,
+          lastNode: TaskExecutorNode.REASONING_EXECUTOR,
           currentGraphStep: state.currentGraphStep + 1,
           memories: state.memories,
           task: state.tasks,
@@ -326,6 +327,7 @@ export class AgentExecutorGraph {
         type: 'tools',
         thought: thought!, // Assertion since we checked above
         tool: filteredCoreTools.concat(filteredTools),
+        isSavedInMemory: false,
       });
       state.tasks[state.tasks.length - 1] = currentTask;
 
@@ -344,7 +346,7 @@ export class AgentExecutorGraph {
 
       return {
         messages: [aiMessage],
-        last_node: TaskExecutorNode.REASONING_EXECUTOR,
+        lastNode: TaskExecutorNode.REASONING_EXECUTOR,
         currentGraphStep: state.currentGraphStep + 1,
         memories: state.memories,
         task: state.tasks,
@@ -369,7 +371,7 @@ export class AgentExecutorGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: TaskExecutorNode;
+        lastNode: TaskExecutorNode;
         memories: Memories;
         task: TaskType[];
       }
@@ -468,11 +470,10 @@ export class AgentExecutorGraph {
         );
       }
       state.memories.stm = newMemories.data;
-      console.log(tools.messages);
       return {
         messages: tools.messages,
         task: state.tasks,
-        last_node: TaskExecutorNode.TOOL_EXECUTOR,
+        lastNode: TaskExecutorNode.TOOL_EXECUTOR,
         memories: state.memories,
       };
     } catch (error) {
@@ -506,7 +507,7 @@ export class AgentExecutorGraph {
     ): Promise<
       | {
           messages: BaseMessage[];
-          last_node: TaskExecutorNode;
+          lastNode: TaskExecutorNode;
           memories: Memories;
         }
       | Command
@@ -518,61 +519,14 @@ export class AgentExecutorGraph {
     return toolNode;
   }
 
-  public async humanNode(state: typeof GraphState.State): Promise<
-    | {
-        messages: BaseMessage[];
-        last_node: TaskExecutorNode;
-        tasks: TaskType[];
-        currentGraphStep?: number;
-      }
-    | Command
-  > {
-    const currentTask = getCurrentTask(state.tasks);
-    if (!currentTask) {
-      throw new Error('Current task is undefined');
-    }
-    const currentStep = currentTask.steps[currentTask.steps.length - 1];
-    if (currentStep.type !== 'human') {
-      throw new Error('Current step is not a human step');
-    }
+  public async humanNode(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): Promise<Command> {
     logger.info(
-      `[Human] Awaiting human input for: ${currentStep.thought.speak}`
+      '[TaskExecutor:Human] Using Command to goto parent graph human_handler'
     );
-    const h_input = interrupt(currentStep.thought.speak);
-    if (!h_input) {
-      throw new Error('No human input received');
-    }
-    const human_message = new HumanMessage({
-      content: h_input,
-      additional_kwargs: {
-        from: TaskExecutorNode.HUMAN,
-        final: false,
-      },
-    });
-    const newMemories = STMManager.addMemory(
-      state.memories.stm,
-      [human_message],
-      currentTask.id,
-      currentTask.steps[currentTask.steps.length - 1].id
-    );
-    if (!newMemories.success || !newMemories.data) {
-      throw new Error(`Failed to add AI message to STM: ${newMemories.error}`);
-    }
-    state.memories.stm = newMemories.data;
-    currentStep.tool.forEach((t: ToolCallType) => {
-      if (t.name === 'ask_human') {
-        t.status = 'completed';
-        t.result = h_input;
-      }
-    });
-    currentTask.steps[currentTask.steps.length - 1] = currentStep;
-    state.tasks[state.tasks.length - 1] = currentTask;
-    return {
-      messages: [human_message],
-      last_node: TaskExecutorNode.HUMAN,
-      tasks: state.tasks,
-      currentGraphStep: state.currentGraphStep + 1,
-    };
+    return routingFromSubGraphToParentGraphHumanHandlerNode(state, config);
   }
 
   private executor_router(
@@ -586,7 +540,7 @@ export class AgentExecutorGraph {
       logger.warn('[Router] Max retries reached, routing to END node');
       return TaskExecutorNode.END_GRAPH;
     }
-    if (state.last_node === TaskExecutorNode.REASONING_EXECUTOR) {
+    if (state.lastNode === TaskExecutorNode.REASONING_EXECUTOR) {
       const lastAiMessage = state.messages[state.messages.length - 1];
       const currentTask = getCurrentTask(state.tasks);
       if (!currentTask) {
@@ -610,10 +564,8 @@ export class AgentExecutorGraph {
           lastAiMessage instanceof AIMessage) &&
         lastAiMessage.tool_calls?.length
       ) {
-        if (currentTask.steps[currentTask.steps.length - 1].type === 'human') {
-          logger.info(
-            `[Router] Resuming from human input, routing to reasoning node`
-          );
+        if (currentTask.steps[currentTask.steps.length - 1]?.type === 'human') {
+          logger.info(`[Router] Human step detected, routing to HUMAN node`);
           return TaskExecutorNode.HUMAN;
         }
         logger.debug(
@@ -621,7 +573,7 @@ export class AgentExecutorGraph {
         );
         return TaskExecutorNode.TOOL_EXECUTOR;
       }
-    } else if (state.last_node === TaskExecutorNode.TOOL_EXECUTOR) {
+    } else if (state.lastNode === TaskExecutorNode.TOOL_EXECUTOR) {
       if (
         config.configurable.agent_config.graph.max_steps <=
         state.currentGraphStep
@@ -631,10 +583,8 @@ export class AgentExecutorGraph {
       } else {
         return TaskExecutorNode.END;
       }
-    } else if (state.last_node === TaskExecutorNode.HUMAN) {
-      logger.debug(
-        `[Router] No tool calls detected after human input, routing to reasoning node`
-      );
+    } else if (state.lastNode === TaskExecutorNode.HUMAN) {
+      logger.debug(`[Router] Routing from HUMAN back to REASONING_EXECUTOR`);
       return TaskExecutorNode.REASONING_EXECUTOR;
     }
     logger.debug(`[Router] Default routing to END node`);

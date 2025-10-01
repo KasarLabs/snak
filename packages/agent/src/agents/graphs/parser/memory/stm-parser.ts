@@ -70,7 +70,6 @@ function formatToolMessagetoXML(
 ): string {
   const result_formated: string[] = [];
   const baseIndent = '  '.repeat(indent);
-  console.log('Formatting ToolMessage to XML:', message);
   result_formated.push(
     `${baseIndent}<message type="tool_response" id="${message.tool_call_id}">`
   );

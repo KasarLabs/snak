@@ -12,9 +12,11 @@ import {
 import { AgentConfig, logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 import { embeddingModel } from '../manager/memory/memory-db-manager.js';
-export class MemoryToolRegistry extends BaseToolRegistry {
+export class MemoryToolRegistry {
+  private agentConfig: AgentConfig.Runtime;
+  private tools: DynamicStructuredTool<AnyZodObject>[];
   constructor(agentConfig: AgentConfig.Runtime) {
-    super(agentConfig);
+    this.agentConfig = agentConfig;
     this.tools = this.registerTools();
   }
 
@@ -95,10 +97,8 @@ export class MemoryToolRegistry extends BaseToolRegistry {
         `[MemoryAgent] Retrieving memory for step ID: ${request.step_id}`
       );
       const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
-      const runId = this.agentConfig.id;
       const result = await memory.get_memories_by_step_id(
         userId,
-        runId,
         request.step_id,
         request.limit ?? null
       );
@@ -124,10 +124,8 @@ export class MemoryToolRegistry extends BaseToolRegistry {
         `[MemoryAgent] Retrieving memory for task ID: ${request.task_id}`
       );
       const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
-      const runId = this.agentConfig.id;
       const result = await memory.get_memories_by_task_id(
         userId,
-        runId,
         request.task_id,
         request.limit ?? null
       );
@@ -152,11 +150,10 @@ export class MemoryToolRegistry extends BaseToolRegistry {
         `[MemoryAgent] Retrieving memory for content with length ${request.content.length}`
       );
       const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
-      const runId = this.agentConfig.id;
       const embedding = await embeddingModel.embedQuery(request.content);
       const result = await memory.retrieve_memory(
+        this.agentConfig.memory.strategy,
         userId,
-        runId,
         embedding,
         request.topK,
         request.threshold

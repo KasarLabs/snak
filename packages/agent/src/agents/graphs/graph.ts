@@ -4,6 +4,7 @@ import {
   Annotation,
   END,
   CompiledStateGraph,
+  interrupt,
 } from '@langchain/langgraph';
 import {
   DynamicStructuredTool,
@@ -11,7 +12,11 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { BaseMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  AIMessageChunk,
+} from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
@@ -40,6 +45,9 @@ import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { agent } from 'supertest';
+import { getCurrentTask } from './utils/graph.utils.js';
+import { STMManager } from '@lib/memory/index.js';
+import { ToolCallType } from '../../shared/types/index.js';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -48,7 +56,7 @@ export const GraphState = Annotation.Root({
     },
     default: () => [],
   }),
-  last_node: Annotation<
+  lastNode: Annotation<
     | TaskExecutorNode
     | TaskManagerNode
     | TaskMemoryNode
@@ -85,16 +93,6 @@ export const GraphState = Annotation.Root({
   error: Annotation<GraphErrorType | null>({
     reducer: (x, y) => y,
     default: () => null,
-  }),
-  agent_config: Annotation<AgentConfig.Runtime | null>({
-    reducer: (x, y) => y,
-    default: () => null,
-  }),
-  user_request: Annotation<userRequestWithHITL | undefined>({
-    reducer: (x, y) => y,
-    default: () => {
-      return { request: '', hitl_threshold: 0 };
-    },
   }),
 });
 
@@ -167,7 +165,7 @@ export class Graph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
-    logger.debug(`[Orchestration Router] Last agent: ${state.last_node}`);
+    logger.debug(`[Orchestration Router] Last agent: ${state.lastNode}`);
     // Check for errors first
     if (state.error?.hasError && state.error.type !== 'blocked_task') {
       logger.error(
@@ -195,8 +193,8 @@ export class Graph {
       }
     }
 
-    if (isInEnum(TaskVerifierNode, state.last_node))
-      if (state.last_node === TaskVerifierNode.TASK_UPDATER) {
+    if (isInEnum(TaskVerifierNode, state.lastNode))
+      if (state.lastNode === TaskVerifierNode.TASK_UPDATER) {
         if (
           currentTask.status === 'completed' ||
           currentTask.status === 'failed'
@@ -207,7 +205,7 @@ export class Graph {
           return GraphNode.MEMORY_ORCHESTRATOR;
         }
       }
-    if (isInEnum(TaskMemoryNode, state.last_node)) {
+    if (isInEnum(TaskMemoryNode, state.lastNode)) {
       if (
         currentTask.status === 'completed' ||
         currentTask.status === 'failed'
@@ -223,7 +221,32 @@ export class Graph {
         return GraphNode.AGENT_EXECUTOR;
       }
     }
-    if (isInEnum(TaskExecutorNode, state.last_node)) {
+    // Handle routing from HUMAN_HANDLER back to sub-graphs
+    if (isInEnum(GraphNode, state.lastNode)) {
+      if (state.lastNode === GraphNode.HUMAN_HANDLER) {
+        const lastMessage = state.messages[state.messages.length - 1];
+        const from = lastMessage?.additional_kwargs?.from;
+
+        if (from === TaskManagerNode.HUMAN) {
+          logger.debug(
+            `[Orchestration Router] Human input processed, routing back to task manager`
+          );
+          return GraphNode.TASK_MANAGER;
+        }
+        if (from === TaskExecutorNode.HUMAN) {
+          logger.debug(
+            `[Orchestration Router] Human input processed, routing back to agent executor`
+          );
+          return GraphNode.AGENT_EXECUTOR;
+        }
+        logger.warn(
+          `[Orchestration Router] Unknown human handler source, routing to memory`
+        );
+        return GraphNode.MEMORY_ORCHESTRATOR;
+      }
+    }
+
+    if (isInEnum(TaskExecutorNode, state.lastNode)) {
       // Check if a task was just completed (end_task tool was called)
       if (state.error && state.error.hasError) {
         logger.error(
@@ -250,7 +273,7 @@ export class Graph {
       }
     }
 
-    if (isInEnum(TaskManagerNode, state.last_node)) {
+    if (isInEnum(TaskManagerNode, state.lastNode)) {
       logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
       return GraphNode.MEMORY_ORCHESTRATOR;
     }
@@ -283,6 +306,114 @@ export class Graph {
 
     state.memories = MemoryStateManager.createInitialState(memorySize);
     return state;
+  }
+
+  private async human_handler(state: typeof GraphState.State): Promise<{
+    messages: BaseMessage[];
+    tasks: TaskType[];
+    lastNode: GraphNode;
+    currentGraphStep: number;
+    memories?: Memories;
+    skipValidation?: skipValidationType;
+  }> {
+    const currentTask = getCurrentTask(state.tasks);
+    if (!currentTask) {
+      throw new Error('[HumanHandler] No current task available');
+    }
+
+    const requestSource = state.lastNode;
+    logger.info(`[HumanHandler] Processing human input from: ${requestSource}`);
+
+    // Handle task-manager human input
+    if (
+      requestSource === TaskManagerNode.HUMAN ||
+      requestSource === TaskManagerNode.CREATE_TASK
+    ) {
+      logger.info(
+        `[HumanHandler:Manager] Awaiting input: ${currentTask.thought.speak}`
+      );
+      const h_input = interrupt(currentTask.thought.speak);
+      if (!h_input) {
+        throw new Error('[HumanHandler:Manager] No input received');
+      }
+      logger.info('[HumanHandler:Manager] Input processed');
+
+      currentTask.human = h_input;
+      currentTask.status = 'completed';
+      state.tasks[state.tasks.length - 1] = currentTask;
+
+      return {
+        messages: [
+          new AIMessageChunk({
+            content: h_input,
+            additional_kwargs: { from: TaskManagerNode.HUMAN, final: false },
+          }),
+        ],
+        tasks: state.tasks,
+        lastNode: GraphNode.HUMAN_HANDLER,
+        currentGraphStep: state.currentGraphStep + 1,
+        skipValidation: { skipValidation: false, goto: '' },
+      };
+    }
+
+    // Handle task-executor human input
+    if (
+      requestSource === TaskExecutorNode.HUMAN ||
+      requestSource === TaskExecutorNode.REASONING_EXECUTOR
+    ) {
+      const currentStep = currentTask.steps[currentTask.steps.length - 1];
+      if (!currentStep || currentStep.type !== 'human') {
+        throw new Error('[HumanHandler:Executor] Invalid step');
+      }
+
+      logger.info(
+        `[HumanHandler:Executor] Awaiting input: ${currentStep.thought.speak}`
+      );
+      const h_input = interrupt(currentStep.thought.speak);
+      if (!h_input) {
+        throw new Error('[HumanHandler:Executor] No input received');
+      }
+      logger.info('[HumanHandler:Executor] Input processed');
+
+      const human_message = new HumanMessage({
+        content: h_input,
+        additional_kwargs: { from: TaskExecutorNode.HUMAN, final: false },
+      });
+
+      const newMemories = STMManager.addMemory(
+        state.memories.stm,
+        [human_message],
+        currentTask.id,
+        currentStep.id
+      );
+      if (!newMemories.success || !newMemories.data) {
+        throw new Error(
+          `[HumanHandler:Executor] Memory update failed: ${newMemories.error}`
+        );
+      }
+      state.memories.stm = newMemories.data;
+
+      currentStep.tool.forEach((t: ToolCallType) => {
+        if (t.name === 'response_task') {
+          t.status = 'completed';
+          t.result = h_input;
+        }
+      });
+
+      currentTask.steps[currentTask.steps.length - 1] = currentStep;
+      state.tasks[state.tasks.length - 1] = currentTask;
+
+      return {
+        messages: [human_message],
+        tasks: state.tasks,
+        lastNode: GraphNode.HUMAN_HANDLER,
+        currentGraphStep: state.currentGraphStep + 1,
+        memories: state.memories,
+        skipValidation: { skipValidation: false, goto: '' },
+      };
+    }
+
+    throw new Error(`[HumanHandler] Unknown source: ${requestSource}`);
   }
 
   private buildWorkflow(): StateGraph<
@@ -319,6 +450,7 @@ export class Graph {
       .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
       .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
       .addNode(GraphNode.TASK_VERIFIER, task_verifier_graph)
+      .addNode(GraphNode.HUMAN_HANDLER, this.human_handler.bind(this))
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
       .addEdge('__start__', GraphNode.INIT_STATE_VALUE)
       .addEdge(GraphNode.INIT_STATE_VALUE, GraphNode.TASK_MANAGER)
@@ -336,6 +468,10 @@ export class Graph {
       )
       .addConditionalEdges(
         GraphNode.TASK_VERIFIER,
+        this.orchestrationRouter.bind(this)
+      )
+      .addConditionalEdges(
+        GraphNode.HUMAN_HANDLER,
         this.orchestrationRouter.bind(this)
       )
       .addEdge(GraphNode.END_GRAPH, END);

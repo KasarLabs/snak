@@ -1,5 +1,5 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
-import { START, StateGraph, Command, interrupt } from '@langchain/langgraph';
+import { START, StateGraph, Command } from '@langchain/langgraph';
 import {
   GraphErrorType,
   TaskType,
@@ -15,6 +15,7 @@ import {
   isValidConfiguration,
   isValidConfigurationType,
   routingFromSubGraphToParentGraphEndNode,
+  routingFromSubGraphToParentGraphHumanHandlerNode,
 } from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
@@ -149,7 +150,7 @@ export class TaskManagerGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: TaskManagerNode;
+        lastNode: TaskManagerNode;
         tasks?: TaskType[];
         currentGraphStep: number;
         error: GraphErrorType | null;
@@ -157,7 +158,7 @@ export class TaskManagerGraph {
       }
     | {
         retry: number;
-        last_node: TaskManagerNode;
+        lastNode: TaskManagerNode;
         error: GraphErrorType;
       }
     | Command
@@ -243,7 +244,7 @@ export class TaskManagerGraph {
         );
         return {
           retry: (state.retry ?? 0) + 1,
-          last_node: TaskManagerNode.CREATE_TASK,
+          lastNode: TaskManagerNode.CREATE_TASK,
           error: {
             type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
             message: 'No tool calls found in model response',
@@ -259,7 +260,7 @@ export class TaskManagerGraph {
         );
         return {
           retry: (state.retry ?? 0) + 1,
-          last_node: TaskManagerNode.CREATE_TASK,
+          lastNode: TaskManagerNode.CREATE_TASK,
           error: {
             type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
             message: 'Multiple tool calls found, expected single tool call',
@@ -275,7 +276,7 @@ export class TaskManagerGraph {
         );
         return {
           retry: (state.retry ?? 0) + 1,
-          last_node: TaskManagerNode.CREATE_TASK,
+          lastNode: TaskManagerNode.CREATE_TASK,
           error: {
             type: GraphErrorTypeEnum.TOOL_ERROR,
             message: `Tool call name "${aiMessage.tool_calls[0].name}" is not recognized`,
@@ -306,7 +307,7 @@ export class TaskManagerGraph {
         state.tasks.push(task);
         return {
           messages: [aiMessage],
-          last_node: TaskManagerNode.CREATE_TASK,
+          lastNode: TaskManagerNode.CREATE_TASK,
           tasks: state.tasks,
           currentGraphStep: state.currentGraphStep + 1,
           error: null,
@@ -347,7 +348,7 @@ export class TaskManagerGraph {
       state.tasks.push(task);
       return {
         messages: [aiMessage],
-        last_node: TaskManagerNode.CREATE_TASK,
+        lastNode: TaskManagerNode.CREATE_TASK,
         tasks: state.tasks,
         currentGraphStep: state.currentGraphStep + 1,
         error: null,
@@ -364,48 +365,14 @@ export class TaskManagerGraph {
     }
   }
 
-  public async humanNode(state: typeof GraphState.State): Promise<{
-    messages: BaseMessage[];
-    tasks: TaskType[];
-    last_node: TaskManagerNode;
-    currentGraphStep?: number;
-  }> {
-    const currentTask = getCurrentTask(state.tasks);
-    if (!currentTask) {
-      logger.error('[HUMAN] No current task available for human input');
-      throw new Error('No current task available for human input');
-    }
-
+  public async humanNode(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): Promise<Command> {
     logger.info(
-      `[Human] Awaiting human input for: ${currentTask.thought.speak}`
+      '[TaskManager:Human] Using Command to goto parent graph human_handler'
     );
-
-    const h_input = interrupt(currentTask.thought.speak);
-
-    if (!h_input) {
-      logger.error('[HUMAN] No human input received');
-      throw new Error('No human input received');
-    }
-
-    const message = new AIMessageChunk({
-      content: h_input,
-      additional_kwargs: {
-        from: TaskManagerNode.HUMAN,
-        final: false,
-      },
-    });
-
-    currentTask.human = h_input;
-    currentTask.status = 'completed';
-    state.tasks[state.tasks.length - 1] = currentTask;
-
-    logger.info('[Human] Successfully processed human input');
-    return {
-      messages: [message],
-      tasks: state.tasks,
-      last_node: TaskManagerNode.HUMAN,
-      currentGraphStep: state.currentGraphStep + 1,
-    };
+    return routingFromSubGraphToParentGraphHumanHandlerNode(state, config);
   }
   private task_manager_router(
     state: typeof GraphState.State,
@@ -425,7 +392,7 @@ export class TaskManagerGraph {
       );
       return TaskManagerNode.END_GRAPH;
     }
-    if (state.last_node === TaskManagerNode.CREATE_TASK) {
+    if (state.lastNode === TaskManagerNode.CREATE_TASK) {
       if (currentTask.status === 'waiting_human') {
         return TaskManagerNode.HUMAN;
       }
@@ -444,7 +411,7 @@ export class TaskManagerGraph {
         return TaskManagerNode.END;
       }
     }
-    if (state.last_node === TaskManagerNode.HUMAN) {
+    if (state.lastNode === TaskManagerNode.HUMAN) {
       logger.info(
         '[Task Manager Router] Routing from HUMAN back to CREATE_TASK'
       );
@@ -468,7 +435,7 @@ export class TaskManagerGraph {
         TaskManagerNode.END_GRAPH,
         routingFromSubGraphToParentGraphEndNode.bind(this)
       )
-      .addNode(TaskExecutorNode.HUMAN, this.humanNode.bind(this))
+      .addNode(TaskManagerNode.HUMAN, this.humanNode.bind(this))
       .addEdge(START, TaskManagerNode.CREATE_TASK)
       .addConditionalEdges(
         TaskManagerNode.CREATE_TASK,

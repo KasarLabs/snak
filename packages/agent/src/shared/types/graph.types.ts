@@ -40,6 +40,7 @@ export interface StepType {
   type: 'tools' | 'human'; // only two types for now
   thought: ThoughtsType;
   tool: ToolCallType[];
+  isSavedInMemory: boolean;
 }
 
 export type TaskCreatedType = {

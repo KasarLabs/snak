@@ -72,9 +72,7 @@ Check <system_identity>, analyze context, then create the NEXT comprehensive tas
 `;
 
 export const TASK_MANAGER_MEMORY_PROMPT = `
-<TaskHistory>
 {past_tasks}
-</TaskHistory>
 <RAG>
 {rag_content}
 </RAG>

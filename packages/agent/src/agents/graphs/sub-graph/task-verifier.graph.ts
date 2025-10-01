@@ -48,7 +48,7 @@ export class TaskVerifierGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: TaskVerifierNode;
+        lastNode: TaskVerifierNode;
         tasks?: TaskType[];
         currentGraphStep?: number;
         error?: GraphErrorType | null;
@@ -81,7 +81,7 @@ export class TaskVerifierGraph {
         );
         return {
           messages: [],
-          last_node: TaskVerifierNode.TASK_VERIFIER,
+          lastNode: TaskVerifierNode.TASK_VERIFIER,
           tasks: state.tasks,
           currentGraphStep: state.currentGraphStep + 1,
           error: null,
@@ -142,7 +142,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
         return {
           messages: [verificationMessage],
-          last_node: TaskVerifierNode.TASK_VERIFIER,
+          lastNode: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
           currentGraphStep: state.currentGraphStep + 1,
 
@@ -170,7 +170,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
         return {
           messages: [verificationMessage],
-          last_node: TaskVerifierNode.TASK_VERIFIER,
+          lastNode: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
           currentGraphStep: state.currentGraphStep + 1,
         };
@@ -211,7 +211,7 @@ Reasoning: ${verificationResult.reasoning}`,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{
     messages: BaseMessage[];
-    last_node: TaskVerifierNode;
+    lastNode: TaskVerifierNode;
   }> {
     logger.info('[TaskSuccessHandler] Processing successful task completion');
     const currentTask = getCurrentTask(state.tasks);
@@ -226,7 +226,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
     return {
       messages: [successMessage],
-      last_node: TaskVerifierNode.TASK_SUCCESS_HANDLER,
+      lastNode: TaskVerifierNode.TASK_SUCCESS_HANDLER,
     };
   }
 
@@ -235,7 +235,7 @@ Reasoning: ${verificationResult.reasoning}`,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<{
     messages: BaseMessage[];
-    last_node: TaskVerifierNode;
+    lastNode: TaskVerifierNode;
     retry?: number;
   }> {
     logger.info('[TaskFailureHandler] Processing failed task verification');
@@ -252,7 +252,7 @@ Reasoning: ${verificationResult.reasoning}`,
 
     return {
       messages: [failureMessage],
-      last_node: TaskVerifierNode.TASK_FAILURE_HANDLER,
+      lastNode: TaskVerifierNode.TASK_FAILURE_HANDLER,
       retry: state.retry + 1,
     };
   }
@@ -262,7 +262,7 @@ Reasoning: ${verificationResult.reasoning}`,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): {
     tasks?: TaskType[];
-    last_node?: TaskVerifierNode;
+    lastNode?: TaskVerifierNode;
     memories?: Memories;
   } {
     try {
@@ -303,7 +303,7 @@ Reasoning: ${verificationResult.reasoning}`,
         );
         return {
           tasks: state.tasks,
-          last_node: TaskVerifierNode.TASK_UPDATER,
+          lastNode: TaskVerifierNode.TASK_UPDATER,
           memories: updatedMemories,
         };
       }
@@ -321,19 +321,19 @@ Reasoning: ${verificationResult.reasoning}`,
         );
         return {
           tasks: updatedTasks,
-          last_node: TaskVerifierNode.TASK_UPDATER,
+          lastNode: TaskVerifierNode.TASK_UPDATER,
           memories: updatedMemories,
         };
       }
 
       // Default case - no change
       return {
-        last_node: TaskVerifierNode.TASK_UPDATER,
+        lastNode: TaskVerifierNode.TASK_UPDATER,
         memories: updatedMemories,
       };
     } catch (error) {
       logger.error(`[Task Updater] Error: ${error}`);
-      return { last_node: TaskVerifierNode.TASK_UPDATER };
+      return { lastNode: TaskVerifierNode.TASK_UPDATER };
     }
   }
 
