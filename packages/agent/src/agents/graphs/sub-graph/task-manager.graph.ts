@@ -307,6 +307,7 @@ export class TaskManagerGraph {
         state.tasks.push(task);
         aiMessage.additional_kwargs = {
           task_id: task.id,
+          task_title: task.thought.speak,
           step_id: null,
           final: false,
           from: TaskManagerNode.CREATE_TASK,
@@ -355,6 +356,7 @@ export class TaskManagerGraph {
       aiMessage.additional_kwargs = {
         task_id: task.id,
         step_id: null,
+        task_title: task.task?.directive ?? 'New Task',
         final: false,
         from: TaskManagerNode.CREATE_TASK,
       };

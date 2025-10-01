@@ -44,7 +44,6 @@ import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
-import { agent } from 'supertest';
 import { getCurrentTask } from './utils/graph.utils.js';
 import { STMManager } from '@lib/memory/index.js';
 import { ToolCallType } from '../../shared/types/index.js';
