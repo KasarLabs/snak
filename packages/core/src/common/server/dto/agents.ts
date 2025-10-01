@@ -14,6 +14,7 @@ import {
   ArrayNotEmpty,
   ArrayMinSize,
   ArrayMaxSize,
+  IsObject,
   isNotEmpty,
   isUUID,
   IsIn,
@@ -237,3 +238,44 @@ export type AgentResponse<T = unknown> =
   | { status: 'success'; data: T }
   | { status: 'waiting_for_human_input'; data?: T }
   | { status: 'failure'; error: string; data?: T };
+
+
+// Mcps secrets
+export class GetAgentMcpsRequestDTO {
+  @IsNotEmpty()
+  agent_id: string;
+}
+
+export class GetMcpSecretsRequestDTO {
+  @IsNotEmpty()
+  agent_id: string;
+
+  @IsNotEmpty()
+  mcp_id: string;
+}
+
+export class UpdateMcpConfigRequestDTO {
+  @IsNotEmpty()
+  agent_id: string;
+
+  @IsNotEmpty()
+  mcp_id: string;
+
+  @IsObject()
+  config: Record<string, any>;
+}
+
+export class UpdateMcpSecretRequestDTO {
+  @IsNotEmpty()
+  agent_id: string;
+
+  @IsNotEmpty()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  secret_name: string;
+
+  @IsNotEmpty()
+  secret_value: string;
+}
+

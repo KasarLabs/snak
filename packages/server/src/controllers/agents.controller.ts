@@ -30,11 +30,16 @@ import {
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
   MessageRequest,
+  GetAgentMcpsRequestDTO,
+  GetMcpSecretsRequestDTO,
+  UpdateMcpConfigRequestDTO,
+  UpdateMcpSecretRequestDTO,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
+import { agent } from 'supertest';
 
 export interface SupervisorRequestDTO {
   request: {
@@ -43,7 +48,7 @@ export interface SupervisorRequestDTO {
   };
 }
 
-export interface AgentAvatarResponseDTO {
+interface AgentAvatarResponseDTO {
   id: string;
   avatar_mime_type: string;
 }
@@ -51,11 +56,6 @@ export interface AgentAvatarResponseDTO {
 interface UpdateAgentMcpDTO {
   id: string;
   mcp_servers: Record<string, any>;
-}
-
-interface AgentMcpResponseDTO {
-  id: string;
-  mcpServers: Record<string, any>;
 }
 
 /**
@@ -68,6 +68,216 @@ export class AgentsController {
     private readonly agentFactory: AgentStorage,
     private readonly reflector: Reflector
   ) {}
+
+  /**
+   * Retrieve MCP configurations (mcp_servers column) 
+   * for all agents belonging to the current user.
+   *
+   * @param req - HTTP request containing the authenticated userId
+   * @returns Array of agents with their identifier and MCP configurations:
+   *          [
+   *            { agent_id: string, mcp_servers: Record<string, any> }
+   *          ]
+   */
+  @Get('get_user_mcps')
+  @HandleErrors('E01MCP100')
+  async getUserMcps(@Req() req: FastifyRequest) {
+    const userId = ControllerHelpers.getUserId(req);
+
+    const q = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE user_id = $1 ORDER BY created_at ASC',
+      [userId]
+    );
+
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
+
+    return ResponseFormatter.success(
+      agents.map((agent: { id: any; mcp_servers: Record<string, any>; }) => ({
+        agent_id: agent.id,
+        mcp_servers: agent.mcp_servers ?? {}, // Default to empty object if null
+      }))
+    );
+  }
+
+  /**
+   * Retrieve MCP configuration (mcp_servers column)
+   * for a single agent belonging to the current user.
+   *
+   * @param body - Contains agent_id of the agent to fetch
+   * @returns Object with agent_id and its mcp_servers configuration
+   */
+  @Post('get_agent_mcps')
+  @HandleErrors('E02MCP100')
+  async getAgentMcps(
+    @Body() body: GetAgentMcpsRequestDTO,
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId } = body;
+
+    const q = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
+
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const agent = agents[0];
+
+    return ResponseFormatter.success({
+      agent_id: agent.id,
+      mcp_servers: agent.mcp_servers ?? {}, 
+    });
+  }
+
+  /**
+   * Fetch all MCP configs across all agents for a given user.
+   * @param { agent_id, mcp_id }. - IDs of the agent and MCP to fetch secrets
+   * @returns  - { agent_id, mcp_id, secrets: { key: value } }.
+   */
+  @Post('get_mcp_secrets')
+  @HandleErrors('E03MCP100')
+  async getMcpSecrets(
+    @Body() body: GetMcpSecretsRequestDTO,
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_id: mcpId } = body;
+
+    const q = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
+
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const mcp_servers = agents[0].mcp_servers;
+    const mcpConfig = mcp_servers[mcpId];
+
+    if (!mcpConfig || typeof mcpConfig !== 'object') {
+      throw new BadRequestException('MCP server not found');
+    }
+
+    const env =
+      mcpConfig.env && typeof mcpConfig.env === 'object'
+        ? (mcpConfig.env as Record<string, any>)
+        : {};
+
+    return ResponseFormatter.success({
+      agent_id: agentId,
+      mcp_id: mcpId,
+      secrets: env,
+    });
+  }
+
+  @Post('update_mcp_config')
+  @HandleWithBadRequestPreservation('MCP config update failed')
+  async updateMcpConfig(
+    @Body() body: UpdateMcpConfigRequestDTO,
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_id: mcpId, config } = body;
+
+    const selectQuery = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
+
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const currentServers = agents[0].mcp_servers ?? {};
+    const updatedServers = {
+      ...currentServers,
+      [mcpId]: config,
+    };
+
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [updatedServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+
+    if (result.length === 0) {
+      throw new BadRequestException('Failed to update MCP configuration');
+    }
+
+    return ResponseFormatter.success({
+      agent_id: result[0].id,
+      mcp_servers: result[0].mcp_servers,
+    });
+  }
+
+  @Post('update_mcp_secret')
+  @HandleWithBadRequestPreservation('MCP secret update failed')
+  async updateMcpSecret(
+    @Body() body: UpdateMcpSecretRequestDTO,
+    @Req() req: FastifyRequest
+  ) {
+    const userId = ControllerHelpers.getUserId(req);
+    const { agent_id: agentId, mcp_id: mcpId, secret_name, secret_value } = body;
+
+    const selectQuery = new Postgres.Query(
+      'SELECT id, "mcpServers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
+
+    if (agents.length === 0) {
+      throw new BadRequestException('Agent not found');
+    }
+
+    const currentServers = agents[0].mcp_servers ?? {}; 
+    const currentConfig = currentServers[mcpId];
+
+    if (!currentConfig || typeof currentConfig !== 'object') {
+      throw new BadRequestException('MCP server not found');
+    }
+
+    const env =
+      currentConfig.env && typeof currentConfig.env === 'object'
+        ? { ...currentConfig.env }
+        : {};
+
+    env[secret_name] = secret_value;
+
+    const updatedServers = {
+      ...currentServers,
+      [mcpId]: {
+        ...currentConfig,
+        env,
+      },
+    };
+
+    const updateQuery = new Postgres.Query(
+      'UPDATE agents SET "mcpServers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcpServers"',
+      [updatedServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+
+    if (result.length === 0) {
+      throw new BadRequestException('Failed to update MCP secret');
+    }
+
+    return ResponseFormatter.success({
+      agent_id: result[0].id,
+      mcpServers: result[0].mcp_servers,
+    });
+  }
+  
 
   /**
    * Handle user request to a specific agent
@@ -104,7 +314,7 @@ export class AgentsController {
       [mcp_servers, id, userId]
     );
 
-    const result = await Postgres.query<AgentMcpResponseDTO>(q);
+    const result = await Postgres.query<UpdateAgentMcpDTO>(q);
 
     if (result.length === 0) {
       throw new BadRequestException('Agent not found');
@@ -113,7 +323,7 @@ export class AgentsController {
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
-      mcpServers: updatedAgent.mcpServers,
+      mcp_servers: updatedAgent.mcp_servers,
     });
   }
 
@@ -583,4 +793,7 @@ export class AgentsController {
     };
     return response;
   }
+
+ 
+
 }
