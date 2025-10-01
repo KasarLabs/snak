@@ -521,7 +521,7 @@ function normalizeRagConfig(
     // Normalize enabled
     const enabledResult = normalizeBooleanValue(
       rag.enabled,
-      DEFAULT_AGENT_CONFIG.rag.enabled || true,
+      DEFAULT_AGENT_CONFIG.rag.enabled || false,
       'rag.enabled'
     );
     config.enabled = enabledResult.value;
