@@ -17,14 +17,12 @@ import DatabaseStorage from '../common/database/database.storage.js';
 import {
   AgentSelector,
   AgentConfigResolver,
-  AgentBuilder,
   SnakAgent,
   TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
   TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@snakagent/agents';
-import { SystemMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
@@ -617,7 +615,6 @@ export class AgentStorage implements OnModuleInit {
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
       }
-
       const promptsFromDb = await this.getPromptsFromDatabase(
         agentConfig.prompts_id
       );

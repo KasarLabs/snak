@@ -1,8 +1,3 @@
-/**
- * Redis client singleton for managing agent storage
- * Provides a centralized Redis connection for the database package
- */
-
 import { Redis } from 'ioredis';
 import { logger } from '@snakagent/core';
 

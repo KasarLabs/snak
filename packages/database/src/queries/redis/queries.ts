@@ -41,7 +41,6 @@ export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
       }
 
       // Start atomic transaction
-      // This will only execute if the watched key hasn't changed
       const multi = redis.multi();
 
       // SET agents:{id} JSON(dto)
@@ -62,13 +61,12 @@ export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
         logger.warn(
           `Concurrent creation detected for agent ${dto.id}, retrying... (attempt ${attempt + 1}/${maxRetries})`
         );
-        continue; // Retry - the exists check will catch the duplicate
+        continue;
       }
 
       logger.debug(`Agent ${dto.id} saved to Redis for user ${dto.user_id}`);
-      return; // Success
+      return;
     } catch (error) {
-      // Clean up WATCH state on error
       await redis.unwatch();
       logger.error('Error saving agent to Redis:', error);
       throw error;
@@ -248,7 +246,7 @@ export async function deleteAgent(
         logger.warn(
           `Concurrent modification detected for agent ${agentId}, retrying... (attempt ${attempt + 1}/${maxRetries})`
         );
-        continue; // Retry
+        continue;
       }
 
       logger.debug(`Agent ${agentId} deleted from Redis for user ${userId}`);

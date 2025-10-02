@@ -75,7 +75,7 @@ export class AgentSelector extends BaseAgent {
         `AgentSelector: Fetching agent configs for user ${userId} from Redis`
       );
 
-      // Fetch agent configurations (not instances) from Redis via the resolver
+      // Fetch agent configurations from Redis via the resolver
       const agentConfigs = await this.agentConfigResolver(userId);
 
       logger.debug(`AgentSelector: Fetching agent configs for user ${userId}`);
