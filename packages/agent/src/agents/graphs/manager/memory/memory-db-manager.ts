@@ -5,6 +5,7 @@ import {
   MemoryTimeouts,
   MemoryThresholds,
   CustomHuggingFaceEmbeddings,
+  getGuardValue,
 } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 
@@ -25,7 +26,10 @@ export const embeddingModel = new CustomHuggingFaceEmbeddings({
  */
 export class MemoryDBManager {
   private embeddings: CustomHuggingFaceEmbeddings;
-  private readonly max_retries: number = 3; // Make configurable later
+  private readonly max_retries: number = Math.max(
+    1,
+    Number(getGuardValue('execution.max_retry_attempts')) || 3
+  );
   private readonly memoryTimeouts: MemoryTimeouts;
   private readonly memorySizeLimit: MemorySizeLimits;
   private readonly memoryThreshold: MemoryThresholds;

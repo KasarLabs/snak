@@ -1,6 +1,7 @@
 // packages/server/src/agents.controller.ts
 import {
   BadRequestException,
+  UnprocessableEntityException,
   Body,
   Controller,
   Get,
@@ -26,6 +27,7 @@ import {
   AgentRequestDTO,
   AgentConfig,
   AgentResponse,
+  getGuardValue,
   AgentDeleteRequestDTO,
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
@@ -91,6 +93,22 @@ export class AgentsController {
     if (!mcp_servers || typeof mcp_servers !== 'object') {
       throw new BadRequestException('MCP servers must be an object');
     }
+
+    try {
+      await this.agentFactory.validateAgent(
+        {
+          id: id,
+          user_id: userId,
+          mcp_servers: mcp_servers,
+        },
+        false
+      );
+    } catch (validationError) {
+      throw new UnprocessableEntityException(
+        `Validation failed: ${validationError.message}`
+      );
+    }
+
     const agent = this.agentFactory.getAgentInstance(id, userId);
     if (!agent) {
       throw new BadRequestException('Agent not found or access denied');
@@ -125,6 +143,14 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     logger.info('update_agent_config called');
     const userId = ControllerHelpers.getUserId(req);
+
+    try {
+      await this.agentFactory.validateAgent(config, false);
+    } catch (validationError) {
+      throw new UnprocessableEntityException(
+        `Validation failed: ${validationError.message}`
+      );
+    }
 
     if (!config || typeof config !== 'object') {
       throw new BadRequestException('Configuration object is required');
@@ -221,9 +247,12 @@ export class AgentsController {
       );
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize =
+      getGuardValue('user.max_upload_avatar_size') || 5 * 1024 * 1024;
     if (buffer.length > maxSize) {
-      throw new BadRequestException('File too large. Maximum size is 5MB.');
+      throw new BadRequestException(
+        `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`
+      );
     }
 
     const agentIdField = data.fields?.agent_id;
@@ -539,41 +568,6 @@ export class AgentsController {
     const agents = await this.agentService.getAllAgentsOfUser(userId);
     return ResponseFormatter.success(agents);
   }
-  /**
-   * Get agent status (alias for get_agents)
-   * @returns Promise<AgentResponse> - Response with agents status
-   */
-  @Get('get_agent_status')
-  @HandleErrors('E05TA100')
-  async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
-    logger.info('get_agent_status called');
-    const userId = ControllerHelpers.getUserId(req);
-    const agents = await this.agentService.getAllAgentsOfUser(userId);
-
-    if (!agents) {
-      throw new ServerError('E01TA400');
-    }
-
-    return ResponseFormatter.success(agents);
-  }
-
-  /**
-   * Get agent thread information (alias for get_agents)
-   * @returns Promise<AgentResponse> - Response with agents thread data
-   */
-  @Get('get_agent_thread')
-  @HandleErrors('E05TA100')
-  async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
-    logger.info('get_agent_thread called');
-    const userId = ControllerHelpers.getUserId(req);
-    const agents = await this.agentService.getAllAgentsOfUser(userId);
-
-    if (!agents) {
-      throw new ServerError('E01TA400');
-    }
-
-    return ResponseFormatter.success(agents);
-  }
 
   /**
    * Health check endpoint
@@ -584,7 +578,7 @@ export class AgentsController {
     logger.info('health called');
     const response: AgentResponse = {
       status: 'success',
-      data: 'Agent is healthy',
+      data: `Agent is healthy`,
     };
     return response;
   }

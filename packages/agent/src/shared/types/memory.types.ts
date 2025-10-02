@@ -1,6 +1,7 @@
 import { memory } from '@snakagent/database/queries';
 import z from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
+import { getGuardValue } from '@snakagent/core';
 
 /**
  * Individual memory item structure~
@@ -122,31 +123,49 @@ export interface MemoryOperationResult<T> {
  */
 export const episodicEventSchema = z
   .object({
-    name: z.string().min(1).describe('Event name or identifier'),
+    name: z
+      .string()
+      .min(getGuardValue('memory.episodic_event.name.min_length'))
+      .max(getGuardValue('memory.episodic_event.name.max_length'))
+      .describe('Event name or identifier'),
     content: z
       .string()
-      .min(1)
+      .min(getGuardValue('memory.episodic_event.min_content_length'))
+      .max(getGuardValue('memory.episodic_event.max_content_length'))
       .describe('Detailed description of what happened'),
     source: z
       .array(z.string())
+      .min(getGuardValue('memory.episodic_event.min_source'))
+      .max(getGuardValue('memory.episodic_event.max_source'))
       .default(['conversation'])
       .describe('Source reference or website URL'),
   })
   .strict();
 
 export const semanticFactSchema = z.object({
-  fact: z.string().min(1).describe('The learned information or insight'),
-  category: z.string().default('fact').describe('Type of fact'),
+  fact: z
+    .string()
+    .min(getGuardValue('memory.semantic_fact.fact.min_length'))
+    .max(getGuardValue('memory.semantic_fact.fact.max_length'))
+    .describe('The learned information or insight'),
+  category: z
+    .string()
+    .min(getGuardValue('memory.semantic_fact.category.min_length'))
+    .max(getGuardValue('memory.semantic_fact.category.max_length'))
+    .default('fact')
+    .describe('Type of fact'),
 });
 
 export const ltmSchema = z
   .object({
     episodic: z
       .array(episodicEventSchema)
+      .max(getGuardValue('memory.ltm.max_episodic_event_size'))
       .default([])
       .describe('Events and experiences with confidence scoring'),
     semantic: z
       .array(semanticFactSchema)
+      .max(getGuardValue('memory.ltm.max_semantic_fact_size'))
       .default([])
       .describe('Facts and knowledge learned with confidence scoring'),
   })
@@ -183,14 +202,13 @@ export const retrieveMemoryFromContentSchema = z
     topK: z
       .number()
       .int()
-      .min(1)
-      .max(20)
+      .min(getGuardValue('memory.retrieve.top_k.min'))
+      .max(getGuardValue('memory.retrieve.top_k.max'))
       .default(5)
       .describe('Number of top relevant memories to retrieve.'),
     threshold: z
       .number()
-      .min(0)
-      .max(1)
+      .max(getGuardValue('memory.retrieve.max_threshold'))
       .default(0.75)
       .describe(
         'Similarity threshold (0 to 1) for filtering relevant memories.'
@@ -211,7 +229,7 @@ export const retrieveMemoryFromStepId = z
       ),
     limit: z
       .number()
-      .max(100)
+      .max(getGuardValue('memory.retrieve.max_limit'))
       .default(10)
       .describe('Maximum number of memories to retrieve.'),
   })
@@ -229,7 +247,7 @@ export const retrieveMemoryFromTaskId = z
       ),
     limit: z
       .number()
-      .max(100)
+      .max(getGuardValue('memory.retrieve.max_limit'))
       .default(10)
       .describe('Maximum number of memories to retrieve.'),
   })

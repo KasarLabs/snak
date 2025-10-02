@@ -33,7 +33,7 @@ export class ConfigurationService {
       ANTHROPIC_API_KEY: this.configService.get<string>('ANTHROPIC_API_KEY'),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
       DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
-      RAG_CONFIG_PATH: this.configService.get<string>('RAG_CONFIG_PATH'),
+      GUARDS_CONFIG_PATH: this.configService.get<string>('GUARDS_CONFIG_PATH'),
       REDIS_HOST: this.configService.get<string>('REDIS_HOST'),
       REDIS_PORT: this.configService.get<string>('REDIS_PORT'),
       REDIS_PASSWORD: this.configService.get<string>('REDIS_PASSWORD'),

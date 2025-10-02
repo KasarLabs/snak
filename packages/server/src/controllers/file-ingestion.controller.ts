@@ -7,7 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { FileIngestionService } from '../services/file-ingestion.service.js';
-import { FileValidationService } from '@snakagent/core';
+import { FileValidationService, getGuardValue } from '@snakagent/core';
 import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
 import { ConfigurationService } from '../../config/configuration.js';
@@ -81,10 +81,10 @@ export class FileIngestionController {
               `Chunk ${chunkCount}: ${chunk.length} bytes (total: ${size} bytes)`
             );
 
-            if (size > this.config.rag.maxRagSize) {
-              logger.error(
-                `File size ${size} exceeds limit ${this.config.rag.maxRagSize}`
-              );
+            const maxRagSize = getGuardValue('rag.max_size');
+
+            if (size > maxRagSize) {
+              logger.error(`File size ${size} exceeds limit ${maxRagSize}`);
               part.file.destroy();
               throw new ForbiddenException('File size exceeds limit');
             }
