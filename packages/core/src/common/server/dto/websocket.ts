@@ -22,7 +22,7 @@ export class WebsocketAgentDeleteRequestDTO {
   socket_id: string;
 }
 
-export class WebsocketGetAgentsConfigRequestDTO  {
+export class WebsocketGetAgentsConfigRequestDTO {
   @IsNotEmpty()
   socket_id: string;
 }

@@ -223,6 +223,7 @@ export class TaskManagerGraph {
       const formattedPrompt = await prompt.formatMessages({
         agent_name: agentConfig.profile.name,
         agent_description: agentConfig.profile.description,
+        agent_contexts: agentConfig.profile.contexts.join(', '),
         task_history: tasks_parser(state.tasks),
         objectives: config.configurable!.user_request?.request,
         failed_tasks: state.error

@@ -369,7 +369,6 @@ $$;
 -- Searches both episodic and semantic memories for relevant information
 CREATE OR REPLACE FUNCTION retrieve_similar_categorized_memories(
     p_user_id VARCHAR(100),
-    p_task_id UUID,
     p_embedding vector(384),
     p_threshold FLOAT,    -- Lower threshold allows broader retrieval
     p_limit INTEGER
@@ -405,7 +404,6 @@ BEGIN
             ) as meta
         FROM semantic_memories sm
         WHERE sm.user_id = p_user_id
-            AND sm.task_id = p_task_id
             AND 1 - (sm.embedding <=> p_embedding) >= p_threshold
     ),
     similar_episodic AS (
@@ -424,7 +422,6 @@ BEGIN
             ) as meta
         FROM episodic_memories em
         WHERE em.user_id = p_user_id
-            AND em.task_id = p_task_id
             AND 1 - (em.embedding <=> p_embedding) >= p_threshold
             AND em.expires_at > NOW()  -- Only non-expired memories
     )
@@ -700,12 +697,12 @@ ANALYZE semantic_memories;
 -- Storing semantic knowledge:
 --   SELECT * FROM upsert_semantic_memory_smart(
 --       'user123', 'task-uuid'::UUID, 'step-uuid'::UUID, 'User prefers dark theme',
---       '[0.3, 0.4, ...]'::vector(384), 0.85, 'preference', ARRAY[123]
+--       '[0.3, 0.4, ...]'::vector(384), 0.85, 'preference', ARRAY['uuid1'::UUID, 'uuid2'::UUID]
 --   );
 --
--- Retrieving relevant memories:
+-- Retrieving relevant memories (searches across all tasks):
 --   SELECT * FROM retrieve_similar_categorized_memories(
---       'user123', 'task-uuid'::UUID, '[0.5, 0.6, ...]'::vector(384), 0.35, 5
+--       'user123', '[0.5, 0.6, ...]'::vector(384), 0.35, 5
 --   );
 --
 -- Getting all memories for a task:
