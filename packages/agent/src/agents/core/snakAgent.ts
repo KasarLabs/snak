@@ -3,18 +3,12 @@ import { RpcProvider } from 'starknet';
 import {
   logger,
   AgentConfig,
-  Id,
   StarknetConfig,
   DatabaseConfigService,
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { AgentType } from '../../shared/enums/agent.enum.js';
-import {
-  createGraph,
-  GraphConfigurableAnnotation,
-  GraphConfigurableType,
-  GraphStateType,
-} from '../graphs/graph.js';
+import { createGraph, GraphConfigurableType } from '../graphs/graph.js';
 import {
   Command,
   CompiledStateGraph,
@@ -35,7 +29,6 @@ import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
-import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 
 /**
@@ -68,16 +61,12 @@ export class SnakAgent extends BaseAgent {
       if (!this.agentConfig) {
         throw new Error('Agent configuration is required for initialization');
       }
-
       await this.initializeRagAgent(this.agentConfig);
-
       try {
         if (!this.pg_checkpointer) {
           throw new Error('Failed to initialize Postgres checkpointer');
         }
-
         await this.createAgentReactExecutor();
-
         if (!this.compiledGraph) {
           logger.warn(
             '[SnakAgent]  Agent executor creation succeeded but result is null'
@@ -105,30 +94,16 @@ export class SnakAgent extends BaseAgent {
    * @throws {Error} If executor creation fails
    */
   private async createAgentReactExecutor(): Promise<void> {
-    const executorStart = performance.now();
     try {
       logger.info(
         `[SnakAgent]  Creating Graph for agent : ${this.agentConfig.profile.name}`
       );
-
-      // Chronométrage de createGraph
-      const graphStart = performance.now();
       this.compiledGraph = await createGraph(this);
-      const graphEnd = performance.now();
-      logger.debug(
-        `[SnakAgent] createGraph took: ${(graphEnd - graphStart).toFixed(2)}ms`
-      );
-
       if (!this.compiledGraph) {
         throw new Error(
           `Failed to create agent executor for agent : ${this.agentConfig.profile.name}: result is null`
         );
       }
-
-      const executorEnd = performance.now();
-      logger.debug(
-        `[SnakAgent] createAgentReactExecutor total took: ${(executorEnd - executorStart).toFixed(2)}ms`
-      );
       logger.info(
         `[SnakAgent]  Agent executor created successfully for agent : ${this.agentConfig.profile.name}`
       );
@@ -143,7 +118,7 @@ export class SnakAgent extends BaseAgent {
         `[SnakAgent]  Failed to create Agent React Executor: ${error}`
       );
       if (error instanceof Error && error.stack) {
-        logger.error(`[SnakAgent] 📋 Stack trace: ${error.stack}`);
+        logger.error(`[SnakAgent] Stack trace: ${error.stack}`);
       }
       throw error;
     }
