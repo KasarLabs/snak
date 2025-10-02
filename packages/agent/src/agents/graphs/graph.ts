@@ -5,6 +5,7 @@ import {
   END,
   CompiledStateGraph,
   interrupt,
+  START,
 } from '@langchain/langgraph';
 import {
   DynamicStructuredTool,
@@ -180,9 +181,7 @@ export class Graph {
       if (validTargets.includes(goto)) {
         return goto;
       } else {
-        logger.warn(
-          `[Router] Invalid skip target: ${goto}`
-        );
+        logger.warn(`[Router] Invalid skip target: ${goto}`);
         return GraphNode.END_GRAPH;
       }
     }
@@ -217,9 +216,7 @@ export class Graph {
         if (from === TaskExecutorNode.HUMAN) {
           return GraphNode.AGENT_EXECUTOR;
         }
-        logger.warn(
-          `[Router] Unknown human handler source`
-        );
+        logger.warn(`[Router] Unknown human handler source`);
         return GraphNode.MEMORY_ORCHESTRATOR;
       }
     }
@@ -227,9 +224,7 @@ export class Graph {
     if (isInEnum(TaskExecutorNode, state.lastNode)) {
       if (state.error && state.error.hasError) {
         if (state.error.type === 'blocked_task') {
-          logger.warn(
-            `[Router] Blocked task, routing to task manager`
-          );
+          logger.warn(`[Router] Blocked task, routing to task manager`);
           return GraphNode.TASK_MANAGER;
         }
         return GraphNode.END_GRAPH;
@@ -263,12 +258,9 @@ export class Graph {
       memorySize < 0 ||
       !Number.isInteger(memorySize)
     ) {
-      throw new GraphError(
-        'E08GC240',
-        'Graph.initGraphStateValue',
-        undefined,
-        { memorySize }
-      );
+      throw new GraphError('E08GC240', 'Graph.initGraphStateValue', undefined, {
+        memorySize,
+      });
     }
     if (!state.memories || state.memories.stm.items.length === 0) {
       state.memories = MemoryStateManager.createInitialState(memorySize);
@@ -374,12 +366,9 @@ export class Graph {
       };
     }
 
-    throw new GraphError(
-      'E08HI740',
-      'Graph.human_handler',
-      undefined,
-      { requestSource }
-    );
+    throw new GraphError('E08HI740', 'Graph.human_handler', undefined, {
+      requestSource,
+    });
   }
 
   private buildWorkflow(): StateGraph<
@@ -417,7 +406,7 @@ export class Graph {
       .addNode(GraphNode.TASK_VERIFIER, task_verifier_graph)
       .addNode(GraphNode.HUMAN_HANDLER, this.human_handler.bind(this))
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
-      .addEdge('__start__', GraphNode.INIT_STATE_VALUE)
+      .addEdge(START, GraphNode.INIT_STATE_VALUE)
       .addEdge(GraphNode.INIT_STATE_VALUE, GraphNode.TASK_MANAGER)
       .addConditionalEdges(
         GraphNode.TASK_MANAGER,

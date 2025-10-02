@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { logger } from '@snakagent/core';
+import { logger, MemoryStrategy } from '@snakagent/core';
 import {
   MemoryItem,
   STMContext,
@@ -274,32 +274,49 @@ export class LTMManager {
    * Format memories for inclusion in a context
    * @param memories The memories to format
    */
-  static formatMemoriesForContext(memories: memory.Similarity[]): string {
+  static formatMemoriesForContext(
+    memories: memory.Similarity[],
+    memory_strategy: MemoryStrategy
+  ): string {
     if (memories.length === 0) {
-      return '';
+      return 'No long-term memories available.';
     }
 
-    const s_memories: memory.Similarity[] = [];
-    const e_memories: memory.Similarity[] = [];
-    for (const memory of memories) {
-      if (memory.memory_type === 'semantic') {
-        s_memories.push(memory);
-      } else if (memory.memory_type === 'episodic') {
-        e_memories.push(memory);
+    if (memory_strategy === MemoryStrategy.CATEGORIZED) {
+      const s_memories: memory.Similarity[] = [];
+      const e_memories: memory.Similarity[] = [];
+      for (const memory of memories) {
+        if (memory.memory_type === 'semantic') {
+          s_memories.push(memory);
+        } else if (memory.memory_type === 'episodic') {
+          e_memories.push(memory);
+        }
       }
+
+      const formattedEpisodicMemories = e_memories
+        .map((mem) => {
+          return `Episodic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
+        })
+        .join('\n\n');
+      const formattedSemanticMemories = s_memories
+        .map((mem) => {
+          return `Semantic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, category: ${mem.metadata.category}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
+        })
+        .join('\n\n');
+
+      return formattedEpisodicMemories.concat(
+        '\n\n',
+        formattedSemanticMemories
+      );
+    } else if (memory_strategy === MemoryStrategy.HOLISTIC) {
+      memories.sort((a, b) => b.similarity - a.similarity); // Sort by relevance
+      const formattedMemories = memories
+        .map((mem) => {
+          return `Memory [id: ${mem.memory_id}, type: ${mem.memory_type}, relevance: ${mem.similarity.toFixed(4)}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
+        })
+        .join('\n\n');
+      return formattedMemories;
     }
-
-    const formattedEpisodicMemories = e_memories
-      .map((mem) => {
-        return `Episodic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
-      })
-      .join('\n\n');
-    const formattedSemanticMemories = s_memories
-      .map((mem) => {
-        return `Semantic Memory [id: ${mem.memory_id}, relevance: ${mem.similarity.toFixed(4)}, category: ${mem.metadata.category}, confidence ${mem.metadata.confidence}, last_updated: ${mem.metadata.updated_at}]: ${mem.content}`;
-      })
-      .join('\n\n');
-
-    return formattedEpisodicMemories.concat('\n\n', formattedSemanticMemories);
+    return 'No long-term memories available.';
   }
 }

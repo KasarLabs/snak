@@ -10,6 +10,7 @@ import {
   estimateTokens,
   GenerateToolCallsFromMessage,
   getCurrentTask,
+  getHITLContraintFromTreshold,
   handleNodeError,
   hasReachedMaxSteps,
   isValidConfiguration,
@@ -48,7 +49,9 @@ import { formatSTMToXML } from '../parser/memory/stm-parser.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_EXECUTOR_HUMAN_PROMPT,
-  TASK_EXECUTOR_MEMORY_PROMPT,
+  TASK_EXECUTOR_MEMORY_AI_CONVERSATION_PROMPT,
+  TASK_EXECUTOR_MEMORY_LONG_TERM_MEMORY_PROMPT,
+  TASK_EXECUTOR_MEMORY_RAG_PROMPT,
   TASK_EXECUTOR_SYSTEM_PROMPT,
 } from '@prompts/agents/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
@@ -91,16 +94,23 @@ export class AgentExecutorGraph {
           ? TASK_EXECUTOR_SYSTEM_PROMPT
           : config.configurable!.agent_config!.prompts.task_executor_prompt,
       ],
-      ['ai', TASK_EXECUTOR_MEMORY_PROMPT],
+      ['ai', TASK_EXECUTOR_MEMORY_AI_CONVERSATION_PROMPT],
+      ['ai', TASK_EXECUTOR_MEMORY_RAG_PROMPT],
+      ['ai', TASK_EXECUTOR_MEMORY_LONG_TERM_MEMORY_PROMPT],
       ['human', TASK_EXECUTOR_HUMAN_PROMPT],
     ]);
 
     const formattedPrompt = await prompt.formatMessages({
-      messages: formatSTMToXML(state.memories.stm),
+      ai_conversation: formatSTMToXML(state.memories.stm),
       long_term_memory: LTMManager.formatMemoriesForContext(
-        state.memories.ltm.items
+        state.memories.ltm.items,
+        config.configurable!.agent_config!.memory.strategy // Safe to use ! here as we validated config before
       ),
-      current_task: state.tasks[state.tasks.length - 1].task?.directive,
+      hitl_constraints: getHITLContraintFromTreshold(
+        config.configurable?.user_request?.hitl_threshold ?? 0
+      ),
+      rag_content: 'No rag content avaible', // TODO integrate RAG content
+      current_directive: state.tasks[state.tasks.length - 1].task?.directive,
       success_criteria: state.tasks[state.tasks.length - 1].task?.success_check,
     });
     const modelBind = this.model.bindTools!(this.toolsList);
@@ -171,9 +181,7 @@ export class AgentExecutorGraph {
           config.configurable!.agent_config!
         )
       ) {
-        logger.warn(
-          `[Executor] Max steps reached (${state.currentGraphStep})`
-        );
+        logger.warn(`[Executor] Max steps reached (${state.currentGraphStep})`);
         throw new GraphError(
           'E08NE370',
           'Executor.reasoning_executor',

@@ -150,11 +150,8 @@ export function formatSTMToXML(stm: STMContext): string {
     const formatd_version: string[] = [];
 
     if (!items || items.length === 0) {
-      return '<AI_conversation>\n  <!-- Empty conversation -->\n</AI_conversation>';
+      return '  <!-- Empty conversation -->';
     }
-
-    formatd_version.push('<AI_conversation>');
-
     for (const item of items) {
       if (item.message && item.message.length > 0) {
         for (const message of item.message) {
@@ -165,9 +162,6 @@ export function formatSTMToXML(stm: STMContext): string {
         }
       }
     }
-
-    formatd_version.push('</AI_conversation>');
-
     return formatd_version.join('\n');
   } catch (error) {
     logger.error('Error parsing STM to XML', { error });

@@ -1,4 +1,4 @@
-import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { START, StateGraph, Command } from '@langchain/langgraph';
 import {
   GraphErrorType,
@@ -37,7 +37,8 @@ import { TaskSchemaType, ThoughtsSchemaType } from '@schemas/graph.schemas.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_MANAGER_HUMAN_PROMPT,
-  TASK_MANAGER_MEMORY_PROMPT,
+  TASK_MANAGER_MEMORY_PROMPT_TASK_HISTORY,
+  TASK_MANAGER_MEMORY_RAG_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
 import { TaskManagerToolRegistryInstance } from '../tools/task-manager.tools.js';
@@ -65,8 +66,6 @@ export function tasks_parser(
     }
 
     const formattedTasks: string[] = [];
-    formattedTasks.push('<tasks-history>');
-
     filteredTasks.forEach((task) => {
       const escapeXML = (str: string) => {
         return str
@@ -95,8 +94,6 @@ export function tasks_parser(
       }
       formattedTasks.push(`</task>`);
     });
-
-    formattedTasks.push('</tasks-history>');
     return formattedTasks.join('\n');
   } catch (error) {
     throw error;
@@ -191,6 +188,24 @@ export class TaskManagerGraph {
           { currentGraphStep: state.currentGraphStep }
         );
       }
+      if (state.tasks.length > 0) {
+        const currentTask = getCurrentTask(state.tasks);
+        if (!currentTask) {
+          throw new GraphError('E08ST1040', 'TaskManager.planExecution');
+        }
+        if (currentTask.status === 'pending') {
+          logger.info(
+            `[Task Manager] Current task "${currentTask.task?.directive}" is still pending, routing to Task Executor`
+          );
+          return {
+            messages: state.messages,
+            lastNode: TaskManagerNode.CREATE_TASK,
+            error: null,
+            currentGraphStep: state.currentGraphStep,
+            tasks: state.tasks,
+          };
+        }
+      }
       const agentConfig = config.configurable!.agent_config!;
       const prompt = ChatPromptTemplate.fromMessages([
         [
@@ -199,7 +214,8 @@ export class TaskManagerGraph {
             ? TASK_MANAGER_SYSTEM_PROMPT
             : agentConfig.prompts.task_manager_prompt,
         ],
-        ['ai', TASK_MANAGER_MEMORY_PROMPT],
+        ['ai', TASK_MANAGER_MEMORY_PROMPT_TASK_HISTORY],
+        ['ai', TASK_MANAGER_MEMORY_RAG_PROMPT],
         ['human', TASK_MANAGER_HUMAN_PROMPT],
       ]);
 
@@ -207,12 +223,12 @@ export class TaskManagerGraph {
       const formattedPrompt = await prompt.formatMessages({
         agent_name: agentConfig.profile.name,
         agent_description: agentConfig.profile.description,
-        past_tasks: tasks_parser(state.tasks),
+        task_history: tasks_parser(state.tasks),
         objectives: config.configurable!.user_request?.request,
         failed_tasks: state.error
           ? `The previous task failed due to: ${state.error.message}`
           : '',
-        rag_content: '', // RAG content can be added here if available
+        rag_content: 'No rag content avaible', // RAG content can be added here if available
         hitl_constraints: getHITLContraintFromTreshold(
           config.configurable?.user_request?.hitl_threshold ?? 0
         ),
@@ -231,12 +247,9 @@ export class TaskManagerGraph {
           logger.error(
             `[Task Manager] Google Gemini API error: ${error.message}`
           );
-          throw new GraphError(
-            'E08MI570',
-            'TaskManager.planExecution',
-            error,
-            { errorType: 'GoogleGenerativeAIError' }
-          );
+          throw new GraphError('E08MI570', 'TaskManager.planExecution', error, {
+            errorType: 'GoogleGenerativeAIError',
+          });
         }
         // Re-throw other errors
         throw error;
@@ -252,9 +265,7 @@ export class TaskManagerGraph {
       }
       aiMessage.content = '';
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
-        logger.warn(
-          `[Task Manager] No tool calls detected, retrying`
-        );
+        logger.warn(`[Task Manager] No tool calls detected, retrying`);
         return {
           retry: (state.retry ?? 0) + 1,
           lastNode: TaskManagerNode.CREATE_TASK,
@@ -421,7 +432,9 @@ export class TaskManagerGraph {
           return TaskManagerNode.CREATE_TASK;
         }
       } else {
-        logger.info(`[Task Manager] Task created: ${currentTask.thought?.text || currentTask.task?.directive}`);
+        logger.info(
+          `[Task Manager] Task created: ${currentTask.thought?.text || currentTask.task?.directive}`
+        );
         return TaskManagerNode.END;
       }
     }
