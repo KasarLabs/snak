@@ -23,7 +23,13 @@ export class DatabaseStorage {
         DatabaseConfigService.getInstance().getCredentials();
 
       await Postgres.connect(databaseConfig);
-      await LanggraphDatabase.getInstance().connect(databaseConfig);
+      try {
+        await LanggraphDatabase.getInstance().connect(databaseConfig);
+      } catch (error) {
+        logger.error('Error connecting to the Langgraph database:', error);
+        await Postgres.shutdown();
+        throw error;
+      }
       this.connected = true;
       logger.info('Connected to the database');
     } catch (error) {

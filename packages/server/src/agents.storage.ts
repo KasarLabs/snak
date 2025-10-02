@@ -66,7 +66,7 @@ export class AgentStorage implements OnModuleInit {
     userId: string
   ): Promise<AgentConfig.OutputWithId | null> {
     if (!this.initialized) {
-      return null;
+      await this.initialize();
     }
 
     try {
@@ -106,7 +106,7 @@ export class AgentStorage implements OnModuleInit {
     userId: string
   ): Promise<AgentConfig.OutputWithId[]> {
     if (!this.initialized) {
-      return [];
+      await this.initialize();
     }
 
     try {
@@ -146,6 +146,9 @@ export class AgentStorage implements OnModuleInit {
     id: string,
     userId: string
   ): Promise<SnakAgent | undefined> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
     try {
       const agentConfig = await redisAgents.getAgentByPair(id, userId);
 
@@ -161,7 +164,32 @@ export class AgentStorage implements OnModuleInit {
       return snakAgent;
     } catch (error) {
       logger.error(`Error getting agent instance from Redis: ${error}`);
-      return undefined;
+      // Fallback to PostgreSQL as source of truth
+      try {
+        const query = new Postgres.Query(
+          `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id, 
+           row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag, 
+           created_at, updated_at, avatar_image, avatar_mime_type 
+           FROM agents WHERE id = $1 AND user_id = $2`,
+          [id, userId]
+        );
+        const result = await Postgres.query<AgentConfig.OutputWithId>(query);
+        if (result.length > 0) {
+          const agentConfig = result[0];
+          // Create SnakAgent from config
+          const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
+          logger.debug(
+            `Agent ${id} created from PostgreSQL fallback for user ${userId}`
+          );
+          return snakAgent;
+        }
+        return undefined;
+      } catch (pgError) {
+        logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
+        throw new Error(
+          `Failed to get agent instance from PostgreSQL: ${pgError}`
+        );
+      }
     }
   }
 
@@ -561,7 +589,6 @@ export class AgentStorage implements OnModuleInit {
         }
       }
 
-      await this.registerAgentInstance();
       logger.debug(`Agents configuration loaded: ${q_res.length} agents`);
       return q_res;
     } catch (error) {
@@ -610,38 +637,6 @@ export class AgentStorage implements OnModuleInit {
       return snakAgent;
     } catch (error) {
       logger.error(`Error creating SnakAgent from config:`, error);
-      throw error;
-    }
-  }
-
-  private async registerAgentInstance() {
-    try {
-      // Count agents in Redis for logging purposes
-      const q = new Postgres.Query('SELECT DISTINCT user_id FROM agents');
-      const userIds = await Postgres.query<{ user_id: string }>(q);
-
-      logger.log(
-        `[Agent Registration] Found ${userIds.length} users with agents`
-      );
-
-      let totalAgents = 0;
-      for (const { user_id } of userIds) {
-        try {
-          const agentCount = await redisAgents.getAgentCount(user_id);
-          totalAgents += agentCount;
-        } catch (error) {
-          logger.error(`Error counting agents for user ${user_id}:`, error);
-        }
-      }
-
-      logger.debug(
-        `[Agent Registration] Found ${totalAgents} total agents in Redis`
-      );
-      logger.debug(
-        `[Agent Registration] Agents will be loaded on-demand from Redis`
-      );
-    } catch (error) {
-      logger.error('Error during agent registration:', error);
       throw error;
     }
   }

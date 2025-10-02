@@ -93,6 +93,7 @@ export class RedisClient {
       logger.info('Redis connection established and authenticated');
     } catch (error) {
       logger.error('Failed to connect to Redis:', error);
+      this.client = undefined;
       throw error;
     }
   }

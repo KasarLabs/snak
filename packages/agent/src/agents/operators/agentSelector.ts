@@ -103,7 +103,7 @@ export class AgentSelector extends BaseAgent {
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
         const selectedConfig = agentConfigs.find(
-          (cfg) => cfg.profile.name === r_trim
+          (cfg) => cfg.profile.name.toLowerCase() === r_trim.toLowerCase()
         );
         if (selectedConfig) {
           logger.debug(
