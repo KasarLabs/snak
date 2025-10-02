@@ -78,9 +78,7 @@ export class AgentSelector extends BaseAgent {
       // Fetch agent configurations (not instances) from Redis via the resolver
       const agentConfigs = await this.agentConfigResolver(userId);
 
-      logger.debug(
-        `AgentSelector: Fetching agent configs for user ${userId}`
-      );
+      logger.debug(`AgentSelector: Fetching agent configs for user ${userId}`);
 
       if (agentConfigs.length === 0) {
         throw new Error('No agents found for user ' + userId);

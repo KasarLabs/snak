@@ -1,5 +1,5 @@
 import { getRedisClient } from '../../redis.js';
-import { AgentConfig } from '@snakagent/core';
+import { AgentConfig, getGuardValue } from '@snakagent/core';
 import { logger } from '@snakagent/core';
 
 /**
@@ -25,7 +25,7 @@ export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
   const agentKey = `agents:${dto.id}`;
   const userSetKey = `agents:by-user:${dto.user_id}`;
   const pairIndexKey = `agents:idx:agent-user:${dto.id}:${dto.user_id}`;
-  const maxRetries = 3;
+  const maxRetries = getGuardValue('execution.max_retry_attempts');
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -155,7 +155,7 @@ export async function getAgentByPair(
     const indexExists = await redis.get(pairIndexKey);
 
     if (!indexExists) {
-      logger.debug(`Agent pair (${agentId}, ${userId}) not found in index`);
+      logger.warn(`Agent pair (${agentId}, ${userId}) not found in index`);
       return null;
     }
 
@@ -200,7 +200,7 @@ export async function deleteAgent(
 ): Promise<void> {
   const redis = getRedisClient();
   const agentKey = `agents:${agentId}`;
-  const maxRetries = 3;
+  const maxRetries = getGuardValue('execution.max_retry_attempts');
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -325,7 +325,7 @@ export async function updateAgent(
   const redis = getRedisClient();
   const agentKey = `agents:${dto.id}`;
   const pairIndexKey = `agents:idx:agent-user:${dto.id}:${dto.user_id}`;
-  const maxRetries = 3;
+  const maxRetries = getGuardValue('execution.max_retry_attempts');
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -400,7 +400,7 @@ export async function updateAgent(
 export async function clearUserAgents(userId: string): Promise<void> {
   const redis = getRedisClient();
   const userSetKey = `agents:by-user:${userId}`;
-  const maxRetries = 3;
+  const maxRetries = getGuardValue('execution.max_retry_attempts');
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {

@@ -81,7 +81,10 @@ export class AgentStorage implements OnModuleInit {
       logger.error(`Error fetching agent config from Redis: ${error}`);
       // Fallback to PostgreSQL as source of truth
       try {
-        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [id, userId]);
+        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [
+          id,
+          userId,
+        ]);
         const result = await Postgres.query<AgentConfig.OutputWithId>(query);
         return result.length > 0 ? result[0] : null;
       } catch (pgError) {
@@ -154,7 +157,10 @@ export class AgentStorage implements OnModuleInit {
       logger.error(`Error getting agent instance from Redis: ${error}`);
       // Fallback to PostgreSQL as source of truth
       try {
-        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [id, userId]);
+        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [
+          id,
+          userId,
+        ]);
         const result = await Postgres.query<AgentConfig.OutputWithId>(query);
         if (result.length > 0) {
           const agentConfig = result[0];
@@ -400,10 +406,7 @@ export class AgentStorage implements OnModuleInit {
    * @param params - Parameters for the query
    * @returns Postgres.Query - The constructed query
    */
-  private agentSelectQuery(
-    whereClause: string,
-    params: any[]
-  ): Postgres.Query {
+  private agentSelectQuery(whereClause: string, params: any[]): Postgres.Query {
     return new Postgres.Query(
       `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
        row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
@@ -473,7 +476,9 @@ export class AgentStorage implements OnModuleInit {
             logger.error(
               `agentConfigResolver: Fallback to PostgreSQL also failed: ${pgError}`
             );
-            throw new Error(`Failed to fetch agent configs: Redis: ${error}, PostgreSQL: ${pgError}`);
+            throw new Error(
+              `Failed to fetch agent configs: Redis: ${error}, PostgreSQL: ${pgError}`
+            );
           }
         }
       };

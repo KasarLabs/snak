@@ -36,7 +36,6 @@ export class RedisClient {
     db?: number;
   }): Promise<void> {
     if (this.client && this.isConnected()) {
-      logger.debug('Redis client already connected');
       return;
     }
 
