@@ -27,7 +27,7 @@ export class AgentSelector extends BaseAgent {
     super('agent-selector', AgentType.OPERATOR);
     this.agentResolver = agentResolver;
     this.model = model;
-    
+
     if (!this.model) {
       logger.warn(
         'AgentSelector: No model provided, selection capabilities will be limited'
@@ -56,7 +56,9 @@ export class AgentSelector extends BaseAgent {
       const model = this.model;
 
       const userId = config.userId as string;
-      logger.debug(`AgentSelector: Fetching agents for user ${userId} from Redis`);
+      logger.debug(
+        `AgentSelector: Fetching agents for user ${userId} from Redis`
+      );
 
       // Fetch agents on-demand from Redis via the resolver
       const userAgentsArray = await this.agentResolver(userId);
@@ -64,7 +66,7 @@ export class AgentSelector extends BaseAgent {
       logger.debug(
         `AgentSelector: Found ${userAgentsArray.length} agents for user ${userId}`
       );
-      
+
       if (userAgentsArray.length === 0) {
         throw new Error('No agents found for user ' + userId);
       }
@@ -83,7 +85,7 @@ export class AgentSelector extends BaseAgent {
         agentSelectorPromptContent(userAgentInfo, input)
       );
       logger.debug('AgentSelector result:', result);
-      
+
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
         const agent = userAgentsArray.find(

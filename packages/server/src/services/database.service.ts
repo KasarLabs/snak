@@ -51,7 +51,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         DatabaseConfigService.getInstance().initialize();
       }
 
-      const databaseConfig = DatabaseConfigService.getInstance().getCredentials();
+      const databaseConfig =
+        DatabaseConfigService.getInstance().getCredentials();
       await Postgres.connect(databaseConfig);
 
       this.initialized = true;

@@ -66,7 +66,7 @@ export class AgentStorage implements OnModuleInit {
 
     try {
       const config = await redisAgents.getAgentByPair(id, userId);
-      
+
       if (!config) {
         logger.debug(`Agent ${id} not found for user ${userId}`);
       }
@@ -83,11 +83,13 @@ export class AgentStorage implements OnModuleInit {
    * @param userId - User ID to filter configurations
    * @returns AgentConfigSQL[] - Array of agent configurations owned by the user
    */
-  public async getAllAgentConfigs(userId: string): Promise<AgentConfig.OutputWithId[]> {
+  public async getAllAgentConfigs(
+    userId: string
+  ): Promise<AgentConfig.OutputWithId[]> {
     if (!this.initialized) {
       return [];
     }
-    
+
     try {
       return await redisAgents.listAgentsByUser(userId);
     } catch (error) {
@@ -103,10 +105,13 @@ export class AgentStorage implements OnModuleInit {
    * @param {string} userId - User ID to verify ownership (required)
    * @returns {SnakAgent | undefined} The agent instance or undefined if not found or not owned by user
    */
-  public async getAgentInstance(id: string, userId: string): Promise<SnakAgent | undefined> {
+  public async getAgentInstance(
+    id: string,
+    userId: string
+  ): Promise<SnakAgent | undefined> {
     try {
       const agentConfig = await redisAgents.getAgentByPair(id, userId);
-      
+
       if (!agentConfig) {
         logger.debug(`Agent ${id} not found in Redis for user ${userId}`);
         return undefined;
@@ -114,7 +119,7 @@ export class AgentStorage implements OnModuleInit {
 
       // Create SnakAgent from config
       const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
-      
+
       logger.debug(`Agent ${id} created for user ${userId}`);
       return snakAgent;
     } catch (error) {
@@ -231,7 +236,7 @@ export class AgentStorage implements OnModuleInit {
 
     if (q_res.length > 0) {
       const newAgentDbRecord = q_res[0];
-      
+
       // Save to Redis
       try {
         await redisAgents.saveAgent(newAgentDbRecord);
@@ -240,7 +245,7 @@ export class AgentStorage implements OnModuleInit {
         logger.error(`Failed to save agent to Redis: ${error}`);
         // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
       }
-      
+
       logger.debug(`Agent ${newAgentDbRecord.id} added to configuration`);
       return newAgentDbRecord;
     } else {
@@ -328,33 +333,34 @@ export class AgentStorage implements OnModuleInit {
       if (!modelInstance || modelInstance.bindTools === undefined) {
         throw new Error('Failed to initialize model for AgentSelector');
       }
-      
+
       // Create agent resolver function that fetches agents from Redis on-demand
       const agentResolver = async (userId: string): Promise<SnakAgent[]> => {
         try {
           const agentConfigs = await redisAgents.listAgentsByUser(userId);
           const agents: SnakAgent[] = [];
-          
+
           for (const agentConfig of agentConfigs) {
             try {
-              const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
+              const snakAgent =
+                await this.createSnakAgentFromConfig(agentConfig);
               agents.push(snakAgent);
             } catch (error) {
-              logger.error(`Failed to create SnakAgent for ${agentConfig.id}:`, error);
+              logger.error(
+                `Failed to create SnakAgent for ${agentConfig.id}:`,
+                error
+              );
             }
           }
-          
+
           return agents;
         } catch (error) {
           logger.error(`Failed to resolve agents for user ${userId}:`, error);
           return [];
         }
       };
-      
-      this.agentSelector = new AgentSelector(
-        agentResolver,
-        modelInstance
-      );
+
+      this.agentSelector = new AgentSelector(agentResolver, modelInstance);
       await this.agentSelector.init();
     } catch (error) {
       // Reset promise on failure so we can retry
@@ -371,12 +377,12 @@ export class AgentStorage implements OnModuleInit {
     try {
       // Initialize global database configuration service
       DatabaseConfigService.getInstance().initialize();
-      
+
       // Wait for database service to be ready instead of polling
       await this.databaseService.onReady();
 
       await DatabaseStorage.connect();
-      
+
       // Initialize Redis connection
       try {
         const redisClient = RedisClient.getInstance();
@@ -386,7 +392,7 @@ export class AgentStorage implements OnModuleInit {
         logger.error('Failed to initialize Redis connection:', error);
         throw error;
       }
-      
+
       await this.init_agents_config();
       this.initialized = true;
     } catch (error) {
@@ -420,27 +426,31 @@ export class AgentStorage implements OnModuleInit {
         FROM agents
       `);
       const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
-      
+
       // Sync all agents to Redis
       logger.debug(`Syncing ${q_res.length} agents to Redis`);
       for (const agentConfig of q_res) {
         try {
           // Check if already exists in Redis
-          const exists = await redisAgents.agentExists(agentConfig.id, agentConfig.user_id);
+          const exists = await redisAgents.agentExists(
+            agentConfig.id,
+            agentConfig.user_id
+          );
           if (!exists) {
             await redisAgents.saveAgent(agentConfig);
             logger.debug(`Synced agent ${agentConfig.id} to Redis`);
           }
         } catch (error) {
-          logger.error(`Failed to sync agent ${agentConfig.id} to Redis:`, error);
+          logger.error(
+            `Failed to sync agent ${agentConfig.id} to Redis:`,
+            error
+          );
           // Continue with other agents
         }
       }
-      
+
       await this.registerAgentInstance();
-      logger.debug(
-        `Agents configuration loaded: ${q_res.length} agents`
-      );
+      logger.debug(`Agents configuration loaded: ${q_res.length} agents`);
       return q_res;
     } catch (error) {
       logger.error('Error during agents configuration initialization:', error);
@@ -500,34 +510,47 @@ export class AgentStorage implements OnModuleInit {
       };
       const configBuildEnd = performance.now();
       const configBuildTime = configBuildEnd - configBuildStart;
-     
+
       // Chronométrage de l'instanciation
       const instantiationStart = performance.now();
-      const snakAgent = new SnakAgent(
-        starknetConfig,
-        AgentConfigRuntime
-      );
+      const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
       const instantiationEnd = performance.now();
       const instantiationTime = instantiationEnd - instantiationStart;
-      
+
       // Chronométrage de l'initialisation
       const initStart = performance.now();
       await snakAgent.init();
       const initEnd = performance.now();
       const initTime = initEnd - initStart;
-      
+
       const totalEnd = performance.now();
       const totalTime = totalEnd - totalStart;
-      
+
       // Log détaillé des temps d'exécution
-      logger.debug(`[SnakAgent Creation] StarknetConfig: ${starknetConfigTime.toFixed(2)}ms`);
-      logger.debug(`[SnakAgent Creation] Model loading: ${modelTime.toFixed(2)}ms`);
-      logger.debug(`[SnakAgent Creation] Prompts loading: ${promptsTime.toFixed(2)}ms`);
-      logger.debug(`[SnakAgent Creation] Config building: ${configBuildTime.toFixed(2)}ms`);
-      logger.debug(`[SnakAgent Creation] Instantiation: ${instantiationTime.toFixed(2)}ms`);
-      logger.debug(`[SnakAgent Creation] Initialization: ${initTime.toFixed(2)}ms`);
-      logger.debug(`[SnakAgent Creation] Total time: ${totalTime.toFixed(2)}ms`);
-      logger.debug(`[SnakAgent Creation] Agent ID: ${agentConfig.id} | Name: ${agentConfig.profile.name}`);
+      logger.debug(
+        `[SnakAgent Creation] StarknetConfig: ${starknetConfigTime.toFixed(2)}ms`
+      );
+      logger.debug(
+        `[SnakAgent Creation] Model loading: ${modelTime.toFixed(2)}ms`
+      );
+      logger.debug(
+        `[SnakAgent Creation] Prompts loading: ${promptsTime.toFixed(2)}ms`
+      );
+      logger.debug(
+        `[SnakAgent Creation] Config building: ${configBuildTime.toFixed(2)}ms`
+      );
+      logger.debug(
+        `[SnakAgent Creation] Instantiation: ${instantiationTime.toFixed(2)}ms`
+      );
+      logger.debug(
+        `[SnakAgent Creation] Initialization: ${initTime.toFixed(2)}ms`
+      );
+      logger.debug(
+        `[SnakAgent Creation] Total time: ${totalTime.toFixed(2)}ms`
+      );
+      logger.debug(
+        `[SnakAgent Creation] Agent ID: ${agentConfig.id} | Name: ${agentConfig.profile.name}`
+      );
 
       return snakAgent;
     } catch (error) {
@@ -538,14 +561,16 @@ export class AgentStorage implements OnModuleInit {
 
   private async registerAgentInstance() {
     const registrationStart = performance.now();
-    
+
     try {
       // Count agents in Redis for logging purposes
       const q = new Postgres.Query('SELECT DISTINCT user_id FROM agents');
       const userIds = await Postgres.query<{ user_id: string }>(q);
-      
-      logger.log(`[Agent Registration] Found ${userIds.length} users with agents`);
-      
+
+      logger.log(
+        `[Agent Registration] Found ${userIds.length} users with agents`
+      );
+
       let totalAgents = 0;
       for (const { user_id } of userIds) {
         try {
@@ -555,14 +580,19 @@ export class AgentStorage implements OnModuleInit {
           logger.error(`Error counting agents for user ${user_id}:`, error);
         }
       }
-      
+
       const registrationEnd = performance.now();
       const totalRegistrationTime = registrationEnd - registrationStart;
-      
-      logger.log(`[Agent Registration] Found ${totalAgents} total agents in Redis`);
-      logger.log(`[Agent Registration] Agents will be loaded on-demand from Redis`);
-      logger.log(`[Agent Registration] Total time: ${totalRegistrationTime.toFixed(2)}ms`);
-      
+
+      logger.log(
+        `[Agent Registration] Found ${totalAgents} total agents in Redis`
+      );
+      logger.log(
+        `[Agent Registration] Agents will be loaded on-demand from Redis`
+      );
+      logger.log(
+        `[Agent Registration] Total time: ${totalRegistrationTime.toFixed(2)}ms`
+      );
     } catch (error) {
       logger.error('Error during agent registration:', error);
       throw error;

@@ -15,14 +15,12 @@ export class AgentDuplicateError extends Error {
 /**
  * Save an agent configuration to Redis
  * Uses atomic operations to ensure consistency across all indexes
- * 
+ *
  * @param dto - Agent configuration to save
  * @throws {AgentDuplicateError} If an agent with the same (agent_id, user_id) pair already exists
  * @throws {Error} If the Redis transaction fails
  */
-export async function saveAgent(
-  dto: AgentConfig.OutputWithId
-): Promise<void> {
+export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
   const redis = getRedisClient();
   const agentKey = `agents:${dto.id}`;
   const userSetKey = `agents:by-user:${dto.user_id}`;
@@ -59,9 +57,7 @@ export async function saveAgent(
       throw new AgentDuplicateError(dto.id, dto.user_id);
     }
 
-    logger.debug(
-      `Agent ${dto.id} saved to Redis for user ${dto.user_id}`
-    );
+    logger.debug(`Agent ${dto.id} saved to Redis for user ${dto.user_id}`);
   } catch (error) {
     logger.error('Error saving agent to Redis:', error);
     throw error;
@@ -70,7 +66,7 @@ export async function saveAgent(
 
 /**
  * List all agents for a specific user
- * 
+ *
  * @param userId - User ID to fetch agents for
  * @returns Array of agent configurations
  */
@@ -125,7 +121,7 @@ export async function listAgentsByUser(
 
 /**
  * Get an agent by the pair (agent_id, user_id)
- * 
+ *
  * @param agentId - Agent ID
  * @param userId - User ID
  * @returns Agent configuration or null if not found or user_id doesn't match
@@ -143,9 +139,7 @@ export async function getAgentByPair(
     const indexExists = await redis.get(pairIndexKey);
 
     if (!indexExists) {
-      logger.debug(
-        `Agent pair (${agentId}, ${userId}) not found in index`
-      );
+      logger.debug(`Agent pair (${agentId}, ${userId}) not found in index`);
       return null;
     }
 
@@ -153,9 +147,7 @@ export async function getAgentByPair(
     const agentJson = await redis.get(agentKey);
 
     if (!agentJson) {
-      logger.warn(
-        `Agent ${agentId} found in pair index but not in agents key`
-      );
+      logger.warn(`Agent ${agentId} found in pair index but not in agents key`);
       return null;
     }
 
@@ -172,10 +164,7 @@ export async function getAgentByPair(
     logger.debug(`Retrieved agent ${agentId} for user ${userId}`);
     return agent;
   } catch (error) {
-    logger.error(
-      `Error getting agent by pair (${agentId}, ${userId}):`,
-      error
-    );
+    logger.error(`Error getting agent by pair (${agentId}, ${userId}):`, error);
     throw error;
   }
 }
@@ -183,7 +172,7 @@ export async function getAgentByPair(
 /**
  * Delete an agent from Redis
  * Cleans up all related indexes atomically
- * 
+ *
  * @param agentId - Agent ID to delete
  * @param userId - User ID to verify ownership
  * @throws {Error} If the agent doesn't exist or doesn't belong to the user
@@ -206,9 +195,7 @@ export async function deleteAgent(
     const agent = JSON.parse(agentJson) as AgentConfig.OutputWithId;
 
     if (agent.user_id !== userId) {
-      throw new Error(
-        `Agent ${agentId} does not belong to user ${userId}`
-      );
+      throw new Error(`Agent ${agentId} does not belong to user ${userId}`);
     }
 
     const userSetKey = `agents:by-user:${userId}`;
@@ -242,7 +229,7 @@ export async function deleteAgent(
 
 /**
  * Check if an agent exists for a given user
- * 
+ *
  * @param agentId - Agent ID
  * @param userId - User ID
  * @returns true if the agent exists and belongs to the user, false otherwise
@@ -268,7 +255,7 @@ export async function agentExists(
 
 /**
  * Get the total number of agents for a user
- * 
+ *
  * @param userId - User ID
  * @returns Number of agents
  */
@@ -287,7 +274,7 @@ export async function getAgentCount(userId: string): Promise<number> {
 
 /**
  * Update an existing agent configuration
- * 
+ *
  * @param dto - Updated agent configuration
  * @throws {Error} If the agent doesn't exist
  */
@@ -319,7 +306,7 @@ export async function updateAgent(
 
 /**
  * Clear all agents for a specific user (useful for testing)
- * 
+ *
  * @param userId - User ID
  */
 export async function clearUserAgents(userId: string): Promise<void> {
@@ -358,4 +345,3 @@ export async function clearUserAgents(userId: string): Promise<void> {
     throw error;
   }
 }
-

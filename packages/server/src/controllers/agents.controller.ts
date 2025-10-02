@@ -332,11 +332,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('stop_agent called');
-    const { userId, agent } = await ControllerHelpers.getUserAndVerifyAgentOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId, agent } =
+      await ControllerHelpers.getUserAndVerifyAgentOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     agent.stop();
     return ResponseFormatter.success(
@@ -382,11 +383,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agent called');
-    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     const messages = await this.agentService.getMessageFromAgentId(
       userRequest,
@@ -407,11 +409,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('delete_agent called');
-    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
     metrics.agentDisconnect();
@@ -476,11 +479,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agents called');
-    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     const messages = await this.agentService.getMessageFromAgentId(
       {
@@ -501,11 +505,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('clear_message called');
-    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     const q = new Postgres.Query(
       `DELETE FROM message m

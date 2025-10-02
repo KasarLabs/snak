@@ -168,4 +168,3 @@ export class RedisClient {
 export const getRedisClient = (): Redis => {
   return RedisClient.getInstance().getClient();
 };
-

@@ -1,5 +1,10 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { AgentMode, ModelConfig, ModelProviders, DatabaseConfigService } from '@snakagent/core';
+import {
+  AgentMode,
+  ModelConfig,
+  ModelProviders,
+  DatabaseConfigService,
+} from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '../core/snakAgent.js';
 import {
@@ -149,7 +154,7 @@ async function ensureDbConnection(): Promise<void> {
   if (!DatabaseConfigService.getInstance().isInitialized()) {
     DatabaseConfigService.getInstance().initialize();
   }
-  
+
   const databaseConfig = DatabaseConfigService.getInstance().getCredentials();
   await Postgres.connect(databaseConfig);
 }

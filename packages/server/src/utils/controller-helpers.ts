@@ -82,7 +82,11 @@ export class ControllerHelpers {
     agentId: string
   ): Promise<{ userId: string; agent: SnakAgent }> {
     const userId = this.getUserId(req);
-    const agent = await this.verifyAgentOwnership(agentFactory, agentId, userId);
+    const agent = await this.verifyAgentOwnership(
+      agentFactory,
+      agentId,
+      userId
+    );
     return { userId, agent };
   }
 
@@ -120,7 +124,11 @@ export class ControllerHelpers {
     agentId: string
   ): Promise<{ userId: string; agent: SnakAgent }> {
     const userId = this.getUserIdFromSocket(client);
-    const agent = await this.verifyAgentOwnership(agentFactory, agentId, userId);
+    const agent = await this.verifyAgentOwnership(
+      agentFactory,
+      agentId,
+      userId
+    );
     return { userId, agent };
   }
 

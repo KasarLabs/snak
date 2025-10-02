@@ -13,14 +13,15 @@ export class DatabaseStorage {
       if (this.connected) {
         return;
       }
-      
+
       // Ensure database configuration is initialized
       if (!DatabaseConfigService.getInstance().isInitialized()) {
         DatabaseConfigService.getInstance().initialize();
       }
-      
-      const databaseConfig = DatabaseConfigService.getInstance().getCredentials();
-      
+
+      const databaseConfig =
+        DatabaseConfigService.getInstance().getCredentials();
+
       await Postgres.connect(databaseConfig);
       await LanggraphDatabase.getInstance().connect(databaseConfig);
       this.connected = true;

@@ -45,7 +45,9 @@ export class DatabaseConfigService {
    */
   public getCredentials(): DatabaseCredentials {
     if (!this.databaseCredentials) {
-      throw new Error('DatabaseConfigService not initialized. Call initialize() first.');
+      throw new Error(
+        'DatabaseConfigService not initialized. Call initialize() first.'
+      );
     }
     return this.databaseCredentials;
   }

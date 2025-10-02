@@ -7,4 +7,13 @@ import { rag } from './rag/queries.js';
 import { Postgres } from '../database.js';
 import * as redisAgents from './redis/queries.js';
 
-export { scarb, chat, memory, iterations, contract, rag, Postgres, redisAgents };
+export {
+  scarb,
+  chat,
+  memory,
+  iterations,
+  contract,
+  rag,
+  Postgres,
+  redisAgents,
+};
