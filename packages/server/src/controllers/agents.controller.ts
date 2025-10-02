@@ -571,13 +571,32 @@ export class AgentsController {
     });
   }
 
+  @Post('delete_notify')
+  async deleteNotify(
+    @Body() body: { notify_id: string },
+    @Req() req: FastifyRequest
+  ): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    const result = await notify.deleteNotification(body.notify_id, userId);
+    if (result === null) {
+      throw new BadRequestException('Notification not found');
+    }
+    return ResponseFormatter.success({
+      status: 'Notification deleted',
+      data: result,
+    });
+  }
+
   @Post('mark_notify_as_read')
   async markNotifyAsRead(
     @Body() body: { notify_id: string },
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
-    await notify.markAsRead(body.notify_id, userId);
+    const result = await notify.markAsRead(body.notify_id, userId);
+    if (result === null) {
+      throw new BadRequestException('Notification not found');
+    }
     return ResponseFormatter.success({
       status: 'Notification marked as read',
     });

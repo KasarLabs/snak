@@ -28,7 +28,7 @@ export namespace message {
   }
 
   interface MessageWithId extends MessageBase {
-    id: number;
+    id: string;
   }
 
   /**
@@ -58,7 +58,7 @@ export namespace message {
    *
    * @param { Message } msg - Message to insert.
    *
-   * @returns { number } The id of the inserted message.
+   * @returns { string } The id of the inserted message (UUID).
    *
    * @throws { DatabaseError } If a database operation fails.
    */
@@ -66,7 +66,7 @@ export namespace message {
     agentId: string,
     userId: string,
     msg: Message
-  ): Promise<number> {
+  ): Promise<string> {
     const q = new Postgres.Query(
       `
       INSERT INTO message (
@@ -93,7 +93,7 @@ export namespace message {
       ]
     );
 
-    const result = await Postgres.query<{ id: number }>(q);
+    const result = await Postgres.query<{ id: string }>(q);
     return result[0].id;
   }
 

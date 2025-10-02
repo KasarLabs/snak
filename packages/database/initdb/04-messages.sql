@@ -9,9 +9,9 @@
 -- Primary Message Storage Table
 -- Records all agent interactions, communications, and state transitions
 CREATE TABLE IF NOT EXISTS message (
-    -- Auto-incrementing primary key for message ordering
-    -- SERIAL provides efficient integer-based indexing
-    id SERIAL PRIMARY KEY,
+    -- UUID primary key for message identification
+    -- uuid_generate_v4() provides globally unique identifiers
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- Reference to the agent that generated this message
     -- Links message to its originating agent for filtering and analysis
@@ -119,7 +119,7 @@ CREATE OR REPLACE FUNCTION get_messages_by_agent(
 )
 -- Return Type: Table with all message fields including ID
 RETURNS TABLE (
-    id INTEGER,
+    id UUID,
     agent_id UUID,
     user_id UUID,
     event TEXT,

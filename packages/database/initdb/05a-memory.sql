@@ -14,8 +14,8 @@ CREATE TYPE memory_holistic_type AS ENUM (
 -- Holistic Memory Table
 -- Stores all types of agent memory with vector embeddings for semantic search
 CREATE TABLE IF NOT EXISTS holistic_memories (
-    -- Auto-incrementing primary key
-    id SERIAL PRIMARY KEY,
+    -- UUID primary key
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- User/agent context identifier
     user_id VARCHAR(100) NOT NULL,
@@ -61,7 +61,7 @@ CREATE OR REPLACE FUNCTION insert_holistic_memory_smart(
     p_similarity_threshold FLOAT
 )
 RETURNS TABLE (
-    memory_id INTEGER,
+    memory_id UUID,
     operation TEXT,
     similarity_score FLOAT
 )
@@ -71,7 +71,7 @@ SET search_path = public, pg_catalog
 AS $$
 DECLARE
     v_existing_memory RECORD;
-    v_memory_id INTEGER;
+    v_memory_id UUID;
     v_operation TEXT;
     v_similarity FLOAT;
 BEGIN
@@ -162,7 +162,7 @@ CREATE OR REPLACE FUNCTION retrieve_similar_holistic_memories(
 )
 RETURNS TABLE (
     memory_type TEXT,
-    memory_id INTEGER,
+    memory_id UUID,
     task_id UUID,
     step_id UUID,
     content TEXT,

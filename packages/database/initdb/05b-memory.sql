@@ -11,8 +11,8 @@
 -- Stores specific events, experiences, and contextual memories
 -- These memories have temporal significance and can expire
 CREATE TABLE IF NOT EXISTS episodic_memories (
-    -- Auto-incrementing primary key for efficient indexing
-    id SERIAL PRIMARY KEY,
+    -- UUID primary key for efficient indexing
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- Identifier for the user/agent context
     -- Allows multiple users/agents to maintain separate memory spaces
@@ -69,8 +69,8 @@ CREATE TABLE IF NOT EXISTS episodic_memories (
 -- Stores factual knowledge, learned information, and persistent insights
 -- Unlike episodic memories, these don't expire and represent learned facts
 CREATE TABLE IF NOT EXISTS semantic_memories (
-    -- Auto-incrementing primary key
-    id SERIAL PRIMARY KEY,
+    -- UUID primary key
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- User/agent context identifier (consistent with episodic memories)
     user_id VARCHAR(100) NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS semantic_memories (
     -- References to episodic memories that contributed to this knowledge
     -- Array of episodic_memories.id values showing evidence trail
     -- Enables traceability from facts back to experiences
-    source_events INTEGER[] DEFAULT '{}'
+    source_events UUID[] DEFAULT '{}'
 );
 
 -- Memory Management Functions
@@ -130,10 +130,10 @@ CREATE OR REPLACE FUNCTION upsert_semantic_memory_smart(
 
     -- Optional parameters with defaults
     p_category VARCHAR(50) DEFAULT NULL,            -- Knowledge category
-    p_source_events INTEGER[] DEFAULT '{}'         -- Contributing episodic memories
+    p_source_events UUID[] DEFAULT '{}'         -- Contributing episodic memories
 )
 RETURNS TABLE (
-    memory_id INTEGER,          -- ID of created/updated memory
+    memory_id UUID,          -- ID of created/updated memory
     operation TEXT,             -- What operation was performed
     similarity_score FLOAT,     -- Similarity to existing memory (if found)
     matched_fact TEXT           -- Content of matched memory (if found)
@@ -145,7 +145,7 @@ AS $$
 DECLARE
     -- Variables for storing found memory information
     v_existing_memory RECORD;
-    v_memory_id INTEGER;
+    v_memory_id UUID;
     v_operation TEXT;
     v_similarity FLOAT;
     v_matched_fact TEXT;
@@ -269,9 +269,9 @@ CREATE OR REPLACE FUNCTION insert_episodic_memory_smart(
     p_confidence FLOAT DEFAULT 1.0
 )
 RETURNS TABLE (
-    memory_id INTEGER,
+    memory_id UUID,
     operation TEXT,
-    similar_memory_id INTEGER,
+    similar_memory_id UUID,
     similar_memory_content TEXT
 )
 LANGUAGE plpgsql
@@ -280,9 +280,9 @@ SET search_path = public, pg_catalog
 AS $$
 DECLARE
     v_similar_memory RECORD;
-    v_memory_id INTEGER;
+    v_memory_id UUID;
     v_operation TEXT;
-    v_similar_id INTEGER;
+    v_similar_id UUID;
     v_similar_content TEXT;
     v_created_at TIMESTAMP;
 BEGIN
@@ -376,7 +376,7 @@ CREATE OR REPLACE FUNCTION retrieve_similar_categorized_memories(
 )
 RETURNS TABLE (
     memory_type TEXT,
-    memory_id INTEGER,
+    memory_id UUID,
     task_id UUID,
     step_id UUID,
     content TEXT,
@@ -451,7 +451,7 @@ CREATE OR REPLACE FUNCTION get_memories_by_task_id(
 )
 RETURNS TABLE (
     memory_type TEXT,
-    memory_id INTEGER,
+    memory_id UUID,
     content TEXT,
     step_id UUID,
     created_at TIMESTAMP,
@@ -522,7 +522,7 @@ CREATE OR REPLACE FUNCTION get_memories_by_step_id(
 )
 RETURNS TABLE (
     memory_type TEXT,
-    memory_id INTEGER,
+    memory_id UUID,
     content TEXT,
     task_id UUID,
     created_at TIMESTAMP,

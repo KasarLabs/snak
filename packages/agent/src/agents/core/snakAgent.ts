@@ -190,6 +190,17 @@ export class SnakAgent extends BaseAgent {
     return this.pg_checkpointer;
   }
 
+  public async dispose(): Promise<void> {
+    this.stop();
+    if (this.pg_checkpointer) {
+      await this.pg_checkpointer?.end();
+    }
+    if (this.ragAgent) {
+      await this.ragAgent.dispose();
+    }
+    this.compiledGraph = null;
+  }
+
   /**
    * Execute the agent with the given input
    * @param input - The input message or string
@@ -385,7 +396,9 @@ export class SnakAgent extends BaseAgent {
       if (!this.compiledGraph) {
         throw new Error('CompiledGraph is not initialized');
       }
-      this.controller = new AbortController();
+      if (!this.controller || this.controller.signal.aborted) {
+        this.controller = new AbortController();
+      }
       const initialMessages: BaseMessage[] = [
         new HumanMessage(request.request),
       ];

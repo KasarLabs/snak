@@ -1,5 +1,11 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
-import { START, StateGraph, Command, END } from '@langchain/langgraph';
+import {
+  START,
+  StateGraph,
+  Command,
+  END,
+  CompiledStateGraph,
+} from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
@@ -34,7 +40,7 @@ import { formatSTMToXML } from '../parser/memory/stm-parser.js';
 
 export class TaskVerifierGraph {
   private model: BaseChatModel;
-  private graph: any;
+  private graph: CompiledStateGraph<any, any, any, any, any>;
 
   constructor(model: BaseChatModel) {
     this.model = model;

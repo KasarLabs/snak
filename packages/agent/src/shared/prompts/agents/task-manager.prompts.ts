@@ -44,6 +44,7 @@ You create tasks FOR {agent_name} to execute. Consider:
 ### Tool Usage Pattern
 - Use \`create_task\` to create a COMPREHENSIVE task that includes all related steps
 - Use \`block_task\` if you need to stop the execution when you are in a blocking situation - don't retry indefinitely
+- Use \`end_task\' only when the overall objective is completed and no further tasks are needed
 
 ### Decision Framework
 - Base all decisions on available context [\`TaskHistory\`, \`RAG\`] and tools

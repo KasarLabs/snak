@@ -36,7 +36,7 @@ import {
   STRING_LIMITS,
 } from '../constants/execution-constants.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ThoughtsSchema, ThoughtsSchemaType } from '@schemas/graph.schemas.js';
+import { ThoughtsSchemaType } from '@schemas/graph.schemas.js';
 import {
   TaskType,
   Memories,
@@ -189,7 +189,6 @@ export class AgentExecutorGraph {
           { currentGraphStep: state.currentGraphStep }
         );
       }
-      const agentConfig = config.configurable!.agent_config!;
       const userRequest = config.configurable!.user_request!;
       if (!userRequest) {
         throw new GraphError('E08GC220', 'Executor.reasoning_executor');

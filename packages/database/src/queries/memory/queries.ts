@@ -56,7 +56,7 @@ export namespace memory {
   }
 
   export interface UPSERT_SEMANTIC_MEMORY_OUTPUT {
-    memory_id: number;
+    memory_id: string;
     task_id: string;
     step_id: string;
     operation: string;
@@ -65,22 +65,22 @@ export namespace memory {
   }
 
   export interface INSERT_EPISODIC_MEMORY_OUTPUT {
-    memory_id: number;
+    memory_id: string;
     task_id: string;
     step_id: string;
     operation: string;
-    similar_memory_id: number | null;
+    similar_memory_id: string | null;
     similar_memory_content: string | null;
   }
 
   export interface INSERT_HOLISTIC_MEMORY_OUTPUT {
-    memory_id: number;
+    memory_id: string;
     operation: string;
     similarity_score: number | null;
   }
 
   export interface RETRIEVE_HOLISTIC_MEMORY_OUTPUT {
-    memory_id: number;
+    memory_id: string;
     step_id: string;
     content: string;
     request: string;
@@ -126,20 +126,20 @@ export namespace memory {
   interface SemanticMemoryBase extends MemoryBase {
     fact: string;
     category: string;
-    source_events?: Array<number>;
+    source_events?: Array<string>;
   }
   interface MemoryWithId extends MemoryBase {
-    id: number;
+    id: string;
   }
 
   interface SemanticMemoryWithId extends SemanticMemoryBase {
-    id: number;
+    id: string;
   }
   interface EpisodicMemoryWithId extends EpisodicMemoryBase {
-    id: number;
+    id: string;
   }
   interface HolisticMemoryWithId extends HolisticMemoryBase {
-    id: number;
+    id: string;
   }
 
   /**
@@ -226,14 +226,14 @@ export namespace memory {
   /**
    * Retrieves a { @see Memory } by id from the db, if it exists.
    *
-   * @param { number } id - Memory id.
+   * @param { string } id - Memory id (UUID).
    *
    * @returns { Memory<Id.Id> | undefined } Memory at the given id.
    *
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function select_memory(
-    id: number
+    id: string
   ): Promise<Memory<Id.Id> | undefined> {
     const q = new Postgres.Query(`SELECT * FROM select_memory($1)`, [id]);
     const q_res = await Postgres.query<Memory<Id.Id>>(q);
@@ -247,14 +247,14 @@ export namespace memory {
    * duplicate id. If a memory does not already exist at that id, it will be
    * created.
    *
-   * @param { number } id - The id of the memory to update.
+   * @param { string } id - The id of the memory to update (UUID).
    * @param { string } content - The content of the new memory.
    * @param { number[] } embedding - Vector-encoded memory.
    *
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function update_memory(
-    id: number,
+    id: string,
     content: string,
     embedding: number[]
   ): Promise<void> {
@@ -274,7 +274,7 @@ export namespace memory {
    */
   export interface Similarity {
     memory_type: string;
-    memory_id: number;
+    memory_id: string;
     task_id: string;
     step_id: string;
     content: string;
@@ -287,7 +287,7 @@ export namespace memory {
    */
   export interface MemoryRetrieval {
     memory_type: string;
-    memory_id: number;
+    memory_id: string;
     content: string;
     task_id?: string;
     step_id?: string;

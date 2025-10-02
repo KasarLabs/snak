@@ -27,14 +27,20 @@ export namespace notify {
     return result;
   }
 
-  export async function markAsRead(notifyId: string, userId: string) {
+  export async function markAsRead(
+    notifyId: string,
+    userId: string
+  ): Promise<string | null> {
     const query = new Postgres.Query(
-      `UPDATE notify SET "read" = true WHERE id = $1 AND user_id = $2 RETURNING "id", "agent_id", "message", "read", "created_at"`,
+      `UPDATE notify SET "read" = true WHERE id = $1 AND user_id = $2 RETURNING "id"`,
       [notifyId, userId]
     );
 
-    const result = await Postgres.query<NotifyDataWithoutUserId>(query);
-    return result[0];
+    const result = await Postgres.query<{ id: string }>(query);
+    if (result.length === 0) {
+      return null;
+    }
+    return result[0].id;
   }
 
   export async function getUserNotifications(
@@ -49,13 +55,18 @@ export namespace notify {
     return result[0];
   }
 
-  export async function deleteNotification(notifyId: string, userId: string) {
+  export async function deleteNotification(
+    notifyId: string,
+    userId: string
+  ): Promise<string | null> {
     const query = new Postgres.Query(
-      `DELETE FROM notify WHERE id = $1 AND user_id = $2 RETURNING "id", "agent_id", "message", "read", "created_at"`,
+      `DELETE FROM notify WHERE id = $1 AND user_id = $2 RETURNING "id"`,
       [notifyId, userId]
     );
-
-    const result = await Postgres.query(query);
-    return result;
+    const result = await Postgres.query<{ id: string }>(query);
+    if (result.length === 0) {
+      return null;
+    }
+    return result[0].id;
   }
 }
