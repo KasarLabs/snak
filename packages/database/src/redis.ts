@@ -35,7 +35,7 @@ export class RedisClient {
     password?: string;
     db?: number;
   }): Promise<void> {
-    if (this.client) {
+    if (this.client && this.isConnected()) {
       logger.debug('Redis client already connected');
       return;
     }
@@ -85,10 +85,6 @@ export class RedisClient {
 
     this.client.on('ready', () => {
       logger.info('Redis ready');
-      // Validate authentication by attempting a test command
-      this.validateAuthentication().catch((error) => {
-        logger.error('Redis authentication validation failed:', error);
-      });
     });
 
     try {

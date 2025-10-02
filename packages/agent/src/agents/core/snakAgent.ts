@@ -64,40 +64,19 @@ export class SnakAgent extends BaseAgent {
    * @throws {Error} If initialization fails
    */
   public async init(): Promise<void> {
-    const initStart = performance.now();
     try {
       if (!this.agentConfig) {
         throw new Error('Agent configuration is required for initialization');
       }
 
-      // Chronométrage de initializeRagAgent
-      const ragStart = performance.now();
       await this.initializeRagAgent(this.agentConfig);
-      const ragEnd = performance.now();
-      logger.debug(
-        `[SnakAgent] initializeRagAgent took: ${(ragEnd - ragStart).toFixed(2)}ms`
-      );
 
       try {
-        // Chronométrage de CheckpointerService.getInstance()
-        const checkpointerStart = performance.now();
-        this.pg_checkpointer = await CheckpointerService.getInstance();
-        const checkpointerEnd = performance.now();
-        logger.debug(
-          `[SnakAgent] CheckpointerService.getInstance() took: ${(checkpointerEnd - checkpointerStart).toFixed(2)}ms`
-        );
-
         if (!this.pg_checkpointer) {
           throw new Error('Failed to initialize Postgres checkpointer');
         }
 
-        // Chronométrage de createAgentReactExecutor
-        const executorStart = performance.now();
         await this.createAgentReactExecutor();
-        const executorEnd = performance.now();
-        logger.debug(
-          `[SnakAgent] createAgentReactExecutor took: ${(executorEnd - executorStart).toFixed(2)}ms`
-        );
 
         if (!this.compiledGraph) {
           logger.warn(
@@ -113,10 +92,6 @@ export class SnakAgent extends BaseAgent {
         );
       }
 
-      const initEnd = performance.now();
-      logger.debug(
-        `[SnakAgent] Total initialization took: ${(initEnd - initStart).toFixed(2)}ms`
-      );
       logger.info('[SnakAgent]  Initialized successfully');
     } catch (error) {
       logger.error(`[SnakAgent]  Initialization failed: ${error}`);

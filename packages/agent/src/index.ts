@@ -18,6 +18,10 @@ export { createGraph } from './agents/graphs/graph.js';
 
 // Agent operators
 export { AgentSelector } from './agents/operators/agentSelector.js';
+export type {
+  AgentConfigResolver,
+  AgentBuilder,
+} from './agents/operators/agentSelector.js';
 
 // Tool-related exports
 export type {

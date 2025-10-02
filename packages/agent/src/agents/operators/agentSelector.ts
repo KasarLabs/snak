@@ -1,5 +1,5 @@
 import { BaseAgent } from '../core/baseAgent.js';
-import { logger } from '@snakagent/core';
+import { logger, AgentConfig } from '@snakagent/core';
 import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
@@ -11,21 +11,36 @@ export interface AgentInfo {
 }
 
 /**
- * Function type to resolve agents for a given user
+ * Function type to resolve agent configurations for a given user
  */
-export type AgentResolver = (userId: string) => Promise<SnakAgent[]>;
+export type AgentConfigResolver = (
+  userId: string
+) => Promise<AgentConfig.OutputWithId[]>;
+
+/**
+ * Function type to build a SnakAgent from a configuration
+ */
+export type AgentBuilder = (
+  agentConfig: AgentConfig.OutputWithId
+) => Promise<SnakAgent>;
 
 /**
  * AgentSelector analyzes user queries and determines which specialized agent should handle each request.
  * It supports both explicit agent mentions and AI-powered agent selection based on query context.
  */
 export class AgentSelector extends BaseAgent {
-  private agentResolver: AgentResolver;
+  private agentConfigResolver: AgentConfigResolver;
+  private agentBuilder: AgentBuilder;
   private model: BaseChatModel;
 
-  constructor(agentResolver: AgentResolver, model: BaseChatModel) {
+  constructor(
+    agentConfigResolver: AgentConfigResolver,
+    agentBuilder: AgentBuilder,
+    model: BaseChatModel
+  ) {
     super('agent-selector', AgentType.OPERATOR);
-    this.agentResolver = agentResolver;
+    this.agentConfigResolver = agentConfigResolver;
+    this.agentBuilder = agentBuilder;
     this.model = model;
 
     if (!this.model) {
@@ -57,27 +72,26 @@ export class AgentSelector extends BaseAgent {
 
       const userId = config.userId as string;
       logger.debug(
-        `AgentSelector: Fetching agents for user ${userId} from Redis`
+        `AgentSelector: Fetching agent configs for user ${userId} from Redis`
       );
 
-      // Fetch agents on-demand from Redis via the resolver
-      const userAgentsArray = await this.agentResolver(userId);
+      // Fetch agent configurations (not instances) from Redis via the resolver
+      const agentConfigs = await this.agentConfigResolver(userId);
 
       logger.debug(
-        `AgentSelector: Found ${userAgentsArray.length} agents for user ${userId}`
+        `AgentSelector: Found ${agentConfigs.length} agent configs for user ${userId}`
       );
 
-      if (userAgentsArray.length === 0) {
+      if (agentConfigs.length === 0) {
         throw new Error('No agents found for user ' + userId);
       }
 
-      // Build agent info map for the prompt
+      // Build agent info map for the prompt from configurations
       const userAgentInfo = new Map<string, string>();
-      for (const agent of userAgentsArray) {
-        const cfg = agent.getAgentConfig();
+      for (const agentConfig of agentConfigs) {
         userAgentInfo.set(
-          cfg.profile.name,
-          cfg.profile.description || 'No description available'
+          agentConfig.profile.name,
+          agentConfig.profile.description || 'No description available'
         );
       }
 
@@ -88,11 +102,16 @@ export class AgentSelector extends BaseAgent {
 
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
-        const agent = userAgentsArray.find(
-          (agent) => agent.getAgentConfig().profile.name === r_trim
+        const selectedConfig = agentConfigs.find(
+          (cfg) => cfg.profile.name === r_trim
         );
-        if (agent) {
-          logger.debug(`AgentSelector: Selected agent ${r_trim}`);
+        if (selectedConfig) {
+          logger.debug(
+            `AgentSelector: Selected agent ${r_trim}, building instance...`
+          );
+          // Build the agent ONLY for the selected config
+          const agent = await this.agentBuilder(selectedConfig);
+          logger.debug(`AgentSelector: Successfully built agent ${r_trim}`);
           return agent;
         } else {
           logger.warn(

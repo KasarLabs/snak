@@ -16,6 +16,8 @@ import {
 import DatabaseStorage from '../common/database/database.storage.js';
 import {
   AgentSelector,
+  AgentConfigResolver,
+  AgentBuilder,
   SnakAgent,
   TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
@@ -126,7 +128,9 @@ export class AgentStorage implements OnModuleInit {
         return await Postgres.query<AgentConfig.OutputWithId>(query);
       } catch (pgError) {
         logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
-        throw error;
+        throw new Error(
+          `Failed to fetch agents from both Redis and PostgreSQL. Redis: ${error}, PostgreSQL: ${pgError}`
+        );
       }
     }
   }
@@ -409,33 +413,66 @@ export class AgentStorage implements OnModuleInit {
         throw new Error('Failed to initialize model for AgentSelector');
       }
 
-      // Create agent resolver function that fetches agents from Redis on-demand
-      const agentResolver = async (userId: string): Promise<SnakAgent[]> => {
+      // Create agent config resolver function that fetches agent configs from Redis on-demand
+      const agentConfigResolver: AgentConfigResolver = async (
+        userId: string
+      ): Promise<AgentConfig.OutputWithId[]> => {
         try {
           const agentConfigs = await redisAgents.listAgentsByUser(userId);
-          const agents: SnakAgent[] = [];
-
-          for (const agentConfig of agentConfigs) {
-            try {
-              const snakAgent =
-                await this.createSnakAgentFromConfig(agentConfig);
-              agents.push(snakAgent);
-            } catch (error) {
-              logger.error(
-                `Failed to create SnakAgent for ${agentConfig.id}:`,
-                error
-              );
-            }
-          }
-
-          return agents;
+          logger.debug(
+            `agentConfigResolver: Found ${agentConfigs.length} configs for user ${userId}`
+          );
+          return agentConfigs;
         } catch (error) {
-          logger.error(`Failed to resolve agents for user ${userId}:`, error);
-          return [];
+          logger.error(`Error fetching agent configs from Redis: ${error}`);
+          // Fallback to PostgreSQL as source of truth
+          try {
+            logger.debug(
+              `agentConfigResolver: Fallback to PostgreSQL as source of truth for user ${userId}`
+            );
+            const query = new Postgres.Query(
+              `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+               row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
+               created_at, updated_at, avatar_image, avatar_mime_type
+               FROM agents WHERE user_id = $1`,
+              [userId]
+            );
+            const result =
+              await Postgres.query<AgentConfig.OutputWithId>(query);
+            logger.debug(
+              `agentConfigResolver: Found ${result.length} configs from PostgreSQL for user ${userId}`
+            );
+            return result;
+          } catch (pgError) {
+            logger.error(
+              `agentConfigResolver: Fallback to PostgreSQL also failed: ${pgError}`
+            );
+            throw error;
+          }
         }
       };
 
-      this.agentSelector = new AgentSelector(agentResolver, modelInstance);
+      // Create agent builder function that builds a SnakAgent from a config
+      const agentBuilder = async (
+        agentConfig: AgentConfig.OutputWithId
+      ): Promise<SnakAgent> => {
+        try {
+          logger.debug(`agentBuilder: Building agent ${agentConfig.id}`);
+          return await this.createSnakAgentFromConfig(agentConfig);
+        } catch (error) {
+          logger.error(
+            `Failed to build SnakAgent for ${agentConfig.id}:`,
+            error
+          );
+          throw error;
+        }
+      };
+
+      this.agentSelector = new AgentSelector(
+        agentConfigResolver,
+        agentBuilder,
+        modelInstance
+      );
       await this.agentSelector.init();
     } catch (error) {
       // Reset promise on failure so we can retry

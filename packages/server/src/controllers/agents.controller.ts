@@ -316,7 +316,9 @@ export class AgentsController {
         throw new ServerError('E01TA400'); // Bad request if no content
       }
       const agentSelector = this.agentFactory.getAgentSelector();
-      agent = await agentSelector.execute(userRequest.request.content);
+      agent = await agentSelector.execute(userRequest.request.content, false, {
+        userId,
+      });
       if (agent) {
         const agentId = agent.getAgentConfig().id;
         await ControllerHelpers.verifyAgentConfigOwnership(
