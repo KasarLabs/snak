@@ -47,7 +47,7 @@ tsconfig.tsbuildinfo
 *.tgz
 
 # Plugins
-plugins/scarb/src/workspace/
+# plugins/scarb/src/workspace/
 
 # Database
 packages/database/data
