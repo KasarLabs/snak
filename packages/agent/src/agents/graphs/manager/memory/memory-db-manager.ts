@@ -161,7 +161,7 @@ export class MemoryDBManager {
         };
       }
 
-      const event_ids: Array<number> = [];
+      const event_ids: Array<string> = [];
       const errors: string[] = [];
       let successfulEpisodicCount = 0;
       let successfulSemanticCount = 0;
