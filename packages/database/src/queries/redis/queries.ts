@@ -75,13 +75,6 @@ export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
     }
   }
 
-  // If we exhausted all retries, it's likely due to concurrent creation
-  // Try one final check to give a proper error message
-  const exists = await redis.exists(pairIndexKey);
-  if (exists === 1) {
-    throw new AgentDuplicateError(dto.id, dto.user_id);
-  }
-
   throw new Error(
     `Failed to save agent ${dto.id} after ${maxRetries} attempts due to concurrent modifications`
   );

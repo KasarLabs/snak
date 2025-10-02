@@ -81,13 +81,7 @@ export class AgentStorage implements OnModuleInit {
       logger.error(`Error fetching agent config from Redis: ${error}`);
       // Fallback to PostgreSQL as source of truth
       try {
-        const query = new Postgres.Query(
-          `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id, 
-           row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag, 
-           created_at, updated_at, avatar_image, avatar_mime_type 
-           FROM agents WHERE id = $1 AND user_id = $2`,
-          [id, userId]
-        );
+        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [id, userId]);
         const result = await Postgres.query<AgentConfig.OutputWithId>(query);
         return result.length > 0 ? result[0] : null;
       } catch (pgError) {
@@ -118,13 +112,7 @@ export class AgentStorage implements OnModuleInit {
         logger.debug(
           `Fallback to PostgreSQL as source of truth for user ${userId}`
         );
-        const query = new Postgres.Query(
-          `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
-           row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
-           created_at, updated_at, avatar_image, avatar_mime_type
-           FROM agents WHERE user_id = $1`,
-          [userId]
-        );
+        const query = this.agentSelectQuery('user_id = $1', [userId]);
         return await Postgres.query<AgentConfig.OutputWithId>(query);
       } catch (pgError) {
         logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
@@ -166,13 +154,7 @@ export class AgentStorage implements OnModuleInit {
       logger.error(`Error getting agent instance from Redis: ${error}`);
       // Fallback to PostgreSQL as source of truth
       try {
-        const query = new Postgres.Query(
-          `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id, 
-           row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag, 
-           created_at, updated_at, avatar_image, avatar_mime_type 
-           FROM agents WHERE id = $1 AND user_id = $2`,
-          [id, userId]
-        );
+        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [id, userId]);
         const result = await Postgres.query<AgentConfig.OutputWithId>(query);
         if (result.length > 0) {
           const agentConfig = result[0];
@@ -409,6 +391,28 @@ export class AgentStorage implements OnModuleInit {
     return this.initialize();
   }
 
+  /* ==================== PRIVATE HELPER METHODS ==================== */
+
+  /**
+   * Create a PostgreSQL query for selecting agent data
+   * @private
+   * @param whereClause - The WHERE clause for the query
+   * @param params - Parameters for the query
+   * @returns Postgres.Query - The constructed query
+   */
+  private agentSelectQuery(
+    whereClause: string,
+    params: any[]
+  ): Postgres.Query {
+    return new Postgres.Query(
+      `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
+       created_at, updated_at, avatar_image, avatar_mime_type
+       FROM agents WHERE ${whereClause}`,
+      params
+    );
+  }
+
   /* ==================== PRIVATE INITIALIZATION METHODS ==================== */
 
   /**
@@ -458,13 +462,7 @@ export class AgentStorage implements OnModuleInit {
             logger.debug(
               `agentConfigResolver: Fallback to PostgreSQL as source of truth for user ${userId}`
             );
-            const query = new Postgres.Query(
-              `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
-               row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
-               created_at, updated_at, avatar_image, avatar_mime_type
-               FROM agents WHERE user_id = $1`,
-              [userId]
-            );
+            const query = this.agentSelectQuery('user_id = $1', [userId]);
             const result =
               await Postgres.query<AgentConfig.OutputWithId>(query);
             logger.debug(
@@ -475,7 +473,7 @@ export class AgentStorage implements OnModuleInit {
             logger.error(
               `agentConfigResolver: Fallback to PostgreSQL also failed: ${pgError}`
             );
-            throw error;
+            throw new Error(`Failed to fetch agent configs: Redis: ${error}, PostgreSQL: ${pgError}`);
           }
         }
       };

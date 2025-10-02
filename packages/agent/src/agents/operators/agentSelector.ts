@@ -79,7 +79,7 @@ export class AgentSelector extends BaseAgent {
       const agentConfigs = await this.agentConfigResolver(userId);
 
       logger.debug(
-        `AgentSelector: Found ${agentConfigs.length} agent configs for user ${userId}`
+        `AgentSelector: Fetching agent configs for user ${userId}`
       );
 
       if (agentConfigs.length === 0) {
