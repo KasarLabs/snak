@@ -108,7 +108,7 @@ export class FileIngestionController {
       }
 
       // Verify agent ownership before proceeding
-      ControllerHelpers.verifyAgentOwnership(
+      await ControllerHelpers.verifyAgentOwnership(
         this.agentFactory,
         agentId,
         userId
@@ -165,7 +165,7 @@ export class FileIngestionController {
   ) {
     logger.info('files.list called');
     const userId = ControllerHelpers.getUserId(req);
-    ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
+    await ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.listFiles(agentId, userId);
   }
 
@@ -177,7 +177,7 @@ export class FileIngestionController {
   ) {
     logger.info('files.get called');
     const userId = ControllerHelpers.getUserId(req);
-    ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
+    await ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.getFile(agentId, fileId, userId);
   }
 
@@ -189,7 +189,7 @@ export class FileIngestionController {
   ) {
     logger.info('files.delete called');
     const userId = ControllerHelpers.getUserId(req);
-    ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
+    await ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     await this.service.deleteFile(agentId, fileId, userId);
     return { deleted: true };
   }

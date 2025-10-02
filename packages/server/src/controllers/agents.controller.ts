@@ -290,14 +290,14 @@ export class AgentsController {
       agent = await agentSelector.execute(userRequest.request.content);
       if (agent) {
         const agentId = agent.getAgentConfig().id;
-        ControllerHelpers.verifyAgentConfigOwnership(
+        await ControllerHelpers.verifyAgentConfigOwnership(
           this.agentFactory,
           agentId,
           userId
         );
       }
     } else {
-      agent = ControllerHelpers.verifyAgentOwnership(
+      agent = await ControllerHelpers.verifyAgentOwnership(
         this.agentFactory,
         userRequest.request.agent_id,
         userId
@@ -332,7 +332,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('stop_agent called');
-    const { userId, agent } = ControllerHelpers.getUserAndVerifyAgentOwnership(
+    const { userId, agent } = await ControllerHelpers.getUserAndVerifyAgentOwnership(
       req,
       this.agentFactory,
       userRequest.agent_id
@@ -382,7 +382,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agent called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
       userRequest.agent_id
@@ -407,7 +407,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('delete_agent called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
       userRequest.agent_id
@@ -438,7 +438,7 @@ export class AgentsController {
 
     for (const agentId of userRequest.agent_id) {
       try {
-        ControllerHelpers.verifyAgentConfigOwnership(
+        await ControllerHelpers.verifyAgentConfigOwnership(
           this.agentFactory,
           agentId,
           userId
@@ -476,7 +476,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agents called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
       userRequest.agent_id
@@ -501,7 +501,7 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('clear_message called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+    const { userId } = await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
       req,
       this.agentFactory,
       userRequest.agent_id

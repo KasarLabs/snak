@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
+import { DatabaseConfigService } from '@snakagent/core';
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
@@ -45,13 +46,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     try {
       this.logger.log('Initializing database connection...');
 
-      await Postgres.connect({
-        database: process.env.POSTGRES_DB as string,
-        host: process.env.POSTGRES_HOST as string,
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        port: parseInt(process.env.POSTGRES_PORT as string),
-      });
+      // Ensure database configuration is initialized
+      if (!DatabaseConfigService.getInstance().isInitialized()) {
+        DatabaseConfigService.getInstance().initialize();
+      }
+
+      const databaseConfig = DatabaseConfigService.getInstance().getCredentials();
+      await Postgres.connect(databaseConfig);
 
       this.initialized = true;
       this.logger.log('Database connection initialized successfully');

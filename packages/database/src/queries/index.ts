@@ -5,5 +5,6 @@ import { iterations } from './iterations/queries.js';
 import { contract } from './contract/queries.js';
 import { rag } from './rag/queries.js';
 import { Postgres } from '../database.js';
+import * as redisAgents from './redis/queries.js';
 
-export { scarb, chat, memory, iterations, contract, rag, Postgres };
+export { scarb, chat, memory, iterations, contract, rag, Postgres, redisAgents };

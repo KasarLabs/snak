@@ -1,5 +1,5 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { AgentMode, ModelConfig, ModelProviders } from '@snakagent/core';
+import { AgentMode, ModelConfig, ModelProviders, DatabaseConfigService } from '@snakagent/core';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '../core/snakAgent.js';
 import {
@@ -145,13 +145,13 @@ async function ensureDbConnection(): Promise<void> {
     }
   }
 
-  await Postgres.connect({
-    host: process.env.POSTGRES_HOST as string,
-    user: process.env.POSTGRES_USER as string,
-    database: process.env.POSTGRES_DB as string,
-    password: process.env.POSTGRES_PASSWORD as string,
-    port: parseInt(process.env.POSTGRES_PORT!) as number,
-  });
+  // Ensure database configuration is initialized
+  if (!DatabaseConfigService.getInstance().isInitialized()) {
+    DatabaseConfigService.getInstance().initialize();
+  }
+  
+  const databaseConfig = DatabaseConfigService.getInstance().getCredentials();
+  await Postgres.connect(databaseConfig);
 }
 
 // Model Configuration
@@ -232,13 +232,7 @@ export async function createAgentById(agentId: string): Promise<{
     provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
     accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
     accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-    db_credentials: {
-      host: process.env.POSTGRES_HOST as string,
-      user: process.env.POSTGRES_USER as string,
-      database: process.env.POSTGRES_DB as string,
-      password: process.env.POSTGRES_PASSWORD as string,
-      port: parseInt(process.env.POSTGRES_PORT!) as number,
-    },
+    db_credentials: DatabaseConfigService.getInstance().getCredentials(),
     agentConfig: {
       id: agentConfig.id,
       name: agentConfig.profile.name,
