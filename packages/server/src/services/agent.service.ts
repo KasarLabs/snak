@@ -24,6 +24,7 @@ import {
   SnakAgent,
   UserRequest,
 } from '@snakagent/agents';
+import { redisAgents } from '@snakagent/database/queries';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -195,6 +196,30 @@ export class AgentService implements IAgentService {
       return res;
     } catch (error) {
       this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all agents for a user from Redis
+   * @param userId - User ID to fetch agents for
+   * @returns Promise<AgentConfig.OutputWithoutUserId[]> - Array of agent configurations from Redis without user_id
+   */
+  async getAllAgentsOfUserFromRedis(
+    userId: string
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
+    try {
+      const agents = await redisAgents.listAgentsByUser(userId);
+
+      // Remove user_id from each agent to match the PostgreSQL behavior
+      const agentsWithoutUserId = agents.map((agent) => {
+        const { user_id, ...agentWithoutUserId } = agent;
+        return agentWithoutUserId;
+      });
+
+      return agentsWithoutUserId;
+    } catch (error) {
+      this.logger.error('Error fetching agents from Redis:', error);
       throw error;
     }
   }

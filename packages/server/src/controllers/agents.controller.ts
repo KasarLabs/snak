@@ -570,6 +570,18 @@ export class AgentsController {
   }
 
   /**
+   * Get all available agents from Redis
+   * @returns Promise<AgentResponse> - Response with all agents from Redis
+   */
+  @Get('get_available_agent')
+  @HandleErrors('E06TA101')
+  async getAvailableAgent(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    const agents = await this.agentService.getAllAgentsOfUserFromRedis(userId);
+    return ResponseFormatter.success(agents);
+  }
+
+  /**
    * Health check endpoint
    * @returns Promise<AgentResponse> - Health status response
    */
