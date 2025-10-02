@@ -14,7 +14,7 @@ export class AgentDuplicateError extends Error {
 
 /**
  * Save an agent configuration to Redis
- * Uses atomic operations to ensure consistency across all indexes
+ * Uses optimistic locking (WATCH) to ensure atomic check-then-write and prevent duplicates
  *
  * @param dto - Agent configuration to save
  * @throws {AgentDuplicateError} If an agent with the same (agent_id, user_id) pair already exists
@@ -25,43 +25,66 @@ export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
   const agentKey = `agents:${dto.id}`;
   const userSetKey = `agents:by-user:${dto.user_id}`;
   const pairIndexKey = `agents:idx:agent-user:${dto.id}:${dto.user_id}`;
+  const maxRetries = 3;
 
-  try {
-    // Start a transaction
-    const multi = redis.multi();
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // WATCH the pair index key to detect concurrent modifications
+      await redis.watch(pairIndexKey);
 
-    // SET agents:{id} JSON(dto)
-    multi.set(agentKey, JSON.stringify(dto));
+      // Check if the agent already exists BEFORE writing
+      const exists = await redis.exists(pairIndexKey);
 
-    // SADD agents:by-user:{dto.user_id} {id}
-    multi.sadd(userSetKey, dto.id);
+      if (exists === 1) {
+        await redis.unwatch();
+        throw new AgentDuplicateError(dto.id, dto.user_id);
+      }
 
-    // SET NX agents:idx:agent-user:{id}:{dto.user_id} {id}
-    // This ensures uniqueness of (agent_id, user_id) pairs
-    multi.setnx(pairIndexKey, dto.id);
+      // Start atomic transaction
+      // This will only execute if the watched key hasn't changed
+      const multi = redis.multi();
 
-    // Execute transaction
-    const results = await multi.exec();
+      // SET agents:{id} JSON(dto)
+      multi.set(agentKey, JSON.stringify(dto));
 
-    if (!results) {
-      throw new Error('Redis transaction failed: no results returned');
+      // SADD agents:by-user:{dto.user_id} {id}
+      multi.sadd(userSetKey, dto.id);
+
+      // SET agents:idx:agent-user:{id}:{dto.user_id} {id}
+      // This creates the uniqueness constraint
+      multi.set(pairIndexKey, dto.id);
+
+      // Execute transaction
+      const results = await multi.exec();
+
+      // If results is null, the WATCH detected a change (another thread created the same agent)
+      if (results === null) {
+        logger.warn(
+          `Concurrent creation detected for agent ${dto.id}, retrying... (attempt ${attempt + 1}/${maxRetries})`
+        );
+        continue; // Retry - the exists check will catch the duplicate
+      }
+
+      logger.debug(`Agent ${dto.id} saved to Redis for user ${dto.user_id}`);
+      return; // Success
+    } catch (error) {
+      // Clean up WATCH state on error
+      await redis.unwatch();
+      logger.error('Error saving agent to Redis:', error);
+      throw error;
     }
-
-    // Check if the pair index was successfully set (setnx returns 1 if set, 0 if already exists)
-    const setnxResult = results[2]; // Third command is SETNX
-    if (setnxResult[1] === 0) {
-      // The key already existed, so we have a duplicate
-      // Roll back by removing what we just added
-      await redis.del(agentKey);
-      await redis.srem(userSetKey, dto.id);
-      throw new AgentDuplicateError(dto.id, dto.user_id);
-    }
-
-    logger.debug(`Agent ${dto.id} saved to Redis for user ${dto.user_id}`);
-  } catch (error) {
-    logger.error('Error saving agent to Redis:', error);
-    throw error;
   }
+
+  // If we exhausted all retries, it's likely due to concurrent creation
+  // Try one final check to give a proper error message
+  const exists = await redis.exists(pairIndexKey);
+  if (exists === 1) {
+    throw new AgentDuplicateError(dto.id, dto.user_id);
+  }
+
+  throw new Error(
+    `Failed to save agent ${dto.id} after ${maxRetries} attempts due to concurrent modifications`
+  );
 }
 
 /**
@@ -172,6 +195,7 @@ export async function getAgentByPair(
 /**
  * Delete an agent from Redis
  * Cleans up all related indexes atomically
+ * Uses optimistic locking (WATCH) to prevent TOCTOU race conditions
  *
  * @param agentId - Agent ID to delete
  * @param userId - User ID to verify ownership
@@ -183,48 +207,71 @@ export async function deleteAgent(
 ): Promise<void> {
   const redis = getRedisClient();
   const agentKey = `agents:${agentId}`;
+  const maxRetries = 3;
 
-  try {
-    // First, get the agent to verify it exists and belongs to the user
-    const agentJson = await redis.get(agentKey);
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // WATCH the agent key to detect concurrent modifications
+      await redis.watch(agentKey);
 
-    if (!agentJson) {
-      throw new Error(`Agent ${agentId} not found`);
+      // Get the agent to verify it exists and belongs to the user
+      // This read is protected by WATCH - if the key changes before EXEC,
+      // the transaction will fail
+      const agentJson = await redis.get(agentKey);
+
+      if (!agentJson) {
+        await redis.unwatch();
+        throw new Error(`Agent ${agentId} not found`);
+      }
+
+      const agent = JSON.parse(agentJson) as AgentConfig.OutputWithId;
+
+      if (agent.user_id !== userId) {
+        await redis.unwatch();
+        throw new Error(`Agent ${agentId} does not belong to user ${userId}`);
+      }
+
+      const userSetKey = `agents:by-user:${userId}`;
+      const pairIndexKey = `agents:idx:agent-user:${agentId}:${userId}`;
+
+      // Start atomic transaction
+      // This will only execute if the watched key hasn't changed
+      const multi = redis.multi();
+
+      // DEL agents:{agentId}
+      multi.del(agentKey);
+
+      // SREM agents:by-user:{user_id} {agentId}
+      multi.srem(userSetKey, agentId);
+
+      // DEL agents:idx:agent-user:{agentId}:{user_id}
+      multi.del(pairIndexKey);
+
+      // Execute transaction
+      const results = await multi.exec();
+
+      // If results is null, the WATCH detected a change and aborted the transaction
+      if (results === null) {
+        logger.warn(
+          `Concurrent modification detected for agent ${agentId}, retrying... (attempt ${attempt + 1}/${maxRetries})`
+        );
+        continue; // Retry
+      }
+
+      logger.debug(`Agent ${agentId} deleted from Redis for user ${userId}`);
+      return; // Success
+    } catch (error) {
+      // Clean up WATCH state on error
+      await redis.unwatch();
+      logger.error(`Error deleting agent ${agentId}:`, error);
+      throw error;
     }
-
-    const agent = JSON.parse(agentJson) as AgentConfig.OutputWithId;
-
-    if (agent.user_id !== userId) {
-      throw new Error(`Agent ${agentId} does not belong to user ${userId}`);
-    }
-
-    const userSetKey = `agents:by-user:${userId}`;
-    const pairIndexKey = `agents:idx:agent-user:${agentId}:${userId}`;
-
-    // Start atomic transaction
-    const multi = redis.multi();
-
-    // DEL agents:{agentId}
-    multi.del(agentKey);
-
-    // SREM agents:by-user:{user_id} {agentId}
-    multi.srem(userSetKey, agentId);
-
-    // DEL agents:idx:agent-user:{agentId}:{user_id}
-    multi.del(pairIndexKey);
-
-    // Execute transaction
-    const results = await multi.exec();
-
-    if (!results) {
-      throw new Error('Redis transaction failed during agent deletion');
-    }
-
-    logger.debug(`Agent ${agentId} deleted from Redis for user ${userId}`);
-  } catch (error) {
-    logger.error(`Error deleting agent ${agentId}:`, error);
-    throw error;
   }
+
+  // If we exhausted all retries
+  throw new Error(
+    `Failed to delete agent ${agentId} after ${maxRetries} attempts due to concurrent modifications`
+  );
 }
 
 /**
@@ -249,7 +296,7 @@ export async function agentExists(
       `Error checking if agent ${agentId} exists for user ${userId}:`,
       error
     );
-    return false;
+    throw error;
   }
 }
 
@@ -268,12 +315,13 @@ export async function getAgentCount(userId: string): Promise<number> {
     return count;
   } catch (error) {
     logger.error(`Error getting agent count for user ${userId}:`, error);
-    return 0;
+    throw error;
   }
 }
 
 /**
  * Update an existing agent configuration
+ * Uses optimistic locking (WATCH) to prevent TOCTOU race conditions
  *
  * @param dto - Updated agent configuration
  * @throws {Error} If the agent doesn't exist
@@ -284,64 +332,134 @@ export async function updateAgent(
   const redis = getRedisClient();
   const agentKey = `agents:${dto.id}`;
   const pairIndexKey = `agents:idx:agent-user:${dto.id}:${dto.user_id}`;
+  const maxRetries = 3;
 
-  try {
-    // Check if the agent exists
-    const exists = await redis.exists(pairIndexKey);
-    if (exists === 0) {
-      throw new Error(
-        `Cannot update: Agent ${dto.id} does not exist for user ${dto.user_id}`
-      );
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // WATCH both the agent key and pair index to detect concurrent modifications
+      await redis.watch(agentKey, pairIndexKey);
+
+      // Check if the agent exists and get current data
+      const [pairExists, currentAgentJson] = await Promise.all([
+        redis.exists(pairIndexKey),
+        redis.get(agentKey),
+      ]);
+
+      if (pairExists === 0) {
+        await redis.unwatch();
+        throw new Error(
+          `Cannot update: Agent ${dto.id} does not exist for user ${dto.user_id}`
+        );
+      }
+
+      // Verify the agent still belongs to the same user
+      if (currentAgentJson) {
+        const currentAgent = JSON.parse(
+          currentAgentJson
+        ) as AgentConfig.OutputWithId;
+        if (currentAgent.user_id !== dto.user_id) {
+          await redis.unwatch();
+          throw new Error(
+            `Cannot update: Agent ${dto.id} belongs to a different user`
+          );
+        }
+      }
+
+      // Start atomic transaction
+      const multi = redis.multi();
+
+      // Update the agent data
+      multi.set(agentKey, JSON.stringify(dto));
+
+      // Execute transaction
+      const results = await multi.exec();
+
+      // If results is null, the WATCH detected a change and aborted the transaction
+      if (results === null) {
+        logger.warn(
+          `Concurrent modification detected for agent ${dto.id}, retrying... (attempt ${attempt + 1}/${maxRetries})`
+        );
+        continue; // Retry
+      }
+
+      logger.debug(`Agent ${dto.id} updated in Redis for user ${dto.user_id}`);
+      return; // Success
+    } catch (error) {
+      // Clean up WATCH state on error
+      await redis.unwatch();
+      logger.error(`Error updating agent ${dto.id}:`, error);
+      throw error;
     }
-
-    // Update the agent data
-    await redis.set(agentKey, JSON.stringify(dto));
-
-    logger.debug(`Agent ${dto.id} updated in Redis for user ${dto.user_id}`);
-  } catch (error) {
-    logger.error(`Error updating agent ${dto.id}:`, error);
-    throw error;
   }
+
+  // If we exhausted all retries
+  throw new Error(
+    `Failed to update agent ${dto.id} after ${maxRetries} attempts due to concurrent modifications`
+  );
 }
 
 /**
  * Clear all agents for a specific user (useful for testing)
+ * Uses optimistic locking (WATCH) to prevent TOCTOU race conditions
  *
  * @param userId - User ID
  */
 export async function clearUserAgents(userId: string): Promise<void> {
   const redis = getRedisClient();
   const userSetKey = `agents:by-user:${userId}`;
+  const maxRetries = 3;
 
-  try {
-    // Get all agent IDs for this user
-    const agentIds = await redis.smembers(userSetKey);
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // WATCH the user set to detect concurrent modifications
+      await redis.watch(userSetKey);
 
-    if (agentIds.length === 0) {
-      return;
+      // Get all agent IDs for this user
+      const agentIds = await redis.smembers(userSetKey);
+
+      if (agentIds.length === 0) {
+        await redis.unwatch();
+        return;
+      }
+
+      // Start transaction
+      const multi = redis.multi();
+
+      // Delete each agent and its pair index
+      for (const agentId of agentIds) {
+        const agentKey = `agents:${agentId}`;
+        const pairIndexKey = `agents:idx:agent-user:${agentId}:${userId}`;
+
+        multi.del(agentKey);
+        multi.del(pairIndexKey);
+      }
+
+      // Delete the user set
+      multi.del(userSetKey);
+
+      // Execute transaction
+      const results = await multi.exec();
+
+      // If results is null, the WATCH detected a change and aborted the transaction
+      if (results === null) {
+        logger.warn(
+          `Concurrent modification detected while clearing agents for user ${userId}, retrying... (attempt ${attempt + 1}/${maxRetries})`
+        );
+        continue; // Retry
+      }
+
+      logger.debug(`Cleared ${agentIds.length} agents for user ${userId}`);
+      return; // Success
+    } catch (error) {
+      // Clean up WATCH state on error
+      await redis.unwatch();
+      logger.error(`Error clearing agents for user ${userId}:`, error);
+      throw error;
     }
-
-    // Start transaction
-    const multi = redis.multi();
-
-    // Delete each agent and its pair index
-    for (const agentId of agentIds) {
-      const agentKey = `agents:${agentId}`;
-      const pairIndexKey = `agents:idx:agent-user:${agentId}:${userId}`;
-
-      multi.del(agentKey);
-      multi.del(pairIndexKey);
-    }
-
-    // Delete the user set
-    multi.del(userSetKey);
-
-    // Execute transaction
-    await multi.exec();
-
-    logger.debug(`Cleared ${agentIds.length} agents for user ${userId}`);
-  } catch (error) {
-    logger.error(`Error clearing agents for user ${userId}:`, error);
-    throw error;
   }
+
+  // If we exhausted all retries
+  throw new Error(
+    `Failed to clear agents for user ${userId} after ${maxRetries} attempts due to concurrent modifications`
+  );
 }

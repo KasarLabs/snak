@@ -192,7 +192,6 @@ export class AgentService implements IAgentService {
         [userId]
       );
       const res = await Postgres.query<AgentConfig.OutputWithoutUserId>(q);
-      this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
       this.logger.error(error);

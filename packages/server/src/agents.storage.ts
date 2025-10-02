@@ -77,7 +77,21 @@ export class AgentStorage implements OnModuleInit {
       return config;
     } catch (error) {
       logger.error(`Error fetching agent config from Redis: ${error}`);
-      return null;
+      // Fallback to PostgreSQL as source of truth
+      try {
+        const query = new Postgres.Query(
+          `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id, 
+           row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag, 
+           created_at, updated_at, avatar_image, avatar_mime_type 
+           FROM agents WHERE id = $1 AND user_id = $2`,
+          [id, userId]
+        );
+        const result = await Postgres.query<AgentConfig.OutputWithId>(query);
+        return result.length > 0 ? result[0] : null;
+      } catch (pgError) {
+        logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
+        return null;
+      }
     }
   }
 
@@ -97,7 +111,23 @@ export class AgentStorage implements OnModuleInit {
       return await redisAgents.listAgentsByUser(userId);
     } catch (error) {
       logger.error(`Error fetching agent configs from Redis: ${error}`);
-      return [];
+      // Fallback to PostgreSQL as source of truth
+      try {
+        logger.debug(
+          `Fallback to PostgreSQL as source of truth for user ${userId}`
+        );
+        const query = new Postgres.Query(
+          `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+           row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
+           created_at, updated_at, avatar_image, avatar_mime_type
+           FROM agents WHERE user_id = $1`,
+          [userId]
+        );
+        return await Postgres.query<AgentConfig.OutputWithId>(query);
+      } catch (pgError) {
+        logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
+        throw error;
+      }
     }
   }
 
@@ -188,8 +218,6 @@ export class AgentStorage implements OnModuleInit {
     agentConfig: AgentConfig.Input,
     userId: string
   ): Promise<AgentConfig.OutputWithId> {
-    logger.debug(`Adding agent with config: ${JSON.stringify(agentConfig)}`);
-
     if (!this.initialized) {
       await this.initialize();
     }
@@ -238,7 +266,6 @@ export class AgentStorage implements OnModuleInit {
       [userId, JSON.stringify(agentConfig)]
     );
     const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
-    logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
       const newAgentDbRecord = q_res[0];
@@ -511,30 +538,19 @@ export class AgentStorage implements OnModuleInit {
   private async createSnakAgentFromConfig(
     agentConfig: AgentConfig.OutputWithId
   ): Promise<SnakAgent> {
-    const totalStart = performance.now();
     try {
-      // Chronométrage de la configuration Starknet
-      const starknetConfigStart = performance.now();
       const starknetConfig: StarknetConfig = {
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
       };
-      const starknetConfigEnd = performance.now();
-      const starknetConfigTime = starknetConfigEnd - starknetConfigStart;
 
-      // Chronométrage de la récupération du modèle
-      const modelStart = performance.now();
       const model = await this.getModelFromUser(agentConfig.user_id);
       const modelInstance = this.initializeModels(model);
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
       }
-      const modelEnd = performance.now();
-      const modelTime = modelEnd - modelStart;
 
-      // Chronométrage de la récupération des prompts
-      const promptsStart = performance.now();
       const promptsFromDb = await this.getPromptsFromDatabase(
         agentConfig.prompts_id
       );
@@ -543,11 +559,6 @@ export class AgentStorage implements OnModuleInit {
           `Failed to load prompts for agent ${agentConfig.id}, prompts ID: ${agentConfig.prompts_id}`
         );
       }
-      const promptsEnd = performance.now();
-      const promptsTime = promptsEnd - promptsStart;
-
-      // Chronométrage de la construction de la configuration runtime
-      const configBuildStart = performance.now();
       const AgentConfigRuntime: AgentConfig.Runtime = {
         ...agentConfig,
         prompts: promptsFromDb,
@@ -556,49 +567,8 @@ export class AgentStorage implements OnModuleInit {
           model: modelInstance,
         },
       };
-      const configBuildEnd = performance.now();
-      const configBuildTime = configBuildEnd - configBuildStart;
 
-      // Chronométrage de l'instanciation
-      const instantiationStart = performance.now();
       const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
-      const instantiationEnd = performance.now();
-      const instantiationTime = instantiationEnd - instantiationStart;
-
-      // Chronométrage de l'initialisation
-      const initStart = performance.now();
-      await snakAgent.init();
-      const initEnd = performance.now();
-      const initTime = initEnd - initStart;
-
-      const totalEnd = performance.now();
-      const totalTime = totalEnd - totalStart;
-
-      // Log détaillé des temps d'exécution
-      logger.debug(
-        `[SnakAgent Creation] StarknetConfig: ${starknetConfigTime.toFixed(2)}ms`
-      );
-      logger.debug(
-        `[SnakAgent Creation] Model loading: ${modelTime.toFixed(2)}ms`
-      );
-      logger.debug(
-        `[SnakAgent Creation] Prompts loading: ${promptsTime.toFixed(2)}ms`
-      );
-      logger.debug(
-        `[SnakAgent Creation] Config building: ${configBuildTime.toFixed(2)}ms`
-      );
-      logger.debug(
-        `[SnakAgent Creation] Instantiation: ${instantiationTime.toFixed(2)}ms`
-      );
-      logger.debug(
-        `[SnakAgent Creation] Initialization: ${initTime.toFixed(2)}ms`
-      );
-      logger.debug(
-        `[SnakAgent Creation] Total time: ${totalTime.toFixed(2)}ms`
-      );
-      logger.debug(
-        `[SnakAgent Creation] Agent ID: ${agentConfig.id} | Name: ${agentConfig.profile.name}`
-      );
 
       return snakAgent;
     } catch (error) {
@@ -608,8 +578,6 @@ export class AgentStorage implements OnModuleInit {
   }
 
   private async registerAgentInstance() {
-    const registrationStart = performance.now();
-
     try {
       // Count agents in Redis for logging purposes
       const q = new Postgres.Query('SELECT DISTINCT user_id FROM agents');
@@ -629,17 +597,11 @@ export class AgentStorage implements OnModuleInit {
         }
       }
 
-      const registrationEnd = performance.now();
-      const totalRegistrationTime = registrationEnd - registrationStart;
-
-      logger.log(
+      logger.debug(
         `[Agent Registration] Found ${totalAgents} total agents in Redis`
       );
-      logger.log(
+      logger.debug(
         `[Agent Registration] Agents will be loaded on-demand from Redis`
-      );
-      logger.log(
-        `[Agent Registration] Total time: ${totalRegistrationTime.toFixed(2)}ms`
       );
     } catch (error) {
       logger.error('Error during agent registration:', error);
