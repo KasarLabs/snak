@@ -10,6 +10,11 @@ export enum GraphErrorTypeEnum {
   WRONG_NUMBER_OF_TOOLS = 'wrong_number_of_tools',
   TIMEOUT_ERROR = 'timeout_error',
   UNKNOWN_ERROR = 'unknown_error',
+  STRUCTURED_OUTPUT_ERROR = 'structured_output_error',
+  PARSING_ERROR = 'parsing_error',
+  INVALID_TOOL_CALL = 'invalid_tool_call',
+  MAX_RETRY_REACHED = 'max_retry_reached',
+  MODEL_ERROR = 'model_error',
 }
 
 export interface GraphErrorType {

@@ -247,7 +247,7 @@ export function getCurrentTask(tasks: TaskType[]): TaskType {
     }
     return currentTask;
   } catch (error) {
-    throw error; // Propaged error to be handled by caller
+    throw error; // Propagated error to be handled by caller
   }
 }
 

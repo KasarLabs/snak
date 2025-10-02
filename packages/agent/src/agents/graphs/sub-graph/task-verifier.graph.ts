@@ -1,7 +1,6 @@
 import { AIMessageChunk, BaseMessage } from '@langchain/core/messages';
 import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { AnyZodObject, z } from 'zod';
 import { logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
@@ -31,14 +30,12 @@ import {
   TaskVerificationSchema,
   TaskVerificationSchemaType,
 } from '@schemas/graph.schemas.js';
-import { DynamicStructuredTool } from '@langchain/core/tools';
 import { formatSTMToXML } from '../parser/memory/stm-parser.js';
-// Task verification schema
 
 export class TaskVerifierGraph {
   private model: BaseChatModel;
   private graph: any;
-  private readonly toolsList: DynamicStructuredTool<AnyZodObject>[] = [];
+
   constructor(model: BaseChatModel) {
     this.model = model;
   }
@@ -48,10 +45,11 @@ export class TaskVerifierGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): Promise<
     | {
-        messages: BaseMessage[];
+        messages?: BaseMessage[];
         lastNode: TaskVerifierNode;
         tasks?: TaskType[];
-        currentGraphStep?: number;
+        currentGraphStep: number;
+        retry: number;
         error?: GraphErrorType | null;
       }
     | Command
@@ -86,11 +84,15 @@ export class TaskVerifierGraph {
       const agentConfig = config.configurable!.agent_config!;
       const currentTask = getCurrentTask(state.tasks);
       if (currentTask.status !== 'waiting_validation') {
+        logger.info(
+          `[TaskVerifier] Skipping verification - task status is '${currentTask.status}', not 'waiting_validation'`
+        );
         return {
           messages: [],
           lastNode: TaskVerifierNode.TASK_VERIFIER,
           tasks: state.tasks,
           currentGraphStep: state.currentGraphStep + 1,
+          retry: 0,
           error: null,
         };
       }
@@ -121,6 +123,19 @@ export class TaskVerifierGraph {
         formattedPrompt
       )) as TaskVerificationSchemaType;
 
+      if (
+        !verificationResult ||
+        verificationResult.taskCompleted === undefined ||
+        verificationResult.taskCompleted === null ||
+        !verificationResult.reasoning
+      ) {
+        throw new GraphError(
+          'E08MI540',
+          'TaskVerifier.task_verifier',
+          undefined,
+          { invalidOutput: verificationResult }
+        );
+      }
       const verificationMessage = new AIMessageChunk({
         content: `Task verification completed: ${verificationResult.taskCompleted ? 'SUCCESS' : 'INCOMPLETE'}
 Confidence: ${verificationResult.confidenceScore}%
@@ -151,7 +166,7 @@ Reasoning: ${verificationResult.reasoning}`,
           lastNode: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
           currentGraphStep: state.currentGraphStep + 1,
-
+          retry: 0,
           error: verificationMessage.additional_kwargs.taskCompleted
             ? null
             : {
@@ -176,10 +191,35 @@ Reasoning: ${verificationResult.reasoning}`,
           messages: [verificationMessage],
           lastNode: TaskVerifierNode.TASK_VERIFIER,
           tasks: updatedTasks,
+          retry: 0,
           currentGraphStep: state.currentGraphStep + 1,
         };
       }
     } catch (error: any) {
+      if (error instanceof GraphError) {
+        if (state.retry >= 3) {
+          logger.error(
+            `[TaskVerifier] Max retries reached (${state.retry}), moving to failure handler`
+          );
+          return handleNodeError(
+            GraphErrorTypeEnum.MAX_RETRY_REACHED,
+            error,
+            'TASK_VERIFIER',
+            state,
+            'Task verification process failed after maximum retries'
+          );
+        }
+        logger.warn(
+          `[TaskVerifier] GraphError encountered: ${error.message}, retrying... (${
+            state.retry + 1
+          })`
+        );
+        return {
+          retry: state.retry + 1,
+          currentGraphStep: state.currentGraphStep + 1,
+          lastNode: TaskVerifierNode.TASK_VERIFIER,
+        };
+      }
       logger.error(`[TaskVerifier] Task verification failed: ${error.message}`);
       return handleNodeError(
         GraphErrorTypeEnum.VALIDATION_ERROR,
@@ -197,6 +237,15 @@ Reasoning: ${verificationResult.reasoning}`,
   ): TaskVerifierNode {
     const lastMessage = state.messages[state.messages.length - 1];
 
+    if (state.lastNode === TaskVerifierNode.TASK_VERIFIER && state.retry != 0) {
+      if (state.retry >= 3) {
+        logger.error(
+          `[TaskVerifierRouter] Max retries reached (${state.retry}), moving to failure handler`
+        );
+        return TaskVerifierNode.END_GRAPH; // Should normally not happen due to error handling
+      }
+      return TaskVerifierNode.TASK_VERIFIER;
+    }
     if (lastMessage?.additional_kwargs?.taskCompleted === true) {
       return TaskVerifierNode.TASK_SUCCESS_HANDLER;
     } else {
@@ -258,11 +307,13 @@ Reasoning: ${verificationResult.reasoning}`,
   private task_updater(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): {
-    tasks?: TaskType[];
-    lastNode?: TaskVerifierNode;
-    memories?: Memories;
-  } {
+  ):
+    | {
+        tasks?: TaskType[];
+        lastNode?: TaskVerifierNode;
+        memories?: Memories;
+      }
+    | Command {
     try {
       if (!state.tasks || state.tasks.length === 0) {
         throw new GraphError('E08ST1050', 'TaskVerifier.task_updater');
@@ -276,20 +327,25 @@ Reasoning: ${verificationResult.reasoning}`,
       // Check if we have task verification context from the previous message
       const lastMessage = state.messages[state.messages.length - 1];
       let updatedMemories = state.memories;
-
       if (
         lastMessage &&
         lastMessage.additional_kwargs?.from === 'task_verifier'
       ) {
-        STMManager.addMemory(
-          state.memories.stm,
-          [lastMessage],
-          currentTask.id,
-          uuidv4() // New step ID for the verification message
-        );
-        logger.info(
-          `[Task Updater] Verification ${lastMessage.additional_kwargs.taskCompleted ? 'successful' : 'failed'}`
-        );
+        if (!state.memories?.stm) {
+          logger.warn(
+            '[Task Updater] STM not available, skipping memory update'
+          );
+        } else {
+          STMManager.addMemory(
+            state.memories.stm,
+            [lastMessage],
+            currentTask.id,
+            uuidv4() // New step ID for the verification message
+          );
+          logger.info(
+            `[Task Updater] Verification ${lastMessage.additional_kwargs.taskCompleted ? 'successful' : 'failed'}`
+          );
+        }
       }
       // If task is completed and verified successfully, move to next task
       if (
@@ -329,9 +385,15 @@ Reasoning: ${verificationResult.reasoning}`,
         lastNode: TaskVerifierNode.TASK_UPDATER,
         memories: updatedMemories,
       };
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[Task Updater] Error: ${error}`);
-      return { lastNode: TaskVerifierNode.TASK_UPDATER };
+      return handleNodeError(
+        GraphErrorTypeEnum.EXECUTION_ERROR,
+        error,
+        'TASK_UPDATER',
+        state,
+        'Task updater process failed'
+      );
     }
   }
 
