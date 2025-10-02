@@ -50,7 +50,7 @@ jobs:
       - name: Build and push Docker image for snak-api
         uses: docker/build-push-action@v6
         with:
-          context: ./packages/server
+          context: .
           file: ./packages/server/Dockerfile
           push: true
           platforms: linux/amd64
