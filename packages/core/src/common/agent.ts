@@ -1,5 +1,4 @@
 import { RpcProvider } from 'starknet';
-import { SystemMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { z as Zod } from 'zod';
 
@@ -141,7 +140,6 @@ export namespace AgentConfig {
   interface Base {
     profile: AgentProfile;
     mcp_servers: Record<string, any>;
-    plugins: string[];
     memory: MemoryConfig;
     rag: RAGConfig;
   }

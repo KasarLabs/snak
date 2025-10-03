@@ -7,8 +7,8 @@ import {
   ModelConfig,
   StarknetConfig,
   AgentPromptsInitialized,
-  AgentValidationService,
   DEFAULT_AGENT_MODEL,
+  AgentValidationService,
 } from '@snakagent/core';
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.storage.js';
@@ -17,7 +17,7 @@ import {
   SnakAgent,
   TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
-  TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@snakagent/agents';
 import { SystemMessage } from '@langchain/core/messages';
@@ -37,9 +37,10 @@ export class AgentStorage implements OnModuleInit {
   private agentConfigs: AgentConfig.OutputWithId[] = [];
   private agentInstances: Map<string, SnakAgent> = new Map();
   private agentSelector: AgentSelector;
-  private agentValidationService: AgentValidationService;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
+  private agentValidationService: AgentValidationService;
+
   constructor(
     private readonly config: ConfigurationService,
     private readonly databaseService: DatabaseService
@@ -224,9 +225,7 @@ export class AgentStorage implements OnModuleInit {
 
     agentConfig.prompts_id = prompt_id;
     agentConfig.profile.name = finalName;
-
     await this.agentValidationService.validateAgent(agentConfig, true);
-
     const q = new Postgres.Query(
       'SELECT * FROM insert_agent_from_json($1, $2)',
       [userId, JSON.stringify(agentConfig)]
@@ -328,6 +327,7 @@ export class AgentStorage implements OnModuleInit {
       throw error;
     }
   }
+  /* ==================== PUBLIC UTILITIES ==================== */
 
   /**
    * Returns a promise that resolves when the agent storage is fully initialized
@@ -572,8 +572,6 @@ export class AgentStorage implements OnModuleInit {
     }
   }
 
-  /* ==================== PRIVATE CONFIGURATION METHODS ==================== */
-
   /**
    * Get prompts from database by prompt ID
    * @private
@@ -660,7 +658,7 @@ export class AgentStorage implements OnModuleInit {
           TASK_EXECUTOR_SYSTEM_PROMPT,
           TASK_MANAGER_SYSTEM_PROMPT,
           TASK_VERIFIER_SYSTEM_PROMPT,
-          TASK_MEMEMORY_MANAGER_SYSTEM_PROMPT,
+          TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
           false,
         ]
       );

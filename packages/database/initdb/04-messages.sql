@@ -9,9 +9,9 @@
 -- Primary Message Storage Table
 -- Records all agent interactions, communications, and state transitions
 CREATE TABLE IF NOT EXISTS message (
-    -- Auto-incrementing primary key for message ordering
-    -- SERIAL provides efficient integer-based indexing
-    id SERIAL PRIMARY KEY,
+    -- UUID primary key for message identification
+    -- uuid_generate_v4() provides globally unique identifiers
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- Reference to the agent that generated this message
     -- Links message to its originating agent for filtering and analysis
@@ -43,7 +43,21 @@ CREATE TABLE IF NOT EXISTS message (
     -- Marks specific points in conversation for state management
     -- Used for conversation resumption and rollback capabilities
     checkpoint_id TEXT NOT NULL,
-    
+
+    -- Task identifier for grouping related execution steps
+    -- Links messages to specific tasks in agent workflow
+    -- Enables task-level filtering and analysis
+    -- UUID type for consistency with other identifiers
+    task_id UUID,
+
+    -- Step identifier within the execution flow
+    -- Tracks individual steps in multi-step agent operations
+    -- Useful for debugging and analyzing agent decision-making process
+    -- UUID type for consistency with other identifiers
+    step_id UUID,
+
+    task_title TEXT,
+
     -- Message sender identification
     -- Quoted because 'from' is a PostgreSQL reserved word
     -- Values: 'user', 'agent', 'system', 'tool', etc.
@@ -95,6 +109,65 @@ CREATE TABLE IF NOT EXISTS message (
 -- Message Retrieval Functions
 -- ============================================================================
 
+-- Simple Message Retrieval by Agent ID
+-- Provides efficient message querying with optional limit
+-- If limit is NULL, returns all messages for the agent
+CREATE OR REPLACE FUNCTION get_messages_by_agent(
+    -- Required: Which agent's messages to retrieve
+    p_agent_id UUID,
+    -- Optional: Maximum number of messages to return
+    -- NULL means no limit (returns all matching messages)
+    p_limit INTEGER DEFAULT NULL
+)
+-- Return Type: Table with all message fields including ID
+RETURNS TABLE (
+    id UUID,
+    agent_id UUID,
+    user_id UUID,
+    event TEXT,
+    run_id TEXT,
+    thread_id TEXT,
+    task_title TEXT,
+    checkpoint_id TEXT,
+    task_id UUID,
+    step_id UUID,
+    "from" TEXT,
+    message TEXT,
+    tools JSONB,
+    metadata JSONB,
+    "timestamp" TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Returns messages ordered by timestamp descending (newest first)
+    -- If p_limit is NULL, COALESCE converts it to max INT value (all messages)
+    RETURN QUERY
+    SELECT
+        m.id,
+        m.agent_id,
+        m.user_id,
+        m.event,
+        m.run_id,
+        m.thread_id,
+        m.checkpoint_id,
+        m.task_id,
+        m.step_id,
+        m.task_title,
+        m."from",
+        m.message,
+        m.tools,
+        m.metadata,
+        m."timestamp",
+        m.created_at
+    FROM message m
+    WHERE m.agent_id = p_agent_id
+    ORDER BY m."timestamp" DESC
+    LIMIT COALESCE(p_limit, 2147483647);  -- Max INT when p_limit is NULL
+END;
+$$;
+
 -- Optimized Message Retrieval Function
 -- Provides efficient, flexible message querying with pagination and ordering
 CREATE OR REPLACE FUNCTION get_messages_optimized(
@@ -129,6 +202,9 @@ RETURNS TABLE (
     run_id TEXT,
     thread_id TEXT,
     checkpoint_id TEXT,
+    task_id UUID,
+    step_id UUID,
+    task_title TEXT,
     "from" TEXT,
     message TEXT,
     tools JSONB,
@@ -152,6 +228,9 @@ BEGIN
             m.run_id,
             m.thread_id,
             m.checkpoint_id,
+            m.task_id,
+            m.step_id,
+            m.task_title,
             m."from",
             m.message,
             m.tools,
@@ -159,7 +238,7 @@ BEGIN
             m."timestamp"
         FROM message m
         INNER JOIN agents a ON m.agent_id = a.id
-        WHERE m.agent_id = p_agent_id 
+        WHERE m.agent_id = p_agent_id
           AND m.thread_id = p_thread_id
           AND a.user_id = p_user_id
         ORDER BY m."timestamp" DESC
@@ -176,6 +255,9 @@ BEGIN
             m.run_id,
             m.thread_id,
             m.checkpoint_id,
+            m.task_id,
+            m.step_id,
+            m.task_title,
             m."from",
             m.message,
             m.tools,
@@ -183,7 +265,7 @@ BEGIN
             m."timestamp"
         FROM message m
         INNER JOIN agents a ON m.agent_id = a.id
-        WHERE m.agent_id = p_agent_id 
+        WHERE m.agent_id = p_agent_id
           AND m.thread_id = p_thread_id
           AND a.user_id = p_user_id
         ORDER BY m."timestamp" ASC
@@ -221,6 +303,18 @@ CREATE INDEX IF NOT EXISTS idx_message_thread_id ON message(thread_id);
 -- Query pattern: WHERE checkpoint_id = ?
 -- Supports conversation state management features
 CREATE INDEX IF NOT EXISTS idx_message_checkpoint_id ON message(checkpoint_id);
+
+-- Task-based execution grouping index
+-- Used for: Retrieving all messages for a specific task
+-- Query pattern: WHERE task_id = ?
+-- Enables task-level message filtering and analysis
+CREATE INDEX IF NOT EXISTS idx_message_task_id ON message(task_id);
+
+-- Step-based execution tracking index
+-- Used for: Retrieving messages for specific execution steps
+-- Query pattern: WHERE step_id = ?
+-- Supports step-by-step debugging and analysis
+CREATE INDEX IF NOT EXISTS idx_message_step_id ON message(step_id);
 
 -- Temporal ordering index
 -- Used for: Chronological message sorting and time-based queries

@@ -88,10 +88,6 @@ export class AgentValidationService {
         this.validateRAG(agent_config.rag);
       }
 
-      if (agent_config.plugins) {
-        this.validatePlugins(agent_config.plugins);
-      }
-
       if (agent_config.mcp_servers) {
         this.validateMCPServers(agent_config.mcp_servers);
       }

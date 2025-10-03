@@ -290,9 +290,9 @@ insert_episodic_memory_smart(
   - Skip duplicate detection and reporting
 - **Returns**: Operation result and similar memory information
 
-#### retrieve_similar_memories()
+#### retrieve_similar_categorized_memories()
 ```sql
-retrieve_similar_memories(
+retrieve_similar_categorized_memories(
     p_user_id VARCHAR(100),
     p_run_id UUID,
     p_embedding vector(384),

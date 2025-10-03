@@ -5,6 +5,7 @@ import {
   SemanticMemoryContext,
   ltmSchemaType,
   createLtmSchemaMemorySchema,
+  HolisticMemoryContext,
 } from '../../../shared/types/memory.types.js';
 import {
   getCurrentTask,
@@ -16,7 +17,12 @@ import {
   routingFromSubGraphToParentGraphEndNode,
 } from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { logger, MemoryConfig } from '@snakagent/core';
+import {
+  AgentConfig,
+  logger,
+  MemoryConfig,
+  MemoryStrategy,
+} from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
@@ -36,7 +42,13 @@ import {
   ToolCallType,
 } from '../../../shared/types/graph.types.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { TASK_MEMEMORY_MANAGER_HUMAN_PROMPT } from '@prompts/agents/task-memory-manager.prompt.js';
+import {
+  TASK_MEMORY_MANAGER_HUMAN_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+} from '@prompts/agents/task-memory-manager.prompt.js';
+import { memory } from '@snakagent/database/queries';
+import { EXECUTOR_CORE_TOOLS } from './task-executor.graph.js';
+import { GraphError } from '../utils/error.utils.js';
 
 export class MemoryGraph {
   private readonly memoryDBManager: MemoryDBManager;
@@ -47,7 +59,7 @@ export class MemoryGraph {
     this.model = model;
     this.memoryDBManager = new MemoryDBManager(memoryConfig);
     if (!this.memoryDBManager) {
-      throw new Error('MemoryDBManager initialization failed');
+      throw new GraphError('E08MM470', 'MemoryGraph.constructor');
     }
   }
 
@@ -59,7 +71,7 @@ export class MemoryGraph {
   ): EpisodicMemoryContext[] {
     const lastStep = task.steps[task.steps.length - 1];
     if (!lastStep) {
-      throw new Error('Last step is not accessile.');
+      throw new GraphError('E08ST1050', 'MemoryGraph.createEpisodicMemories');
     }
     return memories.map((memory) => ({
       user_id: user_id,
@@ -79,7 +91,7 @@ export class MemoryGraph {
   ): SemanticMemoryContext[] {
     const lastStep = task.steps[task.steps.length - 1];
     if (!lastStep) {
-      throw new Error('Last step is not accessile.');
+      throw new GraphError('E08ST1050', 'MemoryGraph.createSemanticMemories');
     }
     return memories.map((memory) => ({
       user_id: user_id,
@@ -131,53 +143,97 @@ export class MemoryGraph {
     }
   }
 
-  private async ltm_manager(
+  private filterMemoriesNotInSTM(
+    retrievedMemories: memory.Similarity[],
+    stmItems: (typeof GraphState.State)['memories']['stm']['items']
+  ): memory.Similarity[] {
+    const stepIdInMemory: string[] = [];
+    stmItems.forEach((item) => {
+      if (item) {
+        stepIdInMemory.push(item.stepId);
+      }
+    });
+    return retrievedMemories.filter(
+      (mem) => mem.step_id && !stepIdInMemory.includes(mem.step_id)
+    );
+  }
+
+  private async holistic_memory_manager(
+    agentConfig: AgentConfig.Runtime,
+    currentTask: TaskType
+  ): Promise<{ updatedTask: TaskType }> {
+    try {
+      const stepsToSave = currentTask.steps.filter(
+        (step) => !step.isSavedInMemory
+      );
+      if (stepsToSave.length === 0) {
+        logger.info(
+          '[HolisticMemoryManager] No new steps to save in memory, skipping.'
+        );
+        return { updatedTask: currentTask };
+      }
+      logger.info(
+        `[HolisticMemoryManager] Saving ${stepsToSave.length} new steps to memory.`
+      );
+      await Promise.all(
+        stepsToSave.map(async (step) => {
+          const toolsToSave = step.tool.filter(
+            (tool) => !EXECUTOR_CORE_TOOLS.has(tool.name)
+          );
+
+          logger.debug(
+            `[HolisticMemoryManager] Processing step ${step.id}: ${toolsToSave.length} tools to save`
+          );
+
+          await Promise.all(
+            toolsToSave.map(async (tool) => {
+              const h_memory: HolisticMemoryContext = {
+                user_id: agentConfig.user_id,
+                task_id: currentTask.id,
+                step_id: step.id,
+                type: memory.HolisticMemoryEnumType.TOOL,
+                content: `Tool: ${tool.name}\nArgs: ${JSON.stringify(tool.args)}\nResult: ${tool.result}`,
+                request: currentTask.task?.directive ?? 'No request provided',
+              };
+              await this.memoryDBManager.upersertHolisticMemory(h_memory);
+            })
+          );
+          const h_memory: HolisticMemoryContext = {
+            user_id: agentConfig.user_id,
+            task_id: currentTask.id,
+            step_id: step.id,
+            type: memory.HolisticMemoryEnumType.AI_RESPONSE,
+            content: step.thought.text,
+            request: currentTask.task?.directive ?? 'No request provided',
+          };
+          await this.memoryDBManager.upersertHolisticMemory(h_memory);
+          step.isSavedInMemory = true;
+        })
+      );
+
+      currentTask.steps = currentTask.steps.map((step) => {
+        const updatedStep = stepsToSave.find((s) => s.id === step.id);
+        return updatedStep ? updatedStep : step;
+      });
+      return { updatedTask: currentTask };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async categorized_memory_manager(
+    agentConfig: AgentConfig.Runtime,
+    currentTask: TaskType,
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{ memories?: Memories; last_node: TaskMemoryNode } | Command> {
+  ): Promise<void> {
     try {
-      const _isValidConfiguration: isValidConfigurationType =
-        isValidConfiguration(config);
-      if (_isValidConfiguration.isValid === false) {
-        throw new Error(_isValidConfiguration.error);
-      }
-      if (
-        hasReachedMaxSteps(
-          state.currentGraphStep,
-          config.configurable!.agent_config!
-        )
-      ) {
-        logger.warn(
-          `[TaskManagerMemory] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
-        );
-        throw new Error('Max memory graph steps reached');
-      }
-      if (config.configurable?.agent_config?.memory.ltm_enabled === false) {
-        logger.info(
-          '[TaskManagerMemory] Memory disabled in configuration skipping LTM update'
-        );
-        return { last_node: TaskMemoryNode.END_GRAPH };
-      }
-      const agentConfig = config.configurable!.agent_config!;
-      const currentTask = getCurrentTask(state.tasks);
       if (!['completed', 'failed'].includes(currentTask.status)) {
         logger.debug(
           `[LTMManager] Current task at index ${currentTask.id} is not completed or failed, skipping LTM update`
         );
-        return { last_node: TaskMemoryNode.LTM_MANAGER };
+        return;
       }
-
-      const recentMemories = STMManager.getRecentMemories(
-        state.memories.stm,
-        1
-      );
-      if (recentMemories.length === 0) {
-        logger.warn(
-          '[LTMManager] No recent STM items available for LTM upsert'
-        );
-        return { last_node: TaskMemoryNode.LTM_MANAGER };
-      }
-
       const structuredModel = this.model.withStructuredOutput(
         createLtmSchemaMemorySchema(
           agentConfig.memory.size_limits.max_insert_episodic_size,
@@ -185,8 +241,13 @@ export class MemoryGraph {
         )
       );
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', agentConfig.prompts.task_memory_manager_prompt],
-        ['human', TASK_MEMEMORY_MANAGER_HUMAN_PROMPT],
+        [
+          'system',
+          process.env.DEV_PROMPT === 'true'
+            ? TASK_MEMORY_MANAGER_SYSTEM_PROMPT
+            : agentConfig.prompts.task_memory_manager_prompt,
+        ],
+        ['human', TASK_MEMORY_MANAGER_HUMAN_PROMPT],
       ]);
       // Use content of all steps of current task instead of just recent memories
       const allStepsContent = this.formatAllStepsOfCurrentTask(currentTask);
@@ -200,7 +261,7 @@ export class MemoryGraph {
         !summaryResult.episodic ||
         !summaryResult.semantic
       ) {
-        throw new Error('LTM summary result is empty');
+        throw new GraphError('E08MM420', 'MemoryGraph.holistic_memory_manager');
       }
       const episodic_memories: EpisodicMemoryContext[] = [];
       const semantic_memories: SemanticMemoryContext[] = [];
@@ -227,7 +288,7 @@ export class MemoryGraph {
         `[LTMManager] Generated summary: ${JSON.stringify(summaryResult, null, 2)}`
       );
       // Perform safe memory upsert with improved error handling
-      const upsertResult = await this.memoryDBManager.upsertMemory(
+      const upsertResult = await this.memoryDBManager.upsertCategorizedMemory(
         semantic_memories,
         episodic_memories
       );
@@ -241,8 +302,77 @@ export class MemoryGraph {
           `[LTMManager] Failed to upsert memory: ${upsertResult.error}`
         );
       }
+      return;
+    } catch (error) {
+      throw error;
+    }
+  }
 
-      return { last_node: TaskMemoryNode.LTM_MANAGER };
+  private async ltm_manager(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): Promise<{ lastNode: TaskMemoryNode; tasks?: TaskType[] } | Command> {
+    try {
+      const _isValidConfiguration: isValidConfigurationType =
+        isValidConfiguration(config);
+      if (_isValidConfiguration.isValid === false) {
+        throw new GraphError('E08GC270', 'MemoryGraph.ltm_manager', undefined, {
+          error: _isValidConfiguration.error,
+        });
+      }
+      if (
+        hasReachedMaxSteps(
+          state.currentGraphStep,
+          config.configurable!.agent_config!
+        )
+      ) {
+        logger.warn(`[Memory] Max steps reached (${state.currentGraphStep})`);
+        throw new GraphError('E08NE370', 'MemoryGraph.ltm_manager', undefined, {
+          currentGraphStep: state.currentGraphStep,
+        });
+      }
+      if (config.configurable?.agent_config?.memory.ltm_enabled === false) {
+        return { lastNode: TaskMemoryNode.END_GRAPH };
+      }
+      const agentConfig = config.configurable!.agent_config!;
+      const currentTask = getCurrentTask(state.tasks);
+      const recentMemories = STMManager.getRecentMemories(
+        state.memories.stm,
+        1
+      );
+      if (recentMemories.length === 0) {
+        return { lastNode: TaskMemoryNode.END_GRAPH };
+      }
+      if (
+        config.configurable?.agent_config?.memory.strategy ===
+        MemoryStrategy.CATEGORIZED
+      ) {
+        await this.categorized_memory_manager(
+          agentConfig,
+          currentTask,
+          state,
+          config
+        );
+        state.tasks[state.tasks.length - 1].steps.forEach((step) => {
+          step.isSavedInMemory = true;
+        });
+        return { lastNode: TaskMemoryNode.LTM_MANAGER, tasks: state.tasks };
+      }
+
+      if (
+        config.configurable?.agent_config?.memory.strategy ===
+        MemoryStrategy.HOLISTIC
+      ) {
+        const result = await this.holistic_memory_manager(
+          agentConfig,
+          currentTask
+        );
+        state.tasks[state.tasks.length - 1] = result.updatedTask;
+        return { lastNode: TaskMemoryNode.LTM_MANAGER, tasks: state.tasks };
+      }
+      return {
+        lastNode: TaskMemoryNode.LTM_MANAGER,
+      };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -255,7 +385,7 @@ export class MemoryGraph {
         GraphErrorTypeEnum.MEMORY_ERROR,
         errorObject,
         'LTM_MANAGER',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'LTM processing failed'
       );
     }
@@ -264,7 +394,7 @@ export class MemoryGraph {
   private async retrieve_memory(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): Promise<{ memories?: Memories; last_node: TaskMemoryNode } | Command> {
+  ): Promise<{ memories?: Memories; lastNode: TaskMemoryNode } | Command> {
     try {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
@@ -277,27 +407,19 @@ export class MemoryGraph {
           config.configurable!.agent_config!
         )
       ) {
-        logger.warn(
-          `[TaskManagerMemory] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
-        );
+        logger.warn(`[Memory] Max steps reached (${state.currentGraphStep})`);
         throw new Error('Max memory graph steps reached');
-      } // Fetch relevant memories from DB based on recent STM context
-      if (config.configurable?.agent_config?.memory.ltm_enabled === false) {
-        logger.info(
-          '[TaskManagerMemory] Memory disabled in configuration skipping retrieve memory'
-        );
-        return { last_node: TaskMemoryNode.END_GRAPH };
       }
       const agentConfig = config.configurable!.agent_config!;
       const recentSTM = STMManager.getRecentMemories(state.memories.stm, 1);
       if (recentSTM.length === 0) {
-        logger.warn(
-          '[RetrieveMemory] No recent STM items available for memory retrieval'
-        );
         return {
           memories: state.memories,
-          last_node: TaskMemoryNode.RETRIEVE_MEMORY,
+          lastNode: TaskMemoryNode.RETRIEVE_MEMORY,
         };
+      }
+      if (agentConfig.memory.ltm_enabled === false) {
+        return { lastNode: TaskMemoryNode.END_GRAPH };
       }
       const request = getRetrieveMemoryRequestFromGraph(state, config);
       if (!request) {
@@ -306,38 +428,34 @@ export class MemoryGraph {
       const retrievedMemories =
         await this.memoryDBManager.retrieveSimilarMemories(
           request,
-          agentConfig.user_id,
-          config.configurable!.thread_id!
+          agentConfig.user_id
         );
 
-      if (retrievedMemories.success && retrievedMemories.data) {
-        const stepIdInMemory: string[] = [];
-        state.memories.stm.items.map((item) =>
-          item ? stepIdInMemory.push(item.stepId) : null
-        );
-        const filteredResults = retrievedMemories.data.filter(
-          (mem) => mem.step_id && !stepIdInMemory.includes(mem.step_id)
-        );
-        logger.debug(
-          `[RetrieveMemory] Filtered to ${filteredResults.length} memories after STM check`
-        );
-        const updatedMemories = MemoryStateManager.updateLTM(
-          state.memories,
-          filteredResults
-        );
-        return {
-          memories: updatedMemories,
-          last_node: TaskMemoryNode.RETRIEVE_MEMORY,
-        };
-      } else {
+      if (!retrievedMemories.success || !retrievedMemories.data) {
         logger.warn(
           `[RetrieveMemory] Memory retrieval failed: ${retrievedMemories.error}`
         );
         return {
           memories: state.memories,
-          last_node: TaskMemoryNode.RETRIEVE_MEMORY,
+          lastNode: TaskMemoryNode.RETRIEVE_MEMORY,
         };
       }
+
+      const filteredResults = this.filterMemoriesNotInSTM(
+        retrievedMemories.data,
+        state.memories.stm.items
+      );
+      logger.debug(
+        `[RetrieveMemory] Filtered to ${filteredResults.length} memories after STM check`
+      );
+      const updatedMemories = MemoryStateManager.updateLTM(
+        state.memories,
+        filteredResults
+      );
+      return {
+        memories: updatedMemories,
+        lastNode: TaskMemoryNode.RETRIEVE_MEMORY,
+      };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -350,7 +468,7 @@ export class MemoryGraph {
         GraphErrorTypeEnum.MEMORY_ERROR,
         errorObject,
         'RETRIEVE_MEMORY',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Memory retrieval failed'
       );
     }
@@ -361,50 +479,32 @@ export class MemoryGraph {
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): TaskMemoryNode {
     try {
-      const lastNode = state.last_node;
-      logger.debug(`[TaskManagerMemory] Routing from agent: ${lastNode}`);
-      // Validate memory state
+      const lastNode = state.lastNode;
       if (!MemoryStateManager.validate(state.memories)) {
-        logger.error(
-          '[TaskManagerMemory] Invalid memory state detected, routing to end'
-        );
+        logger.error('[Memory] Invalid memory state');
         return TaskMemoryNode.END_GRAPH;
       }
-      // Route based on previous agent and current state
       switch (true) {
         case isInEnum(TaskExecutorNode, lastNode):
-          return TaskMemoryNode.RETRIEVE_MEMORY;
+          return TaskMemoryNode.LTM_MANAGER;
 
         case isInEnum(TaskManagerNode, lastNode):
-          logger.debug(
-            '[TaskManagerMemory] Plan validated → retrieving memory context'
-          );
           return TaskMemoryNode.RETRIEVE_MEMORY;
 
         case isInEnum(TaskVerifierNode, lastNode):
-          logger.debug(
-            '[TaskManagerMemory] Task verification complete → retrieving memory context'
-          );
           return TaskMemoryNode.LTM_MANAGER;
 
         case isInEnum(TaskMemoryNode, lastNode):
           if (lastNode === TaskMemoryNode.RETRIEVE_MEMORY) {
-            logger.debug(
-              '[TaskManagerMemory] Memory context retrieved → ending memory flow'
-            );
             return TaskMemoryNode.END;
           }
           return TaskMemoryNode.END_GRAPH;
         default:
-          logger.warn(
-            `[TaskManagerMemory] Unknown agent ${lastNode}, routing to end`
-          );
+          logger.warn(`[Memory] Unknown node: ${lastNode}`);
           return TaskMemoryNode.END_GRAPH;
       }
     } catch (error: any) {
-      logger.error(
-        `[TaskManagerMemory] Error in routing logic: ${error.message}`
-      );
+      logger.error(`[Memory] Routing error: ${error.message}`);
       return TaskMemoryNode.END_GRAPH;
     }
   }

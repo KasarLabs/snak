@@ -4,11 +4,7 @@ import { AgentConfig } from '@snakagent/core';
 
 export abstract class BaseToolRegistry {
   protected tools: DynamicStructuredTool<AnyZodObject>[] = [];
-  protected readonly agentConfig: AgentConfig.Runtime;
-
-  constructor(agentConfig: AgentConfig.Runtime) {
-    this.agentConfig = agentConfig;
-  }
+  constructor() {}
 
   protected abstract registerTools(): DynamicStructuredTool<AnyZodObject>[];
 

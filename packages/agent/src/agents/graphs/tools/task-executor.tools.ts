@@ -2,15 +2,11 @@ import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { BaseToolRegistry } from './base-tool-registry.js';
 import { AnyZodObject } from 'zod';
 import { AgentConfig } from '@snakagent/core';
-import { ThoughtsSchema, ThoughtsSchemaType } from '@schemas/graph.schemas.js';
-
-const responseTask = (thoughts: ThoughtsSchemaType): ThoughtsSchemaType => {
-  return thoughts;
-};
+import { ThoughtsSchema } from '@schemas/graph.schemas.js';
 
 export class TaskExecutorToolRegistry extends BaseToolRegistry {
-  constructor(agentConfig: AgentConfig.Runtime) {
-    super(agentConfig);
+  constructor() {
+    super();
     this.tools = this.registerTools();
   }
 
@@ -19,7 +15,7 @@ export class TaskExecutorToolRegistry extends BaseToolRegistry {
 
     // Response tool
     tools.push(
-      tool(responseTask, {
+      tool(() => {}, {
         name: 'response_task',
         description:
           '[SNAK Tool] Provide a structured response with thoughts, reasoning, criticism, and speak fields',
@@ -30,3 +26,5 @@ export class TaskExecutorToolRegistry extends BaseToolRegistry {
     return tools;
   }
 }
+
+export const TaskExecutorToolRegistryInstance = new TaskExecutorToolRegistry();

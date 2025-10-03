@@ -26,6 +26,7 @@ export enum GraphNode {
   AGENT_EXECUTOR = 'agent_executor',
   MEMORY_ORCHESTRATOR = 'memory_orchestrator',
   TASK_VERIFIER = 'task_verifier',
+  HUMAN_HANDLER = 'human_handler',
   END_GRAPH = 'end_graph',
 }
 
@@ -35,6 +36,7 @@ export enum GraphNode {
 export enum TaskManagerNode {
   CREATE_TASK = 'create_task',
   END_GRAPH = 'end_graph',
+  HUMAN = 'human',
   END = 'end',
 }
 

@@ -1,5 +1,5 @@
 import { IsNotEmpty } from 'class-validator';
-import { MessageRequest } from './agents.js';
+import { MessageRequest } from './agents.dto.js';
 import { AgentConfig } from '@common/agent.js';
 export class WebsocketAgentAddRequestDTO {
   @IsNotEmpty()

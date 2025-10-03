@@ -62,6 +62,5 @@ export const TaskVerificationSchema = z
       ),
   })
   .strict()
-  .strict();
-
+  .describe('Schema for verifying task completion status');
 export type TaskVerificationSchemaType = z.infer<typeof TaskVerificationSchema>;

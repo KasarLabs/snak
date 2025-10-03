@@ -1,5 +1,6 @@
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { LanggraphDatabase } from '@snakagent/database';
+import { GraphError } from '../../utils/error.utils.js';
 
 export class CheckpointerService {
   private static instance: PostgresSaver | undefined;
@@ -11,7 +12,7 @@ export class CheckpointerService {
     if (!this.initializing) {
       const pool = LanggraphDatabase.getInstance().getPool();
       if (!pool) {
-        throw new Error('LangGraph database pool not initialized');
+        throw new GraphError('E08DB850', 'CheckpointerService.getInstance');
       }
       this.initializing = (async () => {
         const saver = new PostgresSaver(pool);

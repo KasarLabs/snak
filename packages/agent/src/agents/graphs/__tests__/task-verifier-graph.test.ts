@@ -44,7 +44,7 @@
 
 //   const createMockState = (taskIndex: number = 0) => ({
 //     messages: [],
-//     last_node: TaskVerifierNode.TASK_VERIFIER,
+//     lastNode: TaskVerifierNode.TASK_VERIFIER,
 //     memories: {
 //       stm: { items: [], maxSize: 5, head: 0, size: 0, totalInserted: 0 },
 //       ltm: { items: [], episodic_size: 0, semantic_size: 0, merge_size: 0 },

@@ -7,21 +7,21 @@ import {
 } from '../../../shared/types/index.js';
 import {
   GenerateToolCallsFromMessage,
+  getCurrentTask,
+  getHITLContraintFromTreshold,
   handleEndGraph,
   handleNodeError,
   hasReachedMaxSteps,
   isValidConfiguration,
   isValidConfigurationType,
   routingFromSubGraphToParentGraphEndNode,
+  routingFromSubGraphToParentGraphHumanHandlerNode,
 } from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
-import {
-  TaskManagerNode,
-  ExecutionMode,
-} from '../../../shared/enums/agent.enum.js';
+import { TaskManagerNode } from '../../../shared/enums/agent.enum.js';
 import {
   DynamicStructuredTool,
   StructuredTool,
@@ -30,27 +30,17 @@ import {
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
-import { TaskSchemaType } from '@schemas/graph.schemas.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_MANAGER_HUMAN_PROMPT,
-  TASK_MANAGER_MEMORY_PROMPT,
+  TASK_MANAGER_MEMORY_PROMPT_TASK_HISTORY,
+  TASK_MANAGER_MEMORY_RAG_PROMPT,
+  TASK_MANAGER_SYSTEM_PROMPT,
 } from '@prompts/agents/task-manager.prompts.js';
-import { TaskManagerToolRegistry } from '../tools/task-manager.tools.js';
+import { TaskManagerToolRegistryInstance } from '../tools/task-manager.tools.js';
+import { GraphError } from '../utils/error.utils.js';
+import { tasks_parser } from '../parser/tasks/tasks.parser.js';
 
-export function tasks_parser(tasks: TaskType[]): string {
-  try {
-    if (!tasks || tasks.length === 0) {
-      return 'No tasks available.';
-    }
-    const formattedTasks = tasks.map((task) => {
-      return `task_id : ${task.id}\n task : ${task.task.directive}\n status : ${task.status}\n verificiation_result : ${task.task_verification}\n`;
-    });
-    return formattedTasks.join('\n');
-  } catch (error) {
-    throw error;
-  }
-}
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
 ): string => {
@@ -82,6 +72,7 @@ export class TaskManagerGraph {
     'create_task',
     'block_task',
     'end_task',
+    'ask_human',
   ];
   constructor(
     agentConfig: AgentConfig.Runtime,
@@ -89,7 +80,7 @@ export class TaskManagerGraph {
   ) {
     this.model = agentConfig.graph.model;
     this.toolsList = toolList.concat(
-      new TaskManagerToolRegistry(agentConfig).getTools()
+      TaskManagerToolRegistryInstance.getTools()
     );
   }
   private async planExecution(
@@ -98,16 +89,15 @@ export class TaskManagerGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: TaskManagerNode;
+        lastNode: TaskManagerNode;
         tasks?: TaskType[];
-        executionMode?: ExecutionMode;
         currentGraphStep: number;
         error: GraphErrorType | null;
         skipValidation?: { skipValidation: boolean; goto: string };
       }
     | {
         retry: number;
-        last_node: TaskManagerNode;
+        lastNode: TaskManagerNode;
         error: GraphErrorType;
       }
     | Command
@@ -116,7 +106,12 @@ export class TaskManagerGraph {
       const _isValidConfiguration: isValidConfigurationType =
         isValidConfiguration(config);
       if (_isValidConfiguration.isValid === false) {
-        throw new Error(_isValidConfiguration.error);
+        throw new GraphError(
+          'E08GC270',
+          'TaskManager.planExecution',
+          undefined,
+          { error: _isValidConfiguration.error }
+        );
       }
       if (
         hasReachedMaxSteps(
@@ -125,14 +120,43 @@ export class TaskManagerGraph {
         )
       ) {
         logger.warn(
-          `[TaskManager] Memory sub-graph limit reached (${state.currentGraphStep}), routing to END`
+          `[TaskManager] Max steps reached (${state.currentGraphStep})`
         );
-        throw new Error('Max steps reached');
+        throw new GraphError(
+          'E08NE370',
+          'TaskManager.planExecution',
+          undefined,
+          { currentGraphStep: state.currentGraphStep }
+        );
+      }
+      if (state.tasks.length > 0) {
+        const currentTask = getCurrentTask(state.tasks);
+        if (!currentTask) {
+          throw new GraphError('E08ST1040', 'TaskManager.planExecution');
+        }
+        if (currentTask.status === 'pending') {
+          logger.info(
+            `[Task Manager] Current task "${currentTask.task?.directive}" is still pending, routing to Task Executor`
+          );
+          return {
+            messages: state.messages,
+            lastNode: TaskManagerNode.CREATE_TASK,
+            error: null,
+            currentGraphStep: state.currentGraphStep,
+            tasks: state.tasks,
+          };
+        }
       }
       const agentConfig = config.configurable!.agent_config!;
       const prompt = ChatPromptTemplate.fromMessages([
-        ['system', agentConfig.prompts.task_manager_prompt],
-        ['ai', TASK_MANAGER_MEMORY_PROMPT],
+        [
+          'system',
+          process.env.DEV_PROMPT === 'true'
+            ? TASK_MANAGER_SYSTEM_PROMPT
+            : agentConfig.prompts.task_manager_prompt,
+        ],
+        ['ai', TASK_MANAGER_MEMORY_PROMPT_TASK_HISTORY],
+        ['ai', TASK_MANAGER_MEMORY_RAG_PROMPT],
         ['human', TASK_MANAGER_HUMAN_PROMPT],
       ]);
 
@@ -140,12 +164,17 @@ export class TaskManagerGraph {
       const formattedPrompt = await prompt.formatMessages({
         agent_name: agentConfig.profile.name,
         agent_description: agentConfig.profile.description,
-        past_tasks: tasks_parser(state.tasks),
+        agent_contexts: agentConfig.profile.contexts.join(', '),
+        task_history: tasks_parser(state.tasks),
         objectives: config.configurable!.user_request?.request,
         failed_tasks: state.error
           ? `The previous task failed due to: ${state.error.message}`
           : '',
-        rag_content: '', // RAG content can be added here if available
+        rag_content: 'No rag content avaible', // RAG content can be added here if available
+        hitl_constraints: getHITLContraintFromTreshold(
+          config.configurable?.user_request?.hitl_threshold ?? 0
+        ),
+        tools: parseToolsToJson(this.toolsList),
       });
       let aiMessage;
       try {
@@ -160,9 +189,9 @@ export class TaskManagerGraph {
           logger.error(
             `[Task Manager] Google Gemini API error: ${error.message}`
           );
-          throw new Error(
-            `Google Gemini API error - possibly due to incompatible function declarations: ${error.message}`
-          );
+          throw new GraphError('E08MI570', 'TaskManager.planExecution', error, {
+            errorType: 'GoogleGenerativeAIError',
+          });
         }
         // Re-throw other errors
         throw error;
@@ -173,18 +202,15 @@ export class TaskManagerGraph {
         aiMessage.invalid_tool_calls &&
         aiMessage.invalid_tool_calls.length > 0
       ) {
-        logger.info('[Task Manager] Regenerating tool calls from message');
+        logger.warn('[Task Manager] Invalid tool calls, regenerating');
         aiMessage = GenerateToolCallsFromMessage(aiMessage);
       }
-      aiMessage.content = ''; // Clear content because we are using tool calls only
-      logger.info(`[Task Manager] Successfully created task`);
+      aiMessage.content = '';
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length <= 0) {
-        logger.warn(
-          `[Task Manager] No tool calls detected in model response, retrying execution`
-        );
+        logger.warn(`[Task Manager] No tool calls detected, retrying`);
         return {
           retry: (state.retry ?? 0) + 1,
-          last_node: TaskManagerNode.CREATE_TASK,
+          lastNode: TaskManagerNode.CREATE_TASK,
           error: {
             type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
             message: 'No tool calls found in model response',
@@ -200,7 +226,7 @@ export class TaskManagerGraph {
         );
         return {
           retry: (state.retry ?? 0) + 1,
-          last_node: TaskManagerNode.CREATE_TASK,
+          lastNode: TaskManagerNode.CREATE_TASK,
           error: {
             type: GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS,
             message: 'Multiple tool calls found, expected single tool call',
@@ -216,7 +242,7 @@ export class TaskManagerGraph {
         );
         return {
           retry: (state.retry ?? 0) + 1,
-          last_node: TaskManagerNode.CREATE_TASK,
+          lastNode: TaskManagerNode.CREATE_TASK,
           error: {
             type: GraphErrorTypeEnum.TOOL_ERROR,
             message: `Tool call name "${aiMessage.tool_calls[0].name}" is not recognized`,
@@ -226,42 +252,110 @@ export class TaskManagerGraph {
           },
         };
       }
-      if (aiMessage.tool_calls[0].name === 'block_task') {
-        logger.info('[Task Manager] Task creation aborted by model');
-        return handleNodeError(
-          GraphErrorTypeEnum.TASK_ABORTED,
-          new Error('Task creation aborted by model'),
-          'Task Manager',
-          state
-        );
-      } else if (aiMessage.tool_calls[0].name === 'end_task') {
-        logger.info(
-          '[Task Manager] Ending task manager graph as model request'
-        );
-        return handleEndGraph(
-          'task_manager',
-          state,
-          'Ending task manager graph as model request'
-        );
-      }
       const parsed_args = JSON.parse(
         typeof aiMessage.tool_calls[0].args === 'string'
           ? aiMessage.tool_calls[0].args
           : JSON.stringify(aiMessage.tool_calls[0].args)
-      ) as TaskSchemaType;
-      const tasks = {
+      );
+      if (aiMessage.tool_calls[0].name === 'ask_human') {
+        const task: TaskType = {
+          id: uuidv4(),
+          thought: parsed_args,
+          human: '',
+          request: config.configurable?.user_request?.request ?? '',
+          steps: [],
+          isHumanTask: true,
+          status: 'waiting_human' as const,
+        };
+        state.tasks.push(task);
+        aiMessage.additional_kwargs = {
+          task_id: task.id,
+          task_title: task.thought.speak,
+          step_id: null,
+          final: false,
+          from: TaskManagerNode.CREATE_TASK,
+        };
+        return {
+          messages: [aiMessage],
+          lastNode: TaskManagerNode.CREATE_TASK,
+          tasks: state.tasks,
+          currentGraphStep: state.currentGraphStep + 1,
+          error: null,
+        };
+      }
+      if (aiMessage.tool_calls[0].name === 'block_task') {
+        const task: TaskType = {
+          id: uuidv4(),
+          thought: parsed_args.thought,
+          task: parsed_args.task,
+          request: config.configurable?.user_request?.request ?? '',
+          steps: [],
+          isHumanTask: false,
+          status: 'blocked' as const,
+        };
+        state.tasks.push(task);
+        aiMessage.additional_kwargs = {
+          task_id: task.id,
+          step_id: null,
+          final: true,
+          from: TaskManagerNode.CREATE_TASK,
+        };
+        return handleNodeError(
+          GraphErrorTypeEnum.TASK_ABORTED,
+          new Error('Task creation aborted by model'),
+          'Task Manager',
+          {
+            currentGraphStep: state.currentGraphStep,
+            additionalUpdates: { tasks: state.tasks, messages: [aiMessage] },
+          }
+        );
+      } else if (aiMessage.tool_calls[0].name === 'end_task') {
+        const task: TaskType = {
+          id: uuidv4(),
+          thought: parsed_args.thought,
+          task: parsed_args.task,
+          request: config.configurable?.user_request?.request ?? '',
+          steps: [],
+          isHumanTask: false,
+          status: 'completed' as const,
+        };
+        state.tasks.push(task);
+        aiMessage.additional_kwargs = {
+          task_id: task.id,
+          step_id: null,
+          final: true,
+          from: TaskManagerNode.CREATE_TASK,
+        };
+        return handleEndGraph(
+          'task_manager',
+          {
+            currentGraphStep: state.currentGraphStep,
+            additionalUpdates: { tasks: state.tasks, messages: [aiMessage] },
+          },
+          'Ending task manager graph as model request'
+        );
+      }
+      const task: TaskType = {
         id: uuidv4(),
         thought: parsed_args.thought,
         task: parsed_args.task,
+        request: config.configurable?.user_request?.request ?? '',
         steps: [],
+        isHumanTask: false,
         status: 'pending' as const,
       };
-      state.tasks.push(tasks);
+      state.tasks.push(task);
+      aiMessage.additional_kwargs = {
+        task_id: task.id,
+        step_id: null,
+        task_title: task.task?.directive ?? 'New Task',
+        final: false,
+        from: TaskManagerNode.CREATE_TASK,
+      };
       return {
         messages: [aiMessage],
-        last_node: TaskManagerNode.CREATE_TASK,
+        lastNode: TaskManagerNode.CREATE_TASK,
         tasks: state.tasks,
-        executionMode: ExecutionMode.PLANNING,
         currentGraphStep: state.currentGraphStep + 1,
         error: null,
       };
@@ -271,50 +365,58 @@ export class TaskManagerGraph {
         GraphErrorTypeEnum.MANAGER_ERROR,
         error,
         'TASK_MANAGER',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Plan creation failed'
       );
     }
   }
 
-  private shouldContinue(
+  public async humanNode(
+    state: typeof GraphState.State,
+    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+  ): Promise<Command> {
+    logger.info(
+      '[TaskManager:Human] Using Command to goto parent graph human_handler'
+    );
+    return routingFromSubGraphToParentGraphHumanHandlerNode(state, config);
+  }
+  private task_manager_router(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): TaskManagerNode {
+    const currentTask = getCurrentTask(state.tasks);
+    if (!currentTask) {
+      throw new GraphError('E08ST1050', 'TaskManager.task_manager_router');
+    }
     if (!config.configurable?.agent_config) {
-      throw new Error('Agent configuration is required for routing decisions.');
+      throw new GraphError('E08GC210', 'TaskManager.task_manager_router');
     }
     if (state.retry > config.configurable?.agent_config?.graph.max_retries) {
-      logger.warn(
-        '[Task Manager Router] Max retries reached, routing to END node'
-      );
+      logger.warn('[Task Manager] Max retries reached');
       return TaskManagerNode.END_GRAPH;
     }
-    if (state.last_node === TaskManagerNode.CREATE_TASK) {
+    if (state.lastNode === TaskManagerNode.CREATE_TASK) {
+      if (currentTask.status === 'waiting_human') {
+        return TaskManagerNode.HUMAN;
+      }
       if (state.error && state.error.hasError) {
         if (
           state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS ||
           state.error.type === GraphErrorTypeEnum.TOOL_ERROR
         ) {
-          logger.warn(
-            `[Task Manager Router] Retry condition met, routing back to CREATE_TASK`
-          );
           return TaskManagerNode.CREATE_TASK;
         }
       } else {
-        logger.info('[Task Manager Router] Task created, routing to END');
+        logger.info(
+          `[Task Manager] Task created: ${currentTask.thought?.text || currentTask.task?.directive}`
+        );
         return TaskManagerNode.END;
       }
     }
-    logger.warn('[Task Manager Router] Routing to END_GRAPH node');
+    if (state.lastNode === TaskManagerNode.HUMAN) {
+      return TaskManagerNode.CREATE_TASK;
+    }
     return TaskManagerNode.END_GRAPH;
-  }
-
-  private task_manager_router(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): TaskManagerNode {
-    return this.shouldContinue(state, config);
   }
 
   public getTaskManagerGraph() {
@@ -331,6 +433,7 @@ export class TaskManagerGraph {
         TaskManagerNode.END_GRAPH,
         routingFromSubGraphToParentGraphEndNode.bind(this)
       )
+      .addNode(TaskManagerNode.HUMAN, this.humanNode.bind(this))
       .addEdge(START, TaskManagerNode.CREATE_TASK)
       .addConditionalEdges(
         TaskManagerNode.CREATE_TASK,
