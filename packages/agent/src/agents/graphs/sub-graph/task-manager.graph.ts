@@ -311,12 +311,12 @@ export class TaskManagerGraph {
           },
         };
       }
+      const parsed_args = JSON.parse(
+        typeof aiMessage.tool_calls[0].args === 'string'
+          ? aiMessage.tool_calls[0].args
+          : JSON.stringify(aiMessage.tool_calls[0].args)
+      );
       if (aiMessage.tool_calls[0].name === 'ask_human') {
-        const parsed_args = JSON.parse(
-          typeof aiMessage.tool_calls[0].args === 'string'
-            ? aiMessage.tool_calls[0].args
-            : JSON.stringify(aiMessage.tool_calls[0].args)
-        ) as ThoughtsSchemaType;
         const task: TaskType = {
           id: uuidv4(),
           thought: parsed_args,
@@ -343,24 +343,57 @@ export class TaskManagerGraph {
         };
       }
       if (aiMessage.tool_calls[0].name === 'block_task') {
+        const task: TaskType = {
+          id: uuidv4(),
+          thought: parsed_args.thought,
+          task: parsed_args.task,
+          request: config.configurable?.user_request?.request ?? '',
+          steps: [],
+          isHumanTask: false,
+          status: 'blocked' as const,
+        };
+        state.tasks.push(task);
+        aiMessage.additional_kwargs = {
+          task_id: task.id,
+          step_id: null,
+          final: true,
+          from: TaskManagerNode.CREATE_TASK,
+        };
         return handleNodeError(
           GraphErrorTypeEnum.TASK_ABORTED,
           new Error('Task creation aborted by model'),
           'Task Manager',
-          state
+          {
+            currentGraphStep: state.currentGraphStep,
+            additionalUpdates: { tasks: state.tasks, messages: [aiMessage] },
+          }
         );
       } else if (aiMessage.tool_calls[0].name === 'end_task') {
+        const task: TaskType = {
+          id: uuidv4(),
+          thought: parsed_args.thought,
+          task: parsed_args.task,
+          request: config.configurable?.user_request?.request ?? '',
+          steps: [],
+          isHumanTask: false,
+          status: 'completed' as const,
+        };
+        state.tasks.push(task);
+        aiMessage.additional_kwargs = {
+          task_id: task.id,
+          step_id: null,
+          final: true,
+          from: TaskManagerNode.CREATE_TASK,
+        };
         return handleEndGraph(
           'task_manager',
-          state,
+          {
+            currentGraphStep: state.currentGraphStep,
+            additionalUpdates: { tasks: state.tasks, messages: [aiMessage] },
+          },
           'Ending task manager graph as model request'
         );
       }
-      const parsed_args = JSON.parse(
-        typeof aiMessage.tool_calls[0].args === 'string'
-          ? aiMessage.tool_calls[0].args
-          : JSON.stringify(aiMessage.tool_calls[0].args)
-      ) as TaskSchemaType;
       const task: TaskType = {
         id: uuidv4(),
         thought: parsed_args.thought,
@@ -391,7 +424,7 @@ export class TaskManagerGraph {
         GraphErrorTypeEnum.MANAGER_ERROR,
         error,
         'TASK_MANAGER',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Plan creation failed'
       );
     }

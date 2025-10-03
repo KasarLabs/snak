@@ -231,7 +231,7 @@ Reasoning: ${verificationResult.reasoning}`,
         GraphErrorTypeEnum.VALIDATION_ERROR,
         error,
         'TASK_VERIFIER',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Task verification process failed'
       );
     }
@@ -397,7 +397,7 @@ Reasoning: ${verificationResult.reasoning}`,
         GraphErrorTypeEnum.EXECUTION_ERROR,
         error,
         'TASK_UPDATER',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Task updater process failed'
       );
     }

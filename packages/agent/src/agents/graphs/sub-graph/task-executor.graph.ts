@@ -317,7 +317,7 @@ export class AgentExecutorGraph {
           memories: state.memories,
           task: state.tasks,
           error: {
-            type: GraphErrorTypeEnum.BLOCKED_TASK,
+            type: GraphErrorTypeEnum.BLOCK_TASK,
             message: (
               JSON.parse(
                 JSON.stringify(
@@ -381,7 +381,7 @@ export class AgentExecutorGraph {
         GraphErrorTypeEnum.EXECUTION_ERROR,
         error,
         'EXECUTOR',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Model invocation failed during execution'
       );
     }
@@ -511,7 +511,7 @@ export class AgentExecutorGraph {
         GraphErrorTypeEnum.TIMEOUT_ERROR,
         error,
         'TOOLS',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Tool execution failed'
       );
     }
@@ -565,7 +565,7 @@ export class AgentExecutorGraph {
         return TaskExecutorNode.END_GRAPH;
       }
       if (state.error && state.error.hasError) {
-        if (state.error.type === GraphErrorTypeEnum.BLOCKED_TASK) {
+        if (state.error.type === GraphErrorTypeEnum.BLOCK_TASK) {
           return TaskExecutorNode.END;
         }
         if (state.error.type === GraphErrorTypeEnum.WRONG_NUMBER_OF_TOOLS) {

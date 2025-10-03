@@ -6,7 +6,7 @@ export enum GraphErrorTypeEnum {
   VALIDATION_ERROR = 'validation_error',
   MEMORY_ERROR = 'memory_error',
   MANAGER_ERROR = 'manager_error',
-  BLOCKED_TASK = 'blocked_task',
+  BLOCK_TASK = 'block_task',
   WRONG_NUMBER_OF_TOOLS = 'wrong_number_of_tools',
   TIMEOUT_ERROR = 'timeout_error',
   UNKNOWN_ERROR = 'unknown_error',
@@ -104,3 +104,8 @@ export interface skipValidationType {
   skipValidation: boolean;
   goto: string;
 }
+
+export type StateErrorHandlerType = {
+  currentGraphStep: number;
+  additionalUpdates?: Record<string, any>;
+};

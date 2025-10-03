@@ -12,10 +12,11 @@ import {
 import {
   GraphErrorType,
   GraphErrorTypeEnum,
+  StateErrorHandlerType,
   TaskType,
 } from '../../../shared/types/index.js';
 import { AgentConfig, logger } from '@snakagent/core';
-import { Command } from '@langchain/langgraph';
+import { Command, Graph, task } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   GraphConfigurableAnnotation,
@@ -167,7 +168,7 @@ export function handleNodeError(
   type: GraphErrorTypeEnum,
   error: Error,
   source: string,
-  state?: any,
+  state?: StateErrorHandlerType,
   additionalContext?: string
 ): Command {
   // Avoid redundant context if additionalContext is same as error message
@@ -181,12 +182,13 @@ export function handleNodeError(
 
   return createErrorCommand(type, enhancedError, source, {
     currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
+    ...state?.additionalUpdates,
   });
 }
 
 export function handleEndGraph(
   source: string,
-  state?: any,
+  state?: StateErrorHandlerType,
   successMessage?: string,
   additionalUpdates?: Record<string, any>
 ): Command {
@@ -198,7 +200,7 @@ export function handleEndGraph(
     error: null,
     skipValidation: { skipValidation: true, goto: 'end_graph' },
     currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
-    ...additionalUpdates,
+    ...state?.additionalUpdates,
   };
 
   return new Command({

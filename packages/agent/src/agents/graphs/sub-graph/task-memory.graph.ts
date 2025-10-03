@@ -386,7 +386,7 @@ export class MemoryGraph {
         GraphErrorTypeEnum.MEMORY_ERROR,
         errorObject,
         'LTM_MANAGER',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'LTM processing failed'
       );
     }
@@ -469,7 +469,7 @@ export class MemoryGraph {
         GraphErrorTypeEnum.MEMORY_ERROR,
         errorObject,
         'RETRIEVE_MEMORY',
-        state,
+        { currentGraphStep: state.currentGraphStep },
         'Memory retrieval failed'
       );
     }

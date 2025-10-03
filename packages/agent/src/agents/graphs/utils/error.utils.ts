@@ -160,7 +160,7 @@ type GraphErrorType =
   | 'validation_error'
   | 'memory_error'
   | 'manager_error'
-  | 'blocked_task'
+  | 'block_task'
   | 'wrong_number_of_tools'
   | 'timeout_error'
   | 'unknown_error';
