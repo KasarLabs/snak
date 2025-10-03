@@ -309,6 +309,7 @@ export class AgentExecutorGraph {
           from: TaskExecutorNode.REASONING_EXECUTOR,
           final: false,
         };
+        state.tasks[state.tasks.length - 1].status = 'failed';
         return {
           messages: [aiMessage],
           lastNode: TaskExecutorNode.REASONING_EXECUTOR,

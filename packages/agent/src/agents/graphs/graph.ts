@@ -166,6 +166,7 @@ export class Graph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
+    
     if (state.error?.hasError && state.error.type !== 'blocked_task') {
       logger.error(
         `[Router] Error: ${state.error.source} -> ${state.error.message}`
