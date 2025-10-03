@@ -1,4 +1,4 @@
-import { TaskType } from "@stypes/graph.types.js";
+import { TaskType } from '@stypes/graph.types.js';
 
 export function tasks_parser(
   tasks: TaskType[],

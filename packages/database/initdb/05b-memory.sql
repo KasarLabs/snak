@@ -128,8 +128,6 @@ CREATE OR REPLACE FUNCTION upsert_semantic_memory_smart(
     p_embedding vector(384),        -- Vector representation of the fact
     p_similarity_threshold FLOAT,   -- Similarity cutoff for updates vs inserts
 
-    p_similarity_threshold FLOAT,   -- Similarity cutoff for updates vs inserts
-
     -- Optional parameters with defaults
     p_category VARCHAR(50) DEFAULT NULL,            -- Knowledge category
     p_source_events UUID[] DEFAULT '{}'         -- Contributing episodic memories
@@ -235,7 +233,6 @@ BEGIN
             p_source_events,
             v_created_at,
             v_created_at
-            v_created_at
         )
         RETURNING id INTO v_memory_id;
         
@@ -267,11 +264,8 @@ CREATE OR REPLACE FUNCTION insert_episodic_memory_smart(
     p_embedding vector(384),
     p_similarity_threshold FLOAT,    -- Higher threshold - episodic memories are more specific
 
-    p_similarity_threshold FLOAT,    -- Higher threshold - episodic memories are more specific
-
     -- Optional parameters
     p_sources TEXT[] DEFAULT '{}',
-    p_confidence FLOAT DEFAULT 1.0
     p_confidence FLOAT DEFAULT 1.0
 )
 RETURNS TABLE (
@@ -375,9 +369,8 @@ $$;
 -- Searches both episodic and semantic memories for relevant information
 CREATE OR REPLACE FUNCTION retrieve_similar_categorized_memories(
     p_user_id VARCHAR(100),
+    p_task_id UUID,
     p_embedding vector(384),
-    p_threshold FLOAT,    -- Lower threshold allows broader retrieval
-    p_limit INTEGER
     p_threshold FLOAT,    -- Lower threshold allows broader retrieval
     p_limit INTEGER
 )
@@ -398,13 +391,7 @@ BEGIN
     WITH similar_semantic AS (
         -- Retrieve relevant semantic memories (facts/knowledge)
         SELECT
-        SELECT
             'semantic'::TEXT as type,
-            sm.id,
-            sm.task_id,
-            sm.step_id,
-            sm.fact as content,
-            1 - (sm.embedding <=> p_embedding) as sim,
             sm.id,
             sm.task_id,
             sm.step_id,
@@ -415,28 +402,20 @@ BEGIN
                 'access_count', sm.access_count,
                 'category', sm.category,
                 'updated_at', sm.updated_at
-                'confidence', sm.confidence,
-                'access_count', sm.access_count,
-                'category', sm.category,
-                'updated_at', sm.updated_at
             ) as meta
         FROM semantic_memories sm
         WHERE sm.user_id = p_user_id
+            AND sm.task_id = p_task_id
             AND 1 - (sm.embedding <=> p_embedding) >= p_threshold
     ),
     similar_episodic AS (
         -- Retrieve relevant episodic memories (experiences)
         SELECT
-        SELECT
             'episodic'::TEXT as type,
             em.id,
             em.task_id,
             em.step_id,
-            em.id,
-            em.task_id,
-            em.step_id,
             em.content as content,
-            1 - (em.embedding <=> p_embedding) as sim,
             1 - (em.embedding <=> p_embedding) as sim,
             jsonb_build_object(
                 'created_at', em.created_at,
@@ -445,6 +424,7 @@ BEGIN
             ) as meta
         FROM episodic_memories em
         WHERE em.user_id = p_user_id
+            AND em.task_id = p_task_id
             AND 1 - (em.embedding <=> p_embedding) >= p_threshold
             AND em.expires_at > NOW()  -- Only non-expired memories
     )
@@ -720,12 +700,12 @@ ANALYZE semantic_memories;
 -- Storing semantic knowledge:
 --   SELECT * FROM upsert_semantic_memory_smart(
 --       'user123', 'task-uuid'::UUID, 'step-uuid'::UUID, 'User prefers dark theme',
---       '[0.3, 0.4, ...]'::vector(384), 0.85, 'preference', ARRAY['uuid1'::UUID, 'uuid2'::UUID]
+--       '[0.3, 0.4, ...]'::vector(384), 0.85, 'preference', ARRAY[123]
 --   );
 --
--- Retrieving relevant memories (searches across all tasks):
+-- Retrieving relevant memories:
 --   SELECT * FROM retrieve_similar_categorized_memories(
---       'user123', '[0.5, 0.6, ...]'::vector(384), 0.35, 5
+--       'user123', 'task-uuid'::UUID, '[0.5, 0.6, ...]'::vector(384), 0.35, 5
 --   );
 --
 -- Getting all memories for a task:
