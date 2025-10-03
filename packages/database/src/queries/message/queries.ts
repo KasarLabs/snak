@@ -20,6 +20,7 @@ export namespace message {
     checkpoint_id: string;
     task_id: string | null;
     step_id: string | null;
+    task_title: string | null;
     from: string;
     tools: any[] | null;
     message: string | null;
@@ -70,10 +71,10 @@ export namespace message {
     const q = new Postgres.Query(
       `
       INSERT INTO message (
-        event, run_id, thread_id, checkpoint_id, task_id, step_id, "from", agent_id, user_id,
+        event, run_id, thread_id, checkpoint_id, task_id, step_id, task_title, "from", agent_id, user_id,
         message, tools, metadata, "timestamp"
       )
-      VALUES ($1, $2, $3, $4, $5::UUID, $6::UUID, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5::UUID, $6::UUID, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id;
     `,
       [
@@ -83,6 +84,7 @@ export namespace message {
         msg.checkpoint_id ?? null,
         msg.task_id ?? null,
         msg.step_id ?? null,
+        msg.task_title ?? null,
         msg.from,
         agentId,
         userId,

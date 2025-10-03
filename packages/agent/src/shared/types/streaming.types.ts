@@ -13,7 +13,6 @@ export interface ChunkOutputMetadata {
   ls_model_type?: string;
   ls_model_name?: string;
   ls_temperature?: number;
-  task_title?: string;
   error?: GraphErrorType | null;
   final?: boolean;
   [key: string]: any;
@@ -26,6 +25,7 @@ export interface ChunkOutput {
   checkpoint_id: string;
   task_id: string | null;
   step_id: string | null;
+  task_title: string | null;
   from: GraphNode;
   tools: ToolCall[] | null;
   message: string | null;

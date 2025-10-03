@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS message (
     -- UUID type for consistency with other identifiers
     step_id UUID,
 
+    task_title TEXT,
+
     -- Message sender identification
     -- Quoted because 'from' is a PostgreSQL reserved word
     -- Values: 'user', 'agent', 'system', 'tool', etc.
@@ -125,6 +127,7 @@ RETURNS TABLE (
     event TEXT,
     run_id TEXT,
     thread_id TEXT,
+    task_title TEXT,
     checkpoint_id TEXT,
     task_id UUID,
     step_id UUID,
@@ -151,6 +154,7 @@ BEGIN
         m.checkpoint_id,
         m.task_id,
         m.step_id,
+        m.task_title,
         m."from",
         m.message,
         m.tools,
@@ -200,6 +204,7 @@ RETURNS TABLE (
     checkpoint_id TEXT,
     task_id UUID,
     step_id UUID,
+    task_title TEXT,
     "from" TEXT,
     message TEXT,
     tools JSONB,
@@ -225,6 +230,7 @@ BEGIN
             m.checkpoint_id,
             m.task_id,
             m.step_id,
+            m.task_title,
             m."from",
             m.message,
             m.tools,
@@ -251,6 +257,7 @@ BEGIN
             m.checkpoint_id,
             m.task_id,
             m.step_id,
+            m.task_title,
             m."from",
             m.message,
             m.tools,

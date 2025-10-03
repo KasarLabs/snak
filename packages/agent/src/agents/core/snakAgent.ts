@@ -269,7 +269,6 @@ export class SnakAgent extends BaseAgent {
       ls_model_type: chunk.metadata.ls_model_type,
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
-      task_title: chunk.data?.output?.additional_kwargs?.task_title ?? null,
       error: graphError,
       retry: retryCount,
     };
@@ -281,6 +280,7 @@ export class SnakAgent extends BaseAgent {
       thread_id: state.config.configurable?.thread_id,
       task_id: currentTaskId,
       step_id: currentStepId,
+      task_title: chunk.data?.output?.additional_kwargs?.task_title ?? null,
       from,
       tools:
         chunk.event === EventType.ON_CHAT_MODEL_END
@@ -494,6 +494,7 @@ export class SnakAgent extends BaseAgent {
           checkpoint_id: currentCheckpointId,
           task_id: currentTaskId ? currentTaskId : null,
           step_id: currentStepId ? currentStepId : null,
+          task_title: null,
           tools: lastChunk.data.output.tool_calls ?? null,
           message: lastChunk.data.output.content
             ? lastChunk.data.output.content.toLocaleString()
