@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
-import { ApiKeyGuard } from './src/guard/ApikeyGuard.js';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule } from './config/config.module.js';
 import { CleanupModule } from './common/cleanup/cleanup.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -30,7 +30,7 @@ import { WorkersModule } from './src/modules/workers.module.js';
     Reflector,
     {
       provide: APP_GUARD,
-      useClass: ApiKeyGuard,
+      useClass: ThrottlerGuard,
     },
     // TODO add interceptor for agent response
     // {

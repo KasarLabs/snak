@@ -5,7 +5,6 @@ import {
   SemanticMemoryContext,
   ltmSchemaType,
   createLtmSchemaMemorySchema,
-  MemoryOperationResult,
   HolisticMemoryContext,
 } from '../../../shared/types/memory.types.js';
 import {

@@ -101,6 +101,7 @@ export class SnakToolRegistry {
 
     if (!allowed_tools || allowed_tools.length === 0) {
       logger.warn('SnakToolRegistry: No External tools allowed');
+      logger.warn('SnakToolRegistry: No External tools allowed');
       return [];
     }
 
@@ -167,6 +168,11 @@ export const registerTools = async (
               'autonomous',
               tool.name
             );
+            metrics.agentToolUseCount(
+              agentId.toString(),
+              'autonomous',
+              tool.name
+            );
           }
 
           tools.push(...tools_new);
@@ -198,6 +204,7 @@ export const createAllowedTools = async (
   allowed_tools: string[] = []
 ): Promise<DynamicStructuredTool<any>[]> => {
   if (!allowed_tools || allowed_tools.length === 0) {
+    logger.warn('No External tools allowed');
     logger.warn('No External tools allowed');
     return [];
   }

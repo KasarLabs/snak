@@ -165,6 +165,6 @@ export function formatSTMToXML(stm: STMContext): string {
     return formatd_version.join('\n');
   } catch (error) {
     logger.error('Error parsing STM to XML', { error });
-    return '<AI_conversation>\n  <!-- Error parsing short-term-memory -->\n</AI_conversation>';
+    return '<ai_conversation>\n  <!-- Error parsing short-term-memory -->\n</ai_conversation>';
   }
 }

@@ -7,7 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { FileIngestionService } from '../services/file-ingestion.service.js';
-import { FileValidationService } from '@snakagent/core';
+import { FileValidationService, getGuardValue } from '@snakagent/core';
 import { MultipartFile } from '@fastify/multipart';
 import { FastifyRequest } from 'fastify';
 import { ConfigurationService } from '../../config/configuration.js';
@@ -40,6 +40,7 @@ export class FileIngestionController {
   @Post('upload')
   async upload(@Req() request: FastifyRequest): Promise<{ jobId: string }> {
     return ErrorHandler.handleControllerError(async () => {
+      logger.info('files.upload called');
       const req = request as unknown as MultipartRequest;
       if (!req.isMultipart || !req.isMultipart()) {
         logger.error('Multipart request expected');
@@ -80,10 +81,10 @@ export class FileIngestionController {
               `Chunk ${chunkCount}: ${chunk.length} bytes (total: ${size} bytes)`
             );
 
-            if (size > this.config.rag.maxRagSize) {
-              logger.error(
-                `File size ${size} exceeds limit ${this.config.rag.maxRagSize}`
-              );
+            const maxRagSize = getGuardValue('rag.max_size');
+
+            if (size > maxRagSize) {
+              logger.error(`File size ${size} exceeds limit ${maxRagSize}`);
               part.file.destroy();
               throw new ForbiddenException('File size exceeds limit');
             }
@@ -162,6 +163,7 @@ export class FileIngestionController {
     @Body('agentId') agentId: string,
     @Req() req: FastifyRequest
   ) {
+    logger.info('files.list called');
     const userId = ControllerHelpers.getUserId(req);
     ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.listFiles(agentId, userId);
@@ -173,6 +175,7 @@ export class FileIngestionController {
     @Body('fileId') fileId: string,
     @Req() req: FastifyRequest
   ) {
+    logger.info('files.get called');
     const userId = ControllerHelpers.getUserId(req);
     ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     return this.service.getFile(agentId, fileId, userId);
@@ -184,6 +187,7 @@ export class FileIngestionController {
     @Body('fileId') fileId: string,
     @Req() req: FastifyRequest
   ) {
+    logger.info('files.delete called');
     const userId = ControllerHelpers.getUserId(req);
     ControllerHelpers.verifyAgentOwnership(this.agentFactory, agentId, userId);
     await this.service.deleteFile(agentId, fileId, userId);

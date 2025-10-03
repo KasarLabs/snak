@@ -8,6 +8,7 @@ import {
   StarknetConfig,
   AgentPromptsInitialized,
   DEFAULT_AGENT_MODEL,
+  AgentValidationService,
 } from '@snakagent/core';
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.storage.js';
@@ -38,11 +39,14 @@ export class AgentStorage implements OnModuleInit {
   private agentSelector: AgentSelector;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
+  private agentValidationService: AgentValidationService;
 
   constructor(
     private readonly config: ConfigurationService,
     private readonly databaseService: DatabaseService
-  ) {}
+  ) {
+    this.agentValidationService = new AgentValidationService(this);
+  }
 
   async onModuleInit() {
     await this.initialize();
@@ -221,6 +225,7 @@ export class AgentStorage implements OnModuleInit {
 
     agentConfig.prompts_id = prompt_id;
     agentConfig.profile.name = finalName;
+    await this.agentValidationService.validateAgent(agentConfig, true);
     const q = new Postgres.Query(
       'SELECT * FROM insert_agent_from_json($1, $2)',
       [userId, JSON.stringify(agentConfig)]
@@ -279,6 +284,49 @@ export class AgentStorage implements OnModuleInit {
     logger.debug(`Agent ${id} removed from local configuration`);
   }
 
+  /* ==================== PUBLIC UTILITIES ==================== */
+
+  /**
+   * Get the total number of agents in the system
+   * @returns Promise<number> - The total number of agents
+   */
+  public async getTotalAgentsCount(): Promise<number> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const q = new Postgres.Query(`SELECT COUNT(*) as count FROM agents`);
+      const result = await Postgres.query<{ count: string }>(q);
+      return parseInt(result[0].count, 10);
+    } catch (error) {
+      logger.error('Error getting total agents count:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the number of agents for a specific user
+   * @param userId - User ID to count agents for
+   * @returns Promise<number> - The number of agents owned by the user
+   */
+  public async getUserAgentsCount(userId: string): Promise<number> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const q = new Postgres.Query(
+        `SELECT COUNT(*) as count FROM agents WHERE user_id = $1`,
+        [userId]
+      );
+      const result = await Postgres.query<{ count: string }>(q);
+      return parseInt(result[0].count, 10);
+    } catch (error) {
+      logger.error(`Error getting agents count for user ${userId}:`, error);
+      throw error;
+    }
+  }
   /* ==================== PUBLIC UTILITIES ==================== */
 
   /**
@@ -629,5 +677,24 @@ export class AgentStorage implements OnModuleInit {
       logger.error('Failed to initialize default prompts:', error);
       throw error;
     }
+  }
+
+  /**
+   * Validate agent configuration
+   * @param agentConfig - Agent configuration to validate
+   * @param isCreation - Whether this is for creation (true) or update (false)
+   */
+  async validateAgent(
+    agentConfig: AgentConfig.Input | AgentConfig.WithOptionalParam,
+    isCreation: boolean = false
+  ): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    return this.agentValidationService.validateAgent(
+      agentConfig,
+      isCreation,
+      this
+    );
   }
 }

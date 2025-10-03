@@ -22,6 +22,7 @@ export class JobsController {
     @Req() request: FastifyRequest
   ) {
     return ErrorHandler.handleControllerError(async () => {
+      logger.info('jobs.status called');
       let userId: string;
       try {
         userId = ControllerHelpers.getUserId(request);
@@ -58,6 +59,7 @@ export class JobsController {
     @Req() request: FastifyRequest
   ) {
     return ErrorHandler.handleControllerError(async () => {
+      logger.info('jobs.result called');
       let userId: string;
       try {
         userId = ControllerHelpers.getUserId(request);
@@ -86,6 +88,7 @@ export class JobsController {
   @Get('queues/metrics')
   @HandleErrors()
   async getQueueMetrics() {
+    logger.info('jobs.queues.metrics called');
     return await this.workersService.getQueueMetrics();
   }
 }

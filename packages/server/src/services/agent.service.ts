@@ -7,7 +7,6 @@ import {
 import { IAgent } from '../interfaces/agent.interface.js';
 import {
   AgentConfig,
-  logger,
   MessageFromAgentIdDTO,
   MessageRequest,
   UpdateModelConfigDTO,

@@ -23,7 +23,6 @@ import { AgentConfig, logger } from '@snakagent/core';
 import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
 import {
   TaskManagerNode,
-  TaskExecutorNode,
 } from '../../../shared/enums/agent.enum.js';
 import {
   DynamicStructuredTool,
@@ -33,7 +32,6 @@ import {
 import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { v4 as uuidv4 } from 'uuid';
-import { TaskSchemaType, ThoughtsSchemaType } from '@schemas/graph.schemas.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_MANAGER_HUMAN_PROMPT,
