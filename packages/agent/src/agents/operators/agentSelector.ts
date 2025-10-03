@@ -1,28 +1,15 @@
 import { BaseAgent } from '../core/baseAgent.js';
-import { logger, AgentConfig } from '@snakagent/core';
+import { logger } from '@snakagent/core';
 import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { AgentConfigResolver, AgentBuilder } from '../../types/agent.types.js';
 
 export interface AgentInfo {
   name: string;
   description: string;
 }
-
-/**
- * Function type to resolve agent configurations for a given user
- */
-export type AgentConfigResolver = (
-  userId: string
-) => Promise<AgentConfig.OutputWithId[]>;
-
-/**
- * Function type to build a SnakAgent from a configuration
- */
-export type AgentBuilder = (
-  agentConfig: AgentConfig.OutputWithId
-) => Promise<SnakAgent>;
 
 /**
  * AgentSelector analyzes user queries and determines which specialized agent should handle each request.
