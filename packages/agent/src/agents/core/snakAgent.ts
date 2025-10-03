@@ -30,6 +30,7 @@ import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { CheckpointerService } from '../graphs/manager/checkpointer/checkpointer.js';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -61,8 +62,10 @@ export class SnakAgent extends BaseAgent {
       if (!this.agentConfig) {
         throw new Error('Agent configuration is required for initialization');
       }
+
       await this.initializeRagAgent(this.agentConfig);
       try {
+        this.pg_checkpointer = await CheckpointerService.getInstance();
         if (!this.pg_checkpointer) {
           throw new Error('Failed to initialize Postgres checkpointer');
         }
