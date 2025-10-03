@@ -432,7 +432,13 @@ describe('Memory Table Operations', () => {
     const insertQ = new Postgres.Query(
       `INSERT INTO episodic_memories (user_id, task_id, step_id, content, embedding)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [testUserId, testTaskId, testStepId, 'Memory to access', JSON.stringify(embedding)]
+      [
+        testUserId,
+        testTaskId,
+        testStepId,
+        'Memory to access',
+        JSON.stringify(embedding),
+      ]
     );
 
     const [{ id }] = await Postgres.query<{ id: string }>(insertQ);
