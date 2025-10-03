@@ -5,6 +5,7 @@ import {
   END,
   CompiledStateGraph,
   START,
+  Command,
 } from '@langchain/langgraph';
 import {
   AIMessage,
@@ -29,12 +30,14 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
+import { TaskExecutorNode } from '@enums/agent.enum.js';
+import { Memories } from '@stypes/memory.types.js';
+import { MemoryStateManager } from '@lib/memory/index.js';
 
 // Node enum for supervisor graph
 enum SupervisorNode {
   SUPERVISOR = 'supervisor',
   TOOL_CALLING = 'tool_calling',
-  CREATE_RESPONSE = 'create_response',
   END = '__end__',
 }
 
@@ -46,10 +49,19 @@ export const SupervisorGraphState = Annotation.Root({
     },
     default: () => [],
   }),
-  last_node: Annotation<SupervisorNode>({
+  lastNode: Annotation<SupervisorNode>({
     reducer: (x, y) => y,
     default: () => SupervisorNode.SUPERVISOR,
   }),
+  currentGraphStep: Annotation<number>({
+    reducer: (x, y) => y,
+    default: () => 0,
+  }),
+  memories: Annotation<Memories>({
+    reducer: (x, y) => y,
+    default: () => MemoryStateManager.createInitialState(5),
+  }),
+  // Store the original user request for context
   user_request: Annotation<string>({
     reducer: (x, y) => y,
     default: () => '',
@@ -146,41 +158,13 @@ export class SupervisorGraph {
     }
   }
 
-  private async createResponse(
-    state: typeof SupervisorGraphState.State,
-    config: RunnableConfig<typeof SupervisorGraphConfigurableAnnotation.State>
-  ): Promise<{
-    messages: BaseMessage[];
-    last_node: SupervisorNode;
-  }> {
-    logger.info('[Supervisor] Creating response for user');
-
-    // Get the last tool messages
-    const toolMessages = state.messages.filter((m) => m._getType() === 'tool');
-
-    // Create a summary response based on tool results
-    const responseMessage = new AIMessage({
-      content:
-        'Agent management operation completed. Check tool results above.',
-      additional_kwargs: {
-        from: SupervisorNode.CREATE_RESPONSE,
-        final: true,
-      },
-    });
-
-    return {
-      messages: [responseMessage],
-      last_node: SupervisorNode.CREATE_RESPONSE,
-    };
-  }
-
   private supervisorRouter(
     state: typeof SupervisorGraphState.State,
     config: RunnableConfig<typeof SupervisorGraphConfigurableAnnotation.State>
   ): SupervisorNode {
-    logger.debug(`[Supervisor Router] Last node: ${state.last_node}`);
+    logger.debug(`[Supervisor Router] Last node: ${state.lastNode}`);
 
-    if (state.last_node === SupervisorNode.SUPERVISOR) {
+    if (state.lastNode === SupervisorNode.SUPERVISOR) {
       const lastMessage = state.messages[state.messages.length - 1];
 
       // Check if we have tool calls
@@ -194,15 +178,60 @@ export class SupervisorGraph {
         return SupervisorNode.TOOL_CALLING;
       }
     }
-
-    if (state.last_node === SupervisorNode.TOOL_CALLING) {
-      logger.debug('[Supervisor Router] Routing to create_response');
-      return SupervisorNode.CREATE_RESPONSE;
-    }
-
     // Default: end the graph
     logger.debug('[Supervisor Router] Routing to END');
     return SupervisorNode.END;
+  }
+
+  private async toolNodeInvoke(
+    state: typeof SupervisorGraphState.State,
+    config: RunnableConfig<typeof SupervisorGraphConfigurableAnnotation.State>,
+    originalInvoke: ToolNode['invoke']
+  ): Promise<
+    | {
+        messages: BaseMessage[];
+        last_node: TaskExecutorNode;
+        memories: Memories;
+      }
+    | Command
+    | null
+  > {
+    try {
+      const result = await originalInvoke(state, config);
+      // After tool invocation, update the lastNode to TOOL_CALLING
+      if (result && typeof result === 'object' && 'messages' in result) {
+        return {
+          ...result,
+          last_node: SupervisorNode.TOOL_CALLING,
+        };
+      }
+      return result;
+    } catch (error) {
+      logger.error(`[ToolNode Invoke] Error during tool invocation: ${error}`);
+      throw error;
+    }
+  }
+
+  private createToolNode(): ToolNode {
+    const toolNode = new ToolNode(this.toolsList);
+    const originalInvoke = toolNode.invoke.bind(toolNode);
+    // Override invoke method
+    toolNode.invoke = async (
+      state: typeof SupervisorGraphState.State,
+      config: RunnableConfig<typeof SupervisorGraphConfigurableAnnotation.State>
+    ): Promise<
+      | {
+          messages: BaseMessage[];
+          last_node: SupervisorNode;
+          memories: Memories;
+        }
+      | Command
+      | null
+    > => {
+      return this.toolNodeInvoke(state, config, originalInvoke);
+    };
+
+    return toolNode;
   }
 
   private buildWorkflow(): StateGraph<
@@ -220,7 +249,6 @@ export class SupervisorGraph {
     )
       .addNode(SupervisorNode.SUPERVISOR, this.supervisor.bind(this))
       .addNode(SupervisorNode.TOOL_CALLING, toolNode)
-      .addNode(SupervisorNode.CREATE_RESPONSE, this.createResponse.bind(this))
       .addEdge(START, SupervisorNode.SUPERVISOR)
       .addConditionalEdges(
         SupervisorNode.SUPERVISOR,
@@ -229,8 +257,7 @@ export class SupervisorGraph {
       .addConditionalEdges(
         SupervisorNode.TOOL_CALLING,
         this.supervisorRouter.bind(this)
-      )
-      .addEdge(SupervisorNode.CREATE_RESPONSE, END);
+      );
 
     return workflow as unknown as StateGraph<
       typeof SupervisorGraphState.State,
