@@ -11,6 +11,8 @@ import {
   AIMessage,
   AIMessageChunk,
   BaseMessage,
+  HumanMessage,
+  ToolMessage,
 } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { SnakAgent } from '@agents/core/snakAgent.js';
@@ -32,7 +34,7 @@ import {
 import { AnyZodObject } from 'zod';
 import { TaskExecutorNode } from '@enums/agent.enum.js';
 import { Memories } from '@stypes/memory.types.js';
-import { MemoryStateManager } from '@lib/memory/index.js';
+import { MemoryStateManager, STMManager } from '@lib/memory/index.js';
 
 // Node enum for supervisor graph
 enum SupervisorNode {
@@ -59,7 +61,7 @@ export const SupervisorGraphState = Annotation.Root({
   }),
   memories: Annotation<Memories>({
     reducer: (x, y) => y,
-    default: () => MemoryStateManager.createInitialState(5),
+    default: () => MemoryStateManager.createInitialState(20),
   }),
   // Store the original user request for context
   user_request: Annotation<string>({
@@ -97,7 +99,7 @@ export class SupervisorGraph {
     | DynamicStructuredTool<AnyZodObject>
   )[] = [];
 
-  constructor(private snakAgent: SnakAgent) {
+  constructor(snakAgent: SnakAgent) {
     const pg_checkpointer = snakAgent.getPgCheckpointer();
     if (!pg_checkpointer) {
       throw new Error('Checkpointer is required for graph initialization');
@@ -113,11 +115,14 @@ export class SupervisorGraph {
     config: RunnableConfig<typeof SupervisorGraphConfigurableAnnotation.State>
   ): Promise<{
     messages: BaseMessage[];
-    last_node: SupervisorNode;
+    lastNode: SupervisorNode;
+    currentGraphStep: number;
   }> {
     try {
       logger.info('[Supervisor] Processing user request');
-
+      if (state.messages instanceof HumanMessage) {
+        state.user_request = state.messages.content.toLocaleString();
+      }
       if (!config.configurable?.agent_config) {
         throw new Error('Agent configuration is required');
       }
@@ -132,11 +137,7 @@ export class SupervisorGraph {
       // Format prompt with context
       const formattedPrompt = await prompt.formatMessages({
         agent_registry: '', // TODO: Add agent registry context
-        tool_results: JSON.stringify(
-          state.messages
-            .filter((m) => m._getType() === 'tool')
-            .map((m) => m.content)
-        ),
+        tool_results: JSON.stringify(state.memories.stm.items),
         user_request: state.user_request,
       });
 
@@ -150,7 +151,8 @@ export class SupervisorGraph {
       );
       return {
         messages: [aiMessage],
-        last_node: SupervisorNode.SUPERVISOR,
+        lastNode: SupervisorNode.SUPERVISOR,
+        currentGraphStep: state.currentGraphStep + 1,
       };
     } catch (error) {
       logger.error(`[Supervisor] Error processing request: ${error}`);
@@ -163,9 +165,13 @@ export class SupervisorGraph {
     config: RunnableConfig<typeof SupervisorGraphConfigurableAnnotation.State>
   ): SupervisorNode {
     logger.debug(`[Supervisor Router] Last node: ${state.lastNode}`);
+          const lastMessage = state.messages[state.messages.length - 1];
 
+    if (state.currentGraphStep >= 25) { // should create default configurable for supre
+      logger.warn('[Supervisor Router] Max graph steps reached, routing to END');
+      return SupervisorNode.END;
+    }
     if (state.lastNode === SupervisorNode.SUPERVISOR) {
-      const lastMessage = state.messages[state.messages.length - 1];
 
       // Check if we have tool calls
       if (
@@ -175,8 +181,20 @@ export class SupervisorGraph {
         lastMessage.tool_calls.length > 0
       ) {
         logger.debug('[Supervisor Router] Routing to tool_calling');
+        for (const toolCall of lastMessage.tool_calls) {
+          if (toolCall.name === 'end_task') {
+            logger.debug('[Supervisor Router] Detected end_task tool call, routing to END');
+            return SupervisorNode.END;
+          }
+        }
         return SupervisorNode.TOOL_CALLING;
       }
+    }
+
+    if (state.lastNode === SupervisorNode.TOOL_CALLING ) {
+      // After tool calling, always return to supervisor for re-evaluation
+      logger.debug('[Supervisor Router] Routing back to SUPERVISOR');
+      return SupervisorNode.SUPERVISOR;
     }
     // Default: end the graph
     logger.debug('[Supervisor Router] Routing to END');
@@ -190,25 +208,75 @@ export class SupervisorGraph {
   ): Promise<
     | {
         messages: BaseMessage[];
-        last_node: TaskExecutorNode;
-        memories: Memories;
+        lastNode: SupervisorNode;
+        currentGraphStep: number;
+        memories?: Memories;
       }
     | Command
     | null
   > {
-    try {
-      const result = await originalInvoke(state, config);
-      // After tool invocation, update the lastNode to TOOL_CALLING
-      if (result && typeof result === 'object' && 'messages' in result) {
+      const startTime = Date.now();
+      try {
+
+        const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Tool execution timed out after 10000 ms`));
+        }, 10000);
+      });
+      const executionPromise = originalInvoke(state, config);
+      const tools: { messages: ToolMessage[] } = await Promise.race([
+        executionPromise,
+        timeoutPromise,
+      ]);
+      if (!tools || !tools.messages || tools.messages.length === 0) {
+        logger.warn('[ToolNode Invoke] No tool messages returned');
         return {
-          ...result,
-          last_node: SupervisorNode.TOOL_CALLING,
+          messages: state.messages,
+          lastNode: SupervisorNode.TOOL_CALLING,
+          currentGraphStep: state.currentGraphStep + 1,
         };
       }
-      return result;
+      logger.info(
+        `[ToolNode Invoke] Invoked ${tools.messages.length} tools`
+      );
+      tools.messages.forEach(async (tool) => {
+        tool.additional_kwargs = {
+          from: 'tools',
+          final: tool.name === 'end_task' ? true : false,
+        };
+      });
+
+      const newMemories = STMManager.updateMessageRecentMemory(
+        state.memories.stm,
+        tools.messages
+      );
+      if (!newMemories.success || !newMemories.data) {
+        throw new Error(
+          `Failed to update memory with tool results: ${newMemories.error}`
+        );
+      }
+      state.memories.stm = newMemories.data;
+      return {
+        ...tools,
+        lastNode: SupervisorNode.TOOL_CALLING,
+        memories: state.memories,
+        currentGraphStep: state.currentGraphStep + 1,
+      };
     } catch (error) {
-      logger.error(`[ToolNode Invoke] Error during tool invocation: ${error}`);
-      throw error;
+      const executionTime = Date.now() - startTime;
+      if (error.message.includes('timed out')) {
+        logger.error(`[Tools] Tool execution timed out after 10000 ms`);
+      } else {
+        logger.error(
+          `[Tools] Tool execution failed after ${executionTime}ms: ${error}`
+        );
+      }
+      // On error, return to supervisor for re-evaluation
+      return {
+        messages: state.messages,
+        lastNode: SupervisorNode.TOOL_CALLING,
+        currentGraphStep: state.currentGraphStep + 1,
+      }
     }
   }
 
@@ -222,8 +290,9 @@ export class SupervisorGraph {
     ): Promise<
       | {
           messages: BaseMessage[];
-          last_node: SupervisorNode;
-          memories: Memories;
+          lastNode: SupervisorNode;
+          currentGraphStep: number; 
+          memories?: Memories;
         }
       | Command
       | null
@@ -241,7 +310,7 @@ export class SupervisorGraph {
     logger.debug('[SupervisorGraph] Building workflow');
 
     // Create tool node
-    const toolNode = new ToolNode(this.toolsList);
+    const toolNode = this.createToolNode();
 
     const workflow = new StateGraph(
       SupervisorGraphState,
@@ -271,7 +340,7 @@ export class SupervisorGraph {
 
       // Build and compile the workflow
       const workflow = this.buildWorkflow();
-      this.app = workflow.compile({ checkpointer: this.checkpointer });
+      this.app = workflow.compile();
 
       logger.info(
         '[SupervisorGraph] Successfully initialized supervisor graph'
