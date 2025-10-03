@@ -9,7 +9,7 @@ import {
   GraphConfigurableAnnotation,
   GraphConfigurableType,
   GraphStateType,
-} from '../graphs/graph.js';
+} from '../graphs/graph/agent.graph.js';
 import {
   Command,
   CompiledStateGraph,

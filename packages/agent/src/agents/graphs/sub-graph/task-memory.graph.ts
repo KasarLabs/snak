@@ -17,7 +17,7 @@ import {
 } from '../utils/graph.utils.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { logger, MemoryConfig } from '@snakagent/core';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph/agent.graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   TaskMemoryNode,

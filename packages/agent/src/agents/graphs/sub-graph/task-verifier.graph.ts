@@ -3,7 +3,7 @@ import { START, StateGraph, Command, END } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject, z } from 'zod';
 import { logger } from '@snakagent/core';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph/agent.graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   TaskType,

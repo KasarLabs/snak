@@ -7,7 +7,7 @@ import {
   ModelSelectorConfig,
 } from '../operators/modelSelector.js';
 import { logger, RpcProvider } from 'starknet';
-import { Graph } from '@agents/graphs/graph.js';
+import { Graph } from '@agents/graphs/graph/agent.graph.js';
 
 // Types and Interfaces
 export interface AgentConfigSQL {

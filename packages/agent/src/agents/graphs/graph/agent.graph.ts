@@ -13,14 +13,14 @@ import {
 import { AnyZodObject } from 'zod';
 import { BaseMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { RagAgent } from '../operators/ragAgent.js';
+import { RagAgent } from '../../operators/ragAgent.js';
 import {
   GraphNode,
   TaskExecutorNode,
   TaskManagerNode,
   TaskMemoryNode,
   TaskVerifierNode,
-} from '../../shared/enums/agent.enum.js';
+} from '../../../shared/enums/agent.enum.js';
 import {
   GraphErrorType,
   Memories,
@@ -28,15 +28,15 @@ import {
   TaskType,
   UserRequest,
   userRequestWithHITL,
-} from '../../shared/types/index.js';
-import { MemoryStateManager } from './manager/memory/memory-utils.js';
-import { MemoryGraph } from './sub-graph/task-memory.graph.js';
-import { TaskManagerGraph } from './sub-graph/task-manager.graph.js';
-import { AgentExecutorGraph } from './sub-graph/task-executor.graph.js';
-import { TaskVerifierGraph } from './sub-graph/task-verifier.graph.js';
-import { isInEnum } from '../../shared/enums/index.js';
-import { initializeDatabase } from '../../agents/utils/database.utils.js';
-import { initializeToolsList } from '../../tools/tools.js';
+} from '../../../shared/types/index.js';
+import { MemoryStateManager } from '../manager/memory/memory-utils.js';
+import { MemoryGraph } from '../sub-graph/task-memory.graph.js';
+import { TaskManagerGraph } from '../sub-graph/task-manager.graph.js';
+import { AgentExecutorGraph } from '../sub-graph/task-executor.graph.js';
+import { TaskVerifierGraph } from '../sub-graph/task-verifier.graph.js';
+import { isInEnum } from '../../../shared/enums/index.js';
+import { initializeDatabase } from '../../utils/database.utils.js';
+import { initializeToolsList } from '../../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 

@@ -14,7 +14,7 @@ import {
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AnyZodObject } from 'zod';
 import { AgentConfig, logger } from '@snakagent/core';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import { GraphConfigurableAnnotation, GraphState } from '../graph/agent.graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
