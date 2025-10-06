@@ -71,13 +71,17 @@ export class MyGateway {
             throw new ServerError('E01TA400'); // Bad request if no content
           }
           try {
-            agent = await agentSelector.execute(userRequest.request.request);
+            agent = await agentSelector.execute(
+              userRequest.request.request,
+              false,
+              { userId }
+            );
           } catch (error) {
             logger.error('Error in agentSelector:', error);
             throw new ServerError('E01TA400');
           }
         } else {
-          agent = this.agentFactory.getAgentInstance(
+          agent = await this.agentFactory.getAgentInstance(
             userRequest.request.agent_id,
             userId
           );
@@ -123,7 +127,7 @@ export class MyGateway {
       async () => {
         logger.info('stop_agent called');
         const { userId, agent } =
-          ControllerHelpers.getSocketUserAndVerifyAgentOwnership(
+          await ControllerHelpers.getSocketUserAndVerifyAgentOwnership(
             client,
             this.agentFactory,
             userRequest.agent_id
@@ -174,7 +178,7 @@ export class MyGateway {
       async () => {
         logger.info('delete_agent called');
         const { userId } =
-          ControllerHelpers.getSocketUserAndVerifyAgentConfigOwnership(
+          await ControllerHelpers.getSocketUserAndVerifyAgentConfigOwnership(
             client,
             this.agentFactory,
             userRequest.agent_id

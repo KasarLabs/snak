@@ -40,10 +40,6 @@ import { DatabaseCredentials } from './database.types.js';
  */
 
 export interface SnakAgentInterface {
-  getAccountCredentials: () => {
-    accountPublicKey: string;
-    accountPrivateKey: string;
-  };
   getDatabaseCredentials: () => DatabaseCredentials;
   getProvider: () => RpcProvider;
   getAgentConfig: () => AgentConfig.Runtime;

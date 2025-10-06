@@ -1,15 +1,14 @@
 import { BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
-import { logger, AgentConfig, Id, StarknetConfig } from '@snakagent/core';
-import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
-import { DatabaseCredentials } from '@snakagent/core';
-import { AgentType } from '../../shared/enums/agent.enum.js';
 import {
-  createGraph,
-  GraphConfigurableAnnotation,
-  GraphConfigurableType,
-  GraphStateType,
-} from '../graphs/graph.js';
+  logger,
+  AgentConfig,
+  StarknetConfig,
+  DatabaseConfigService,
+} from '@snakagent/core';
+import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { AgentType } from '../../shared/enums/agent.enum.js';
+import { createGraph, GraphConfigurableType } from '../graphs/graph.js';
 import {
   Command,
   CompiledStateGraph,
@@ -30,8 +29,8 @@ import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
-import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { notify } from '@snakagent/database/queries';
 
 /**
@@ -40,10 +39,7 @@ import { notify } from '@snakagent/database/queries';
  */
 export class SnakAgent extends BaseAgent {
   private readonly provider: RpcProvider;
-  private readonly accountPrivateKey: string;
-  private readonly accountPublicKey: string;
   private readonly agentConfig: AgentConfig.Runtime;
-  private readonly databaseCredentials: DatabaseCredentials;
   private ragAgent: RagAgent | null = null;
   private compiledGraph: CompiledStateGraph<any, any, any, any, any> | null =
     null;
@@ -51,15 +47,11 @@ export class SnakAgent extends BaseAgent {
   private pg_checkpointer: PostgresSaver | null = null;
   constructor(
     starknet_config: StarknetConfig,
-    agent_config: AgentConfig.Runtime,
-    database_credentials: DatabaseCredentials
+    agent_config: AgentConfig.Runtime
   ) {
     super('snak', AgentType.SNAK);
 
     this.provider = starknet_config.provider;
-    this.accountPrivateKey = starknet_config.accountPrivateKey;
-    this.accountPublicKey = starknet_config.accountPublicKey;
-    this.databaseCredentials = database_credentials;
     this.agentConfig = agent_config;
   }
   /**
@@ -141,22 +133,11 @@ export class SnakAgent extends BaseAgent {
   }
 
   /**
-   * Get Starknet account credentials
-   * @returns Object containing the account's private and public keys
-   */
-  public getAccountCredentials() {
-    return {
-      accountPrivateKey: this.accountPrivateKey,
-      accountPublicKey: this.accountPublicKey,
-    };
-  }
-
-  /**
    * Get database credentials
    * @returns The database credentials object
    */
   public getDatabaseCredentials() {
-    return this.databaseCredentials;
+    return DatabaseConfigService.getInstance().getCredentials();
   }
 
   /**

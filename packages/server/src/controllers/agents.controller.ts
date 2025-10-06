@@ -312,17 +312,19 @@ export class AgentsController {
         throw new ServerError('E01TA400'); // Bad request if no content
       }
       const agentSelector = this.agentFactory.getAgentSelector();
-      agent = await agentSelector.execute(userRequest.request.content);
+      agent = await agentSelector.execute(userRequest.request.content, false, {
+        userId,
+      });
       if (agent) {
         const agentId = agent.getAgentConfig().id;
-        ControllerHelpers.verifyAgentConfigOwnership(
+        await ControllerHelpers.verifyAgentConfigOwnership(
           this.agentFactory,
           agentId,
           userId
         );
       }
     } else {
-      agent = ControllerHelpers.verifyAgentOwnership(
+      agent = await ControllerHelpers.verifyAgentOwnership(
         this.agentFactory,
         userRequest.request.agent_id,
         userId
@@ -361,11 +363,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('stop_agent called');
-    const { userId, agent } = ControllerHelpers.getUserAndVerifyAgentOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId, agent } =
+      await ControllerHelpers.getUserAndVerifyAgentOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     agent.stop();
     return ResponseFormatter.success(
@@ -411,11 +414,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agent called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     const messages = await this.agentService.getMessageFromAgentId(
       userRequest,
@@ -436,11 +440,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('delete_agent called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
     metrics.agentDisconnect();
@@ -467,7 +472,7 @@ export class AgentsController {
 
     for (const agentId of userRequest.agent_id) {
       try {
-        ControllerHelpers.verifyAgentConfigOwnership(
+        await ControllerHelpers.verifyAgentConfigOwnership(
           this.agentFactory,
           agentId,
           userId
@@ -505,11 +510,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agents called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     const messages = await this.agentService.getMessageFromAgentId(
       {
@@ -530,11 +536,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('clear_message called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     await message.delete_messages_by_agent(userRequest.agent_id, userId);
 
@@ -553,6 +560,18 @@ export class AgentsController {
     logger.info('get_agents called');
     const userId = ControllerHelpers.getUserId(req);
     const agents = await this.agentService.getAllAgentsOfUser(userId);
+    return ResponseFormatter.success(agents);
+  }
+
+  /**
+   * Get all available agents from Redis
+   * @returns Promise<AgentResponse> - Response with all agents from Redis
+   */
+  @Get('get_available_agent')
+  @HandleErrors('E06TA101')
+  async getAvailableAgent(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    const agents = await this.agentService.getAllAgentsOfUserFromRedis(userId);
     return ResponseFormatter.success(agents);
   }
 

@@ -527,7 +527,7 @@ describe('Custom Types Operations', () => {
 
     const [result] = await Postgres.query<RagTest>(q);
     expect(result.rag_enabled).toBe(true);
-    expect(result.model_name).toBe('text-embedding-ada-002');
+    expect(result.modelName).toBe('text-embedding-ada-002');
   });
 
   it('should work with model composite type', async () => {
