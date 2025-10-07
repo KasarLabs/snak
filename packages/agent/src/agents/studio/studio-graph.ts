@@ -1,3 +1,4 @@
+/** File deprecated **/
 import { Graph } from '@agents/graphs/graph.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AgentConfig, StarknetConfig } from '@snakagent/core';

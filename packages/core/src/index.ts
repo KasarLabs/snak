@@ -34,7 +34,6 @@ export {
   validateGraph,
   validateMemory,
   validateRAG,
-  validatePlugins,
   validateMCPServers,
   validateIdentifiers,
   type AgentDatabaseInterface,
