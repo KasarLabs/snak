@@ -236,6 +236,7 @@ export class SnakAgent extends BaseAgent {
   private createChunkOutput(
     chunk: StreamEvent,
     state: StateSnapshot,
+    user_request: string,
     currentTaskId: string | null,
     currentStepId: string | null,
     graphError: GraphErrorType | null,
@@ -250,6 +251,7 @@ export class SnakAgent extends BaseAgent {
       ls_model_type: chunk.metadata.ls_model_type,
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
+      user_request: user_request,
       error: graphError,
       retry: retryCount,
     };
@@ -284,6 +286,7 @@ export class SnakAgent extends BaseAgent {
   private processChunkOutput(
     chunk: StreamEvent,
     state: any,
+    user_request: string,
     currentTaskId: string | null,
     currentStepId: string | null,
     retryCount: number,
@@ -305,6 +308,7 @@ export class SnakAgent extends BaseAgent {
       return this.createChunkOutput(
         chunk,
         state,
+        user_request,
         currentTaskId,
         currentStepId,
         graphError,
@@ -315,9 +319,9 @@ export class SnakAgent extends BaseAgent {
       return this.createChunkOutput(
         chunk,
         state,
+        user_request,
         currentTaskId,
         currentStepId,
-
         graphError,
         retryCount,
         GraphNode.AGENT_EXECUTOR
@@ -326,6 +330,7 @@ export class SnakAgent extends BaseAgent {
       return this.createChunkOutput(
         chunk,
         state,
+        user_request,
         currentTaskId,
         currentStepId,
         graphError,
@@ -454,6 +459,7 @@ export class SnakAgent extends BaseAgent {
           const processedChunk = this.processChunkOutput(
             chunk,
             stateSnapshot,
+            request.request,
             currentTaskId,
             currentStepId,
             retryCount,
@@ -483,6 +489,8 @@ export class SnakAgent extends BaseAgent {
           metadata: {
             error: graphError,
             final: true,
+            is_human: isInterruptHandle,
+            user_request: request.request,
           },
           timestamp: new Date().toISOString(),
         };
