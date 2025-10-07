@@ -12,10 +12,11 @@ import {
 import {
   GraphErrorType,
   GraphErrorTypeEnum,
+  StateErrorHandlerType,
   TaskType,
 } from '../../../shared/types/index.js';
 import { AgentConfig, logger } from '@snakagent/core';
-import { Command } from '@langchain/langgraph';
+import { Command, Graph, task } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   GraphConfigurableAnnotation,
@@ -24,13 +25,20 @@ import {
 } from '../graph.js';
 import { ToolCallChunk, ToolCall } from '@langchain/core/messages/tool';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  HITL_CONSTRAINT_LEVEL_0,
+  HITL_CONSTRAINT_LEVEL_1,
+  HITL_CONSTRAINT_LEVEL_2,
+  HITL_CONSTRAINT_LEVEL_3,
+  HITL_CONSTRAINT_LEVEL_4,
+} from '@prompts/agents/hitl-contraint.prompt.js';
 // --- Response Generators ---
 export function createMaxIterationsResponse<T>(
   graph_step: number,
   current_node: T
 ): {
   messages: BaseMessage[];
-  last_node: T;
+  lastNode: T;
 } {
   const message = new AIMessageChunk({
     content: `Reaching maximum iterations for interactive agent. Ending workflow.`,
@@ -41,7 +49,7 @@ export function createMaxIterationsResponse<T>(
   });
   return {
     messages: [message],
-    last_node: current_node,
+    lastNode: current_node,
   };
 }
 
@@ -160,7 +168,7 @@ export function handleNodeError(
   type: GraphErrorTypeEnum,
   error: Error,
   source: string,
-  state?: any,
+  state?: StateErrorHandlerType,
   additionalContext?: string
 ): Command {
   // Avoid redundant context if additionalContext is same as error message
@@ -174,12 +182,13 @@ export function handleNodeError(
 
   return createErrorCommand(type, enhancedError, source, {
     currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
+    ...state?.additionalUpdates,
   });
 }
 
 export function handleEndGraph(
   source: string,
-  state?: any,
+  state?: StateErrorHandlerType,
   successMessage?: string,
   additionalUpdates?: Record<string, any>
 ): Command {
@@ -191,7 +200,7 @@ export function handleEndGraph(
     error: null,
     skipValidation: { skipValidation: true, goto: 'end_graph' },
     currentGraphStep: state?.currentGraphStep ? state.currentGraphStep + 1 : 0,
-    ...additionalUpdates,
+    ...state?.additionalUpdates,
   };
 
   return new Command({
@@ -240,7 +249,7 @@ export function getCurrentTask(tasks: TaskType[]): TaskType {
     }
     return currentTask;
   } catch (error) {
-    throw error; // Propaged error to be handled by caller
+    throw error; // Propagated error to be handled by caller
   }
 }
 
@@ -352,7 +361,7 @@ export function routingFromSubGraphToParentGraphEndNode(
   state: typeof GraphState.State,
   config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
 ): Command {
-  const lastNode = state.last_node;
+  const lastNode = state.lastNode;
   logger.info(`[${lastNode}] Routing to parent graph end node`);
 
   return new Command({
@@ -362,4 +371,46 @@ export function routingFromSubGraphToParentGraphEndNode(
     goto: 'end_graph',
     graph: Command.PARENT,
   });
+}
+
+export function routingFromSubGraphToParentGraphHumanHandlerNode(
+  state: typeof GraphState.State,
+  config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
+): Command {
+  const lastNode = state.lastNode;
+  logger.info(`[${lastNode}] Routing to parent graph human handler node`);
+
+  return new Command({
+    update: {
+      skipValidation: { skipValidation: true, goto: 'human_handler' },
+      lastNode: lastNode,
+      currentGraphStep: state.currentGraphStep,
+      tasks: state.tasks,
+      messages: state.messages,
+      memories: state.memories,
+      rag: state.rag,
+      retry: state.retry,
+      error: state.error,
+    },
+    goto: 'human_handler',
+    graph: Command.PARENT,
+  });
+}
+
+export function getHITLContraintFromTreshold(threshold: number): string | null {
+  if (threshold <= 0 || threshold > 1) return HITL_CONSTRAINT_LEVEL_0;
+  switch (true) {
+    case threshold > 0 && threshold <= 0.25:
+      return HITL_CONSTRAINT_LEVEL_1;
+    case threshold > 0.25 && threshold <= 0.5:
+      return HITL_CONSTRAINT_LEVEL_2;
+    case threshold > 0.5 && threshold < 0.75:
+      return HITL_CONSTRAINT_LEVEL_3;
+    case threshold >= 0.75 && threshold < 1:
+      return HITL_CONSTRAINT_LEVEL_4;
+    case threshold === 1:
+      return 'always';
+    default:
+      return null;
+  }
 }

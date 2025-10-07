@@ -24,6 +24,8 @@ import {
   SnakAgent,
   UserRequest,
 } from '@snakagent/agents';
+import { redisAgents } from '@snakagent/database/queries';
+import { message } from '@snakagent/database/queries';
 
 @Injectable()
 export class AgentService implements IAgentService {
@@ -33,6 +35,7 @@ export class AgentService implements IAgentService {
 
   async handleUserRequest(
     agent: SnakAgent,
+    userId: string,
     userRequest: MessageRequest
   ): Promise<AgentExecutionResponse> {
     this.logger.debug({
@@ -42,38 +45,40 @@ export class AgentService implements IAgentService {
     try {
       let result: any;
 
-      if (agent && typeof agent.execute === 'function') {
-        const user_request: UserRequest = {
-          request: userRequest.request || '',
-          hitl_threshold: userRequest.hitl_threshold ?? undefined,
-        };
-        const executionResult = agent.execute(user_request);
+      const user_request: UserRequest = {
+        request: userRequest.request || '',
+        hitl_threshold: userRequest.hitl_threshold ?? undefined,
+      };
 
-        function isAsyncGenerator(
-          obj: any
-        ): obj is AsyncGenerator<any, any, any> {
-          return (
-            obj &&
-            typeof obj === 'object' &&
-            typeof obj[Symbol.asyncIterator] === 'function'
+      for await (const chunk of agent.execute(user_request)) {
+        if (
+          chunk.event === EventType.ON_CHAT_MODEL_END ||
+          chunk.event === EventType.ON_CHAIN_END
+        ) {
+          const messageId = await message.insert_message(
+            agent.getAgentConfig().id,
+            userId,
+            chunk
           );
-        }
 
-        if (isAsyncGenerator(executionResult)) {
-          for await (const chunk of executionResult) {
-            if (chunk.metadata.final === true) {
-              this.logger.debug('SupervisorService: Execution completed');
-              result = chunk;
-              break;
-            }
+          this.logger.debug(
+            `Inserted message with ID: ${messageId.toLocaleString()}`
+          );
+          if (EventType.ON_CHAIN_END && chunk.metadata.final === true) {
             result = chunk;
+            return {
+              status: 'success',
+              data: result,
+            };
           }
-        } else {
-          // If it's a Promise, just await the result
-          result = await executionResult;
         }
-      } else {
-        throw new Error('Invalid agent: missing execute method');
+      }
+
+      // If loop completes without returning, throw error
+      if (!result) {
+        throw new AgentExecutionError('Failed to process agent request', {
+          originalError: 'No final chunk received',
+        });
       }
 
       this.logger.debug({
@@ -191,10 +196,33 @@ export class AgentService implements IAgentService {
         [userId]
       );
       const res = await Postgres.query<AgentConfig.OutputWithoutUserId>(q);
-      this.logger.debug(`All agents:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
       this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all agents for a user from Redis
+   * @param userId - User ID to fetch agents for
+   * @returns Promise<AgentConfig.OutputWithoutUserId[]> - Array of agent configurations from Redis without user_id
+   */
+  async getAllAgentsOfUserFromRedis(
+    userId: string
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
+    try {
+      const agents = await redisAgents.listAgentsByUser(userId);
+
+      // Remove user_id from each agent to match the PostgreSQL behavior
+      const agentsWithoutUserId = agents.map((agent) => {
+        const { user_id, ...agentWithoutUserId } = agent;
+        return agentWithoutUserId;
+      });
+
+      return agentsWithoutUserId;
+    } catch (error) {
+      this.logger.error('Error fetching agents from Redis:', error);
       throw error;
     }
   }

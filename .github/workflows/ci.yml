@@ -52,10 +52,9 @@ jobs:
       - name: Build packages in order
         run: |
           pnpm --filter @snakagent/metrics build
-          pnpm --filter @snakagent/database build
           pnpm --filter @snakagent/core build
+          pnpm --filter @snakagent/database build
           pnpm --filter @snakagent/agents build
-          pnpm --filter='"@snakagent/plugin-*"' build || echo "Plugin build skipped"
 
       - name: Check TypeScript compilation (Server)
         run: pnpm --filter @snakagent/server tsc --noEmit -p tsconfig.json
@@ -71,7 +70,6 @@ jobs:
 
       - name: Check formatting with Prettier
         run: |
-          pnpm prettier --check "plugins/**/*.{ts,tsx}"
           pnpm prettier --check "packages/**/*.{ts,tsx}"
 
       - name: Security audit

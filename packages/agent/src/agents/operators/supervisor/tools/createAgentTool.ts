@@ -149,12 +149,6 @@ function buildAgentConfigFromInput(input: CreateAgentInput): AgentConfig.Input {
     };
   }
 
-  if (input.plugins) {
-    partialConfig.plugins = input.plugins.filter(
-      (plugin) => typeof plugin === 'string' && plugin.trim().length > 0
-    );
-  }
-
   if (input.mcp_servers)
     partialConfig.mcp_servers = parseMcpServers(input.mcp_servers, {});
 

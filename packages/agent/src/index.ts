@@ -20,6 +20,9 @@ export { createGraph } from './agents/graphs/graph.js';
 export { AgentSelector } from './agents/operators/agentSelector.js';
 export * from './agents/operators/supervisor/index.js';
 
+// Agent types
+export type { AgentConfigResolver, AgentBuilder } from './types/agent.types.js';
+
 // Tool-related exports
 export type {
   SnakAgentInterface,

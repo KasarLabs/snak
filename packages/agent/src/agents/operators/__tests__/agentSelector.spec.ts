@@ -1,5 +1,10 @@
-import { AgentSelector } from '../agentSelector.js';
+import {
+  AgentSelector,
+  AgentConfigResolver,
+  AgentBuilder,
+} from '../agentSelector.js';
 import { agentSelectorPromptContent } from '@prompts/core/prompts.js';
+import { AgentConfig } from '@snakagent/core';
 
 jest.mock('@prompts/core/prompts.js', () => ({
   agentSelectorPromptContent: jest.fn(
@@ -23,8 +28,10 @@ class MockSnakAgent {
 
   public getAgentConfig(): any {
     return {
-      name: this.mockName,
-      description: this.mockDescription,
+      profile: {
+        name: this.mockName,
+        description: this.mockDescription,
+      },
     };
   }
 
@@ -38,18 +45,6 @@ class MockSnakAgent {
   }
 }
 
-class MockModelSelector {
-  private mockModel = { invoke: jest.fn() };
-
-  public getModels(): any {
-    return { fast: this.mockModel };
-  }
-
-  public getMockModel() {
-    return this.mockModel;
-  }
-}
-
 // Helper functions
 const llmOk = (content: any) => ({
   content,
@@ -59,176 +54,255 @@ const llmOk = (content: any) => ({
 
 const llmErr = (msg = 'LLM error') => new Error(msg);
 
-function makeAgents() {
-  return new Map([
-    [
-      'agent1|user1',
-      new MockSnakAgent('agent1', 'Handles blockchain operations') as any,
-    ],
-    [
-      'agent2|user1',
-      new MockSnakAgent('agent2', 'Handles configuration management') as any,
-    ],
-    [
-      'agent3|user1',
-      new MockSnakAgent('agent3', 'Handles MCP operations') as any,
-    ],
-  ]);
+function makeAgentConfigs(): AgentConfig.OutputWithId[] {
+  return [
+    {
+      id: 'agent1-id',
+      user_id: 'user1',
+      profile: {
+        name: 'agent1',
+        description: 'Handles blockchain operations',
+        group: 'test',
+      },
+      prompts_id: 'prompts1',
+      graph: {} as any,
+      memory: {} as any,
+      rag: {} as any,
+      mcp_servers: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 'agent2-id',
+      user_id: 'user1',
+      profile: {
+        name: 'agent2',
+        description: 'Handles configuration management',
+        group: 'test',
+      },
+      prompts_id: 'prompts2',
+      graph: {} as any,
+      memory: {} as any,
+      rag: {} as any,
+      mcp_servers: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 'agent3-id',
+      user_id: 'user1',
+      profile: {
+        name: 'agent3',
+        description: 'Handles MCP operations',
+        group: 'test',
+      },
+      prompts_id: 'prompts3',
+      graph: {} as any,
+      memory: {} as any,
+      rag: {} as any,
+      mcp_servers: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  ];
 }
 
-function makeAgentsForMultipleUsers() {
-  return new Map([
-    [
-      'agent1|user1',
-      new MockSnakAgent('agent1', 'Handles blockchain operations') as any,
-    ],
-    [
-      'agent2|user1',
-      new MockSnakAgent('agent2', 'Handles configuration management') as any,
-    ],
-    [
-      'agent3|user2',
-      new MockSnakAgent(
-        'agent3',
-        'Handles blockchain operations for user2'
-      ) as any,
-    ],
-    [
-      'agent4|user2',
-      new MockSnakAgent('agent4', 'Handles MCP operations for user2') as any,
-    ],
-  ]);
+function makeAgentConfigsForMultipleUsers(): AgentConfig.OutputWithId[] {
+  return [
+    {
+      id: 'agent1-id',
+      user_id: 'user1',
+      profile: {
+        name: 'agent1',
+        description: 'Handles blockchain operations',
+        group: 'test',
+      },
+      prompts_id: 'prompts1',
+      graph: {} as any,
+      memory: {} as any,
+      rag: {} as any,
+      mcp_servers: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 'agent2-id',
+      user_id: 'user1',
+      profile: {
+        name: 'agent2',
+        description: 'Handles configuration management',
+        group: 'test',
+      },
+      prompts_id: 'prompts2',
+      graph: {} as any,
+      memory: {} as any,
+      rag: {} as any,
+      mcp_servers: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 'agent3-id',
+      user_id: 'user2',
+      profile: {
+        name: 'agent3',
+        description: 'Handles blockchain operations for user2',
+        group: 'test',
+      },
+      prompts_id: 'prompts3',
+      graph: {} as any,
+      memory: {} as any,
+      rag: {} as any,
+      mcp_servers: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 'agent4-id',
+      user_id: 'user2',
+      profile: {
+        name: 'agent4',
+        description: 'Handles MCP operations for user2',
+        group: 'test',
+      },
+      prompts_id: 'prompts4',
+      graph: {} as any,
+      memory: {} as any,
+      rag: {} as any,
+      mcp_servers: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  ];
 }
 
 describe('AgentSelector', () => {
   let agentSelector: AgentSelector;
-  let modelSelector: any;
-  let mockAgents: Map<string, any>;
+  let mockAgentConfigs: AgentConfig.OutputWithId[];
   let mockModel: any;
+  let mockAgentConfigResolver: jest.MockedFunction<AgentConfigResolver>;
+  let mockAgentBuilder: jest.MockedFunction<AgentBuilder>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAgents = makeAgents();
-    modelSelector = new MockModelSelector();
-    mockModel = modelSelector.getMockModel();
-    agentSelector = new AgentSelector({
-      availableAgents: mockAgents,
-      modelSelector,
-      debug: true,
+    mockAgentConfigs = makeAgentConfigs();
+    mockModel = { invoke: jest.fn() };
+
+    mockAgentConfigResolver = jest.fn(async (userId: string) => {
+      return mockAgentConfigs.filter((cfg) => cfg.user_id === userId);
     });
+
+    mockAgentBuilder = jest.fn(async (config: AgentConfig.OutputWithId) => {
+      return new MockSnakAgent(
+        config.profile.name,
+        config.profile.description
+      ) as any;
+    });
+
+    agentSelector = new AgentSelector(
+      mockAgentConfigResolver,
+      mockAgentBuilder,
+      mockModel as any
+    );
   });
 
   describe('initialization', () => {
-    it('should initialize with available agents', async () => {
+    it('should initialize successfully', async () => {
       await agentSelector.init();
-      expect(mockAgents.size).toBe(3);
-      expect(mockAgents.has('agent1|user1')).toBe(true);
-      expect(mockAgents.has('agent2|user1')).toBe(true);
-      expect(mockAgents.has('agent3|user1')).toBe(true);
+      // Should not throw error
+      expect(agentSelector).toBeDefined();
     });
 
-    it('should handle initialization without model selector', async () => {
-      const agentSelectorWithoutModel = new AgentSelector({
-        availableAgents: mockAgents,
-        modelSelector: null as any,
-      });
+    it('should handle initialization without model', async () => {
+      const agentSelectorWithoutModel = new AgentSelector(
+        mockAgentConfigResolver,
+        mockAgentBuilder,
+        null as any
+      );
       await agentSelectorWithoutModel.init();
       // Should not throw error
     });
 
     it('should handle agents without description', async () => {
-      const agentsWithoutDescription = new Map([
-        ['agent-no-desc|user1', new MockSnakAgent('agent-no-desc') as any],
-        [
-          'agent-empty-desc|user1',
-          new MockSnakAgent('agent-empty-desc', '') as any,
-        ],
-        [
-          'agent-undefined-desc|user1',
-          new MockSnakAgent('agent-undefined-desc', undefined) as any,
-        ],
-      ]);
+      const configsWithoutDesc: AgentConfig.OutputWithId[] = [
+        {
+          id: 'agent-no-desc-id',
+          user_id: 'user1',
+          profile: {
+            name: 'agent-no-desc',
+            description: undefined as any,
+            group: 'test',
+          },
+          prompts_id: 'prompts1',
+          graph: {} as any,
+          memory: {} as any,
+          rag: {} as any,
+          mcp_servers: [],
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ];
 
-      const agentSelectorNoDesc = new AgentSelector({
-        availableAgents: agentsWithoutDescription,
-        modelSelector,
-        debug: true,
-      });
+      const resolverNoDesc = jest.fn(async () => configsWithoutDesc);
+      const builderNoDesc = jest.fn(
+        async (config) =>
+          new MockSnakAgent(
+            config.profile.name,
+            config.profile.description
+          ) as any
+      );
+
+      const agentSelectorNoDesc = new AgentSelector(
+        resolverNoDesc,
+        builderNoDesc,
+        mockModel as any
+      );
 
       await agentSelectorNoDesc.init();
-      // Exercise prompt path and assert default description is used
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent-no-desc'));
       await agentSelectorNoDesc.execute('Request', false, { userId: 'user1' });
       expect(agentSelectorPromptContent).toHaveBeenCalled();
-      const [agentInfo] = (
-        agentSelectorPromptContent as jest.Mock
-      ).mock.calls.at(-1);
-      const agentNames = [
-        'agent-no-desc',
-        'agent-empty-desc',
-        'agent-undefined-desc',
-      ];
-      agentNames.forEach((agentName) => {
-        const desc = agentInfo.get(agentName)?.description;
-        expect(desc).toBeUndefined();
-      });
     });
   });
 
-  describe('agent management', () => {
+  describe('agent resolution', () => {
     beforeEach(async () => {
       await agentSelector.init();
     });
 
-    it('should remove an agent successfully', async () => {
-      await agentSelector.removeAgent('agent1', 'user1');
-      expect(mockAgents.has('agent1|user1')).toBe(false);
-      expect(mockAgents.size).toBe(2);
+    it('should resolve agent configs for a specific user', async () => {
+      const configs = await mockAgentConfigResolver('user1');
+      expect(configs).toHaveLength(3);
+      expect(configs.every((cfg) => cfg.user_id === 'user1')).toBe(true);
     });
 
-    it('should handle removing non-existent agent', async () => {
-      await agentSelector.removeAgent('non-existent', 'user1');
-      expect(mockAgents.size).toBe(3);
-    });
-
-    it('should handle removing agent for different user', async () => {
-      await agentSelector.removeAgent('agent1', 'user2');
-      expect(mockAgents.has('agent1|user1')).toBe(true);
-      expect(mockAgents.size).toBe(3);
-    });
-
-    it('should update available agents', async () => {
-      const newAgent = new MockSnakAgent(
-        'agent4',
-        'Handles new operations'
-      ) as any;
-      await agentSelector.updateAvailableAgents(['agent4', newAgent], 'user1');
-      expect(mockAgents.has('agent4|user1')).toBe(true);
-      expect(mockAgents.size).toBe(4);
-    });
-
-    it('should update available agents without description', async () => {
-      const agentWithoutDescription = new MockSnakAgent('agent-no-desc') as any;
-      await agentSelector.updateAvailableAgents(
-        ['agent-no-desc', agentWithoutDescription],
-        'user1'
+    it('should build agent from config', async () => {
+      const config = mockAgentConfigs[0];
+      const agent = await mockAgentBuilder(config);
+      expect(agent.getAgentConfig().profile.name).toBe('agent1');
+      expect(agent.getAgentConfig().profile.description).toBe(
+        'Handles blockchain operations'
       );
-      expect(mockAgents.has('agent-no-desc|user1')).toBe(true);
-      expect(mockAgents.size).toBe(4);
-      mockModel.invoke.mockResolvedValueOnce(llmOk('agent-no-desc'));
-      const result = await agentSelector.execute('Some request', false, {
-        userId: 'user1',
-      });
-      expect(result.getAgentConfig().name).toBe('agent-no-desc');
     });
 
     it('should handle multiple users with unique agent names', async () => {
-      const multiUserAgents = makeAgentsForMultipleUsers();
-      const multiUserAgentSelector = new AgentSelector({
-        availableAgents: multiUserAgents,
-        modelSelector,
-        debug: true,
+      const multiUserConfigs = makeAgentConfigsForMultipleUsers();
+      const multiUserResolver = jest.fn(async (userId: string) => {
+        return multiUserConfigs.filter((cfg) => cfg.user_id === userId);
       });
+      const multiUserBuilder = jest.fn(
+        async (config: AgentConfig.OutputWithId) => {
+          return new MockSnakAgent(
+            config.profile.name,
+            config.profile.description
+          ) as any;
+        }
+      );
+      const multiUserAgentSelector = new AgentSelector(
+        multiUserResolver,
+        multiUserBuilder,
+        mockModel as any
+      );
       await multiUserAgentSelector.init();
 
       // Test user1 agents
@@ -238,8 +312,8 @@ describe('AgentSelector', () => {
         false,
         { userId: 'user1' }
       );
-      expect(resultUser1.getAgentConfig().name).toBe('agent1');
-      expect(resultUser1.getAgentConfig().description).toBe(
+      expect(resultUser1.getAgentConfig().profile.name).toBe('agent1');
+      expect(resultUser1.getAgentConfig().profile.description).toBe(
         'Handles blockchain operations'
       );
 
@@ -250,8 +324,8 @@ describe('AgentSelector', () => {
         false,
         { userId: 'user2' }
       );
-      expect(resultUser2.getAgentConfig().name).toBe('agent3');
-      expect(resultUser2.getAgentConfig().description).toBe(
+      expect(resultUser2.getAgentConfig().profile.name).toBe('agent3');
+      expect(resultUser2.getAgentConfig().profile.description).toBe(
         'Handles blockchain operations for user2'
       );
     });
@@ -285,8 +359,9 @@ describe('AgentSelector', () => {
         const result = await agentSelector.execute('Some request', false, {
           userId: 'user1',
         });
-        expect(result.getAgentConfig().name).toBe(expectedAgent);
+        expect(result.getAgentConfig().profile.name).toBe(expectedAgent);
         expect(mockModel.invoke).toHaveBeenCalledTimes(1);
+        expect(mockAgentBuilder).toHaveBeenCalledTimes(1);
       }
     );
 
@@ -340,24 +415,51 @@ describe('AgentSelector', () => {
     });
 
     it('should filter agents by userId correctly', async () => {
-      const multiUserAgents = makeAgentsForMultipleUsers();
-      const multiUserAgentSelector = new AgentSelector({
-        availableAgents: multiUserAgents,
-        modelSelector,
-        debug: true,
+      const multiUserConfigs = makeAgentConfigsForMultipleUsers();
+      const multiUserResolver = jest.fn(async (userId: string) => {
+        return multiUserConfigs.filter((cfg) => cfg.user_id === userId);
       });
+      const multiUserBuilder = jest.fn(
+        async (config: AgentConfig.OutputWithId) => {
+          return new MockSnakAgent(
+            config.profile.name,
+            config.profile.description
+          ) as any;
+        }
+      );
+      const multiUserAgentSelector = new AgentSelector(
+        multiUserResolver,
+        multiUserBuilder,
+        mockModel as any
+      );
       await multiUserAgentSelector.init();
 
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent2'));
       const result = await multiUserAgentSelector.execute('Request', false, {
         userId: 'user1',
       });
-      expect(result.getAgentConfig().name).toBe('agent2');
+      expect(result.getAgentConfig().profile.name).toBe('agent2');
 
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent2'));
       await expect(
         multiUserAgentSelector.execute('Request', false, { userId: 'user2' })
       ).rejects.toThrow('No matching agent found');
+    });
+
+    it('should only build the selected agent', async () => {
+      mockModel.invoke.mockResolvedValueOnce(llmOk('agent2'));
+      await agentSelector.execute('Some request', false, { userId: 'user1' });
+
+      // Should resolve configs for user1
+      expect(mockAgentConfigResolver).toHaveBeenCalledWith('user1');
+
+      // Should only build agent2, not all agents
+      expect(mockAgentBuilder).toHaveBeenCalledTimes(1);
+      expect(mockAgentBuilder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          profile: expect.objectContaining({ name: 'agent2' }),
+        })
+      );
     });
   });
 
@@ -374,18 +476,32 @@ describe('AgentSelector', () => {
     });
 
     it('should handle special characters in agent names', async () => {
-      const specialAgent = new MockSnakAgent(
-        'agent-special',
-        'Handles special operations'
-      ) as any;
-      mockAgents.set('agent-special|user1', specialAgent);
+      const specialConfig: AgentConfig.OutputWithId = {
+        id: 'agent-special-id',
+        user_id: 'user1',
+        profile: {
+          name: 'agent-special',
+          description: 'Handles special operations',
+          group: 'test',
+        },
+        prompts_id: 'prompts-special',
+        graph: {} as any,
+        memory: {} as any,
+        rag: {} as any,
+        mcp_servers: [],
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      mockAgentConfigs.push(specialConfig);
+
       mockModel.invoke.mockResolvedValueOnce(llmOk('agent-special'));
       const result = await agentSelector.execute(
         'Special operation request',
         false,
         { userId: 'user1' }
       );
-      expect(result.getAgentConfig().name).toBe('agent-special');
+      expect(result.getAgentConfig().profile.name).toBe('agent-special');
     });
 
     it('should handle empty userId in config', async () => {
@@ -402,6 +518,23 @@ describe('AgentSelector', () => {
       ).rejects.toThrow(
         'AgentSelector: userId is required in config parameter'
       );
+    });
+
+    it('should throw error when no agents found for user', async () => {
+      const emptyResolver = jest.fn(async () => []);
+      const emptyBuilder = jest.fn();
+      const emptySelectorAgent = new AgentSelector(
+        emptyResolver,
+        emptyBuilder,
+        mockModel as any
+      );
+
+      await emptySelectorAgent.init();
+      await expect(
+        emptySelectorAgent.execute('Some request', false, {
+          userId: 'user-no-agents',
+        })
+      ).rejects.toThrow('No agents found for user');
     });
   });
 });

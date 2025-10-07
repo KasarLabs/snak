@@ -35,7 +35,8 @@
     ".": "./dist/database.js",
     "./error": "./dist/error.js",
     "./queries": "./dist/queries/index.js",
-    "./common": "./dist/queries/common.js"
+    "./common": "./dist/queries/common.js",
+    "./redis": "./dist/redis.js"
   },
   "typesVersions": {
     "*": {
@@ -50,12 +51,16 @@
       ],
       "common": [
         "./dist/queries/common.d.ts"
+      ],
+      "redis": [
+        "./dist/redis.d.ts"
       ]
     }
   },
   "dependencies": {
     "pg": "^8.14.1",
-    "@snakagent/core": "workspace:*"
+    "@snakagent/core": "workspace:*",
+    "ioredis": "^5.3.2"
   },
   "devDependencies": {
     "@types/pg": "^8.11.13",

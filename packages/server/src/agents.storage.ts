@@ -1,25 +1,28 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import { DatabaseService } from './services/database.service.js';
-import { Postgres } from '@snakagent/database';
+import { Postgres, redisAgents } from '@snakagent/database/queries';
+import { RedisClient } from '@snakagent/database/redis';
 import {
   AgentConfig,
   ModelConfig,
   StarknetConfig,
   AgentPromptsInitialized,
   DEFAULT_AGENT_MODEL,
+  AgentValidationService,
+  DatabaseConfigService,
 } from '@snakagent/core';
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.storage.js';
 import {
   AgentSelector,
+  AgentConfigResolver,
   SnakAgent,
   TASK_EXECUTOR_SYSTEM_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
   TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@snakagent/agents';
-import { SystemMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
@@ -33,16 +36,17 @@ const logger = new Logger('AgentStorage');
  */
 @Injectable()
 export class AgentStorage implements OnModuleInit {
-  private agentConfigs: AgentConfig.OutputWithId[] = [];
-  private agentInstances: Map<string, SnakAgent> = new Map();
   private agentSelector: AgentSelector;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
+  private agentValidationService: AgentValidationService;
 
   constructor(
     private readonly config: ConfigurationService,
     private readonly databaseService: DatabaseService
-  ) {}
+  ) {
+    this.agentValidationService = new AgentValidationService(this);
+  }
 
   async onModuleInit() {
     await this.initialize();
@@ -51,75 +55,129 @@ export class AgentStorage implements OnModuleInit {
   /* ==================== PUBLIC GETTERS ==================== */
 
   /**
-   * Get an agent configuration by ID
+   * Get an agent configuration by ID from Redis
    * @param id - Agent ID
    * @param userId - User ID to verify ownership
    * @returns AgentConfigSQL | undefined - The agent configuration or undefined if not found or not owned by user
    */
-  public getAgentConfig(
+  public async getAgentConfig(
     id: string,
     userId: string
-  ): AgentConfig.OutputWithId | undefined {
+  ): Promise<AgentConfig.OutputWithId | null> {
     if (!this.initialized) {
-      return undefined;
+      await this.initialize();
     }
 
-    const config = this.agentConfigs.find(
-      (config) => config.id === id && config.user_id === userId
-    );
+    try {
+      const config = await redisAgents.getAgentByPair(id, userId);
 
-    if (!config) {
-      logger.debug(`Agent ${id} not found for user ${userId}`);
+      if (!config) {
+        logger.debug(`Agent ${id} not found for user ${userId}`);
+      }
+
+      return config;
+    } catch (error) {
+      logger.error(`Error fetching agent config from Redis: ${error}`);
+      // Fallback to PostgreSQL as source of truth
+      try {
+        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [
+          id,
+          userId,
+        ]);
+        const result = await Postgres.query<AgentConfig.OutputWithId>(query);
+        return result.length > 0 ? result[0] : null;
+      } catch (pgError) {
+        logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
+        return null;
+      }
     }
-
-    return config;
   }
 
   /**
-   * Get all agent configurations for a specific user
+   * Get all agent configurations for a specific user from Redis
    * @param userId - User ID to filter configurations
    * @returns AgentConfigSQL[] - Array of agent configurations owned by the user
    */
-  public getAllAgentConfigs(userId: string): AgentConfig.OutputWithId[] {
+  public async getAllAgentConfigs(
+    userId: string
+  ): Promise<AgentConfig.OutputWithId[]> {
     if (!this.initialized) {
-      return [];
+      await this.initialize();
     }
-    return this.agentConfigs.filter((config) => config.user_id === userId);
+
+    try {
+      return await redisAgents.listAgentsByUser(userId);
+    } catch (error) {
+      logger.error(`Error fetching agent configs from Redis: ${error}`);
+      // Fallback to PostgreSQL as source of truth
+      try {
+        logger.debug(
+          `Fallback to PostgreSQL as source of truth for user ${userId}`
+        );
+        const query = this.agentSelectQuery('user_id = $1', [userId]);
+        return await Postgres.query<AgentConfig.OutputWithId>(query);
+      } catch (pgError) {
+        logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
+        throw new Error(
+          `Failed to fetch agents from both Redis and PostgreSQL. Redis: ${error}, PostgreSQL: ${pgError}`
+        );
+      }
+    }
   }
 
   /**
    * Get a SnakAgent instance by ID
+   * Fetches from Redis and creates a new instance each time
    * @param {string} id - The agent ID
    * @param {string} userId - User ID to verify ownership (required)
    * @returns {SnakAgent | undefined} The agent instance or undefined if not found or not owned by user
    */
-  public getAgentInstance(id: string, userId: string): SnakAgent | undefined {
-    const compositeKey = `${id}|${userId}`;
-    return this.agentInstances.get(compositeKey);
-  }
-  /**
-   * Get all agent instances for a specific user
-   * @param {string} userId - The user ID
-   * @returns {SnakAgent[]} Array of agent instances owned by the user
-   */
-  public getAgentInstancesByUser(userId: string): SnakAgent[] {
-    const userAgents: SnakAgent[] = [];
-    for (const [key, instance] of this.agentInstances.entries()) {
-      const [_agentId, agentUserId] = key.split('|');
-      if (agentUserId === userId) {
-        userAgents.push(instance);
+  public async getAgentInstance(
+    id: string,
+    userId: string
+  ): Promise<SnakAgent | undefined> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    try {
+      const agentConfig = await redisAgents.getAgentByPair(id, userId);
+
+      if (!agentConfig) {
+        logger.debug(`Agent ${id} not found in Redis for user ${userId}`);
+        return undefined;
+      }
+
+      // Create SnakAgent from config
+      const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
+
+      logger.debug(`Agent ${id} created for user ${userId}`);
+      return snakAgent;
+    } catch (error) {
+      logger.error(`Error getting agent instance from Redis: ${error}`);
+      // Fallback to PostgreSQL as source of truth
+      try {
+        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [
+          id,
+          userId,
+        ]);
+        const result = await Postgres.query<AgentConfig.OutputWithId>(query);
+        if (result.length > 0) {
+          const agentConfig = result[0];
+          // Create SnakAgent from config
+          const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
+          logger.debug(
+            `Agent ${id} created from PostgreSQL fallback for user ${userId}`
+          );
+          return snakAgent;
+        }
+        return undefined;
+      } catch (pgError) {
+        logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
+        throw new Error(
+          `Failed to get agent instance from PostgreSQL: ${pgError}`
+        );
       }
     }
-    return userAgents;
-  }
-
-  /**
-   * Get all agent instances
-   * @param userId - Optional user ID to filter instances
-   * @returns {SnakAgent[]} Array of all agent instances
-   */
-  public getAllAgentInstances(userId: string): SnakAgent[] {
-    return this.getAgentInstancesByUser(userId);
   }
 
   public getAgentSelector(): AgentSelector {
@@ -179,8 +237,6 @@ export class AgentStorage implements OnModuleInit {
     agentConfig: AgentConfig.Input,
     userId: string
   ): Promise<AgentConfig.OutputWithId> {
-    logger.debug(`Adding agent with config: ${JSON.stringify(agentConfig)}`);
-
     if (!this.initialized) {
       await this.initialize();
     }
@@ -221,31 +277,25 @@ export class AgentStorage implements OnModuleInit {
 
     agentConfig.prompts_id = prompt_id;
     agentConfig.profile.name = finalName;
+    await this.agentValidationService.validateAgent({...agentConfig, user_id: userId}, true);
     const q = new Postgres.Query(
       'SELECT * FROM insert_agent_from_json($1, $2)',
       [userId, JSON.stringify(agentConfig)]
     );
     const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
-    logger.debug(`Agent added to database: ${JSON.stringify(q_res)}`);
 
     if (q_res.length > 0) {
       const newAgentDbRecord = q_res[0];
-      const compositeKey = `${newAgentDbRecord.id}|${userId}`;
-      this.agentConfigs.push(newAgentDbRecord);
-      this.createSnakAgentFromConfig(newAgentDbRecord)
-        .then((snakAgent) => {
-          this.agentInstances.set(compositeKey, snakAgent);
-          this.agentSelector.updateAvailableAgents(
-            [newAgentDbRecord.id, snakAgent],
-            userId
-          );
-        })
-        .catch((error) => {
-          logger.error(
-            `Failed to create SnakAgent for new agent ${newAgentDbRecord.id}: ${error}`
-          );
-          throw error;
-        });
+
+      // Save to Redis
+      try {
+        await redisAgents.saveAgent(newAgentDbRecord);
+        logger.debug(`Agent ${newAgentDbRecord.id} saved to Redis`);
+      } catch (error) {
+        logger.error(`Failed to save agent to Redis: ${error}`);
+        // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
+      }
+
       logger.debug(`Agent ${newAgentDbRecord.id} added to configuration`);
       return newAgentDbRecord;
     } else {
@@ -271,14 +321,61 @@ export class AgentStorage implements OnModuleInit {
     const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
-    this.agentConfigs = this.agentConfigs.filter(
-      (config) => !(config.id === id && config.user_id === userId)
-    );
-    this.agentInstances.delete(id);
-    this.agentSelector.removeAgent(id, userId);
-    logger.debug(`Agent ${id} removed from local configuration`);
+    // Delete from Redis
+    try {
+      await redisAgents.deleteAgent(id, userId);
+      logger.debug(`Agent ${id} deleted from Redis`);
+    } catch (error) {
+      logger.error(`Failed to delete agent from Redis: ${error}`);
+      // Don't throw, PostgreSQL deletion is what matters
+    }
+
+    logger.debug(`Agent ${id} removed from configuration`);
   }
 
+  /* ==================== PUBLIC UTILITIES ==================== */
+
+  /**
+   * Get the total number of agents in the system
+   * @returns Promise<number> - The total number of agents
+   */
+  public async getTotalAgentsCount(): Promise<number> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const q = new Postgres.Query(`SELECT COUNT(*) as count FROM agents`);
+      const result = await Postgres.query<{ count: string }>(q);
+      return parseInt(result[0].count, 10);
+    } catch (error) {
+      logger.error('Error getting total agents count:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the number of agents for a specific user
+   * @param userId - User ID to count agents for
+   * @returns Promise<number> - The number of agents owned by the user
+   */
+  public async getUserAgentsCount(userId: string): Promise<number> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const q = new Postgres.Query(
+        `SELECT COUNT(*) as count FROM agents WHERE user_id = $1`,
+        [userId]
+      );
+      const result = await Postgres.query<{ count: string }>(q);
+      return parseInt(result[0].count, 10);
+    } catch (error) {
+      logger.error(`Error getting agents count for user ${userId}:`, error);
+      throw error;
+    }
+  }
   /* ==================== PUBLIC UTILITIES ==================== */
 
   /**
@@ -296,6 +393,25 @@ export class AgentStorage implements OnModuleInit {
 
     // If not initialized and no promise exists, trigger initialization
     return this.initialize();
+  }
+
+  /* ==================== PRIVATE HELPER METHODS ==================== */
+
+  /**
+   * Create a PostgreSQL query for selecting agent data
+   * @private
+   * @param whereClause - The WHERE clause for the query
+   * @param params - Parameters for the query
+   * @returns Postgres.Query - The constructed query
+   */
+  private agentSelectQuery(whereClause: string, params: any[]): Postgres.Query {
+    return new Postgres.Query(
+      `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
+       created_at, updated_at, avatar_image, avatar_mime_type
+       FROM agents WHERE ${whereClause}`,
+      params
+    );
   }
 
   /* ==================== PRIVATE INITIALIZATION METHODS ==================== */
@@ -329,8 +445,61 @@ export class AgentStorage implements OnModuleInit {
       if (!modelInstance || modelInstance.bindTools === undefined) {
         throw new Error('Failed to initialize model for AgentSelector');
       }
+
+      // Create agent config resolver function that fetches agent configs from Redis on-demand
+      const agentConfigResolver: AgentConfigResolver = async (
+        userId: string
+      ): Promise<AgentConfig.OutputWithId[]> => {
+        try {
+          const agentConfigs = await redisAgents.listAgentsByUser(userId);
+          logger.debug(
+            `agentConfigResolver: Found ${agentConfigs.length} configs for user ${userId}`
+          );
+          return agentConfigs;
+        } catch (error) {
+          logger.error(`Error fetching agent configs from Redis: ${error}`);
+          // Fallback to PostgreSQL as source of truth
+          try {
+            logger.debug(
+              `agentConfigResolver: Fallback to PostgreSQL as source of truth for user ${userId}`
+            );
+            const query = this.agentSelectQuery('user_id = $1', [userId]);
+            const result =
+              await Postgres.query<AgentConfig.OutputWithId>(query);
+            logger.debug(
+              `agentConfigResolver: Found ${result.length} configs from PostgreSQL for user ${userId}`
+            );
+            return result;
+          } catch (pgError) {
+            logger.error(
+              `agentConfigResolver: Fallback to PostgreSQL also failed: ${pgError}`
+            );
+            throw new Error(
+              `Failed to fetch agent configs: Redis: ${error}, PostgreSQL: ${pgError}`
+            );
+          }
+        }
+      };
+
+      // Create agent builder function that builds a SnakAgent from a config
+      const agentBuilder = async (
+        agentConfig: AgentConfig.OutputWithId
+      ): Promise<SnakAgent> => {
+        try {
+          logger.debug(`agentBuilder: Building agent ${agentConfig.id}`);
+          return await this.createSnakAgentFromConfig(agentConfig);
+        } catch (error) {
+          logger.error(
+            `Failed to build SnakAgent for ${agentConfig.id}:`,
+            error
+          );
+          throw error;
+        }
+      };
+
       this.agentSelector = new AgentSelector(
-        this.agentInstances,
+        agentConfigResolver,
+        agentBuilder,
         modelInstance
       );
       await this.agentSelector.init();
@@ -347,10 +516,24 @@ export class AgentStorage implements OnModuleInit {
    */
   private async performInitialize(): Promise<void> {
     try {
+      // Initialize global database configuration service
+      DatabaseConfigService.getInstance().initialize();
+
       // Wait for database service to be ready instead of polling
       await this.databaseService.onReady();
 
       await DatabaseStorage.connect();
+
+      // Initialize Redis connection
+      try {
+        const redisClient = RedisClient.getInstance();
+        await redisClient.connect();
+        logger.log('Redis connected for agent storage');
+      } catch (error) {
+        logger.error('Failed to initialize Redis connection:', error);
+        throw error;
+      }
+
       await this.init_agents_config();
       this.initialized = true;
     } catch (error) {
@@ -361,7 +544,7 @@ export class AgentStorage implements OnModuleInit {
   }
 
   /**
-   * Initialize agents configuration from database
+   * Initialize agents configuration from database and sync to Redis
    * @private
    */
   private async init_agents_config() {
@@ -384,11 +567,30 @@ export class AgentStorage implements OnModuleInit {
         FROM agents
       `);
       const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
-      this.agentConfigs = [...q_res];
-      await this.registerAgentInstance();
-      logger.debug(
-        `Agents configuration loaded: ${this.agentConfigs.length} agents`
-      );
+
+      // Sync all agents to Redis
+      logger.debug(`Syncing ${q_res.length} agents to Redis`);
+      for (const agentConfig of q_res) {
+        try {
+          // Check if already exists in Redis
+          const exists = await redisAgents.agentExists(
+            agentConfig.id,
+            agentConfig.user_id
+          );
+          if (!exists) {
+            await redisAgents.saveAgent(agentConfig);
+            logger.debug(`Synced agent ${agentConfig.id} to Redis`);
+          }
+        } catch (error) {
+          logger.error(
+            `Failed to sync agent ${agentConfig.id} to Redis:`,
+            error
+          );
+          // Continue with other agents
+        }
+      }
+
+      logger.debug(`Agents configuration loaded: ${q_res.length} agents`);
       return q_res;
     } catch (error) {
       logger.error('Error during agents configuration initialization:', error);
@@ -402,26 +604,17 @@ export class AgentStorage implements OnModuleInit {
     agentConfig: AgentConfig.OutputWithId
   ): Promise<SnakAgent> {
     try {
-      const databaseConfig = {
-        database: process.env.POSTGRES_DB as string,
-        host: process.env.POSTGRES_HOST as string,
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        port: parseInt(process.env.POSTGRES_PORT as string),
-      };
       const starknetConfig: StarknetConfig = {
         provider: this.config.starknet.provider,
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
       };
 
-      // JUST FOR TESTING PURPOSES
       const model = await this.getModelFromUser(agentConfig.user_id);
       const modelInstance = this.initializeModels(model);
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
       }
-      // Get prompts from database or use fallback
       const promptsFromDb = await this.getPromptsFromDatabase(
         agentConfig.prompts_id
       );
@@ -430,7 +623,6 @@ export class AgentStorage implements OnModuleInit {
           `Failed to load prompts for agent ${agentConfig.id}, prompts ID: ${agentConfig.prompts_id}`
         );
       }
-
       const AgentConfigRuntime: AgentConfig.Runtime = {
         ...agentConfig,
         prompts: promptsFromDb,
@@ -439,38 +631,13 @@ export class AgentStorage implements OnModuleInit {
           model: modelInstance,
         },
       };
-      const snakAgent = new SnakAgent(
-        starknetConfig,
-        AgentConfigRuntime,
-        databaseConfig
-      );
+
+      const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
       await snakAgent.init();
 
       return snakAgent;
     } catch (error) {
       logger.error(`Error creating SnakAgent from config:`, error);
-      throw error;
-    }
-  }
-
-  private async registerAgentInstance() {
-    try {
-      for (const agentConfig of this.agentConfigs) {
-        const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
-        if (!snakAgent) {
-          logger.warn(
-            `Failed to create SnakAgent for agent ID: ${agentConfig.id}`
-          );
-          continue;
-        }
-        const compositeKey = `${agentConfig.id}|${agentConfig.user_id}`;
-        this.agentInstances.set(compositeKey, snakAgent);
-        logger.debug(
-          `Created SnakAgent: ${agentConfig.profile.name} (${agentConfig.id})`
-        );
-      }
-    } catch (error) {
-      logger.error('Error registering agent instance:', error);
       throw error;
     }
   }
@@ -629,5 +796,24 @@ export class AgentStorage implements OnModuleInit {
       logger.error('Failed to initialize default prompts:', error);
       throw error;
     }
+  }
+
+  /**
+   * Validate agent configuration
+   * @param agentConfig - Agent configuration to validate
+   * @param isCreation - Whether this is for creation (true) or update (false)
+   */
+  async validateAgent(
+    agentConfig: AgentConfig.Input | AgentConfig.InputWithOptionalParam,
+    isCreation: boolean = false
+  ): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    return this.agentValidationService.validateAgent(
+      agentConfig,
+      isCreation,
+      this
+    );
   }
 }

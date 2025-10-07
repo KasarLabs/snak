@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { WorkerConfig } from '../types/index.js';
+import { getGuardValue } from '@core/dist/index.js';
 
 export const configSchema = z
   .object({

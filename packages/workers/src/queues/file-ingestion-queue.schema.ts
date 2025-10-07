@@ -1,3 +1,4 @@
+import { getGuardValue } from '@core/dist/index.js';
 import { z } from 'zod';
 
 const ALLOWED_MIME_TYPES = [
@@ -13,43 +14,46 @@ const ALLOWED_MIME_TYPES = [
   'application/octet-stream',
 ] as const;
 
-const MAX_FILE_SIZE = 501 * 1024; // 501KB
-const MIN_FILE_SIZE = 1;
+function createFileIngestionJobPayloadSchema() {
+  return z
+    .object({
+      agentId: z.string().uuid('Invalid agentId format'),
+      userId: z.string().uuid('Invalid userId format'),
+      fileId: z.string().uuid('Invalid fileId format'),
+      originalName: z
+        .string()
+        .min(getGuardValue('rag.min_original_name_length'))
+        .max(getGuardValue('rag.max_original_name_length'))
+        .regex(/^[^<>:"/\\|?*]+$/, 'Invalid characters in filename'),
+      mimeType: z.enum(ALLOWED_MIME_TYPES, {
+        errorMap: () => ({ message: 'Unsupported file type' }),
+      }),
+      buffer: z.instanceof(Buffer, { message: 'Buffer is required' }),
+      size: z
+        .number()
+        .int('Size must be an integer')
+        .min(getGuardValue('rag.min_size'))
+        .max(getGuardValue('rag.max_size')),
+    })
+    .refine((data) => data.buffer.length === data.size, {
+      message: 'Buffer size does not match declared size',
+      path: ['size'],
+    });
+}
 
-export const FileIngestionJobPayloadSchema = z
-  .object({
-    agentId: z.string().uuid('Invalid agentId format'),
-    userId: z.string().uuid('Invalid userId format'),
-    fileId: z.string().min(1, 'fileId is required').max(255, 'fileId too long'),
-    originalName: z
-      .string()
-      .min(1, 'originalName is required')
-      .max(255, 'originalName too long')
-      .regex(/^[^<>:"/\\|?*]+$/, 'Invalid characters in filename'),
-    mimeType: z.enum(ALLOWED_MIME_TYPES, {
-      errorMap: () => ({ message: 'Unsupported file type' }),
-    }),
-    buffer: z.instanceof(Buffer, { message: 'Buffer is required' }),
-    size: z
-      .number()
-      .int('Size must be an integer')
-      .min(MIN_FILE_SIZE, 'File too small')
-      .max(MAX_FILE_SIZE, 'File too large'),
-  })
-  .refine((data) => data.buffer.length === data.size, {
-    message: 'Buffer size does not match declared size',
-    path: ['size'],
-  });
+export function getFileIngestionJobPayloadSchema() {
+  return createFileIngestionJobPayloadSchema();
+}
 
 export type FileIngestionJobPayload = z.infer<
-  typeof FileIngestionJobPayloadSchema
+  ReturnType<typeof getFileIngestionJobPayloadSchema>
 >;
 
 export function validateFileIngestionPayload(
   payload: unknown
 ): FileIngestionJobPayload {
   try {
-    return FileIngestionJobPayloadSchema.parse(payload);
+    return getFileIngestionJobPayloadSchema().parse(payload);
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errorMessages = error.errors

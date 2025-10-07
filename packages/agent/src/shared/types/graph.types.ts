@@ -6,10 +6,15 @@ export enum GraphErrorTypeEnum {
   VALIDATION_ERROR = 'validation_error',
   MEMORY_ERROR = 'memory_error',
   MANAGER_ERROR = 'manager_error',
-  BLOCKED_TASK = 'blocked_task',
+  BLOCK_TASK = 'block_task',
   WRONG_NUMBER_OF_TOOLS = 'wrong_number_of_tools',
   TIMEOUT_ERROR = 'timeout_error',
   UNKNOWN_ERROR = 'unknown_error',
+  STRUCTURED_OUTPUT_ERROR = 'structured_output_error',
+  PARSING_ERROR = 'parsing_error',
+  INVALID_TOOL_CALL = 'invalid_tool_call',
+  MAX_RETRY_REACHED = 'max_retry_reached',
+  MODEL_ERROR = 'model_error',
 }
 
 export interface GraphErrorType {
@@ -28,7 +33,7 @@ export interface ThoughtsType {
 }
 
 export interface ToolCallType {
-  tool_call_id: string;
+  id: string;
   name: string;
   args: Record<string, any>;
   result?: string;
@@ -37,28 +42,40 @@ export interface ToolCallType {
 
 export interface StepType {
   id: string;
+  type: 'tools' | 'human'; // only two types for now
   thought: ThoughtsType;
   tool: ToolCallType[];
+  isSavedInMemory: boolean;
 }
 
-export interface TaskType {
+export type TaskCreatedType = {
+  analysis: string;
+  directive: string;
+  success_check: string;
+};
+
+export type TaskStatusType =
+  | 'pending'
+  | 'completed'
+  | 'failed'
+  | 'in_progress'
+  | 'waiting'
+  | 'aborted'
+  | 'blocked'
+  | 'waiting_human'
+  | 'waiting_validation';
+
+export type TaskType = {
   id: string;
   thought: ThoughtsType;
-  task: {
-    analysis: string;
-    directive: string;
-    success_check: string;
-  };
+  task?: TaskCreatedType;
+  human?: string; // human input if ask_human throw
+  request: string;
   task_verification?: string;
   steps: StepType[];
-  status:
-    | 'pending'
-    | 'completed'
-    | 'failed'
-    | 'in_progress'
-    | 'waiting'
-    | 'waiting_validation';
-}
+  isHumanTask: boolean;
+  status: TaskStatusType;
+};
 
 export interface TasksType {
   tasks: TaskType[];
@@ -87,3 +104,8 @@ export interface skipValidationType {
   skipValidation: boolean;
   goto: string;
 }
+
+export type StateErrorHandlerType = {
+  currentGraphStep: number;
+  additionalUpdates?: Record<string, any>;
+};

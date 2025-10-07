@@ -37,7 +37,7 @@ interface Agent {
 }
 
 interface Message {
-  id: number;
+  id: string;
   agent_id: string;
   event: string;
   run_id: string;
@@ -49,9 +49,10 @@ interface Message {
 }
 
 interface EpisodicMemory {
-  id: number;
+  id: string;
   user_id: string;
-  run_id: string;
+  task_id: string;
+  step_id: string;
   content: string;
   embedding: number[];
   sources: string[];
@@ -401,16 +402,18 @@ describe('Message Table Operations', () => {
 
 describe('Memory Table Operations', () => {
   const testUserId = 'test_user_123';
-  const testRunId = '550e8400-e29b-41d4-a716-446655440000';
+  const testTaskId = '550e8400-e29b-41d4-a716-446655440000';
+  const testStepId = '550e8400-e29b-41d4-a716-446655440001';
 
   it('should insert episodic memory with embedding', async () => {
     const embedding = Array.from({ length: 384 }, () => Math.random());
     const insertQ = new Postgres.Query(
-      `INSERT INTO episodic_memories (user_id, run_id, content, embedding, sources)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      `INSERT INTO episodic_memories (user_id, task_id, step_id, content, embedding, sources)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [
         testUserId,
-        testRunId,
+        testTaskId,
+        testStepId,
         'User asked about weather',
         JSON.stringify(embedding),
         ['conversation_log'],
@@ -427,12 +430,18 @@ describe('Memory Table Operations', () => {
   it('should update access_count when memory is retrieved', async () => {
     const embedding = Array.from({ length: 384 }, () => Math.random());
     const insertQ = new Postgres.Query(
-      `INSERT INTO episodic_memories (user_id, run_id, content, embedding)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [testUserId, testRunId, 'Memory to access', JSON.stringify(embedding)]
+      `INSERT INTO episodic_memories (user_id, task_id, step_id, content, embedding)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [
+        testUserId,
+        testTaskId,
+        testStepId,
+        'Memory to access',
+        JSON.stringify(embedding),
+      ]
     );
 
-    const [{ id }] = await Postgres.query<{ id: number }>(insertQ);
+    const [{ id }] = await Postgres.query<{ id: string }>(insertQ);
 
     const updateQ = new Postgres.Query(
       'UPDATE episodic_memories SET access_count = access_count + 1 WHERE id = $1 RETURNING access_count',
@@ -447,11 +456,12 @@ describe('Memory Table Operations', () => {
   it('should query memories by similarity (mock test)', async () => {
     const searchEmbedding = Array.from({ length: 384 }, () => Math.random());
     const insertQ = new Postgres.Query(
-      `INSERT INTO episodic_memories (user_id, run_id, content, embedding) VALUES 
-       ($1, $2, $3, $4), ($1, $2, $5, $6)`,
+      `INSERT INTO episodic_memories (user_id, task_id, step_id, content, embedding) VALUES
+       ($1, $2, $3, $4, $5), ($1, $2, $3, $6, $7)`,
       [
         testUserId,
-        testRunId,
+        testTaskId,
+        testStepId,
         'Memory about cats',
         JSON.stringify(searchEmbedding),
         'Memory about dogs',
@@ -470,7 +480,7 @@ describe('Memory Table Operations', () => {
     );
 
     const memories = await Postgres.query<{
-      id: number;
+      id: string;
       content: string;
       distance: number;
     }>(searchQ);
@@ -517,7 +527,7 @@ describe('Custom Types Operations', () => {
 
     const [result] = await Postgres.query<RagTest>(q);
     expect(result.rag_enabled).toBe(true);
-    expect(result.model_name).toBe('text-embedding-ada-002');
+    expect(result.modelName).toBe('text-embedding-ada-002');
   });
 
   it('should work with model composite type', async () => {
@@ -738,12 +748,15 @@ describe('Integration Tests - Complex Multi-table Operations', () => {
     await Postgres.query(createMessagesQ);
 
     const embedding = Array.from({ length: 384 }, () => Math.random());
+    const testTaskId = '550e8400-e29b-41d4-a716-446655440002';
+    const testStepId = '550e8400-e29b-41d4-a716-446655440003';
     const createMemoryQ = new Postgres.Query(
-      `INSERT INTO episodic_memories (user_id, run_id, content, embedding)
-       VALUES ($1, $2, $3, $4)`,
+      `INSERT INTO episodic_memories (user_id, task_id, step_id, content, embedding)
+       VALUES ($1, $2, $3, $4, $5)`,
       [
         'integration_user',
-        agentId,
+        testTaskId,
+        testStepId,
         'Integration test conversation',
         JSON.stringify(embedding),
       ]
@@ -760,7 +773,7 @@ describe('Integration Tests - Complex Multi-table Operations', () => {
       FROM agents a
       LEFT JOIN thread_id t ON a.id = t.agent_id
       LEFT JOIN message m ON a.id = m.agent_id
-      LEFT JOIN episodic_memories em ON a.id::text = em.run_id
+      LEFT JOIN episodic_memories em ON a.user_id::text = em.user_id
       WHERE a.id = $1
       GROUP BY a.id, a.name
     `,

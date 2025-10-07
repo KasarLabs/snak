@@ -37,12 +37,12 @@ export class ControllerHelpers {
    * @returns Agent instance if owned by user
    * @throws ForbiddenException if agent not found or access denied
    */
-  static verifyAgentOwnership(
+  static async verifyAgentOwnership(
     agentFactory: AgentStorage,
     agentId: string,
     userId: string
-  ): SnakAgent {
-    const agent = agentFactory.getAgentInstance(agentId, userId);
+  ): Promise<SnakAgent> {
+    const agent = await agentFactory.getAgentInstance(agentId, userId);
     if (!agent) {
       throw new ForbiddenException('Agent not found or access denied');
     }
@@ -57,12 +57,12 @@ export class ControllerHelpers {
    * @returns Agent configuration if owned by user
    * @throws ForbiddenException if agent not found or access denied
    */
-  static verifyAgentConfigOwnership(
+  static async verifyAgentConfigOwnership(
     agentFactory: AgentStorage,
     agentId: string,
     userId: string
-  ): AgentConfig.OutputWithId {
-    const agentConfig = agentFactory.getAgentConfig(agentId, userId);
+  ): Promise<AgentConfig.OutputWithId> {
+    const agentConfig = await agentFactory.getAgentConfig(agentId, userId);
     if (!agentConfig) {
       throw new ForbiddenException('Agent not found or access denied');
     }
@@ -76,13 +76,17 @@ export class ControllerHelpers {
    * @param agentId - Agent ID to verify
    * @returns Object containing userId and agent instance
    */
-  static getUserAndVerifyAgentOwnership(
+  static async getUserAndVerifyAgentOwnership(
     req: FastifyRequest,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agent: SnakAgent } {
+  ): Promise<{ userId: string; agent: SnakAgent }> {
     const userId = this.getUserId(req);
-    const agent = this.verifyAgentOwnership(agentFactory, agentId, userId);
+    const agent = await this.verifyAgentOwnership(
+      agentFactory,
+      agentId,
+      userId
+    );
     return { userId, agent };
   }
 
@@ -93,13 +97,13 @@ export class ControllerHelpers {
    * @param agentId - Agent ID to verify
    * @returns Object containing userId and agent config
    */
-  static getUserAndVerifyAgentConfigOwnership(
+  static async getUserAndVerifyAgentConfigOwnership(
     req: FastifyRequest,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agentConfig: AgentConfig.OutputWithId } {
+  ): Promise<{ userId: string; agentConfig: AgentConfig.OutputWithId }> {
     const userId = this.getUserId(req);
-    const agentConfig = this.verifyAgentConfigOwnership(
+    const agentConfig = await this.verifyAgentConfigOwnership(
       agentFactory,
       agentId,
       userId
@@ -114,13 +118,17 @@ export class ControllerHelpers {
    * @param agentId - Agent ID to verify
    * @returns Object containing userId and agent instance
    */
-  static getSocketUserAndVerifyAgentOwnership(
+  static async getSocketUserAndVerifyAgentOwnership(
     client: Socket,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agent: SnakAgent } {
+  ): Promise<{ userId: string; agent: SnakAgent }> {
     const userId = this.getUserIdFromSocket(client);
-    const agent = this.verifyAgentOwnership(agentFactory, agentId, userId);
+    const agent = await this.verifyAgentOwnership(
+      agentFactory,
+      agentId,
+      userId
+    );
     return { userId, agent };
   }
 
@@ -131,13 +139,13 @@ export class ControllerHelpers {
    * @param agentId - Agent ID to verify
    * @returns Object containing userId and agent config
    */
-  static getSocketUserAndVerifyAgentConfigOwnership(
+  static async getSocketUserAndVerifyAgentConfigOwnership(
     client: Socket,
     agentFactory: AgentStorage,
     agentId: string
-  ): { userId: string; agentConfig: AgentConfig.OutputWithId } {
+  ): Promise<{ userId: string; agentConfig: AgentConfig.OutputWithId }> {
     const userId = this.getUserIdFromSocket(client);
-    const agentConfig = this.verifyAgentConfigOwnership(
+    const agentConfig = await this.verifyAgentConfigOwnership(
       agentFactory,
       agentId,
       userId

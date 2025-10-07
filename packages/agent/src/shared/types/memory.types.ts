@@ -67,12 +67,20 @@ export interface EpisodicMemoryContext {
   sources: Array<string>;
 }
 
+export interface HolisticMemoryContext {
+  user_id: string;
+  task_id: string;
+  step_id: string;
+  type: memory.HolisticMemoryEnumType;
+  content: string;
+  request: string;
+}
+
 /**
  * Episodic memory SQL insert structure
  */
 export interface EpisodicMemoryInsertSQL {
   user_id: string;
-  run_id: string;
   task_id: string;
   step_id: string;
   content: string;
@@ -85,12 +93,15 @@ export interface EpisodicMemoryInsertSQL {
  */
 export interface SemanticMemoryInsertSQL {
   user_id: string;
-  run_id: string;
   task_id: string;
   step_id: string;
   fact: string;
   embedding: Array<number>;
   category: string; // WOULD BE BETTER AS ENUM
+}
+
+export interface HolisticMemoryInsertSQL extends HolisticMemoryContext {
+  embedding: Array<number>;
 }
 
 /**

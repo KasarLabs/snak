@@ -56,7 +56,7 @@ export namespace memory {
   }
 
   export interface UPSERT_SEMANTIC_MEMORY_OUTPUT {
-    memory_id: number;
+    memory_id: string;
     task_id: string;
     step_id: string;
     operation: string;
@@ -65,12 +65,29 @@ export namespace memory {
   }
 
   export interface INSERT_EPISODIC_MEMORY_OUTPUT {
-    memory_id: number;
+    memory_id: string;
     task_id: string;
     step_id: string;
     operation: string;
-    similar_memory_id: number | null;
+    similar_memory_id: string | null;
     similar_memory_content: string | null;
+  }
+
+  export interface INSERT_HOLISTIC_MEMORY_OUTPUT {
+    memory_id: string;
+    operation: string;
+    similarity_score: number | null;
+  }
+
+  export interface RETRIEVE_HOLISTIC_MEMORY_OUTPUT {
+    memory_id: string;
+    step_id: string;
+    content: string;
+    request: string;
+    similarity: number;
+    access_count: number;
+    created_at: Date;
+    updated_at: Date;
   }
 
   export interface History {
@@ -80,7 +97,6 @@ export namespace memory {
   }
   interface MemoryBase {
     user_id: string;
-    run_id: string;
     task_id: string;
     step_id: string;
     embedding: number[];
@@ -90,6 +106,17 @@ export namespace memory {
     access_count?: number;
   }
 
+  export enum HolisticMemoryEnumType {
+    TOOL = 'tool',
+    AI_REQUEST = 'ai_request',
+    HUMAN_REQUEST = 'human_request',
+    AI_RESPONSE = 'ai_response',
+  }
+  interface HolisticMemoryBase extends MemoryBase {
+    request: string;
+    content: string;
+    type: HolisticMemoryEnumType;
+  }
   interface EpisodicMemoryBase extends MemoryBase {
     content: string;
     sources: Array<string>;
@@ -99,17 +126,20 @@ export namespace memory {
   interface SemanticMemoryBase extends MemoryBase {
     fact: string;
     category: string;
-    source_events?: Array<number>;
+    source_events?: Array<string>;
   }
   interface MemoryWithId extends MemoryBase {
-    id: number;
+    id: string;
   }
 
   interface SemanticMemoryWithId extends SemanticMemoryBase {
-    id: number;
+    id: string;
   }
   interface EpisodicMemoryWithId extends EpisodicMemoryBase {
-    id: number;
+    id: string;
+  }
+  interface HolisticMemoryWithId extends HolisticMemoryBase {
+    id: string;
   }
 
   /**
@@ -127,19 +157,44 @@ export namespace memory {
     ? SemanticMemoryWithId
     : SemanticMemoryBase;
 
-  export async function insert_episodic_memory(
-    memory: EpisodicMemory
-  ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
+  export type HolisticMemory<HasId extends Id = Id.NoId> = HasId extends Id.Id
+    ? HolisticMemoryWithId
+    : HolisticMemoryBase;
+
+  export async function insert_holistic_memory(
+    memory: HolisticMemoryBase,
+    similarityThreshold: number
+  ): Promise<INSERT_HOLISTIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
+      `SELECT * FROM insert_holistic_memory_smart($1, $2, $3, $4, $5, $6, $7,$8);`,
       [
         memory.user_id,
-        memory.run_id,
+        memory.task_id,
+        memory.step_id,
+        memory.type,
+        memory.content,
+        JSON.stringify(memory.embedding),
+        memory.request,
+        similarityThreshold, // Default similarity threshold for holistic memories
+      ]
+    );
+    const result = await Postgres.query<INSERT_HOLISTIC_MEMORY_OUTPUT>(q);
+    return result[0];
+  }
+
+  export async function insert_episodic_memory(
+    memory: EpisodicMemory,
+    simitlarityThreshold: number
+  ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
+    const q = new Postgres.Query(
+      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7);`,
+      [
+        memory.user_id,
         memory.task_id,
         memory.step_id,
         memory.content,
         JSON.stringify(memory.embedding),
-        0.85, // Default similarity threshold for episodic memories
+        simitlarityThreshold,
         memory.sources,
       ]
     );
@@ -148,18 +203,18 @@ export namespace memory {
   }
 
   export async function insert_semantic_memory(
-    memory: SemanticMemory
+    memory: SemanticMemory,
+    similarityThreshold: number
   ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8, $9);`,
+      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
       [
         memory.user_id,
-        memory.run_id,
         memory.task_id,
         memory.step_id,
         memory.fact,
         JSON.stringify(memory.embedding),
-        0.8, // Default similarity threshold for semantic memories
+        similarityThreshold,
         memory.category,
         memory.source_events,
       ]
@@ -171,14 +226,14 @@ export namespace memory {
   /**
    * Retrieves a { @see Memory } by id from the db, if it exists.
    *
-   * @param { number } id - Memory id.
+   * @param { string } id - Memory id (UUID).
    *
    * @returns { Memory<Id.Id> | undefined } Memory at the given id.
    *
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function select_memory(
-    id: number
+    id: string
   ): Promise<Memory<Id.Id> | undefined> {
     const q = new Postgres.Query(`SELECT * FROM select_memory($1)`, [id]);
     const q_res = await Postgres.query<Memory<Id.Id>>(q);
@@ -192,14 +247,14 @@ export namespace memory {
    * duplicate id. If a memory does not already exist at that id, it will be
    * created.
    *
-   * @param { number } id - The id of the memory to update.
+   * @param { string } id - The id of the memory to update (UUID).
    * @param { string } content - The content of the new memory.
    * @param { number[] } embedding - Vector-encoded memory.
    *
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function update_memory(
-    id: number,
+    id: string,
     content: string,
     embedding: number[]
   ): Promise<void> {
@@ -219,7 +274,7 @@ export namespace memory {
    */
   export interface Similarity {
     memory_type: string;
-    memory_id: number;
+    memory_id: string;
     task_id: string;
     step_id: string;
     content: string;
@@ -232,9 +287,8 @@ export namespace memory {
    */
   export interface MemoryRetrieval {
     memory_type: string;
-    memory_id: number;
+    memory_id: string;
     content: string;
-    run_id: string;
     task_id?: string;
     step_id?: string;
     created_at: Date;
@@ -252,18 +306,28 @@ export namespace memory {
    * @throws { DatabaseError } If a database operation fails.
    */
   export async function retrieve_memory(
+    strategy: 'holistic' | 'categorized',
     userId: string,
-    runId: string,
     embedding: number[],
     limit: number,
     threshold: number
   ): Promise<Similarity[]> {
-    const q = new Postgres.Query(
-      `SELECT * FROM retrieve_similar_memories($1, $2, $3, $4, $5)`,
-      [userId, runId, JSON.stringify(embedding), threshold, limit]
-    );
-    const result = await Postgres.query<Similarity>(q);
-    return result;
+    if (strategy === 'categorized') {
+      const q = new Postgres.Query(
+        `SELECT * FROM retrieve_similar_categorized_memories($1, $2, $3, $4)`,
+        [userId, JSON.stringify(embedding), threshold, limit]
+      );
+      const result = await Postgres.query<Similarity>(q);
+      return result;
+    } else if (strategy === 'holistic') {
+      const q = new Postgres.Query(
+        `SELECT * FROM retrieve_similar_holistic_memories($1, $2, $3, $4)`,
+        [userId, JSON.stringify(embedding), threshold, limit]
+      );
+      const result = await Postgres.query<Similarity>(q);
+      return result;
+    }
+    return [];
   }
   /**
    * Retrieves all memories (both episodic and semantic) for a specific task_id
@@ -278,13 +342,12 @@ export namespace memory {
    */
   export async function get_memories_by_task_id(
     userId: string,
-    runId: string,
     taskId: string,
     limit: number | null
   ): Promise<MemoryRetrieval[]> {
     const q = new Postgres.Query(
-      `SELECT * FROM get_memories_by_task_id($1, $2, $3,$4)`,
-      [userId, runId, taskId, limit]
+      `SELECT * FROM get_memories_by_task_id($1, $2, $3)`,
+      [userId, taskId, limit]
     );
     const result = await Postgres.query<MemoryRetrieval>(q);
     return result;
@@ -303,13 +366,12 @@ export namespace memory {
    */
   export async function get_memories_by_step_id(
     userId: string,
-    runId: string,
     stepId: string,
     limit: number | null
   ): Promise<MemoryRetrieval[]> {
     const q = new Postgres.Query(
       `SELECT * FROM get_memories_by_step_id($1, $2, $3,$4)`,
-      [userId, runId, stepId, limit]
+      [userId, stepId, limit]
     );
     const result = await Postgres.query<MemoryRetrieval>(q);
     return result;

@@ -1,6 +1,7 @@
 // packages/server/src/agents.controller.ts
 import {
   BadRequestException,
+  UnprocessableEntityException,
   Body,
   Controller,
   Get,
@@ -27,6 +28,7 @@ import {
   AgentRequestDTO,
   AgentConfig,
   AgentResponse,
+  getGuardValue,
   AgentDeleteRequestDTO,
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
@@ -37,6 +39,7 @@ import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
+import { notify, message } from '@snakagent/database/queries';
 
 export interface SupervisorRequestDTO {
   request: {
@@ -53,11 +56,6 @@ export interface AgentAvatarResponseDTO {
 interface UpdateAgentMcpDTO {
   id: string;
   mcp_servers: Record<string, any>;
-}
-
-interface AgentMcpResponseDTO {
-  id: string;
-  mcpServers: Record<string, any>;
 }
 
 /**
@@ -99,6 +97,22 @@ export class AgentsController {
     if (!mcp_servers || typeof mcp_servers !== 'object') {
       throw new BadRequestException('MCP servers must be an object');
     }
+
+    try {
+      await this.agentFactory.validateAgent(
+        {
+          id: id,
+          user_id: userId,
+          mcp_servers: mcp_servers,
+        },
+        false
+      );
+    } catch (validationError) {
+      throw new UnprocessableEntityException(
+        `Validation failed: ${validationError.message}`
+      );
+    }
+
     const agent = this.agentFactory.getAgentInstance(id, userId);
     if (!agent) {
       throw new BadRequestException('Agent not found or access denied');
@@ -112,7 +126,7 @@ export class AgentsController {
       [mcp_servers, id, userId]
     );
 
-    const result = await Postgres.query<AgentMcpResponseDTO>(q);
+    const result = await Postgres.query<UpdateAgentMcpDTO>(q);
 
     if (result.length === 0) {
       throw new BadRequestException('Agent not found');
@@ -121,7 +135,7 @@ export class AgentsController {
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
-      mcpServers: updatedAgent.mcpServers,
+      mcpServers: updatedAgent.mcp_servers,
     });
   }
 
@@ -133,6 +147,14 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     logger.info('update_agent_config called');
     const userId = ControllerHelpers.getUserId(req);
+
+    try {
+      await this.agentFactory.validateAgent({...config, user_id: userId}, false);
+    } catch (validationError) {
+      throw new UnprocessableEntityException(
+        `Validation failed: ${validationError.message}`
+      );
+    }
 
     if (!config || typeof config !== 'object') {
       throw new BadRequestException('Configuration object is required');
@@ -237,9 +259,12 @@ export class AgentsController {
       );
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize =
+      getGuardValue('user.max_upload_avatar_size') || 5 * 1024 * 1024;
     if (buffer.length > maxSize) {
-      throw new BadRequestException('File too large. Maximum size is 5MB.');
+      throw new BadRequestException(
+        `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`
+      );
     }
 
     const agentIdField = data.fields?.agent_id;
@@ -303,17 +328,19 @@ export class AgentsController {
         throw new ServerError('E01TA400'); // Bad request if no content
       }
       const agentSelector = this.agentFactory.getAgentSelector();
-      agent = await agentSelector.execute(userRequest.request.content);
+      agent = await agentSelector.execute(userRequest.request.content, false, {
+        userId,
+      });
       if (agent) {
         const agentId = agent.getAgentConfig().id;
-        ControllerHelpers.verifyAgentConfigOwnership(
+        await ControllerHelpers.verifyAgentConfigOwnership(
           this.agentFactory,
           agentId,
           userId
         );
       }
     } else {
-      agent = ControllerHelpers.verifyAgentOwnership(
+      agent = await ControllerHelpers.verifyAgentOwnership(
         this.agentFactory,
         userRequest.request.agent_id,
         userId
@@ -328,7 +355,11 @@ export class AgentsController {
       request: userRequest.request.content ?? '',
     };
 
-    const action = this.agentService.handleUserRequest(agent, messageRequest);
+    const action = this.agentService.handleUserRequest(
+      agent,
+      userId,
+      messageRequest
+    );
 
     const response_metrics = await metrics.agentResponseTimeMeasure(
       messageRequest.agent_id.toString(),
@@ -348,11 +379,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('stop_agent called');
-    const { userId, agent } = ControllerHelpers.getUserAndVerifyAgentOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId, agent } =
+      await ControllerHelpers.getUserAndVerifyAgentOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     agent.stop();
     return ResponseFormatter.success(
@@ -506,11 +538,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agent called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     const messages = await this.agentService.getMessageFromAgentId(
       userRequest,
@@ -531,11 +564,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('delete_agent called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     // Check if the agent is a supervisor agent
     await this.supervisorService.validateNotSupervisorForDeletion(
@@ -568,7 +602,7 @@ export class AgentsController {
 
     for (const agentId of userRequest.agent_id) {
       try {
-        ControllerHelpers.verifyAgentConfigOwnership(
+        await ControllerHelpers.verifyAgentConfigOwnership(
           this.agentFactory,
           agentId,
           userId
@@ -622,11 +656,12 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('get_messages_from_agents called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
     const messages = await this.agentService.getMessageFromAgentId(
       {
@@ -647,21 +682,14 @@ export class AgentsController {
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('clear_message called');
-    const { userId } = ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
-      req,
-      this.agentFactory,
-      userRequest.agent_id
-    );
+    const { userId } =
+      await ControllerHelpers.getUserAndVerifyAgentConfigOwnership(
+        req,
+        this.agentFactory,
+        userRequest.agent_id
+      );
 
-    const q = new Postgres.Query(
-      `DELETE FROM message m
-       USING agents a 
-       WHERE m.agent_id = a.id 
-       AND m.agent_id = $1 
-       AND a.user_id = $2`,
-      [userRequest.agent_id, userId]
-    );
-    await Postgres.query(q);
+    await message.delete_messages_by_agent(userRequest.agent_id, userId);
 
     return ResponseFormatter.success(
       `Messages cleared for agent ${userRequest.agent_id}`
@@ -680,39 +708,16 @@ export class AgentsController {
     const agents = await this.agentService.getAllAgentsOfUser(userId);
     return ResponseFormatter.success(agents);
   }
-  /**
-   * Get agent status (alias for get_agents)
-   * @returns Promise<AgentResponse> - Response with agents status
-   */
-  @Get('get_agent_status')
-  @HandleErrors('E05TA100')
-  async getAgentStatus(@Req() req: FastifyRequest): Promise<AgentResponse> {
-    logger.info('get_agent_status called');
-    const userId = ControllerHelpers.getUserId(req);
-    const agents = await this.agentService.getAllAgentsOfUser(userId);
-
-    if (!agents) {
-      throw new ServerError('E01TA400');
-    }
-
-    return ResponseFormatter.success(agents);
-  }
 
   /**
-   * Get agent thread information (alias for get_agents)
-   * @returns Promise<AgentResponse> - Response with agents thread data
+   * Get all available agents from Redis
+   * @returns Promise<AgentResponse> - Response with all agents from Redis
    */
-  @Get('get_agent_thread')
-  @HandleErrors('E05TA100')
-  async getAgentThread(@Req() req: FastifyRequest): Promise<AgentResponse> {
-    logger.info('get_agent_thread called');
+  @Get('get_available_agent')
+  @HandleErrors('E06TA101')
+  async getAvailableAgent(@Req() req: FastifyRequest): Promise<AgentResponse> {
     const userId = ControllerHelpers.getUserId(req);
-    const agents = await this.agentService.getAllAgentsOfUser(userId);
-
-    if (!agents) {
-      throw new ServerError('E01TA400');
-    }
-
+    const agents = await this.agentService.getAllAgentsOfUserFromRedis(userId);
     return ResponseFormatter.success(agents);
   }
 
@@ -725,8 +730,49 @@ export class AgentsController {
     logger.info('health called');
     const response: AgentResponse = {
       status: 'success',
-      data: 'Agent is healthy',
+      data: `Agent is healthy`,
     };
     return response;
+  }
+
+  @Get('get_notify')
+  async getNotify(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    const result = await notify.getUserNotifications(userId); // TODO: Implement notification logic
+    return ResponseFormatter.success({
+      status: 'Notification endpoint',
+      data: result,
+    });
+  }
+
+  @Post('delete_notify')
+  async deleteNotify(
+    @Body() body: { notify_id: string },
+    @Req() req: FastifyRequest
+  ): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    const result = await notify.deleteNotification(body.notify_id, userId);
+    if (result === null) {
+      throw new BadRequestException('Notification not found');
+    }
+    return ResponseFormatter.success({
+      status: 'Notification deleted',
+      data: result,
+    });
+  }
+
+  @Post('mark_notify_as_read')
+  async markNotifyAsRead(
+    @Body() body: { notify_id: string },
+    @Req() req: FastifyRequest
+  ): Promise<AgentResponse> {
+    const userId = ControllerHelpers.getUserId(req);
+    const result = await notify.markAsRead(body.notify_id, userId);
+    if (result === null) {
+      throw new BadRequestException('Notification not found');
+    }
+    return ResponseFormatter.success({
+      status: 'Notification marked as read',
+    });
   }
 }

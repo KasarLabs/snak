@@ -5,11 +5,14 @@ import {
   MemoryTimeouts,
   MemoryThresholds,
   CustomHuggingFaceEmbeddings,
+  MemoryStrategy,
 } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 
 import {
   EpisodicMemoryContext,
+  HolisticMemoryContext,
+  MemoryItem,
   MemoryOperationResult,
   SemanticMemoryContext,
 } from '../../../../shared/types/memory.types.js';
@@ -29,17 +32,47 @@ export class MemoryDBManager {
   private readonly memoryTimeouts: MemoryTimeouts;
   private readonly memorySizeLimit: MemorySizeLimits;
   private readonly memoryThreshold: MemoryThresholds;
+  private readonly memoryStrategy: MemoryStrategy;
   constructor(memoryConfig: MemoryConfig) {
     this.embeddings = embeddingModel;
     this.memoryTimeouts = memoryConfig.timeouts;
     this.memorySizeLimit = memoryConfig.size_limits;
     this.memoryThreshold = memoryConfig.thresholds;
+    this.memoryStrategy = memoryConfig.strategy;
   }
 
+  async upersertHolisticMemory(
+    memories: HolisticMemoryContext
+  ): Promise<MemoryOperationResult<string>> {
+    try {
+      // Create operation timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Database operation timeout')),
+          this.memoryTimeouts.insert_memory_timeout_ms
+        );
+      });
+
+      // Execute with timeout
+      const result = await Promise.race([
+        this.performHolisticUpsert(memories),
+        timeoutPromise,
+      ]);
+
+      return result;
+    } catch (error) {
+      logger.error(`[MemoryDBManager] Upsert attempt failed:`, error);
+      return {
+        success: false,
+        error: 'Unexpected error in upsert retry loop',
+        timestamp: Date.now(),
+      };
+    }
+  }
   /**
    * Safe memory upsert with retry logic and transaction safety
    */
-  async upsertMemory(
+  async upsertCategorizedMemory(
     semantic_memories: SemanticMemoryContext[],
     episodic_memories: EpisodicMemoryContext[]
   ): Promise<MemoryOperationResult<string>> {
@@ -54,7 +87,7 @@ export class MemoryDBManager {
 
       // Execute with timeout
       const result = await Promise.race([
-        this.performUpsert(semantic_memories, episodic_memories),
+        this.performCategorizedUpsert(semantic_memories, episodic_memories),
         timeoutPromise,
       ]);
 
@@ -69,10 +102,41 @@ export class MemoryDBManager {
     }
   }
 
+  private async performHolisticUpsert(
+    memories: HolisticMemoryContext
+  ): Promise<MemoryOperationResult<string>> {
+    try {
+      const embedding = await this.embeddings.embedQuery(memories.content);
+      if (!embedding || embedding.length === 0) {
+        throw new Error(`Failed to generate embedding for holistic memory`);
+      }
+      const h_memory: memory.HolisticMemory = {
+        type: memories.type,
+        user_id: memories.user_id,
+        task_id: memories.task_id,
+        step_id: memories.step_id,
+        content: memories.content,
+        request: memories.request,
+        embedding: embedding,
+      };
+      await memory.insert_holistic_memory(
+        h_memory,
+        this.memoryThreshold.insert_semantic_threshold
+      );
+    } catch (error) {
+      logger.error(`[MemoryDBManager] Upsert operation failed:`, error);
+      throw error;
+    }
+    return {
+      success: true,
+      data: 'Holistic memory upsert not implemented yet',
+      timestamp: Date.now(),
+    };
+  }
   /**
    * Performs the actual upsert operation with transaction safety
    */
-  private async performUpsert(
+  private async performCategorizedUpsert(
     semantic_memories: SemanticMemoryContext[],
     episodic_memories: EpisodicMemoryContext[]
   ): Promise<MemoryOperationResult<string>> {
@@ -97,7 +161,7 @@ export class MemoryDBManager {
         };
       }
 
-      const event_ids: Array<number> = [];
+      const event_ids: Array<string> = [];
       const errors: string[] = [];
       let successfulEpisodicCount = 0;
       let successfulSemanticCount = 0;
@@ -118,7 +182,6 @@ export class MemoryDBManager {
 
           const episodicRecord: memory.EpisodicMemory = {
             user_id: e_memory.user_id,
-            run_id: e_memory.run_id,
             task_id: e_memory.task_id,
             step_id: e_memory.step_id,
             content: e_memory.content,
@@ -126,7 +189,10 @@ export class MemoryDBManager {
             sources: e_memory.sources,
           };
 
-          const result = await memory.insert_episodic_memory(episodicRecord);
+          const result = await memory.insert_episodic_memory(
+            episodicRecord,
+            this.memoryThreshold.insert_episodic_threshold
+          );
           logger.debug(
             `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${e_memory.user_id}`
           );
@@ -166,7 +232,6 @@ export class MemoryDBManager {
 
           const semanticRecord: memory.SemanticMemory = {
             user_id: s_memory.user_id,
-            run_id: s_memory.run_id,
             task_id: s_memory.task_id,
             step_id: s_memory.step_id,
             fact: s_memory.fact,
@@ -174,7 +239,10 @@ export class MemoryDBManager {
             category: s_memory.category,
             source_events: event_ids,
           };
-          const result = await memory.insert_semantic_memory(semanticRecord);
+          const result = await memory.insert_semantic_memory(
+            semanticRecord,
+            this.memoryThreshold.insert_semantic_threshold
+          );
           logger.debug(
             `[MemoryDBManager] Successfully ${result.operation} memory_id : ${result.memory_id} for user : ${s_memory.user_id}`
           );
@@ -237,8 +305,7 @@ export class MemoryDBManager {
    */
   async retrieveSimilarMemories(
     query: string,
-    userId: string,
-    runId: string
+    userId: string
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
     let attempt = 0;
     while (attempt < this.max_retries) {
@@ -250,9 +317,8 @@ export class MemoryDBManager {
             this.memoryTimeouts.retrieve_memory_timeout_ms
           );
         });
-
         const result = await Promise.race([
-          this.performRetrieval(query, userId, runId),
+          this.performRetrieval(query, userId),
           timeoutPromise,
         ]);
 
@@ -287,8 +353,7 @@ export class MemoryDBManager {
    */
   private async performRetrieval(
     query: string,
-    userId: string,
-    runId: string
+    userId: string
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
     try {
       // Validate inputs
@@ -320,13 +385,12 @@ export class MemoryDBManager {
 
       // Retrieve similar memories
       const similarities = await memory.retrieve_memory(
+        this.memoryStrategy,
         userId,
-        runId,
         embedding,
         this.memorySizeLimit.max_retrieve_memory_size,
         this.memoryThreshold.retrieve_memory_threshold
       );
-      logger.debug(similarities);
       logger.debug(
         `[MemoryDBManager] Retrieved ${similarities.length} similar memories for user: ${userId}`
       );

@@ -1,314 +1,126 @@
-import { SystemMessage } from '@langchain/core/messages';
-import { AgentMode, ModelConfig, ModelProviders } from '@snakagent/core';
-import { Postgres } from '@snakagent/database';
-import { SnakAgent } from '../core/snakAgent.js';
-import {
-  ModelSelector,
-  ModelSelectorConfig,
-} from '../operators/modelSelector.js';
-import { logger, RpcProvider } from 'starknet';
+/** File deprecated **/
 import { Graph } from '@agents/graphs/graph.js';
-
-// Types and Interfaces
-export interface AgentConfigSQL {
-  id: string;
-  name: string;
-  group: string;
-  description: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
-  system_prompt?: string;
-  interval: number;
-  plugins: string[];
-  memory: {
-    enabled: boolean;
-    short_term_memory_size: number;
-    memory_size: number;
-  };
-  rag: {
-    enabled: boolean;
-    embedding_model: string | null;
-  };
-  mode: AgentMode;
-  max_iterations: number;
-}
-
-export interface AgentMemorySQL {
-  enabled: boolean;
-  short_term_memory_size: number;
-  memory_size: number;
-}
-
-export interface AgentRagSQL {
-  enabled: boolean;
-  embedding_model: string | null;
-}
-
-// Helper Functions
-function buildSystemPromptFromConfig(promptComponents: {
-  name?: string;
-  description?: string;
-  lore: string[];
-  objectives: string[];
-  knowledge: string[];
-}): string {
-  const contextParts: string[] = [];
-
-  if (promptComponents.name) {
-    contextParts.push(`Your name : [${promptComponents.name}]`);
-  }
-  if (promptComponents.description) {
-    contextParts.push(`Your Description : [${promptComponents.description}]`);
-  }
-
-  if (
-    Array.isArray(promptComponents.lore) &&
-    promptComponents.lore.length > 0
-  ) {
-    contextParts.push(`Your lore : [${promptComponents.lore.join(']\n[')}]`);
-  }
-
-  if (
-    Array.isArray(promptComponents.objectives) &&
-    promptComponents.objectives.length > 0
-  ) {
-    contextParts.push(
-      `Your objectives : [${promptComponents.objectives.join(']\n[')}]`
-    );
-  }
-
-  if (
-    Array.isArray(promptComponents.knowledge) &&
-    promptComponents.knowledge.length > 0
-  ) {
-    contextParts.push(
-      `Your knowledge : [${promptComponents.knowledge.join(']\n[')}]`
-    );
-  }
-
-  return contextParts.join('\n');
-}
-
-function parseMemoryConfig(config: string | AgentMemorySQL): AgentMemorySQL {
-  try {
-    if (typeof config !== 'string') {
-      return config as AgentMemorySQL;
-    }
-    const content = config.trim().slice(1, -1);
-    const parts = content.split(',');
-    return {
-      enabled: parts[0] === 't' || parts[0] === 'true',
-      short_term_memory_size: parseInt(parts[1], 10),
-      memory_size: parseInt(parts[2] || '20', 10),
-    };
-  } catch (error) {
-    logger.error('Error parsing memory config:', error);
-    throw error;
-  }
-}
-
-function parseRagConfig(config: string | AgentRagSQL): AgentRagSQL {
-  try {
-    if (typeof config !== 'string') {
-      return config as AgentRagSQL;
-    }
-    const content = config.trim().slice(1, -1);
-    const parts = content.split(',');
-    const embedding = parts[1]?.replace(/^"|"$/g, '') || null;
-    return {
-      enabled: parts[0] === 't' || parts[0] === 'true',
-      embedding_model:
-        embedding === '' || embedding?.toLowerCase() === 'null'
-          ? null
-          : embedding,
-    };
-  } catch (error) {
-    logger.error('Error parsing rag config:', error);
-    throw error;
-  }
-}
-
-// Database Connection
-async function ensureDbConnection(): Promise<void> {
-  const requiredEnvVars = [
-    'POSTGRES_DB',
-    'POSTGRES_HOST',
-    'POSTGRES_USER',
-    'POSTGRES_PASSWORD',
-    'POSTGRES_PORT',
-  ];
-
-  for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-      throw new Error(`Required environment variable ${envVar} is not set`);
-    }
-  }
-
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { AgentConfig, StarknetConfig } from '@snakagent/core';
+import { Postgres } from '@snakagent/database';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { SnakAgent } from '@agents/core/snakAgent.js';
+import {
+  TASK_EXECUTOR_SYSTEM_PROMPT,
+  TASK_MANAGER_SYSTEM_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+  TASK_VERIFIER_SYSTEM_PROMPT,
+} from '@prompts/index.js';
+async function getAgentConfigFromId(agentId: string) {
   await Postgres.connect({
+    database: process.env.POSTGRES_DB as string,
     host: process.env.POSTGRES_HOST as string,
     user: process.env.POSTGRES_USER as string,
-    database: process.env.POSTGRES_DB as string,
     password: process.env.POSTGRES_PASSWORD as string,
-    port: parseInt(process.env.POSTGRES_PORT!) as number,
+    port: parseInt(process.env.POSTGRES_PORT as string),
   });
-}
-
-// Model Configuration
-function getModelSelectorConfig(): ModelSelectorConfig {
-  const fast: ModelConfig = {
-    provider: ModelProviders.OpenAI,
-    modelName: 'gpt-4o-mini',
-    description: 'Optimized for speed and simple tasks.',
-  };
-
-  const smart: ModelConfig = {
-    provider: ModelProviders.OpenAI,
-    modelName: 'gpt-4o-mini',
-    description: 'Optimized for complex reasoning.',
-  };
-
-  const cheap: ModelConfig = {
-    provider: ModelProviders.OpenAI,
-    modelName: 'gpt-4o-mini',
-    description: 'Good cost-performance balance.',
-  };
-
-  return {
-    debugMode: false,
-    useModelSelector: true,
-    modelsConfig: {
-      fast,
-      cheap,
-      smart,
-    },
-  };
-}
-
-/**
- * Create an agent instance by ID
- * @param agentId - The unique identifier of the agent
- * @returns Promise<{agent: SnakAgent, modelSelector: ModelSelector, config: AgentConfigSQL}>
- */
-export async function createAgentById(agentId: string): Promise<{
-  agent: SnakAgent;
-  modelSelector: ModelSelector;
-  config: AgentConfigSQL;
-}> {
-  // Ensure database connection
-  await ensureDbConnection();
-
-  // Query agent configuration
-  const query = new Postgres.Query('SELECT * from agents WHERE id = $1', [
-    agentId,
-  ]);
-  const queryResult = await Postgres.query<AgentConfigSQL>(query);
-
-  if (!queryResult || queryResult.length === 0) {
-    throw new Error(`No agent found for id: ${agentId}`);
+  const query = new Postgres.Query(
+    `
+      SELECT
+        id,
+        user_id,
+        row_to_json(profile) as profile,
+        mcp_servers as "mcp_servers",
+        prompts_id,
+        row_to_json(graph) as graph,
+        row_to_json(memory) as memory,
+        row_to_json(rag) as rag,
+      FROM agents
+      WHERE id = $1
+    `,
+    [agentId]
+  );
+  const result = await Postgres.query<AgentConfig.OutputWithId>(query);
+  if (result.length === 0) {
+    throw new Error(`Agent with ID ${agentId} not found`);
   }
-
-  // Parse agent configuration
-  const agentConfig = {
-    ...queryResult[0],
-    memory: parseMemoryConfig(queryResult[0].memory),
-    rag: parseRagConfig(queryResult[0].rag),
-  };
-
-  // Build system prompt
-  const systemPrompt = buildSystemPromptFromConfig({
-    name: agentConfig.profile.name,
-    description: agentConfig.description,
-    lore: agentConfig.lore,
-    objectives: agentConfig.objectives,
-    knowledge: agentConfig.knowledge,
-  });
-
-  const systemMessage = new SystemMessage(systemPrompt);
-  const modelSelectorConfig = getModelSelectorConfig();
-
-  // Create agent instance
-  const agent = new SnakAgent({
-    provider: new RpcProvider({ nodeUrl: process.env.STARKNET_RPC_URL }),
-    accountPrivateKey: process.env.STARKNET_PRIVATE_KEY as string,
-    accountPublicKey: process.env.STARKNET_PUBLIC_ADDRESS as string,
-    db_credentials: {
-      host: process.env.POSTGRES_HOST as string,
-      user: process.env.POSTGRES_USER as string,
-      database: process.env.POSTGRES_DB as string,
-      password: process.env.POSTGRES_PASSWORD as string,
-      port: parseInt(process.env.POSTGRES_PORT!) as number,
-    },
-    agentConfig: {
-      id: agentConfig.id,
-      name: agentConfig.profile.name,
-      group: agentConfig.group,
-      description: agentConfig.description,
-      prompt: systemMessage,
-      interval: agentConfig.interval,
-      max_iterations: agentConfig.max_iterations,
-      mode: agentConfig.mode,
-      chatId: 'test',
-      memory: agentConfig.memory,
-      rag: agentConfig.rag,
-      plugins: agentConfig.plugins,
-      mcp_servers: {},
-    },
-    modelSelectorConfig: modelSelectorConfig,
-    memory: agentConfig.memory,
-  });
-
-  // Initialize model selector
-  const modelSelector = new ModelSelector(modelSelectorConfig);
-  await modelSelector.init();
-  await agent.init();
-
-  return { agent, modelSelector, config: agentConfig };
+  return result[0];
 }
-
-/**
- * Create an interactive agent graph
- * @param agentId - The unique identifier of the agent
- * @returns Promise<any> - The initialized graph
- */
-export async function createInteractiveAgent(agentId: string): Promise<any> {
-  const { agent, modelSelector } = await createAgentById(agentId);
-  const interactiveAgent = new Graph(agent, modelSelector);
-  const { app } = await interactiveAgent.initialize();
-  return app;
-}
-
 /**
  * Create an autonomous agent graph
  * @param agentId - The unique identifier of the agent
  * @returns Promise<any> - The initialized graph
  */
 export async function createAutonomousAgent(agentId: string): Promise<any> {
-  const { agent, modelSelector } = await createAgentById(agentId);
-  const autonomousAgent = new Graph(agent, modelSelector);
-  const { app } = await autonomousAgent.initialize();
-  return app;
-}
+  const agent_config = await getAgentConfigFromId(agentId);
+  if (!agent_config) {
+    throw new Error(`Agent with ID ${agentId} not found`);
+  }
+  let model = process.env.DEFAULT_MODEL_PROVIDER;
+  if (!model) {
+    throw new Error('Model configuration is not defined');
+  }
+  let modelInstance: BaseChatModel | null = null;
+  const commonConfig = {
+    modelName: process.env.DEFAULT_MODEL_NAME as string,
+    verbose: false,
+    temperature: parseFloat(process.env.DEFAULT_TEMPERATURE ?? '0.7'),
+  };
+  switch (model.toLowerCase()) {
+    case 'openai':
+      modelInstance = new ChatOpenAI({
+        ...commonConfig,
+        openAIApiKey: process.env.OPENAI_API_KEY,
+      });
+      break;
+    case 'anthropic':
+      modelInstance = new ChatAnthropic({
+        ...commonConfig,
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+      });
+      break;
+    case 'gemini':
+      modelInstance = new ChatGoogleGenerativeAI({
+        model: commonConfig.modelName, // Updated to valid Gemini model name
+        verbose: commonConfig.verbose,
+        temperature: commonConfig.temperature,
+        apiKey: process.env.GEMINI_API_KEY,
+      });
+      break;
+    // Add case for 'deepseek' if a Langchain integration exists or becomes available
+    default:
+      throw new Error('No valid model provided');
+  }
 
-/**
- * Create a hybrid agent graph
- * @param agentId - The unique identifier of the agent
- * @returns Promise<any> - The initialized graph
- */
-export async function createHybridAgent(agentId: string): Promise<any> {
-  const { agent, modelSelector } = await createAgentById(agentId);
-  const hybridAgent = new Graph(agent, modelSelector);
-  const { app } = await hybridAgent.initialize();
+  const agent: AgentConfig.Runtime = {
+    ...agent_config,
+    prompts: {
+      task_executor_prompt: TASK_EXECUTOR_SYSTEM_PROMPT,
+      task_manager_prompt: TASK_MANAGER_SYSTEM_PROMPT,
+      task_memory_manager_prompt: TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+      task_verifier_prompt: TASK_VERIFIER_SYSTEM_PROMPT,
+    },
+    graph: {
+      ...agent_config.graph,
+      model: modelInstance,
+    },
+  };
+  const starknetConfig: StarknetConfig = {
+    provider: this.config.starknet.provider,
+    accountPrivateKey: this.config.starknet.privateKey,
+    accountPublicKey: this.config.starknet.publicKey,
+  };
+  const snakAgent: SnakAgent = new SnakAgent(starknetConfig, agent, {
+    database: process.env.POSTGRES_DB as string,
+    host: process.env.POSTGRES_HOST as string,
+    user: process.env.POSTGRES_USER as string,
+    password: process.env.POSTGRES_PASSWORD as string,
+    port: parseInt(process.env.POSTGRES_PORT as string),
+  });
+  const autonomousAgent = new Graph(snakAgent);
+  const app = await autonomousAgent.initialize();
   return app;
 }
 
 // Example usage with specific IDs (for backward compatibility)
 const AUTONOMOUS_ID = '223d72b7-7b61-43af-bbf6-278e69994b3f';
-const INTERACTIVE_ID = '683513b2-83fb-4e0a-8a30-ac6a23640595';
-const HYBRID_ID = 'e5ad188c-c47d-4e6a-aee5-3be8dfb4647e';
 
-export const studio_graph_interactive = () =>
-  createInteractiveAgent(INTERACTIVE_ID);
 export const studio_graph_autonomous = () =>
   createAutonomousAgent(AUTONOMOUS_ID);
-export const studio_graph_hybrid = () => createHybridAgent(HYBRID_ID);

@@ -4,6 +4,7 @@ import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { AgentConfigResolver, AgentBuilder } from '../../types/agent.types.js';
 
 export interface AgentInfo {
   name: string;
@@ -15,72 +16,29 @@ export interface AgentInfo {
  * It supports both explicit agent mentions and AI-powered agent selection based on query context.
  */
 export class AgentSelector extends BaseAgent {
-  private availableAgents: Map<string, SnakAgent> = new Map();
-  private agentInfo: Map<string, string> = new Map();
+  private agentConfigResolver: AgentConfigResolver;
+  private agentBuilder: AgentBuilder;
   private model: BaseChatModel;
 
-  constructor(availableAgents: Map<string, SnakAgent>, model: BaseChatModel) {
+  constructor(
+    agentConfigResolver: AgentConfigResolver,
+    agentBuilder: AgentBuilder,
+    model: BaseChatModel
+  ) {
     super('agent-selector', AgentType.OPERATOR);
-    this.availableAgents = availableAgents;
+    this.agentConfigResolver = agentConfigResolver;
+    this.agentBuilder = agentBuilder;
     this.model = model;
+
+    if (!this.model) {
+      logger.warn(
+        'AgentSelector: No model provided, selection capabilities will be limited'
+      );
+    }
   }
 
   public async init(): Promise<void> {
-    logger.debug('AgentSelector: Initializing');
-    for (const value of this.availableAgents.values()) {
-      const agent_config = value.getAgentConfig();
-      this.agentInfo.set(
-        agent_config.profile.name,
-        agent_config.profile.description || 'No description available'
-      );
-    }
-    logger.debug(
-      `AgentSelector: Available agents initialized: ${Array.from(
-        this.agentInfo.keys()
-      ).join(', ')}`
-    );
-    if (!this.model) {
-      logger.warn(
-        'AgentSelector: No ModelSelector provided, selection capabilities will be limited'
-      );
-    }
-  }
-
-  public async removeAgent(agentId: string, userId: string): Promise<void> {
-    const compositeKey = `${agentId}|${userId}`;
-    logger.debug(
-      `AgentSelector: Removing agent ${agentId} for user ${userId} with key ${compositeKey}`
-    );
-
-    const agent = this.availableAgents.get(compositeKey);
-    if (agent) {
-      const agentName = agent.getAgentConfig().profile.name;
-      this.availableAgents.delete(compositeKey);
-      this.agentInfo.delete(agentName);
-      logger.debug(
-        `AgentSelector: Agent ${agentName} (${agentId}) removed successfully for user ${userId}`
-      );
-    } else {
-      logger.warn(
-        `AgentSelector: Agent ${agentId} not found for user ${userId}`
-      );
-    }
-  }
-
-  public async updateAvailableAgents(
-    agent: [string, SnakAgent],
-    userId: string
-  ): Promise<void> {
-    const compositeKey = `${agent[0]}|${userId}`;
-    logger.debug(
-      `AgentSelector: Updating available agents with ${agent[0]} for user ${userId} with key ${compositeKey}`
-    );
-    this.availableAgents.set(compositeKey, agent[1]);
-    this.agentInfo.set(
-      agent[1].getAgentConfig().profile.name,
-      agent[1].getAgentConfig().profile.description ||
-        'No description available'
-    );
+    logger.debug('AgentSelector: Initialized');
   }
 
   public async execute(
@@ -99,46 +57,46 @@ export class AgentSelector extends BaseAgent {
       }
       const model = this.model;
 
-      const userId = config.userId;
-      logger.debug(`AgentSelector: Filtering agents for user ${userId}`);
-
-      const userAgents = new Map<string, SnakAgent>();
-      const userAgentInfo = new Map<string, string>();
-
-      for (const [key, agent] of this.availableAgents.entries()) {
-        const parts = key.split('|');
-        if (parts.length !== 2) {
-          logger.warn(`AgentSelector: Invalid composite key format: ${key}`);
-          continue;
-        }
-        const [_agentId, agentUserId] = parts;
-        if (agentUserId === userId) {
-          userAgents.set(key, agent);
-          const cfg = agent.getAgentConfig();
-          userAgentInfo.set(
-            cfg.profile.name,
-            cfg.profile.description || 'No description available'
-          );
-        }
-      }
-
+      const userId = config.userId as string;
       logger.debug(
-        `AgentSelector: Found ${userAgents.size} agents for user ${userId}`
+        `AgentSelector: Fetching agent configs for user ${userId} from Redis`
       );
-      if (userAgents.size === 0) {
+
+      // Fetch agent configurations from Redis via the resolver
+      const agentConfigs = await this.agentConfigResolver(userId);
+
+      logger.debug(`AgentSelector: Fetching agent configs for user ${userId}`);
+
+      if (agentConfigs.length === 0) {
         throw new Error('No agents found for user ' + userId);
       }
+
+      // Build agent info map for the prompt from configurations
+      const userAgentInfo = new Map<string, string>();
+      for (const agentConfig of agentConfigs) {
+        userAgentInfo.set(
+          agentConfig.profile.name,
+          agentConfig.profile.description || 'No description available'
+        );
+      }
+
       const result = await model.invoke(
         agentSelectorPromptContent(userAgentInfo, input)
       );
       logger.debug('AgentSelector result:', result);
+
       if (typeof result.content === 'string') {
         const r_trim = result.content.trim();
-        const agent = Array.from(userAgents.values()).find(
-          (agent) => agent.getAgentConfig().profile.name === r_trim
+        const selectedConfig = agentConfigs.find(
+          (cfg) => cfg.profile.name.toLowerCase() === r_trim.toLowerCase()
         );
-        if (agent) {
-          logger.debug(`AgentSelector: Selected agent ${r_trim}`);
+        if (selectedConfig) {
+          logger.debug(
+            `AgentSelector: Selected agent ${r_trim}, building instance...`
+          );
+          // Build the agent ONLY for the selected config
+          const agent = await this.agentBuilder(selectedConfig);
+          logger.debug(`AgentSelector: Successfully built agent ${r_trim}`);
           return agent;
         } else {
           logger.warn(

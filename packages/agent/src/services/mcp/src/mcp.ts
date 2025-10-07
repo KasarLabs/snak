@@ -35,7 +35,9 @@ export class MCP_CONTROLLER {
    * @param {any} agentConfig - The agent configuration
    * @returns {MCP_CONTROLLER} A new MCP_CONTROLLER instance
    */
-  public static fromAgentConfig(agentConfig: AgentConfig): MCP_CONTROLLER {
+  public static fromAgentConfig(
+    agentConfig: AgentConfig.Runtime
+  ): MCP_CONTROLLER {
     if (
       !agentConfig ||
       !agentConfig.mcp_servers ||

@@ -1,4 +1,4 @@
-import { logger } from '@snakagent/core';
+import { logger, DatabaseConfigService } from '@snakagent/core';
 import { LanggraphDatabase, Postgres } from '@snakagent/database';
 
 export class DatabaseStorage {
@@ -13,20 +13,23 @@ export class DatabaseStorage {
       if (this.connected) {
         return;
       }
-      await Postgres.connect({
-        database: process.env.POSTGRES_DB as string,
-        host: process.env.POSTGRES_HOST as string,
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        port: parseInt(process.env.POSTGRES_PORT as string),
-      });
-      await LanggraphDatabase.getInstance().connect({
-        database: process.env.POSTGRES_DB as string,
-        host: process.env.POSTGRES_HOST as string,
-        user: process.env.POSTGRES_USER as string,
-        password: process.env.POSTGRES_PASSWORD as string,
-        port: parseInt(process.env.POSTGRES_PORT as string),
-      });
+
+      // Ensure database configuration is initialized
+      if (!DatabaseConfigService.getInstance().isInitialized()) {
+        DatabaseConfigService.getInstance().initialize();
+      }
+
+      const databaseConfig =
+        DatabaseConfigService.getInstance().getCredentials();
+
+      await Postgres.connect(databaseConfig);
+      try {
+        await LanggraphDatabase.getInstance().connect(databaseConfig);
+      } catch (error) {
+        logger.error('Error connecting to the Langgraph database:', error);
+        await Postgres.shutdown();
+        throw error;
+      }
       this.connected = true;
       logger.info('Connected to the database');
     } catch (error) {

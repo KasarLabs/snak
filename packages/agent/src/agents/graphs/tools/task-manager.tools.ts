@@ -1,12 +1,11 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { BaseToolRegistry } from './base-tool-registry.js';
 import { AnyZodObject } from 'zod';
-import { AgentConfig } from '@snakagent/core';
 import { TaskSchema } from '@schemas/graph.schemas.js';
 
 export class TaskManagerToolRegistry extends BaseToolRegistry {
-  constructor(agentConfig: AgentConfig.Runtime) {
-    super(agentConfig);
+  constructor() {
+    super();
     this.tools = this.registerTools();
   }
 
@@ -26,3 +25,5 @@ export class TaskManagerToolRegistry extends BaseToolRegistry {
     return tools;
   }
 }
+
+export const TaskManagerToolRegistryInstance = new TaskManagerToolRegistry();

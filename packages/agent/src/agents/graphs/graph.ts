@@ -1,9 +1,11 @@
-import { AgentConfig, logger } from '@snakagent/core';
+import { AgentConfig, DEFAULT_AGENT_CONFIG, logger } from '@snakagent/core';
 import {
   StateGraph,
   Annotation,
   END,
   CompiledStateGraph,
+  interrupt,
+  START,
 } from '@langchain/langgraph';
 import {
   DynamicStructuredTool,
@@ -11,7 +13,11 @@ import {
   Tool,
 } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
-import { BaseMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  AIMessageChunk,
+} from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
@@ -39,6 +45,10 @@ import { initializeDatabase } from '../../agents/utils/database.utils.js';
 import { initializeToolsList } from '../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { getCurrentTask } from './utils/graph.utils.js';
+import { STMManager } from '@lib/memory/index.js';
+import { ToolCallType } from '../../shared/types/index.js';
+import { GraphError } from './utils/error.utils.js';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -47,7 +57,7 @@ export const GraphState = Annotation.Root({
     },
     default: () => [],
   }),
-  last_node: Annotation<
+  lastNode: Annotation<
     | TaskExecutorNode
     | TaskManagerNode
     | TaskMemoryNode
@@ -100,7 +110,9 @@ export const GraphConfigurableAnnotation = Annotation.Root({
   }),
   user_request: Annotation<userRequestWithHITL | undefined>({
     reducer: (x, y) => y,
-    default: () => undefined,
+    default: () => {
+      return { request: '', hitl_threshold: 0 };
+    },
   }),
 });
 
@@ -120,7 +132,7 @@ export class Graph {
   constructor(private snakAgent: SnakAgent) {
     const pg_checkpointer = snakAgent.getPgCheckpointer();
     if (!pg_checkpointer) {
-      throw new Error('Checkpointer is required for graph initialization');
+      throw new GraphError('E08GI110', 'Graph.constructor');
     }
     this.checkpointer = pg_checkpointer;
   }
@@ -154,104 +166,88 @@ export class Graph {
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphNode {
-    logger.debug(`[Orchestration Router] Last agent: ${state.last_node}`);
-    // Check for errors first
-    if (state.error?.hasError && state.error.type !== 'blocked_task') {
+    if (state.error?.hasError && state.error.type !== 'block_task') {
       logger.error(
-        `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
+        `[Router] Error: ${state.error.source} -> ${state.error.message}`
       );
       return GraphNode.END_GRAPH;
     }
     const currentTask = state.tasks[state.tasks.length - 1];
 
-    // Skip validation if flagged
     if (state.skipValidation.skipValidation) {
       const validTargets = Object.values(GraphNode);
       const goto = state.skipValidation.goto as GraphNode;
 
       if (validTargets.includes(goto)) {
-        logger.debug(
-          `[Orchestration Router] Skip validation routing to: ${goto}`
-        );
         return goto;
       } else {
-        logger.warn(
-          `[Orchestration Router] Invalid skip validation target: ${goto}, defaulting to end_graph`
-        );
+        logger.warn(`[Router] Invalid skip target: ${goto}`);
         return GraphNode.END_GRAPH;
       }
     }
 
-    if (isInEnum(TaskVerifierNode, state.last_node))
-      if (state.last_node === TaskVerifierNode.TASK_UPDATER) {
+    if (isInEnum(TaskVerifierNode, state.lastNode))
+      if (state.lastNode === TaskVerifierNode.TASK_UPDATER) {
         if (
           currentTask.status === 'completed' ||
           currentTask.status === 'failed'
         ) {
-          logger.debug(
-            `[Orchestration Router] Memory operations complete, routing to task memory manager`
-          );
           return GraphNode.MEMORY_ORCHESTRATOR;
         }
       }
-    if (isInEnum(TaskMemoryNode, state.last_node)) {
+    if (isInEnum(TaskMemoryNode, state.lastNode)) {
       if (
         currentTask.status === 'completed' ||
         currentTask.status === 'failed'
       ) {
-        logger.debug(
-          `[Orchestration Router] Memory operations complete, routing to task manager`
-        );
         return GraphNode.TASK_MANAGER;
       } else {
-        logger.debug(
-          `[Orchestration Router] Memory operations complete, routing to agent executor`
-        );
         return GraphNode.AGENT_EXECUTOR;
       }
     }
-    if (isInEnum(TaskExecutorNode, state.last_node)) {
-      // Check if a task was just completed (end_task tool was called)
+    if (isInEnum(GraphNode, state.lastNode)) {
+      if (state.lastNode === GraphNode.HUMAN_HANDLER) {
+        const lastMessage = state.messages[state.messages.length - 1];
+        const from = lastMessage?.additional_kwargs?.from;
+
+        if (from === TaskManagerNode.HUMAN) {
+          return GraphNode.TASK_MANAGER;
+        }
+        if (from === TaskExecutorNode.HUMAN) {
+          return GraphNode.AGENT_EXECUTOR;
+        }
+        logger.warn(`[Router] Unknown human handler source`);
+        return GraphNode.MEMORY_ORCHESTRATOR;
+      }
+    }
+
+    if (isInEnum(TaskExecutorNode, state.lastNode)) {
       if (state.error && state.error.hasError) {
-        logger.error(
-          `[Orchestration Router] Error detected from ${state.error.source}: ${state.error.message}`
-        );
-        if (state.error.type === 'blocked_task') {
-          logger.warn(
-            `[Orchestration Router] Blocked task detected, routing to task manager`
-          );
+        if (state.error.type === 'block_task') {
+          logger.warn(`[Router] Blocked task, routing to task manager`);
           return GraphNode.TASK_MANAGER;
         }
         return GraphNode.END_GRAPH;
       }
       if (currentTask && currentTask.status === 'waiting_validation') {
-        logger.debug(
-          `[Orchestration Router] Task completed, routing to task verifier`
-        );
         return GraphNode.TASK_VERIFIER;
       } else {
-        logger.debug(
-          `[Orchestration Router] Execution complete, routing to memory`
-        );
         return GraphNode.MEMORY_ORCHESTRATOR;
       }
     }
 
-    if (isInEnum(TaskManagerNode, state.last_node)) {
-      logger.debug(`[Orchestration Router] Plan validated, routing to memory`);
+    if (isInEnum(TaskManagerNode, state.lastNode)) {
       return GraphNode.MEMORY_ORCHESTRATOR;
     }
 
-    logger.debug(`[Orchestration Router] Default routing to executor`);
     return GraphNode.AGENT_EXECUTOR;
   }
   private initGraphStateValue(
     state: typeof GraphState.State,
     config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
   ): GraphStateType {
-    logger.debug('[Agent] Initializing graph state values');
     if (!config.configurable?.agent_config) {
-      throw new Error('Agent configuration is required in config');
+      throw new GraphError('E08GC210', 'Graph.initGraphStateValue');
     }
     const memorySize =
       config.configurable.agent_config.memory.size_limits
@@ -262,20 +258,123 @@ export class Graph {
       memorySize < 0 ||
       !Number.isInteger(memorySize)
     ) {
-      throw new Error(
-        `Invalid memory size configuration: ${memorySize}. Must be a non-negative integer.`
-      );
+      throw new GraphError('E08GC240', 'Graph.initGraphStateValue', undefined, {
+        memorySize,
+      });
+    }
+    if (!state.memories || state.memories.stm.items.length === 0) {
+      state.memories = MemoryStateManager.createInitialState(memorySize);
+    }
+    return state;
+  }
+
+  private async human_handler(state: typeof GraphState.State): Promise<{
+    messages: BaseMessage[];
+    tasks: TaskType[];
+    lastNode: GraphNode;
+    currentGraphStep: number;
+    memories?: Memories;
+    skipValidation?: skipValidationType;
+  }> {
+    const currentTask = getCurrentTask(state.tasks);
+    if (!currentTask) {
+      throw new GraphError('E08HI710', 'Graph.human_handler');
     }
 
-    state.memories = MemoryStateManager.createInitialState(memorySize);
-    return state;
+    const requestSource = state.lastNode;
+    logger.info(`[HumanHandler] Processing input from: ${requestSource}`);
+
+    if (
+      requestSource === TaskManagerNode.HUMAN ||
+      requestSource === TaskManagerNode.CREATE_TASK
+    ) {
+      const h_input = interrupt(currentTask.thought.speak);
+      if (!h_input) {
+        throw new GraphError('E08HI720', 'Graph.human_handler[Manager]');
+      }
+
+      currentTask.human = h_input;
+      currentTask.status = 'completed';
+      state.tasks[state.tasks.length - 1] = currentTask;
+
+      return {
+        messages: [
+          new AIMessageChunk({
+            content: h_input,
+            additional_kwargs: { from: TaskManagerNode.HUMAN, final: false },
+          }),
+        ],
+        tasks: state.tasks,
+        lastNode: GraphNode.HUMAN_HANDLER,
+        currentGraphStep: state.currentGraphStep + 1,
+        skipValidation: { skipValidation: false, goto: '' },
+      };
+    }
+
+    if (
+      requestSource === TaskExecutorNode.HUMAN ||
+      requestSource === TaskExecutorNode.REASONING_EXECUTOR
+    ) {
+      const currentStep = currentTask.steps[currentTask.steps.length - 1];
+      if (!currentStep || currentStep.type !== 'human') {
+        throw new GraphError('E08HI730', 'Graph.human_handler[Executor]');
+      }
+
+      const h_input = interrupt(currentStep.thought.speak);
+      if (!h_input) {
+        throw new GraphError('E08HI720', 'Graph.human_handler[Executor]');
+      }
+
+      const human_message = new HumanMessage({
+        content: h_input,
+        additional_kwargs: { from: TaskExecutorNode.HUMAN, final: false },
+      });
+
+      const newMemories = STMManager.addMemory(
+        state.memories.stm,
+        [human_message],
+        currentTask.id,
+        currentStep.id
+      );
+      if (!newMemories.success || !newMemories.data) {
+        throw new GraphError(
+          'E08MM410',
+          'Graph.human_handler[Executor]',
+          undefined,
+          { error: newMemories.error }
+        );
+      }
+      state.memories.stm = newMemories.data;
+
+      currentStep.tool.forEach((t: ToolCallType) => {
+        if (t.name === 'response_task') {
+          t.status = 'completed';
+          t.result = h_input;
+        }
+      });
+
+      currentTask.steps[currentTask.steps.length - 1] = currentStep;
+      state.tasks[state.tasks.length - 1] = currentTask;
+
+      return {
+        messages: [human_message],
+        tasks: state.tasks,
+        lastNode: GraphNode.HUMAN_HANDLER,
+        currentGraphStep: state.currentGraphStep + 1,
+        memories: state.memories,
+        skipValidation: { skipValidation: false, goto: '' },
+      };
+    }
+
+    throw new GraphError('E08HI740', 'Graph.human_handler', undefined, {
+      requestSource,
+    });
   }
 
   private buildWorkflow(): StateGraph<
     typeof GraphState.State,
     typeof GraphConfigurableAnnotation.State
   > {
-    logger.debug('[Agent] Building workflow with initialized components');
     const memory = new MemoryGraph(
       this.agentConfig.graph.model,
       this.agentConfig.memory
@@ -305,8 +404,9 @@ export class Graph {
       .addNode(GraphNode.MEMORY_ORCHESTRATOR, memory_graph)
       .addNode(GraphNode.AGENT_EXECUTOR, executor_graph)
       .addNode(GraphNode.TASK_VERIFIER, task_verifier_graph)
+      .addNode(GraphNode.HUMAN_HANDLER, this.human_handler.bind(this))
       .addNode(GraphNode.END_GRAPH, this.end_graph.bind(this))
-      .addEdge('__start__', GraphNode.INIT_STATE_VALUE)
+      .addEdge(START, GraphNode.INIT_STATE_VALUE)
       .addEdge(GraphNode.INIT_STATE_VALUE, GraphNode.TASK_MANAGER)
       .addConditionalEdges(
         GraphNode.TASK_MANAGER,
@@ -324,6 +424,10 @@ export class Graph {
         GraphNode.TASK_VERIFIER,
         this.orchestrationRouter.bind(this)
       )
+      .addConditionalEdges(
+        GraphNode.HUMAN_HANDLER,
+        this.orchestrationRouter.bind(this)
+      )
       .addEdge(GraphNode.END_GRAPH, END);
     return workflow as unknown as StateGraph<
       typeof GraphState.State,
@@ -336,24 +440,15 @@ export class Graph {
       // Get agent configuration
       this.agentConfig = this.snakAgent.getAgentConfig();
       if (!this.agentConfig) {
-        throw new Error('Agent configuration is required');
+        throw new GraphError('E08GI140', 'Graph.initialize');
       }
 
       // Initialize database
       await initializeDatabase(this.snakAgent.getDatabaseCredentials());
-      // Initialize tools
       this.toolsList = await initializeToolsList(
         this.snakAgent,
         this.agentConfig
       );
-      this.toolsList = this.toolsList.filter(
-        (tool) =>
-          tool.name !== 'mobile_take_screenshot' &&
-          tool.name !== 'mobile_save_screenshot'
-      );
-      this.toolsList.forEach((tool) => {
-        logger.debug(`[Agent] Tool initialized: ${tool.name}`);
-      });
       // Initialize RAG agent if enabled
       if (this.agentConfig.rag?.enabled !== false) {
         await this.initializeRagAgent();
@@ -374,10 +469,9 @@ export class Graph {
     newConfig: typeof GraphConfigurableAnnotation.State
   ): void {
     if (!this.app) {
-      throw new Error('Agent not initialized. Call initialize() first.');
+      throw new GraphError('E08GI100', 'Graph.updateConfig');
     }
     this.config = newConfig;
-    logger.debug('[Agent] Configuration updated successfully');
   }
 }
 

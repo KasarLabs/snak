@@ -23,6 +23,9 @@ export interface ChunkOutput {
   run_id: string;
   thread_id: string;
   checkpoint_id: string;
+  task_id: string | null;
+  step_id: string | null;
+  task_title: string | null;
   from: GraphNode;
   tools: ToolCall[] | null;
   message: string | null;
