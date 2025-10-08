@@ -1,5 +1,5 @@
 import { StructuredTool } from '@langchain/core/tools';
-import { MultiServerMCPClient } from "@langchain/mcp-adapters";
+import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { AgentConfig, logger } from '@snakagent/core';
 
 /**
@@ -57,7 +57,7 @@ export class MCP_CONTROLLER {
    * @returns {void}
    * @throws {Error} Throws an error if tools cannot be retrieved
    */
-  private  parseTools = async() => {
+  private parseTools = async () => {
     try {
       const tools = await this.client.getTools();
       this.tools = tools;
