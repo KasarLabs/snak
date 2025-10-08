@@ -277,7 +277,10 @@ export class AgentStorage implements OnModuleInit {
 
     agentConfig.prompts_id = prompt_id;
     agentConfig.profile.name = finalName;
-    await this.agentValidationService.validateAgent({...agentConfig, user_id: userId}, true);
+    await this.agentValidationService.validateAgent(
+      { ...agentConfig, user_id: userId },
+      true
+    );
     const q = new Postgres.Query(
       'SELECT * FROM insert_agent_from_json($1, $2)',
       [userId, JSON.stringify(agentConfig)]

@@ -149,7 +149,10 @@ export class AgentsController {
     const userId = ControllerHelpers.getUserId(req);
 
     try {
-      await this.agentFactory.validateAgent({...config, user_id: userId}, false);
+      await this.agentFactory.validateAgent(
+        { ...config, user_id: userId },
+        false
+      );
     } catch (validationError) {
       throw new UnprocessableEntityException(
         `Validation failed: ${validationError.message}`

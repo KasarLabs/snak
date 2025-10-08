@@ -15,10 +15,6 @@ export const CreateAgentSchema = z
       .record(McpServerConfigSchema)
       .optional()
       .describe('MCP servers configuration'),
-    plugins: z
-      .array(z.string())
-      .optional()
-      .describe('List of plugins to attach to this agent'),
     memory: MemoryConfigSchema.optional().describe('Memory configuration'),
     rag: RAGConfigSchema.optional().describe('RAG configuration'),
     prompts_id: z
