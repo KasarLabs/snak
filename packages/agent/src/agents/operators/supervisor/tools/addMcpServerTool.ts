@@ -1,44 +1,9 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
+
 import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
-
-const McpServerConfigSchema = z.object({
-  command: z.string().min(1).describe('The command to execute the MCP server'),
-  args: z
-    .array(z.string())
-    .optional()
-    .nullable()
-    .describe('Optional arguments for the command'),
-  env: z
-    .record(z.string())
-    .optional()
-    .nullable()
-    .describe('Optional environment variables'),
-});
-
-const AddMcpServerSchema = z.object({
-  identifier: z
-    .string()
-    .describe(
-      'The agent ID or name to add MCP server to (extract from user request, usually in quotes like "Ethereum RPC Agent")'
-    ),
-  searchBy: z
-    .enum(['id', 'name'])
-    .optional()
-    .nullable()
-    .describe(
-      'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
-    ),
-  serverName: z
-    .string()
-    .min(1)
-    .describe('The name/identifier for the MCP server to add'),
-  serverConfig: McpServerConfigSchema.describe(
-    'The MCP server configuration object'
-  ),
-});
+import { AddMcpServerSchema } from './schemas/mcp.schemas.js';
 
 export function addMcpServerTool(
   agentConfig: AgentConfig.Runtime
@@ -46,7 +11,7 @@ export function addMcpServerTool(
   return new DynamicStructuredTool({
     name: 'add_mcp_server',
     description:
-      'Add/install/configure a new MCP server for a specific agent. Use when user wants to add MCP server capabilities to an existing agent.',
+      'Add/install/configure one or multiple new MCP servers for a specific agent. Use when user wants to add MCP server capabilities to an existing agent.',
     schema: AddMcpServerSchema,
     func: async (input) => {
       try {
@@ -91,19 +56,30 @@ export function addMcpServerTool(
         // Get current MCP servers configuration
         const currentMcpServers = agent.mcp_servers || {};
 
-        // Check if server name already exists
-        if (currentMcpServers[input.serverName]) {
-          return JSON.stringify({
-            success: false,
-            message: `MCP server "${input.serverName}" already exists for this agent. Use update_mcp_server to modify it.`,
-          });
+        // Track added and already existing servers
+        const added: string[] = [];
+        const alreadyExists: string[] = [];
+
+        // Add the new MCP servers
+        const updatedMcpServers = { ...currentMcpServers };
+        for (const [serverName, serverConfig] of Object.entries(
+          input.mcp_servers
+        )) {
+          if (currentMcpServers[serverName]) {
+            alreadyExists.push(serverName);
+          } else {
+            updatedMcpServers[serverName] = serverConfig;
+            added.push(serverName);
+          }
         }
 
-        // Add the new MCP server
-        const updatedMcpServers = {
-          ...currentMcpServers,
-          [input.serverName]: input.serverConfig,
-        };
+        // If no servers were actually added
+        if (added.length === 0) {
+          return JSON.stringify({
+            success: false,
+            message: `No new MCP servers added. All servers already exist: ${alreadyExists.join(', ')}. Use update_mcp_server to modify them.`,
+          });
+        }
 
         // Update the agent with new MCP servers
         const updateQuery = new Postgres.Query(
@@ -116,31 +92,41 @@ export function addMcpServerTool(
 
         if (result.length > 0) {
           logger.info(
-            `Added MCP server "${input.serverName}" to agent "${agent.profile.name}" successfully for user ${userId}`
+            `Added MCP server(s) "${added.join(', ')}" to agent "${agent.profile.name}" successfully for user ${userId}`
           );
+
+          const message =
+            added.length === 1
+              ? `MCP server "${added[0]}" added successfully to agent "${agent.profile.name}"`
+              : `${added.length} MCP servers added successfully to agent "${agent.profile.name}"`;
+
+          const warningMessage =
+            alreadyExists.length > 0
+              ? ` Note: ${alreadyExists.length} server(s) already existed: ${alreadyExists.join(', ')}`
+              : '';
 
           return JSON.stringify({
             success: true,
-            message: `MCP server "${input.serverName}" added successfully to agent "${agent.profile.name}"`,
+            message: message + warningMessage,
             data: {
               agentId: agent.id,
               agentName: agent.profile.name,
-              serverName: input.serverName,
-              serverConfig: input.serverConfig,
+              addedServers: added,
+              alreadyExistingServers: alreadyExists,
               totalMcpServers: Object.keys(updatedMcpServers).length,
             },
           });
         } else {
           return JSON.stringify({
             success: false,
-            message: 'Failed to add MCP server to agent',
+            message: 'Failed to add MCP servers to agent',
           });
         }
       } catch (error) {
-        logger.error(`Error adding MCP server: ${error}`);
+        logger.error(`Error adding MCP server(s): ${error}`);
         return JSON.stringify({
           success: false,
-          message: 'Failed to add MCP server',
+          message: 'Failed to add MCP server(s)',
           error: error instanceof Error ? error.message : String(error),
         });
       }

@@ -12,7 +12,7 @@ import {
   TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@prompts/index.js';
-import { normalizeNumericValues } from './normalizeAgentValues.js';
+import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
 import { redisAgents } from '@snakagent/database/queries';
 

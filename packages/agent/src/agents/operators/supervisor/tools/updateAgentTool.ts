@@ -2,7 +2,7 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { Postgres, redisAgents } from '@snakagent/database/queries';
 import { logger, AgentProfile, GraphConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
-import { normalizeNumericValues } from './normalizeAgentValues.js';
+import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { UpdateAgentSchema } from './schemas/index.js';
 
 /**

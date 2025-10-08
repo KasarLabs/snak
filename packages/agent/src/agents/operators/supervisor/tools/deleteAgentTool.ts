@@ -1,30 +1,8 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { Postgres, redisAgents } from '@snakagent/database/queries';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
-
-const DeleteAgentSchema = z.object({
-  identifier: z
-    .string()
-    .describe(
-      'The agent ID or name to delete (extract exact name from user request, usually in quotes like "Ethereum RPC Agent")'
-    ),
-  searchBy: z
-    .enum(['id', 'name'])
-    .optional()
-    .nullable()
-    .describe(
-      'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
-    ),
-  confirm: z
-    .boolean()
-    .optional()
-    .nullable()
-    .describe(
-      'Confirmation to proceed with deletion (automatically set to true when user clearly intends to delete)'
-    ),
-});
+import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
 
 export function deleteAgentTool(
   agentConfig: AgentConfig.Runtime
