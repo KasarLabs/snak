@@ -16,6 +16,32 @@ export class TokenTracker {
   private static sessionResponseTokens: number = 0;
   private static sessionTotalTokens: number = 0;
 
+  public static extractTokenUsage(message: AIMessage): {
+    input_tokens: number;
+    output_tokens: number;
+  } {
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    if (message.usage_metadata) {
+      inputTokens = message.usage_metadata.input_tokens || 0;
+      outputTokens = message.usage_metadata.output_tokens || 0;
+    } else if (message.response_metadata) {
+      // OpenAI format
+      if ('tokenUsage' in message.response_metadata) {
+        inputTokens = message.response_metadata.tokenUsage.promptTokens || 0;
+        outputTokens =
+          message.response_metadata.tokenUsage.completionTokens || 0;
+      }
+      // Anthropic format
+      else if ('usage' in message.response_metadata) {
+        inputTokens = message.response_metadata.usage.input_tokens || 0;
+        outputTokens = message.response_metadata.usage.output_tokens || 0;
+      }
+    }
+
+    return { input_tokens: inputTokens, output_tokens: outputTokens };
+  }
   /**
    * Resets the static session token counters to zero.
    */

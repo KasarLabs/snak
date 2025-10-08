@@ -40,6 +40,8 @@ import {
 import { TaskManagerToolRegistryInstance } from '../tools/task-manager.tools.js';
 import { GraphError } from '../utils/error.utils.js';
 import { tasks_parser } from '../parser/tasks/tasks.parser.js';
+import { TokenTracker } from '@lib/token/token-tracking.js';
+import TokenManager from '../manager/token/token-manager.js';
 
 export const parseToolsToJson = (
   tools: (StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]
@@ -196,6 +198,15 @@ export class TaskManagerGraph {
         // Re-throw other errors
         throw error;
       }
+      const tokenUsage = TokenTracker.extractTokenUsage(aiMessage);
+      await TokenManager.addTokensToAgentId(
+        config.configurable!.agent_config!.id,
+        tokenUsage.input_tokens,
+        tokenUsage.output_tokens
+      );
+      logger.info(
+        `[Task Manager] Token usage - Input: ${tokenUsage.input_tokens}, Output: ${tokenUsage.output_tokens}`
+      );
       if (
         aiMessage.tool_calls &&
         aiMessage.tool_calls?.length === 0 &&

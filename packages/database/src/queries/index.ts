@@ -7,7 +7,8 @@ import { rag } from './rag/queries.js';
 import { Postgres } from '../database.js';
 import { notify } from './notify/queries.js';
 import { message } from './message/queries.js';
-import * as redisAgents from './redis/queries.js';
+import * as redisAgents from './redis/agent/queries.js';
+import * as redisTokens from './redis/token/queries.js';
 
 export {
   scarb,
@@ -20,4 +21,5 @@ export {
   notify,
   message,
   redisAgents,
+  redisTokens,
 };

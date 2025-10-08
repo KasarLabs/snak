@@ -1,4 +1,4 @@
-import { getRedisClient } from '../../redis.js';
+import { getRedisClient } from '../../../redis.js';
 import { AgentConfig, getGuardValue } from '@snakagent/core';
 import { logger } from '@snakagent/core';
 
