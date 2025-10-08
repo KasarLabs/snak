@@ -1,3 +1,5 @@
+/* *** Depracted *** */
+
 /**
  * System prompt for the MCP agent that manages Model Context Protocol servers
  * @returns The system prompt string for the MCP agent
