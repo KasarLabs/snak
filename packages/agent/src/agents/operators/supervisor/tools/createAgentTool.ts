@@ -1,11 +1,10 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
 import {
   AgentConfig,
-  DEFAULT_AGENT_CONFIG,
   McpServerConfig,
   logger,
+  validateAgent,
 } from '@snakagent/core';
 import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
@@ -15,6 +14,7 @@ import {
 } from '@prompts/index.js';
 import { normalizeNumericValues } from './normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
+import { redisAgents } from '@snakagent/database/queries';
 
 const RESERVED_GROUP = 'system';
 const RESERVED_NAME = 'supervisor agent';
@@ -68,6 +68,21 @@ export function createAgentTool(
         const agentConfigData = buildAgentConfigFromInput(input);
         const notes: string[] = [];
 
+        // Validate the agent configuration
+        try {
+          await validateAgent({ ...agentConfigData, user_id: userId }, true);
+        } catch (validationError) {
+          const errorMessage =
+            validationError instanceof Error
+              ? validationError.message
+              : 'Agent validation failed';
+          return JSON.stringify({
+            success: false,
+            message: 'Agent validation failed',
+            error: errorMessage,
+          });
+        }
+
         const { name: uniqueName, note: nameNote } =
           await resolveUniqueAgentName(
             agentConfigData.profile.name,
@@ -85,6 +100,7 @@ export function createAgentTool(
 
         agentConfigData.prompts_id = promptId;
 
+        // Insert into database
         const payload: Record<string, unknown> = {
           ...agentConfigData,
         };
@@ -109,6 +125,15 @@ export function createAgentTool(
         }
 
         const createdAgent = result[0];
+
+        try {
+          await redisAgents.saveAgent(createdAgent);
+          logger.debug(`Agent ${createdAgent.id} saved to Redis`);
+        } catch (error) {
+          logger.error(`Failed to save agent to Redis: ${error}`);
+          // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
+        }
+
         const noteSuffix =
           notes.length > 0 ? `. Note: ${[...new Set(notes)].join('; ')}` : '';
 

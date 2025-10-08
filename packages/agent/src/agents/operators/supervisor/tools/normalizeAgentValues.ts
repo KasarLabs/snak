@@ -632,7 +632,6 @@ export function normalizeNumericValues(
   const normalizedConfig: AgentConfig.Input = {
     profile: config.profile || DEFAULT_AGENT_CONFIG.profile,
     mcp_servers: { ...DEFAULT_AGENT_CONFIG.mcp_servers },
-    plugins: config.plugins || [],
     graph: { ...DEFAULT_AGENT_CONFIG.graph },
     memory: { ...DEFAULT_AGENT_CONFIG.memory },
     rag: { ...DEFAULT_AGENT_CONFIG.rag },

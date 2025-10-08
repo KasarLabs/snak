@@ -31,7 +31,7 @@ export const UpdateAgentSchema = z.object({
       mcp_servers: z
         .record(McpServerConfigSchema)
         .refine((obj) => Object.keys(obj).length <= maxMcpServer, {
-          message: `MCP servers object must have at most ${maxMcpServer} keys`
+          message: `MCP servers object must have at most ${maxMcpServer} keys`,
         })
         .optional()
         .describe('MCP servers configuration'),
