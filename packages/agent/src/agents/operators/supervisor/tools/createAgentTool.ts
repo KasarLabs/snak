@@ -5,6 +5,8 @@ import {
   McpServerConfig,
   logger,
   validateAgent,
+  validateAgentQuotas,
+  AgentDatabaseInterface,
 } from '@snakagent/core';
 import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
@@ -18,6 +20,22 @@ import { redisAgents } from '@snakagent/database/queries';
 
 const RESERVED_GROUP = 'system';
 const RESERVED_NAME = 'supervisor agent';
+
+const dbInterface: AgentDatabaseInterface = {
+  getTotalAgentsCount: async () => {
+    const query = new Postgres.Query('SELECT COUNT(*) FROM agents');
+    const result = await Postgres.query<{ count: string }>(query);
+    return parseInt(result[0].count, 10);
+  },
+  getUserAgentsCount: async (userId: string) => {
+    const query = new Postgres.Query(
+      'SELECT COUNT(*) FROM agents WHERE user_id = $1',
+      [userId]
+    );
+    const result = await Postgres.query<{ count: string }>(query);
+    return parseInt(result[0].count, 10);
+  },
+};
 
 export function createAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -67,6 +85,21 @@ export function createAgentTool(
 
         const agentConfigData = buildAgentConfigFromInput(input);
         const notes: string[] = [];
+
+        // Validate agent quotas before configuration validation
+        try {
+          await validateAgentQuotas(userId, dbInterface);
+        } catch (quotaError) {
+          const errorMessage =
+            quotaError instanceof Error
+              ? quotaError.message
+              : 'Quota validation failed';
+          return JSON.stringify({
+            success: false,
+            message: 'Quota validation failed',
+            error: errorMessage,
+          });
+        }
 
         // Validate the agent configuration
         try {
