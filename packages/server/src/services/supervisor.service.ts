@@ -1,8 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { Postgres } from '@snakagent/database';
 import { AgentConfig } from '@snakagent/core';
 import { agents } from '@snakagent/database/queries';
-import { supervisorAgentConfig } from '../constants/agents.constants.js';
+import { supervisorAgentConfig } from '@snakagent/core';
 
 /**
  * Service for managing supervisor agents and their validation

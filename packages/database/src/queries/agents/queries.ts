@@ -1,3 +1,4 @@
+import { supervisorAgentConfig } from '@snakagent/core';
 import { Postgres } from '../../database.js';
 
 export namespace agents {
@@ -183,8 +184,8 @@ export namespace agents {
     const query = new Postgres.Query(
       `SELECT id, (profile).name as name
        FROM agents
-       WHERE user_id = $1 AND (profile)."group" = 'snak-system'`, // TODO ADD THE SUPERVISOR AGENT INSTANCE DIRECTLY
-      [userId]
+       WHERE user_id = $1 AND (profile)."group" = $2`,
+      [userId, supervisorAgentConfig.profile.group]
     );
 
     const result = await Postgres.query<{ id: string; name: string }>(query);

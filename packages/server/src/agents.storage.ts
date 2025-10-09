@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import { DatabaseService } from './services/database.service.js';
-import { Postgres, redisAgents, agents } from '@snakagent/database/queries';
+import { redisAgents, agents } from '@snakagent/database/queries';
 import { RedisClient } from '@snakagent/database/redis';
 import {
   AgentConfig,
@@ -25,15 +25,8 @@ import {
   BaseAgent,
   SupervisorAgent,
 } from '@snakagent/agents';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatAnthropic } from '@langchain/anthropic';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { initializeModels } from './utils/agents.utils.js';
-import {
-  agentSelectorConfig,
-  supervisorAgentConfig,
-} from './constants/agents.constants.js';
+import { supervisorAgentConfig } from '@snakagent/core';
 
 const logger = new Logger('AgentStorage');
 
