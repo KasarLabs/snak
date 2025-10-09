@@ -72,3 +72,13 @@ export enum TaskVerifierNode {
   END_GRAPH = 'end_graph',
   END = 'end',
 }
+
+export enum SupervisorNode {
+  SUPERVISOR = 'supervisor',
+  END_GRAPH = 'end_graph',
+  END = 'end',
+  AGENT_SWITCHER = 'agent_switcher',
+  CONFIGURATION_AGENT = 'configuration_agent',
+}
+
+

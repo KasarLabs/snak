@@ -198,9 +198,9 @@ export class SnakAgent extends BaseAgent {
     chunk: StreamEvent,
     state: StateSnapshot,
     user_request: string,
-    currentTaskId: string | null,
-    currentStepId: string | null,
-    graphError: GraphErrorType | null,
+    currentTaskId: string | undefined,
+    currentStepId: string | undefined,
+    graphError: GraphErrorType | undefined,
     retryCount: number,
     from: GraphNode
   ): ChunkOutput {
@@ -222,9 +222,6 @@ export class SnakAgent extends BaseAgent {
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
-      task_id: currentTaskId,
-      step_id: currentStepId,
-      task_title: chunk.data?.output?.additional_kwargs?.task_title ?? null,
       from,
       tools:
         chunk.event === EventType.ON_CHAT_MODEL_END
@@ -248,10 +245,10 @@ export class SnakAgent extends BaseAgent {
     chunk: StreamEvent,
     state: any,
     user_request: string,
-    currentTaskId: string | null,
-    currentStepId: string | null,
+    currentTaskId: string | undefined,
+    currentStepId: string | undefined,
     retryCount: number,
-    graphError: GraphErrorType | null
+    graphError: GraphErrorType | undefined
   ): ChunkOutput | null {
     const nodeType = chunk.metadata?.langgraph_node;
     const eventType = chunk.event;
@@ -331,12 +328,12 @@ export class SnakAgent extends BaseAgent {
     request: UserRequest
   ): AsyncGenerator<ChunkOutput> {
     try {
-      let lastChunk: StreamEvent | null = null;
+      let lastChunk: StreamEvent | undefined = undefined;
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;
-      let currentTaskId: string | null = null;
-      let currentStepId: string | null = null;
-      let graphError: GraphErrorType | null = null;
+      let currentTaskId: string | undefined = undefined;
+      let currentStepId: string | undefined = undefined;
+      let graphError: GraphErrorType | undefined = undefined;
       let stateSnapshot: StateSnapshot;
       let isInterruptHandle = false;
       logger.info(`[SnakAgent] Starting execution: "${request.request}"`);
@@ -441,13 +438,13 @@ export class SnakAgent extends BaseAgent {
           from: GraphNode.END_GRAPH,
           thread_id: threadId,
           checkpoint_id: currentCheckpointId,
-          task_id: currentTaskId ? currentTaskId : null,
-          step_id: currentStepId ? currentStepId : null,
-          task_title: null,
-          tools: lastChunk.data.output.tool_calls ?? null,
+          task_id: currentTaskId ? currentTaskId : undefined,
+          step_id: currentStepId ? currentStepId : undefined,
+          task_title: undefined,
+          tools: lastChunk.data.output.tool_calls ?? undefined,
           message: lastChunk.data.output.content
             ? lastChunk.data.output.content.toLocaleString()
-            : null,
+            : undefined,
           metadata: {
             error: graphError,
             final: true,

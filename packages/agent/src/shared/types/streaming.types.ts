@@ -1,4 +1,4 @@
-import { GraphNode } from '@enums/agent.enum.js';
+import { GraphNode, SupervisorNode } from '@enums/agent.enum.js';
 import { EventType } from '@enums/event.enums.js';
 import { ToolCall } from './tools.types.js';
 import { GraphErrorType } from './graph.types.js';
@@ -23,12 +23,12 @@ export interface ChunkOutput {
   run_id: string;
   thread_id: string;
   checkpoint_id: string;
-  task_id: string | null;
-  step_id: string | null;
-  task_title: string | null;
-  from: GraphNode;
-  tools: ToolCall[] | null;
-  message: string | null;
+  task_id?: string;
+  step_id?: string;
+  task_title?: string;
+  from: GraphNode | SupervisorNode;
+  tools?: ToolCall[];
+  message?: string;
   metadata: ChunkOutputMetadata;
   timestamp?: string;
 }

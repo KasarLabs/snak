@@ -60,15 +60,15 @@ export class AgentService implements IAgentService {
             chunk.event === EventType.ON_CHAT_MODEL_END ||
             chunk.event === EventType.ON_CHAIN_END
           ) {
-            // const messageId = await message.insert_message(
-            //   agent.getAgentConfig().id,
-            //   userId,
-            //   chunk
-            // );
+            const messageId = await message.insert_message(
+              agent.getAgentConfig().id,
+              userId,
+              chunk
+            );
 
-            // this.logger.debug(
-            //   `Inserted message with ID: ${messageId.toLocaleString()}`
-            // );
+            this.logger.debug(
+              `Inserted message with ID: ${messageId.toLocaleString()}`
+            );
             if (EventType.ON_CHAIN_END && chunk.metadata.final === true) {
               result = chunk;
               return {
