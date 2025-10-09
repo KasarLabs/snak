@@ -44,7 +44,6 @@
     "gpt-tokenizer": "^2.9.0",
     "inquirer": "^12.4.1",
     "nanospinner": "^1.2.2",
-    "snak-mcps": "^0.1.2",
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {},

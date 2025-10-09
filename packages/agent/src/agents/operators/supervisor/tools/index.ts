@@ -6,3 +6,4 @@ export { listAgentsTool } from './listAgentsTool.js';
 export { addMcpServerTool } from './addMcpServerTool.js';
 export { removeMcpServerTool } from './removeMcpServerTool.js';
 export { updateMcpServerTool } from './updateMcpServerTool.js';
+export { messageAskUserTool } from './messageAskUserTools.js';

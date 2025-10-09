@@ -401,8 +401,8 @@ export class AgentsController {
 
     // Check if user already has a supervisor agent
     const existingSupervisor = await agents.getSupervisorAgent(userId);
-
     if (existingSupervisor) {
+      logger.info('Supervisor agent already exists for user:', userId);
       return ResponseFormatter.success({
         message: 'Supervisor agent already exists for this user',
         agent_id: existingSupervisor.id,

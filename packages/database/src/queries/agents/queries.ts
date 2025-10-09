@@ -183,7 +183,7 @@ export namespace agents {
     const query = new Postgres.Query(
       `SELECT id, (profile).name as name
        FROM agents
-       WHERE user_id = $1 AND (profile)."group" = 'system'`,
+       WHERE user_id = $1 AND (profile)."group" = 'snak-system'`, // TODO ADD THE SUPERVISOR AGENT INSTANCE DIRECTLY
       [userId]
     );
 

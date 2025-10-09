@@ -12,6 +12,11 @@ import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { StateSnapshot } from '@langchain/langgraph';
+import {
+  getInterruptCommand,
+  isInterrupt,
+} from '@agents/graphs/utils/graph.utils.js';
+import { notify } from '@snakagent/database/queries';
 
 /**
  * Supervisor agent for managing and coordinating multiple agents
@@ -149,6 +154,8 @@ export class SupervisorAgent extends BaseAgent {
     try {
       let currentCheckpointId: string | undefined = undefined;
       let lastChunk: StreamEvent | undefined = undefined;
+      let stateSnapshot: StateSnapshot;
+      let isInterruptHandle = false;
       if (!this.compiledStateGraph) {
         throw new Error('SupervisorAgent is not initialized');
       }
@@ -172,17 +179,36 @@ export class SupervisorAgent extends BaseAgent {
         recursionLimit: 500,
         version: 'v2' as const,
       };
+      stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
+      if (!stateSnapshot) {
+        throw new Error('Failed to retrieve initial graph state');
+      }
+      const executionInput = isInterrupt(stateSnapshot)
+        ? getInterruptCommand(userRequest.request)
+        : { messages: [new HumanMessage(userRequest.request || '')] };
 
       for await (const chunk of this.compiledStateGraph.streamEvents(
-        {
-          messages: [new HumanMessage(userRequest.request || '')],
-        },
+        executionInput,
         executionConfig
       )) {
-        const stateSnapshot =
-          await this.compiledStateGraph.getState(threadConfig);
+        stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
+        if (!stateSnapshot) {
+          throw new Error('Failed to retrieve graph state during execution');
+        }
         currentCheckpointId = stateSnapshot.config.configurable?.checkpoint_id;
         lastChunk = chunk;
+        if (
+          chunk.event === 'on_chain_end' &&
+          isInterruptHandle === false &&
+          isInterrupt(stateSnapshot)
+        ) {
+          await notify.insertNotify(
+            this.agentConfig.user_id,
+            this.agentConfig.id,
+            stateSnapshot.tasks[0].interrupts[0].value
+          );
+          isInterruptHandle = true;
+        }
         const chunkProcessed = this.processChunkOutput(
           chunk,
           stateSnapshot,
@@ -195,10 +221,12 @@ export class SupervisorAgent extends BaseAgent {
       }
 
       const startTime = Date.now();
-      await this.pgCheckpointer.deleteThread(threadId);
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
+      if (isInterruptHandle === false) {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        await this.pgCheckpointer.deleteThread(threadId);
+        logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
+      }
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
       }
@@ -214,7 +242,7 @@ export class SupervisorAgent extends BaseAgent {
         metadata: {
           error: undefined,
           final: true,
-          is_human: undefined,
+          is_human: isInterruptHandle,
           user_request: userRequest.request,
         },
         timestamp: new Date().toISOString(),

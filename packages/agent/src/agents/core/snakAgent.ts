@@ -35,6 +35,10 @@ import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { notify } from '@snakagent/database/queries';
+import {
+  getInterruptCommand,
+  isInterrupt,
+} from '@agents/graphs/utils/graph.utils.js';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -300,25 +304,6 @@ export class SnakAgent extends BaseAgent {
     return null;
   }
 
-  private isInterrupt(stateSnapshot: StateSnapshot): boolean {
-    if (
-      stateSnapshot.tasks?.length > 0 &&
-      stateSnapshot.tasks[0]?.interrupts?.length > 0
-    ) {
-      const interrupt = stateSnapshot.tasks[0].interrupts[0];
-      logger.info(`[SnakAgent] Interrupt detected: ${interrupt?.value}`);
-      return true;
-    }
-    return false;
-  }
-
-  private getInterruptCommand(request: string): Command {
-    const command = new Command({
-      resume: request,
-    });
-    return command;
-  }
-
   /**
    * Executes the agent in autonomous mode
    * This mode allows the agent to operate continuously based on an initial goal or prompt
@@ -372,8 +357,8 @@ export class SnakAgent extends BaseAgent {
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve initial graph state');
         }
-        const executionInput = this.isInterrupt(stateSnapshot)
-          ? this.getInterruptCommand(request.request)
+        const executionInput = isInterrupt(stateSnapshot)
+          ? getInterruptCommand(request.request)
           : { messages: initialMessages };
         for await (const chunk of this.compiledStateGraph.streamEvents(
           executionInput ?? {
@@ -405,7 +390,7 @@ export class SnakAgent extends BaseAgent {
           if (
             chunk.event === 'on_chain_end' &&
             isInterruptHandle === false &&
-            this.isInterrupt(stateSnapshot)
+            isInterrupt(stateSnapshot)
           ) {
             await notify.insertNotify(
               this.agentConfig.user_id,

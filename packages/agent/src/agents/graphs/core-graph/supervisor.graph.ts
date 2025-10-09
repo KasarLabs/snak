@@ -8,11 +8,13 @@ import { SupervisorAgent } from '@agents/core/supervisorAgent.js';
 import { logger } from 'starknet';
 import { skipValidationType } from '@stypes/graph.types.js';
 import { AgentConfig } from '@snakagent/core';
-import { GraphConfigurableAnnotation, GraphState } from './agent.graph.js';
+import { GraphState } from './agent.graph.js';
 import { initializeDatabase } from '@agents/utils/database.utils.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
-import { getSupervisorConfigTools } from '@agents/operators/supervisor/supervisorTools.js';
-import { agent } from 'supertest';
+import {
+  getCommunicationHelperTools,
+  getSupervisorConfigTools,
+} from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
 import { AIMessage, BaseMessage } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
@@ -161,6 +163,7 @@ export class SupervisorGraph {
         mcpConfigurationHelper,
         snakRagAgentHelper,
       ],
+      tools: getCommunicationHelperTools(),
       llm: this.supervisorConfig.graph.model,
       prompt: formattedSupervisorPrompt,
       // Apply transformation to the supervisor as well
