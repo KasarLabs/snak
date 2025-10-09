@@ -25,26 +25,34 @@ export function deleteAgentTool(
           });
         }
 
-        // First, find the agent
+        // First, find the agent (we only need id and profile for deletion)
         let findQuery: Postgres.Query;
         const searchBy = input.searchBy || 'name';
         if (searchBy === 'id') {
           // PostgresQuery relation : agents
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE id = $1 AND user_id = $2',
+            `SELECT id, row_to_json(profile) as profile
+             FROM agents WHERE id = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         } else {
           // PostgresQuery relation : agents
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE (profile).name = $1 AND user_id = $2',
+            `SELECT id, row_to_json(profile) as profile
+             FROM agents WHERE (profile).name = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         }
 
-        const existingAgent =
-          await Postgres.query<AgentConfig.OutputWithId>(findQuery);
-        logger.debug(`Existing agent: ${JSON.stringify(existingAgent)}`);
+        const existingAgent = await Postgres.query<{
+          id: string;
+          profile: {
+            name: string;
+            group: string;
+            description: string;
+            contexts: string[];
+          };
+        }>(findQuery);
         if (existingAgent.length === 0) {
           return JSON.stringify({
             success: false,
@@ -53,6 +61,8 @@ export function deleteAgentTool(
         }
 
         const agent = existingAgent[0];
+
+        logger.debug(`Agent profile: ${JSON.stringify(agent.profile)}`);
 
         // Check if agent is protected (supervisor agent or system group)
         const protectionCheck = isProtectedAgent(
