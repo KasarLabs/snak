@@ -432,7 +432,7 @@ export class AgentsController {
   @Post('init_supervisor')
   @HandleErrors('E07TA100')
   async initSupervisor(@Req() req: FastifyRequest): Promise<AgentResponse> {
-    logger.info("init_supervisor called");
+    logger.info('init_supervisor called');
     const userId = ControllerHelpers.getUserId(req);
 
     // Check if user already has a supervisor agent
