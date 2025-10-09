@@ -432,6 +432,7 @@ export class AgentsController {
   @Post('init_supervisor')
   @HandleErrors('E07TA100')
   async initSupervisor(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    logger.info("init_supervisor called");
     const userId = ControllerHelpers.getUserId(req);
 
     // Check if user already has a supervisor agent
@@ -452,11 +453,9 @@ export class AgentsController {
       });
     }
 
-    const randomNumber = Math.floor(Math.random() * 900000) + 100000;
-
     const supervisorConfig = {
       profile: {
-        name: `Supervisor Agent ${randomNumber}`,
+        name: `Supervisor Agent`,
         group: 'system',
         description:
           'I coordinate the execution of specialized agents in the system, routing requests to the most appropriate agent based on query content and agent capabilities.',
@@ -474,7 +473,6 @@ export class AgentsController {
         ],
       },
       mcp_servers: {},
-      plugins: [],
       graph: {
         max_steps: 200,
         max_iterations: 15,
@@ -513,11 +511,11 @@ export class AgentsController {
         enabled: false,
       },
     };
-
     const newAgentConfig = await this.agentFactory.addAgent(
       supervisorConfig,
       userId
     );
+    logger.debug(`Supervisor added for user: ${userId}`);
 
     metrics.agentConnect();
 
