@@ -55,18 +55,24 @@ export function updateAgentTool(
       try {
         const userId = agentConfig.user_id;
 
-        // First, find the agent
+        // First, find the agent (we need all fields for deep merge)
         let findQuery: Postgres.Query;
         const searchBy = input.searchBy || 'name';
 
         if (searchBy === 'id') {
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE id = $1 AND user_id = $2',
+            `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+             row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
+             created_at, updated_at, avatar_image, avatar_mime_type
+             FROM agents WHERE id = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         } else {
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE (profile).name = $1 AND user_id = $2',
+            `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+             row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
+             created_at, updated_at, avatar_image, avatar_mime_type
+             FROM agents WHERE (profile).name = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         }

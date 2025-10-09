@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { Postgres, redisAgents } from '@snakagent/database/queries';
-import { logger } from '@snakagent/core';
+import { AgentProfile, logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
 import { isProtectedAgent } from '../utils/agents.validators.js';
@@ -46,12 +46,7 @@ export function deleteAgentTool(
 
         const existingAgent = await Postgres.query<{
           id: string;
-          profile: {
-            name: string;
-            group: string;
-            description: string;
-            contexts: string[];
-          };
+          profile: AgentProfile;
         }>(findQuery);
         if (existingAgent.length === 0) {
           return JSON.stringify({

@@ -1,7 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 
 import { Postgres } from '@snakagent/database';
-import { logger } from '@snakagent/core';
+import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { AddMcpServerSchema } from './schemas/mcp.schemas.js';
 import { isProtectedAgent } from '../utils/agents.validators.js';
@@ -18,24 +18,34 @@ export function addMcpServerTool(
       try {
         const userId = agentConfig.user_id;
 
-        // First, find the agent
+        // First, find the agent (we need id, profile, and mcp_servers)
         let findQuery: Postgres.Query;
         const searchBy = input.searchBy || 'name';
 
         if (searchBy === 'id') {
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE id = $1 AND user_id = $2',
+            `SELECT id, row_to_json(profile) as profile, mcp_servers
+             FROM agents WHERE id = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         } else {
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE (profile).name = $1 AND user_id = $2',
+            `SELECT id, row_to_json(profile) as profile, mcp_servers
+             FROM agents WHERE (profile).name = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         }
 
-        const existingAgent =
-          await Postgres.query<AgentConfig.OutputWithId>(findQuery);
+        const existingAgent = await Postgres.query<{
+          id: string;
+          profile: {
+            name: string;
+            group: string;
+            description: string;
+            contexts: string[];
+          };
+          mcp_servers: Record<string, McpServerConfig>;
+        }>(findQuery);
         if (existingAgent.length === 0) {
           return JSON.stringify({
             success: false,
@@ -68,7 +78,7 @@ export function addMcpServerTool(
         const updatedMcpServers = { ...currentMcpServers };
         for (const [serverName, serverConfig] of Object.entries(
           input.mcp_servers
-        )) {
+        ) as [string, McpServerConfig][]) {
           if (currentMcpServers[serverName]) {
             alreadyExists.push(serverName);
           } else {
