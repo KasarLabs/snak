@@ -80,5 +80,3 @@ export enum SupervisorNode {
   AGENT_SWITCHER = 'agent_switcher',
   CONFIGURATION_AGENT = 'configuration_agent',
 }
-
-

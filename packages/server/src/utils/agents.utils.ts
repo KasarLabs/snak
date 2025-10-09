@@ -5,7 +5,6 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ModelConfig } from '@snakagent/core';
 import { logger } from 'starknet';
 
-
 /**
  * Initializes model instances based on the loaded configuration.
  * @throws {Error} If models configuration is not loaded.
