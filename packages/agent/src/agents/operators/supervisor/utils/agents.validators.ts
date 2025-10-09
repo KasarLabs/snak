@@ -61,4 +61,3 @@ export function validateAgentProperties(
 
   return { isValid: true };
 }
-

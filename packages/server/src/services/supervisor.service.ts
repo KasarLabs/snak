@@ -18,13 +18,19 @@ export class SupervisorService {
     agentConfig: AgentConfig.Input | AgentConfig.InputWithOptionalParam
   ): void {
     const supervisorAgent = supervisorAgentConfig;
-    if (agentConfig.profile?.group?.trim().toLowerCase() === supervisorAgentConfig.profile.group.trim().toLowerCase()) {
+    if (
+      agentConfig.profile?.group?.trim().toLowerCase() ===
+      supervisorAgentConfig.profile.group.trim().toLowerCase()
+    ) {
       throw new BadRequestException(
         'Cannot create or modify system agents via this endpoint. Use init_supervisor instead.'
       );
     }
 
-    if (agentConfig.profile?.name?.trim().toLowerCase() === supervisorAgent.profile.name.trim().toLowerCase()) {
+    if (
+      agentConfig.profile?.name?.trim().toLowerCase() ===
+      supervisorAgent.profile.name.trim().toLowerCase()
+    ) {
       throw new BadRequestException(
         'Cannot create or modify Supervisor Agent via this endpoint. Use init_supervisor instead.'
       );
@@ -46,9 +52,11 @@ export class SupervisorService {
 
     return (
       (typeof agent.group === 'string' &&
-        agent.group.trim().toLowerCase() === supervisorAgentConfig.profile.group.trim().toLowerCase()) ||
+        agent.group.trim().toLowerCase() ===
+          supervisorAgentConfig.profile.group.trim().toLowerCase()) ||
       (typeof agent.name === 'string' &&
-        agent.name.trim().toLowerCase() === supervisorAgentConfig.profile.name.trim().toLowerCase())
+        agent.name.trim().toLowerCase() ===
+          supervisorAgentConfig.profile.name.trim().toLowerCase())
     );
   }
 
