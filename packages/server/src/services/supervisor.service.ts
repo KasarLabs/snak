@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
 import { AgentConfig } from '@snakagent/core';
 import { agents } from '@snakagent/database/queries';
+import { supervisorAgentConfig } from '../constants/agents.constants.js';
 
 /**
  * Service for managing supervisor agents and their validation
@@ -16,13 +17,14 @@ export class SupervisorService {
   validateNotSupervisorAgent(
     agentConfig: AgentConfig.Input | AgentConfig.InputWithOptionalParam
   ): void {
-    if (agentConfig.profile?.group?.trim().toLowerCase() === 'system') {
+    const supervisorAgent = supervisorAgentConfig;
+    if (agentConfig.profile?.group?.trim().toLowerCase() === supervisorAgentConfig.profile.group.trim().toLowerCase()) {
       throw new BadRequestException(
         'Cannot create or modify system agents via this endpoint. Use init_supervisor instead.'
       );
     }
 
-    if (agentConfig.profile?.name?.toLowerCase().includes('supervisor agent')) {
+    if (agentConfig.profile?.name?.trim().toLowerCase() === supervisorAgent.profile.name.trim().toLowerCase()) {
       throw new BadRequestException(
         'Cannot create or modify Supervisor Agent via this endpoint. Use init_supervisor instead.'
       );
@@ -44,9 +46,9 @@ export class SupervisorService {
 
     return (
       (typeof agent.group === 'string' &&
-        agent.group.trim().toLowerCase() === 'system') ||
+        agent.group.trim().toLowerCase() === supervisorAgentConfig.profile.group.trim().toLowerCase()) ||
       (typeof agent.name === 'string' &&
-        agent.name.toLowerCase().includes('supervisor agent'))
+        agent.name.trim().toLowerCase() === supervisorAgentConfig.profile.name.trim().toLowerCase())
     );
   }
 

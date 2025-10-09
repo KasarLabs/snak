@@ -1,10 +1,9 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
-import { SelectAgentSchema } from './schemas/common.schemas.js';
 import { RemoveMcpServerSchema } from './schemas/mcp.schemas.js';
+import { isProtectedAgent } from '../utils/agents.validators.js';
 
 export function removeMcpServerTool(
   agentConfig: AgentConfig.Runtime
@@ -46,11 +45,14 @@ export function removeMcpServerTool(
         const agent = existingAgent[0];
 
         // Check if agent is protected (supervisor agent or system group)
-        if (agent.profile.group === 'system') {
+        const protectionCheck = isProtectedAgent(
+          agent.profile.name,
+          agent.profile.group
+        );
+        if (!protectionCheck.isValid) {
           return JSON.stringify({
             success: false,
-            message:
-              'Cannot remove MCP server from agent in "system" group - this agent is protected.',
+            message: protectionCheck.message,
           });
         }
 

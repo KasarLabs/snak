@@ -4,6 +4,10 @@ import { logger, AgentProfile, GraphConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { UpdateAgentSchema } from './schemas/index.js';
+import {
+  isProtectedAgent,
+  validateAgentProperties,
+} from '../utils/agents.validators.js';
 
 /**
  * Helper function to deep merge two objects, filtering out null/undefined values
@@ -79,34 +83,31 @@ export function updateAgentTool(
         const agent = existingAgent[0];
 
         // Check if agent is protected (supervisor agent or system group)
-        if (agent.profile.group === 'system') {
+        const protectionCheck = isProtectedAgent(
+          agent.profile.name,
+          agent.profile.group
+        );
+        if (!protectionCheck.isValid) {
           return JSON.stringify({
             success: false,
-            message:
-              'Cannot update agent from "system" group - this agent is protected.',
+            message: protectionCheck.message,
           });
         }
 
         const updates = input.updates;
 
         // Validate updates before processing
-        if (updates.profile?.group === 'system') {
-          return JSON.stringify({
-            success: false,
-            message:
-              'Cannot update agent to "system" group - this group is protected.',
-          });
-        }
-
-        if (
-          updates.profile?.name &&
-          updates.profile.name.toLowerCase().includes('supervisor agent')
-        ) {
-          return JSON.stringify({
-            success: false,
-            message:
-              'Agent name cannot contain "supervisor agent" - this name is reserved.',
-          });
+        if (updates.profile?.name || updates.profile?.group) {
+          const validation = validateAgentProperties(
+            updates.profile?.name,
+            updates.profile?.group
+          );
+          if (!validation.isValid) {
+            return JSON.stringify({
+              success: false,
+              message: validation.message,
+            });
+          }
         }
 
         // Start with the complete existing agent configuration

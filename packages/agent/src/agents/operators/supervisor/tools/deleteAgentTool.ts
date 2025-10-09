@@ -3,6 +3,7 @@ import { Postgres, redisAgents } from '@snakagent/database/queries';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
+import { isProtectedAgent } from '../utils/agents.validators.js';
 
 export function deleteAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -54,11 +55,14 @@ export function deleteAgentTool(
         const agent = existingAgent[0];
 
         // Check if agent is protected (supervisor agent or system group)
-        if (agent.profile.group === 'system') {
+        const protectionCheck = isProtectedAgent(
+          agent.profile.name,
+          agent.profile.group
+        );
+        if (!protectionCheck.isValid) {
           return JSON.stringify({
             success: false,
-            message:
-              'Cannot delete agent from "system" group - this agent is protected.',
+            message: protectionCheck.message,
           });
         }
 
