@@ -15,7 +15,7 @@ export class SupervisorService {
   validateNotSupervisorAgent(
     agentConfig: AgentConfig.Input | AgentConfig.InputWithOptionalParam
   ): void {
-    if (agentConfig.profile?.group === 'system') {
+    if (agentConfig.profile?.group?.trim().toLowerCase() === 'system') {
       throw new BadRequestException(
         'Cannot create or modify system agents via this endpoint. Use init_supervisor instead.'
       );
@@ -49,7 +49,8 @@ export class SupervisorService {
 
     const agent = result[0];
     return (
-      agent.group === 'system' ||
+      (typeof agent.group === 'string' &&
+        agent.group.trim().toLowerCase() === 'system') ||
       (typeof agent.name === 'string' &&
         agent.name.toLowerCase().includes('supervisor agent'))
     );
