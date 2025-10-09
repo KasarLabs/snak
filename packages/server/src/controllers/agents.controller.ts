@@ -21,6 +21,13 @@ import {
 } from '../utils/error-handler.js';
 import { ControllerHelpers } from '../utils/controller-helpers.js';
 import {
+  extractFlagValue,
+  updateFlagValue,
+  normalizeRawMcpConfig,
+  fetchSmitheryManifest,
+} from '../utils/mcp-helpers.js';
+
+import {
   logger,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
@@ -29,6 +36,10 @@ import {
   AgentResponse,
   getGuardValue,
   AgentDeleteRequestDTO,
+  GetAgentMcpsRequestDTO,
+  AgentMCPRequestDTO,
+  UpdateMcpEnvValueRequestDTO,
+  DeleteMultipleMcpServersRequestDTO,
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
   MessageRequest,
@@ -37,7 +48,7 @@ import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent } from '@snakagent/agents';
-import { notify, message } from '@snakagent/database/queries';
+import { notify, message, redisAgents } from '@snakagent/database/queries';
 
 export interface SupervisorRequestDTO {
   request: {
@@ -66,70 +77,6 @@ export class AgentsController {
     private readonly agentFactory: AgentStorage,
     private readonly reflector: Reflector
   ) {}
-
-  /**
-   * Handle user request to a specific agent
-   * @param userRequest - The user request containing agent ID and content
-   * @returns Promise<AgentResponse> - Response with status and data
-   */
-  @Post('update_agent_mcp')
-  @HandleWithBadRequestPreservation('MCP update failed')
-  async updateAgentMcp(
-    @Body() updateData: UpdateAgentMcpDTO,
-    @Req() req: FastifyRequest
-  ) {
-    logger.info('update_agent_mcp called');
-    const userId = ControllerHelpers.getUserId(req);
-    const { id, mcp_servers } = updateData;
-
-    if (!id) {
-      throw new BadRequestException('Agent ID is required');
-    }
-
-    if (!mcp_servers || typeof mcp_servers !== 'object') {
-      throw new BadRequestException('MCP servers must be an object');
-    }
-
-    try {
-      await this.agentFactory.validateAgent(
-        {
-          id: id,
-          user_id: userId,
-          mcp_servers: mcp_servers,
-        },
-        false
-      );
-    } catch (validationError) {
-      throw new UnprocessableEntityException(
-        `Validation failed: ${validationError.message}`
-      );
-    }
-
-    const agent = this.agentFactory.getAgentInstance(id, userId);
-    if (!agent) {
-      throw new BadRequestException('Agent not found or access denied');
-    }
-    // Update agent MCP configuration in database
-    const q = new Postgres.Query(
-      `UPDATE agents
-       SET "mcp_servers" = $1::jsonb
-       WHERE id = $2 AND user_id = $3
-       RETURNING id, "mcp_servers"`,
-      [mcp_servers, id, userId]
-    );
-
-    const result = await Postgres.query<UpdateAgentMcpDTO>(q);
-
-    if (result.length === 0) {
-      throw new BadRequestException('Agent not found');
-    }
-    const updatedAgent = result[0];
-
-    return ResponseFormatter.success({
-      id: updatedAgent.id,
-      mcpServers: updatedAgent.mcp_servers,
-    });
-  }
 
   @Post('update_agent_config')
   @HandleWithBadRequestPreservation('Update failed')

@@ -237,3 +237,118 @@ export type AgentResponse<T = unknown> =
   | { status: 'success'; data: T }
   | { status: 'waiting_for_human_input'; data?: T }
   | { status: 'failure'; error: string; data?: T };
+
+
+/**
+ * Request to get a specific agent’s MCP config
+ */
+export class GetAgentMcpsRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+}
+
+/**
+ * Request to get all MCP server of a specific agent 
+ */
+export class AgentMCPRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+}
+
+/**
+ * Request to update the value of one secret in a given MCP server
+ */
+export class UpdateMcpEnvValueRequestDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  secret_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  secret_value: string;
+}
+
+/**
+ * Request to rename a secret key in an MCP config
+ */
+export class UpdateMcpEnvNameRequestDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  old_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  new_name: string;
+}
+
+/**
+ * Request to delete multiple MCP servers
+ */
+export class DeleteMultipleMcpServersRequestDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  mcp_ids: string[];
+}
+
+/**
+ * Request to add one or more new MCP servers
+ */
+export class AddMcpServerRequestDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  mcpServers: Record<
+    string,
+    {
+      command: string;
+      args?: string[] | string;
+      env?: Record<string, string>;
+      [key: string]: any;
+    }
+  >;
+}
+
+/**
+ * Request to update an entire agent’s MCP server object
+ */
+export class UpdateAgentMcpDTO {
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  id: string;
+
+  @IsNotEmpty()
+  mcp_servers: Record<string, any>;
+}
