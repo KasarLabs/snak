@@ -9,7 +9,9 @@ import {
   addMcpServerTool,
   removeMcpServerTool,
   updateMcpServerTool,
+  messageAskUserTool,
 } from './tools/index.js';
+import { messageAskUserSchema } from '@schemas/graph.schemas.js';
 
 /**
  * Shared configuration tools reserved for supervisor agents.
@@ -28,7 +30,32 @@ export function getSupervisorConfigTools(
     addMcpServerTool(agentConfig),
     removeMcpServerTool(agentConfig),
     updateMcpServerTool(agentConfig),
+    messageAskUserTool(),
   ];
+}
+
+export function getAgentConfigurationHelperTools(
+  agentConfig: AgentConfig.Runtime
+) {
+  return [
+    createAgentTool(agentConfig),
+    listAgentsTool(agentConfig),
+    deleteAgentTool(agentConfig),
+    readAgentTool(agentConfig),
+    updateAgentTool(agentConfig),
+  ];
+}
+
+export function getMcpServerHelperTools(agentConfig: AgentConfig.Runtime) {
+  return [
+    addMcpServerTool(agentConfig),
+    removeMcpServerTool(agentConfig),
+    updateMcpServerTool(agentConfig),
+  ];
+}
+
+export function getCommunicationHelperTools() {
+  return [messageAskUserTool()];
 }
 
 /**
@@ -47,5 +74,6 @@ export function getSupervisorToolCategories(agentConfig: AgentConfig.Runtime) {
       removeMcpServerTool(agentConfig),
       updateMcpServerTool(agentConfig),
     ],
+    communication: [messageAskUserTool()],
   };
 }

@@ -62,6 +62,7 @@
     "@langchain/langgraph-checkpoint": "~0.1.1",
     "@langchain/langgraph-checkpoint-postgres": "^0.1.2",
     "@langchain/mcp-adapters": "^0.6.0",
+    "@langchain/langgraph-supervisor": "^0.0.20",
     "@langchain/ollama": "^0.1.6",
     "@langchain/openai": "^0.3.17",
     "langchain": "^0.3.34",
