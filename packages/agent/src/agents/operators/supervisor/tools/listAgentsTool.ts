@@ -1,48 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
 import { logger, AgentConfig } from '@snakagent/core';
-
-const normalizePositiveNumber = (val: number | null | undefined) =>
-  val !== null && val !== undefined && val <= 0 ? null : val;
-
-const ListAgentsSchema = z.object({
-  filters: z
-    .object({
-      group: z
-        .string()
-        .optional()
-        .describe(
-          'Filter agents by specific group (use when user wants agents from a particular group)'
-        ),
-      mode: z
-        .string()
-        .optional()
-        .describe(
-          'Filter agents by execution mode (use when user wants agents with specific mode)'
-        ),
-      name_contains: z
-        .string()
-        .optional()
-        .describe(
-          'Filter agents whose names contain this text (use for partial name searches)'
-        ),
-    })
-    .optional()
-    .describe('Optional filters to narrow down the agent list'),
-  limit: z
-    .number()
-    .optional()
-    .transform(normalizePositiveNumber)
-    .describe(
-      'Maximum number of agents to return (use when user specifies a limit)'
-    ),
-  offset: z
-    .number()
-    .optional()
-    .transform(normalizePositiveNumber)
-    .describe('Number of agents to skip for pagination'),
-});
+import { ListAgentsSchema } from './schemas/listAgent.schema.js';
 
 export function listAgentsTool(
   agentConfig: AgentConfig.Runtime
@@ -122,7 +81,8 @@ export function listAgentsTool(
         }
 
         const query = new Postgres.Query(queryString, values);
-        const result = await Postgres.query<AgentConfig.OutputWithId>(query);
+        const result =
+          await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
 
         return JSON.stringify({
           success: true,

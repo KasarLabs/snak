@@ -1,28 +1,8 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
-import { Postgres } from '@snakagent/database';
+import { Postgres, redisAgents } from '@snakagent/database/queries';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
-
-const DeleteAgentSchema = z.object({
-  identifier: z
-    .string()
-    .describe(
-      'The agent ID or name to delete (extract exact name from user request, usually in quotes like "Ethereum RPC Agent")'
-    ),
-  searchBy: z
-    .enum(['id', 'name'])
-    .optional()
-    .describe(
-      'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
-    ),
-  confirm: z
-    .boolean()
-    .optional()
-    .describe(
-      'Confirmation to proceed with deletion (automatically set to true when user clearly intends to delete)'
-    ),
-});
+import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
 
 export function deleteAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -88,6 +68,15 @@ export function deleteAgentTool(
           [agent.id, userId]
         );
         await Postgres.query(deleteQuery);
+
+        // Delete from Redis cache
+        try {
+          await redisAgents.deleteAgent(agent.id, userId);
+          logger.debug(`Agent ${agent.id} deleted from Redis`);
+        } catch (error) {
+          logger.error(`Failed to delete agent from Redis: ${error}`);
+          // Don't throw, PostgreSQL deletion is what matters
+        }
 
         logger.info(
           `Deleted agent "${agent.profile.name}" successfully for user ${userId}`

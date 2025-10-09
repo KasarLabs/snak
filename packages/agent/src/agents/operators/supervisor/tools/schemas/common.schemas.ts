@@ -232,6 +232,27 @@ export const McpServerConfigSchema = z.object({
     .optional()
     .describe('MCP server environment variables'),
 });
+
+// Schema for MCP servers record with validation for server names (keys)
+export const McpServersRecordSchema = z
+  .record(McpServerConfigSchema)
+  .refine(
+    (obj) => Object.keys(obj).length <= mcpServersGuardsValues.max_servers,
+    {
+      message: `MCP servers object must have at most ${mcpServersGuardsValues.max_servers} keys`,
+    }
+  )
+  .refine(
+    (obj) =>
+      Object.keys(obj).every(
+        (key) =>
+          key.length >= mcpServersGuardsValues.min_server_name_length &&
+          key.length <= mcpServersGuardsValues.max_server_name_length
+      ),
+    {
+      message: `MCP server names must be between ${mcpServersGuardsValues.min_server_name_length} and ${mcpServersGuardsValues.max_server_name_length} characters`,
+    }
+  );
 // Schema for PromptsConfig
 export const PromptsConfigSchema = z.object({
   id: z
@@ -239,6 +260,22 @@ export const PromptsConfigSchema = z.object({
     .max(getGuardValue('agents.prompts_id_max_length'))
     .optional()
     .describe('Prompts ID'),
+});
+
+// Schema for selecting an agent
+export const SelectAgentSchema = z.object({
+  identifier: z
+    .string()
+    .describe(
+      'The agent ID or name to select (extract exact name from user request, usually in quotes like "Ethereum RPC Agent")'
+    ),
+  searchBy: z
+    .enum(['id', 'name'])
+    .optional()
+    .default('name')
+    .describe(
+      'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
+    ),
 });
 
 // Type exports for convenience
@@ -251,3 +288,5 @@ export type MemoryTimeouts = z.infer<typeof MemoryTimeoutsSchema>;
 export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
 export type RAGConfig = z.infer<typeof RAGConfigSchema>;
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
+export type McpServersRecord = z.infer<typeof McpServersRecordSchema>;
+export type SelectAgent = z.infer<typeof SelectAgentSchema>;

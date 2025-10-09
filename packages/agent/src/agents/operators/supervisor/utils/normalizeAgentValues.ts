@@ -11,6 +11,20 @@ interface NormalizationResult {
 }
 
 /**
+ * Deep clones an object to prevent mutations of the original.
+ * Uses structuredClone if available (Node 17+), otherwise falls back to JSON serialization.
+ * @param obj - The object to clone
+ * @returns A deep clone of the object
+ */
+function deepClone<T>(obj: T): T {
+  if (typeof structuredClone !== 'undefined') {
+    return structuredClone(obj);
+  }
+  // Fallback for older Node versions
+  return JSON.parse(JSON.stringify(obj));
+}
+
+/**
  * Checks if a value is a plain object (not null, array, date, etc.)
  */
 function isPlainObject(value: any): value is Record<string, any> {
@@ -149,7 +163,10 @@ function normalizeModelConfig(
     return { config, appliedDefaults };
   } else {
     appliedDefaults.push(`model initialized with default values`);
-    return { config: { ...DEFAULT_AGENT_CONFIG.graph.model }, appliedDefaults };
+    return {
+      config: deepClone(DEFAULT_AGENT_CONFIG.graph.model),
+      appliedDefaults,
+    };
   }
 }
 
@@ -218,7 +235,7 @@ function normalizeGraphConfig(
     return { config, appliedDefaults };
   } else {
     appliedDefaults.push(`graph initialized with default values`);
-    return { config: { ...DEFAULT_AGENT_CONFIG.graph }, appliedDefaults };
+    return { config: deepClone(DEFAULT_AGENT_CONFIG.graph), appliedDefaults };
   }
 }
 
@@ -298,7 +315,7 @@ function normalizeMemorySizeLimits(
   } else {
     appliedDefaults.push(`memory.size_limits initialized with default values`);
     return {
-      config: { ...DEFAULT_AGENT_CONFIG.memory.size_limits },
+      config: deepClone(DEFAULT_AGENT_CONFIG.memory.size_limits),
       appliedDefaults,
     };
   }
@@ -372,7 +389,7 @@ function normalizeMemoryThresholds(
   } else {
     appliedDefaults.push(`memory.thresholds initialized with default values`);
     return {
-      config: { ...DEFAULT_AGENT_CONFIG.memory.thresholds },
+      config: deepClone(DEFAULT_AGENT_CONFIG.memory.thresholds),
       appliedDefaults,
     };
   }
@@ -428,7 +445,7 @@ function normalizeMemoryTimeouts(
   } else {
     appliedDefaults.push(`memory.timeouts initialized with default values`);
     return {
-      config: { ...DEFAULT_AGENT_CONFIG.memory.timeouts },
+      config: deepClone(DEFAULT_AGENT_CONFIG.memory.timeouts),
       appliedDefaults,
     };
   }
@@ -472,9 +489,18 @@ function normalizeMemoryConfig(
       DEFAULT_AGENT_CONFIG.memory.strategy,
       'memory.strategy'
     );
-    config.strategy = strategyResult.value as MemoryStrategy;
-    if (strategyResult.appliedDefault) {
-      appliedDefaults.push(strategyResult.appliedDefault);
+    // Validate against actual MemoryStrategy enum values
+    const validStrategies = Object.values(MemoryStrategy) as string[];
+    if (!validStrategies.includes(strategyResult.value)) {
+      appliedDefaults.push(
+        `memory.strategy '${strategyResult.value}' is invalid, using default`
+      );
+      config.strategy = DEFAULT_AGENT_CONFIG.memory.strategy;
+    } else {
+      config.strategy = strategyResult.value as MemoryStrategy;
+      if (strategyResult.appliedDefault) {
+        appliedDefaults.push(strategyResult.appliedDefault);
+      }
     }
 
     // Normalize size_limits
@@ -496,7 +522,7 @@ function normalizeMemoryConfig(
   } else {
     // Initialize with defaults
     appliedDefaults.push(`memory initialized with default values`);
-    return { config: { ...DEFAULT_AGENT_CONFIG.memory }, appliedDefaults };
+    return { config: deepClone(DEFAULT_AGENT_CONFIG.memory), appliedDefaults };
   }
 }
 
@@ -546,7 +572,7 @@ function normalizeRagConfig(
     appliedDefaults.push(
       `rag initialized with default values (enabled: ${DEFAULT_AGENT_CONFIG.rag.enabled}, top_k: ${DEFAULT_AGENT_CONFIG.rag.top_k})`
     );
-    return { config: { ...DEFAULT_AGENT_CONFIG.rag }, appliedDefaults };
+    return { config: deepClone(DEFAULT_AGENT_CONFIG.rag), appliedDefaults };
   }
 }
 
@@ -615,7 +641,10 @@ function normalizeMcpServersConfig(
     return { config: normalizedConfig, appliedDefaults };
   } else {
     appliedDefaults.push(`mcp_servers initialized with default values`);
-    return { config: { ...DEFAULT_AGENT_CONFIG.mcp_servers }, appliedDefaults };
+    return {
+      config: deepClone(DEFAULT_AGENT_CONFIG.mcp_servers),
+      appliedDefaults,
+    };
   }
 }
 
@@ -631,11 +660,10 @@ export function normalizeNumericValues(
   // Start with default values - will be overridden by normalization logic
   const normalizedConfig: AgentConfig.Input = {
     profile: config.profile || DEFAULT_AGENT_CONFIG.profile,
-    mcp_servers: { ...DEFAULT_AGENT_CONFIG.mcp_servers },
-    plugins: config.plugins || [],
-    graph: { ...DEFAULT_AGENT_CONFIG.graph },
-    memory: { ...DEFAULT_AGENT_CONFIG.memory },
-    rag: { ...DEFAULT_AGENT_CONFIG.rag },
+    mcp_servers: deepClone(DEFAULT_AGENT_CONFIG.mcp_servers),
+    graph: deepClone(DEFAULT_AGENT_CONFIG.graph),
+    memory: deepClone(DEFAULT_AGENT_CONFIG.memory),
+    rag: deepClone(DEFAULT_AGENT_CONFIG.rag),
     prompts_id: config.prompts_id || undefined,
   };
   const appliedDefaults: string[] = [];
@@ -662,3 +690,9 @@ export function normalizeNumericValues(
 
   return { normalizedConfig, appliedDefaults };
 }
+
+export const normalizeNonNegativeNumber = (val: number | null | undefined) =>
+  val !== null && val !== undefined && val < 0 ? null : val;
+
+export const normalizePositiveNumber = (val: number | null | undefined) =>
+  val !== null && val !== undefined && val <= 0 ? null : val;

@@ -4,17 +4,16 @@ import {
   GraphConfigSchema,
   MemoryConfigSchema,
   RAGConfigSchema,
-  McpServerConfigSchema,
+  McpServersRecordSchema,
 } from './common.schemas.js';
 
 // Main schema for creating an agent (profile required, other fields optional)
 export const CreateAgentSchema = z
   .object({
     profile: AgentProfileSchema.describe('Agent profile configuration'),
-    mcp_servers: z
-      .record(McpServerConfigSchema)
-      .optional()
-      .describe('MCP servers configuration'),
+    mcp_servers: McpServersRecordSchema.optional().describe(
+      'MCP servers configuration'
+    ),
     memory: MemoryConfigSchema.optional().describe('Memory configuration'),
     rag: RAGConfigSchema.optional().describe('RAG configuration'),
     prompts_id: z

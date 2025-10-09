@@ -1,8 +1,8 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres } from '@snakagent/database';
+import { Postgres, redisAgents } from '@snakagent/database/queries';
 import { logger, AgentProfile, GraphConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
-import { normalizeNumericValues } from './normalizeAgentValues.js';
+import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { UpdateAgentSchema } from './schemas/index.js';
 
 /**
@@ -221,7 +221,6 @@ export function updateAgentTool(
             updateValues.push(graph?.max_retries ?? null);
             updateValues.push(graph?.execution_timeout_ms ?? null);
             updateValues.push(graph?.max_token_usage ?? null);
-            // Nested model composite type - proper ROW syntax
             updateValues.push(graph?.model?.provider ?? null);
             updateValues.push(graph?.model?.model_name ?? null);
             updateValues.push(graph?.model?.temperature ?? null);
@@ -239,7 +238,6 @@ export function updateAgentTool(
               `"${key}" = ROW($${paramIndex}, ROW($${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})::memory_size_limits, ROW($${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})::memory_thresholds, ROW($${paramIndex + 10}, $${paramIndex + 11})::memory_timeouts, $${paramIndex + 12})::memory_config`
             );
             updateValues.push(memory?.ltm_enabled ?? null);
-            // size_limits composite type
             updateValues.push(
               memory?.size_limits?.short_term_memory_size ?? null
             );
@@ -255,7 +253,6 @@ export function updateAgentTool(
             updateValues.push(
               memory?.size_limits?.limit_before_summarization ?? null
             );
-            // thresholds composite type
             updateValues.push(
               memory?.thresholds?.insert_semantic_threshold ?? null
             );
@@ -266,14 +263,12 @@ export function updateAgentTool(
               memory?.thresholds?.retrieve_memory_threshold ?? null
             );
             updateValues.push(memory?.thresholds?.hitl_threshold ?? null);
-            // timeouts composite type
             updateValues.push(
               memory?.timeouts?.retrieve_memory_timeout_ms ?? null
             );
             updateValues.push(
               memory?.timeouts?.insert_memory_timeout_ms ?? null
             );
-            // strategy enum
             updateValues.push(memory?.strategy ?? null);
             paramIndex += 13;
           }
@@ -322,10 +317,20 @@ export function updateAgentTool(
           updateValues
         );
 
-        const result = await Postgres.query<AgentConfig.Input>(updateQuery);
+        const result =
+          await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
 
         if (result.length > 0) {
           logger.info(`Updated agent "${agent.profile.name}" successfully`);
+
+          // Update Redis cache
+          try {
+            await redisAgents.saveAgent(result[0]);
+            logger.debug(`Agent ${result[0].id} updated in Redis`);
+          } catch (error) {
+            logger.error(`Failed to update agent in Redis: ${error}`);
+            // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
+          }
 
           let message = `Agent "${agent.profile.name}" updated successfully`;
           if (appliedDefaults.length > 0) {

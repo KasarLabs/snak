@@ -1,11 +1,12 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { Postgres } from '@snakagent/database';
 import {
   AgentConfig,
-  DEFAULT_AGENT_CONFIG,
   McpServerConfig,
   logger,
+  validateAgent,
+  validateAgentQuotas,
+  AgentDatabaseInterface,
 } from '@snakagent/core';
 import {
   TASK_EXECUTOR_SYSTEM_PROMPT,
@@ -13,11 +14,28 @@ import {
   TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
 } from '@prompts/index.js';
-import { normalizeNumericValues } from './normalizeAgentValues.js';
+import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
+import { redisAgents } from '@snakagent/database/queries';
 
 const RESERVED_GROUP = 'system';
 const RESERVED_NAME = 'supervisor agent';
+
+const dbInterface: AgentDatabaseInterface = {
+  getTotalAgentsCount: async () => {
+    const query = new Postgres.Query('SELECT COUNT(*) FROM agents');
+    const result = await Postgres.query<{ count: string }>(query);
+    return parseInt(result[0].count, 10);
+  },
+  getUserAgentsCount: async (userId: string) => {
+    const query = new Postgres.Query(
+      'SELECT COUNT(*) FROM agents WHERE user_id = $1',
+      [userId]
+    );
+    const result = await Postgres.query<{ count: string }>(query);
+    return parseInt(result[0].count, 10);
+  },
+};
 
 export function createAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -68,6 +86,36 @@ export function createAgentTool(
         const agentConfigData = buildAgentConfigFromInput(input);
         const notes: string[] = [];
 
+        // Validate agent quotas before configuration validation
+        try {
+          await validateAgentQuotas(userId, dbInterface);
+        } catch (quotaError) {
+          const errorMessage =
+            quotaError instanceof Error
+              ? quotaError.message
+              : 'Quota validation failed';
+          return JSON.stringify({
+            success: false,
+            message: 'Quota validation failed',
+            error: errorMessage,
+          });
+        }
+
+        // Validate the agent configuration
+        try {
+          await validateAgent({ ...agentConfigData, user_id: userId }, true);
+        } catch (validationError) {
+          const errorMessage =
+            validationError instanceof Error
+              ? validationError.message
+              : 'Agent validation failed';
+          return JSON.stringify({
+            success: false,
+            message: 'Agent validation failed',
+            error: errorMessage,
+          });
+        }
+
         const { name: uniqueName, note: nameNote } =
           await resolveUniqueAgentName(
             agentConfigData.profile.name,
@@ -85,6 +133,7 @@ export function createAgentTool(
 
         agentConfigData.prompts_id = promptId;
 
+        // Insert into database
         const payload: Record<string, unknown> = {
           ...agentConfigData,
         };
@@ -109,6 +158,15 @@ export function createAgentTool(
         }
 
         const createdAgent = result[0];
+
+        try {
+          await redisAgents.saveAgent(createdAgent);
+          logger.debug(`Agent ${createdAgent.id} saved to Redis`);
+        } catch (error) {
+          logger.error(`Failed to save agent to Redis: ${error}`);
+          // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
+        }
+
         const noteSuffix =
           notes.length > 0 ? `. Note: ${[...new Set(notes)].join('; ')}` : '';
 
