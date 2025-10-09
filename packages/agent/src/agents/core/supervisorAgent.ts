@@ -222,11 +222,11 @@ export class SupervisorAgent extends BaseAgent {
 
       const startTime = Date.now();
       if (isInterruptHandle === false) {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
         await this.pgCheckpointer.deleteThread(threadId);
+        logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
       }
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
       }
@@ -242,7 +242,7 @@ export class SupervisorAgent extends BaseAgent {
         metadata: {
           error: undefined,
           final: true,
-          is_human: undefined,
+          is_human: isInterruptHandle,
           user_request: userRequest.request,
         },
         timestamp: new Date().toISOString(),

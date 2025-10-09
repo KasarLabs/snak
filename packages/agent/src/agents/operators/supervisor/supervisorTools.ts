@@ -11,7 +11,6 @@ import {
   updateMcpServerTool,
   messageAskUserTool,
 } from './tools/index.js';
-import { messageAskUserSchema } from '@schemas/graph.schemas.js';
 
 /**
  * Shared configuration tools reserved for supervisor agents.
