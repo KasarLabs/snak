@@ -9,12 +9,10 @@ const McpServerConfigSchema = z.object({
   args: z
     .array(z.string())
     .optional()
-    .nullable()
     .describe('Optional arguments for the command'),
   env: z
     .record(z.string())
     .optional()
-    .nullable()
     .describe('Optional environment variables'),
 });
 
@@ -27,7 +25,6 @@ const AddMcpServerSchema = z.object({
   searchBy: z
     .enum(['id', 'name'])
     .optional()
-    .nullable()
     .describe(
       'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
     ),

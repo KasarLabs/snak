@@ -38,8 +38,9 @@ import {
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
-import { SnakAgent } from '@snakagent/agents';
-import { notify, message } from '@snakagent/database/queries';
+import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
+import { notify, message, agents } from '@snakagent/database/queries';
+import { supervisorAgentConfig } from '../constants/agents.constants.js';
 
 export interface SupervisorRequestDTO {
   request: {
@@ -118,20 +119,11 @@ export class AgentsController {
       throw new BadRequestException('Agent not found or access denied');
     }
     // Update agent MCP configuration in database
-    const q = new Postgres.Query(
-      `UPDATE agents
-       SET "mcp_servers" = $1::jsonb
-       WHERE id = $2 AND user_id = $3
-       RETURNING id, "mcp_servers"`,
-      [mcp_servers, id, userId]
-    );
+    const updatedAgent = await agents.updateAgentMcp(id, userId, mcp_servers);
 
-    const result = await Postgres.query<UpdateAgentMcpDTO>(q);
-
-    if (result.length === 0) {
+    if (!updatedAgent) {
       throw new BadRequestException('Agent not found');
     }
-    const updatedAgent = result[0];
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
@@ -176,47 +168,22 @@ export class AgentsController {
     this.supervisorService.validateNotSupervisorAgent(config);
     try {
       // Use the existing update_agent_complete function
-      const query = `
-  SELECT success, message, updated_agent_id
-  FROM update_agent_complete($1::UUID, $2::UUID, $3::JSONB)
-`;
+      const updateResult = await agents.updateAgentComplete(id, userId, config);
 
-      const result = await Postgres.query(
-        new Postgres.Query(query, [
-          id,
-          userId,
-          JSON.stringify(config), // Pass entire config as JSONB
-        ])
-      );
-
-      const updateResult = result[0];
       if (!updateResult.success) {
         throw new BadRequestException(updateResult.message);
       }
 
       // Fetch updated agent
-      const fetchQuery = new Postgres.Query(
-        `SELECT
-          id,
-          row_to_json(profile) as profile,
-          mcp_servers,
-          prompts_id,
-          row_to_json(graph) as graph,
-          row_to_json(memory) as memory,
-          row_to_json(rag) as rag,
-          created_at,
-          updated_at,
-          avatar_image,
-          avatar_mime_type
-        FROM agents WHERE id = $1 AND user_id = $2`,
-        [id, userId]
-      );
-      const agent =
-        await Postgres.query<AgentConfig.OutputWithoutUserId>(fetchQuery);
+      const agent = await agents.getAgentById(id, userId);
+
+      if (!agent) {
+        throw new BadRequestException('Agent not found after update');
+      }
 
       return {
         status: 'success',
-        data: agent[0],
+        data: agent,
       };
     } catch (error) {
       logger.error('Error in updateAgentConfig:', {
@@ -286,24 +253,21 @@ export class AgentsController {
       }
     }
 
-    const q = new Postgres.Query(
-      `UPDATE agents
-			 SET avatar_image = $1, avatar_mime_type = $2
-			 WHERE id = $3 AND user_id = $4
-			 RETURNING id, avatar_mime_type`,
-      [buffer, mimetype, agentId, userId]
+    const result = await agents.updateAgentAvatar(
+      agentId!,
+      userId,
+      buffer,
+      mimetype
     );
 
-    const result = await Postgres.query<AgentAvatarResponseDTO>(q);
-
-    if (result.length === 0) {
+    if (!result) {
       throw new BadRequestException('Agent not found');
     }
     const avatarDataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
 
     return {
       status: 'success',
-      data: result[0],
+      data: result,
       avatarUrl: avatarDataUrl,
     };
   }
@@ -318,7 +282,7 @@ export class AgentsController {
     const userId = ControllerHelpers.getUserId(req);
 
     const route = this.reflector.get('path', this.handleUserRequest);
-    let agent: SnakAgent | undefined = undefined;
+    let agent: BaseAgent | undefined = undefined;
     if (userRequest.request.agent_id === undefined) {
       logger.info(
         'Agent ID not provided in request, Using agent Selector to select agent'
@@ -435,87 +399,23 @@ export class AgentsController {
     const userId = ControllerHelpers.getUserId(req);
 
     // Check if user already has a supervisor agent
-    const existingSupervisorQuery = new Postgres.Query(
-      `SELECT id, (profile).name FROM agents 
-         WHERE user_id = $1 AND (profile)."group" = 'system'`,
-      [userId]
-    );
+    const existingSupervisor = await agents.getSupervisorAgent(userId);
 
-    const existingSupervisor = await Postgres.query(existingSupervisorQuery);
-
-    if (existingSupervisor.length > 0) {
+    if (existingSupervisor) {
       return ResponseFormatter.success({
         message: 'Supervisor agent already exists for this user',
-        agent_id: existingSupervisor[0].id,
-        agent_name: existingSupervisor[0].name,
+        agent_id: existingSupervisor.id,
+        agent_name: existingSupervisor.name,
         is_new: false,
       });
     }
 
     const randomNumber = Math.floor(Math.random() * 900000) + 100000;
 
-    const supervisorConfig = {
-      profile: {
-        name: `Supervisor Agent ${randomNumber}`,
-        group: 'system',
-        description:
-          'I coordinate the execution of specialized agents in the system, routing requests to the most appropriate agent based on query content and agent capabilities.',
-        contexts: [
-          'I was designed to be lightweight and efficient, focusing solely on agent orchestration.',
-          'My purpose is to analyze user requests and determine which specialized agent is best suited to handle them.',
-          'I understand the capabilities and specializations of each agent in the system',
-          'I know how to analyze requests to identify the subject matter and required expertise',
-          'For agent configuration requests, I delegate to my configuration toolset: use create_agent, read_agent, update_agent, delete_agent, or list_agents as appropriate.',
-          'Always confirm before destructive actions and surface tool outcomes clearly to the user.',
-          'Analyze incoming user requests and determine the most appropriate agent to handle them',
-          'Route requests efficiently between specialized agents',
-          'Ensure a coherent user experience across multiple agent interactions',
-          'Maintain minimal overhead in the multi-agent system',
-        ],
-      },
-      mcp_servers: {},
-      plugins: [],
-      graph: {
-        max_steps: 200,
-        max_iterations: 15,
-        max_retries: 3,
-        execution_timeout_ms: 300000,
-        max_token_usage: 100000,
-        model: {
-          provider: 'openai',
-          model_name: 'gpt-4o',
-          temperature: 0.7,
-          max_tokens: 4096,
-        },
-      },
-      memory: {
-        ltm_enabled: false,
-        size_limits: {
-          short_term_memory_size: 10,
-          max_insert_episodic_size: 20,
-          max_insert_semantic_size: 20,
-          max_retrieve_memory_size: 20,
-          limit_before_summarization: 10000,
-        },
-        thresholds: {
-          insert_semantic_threshold: 0.7,
-          insert_episodic_threshold: 0.6,
-          retrieve_memory_threshold: 0.5,
-          hitl_threshold: 0.7,
-        },
-        timeouts: {
-          retrieve_memory_timeout_ms: 20000,
-          insert_memory_timeout_ms: 10000,
-        },
-        strategy: MemoryStrategy.HOLISTIC,
-      },
-      rag: {
-        enabled: false,
-      },
-    };
 
     const newAgentConfig = await this.agentFactory.addAgent(
-      supervisorConfig,
+      supervisorAgentConfig
+      ,
       userId
     );
 

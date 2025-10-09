@@ -13,9 +13,8 @@ const ReadAgentSchema = z.object({
   searchBy: z
     .enum(['id', 'name'])
     .optional()
-    .nullable()
     .describe(
-      'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
+      'Search by "id" when user provides485210986 an ID, or "name" when user provides agent name (default: name)'
     ),
 });
 

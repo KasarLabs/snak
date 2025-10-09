@@ -12,32 +12,27 @@ const ListAgentsSchema = z.object({
       group: z
         .string()
         .optional()
-        .nullable()
         .describe(
           'Filter agents by specific group (use when user wants agents from a particular group)'
         ),
       mode: z
         .string()
         .optional()
-        .nullable()
         .describe(
           'Filter agents by execution mode (use when user wants agents with specific mode)'
         ),
       name_contains: z
         .string()
         .optional()
-        .nullable()
         .describe(
           'Filter agents whose names contain this text (use for partial name searches)'
         ),
     })
     .optional()
-    .nullable()
     .describe('Optional filters to narrow down the agent list'),
   limit: z
     .number()
     .optional()
-    .nullable()
     .transform(normalizePositiveNumber)
     .describe(
       'Maximum number of agents to return (use when user specifies a limit)'
@@ -45,7 +40,6 @@ const ListAgentsSchema = z.object({
   offset: z
     .number()
     .optional()
-    .nullable()
     .transform(normalizePositiveNumber)
     .describe('Number of agents to skip for pagination'),
 });

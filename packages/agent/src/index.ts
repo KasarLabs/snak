@@ -5,7 +5,9 @@
 
 // Main agent exports
 export { SnakAgent } from './agents/core/snakAgent.js';
+export { SupervisorAgent } from './agents/core/supervisorAgent.js';
 
+export { BaseAgent } from './agents/core/baseAgent.js';
 // Core agent utilities
 export { initializeToolsList } from './tools/tools.js';
 export type {
@@ -14,7 +16,7 @@ export type {
 } from './shared/types/streaming.types.js';
 
 // Graph mode exports
-export { createGraph } from './agents/graphs/graph.js';
+export { createGraph } from './agents/graphs/core-graph/agent.graph.js';
 
 // Agent operators
 export { AgentSelector } from './agents/operators/agentSelector.js';

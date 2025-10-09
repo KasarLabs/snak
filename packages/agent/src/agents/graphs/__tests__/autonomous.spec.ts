@@ -8,7 +8,7 @@ import {
 } from '@langchain/core/messages';
 import { MemoryAgent } from '../../operators/memoryAgent.js';
 import { RagAgent } from '../../operators/ragAgent.js';
-import { Graph, createGraph } from '../graph.js';
+import { Graph, createGraph } from '../core-graph/agent.graph.js';
 import { ExecutionMode } from '../../../shared/enums/agent.enum.js';
 
 // Mock all the modules first before importing the main module

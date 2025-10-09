@@ -22,7 +22,7 @@ import {
   GraphConfigurableAnnotation,
   GraphState,
   GraphStateType,
-} from '../graph.js';
+} from '../core-graph/agent.graph.js';
 import { ToolCallChunk, ToolCall } from '@langchain/core/messages/tool';
 import { v4 as uuidv4 } from 'uuid';
 import {

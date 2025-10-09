@@ -22,7 +22,7 @@ import {
   WebsocketGetMessagesRequestDTO,
 } from '@snakagent/core';
 import { message } from '@snakagent/database/queries';
-import { EventType, SnakAgent } from '@snakagent/agents';
+import { BaseAgent, EventType, SnakAgent } from '@snakagent/agents';
 import { AgentResponse } from '@snakagent/core';
 
 @WebSocketGateway({
@@ -58,7 +58,7 @@ export class MyGateway {
         logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
         const userId = ControllerHelpers.getUserIdFromSocket(client);
-        let agent: SnakAgent | undefined;
+        let agent: BaseAgent | undefined;
 
         if (userRequest.request.agent_id === undefined) {
           logger.info(

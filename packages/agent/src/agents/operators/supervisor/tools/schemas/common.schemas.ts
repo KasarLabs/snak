@@ -50,14 +50,14 @@ export const ModelConfigSchema = z.object({
     .describe('Model name'),
   temperature: z
     .number()
-    .positive()
+    .min(0.001)
     .max(modelGuardsValues.max_temperature)
     .optional()
     .describe('Model temperature'),
   max_tokens: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(modelGuardsValues.max_tokens)
     .optional()
     .describe('Maximum tokens'),
@@ -68,14 +68,14 @@ export const GraphConfigSchema = z.object({
   max_steps: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(graphGuardsValues.max_steps)
     .optional()
     .describe('Maximum execution steps'),
   max_iterations: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(graphGuardsValues.max_iterations)
     .optional()
     .describe('Maximum iterations'),
@@ -83,7 +83,7 @@ export const GraphConfigSchema = z.object({
   execution_timeout_ms: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(graphGuardsValues.max_execution_timeout_ms)
     .optional()
     .describe('Execution timeout in milliseconds'),
@@ -91,7 +91,7 @@ export const GraphConfigSchema = z.object({
     .number()
     .int()
     .max(graphGuardsValues.max_token_usage)
-    .positive()
+    .min(1)
     .optional()
     .describe('Maximum token usage'),
   model: ModelConfigSchema.optional().describe('Model configuration'),
@@ -103,35 +103,35 @@ export const MemorySizeLimitsSchema = z.object({
   short_term_memory_size: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(memoryGuardsValues.size_limits.max_short_term_memory_size)
     .optional()
     .describe('Short term memory size'),
   max_insert_episodic_size: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(memoryGuardsValues.size_limits.max_insert_episodic_size)
     .optional()
     .describe('Max insert episodic size'),
   max_insert_semantic_size: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(memoryGuardsValues.size_limits.max_insert_semantic_size)
     .optional()
     .describe('Max insert semantic size'),
   max_retrieve_memory_size: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(memoryGuardsValues.size_limits.max_retrieve_memory_size)
     .optional()
     .describe('Max retrieve memory size'),
   limit_before_summarization: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(memoryGuardsValues.size_limits.max_limit_before_summarization)
     .optional()
     .describe('Limit before summarization'),
@@ -141,25 +141,25 @@ export const MemorySizeLimitsSchema = z.object({
 export const MemoryThresholdsSchema = z.object({
   insert_semantic_threshold: z
     .number()
-    .positive()
+    .min(0.001)
     .max(memoryGuardsValues.thresholds.max_insert_semantic_threshold)
     .optional()
     .describe('Insert semantic threshold'),
   insert_episodic_threshold: z
     .number()
-    .positive()
+    .min(0.001)
     .max(memoryGuardsValues.thresholds.max_insert_episodic_threshold)
     .optional()
     .describe('Insert episodic threshold'),
   retrieve_memory_threshold: z
     .number()
-    .positive()
+    .min(0.001)
     .max(memoryGuardsValues.thresholds.max_retrieve_memory_threshold)
     .optional()
     .describe('Retrieve memory threshold'),
   hitl_threshold: z
     .number()
-    .positive()
+    .min(0.001)
     .max(memoryGuardsValues.thresholds.max_hitl_threshold)
     .optional()
     .describe('Human-in-the-loop threshold'),
@@ -170,14 +170,14 @@ export const MemoryTimeoutsSchema = z.object({
   retrieve_memory_timeout_ms: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(memoryGuardsValues.timeouts.max_retrieve_memory_timeout_ms)
     .optional()
     .describe('Retrieve memory timeout'),
   insert_memory_timeout_ms: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(memoryGuardsValues.timeouts.max_insert_memory_timeout_ms)
     .optional()
     .describe('Insert memory timeout'),
@@ -202,7 +202,7 @@ export const RAGConfigSchema = z.object({
   top_k: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .max(ragGuardsValues.max_top_k)
     .optional()
     .describe('Top K for retrieval'),

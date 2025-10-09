@@ -1,5 +1,5 @@
 import { BaseAgent } from '../core/baseAgent.js';
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { CustomHuggingFaceEmbeddings } from '@snakagent/core';
 import { rag } from '@snakagent/database/queries';
@@ -33,8 +33,8 @@ export class RagAgent extends BaseAgent {
   private top_k: number;
   private initialized = false;
 
-  constructor(config: RAGConfig = {}) {
-    super('rag-agent', AgentType.OPERATOR);
+  constructor(config: RAGConfig = {}, agentConfig: AgentConfig.Runtime) {
+    super('rag-agent', AgentType.OPERATOR, agentConfig);
     this.top_k = config.top_k ?? 4;
     this.embeddings = new CustomHuggingFaceEmbeddings({
       model: 'Xenova/all-MiniLM-L6-v2',

@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { Postgres } from '@snakagent/database';
 import { AgentConfig } from '@snakagent/core';
+import { agents } from '@snakagent/database/queries';
 
 /**
  * Service for managing supervisor agents and their validation
@@ -35,19 +36,12 @@ export class SupervisorService {
    * @returns Promise<boolean> - True if the agent is a supervisor
    */
   async isSupervisorAgent(agentId: string, userId: string): Promise<boolean> {
-    const query = new Postgres.Query(
-      `SELECT (profile)."group", (profile).name FROM agents 
-       WHERE id = $1 AND user_id = $2`,
-      [agentId, userId]
-    );
+    const agent = await agents.getAgentProfileInfo(agentId, userId);
 
-    const result = await Postgres.query(query);
-
-    if (result.length === 0) {
+    if (!agent) {
       return false;
     }
 
-    const agent = result[0];
     return (
       agent.group === 'system' ||
       (typeof agent.name === 'string' &&

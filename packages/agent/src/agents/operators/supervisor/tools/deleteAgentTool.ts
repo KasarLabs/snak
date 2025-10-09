@@ -13,14 +13,12 @@ const DeleteAgentSchema = z.object({
   searchBy: z
     .enum(['id', 'name'])
     .optional()
-    .nullable()
     .describe(
       'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
     ),
   confirm: z
     .boolean()
     .optional()
-    .nullable()
     .describe(
       'Confirmation to proceed with deletion (automatically set to true when user clearly intends to delete)'
     ),

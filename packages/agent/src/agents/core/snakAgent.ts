@@ -8,7 +8,10 @@ import {
 } from '@snakagent/core';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { AgentType } from '../../shared/enums/agent.enum.js';
-import { createGraph, GraphConfigurableType } from '../graphs/graph.js';
+import {
+  createGraph,
+  GraphConfigurableType,
+} from '../graphs/core-graph/agent.graph.js';
 import {
   Command,
   CompiledStateGraph,
@@ -39,20 +42,13 @@ import { notify } from '@snakagent/database/queries';
  */
 export class SnakAgent extends BaseAgent {
   private readonly provider: RpcProvider;
-  private readonly agentConfig: AgentConfig.Runtime;
   private ragAgent: RagAgent | null = null;
-  private compiledGraph: CompiledStateGraph<any, any, any, any, any> | null =
-    null;
-  private controller: AbortController | null = null;
-  private pg_checkpointer: PostgresSaver | null = null;
   constructor(
     starknet_config: StarknetConfig,
     agent_config: AgentConfig.Runtime
   ) {
-    super('snak', AgentType.SNAK);
-
+    super('snak', AgentType.SNAK, agent_config);
     this.provider = starknet_config.provider;
-    this.agentConfig = agent_config;
   }
   /**
    * Initialize the SnakAgent and create the appropriate executor
@@ -65,8 +61,8 @@ export class SnakAgent extends BaseAgent {
       }
       await this.initializeRagAgent(this.agentConfig);
       try {
-        this.pg_checkpointer = await CheckpointerService.getInstance();
-        if (!this.pg_checkpointer) {
+        this.pgCheckpointer = await CheckpointerService.getInstance();
+        if (!this.pgCheckpointer) {
           throw new Error('Failed to initialize Postgres checkpointer');
         }
         await this.createAgentReactExecutor();
@@ -91,8 +87,8 @@ export class SnakAgent extends BaseAgent {
    */
   private async createAgentReactExecutor(): Promise<void> {
     try {
-      this.compiledGraph = await createGraph(this);
-      if (!this.compiledGraph) {
+      this.compiledStateGraph = await createGraph(this);
+      if (!this.compiledStateGraph) {
         throw new Error(
           `Failed to create graph for agent: ${this.agentConfig.profile.name}`
         );
@@ -118,9 +114,12 @@ export class SnakAgent extends BaseAgent {
     if (!ragConfig || ragConfig.enabled !== true) {
       return;
     }
-    this.ragAgent = new RagAgent({
-      top_k: ragConfig?.top_k,
-    });
+    this.ragAgent = new RagAgent(
+      {
+        top_k: ragConfig?.top_k,
+      },
+      this.agentConfig // TODO CHANGE THIS HE DON'T NEED IT
+    );
     await this.ragAgent.init();
   }
 
@@ -133,22 +132,6 @@ export class SnakAgent extends BaseAgent {
   }
 
   /**
-   * Get database credentials
-   * @returns The database credentials object
-   */
-  public getDatabaseCredentials() {
-    return DatabaseConfigService.getInstance().getCredentials();
-  }
-
-  /**
-   * Get agent configuration
-   * @returns The agent configuration object
-   */
-  public getAgentConfig(): AgentConfig.Runtime {
-    return this.agentConfig;
-  }
-
-  /**
    * Get Starknet RPC provider
    * @returns The RpcProvider instance
    */
@@ -156,30 +139,15 @@ export class SnakAgent extends BaseAgent {
     return this.provider;
   }
 
-  public getController(): AbortController | undefined {
-    if (!this.controller) {
-      logger.warn('[SnakAgent]  Controller is not initialized');
-      return undefined;
-    }
-    return this.controller;
-  }
-  public getPgCheckpointer(): PostgresSaver | undefined {
-    if (!this.pg_checkpointer) {
-      logger.warn('[SnakAgent]  Checkpointer is not initialized');
-      return undefined;
-    }
-    return this.pg_checkpointer;
-  }
-
   public async dispose(): Promise<void> {
     this.stop();
-    if (this.pg_checkpointer) {
-      await this.pg_checkpointer?.end();
+    if (this.pgCheckpointer) {
+      await this.pgCheckpointer?.end();
     }
     if (this.ragAgent) {
       await this.ragAgent.dispose();
     }
-    this.compiledGraph = null;
+    this.compiledStateGraph = null;
   }
 
   /**
@@ -190,7 +158,7 @@ export class SnakAgent extends BaseAgent {
    */
   public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
-      if (!this.compiledGraph) {
+      if (!this.compiledStateGraph) {
         throw new Error('Agent executor is not initialized');
       }
       for await (const chunk of this.executeAsyncGenerator(userRequest)) {
@@ -203,13 +171,6 @@ export class SnakAgent extends BaseAgent {
     } catch (error) {
       logger.error(`[SnakAgent] Execute failed: ${error}`);
       throw error;
-    }
-  }
-
-  public stop(): void {
-    if (this.controller) {
-      this.controller.abort();
-      logger.info('[SnakAgent] Execution stopped');
     }
   }
 
@@ -379,7 +340,7 @@ export class SnakAgent extends BaseAgent {
       let stateSnapshot: StateSnapshot;
       let isInterruptHandle = false;
       logger.info(`[SnakAgent] Starting execution: "${request.request}"`);
-      if (!this.compiledGraph) {
+      if (!this.compiledStateGraph) {
         throw new Error('CompiledGraph is not initialized');
       }
       if (!this.controller || this.controller.signal.aborted) {
@@ -410,21 +371,22 @@ export class SnakAgent extends BaseAgent {
           version: 'v2' as const,
         };
 
-        stateSnapshot = await this.compiledGraph.getState(executionConfig);
+        stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve initial graph state');
         }
         const executionInput = this.isInterrupt(stateSnapshot)
           ? this.getInterruptCommand(request.request)
           : { messages: initialMessages };
-        for await (const chunk of this.compiledGraph.streamEvents(
+        for await (const chunk of this.compiledStateGraph.streamEvents(
           executionInput ?? {
             messages: [],
           },
           executionConfig
         )) {
           // Setter
-          stateSnapshot = await this.compiledGraph.getState(executionConfig);
+          stateSnapshot =
+            await this.compiledStateGraph.getState(executionConfig);
           if (!stateSnapshot) {
             throw new Error('Failed to retrieve graph state during execution');
           }

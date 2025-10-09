@@ -9,19 +9,16 @@ const McpServerConfigSchema = z.object({
     .string()
     .min(1)
     .optional()
-    .nullable()
     .describe(
       'The command to execute the MCP server (optional for partial updates)'
     ),
   args: z
     .array(z.string())
     .optional()
-    .nullable()
     .describe('Optional arguments for the command'),
   env: z
     .record(z.string())
     .optional()
-    .nullable()
     .describe('Optional environment variables'),
 });
 
@@ -34,7 +31,6 @@ const UpdateMcpServerSchema = z.object({
   searchBy: z
     .enum(['id', 'name'])
     .optional()
-    .nullable()
     .describe(
       'Search by "id" when user provides an ID, or "name" when user provides agent name (default: name)'
     ),
