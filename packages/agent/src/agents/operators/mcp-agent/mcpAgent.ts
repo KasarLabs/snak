@@ -1,3 +1,4 @@
+/* *** Depracted *** */
 import { BaseAgent } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
