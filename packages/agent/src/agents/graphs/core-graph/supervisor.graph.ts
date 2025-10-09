@@ -18,6 +18,7 @@ import { AIMessage, BaseMessage } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
+import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
 
 export class SupervisorGraph {
   private graph: CompiledStateGraph<any, any, any, any, any> | null = null;
@@ -127,12 +128,16 @@ export class SupervisorGraph {
       preModelHook: this.transformMessagesHook.bind(this),
     });
 
+    const mcpConfigurationHelperSystemPrompt = ChatPromptTemplate.fromMessages([
+      ['ai', MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT],
+    ]);
+    const formattedMcpConfigurationHelperPrompt =
+      await mcpConfigurationHelperSystemPrompt.format({});
     const mcpConfigurationHelper = createReactAgent({
       llm: this.supervisorConfig.graph.model,
       tools: [],
       name: 'mcpConfigurationHelper',
-      prompt:
-        'You are an expert multi-channel pipeline configuration assistant. Your task is to help users create and modify multi-channel pipeline configurations based on their requirements. Always ensure that the configurations adhere to best practices and are optimized for performance.',
+      prompt: formattedMcpConfigurationHelperPrompt,
       preModelHook: this.transformMessagesHook.bind(this),
     });
 
