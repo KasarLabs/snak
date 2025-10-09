@@ -90,9 +90,18 @@ export class SupervisorAgent extends BaseAgent {
           : undefined,
       message:
         chunk.event === EventType.ON_CHAT_MODEL_END
-          ? chunk.data.output.content.toLocaleString() === '[object Object]'
-            ? undefined
-            : chunk.data.output.content.toLocaleString()
+          ? typeof chunk.data.output.content === 'string'
+            ? chunk.data.output.content
+            : (() => {
+                if (Array.isArray(chunk.data.output.content)) {
+                  for (const item of chunk.data.output.content) {
+                    if (item.type === 'text') {
+                      return item.text;
+                    }
+                  }
+                }
+                return null;
+              })()
           : undefined,
       metadata,
       timestamp: new Date().toISOString(),
