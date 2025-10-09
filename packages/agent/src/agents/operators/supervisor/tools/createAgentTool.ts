@@ -17,9 +17,7 @@ import {
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
 import { redisAgents } from '@snakagent/database/queries';
-
-const RESERVED_GROUP = 'system';
-const RESERVED_NAME = 'supervisor agent';
+import { validateAgentProperties } from '../utils/agents.validators.js';
 
 const dbInterface: AgentDatabaseInterface = {
   getTotalAgentsCount: async () => {
@@ -67,19 +65,11 @@ export function createAgentTool(
         const trimmedName = input.profile.name.trim();
         const trimmedGroup = input.profile.group.trim();
 
-        if (trimmedName.toLowerCase().includes(RESERVED_NAME)) {
+        const validation = validateAgentProperties(trimmedName, trimmedGroup);
+        if (!validation.isValid) {
           return JSON.stringify({
             success: false,
-            message:
-              'The name "supervisor agent" is reserved and cannot be used for new agents.',
-          });
-        }
-
-        if (trimmedGroup.toLowerCase() === RESERVED_GROUP) {
-          return JSON.stringify({
-            success: false,
-            message:
-              'The group "system" is reserved and cannot be used for new agents.',
+            message: validation.message,
           });
         }
 

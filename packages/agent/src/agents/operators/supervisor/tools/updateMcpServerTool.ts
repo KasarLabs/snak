@@ -3,6 +3,7 @@ import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { UpdateMcpServerSchema } from './schemas/mcp.schemas.js';
+import { isProtectedAgent } from '../utils/agents.validators.js';
 
 export function updateMcpServerTool(
   agentConfig: AgentConfig.Runtime
@@ -44,11 +45,14 @@ export function updateMcpServerTool(
         const agent = existingAgent[0];
 
         // Check if agent is protected (supervisor agent or system group)
-        if (agent.profile.group === 'system') {
+        const protectionCheck = isProtectedAgent(
+          agent.profile.name,
+          agent.profile.group
+        );
+        if (!protectionCheck.isValid) {
           return JSON.stringify({
             success: false,
-            message:
-              'Cannot update MCP server for agent in "system" group - this agent is protected.',
+            message: protectionCheck.message,
           });
         }
 

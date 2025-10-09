@@ -30,7 +30,10 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { initializeModels } from './utils/agents.utils.js';
-import { agentSelectorConfig } from './constants/agents.constants.js';
+import {
+  agentSelectorConfig,
+  supervisorAgentConfig,
+} from './constants/agents.constants.js';
 
 const logger = new Logger('AgentStorage');
 
@@ -564,8 +567,9 @@ export class AgentStorage implements OnModuleInit {
         },
       };
       if (
-        AgentConfigRuntime.profile.group === 'system' &&
-        AgentConfigRuntime.profile.name === 'Supervisor'
+        AgentConfigRuntime.profile.group ===
+          supervisorAgentConfig.profile.group &&
+        AgentConfigRuntime.profile.name === supervisorAgentConfig.profile.name
       ) {
         const supervisorAgent = new SupervisorAgent(AgentConfigRuntime);
         await supervisorAgent.init();

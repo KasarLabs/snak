@@ -4,6 +4,7 @@ import { Postgres } from '@snakagent/database';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { AddMcpServerSchema } from './schemas/mcp.schemas.js';
+import { isProtectedAgent } from '../utils/agents.validators.js';
 
 export function addMcpServerTool(
   agentConfig: AgentConfig.Runtime
@@ -45,11 +46,14 @@ export function addMcpServerTool(
         const agent = existingAgent[0];
 
         // Check if agent is protected (supervisor agent or system group)
-        if (agent.profile.group === 'system') {
+        const protectionCheck = isProtectedAgent(
+          agent.profile.name,
+          agent.profile.group
+        );
+        if (!protectionCheck.isValid) {
           return JSON.stringify({
             success: false,
-            message:
-              'Cannot add MCP server to agent from "system" group - this agent is protected.',
+            message: protectionCheck.message,
           });
         }
 
