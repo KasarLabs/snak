@@ -67,7 +67,7 @@ export const agentSelectorConfig: AgentConfig.Input = {
 export const supervisorAgentConfig: AgentConfig.Input = {
   profile: {
     name: 'Supervisor',
-    group: 'system',
+    group: 'snak-system',
     description:
       'Oversees multi-agent workflows, delegates tasks, monitors execution, verifies results, and coordinates between specialized agents',
     contexts: [
