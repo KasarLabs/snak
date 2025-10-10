@@ -31,7 +31,8 @@ import {
   AgentMCPRequestDTO,
   UpdateMcpEnvValueRequestDTO,
   DeleteMultipleMcpServersRequestDTO,
-  logger
+  UpdateMcpValueRequestDTO,
+  logger,
 } from '@snakagent/core';
 
 interface UpdateAgentMcpDTO {
@@ -46,16 +47,15 @@ interface UpdateAgentMcpDTO {
 export class McpController {
   constructor(
     private readonly agentService: AgentService,
-    private readonly agentFactory: AgentStorage,
-    private readonly reflector: Reflector
+    private readonly agentFactory: AgentStorage
   ) {}
 
-/**
-   * Retrieve MCP configurations (mcp_servers column) 
+  /**
+   * Retrieve MCP configurations (mcp_servers column)
    * for all agents belonging to the current user.
    *
    * @param req - HTTP request containing the authenticated userId
-   * @returns  { agent_id: string, mcp_servers: Record<string, any> } 
+   * @returns  { agent_id: string, mcp_servers: Record<string, any> }
    */
   @Get('get_user_mcps')
   @HandleErrors('E01MCP100')
@@ -70,7 +70,7 @@ export class McpController {
     const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
 
     return ResponseFormatter.success(
-      agents.map((agent: { id: any; mcp_servers: Record<string, any>; }) => ({
+      agents.map((agent: { id: any; mcp_servers: Record<string, any> }) => ({
         agent_id: agent.id,
         mcp_servers: agent.mcp_servers ?? {},
       }))
@@ -107,7 +107,7 @@ export class McpController {
 
     return ResponseFormatter.success({
       agent_id: agent.id,
-      mcp_servers: agent.mcp_servers ?? {}, 
+      mcp_servers: agent.mcp_servers ?? {},
     });
   }
 
@@ -119,17 +119,20 @@ export class McpController {
   @Post('add_mcp_server_smithery')
   @HandleWithBadRequestPreservation('Smithery MCP server addition failed')
   async addMcpServerSmithery(
-    @Body() body: { agent_id: string; mcp_id: string },
+    @Body() body: AgentMCPRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId, mcp_id: mcpId } = body;
 
-    if (!agentId || !mcpId) throw new BadRequestException('agent_id and mcp_id are required');
+    if (!agentId || !mcpId)
+      throw new BadRequestException('agent_id and mcp_id are required');
 
     const manifest = await fetchSmitheryManifest(mcpId);
     if (!manifest) {
-      throw new BadRequestException(`Failed to fetch manifest for MCP ${mcpId}`);
+      throw new BadRequestException(
+        `Failed to fetch manifest for MCP ${mcpId}`
+      );
     }
 
     const manifestEnv = manifest.env || {};
@@ -146,7 +149,7 @@ export class McpController {
     const args: string[] = ['-y', '@smithery/cli@latest', 'run', mcpId];
 
     // If API key is expected
-    if (Object.keys(env).some(k => k.toLowerCase().includes('api_key'))) {
+    if (Object.keys(env).some((k) => k.toLowerCase().includes('api_key'))) {
       args.push('--key', '');
     }
 
@@ -181,7 +184,7 @@ export class McpController {
     return ResponseFormatter.success(result[0]);
   }
 
-    /**
+  /**
    * Add raw MCP server config to an agent.
    * @param { agent_id, mcpServers }
    * @returns Updated MCP servers config
@@ -196,7 +199,11 @@ export class McpController {
     const { agent_id: agentId, mcpServers } = body;
 
     if (!agentId) throw new BadRequestException('agent_id is required');
-    if (!mcpServers || typeof mcpServers !== 'object' || Object.keys(mcpServers).length === 0) {
+    if (
+      !mcpServers ||
+      typeof mcpServers !== 'object' ||
+      Object.keys(mcpServers).length === 0
+    ) {
       throw new BadRequestException('mcpServers must be a non-empty object');
     }
 
@@ -222,7 +229,8 @@ export class McpController {
       [updated, agentId, userId]
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    if (result.length === 0) throw new BadRequestException('Failed to update MCP servers');
+    if (result.length === 0)
+      throw new BadRequestException('Failed to update MCP servers');
 
     await this.agentService.syncAgentToRedis(agentId, userId);
 
@@ -272,10 +280,9 @@ export class McpController {
     await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success(result[0]);
-
   }
 
-    /**
+  /**
    * Delete multiple MCP servers from an agent.
    * @param { agent_id, mcp_ids[] }
    * @returns Updated mcp_servers config
@@ -344,27 +351,29 @@ export class McpController {
     return ResponseFormatter.success(result[0]);
   }
 
-    /**
+  /**
    * Add or update a single environment variable for a given MCP server.
-   * @param { agent_id, mcp_id, env_key, env_value }
+   * @param { agent_id, mcp_id, secret_name, secret_value }
    * @returns Updated MCP servers config
    */
   @Post('add_mcp_env')
   @HandleWithBadRequestPreservation('Failed to add or update MCP env variable')
   async addMcpEnv(
-    @Body() body: {
-      agent_id: string;
-      mcp_id: string;
-      env_key: string;
-      env_value: string;
-    },
+    @Body() body: UpdateMcpEnvValueRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
-    const { agent_id: agentId, mcp_id: mcpId, env_key, env_value } = body;
+    const {
+      agent_id: agentId,
+      mcp_id: mcpId,
+      secret_name,
+      secret_value,
+    } = body;
 
-    if (!agentId || !mcpId || !env_key) {
-      throw new BadRequestException('agent_id, mcp_id and env_key are required');
+    if (!agentId || !mcpId || !secret_name) {
+      throw new BadRequestException(
+        'agent_id, mcp_id and secret_name are required'
+      );
     }
 
     const selectQuery = new Postgres.Query(
@@ -385,7 +394,7 @@ export class McpController {
         ? { ...currentConfig.env }
         : {};
 
-    currentEnv[env_key] = env_value;
+    currentEnv[secret_name] = secret_value;
 
     const updatedServers = {
       ...currentServers,
@@ -400,7 +409,8 @@ export class McpController {
       [updatedServers, agentId, userId]
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    if (result.length === 0) throw new BadRequestException('Failed to add env variable');
+    if (result.length === 0)
+      throw new BadRequestException('Failed to add env variable');
 
     await this.agentService.syncAgentToRedis(agentId, userId);
 
@@ -418,7 +428,7 @@ export class McpController {
   @Post('get_mcp_env')
   @HandleWithBadRequestPreservation('Failed to fetch MCP env')
   async getMcpEnv(
-    @Body() body: { agent_id: string; mcp_id: string },
+    @Body() body: AgentMCPRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
@@ -442,7 +452,8 @@ export class McpController {
       throw new BadRequestException(`MCP server "${mcpId}" not found`);
     }
 
-    const env = mcpConfig.env && typeof mcpConfig.env === 'object' ? mcpConfig.env : {};
+    const env =
+      mcpConfig.env && typeof mcpConfig.env === 'object' ? mcpConfig.env : {};
 
     return ResponseFormatter.success({
       agent_id: agentId,
@@ -459,7 +470,7 @@ export class McpController {
   @Post('get_mcp_key')
   @HandleErrors('E03MCP101')
   async getMcpKey(
-    @Body() body: { agent_id: string; mcp_id: string },
+    @Body() body: AgentMCPRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
@@ -484,7 +495,7 @@ export class McpController {
     return ResponseFormatter.success({ key: keyValue });
   }
 
-/**
+  /**
    * Get the value of `--profile` flag for a given MCP server.
    * @param { agent_id, mcp_id }
    * @returns { profile }
@@ -492,7 +503,7 @@ export class McpController {
   @Post('get_mcp_profile')
   @HandleErrors('E03MCP102')
   async getMcpProfile(
-    @Body() body: { agent_id: string; mcp_id: string },
+    @Body() body: AgentMCPRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
@@ -512,27 +523,30 @@ export class McpController {
     }
 
     const profileValue = extractFlagValue(mcpConfig.args, '--profile');
-    if (!profileValue) throw new BadRequestException('No profile found for this MCP');
+    if (!profileValue)
+      throw new BadRequestException('No profile found for this MCP');
 
     return ResponseFormatter.success({ profile: profileValue });
   }
 
   /**
    * Update the `--key` flag for a given MCP server.
-   * @param { agent_id, mcp_id, new_key }
+   * @param { agent_id, mcp_id, new_value }
    * @returns Updated MCP servers config
    */
   @Post('update_mcp_key')
   @HandleWithBadRequestPreservation('MCP key update failed')
   async updateMcpKey(
-    @Body() body: { agent_id: string; mcp_id: string; new_key: string },
+    @Body() body: UpdateMcpValueRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
-    const { agent_id: agentId, mcp_id: mcpId, new_key: newKey } = body;
+    const { agent_id: agentId, mcp_id: mcpId, new_value: newKey } = body;
 
     if (!agentId || !mcpId || !newKey) {
-      throw new BadRequestException('agent_id, mcp_id and new_key are required');
+      throw new BadRequestException(
+        'agent_id, mcp_id and new_value are required'
+      );
     }
 
     const selectQuery = new Postgres.Query(
@@ -560,7 +574,8 @@ export class McpController {
       [updatedServers, agentId, userId]
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    if (result.length === 0) throw new BadRequestException('Failed to update MCP key');
+    if (result.length === 0)
+      throw new BadRequestException('Failed to update MCP key');
 
     await this.agentService.syncAgentToRedis(agentId, userId);
 
@@ -572,17 +587,17 @@ export class McpController {
 
   /**
    * Update the `--profile` flag for a given MCP server.
-   * @param { agent_id, mcp_id, new_profile }
+   * @param { agent_id, mcp_id, new_value }
    * @returns Updated MCP servers config
    */
   @Post('update_mcp_profile')
   @HandleWithBadRequestPreservation('MCP profile update failed')
   async updateMcpProfile(
-    @Body() body: { agent_id: string; mcp_id: string; new_profile: string },
+    @Body() body: UpdateMcpValueRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
-    const { agent_id: agentId, mcp_id: mcpId, new_profile: newProfile } = body;
+    const { agent_id: agentId, mcp_id: mcpId, new_value: newProfile } = body;
 
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
@@ -595,7 +610,11 @@ export class McpController {
     const currentConfig = currentServers[mcpId];
     if (!currentConfig) throw new BadRequestException('MCP server not found');
 
-    const updatedArgs = updateFlagValue(currentConfig.args, '--profile', newProfile);
+    const updatedArgs = updateFlagValue(
+      currentConfig.args,
+      '--profile',
+      newProfile
+    );
 
     const updatedServers = {
       ...currentServers,
@@ -615,7 +634,7 @@ export class McpController {
     return ResponseFormatter.success(result[0]);
   }
 
-   /**
+  /**
    * Update a specific environment variable value for a given MCP server.
    * @param { agent_id, mcp_id, secret_name, secret_value }
    * @returns Updated MCP servers config
@@ -627,7 +646,12 @@ export class McpController {
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
-    const { agent_id: agentId, mcp_id: mcpId, secret_name, secret_value } = body;
+    const {
+      agent_id: agentId,
+      mcp_id: mcpId,
+      secret_name,
+      secret_value,
+    } = body;
 
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
@@ -669,20 +693,19 @@ export class McpController {
     return ResponseFormatter.success(result[0]);
   }
 
-
   /**
    * Delete a secret from one MCP server of a given agent.
-   * @param { agent_id, mcp_id, secret_name }
+   * @param { agent_id, mcp_id, new_value }
    * @returns Updated mcp_servers config
    */
   @Post('delete_mcp_env')
   @HandleWithBadRequestPreservation('MCP env delete failed')
   async deleteMcpEnv(
-    @Body() body: { agent_id: string; mcp_id: string; secret_name: string },
+    @Body() body: UpdateMcpValueRequestDTO,
     @Req() req: FastifyRequest
   ) {
     const userId = ControllerHelpers.getUserId(req);
-    const { agent_id: agentId, mcp_id: mcpId, secret_name } = body;
+    const { agent_id: agentId, mcp_id: mcpId, new_value } = body;
 
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
@@ -702,10 +725,10 @@ export class McpController {
     }
 
     const env = { ...(currentConfig.env ?? {}) };
-    if (!(secret_name in env)) {
-      throw new BadRequestException(`Secret key "${secret_name}" not found`);
+    if (!(new_value in env)) {
+      throw new BadRequestException(`Secret key "${new_value}" not found`);
     }
-    delete env[secret_name];
+    delete env[new_value];
 
     const updatedServers = {
       ...currentServers,
@@ -790,5 +813,4 @@ export class McpController {
       mcpServers: updatedAgent.mcp_servers,
     });
   }
-
 }

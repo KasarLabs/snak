@@ -1,14 +1,21 @@
 import { BadRequestException } from '@nestjs/common';
 import { logger } from '@snakagent/core';
 
-export function extractFlagValue(args: string[] | string, flag: string): string | null {
+export function extractFlagValue(
+  args: string[] | string,
+  flag: string
+): string | null {
   const arr = Array.isArray(args) ? args : args.trim().split(/\s+/);
   const idx = arr.findIndex((t) => t === flag);
   if (idx === -1 || idx + 1 >= arr.length) return null;
   return arr[idx + 1];
 }
 
-export function updateFlagValue(args: string[] | string, flag: string, newValue: string): string[] {
+export function updateFlagValue(
+  args: string[] | string,
+  flag: string,
+  newValue: string
+): string[] {
   const arr = Array.isArray(args) ? [...args] : args.trim().split(/\s+/);
   const idx = arr.findIndex((t) => t === flag);
 
@@ -24,7 +31,8 @@ export function updateFlagValue(args: string[] | string, flag: string, newValue:
 }
 
 export function normalizeRawMcpConfig(cfg: any) {
-  if (!cfg || typeof cfg !== 'object') throw new BadRequestException('Invalid MCP config');
+  if (!cfg || typeof cfg !== 'object')
+    throw new BadRequestException('Invalid MCP config');
   if (!cfg.command || typeof cfg.command !== 'string') {
     throw new BadRequestException('Invalid MCP config — missing "command"');
   }
@@ -35,7 +43,9 @@ export function normalizeRawMcpConfig(cfg: any) {
 
   const env =
     cfg.env && typeof cfg.env === 'object'
-      ? Object.fromEntries(Object.entries(cfg.env).map(([k, v]) => [k, String(v)]))
+      ? Object.fromEntries(
+          Object.entries(cfg.env).map(([k, v]) => [k, String(v)])
+        )
       : {};
 
   const out: any = { command: cfg.command, args, env };
@@ -47,7 +57,9 @@ export function normalizeRawMcpConfig(cfg: any) {
   return out;
 }
 
-export async function fetchSmitheryManifest(mcpId: string): Promise<any | null> {
+export async function fetchSmitheryManifest(
+  mcpId: string
+): Promise<any | null> {
   try {
     const apiKey = process.env.SMITHERY_API_KEY || process.env.SMITHERY_TOKEN;
     if (!apiKey) {
@@ -64,7 +76,9 @@ export async function fetchSmitheryManifest(mcpId: string): Promise<any | null> 
     });
 
     if (!res.ok) {
-      logger.warn(`Smithery manifest fetch failed (${res.status}) for ${mcpId}`);
+      logger.warn(
+        `Smithery manifest fetch failed (${res.status}) for ${mcpId}`
+      );
       return null;
     }
 

@@ -49,7 +49,6 @@ export class AddAgentRequestDTO {
  */
 export class MessageFromAgentIdDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -69,7 +68,6 @@ export class MessageFromAgentIdDTO {
  */
 export class MessageRequest {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -130,7 +128,6 @@ export class UpdateModelConfigDTO {
 
 export class Message {
   @IsOptional()
-  @IsString()
   @IsUUID()
   agent_id?: string;
 
@@ -169,7 +166,6 @@ export class SupervisorRequest {
   content: string;
 
   @IsOptional()
-  @IsString()
   @IsUUID()
   agentId?: string; // Optional: specify which agent to use
 }
@@ -181,7 +177,6 @@ export class SupervisorRequestDTO {
 
 export class getMessagesFromAgentsDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -199,7 +194,6 @@ export class InitializesRequestDTO {
 
 export class AgentDeleteRequestDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 }
@@ -220,7 +214,6 @@ export class AgentAddRequestDTO {
 
 export class AgentAvatarResponseDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -238,7 +231,6 @@ export type AgentResponse<T = unknown> =
   | { status: 'waiting_for_human_input'; data?: T }
   | { status: 'failure'; error: string; data?: T };
 
-
 /**
  * Request to get a specific agent’s MCP config
  */
@@ -249,7 +241,7 @@ export class GetAgentMcpsRequestDTO {
 }
 
 /**
- * Request to get all MCP server of a specific agent 
+ * Request to get all MCP server of a specific agent
  */
 export class AgentMCPRequestDTO {
   @IsNotEmpty()
@@ -266,7 +258,6 @@ export class AgentMCPRequestDTO {
  */
 export class UpdateMcpEnvValueRequestDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -288,7 +279,6 @@ export class UpdateMcpEnvValueRequestDTO {
  */
 export class UpdateMcpEnvNameRequestDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -306,11 +296,27 @@ export class UpdateMcpEnvNameRequestDTO {
 }
 
 /**
+ * Request to replace --key value or --profile with a new value
+ */
+export class UpdateMcpValueRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  new_value: string;
+}
+
+/**
  * Request to delete multiple MCP servers
  */
 export class DeleteMultipleMcpServersRequestDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -324,7 +330,6 @@ export class DeleteMultipleMcpServersRequestDTO {
  */
 export class AddMcpServerRequestDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   agent_id: string;
 
@@ -345,10 +350,9 @@ export class AddMcpServerRequestDTO {
  */
 export class UpdateAgentMcpDTO {
   @IsNotEmpty()
-  @IsString()
   @IsUUID()
   id: string;
 
   @IsNotEmpty()
-  mcp_servers: Record<string, any>;
+  mcp_servers: Record<string, any>; // Replace Record<string, McpServerConfig>
 }

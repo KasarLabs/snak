@@ -33,8 +33,7 @@ export class AgentService implements IAgentService {
 
   constructor(private readonly config: ConfigurationService) {}
 
-
-    async syncAgentToRedis(agentId: string, userId: string): Promise<void> {
+  async syncAgentToRedis(agentId: string, userId: string): Promise<void> {
     try {
       const fetchQuery = new Postgres.Query(
         `SELECT
@@ -60,9 +59,11 @@ export class AgentService implements IAgentService {
       if (!agent) return;
 
       await redisAgents.updateAgent(agent);
-      this.logger.debug(`✅ Synced agent ${agentId} to Redis`);
+      this.logger.debug(`Synced agent ${agentId} to Redis`);
     } catch (err: any) {
-      this.logger.warn(`⚠️ Redis sync skipped for agent ${agentId}: ${err.message}`);
+      this.logger.warn(
+        `Redis sync skipped for agent ${agentId}: ${err.message}`
+      );
     }
   }
 

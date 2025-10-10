@@ -21,13 +21,6 @@ import {
 } from '../utils/error-handler.js';
 import { ControllerHelpers } from '../utils/controller-helpers.js';
 import {
-  extractFlagValue,
-  updateFlagValue,
-  normalizeRawMcpConfig,
-  fetchSmitheryManifest,
-} from '../utils/mcp-helpers.js';
-
-import {
   logger,
   MessageFromAgentIdDTO,
   AgentAddRequestDTO,
