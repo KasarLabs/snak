@@ -129,34 +129,32 @@ export class McpController {
       throw new BadRequestException('agent_id and mcp_id are required');
 
     const manifest = await fetchSmitheryManifest(mcpId);
-    if (!manifest) {
+    if (!manifest)
       throw new BadRequestException(
         `Failed to fetch manifest for MCP ${mcpId}`
       );
+
+    const env: Record<string, string> = {
+      SMITHERY_API_KEY: '',
+      SMITHERY_PROFILE_NAME: '',
+    };
+
+    if (manifest.env && typeof manifest.env === 'object') {
+      for (const [k, _v] of Object.entries(manifest.env)) {
+        if (!(k in env)) env[k] = '';
+      }
     }
 
-    const manifestEnv = manifest.env || {};
-    const env: Record<string, string> = {};
-
-    for (const [envName, envMeta] of Object.entries(manifestEnv)) {
-      env[envName] = '';
-    }
-
-    if (Object.keys(env).length === 0) {
-      env[`${mcpId.toUpperCase()}_API_KEY`] = '';
-    }
-
-    const args: string[] = ['-y', '@smithery/cli@latest', 'run', mcpId];
-
-    // If API key is expected
-    if (Object.keys(env).some((k) => k.toLowerCase().includes('api_key'))) {
-      args.push('--key', '');
-    }
-
-    // If profile is expected or supported
-    if (manifest.profiles || manifest.supports_profile) {
-      args.push('--profile', '');
-    }
+    const args: string[] = [
+      '-y',
+      '@smithery/cli@latest',
+      'run',
+      mcpId,
+      '--key',
+      '',
+      '--profile',
+      '',
+    ];
 
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
@@ -213,17 +211,6 @@ export class McpController {
       delete cleanCfg.env;
       normalized[id] = cleanCfg;
     }
-
-    //   for (const [id, cfg] of Object.entries(mcpServers)) {
-    //   const cleanCfg = normalizeRawMcpConfig(cfg);
-
-    //   // Ensure env field always exists and is an object
-    //   if (!cleanCfg.env || typeof cleanCfg.env !== 'object') {
-    //     cleanCfg.env = {};
-    //   }
-
-    //   normalized[id] = cleanCfg;
-    // }
 
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
@@ -664,6 +651,11 @@ export class McpController {
       secret_value,
     } = body;
 
+    if (!agentId || !mcpId || !secret_name)
+      throw new BadRequestException(
+        'agent_id, mcp_id and secret_name are required'
+      );
+
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
       [agentId, userId]
@@ -673,16 +665,31 @@ export class McpController {
 
     const currentServers = agents[0].mcp_servers ?? {};
     const currentConfig = currentServers[mcpId];
-    if (!currentConfig || typeof currentConfig !== 'object') {
+    if (!currentConfig || typeof currentConfig !== 'object')
       throw new BadRequestException('MCP server not found');
-    }
 
     const env = { ...(currentConfig.env ?? {}) };
+
+    // ✅ 1. Only update if the key exists
+    if (!(secret_name in env)) {
+      throw new BadRequestException(
+        `Environment variable "${secret_name}" does not exist in MCP ${mcpId}`
+      );
+    }
+
     env[secret_name] = secret_value;
 
+    // ✅ 2. Sync args dynamically
     let updatedArgs = [...(currentConfig.args ?? [])];
+
+    // Update --key if API key changed
     if (secret_name.toLowerCase().includes('api_key')) {
       updatedArgs = updateFlagValue(updatedArgs, '--key', secret_value);
+    }
+
+    // Update --profile if SMITHERY_PROFILE_NAME changed
+    if (secret_name === 'SMITHERY_PROFILE_NAME') {
+      updatedArgs = updateFlagValue(updatedArgs, '--profile', secret_value);
     }
 
     const updatedServers = {
@@ -701,7 +708,11 @@ export class McpController {
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
     await this.agentService.syncAgentToRedis(agentId, userId);
-    return ResponseFormatter.success(result[0]);
+
+    return ResponseFormatter.success({
+      agent_id: result[0].id,
+      mcp_servers: result[0].mcp_servers,
+    });
   }
 
   /**
