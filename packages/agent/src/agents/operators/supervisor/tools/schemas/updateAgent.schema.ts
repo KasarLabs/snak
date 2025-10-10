@@ -6,7 +6,7 @@ import {
   RAGConfigSchema,
   McpServerConfigSchema,
   SelectAgentSchema,
-  McpServersRecordSchema,
+  McpServersArraySchema,
 } from './common.schemas.js';
 import { getGuardValue } from '@snakagent/core';
 
@@ -18,7 +18,7 @@ export const UpdateAgentSchema = SelectAgentSchema.extend({
       profile: AgentProfileSchema.partial()
         .optional()
         .describe('Agent profile configuration (partial)'),
-      mcp_servers: McpServersRecordSchema.optional().describe(
+      mcp_servers: McpServersArraySchema.optional().describe(
         'MCP servers configuration'
       ),
       memory: MemoryConfigSchema.optional().describe('Memory configuration'),

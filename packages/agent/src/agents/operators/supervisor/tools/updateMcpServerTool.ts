@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { Postgres } from '@snakagent/database';
-import { logger } from '@snakagent/core';
+import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { UpdateMcpServerSchema } from './schemas/mcp.schemas.js';
 import { isProtectedAgent } from '../utils/agents.validators.js';
@@ -23,18 +23,28 @@ export function updateMcpServerTool(
 
         if (searchBy === 'id') {
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE id = $1 AND user_id = $2',
+            `SELECT id, row_to_json(profile) as profile, mcp_servers
+             FROM agents WHERE id = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         } else {
           findQuery = new Postgres.Query(
-            'SELECT * FROM agents WHERE (profile).name = $1 AND user_id = $2',
+            `SELECT id, row_to_json(profile) as profile, mcp_servers
+             FROM agents WHERE (profile).name = $1 AND user_id = $2`,
             [input.identifier, userId]
           );
         }
 
-        const existingAgent =
-          await Postgres.query<AgentConfig.OutputWithId>(findQuery);
+        const existingAgent = await Postgres.query<{
+          id: string;
+          profile: {
+            name: string;
+            group: string;
+            description: string;
+            contexts: string[];
+          };
+          mcp_servers: Record<string, McpServerConfig>;
+        }>(findQuery);
         if (existingAgent.length === 0) {
           return JSON.stringify({
             success: false,
@@ -64,10 +74,30 @@ export function updateMcpServerTool(
         const notFound: string[] = [];
         const updateDetails: Record<string, { old: any; new: any }> = {};
 
+        // Convert array to Record<string, McpServerConfig>
+        const mcpServersRecord: Record<string, McpServerConfig> = {};
+        for (const server of input.mcp_servers) {
+          const { name, env, ...serverConfig } = server;
+
+          // Convert env array to Record<string, string>
+          let envRecord: Record<string, string> | undefined;
+          if (env && Array.isArray(env)) {
+            envRecord = {};
+            for (const envEntry of env) {
+              envRecord[envEntry.name] = envEntry.value;
+            }
+          }
+
+          mcpServersRecord[name] = {
+            ...serverConfig,
+            ...(envRecord && { env: envRecord }),
+          };
+        }
+
         // Update the MCP servers
         const updatedMcpServers = { ...currentMcpServers };
         for (const [serverName, serverConfig] of Object.entries(
-          input.mcp_servers
+          mcpServersRecord
         )) {
           if (currentMcpServers[serverName]) {
             const oldConfig = currentMcpServers[serverName];

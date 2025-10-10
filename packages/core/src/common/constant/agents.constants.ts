@@ -1,4 +1,4 @@
-import { AgentConfig, MemoryStrategy } from '@snakagent/core';
+import { AgentConfig, MemoryStrategy } from '@common/agent.js';
 
 /**
  * Agent Selector Configuration

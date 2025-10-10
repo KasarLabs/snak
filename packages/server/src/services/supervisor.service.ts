@@ -1,8 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { Postgres } from '@snakagent/database';
 import { AgentConfig } from '@snakagent/core';
 import { agents } from '@snakagent/database/queries';
-import { supervisorAgentConfig } from '../constants/agents.constants.js';
+import { supervisorAgentConfig } from '@snakagent/core';
 
 /**
  * Service for managing supervisor agents and their validation
@@ -35,6 +34,31 @@ export class SupervisorService {
         'Cannot create or modify Supervisor Agent via this endpoint. Use init_supervisor instead.'
       );
     }
+  }
+
+  /**
+   * Check if an agent configuration is a supervisor agent
+   * @param agentConfig - Agent configuration to check
+   * @returns boolean - True if the agent config is a supervisor
+   */
+  isSupervisorConfig(
+    agentConfig: Pick<AgentConfig.Runtime | AgentConfig.OutputWithId, 'profile'>
+  ): boolean {
+    if (!agentConfig.profile) {
+      return false;
+    }
+
+    const groupMatch =
+      typeof agentConfig.profile.group === 'string' &&
+      agentConfig.profile.group.trim().toLowerCase() ===
+        supervisorAgentConfig.profile.group.trim().toLowerCase();
+
+    const nameMatch =
+      typeof agentConfig.profile.name === 'string' &&
+      agentConfig.profile.name.trim().toLowerCase() ===
+        supervisorAgentConfig.profile.name.trim().toLowerCase();
+
+    return groupMatch && nameMatch;
   }
 
   /**

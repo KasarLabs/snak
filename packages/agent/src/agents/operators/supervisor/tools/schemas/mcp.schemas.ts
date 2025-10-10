@@ -1,9 +1,9 @@
 import z from 'zod';
-import { McpServersRecordSchema, SelectAgentSchema } from './common.schemas.js';
+import { McpServersArraySchema, SelectAgentSchema } from './common.schemas.js';
 import { getGuardValue } from '@snakagent/core';
 
 export const AddMcpServerSchema = SelectAgentSchema.extend({
-  mcp_servers: McpServersRecordSchema,
+  mcp_servers: McpServersArraySchema,
 });
 
 export const RemoveMcpServerSchema = SelectAgentSchema.extend({
@@ -20,5 +20,5 @@ export const RemoveMcpServerSchema = SelectAgentSchema.extend({
 });
 
 export const UpdateMcpServerSchema = SelectAgentSchema.extend({
-  mcp_servers: McpServersRecordSchema,
+  mcp_servers: McpServersArraySchema,
 });

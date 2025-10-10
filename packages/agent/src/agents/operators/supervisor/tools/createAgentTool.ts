@@ -197,8 +197,29 @@ function buildAgentConfigFromInput(input: CreateAgentInput): AgentConfig.Input {
     };
   }
 
-  if (input.mcp_servers)
-    partialConfig.mcp_servers = parseMcpServers(input.mcp_servers, {});
+  if (input.mcp_servers) {
+    // Convert array to Record<string, McpServerConfig>
+    const mcpServersRecord: Record<string, McpServerConfig> = {};
+    for (const server of input.mcp_servers) {
+      const { name, env, ...serverConfig } = server;
+
+      // Convert env array to Record<string, string>
+      let envRecord: Record<string, string> | undefined;
+      if (env && Array.isArray(env)) {
+        envRecord = {};
+        for (const envEntry of env) {
+          envRecord[envEntry.name] = envEntry.value;
+        }
+      }
+
+      mcpServersRecord[name] = {
+        ...serverConfig,
+        ...(envRecord && { env: envRecord }),
+      };
+    }
+
+    partialConfig.mcp_servers = parseMcpServers(mcpServersRecord, {});
+  }
 
   if (input.graph)
     partialConfig.graph = input.graph as AgentConfig.Input['graph'];

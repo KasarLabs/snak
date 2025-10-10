@@ -1,7 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import { DatabaseService } from './services/database.service.js';
-import { Postgres, redisAgents, agents } from '@snakagent/database/queries';
+import { SupervisorService } from './services/supervisor.service.js';
+import { redisAgents, agents } from '@snakagent/database/queries';
 import { RedisClient } from '@snakagent/database/redis';
 import {
   AgentConfig,
@@ -25,16 +26,11 @@ import {
   BaseAgent,
   SupervisorAgent,
 } from '@snakagent/agents';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatAnthropic } from '@langchain/anthropic';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { initializeModels } from './utils/agents.utils.js';
 import {
   agentSelectorConfig,
   supervisorAgentConfig,
 } from './constants/agents.constants.js';
-import { create } from 'domain';
 
 const logger = new Logger('AgentStorage');
 
@@ -52,7 +48,8 @@ export class AgentStorage implements OnModuleInit {
 
   constructor(
     private readonly config: ConfigurationService,
-    private readonly databaseService: DatabaseService
+    private readonly databaseService: DatabaseService,
+    private readonly supervisorService: SupervisorService
   ) {
     this.agentValidationService = new AgentValidationService(this);
   }
@@ -590,11 +587,7 @@ export class AgentStorage implements OnModuleInit {
           `Failed to create runtime config for agent ${agentConfig.id}`
         );
       }
-      if (
-        AgentConfigRuntime.profile.group ===
-          supervisorAgentConfig.profile.group &&
-        AgentConfigRuntime.profile.name === supervisorAgentConfig.profile.name
-      ) {
+      if (this.supervisorService.isSupervisorConfig(AgentConfigRuntime)) {
         const supervisorAgent = new SupervisorAgent(AgentConfigRuntime);
         await supervisorAgent.init();
         return supervisorAgent;
@@ -602,7 +595,7 @@ export class AgentStorage implements OnModuleInit {
       const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
       await snakAgent.init();
 
-      return snakAgent;
+      return snakAgent;``
     } catch (error) {
       logger.error(`Error creating SnakAgent from config:`, error);
       throw error;

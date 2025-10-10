@@ -207,52 +207,45 @@ export const RAGConfigSchema = z.object({
     .optional()
     .describe('Top K for retrieval'),
 });
+
 const mcpServersGuardsValues: GuardsConfig['agents']['mcp_servers'] =
   getGuardValue('agents.mcp_servers');
+
+export const EnvEntry = z.object({
+  name: z.string().min(1).max(mcpServersGuardsValues.env.max_length),
+  value: z.string().max(mcpServersGuardsValues.env.max_length),
+});
+
 // Schema for McpServerConfig
 export const McpServerConfigSchema = z.object({
+  name: z
+    .string()
+    .max(mcpServersGuardsValues.max_server_name_length)
+    .min(mcpServersGuardsValues.min_server_name_length)
+    .describe('MCP server name'),
   command: z
     .string()
+    .min(1)
     .max(mcpServersGuardsValues.command_max_length)
-    .optional()
+    .default('npx')
     .describe('MCP server command'),
   args: z
     .array(z.string().max(mcpServersGuardsValues.args.max_length))
     .max(mcpServersGuardsValues.args.max_size)
-    .optional()
+    .default([])
     .describe('MCP server arguments'),
   env: z
-    .record(z.string().max(mcpServersGuardsValues.env.max_length))
-    .refine(
-      (obj) => Object.keys(obj).length <= mcpServersGuardsValues.env.max_size,
-      {
-        message: `Environment variables object must have at most ${mcpServersGuardsValues.env.max_size} keys`,
-      }
-    )
-    .optional()
+    .array(EnvEntry)
+    .max(mcpServersGuardsValues.env.max_size)
+    .default([])
     .describe('MCP server environment variables'),
 });
 
-// Schema for MCP servers record with validation for server names (keys)
-export const McpServersRecordSchema = z
-  .record(McpServerConfigSchema)
-  .refine(
-    (obj) => Object.keys(obj).length <= mcpServersGuardsValues.max_servers,
-    {
-      message: `MCP servers object must have at most ${mcpServersGuardsValues.max_servers} keys`,
-    }
-  )
-  .refine(
-    (obj) =>
-      Object.keys(obj).every(
-        (key) =>
-          key.length >= mcpServersGuardsValues.min_server_name_length &&
-          key.length <= mcpServersGuardsValues.max_server_name_length
-      ),
-    {
-      message: `MCP server names must be between ${mcpServersGuardsValues.min_server_name_length} and ${mcpServersGuardsValues.max_server_name_length} characters`,
-    }
-  );
+export const McpServersArraySchema = z
+  .array(McpServerConfigSchema)
+  .max(mcpServersGuardsValues.max_servers)
+  .default([]);
+
 // Schema for PromptsConfig
 export const PromptsConfigSchema = z.object({
   id: z
@@ -288,5 +281,5 @@ export type MemoryTimeouts = z.infer<typeof MemoryTimeoutsSchema>;
 export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
 export type RAGConfig = z.infer<typeof RAGConfigSchema>;
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
-export type McpServersRecord = z.infer<typeof McpServersRecordSchema>;
+export type McpServersArray = z.infer<typeof McpServersArraySchema>;
 export type SelectAgent = z.infer<typeof SelectAgentSchema>;
