@@ -10,7 +10,7 @@ import { SupervisorService } from '../services/supervisor.service.js';
 
 @Module({
   imports: [ConfigModule],
-  providers: [DatabaseService, AgentService, AgentStorage, SupervisorService],A
+  providers: [DatabaseService, AgentService, AgentStorage, SupervisorService],
   controllers: [AgentsController, MetricsController, McpController],
   exports: [DatabaseService, AgentService, AgentStorage, SupervisorService]
 })
