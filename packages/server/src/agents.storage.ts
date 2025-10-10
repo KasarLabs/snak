@@ -27,10 +27,6 @@ import {
   SupervisorAgent,
 } from '@snakagent/agents';
 import { initializeModels } from './utils/agents.utils.js';
-import {
-  agentSelectorConfig,
-  supervisorAgentConfig,
-} from './constants/agents.constants.js';
 
 const logger = new Logger('AgentStorage');
 

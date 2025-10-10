@@ -140,7 +140,6 @@ export class SupervisorAgent extends BaseAgent {
         ? ((getLatestMessageForMessage(state.values.messages, AIMessage)
             ?.name as SupervisorNode) ?? ('supervisor' as SupervisorNode))
         : ('supervisor' as SupervisorNode);
-    console.log('nodeType', nodeType);
     return this.createChunkOutput(
       chunk,
       state,
