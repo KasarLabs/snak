@@ -214,6 +214,17 @@ export class McpController {
       normalized[id] = cleanCfg;
     }
 
+    //   for (const [id, cfg] of Object.entries(mcpServers)) {
+    //   const cleanCfg = normalizeRawMcpConfig(cfg);
+
+    //   // Ensure env field always exists and is an object
+    //   if (!cleanCfg.env || typeof cleanCfg.env !== 'object') {
+    //     cleanCfg.env = {};
+    //   }
+
+    //   normalized[id] = cleanCfg;
+    // }
+
     const selectQuery = new Postgres.Query(
       'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
       [agentId, userId]

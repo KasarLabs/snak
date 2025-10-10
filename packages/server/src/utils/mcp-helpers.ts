@@ -1,6 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { logger } from '@snakagent/core';
 
+/**
+ * Extracts a flag value from an argument list.
+ * Example: ['--key', '123'] → extractFlagValue('--key') = '123'
+ */
 export function extractFlagValue(
   args: string[] | string,
   flag: string
@@ -11,6 +15,10 @@ export function extractFlagValue(
   return arr[idx + 1];
 }
 
+/**
+ * Updates or inserts a flag value in an argument list.
+ * Example: updateFlagValue(['--key', 'old'], '--key', 'new') → ['--key', 'new']
+ */
 export function updateFlagValue(
   args: string[] | string,
   flag: string,
@@ -30,63 +38,91 @@ export function updateFlagValue(
   return arr;
 }
 
-export function normalizeRawMcpConfig(cfg: any) {
-  if (!cfg || typeof cfg !== 'object')
+/**
+ * Normalizes and validates a raw MCP configuration object.
+ * Ensures 'command', 'args', and 'env' fields exist and are consistent.
+ */
+export function normalizeRawMcpConfig(cfg: any): Record<string, any> {
+  if (!cfg || typeof cfg !== 'object') {
     throw new BadRequestException('Invalid MCP config');
+  }
+
   if (!cfg.command || typeof cfg.command !== 'string') {
     throw new BadRequestException('Invalid MCP config — missing "command"');
   }
 
+  // Normalize args
   let args: string[] = [];
   if (Array.isArray(cfg.args)) args = cfg.args.map(String);
   else if (typeof cfg.args === 'string') args = cfg.args.trim().split(/\s+/);
 
+  // Normalize env
   const env =
     cfg.env && typeof cfg.env === 'object'
       ? Object.fromEntries(
-          Object.entries(cfg.env).map(([k, v]) => [k, String(v)])
+          Object.entries(cfg.env).map(([k, v]) => [
+            k.toUpperCase().trim(),
+            String(v ?? ''),
+          ])
         )
       : {};
 
-  const out: any = { command: cfg.command, args, env };
+  const out: Record<string, any> = { command: cfg.command, args, env };
 
   for (const [k, v] of Object.entries(cfg)) {
     if (!['command', 'args', 'env'].includes(k)) out[k] = v;
   }
 
+  if (!out.env) out.env = {};
+
+  const argsStr = args.join(' ').toLowerCase();
+  if (argsStr.includes('--key') && !('API_KEY' in out.env)) {
+    out.env.API_KEY = '';
+  }
+  if (argsStr.includes('--profile') && !('PROFILE' in out.env)) {
+    out.env.PROFILE = '';
+  }
+
   return out;
 }
 
+/**
+ * Fetches a manifest for a given MCP ID, supporting both Smithery and open registry.
+ * Returns null if not available.
+ */
 export async function fetchSmitheryManifest(
   mcpId: string
 ): Promise<any | null> {
-  try {
-    const apiKey = process.env.SMITHERY_API_KEY || process.env.SMITHERY_TOKEN;
-    if (!apiKey) {
-      logger.warn('No SMITHERY_API_KEY in env — skipping manifest fetch');
-      return null;
-    }
+  const apiKey = process.env.SMITHERY_API_KEY || process.env.SMITHERY_TOKEN;
+  const url = `https://registry.smithery.ai/servers/${encodeURIComponent(mcpId)}`;
 
-    const url = `https://registry.smithery.ai/servers/${encodeURIComponent(mcpId)}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: 'application/json',
-      },
-    });
+  try {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    else
+      logger.warn('No SMITHERY_API_KEY found — fetching public manifest only');
+
+    const res = await fetch(url, { headers });
 
     if (!res.ok) {
-      logger.warn(
-        `Smithery manifest fetch failed (${res.status}) for ${mcpId}`
-      );
+      logger.warn(`Manifest fetch failed (${res.status}) for ${mcpId}`);
       return null;
     }
 
     const manifest = await res.json();
-    logger.debug(`Smithery manifest fetched for ${mcpId}`);
+
+    if (manifest?.environmentVariables?.length) {
+      manifest.env = Object.fromEntries(
+        manifest.environmentVariables.map((v: any) => [v.name, ''])
+      );
+    }
+
+    if (!manifest.env) manifest.env = {};
+
+    logger.debug(`Manifest successfully fetched for ${mcpId}`);
     return manifest;
   } catch (err: any) {
-    logger.warn(`Smithery manifest fetch error for ${mcpId}: ${err.message}`);
+    logger.warn(`Manifest fetch error for ${mcpId}: ${err.message}`);
     return null;
   }
 }
