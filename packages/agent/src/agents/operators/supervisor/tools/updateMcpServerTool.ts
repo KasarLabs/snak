@@ -126,11 +126,16 @@ export function updateMcpServerTool(
 
         // Update the agent with updated MCP servers
         const updateQuery = new Postgres.Query(
-          'UPDATE agents SET "mcp_servers" = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+          `UPDATE agents SET "mcp_servers" = $1 WHERE id = $2 AND user_id = $3
+           RETURNING id, row_to_json(profile) as profile, mcp_servers`,
           [updatedMcpServers, agent.id, userId]
         );
 
-        const result = await Postgres.query<AgentConfig.Input>(updateQuery);
+        const result = await Postgres.query<{
+          id: string;
+          profile: { name: string };
+          mcp_servers: Record<string, McpServerConfig>;
+        }>(updateQuery);
 
         if (result.length > 0) {
           logger.info(

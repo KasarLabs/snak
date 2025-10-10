@@ -205,7 +205,7 @@ export function updateAgentTool(
           ) {
             const profile = value as AgentProfile;
             updateFields.push(
-              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`
+              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})::agent_profile`
             );
             updateValues.push(profile?.name ?? null);
             updateValues.push(profile?.group ?? null);
@@ -287,7 +287,7 @@ export function updateAgentTool(
           ) {
             const rag = value as AgentConfig.Input['rag'];
             updateFields.push(
-              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1})`
+              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1})::rag_config`
             );
             updateValues.push(rag?.enabled ?? null);
             updateValues.push(rag?.top_k ?? null);
