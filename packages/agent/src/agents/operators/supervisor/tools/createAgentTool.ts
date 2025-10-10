@@ -117,8 +117,11 @@ export function createAgentTool(
           notes.push(nameNote);
         }
 
-        const promptId = await ensurePromptsId(userId, input.prompts_id);
-        if (!input.prompts_id) {
+        const { id: promptId, created: promptsCreated } = await ensurePromptsId(
+          userId,
+          input.prompts_id
+        );
+        if (promptsCreated) {
           notes.push('Default prompts initialized for the user.');
         }
 
@@ -130,7 +133,7 @@ export function createAgentTool(
         };
 
         const insertQuery = new Postgres.Query(
-          'SELECT * FROM insert_agent_from_json($1, $2)',
+          'SELECT id, user_id, profile, mcp_servers, prompts_id, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type FROM insert_agent_from_json($1, $2)',
           [userId, JSON.stringify(payload)]
         );
 
@@ -298,9 +301,9 @@ async function resolveUniqueAgentName(
 async function ensurePromptsId(
   userId: string,
   providedId?: string | null
-): Promise<string> {
+): Promise<{ id: string; created: boolean }> {
   if (providedId) {
-    return providedId;
+    return { id: providedId, created: false };
   }
 
   const existingQuery = new Postgres.Query(
@@ -309,7 +312,7 @@ async function ensurePromptsId(
   );
   const existing = await Postgres.query<{ id: string }>(existingQuery);
   if (existing.length > 0) {
-    return existing[0].id;
+    return { id: existing[0].id, created: false };
   }
 
   const insertQuery = new Postgres.Query(
@@ -337,5 +340,5 @@ async function ensurePromptsId(
     throw new Error('Failed to create default prompts for the user');
   }
 
-  return created[0].id;
+  return { id: created[0].id, created: true };
 }
