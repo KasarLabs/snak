@@ -1,5 +1,6 @@
 import { AgentConfig } from '@snakagent/core';
 import { SnakAgent } from '../agents/core/snakAgent.js';
+import { BaseAgent } from '@agents/core/baseAgent.js';
 
 /**
  * Function type to resolve agent configurations for a given user
@@ -13,4 +14,4 @@ export type AgentConfigResolver = (
  */
 export type AgentBuilder = (
   agentConfig: AgentConfig.OutputWithId
-) => Promise<SnakAgent>;
+) => Promise<BaseAgent>;

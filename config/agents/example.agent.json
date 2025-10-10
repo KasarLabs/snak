@@ -14,7 +14,7 @@
       ]
     },
     "mcp_servers": {
-      "nxp_server_example": {
+      "npx_server_example": {
         "command": "npx",
         "args": ["-y", "@npm_package_example/npx_server_example"],
         "env": {

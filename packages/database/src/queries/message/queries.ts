@@ -18,12 +18,12 @@ export namespace message {
     run_id: string;
     thread_id: string;
     checkpoint_id: string;
-    task_id: string | null;
-    step_id: string | null;
-    task_title: string | null;
+    task_id?: string;
+    step_id?: string;
+    task_title?: string;
     from: string;
-    tools: any[] | null;
-    message: string | null;
+    tools?: any[];
+    message?: string;
     metadata: any;
     timestamp?: string;
   }

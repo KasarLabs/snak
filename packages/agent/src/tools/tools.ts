@@ -14,6 +14,7 @@ import {
 } from '../shared/types/tools.types.js';
 import { MemoryToolRegistry } from '@agents/graphs/tools/memory.tool.js';
 import { CoreToolRegistry } from '@agents/graphs/tools/core.tools.js';
+import { getSupervisorConfigTools } from '@agents/operators/supervisor/supervisorTools.js';
 
 export async function initializeMcpTools(
   agentConfig: AgentConfig.Runtime
@@ -49,6 +50,30 @@ export async function initializeToolsList(
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const mcpTools = await initializeMcpTools(agentConfig);
   toolsList = [...toolsList, ...mcpTools];
+
+  const profileName = agentConfig.profile?.name ?? '';
+  const profileGroup = agentConfig.profile?.group ?? '';
+  const isSupervisorAgent =
+    profileGroup === 'system' &&
+    typeof profileName === 'string' &&
+    profileName.toLowerCase().includes('supervisor agent');
+
+  if (isSupervisorAgent) {
+    const supervisorTools = getSupervisorConfigTools(agentConfig);
+    for (const tool of supervisorTools) {
+      const alreadyPresent = toolsList.some((existingTool) => {
+        if (!existingTool?.name) {
+          return false;
+        }
+        return existingTool.name === tool.name;
+      });
+
+      if (!alreadyPresent) {
+        toolsList.push(tool);
+      }
+    }
+  }
+  logger.debug(`toolsList: ${toolsList.map((tool) => tool.name).join(', ')}`);
   // Register memory tools
   // const memoryRegistry = new MemoryToolRegistry(agentConfig);
   // toolsList.push(...memoryRegistry.getTools());
