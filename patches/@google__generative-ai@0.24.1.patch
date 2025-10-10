@@ -1,0 +1,48 @@
+diff --git a/dist/index.js b/dist/index.js
+index 2fe925f220bfdf87321c022705c5bff0de8b6e05..bbab7694fad3faa911db76085780420f688b312a 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -730,7 +730,9 @@ function getResponseStream(inputStream) {
+                     .then(({ value, done }) => {
+                     if (done) {
+                         if (currentText.trim()) {
+-                            controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
++                            const err = new GoogleGenerativeAIError("Failed to parse stream - received incomplete response");
++                            err.unparsedContent = currentText.trim();
++                            controller.error(err);
+                             return;
+                         }
+                         controller.close();
+@@ -762,7 +764,7 @@ function getResponseStream(inputStream) {
+                     else {
+                         err = new GoogleGenerativeAIError("Error reading from the stream");
+                     }
+-                    throw err;
++                    controller.error(err);
+                 });
+             }
+         },
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 6aec979baf268a17a0596c56971f65608bb2c95f..45a40abcb8aa485bb9edc7d22f9aee5b53dcfe43 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -728,7 +728,9 @@ function getResponseStream(inputStream) {
+                     .then(({ value, done }) => {
+                     if (done) {
+                         if (currentText.trim()) {
+-                            controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
++                            const err = new GoogleGenerativeAIError("Failed to parse stream - received incomplete response");
++                            err.unparsedContent = currentText.trim();
++                            controller.error(err);
+                             return;
+                         }
+                         controller.close();
+@@ -760,7 +762,7 @@ function getResponseStream(inputStream) {
+                     else {
+                         err = new GoogleGenerativeAIError("Error reading from the stream");
+                     }
+-                    throw err;
++                    controller.error(err);
+                 });
+             }
+         },
