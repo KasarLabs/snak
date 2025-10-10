@@ -50,9 +50,6 @@ export class SupervisorAgent extends BaseAgent {
         throw new Error('Failed to create supervisor graph');
       }
       this.compiledStateGraph = graph;
-      // Initialize components here
-      // TODO: Implement initialization logic
-
       logger.info('[SupervisorAgent] Initialized successfully');
     } catch (error) {
       logger.error(`[SupervisorAgent] Initialization failed: ${error}`);
@@ -159,7 +156,6 @@ export class SupervisorAgent extends BaseAgent {
    * @returns AsyncGenerator yielding ChunkOutput
    */
   public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
-    // TODO: Implement execution logic
     try {
       let currentCheckpointId: string | undefined = undefined;
       let lastChunk: StreamEvent | undefined = undefined;
