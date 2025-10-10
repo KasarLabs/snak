@@ -1,22 +1,10 @@
 import { BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
-import {
-  logger,
-  AgentConfig,
-  StarknetConfig,
-  DatabaseConfigService,
-} from '@snakagent/core';
-import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { logger, AgentConfig, StarknetConfig } from '@snakagent/core';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentType } from '../../shared/enums/agent.enum.js';
-import {
-  createGraph,
-  GraphConfigurableType,
-} from '../graphs/core-graph/agent.graph.js';
-import {
-  Command,
-  CompiledStateGraph,
-  StateSnapshot,
-} from '@langchain/langgraph';
+import { createGraph } from '../graphs/core-graph/agent.graph.js';
+import { StateSnapshot } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
   TaskExecutorNode,
@@ -32,7 +20,6 @@ import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
-import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { notify } from '@snakagent/database/queries';
 import {

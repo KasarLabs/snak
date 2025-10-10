@@ -591,7 +591,8 @@ export class AgentStorage implements OnModuleInit {
       const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
       await snakAgent.init();
 
-      return snakAgent;``
+      return snakAgent;
+      ``;
     } catch (error) {
       logger.error(`Error creating SnakAgent from config:`, error);
       throw error;
