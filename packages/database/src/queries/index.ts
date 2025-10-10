@@ -7,6 +7,7 @@ import { rag } from './rag/queries.js';
 import { Postgres } from '../database.js';
 import { notify } from './notify/queries.js';
 import { message } from './message/queries.js';
+import { agents } from './agents/queries.js';
 import * as redisAgents from './redis/queries.js';
 
 export {
@@ -19,5 +20,6 @@ export {
   Postgres,
   notify,
   message,
+  agents,
   redisAgents,
 };

@@ -1,19 +1,10 @@
 import { BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
-import {
-  logger,
-  AgentConfig,
-  StarknetConfig,
-  DatabaseConfigService,
-} from '@snakagent/core';
-import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { logger, AgentConfig, StarknetConfig } from '@snakagent/core';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentType } from '../../shared/enums/agent.enum.js';
-import { createGraph, GraphConfigurableType } from '../graphs/graph.js';
-import {
-  Command,
-  CompiledStateGraph,
-  StateSnapshot,
-} from '@langchain/langgraph';
+import { createGraph } from '../graphs/core-graph/agent.graph.js';
+import { StateSnapshot } from '@langchain/langgraph';
 import { RagAgent } from '../operators/ragAgent.js';
 import {
   TaskExecutorNode,
@@ -29,9 +20,12 @@ import { EventType } from '@enums/event.enums.js';
 import { isInEnum } from '@enums/utils.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
-import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { notify } from '@snakagent/database/queries';
+import {
+  getInterruptCommand,
+  isInterrupt,
+} from '@agents/graphs/utils/graph.utils.js';
 
 /**
  * Main agent for interacting with the Starknet blockchain
@@ -39,20 +33,13 @@ import { notify } from '@snakagent/database/queries';
  */
 export class SnakAgent extends BaseAgent {
   private readonly provider: RpcProvider;
-  private readonly agentConfig: AgentConfig.Runtime;
   private ragAgent: RagAgent | null = null;
-  private compiledGraph: CompiledStateGraph<any, any, any, any, any> | null =
-    null;
-  private controller: AbortController | null = null;
-  private pg_checkpointer: PostgresSaver | null = null;
   constructor(
     starknet_config: StarknetConfig,
     agent_config: AgentConfig.Runtime
   ) {
-    super('snak', AgentType.SNAK);
-
+    super('snak', AgentType.SNAK, agent_config);
     this.provider = starknet_config.provider;
-    this.agentConfig = agent_config;
   }
   /**
    * Initialize the SnakAgent and create the appropriate executor
@@ -65,8 +52,8 @@ export class SnakAgent extends BaseAgent {
       }
       await this.initializeRagAgent(this.agentConfig);
       try {
-        this.pg_checkpointer = await CheckpointerService.getInstance();
-        if (!this.pg_checkpointer) {
+        this.pgCheckpointer = await CheckpointerService.getInstance();
+        if (!this.pgCheckpointer) {
           throw new Error('Failed to initialize Postgres checkpointer');
         }
         await this.createAgentReactExecutor();
@@ -91,8 +78,8 @@ export class SnakAgent extends BaseAgent {
    */
   private async createAgentReactExecutor(): Promise<void> {
     try {
-      this.compiledGraph = await createGraph(this);
-      if (!this.compiledGraph) {
+      this.compiledStateGraph = await createGraph(this);
+      if (!this.compiledStateGraph) {
         throw new Error(
           `Failed to create graph for agent: ${this.agentConfig.profile.name}`
         );
@@ -118,9 +105,12 @@ export class SnakAgent extends BaseAgent {
     if (!ragConfig || ragConfig.enabled !== true) {
       return;
     }
-    this.ragAgent = new RagAgent({
-      top_k: ragConfig?.top_k,
-    });
+    this.ragAgent = new RagAgent(
+      {
+        top_k: ragConfig?.top_k,
+      },
+      this.agentConfig // TODO CHANGE THIS HE DON'T NEED IT
+    );
     await this.ragAgent.init();
   }
 
@@ -133,22 +123,6 @@ export class SnakAgent extends BaseAgent {
   }
 
   /**
-   * Get database credentials
-   * @returns The database credentials object
-   */
-  public getDatabaseCredentials() {
-    return DatabaseConfigService.getInstance().getCredentials();
-  }
-
-  /**
-   * Get agent configuration
-   * @returns The agent configuration object
-   */
-  public getAgentConfig(): AgentConfig.Runtime {
-    return this.agentConfig;
-  }
-
-  /**
    * Get Starknet RPC provider
    * @returns The RpcProvider instance
    */
@@ -156,30 +130,15 @@ export class SnakAgent extends BaseAgent {
     return this.provider;
   }
 
-  public getController(): AbortController | undefined {
-    if (!this.controller) {
-      logger.warn('[SnakAgent]  Controller is not initialized');
-      return undefined;
-    }
-    return this.controller;
-  }
-  public getPgCheckpointer(): PostgresSaver | undefined {
-    if (!this.pg_checkpointer) {
-      logger.warn('[SnakAgent]  Checkpointer is not initialized');
-      return undefined;
-    }
-    return this.pg_checkpointer;
-  }
-
   public async dispose(): Promise<void> {
     this.stop();
-    if (this.pg_checkpointer) {
-      await this.pg_checkpointer?.end();
+    if (this.pgCheckpointer) {
+      await this.pgCheckpointer?.end();
     }
     if (this.ragAgent) {
       await this.ragAgent.dispose();
     }
-    this.compiledGraph = null;
+    this.compiledStateGraph = null;
   }
 
   /**
@@ -190,7 +149,7 @@ export class SnakAgent extends BaseAgent {
    */
   public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
-      if (!this.compiledGraph) {
+      if (!this.compiledStateGraph) {
         throw new Error('Agent executor is not initialized');
       }
       for await (const chunk of this.executeAsyncGenerator(userRequest)) {
@@ -203,13 +162,6 @@ export class SnakAgent extends BaseAgent {
     } catch (error) {
       logger.error(`[SnakAgent] Execute failed: ${error}`);
       throw error;
-    }
-  }
-
-  public stop(): void {
-    if (this.controller) {
-      this.controller.abort();
-      logger.info('[SnakAgent] Execution stopped');
     }
   }
 
@@ -237,9 +189,9 @@ export class SnakAgent extends BaseAgent {
     chunk: StreamEvent,
     state: StateSnapshot,
     user_request: string,
-    currentTaskId: string | null,
-    currentStepId: string | null,
-    graphError: GraphErrorType | null,
+    currentTaskId: string | undefined,
+    currentStepId: string | undefined,
+    graphError: GraphErrorType | undefined,
     retryCount: number,
     from: GraphNode
   ): ChunkOutput {
@@ -261,9 +213,6 @@ export class SnakAgent extends BaseAgent {
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
-      task_id: currentTaskId,
-      step_id: currentStepId,
-      task_title: chunk.data?.output?.additional_kwargs?.task_title ?? null,
       from,
       tools:
         chunk.event === EventType.ON_CHAT_MODEL_END
@@ -287,10 +236,10 @@ export class SnakAgent extends BaseAgent {
     chunk: StreamEvent,
     state: any,
     user_request: string,
-    currentTaskId: string | null,
-    currentStepId: string | null,
+    currentTaskId: string | undefined,
+    currentStepId: string | undefined,
     retryCount: number,
-    graphError: GraphErrorType | null
+    graphError: GraphErrorType | undefined
   ): ChunkOutput | null {
     const nodeType = chunk.metadata?.langgraph_node;
     const eventType = chunk.event;
@@ -342,25 +291,6 @@ export class SnakAgent extends BaseAgent {
     return null;
   }
 
-  private isInterrupt(stateSnapshot: StateSnapshot): boolean {
-    if (
-      stateSnapshot.tasks?.length > 0 &&
-      stateSnapshot.tasks[0]?.interrupts?.length > 0
-    ) {
-      const interrupt = stateSnapshot.tasks[0].interrupts[0];
-      logger.info(`[SnakAgent] Interrupt detected: ${interrupt?.value}`);
-      return true;
-    }
-    return false;
-  }
-
-  private getInterruptCommand(request: string): Command {
-    const command = new Command({
-      resume: request,
-    });
-    return command;
-  }
-
   /**
    * Executes the agent in autonomous mode
    * This mode allows the agent to operate continuously based on an initial goal or prompt
@@ -370,16 +300,16 @@ export class SnakAgent extends BaseAgent {
     request: UserRequest
   ): AsyncGenerator<ChunkOutput> {
     try {
-      let lastChunk: StreamEvent | null = null;
+      let lastChunk: StreamEvent | undefined = undefined;
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;
-      let currentTaskId: string | null = null;
-      let currentStepId: string | null = null;
-      let graphError: GraphErrorType | null = null;
+      let currentTaskId: string | undefined = undefined;
+      let currentStepId: string | undefined = undefined;
+      let graphError: GraphErrorType | undefined = undefined;
       let stateSnapshot: StateSnapshot;
       let isInterruptHandle = false;
       logger.info(`[SnakAgent] Starting execution: "${request.request}"`);
-      if (!this.compiledGraph) {
+      if (!this.compiledStateGraph) {
         throw new Error('CompiledGraph is not initialized');
       }
       if (!this.controller || this.controller.signal.aborted) {
@@ -410,21 +340,22 @@ export class SnakAgent extends BaseAgent {
           version: 'v2' as const,
         };
 
-        stateSnapshot = await this.compiledGraph.getState(executionConfig);
+        stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve initial graph state');
         }
-        const executionInput = this.isInterrupt(stateSnapshot)
-          ? this.getInterruptCommand(request.request)
+        const executionInput = isInterrupt(stateSnapshot)
+          ? getInterruptCommand(request.request)
           : { messages: initialMessages };
-        for await (const chunk of this.compiledGraph.streamEvents(
+        for await (const chunk of this.compiledStateGraph.streamEvents(
           executionInput ?? {
             messages: [],
           },
           executionConfig
         )) {
           // Setter
-          stateSnapshot = await this.compiledGraph.getState(executionConfig);
+          stateSnapshot =
+            await this.compiledStateGraph.getState(executionConfig);
           if (!stateSnapshot) {
             throw new Error('Failed to retrieve graph state during execution');
           }
@@ -446,7 +377,7 @@ export class SnakAgent extends BaseAgent {
           if (
             chunk.event === 'on_chain_end' &&
             isInterruptHandle === false &&
-            this.isInterrupt(stateSnapshot)
+            isInterrupt(stateSnapshot)
           ) {
             await notify.insertNotify(
               this.agentConfig.user_id,
@@ -479,13 +410,13 @@ export class SnakAgent extends BaseAgent {
           from: GraphNode.END_GRAPH,
           thread_id: threadId,
           checkpoint_id: currentCheckpointId,
-          task_id: currentTaskId ? currentTaskId : null,
-          step_id: currentStepId ? currentStepId : null,
-          task_title: null,
-          tools: lastChunk.data.output.tool_calls ?? null,
+          task_id: currentTaskId ? currentTaskId : undefined,
+          step_id: currentStepId ? currentStepId : undefined,
+          task_title: undefined,
+          tools: lastChunk.data.output.tool_calls ?? undefined,
           message: lastChunk.data.output.content
             ? lastChunk.data.output.content.toLocaleString()
-            : null,
+            : undefined,
           metadata: {
             error: graphError,
             final: true,

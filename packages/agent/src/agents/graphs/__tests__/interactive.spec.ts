@@ -6,7 +6,7 @@ import {
   ToolMessage,
   HumanMessage,
 } from '@langchain/core/messages';
-import { Graph, createGraph } from '../graph.js';
+import { Graph, createGraph } from '../core-graph/agent.graph.js';
 import { ExecutionMode } from '../../../shared/enums/agent.enum.js';
 
 jest.mock('../sub-graph/memory-graph.js', () => ({

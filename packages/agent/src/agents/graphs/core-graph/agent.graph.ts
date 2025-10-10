@@ -19,14 +19,14 @@ import {
   AIMessageChunk,
 } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { RagAgent } from '../operators/ragAgent.js';
+import { RagAgent } from '../../operators/ragAgent.js';
 import {
   GraphNode,
   TaskExecutorNode,
   TaskManagerNode,
   TaskMemoryNode,
   TaskVerifierNode,
-} from '../../shared/enums/agent.enum.js';
+} from '../../../shared/enums/agent.enum.js';
 import {
   GraphErrorType,
   Memories,
@@ -34,21 +34,21 @@ import {
   TaskType,
   UserRequest,
   userRequestWithHITL,
-} from '../../shared/types/index.js';
-import { MemoryStateManager } from './manager/memory/memory-utils.js';
-import { MemoryGraph } from './sub-graph/task-memory.graph.js';
-import { TaskManagerGraph } from './sub-graph/task-manager.graph.js';
-import { AgentExecutorGraph } from './sub-graph/task-executor.graph.js';
-import { TaskVerifierGraph } from './sub-graph/task-verifier.graph.js';
-import { isInEnum } from '../../shared/enums/index.js';
-import { initializeDatabase } from '../../agents/utils/database.utils.js';
-import { initializeToolsList } from '../../tools/tools.js';
+} from '../../../shared/types/index.js';
+import { MemoryStateManager } from '../manager/memory/memory-utils.js';
+import { MemoryGraph } from '../sub-graph/task-memory.graph.js';
+import { TaskManagerGraph } from '../sub-graph/task-manager.graph.js';
+import { AgentExecutorGraph } from '../sub-graph/task-executor.graph.js';
+import { TaskVerifierGraph } from '../sub-graph/task-verifier.graph.js';
+import { isInEnum } from '../../../shared/enums/index.js';
+import { initializeDatabase } from '../../utils/database.utils.js';
+import { initializeToolsList } from '../../../tools/tools.js';
 import { SnakAgent } from '@agents/core/snakAgent.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
-import { getCurrentTask } from './utils/graph.utils.js';
+import { getCurrentTask } from '../utils/graph.utils.js';
 import { STMManager } from '@lib/memory/index.js';
-import { ToolCallType } from '../../shared/types/index.js';
-import { GraphError } from './utils/error.utils.js';
+import { ToolCallType } from '../../../shared/types/index.js';
+import { GraphError } from '../utils/error.utils.js';
 
 export const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -126,7 +126,7 @@ export class Graph {
   private agentConfig: AgentConfig.Runtime;
   private ragAgent: RagAgent | null = null;
   private checkpointer: PostgresSaver;
-  private app: CompiledStateGraph<any, any, any, any, any, any>;
+  private graph: CompiledStateGraph<any, any, any, any, any, any>;
   private config: typeof GraphConfigurableAnnotation.State | null = null;
 
   constructor(private snakAgent: SnakAgent) {
@@ -135,6 +135,33 @@ export class Graph {
       throw new GraphError('E08GI110', 'Graph.constructor');
     }
     this.checkpointer = pg_checkpointer;
+  }
+
+  async initialize(): Promise<CompiledStateGraph<any, any, any, any, any>> {
+    try {
+      // Get agent configuration
+      this.agentConfig = this.snakAgent.getAgentConfig();
+      if (!this.agentConfig) {
+        throw new GraphError('E08GI140', 'Graph.initialize');
+      }
+
+      // Initialize database
+      await initializeDatabase(this.snakAgent.getDatabaseCredentials());
+      this.toolsList = await initializeToolsList(this.agentConfig);
+      // Initialize RAG agent if enabled
+      if (this.agentConfig.rag?.enabled !== false) {
+        await this.initializeRagAgent();
+      }
+
+      // Build and compile the workflow
+      const workflow = this.buildWorkflow();
+      const graph = workflow.compile({ checkpointer: this.checkpointer });
+      logger.info('[Agent] Successfully initialized agent');
+      return graph;
+    } catch (error) {
+      logger.error('[Agent] Failed to create agent:', error);
+      throw error;
+    }
   }
   private async initializeRagAgent(): Promise<void> {
     try {
@@ -435,40 +462,10 @@ export class Graph {
     >;
   }
 
-  async initialize(): Promise<CompiledStateGraph<any, any, any, any, any>> {
-    try {
-      // Get agent configuration
-      this.agentConfig = this.snakAgent.getAgentConfig();
-      if (!this.agentConfig) {
-        throw new GraphError('E08GI140', 'Graph.initialize');
-      }
-
-      // Initialize database
-      await initializeDatabase(this.snakAgent.getDatabaseCredentials());
-      this.toolsList = await initializeToolsList(
-        this.snakAgent,
-        this.agentConfig
-      );
-      // Initialize RAG agent if enabled
-      if (this.agentConfig.rag?.enabled !== false) {
-        await this.initializeRagAgent();
-      }
-
-      // Build and compile the workflow
-      const workflow = this.buildWorkflow();
-      const app = workflow.compile({ checkpointer: this.checkpointer });
-      logger.info('[Agent] Successfully initialized agent');
-      return app;
-    } catch (error) {
-      logger.error('[Agent] Failed to create agent:', error);
-      throw error;
-    }
-  }
-
   public updateConfig(
     newConfig: typeof GraphConfigurableAnnotation.State
   ): void {
-    if (!this.app) {
+    if (!this.graph) {
       throw new GraphError('E08GI100', 'Graph.updateConfig');
     }
     this.config = newConfig;

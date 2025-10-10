@@ -4,7 +4,7 @@ import {
   Tool,
   tool,
 } from '@langchain/core/tools';
-import { logger, AgentConfig } from '@snakagent/core';
+import { logger, AgentConfig, supervisorAgentConfig } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { AnyZodObject } from 'zod';
 import { MCP_CONTROLLER } from '@services/mcp/src/mcp.js';
@@ -14,6 +14,7 @@ import {
 } from '../shared/types/tools.types.js';
 import { MemoryToolRegistry } from '@agents/graphs/tools/memory.tool.js';
 import { CoreToolRegistry } from '@agents/graphs/tools/core.tools.js';
+import { getSupervisorConfigTools } from '@agents/operators/supervisor/supervisorTools.js';
 
 export async function initializeMcpTools(
   agentConfig: AgentConfig.Runtime
@@ -43,12 +44,38 @@ export async function initializeMcpTools(
  * @returns Promise resolving to array of tools
  */
 export async function initializeToolsList(
-  snakAgent: SnakAgentInterface,
   agentConfig: AgentConfig.Runtime
 ): Promise<(StructuredTool | Tool | DynamicStructuredTool<AnyZodObject>)[]> {
   let toolsList: (Tool | DynamicStructuredTool<any> | StructuredTool)[] = [];
   const mcpTools = await initializeMcpTools(agentConfig);
   toolsList = [...toolsList, ...mcpTools];
+
+  const isSupervisorAgent =
+    agentConfig.profile?.group === supervisorAgentConfig.profile.group &&
+    agentConfig.profile?.name === supervisorAgentConfig.profile.name;
+
+  if (isSupervisorAgent) {
+    const supervisorTools = getSupervisorConfigTools(agentConfig);
+    for (const tool of supervisorTools) {
+      if (!tool?.name) {
+        logger.warn('Skipping supervisor tool without a name');
+        continue;
+      }
+      const alreadyPresent = toolsList.some((existingTool) => {
+        return existingTool?.name === tool.name;
+      });
+
+      if (!alreadyPresent) {
+        toolsList.push(tool);
+      }
+    }
+  }
+  logger.debug(
+    `toolsList: ${toolsList
+      .map((tool) => tool?.name)
+      .filter(Boolean)
+      .join(', ')}`
+  );
   // Register memory tools
   // const memoryRegistry = new MemoryToolRegistry(agentConfig);
   // toolsList.push(...memoryRegistry.getTools());

@@ -72,3 +72,12 @@ export enum TaskVerifierNode {
   END_GRAPH = 'end_graph',
   END = 'end',
 }
+
+export enum SupervisorNode {
+  SUPERVISOR = 'supervisor',
+  END_GRAPH = 'end_graph',
+  END = 'end',
+  MCP_CONFIGURATION_HELPER = 'mcpConfigurationHelper',
+  SNAK_RAG_AGENT_HELPER = 'snakRagAgentHelper',
+  AGENT_CONFIGURATION_HELPER = 'agentConfigurationHelper',
+}
