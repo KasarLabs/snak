@@ -39,7 +39,12 @@ import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
-import { notify, message, agents, redisAgents } from '@snakagent/database/queries';
+import {
+  notify,
+  message,
+  agents,
+  redisAgents,
+} from '@snakagent/database/queries';
 import { supervisorAgentConfig } from '@snakagent/core';
 
 export interface SupervisorRequestDTO {

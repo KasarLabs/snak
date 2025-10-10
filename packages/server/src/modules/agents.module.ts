@@ -12,6 +12,6 @@ import { SupervisorService } from '../services/supervisor.service.js';
   imports: [ConfigModule],
   providers: [DatabaseService, AgentService, AgentStorage, SupervisorService],
   controllers: [AgentsController, MetricsController, McpController],
-  exports: [DatabaseService, AgentService, AgentStorage, SupervisorService]
+  exports: [DatabaseService, AgentService, AgentStorage, SupervisorService],
 })
 export class AgentsModule {}
