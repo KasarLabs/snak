@@ -109,7 +109,8 @@ export function createAgentTool(
         const { name: uniqueName, note: nameNote } =
           await resolveUniqueAgentName(
             agentConfigData.profile.name,
-            trimmedGroup
+            trimmedGroup,
+            userId
           );
         agentConfigData.profile.name = uniqueName;
         if (nameNote) {
@@ -257,11 +258,12 @@ function parseMcpServers(
 
 async function resolveUniqueAgentName(
   baseName: string,
-  group: string
+  group: string,
+  userId: string
 ): Promise<{ name: string; note?: string }> {
   const query = new Postgres.Query(
-    `SELECT (profile).name FROM agents WHERE (profile)."group" = $1 AND ((profile).name = $2 OR (profile).name LIKE $2 || '-%') ORDER BY LENGTH((profile).name) DESC, (profile).name DESC LIMIT 1`,
-    [group, baseName]
+    `SELECT (profile).name FROM agents WHERE user_id = $1 AND (profile)."group" = $2 AND ((profile).name = $3 OR (profile).name LIKE $3 || '-%') ORDER BY LENGTH((profile).name) DESC, (profile).name DESC LIMIT 1`,
+    [userId, group, baseName]
   );
 
   const result = await Postgres.query<{ name: string }>(query);

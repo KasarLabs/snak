@@ -253,8 +253,12 @@ export class AgentsController {
       }
     }
 
+    if (!agentId) {
+      throw new BadRequestException('Agent ID is required');
+    }
+
     const result = await agents.updateAgentAvatar(
-      agentId!,
+      agentId,
       userId,
       buffer,
       mimetype

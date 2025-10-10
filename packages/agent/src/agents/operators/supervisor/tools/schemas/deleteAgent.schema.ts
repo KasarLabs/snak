@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 import { SelectAgentSchema } from './common.schemas.js';
 
 export const DeleteAgentSchema = SelectAgentSchema.extend({

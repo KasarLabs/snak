@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 import { normalizeNonNegativeNumber } from '../../utils/normalizeAgentValues.js';
 
 export const ListAgentsSchema = z.object({

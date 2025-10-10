@@ -7,12 +7,15 @@ import { logger } from 'starknet';
 
 /**
  * Initializes model instances based on the loaded configuration.
- * @throws {Error} If models configuration is not loaded.
+ * @returns {BaseChatModel | null} Model instance or null if initialization fails.
  */
 export function initializeModels(model: ModelConfig): BaseChatModel | null {
   try {
     if (!model) {
       throw new Error('Model configuration is not defined');
+    }
+    if (!model.provider) {
+      throw new Error('Model provider is not defined');
     }
     let modelInstance: BaseChatModel | null = null;
     const commonConfig = {
@@ -48,7 +51,7 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
     return modelInstance;
   } catch (error) {
     logger.error(
-      `Failed to initialize model ${model.provider}: ${model.model_name}): ${error}`
+      `Failed to initialize model ${model.provider}: ${model.model_name}: ${error}`
     );
     return null;
   }

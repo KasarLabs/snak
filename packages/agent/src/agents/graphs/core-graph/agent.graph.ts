@@ -147,10 +147,7 @@ export class Graph {
 
       // Initialize database
       await initializeDatabase(this.snakAgent.getDatabaseCredentials());
-      this.toolsList = await initializeToolsList(
-        this.snakAgent,
-        this.agentConfig
-      );
+      this.toolsList = await initializeToolsList(this.agentConfig);
       // Initialize RAG agent if enabled
       if (this.agentConfig.rag?.enabled !== false) {
         await this.initializeRagAgent();
