@@ -35,16 +35,6 @@ export enum ExecutionMode {
 }
 
 /**
- * Graph node types
- */
-export enum GraphNode {
-  PLANNING_ORCHESTRATOR = 'planning_orchestrator',
-  AGENT_EXECUTOR = 'agent_executor',
-  MEMORY_ORCHESTRATOR = 'memory_orchestrator',
-  END_GRAPH = 'end_graph',
-}
-
-/**
  * Planner node types
  */
 export enum PlannerNode {

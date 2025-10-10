@@ -9,6 +9,7 @@ export { GuardsConfigSchema } from './config/guards/guardsSchema.js';
 export { DatabaseConfigService } from './config/database.config.js';
 export * from './common/constant/default-database.constant.js';
 export * from './common/constant/default-agent.constant.js';
+export * from './common/constant/agents.constants.js';
 export type { RagConfigSize } from './types/rag/ragConfig.js';
 export type { GuardsConfig } from './config/guards/guardsSchema.js';
 export * from './common/server/dto/agents.js';
@@ -36,6 +37,7 @@ export {
   validateRAG,
   validateMCPServers,
   validateIdentifiers,
+  validateAgentQuotas,
   type AgentDatabaseInterface,
 } from './services/agent-validation.service.js';
 

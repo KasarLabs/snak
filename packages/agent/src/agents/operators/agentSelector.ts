@@ -1,5 +1,5 @@
 import { BaseAgent } from '../core/baseAgent.js';
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { SnakAgent } from '../core/snakAgent.js';
 import { agentSelectorPromptContent } from '../../shared/prompts/core/prompts.js';
 import { AgentType } from '@enums/agent-modes.enum.js';
@@ -23,13 +23,12 @@ export class AgentSelector extends BaseAgent {
   constructor(
     agentConfigResolver: AgentConfigResolver,
     agentBuilder: AgentBuilder,
-    model: BaseChatModel
+    agentConfig: AgentConfig.Runtime
   ) {
-    super('agent-selector', AgentType.OPERATOR);
+    super('agent-selector', AgentType.OPERATOR, agentConfig);
     this.agentConfigResolver = agentConfigResolver;
     this.agentBuilder = agentBuilder;
-    this.model = model;
-
+    this.model = agentConfig.graph.model;
     if (!this.model) {
       logger.warn(
         'AgentSelector: No model provided, selection capabilities will be limited'
@@ -97,7 +96,10 @@ export class AgentSelector extends BaseAgent {
           // Build the agent ONLY for the selected config
           const agent = await this.agentBuilder(selectedConfig);
           logger.debug(`AgentSelector: Successfully built agent ${r_trim}`);
-          return agent;
+          if (agent instanceof SnakAgent) {
+            return agent;
+          }
+          throw new Error('Built agent is not an instance of SnakAgent');
         } else {
           logger.warn(
             `AgentSelector: No matching agent found for response "${r_trim}"`

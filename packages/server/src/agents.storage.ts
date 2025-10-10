@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import { DatabaseService } from './services/database.service.js';
-import { Postgres, redisAgents } from '@snakagent/database/queries';
+import { redisAgents, agents } from '@snakagent/database/queries';
 import { RedisClient } from '@snakagent/database/redis';
 import {
   AgentConfig,
@@ -22,15 +22,16 @@ import {
   TASK_MANAGER_SYSTEM_PROMPT,
   TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
+  BaseAgent,
+  SupervisorAgent,
 } from '@snakagent/agents';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatAnthropic } from '@langchain/anthropic';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { initializeModels } from './utils/agents.utils.js';
+import { supervisorAgentConfig } from '@snakagent/core';
 
 const logger = new Logger('AgentStorage');
 
 // Default agent configuration constants
+
 /**
  * Service responsible for managing agent storage, configuration, and lifecycle
  */
@@ -80,11 +81,10 @@ export class AgentStorage implements OnModuleInit {
       logger.error(`Error fetching agent config from Redis: ${error}`);
       // Fallback to PostgreSQL as source of truth
       try {
-        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [
+        const result = await agents.selectAgents('id = $1 AND user_id = $2', [
           id,
           userId,
         ]);
-        const result = await Postgres.query<AgentConfig.OutputWithId>(query);
         return result.length > 0 ? result[0] : null;
       } catch (pgError) {
         logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
@@ -114,8 +114,7 @@ export class AgentStorage implements OnModuleInit {
         logger.debug(
           `Fallback to PostgreSQL as source of truth for user ${userId}`
         );
-        const query = this.agentSelectQuery('user_id = $1', [userId]);
-        return await Postgres.query<AgentConfig.OutputWithId>(query);
+        return await agents.selectAgents('user_id = $1', [userId]);
       } catch (pgError) {
         logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
         throw new Error(
@@ -135,7 +134,7 @@ export class AgentStorage implements OnModuleInit {
   public async getAgentInstance(
     id: string,
     userId: string
-  ): Promise<SnakAgent | undefined> {
+  ): Promise<BaseAgent | undefined> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -156,11 +155,10 @@ export class AgentStorage implements OnModuleInit {
       logger.error(`Error getting agent instance from Redis: ${error}`);
       // Fallback to PostgreSQL as source of truth
       try {
-        const query = this.agentSelectQuery('id = $1 AND user_id = $2', [
+        const result = await agents.selectAgents('id = $1 AND user_id = $2', [
           id,
           userId,
         ]);
-        const result = await Postgres.query<AgentConfig.OutputWithId>(query);
         if (result.length > 0) {
           const agentConfig = result[0];
           // Create SnakAgent from config
@@ -191,35 +189,22 @@ export class AgentStorage implements OnModuleInit {
     if (!userId || userId.length === 0) {
       throw new Error('User ID is required to fetch model configuration');
     }
-    const query = new Postgres.Query(
-      `SELECT
-      (model).model_provider as "provider",
-      (model).model_name as "model_name",
-      (model).temperature as "temperature",
-      (model).max_tokens as "max_tokens"
-      FROM models_config WHERE user_id = $1`,
-      [userId]
-    );
-    const result = await Postgres.query<ModelConfig>(query);
-    if (result.length === 0) {
-      const create_q = new Postgres.Query(
-        'INSERT INTO models_config (user_id,model) VALUES ($1,ROW($2, $3, $4, $5)::model_config)',
-        [
-          userId,
-          DEFAULT_AGENT_MODEL.provider,
-          DEFAULT_AGENT_MODEL.model_name,
-          DEFAULT_AGENT_MODEL.temperature,
-          DEFAULT_AGENT_MODEL.max_tokens,
-        ]
+    const result = await agents.getModelFromUser(userId);
+    if (!result) {
+      await agents.createModelConfig(
+        userId,
+        DEFAULT_AGENT_MODEL.provider,
+        DEFAULT_AGENT_MODEL.model_name,
+        DEFAULT_AGENT_MODEL.temperature,
+        DEFAULT_AGENT_MODEL.max_tokens
       );
-      await Postgres.query(create_q);
-      const new_r = await Postgres.query<ModelConfig>(query);
-      if (new_r.length <= 0) {
+      const new_r = await agents.getModelFromUser(userId);
+      if (!new_r) {
         throw new Error(`No user found with ID: ${userId}`);
       }
-      return new_r[0];
+      return new_r;
     }
-    return result[0];
+    return result;
   }
 
   public isInitialized(): boolean {
@@ -244,15 +229,13 @@ export class AgentStorage implements OnModuleInit {
     const baseName = agentConfig.profile.name;
 
     let finalName = baseName;
-    const nameCheckQuery = new Postgres.Query(
-      `SELECT (profile).name FROM agents WHERE (profile)."group" = $1 AND ((profile).name = $2 OR (profile).name LIKE $2 || '-%') ORDER BY LENGTH((profile).name) DESC, (profile).name DESC LIMIT 1`,
-      [agentConfig.profile.group, baseName]
+    const nameCheckResult = await agents.checkAgentNameExists(
+      userId,
+      baseName,
+      agentConfig.profile.group
     );
-    const nameCheckResult = await Postgres.query<{ name: string }>(
-      nameCheckQuery
-    );
-    if (nameCheckResult.length > 0) {
-      const existingName = nameCheckResult[0].name;
+    if (nameCheckResult) {
+      const existingName = nameCheckResult.name;
       if (existingName === baseName) {
         finalName = `${baseName}-1`;
       } else {
@@ -277,16 +260,16 @@ export class AgentStorage implements OnModuleInit {
 
     agentConfig.prompts_id = prompt_id;
     agentConfig.profile.name = finalName;
-    await this.agentValidationService.validateAgent(agentConfig, true);
-    const q = new Postgres.Query(
-      'SELECT * FROM insert_agent_from_json($1, $2)',
-      [userId, JSON.stringify(agentConfig)]
+    await this.agentValidationService.validateAgent(
+      { ...agentConfig, user_id: userId },
+      true
     );
-    const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
+    const newAgentDbRecord = await agents.insertAgentFromJson(
+      userId,
+      agentConfig
+    );
 
-    if (q_res.length > 0) {
-      const newAgentDbRecord = q_res[0];
-
+    if (newAgentDbRecord) {
       // Save to Redis
       try {
         await redisAgents.saveAgent(newAgentDbRecord);
@@ -314,11 +297,7 @@ export class AgentStorage implements OnModuleInit {
       await this.initialize();
     }
 
-    const q = new Postgres.Query(
-      `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
-      [id, userId]
-    );
-    const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
+    const q_res = await agents.deleteAgent(id, userId);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
     // Delete from Redis
@@ -345,9 +324,7 @@ export class AgentStorage implements OnModuleInit {
     }
 
     try {
-      const q = new Postgres.Query(`SELECT COUNT(*) as count FROM agents`);
-      const result = await Postgres.query<{ count: string }>(q);
-      return parseInt(result[0].count, 10);
+      return await agents.getTotalAgentsCount();
     } catch (error) {
       logger.error('Error getting total agents count:', error);
       throw error;
@@ -365,12 +342,7 @@ export class AgentStorage implements OnModuleInit {
     }
 
     try {
-      const q = new Postgres.Query(
-        `SELECT COUNT(*) as count FROM agents WHERE user_id = $1`,
-        [userId]
-      );
-      const result = await Postgres.query<{ count: string }>(q);
-      return parseInt(result[0].count, 10);
+      return await agents.getUserAgentsCount(userId);
     } catch (error) {
       logger.error(`Error getting agents count for user ${userId}:`, error);
       throw error;
@@ -393,25 +365,6 @@ export class AgentStorage implements OnModuleInit {
 
     // If not initialized and no promise exists, trigger initialization
     return this.initialize();
-  }
-
-  /* ==================== PRIVATE HELPER METHODS ==================== */
-
-  /**
-   * Create a PostgreSQL query for selecting agent data
-   * @private
-   * @param whereClause - The WHERE clause for the query
-   * @param params - Parameters for the query
-   * @returns Postgres.Query - The constructed query
-   */
-  private agentSelectQuery(whereClause: string, params: any[]): Postgres.Query {
-    return new Postgres.Query(
-      `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
-       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
-       created_at, updated_at, avatar_image, avatar_mime_type
-       FROM agents WHERE ${whereClause}`,
-      params
-    );
   }
 
   /* ==================== PRIVATE INITIALIZATION METHODS ==================== */
@@ -441,7 +394,7 @@ export class AgentStorage implements OnModuleInit {
         temperature: parseFloat(process.env.DEFAULT_TEMPERATURE ?? '0.7'),
         max_tokens: parseInt(process.env.DEFAULT_MAX_TOKENS ?? '4096'),
       };
-      const modelInstance = this.initializeModels(model);
+      const modelInstance = initializeModels(model);
       if (!modelInstance || modelInstance.bindTools === undefined) {
         throw new Error('Failed to initialize model for AgentSelector');
       }
@@ -463,9 +416,7 @@ export class AgentStorage implements OnModuleInit {
             logger.debug(
               `agentConfigResolver: Fallback to PostgreSQL as source of truth for user ${userId}`
             );
-            const query = this.agentSelectQuery('user_id = $1', [userId]);
-            const result =
-              await Postgres.query<AgentConfig.OutputWithId>(query);
+            const result = await agents.selectAgents('user_id = $1', [userId]);
             logger.debug(
               `agentConfigResolver: Found ${result.length} configs from PostgreSQL for user ${userId}`
             );
@@ -484,7 +435,7 @@ export class AgentStorage implements OnModuleInit {
       // Create agent builder function that builds a SnakAgent from a config
       const agentBuilder = async (
         agentConfig: AgentConfig.OutputWithId
-      ): Promise<SnakAgent> => {
+      ): Promise<BaseAgent> => {
         try {
           logger.debug(`agentBuilder: Building agent ${agentConfig.id}`);
           return await this.createSnakAgentFromConfig(agentConfig);
@@ -496,13 +447,6 @@ export class AgentStorage implements OnModuleInit {
           throw error;
         }
       };
-
-      this.agentSelector = new AgentSelector(
-        agentConfigResolver,
-        agentBuilder,
-        modelInstance
-      );
-      await this.agentSelector.init();
     } catch (error) {
       // Reset promise on failure so we can retry
       this.initializationPromise = null;
@@ -550,23 +494,7 @@ export class AgentStorage implements OnModuleInit {
   private async init_agents_config() {
     try {
       logger.debug('Initializing agents configuration');
-      const q = new Postgres.Query(`
-        SELECT
-          id,
-          user_id,
-          row_to_json(profile) as profile,
-          mcp_servers as "mcp_servers",
-          prompts_id,
-          row_to_json(graph) as graph,
-          row_to_json(memory) as memory,
-          row_to_json(rag) as rag,
-          created_at,
-          updated_at,
-          avatar_image,
-          avatar_mime_type
-        FROM agents
-      `);
-      const q_res = await Postgres.query<AgentConfig.OutputWithId>(q);
+      const q_res = await agents.getAllAgents();
 
       // Sync all agents to Redis
       logger.debug(`Syncing ${q_res.length} agents to Redis`);
@@ -602,7 +530,7 @@ export class AgentStorage implements OnModuleInit {
 
   private async createSnakAgentFromConfig(
     agentConfig: AgentConfig.OutputWithId
-  ): Promise<SnakAgent> {
+  ): Promise<BaseAgent> {
     try {
       const starknetConfig: StarknetConfig = {
         provider: this.config.starknet.provider,
@@ -611,7 +539,7 @@ export class AgentStorage implements OnModuleInit {
       };
 
       const model = await this.getModelFromUser(agentConfig.user_id);
-      const modelInstance = this.initializeModels(model);
+      const modelInstance = initializeModels(model);
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
       }
@@ -631,7 +559,15 @@ export class AgentStorage implements OnModuleInit {
           model: modelInstance,
         },
       };
-
+      if (
+        AgentConfigRuntime.profile.group ===
+          supervisorAgentConfig.profile.group &&
+        AgentConfigRuntime.profile.name === supervisorAgentConfig.profile.name
+      ) {
+        const supervisorAgent = new SupervisorAgent(AgentConfigRuntime);
+        await supervisorAgent.init();
+        return supervisorAgent;
+      }
       const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
       await snakAgent.init();
 
@@ -639,55 +575,6 @@ export class AgentStorage implements OnModuleInit {
     } catch (error) {
       logger.error(`Error creating SnakAgent from config:`, error);
       throw error;
-    }
-  }
-
-  /**
-   * Initializes model instances based on the loaded configuration.
-   * @throws {Error} If models configuration is not loaded.
-   */
-  protected initializeModels(model: ModelConfig): BaseChatModel | null {
-    try {
-      if (!model) {
-        throw new Error('Model configuration is not defined');
-      }
-      let modelInstance: BaseChatModel | null = null;
-      const commonConfig = {
-        modelName: model.model_name,
-        verbose: false,
-        temperature: model.temperature,
-      };
-      switch (model.provider.toLowerCase()) {
-        case 'openai':
-          modelInstance = new ChatOpenAI({
-            ...commonConfig,
-            openAIApiKey: process.env.OPENAI_API_KEY,
-          });
-          break;
-        case 'anthropic':
-          modelInstance = new ChatAnthropic({
-            ...commonConfig,
-            anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-          });
-          break;
-        case 'gemini':
-          modelInstance = new ChatGoogleGenerativeAI({
-            model: model.model_name, // Updated to valid Gemini model name
-            verbose: false,
-            temperature: model.temperature,
-            apiKey: process.env.GEMINI_API_KEY,
-          });
-          break;
-        // Add case for 'deepseek' if a Langchain integration exists or becomes available
-        default:
-          throw new Error('No valid model provided');
-      }
-      return modelInstance;
-    } catch (error) {
-      logger.error(
-        `Failed to initialize model ${model.provider}: ${model.model_name}): ${error}`
-      );
-      return null;
     }
   }
 
@@ -701,42 +588,24 @@ export class AgentStorage implements OnModuleInit {
     promptId: string
   ): Promise<AgentPromptsInitialized<string> | null> {
     try {
-      const query = new Postgres.Query(
-        `SELECT json_build_object(
-          'task_executor_prompt', task_executor_prompt,
-          'task_manager_prompt', task_manager_prompt,
-          'task_verifier_prompt', task_verifier_prompt,
-          'task_memory_manager_prompt', task_memory_manager_prompt
-        ) as prompts_json
-         FROM prompts
-         WHERE id = $1`,
-        [promptId]
-      );
+      const promptData = await agents.getPromptsById(promptId);
 
-      const result = await Postgres.query<{
-        prompts_json: AgentPromptsInitialized<string>;
-      }>(query);
-
-      if (result.length === 0) {
+      if (!promptData) {
         logger.warn(`No prompts found for ID: ${promptId}`);
         return null;
       }
 
-      const promptData = result[0].prompts_json;
       // Validate that we have valid prompt data
-      if (!promptData || typeof promptData !== 'object') {
+      if (typeof promptData !== 'object') {
         logger.warn(`Invalid prompt data structure for ID: ${promptId}`);
         return null;
       }
 
       // Parse to proper format and return as SystemMessage objects
-      // The type suggests it should have camelCase properties
       return {
         task_executor_prompt: promptData.task_executor_prompt,
-
         task_manager_prompt: promptData.task_manager_prompt,
         task_memory_manager_prompt: promptData.task_memory_manager_prompt,
-
         task_verifier_prompt: promptData.task_verifier_prompt,
       };
     } catch (error) {
@@ -748,50 +617,29 @@ export class AgentStorage implements OnModuleInit {
   private async initializeDefaultPrompts(userId: string): Promise<string> {
     try {
       // First, check if prompts already exist for this user
-      const existingQuery = new Postgres.Query(
-        `SELECT id FROM prompts WHERE user_id = $1 LIMIT 1`,
-        [userId]
-      );
-      const existing = await Postgres.query<{ id: string }>(existingQuery);
+      const existing = await agents.getExistingPromptsForUser(userId);
 
-      if (existing.length > 0) {
+      if (existing) {
         logger.debug(
           `Default prompts already exist for user ${userId}, returning existing ID`
         );
-        return existing[0].id;
+        return existing.id;
       }
 
       // Insert new default prompts for the user
-      const insertQuery = new Postgres.Query(
-        `INSERT INTO prompts (
-          user_id,
-          task_executor_prompt,
-          task_manager_prompt,
-          task_verifier_prompt,
-          task_memory_manager_prompt,
-          public
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id`,
-        [
-          userId,
-          TASK_EXECUTOR_SYSTEM_PROMPT,
-          TASK_MANAGER_SYSTEM_PROMPT,
-          TASK_VERIFIER_SYSTEM_PROMPT,
-          TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-          false,
-        ]
+      const promptId = await agents.createDefaultPrompts(
+        userId,
+        TASK_EXECUTOR_SYSTEM_PROMPT,
+        TASK_MANAGER_SYSTEM_PROMPT,
+        TASK_VERIFIER_SYSTEM_PROMPT,
+        TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+        false
       );
 
-      const result = await Postgres.query<{ id: string }>(insertQuery);
-      if (result.length > 0) {
-        const promptId = result[0].id;
-        logger.debug(
-          `Default prompts created successfully for user ${userId} with ID: ${promptId}`
-        );
-        return promptId;
-      } else {
-        throw new Error('Failed to create default prompts - no ID returned');
-      }
+      logger.debug(
+        `Default prompts created successfully for user ${userId} with ID: ${promptId}`
+      );
+      return promptId;
     } catch (error) {
       logger.error('Failed to initialize default prompts:', error);
       throw error;
@@ -804,7 +652,7 @@ export class AgentStorage implements OnModuleInit {
    * @param isCreation - Whether this is for creation (true) or update (false)
    */
   async validateAgent(
-    agentConfig: AgentConfig.Input | AgentConfig.WithOptionalParam,
+    agentConfig: AgentConfig.Input | AgentConfig.InputWithOptionalParam,
     isCreation: boolean = false
   ): Promise<void> {
     if (!this.initialized) {

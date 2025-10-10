@@ -4,7 +4,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { getUserIdFromHeaders } from './index.js';
 import { getUserIdFromSocketHeaders } from './headers.js';
 import { AgentStorage } from '../agents.storage.js';
-import { SnakAgent } from '@snakagent/agents';
+import { BaseAgent, SnakAgent } from '@snakagent/agents';
 import { AgentConfig } from '@snakagent/core';
 
 /**
@@ -41,7 +41,7 @@ export class ControllerHelpers {
     agentFactory: AgentStorage,
     agentId: string,
     userId: string
-  ): Promise<SnakAgent> {
+  ): Promise<BaseAgent> {
     const agent = await agentFactory.getAgentInstance(agentId, userId);
     if (!agent) {
       throw new ForbiddenException('Agent not found or access denied');
@@ -80,7 +80,7 @@ export class ControllerHelpers {
     req: FastifyRequest,
     agentFactory: AgentStorage,
     agentId: string
-  ): Promise<{ userId: string; agent: SnakAgent }> {
+  ): Promise<{ userId: string; agent: BaseAgent }> {
     const userId = this.getUserId(req);
     const agent = await this.verifyAgentOwnership(
       agentFactory,
@@ -122,7 +122,7 @@ export class ControllerHelpers {
     client: Socket,
     agentFactory: AgentStorage,
     agentId: string
-  ): Promise<{ userId: string; agent: SnakAgent }> {
+  ): Promise<{ userId: string; agent: BaseAgent }> {
     const userId = this.getUserIdFromSocket(client);
     const agent = await this.verifyAgentOwnership(
       agentFactory,
