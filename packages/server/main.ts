@@ -1,6 +1,40 @@
 // CRITICAL: Initialize Guards BEFORE any other imports that might use getGuardValue
 import './init-guards.js';
 
+// Global handler: Prevent Google Gemini stream errors from killing the process
+// These errors will still propagate to try-catch blocks, but won't crash the app
+process.on('unhandledRejection', (reason: any) => {
+  const errorString = String(reason);
+  const errorMessage = reason?.message || '';
+
+  // Detect any Gemini/GoogleGenerativeAI errors
+  const isGeminiError =
+    reason?.name === 'GoogleGenerativeAIError' ||
+    reason?.constructor?.name === 'GoogleGenerativeAIError' ||
+    errorString.includes('GoogleGenerativeAI') ||
+    errorMessage.includes('Failed to parse stream') ||
+    errorMessage.includes('API error:') ||
+    errorMessage.includes('generativeai.google') ||
+    (reason?.status === 'INTERNAL' && reason?.errorDetails) ||
+    (reason?.code === 500 && reason?.status);
+
+  if (isGeminiError) {
+    console.error('[Gemini Error - Prevented Crash]', {
+      name: reason?.name,
+      message: errorMessage,
+      status: reason?.status,
+      code: reason?.code,
+      stack: reason?.stack?.split('\n').slice(0, 3).join('\n'),
+    });
+    // Don't throw - just log and continue
+    // The error has already been handled by the graph's error handlers
+    return;
+  }
+  // For non-Gemini errors, use default Node.js behavior
+  console.error('Unhandled rejection:', reason);
+  throw reason;
+});
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';

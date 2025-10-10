@@ -1,0 +1,80 @@
+diff --git a/dist/index.js b/dist/index.js
+index 2fe925f220bfdf87321c022705c5bff0de8b6e05..7aef8e9a8092da56c626606e6aa9bb054278e30c 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -730,8 +730,24 @@ function getResponseStream(inputStream) {
+                     .then(({ value, done }) => {
+                     if (done) {
+                         if (currentText.trim()) {
+-                            controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
+-                            return;
++                            // Try to parse as JSON error response (Gemini sends plain JSON for errors)
++                            try {
++                                const errorResponse = JSON.parse(currentText.trim());
++                                if (errorResponse.error) {
++                                    const err = new GoogleGenerativeAIError(`API error: ${errorResponse.error.message || 'Unknown error'}`);
++                                    err.errorDetails = errorResponse.error;
++                                    err.status = errorResponse.error.status;
++                                    err.code = errorResponse.error.code;
++                                    controller.error(err);
++                                    return;
++                                }
++                            } catch (parseError) {
++                                // Not valid JSON, treat as unparsed content
++                                const err = new GoogleGenerativeAIError("Failed to parse stream - received incomplete response");
++                                err.unparsedContent = currentText.trim();
++                                controller.error(err);
++                                return;
++                            }
+                         }
+                         controller.close();
+                         return;
+@@ -762,7 +778,7 @@ function getResponseStream(inputStream) {
+                     else {
+                         err = new GoogleGenerativeAIError("Error reading from the stream");
+                     }
+-                    throw err;
++                    controller.error(err);
+                 });
+             }
+         },
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 6aec979baf268a17a0596c56971f65608bb2c95f..79d79ad1a1abb37fdabc8b7f49347be1a104b1d0 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -728,8 +728,24 @@ function getResponseStream(inputStream) {
+                     .then(({ value, done }) => {
+                     if (done) {
+                         if (currentText.trim()) {
+-                            controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
+-                            return;
++                            // Try to parse as JSON error response (Gemini sends plain JSON for errors)
++                            try {
++                                const errorResponse = JSON.parse(currentText.trim());
++                                if (errorResponse.error) {
++                                    const err = new GoogleGenerativeAIError(`API error: ${errorResponse.error.message || 'Unknown error'}`);
++                                    err.errorDetails = errorResponse.error;
++                                    err.status = errorResponse.error.status;
++                                    err.code = errorResponse.error.code;
++                                    controller.error(err);
++                                    return;
++                                }
++                            } catch (parseError) {
++                                // Not valid JSON, treat as unparsed content
++                                const err = new GoogleGenerativeAIError("Failed to parse stream - received incomplete response");
++                                err.unparsedContent = currentText.trim();
++                                controller.error(err);
++                                return;
++                            }
+                         }
+                         controller.close();
+                         return;
+@@ -760,7 +776,7 @@ function getResponseStream(inputStream) {
+                     else {
+                         err = new GoogleGenerativeAIError("Error reading from the stream");
+                     }
+-                    throw err;
++                    controller.error(err);
+                 });
+             }
+         },

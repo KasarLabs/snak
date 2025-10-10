@@ -369,7 +369,6 @@ $$;
 -- Searches both episodic and semantic memories for relevant information
 CREATE OR REPLACE FUNCTION retrieve_similar_categorized_memories(
     p_user_id VARCHAR(100),
-    p_task_id UUID,
     p_embedding vector(384),
     p_threshold FLOAT,    -- Lower threshold allows broader retrieval
     p_limit INTEGER
@@ -405,7 +404,6 @@ BEGIN
             ) as meta
         FROM semantic_memories sm
         WHERE sm.user_id = p_user_id
-            AND sm.task_id = p_task_id
             AND 1 - (sm.embedding <=> p_embedding) >= p_threshold
     ),
     similar_episodic AS (
@@ -424,7 +422,6 @@ BEGIN
             ) as meta
         FROM episodic_memories em
         WHERE em.user_id = p_user_id
-            AND em.task_id = p_task_id
             AND 1 - (em.embedding <=> p_embedding) >= p_threshold
             AND em.expires_at > NOW()  -- Only non-expired memories
     )
