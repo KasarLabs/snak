@@ -74,11 +74,31 @@ export function updateMcpServerTool(
         const notFound: string[] = [];
         const updateDetails: Record<string, { old: any; new: any }> = {};
 
+        // Convert array to Record<string, McpServerConfig>
+        const mcpServersRecord: Record<string, McpServerConfig> = {};
+        for (const server of input.mcp_servers) {
+          const { name, env, ...serverConfig } = server;
+
+          // Convert env array to Record<string, string>
+          let envRecord: Record<string, string> | undefined;
+          if (env && Array.isArray(env)) {
+            envRecord = {};
+            for (const envEntry of env) {
+              envRecord[envEntry.name] = envEntry.value;
+            }
+          }
+
+          mcpServersRecord[name] = {
+            ...serverConfig,
+            ...(envRecord && { env: envRecord }),
+          };
+        }
+
         // Update the MCP servers
         const updatedMcpServers = { ...currentMcpServers };
         for (const [serverName, serverConfig] of Object.entries(
-          input.mcp_servers
-        ) as [string, McpServerConfig][]) {
+          mcpServersRecord
+        )) {
           if (currentMcpServers[serverName]) {
             const oldConfig = currentMcpServers[serverName];
             // Merge the new configuration with the existing one for partial updates
