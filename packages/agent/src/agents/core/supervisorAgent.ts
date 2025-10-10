@@ -7,13 +7,18 @@ import {
 } from '../../shared/types/streaming.types.js';
 import { createSupervisorGraph } from '@agents/graphs/core-graph/supervisor.graph.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
-import { HumanMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  AIMessageChunk,
+  HumanMessage,
+} from '@langchain/core/messages';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
 import { EventType } from '@enums/event.enums.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { StateSnapshot } from '@langchain/langgraph';
 import {
   getInterruptCommand,
+  getLatestMessageForMessage,
   isInterrupt,
 } from '@agents/graphs/utils/graph.utils.js';
 import { notify } from '@snakagent/database/queries';
@@ -119,14 +124,13 @@ export class SupervisorAgent extends BaseAgent {
    */
   private processChunkOutput(
     chunk: StreamEvent,
-    state: any,
+    state: StateSnapshot,
     user_request: string,
     retryCount: number,
     graphError?: GraphErrorType
   ): ChunkOutput | null {
-    const nodeType = chunk.metadata?.langgraph_node;
+    // For logging purposes
     const eventType = chunk.event;
-
     // Only process chat model start/end events
     if (
       eventType !== EventType.ON_CHAT_MODEL_START &&
@@ -134,13 +138,18 @@ export class SupervisorAgent extends BaseAgent {
     ) {
       return null;
     }
-
+    const nodeType =
+      state.values.messages && state.values.messages.length > 0
+        ? ((getLatestMessageForMessage(state.values.messages, AIMessage)
+            ?.name as SupervisorNode) ?? ('supervisor' as SupervisorNode))
+        : ('supervisor' as SupervisorNode);
+    console.log('nodeType', nodeType);
     return this.createChunkOutput(
       chunk,
       state,
       user_request,
       retryCount,
-      SupervisorNode.SUPERVISOR
+      nodeType
     );
   }
 

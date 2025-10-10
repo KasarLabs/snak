@@ -21,7 +21,14 @@ import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
 import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
+import { Annotation, messagesStateReducer } from '@langchain/langgraph';
 
+const SupervisorStateAnnotation = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
 export class SupervisorGraph {
   private graph: CompiledStateGraph<any, any, any, any, any> | null = null;
   private checkpointer: PostgresSaver;
@@ -77,7 +84,7 @@ export class SupervisorGraph {
     const transformedMessages = messages.map((msg: BaseMessage) => {
       // Check if message has a 'name' property that's not standard
       const messageName = msg.name;
-      const msgType = msg._getType();
+      const msgType = msg.getType();
 
       // If it's an AI message with a custom name, we need to handle it
       if (messageName && msgType === 'ai') {
@@ -93,7 +100,7 @@ export class SupervisorGraph {
           invalid_tool_calls: (msg as any).invalid_tool_calls || [],
           additional_kwargs: {
             ...msg.additional_kwargs,
-            agent_name: messageName, // Preserve in metadata
+            from: messageName, // Preserve in metadata
           },
           response_metadata: msg.response_metadata,
         });
@@ -103,6 +110,29 @@ export class SupervisorGraph {
     });
 
     return { llmInputMessages: transformedMessages };
+  }
+
+  private addAditionalKwargsToMessage(
+    state: typeof SupervisorStateAnnotation.State
+  ): {
+    messages: BaseMessage[];
+  } {
+    const messages = state.messages || [];
+    if (!messages || messages.length === 0) {
+      return { messages: [] };
+    }
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.getType() !== 'ai') {
+      return { messages };
+    }
+    const agentName = lastMessage.name;
+    lastMessage.additional_kwargs = {
+      ...lastMessage.additional_kwargs,
+      agent_name: agentName,
+    };
+    const updatedMessages = [...messages.slice(0, -1), lastMessage];
+
+    return { messages: updatedMessages };
   }
 
   private async buildWorkflow(): Promise<StateGraph<any, any, any, any, any>> {
@@ -127,6 +157,7 @@ export class SupervisorGraph {
       name: 'agentConfigurationHelper',
       prompt: formattedAgentConfigurationHelperPrompt,
       // Apply the same transformation to the sub-agent
+      stateSchema: SupervisorStateAnnotation,
       preModelHook: this.transformMessagesHook.bind(this),
     });
 
@@ -140,6 +171,7 @@ export class SupervisorGraph {
       tools: [],
       name: 'mcpConfigurationHelper',
       prompt: formattedMcpConfigurationHelperPrompt,
+      stateSchema: SupervisorStateAnnotation,
       preModelHook: this.transformMessagesHook.bind(this),
     });
 
@@ -149,6 +181,7 @@ export class SupervisorGraph {
       name: 'snakRagAgentHelper',
       prompt:
         'You are an expert RAG agent configuration assistant. Your task is to help users create and modify RAG agent configurations based on their requirements. Always ensure that the configurations adhere to best practices and are optimized for performance.',
+      stateSchema: SupervisorStateAnnotation,
       preModelHook: this.transformMessagesHook.bind(this),
     });
     const supervisorPrompt = ChatPromptTemplate.fromMessages([
@@ -158,6 +191,7 @@ export class SupervisorGraph {
       current_date: formattedDate,
     });
     const workflow = createSupervisor({
+      supervisorName: 'supervisor',
       agents: [
         agentConfigurationHelper,
         mcpConfigurationHelper,
@@ -166,8 +200,10 @@ export class SupervisorGraph {
       tools: getCommunicationHelperTools(),
       llm: this.supervisorConfig.graph.model,
       prompt: formattedSupervisorPrompt,
+      stateSchema: SupervisorStateAnnotation,
       // Apply transformation to the supervisor as well
       preModelHook: this.transformMessagesHook.bind(this),
+      postModelHook: this.addAditionalKwargsToMessage.bind(this),
     });
 
     return workflow;
