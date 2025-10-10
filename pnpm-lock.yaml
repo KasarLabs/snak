@@ -10,7 +10,7 @@ overrides:
 
 patchedDependencies:
   '@google/generative-ai@0.24.1':
-    hash: csng7zju5wj5mpgcyeuxzu2gcy
+    hash: i3bcjqpirsdb2eb5bpzyk2r4pu
     path: patches/@google__generative-ai@0.24.1.patch
 
 importers:
@@ -8216,7 +8216,7 @@ snapshots:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.2.0
 
-  '@google/generative-ai@0.24.1(patch_hash=csng7zju5wj5mpgcyeuxzu2gcy)': {}
+  '@google/generative-ai@0.24.1(patch_hash=i3bcjqpirsdb2eb5bpzyk2r4pu)': {}
 
   '@graphql-typed-document-node/core@3.2.0(graphql@16.11.0)':
     dependencies:
@@ -8799,7 +8799,7 @@ snapshots:
 
   '@langchain/google-genai@0.1.12(@langchain/core@0.3.78(@opentelemetry/api@1.9.0)(openai@4.104.0(encoding@0.1.13)(ws@8.18.3)(zod@3.25.76)))(zod@3.25.76)':
     dependencies:
-      '@google/generative-ai': 0.24.1(patch_hash=csng7zju5wj5mpgcyeuxzu2gcy)
+      '@google/generative-ai': 0.24.1(patch_hash=i3bcjqpirsdb2eb5bpzyk2r4pu)
       '@langchain/core': 0.3.78(@opentelemetry/api@1.9.0)(openai@4.104.0(encoding@0.1.13)(ws@8.18.3)(zod@3.25.76))
       zod-to-json-schema: 3.24.6(zod@3.25.76)
     transitivePeerDependencies:
@@ -8807,7 +8807,7 @@ snapshots:
 
   '@langchain/google-genai@0.2.18(@langchain/core@0.3.78(@opentelemetry/api@1.9.0)(openai@4.104.0(encoding@0.1.13)(ws@8.18.3)(zod@3.25.76)))':
     dependencies:
-      '@google/generative-ai': 0.24.1(patch_hash=csng7zju5wj5mpgcyeuxzu2gcy)
+      '@google/generative-ai': 0.24.1(patch_hash=i3bcjqpirsdb2eb5bpzyk2r4pu)
       '@langchain/core': 0.3.78(@opentelemetry/api@1.9.0)(openai@4.104.0(encoding@0.1.13)(ws@8.18.3)(zod@3.25.76))
       uuid: 11.1.0
 
