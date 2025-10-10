@@ -1,5 +1,5 @@
 import { StructuredTool } from '@langchain/core/tools';
-import { MultiServerMCPClient } from 'snak-mcps';
+import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { AgentConfig, logger } from '@snakagent/core';
 
 /**
@@ -51,23 +51,17 @@ export class MCP_CONTROLLER {
 
   /**
    * @private
+   * @async
    * @function parseTools
    * @description Parses and collects tools from all connected MCP servers
    * @returns {void}
    * @throws {Error} Throws an error if tools cannot be retrieved
    */
-  private parseTools = () => {
+  private parseTools = async () => {
     try {
-      const raw_tools = this.client.getTools();
-      if (!raw_tools) {
-        throw new Error('No tools found');
-      }
-      const tools_array = Array.from(raw_tools.values());
-      for (const tools of tools_array) {
-        for (const tool of tools) {
-          this.tools.push(tool);
-        }
-      }
+      const tools = await this.client.getTools();
+      this.tools = tools;
+      logger.info(`Parsed ${tools.length} tools from MCP servers`);
     } catch (error) {
       throw new Error(`Error getting tools: ${error}`);
     }

@@ -1,3 +1,4 @@
+/* *** Depracted *** */
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getGuardValue, logger } from '@snakagent/core';
