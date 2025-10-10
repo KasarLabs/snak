@@ -48,7 +48,7 @@ jobs:
       - name: Build and push Docker image for snak-api
         uses: docker/build-push-action@v6
         with:
-          context: ./packages/server
+          context: .
           file: ./packages/server/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64
