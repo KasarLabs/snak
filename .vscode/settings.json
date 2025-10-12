@@ -1,0 +1,16 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "snak",
+            "group": "snak",
+            "database": "postgres",
+            "username": "admin",
+            "password": "admin"
+        }
+    ]
+}
