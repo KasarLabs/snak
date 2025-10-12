@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigurationService } from '../config/configuration.js';
 import { DatabaseService } from './services/database.service.js';
+import { SupervisorService } from './services/supervisor.service.js';
 import { redisAgents, agents } from '@snakagent/database/queries';
 import { RedisClient } from '@snakagent/database/redis';
 import {
@@ -26,7 +27,6 @@ import {
   SupervisorAgent,
 } from '@snakagent/agents';
 import { initializeModels } from './utils/agents.utils.js';
-import { supervisorAgentConfig } from '@snakagent/core';
 
 const logger = new Logger('AgentStorage');
 
@@ -44,7 +44,8 @@ export class AgentStorage implements OnModuleInit {
 
   constructor(
     private readonly config: ConfigurationService,
-    private readonly databaseService: DatabaseService
+    private readonly databaseService: DatabaseService,
+    private readonly supervisorService: SupervisorService
   ) {
     this.agentValidationService = new AgentValidationService(this);
   }
@@ -447,6 +448,10 @@ export class AgentStorage implements OnModuleInit {
           throw error;
         }
       };
+
+      // const agentSelectorConfigWithModel = await this.createAgentConfigRuntimeFromOutputWithId({...agentSelectorConfig, user_id : user_}) TODO UPDATE THIS WITH AGENT SELECTOR CONFIG
+      // this.agentSelector = new AgentSelector(agentConfigResolver, agentBuilder);
+      // await this.agentSelector.init();
     } catch (error) {
       // Reset promise on failure so we can retry
       this.initializationPromise = null;
@@ -526,6 +531,40 @@ export class AgentStorage implements OnModuleInit {
     }
   }
 
+  private async createAgentConfigRuntimeFromOutputWithId(
+    agentConfigOutputWithId: AgentConfig.OutputWithId
+  ): Promise<AgentConfig.Runtime | undefined> {
+    try {
+      const model = await this.getModelFromUser(
+        agentConfigOutputWithId.user_id
+      );
+      const modelInstance = initializeModels(model);
+      if (!modelInstance) {
+        throw new Error('Failed to initialize model for SnakAgent');
+      }
+      const promptsFromDb = await this.getPromptsFromDatabase(
+        agentConfigOutputWithId.prompts_id
+      );
+      if (!promptsFromDb) {
+        throw new Error(
+          `Failed to load prompts for agent ${agentConfigOutputWithId.id}, prompts ID: ${agentConfigOutputWithId.prompts_id}`
+        );
+      }
+      const AgentConfigRuntime: AgentConfig.Runtime = {
+        ...agentConfigOutputWithId,
+        prompts: promptsFromDb,
+        graph: {
+          ...agentConfigOutputWithId.graph,
+          model: modelInstance,
+        },
+      };
+      return AgentConfigRuntime;
+    } catch (error) {
+      logger.error('Agent configuration validation failed:', error);
+      throw error;
+    }
+  }
+
   /* ==================== PRIVATE AGENT CREATION METHODS ==================== */
 
   private async createSnakAgentFromConfig(
@@ -537,33 +576,14 @@ export class AgentStorage implements OnModuleInit {
         accountPrivateKey: this.config.starknet.privateKey,
         accountPublicKey: this.config.starknet.publicKey,
       };
-
-      const model = await this.getModelFromUser(agentConfig.user_id);
-      const modelInstance = initializeModels(model);
-      if (!modelInstance) {
-        throw new Error('Failed to initialize model for SnakAgent');
-      }
-      const promptsFromDb = await this.getPromptsFromDatabase(
-        agentConfig.prompts_id
-      );
-      if (!promptsFromDb) {
+      const AgentConfigRuntime =
+        await this.createAgentConfigRuntimeFromOutputWithId(agentConfig);
+      if (!AgentConfigRuntime) {
         throw new Error(
-          `Failed to load prompts for agent ${agentConfig.id}, prompts ID: ${agentConfig.prompts_id}`
+          `Failed to create runtime config for agent ${agentConfig.id}`
         );
       }
-      const AgentConfigRuntime: AgentConfig.Runtime = {
-        ...agentConfig,
-        prompts: promptsFromDb,
-        graph: {
-          ...agentConfig.graph,
-          model: modelInstance,
-        },
-      };
-      if (
-        AgentConfigRuntime.profile.group ===
-          supervisorAgentConfig.profile.group &&
-        AgentConfigRuntime.profile.name === supervisorAgentConfig.profile.name
-      ) {
+      if (this.supervisorService.isSupervisorConfig(AgentConfigRuntime)) {
         const supervisorAgent = new SupervisorAgent(AgentConfigRuntime);
         await supervisorAgent.init();
         return supervisorAgent;

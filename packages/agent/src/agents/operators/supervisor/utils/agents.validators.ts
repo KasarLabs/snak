@@ -41,7 +41,7 @@ export function validateAgentProperties(
 ): ValidationResult {
   if (name) {
     const normalizedName = name.trim().toLowerCase();
-    if (normalizedName.includes(RESERVED_NAME)) {
+    if (normalizedName === RESERVED_NAME) {
       return {
         isValid: false,
         message: `The name ${RESERVED_NAME} is reserved and cannot be used for agents.`,

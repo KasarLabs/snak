@@ -205,7 +205,7 @@ export function updateAgentTool(
           ) {
             const profile = value as AgentProfile;
             updateFields.push(
-              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`
+              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})::agent_profile`
             );
             updateValues.push(profile?.name ?? null);
             updateValues.push(profile?.group ?? null);
@@ -287,7 +287,7 @@ export function updateAgentTool(
           ) {
             const rag = value as AgentConfig.Input['rag'];
             updateFields.push(
-              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1})`
+              `"${key}" = ROW($${paramIndex}, $${paramIndex + 1})::rag_config`
             );
             updateValues.push(rag?.enabled ?? null);
             updateValues.push(rag?.top_k ?? null);
@@ -320,7 +320,26 @@ export function updateAgentTool(
         }
 
         const updateQuery = new Postgres.Query(
-          `UPDATE agents SET ${updateFields.join(', ')} ${whereClause} RETURNING *`,
+          `WITH updated AS (
+            UPDATE agents
+            SET ${updateFields.join(', ')}
+            ${whereClause}
+            RETURNING *
+          )
+          SELECT
+            id,
+            user_id,
+            row_to_json(profile)        AS profile,
+            mcp_servers,
+            prompts_id,
+            row_to_json(graph)          AS graph,
+            row_to_json(memory)         AS memory,
+            row_to_json(rag)            AS rag,
+            created_at,
+            updated_at,
+            avatar_image,
+            avatar_mime_type
+          FROM updated`,
           updateValues
         );
 
@@ -332,7 +351,7 @@ export function updateAgentTool(
 
           // Update Redis cache
           try {
-            await redisAgents.saveAgent(result[0]);
+            await redisAgents.updateAgent(result[0]);
             logger.debug(`Agent ${result[0].id} updated in Redis`);
           } catch (error) {
             logger.error(`Failed to update agent in Redis: ${error}`);

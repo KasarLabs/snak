@@ -77,6 +77,7 @@ export enum SupervisorNode {
   SUPERVISOR = 'supervisor',
   END_GRAPH = 'end_graph',
   END = 'end',
-  AGENT_SWITCHER = 'agent_switcher',
-  CONFIGURATION_AGENT = 'configuration_agent',
+  MCP_CONFIGURATION_HELPER = 'mcpConfigurationHelper',
+  SNAK_RAG_AGENT_HELPER = 'snakRagAgentHelper',
+  AGENT_CONFIGURATION_HELPER = 'agentConfigurationHelper',
 }
