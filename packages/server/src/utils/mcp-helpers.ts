@@ -157,5 +157,3 @@ export async function fetchSmitheryManifest(
     return null;
   }
 }
-
-
