@@ -224,8 +224,12 @@ export class SupervisorAgent extends BaseAgent {
         }
       }
 
-      const startTime = Date.now();
-      if (isInterruptHandle === false) {
+      if (!this.pgCheckpointer) {
+        throw new Error('Checkpointer is not initialized');
+      }
+
+      if (!isInterruptHandle) {
+        const startTime = Date.now();
         const endTime = Date.now();
         const duration = endTime - startTime;
         await this.pgCheckpointer.deleteThread(threadId);

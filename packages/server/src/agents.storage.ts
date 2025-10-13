@@ -432,7 +432,6 @@ export class AgentStorage implements OnModuleInit {
           }
         }
       };
-
     } catch (error) {
       // Reset promise on failure so we can retry
       this.initializationPromise = null;
