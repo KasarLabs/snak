@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
+import { SupervisorService } from '../services/supervisor.service.js';
 import { Reflector } from '@nestjs/core';
 import { ServerError } from '../utils/error.js';
 import {
@@ -32,12 +33,14 @@ import {
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
   MessageRequest,
+  MemoryStrategy,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
-import { SnakAgent } from '@snakagent/agents';
-import { notify, message } from '@snakagent/database/queries';
+import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
+import { notify, message, agents } from '@snakagent/database/queries';
+import { supervisorAgentConfig } from '@snakagent/core';
 
 export interface SupervisorRequestDTO {
   request: {
@@ -64,7 +67,8 @@ export class AgentsController {
   constructor(
     private readonly agentService: AgentService,
     private readonly agentFactory: AgentStorage,
-    private readonly reflector: Reflector
+    private readonly reflector: Reflector,
+    private readonly supervisorService: SupervisorService
   ) {}
 
   /**
@@ -85,6 +89,11 @@ export class AgentsController {
     if (!id) {
       throw new BadRequestException('Agent ID is required');
     }
+
+    await this.supervisorService.validateNotSupervisorForModification(
+      id,
+      userId
+    );
 
     if (!mcp_servers || typeof mcp_servers !== 'object') {
       throw new BadRequestException('MCP servers must be an object');
@@ -110,20 +119,11 @@ export class AgentsController {
       throw new BadRequestException('Agent not found or access denied');
     }
     // Update agent MCP configuration in database
-    const q = new Postgres.Query(
-      `UPDATE agents
-       SET "mcp_servers" = $1::jsonb
-       WHERE id = $2 AND user_id = $3
-       RETURNING id, "mcp_servers"`,
-      [mcp_servers, id, userId]
-    );
+    const updatedAgent = await agents.updateAgentMcp(id, userId, mcp_servers);
 
-    const result = await Postgres.query<UpdateAgentMcpDTO>(q);
-
-    if (result.length === 0) {
+    if (!updatedAgent) {
       throw new BadRequestException('Agent not found');
     }
-    const updatedAgent = result[0];
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
@@ -134,14 +134,17 @@ export class AgentsController {
   @Post('update_agent_config')
   @HandleWithBadRequestPreservation('Update failed')
   async updateAgentConfig(
-    @Body() config: AgentConfig.WithOptionalParam,
+    @Body() config: AgentConfig.InputWithOptionalParam,
     @Req() req: FastifyRequest
   ): Promise<AgentResponse> {
     logger.info('update_agent_config called');
     const userId = ControllerHelpers.getUserId(req);
 
     try {
-      await this.agentFactory.validateAgent(config, false);
+      await this.agentFactory.validateAgent(
+        { ...config, user_id: userId },
+        false
+      );
     } catch (validationError) {
       throw new UnprocessableEntityException(
         `Validation failed: ${validationError.message}`
@@ -155,49 +158,32 @@ export class AgentsController {
     if (!id) {
       throw new BadRequestException('Agent ID is required');
     }
+
+    // Check if the agent is a supervisor agent
+    await this.supervisorService.validateNotSupervisorForModification(
+      id,
+      userId
+    );
+
+    this.supervisorService.validateNotSupervisorAgent(config);
     try {
       // Use the existing update_agent_complete function
-      const query = `
-  SELECT success, message, updated_agent_id
-  FROM update_agent_complete($1::UUID, $2::UUID, $3::JSONB)
-`;
+      const updateResult = await agents.updateAgentComplete(id, userId, config);
 
-      const result = await Postgres.query(
-        new Postgres.Query(query, [
-          id,
-          userId,
-          JSON.stringify(config), // Pass entire config as JSONB
-        ])
-      );
-
-      const updateResult = result[0];
       if (!updateResult.success) {
         throw new BadRequestException(updateResult.message);
       }
 
       // Fetch updated agent
-      const fetchQuery = new Postgres.Query(
-        `SELECT
-          id,
-          row_to_json(profile) as profile,
-          mcp_servers,
-          prompts_id,
-          row_to_json(graph) as graph,
-          row_to_json(memory) as memory,
-          row_to_json(rag) as rag,
-          created_at,
-          updated_at,
-          avatar_image,
-          avatar_mime_type
-        FROM agents WHERE id = $1 AND user_id = $2`,
-        [id, userId]
-      );
-      const agent =
-        await Postgres.query<AgentConfig.OutputWithoutUserId>(fetchQuery);
+      const agent = await agents.getAgentById(id, userId);
+
+      if (!agent) {
+        throw new BadRequestException('Agent not found after update');
+      }
 
       return {
         status: 'success',
-        data: agent[0],
+        data: agent,
       };
     } catch (error) {
       logger.error('Error in updateAgentConfig:', {
@@ -267,24 +253,25 @@ export class AgentsController {
       }
     }
 
-    const q = new Postgres.Query(
-      `UPDATE agents
-			 SET avatar_image = $1, avatar_mime_type = $2
-			 WHERE id = $3 AND user_id = $4
-			 RETURNING id, avatar_mime_type`,
-      [buffer, mimetype, agentId, userId]
+    if (!agentId) {
+      throw new BadRequestException('Agent ID is required');
+    }
+
+    const result = await agents.updateAgentAvatar(
+      agentId,
+      userId,
+      buffer,
+      mimetype
     );
 
-    const result = await Postgres.query<AgentAvatarResponseDTO>(q);
-
-    if (result.length === 0) {
+    if (!result) {
       throw new BadRequestException('Agent not found');
     }
     const avatarDataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
 
     return {
       status: 'success',
-      data: result[0],
+      data: result,
       avatarUrl: avatarDataUrl,
     };
   }
@@ -299,7 +286,7 @@ export class AgentsController {
     const userId = ControllerHelpers.getUserId(req);
 
     const route = this.reflector.get('path', this.handleUserRequest);
-    let agent: SnakAgent | undefined = undefined;
+    let agent: BaseAgent | undefined = undefined;
     if (userRequest.request.agent_id === undefined) {
       logger.info(
         'Agent ID not provided in request, Using agent Selector to select agent'
@@ -390,6 +377,8 @@ export class AgentsController {
     logger.info('init_agent called');
     const userId = ControllerHelpers.getUserId(req);
 
+    this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
+
     const newAgentConfig = await this.agentFactory.addAgent(
       userRequest.agent,
       userId
@@ -400,6 +389,46 @@ export class AgentsController {
     return ResponseFormatter.success(
       `Agent ${newAgentConfig.profile.name} added and registered with supervisor`
     );
+  }
+
+  /**
+   * Initialize supervisor agent
+   * Creates a unique supervisor agent for the user if it doesn't exist
+   * @param req - Fastify request object
+   * @returns Promise<AgentResponse> - Response with supervisor agent creation status
+   */
+  @Post('init_supervisor')
+  @HandleErrors('E07TA100')
+  async initSupervisor(@Req() req: FastifyRequest): Promise<AgentResponse> {
+    logger.info('init_supervisor called');
+    const userId = ControllerHelpers.getUserId(req);
+
+    // Check if user already has a supervisor agent
+    const existingSupervisor = await agents.getSupervisorAgent(userId);
+    if (existingSupervisor) {
+      logger.info(`Supervisor agent already exists for user: ${userId}`);
+      return ResponseFormatter.success({
+        message: 'Supervisor agent already exists for this user',
+        agent_id: existingSupervisor.id,
+        agent_name: existingSupervisor.name,
+        is_new: false,
+      });
+    }
+
+    const newAgentConfig = await this.agentFactory.addAgent(
+      supervisorAgentConfig,
+      userId
+    );
+    logger.debug(`Supervisor added for user: ${userId}`);
+
+    metrics.agentConnect();
+
+    return ResponseFormatter.success({
+      message: 'Supervisor agent created successfully for user account',
+      agent_id: newAgentConfig.id,
+      agent_name: newAgentConfig.profile.name,
+      is_new: true,
+    });
   }
 
   /**
@@ -447,6 +476,12 @@ export class AgentsController {
         userRequest.agent_id
       );
 
+    // Check if the agent is a supervisor agent
+    await this.supervisorService.validateNotSupervisorForDeletion(
+      userRequest.agent_id,
+      userId
+    );
+
     await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
     metrics.agentDisconnect();
 
@@ -477,6 +512,22 @@ export class AgentsController {
           agentId,
           userId
         );
+
+        // Check if the agent is a supervisor agent
+        try {
+          await this.supervisorService.validateNotSupervisorForDeletion(
+            agentId,
+            userId
+          );
+        } catch (error) {
+          responses.push(
+            ResponseFormatter.failure(
+              `Cannot delete supervisor agent ${agentId}. Supervisor agents are managed by the system.`
+            )
+          );
+          continue;
+        }
+
         await this.agentFactory.deleteAgent(agentId, userId);
 
         responses.push(

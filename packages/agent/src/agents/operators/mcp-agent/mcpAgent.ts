@@ -2,7 +2,7 @@
 import { BaseAgent } from '../../core/baseAgent.js';
 import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { logger } from '@snakagent/core';
+import { AgentConfig, logger } from '@snakagent/core';
 import { OperatorRegistry } from '../operatorRegistry.js';
 import { getMcpAgentTools } from './mcpAgentTools.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
@@ -23,20 +23,13 @@ export interface MCPAgentConfig {
  */
 export class MCPAgent extends BaseAgent {
   private debug: boolean = false;
-  private llm: BaseChatModel;
   private reactAgent: ReturnType<typeof createReactAgent>;
   private tools: DynamicStructuredTool[];
-  private modelType: string;
 
-  constructor(config: MCPAgentConfig = {}) {
-    super(
-      'mcp-agent',
-      AgentType.OPERATOR,
-      'I specialize in managing MCP (Model Context Protocol) servers and their tools. I can add, remove, update, and list MCP servers and their available tools.'
-    );
+  constructor(config: MCPAgentConfig = {}, agentConfig: AgentConfig.Runtime) {
+    super('mcp-agent', AgentType.OPERATOR, agentConfig);
 
     this.debug = config.debug !== undefined ? config.debug : true;
-    this.modelType = config.modelType || 'smart';
     this.tools = getMcpAgentTools();
 
     if (this.debug) {
@@ -53,15 +46,8 @@ export class MCPAgent extends BaseAgent {
    */
   public async init(): Promise<void> {
     try {
-      const modelSelector = ModelSelector.getInstance();
-      if (!modelSelector) {
-        throw new Error('ModelSelector is not initialized');
-      }
-
-      this.llm = modelSelector.getModels()[this.modelType];
-
       this.reactAgent = createReactAgent({
-        llm: this.llm,
+        llm: this.agentConfig.graph.model,
         tools: this.tools,
         stateModifier: mcpAgentSystemPrompt(),
       });

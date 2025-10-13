@@ -38,7 +38,7 @@ export class AgentValidationService {
    * @public
    */
   public async validateAgent(
-    agent_config: AgentConfig.Input | AgentConfig.WithOptionalParam,
+    agent_config: AgentConfig.Input | AgentConfig.InputWithOptionalParam,
     isCreation: boolean = false,
     databaseInterface?: AgentDatabaseInterface
   ): Promise<void> {
@@ -52,23 +52,7 @@ export class AgentValidationService {
         agent_config.user_id &&
         dbInterface
       ) {
-        // Validate global agent limits
-        const totalAgentsCount = await dbInterface.getTotalAgentsCount();
-        if (totalAgentsCount >= getGuardValue('global.max_agents')) {
-          throw new Error(
-            `Maximum global agent limit reached (${getGuardValue('global.max_agents')}). Cannot create more agents.`
-          );
-        }
-
-        // Validate user-specific agent limits
-        const userAgentsCount = await dbInterface.getUserAgentsCount(
-          agent_config.user_id!
-        );
-        if (userAgentsCount >= getGuardValue('user.max_agents')) {
-          throw new Error(
-            `Maximum user agent limit reached (${getGuardValue('user.max_agents')}). User cannot create more agents.`
-          );
-        }
+        await this.validateAgentQuotas(agent_config.user_id, dbInterface);
       }
 
       // Validate each section using dedicated methods
@@ -603,6 +587,42 @@ export class AgentValidationService {
   }
 
   /**
+   * Validate agent creation quotas (global and user limits)
+   * @param userId - User ID to validate quotas for
+   * @param databaseInterface - Optional database interface for count validations
+   * @throws Error if quotas are exceeded
+   * @public
+   */
+  public async validateAgentQuotas(
+    userId: string,
+    databaseInterface?: AgentDatabaseInterface
+  ): Promise<void> {
+    const dbInterface = databaseInterface || this.databaseInterface;
+
+    if (!dbInterface) {
+      throw new Error(
+        'Database interface is required for quota validation but was not provided'
+      );
+    }
+
+    // Validate global agent limits
+    const totalAgentsCount = await dbInterface.getTotalAgentsCount();
+    if (totalAgentsCount >= getGuardValue('global.max_agents')) {
+      throw new Error(
+        `Maximum global agent limit reached (${getGuardValue('global.max_agents')}). Cannot create more agents.`
+      );
+    }
+
+    // Validate user-specific agent limits
+    const userAgentsCount = await dbInterface.getUserAgentsCount(userId);
+    if (userAgentsCount >= getGuardValue('user.max_agents')) {
+      throw new Error(
+        `Maximum user agent limit reached (${getGuardValue('user.max_agents')}). User cannot create more agents.`
+      );
+    }
+  }
+
+  /**
    * Validate MCP servers configuration
    * @param mcpServers - MCP servers configuration to validate
    * @private
@@ -705,7 +725,7 @@ export class AgentValidationService {
  * @param databaseInterface - Optional database interface for count validations
  */
 export async function validateAgent(
-  agent_config: AgentConfig.Input | AgentConfig.WithOptionalParam,
+  agent_config: AgentConfig.Input | AgentConfig.InputWithOptionalParam,
   isCreation: boolean = false,
   databaseInterface?: AgentDatabaseInterface
 ): Promise<void> {
@@ -773,4 +793,18 @@ export function validateMCPServers(mcpServers: Record<string, any>): void {
 export function validateIdentifiers(agent_config: any): void {
   const validationService = new AgentValidationService();
   validationService.validateIdentifiers(agent_config);
+}
+
+/**
+ * Validate agent creation quotas (global and user limits)
+ * @param userId - User ID to validate quotas for
+ * @param databaseInterface - Optional database interface for count validations
+ * @throws Error if quotas are exceeded
+ */
+export async function validateAgentQuotas(
+  userId: string,
+  databaseInterface?: AgentDatabaseInterface
+): Promise<void> {
+  const validationService = new AgentValidationService(databaseInterface);
+  return validationService.validateAgentQuotas(userId, databaseInterface);
 }

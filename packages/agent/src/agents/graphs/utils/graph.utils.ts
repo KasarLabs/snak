@@ -16,13 +16,13 @@ import {
   TaskType,
 } from '../../../shared/types/index.js';
 import { AgentConfig, logger } from '@snakagent/core';
-import { Command, Graph, task } from '@langchain/langgraph';
+import { Command, Graph, StateSnapshot, task } from '@langchain/langgraph';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   GraphConfigurableAnnotation,
   GraphState,
   GraphStateType,
-} from '../graph.js';
+} from '../core-graph/agent.graph.js';
 import { ToolCallChunk, ToolCall } from '@langchain/core/messages/tool';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -413,4 +413,23 @@ export function getHITLContraintFromTreshold(threshold: number): string | null {
     default:
       return null;
   }
+}
+
+export function isInterrupt(stateSnapshot: StateSnapshot): boolean {
+  if (
+    stateSnapshot.tasks?.length > 0 &&
+    stateSnapshot.tasks[0]?.interrupts?.length > 0
+  ) {
+    const interrupt = stateSnapshot.tasks[0].interrupts[0];
+    logger.info(`[SnakAgent] Interrupt detected: ${interrupt?.value}`);
+    return true;
+  }
+  return false;
+}
+
+export function getInterruptCommand(request: string): Command {
+  const command = new Command({
+    resume: request,
+  });
+  return command;
 }

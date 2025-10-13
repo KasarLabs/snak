@@ -19,12 +19,13 @@ import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import { Postgres } from '@snakagent/database';
 import {
+  BaseAgent,
   ChunkOutput,
   EventType,
   SnakAgent,
   UserRequest,
 } from '@snakagent/agents';
-import { redisAgents } from '@snakagent/database/queries';
+import { redisAgents, agents } from '@snakagent/database/queries';
 import { message } from '@snakagent/database/queries';
 
 @Injectable()
@@ -34,7 +35,7 @@ export class AgentService implements IAgentService {
   constructor(private readonly config: ConfigurationService) {}
 
   async handleUserRequest(
-    agent: SnakAgent,
+    agent: BaseAgent,
     userId: string,
     userRequest: MessageRequest
   ): Promise<AgentExecutionResponse> {
@@ -50,28 +51,43 @@ export class AgentService implements IAgentService {
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 
-      for await (const chunk of agent.execute(user_request)) {
-        if (
-          chunk.event === EventType.ON_CHAT_MODEL_END ||
-          chunk.event === EventType.ON_CHAIN_END
-        ) {
-          const messageId = await message.insert_message(
-            agent.getAgentConfig().id,
-            userId,
-            chunk
-          );
+      const executeResult = agent.execute(user_request);
 
-          this.logger.debug(
-            `Inserted message with ID: ${messageId.toLocaleString()}`
-          );
-          if (EventType.ON_CHAIN_END && chunk.metadata.final === true) {
-            result = chunk;
-            return {
-              status: 'success',
-              data: result,
-            };
+      // Check if the result is an AsyncGenerator
+      if (Symbol.asyncIterator in executeResult) {
+        for await (const chunk of executeResult) {
+          if (
+            chunk.event === EventType.ON_CHAT_MODEL_END ||
+            chunk.event === EventType.ON_CHAIN_END
+          ) {
+            const messageId = await message.insert_message(
+              agent.getAgentConfig().id,
+              userId,
+              chunk
+            );
+
+            this.logger.debug(
+              `Inserted message with ID: ${messageId.toLocaleString()}`
+            );
+            if (
+              chunk.event === EventType.ON_CHAIN_END &&
+              chunk.metadata.final === true
+            ) {
+              result = chunk;
+              return {
+                status: 'success',
+                data: result,
+              };
+            }
           }
         }
+      } else {
+        // Handle Promise case
+        result = await executeResult;
+        return {
+          status: 'success',
+          data: result,
+        };
       }
 
       // If loop completes without returning, throw error
@@ -119,7 +135,7 @@ export class AgentService implements IAgentService {
   }
 
   async *handleUserRequestWebsocket(
-    agent: SnakAgent,
+    agent: BaseAgent,
     userRequest: MessageRequest,
     userId: string
   ): AsyncGenerator<ChunkOutput> {
@@ -132,13 +148,21 @@ export class AgentService implements IAgentService {
         request: userRequest.request || '',
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
-      for await (const chunk of agent.execute(user_request)) {
-        if (chunk.metadata.final === true) {
-          this.logger.debug('SupervisorService: Execution completed');
+
+      const executeResult = agent.execute(user_request);
+
+      // Check if the result is an AsyncGenerator
+      if (Symbol.asyncIterator in executeResult) {
+        for await (const chunk of executeResult) {
+          if (chunk.metadata.final === true) {
+            this.logger.debug('SupervisorService: Execution completed');
+            yield chunk;
+            return;
+          }
           yield chunk;
-          return;
         }
-        yield chunk;
+      } else {
+        throw new Error('Expected an AsyncGenerator from agent.execute()');
       }
     } catch (error: any) {
       this.logger.error('Error processing agent request', {
@@ -172,30 +196,7 @@ export class AgentService implements IAgentService {
     userId: string
   ): Promise<AgentConfig.OutputWithoutUserId[]> {
     try {
-      const q = new Postgres.Query(
-        `
-			SELECT
-			  id,
-			  row_to_json(profile) as profile,
-			  mcp_servers as "mcp_servers",
-			  prompts_id,
-			  row_to_json(graph) as graph,
-			  row_to_json(memory) as memory,
-			  row_to_json(rag) as rag,
-			  CASE
-				WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
-				THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
-				ELSE NULL
-			  END as "avatarUrl",
-			  avatar_mime_type,
-			  created_at,
-			  updated_at
-			FROM agents
-      WHERE user_id = $1
-		  `,
-        [userId]
-      );
-      const res = await Postgres.query<AgentConfig.OutputWithoutUserId>(q);
+      const res = await agents.getAllAgentsByUser(userId);
       return res;
     } catch (error) {
       this.logger.error(error);
@@ -233,11 +234,14 @@ export class AgentService implements IAgentService {
   ): Promise<ChunkOutput[]> {
     try {
       const limit = userRequest.limit_message || 10;
-      const q = new Postgres.Query(
-        `SELECT * FROM get_messages_optimized($1::UUID,$2,$3::UUID,$4,$5,$6)`,
-        [userRequest.agent_id, userRequest.thread_id, userId, false, limit, 0]
+      const res = await agents.getMessagesOptimized(
+        userRequest.agent_id,
+        userRequest.thread_id,
+        userId,
+        false,
+        limit,
+        0
       );
-      const res = await Postgres.query<ChunkOutput>(q);
       this.logger.debug(`All messages:', ${JSON.stringify(res)} `);
       return res;
     } catch (error) {
@@ -248,17 +252,13 @@ export class AgentService implements IAgentService {
 
   async updateModelsConfig(model: UpdateModelConfigDTO, userId: string) {
     try {
-      const q = new Postgres.Query(
-        `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
-        [
-          model.provider,
-          model.modelName,
-          model || 0.7,
-          model.maxTokens || 4096,
-          userId,
-        ]
+      const res = await agents.updateModelConfig(
+        userId,
+        model.provider,
+        model.modelName,
+        model.temperature || 0.7,
+        model.maxTokens || 4096
       );
-      const res = await Postgres.query(q);
       this.logger.debug(`Models config updated:', ${JSON.stringify(res)} `);
     } catch (error) {
       this.logger.error(error);

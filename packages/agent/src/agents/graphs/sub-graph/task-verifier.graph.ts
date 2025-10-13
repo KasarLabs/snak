@@ -8,7 +8,10 @@ import {
 } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { logger } from '@snakagent/core';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import {
+  GraphConfigurableAnnotation,
+  GraphState,
+} from '../core-graph/agent.graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   TaskType,

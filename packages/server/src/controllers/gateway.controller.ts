@@ -2,6 +2,7 @@ import { AgentStorage } from '../agents.storage.js';
 import { AgentService } from '../services/agent.service.js';
 import { ServerError } from '../utils/error.js';
 import { ErrorHandler, ResponseFormatter } from '../utils/error-handler.js';
+import { SupervisorService } from '../services/supervisor.service.js';
 import { ControllerHelpers } from '../utils/controller-helpers.js';
 import {
   MessageBody,
@@ -21,7 +22,7 @@ import {
   WebsocketGetMessagesRequestDTO,
 } from '@snakagent/core';
 import { message } from '@snakagent/database/queries';
-import { EventType, SnakAgent } from '@snakagent/agents';
+import { BaseAgent, EventType, SnakAgent } from '@snakagent/agents';
 import { AgentResponse } from '@snakagent/core';
 
 @WebSocketGateway({
@@ -34,7 +35,8 @@ import { AgentResponse } from '@snakagent/core';
 export class MyGateway {
   constructor(
     private readonly agentService: AgentService,
-    private readonly agentFactory: AgentStorage
+    private readonly agentFactory: AgentStorage,
+    private readonly supervisorService: SupervisorService
   ) {
     logger.info('Gateway initialized');
   }
@@ -56,7 +58,7 @@ export class MyGateway {
         logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
 
         const userId = ControllerHelpers.getUserIdFromSocket(client);
-        let agent: SnakAgent | undefined;
+        let agent: BaseAgent | undefined;
 
         if (userRequest.request.agent_id === undefined) {
           logger.info(
@@ -133,6 +135,12 @@ export class MyGateway {
             userRequest.agent_id
           );
 
+        // Check if the agent is a supervisor agent
+        await this.supervisorService.validateNotSupervisorForModification(
+          userRequest.agent_id,
+          userId
+        );
+
         agent.stop();
         const response: AgentResponse = ResponseFormatter.success(
           `Agent ${userRequest.agent_id} stopped`
@@ -156,6 +164,9 @@ export class MyGateway {
         logger.info('init_agent called');
 
         const userId = ControllerHelpers.getUserIdFromSocket(client);
+
+        this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
+
         await this.agentFactory.addAgent(userRequest.agent, userId);
         const response: AgentResponse = ResponseFormatter.success(
           `Agent ${userRequest.agent.profile.name} added`
@@ -183,6 +194,12 @@ export class MyGateway {
             this.agentFactory,
             userRequest.agent_id
           );
+
+        // Check if the agent is a supervisor agent
+        await this.supervisorService.validateNotSupervisorForDeletion(
+          userRequest.agent_id,
+          userId
+        );
 
         await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
 

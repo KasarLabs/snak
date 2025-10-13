@@ -23,7 +23,10 @@ import {
   MemoryConfig,
   MemoryStrategy,
 } from '@snakagent/core';
-import { GraphConfigurableAnnotation, GraphState } from '../graph.js';
+import {
+  GraphConfigurableAnnotation,
+  GraphState,
+} from '../core-graph/agent.graph.js';
 import { RunnableConfig } from '@langchain/core/runnables';
 import {
   TaskMemoryNode,
@@ -285,7 +288,7 @@ export class MemoryGraph {
       );
 
       logger.debug(
-        `[LTMManager] Generated summary: ${JSON.stringify(summaryResult, null, 2)}`
+        `[LTMManager] Generated memory summary: ${JSON.stringify(summaryResult, null, 2)}`
       );
       // Perform safe memory upsert with improved error handling
       const upsertResult = await this.memoryDBManager.upsertCategorizedMemory(
