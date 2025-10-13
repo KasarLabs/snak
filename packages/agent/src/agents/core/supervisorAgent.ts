@@ -9,7 +9,6 @@ import { createSupervisorGraph } from '@agents/graphs/core-graph/supervisor.grap
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import {
   AIMessage,
-  AIMessageChunk,
   HumanMessage,
 } from '@langchain/core/messages';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
