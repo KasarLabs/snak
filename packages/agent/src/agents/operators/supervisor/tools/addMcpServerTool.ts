@@ -96,9 +96,6 @@ export function addMcpServerTool(
           };
         }
 
-        // Normalize the new MCP servers configuration
-        /**/
-
         // Add the new MCP servers
         const updatedMcpServers = { ...currentMcpServers };
         for (const [serverName, serverConfig] of Object.entries(
