@@ -97,13 +97,12 @@ export function addMcpServerTool(
         }
 
         // Normalize the new MCP servers configuration
-        const { config: normalizedNewServers, appliedDefaults } =
-          normalizeMcpServersConfig(mcpServersRecord);
+        /**/
 
         // Add the new MCP servers
         const updatedMcpServers = { ...currentMcpServers };
         for (const [serverName, serverConfig] of Object.entries(
-          normalizedNewServers
+          mcpServersRecord
         )) {
           if (currentMcpServers[serverName]) {
             alreadyExists.push(serverName);
@@ -112,6 +111,8 @@ export function addMcpServerTool(
             added.push(serverName);
           }
         }
+        const { config: normalizedMcpServers, appliedDefaults } =
+          normalizeMcpServersConfig(updatedMcpServers);
 
         // If no servers were actually added
         if (added.length === 0) {
@@ -143,7 +144,7 @@ export function addMcpServerTool(
             avatar_image,
             avatar_mime_type
           FROM updated`,
-          [updatedMcpServers, agent.id, userId]
+          [normalizedMcpServers, agent.id, userId]
         );
 
         const result =
@@ -186,7 +187,7 @@ export function addMcpServerTool(
               agentName: agent.profile.name,
               addedServers: added,
               alreadyExistingServers: alreadyExists,
-              totalMcpServers: Object.keys(updatedMcpServers).length,
+              totalMcpServers: Object.keys(normalizedMcpServers).length,
               appliedDefaults: appliedDefaults,
             },
           });
