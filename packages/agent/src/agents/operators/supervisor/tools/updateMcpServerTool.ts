@@ -1,9 +1,10 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres } from '@snakagent/database';
+import { Postgres, redisAgents } from '@snakagent/database/queries';
 import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { UpdateMcpServerSchema } from './schemas/mcp.schemas.js';
 import { isProtectedAgent } from '../utils/agents.validators.js';
+import { normalizeMcpServersConfig } from '../utils/normalizeAgentValues.js';
 
 export function updateMcpServerTool(
   agentConfig: AgentConfig.Runtime
@@ -117,6 +118,10 @@ export function updateMcpServerTool(
           }
         }
 
+        // Normalize the complete updated MCP servers configuration
+        const { config: normalizedUpdatedServers, appliedDefaults } =
+          normalizeMcpServersConfig(updatedMcpServers);
+
         if (updated.length === 0) {
           return JSON.stringify({
             success: false,
@@ -126,21 +131,45 @@ export function updateMcpServerTool(
 
         // Update the agent with updated MCP servers
         const updateQuery = new Postgres.Query(
-          `UPDATE agents SET "mcp_servers" = $1 WHERE id = $2 AND user_id = $3
-           RETURNING id, row_to_json(profile) as profile, mcp_servers`,
-          [updatedMcpServers, agent.id, userId]
+          `WITH updated AS (
+            UPDATE agents
+            SET "mcp_servers" = $1
+            WHERE id = $2 AND user_id = $3
+            RETURNING *
+          )
+          SELECT
+            id,
+            user_id,
+            row_to_json(profile)        AS profile,
+            mcp_servers,
+            prompts_id,
+            row_to_json(graph)          AS graph,
+            row_to_json(memory)         AS memory,
+            row_to_json(rag)            AS rag,
+            created_at,
+            updated_at,
+            avatar_image,
+            avatar_mime_type
+          FROM updated`,
+          [normalizedUpdatedServers, agent.id, userId]
         );
 
-        const result = await Postgres.query<{
-          id: string;
-          profile: { name: string };
-          mcp_servers: Record<string, McpServerConfig>;
-        }>(updateQuery);
+        const result =
+          await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
 
         if (result.length > 0) {
           logger.info(
             `Updated MCP server(s) "${updated.join(', ')}" for agent "${agent.profile.name}" successfully for user ${userId}`
           );
+
+          // Update Redis cache
+          try {
+            await redisAgents.updateAgent(result[0]);
+            logger.debug(`Agent ${result[0].id} updated in Redis`);
+          } catch (error) {
+            logger.error(`Failed to update agent in Redis: ${error}`);
+            // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
+          }
 
           const message =
             updated.length === 1
@@ -152,16 +181,22 @@ export function updateMcpServerTool(
               ? ` Note: ${notFound.length} server(s) not found: ${notFound.join(', ')}`
               : '';
 
+          const normalizationMessage =
+            appliedDefaults.length > 0
+              ? ` Note: ${appliedDefaults.join('; ')}`
+              : '';
+
           return JSON.stringify({
             success: true,
-            message: message + warningMessage,
+            message: message + warningMessage + normalizationMessage,
             data: {
               agentId: agent.id,
               agentName: agent.profile.name,
               updatedServers: updated,
               notFoundServers: notFound,
               updateDetails: updateDetails,
-              totalMcpServers: Object.keys(updatedMcpServers).length,
+              totalMcpServers: Object.keys(normalizedUpdatedServers).length,
+              appliedDefaults: appliedDefaults,
             },
           });
         } else {
