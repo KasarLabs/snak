@@ -433,25 +433,6 @@ export class AgentStorage implements OnModuleInit {
         }
       };
 
-      // Create agent builder function that builds a SnakAgent from a config
-      const agentBuilder = async (
-        agentConfig: AgentConfig.OutputWithId
-      ): Promise<BaseAgent> => {
-        try {
-          logger.debug(`agentBuilder: Building agent ${agentConfig.id}`);
-          return await this.createSnakAgentFromConfig(agentConfig);
-        } catch (error) {
-          logger.error(
-            `Failed to build SnakAgent for ${agentConfig.id}:`,
-            error
-          );
-          throw error;
-        }
-      };
-
-      // const agentSelectorConfigWithModel = await this.createAgentConfigRuntimeFromOutputWithId({...agentSelectorConfig, user_id : user_}) TODO UPDATE THIS WITH AGENT SELECTOR CONFIG
-      // this.agentSelector = new AgentSelector(agentConfigResolver, agentBuilder);
-      // await this.agentSelector.init();
     } catch (error) {
       // Reset promise on failure so we can retry
       this.initializationPromise = null;
