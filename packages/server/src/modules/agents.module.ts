@@ -5,12 +5,16 @@ import { AgentsController } from '../controllers/agents.controller.js';
 import { ConfigModule } from '../../config/config.module.js';
 import { MetricsController } from '../controllers/metrics.controller.js';
 import { AgentStorage } from '../agents.storage.js';
+
+import { McpController } from '../controllers/mcp.controller.js';
+
 import { SupervisorService } from '../services/supervisor.service.js';
 
 @Module({
   imports: [ConfigModule],
   providers: [DatabaseService, AgentService, AgentStorage, SupervisorService],
-  controllers: [AgentsController, MetricsController],
+  controllers: [AgentsController, MetricsController, McpController],
+
   exports: [DatabaseService, AgentService, AgentStorage, SupervisorService],
 })
 export class AgentsModule {}
