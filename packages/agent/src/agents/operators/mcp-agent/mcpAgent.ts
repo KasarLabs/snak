@@ -23,16 +23,13 @@ export interface MCPAgentConfig {
  */
 export class MCPAgent extends BaseAgent {
   private debug: boolean = false;
-  private llm: BaseChatModel;
   private reactAgent: ReturnType<typeof createReactAgent>;
   private tools: DynamicStructuredTool[];
-  private modelType: string;
 
   constructor(config: MCPAgentConfig = {}, agentConfig: AgentConfig.Runtime) {
     super('mcp-agent', AgentType.OPERATOR, agentConfig);
 
     this.debug = config.debug !== undefined ? config.debug : true;
-    this.modelType = config.modelType || 'smart';
     this.tools = getMcpAgentTools();
 
     if (this.debug) {

@@ -103,7 +103,10 @@ export class AgentService implements IAgentService {
             this.logger.debug(
               `Inserted message with ID: ${messageId.toLocaleString()}`
             );
-            if (EventType.ON_CHAIN_END && chunk.metadata.final === true) {
+            if (
+              chunk.event === EventType.ON_CHAIN_END &&
+              chunk.metadata.final === true
+            ) {
               result = chunk;
               return {
                 status: 'success',
