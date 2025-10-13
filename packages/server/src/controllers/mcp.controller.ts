@@ -24,6 +24,7 @@ import {
   updateFlagValue,
   normalizeRawMcpConfig,
   fetchSmitheryManifest,
+  formatMcpServersForResponse,
 } from '../utils/mcp-helpers.js';
 
 import {
@@ -72,7 +73,7 @@ export class McpController {
     return ResponseFormatter.success(
       agents.map((agent: { id: any; mcp_servers: Record<string, any> }) => ({
         agent_id: agent.id,
-        mcp_servers: agent.mcp_servers ?? {},
+        mcp_servers: formatMcpServersForResponse(agent.mcp_servers),
       }))
     );
   }
@@ -107,7 +108,7 @@ export class McpController {
 
     return ResponseFormatter.success({
       agent_id: agent.id,
-      mcp_servers: agent.mcp_servers ?? {},
+      mcp_servers: formatMcpServersForResponse(agent.mcp_servers),
     });
   }
 
@@ -179,7 +180,12 @@ export class McpController {
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
     await this.agentService.syncAgentToRedis(agentId, userId);
-    return ResponseFormatter.success(result[0]);
+
+    const [updatedAgent] = result;
+    return ResponseFormatter.success({
+      id: updatedAgent.id,
+      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+    });
   }
 
   /**
@@ -234,7 +240,7 @@ export class McpController {
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
-      mcp_servers: result[0].mcp_servers,
+      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
     });
   }
 
@@ -277,7 +283,11 @@ export class McpController {
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
     await this.agentService.syncAgentToRedis(agentId, userId);
 
-    return ResponseFormatter.success(result[0]);
+    const [updatedAgent] = result;
+    return ResponseFormatter.success({
+      id: updatedAgent.id,
+      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+    });
   }
 
   /**
@@ -317,7 +327,11 @@ export class McpController {
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
     await this.agentService.syncAgentToRedis(agentId, userId);
 
-    return ResponseFormatter.success(result[0]);
+    const [updatedAgent] = result;
+    return ResponseFormatter.success({
+      id: updatedAgent.id,
+      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+    });
   }
 
   /**
@@ -346,7 +360,11 @@ export class McpController {
 
     await this.agentService.syncAgentToRedis(agentId, userId);
 
-    return ResponseFormatter.success(result[0]);
+    const [updatedAgent] = result;
+    return ResponseFormatter.success({
+      id: updatedAgent.id,
+      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+    });
   }
 
   /**
@@ -414,7 +432,7 @@ export class McpController {
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
-      mcp_servers: result[0].mcp_servers,
+      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
     });
   }
 
@@ -579,7 +597,7 @@ export class McpController {
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
-      mcp_servers: result[0].mcp_servers,
+      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
     });
   }
 
@@ -629,7 +647,12 @@ export class McpController {
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
     await this.agentService.syncAgentToRedis(agentId, userId);
-    return ResponseFormatter.success(result[0]);
+
+    const [updatedAgent] = result;
+    return ResponseFormatter.success({
+      id: updatedAgent.id,
+      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+    });
   }
 
   /**
@@ -711,7 +734,7 @@ export class McpController {
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
-      mcp_servers: result[0].mcp_servers,
+      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
     });
   }
 
@@ -769,7 +792,11 @@ export class McpController {
 
     await this.agentService.syncAgentToRedis(agentId, userId);
 
-    return ResponseFormatter.success(result[0]);
+    const [updatedAgent] = result;
+    return ResponseFormatter.success({
+      id: updatedAgent.id,
+      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+    });
   }
 
   /**
@@ -832,7 +859,7 @@ export class McpController {
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
-      mcpServers: updatedAgent.mcp_servers,
+      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
     });
   }
 }

@@ -51,12 +51,10 @@ export function normalizeRawMcpConfig(cfg: any): Record<string, any> {
     throw new BadRequestException('Invalid MCP config — missing "command"');
   }
 
-  // Normalize args
   let args: string[] = [];
   if (Array.isArray(cfg.args)) args = cfg.args.map(String);
   else if (typeof cfg.args === 'string') args = cfg.args.trim().split(/\s+/);
 
-  // Normalize env
   const env =
     cfg.env && typeof cfg.env === 'object'
       ? Object.fromEntries(
@@ -84,6 +82,39 @@ export function normalizeRawMcpConfig(cfg: any): Record<string, any> {
   }
 
   return out;
+}
+
+/**
+ * Returns a shallow copy of MCP server configs with the canonical
+ * command → args → env property order for each entry.
+ */
+export function formatMcpServersForResponse(
+  mcpServers: Record<string, any> | null | undefined
+): Record<string, any> {
+  if (!mcpServers || typeof mcpServers !== 'object') {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(mcpServers).map(([serverId, config]) => {
+      if (!config || typeof config !== 'object' || Array.isArray(config)) {
+        return [serverId, config];
+      }
+
+      const { command, args, env, ...rest } = config as Record<string, any>;
+      const ordered: Record<string, any> = {};
+
+      if (command !== undefined) ordered.command = command;
+      if (args !== undefined) ordered.args = args;
+      if (env !== undefined) ordered.env = env;
+
+      for (const [key, value] of Object.entries(rest)) {
+        ordered[key] = value;
+      }
+
+      return [serverId, ordered];
+    })
+  );
 }
 
 /**
@@ -126,3 +157,5 @@ export async function fetchSmitheryManifest(
     return null;
   }
 }
+
+
