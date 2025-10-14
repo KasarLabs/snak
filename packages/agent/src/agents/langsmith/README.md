@@ -11,30 +11,50 @@ This directory contains tools for managing and evaluating datasets with LangSmit
 
 ### Running Evaluations
 
-To run an evaluation on a dataset, use:
+To run an evaluation on a specific node in a graph:
 
 ```bash
-pnpm datasets --name=<dataset-name>
+pnpm datasets --graph=<graph-name> --node=<node-name> [--csv_path=<path>]
 ```
 
-Or alternatively:
+**Required Parameters:**
+- `--graph`: The graph name (currently only `supervisor` is supported)
+- `--node`: The node name to evaluate. Valid nodes are:
+  - `mcpConfigurationHelper`
+  - `snakRagAgentHelper`
+  - `agentConfigurationHelper`
+  - `supervisor`
 
-```bash
-pnpm datasets name=<dataset-name>
-```
+**Optional Parameters:**
+- `--csv_path`: Custom path to CSV file (defaults to `<graph>.<node>.dataset.csv`)
 
-**Example:**
+**Examples:**
 ```bash
-pnpm datasets --name=my-dataset
+# Evaluate the supervisor node with default CSV
+pnpm datasets --graph=supervisor --node=supervisor
+# Uses: supervisor.supervisor.dataset.csv
+
+# Evaluate a helper node with default CSV
+pnpm datasets --graph=supervisor --node=agentConfigurationHelper
+# Uses: supervisor.agentConfigurationHelper.dataset.csv
+
+# Evaluate with custom CSV file
+pnpm datasets --graph=supervisor --node=supervisor --csv_path=custom-test.csv
+# Uses: custom-test.csv
 ```
 
 ### How It Works
 
-1. **The command will first try to find an existing dataset** in LangSmith with the provided name
-2. **If the dataset doesn't exist**, it will attempt to create it from a CSV file
-3. **The CSV file must be named:** `<dataset-name>.dataset.csv` (e.g., `my-dataset.dataset.csv`)
-4. **The CSV file must be located in the `datasets/` directory** at the project root
-5. If the CSV file doesn't exist, the command will fail with a helpful error message
+1. **Validates the graph name** - Only `supervisor` graph is currently supported
+2. **Validates the node name** - Checks if the node exists in the list of valid nodes
+3. **Retrieves the node** from the compiled state graph
+4. **Determines the CSV file**:
+   - If `--csv_path` is provided, uses that file
+   - Otherwise, looks for `<graph>.<node>.dataset.csv` (e.g., `supervisor.supervisor.dataset.csv`)
+5. **The command will first try to find an existing dataset** in LangSmith
+6. **If the dataset doesn't exist**, it will attempt to create it from the CSV file
+7. **The CSV file must be located in the `datasets/` directory** at the project root
+8. If the CSV file doesn't exist, the command will fail with a helpful error message
 
 ### CSV File Format
 
@@ -44,7 +64,7 @@ By default, the runner expects:
 - **Input columns:** `messages`
 - **Output columns:** `output`
 
-**Example CSV (`my-dataset.dataset.csv`):**
+**Example CSV (`supervisor.supervisor.dataset.csv`):**
 
 ```csv
 messages,output
@@ -159,15 +179,25 @@ OPENAI_API_KEY=your_openai_key_here
 
 ## Examples
 
-### Example 1: Run evaluation with existing dataset
+### Example 1: Evaluate the supervisor node
 
 ```bash
-pnpm datasets --name=production-dataset
+pnpm datasets --graph=supervisor --node=supervisor
 ```
 
-### Example 2: Create and run evaluation from CSV
+This will look for `supervisor.supervisor.dataset.csv` in the datasets directory.
 
-1. Create a CSV file named `toxicity-test.dataset.csv` in the `datasets/` directory:
+### Example 2: Evaluate a helper node
+
+```bash
+pnpm datasets --graph=supervisor --node=agentConfigurationHelper
+```
+
+This will look for `supervisor.agentConfigurationHelper.dataset.csv`.
+
+### Example 3: Evaluate with custom CSV
+
+1. Create a CSV file named `custom-test.csv` in the `datasets/` directory:
 ```csv
 messages,output
 "Hello, how are you?","Not toxic"
@@ -176,30 +206,57 @@ messages,output
 
 2. Run the evaluation:
 ```bash
-pnpm datasets --name=toxicity-test
+pnpm datasets --graph=supervisor --node=supervisor --csv_path=custom-test.csv
 ```
 
 The system will:
-- Check if `toxicity-test` exists in LangSmith
-- If not, create it from `datasets/toxicity-test.dataset.csv`
-- Run the evaluation with your chain and evaluators
+- Validate the graph and node names
+- Retrieve the node from the compiled state graph
+- Check if the dataset exists in LangSmith
+- If not, create it from the specified CSV file
+- Run the evaluation on the node
 - Display the results
 
 ## Troubleshooting
 
-### Error: Dataset name is required
+### Error: --graph parameter is required
 
-You forgot to provide the `--name` argument. Use:
+You forgot to provide the `--graph` argument. Use:
 ```bash
-pnpm datasets --name=your-dataset
+pnpm datasets --graph=supervisor --node=<node-name>
 ```
+
+### Error: --node parameter is required
+
+You forgot to provide the `--node` argument. Use:
+```bash
+pnpm datasets --graph=supervisor --node=supervisor
+```
+
+### Error: Graph not found
+
+Currently, only the `supervisor` graph is supported. Make sure you use:
+```bash
+pnpm datasets --graph=supervisor --node=<node-name>
+```
+
+### Error: Node is not valid
+
+The node name must be one of:
+- `mcpConfigurationHelper`
+- `snakRagAgentHelper`
+- `agentConfigurationHelper`
+- `supervisor`
 
 ### Error: CSV file not found
 
 The CSV file with the expected name doesn't exist. Make sure you have:
-- A file named `<dataset-name>.dataset.csv`
+- A file named `<graph>.<node>.dataset.csv` (e.g., `supervisor.supervisor.dataset.csv`)
+- Or specify a custom path with `--csv_path`
 - Located in the `datasets/` directory at the project root
 
-### Error: Dataset does not exist and inputKeys/outputKeys are required
+### Error: Node not found in the graph
 
-The dataset doesn't exist in LangSmith, and the system needs to create it from CSV. Make sure the CSV file exists and has the correct format.
+The specified node doesn't exist in the compiled state graph. This could indicate:
+- The supervisor agent wasn't initialized correctly
+- The node name is valid but not present in the current graph configuration

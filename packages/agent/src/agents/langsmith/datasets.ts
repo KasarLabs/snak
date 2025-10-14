@@ -24,6 +24,7 @@ import { File } from 'buffer';
 import * as ls from 'langsmith/vitest';
 // import * as ls from "langsmith/jest";
 import { createLLMAsJudge, CORRECTNESS_PROMPT } from 'openevals';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
 /**
  * Static Dataset class for managing LangSmith datasets with CSV integration
@@ -108,9 +109,22 @@ export class Dataset {
   }
 
   static async getEvaluator(): Promise<any> {
+    console.log(process.env.GEMINI_API_KEY);
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY environment variable is not set');
+    }
+    const model = new ChatGoogleGenerativeAI({
+      model: 'gemini-2.5-flash',
+      temperature: 0.7,
+      apiKey: process.env.GEMINI_API_KEY,
+      verbose: false,
+    });
+
     const correctnessEvaluator = createLLMAsJudge({
       prompt: CORRECTNESS_PROMPT,
-      feedbackKey: '    ',
+      judge: model,
+      useReasoning: true,
+      continuous: true,
       model: 'gemini-2.5-flash',
     });
     return correctnessEvaluator;

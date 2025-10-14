@@ -1,30 +1,23 @@
 import { Dataset } from './datasets.js';
-import { ChatOpenAI } from '@langchain/openai';
-import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from '@langchain/core/prompts';
-import { StringOutputParser } from '@langchain/core/output_parsers';
-import { EvaluationResult } from 'langsmith/evaluation';
 import * as path from 'path';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { SUPERVISOR_SYSTEM_PROMPT } from '../../shared/prompts/agents/supervisor/supervisor.prompt.js';
 import { SupervisorAgent } from '../core/supervisorAgent.js';
 import { createAgentConfigRuntimeFromOutputWithId } from '../../utils/agent-initialization.utils.js';
-import { DatabaseConfigService, supervisorAgentConfig } from '@snakagent/core';
+import { supervisorAgentConfig } from '@snakagent/core';
 
 /**
  * Parse command line arguments
  */
-function parseArgs(): { name?: string } {
+function parseArgs(): { graph?: string; node?: string; csv_path?: string } {
   const args = process.argv.slice(2);
-  const result: { name?: string } = {};
+  const result: { graph?: string; node?: string; csv_path?: string } = {};
 
   for (const arg of args) {
-    if (arg.startsWith('--name=')) {
-      result.name = arg.split('=')[1];
-    } else if (arg.startsWith('name=')) {
-      result.name = arg.split('=')[1];
+    if (arg.startsWith('--graph=')) {
+      result.graph = arg.split('=')[1];
+    } else if (arg.startsWith('--node=')) {
+      result.node = arg.split('=')[1];
+    } else if (arg.startsWith('--csv_path=')) {
+      result.csv_path = arg.split('=')[1];
     }
   }
 
@@ -37,17 +30,70 @@ function parseArgs(): { name?: string } {
 async function main() {
   const args = parseArgs();
 
-  if (!args.name) {
-    console.error('❌ Error: Dataset name is required!');
-    console.log('\nUsage: pnpm datasets --name=<dataset-name>');
-    console.log('   or: pnpm datasets name=<dataset-name>');
-    console.log('\nExample: pnpm datasets --name=my-dataset');
+  // Validate required arguments
+  if (!args.graph) {
+    console.error('Error: --graph parameter is required!');
+    console.log(
+      '\nUsage: pnpm datasets --graph=<graph-name> --node=<node-name> [--csv_path=<path>]'
+    );
+    console.log(
+      '\nExample: pnpm datasets --graph=supervisor --node=supervisor'
+    );
+    console.log(
+      'Example: pnpm datasets --graph=supervisor --node=agentConfigurationHelper --csv_path=my-custom.csv'
+    );
     process.exit(1);
   }
 
-  const datasetName = args.name;
+  if (!args.node) {
+    console.error('Error: --node parameter is required!');
+    console.log(
+      '\nUsage: pnpm datasets --graph=<graph-name> --node=<node-name> [--csv_path=<path>]'
+    );
+    console.log(
+      '\nExample: pnpm datasets --graph=supervisor --node=supervisor'
+    );
+    process.exit(1);
+  }
 
-  console.log(`\n🚀 Running evaluation for dataset: ${datasetName}\n`);
+  const graphName = args.graph;
+  const nodeName = args.node;
+
+  // Validate graph name
+  if (graphName !== 'supervisor') {
+    console.error(
+      `Error: Graph '${graphName}' not found. Only 'supervisor' graph is supported.`
+    );
+    process.exit(1);
+  }
+
+  // Validate node name
+  const validNodes = [
+    'mcpConfigurationHelper',
+    'snakRagAgentHelper',
+    'agentConfigurationHelper',
+    'supervisor',
+  ];
+  if (!validNodes.includes(nodeName)) {
+    console.error(
+      `Error: Node '${nodeName}' is not valid. Valid nodes are: ${validNodes.join(', ')}`
+    );
+    process.exit(1);
+  }
+
+  // Generate dataset name from graph and node if csv_path is not provided
+  const datasetName = args.csv_path
+    ? args.csv_path.replace('.dataset.csv', '').replace('.csv', '')
+    : `${graphName}-${nodeName}`;
+
+  const csvFileName = args.csv_path || `${graphName}.${nodeName}.dataset.csv`;
+
+  console.log(`\nRunning evaluation for:`);
+  console.log(`   Graph: ${graphName}`);
+  console.log(`   Node: ${nodeName}`);
+  console.log(`   Dataset: ${datasetName}`);
+  console.log(`   CSV: ${csvFileName}\n`);
+
   // Define the datasets directory path
   const datasetsPath = path.join(process.cwd(), 'datasets');
 
@@ -66,11 +112,17 @@ async function main() {
       throw new Error(`Failed to create supervisor agent`);
     }
     await supervisorAgent.init();
-    const supervisorNode =
-      supervisorAgent.getCompiledStateGraph()?.nodes['supervisor'];
+
+    // Get the specified node from the compiled state graph
+    const targetNode = supervisorAgent.getCompiledStateGraph()?.nodes[nodeName];
+
+    if (!targetNode) {
+      throw new Error(`Node '${nodeName}' not found in the ${graphName} graph`);
+    }
+
     // Run evaluation
     // If dataset doesn't exist, it will try to create it from CSV
-    const results = await Dataset.runEvaluation(datasetName, supervisorNode, {
+    const results = await Dataset.runEvaluation(datasetName, targetNode, {
       // These are only needed if the dataset doesn't exist and needs to be created from CSV
       inputKeys: ['messages'],
       outputKeys: ['output'],
@@ -78,17 +130,17 @@ async function main() {
       experimentPrefix: `evaluation-${datasetName}`,
     });
 
-    console.log('\n✅ Evaluation completed successfully!');
+    console.log('\nEvaluation completed successfully!');
     console.log('\nResults:', results);
   } catch (error) {
-    console.error('\n❌ Error running evaluation:');
+    console.error('\nError running evaluation:');
     if (error instanceof Error) {
       console.error(error.message);
 
       // Provide helpful error message if CSV is missing
       if (error.message.includes('CSV file not found')) {
-        console.log('\n💡 Tip: Make sure you have a CSV file named:');
-        console.log(`   ${datasetName}.dataset.csv`);
+        console.log('\nTip: Make sure you have a CSV file named:');
+        console.log(`   ${csvFileName}`);
         console.log(`   in the datasets directory: ${datasetsPath}`);
       }
     } else {
