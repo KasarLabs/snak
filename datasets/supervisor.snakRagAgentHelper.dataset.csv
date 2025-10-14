@@ -1,0 +1,4 @@
+messages,output
+"What information is stored in the RAG system?","The RAG system stores vectorized knowledge and documents for efficient retrieval."
+"Search for documentation about agent creation","I'll search through the knowledge base for relevant documentation about agent creation."
+"Add this document to the knowledge base","The document will be processed and added to the RAG knowledge base for future retrieval."

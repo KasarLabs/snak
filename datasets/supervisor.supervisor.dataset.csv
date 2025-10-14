@@ -1,0 +1,4 @@
+messages,output
+"What agents are currently available in the system?","The system contains multiple specialized agents for different tasks."
+"How can I create a new agent?","You can create a new agent by providing configuration details including name, objectives, and capabilities."
+"Route this request to the appropriate helper","I'll analyze your request and route it to the most appropriate helper agent."

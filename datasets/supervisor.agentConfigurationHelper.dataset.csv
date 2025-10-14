@@ -1,0 +1,4 @@
+messages,output
+"Help me configure a new agent","Agent configuration requires specifying the agent's name, objectives, capabilities, and behavior parameters."
+"What are the required fields for agent configuration?","Required fields include agent name, description, objectives, model selection, and tool configurations."
+"Update the configuration for agent X","To update an agent's configuration, provide the specific parameters you want to modify."

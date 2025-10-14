@@ -1,0 +1,4 @@
+messages,output
+"How do I configure MCP settings?","MCP configuration involves setting up the Model Context Protocol with appropriate parameters and endpoints."
+"What MCP servers are available?","The available MCP servers can be listed through the configuration interface."
+"Add a new MCP server configuration","To add a new MCP server, you need to provide the server URL, credentials, and configuration parameters."
