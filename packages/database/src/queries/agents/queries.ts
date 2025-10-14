@@ -15,7 +15,7 @@ export namespace agents {
    * @param agentId - Agent ID
    * @param userId - User ID for ownership verification
    * @param mcpServers - MCP servers configuration
-   * @returns Promise<{id: string, mcp_servers: Record<string, any>} | null>
+   * @returns Promise<AgentConfig.OutputWithId | null>
    */
   export async function updateAgentMcp(
     agentId: string,
