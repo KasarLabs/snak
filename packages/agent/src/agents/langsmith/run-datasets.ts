@@ -1,4 +1,4 @@
-import { Dataset } from './datasets.js';
+import { Dataset, displaySummary, parseLangSmithResults } from './datasets.js';
 import * as path from 'path';
 import { SupervisorAgent } from '../core/supervisorAgent.js';
 import { createAgentConfigRuntimeFromOutputWithId } from '../../utils/agent-initialization.utils.js';
@@ -131,7 +131,8 @@ async function main() {
     });
 
     console.log('\nEvaluation completed successfully!');
-    console.log('\nResults:', results);
+    const summary = parseLangSmithResults(results);
+    console.log(displaySummary(summary));
   } catch (error) {
     console.error('\nError running evaluation:');
     if (error instanceof Error) {

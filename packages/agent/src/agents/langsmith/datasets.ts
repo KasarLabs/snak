@@ -194,6 +194,7 @@ export class Dataset {
       evaluators: [evaluator],
       experimentPrefix:
         options?.experimentPrefix || `evaluation-${datasetName}`,
+      maxConcurrency: 1,
     });
 
     return results;
@@ -234,4 +235,156 @@ export class Dataset {
  *   ['output1'],
  *   '/path/to/csv/files'
  * );
+ */
+
+// ============================================================================
+// Evaluation Results Analysis
+// ============================================================================
+
+/**
+ * Summary of evaluation results for analysis and reporting
+ */
+export interface EvaluationSummary {
+  experimentName: string;
+  experimentId: string;
+  totalTests: number;
+  processedTests: number;
+  averageScore: number;
+  minScore: number;
+  maxScore: number;
+  passedTests: number;
+  failedTests: number;
+  testResults: Array<{
+    testNumber: number;
+    testName: string;
+    exampleId: string;
+    score: number;
+    passed: boolean;
+    comment: string;
+  }>;
+  scoreDistribution: Record<number, number>;
+}
+
+/**
+ * Parse LangSmith evaluation results and generate a comprehensive summary
+ * @param experimentResults - The ExperimentResults object returned from evaluate()
+ * @returns A structured summary of the evaluation with statistics and details
+ */
+export function parseLangSmithResults(
+  experimentResults: any
+): EvaluationSummary {
+  const manager = experimentResults.manager;
+  const results = experimentResults.results || [];
+
+  const testResults: EvaluationSummary['testResults'] = [];
+  const scores: number[] = [];
+  const scoreDistribution: Record<number, number> = {};
+
+  results.forEach((result: any, index: number) => {
+    const evalResults = result.evaluationResults?.results || [];
+
+    evalResults.forEach((evalResult: any) => {
+      const score = evalResult.score ?? 0;
+      scores.push(score);
+
+      // Track score distribution
+      scoreDistribution[score] = (scoreDistribution[score] || 0) + 1;
+
+      testResults.push({
+        testNumber: index + 1,
+        testName: result.example?.name || `Test #${index + 1}`,
+        exampleId: result.example?.id || '',
+        score: score,
+        passed: score >= 0.7, // 70% threshold for passing
+        comment: evalResult.comment || ''
+      });
+    });
+  });
+
+  const averageScore =
+    scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+
+  const minScore = scores.length > 0 ? Math.min(...scores) : 0;
+  const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
+
+  const passedTests = testResults.filter((t) => t.passed).length;
+  const failedTests = testResults.filter((t) => !t.passed).length;
+
+  return {
+    experimentName: manager._experiment?.name || 'Unknown',
+    experimentId: manager._experiment?.id || '',
+    totalTests: results.length,
+    processedTests: experimentResults.processedCount || 0,
+    averageScore: Math.round(averageScore * 100) / 100,
+    minScore,
+    maxScore,
+    passedTests,
+    failedTests,
+    testResults,
+    scoreDistribution
+  };
+}
+
+/**
+ * Display evaluation summary in a human-readable format
+ * @param summary - The evaluation summary to display
+ * @returns A formatted string with statistics, results, and score distribution
+ */
+export function displaySummary(summary: EvaluationSummary): string {
+  let output = `
+📊 RÉSUMÉ DE L'ÉVALUATION
+========================
+Expérience: ${summary.experimentName}
+ID: ${summary.experimentId}
+
+📈 STATISTIQUES GLOBALES
+------------------------
+Total de tests: ${summary.totalTests}
+Tests traités: ${summary.processedTests}
+Score moyen: ${(summary.averageScore * 100).toFixed(1)}%
+Score min: ${(summary.minScore * 100).toFixed(1)}%
+Score max: ${(summary.maxScore * 100).toFixed(1)}%
+
+✅ RÉSULTATS
+------------
+Tests réussis: ${summary.passedTests} (${((summary.passedTests / summary.totalTests) * 100).toFixed(1)}%)
+Tests échoués: ${summary.failedTests} (${((summary.failedTests / summary.totalTests) * 100).toFixed(1)}%)
+
+📋 DÉTAILS DES TESTS
+--------------------
+`;
+
+  summary.testResults.forEach((test) => {
+    const status = test.passed ? '✅' : '❌';
+    output += `${status} Test ${test.testNumber}: ${test.testName}\n`;
+    output += `   Score: ${(test.score * 100).toFixed(1)}%\n`;
+    output += `   ${test.comment.substring(0, 100)}${test.comment.length > 100 ? '...' : ''}\n\n`;
+  });
+
+  output += `\n📊 DISTRIBUTION DES SCORES\n--------------------------\n`;
+  Object.entries(summary.scoreDistribution)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .forEach(([score, count]) => {
+      output += `Score ${(Number(score) * 100).toFixed(1)}%: ${count} test(s)\n`;
+    });
+
+  return output;
+}
+
+/**
+ * Example usage of evaluation results analysis:
+ *
+ * // Run evaluation and analyze results
+ * const results = await Dataset.runEvaluation('my-dataset', chain);
+ * const summary = parseLangSmithResults(results);
+ * console.log(displaySummary(summary));
+ *
+ * // Access data programmatically
+ * console.log(`Success rate: ${(summary.passedTests / summary.totalTests * 100).toFixed(1)}%`);
+ * console.log(`Average score: ${(summary.averageScore * 100).toFixed(1)}%`);
+ *
+ * // Check if experiment meets quality threshold
+ * if (summary.averageScore >= 0.8) {
+ *   console.log('✅ Experiment passed quality threshold');
+ * }
  */

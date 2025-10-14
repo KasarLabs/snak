@@ -262,7 +262,6 @@ export class AgentStorage implements OnModuleInit {
       true
     );
 
-    console.log(agentConfig)
     const newAgentDbRecord = await agents.insertAgentFromJson(
       userId,
       agentConfig

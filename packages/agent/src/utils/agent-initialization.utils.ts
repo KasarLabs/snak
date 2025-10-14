@@ -99,7 +99,6 @@ export async function createAgentConfigRuntimeFromOutputWithId(
       max_tokens: dbModel.max_tokens,
     };
 
-    console.log('Model config:', dbModel);
     // Initialize model instance
     const modelInstance = initializeModels(model);
     if (!modelInstance) {
