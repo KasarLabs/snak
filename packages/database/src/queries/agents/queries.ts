@@ -2,6 +2,7 @@ import {
   AgentConfig,
   AgentProfile,
   logger,
+  McpServerConfig,
   supervisorAgentConfig,
 } from '@snakagent/core';
 import { Postgres } from '../../database.js';
@@ -29,6 +30,29 @@ export namespace agents {
     const result = await Postgres.query<{ id: string; profile: AgentProfile }>(
       query
     );
+    return result.length > 0 ? result[0] : null;
+  }
+
+  export async function getAgentWithMcp(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): Promise<{
+    id: string;
+    profile: AgentProfile;
+    mcp_servers: Record<string, any>;
+  } | null> {
+    const query = new Postgres.Query(
+      `SELECT id, row_to_json(profile) as profile, mcp_servers
+       FROM agents
+       WHERE ${searchBy} = $1 AND user_id = $2`,
+      [identifier, userId]
+    );
+    const result = await Postgres.query<{
+      id: string;
+      profile: AgentProfile;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(query);
     return result.length > 0 ? result[0] : null;
   }
 
@@ -119,9 +143,9 @@ export namespace agents {
   /**
    * Get all agents for a user with avatar URL
    * @param userId - User ID
-   * @returns Promise<any[]>
+   * @returns Promise<AgentConfig.OutputWithoutUserId[]>
    */
-  export async function getAllAgentsByUser(userId: string): Promise<any[]> {
+  export async function getAllAgentsByUser(userId: string): Promise<AgentConfig.OutputWithoutUserId[]> {
     const query = new Postgres.Query(
       `SELECT
         id,
@@ -144,7 +168,90 @@ export namespace agents {
       [userId]
     );
 
-    const result = await Postgres.query<any>(query);
+    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
+    return result;
+  }
+
+  /**
+   * List agents with filtering and pagination
+   * @param userId - User ID
+   * @param filters - Optional filters for group, mode, name_contains
+   * @param limit - Optional limit for pagination
+   * @param offset - Optional offset for pagination
+   * @returns Promise<AgentConfig.OutputWithoutUserId[]>
+   */
+  export async function listAgents(
+    userId: string,
+    filters?: {
+      group?: string;
+      mode?: string;
+      name_contains?: string;
+    },
+    limit?: number,
+    offset?: number
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
+    
+    let queryString = `SELECT
+        id,
+        row_to_json(profile) as profile,
+        mcp_servers as "mcp_servers",
+        prompts_id,
+        row_to_json(graph) as graph,
+        row_to_json(memory) as memory,
+        row_to_json(rag) as rag,
+        CASE
+          WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
+          THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
+          ELSE NULL
+        END as "avatarUrl",
+        avatar_mime_type,
+        created_at,
+        updated_at
+      FROM agents
+      WHERE user_id = $1`;
+
+    const queryParams: (string|number)[] = [userId];
+    let paramIndex = 2;
+
+    // Add filters
+    if (filters) {
+      if (filters.group !== null && filters.group !== undefined && filters.group !== '') {
+        queryString += ` AND (profile)."group" = $${paramIndex}`;
+        queryParams.push(filters.group);
+        paramIndex++;
+      }
+
+      if (filters.mode !== null && filters.mode !== undefined && filters.mode !== '') {
+        queryString += ` AND mode = $${paramIndex}`;
+        queryParams.push(filters.mode);
+        paramIndex++;
+      }
+
+      if (filters.name_contains !== null && filters.name_contains !== undefined && filters.name_contains !== '') {
+        queryString += ` AND (profile).name ILIKE $${paramIndex}`;
+        queryParams.push(`%${filters.name_contains}%`);
+        paramIndex++;
+      }
+    }
+
+    // Add ordering
+    queryString += ` ORDER BY created_at DESC`;
+
+    // Add pagination
+    if (limit !== undefined) {
+      queryString += ` LIMIT $${paramIndex}`;
+      queryParams.push(limit);
+      paramIndex++;
+    }
+
+    if (offset !== undefined) {
+      queryString += ` OFFSET $${paramIndex}`;
+      queryParams.push(offset);
+    }
+
+    const query = new Postgres.Query(queryString, queryParams);
+
+    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
     return result;
   }
 
