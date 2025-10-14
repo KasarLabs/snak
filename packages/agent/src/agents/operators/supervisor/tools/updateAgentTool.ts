@@ -61,7 +61,7 @@ export function updateAgentTool(
 
         if (searchBy === 'id') {
           findQuery = new Postgres.Query(
-            `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+            `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers,
              row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
              created_at, updated_at, avatar_image, avatar_mime_type
              FROM agents WHERE id = $1 AND user_id = $2`,
@@ -69,7 +69,7 @@ export function updateAgentTool(
           );
         } else {
           findQuery = new Postgres.Query(
-            `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+            `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers,
              row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
              created_at, updated_at, avatar_image, avatar_mime_type
              FROM agents WHERE (profile).name = $1 AND user_id = $2`,
@@ -228,7 +228,7 @@ export function updateAgentTool(
             updateValues.push(graph?.max_retries ?? null);
             updateValues.push(graph?.execution_timeout_ms ?? null);
             updateValues.push(graph?.max_token_usage ?? null);
-            updateValues.push(graph?.model?.provider ?? null);
+            updateValues.push(graph?.model?.model_provider ?? null);
             updateValues.push(graph?.model?.model_name ?? null);
             updateValues.push(graph?.model?.temperature ?? null);
             updateValues.push(graph?.model?.max_tokens ?? null);
@@ -293,7 +293,7 @@ export function updateAgentTool(
             updateValues.push(rag?.top_k ?? null);
             paramIndex += 2;
           }
-          // Handle regular fields (prompts_id, mcp_servers, plugins, etc.)
+          // Handle regular fields (mcp_servers, etc.)
           else {
             updateFields.push(`"${key}" = $${paramIndex}`);
             updateValues.push(value);
@@ -331,7 +331,6 @@ export function updateAgentTool(
             user_id,
             row_to_json(profile)        AS profile,
             mcp_servers,
-            prompts_id,
             row_to_json(graph)          AS graph,
             row_to_json(memory)         AS memory,
             row_to_json(rag)            AS rag,

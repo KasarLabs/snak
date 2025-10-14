@@ -9,6 +9,9 @@ import { EvaluationResult } from 'langsmith/evaluation';
 import * as path from 'path';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { SUPERVISOR_SYSTEM_PROMPT } from '../../shared/prompts/agents/supervisor/supervisor.prompt.js';
+import { SupervisorAgent } from '@agents/core/supervisorAgent.js';
+import { createAgentConfigRuntimeFromOutputWithId } from 'utils/agent-initialization.utils.js';
+import { AgentConfig, supervisorAgentConfig } from '@snakagent/core';
 
 const prompt = ChatPromptTemplate.fromMessages([
   ['system', SUPERVISOR_SYSTEM_PROMPT],
@@ -24,6 +27,13 @@ const chatModel = new ChatGoogleGenerativeAI({
 const outputParser = new StringOutputParser();
 const chain = prompt.pipe(chatModel).pipe(outputParser);
 
+const supervisorConfigRunTime  = await createAgentConfigRuntimeFromOutputWithId({...supervisorAgentConfig, id: 'd5796090-5202-45d6-b0a3-554fc3db0185', user_id : 'd5796090-5202-45d6-b0a3-554fc3db0185'})
+if (!supervisorConfigRunTime) {
+  throw new Error(
+    `Failed to create runtime config for supervisor agent`
+  );
+}
+const supervisorAgent = new SupervisorAgent(supervisorConfigRunTime)
 /**
  * Parse command line arguments
  */

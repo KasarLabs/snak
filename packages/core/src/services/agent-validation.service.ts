@@ -1,5 +1,5 @@
 import { getGuardValue } from './guards.service.js';
-import { AgentConfig } from '../common/agent.js';
+import { AgentConfig, ModelConfig } from '../common/agent.js';
 import logger from '../logger/logger.js';
 
 /**
@@ -76,7 +76,7 @@ export class AgentValidationService {
         this.validateMCPServers(agent_config.mcp_servers);
       }
 
-      // Validate identifiers (chatId and prompts_id)
+      // Validate identifiers (chatId)
       this.validateIdentifiers(agent_config);
 
       logger.debug(
@@ -265,7 +265,7 @@ export class AgentValidationService {
    * @param model - Model configuration to validate
    * @private
    */
-  private validateModelConfig(model: any): void {
+  private validateModelConfig(model: ModelConfig): void {
     // Load guard values once for performance
     const providerMaxLength = getGuardValue(
       'agents.graph.model.provider_max_length'
@@ -283,13 +283,13 @@ export class AgentValidationService {
     const maxTokens = getGuardValue('agents.graph.model.max_tokens');
 
     // Validate provider
-    if (model.provider) {
-      if (model.provider.length > providerMaxLength) {
+    if (model.model_provider) {
+      if (model.model_provider.length > providerMaxLength) {
         throw new Error(
           `Model provider too long. Maximum length: ${providerMaxLength}`
         );
       }
-      if (model.provider.length < providerMinLength) {
+      if (model.model_provider.length < providerMinLength) {
         throw new Error(
           `Model provider too short. Minimum length: ${providerMinLength}`
         );
@@ -554,8 +554,8 @@ export class AgentValidationService {
   }
 
   /**
-   * Validate only the chatId and prompts_id fields
-   * @param agent_config - Agent configuration containing chatId and prompts_id
+   * Validate only the chatId field
+   * @param agent_config - Agent configuration containing chatId
    * @public
    */
   public validateIdentifiers(agent_config: any): void {
@@ -569,18 +569,6 @@ export class AgentValidationService {
       if (agent_config.chatId.length > promptsIdMaxLength) {
         throw new Error(
           `Agent chatId too long. Maximum length: ${promptsIdMaxLength}`
-        );
-      }
-    }
-
-    if (
-      'prompts_id' in agent_config &&
-      agent_config.prompts_id &&
-      typeof agent_config.prompts_id === 'string'
-    ) {
-      if (agent_config.prompts_id.length > promptsIdMaxLength) {
-        throw new Error(
-          `Agent prompts_id too long. Maximum length: ${promptsIdMaxLength}`
         );
       }
     }
@@ -787,8 +775,8 @@ export function validateMCPServers(mcpServers: Record<string, any>): void {
 }
 
 /**
- * Validate only the chatId and prompts_id fields
- * @param agent_config - Agent configuration containing chatId and prompts_id
+ * Validate only the chatId field
+ * @param agent_config - Agent configuration containing chatId
  */
 export function validateIdentifiers(agent_config: any): void {
   const validationService = new AgentValidationService();

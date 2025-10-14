@@ -254,7 +254,7 @@ export class AgentService implements IAgentService {
     try {
       const res = await agents.updateModelConfig(
         userId,
-        model.provider,
+        model.model_provider,
         model.modelName,
         model.temperature || 0.7,
         model.maxTokens || 4096

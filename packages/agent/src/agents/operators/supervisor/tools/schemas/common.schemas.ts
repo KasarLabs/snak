@@ -246,15 +246,6 @@ export const McpServersArraySchema = z
   .max(mcpServersGuardsValues.max_servers)
   .default([]);
 
-// Schema for PromptsConfig
-export const PromptsConfigSchema = z.object({
-  id: z
-    .string()
-    .max(getGuardValue('agents.prompts_id_max_length'))
-    .optional()
-    .describe('Prompts ID'),
-});
-
 // Schema for selecting an agent
 export const SelectAgentSchema = z.object({
   identifier: z

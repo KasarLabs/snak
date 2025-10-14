@@ -23,7 +23,6 @@ export function readAgentTool(
           'id',
           'row_to_json(profile) as profile',
           'mcp_servers as "mcp_servers"',
-          'prompts_id',
           'row_to_json(graph) as graph',
           'row_to_json(memory) as memory',
           'row_to_json(rag) as rag',

@@ -8,7 +8,6 @@ import {
   AgentConfig,
   ModelConfig,
   StarknetConfig,
-  AgentPromptsInitialized,
   DEFAULT_AGENT_MODEL,
   AgentValidationService,
   DatabaseConfigService,
@@ -27,7 +26,6 @@ import {
   SupervisorAgent,
   initializeModels,
   createAgentConfigRuntimeFromOutputWithId,
-  AgentInitializationDatabase,
 } from '@snakagent/agents';
 
 const logger = new Logger('AgentStorage');
@@ -38,7 +36,7 @@ const logger = new Logger('AgentStorage');
  * Service responsible for managing agent storage, configuration, and lifecycle
  */
 @Injectable()
-export class AgentStorage implements OnModuleInit, AgentInitializationDatabase {
+export class AgentStorage implements OnModuleInit {
   private agentSelector: AgentSelector;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
@@ -196,7 +194,7 @@ export class AgentStorage implements OnModuleInit, AgentInitializationDatabase {
     if (!result) {
       await agents.createModelConfig(
         userId,
-        DEFAULT_AGENT_MODEL.provider,
+        DEFAULT_AGENT_MODEL.model_provider,
         DEFAULT_AGENT_MODEL.model_name,
         DEFAULT_AGENT_MODEL.temperature,
         DEFAULT_AGENT_MODEL.max_tokens
@@ -258,15 +256,13 @@ export class AgentStorage implements OnModuleInit, AgentInitializationDatabase {
       }
     }
 
-    const prompt_id =
-      agentConfig.prompts_id ?? (await this.initializeDefaultPrompts(userId));
-
-    agentConfig.prompts_id = prompt_id;
     agentConfig.profile.name = finalName;
     await this.agentValidationService.validateAgent(
       { ...agentConfig, user_id: userId },
       true
     );
+
+    console.log(agentConfig)
     const newAgentDbRecord = await agents.insertAgentFromJson(
       userId,
       agentConfig
@@ -392,7 +388,7 @@ export class AgentStorage implements OnModuleInit, AgentInitializationDatabase {
 
       // const model = await this.getModelFromUser(userId); // Need to be used when user_id table will be created
       const model: ModelConfig = {
-        provider: process.env.DEFAULT_MODEL_PROVIDER as string,
+        model_provider: process.env.DEFAULT_MODEL_PROVIDER as string,
         model_name: process.env.DEFAULT_MODEL_NAME as string,
         temperature: parseFloat(process.env.DEFAULT_TEMPERATURE ?? '0.7'),
         max_tokens: parseInt(process.env.DEFAULT_MAX_TOKENS ?? '4096'),
@@ -526,7 +522,7 @@ export class AgentStorage implements OnModuleInit, AgentInitializationDatabase {
         accountPublicKey: this.config.starknet.publicKey,
       };
       const AgentConfigRuntime =
-        await createAgentConfigRuntimeFromOutputWithId(agentConfig, this);
+        await createAgentConfigRuntimeFromOutputWithId(agentConfig);
       if (!AgentConfigRuntime) {
         throw new Error(
           `Failed to create runtime config for agent ${agentConfig.id}`
@@ -546,75 +542,6 @@ export class AgentStorage implements OnModuleInit, AgentInitializationDatabase {
       throw error;
     }
   }
-
-  /**
-   * Get prompts from database by prompt ID
-   * Implementation of AgentInitializationDatabase interface
-   * @param promptId - UUID of the prompt configuration
-   * @returns Promise<AgentConfig.Prompts | null> - Parsed prompts or null if not found
-   */
-  public async getPromptsById(
-    promptId: string
-  ): Promise<AgentPromptsInitialized<string> | null> {
-    try {
-      const promptData = await agents.getPromptsById(promptId);
-
-      if (!promptData) {
-        logger.warn(`No prompts found for ID: ${promptId}`);
-        return null;
-      }
-
-      // Validate that we have valid prompt data
-      if (typeof promptData !== 'object') {
-        logger.warn(`Invalid prompt data structure for ID: ${promptId}`);
-        return null;
-      }
-
-      // Parse to proper format and return as SystemMessage objects
-      return {
-        task_executor_prompt: promptData.task_executor_prompt,
-        task_manager_prompt: promptData.task_manager_prompt,
-        task_memory_manager_prompt: promptData.task_memory_manager_prompt,
-        task_verifier_prompt: promptData.task_verifier_prompt,
-      };
-    } catch (error) {
-      logger.error(`Failed to fetch prompts from database: ${error.message}`);
-      return null;
-    }
-  }
-
-  private async initializeDefaultPrompts(userId: string): Promise<string> {
-    try {
-      // First, check if prompts already exist for this user
-      const existing = await agents.getExistingPromptsForUser(userId);
-
-      if (existing) {
-        logger.debug(
-          `Default prompts already exist for user ${userId}, returning existing ID`
-        );
-        return existing.id;
-      }
-
-      // Insert new default prompts for the user
-      const promptId = await agents.createDefaultPrompts(
-        userId,
-        TASK_EXECUTOR_SYSTEM_PROMPT,
-        TASK_MANAGER_SYSTEM_PROMPT,
-        TASK_VERIFIER_SYSTEM_PROMPT,
-        TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-        false
-      );
-
-      logger.debug(
-        `Default prompts created successfully for user ${userId} with ID: ${promptId}`
-      );
-      return promptId;
-    } catch (error) {
-      logger.error('Failed to initialize default prompts:', error);
-      throw error;
-    }
-  }
-
   /**
    * Validate agent configuration
    * @param agentConfig - Agent configuration to validate

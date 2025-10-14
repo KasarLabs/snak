@@ -123,7 +123,6 @@ Only include if user specifies:
 - **memory**: Memory settings (ltm_enabled, size_limits, thresholds, timeouts, strategy)
 - **rag**: RAG configuration (enabled, top_k)
 - **graph**: Execution configuration (max_steps, model settings, etc.)
-- **prompts_id**: Existing prompts UUID
 
 ### Important Constraints
 - ❌ Cannot use name "supervisor agent"

@@ -117,15 +117,10 @@ export function createAgentTool(
           notes.push(nameNote);
         }
 
-        const { id: promptId, created: promptsCreated } = await ensurePromptsId(
-          userId,
-          input.prompts_id
-        );
+        const { created: promptsCreated } = await ensurePromptsExist(userId);
         if (promptsCreated) {
           notes.push('Default prompts initialized for the user.');
         }
-
-        agentConfigData.prompts_id = promptId;
 
         // Insert into database
         const payload: Record<string, unknown> = {
@@ -133,7 +128,7 @@ export function createAgentTool(
         };
 
         const insertQuery = new Postgres.Query(
-          'SELECT id, user_id, profile, mcp_servers, prompts_id, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type FROM insert_agent_from_json($1, $2)',
+          'SELECT id, user_id, profile, mcp_servers, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type FROM insert_agent_from_json($1, $2)',
           [userId, JSON.stringify(payload)]
         );
 
@@ -233,8 +228,6 @@ function buildAgentConfigFromInput(input: CreateAgentInput): AgentConfig.Input {
 
   if (input.rag) partialConfig.rag = input.rag;
 
-  if (input.prompts_id) partialConfig.prompts_id = input.prompts_id;
-
   // Apply normalization using the centralized function - it handles all defaults and validation
   const { normalizedConfig, appliedDefaults } =
     normalizeNumericValues(partialConfig);
@@ -298,21 +291,16 @@ async function resolveUniqueAgentName(
   };
 }
 
-async function ensurePromptsId(
-  userId: string,
-  providedId?: string | null
-): Promise<{ id: string; created: boolean }> {
-  if (providedId) {
-    return { id: providedId, created: false };
-  }
-
+async function ensurePromptsExist(
+  userId: string
+): Promise<{ created: boolean }> {
   const existingQuery = new Postgres.Query(
     'SELECT id FROM prompts WHERE user_id = $1 LIMIT 1',
     [userId]
   );
   const existing = await Postgres.query<{ id: string }>(existingQuery);
   if (existing.length > 0) {
-    return { id: existing[0].id, created: false };
+    return { created: false };
   }
 
   const insertQuery = new Postgres.Query(
@@ -340,5 +328,5 @@ async function ensurePromptsId(
     throw new Error('Failed to create default prompts for the user');
   }
 
-  return { id: created[0].id, created: true };
+  return { created: true };
 }

@@ -13,7 +13,6 @@ export { BaseAgent } from './agents/core/baseAgent.js';
 export {
   initializeModels,
   createAgentConfigRuntimeFromOutputWithId,
-  type AgentInitializationDatabase,
 } from './utils/agent-initialization.utils.js';
 // Core agent utilities
 export { initializeToolsList } from './tools/tools.js';

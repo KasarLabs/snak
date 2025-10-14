@@ -2,8 +2,19 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOpenAI } from '@langchain/openai';
-import { ModelConfig, AgentConfig, AgentPromptsInitialized } from '@snakagent/core';
+import {
+  TASK_EXECUTOR_SYSTEM_PROMPT,
+  TASK_MANAGER_SYSTEM_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+  TASK_VERIFIER_SYSTEM_PROMPT,
+} from '@prompts/index.js';
+import {
+  ModelConfig,
+  AgentConfig,
+  AgentPromptsInitialized,
+} from '@snakagent/core';
 import { logger } from '@snakagent/core';
+import { agents } from '@snakagent/database/queries';
 
 /**
  * Initializes model instances based on the loaded configuration.
@@ -15,7 +26,7 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
     if (!model) {
       throw new Error('Model configuration is not defined');
     }
-    if (!model.provider) {
+    if (!model.model_provider) {
       throw new Error('Model provider is not defined');
     }
     let modelInstance: BaseChatModel | null = null;
@@ -24,7 +35,7 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
       verbose: false,
       temperature: model.temperature,
     };
-    switch (model.provider.toLowerCase()) {
+    switch (model.model_provider.toLowerCase()) {
       case 'openai':
         modelInstance = new ChatOpenAI({
           ...commonConfig,
@@ -52,19 +63,10 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
     return modelInstance;
   } catch (error) {
     logger.error(
-      `Failed to initialize model ${model.provider}: ${model.model_name}: ${error}`
+      `Failed to initialize model ${model.model_provider}: ${model.model_name}: ${error}`
     );
     return null;
   }
-}
-
-/**
- * Interface for database operations required for agent initialization
- * This interface should be implemented by the database layer
- */
-export interface AgentInitializationDatabase {
-  getPromptsById(promptId: string): Promise<AgentPromptsInitialized<string> | null>;
-  getModelFromUser(userId: string): Promise<ModelConfig | null>;
 }
 
 /**
@@ -73,42 +75,49 @@ export interface AgentInitializationDatabase {
  * including model initialization and prompts loading
  *
  * @param {AgentConfig.OutputWithId} agentConfigOutputWithId - The agent configuration with ID from database
- * @param {AgentInitializationDatabase} database - Database interface for fetching prompts and model config
  * @returns {Promise<AgentConfig.Runtime | undefined>} The runtime configuration or undefined if initialization fails
  */
 export async function createAgentConfigRuntimeFromOutputWithId(
-  agentConfigOutputWithId: AgentConfig.OutputWithId,
-  database: AgentInitializationDatabase
+  agentConfigOutputWithId: AgentConfig.OutputWithId
 ): Promise<AgentConfig.Runtime | undefined> {
   try {
-    // Get model configuration for the user
-    const model = await database.getModelFromUser(agentConfigOutputWithId.user_id);
-    if (!model) {
+    // Get model configuration from the agent's graph configuration
+    const dbModel = agentConfigOutputWithId.graph.model;
+    if (!dbModel) {
       throw new Error(
-        `Failed to get model configuration for user ${agentConfigOutputWithId.user_id}`
+        `Failed to get model configuration from agent ${agentConfigOutputWithId.id}`
       );
     }
 
+    // Map database fields to TypeScript interface
+    // Database uses: model_provider, model_name, temperature, max_tokens
+    // TypeScript expects: provider, model_name, temperature, max_tokens
+    const model: ModelConfig = {
+      model_provider: dbModel.model_provider || dbModel.model_provider,
+      model_name: dbModel.model_name,
+      temperature: dbModel.temperature,
+      max_tokens: dbModel.max_tokens,
+    };
+
+    console.log('Model config:', dbModel);
     // Initialize model instance
     const modelInstance = initializeModels(model);
     if (!modelInstance) {
       throw new Error('Failed to initialize model for agent');
     }
 
-    // Get prompts from database
-    const promptsFromDb = await database.getPromptsById(
-      agentConfigOutputWithId.prompts_id
-    );
-    if (!promptsFromDb) {
-      throw new Error(
-        `Failed to load prompts for agent ${agentConfigOutputWithId.id}, prompts ID: ${agentConfigOutputWithId.prompts_id}`
-      );
-    }
+    // Parse to proper format
+    const prompts: AgentPromptsInitialized<string> = {
+      task_executor_prompt: TASK_EXECUTOR_SYSTEM_PROMPT,
+      task_manager_prompt: TASK_MANAGER_SYSTEM_PROMPT,
+      task_memory_manager_prompt: TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+      task_verifier_prompt: TASK_VERIFIER_SYSTEM_PROMPT,
+    };
 
     // Construct runtime configuration
     const agentConfigRuntime: AgentConfig.Runtime = {
       ...agentConfigOutputWithId,
-      prompts: promptsFromDb,
+      prompts: prompts,
       graph: {
         ...agentConfigOutputWithId.graph,
         model: modelInstance,
