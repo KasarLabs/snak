@@ -34,6 +34,12 @@ export type {
 export { createAllowedTools, registerTools } from './tools/tools.js';
 export type { SnakToolRegistry } from './tools/tools.js';
 
+// Cache exports
+export {
+  agentCacheManager,
+  AgentCacheManager,
+} from './cache/agentCacheManager.js';
+
 // Consolidated exports from new structure
 export * from './shared/types/index.js'; // All types
 export * from './shared/enums/index.js'; // All enums

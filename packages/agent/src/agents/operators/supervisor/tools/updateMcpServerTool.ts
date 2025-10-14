@@ -4,6 +4,7 @@ import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { UpdateMcpServerSchema } from './schemas/mcp.schemas.js';
 import { isProtectedAgent } from '../utils/agents.validators.js';
+import { agentCacheManager } from '../../../../cache/agentCacheManager.js';
 
 export function updateMcpServerTool(
   agentConfig: AgentConfig.Runtime
@@ -141,6 +142,17 @@ export function updateMcpServerTool(
           logger.info(
             `Updated MCP server(s) "${updated.join(', ')}" for agent "${agent.profile.name}" successfully for user ${userId}`
           );
+
+          try {
+            await agentCacheManager.invalidate(userId, agent.id);
+            logger.debug(
+              `Agent ${agent.id} invalidated in cache after MCP update`
+            );
+          } catch (cacheError) {
+            logger.warn(
+              `Failed to invalidate cache for agent ${agent.id}: ${cacheError}`
+            );
+          }
 
           const message =
             updated.length === 1

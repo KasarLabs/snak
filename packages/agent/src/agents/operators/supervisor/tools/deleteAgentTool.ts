@@ -4,6 +4,7 @@ import { AgentProfile, logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
 import { isProtectedAgent } from '../utils/agents.validators.js';
+import { agentCacheManager } from '../../../../cache/agentCacheManager.js';
 
 export function deleteAgentTool(
   agentConfig: AgentConfig.Runtime
@@ -85,6 +86,15 @@ export function deleteAgentTool(
         } catch (error) {
           logger.error(`Failed to delete agent from Redis: ${error}`);
           // Don't throw, PostgreSQL deletion is what matters
+        }
+
+        try {
+          await agentCacheManager.invalidate(userId, agent.id);
+          logger.debug(`Agent ${agent.id} invalidated in cache after delete`);
+        } catch (cacheError) {
+          logger.warn(
+            `Failed to invalidate cache for agent ${agent.id}: ${cacheError}`
+          );
         }
 
         logger.info(

@@ -13,11 +13,13 @@ const positiveIntegerArray = z.array(z.number().int().positive()).length(4);
 const GlobalConfigSchema = z.object({
   max_users: positiveInteger,
   max_agents: positiveInteger,
+  max_cached_agents: positiveInteger,
 });
 
 // User configuration schema
 const UserConfigSchema = z.object({
   max_agents: positiveInteger,
+  max_cached_agents: positiveInteger,
   max_upload_avatar_size: positiveInteger,
   max_token_usage: positiveIntegerArray,
 });

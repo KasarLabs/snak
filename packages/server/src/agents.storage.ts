@@ -12,6 +12,7 @@ import {
   DEFAULT_AGENT_MODEL,
   AgentValidationService,
   DatabaseConfigService,
+  getGuardValue,
 } from '@snakagent/core';
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.storage.js';
@@ -25,6 +26,7 @@ import {
   TASK_VERIFIER_SYSTEM_PROMPT,
   BaseAgent,
   SupervisorAgent,
+  agentCacheManager,
 } from '@snakagent/agents';
 import { initializeModels } from './utils/agents.utils.js';
 
@@ -48,6 +50,7 @@ export class AgentStorage implements OnModuleInit {
     private readonly supervisorService: SupervisorService
   ) {
     this.agentValidationService = new AgentValidationService(this);
+    this.configureAgentCache();
   }
 
   async onModuleInit() {
@@ -140,18 +143,43 @@ export class AgentStorage implements OnModuleInit {
       await this.initialize();
     }
     try {
+      const cachedAgent = agentCacheManager.get(userId, id);
+      if (cachedAgent) {
+        logger.debug(`Agent ${id} served from cache for user ${userId}`);
+        return cachedAgent;
+      }
+
       const agentConfig = await redisAgents.getAgentByPair(id, userId);
 
       if (!agentConfig) {
         logger.debug(`Agent ${id} not found in Redis for user ${userId}`);
-        return undefined;
+        const result = await agents.selectAgents('id = $1 AND user_id = $2', [
+          id,
+          userId,
+        ]);
+        if (result.length === 0) {
+          return undefined;
+        }
+        const fetchedConfig = result[0];
+        const agent = await agentCacheManager.getOrCreate(
+          userId,
+          fetchedConfig.id,
+          async () => this.createSnakAgentFromConfig(fetchedConfig)
+        );
+        logger.debug(
+          `Agent ${id} created from PostgreSQL fallback for user ${userId}`
+        );
+        return agent;
       }
 
-      // Create SnakAgent from config
-      const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
+      const agent = await agentCacheManager.getOrCreate(
+        userId,
+        agentConfig.id,
+        async () => this.createSnakAgentFromConfig(agentConfig)
+      );
 
       logger.debug(`Agent ${id} created for user ${userId}`);
-      return snakAgent;
+      return agent;
     } catch (error) {
       logger.error(`Error getting agent instance from Redis: ${error}`);
       // Fallback to PostgreSQL as source of truth
@@ -160,16 +188,19 @@ export class AgentStorage implements OnModuleInit {
           id,
           userId,
         ]);
-        if (result.length > 0) {
-          const agentConfig = result[0];
-          // Create SnakAgent from config
-          const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
-          logger.debug(
-            `Agent ${id} created from PostgreSQL fallback for user ${userId}`
-          );
-          return snakAgent;
+        if (result.length === 0) {
+          return undefined;
         }
-        return undefined;
+        const agentConfig = result[0];
+        const agent = await agentCacheManager.getOrCreate(
+          userId,
+          agentConfig.id,
+          async () => this.createSnakAgentFromConfig(agentConfig)
+        );
+        logger.debug(
+          `Agent ${id} created from PostgreSQL fallback for user ${userId}`
+        );
+        return agent;
       } catch (pgError) {
         logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
         throw new Error(
@@ -310,6 +341,7 @@ export class AgentStorage implements OnModuleInit {
       // Don't throw, PostgreSQL deletion is what matters
     }
 
+    await agentCacheManager.invalidate(userId, id);
     logger.debug(`Agent ${id} removed from configuration`);
   }
 
@@ -651,6 +683,24 @@ export class AgentStorage implements OnModuleInit {
    * @param agentConfig - Agent configuration to validate
    * @param isCreation - Whether this is for creation (true) or update (false)
    */
+  private configureAgentCache(): void {
+    try {
+      const maxCachedAgents = getGuardValue('global.max_cached_agents');
+      const maxCachedAgentsPerUser = getGuardValue('user.max_cached_agents');
+      agentCacheManager.configure({
+        maxCachedAgents,
+        maxCachedAgentsPerUser,
+      });
+      logger.debug(
+        `Agent cache configured (global=${maxCachedAgents}, perUser=${maxCachedAgentsPerUser})`
+      );
+    } catch (error) {
+      logger.warn(
+        `[AgentStorage] Failed to configure agent cache from guards: ${error}`
+      );
+    }
+  }
+
   async validateAgent(
     agentConfig: AgentConfig.Input | AgentConfig.InputWithOptionalParam,
     isCreation: boolean = false

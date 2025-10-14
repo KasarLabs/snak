@@ -1,10 +1,12 @@
 {
   "global": {
     "max_users": 1000,
-    "max_agents": 10000
+    "max_agents": 10000,
+    "max_cached_agents": 200
   },
   "user": {
     "max_agents": 100,
+    "max_cached_agents": 10,
     "max_upload_avatar_size": 50000000,
     "max_token_usage": [10000, 50000, 250000, 2500000]
   },

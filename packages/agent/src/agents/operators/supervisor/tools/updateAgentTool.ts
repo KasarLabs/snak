@@ -8,6 +8,7 @@ import {
   isProtectedAgent,
   validateAgentProperties,
 } from '../utils/agents.validators.js';
+import { agentCacheManager } from '../../../../cache/agentCacheManager.js';
 
 /**
  * Helper function to deep merge two objects, filtering out null/undefined values
@@ -356,6 +357,17 @@ export function updateAgentTool(
           } catch (error) {
             logger.error(`Failed to update agent in Redis: ${error}`);
             // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
+          }
+
+          try {
+            await agentCacheManager.invalidate(userId, result[0].id);
+            logger.debug(
+              `Agent ${result[0].id} invalidated in cache after update`
+            );
+          } catch (cacheError) {
+            logger.warn(
+              `Failed to invalidate cache for agent ${result[0].id}: ${cacheError}`
+            );
           }
 
           let message = `Agent "${agent.profile.name}" updated successfully`;
