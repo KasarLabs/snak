@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 
-import { agents, Postgres, redisAgents } from '@snakagent/database/queries';
+import { agents, redisAgents } from '@snakagent/database/queries';
+import { Postgres } from '@snakagent/database';
 import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { AddMcpServerSchema } from './schemas/mcp.schemas.js';

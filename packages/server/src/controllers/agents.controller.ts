@@ -131,7 +131,14 @@ export class AgentsController {
       throw new BadRequestException('Agent not found');
     }
 
-    await redisAgents.updateAgent(updatedAgent);
+    try {
+      await redisAgents.updateAgent(updatedAgent);
+    } catch (err) {
+      logger.warn(
+        `Redis sync failed for agent ${updatedAgent.id}: ${err instanceof Error ? err.message : String(err)}`
+      );
+      // Continue: PostgreSQL is the source of truth
+    }
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
