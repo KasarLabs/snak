@@ -12,6 +12,7 @@ import { initializeDatabase } from '@agents/utils/database.utils.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import {
   getCommunicationHelperTools,
+  getMcpServerHelperTools,
   getSupervisorConfigTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
@@ -167,7 +168,7 @@ export class SupervisorGraph {
       await mcpConfigurationHelperSystemPrompt.format({});
     const mcpConfigurationHelper = createReactAgent({
       llm: this.supervisorConfig.graph.model,
-      tools: [],
+      tools: getMcpServerHelperTools(this.supervisorConfig),
       name: 'mcpConfigurationHelper',
       prompt: formattedMcpConfigurationHelperPrompt,
       stateSchema: SupervisorStateAnnotation,
