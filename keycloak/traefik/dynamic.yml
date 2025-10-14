@@ -35,7 +35,7 @@ http:
     frontend:
       rule: "Host(`mysnakagent.com`)"
       entryPoints: [websecure]
-      service: dummy-frontend # change to snak-frontend for real app
+      service: snak-frontend # change to snak-frontend for real app
       tls: {}
 
   services:
