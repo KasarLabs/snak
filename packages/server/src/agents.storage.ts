@@ -25,8 +25,10 @@ import {
   TASK_VERIFIER_SYSTEM_PROMPT,
   BaseAgent,
   SupervisorAgent,
+  initializeModels,
+  createAgentConfigRuntimeFromOutputWithId,
+  AgentInitializationDatabase,
 } from '@snakagent/agents';
-import { initializeModels } from './utils/agents.utils.js';
 
 const logger = new Logger('AgentStorage');
 
@@ -36,7 +38,7 @@ const logger = new Logger('AgentStorage');
  * Service responsible for managing agent storage, configuration, and lifecycle
  */
 @Injectable()
-export class AgentStorage implements OnModuleInit {
+export class AgentStorage implements OnModuleInit, AgentInitializationDatabase {
   private agentSelector: AgentSelector;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
@@ -511,39 +513,6 @@ export class AgentStorage implements OnModuleInit {
     }
   }
 
-  private async createAgentConfigRuntimeFromOutputWithId(
-    agentConfigOutputWithId: AgentConfig.OutputWithId
-  ): Promise<AgentConfig.Runtime | undefined> {
-    try {
-      const model = await this.getModelFromUser(
-        agentConfigOutputWithId.user_id
-      );
-      const modelInstance = initializeModels(model);
-      if (!modelInstance) {
-        throw new Error('Failed to initialize model for SnakAgent');
-      }
-      const promptsFromDb = await this.getPromptsFromDatabase(
-        agentConfigOutputWithId.prompts_id
-      );
-      if (!promptsFromDb) {
-        throw new Error(
-          `Failed to load prompts for agent ${agentConfigOutputWithId.id}, prompts ID: ${agentConfigOutputWithId.prompts_id}`
-        );
-      }
-      const AgentConfigRuntime: AgentConfig.Runtime = {
-        ...agentConfigOutputWithId,
-        prompts: promptsFromDb,
-        graph: {
-          ...agentConfigOutputWithId.graph,
-          model: modelInstance,
-        },
-      };
-      return AgentConfigRuntime;
-    } catch (error) {
-      logger.error('Agent configuration validation failed:', error);
-      throw error;
-    }
-  }
 
   /* ==================== PRIVATE AGENT CREATION METHODS ==================== */
 
@@ -557,7 +526,7 @@ export class AgentStorage implements OnModuleInit {
         accountPublicKey: this.config.starknet.publicKey,
       };
       const AgentConfigRuntime =
-        await this.createAgentConfigRuntimeFromOutputWithId(agentConfig);
+        await createAgentConfigRuntimeFromOutputWithId(agentConfig, this);
       if (!AgentConfigRuntime) {
         throw new Error(
           `Failed to create runtime config for agent ${agentConfig.id}`
@@ -580,11 +549,11 @@ export class AgentStorage implements OnModuleInit {
 
   /**
    * Get prompts from database by prompt ID
-   * @private
+   * Implementation of AgentInitializationDatabase interface
    * @param promptId - UUID of the prompt configuration
    * @returns Promise<AgentConfig.Prompts | null> - Parsed prompts or null if not found
    */
-  private async getPromptsFromDatabase(
+  public async getPromptsById(
     promptId: string
   ): Promise<AgentPromptsInitialized<string> | null> {
     try {

@@ -33,12 +33,10 @@ import {
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
   MessageRequest,
-  MemoryStrategy,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
-import { Postgres } from '@snakagent/database';
-import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
+import { BaseAgent } from '@snakagent/agents';
 import { notify, message, agents } from '@snakagent/database/queries';
 import { supervisorAgentConfig } from '@snakagent/core';
 

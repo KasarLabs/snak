@@ -1,38 +1,26 @@
 import { Dataset } from './datasets.js';
 import { ChatOpenAI } from '@langchain/openai';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { EvaluationResult } from 'langsmith/evaluation';
 import * as path from 'path';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { SUPERVISOR_SYSTEM_PROMPT } from '../../shared/prompts/agents/supervisor/supervisor.prompt.js';
 
-/**
- * Example evaluator function
- * You can customize this or create your own evaluators
- */
-function correct({
-  outputs,
-  referenceOutputs,
-}: {
-  outputs: Record<string, any>;
-  referenceOutputs?: Record<string, any>;
-}): EvaluationResult {
-  const score = outputs.output === referenceOutputs?.outputs;
-  return { key: 'correct', score };
-}
-
-/**
- * Example chain for evaluation
- * You can customize this with your own chain
- */
 const prompt = ChatPromptTemplate.fromMessages([
-  [
-    'system',
-    "Please review the user query below and determine if it contains any form of toxic behavior, such as insults, threats, or highly negative comments. Respond with 'Toxic' if it does, and 'Not toxic' if it doesn't.",
-  ],
-  ['user', '{messages}'],
+  ['system', SUPERVISOR_SYSTEM_PROMPT],
+  new MessagesPlaceholder('messages'),
 ]);
 
-const chatModel = new ChatOpenAI();
+const chatModel = new ChatGoogleGenerativeAI({
+  model: 'gemini-2.5-flash', // Updated to valid Gemini model name
+  verbose: false,
+  temperature: 0.7,
+  apiKey: process.env.GEMINI_API_KEY,
+});
 const outputParser = new StringOutputParser();
 const chain = prompt.pipe(chatModel).pipe(outputParser);
 
@@ -78,7 +66,7 @@ async function main() {
   try {
     // Run evaluation
     // If dataset doesn't exist, it will try to create it from CSV
-    const results = await Dataset.runEvaluation(datasetName, chain, [correct], {
+    const results = await Dataset.runEvaluation(datasetName, chain, {
       // These are only needed if the dataset doesn't exist and needs to be created from CSV
       inputKeys: ['messages'],
       outputKeys: ['output'],

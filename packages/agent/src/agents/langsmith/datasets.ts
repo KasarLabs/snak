@@ -3,6 +3,9 @@ import { Client } from 'langsmith';
 import * as fs from 'fs';
 import * as path from 'path';
 import { File } from 'buffer';
+import * as ls from 'langsmith/vitest';
+// import * as ls from "langsmith/jest";
+import { createLLMAsJudge, CORRECTNESS_PROMPT } from 'openevals';
 
 /**
  * Static Dataset class for managing LangSmith datasets with CSV integration
@@ -86,6 +89,15 @@ export class Dataset {
     return dataset;
   }
 
+  static async getEvaluator(): Promise<any> {
+    const correctnessEvaluator = createLLMAsJudge({
+      prompt: CORRECTNESS_PROMPT,
+      feedbackKey: '    ',
+      model: 'gemini-2.5-flash',
+    });
+    return correctnessEvaluator;
+  }
+
   /**
    * Run an evaluation on a dataset
    * If the dataset doesn't exist, it will attempt to create it from a CSV file
@@ -101,7 +113,6 @@ export class Dataset {
   static async runEvaluation(
     datasetName: string,
     target: any,
-    evaluators: any[],
     options?: {
       inputKeys?: string[];
       outputKeys?: string[];
@@ -143,12 +154,12 @@ export class Dataset {
         );
       }
     }
-
+    const evaluator = await this.getEvaluator();
     // Run evaluation
     console.log(`Running evaluation on dataset: ${datasetName}`);
     const results = await evaluate(target, {
       data: datasetName,
-      evaluators: evaluators,
+      evaluators: [evaluator],
       experimentPrefix:
         options?.experimentPrefix || `evaluation-${datasetName}`,
     });
