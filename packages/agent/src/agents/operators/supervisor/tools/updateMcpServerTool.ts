@@ -1,5 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres, redisAgents } from '@snakagent/database/queries';
+
+import { agents, Postgres, redisAgents } from '@snakagent/database/queries';
 import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { UpdateMcpServerSchema } from './schemas/mcp.schemas.js';
@@ -130,42 +131,21 @@ export function updateMcpServerTool(
         }
 
         // Update the agent with updated MCP servers
-        const updateQuery = new Postgres.Query(
-          `WITH updated AS (
-            UPDATE agents
-            SET "mcp_servers" = $1
-            WHERE id = $2 AND user_id = $3
-            RETURNING *
-          )
-          SELECT
-            id,
-            user_id,
-            row_to_json(profile)        AS profile,
-            mcp_servers,
-            prompts_id,
-            row_to_json(graph)          AS graph,
-            row_to_json(memory)         AS memory,
-            row_to_json(rag)            AS rag,
-            created_at,
-            updated_at,
-            avatar_image,
-            avatar_mime_type
-          FROM updated`,
-          [normalizedUpdatedServers, agent.id, userId]
+        const result = await agents.updateAgentMcp(
+          agent.id,
+          userId,
+          normalizedUpdatedServers
         );
 
-        const result =
-          await Postgres.query<AgentConfig.OutputWithId>(updateQuery);
-
-        if (result.length > 0) {
+        if (result) {
           logger.info(
             `Updated MCP server(s) "${updated.join(', ')}" for agent "${agent.profile.name}" successfully for user ${userId}`
           );
 
           // Update Redis cache
           try {
-            await redisAgents.updateAgent(result[0]);
-            logger.debug(`Agent ${result[0].id} updated in Redis`);
+            await redisAgents.updateAgent(result);
+            logger.debug(`Agent ${result.id} updated in Redis`);
           } catch (error) {
             logger.error(`Failed to update agent in Redis: ${error}`);
             // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
