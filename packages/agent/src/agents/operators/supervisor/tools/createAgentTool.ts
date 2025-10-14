@@ -16,7 +16,7 @@ import {
 } from '@prompts/index.js';
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
-import { redisAgents } from '@snakagent/database/queries';
+import { redisAgents, agents } from '@snakagent/database/queries';
 import { validateAgentProperties } from '../utils/agents.validators.js';
 
 const dbInterface: AgentDatabaseInterface = {
@@ -128,19 +128,12 @@ export function createAgentTool(
         agentConfigData.prompts_id = promptId;
 
         // Insert into database
-        const payload: Record<string, unknown> = {
-          ...agentConfigData,
-        };
-
-        const insertQuery = new Postgres.Query(
-          'SELECT id, user_id, profile, mcp_servers, prompts_id, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type FROM insert_agent_from_json($1, $2)',
-          [userId, JSON.stringify(payload)]
+        const result = await agents.insertAgentFromJson(
+          userId,
+          agentConfigData
         );
 
-        const result =
-          await Postgres.query<AgentConfig.OutputWithId>(insertQuery);
-
-        if (result.length === 0) {
+        if (!result) {
           logger.error(
             'Failed to create agent: insert_agent_from_json returned no rows'
           );
@@ -151,7 +144,7 @@ export function createAgentTool(
           });
         }
 
-        const createdAgent = result[0];
+        const createdAgent = result;
 
         try {
           await redisAgents.saveAgent(createdAgent);

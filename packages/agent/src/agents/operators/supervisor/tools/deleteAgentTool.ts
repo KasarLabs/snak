@@ -26,9 +26,13 @@ export function deleteAgentTool(
         }
 
         const searchBy = input.searchBy || 'name';
-        const agent = await agents.getAgentProfile(input.identifier, userId, searchBy);
+        const agent = await agents.getAgentProfile(
+          input.identifier,
+          userId,
+          searchBy
+        );
 
-        if (agent === null) {
+        if (!agent) {
           return JSON.stringify({
             success: false,
             message: `Agent not found with ${searchBy}: ${input.identifier}`,

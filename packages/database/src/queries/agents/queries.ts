@@ -1,4 +1,9 @@
-import { AgentProfile, logger, supervisorAgentConfig } from '@snakagent/core';
+import {
+  AgentConfig,
+  AgentProfile,
+  logger,
+  supervisorAgentConfig,
+} from '@snakagent/core';
 import { Postgres } from '../../database.js';
 
 export namespace agents {
@@ -10,14 +15,20 @@ export namespace agents {
     avatar_mime_type: string;
   }
 
-  export async function getAgentProfile(identifier: string, userId: string, searchBy: 'id' | 'name'): Promise< {id: string, profile: AgentProfile}| null> {
+  export async function getAgentProfile(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): Promise<{ id: string; profile: AgentProfile } | null> {
     const query = new Postgres.Query(
       `SELECT id, row_to_json(profile) as profile
        FROM agents
        WHERE ${searchBy} = $1 AND user_id = $2`,
       [identifier, userId]
     );
-    const result = await Postgres.query<{ id: string, profile: AgentProfile }>(query);
+    const result = await Postgres.query<{ id: string; profile: AgentProfile }>(
+      query
+    );
     return result.length > 0 ? result[0] : null;
   }
 
@@ -212,13 +223,13 @@ export namespace agents {
   export async function deleteAgent(
     agentId: string,
     userId: string
-  ): Promise<{id: string}> {
+  ): Promise<{ id: string }> {
     const query = new Postgres.Query(
       `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING id`,
       [agentId, userId]
     );
-    
-    const result = await Postgres.query<{id: string}>(query);
+
+    const result = await Postgres.query<{ id: string }>(query);
     return result[0];
   }
 
@@ -284,14 +295,26 @@ export namespace agents {
    */
   export async function insertAgentFromJson(
     userId: string,
-    agentConfig: any
-  ): Promise<any | null> {
+    agentConfig: AgentConfig.Input
+  ): Promise<AgentConfig.OutputWithId | null> {
     const query = new Postgres.Query(
-      'SELECT * FROM insert_agent_from_json($1, $2)',
+      `SELECT id, 
+          user_id, 
+          profile,
+          mcp_servers,
+          prompts_id,
+          graph,
+          memory,
+          rag,
+          created_at,
+          updated_at,
+          avatar_image,
+          avatar_mime_type
+          FROM insert_agent_from_json($1, $2)`,
       [userId, JSON.stringify(agentConfig)]
     );
 
-    const result = await Postgres.query<any>(query);
+    const result = await Postgres.query<AgentConfig.OutputWithId>(query);
     return result.length > 0 ? result[0] : null;
   }
 
