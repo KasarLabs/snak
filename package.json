@@ -50,6 +50,7 @@
     "node:server": "node ./mcps/snak/dist/index.js",
     "start:prod": "lerna run start --scope \"@snakagent/server\"; ECODE=$? ; exit $ECODE",
     "test_metrics": "jest packages/metrics/src/__tests__/metrics.test.ts",
+    "datasets": "tsx --env-file=.env packages/agent/src/agents/langsmith/run-datasets.ts",
     "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "dependencies": {

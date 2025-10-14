@@ -1,0 +1,3 @@
+# Ignore all CSV files except the example
+*.dataset.csv
+!example-dataset.dataset.csv
