@@ -36,7 +36,6 @@ export class SupervisorAgent extends BaseAgent {
       if (!this.agentConfig) {
         throw new Error('Agent configuration is required for initialization');
       }
-
       this.pgCheckpointer = await CheckpointerService.getInstance();
       if (!this.pgCheckpointer) {
         throw new Error('Failed to initialize Postgres checkpointer');

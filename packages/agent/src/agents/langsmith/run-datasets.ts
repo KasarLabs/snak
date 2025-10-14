@@ -9,31 +9,10 @@ import { EvaluationResult } from 'langsmith/evaluation';
 import * as path from 'path';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { SUPERVISOR_SYSTEM_PROMPT } from '../../shared/prompts/agents/supervisor/supervisor.prompt.js';
-import { SupervisorAgent } from '@agents/core/supervisorAgent.js';
-import { createAgentConfigRuntimeFromOutputWithId } from 'utils/agent-initialization.utils.js';
-import { AgentConfig, supervisorAgentConfig } from '@snakagent/core';
+import { SupervisorAgent } from '../core/supervisorAgent.js';
+import { createAgentConfigRuntimeFromOutputWithId } from '../../utils/agent-initialization.utils.js';
+import { DatabaseConfigService, supervisorAgentConfig } from '@snakagent/core';
 
-const prompt = ChatPromptTemplate.fromMessages([
-  ['system', SUPERVISOR_SYSTEM_PROMPT],
-  new MessagesPlaceholder('messages'),
-]);
-
-const chatModel = new ChatGoogleGenerativeAI({
-  model: 'gemini-2.5-flash', // Updated to valid Gemini model name
-  verbose: false,
-  temperature: 0.7,
-  apiKey: process.env.GEMINI_API_KEY,
-});
-const outputParser = new StringOutputParser();
-const chain = prompt.pipe(chatModel).pipe(outputParser);
-
-const supervisorConfigRunTime  = await createAgentConfigRuntimeFromOutputWithId({...supervisorAgentConfig, id: 'd5796090-5202-45d6-b0a3-554fc3db0185', user_id : 'd5796090-5202-45d6-b0a3-554fc3db0185'})
-if (!supervisorConfigRunTime) {
-  throw new Error(
-    `Failed to create runtime config for supervisor agent`
-  );
-}
-const supervisorAgent = new SupervisorAgent(supervisorConfigRunTime)
 /**
  * Parse command line arguments
  */
@@ -69,14 +48,29 @@ async function main() {
   const datasetName = args.name;
 
   console.log(`\n🚀 Running evaluation for dataset: ${datasetName}\n`);
-
   // Define the datasets directory path
   const datasetsPath = path.join(process.cwd(), 'datasets');
 
   try {
+    const supervisorConfigRunTime =
+      await createAgentConfigRuntimeFromOutputWithId({
+        ...supervisorAgentConfig,
+        id: 'd5796090-5202-45d6-b0a3-554fc3db0185',
+        user_id: 'd5796090-5202-45d6-b0a3-554fc3db0185',
+      });
+    if (!supervisorConfigRunTime) {
+      throw new Error(`Failed to create runtime config for supervisor agent`);
+    }
+    const supervisorAgent = new SupervisorAgent(supervisorConfigRunTime);
+    if (!supervisorAgent) {
+      throw new Error(`Failed to create supervisor agent`);
+    }
+    await supervisorAgent.init();
+    const supervisorNode =
+      supervisorAgent.getCompiledStateGraph()?.nodes['supervisor'];
     // Run evaluation
     // If dataset doesn't exist, it will try to create it from CSV
-    const results = await Dataset.runEvaluation(datasetName, chain, {
+    const results = await Dataset.runEvaluation(datasetName, supervisorNode, {
       // These are only needed if the dataset doesn't exist and needs to be created from CSV
       inputKeys: ['messages'],
       outputKeys: ['output'],

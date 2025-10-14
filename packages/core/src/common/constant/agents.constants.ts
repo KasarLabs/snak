@@ -1,4 +1,4 @@
-import { AgentConfig, MemoryStrategy } from '@common/agent.js';
+import { AgentConfig, MemoryStrategy } from '../../common/agent.js';
 
 /**
  * Agent Selector Configuration
@@ -24,8 +24,8 @@ export const agentSelectorConfig: AgentConfig.Input = {
     execution_timeout_ms: 30000,
     max_token_usage: 4000,
     model: {
-      model_provider: 'gemini-2.5-flash',
-      model_name: 'gemini',
+      model_provider: 'gemini',
+      model_name: 'gemini-2.5-flash',
       temperature: 0.7,
       max_tokens: 8192,
     },
@@ -86,8 +86,8 @@ export const supervisorAgentConfig: AgentConfig.Input = {
     execution_timeout_ms: 120000,
     max_token_usage: 16000,
     model: {
-      model_provider: 'gemini-2.5-flash',
-      model_name: 'gemini',
+      model_provider: 'gemini',
+      model_name: 'gemini-2.5-flash',
       temperature: 0.7,
       max_tokens: 8192,
     },

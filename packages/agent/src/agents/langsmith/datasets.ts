@@ -1,3 +1,21 @@
+import {
+  DatabaseConfigService,
+  GuardsService,
+  initializeGuards,
+} from '@snakagent/core';
+import { LanggraphDatabase, Postgres } from '@snakagent/database';
+
+const guardsConfigPath = path.resolve(
+  process.cwd(),
+  process.env.GUARDS_CONFIG_PATH || 'config/guards/default.guards.json'
+);
+
+initializeGuards(guardsConfigPath);
+DatabaseConfigService.getInstance().initialize();
+const databaseConfig = DatabaseConfigService.getInstance().getCredentials();
+
+await Postgres.connect(databaseConfig);
+await LanggraphDatabase.getInstance().connect(databaseConfig);
 import { evaluate } from 'langsmith/evaluation';
 import { Client } from 'langsmith';
 import * as fs from 'fs';
