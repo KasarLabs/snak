@@ -1,4 +1,4 @@
-import { supervisorAgentConfig } from '@snakagent/core';
+import { AgentProfile, logger, supervisorAgentConfig } from '@snakagent/core';
 import { Postgres } from '../../database.js';
 
 export namespace agents {
@@ -8,6 +8,17 @@ export namespace agents {
   export interface AgentAvatarData {
     id: string;
     avatar_mime_type: string;
+  }
+
+  export async function getAgentProfile(identifier: string, userId: string, searchBy: 'id' | 'name'): Promise< {id: string, profile: AgentProfile}| null> {
+    const query = new Postgres.Query(
+      `SELECT id, row_to_json(profile) as profile
+       FROM agents
+       WHERE ${searchBy} = $1 AND user_id = $2`,
+      [identifier, userId]
+    );
+    const result = await Postgres.query<{ id: string, profile: AgentProfile }>(query);
+    return result.length > 0 ? result[0] : null;
   }
 
   /**
@@ -196,19 +207,19 @@ export namespace agents {
    * Delete agent by ID
    * @param agentId - Agent ID
    * @param userId - User ID for ownership verification
-   * @returns Promise<any[]> - Array of deleted agents
+   * @returns Promise<{id: string}> - Deleted agent ID
    */
   export async function deleteAgent(
     agentId: string,
     userId: string
-  ): Promise<any[]> {
+  ): Promise<{id: string}> {
     const query = new Postgres.Query(
-      `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
+      `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING id`,
       [agentId, userId]
     );
-
-    const result = await Postgres.query<any>(query);
-    return result;
+    
+    const result = await Postgres.query<{id: string}>(query);
+    return result[0];
   }
 
   /**

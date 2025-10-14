@@ -299,7 +299,7 @@ export class AgentStorage implements OnModuleInit {
     }
 
     const q_res = await agents.deleteAgent(id, userId);
-    logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
+    logger.debug(`Agent deleted from database: ${q_res.id}`);
 
     // Delete from Redis
     try {

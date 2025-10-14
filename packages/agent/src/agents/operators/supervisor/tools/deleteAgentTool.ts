@@ -1,5 +1,5 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres, redisAgents } from '@snakagent/database/queries';
+import { agents, Postgres, redisAgents } from '@snakagent/database/queries';
 import { AgentProfile, logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
@@ -25,37 +25,15 @@ export function deleteAgentTool(
           });
         }
 
-        // First, find the agent (we only need id and profile for deletion)
-        let findQuery: Postgres.Query;
         const searchBy = input.searchBy || 'name';
-        if (searchBy === 'id') {
-          // PostgresQuery relation : agents
-          findQuery = new Postgres.Query(
-            `SELECT id, row_to_json(profile) as profile
-             FROM agents WHERE id = $1 AND user_id = $2`,
-            [input.identifier, userId]
-          );
-        } else {
-          // PostgresQuery relation : agents
-          findQuery = new Postgres.Query(
-            `SELECT id, row_to_json(profile) as profile
-             FROM agents WHERE (profile).name = $1 AND user_id = $2`,
-            [input.identifier, userId]
-          );
-        }
+        const agent = await agents.getAgentProfile(input.identifier, userId, searchBy);
 
-        const existingAgent = await Postgres.query<{
-          id: string;
-          profile: AgentProfile;
-        }>(findQuery);
-        if (existingAgent.length === 0) {
+        if (agent === null) {
           return JSON.stringify({
             success: false,
             message: `Agent not found with ${searchBy}: ${input.identifier}`,
           });
         }
-
-        const agent = existingAgent[0];
 
         logger.debug(`Agent profile: ${JSON.stringify(agent.profile)}`);
 
@@ -72,11 +50,8 @@ export function deleteAgentTool(
         }
 
         // Delete the agent
-        const deleteQuery = new Postgres.Query(
-          'DELETE FROM agents WHERE id = $1 AND user_id = $2',
-          [agent.id, userId]
-        );
-        await Postgres.query(deleteQuery);
+        const deletedAgent = await agents.deleteAgent(agent.id, userId);
+        logger.debug(`Agent ${deletedAgent.id} deleted from database`);
 
         // Delete from Redis cache
         try {
