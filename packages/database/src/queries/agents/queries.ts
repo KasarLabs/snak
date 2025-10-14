@@ -145,7 +145,9 @@ export namespace agents {
    * @param userId - User ID
    * @returns Promise<AgentConfig.OutputWithoutUserId[]>
    */
-  export async function getAllAgentsByUser(userId: string): Promise<AgentConfig.OutputWithoutUserId[]> {
+  export async function getAllAgentsByUser(
+    userId: string
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
     const query = new Postgres.Query(
       `SELECT
         id,
@@ -190,7 +192,6 @@ export namespace agents {
     limit?: number,
     offset?: number
   ): Promise<AgentConfig.OutputWithoutUserId[]> {
-    
     let queryString = `SELECT
         id,
         row_to_json(profile) as profile,
@@ -210,24 +211,36 @@ export namespace agents {
       FROM agents
       WHERE user_id = $1`;
 
-    const queryParams: (string|number)[] = [userId];
+    const queryParams: (string | number)[] = [userId];
     let paramIndex = 2;
 
     // Add filters
     if (filters) {
-      if (filters.group !== null && filters.group !== undefined && filters.group !== '') {
+      if (
+        filters.group !== null &&
+        filters.group !== undefined &&
+        filters.group !== ''
+      ) {
         queryString += ` AND (profile)."group" = $${paramIndex}`;
         queryParams.push(filters.group);
         paramIndex++;
       }
 
-      if (filters.mode !== null && filters.mode !== undefined && filters.mode !== '') {
+      if (
+        filters.mode !== null &&
+        filters.mode !== undefined &&
+        filters.mode !== ''
+      ) {
         queryString += ` AND mode = $${paramIndex}`;
         queryParams.push(filters.mode);
         paramIndex++;
       }
 
-      if (filters.name_contains !== null && filters.name_contains !== undefined && filters.name_contains !== '') {
+      if (
+        filters.name_contains !== null &&
+        filters.name_contains !== undefined &&
+        filters.name_contains !== ''
+      ) {
         queryString += ` AND (profile).name ILIKE $${paramIndex}`;
         queryParams.push(`%${filters.name_contains}%`);
         paramIndex++;

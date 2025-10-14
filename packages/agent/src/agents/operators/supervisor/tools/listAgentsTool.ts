@@ -18,8 +18,12 @@ export function listAgentsTool(
         const result = await agents.listAgents(
           userId,
           input.filters,
-          input.limit !== null && input.limit !== undefined ? input.limit : undefined,
-          input.offset !== null && input.offset !== undefined ? input.offset : undefined
+          input.limit !== null && input.limit !== undefined
+            ? input.limit
+            : undefined,
+          input.offset !== null && input.offset !== undefined
+            ? input.offset
+            : undefined
         );
 
         return JSON.stringify({
