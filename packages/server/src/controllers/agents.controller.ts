@@ -131,6 +131,8 @@ export class AgentsController {
       throw new BadRequestException('Agent not found');
     }
 
+    await redisAgents.updateAgent(updatedAgent);
+
     return ResponseFormatter.success({
       id: updatedAgent.id,
       mcpServers: updatedAgent.mcp_servers,
