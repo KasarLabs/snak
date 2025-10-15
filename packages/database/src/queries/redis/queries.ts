@@ -20,7 +20,7 @@ export class AgentDuplicateError extends Error {
  * @throws {AgentDuplicateError} If an agent with the same (agent_id, user_id) pair already exists
  * @throws {Error} If the Redis transaction fails
  */
-export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
+export async function saveAgent(dto: AgentConfig.Output): Promise<void> {
   const redis = getRedisClient();
   const agentKey = `agents:${dto.id}`;
   const userSetKey = `agents:by-user:${dto.user_id}`;
@@ -86,7 +86,7 @@ export async function saveAgent(dto: AgentConfig.OutputWithId): Promise<void> {
  */
 export async function listAgentsByUser(
   userId: string
-): Promise<AgentConfig.OutputWithId[]> {
+): Promise<AgentConfig.Output[]> {
   const redis = getRedisClient();
   const userSetKey = `agents:by-user:${userId}`;
 
@@ -105,12 +105,12 @@ export async function listAgentsByUser(
     const agentJsons = await redis.mget(...agentKeys);
 
     // Parse and filter out any null values
-    const agents: AgentConfig.OutputWithId[] = [];
+    const agents: AgentConfig.Output[] = [];
     for (let i = 0; i < agentJsons.length; i++) {
       const json = agentJsons[i];
       if (json) {
         try {
-          const agent = JSON.parse(json) as AgentConfig.OutputWithId;
+          const agent = JSON.parse(json) as AgentConfig.Output;
           agents.push(agent);
         } catch (error) {
           logger.error(
@@ -143,7 +143,7 @@ export async function listAgentsByUser(
 export async function getAgentByPair(
   agentId: string,
   userId: string
-): Promise<AgentConfig.OutputWithId | null> {
+): Promise<AgentConfig.Output | null> {
   const redis = getRedisClient();
   const pairIndexKey = `agents:idx:agent-user:${agentId}:${userId}`;
   const agentKey = `agents:${agentId}`;
@@ -166,7 +166,7 @@ export async function getAgentByPair(
     }
 
     // Parse and verify user_id
-    const agent = JSON.parse(agentJson) as AgentConfig.OutputWithId;
+    const agent = JSON.parse(agentJson) as AgentConfig.Output;
 
     if (agent.user_id !== userId) {
       logger.warn(

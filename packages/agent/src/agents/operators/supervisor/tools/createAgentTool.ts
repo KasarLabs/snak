@@ -128,12 +128,12 @@ export function createAgentTool(
         agentConfigData.prompts_id = promptId;
 
         // Insert into database
-        const result = await agents.insertAgentFromJson(
+        const createdAgent = await agents.insertAgentFromJson(
           userId,
           agentConfigData
         );
 
-        if (!result) {
+        if (!createdAgent) {
           logger.error(
             'Failed to create agent: insert_agent_from_json returned no rows'
           );
@@ -143,8 +143,6 @@ export function createAgentTool(
               'Failed to create agent - database insertion no data returned',
           });
         }
-
-        const createdAgent = result;
 
         try {
           await redisAgents.saveAgent(createdAgent);
