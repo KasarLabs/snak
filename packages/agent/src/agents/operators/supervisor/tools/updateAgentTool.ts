@@ -163,11 +163,10 @@ export function updateAgentTool(
           normalizeNumericValues(mergedConfig);
 
         // Use the updateAgentComplete function instead of direct SQL
-        const result = await agents.updateAgentComplete(
-          agent.id,
-          userId,
-          { ...normalizedMergedConfig, id: agent.id }
-        );
+        const result = await agents.updateAgentComplete(agent.id, userId, {
+          ...normalizedMergedConfig,
+          id: agent.id,
+        });
 
         if (result.success) {
           logger.info(
