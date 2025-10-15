@@ -116,6 +116,46 @@ export namespace agents {
   }
 
   /**
+   * Get complete agent data by identifier (ID or name) - includes all fields
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @returns Promise<AgentConfig.Input | null>
+   */
+  export async function getAgentComplete(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): Promise<{ id: string; agentConfig: AgentConfig.Input } | null> {
+    let whereClause: string;
+    let params: any[];
+
+    if (searchBy === 'id') {
+      whereClause = 'id = $1 AND user_id = $2';
+      params = [identifier, userId];
+    } else {
+      whereClause = '(profile).name = $1 AND user_id = $2';
+      params = [identifier, userId];
+    }
+
+    const query = new Postgres.Query(
+      `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
+       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
+       created_at, updated_at, avatar_image, avatar_mime_type
+       FROM agents
+       WHERE ${whereClause}`,
+      params
+    );
+    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
+    if (result.length > 0) {
+      const { id, user_id, prompts_id, ...agentConfig } = result[0];
+      return { id, agentConfig };
+    }
+
+    return null;
+  }
+
+  /**
    * Get agent by ID and user ID
    * @param agentId - Agent ID
    * @param userId - User ID for ownership verification
@@ -695,15 +735,20 @@ export namespace agents {
    * @param agentId - Agent ID
    * @param userId - User ID for ownership verification
    * @param config - Complete agent configuration object
-   * @returns Promise<{success: boolean, message: string, updated_agent_id: string}>
+   * @returns Promise<{success: boolean, message: string, updated_agent_id: string, agent_data: any}>
    */
   export async function updateAgentComplete(
     agentId: string,
     userId: string,
-    config: any
-  ): Promise<{ success: boolean; message: string; updated_agent_id: string }> {
+    config: AgentConfig.InputWithOptionalParam
+  ): Promise<{
+    success: boolean;
+    message: string;
+    updated_agent_id: string;
+    agent_data: AgentConfig.Output;
+  }> {
     const query = new Postgres.Query(
-      `SELECT success, message, updated_agent_id
+      `SELECT success, message, updated_agent_id, agent_data
        FROM update_agent_complete($1::UUID, $2::UUID, $3::JSONB)`,
       [agentId, userId, JSON.stringify(config)]
     );
@@ -712,6 +757,7 @@ export namespace agents {
       success: boolean;
       message: string;
       updated_agent_id: string;
+      agent_data: AgentConfig.Output;
     }>(query);
     return result[0];
   }

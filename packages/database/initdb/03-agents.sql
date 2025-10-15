@@ -291,7 +291,8 @@ CREATE OR REPLACE FUNCTION update_agent_complete(
 ) RETURNS TABLE(
   success BOOLEAN,
   message TEXT,
-  updated_agent_id UUID
+  updated_agent_id UUID,
+  agent_data JSONB
 ) AS $$
 BEGIN
   -- Update only provided fields
@@ -380,9 +381,31 @@ BEGIN
   WHERE id = p_agent_id AND user_id = p_user_id;
   
   IF FOUND THEN
-    RETURN QUERY SELECT TRUE, 'Agent updated successfully', p_agent_id;
+    RETURN QUERY 
+    SELECT 
+      TRUE, 
+      'Agent updated successfully', 
+      p_agent_id,
+      to_jsonb(
+        ROW(
+          a.id,
+          a.user_id,
+          row_to_json(a.profile),
+          a.mcp_servers,
+          a.prompts_id,
+          row_to_json(a.graph),
+          row_to_json(a.memory),
+          row_to_json(a.rag),
+          a.created_at,
+          a.updated_at,
+          a.avatar_image,
+          a.avatar_mime_type
+        )::agent_config_output
+      )
+    FROM agents a
+    WHERE a.id = p_agent_id AND a.user_id = p_user_id;
   ELSE
-    RETURN QUERY SELECT FALSE, 'Agent not found or unauthorized', NULL::UUID;
+    RETURN QUERY SELECT FALSE, 'Agent not found or unauthorized', NULL::UUID, NULL::JSONB;
   END IF;
 END;
 $$ LANGUAGE plpgsql;
