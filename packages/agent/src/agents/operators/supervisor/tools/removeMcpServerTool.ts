@@ -1,5 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { Postgres } from '@snakagent/database';
+import { agents } from '@snakagent/database/queries';
 import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { RemoveMcpServerSchema } from './schemas/mcp.schemas.js';
@@ -18,41 +19,19 @@ export function removeMcpServerTool(
         const userId = agentConfig.user_id;
 
         // First, find the agent (we need id, profile, and mcp_servers)
-        let findQuery: Postgres.Query;
         const searchBy = input.searchBy || 'name';
+        const agent = await agents.getAgentWithMcp(
+          input.identifier,
+          userId,
+          searchBy
+        );
 
-        if (searchBy === 'id') {
-          findQuery = new Postgres.Query(
-            `SELECT id, row_to_json(profile) as profile, mcp_servers
-             FROM agents WHERE id = $1 AND user_id = $2`,
-            [input.identifier, userId]
-          );
-        } else {
-          findQuery = new Postgres.Query(
-            `SELECT id, row_to_json(profile) as profile, mcp_servers
-             FROM agents WHERE (profile).name = $1 AND user_id = $2`,
-            [input.identifier, userId]
-          );
-        }
-
-        const existingAgent = await Postgres.query<{
-          id: string;
-          profile: {
-            name: string;
-            group: string;
-            description: string;
-            contexts: string[];
-          };
-          mcp_servers: Record<string, McpServerConfig>;
-        }>(findQuery);
-        if (existingAgent.length === 0) {
+        if (!agent) {
           return JSON.stringify({
             success: false,
             message: `Agent not found with ${searchBy}: ${input.identifier}`,
           });
         }
-
-        const agent = existingAgent[0];
 
         // Check if agent is protected (supervisor agent or system group)
         const protectionCheck = isProtectedAgent(
@@ -93,14 +72,13 @@ export function removeMcpServerTool(
         }
 
         // Update the agent with updated MCP servers
-        const updateQuery = new Postgres.Query(
-          'UPDATE agents SET "mcp_servers" = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
-          [updatedMcpServers, agent.id, userId]
+        const result = await agents.updateAgentMcp(
+          agent.id,
+          userId,
+          updatedMcpServers
         );
 
-        const result = await Postgres.query<AgentConfig.Input>(updateQuery);
-
-        if (result.length > 0) {
+        if (result) {
           logger.info(
             `Removed MCP server(s) "${removed.join(', ')}" from agent "${agent.profile.name}" successfully for user ${userId}`
           );
