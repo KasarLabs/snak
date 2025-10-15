@@ -114,7 +114,36 @@ async function main() {
     await supervisorAgent.init();
 
     // Get the specified node from the compiled state graph
-    const targetNode = supervisorAgent.getCompiledStateGraph()?.nodes[nodeName];
+    const supervisorInstance = supervisorAgent.getSupervisorGraphInstance();
+    if (!supervisorInstance) {
+      throw new Error(`Supervisor graph instance is not initialized`);
+    }
+    let targetNode;
+    if (nodeName === 'supervisor') {
+      targetNode = supervisorAgent.getCompiledStateGraph()?.nodes[nodeName];
+    } else {
+      // Map node names to their corresponding getter methods
+      const specialistGetters: Record<string, () => any> = {
+        agentConfigurationHelper: () => supervisorInstance.getAgentConfigurationHelper(),
+        mcpConfigurationHelper: () => supervisorInstance.getMcpConfigurationHelper(),
+        snakRagAgentHelper: () => supervisorInstance.getSnakRagAgentHelper(),
+      };
+
+      const getSpecialistGraph = specialistGetters[nodeName];
+      if (!getSpecialistGraph) {
+        throw new Error(
+          `Unknown specialist node '${nodeName}'. Valid specialist nodes are: ${Object.keys(specialistGetters).join(', ')}`
+        );
+      }
+
+      const specialistGraph = getSpecialistGraph();
+      if (!specialistGraph) {
+        throw new Error(
+          `Specialist graph instance for node '${nodeName}' is not initialized`
+        );
+      }
+      targetNode = specialistGraph.nodes['agent'];
+    }
 
     if (!targetNode) {
       throw new Error(`Node '${nodeName}' not found in the ${graphName} graph`);

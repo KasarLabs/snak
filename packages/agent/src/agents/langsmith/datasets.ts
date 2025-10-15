@@ -6,6 +6,7 @@ import {
 import { LanggraphDatabase, Postgres } from '@snakagent/database';
 
 const guardsConfigPath = path.resolve(
+  // TODO Check if we ca have a better initialization
   process.cwd(),
   process.env.GUARDS_CONFIG_PATH || 'config/guards/default.guards.json'
 );
@@ -21,7 +22,6 @@ import { Client } from 'langsmith';
 import * as fs from 'fs';
 import * as path from 'path';
 import { File } from 'buffer';
-import * as ls from 'langsmith/vitest';
 // import * as ls from "langsmith/jest";
 import { createLLMAsJudge, CORRECTNESS_PROMPT } from 'openevals';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
@@ -296,7 +296,7 @@ export function parseLangSmithResults(
         exampleId: result.example?.id || '',
         score: score,
         passed: score >= 0.7, // 70% threshold for passing
-        comment: evalResult.comment || ''
+        comment: evalResult.comment || '',
       });
     });
   });
@@ -321,7 +321,7 @@ export function parseLangSmithResults(
     passedTests,
     failedTests,
     testResults,
-    scoreDistribution
+    scoreDistribution,
   };
 }
 
@@ -332,36 +332,36 @@ export function parseLangSmithResults(
  */
 export function displaySummary(summary: EvaluationSummary): string {
   let output = `
-📊 RÉSUMÉ DE L'ÉVALUATION
-========================
-Expérience: ${summary.experimentName}
+EVALUATION SUMMARY
+==================
+Experiment: ${summary.experimentName}
 ID: ${summary.experimentId}
 
-📈 STATISTIQUES GLOBALES
-------------------------
-Total de tests: ${summary.totalTests}
-Tests traités: ${summary.processedTests}
-Score moyen: ${(summary.averageScore * 100).toFixed(1)}%
-Score min: ${(summary.minScore * 100).toFixed(1)}%
-Score max: ${(summary.maxScore * 100).toFixed(1)}%
+GLOBAL STATISTICS
+-----------------
+Total tests: ${summary.totalTests}
+Processed tests: ${summary.processedTests}
+Average score: ${(summary.averageScore * 100).toFixed(1)}%
+Min score: ${(summary.minScore * 100).toFixed(1)}%
+Max score: ${(summary.maxScore * 100).toFixed(1)}%
 
-✅ RÉSULTATS
+RESULTS
+-------
+Passed tests: ${summary.passedTests} (${((summary.passedTests / summary.totalTests) * 100).toFixed(1)}%)
+Failed tests: ${summary.failedTests} (${((summary.failedTests / summary.totalTests) * 100).toFixed(1)}%)
+
+TEST DETAILS
 ------------
-Tests réussis: ${summary.passedTests} (${((summary.passedTests / summary.totalTests) * 100).toFixed(1)}%)
-Tests échoués: ${summary.failedTests} (${((summary.failedTests / summary.totalTests) * 100).toFixed(1)}%)
-
-📋 DÉTAILS DES TESTS
---------------------
 `;
 
   summary.testResults.forEach((test) => {
     const status = test.passed ? '✅' : '❌';
     output += `${status} Test ${test.testNumber}: ${test.testName}\n`;
     output += `   Score: ${(test.score * 100).toFixed(1)}%\n`;
-    output += `   ${test.comment.substring(0, 100)}${test.comment.length > 100 ? '...' : ''}\n\n`;
+    output += `   ${test.comment}}\n\n`;
   });
 
-  output += `\n📊 DISTRIBUTION DES SCORES\n--------------------------\n`;
+  output += `\nSCORE DISTRIBUTION\n------------------\n`;
   Object.entries(summary.scoreDistribution)
     .sort(([a], [b]) => Number(a) - Number(b))
     .forEach(([score, count]) => {

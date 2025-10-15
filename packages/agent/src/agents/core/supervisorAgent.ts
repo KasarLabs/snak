@@ -5,7 +5,10 @@ import {
   ChunkOutput,
   ChunkOutputMetadata,
 } from '../../shared/types/streaming.types.js';
-import { createSupervisorGraph } from '@agents/graphs/core-graph/supervisor.graph.js';
+import {
+  createSupervisorGraph,
+  SupervisorGraph,
+} from '@agents/graphs/core-graph/supervisor.graph.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
@@ -23,6 +26,7 @@ import { notify } from '@snakagent/database/queries';
  * Supervisor agent for managing and coordinating multiple agents
  */
 export class SupervisorAgent extends BaseAgent {
+  supervisorGraphInstance: SupervisorGraph | null = null;
   constructor(agent_config: AgentConfig.Runtime) {
     super('supervisor', AgentType.SUPERVISOR, agent_config);
   }
@@ -40,16 +44,21 @@ export class SupervisorAgent extends BaseAgent {
       if (!this.pgCheckpointer) {
         throw new Error('Failed to initialize Postgres checkpointer');
       }
-      const graph = await createSupervisorGraph(this);
-      if (!graph) {
+      this.supervisorGraphInstance = await createSupervisorGraph(this);
+      if (!this.supervisorGraphInstance) {
         throw new Error('Failed to create supervisor graph');
       }
-      this.compiledStateGraph = graph;
+
+      this.compiledStateGraph = this.supervisorGraphInstance.getcompiledGraph();
       logger.info('[SupervisorAgent] Initialized successfully');
     } catch (error) {
       logger.error(`[SupervisorAgent] Initialization failed: ${error}`);
       throw error;
     }
+  }
+
+  public getSupervisorGraphInstance(): SupervisorGraph | null {
+    return this.supervisorGraphInstance;
   }
 
   /**

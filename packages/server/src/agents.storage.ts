@@ -18,10 +18,6 @@ import {
   AgentSelector,
   AgentConfigResolver,
   SnakAgent,
-  TASK_EXECUTOR_SYSTEM_PROMPT,
-  TASK_MANAGER_SYSTEM_PROMPT,
-  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-  TASK_VERIFIER_SYSTEM_PROMPT,
   BaseAgent,
   SupervisorAgent,
   initializeModels,
@@ -507,7 +503,6 @@ export class AgentStorage implements OnModuleInit {
       throw error;
     }
   }
-
 
   /* ==================== PRIVATE AGENT CREATION METHODS ==================== */
 

@@ -27,6 +27,27 @@ const SupervisorStateAnnotation = Annotation.Root({
 });
 export class SupervisorGraph {
   private graph: CompiledStateGraph<any, any, any, any, any> | null = null;
+  private agentConfigurationHelper: CompiledStateGraph<
+    any,
+    any,
+    any,
+    any,
+    any
+  > | null = null;
+  private mcpConfigurationHelper: CompiledStateGraph<
+    any,
+    any,
+    any,
+    any,
+    any
+  > | null = null;
+  private snakRagAgentHelper: CompiledStateGraph<
+    any,
+    any,
+    any,
+    any,
+    any
+  > | null = null;
   private checkpointer: PostgresSaver;
   private supervisorConfig: AgentConfig.Runtime;
 
@@ -45,13 +66,38 @@ export class SupervisorGraph {
       await initializeDatabase(this.supervisorAgent.getDatabaseCredentials());
       // Build and compile the workflow
       const workflow = await this.buildWorkflow();
-      const graph = workflow.compile({ checkpointer: this.checkpointer });
+      this.graph = workflow.compile({ checkpointer: this.checkpointer });
       logger.info('[SupervisorAgent] Successfully initialized agent');
-      return graph;
+      return this.graph;
     } catch (error) {
       logger.error('[SupervisorAgent] Failed to create agent:', error);
       throw error;
     }
+  }
+
+  getcompiledGraph(): CompiledStateGraph<any, any, any, any, any> | null {
+    return this.graph;
+  }
+  getAgentConfigurationHelper(): CompiledStateGraph<
+    any,
+    any,
+    any,
+    any,
+    any
+  > | null {
+    return this.agentConfigurationHelper;
+  }
+  getMcpConfigurationHelper(): CompiledStateGraph<
+    any,
+    any,
+    any,
+    any,
+    any
+  > | null {
+    return this.mcpConfigurationHelper;
+  }
+  getSnakRagAgentHelper(): CompiledStateGraph<any, any, any, any, any> | null {
+    return this.snakRagAgentHelper;
   }
 
   private end_graph(state: typeof GraphState): {
@@ -147,7 +193,7 @@ export class SupervisorGraph {
       ]);
     const formattedAgentConfigurationHelperPrompt =
       await agentConfigurationHelperSystemPrompt.format({});
-    const agentConfigurationHelper = createReactAgent({
+    this.agentConfigurationHelper = createReactAgent({
       llm: this.supervisorConfig.graph.model,
       tools: getSupervisorConfigTools(this.supervisorConfig),
       name: 'agentConfigurationHelper',
@@ -162,7 +208,7 @@ export class SupervisorGraph {
     ]);
     const formattedMcpConfigurationHelperPrompt =
       await mcpConfigurationHelperSystemPrompt.format({});
-    const mcpConfigurationHelper = createReactAgent({
+    this.mcpConfigurationHelper = createReactAgent({
       llm: this.supervisorConfig.graph.model,
       tools: [],
       name: 'mcpConfigurationHelper',
@@ -171,7 +217,7 @@ export class SupervisorGraph {
       preModelHook: this.transformMessagesHook.bind(this),
     });
 
-    const snakRagAgentHelper = createReactAgent({
+    this.snakRagAgentHelper = createReactAgent({
       llm: this.supervisorConfig.graph.model,
       tools: [],
       name: 'snakRagAgentHelper',
@@ -189,9 +235,9 @@ export class SupervisorGraph {
     const workflow = createSupervisor({
       supervisorName: 'supervisor',
       agents: [
-        agentConfigurationHelper,
-        mcpConfigurationHelper,
-        snakRagAgentHelper,
+        this.agentConfigurationHelper,
+        this.mcpConfigurationHelper,
+        this.snakRagAgentHelper,
       ],
       tools: getCommunicationHelperTools(),
       llm: this.supervisorConfig.graph.model,
@@ -207,7 +253,8 @@ export class SupervisorGraph {
 
 export const createSupervisorGraph = async (
   supervisorAgent: SupervisorAgent
-): Promise<CompiledStateGraph<any, any, any, any, any>> => {
+): Promise<SupervisorGraph> => {
   const agent = new SupervisorGraph(supervisorAgent);
-  return agent.initialize();
+  await agent.initialize();
+  return agent;
 };
