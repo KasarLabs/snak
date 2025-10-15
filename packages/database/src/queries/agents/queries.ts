@@ -36,6 +36,35 @@ export namespace agents {
   }
 
   // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Build WHERE clause for agent queries by ID or name
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @returns Object containing whereClause string and params array
+   */
+  function buildAgentWhereClause(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): { whereClause: string; params: any[] } {
+    if (searchBy === 'id') {
+      return {
+        whereClause: 'id = $1 AND user_id = $2',
+        params: [identifier, userId],
+      };
+    } else {
+      return {
+        whereClause: '(profile).name = $1 AND user_id = $2',
+        params: [identifier, userId],
+      };
+    }
+  }
+
+  // ============================================================================
   // GET OPERATIONS - Retrieve agent data
   // ============================================================================
 
@@ -51,16 +80,11 @@ export namespace agents {
     userId: string,
     searchBy: 'id' | 'name'
   ): Promise<{ id: string; profile: AgentProfile } | null> {
-    let whereClause: string;
-    let params: any[];
-
-    if (searchBy === 'id') {
-      whereClause = 'id = $1 AND user_id = $2';
-      params = [identifier, userId];
-    } else {
-      whereClause = '(profile).name = $1 AND user_id = $2';
-      params = [identifier, userId];
-    }
+    const { whereClause, params } = buildAgentWhereClause(
+      identifier,
+      userId,
+      searchBy
+    );
 
     const query = new Postgres.Query(
       `SELECT id, row_to_json(profile) as profile
@@ -90,16 +114,11 @@ export namespace agents {
     profile: AgentProfile;
     mcp_servers: Record<string, any>;
   } | null> {
-    let whereClause: string;
-    let params: any[];
-
-    if (searchBy === 'id') {
-      whereClause = 'id = $1 AND user_id = $2';
-      params = [identifier, userId];
-    } else {
-      whereClause = '(profile).name = $1 AND user_id = $2';
-      params = [identifier, userId];
-    }
+    const { whereClause, params } = buildAgentWhereClause(
+      identifier,
+      userId,
+      searchBy
+    );
 
     const query = new Postgres.Query(
       `SELECT id, row_to_json(profile) as profile, mcp_servers
@@ -127,16 +146,11 @@ export namespace agents {
     userId: string,
     searchBy: 'id' | 'name'
   ): Promise<{ id: string; agentConfig: AgentConfig.Input } | null> {
-    let whereClause: string;
-    let params: any[];
-
-    if (searchBy === 'id') {
-      whereClause = 'id = $1 AND user_id = $2';
-      params = [identifier, userId];
-    } else {
-      whereClause = '(profile).name = $1 AND user_id = $2';
-      params = [identifier, userId];
-    }
+    const { whereClause, params } = buildAgentWhereClause(
+      identifier,
+      userId,
+      searchBy
+    );
 
     const query = new Postgres.Query(
       `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
@@ -374,16 +388,11 @@ export namespace agents {
     userId: string,
     searchBy: 'id' | 'name'
   ): Promise<AgentConfig.OutputWithoutUserId | null> {
-    let whereClause: string;
-    let params: any[];
-
-    if (searchBy === 'id') {
-      whereClause = 'id = $1 AND user_id = $2';
-      params = [identifier, userId];
-    } else {
-      whereClause = '(profile).name = $1 AND user_id = $2';
-      params = [identifier, userId];
-    }
+    const { whereClause, params } = buildAgentWhereClause(
+      identifier,
+      userId,
+      searchBy
+    );
 
     const query = new Postgres.Query(
       `SELECT id, row_to_json(profile) as profile, mcp_servers, prompts_id,
@@ -826,13 +835,13 @@ export namespace agents {
   export async function deleteAgent(
     agentId: string,
     userId: string
-  ): Promise<{ id: string }> {
+  ): Promise<{ id: string } | null> {
     const query = new Postgres.Query(
       `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING id`,
       [agentId, userId]
     );
 
     const result = await Postgres.query<{ id: string }>(query);
-    return result[0];
+    return result.length > 0 ? result[0] : null;
   }
 }

@@ -414,7 +414,7 @@ BEGIN
           a.rag,
           a.created_at,
           a.updated_at,
-          a.avatar_image,
+          NULL::BYTEA,
           a.avatar_mime_type
         )::agent_config_output
       )

@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { agents, Postgres, redisAgents } from '@snakagent/database/queries';
-import { AgentProfile, logger } from '@snakagent/core';
+import { agents, redisAgents } from '@snakagent/database/queries';
+import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
 import { isProtectedAgent } from '../utils/agents.validators.js';
@@ -39,7 +39,7 @@ export function deleteAgentTool(
           });
         }
 
-        logger.debug(`Agent profile: ${JSON.stringify(agent.profile)}`);
+        logger.debug(`Agent profile: ${agent.id}`);
 
         // Check if agent is protected (supervisor agent or system group)
         const protectionCheck = isProtectedAgent(
@@ -55,6 +55,12 @@ export function deleteAgentTool(
 
         // Delete the agent
         const deletedAgent = await agents.deleteAgent(agent.id, userId);
+        if (!deletedAgent) {
+          return JSON.stringify({
+            success: false,
+            message: `Failed to delete agent. It may have already been deleted or you don't have permission.`,
+          });
+        }
         logger.debug(`Agent ${deletedAgent.id} deleted from database`);
 
         // Delete from Redis cache

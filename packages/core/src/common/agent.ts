@@ -178,8 +178,8 @@ export namespace AgentConfig {
   export interface Output extends OutputWithId {
     created_at: string;
     updated_at: string;
-    avatar_mime_type: string;
-    avatar_image: string;
+    avatar_mime_type?: string;
+    avatar_image?: string;
   }
 
   export interface OutputWithoutUserId extends Omit<Output, 'user_id'> {
