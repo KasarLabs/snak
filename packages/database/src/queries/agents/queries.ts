@@ -50,7 +50,7 @@ export namespace agents {
     identifier: string,
     userId: string,
     searchBy: 'id' | 'name'
-  ): { whereClause: string; params: any[] } {
+  ): { whereClause: string; params: string[] } {
     if (searchBy === 'id') {
       return {
         whereClause: 'id = $1 AND user_id = $2',
@@ -62,6 +62,96 @@ export namespace agents {
         params: [identifier, userId],
       };
     }
+  }
+
+  /**
+   * Generic function to query a single agent by identifier (ID or name)
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @param selectClause - SQL SELECT clause (fields to retrieve)
+   * @returns Promise<T | null> where T is the result type
+   */
+  async function queryAgentByIdentifier<T>(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name',
+    selectClause: string
+  ): Promise<T | null> {
+    const { whereClause, params } = buildAgentWhereClause(
+      identifier,
+      userId,
+      searchBy
+    );
+
+    const query = new Postgres.Query(
+      `SELECT ${selectClause}
+       FROM agents
+       WHERE ${whereClause}`,
+      params
+    );
+
+    const result = await Postgres.query<T>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Build SELECT clause for agent queries
+   * @param options - Configuration options for the SELECT clause
+   * @returns SQL SELECT clause string
+   */
+  function buildAgentSelectClause(options: {
+    includeUserId?: boolean;
+    includeAvatar?: boolean;
+    includePromptsId?: boolean;
+  } = {}): string {
+    const {
+      includeUserId = false,
+      includeAvatar = false,
+      includePromptsId = true,
+    } = options;
+
+    const fields = [
+      'id',
+      ...(includeUserId ? ['user_id'] : []),
+      'row_to_json(profile) as profile',
+      'mcp_servers',
+      ...(includePromptsId ? ['prompts_id'] : []),
+      'row_to_json(graph) as graph',
+      'row_to_json(memory) as memory',
+      'row_to_json(rag) as rag',
+      'created_at',
+      'updated_at',
+    ];
+
+    if (includeAvatar) {
+      fields.push('avatar_image', 'avatar_mime_type');
+    }
+
+    return fields.join(',\n        ');
+  }
+
+  /**
+   * Build SELECT clause with avatar URL encoding
+   * Converts binary avatar_image to data URL format
+   * @returns SQL SELECT clause string with avatar URL CASE statement
+   */
+  function buildAgentSelectWithAvatarUrl(): string {
+    return `id,
+        row_to_json(profile) as profile,
+        mcp_servers as "mcp_servers",
+        prompts_id,
+        row_to_json(graph) as graph,
+        row_to_json(memory) as memory,
+        row_to_json(rag) as rag,
+        CASE
+          WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
+          THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
+          ELSE NULL
+        END as "avatarUrl",
+        avatar_mime_type,
+        created_at,
+        updated_at`;
   }
 
   // ============================================================================
@@ -80,22 +170,12 @@ export namespace agents {
     userId: string,
     searchBy: 'id' | 'name'
   ): Promise<{ id: string; profile: AgentProfile } | null> {
-    const { whereClause, params } = buildAgentWhereClause(
+    return queryAgentByIdentifier<{ id: string; profile: AgentProfile }>(
       identifier,
       userId,
-      searchBy
+      searchBy,
+      'id, row_to_json(profile) as profile'
     );
-
-    const query = new Postgres.Query(
-      `SELECT id, row_to_json(profile) as profile
-       FROM agents
-       WHERE ${whereClause}`,
-      params
-    );
-    const result = await Postgres.query<{ id: string; profile: AgentProfile }>(
-      query
-    );
-    return result.length > 0 ? result[0] : null;
   }
 
   /**
@@ -114,24 +194,11 @@ export namespace agents {
     profile: AgentProfile;
     mcp_servers: Record<string, any>;
   } | null> {
-    const { whereClause, params } = buildAgentWhereClause(
-      identifier,
-      userId,
-      searchBy
-    );
-
-    const query = new Postgres.Query(
-      `SELECT id, row_to_json(profile) as profile, mcp_servers
-       FROM agents
-       WHERE ${whereClause}`,
-      params
-    );
-    const result = await Postgres.query<{
+    return queryAgentByIdentifier<{
       id: string;
       profile: AgentProfile;
       mcp_servers: Record<string, McpServerConfig>;
-    }>(query);
-    return result.length > 0 ? result[0] : null;
+    }>(identifier, userId, searchBy, 'id, row_to_json(profile) as profile, mcp_servers');
   }
 
   /**
@@ -146,23 +213,15 @@ export namespace agents {
     userId: string,
     searchBy: 'id' | 'name'
   ): Promise<{ id: string; agentConfig: AgentConfig.Input } | null> {
-    const { whereClause, params } = buildAgentWhereClause(
+    const result = await queryAgentByIdentifier<AgentConfig.OutputWithoutUserId>(
       identifier,
       userId,
-      searchBy
+      searchBy,
+      buildAgentSelectClause({ includeUserId: true, includeAvatar: true })
     );
 
-    const query = new Postgres.Query(
-      `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
-       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
-       created_at, updated_at, avatar_image, avatar_mime_type
-       FROM agents
-       WHERE ${whereClause}`,
-      params
-    );
-    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
-    if (result.length > 0) {
-      const { id, user_id, prompts_id, ...agentConfig } = result[0];
+    if (result) {
+      const { id, user_id, prompts_id, ...agentConfig } = result;
       return { id, agentConfig };
     }
 
@@ -180,18 +239,7 @@ export namespace agents {
     userId: string
   ): Promise<AgentConfig.OutputWithoutUserId | null> {
     const query = new Postgres.Query(
-      `SELECT
-        id,
-        row_to_json(profile) as profile,
-        mcp_servers,
-        prompts_id,
-        row_to_json(graph) as graph,
-        row_to_json(memory) as memory,
-        row_to_json(rag) as rag,
-        created_at,
-        updated_at,
-        avatar_image,
-        avatar_mime_type
+      `SELECT ${buildAgentSelectClause({ includeAvatar: true })}
       FROM agents WHERE id = $1 AND user_id = $2`,
       [agentId, userId]
     );
@@ -209,22 +257,7 @@ export namespace agents {
     userId: string
   ): Promise<AgentConfig.OutputWithoutUserId[]> {
     const query = new Postgres.Query(
-      `SELECT
-        id,
-        row_to_json(profile) as profile,
-        mcp_servers as "mcp_servers",
-        prompts_id,
-        row_to_json(graph) as graph,
-        row_to_json(memory) as memory,
-        row_to_json(rag) as rag,
-        CASE
-          WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
-          THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
-          ELSE NULL
-        END as "avatarUrl",
-        avatar_mime_type,
-        created_at,
-        updated_at
+      `SELECT ${buildAgentSelectWithAvatarUrl()}
       FROM agents
       WHERE user_id = $1`,
       [userId]
@@ -252,22 +285,7 @@ export namespace agents {
     limit?: number,
     offset?: number
   ): Promise<AgentConfig.OutputWithoutUserId[]> {
-    let queryString = `SELECT
-        id,
-        row_to_json(profile) as profile,
-        mcp_servers as "mcp_servers",
-        prompts_id,
-        row_to_json(graph) as graph,
-        row_to_json(memory) as memory,
-        row_to_json(rag) as rag,
-        CASE
-          WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
-          THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
-          ELSE NULL
-        END as "avatarUrl",
-        avatar_mime_type,
-        created_at,
-        updated_at
+    let queryString = `SELECT ${buildAgentSelectWithAvatarUrl()}
       FROM agents
       WHERE user_id = $1`;
 
@@ -334,19 +352,7 @@ export namespace agents {
    */
   export async function getAllAgents(): Promise<AgentConfig.Output[]> {
     const query = new Postgres.Query(`
-      SELECT
-        id,
-        user_id,
-        row_to_json(profile) as profile,
-        mcp_servers as "mcp_servers",
-        prompts_id,
-        row_to_json(graph) as graph,
-        row_to_json(memory) as memory,
-        row_to_json(rag) as rag,
-        created_at,
-        updated_at,
-        avatar_image,
-        avatar_mime_type
+      SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}
       FROM agents
     `);
 
@@ -365,9 +371,7 @@ export namespace agents {
     params: any[]
   ): Promise<AgentConfig.Output[]> {
     const query = new Postgres.Query(
-      `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
-       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
-       created_at, updated_at, avatar_image, avatar_mime_type
+      `SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}
        FROM agents WHERE ${whereClause}`,
       params
     );
@@ -388,27 +392,26 @@ export namespace agents {
     userId: string,
     searchBy: 'id' | 'name'
   ): Promise<AgentConfig.OutputWithoutUserId | null> {
-    const { whereClause, params } = buildAgentWhereClause(
+    return queryAgentByIdentifier<AgentConfig.OutputWithoutUserId>(
       identifier,
       userId,
-      searchBy
-    );
-
-    const query = new Postgres.Query(
-      `SELECT id, row_to_json(profile) as profile, mcp_servers, prompts_id,
-       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
-       created_at, updated_at, avatar_mime_type,
+      searchBy,
+      `id,
+       row_to_json(profile) as profile,
+       mcp_servers,
+       prompts_id,
+       row_to_json(graph) as graph,
+       row_to_json(memory) as memory,
+       row_to_json(rag) as rag,
+       created_at,
+       updated_at,
+       avatar_mime_type,
        CASE
          WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
          THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
          ELSE NULL
-       END as avatar_image
-       FROM agents WHERE ${whereClause}`,
-      params
+       END as avatar_image`
     );
-
-    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
-    return result.length > 0 ? result[0] : null;
   }
 
   /**
@@ -452,14 +455,30 @@ export namespace agents {
   }
 
   /**
+   * Generic function to get count of agents with optional WHERE clause
+   * @param whereClause - Optional WHERE clause (without the WHERE keyword)
+   * @param params - Optional parameters for the WHERE clause
+   * @returns Promise<number>
+   */
+  async function getAgentsCount(
+    whereClause?: string,
+    params?: any[]
+  ): Promise<number> {
+    const queryString = whereClause
+      ? `SELECT COUNT(*) as count FROM agents WHERE ${whereClause}`
+      : `SELECT COUNT(*) as count FROM agents`;
+
+    const query = new Postgres.Query(queryString, params || []);
+    const result = await Postgres.query<{ count: string }>(query);
+    return parseInt(result[0].count, 10);
+  }
+
+  /**
    * Get total count of all agents
    * @returns Promise<number>
    */
   export async function getTotalAgentsCount(): Promise<number> {
-    const query = new Postgres.Query(`SELECT COUNT(*) as count FROM agents`);
-
-    const result = await Postgres.query<{ count: string }>(query);
-    return parseInt(result[0].count, 10);
+    return getAgentsCount();
   }
 
   /**
@@ -468,13 +487,7 @@ export namespace agents {
    * @returns Promise<number>
    */
   export async function getUserAgentsCount(userId: string): Promise<number> {
-    const query = new Postgres.Query(
-      `SELECT COUNT(*) as count FROM agents WHERE user_id = $1`,
-      [userId]
-    );
-
-    const result = await Postgres.query<{ count: string }>(query);
-    return parseInt(result[0].count, 10);
+    return getAgentsCount('user_id = $1', [userId]);
   }
 
   /**
@@ -610,18 +623,7 @@ export namespace agents {
     agentConfig: AgentConfig.Input
   ): Promise<AgentConfig.Output | null> {
     const query = new Postgres.Query(
-      `SELECT id, 
-          user_id, 
-          profile,
-          mcp_servers,
-          prompts_id,
-          graph,
-          memory,
-          rag,
-          created_at,
-          updated_at,
-          avatar_image,
-          avatar_mime_type
+      `SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}
           FROM insert_agent_from_json($1, $2)`,
       [userId, JSON.stringify(agentConfig)]
     );
@@ -719,19 +721,7 @@ export namespace agents {
       `UPDATE agents
        SET "mcp_servers" = $1::jsonb
        WHERE id = $2 AND user_id = $3
-       RETURNING
-         id,
-         user_id,
-         row_to_json(profile)        AS profile,
-         mcp_servers,
-         prompts_id,
-         row_to_json(graph)          AS graph,
-         row_to_json(memory)         AS memory,
-         row_to_json(rag)            AS rag,
-         created_at,
-         updated_at,
-         avatar_image,
-         avatar_mime_type`,
+       RETURNING ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}`,
       [mcpServers, agentId, userId]
     );
 
