@@ -631,7 +631,7 @@ export namespace agents {
     agentConfig: AgentConfig.Input
   ): Promise<AgentConfig.Output | null> {
     const query = new Postgres.Query(
-      `SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}
+      `SELECT id, user_id, profile, mcp_servers, prompts_id, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type
           FROM insert_agent_from_json($1, $2)`,
       [userId, JSON.stringify(agentConfig)]
     );
