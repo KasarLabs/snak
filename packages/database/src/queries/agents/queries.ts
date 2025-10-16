@@ -185,7 +185,7 @@ export namespace agents {
    * @param identifier - Agent ID or name
    * @param userId - User ID for ownership verification
    * @param searchBy - Search by 'id' or 'name'
-   * @returns Promise<{id: string, profile: AgentProfile, mcp_servers: Record<string, any>} | null>
+   * @returns Promise<{id: string, profile: AgentProfile, mcp_servers: Record<string, McpServerConfig>} | null>
    */
   export async function getAgentWithMcp(
     identifier: string,
@@ -194,7 +194,7 @@ export namespace agents {
   ): Promise<{
     id: string;
     profile: AgentProfile;
-    mcp_servers: Record<string, any>;
+    mcp_servers: Record<string, McpServerConfig>;
   } | null> {
     return queryAgentByIdentifier<{
       id: string;
@@ -723,7 +723,7 @@ export namespace agents {
   export async function updateAgentMcp(
     agentId: string,
     userId: string,
-    mcpServers: Record<string, any>
+    mcpServers: Record<string, McpServerConfig>
   ): Promise<AgentConfig.Output | null> {
     const query = new Postgres.Query(
       `UPDATE agents
@@ -742,7 +742,7 @@ export namespace agents {
    * @param agentId - Agent ID
    * @param userId - User ID for ownership verification
    * @param config - Complete agent configuration object
-   * @returns Promise<{success: boolean, message: string, updated_agent_id: string, agent_data: any}>
+   * @returns Promise<{success: boolean, message: string, updated_agent_id: string, agent_data: AgentConfig.Output}>
    */
   export async function updateAgentComplete(
     agentId: string,
