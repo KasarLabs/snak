@@ -100,11 +100,13 @@ export namespace agents {
    * @param options - Configuration options for the SELECT clause
    * @returns SQL SELECT clause string
    */
-  function buildAgentSelectClause(options: {
-    includeUserId?: boolean;
-    includeAvatar?: boolean;
-    includePromptsId?: boolean;
-  } = {}): string {
+  function buildAgentSelectClause(
+    options: {
+      includeUserId?: boolean;
+      includeAvatar?: boolean;
+      includePromptsId?: boolean;
+    } = {}
+  ): string {
     const {
       includeUserId = false,
       includeAvatar = false,
@@ -198,7 +200,12 @@ export namespace agents {
       id: string;
       profile: AgentProfile;
       mcp_servers: Record<string, McpServerConfig>;
-    }>(identifier, userId, searchBy, 'id, row_to_json(profile) as profile, mcp_servers');
+    }>(
+      identifier,
+      userId,
+      searchBy,
+      'id, row_to_json(profile) as profile, mcp_servers'
+    );
   }
 
   /**
@@ -213,12 +220,13 @@ export namespace agents {
     userId: string,
     searchBy: 'id' | 'name'
   ): Promise<{ id: string; agentConfig: AgentConfig.Input } | null> {
-    const result = await queryAgentByIdentifier<AgentConfig.OutputWithoutUserId>(
-      identifier,
-      userId,
-      searchBy,
-      buildAgentSelectClause({ includeUserId: true, includeAvatar: true })
-    );
+    const result =
+      await queryAgentByIdentifier<AgentConfig.OutputWithoutUserId>(
+        identifier,
+        userId,
+        searchBy,
+        buildAgentSelectClause({ includeUserId: true, includeAvatar: true })
+      );
 
     if (result) {
       const { id, user_id, prompts_id, ...agentConfig } = result;
