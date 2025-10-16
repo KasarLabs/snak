@@ -1,12 +1,12 @@
-name: Build and push docker images
+name: Build and push Docker images
 
 on:
   workflow_dispatch:
   push:
-    branches: ["**"]     # change to ["main"] when done testing
-    tags: ["v*"]
+    branches: ["main"]       # Only publish when pushing to main
+    tags: ["v*"]             # Or when pushing a version tag
   pull_request:
-    branches: ["main"]
+    branches: ["main"]       # Always build and validate on PRs
 
 permissions:
   contents: read
@@ -34,7 +34,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for snak-api
+      - name: Extract metadata (snak-api)
         id: meta-snak-api
         uses: docker/metadata-action@v5
         with:
@@ -45,12 +45,12 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push Docker image for snak-api
+      - name: Build and push Docker image (snak-api)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./packages/server/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' }} # build only on PR
           platforms: linux/amd64
           tags: ${{ steps.meta-snak-api.outputs.tags }}
           labels: ${{ steps.meta-snak-api.outputs.labels }}
