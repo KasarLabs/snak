@@ -87,7 +87,8 @@ export namespace agents {
     const query = new Postgres.Query(
       `SELECT ${selectClause}
        FROM agents
-       WHERE ${whereClause}`,
+       WHERE ${whereClause}
+       LIMIT 1`,
       params
     );
 
@@ -104,12 +105,14 @@ export namespace agents {
     options: {
       includeUserId?: boolean;
       includeAvatar?: boolean;
+      includeAvatarUrl?: boolean;
       includePromptsId?: boolean;
     } = {}
   ): string {
     const {
       includeUserId = false,
       includeAvatar = false,
+      includeAvatarUrl = false,
       includePromptsId = true,
     } = options;
 
@@ -128,6 +131,13 @@ export namespace agents {
 
     if (includeAvatar) {
       fields.push('avatar_image', 'avatar_mime_type');
+    }
+
+    if (includeAvatarUrl) {
+      fields.push(
+        "CASE\n          WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL\n          THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))\n          ELSE NULL\n        END as avatar_image",
+        'avatar_mime_type'
+      );
     }
 
     return fields.join(',\n        ');
@@ -225,7 +235,7 @@ export namespace agents {
         identifier,
         userId,
         searchBy,
-        buildAgentSelectClause({ includeUserId: true, includeAvatar: true })
+        buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })
       );
 
     if (result) {
@@ -247,7 +257,7 @@ export namespace agents {
     userId: string
   ): Promise<AgentConfig.OutputWithoutUserId | null> {
     const query = new Postgres.Query(
-      `SELECT ${buildAgentSelectClause({ includeAvatar: true })}
+      `SELECT ${buildAgentSelectClause()}
       FROM agents WHERE id = $1 AND user_id = $2`,
       [agentId, userId]
     );
@@ -360,7 +370,7 @@ export namespace agents {
    */
   export async function getAllAgents(): Promise<AgentConfig.Output[]> {
     const query = new Postgres.Query(`
-      SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}
+      SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })}
       FROM agents
     `);
 
@@ -379,7 +389,7 @@ export namespace agents {
     params: any[]
   ): Promise<AgentConfig.Output[]> {
     const query = new Postgres.Query(
-      `SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}
+      `SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })}
        FROM agents WHERE ${whereClause}`,
       params
     );
@@ -503,7 +513,6 @@ export namespace agents {
    * Used for ensuring unique agent names
    * @param userId - User ID
    * @param baseName - Base agent name
-   * @param group - Agent group
    * @returns Promise<{name: string} | null>
    */
   export async function checkAgentNameExists(
@@ -514,7 +523,7 @@ export namespace agents {
       `SELECT (profile).name as name
        FROM agents
        WHERE user_id = $1
-       AND ((profile).name = $3 OR (profile).name LIKE $3 || '-%')
+       AND ((profile).name = $2 OR (profile).name LIKE $2 || '-%')
        ORDER BY LENGTH((profile).name) DESC, (profile).name DESC
        LIMIT 1`,
       [userId, baseName]
@@ -799,7 +808,7 @@ export namespace agents {
       `UPDATE agents
        SET "mcp_servers" = $1::jsonb
        WHERE id = $2 AND user_id = $3
-       RETURNING ${buildAgentSelectClause({ includeUserId: true, includeAvatar: true })}`,
+       RETURNING ${buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })}`,
       [mcpServers, agentId, userId]
     );
 
