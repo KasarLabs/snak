@@ -111,6 +111,9 @@ CREATE TABLE agents (
     
     -- RAG settings (composite type) - MANDATORY
     rag rag_config NOT NULL,
+
+    -- Configuration version, increments when configuration columns change
+    cfg_version INTEGER NOT NULL DEFAULT 1,
     
     -- Metadata fields
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -140,6 +143,24 @@ CREATE INDEX idx_agents_prompts_id ON agents (prompts_id);
 -- GIN index for JSONB mcp_servers for efficient queries
 CREATE INDEX idx_agents_mcp_servers ON agents USING GIN (mcp_servers);
 
+-- ============================================================================
+-- AGENT CONFIGURATION OUTBOX
+-- ============================================================================
+
+CREATE TABLE agent_cfg_outbox (
+    id BIGSERIAL PRIMARY KEY,
+    agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    cfg_version INTEGER NOT NULL,
+    event TEXT NOT NULL DEFAULT 'cfg_updated',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX idx_agent_cfg_outbox_agent_id ON agent_cfg_outbox (agent_id);
+CREATE INDEX idx_agent_cfg_outbox_pending
+    ON agent_cfg_outbox (processed_at)
+    WHERE processed_at IS NULL;
+
 
 -- ============================================================================
 -- HELPER FUNCTIONS
@@ -159,6 +180,68 @@ CREATE TRIGGER update_agents_updated_at
     BEFORE UPDATE ON agents
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to increment cfg_version only when configuration changes
+CREATE OR REPLACE FUNCTION bump_agents_cfg_version()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF ROW(
+        NEW.profile,
+        NEW.mcp_servers,
+        NEW.graph,
+        NEW.memory,
+        NEW.rag,
+        NEW.prompts_id
+    ) IS DISTINCT FROM ROW(
+        OLD.profile,
+        OLD.mcp_servers,
+        OLD.graph,
+        OLD.memory,
+        OLD.rag,
+        OLD.prompts_id
+    ) THEN
+        NEW.cfg_version := COALESCE(OLD.cfg_version, 0) + 1;
+    ELSE
+        NEW.cfg_version := OLD.cfg_version;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to manage cfg_version lifecycle
+CREATE TRIGGER bump_agents_cfg_version_trigger
+    BEFORE UPDATE ON agents
+    FOR EACH ROW
+    EXECUTE FUNCTION bump_agents_cfg_version();
+
+-- Function to populate outbox and notify listeners on configuration changes
+CREATE OR REPLACE FUNCTION publish_agent_cfg_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.cfg_version IS DISTINCT FROM OLD.cfg_version THEN
+        INSERT INTO agent_cfg_outbox (agent_id, cfg_version, event)
+        VALUES (NEW.id, NEW.cfg_version, 'cfg_updated');
+
+        PERFORM pg_notify(
+            'agent_cfg_updates',
+            json_build_object(
+                'agent_id', NEW.id,
+                'cfg_version', NEW.cfg_version,
+                'event', 'cfg_updated'
+            )::text
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to publish configuration changes
+CREATE TRIGGER publish_agent_cfg_update_trigger
+    AFTER UPDATE ON agents
+    FOR EACH ROW
+    EXECUTE FUNCTION publish_agent_cfg_update();
 
 -- ============================================================================
 -- VALIDATION FUNCTION

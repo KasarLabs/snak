@@ -49,6 +49,9 @@ class Metrics {
    */
 
   private errorCount = new Map<string, client.Counter>(); // total errors by type
+  private agentCfgOutboxProcessed?: client.Counter;
+  private agentCfgOutboxErrors?: client.Counter;
+  private agentCfgOutboxRequeued?: client.Counter;
 
   private registered = false;
 
@@ -144,6 +147,24 @@ class Metrics {
       name: 'user_tokens_total',
       help: 'Total tokens (prompt + completion) used per user',
       labelNames: ['user', 'agent'] as const,
+    });
+
+    this.agentCfgOutboxProcessed = new client.Counter({
+      name: 'agent_cfg_outbox_processed_total',
+      help: 'Total outbox events successfully published to downstream systems',
+      labelNames: ['event'] as const,
+    });
+
+    this.agentCfgOutboxErrors = new client.Counter({
+      name: 'agent_cfg_outbox_errors_total',
+      help: 'Total errors encountered while processing outbox events',
+      labelNames: ['event'] as const,
+    });
+
+    this.agentCfgOutboxRequeued = new client.Counter({
+      name: 'agent_cfg_outbox_requeued_total',
+      help: 'Total outbox events requeued after downstream publication failures',
+      labelNames: ['event'] as const,
     });
   }
 
@@ -309,6 +330,21 @@ class Metrics {
     this.userTotalTokens!.labels({ user, agent }).inc(
       promptTokens + completionTokens
     );
+  }
+
+  public agentCfgOutboxProcessed(count: number, event = 'cfg_updated'): void {
+    if (!this.agentCfgOutboxProcessed) this.register();
+    this.agentCfgOutboxProcessed!.labels({ event }).inc(count);
+  }
+
+  public agentCfgOutboxError(event = 'cfg_updated'): void {
+    if (!this.agentCfgOutboxErrors) this.register();
+    this.agentCfgOutboxErrors!.labels({ event }).inc();
+  }
+
+  public agentCfgOutboxRequeued(event = 'cfg_updated'): void {
+    if (!this.agentCfgOutboxRequeued) this.register();
+    this.agentCfgOutboxRequeued!.labels({ event }).inc();
   }
 }
 
