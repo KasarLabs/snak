@@ -85,8 +85,15 @@ http:
         authResponseHeaders:
           - X-Auth-Request-User
           - X-Auth-Request-Email
-          - Authorization
+          - X-Auth-Request-Preferred-Username
+          - X-Auth-Request-Name
+          - X-Auth-Request-Groups
+          - X-Auth-Request-Roles
+          - X-Auth-Request-Userinfo
           - X-Auth-Request-Access-Token
+          - Authorization
+          - X-Forwarded-User
+          - X-Forwarded-Email
     strip-bff:
       stripPrefix:
         prefixes:
