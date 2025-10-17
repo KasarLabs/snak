@@ -17,7 +17,6 @@ import {
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
-import { Postgres } from '@snakagent/database';
 import {
   BaseAgent,
   ChunkOutput,
@@ -36,29 +35,13 @@ export class AgentService implements IAgentService {
 
   async syncAgentToRedis(agentId: string, userId: string): Promise<void> {
     try {
-      const fetchQuery = new Postgres.Query(
-        `SELECT
-            id,
-            user_id,
-            row_to_json(profile) as profile,
-            mcp_servers as "mcp_servers",
-            prompts_id,
-            row_to_json(graph) as graph,
-            row_to_json(memory) as memory,
-            row_to_json(rag) as rag,
-            created_at,
-            updated_at,
-            avatar_image,
-            avatar_mime_type
-          FROM agents
-          WHERE id = $1 AND user_id = $2`,
-        [agentId, userId]
-      );
+      const agentsList = await agents.selectAgents('id = $1 AND user_id = $2', [
+        agentId,
+        userId,
+      ]);
+      if (agentsList.length === 0) return;
 
-      const rows = await Postgres.query<AgentConfig.OutputWithId>(fetchQuery);
-      const agent = rows[0];
-      if (!agent) return;
-
+      const agent = agentsList[0];
       await redisAgents.updateAgent(agent);
       this.logger.debug(`Synced agent ${agentId} to Redis`);
     } catch (err: any) {

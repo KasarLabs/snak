@@ -65,7 +65,7 @@ export class AgentStorage implements OnModuleInit {
   public async getAgentConfig(
     id: string,
     userId: string
-  ): Promise<AgentConfig.OutputWithId | null> {
+  ): Promise<AgentConfig.Output | null> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -101,7 +101,7 @@ export class AgentStorage implements OnModuleInit {
    */
   public async getAllAgentConfigs(
     userId: string
-  ): Promise<AgentConfig.OutputWithId[]> {
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -161,7 +161,13 @@ export class AgentStorage implements OnModuleInit {
           userId,
         ]);
         if (result.length > 0) {
-          const agentConfig = result[0];
+          const {
+            created_at,
+            updated_at,
+            avatar_image,
+            avatar_mime_type,
+            ...agentConfig
+          } = result[0];
           // Create SnakAgent from config
           const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
           logger.debug(
@@ -230,11 +236,7 @@ export class AgentStorage implements OnModuleInit {
     const baseName = agentConfig.profile.name;
 
     let finalName = baseName;
-    const nameCheckResult = await agents.checkAgentNameExists(
-      userId,
-      baseName,
-      agentConfig.profile.group
-    );
+    const nameCheckResult = await agents.checkAgentNameExists(userId, baseName);
     if (nameCheckResult) {
       const existingName = nameCheckResult.name;
       if (existingName === baseName) {
@@ -299,7 +301,12 @@ export class AgentStorage implements OnModuleInit {
     }
 
     const q_res = await agents.deleteAgent(id, userId);
-    logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
+
+    if (!q_res) {
+      throw new Error(`Agent ${id} not found or not owned by user ${userId}`);
+    }
+
+    logger.debug(`Agent deleted from database: ${q_res.id}`);
 
     // Delete from Redis
     try {
@@ -403,7 +410,7 @@ export class AgentStorage implements OnModuleInit {
       // Create agent config resolver function that fetches agent configs from Redis on-demand
       const agentConfigResolver: AgentConfigResolver = async (
         userId: string
-      ): Promise<AgentConfig.OutputWithId[]> => {
+      ): Promise<AgentConfig.Output[]> => {
         try {
           const agentConfigs = await redisAgents.listAgentsByUser(userId);
           logger.debug(
