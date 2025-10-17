@@ -236,10 +236,7 @@ export class AgentStorage implements OnModuleInit {
     const baseName = agentConfig.profile.name;
 
     let finalName = baseName;
-    const nameCheckResult = await agents.checkAgentNameExists(
-      userId,
-      baseName
-    );
+    const nameCheckResult = await agents.checkAgentNameExists(userId, baseName);
     if (nameCheckResult) {
       const existingName = nameCheckResult.name;
       if (existingName === baseName) {

@@ -508,7 +508,7 @@ export namespace agents {
    */
   export async function checkAgentNameExists(
     userId: string,
-    baseName: string,
+    baseName: string
   ): Promise<{ name: string } | null> {
     const query = new Postgres.Query(
       `SELECT (profile).name as name

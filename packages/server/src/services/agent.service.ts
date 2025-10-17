@@ -35,9 +35,12 @@ export class AgentService implements IAgentService {
 
   async syncAgentToRedis(agentId: string, userId: string): Promise<void> {
     try {
-      const agentsList = await agents.selectAgents('id = $1 AND user_id = $2', [agentId, userId]);
+      const agentsList = await agents.selectAgents('id = $1 AND user_id = $2', [
+        agentId,
+        userId,
+      ]);
       if (agentsList.length === 0) return;
-      
+
       const agent = agentsList[0];
       await redisAgents.updateAgent(agent);
       this.logger.debug(`Synced agent ${agentId} to Redis`);

@@ -243,10 +243,7 @@ async function resolveUniqueAgentName(
   group: string,
   userId: string
 ): Promise<{ name: string; note?: string }> {
-  const existingAgent = await agents.checkAgentNameExists(
-    userId,
-    baseName,
-  );
+  const existingAgent = await agents.checkAgentNameExists(userId, baseName);
 
   if (!existingAgent) {
     return { name: baseName };
