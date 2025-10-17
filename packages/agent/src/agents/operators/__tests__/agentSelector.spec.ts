@@ -226,7 +226,7 @@ describe('AgentSelector', () => {
             description: undefined as any,
             group: 'test',
           },
-              graph: {} as any,
+          graph: {} as any,
           memory: {} as any,
           rag: {} as any,
           mcp_servers: [],

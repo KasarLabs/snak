@@ -1,12 +1,9 @@
-import {
-  DatabaseConfigService,
-  GuardsService,
-  initializeGuards,
-} from '@snakagent/core';
+import { DatabaseConfigService, initializeGuards } from '@snakagent/core';
 import { LanggraphDatabase, Postgres } from '@snakagent/database';
 
+// TODO Check if we ca have a better initialization
+
 const guardsConfigPath = path.resolve(
-  // TODO Check if we ca have a better initialization
   process.cwd(),
   process.env.GUARDS_CONFIG_PATH || 'config/guards/default.guards.json'
 );
@@ -22,10 +19,33 @@ import { Client } from 'langsmith';
 import * as fs from 'fs';
 import * as path from 'path';
 import { File } from 'buffer';
-// import * as ls from "langsmith/jest";
 import { createLLMAsJudge, CORRECTNESS_PROMPT } from 'openevals';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import z from 'zod';
 
+// Define the actual structure that matches the JSON schema for CSV data
+const messageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system', 'tool']),
+  content: z.string(),
+  name: z.string().optional(),
+  tool_calls: z.array(z.any()).optional(),
+  tool_call_id: z.string().optional(),
+});
+
+const toolDefSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  parameters: z.record(z.any()).optional(),
+  // Add other tool definition properties as needed
+});
+
+const inputDatasetsSchema = z.object({
+  messages: z.array(messageSchema),
+  tools: z.array(toolDefSchema).optional(),
+});
+
+// Type for validated input data from CSV
+export type DatasetInput = z.infer<typeof inputDatasetsSchema>;
 /**
  * Static Dataset class for managing LangSmith datasets with CSV integration
  */

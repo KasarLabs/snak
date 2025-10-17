@@ -3,7 +3,7 @@ import * as path from 'path';
 import { SupervisorAgent } from '../core/supervisorAgent.js';
 import { createAgentConfigRuntimeFromOutputWithId } from '../../utils/agent-initialization.utils.js';
 import { supervisorAgentConfig } from '@snakagent/core';
-
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Parse command line arguments
  */
@@ -29,7 +29,6 @@ function parseArgs(): { graph?: string; node?: string; csv_path?: string } {
  */
 async function main() {
   const args = parseArgs();
-
   // Validate required arguments
   if (!args.graph) {
     console.error('Error: --graph parameter is required!');
@@ -101,8 +100,8 @@ async function main() {
     const supervisorConfigRunTime =
       await createAgentConfigRuntimeFromOutputWithId({
         ...supervisorAgentConfig,
-        id: 'd5796090-5202-45d6-b0a3-554fc3db0185',
-        user_id: 'd5796090-5202-45d6-b0a3-554fc3db0185',
+        id: uuidv4(),
+        user_id: uuidv4(),
       });
     if (!supervisorConfigRunTime) {
       throw new Error(`Failed to create runtime config for supervisor agent`);
@@ -124,8 +123,10 @@ async function main() {
     } else {
       // Map node names to their corresponding getter methods
       const specialistGetters: Record<string, () => any> = {
-        agentConfigurationHelper: () => supervisorInstance.getAgentConfigurationHelper(),
-        mcpConfigurationHelper: () => supervisorInstance.getMcpConfigurationHelper(),
+        agentConfigurationHelper: () =>
+          supervisorInstance.getAgentConfigurationHelper(),
+        mcpConfigurationHelper: () =>
+          supervisorInstance.getMcpConfigurationHelper(),
         snakRagAgentHelper: () => supervisorInstance.getSnakRagAgentHelper(),
       };
 
