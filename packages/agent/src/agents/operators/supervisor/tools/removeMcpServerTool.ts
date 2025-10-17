@@ -1,5 +1,4 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres } from '@snakagent/database';
 import { agents } from '@snakagent/database/queries';
 import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';

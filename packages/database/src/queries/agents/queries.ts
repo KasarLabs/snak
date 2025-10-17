@@ -616,6 +616,51 @@ export namespace agents {
     return result.length > 0 ? result[0] : null;
   }
 
+  /**
+   * Get agent MCP servers by ID and user ID
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @returns Promise<{id: string, mcp_servers: Record<string, McpServerConfig>} | null>
+   */
+  export async function getAgentMcpServers(
+    agentId: string,
+    userId: string
+  ): Promise<{
+    id: string;
+    mcp_servers: Record<string, McpServerConfig>;
+  } | null> {
+    const query = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const result = await Postgres.query<{
+      id: string;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Get all agents MCP servers for a user
+   * @param userId - User ID
+   * @returns Promise<{id: string, mcp_servers: Record<string, McpServerConfig>}[]>
+   */
+  export async function getAllAgentsMcpServers(
+    userId: string
+  ): Promise<{ id: string; mcp_servers: Record<string, McpServerConfig> }[]> {
+    const query = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE user_id = $1 ORDER BY created_at ASC',
+      [userId]
+    );
+
+    const result = await Postgres.query<{
+      id: string;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(query);
+    return result;
+  }
+
   // ============================================================================
   // INSERT OPERATIONS - Create new agents and related data
   // ============================================================================
@@ -712,6 +757,33 @@ export namespace agents {
   // ============================================================================
   // UPDATE OPERATIONS - Modify existing agents and related data
   // ============================================================================
+
+  /**
+   * Update agent MCP configuration and return only id and mcp_servers
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @param mcpServers - MCP servers configuration
+   * @returns Promise<{id: string, mcp_servers: Record<string, McpServerConfig>} | null>
+   */
+  export async function updateAgentMcpServers(
+    agentId: string,
+    userId: string,
+    mcpServers: Record<string, McpServerConfig>
+  ): Promise<{
+    id: string;
+    mcp_servers: Record<string, McpServerConfig>;
+  } | null> {
+    const query = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [mcpServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<{
+      id: string;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(query);
+    return result.length > 0 ? result[0] : null;
+  }
 
   /**
    * Update agent MCP configuration
