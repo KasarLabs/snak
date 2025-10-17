@@ -509,17 +509,15 @@ export namespace agents {
   export async function checkAgentNameExists(
     userId: string,
     baseName: string,
-    group: string
   ): Promise<{ name: string } | null> {
     const query = new Postgres.Query(
       `SELECT (profile).name as name
        FROM agents
        WHERE user_id = $1
-       AND (profile)."group" = $2
        AND ((profile).name = $3 OR (profile).name LIKE $3 || '-%')
        ORDER BY LENGTH((profile).name) DESC, (profile).name DESC
        LIMIT 1`,
-      [userId, group, baseName]
+      [userId, baseName]
     );
 
     const result = await Postgres.query<{ name: string }>(query);

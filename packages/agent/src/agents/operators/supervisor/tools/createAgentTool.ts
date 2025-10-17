@@ -246,7 +246,6 @@ async function resolveUniqueAgentName(
   const existingAgent = await agents.checkAgentNameExists(
     userId,
     baseName,
-    group
   );
 
   if (!existingAgent) {
