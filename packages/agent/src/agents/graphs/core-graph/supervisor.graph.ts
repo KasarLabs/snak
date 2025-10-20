@@ -8,17 +8,17 @@ import { GraphState } from './agent.graph.js';
 import { initializeDatabase } from '@agents/utils/database.utils.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import {
+  getAgentConfigurationHelperTools,
   getCommunicationHelperTools,
   getSupervisorConfigTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
-import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import { AIMessage, BaseMessage, RemoveMessage } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
 import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
 import { Annotation, messagesStateReducer } from '@langchain/langgraph';
-
 const SupervisorStateAnnotation = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: messagesStateReducer,
@@ -195,7 +195,7 @@ export class SupervisorGraph {
       await agentConfigurationHelperSystemPrompt.format({});
     this.agentConfigurationHelper = createReactAgent({
       llm: this.supervisorConfig.graph.model,
-      tools: getSupervisorConfigTools(this.supervisorConfig),
+      tools: getAgentConfigurationHelperTools(this.supervisorConfig),
       name: 'agentConfigurationHelper',
       prompt: formattedAgentConfigurationHelperPrompt,
       // Apply the same transformation to the sub-agent

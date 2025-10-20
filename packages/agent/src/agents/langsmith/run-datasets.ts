@@ -155,7 +155,7 @@ async function main() {
     const results = await Dataset.runEvaluation(datasetName, targetNode, {
       // These are only needed if the dataset doesn't exist and needs to be created from CSV
       inputKeys: ['messages'],
-      outputKeys: ['output'],
+      outputKeys: ['message'],
       csvBasePath: datasetsPath,
       experimentPrefix: `evaluation-${datasetName}`,
     });
