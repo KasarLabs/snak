@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: "Select version bump"
+        required: true
+        type: choice
+        options: [patch, minor, major]
+        default: minor
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    outputs:
+      new-tag: ${{ steps.set-tag.outputs.new-tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure we are on main
+        run: |
+          b=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$b" != "main" ]; then
+            echo "❌ Releases must be created from main. Current: $b"
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Bump version in package.json
+        run: |
+          pnpm install
+          pnpm version ${{ inputs.release-type }} --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Commit & push new version + tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add package.json
+          git commit -m "chore(release): v$NEW_VERSION"
+          git tag "v$NEW_VERSION"
+          git push origin HEAD --tags
+
+      - name: Set tag output
+        id: set-tag
+        run: echo "new-tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+
+  publish-images:
+    needs: bump-version
+    uses: ./.github/workflows/publish-images.yml
+    with:
+      release-tag: ${{ needs.bump-version.outputs.new-tag }}
+    secrets: inherit
+
+  promote-latest:
+    needs: publish-images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retag version -> latest and push
+        run: |
+          docker pull $REGISTRY/${{ env.IMAGE_NAME }}/snak-api:${{ needs.bump-version.outputs.new-tag }}
+          docker tag  $REGISTRY/${{ env.IMAGE_NAME }}/snak-api:${{ needs.bump-version.outputs.new-tag }} $REGISTRY/${{ env.IMAGE_NAME }}/snak-api:latest
+          docker push $REGISTRY/${{ env.IMAGE_NAME }}/snak-api:latest
+
+  create-release:
+    needs: promote-latest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.bump-version.outputs.new-tag }}
+          generate_release_notes: true
