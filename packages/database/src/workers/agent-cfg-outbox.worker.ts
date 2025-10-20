@@ -203,7 +203,11 @@ export class AgentCfgOutboxWorker {
         }
       );
     } catch (error) {
-      logger.error('Failed to fetch agent_cfg_outbox batch', { error });
+      logger.error('Failed to fetch agent_cfg_outbox batch', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name || typeof error,
+      });
       metrics.recordAgentCfgOutboxError('fetch');
       return [];
     }
