@@ -189,10 +189,7 @@ export class Graph {
     };
   }
 
-  private orchestrationRouter(
-    state: typeof GraphState.State,
-    config: RunnableConfig<typeof GraphConfigurableAnnotation.State>
-  ): GraphNode {
+  private orchestrationRouter(state: typeof GraphState.State): GraphNode {
     if (state.error?.hasError && state.error.type !== 'block_task') {
       logger.error(
         `[Router] Error: ${state.error.source} -> ${state.error.message}`

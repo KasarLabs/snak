@@ -9,14 +9,14 @@ import { skipValidationType } from '@stypes/graph.types.js';
 import { AgentConfig, logger } from '@snakagent/core';
 import { GraphState } from './agent.graph.js';
 import { initializeDatabase } from '@agents/utils/database.utils.js';
-import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { createAgent, createMiddleware } from 'langchain';
 import {
   getCommunicationHelperTools,
   getMcpServerHelperTools,
   getSupervisorConfigTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
-import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import { AIMessage, BaseMessage, ToolMessage } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
@@ -76,63 +76,79 @@ export class SupervisorGraph {
    * This ensures compatibility with Google Generative AI which doesn't support
    * custom author names as message types.
    */
-  private transformMessagesHook(state: any): {
-    llmInputMessages: BaseMessage[];
-  } {
-    const messages = state.messages || [];
+  private createMessageTransformMiddleware() {
+    return createMiddleware({
+      name: 'message-transform-middleware',
 
-    const transformedMessages = messages.map((msg: BaseMessage) => {
-      // Check if message has a 'name' property that's not standard
-      const messageName = msg.name;
-      const msgType = msg.getType();
+      beforeModel: async (state, runtime) => {
+        const messages = state.messages || [];
 
-      // If it's an AI message with a custom name, we need to handle it
-      if (messageName && msgType === 'ai') {
-        logger.debug(
-          `[SupervisorGraph] Processing AI message with name '${messageName}'`
-        );
+        const transformedMessages = messages.map((msg: BaseMessage) => {
+          const messageName = msg.name;
+          const msgType = msg.getType();
 
-        // Remove the 'name' field to avoid Google API issues
-        // The name is already preserved in the message history for routing
-        return new AIMessage({
-          content: msg.content,
-          tool_calls: (msg as any).tool_calls || [],
-          invalid_tool_calls: (msg as any).invalid_tool_calls || [],
-          additional_kwargs: {
-            ...msg.additional_kwargs,
-            from: messageName, // Preserve in metadata
-          },
-          response_metadata: msg.response_metadata,
+          // If it's an AI message with a custom name, handle it
+          if (messageName && msgType === 'ai') {
+            logger.debug(
+              `[SupervisorGraph] Processing AI message with name '${messageName}'`
+            );
+
+            // Remove the 'name' field to avoid Google API issues
+            return new AIMessage({
+              content: msg.content,
+              tool_calls: (msg as any).tool_calls || [],
+              invalid_tool_calls: (msg as any).invalid_tool_calls || [],
+              additional_kwargs: {
+                ...msg.additional_kwargs,
+                from: messageName, // Preserve in metadata
+              },
+              response_metadata: msg.response_metadata,
+            });
+          }
+
+          return msg;
         });
-      }
 
-      return msg;
+        // Return the modified state
+        return {
+          messages: transformedMessages,
+        };
+      },
     });
-
-    return { llmInputMessages: transformedMessages };
   }
 
-  private addAditionalKwargsToMessage(
-    state: typeof SupervisorStateAnnotation.State
-  ): {
-    messages: BaseMessage[];
-  } {
-    const messages = state.messages || [];
-    if (!messages || messages.length === 0) {
-      return { messages: [] };
-    }
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage.getType() !== 'ai') {
-      return { messages };
-    }
-    const agentName = lastMessage.name;
-    lastMessage.additional_kwargs = {
-      ...lastMessage.additional_kwargs,
-      agent_name: agentName,
-    };
-    const updatedMessages = [...messages.slice(0, -1), lastMessage];
+  private createAddAgentNameMiddleware() {
+    return createMiddleware({
+      name: 'add-agent-name-middleware',
 
-    return { messages: updatedMessages };
+      afterModel: async (state, runtime) => {
+        const messages = state.messages || [];
+
+        if (!messages || messages.length === 0) {
+          return { messages: [] };
+        }
+
+        const lastMessage = messages[messages.length - 1];
+
+        // Only process AI messages
+        if (lastMessage.getType() !== 'ai') {
+          return { messages };
+        }
+
+        const agentName = lastMessage.name;
+
+        // Add agent name to additional_kwargs
+        lastMessage.additional_kwargs = {
+          ...lastMessage.additional_kwargs,
+          agent_name: agentName,
+        };
+
+        // Return updated messages with modified last message
+        const updatedMessages = [...messages.slice(0, -1), lastMessage];
+
+        return { messages: updatedMessages };
+      },
+    });
   }
 
   private async buildWorkflow(): Promise<StateGraph<any, any, any, any, any>> {
@@ -151,14 +167,16 @@ export class SupervisorGraph {
       ]);
     const formattedAgentConfigurationHelperPrompt =
       await agentConfigurationHelperSystemPrompt.format({});
-    const agentConfigurationHelper = createReactAgent({
-      llm: this.supervisorConfig.graph.model,
+    const agentConfigurationHelper = createAgent({
+      model: this.supervisorConfig.graph.model,
       tools: getSupervisorConfigTools(this.supervisorConfig),
       name: 'agentConfigurationHelper',
-      prompt: formattedAgentConfigurationHelperPrompt,
+      systemPrompt: formattedAgentConfigurationHelperPrompt,
       // Apply the same transformation to the sub-agent
-      stateSchema: SupervisorStateAnnotation,
-      preModelHook: this.transformMessagesHook.bind(this),
+      middleware: [
+        this.createMessageTransformMiddleware(),
+        this.createAddAgentNameMiddleware(),
+      ],
     });
 
     const mcpConfigurationHelperSystemPrompt = ChatPromptTemplate.fromMessages([
@@ -166,23 +184,27 @@ export class SupervisorGraph {
     ]);
     const formattedMcpConfigurationHelperPrompt =
       await mcpConfigurationHelperSystemPrompt.format({});
-    const mcpConfigurationHelper = createReactAgent({
-      llm: this.supervisorConfig.graph.model,
+    const mcpConfigurationHelper = createAgent({
+      model: this.supervisorConfig.graph.model,
       tools: getMcpServerHelperTools(this.supervisorConfig),
       name: 'mcpConfigurationHelper',
-      prompt: formattedMcpConfigurationHelperPrompt,
-      stateSchema: SupervisorStateAnnotation,
-      preModelHook: this.transformMessagesHook.bind(this),
+      systemPrompt: formattedMcpConfigurationHelperPrompt,
+      middleware: [
+        this.createMessageTransformMiddleware(),
+        this.createAddAgentNameMiddleware(),
+      ],
     });
 
-    const snakRagAgentHelper = createReactAgent({
-      llm: this.supervisorConfig.graph.model,
+    const snakRagAgentHelper = createAgent({
+      model: this.supervisorConfig.graph.model,
       tools: [],
       name: 'snakRagAgentHelper',
-      prompt:
+      systemPrompt:
         'You are an expert RAG agent configuration assistant. Your task is to help users create and modify RAG agent configurations based on their requirements. Always ensure that the configurations adhere to best practices and are optimized for performance.',
-      stateSchema: SupervisorStateAnnotation,
-      preModelHook: this.transformMessagesHook.bind(this),
+      middleware: [
+        this.createMessageTransformMiddleware(),
+        this.createAddAgentNameMiddleware(),
+      ],
     });
     const supervisorPrompt = ChatPromptTemplate.fromMessages([
       ['ai', SUPERVISOR_SYSTEM_PROMPT],
@@ -193,17 +215,18 @@ export class SupervisorGraph {
     const workflow = createSupervisor({
       supervisorName: 'supervisor',
       agents: [
-        agentConfigurationHelper,
-        mcpConfigurationHelper,
-        snakRagAgentHelper,
+        agentConfigurationHelper as any,
+        mcpConfigurationHelper as any,
+        snakRagAgentHelper as any,
       ],
       tools: getCommunicationHelperTools(),
       llm: this.supervisorConfig.graph.model,
       prompt: formattedSupervisorPrompt,
-      stateSchema: SupervisorStateAnnotation,
+            stateSchema: SupervisorStateAnnotation,
       // Apply transformation to the supervisor as well
       preModelHook: this.transformMessagesHook.bind(this),
       postModelHook: this.addAditionalKwargsToMessage.bind(this),
+
     });
 
     return workflow;
