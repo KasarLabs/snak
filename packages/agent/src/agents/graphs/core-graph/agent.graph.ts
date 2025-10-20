@@ -32,7 +32,6 @@ import {
   Memories,
   skipValidationType,
   TaskType,
-  UserRequest,
   userRequestWithHITL,
 } from '../../../shared/types/index.js';
 import { MemoryStateManager } from '../manager/memory/memory-utils.js';

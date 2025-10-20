@@ -192,7 +192,7 @@ export const MemoryConfigSchema = z.object({
   strategy: z
     .enum(['holistic', 'categorized'])
     .optional()
-    .describe('Memory strategy'),
+    .describe('Memory strategy holistic or categorized'),
 });
 const ragGuardsValues: GuardsConfig['agents']['rag'] =
   getGuardValue('agents.rag');
