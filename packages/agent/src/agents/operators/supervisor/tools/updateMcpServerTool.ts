@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 
-import { agents, redisAgents } from '@snakagent/database/queries';
+import { agents } from '@snakagent/database/queries';
 import { Postgres } from '@snakagent/database';
 import { logger, McpServerConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
@@ -143,14 +143,8 @@ export function updateMcpServerTool(
             `Updated MCP server(s) "${updated.join(', ')}" for agent "${agent.profile.name}" successfully for user ${userId}`
           );
 
-          // Update Redis cache
-          try {
-            await redisAgents.updateAgent(result);
-            logger.debug(`Agent ${result.id} updated in Redis`);
-          } catch (error) {
-            logger.error(`Failed to update agent in Redis: ${error}`);
-            // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
-          }
+          // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
+          // No direct Redis write needed - the outbox worker will handle synchronization
 
           const message =
             updated.length === 1

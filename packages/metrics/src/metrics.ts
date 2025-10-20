@@ -52,6 +52,8 @@ class Metrics {
   private agentCfgOutboxProcessed?: client.Counter;
   private agentCfgOutboxErrors?: client.Counter;
   private agentCfgOutboxRequeued?: client.Counter;
+  private agentCfgCacheAccess?: client.Counter;
+  private agentCfgCacheStore?: client.Counter;
 
   private registered = false;
 
@@ -165,6 +167,18 @@ class Metrics {
       name: 'agent_cfg_outbox_requeued_total',
       help: 'Total outbox events requeued after downstream publication failures',
       labelNames: ['event'] as const,
+    });
+
+    this.agentCfgCacheAccess = new client.Counter({
+      name: 'agent_cfg_cache_access_total',
+      help: 'Total agent configuration cache access attempts',
+      labelNames: ['outcome'] as const,
+    });
+
+    this.agentCfgCacheStore = new client.Counter({
+      name: 'agent_cfg_cache_store_total',
+      help: 'Total agent configuration cache store operations',
+      labelNames: ['operation'] as const,
     });
   }
 
@@ -332,19 +346,29 @@ class Metrics {
     );
   }
 
-  public agentCfgOutboxProcessed(count: number, event = 'cfg_updated'): void {
+  public recordAgentCfgOutboxProcessed(count: number, event = 'cfg_updated'): void {
     if (!this.agentCfgOutboxProcessed) this.register();
     this.agentCfgOutboxProcessed!.labels({ event }).inc(count);
   }
 
-  public agentCfgOutboxError(event = 'cfg_updated'): void {
+  public recordAgentCfgOutboxError(event = 'cfg_updated'): void {
     if (!this.agentCfgOutboxErrors) this.register();
     this.agentCfgOutboxErrors!.labels({ event }).inc();
   }
 
-  public agentCfgOutboxRequeued(event = 'cfg_updated'): void {
+  public recordAgentCfgOutboxRequeued(event = 'cfg_updated'): void {
     if (!this.agentCfgOutboxRequeued) this.register();
     this.agentCfgOutboxRequeued!.labels({ event }).inc();
+  }
+
+  public recordAgentCfgCacheAccess(outcome: 'hit' | 'miss' | 'stale' | 'error'): void {
+    if (!this.agentCfgCacheAccess) this.register();
+    this.agentCfgCacheAccess!.labels({ outcome }).inc();
+  }
+
+  public recordAgentCfgCacheStore(operation: 'refresh' | 'db_seed'): void {
+    if (!this.agentCfgCacheStore) this.register();
+    this.agentCfgCacheStore!.labels({ operation }).inc();
   }
 }
 

@@ -16,7 +16,6 @@ import {
 } from '@prompts/index.js';
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
-import { redisAgents } from '@snakagent/database/queries';
 import { validateAgentProperties } from '../utils/agents.validators.js';
 
 const dbInterface: AgentDatabaseInterface = {
@@ -152,14 +151,7 @@ export function createAgentTool(
         }
 
         const createdAgent = result[0];
-
-        try {
-          await redisAgents.saveAgent(createdAgent);
-          logger.debug(`Agent ${createdAgent.id} saved to Redis`);
-        } catch (error) {
-          logger.error(`Failed to save agent to Redis: ${error}`);
-          // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
-        }
+        // Redis synchronization happens asynchronously via outbox events
 
         const noteSuffix =
           notes.length > 0 ? `. Note: ${[...new Set(notes)].join('; ')}` : '';

@@ -179,8 +179,6 @@ export class McpController {
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
-
     const [updatedAgent] = result;
     return ResponseFormatter.success({
       id: updatedAgent.id,
@@ -236,7 +234,6 @@ export class McpController {
     if (result.length === 0)
       throw new BadRequestException('Failed to update MCP servers');
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
@@ -281,7 +278,6 @@ export class McpController {
     );
 
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     const [updatedAgent] = result;
     return ResponseFormatter.success({
@@ -325,7 +321,6 @@ export class McpController {
     );
 
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     const [updatedAgent] = result;
     return ResponseFormatter.success({
@@ -358,7 +353,6 @@ export class McpController {
       throw new BadRequestException('Agent not found');
     }
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     const [updatedAgent] = result;
     return ResponseFormatter.success({
@@ -428,7 +422,6 @@ export class McpController {
     if (result.length === 0)
       throw new BadRequestException('Failed to add env variable');
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
@@ -593,7 +586,6 @@ export class McpController {
     if (result.length === 0)
       throw new BadRequestException('Failed to update MCP key');
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
@@ -646,7 +638,6 @@ export class McpController {
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     const [updatedAgent] = result;
     return ResponseFormatter.success({
@@ -730,7 +721,6 @@ export class McpController {
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
@@ -790,7 +780,6 @@ export class McpController {
 
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     const [updatedAgent] = result;
     return ResponseFormatter.success({

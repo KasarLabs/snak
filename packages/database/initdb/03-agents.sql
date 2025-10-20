@@ -237,11 +237,63 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to populate outbox on agent creation
+CREATE OR REPLACE FUNCTION publish_agent_cfg_create()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO agent_cfg_outbox (agent_id, cfg_version, event)
+    VALUES (NEW.id, NEW.cfg_version, 'cfg_created');
+
+    PERFORM pg_notify(
+        'agent_cfg_updates',
+        json_build_object(
+            'agent_id', NEW.id,
+            'cfg_version', NEW.cfg_version,
+            'event', 'cfg_created'
+        )::text
+    );
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to populate outbox on agent deletion
+CREATE OR REPLACE FUNCTION publish_agent_cfg_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO agent_cfg_outbox (agent_id, cfg_version, event)
+    VALUES (OLD.id, OLD.cfg_version, 'cfg_deleted');
+
+    PERFORM pg_notify(
+        'agent_cfg_updates',
+        json_build_object(
+            'agent_id', OLD.id,
+            'cfg_version', OLD.cfg_version,
+            'event', 'cfg_deleted'
+        )::text
+    );
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Trigger to publish configuration changes
 CREATE TRIGGER publish_agent_cfg_update_trigger
     AFTER UPDATE ON agents
     FOR EACH ROW
     EXECUTE FUNCTION publish_agent_cfg_update();
+
+-- Trigger to publish agent creation
+CREATE TRIGGER publish_agent_cfg_create_trigger
+    AFTER INSERT ON agents
+    FOR EACH ROW
+    EXECUTE FUNCTION publish_agent_cfg_create();
+
+-- Trigger to publish agent deletion
+CREATE TRIGGER publish_agent_cfg_delete_trigger
+    AFTER DELETE ON agents
+    FOR EACH ROW
+    EXECUTE FUNCTION publish_agent_cfg_delete();
 
 -- ============================================================================
 -- VALIDATION FUNCTION

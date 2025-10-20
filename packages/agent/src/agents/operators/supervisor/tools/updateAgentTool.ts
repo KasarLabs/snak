@@ -1,5 +1,5 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres, redisAgents } from '@snakagent/database/queries';
+import { Postgres } from '@snakagent/database/queries';
 import { logger, AgentProfile, GraphConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
@@ -349,14 +349,8 @@ export function updateAgentTool(
         if (result.length > 0) {
           logger.info(`Updated agent "${agent.profile.name}" successfully`);
 
-          // Update Redis cache
-          try {
-            await redisAgents.updateAgent(result[0]);
-            logger.debug(`Agent ${result[0].id} updated in Redis`);
-          } catch (error) {
-            logger.error(`Failed to update agent in Redis: ${error}`);
-            // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
-          }
+          // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
+          // No direct Redis write needed - the outbox worker will handle synchronization
 
           let message = `Agent "${agent.profile.name}" updated successfully`;
           if (appliedDefaults.length > 0) {

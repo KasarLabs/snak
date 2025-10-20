@@ -25,7 +25,7 @@ import {
   SnakAgent,
   UserRequest,
 } from '@snakagent/agents';
-import { redisAgents, agents } from '@snakagent/database/queries';
+import { agents, redisAgents } from '@snakagent/database/queries';
 import { message } from '@snakagent/database/queries';
 
 @Injectable()
@@ -33,40 +33,6 @@ export class AgentService implements IAgentService {
   private readonly logger = new Logger(AgentService.name);
 
   constructor(private readonly config: ConfigurationService) {}
-
-  async syncAgentToRedis(agentId: string, userId: string): Promise<void> {
-    try {
-      const fetchQuery = new Postgres.Query(
-        `SELECT
-            id,
-            user_id,
-            row_to_json(profile) as profile,
-            mcp_servers as "mcp_servers",
-            prompts_id,
-            row_to_json(graph) as graph,
-            row_to_json(memory) as memory,
-            row_to_json(rag) as rag,
-            created_at,
-            updated_at,
-            avatar_image,
-            avatar_mime_type
-          FROM agents
-          WHERE id = $1 AND user_id = $2`,
-        [agentId, userId]
-      );
-
-      const rows = await Postgres.query<AgentConfig.OutputWithId>(fetchQuery);
-      const agent = rows[0];
-      if (!agent) return;
-
-      await redisAgents.updateAgent(agent);
-      this.logger.debug(`Synced agent ${agentId} to Redis`);
-    } catch (err: any) {
-      this.logger.warn(
-        `Redis sync skipped for agent ${agentId}: ${err.message}`
-      );
-    }
-  }
 
   async handleUserRequest(
     agent: BaseAgent,

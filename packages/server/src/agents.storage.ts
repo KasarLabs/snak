@@ -27,8 +27,15 @@ import {
   SupervisorAgent,
 } from '@snakagent/agents';
 import { initializeModels } from './utils/agents.utils.js';
+import AgentRuntimeManager, {
+  type AgentRuntimeSeed,
+} from './services/agent-runtime.manager.js';
 
 const logger = new Logger('AgentStorage');
+
+type CanonicalAgentConfig = NonNullable<
+  Awaited<ReturnType<typeof agents.getAgentCfg>>
+>;
 
 // Default agent configuration constants
 
@@ -45,7 +52,8 @@ export class AgentStorage implements OnModuleInit {
   constructor(
     private readonly config: ConfigurationService,
     private readonly databaseService: DatabaseService,
-    private readonly supervisorService: SupervisorService
+    private readonly supervisorService: SupervisorService,
+    private readonly runtimeManager: AgentRuntimeManager
   ) {
     this.agentValidationService = new AgentValidationService(this);
   }
@@ -271,14 +279,8 @@ export class AgentStorage implements OnModuleInit {
     );
 
     if (newAgentDbRecord) {
-      // Save to Redis
-      try {
-        await redisAgents.saveAgent(newAgentDbRecord);
-        logger.debug(`Agent ${newAgentDbRecord.id} saved to Redis`);
-      } catch (error) {
-        logger.error(`Failed to save agent to Redis: ${error}`);
-        // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
-      }
+      // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
+      // No direct Redis write needed - the outbox worker will handle synchronization
 
       logger.debug(`Agent ${newAgentDbRecord.id} added to configuration`);
       return newAgentDbRecord;
@@ -301,14 +303,8 @@ export class AgentStorage implements OnModuleInit {
     const q_res = await agents.deleteAgent(id, userId);
     logger.debug(`Agent deleted from database: ${JSON.stringify(q_res)}`);
 
-    // Delete from Redis
-    try {
-      await redisAgents.deleteAgent(id, userId);
-      logger.debug(`Agent ${id} deleted from Redis`);
-    } catch (error) {
-      logger.error(`Failed to delete agent from Redis: ${error}`);
-      // Don't throw, PostgreSQL deletion is what matters
-    }
+    // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
+    // No direct Redis write needed - the outbox worker will handle synchronization
 
     logger.debug(`Agent ${id} removed from configuration`);
   }
@@ -515,6 +511,41 @@ export class AgentStorage implements OnModuleInit {
     agentConfigOutputWithId: AgentConfig.OutputWithId
   ): Promise<AgentConfig.Runtime | undefined> {
     try {
+      const seed = await this.buildRuntimeSeed(agentConfigOutputWithId.id);
+      if (seed) {
+        if (seed.userId !== agentConfigOutputWithId.user_id) {
+          logger.warn(
+            `Agent ${agentConfigOutputWithId.id} ownership mismatch between Redis (${agentConfigOutputWithId.user_id}) and Postgres (${seed.userId})`
+          );
+        }
+        try {
+          await this.runtimeManager.shadowSeed(seed);
+        } catch (error) {
+          logger.warn(
+            `Failed to register runtime seed with AgentRuntimeManager for agent ${seed.agentId}`,
+            { error }
+          );
+        }
+        return seed.runtime;
+      }
+
+      logger.warn(
+        `Failed to resolve canonical agent configuration for ${agentConfigOutputWithId.id}; falling back to legacy runtime creation`
+      );
+    } catch (error) {
+      logger.warn(
+        `Agent runtime seed build failed for ${agentConfigOutputWithId.id}, falling back to legacy runtime creation`,
+        { error }
+      );
+    }
+
+    return this.buildRuntimeLegacy(agentConfigOutputWithId);
+  }
+
+  private async buildRuntimeLegacy(
+    agentConfigOutputWithId: AgentConfig.OutputWithId
+  ): Promise<AgentConfig.Runtime | undefined> {
+    try {
       const model = await this.getModelFromUser(
         agentConfigOutputWithId.user_id
       );
@@ -543,6 +574,63 @@ export class AgentStorage implements OnModuleInit {
       logger.error('Agent configuration validation failed:', error);
       throw error;
     }
+  }
+
+  private async buildRuntimeSeed(agentId: string): Promise<AgentRuntimeSeed | null> {
+    const canonical = await agents.getAgentCfg(agentId);
+    if (!canonical) {
+      return null;
+    }
+    return this.buildRuntimeSeedFromCanonical(canonical);
+  }
+
+  private async buildRuntimeSeedFromCanonical(
+    canonical: CanonicalAgentConfig
+  ): Promise<AgentRuntimeSeed> {
+    const runtime = await this.instantiateRuntimeFromCanonical(canonical);
+    return {
+      agentId: canonical.id,
+      userId: canonical.user_id,
+      cfgVersion: canonical.cfg_version,
+      runtime,
+      rebuild: this.createRuntimeRebuildFn(canonical.id),
+    };
+  }
+
+  private createRuntimeRebuildFn(
+    agentId: string
+  ): () => Promise<AgentRuntimeSeed | null> {
+    return async () => {
+      const canonical = await agents.getAgentCfg(agentId);
+      if (!canonical) {
+        return null;
+      }
+      return this.buildRuntimeSeedFromCanonical(canonical);
+    };
+  }
+
+  private async instantiateRuntimeFromCanonical(
+    canonical: CanonicalAgentConfig
+  ): Promise<AgentConfig.Runtime> {
+    const model = await this.getModelFromUser(canonical.user_id);
+    const modelInstance = initializeModels(model);
+    if (!modelInstance) {
+      throw new Error('Failed to initialize model for SnakAgent');
+    }
+    const promptsFromDb = await this.getPromptsFromDatabase(canonical.prompts_id);
+    if (!promptsFromDb) {
+      throw new Error(
+        `Failed to load prompts for agent ${canonical.id}, prompts ID: ${canonical.prompts_id}`
+      );
+    }
+    return {
+      ...canonical,
+      prompts: promptsFromDb,
+      graph: {
+        ...canonical.graph,
+        model: modelInstance,
+      },
+    } as AgentConfig.Runtime;
   }
 
   /* ==================== PRIVATE AGENT CREATION METHODS ==================== */

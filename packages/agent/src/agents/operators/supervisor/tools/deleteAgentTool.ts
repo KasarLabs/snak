@@ -1,5 +1,5 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres, redisAgents } from '@snakagent/database/queries';
+import { Postgres } from '@snakagent/database/queries';
 import { AgentProfile, logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
@@ -78,14 +78,8 @@ export function deleteAgentTool(
         );
         await Postgres.query(deleteQuery);
 
-        // Delete from Redis cache
-        try {
-          await redisAgents.deleteAgent(agent.id, userId);
-          logger.debug(`Agent ${agent.id} deleted from Redis`);
-        } catch (error) {
-          logger.error(`Failed to delete agent from Redis: ${error}`);
-          // Don't throw, PostgreSQL deletion is what matters
-        }
+        // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
+        // No direct Redis write needed - the outbox worker will handle synchronization
 
         logger.info(
           `Deleted agent "${agent.profile.name}" successfully for user ${userId}`

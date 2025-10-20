@@ -39,13 +39,13 @@ export class AgentCfgOutboxWorker {
   constructor(options?: AgentCfgOutboxWorkerOptions) {
     this.batchSize =
       options?.batchSize ??
-      parseInt(process.env.AGENT_CFG_WORKER_BATCH_SIZE || '', 10) ||
-      DEFAULT_BATCH_SIZE;
+      (parseInt(process.env.AGENT_CFG_WORKER_BATCH_SIZE || '', 10) ||
+        DEFAULT_BATCH_SIZE);
 
     this.pollIntervalMs =
       options?.pollIntervalMs ??
-      parseInt(process.env.AGENT_CFG_WORKER_POLL_INTERVAL_MS || '', 10) ||
-      DEFAULT_POLL_INTERVAL_MS;
+      (parseInt(process.env.AGENT_CFG_WORKER_POLL_INTERVAL_MS || '', 10) ||
+        DEFAULT_POLL_INTERVAL_MS);
 
     this.redisChannel =
       options?.redisChannel ??
@@ -72,7 +72,7 @@ export class AgentCfgOutboxWorker {
         logger.error('AgentCfgOutboxWorker encountered an unexpected error', {
           error,
         });
-        metrics.agentCfgOutboxError('unexpected');
+        metrics.recordAgentCfgOutboxError('unexpected');
       }
 
       if (!this.running) {
@@ -157,13 +157,13 @@ export class AgentCfgOutboxWorker {
           `Failed to publish agent_cfg_outbox event ${row.id} to Redis`,
           { error }
         );
-        metrics.agentCfgOutboxError(row.event);
+        metrics.recordAgentCfgOutboxError(row.event);
         await this.requeue(row.id, row.event);
       }
     }
 
     for (const [event, count] of processedPerEvent.entries()) {
-      metrics.agentCfgOutboxProcessed(count, event);
+      metrics.recordAgentCfgOutboxProcessed(count, event);
     }
 
     return Array.from(processedPerEvent.values()).reduce(
@@ -205,7 +205,7 @@ export class AgentCfgOutboxWorker {
       );
     } catch (error) {
       logger.error('Failed to fetch agent_cfg_outbox batch', { error });
-      metrics.agentCfgOutboxError('fetch');
+      metrics.recordAgentCfgOutboxError('fetch');
       return [];
     }
   }
@@ -224,12 +224,12 @@ export class AgentCfgOutboxWorker {
         await Postgres.query(query);
         return true;
       });
-      metrics.agentCfgOutboxRequeued(event);
+      metrics.recordAgentCfgOutboxRequeued(event);
     } catch (error) {
       logger.error(`Failed to requeue agent_cfg_outbox event ${id}`, {
         error,
       });
-      metrics.agentCfgOutboxError('requeue');
+      metrics.recordAgentCfgOutboxError('requeue');
     }
   }
 
@@ -282,7 +282,7 @@ const isDirectRun =
 if (isDirectRun) {
   bootstrap().catch(async (error) => {
     logger.error('AgentCfgOutboxWorker failed to start', { error });
-    metrics.agentCfgOutboxError('startup');
+    metrics.recordAgentCfgOutboxError('startup');
     process.exit(1);
   });
 }
