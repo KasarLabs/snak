@@ -45,13 +45,9 @@ export class AgentCfgInvalidationSubscriber {
     const redisConfig = options?.redis ?? {};
     this.redisOptions = {
       host: redisConfig.host ?? process.env.REDIS_HOST ?? 'redis',
-      port:
-        redisConfig.port ??
-        parseInteger(process.env.REDIS_PORT, 6379),
-      password:
-        redisConfig.password ?? process.env.REDIS_PASSWORD ?? undefined,
-      db:
-        redisConfig.db ?? parseInteger(process.env.REDIS_DB, 0),
+      port: redisConfig.port ?? parseInteger(process.env.REDIS_PORT, 6379),
+      password: redisConfig.password ?? process.env.REDIS_PASSWORD ?? undefined,
+      db: redisConfig.db ?? parseInteger(process.env.REDIS_DB, 0),
       lazyConnect: true,
     };
 
@@ -96,10 +92,9 @@ export class AgentCfgInvalidationSubscriber {
         `Subscribed to Redis channel ${this.channel} for agent config invalidation`
       );
     } catch (error) {
-      logger.error(
-        `Failed to subscribe to Redis channel ${this.channel}`,
-        { error }
-      );
+      logger.error(`Failed to subscribe to Redis channel ${this.channel}`, {
+        error,
+      });
       subscriber.removeAllListeners();
       try {
         await subscriber.quit();
@@ -123,18 +118,20 @@ export class AgentCfgInvalidationSubscriber {
       subscriber.removeListener('message', this.onMessageBound);
       await subscriber.unsubscribe(this.channel);
     } catch (error) {
-      logger.warn(
-        `Failed to unsubscribe from Redis channel ${this.channel}`,
-        { error }
-      );
+      logger.warn(`Failed to unsubscribe from Redis channel ${this.channel}`, {
+        error,
+      });
     }
 
     try {
       await subscriber.quit();
     } catch (error) {
-      logger.warn('Failed to close Redis connection for invalidation subscriber', {
-        error,
-      });
+      logger.warn(
+        'Failed to close Redis connection for invalidation subscriber',
+        {
+          error,
+        }
+      );
     }
   }
 
@@ -173,9 +170,12 @@ export class AgentCfgInvalidationSubscriber {
       parsed === null ||
       Array.isArray(parsed)
     ) {
-      logger.warn('Received non-object payload on agent_cfg_invalidate channel', {
-        payload: parsed,
-      });
+      logger.warn(
+        'Received non-object payload on agent_cfg_invalidate channel',
+        {
+          payload: parsed,
+        }
+      );
       return null;
     }
 
@@ -197,9 +197,12 @@ export class AgentCfgInvalidationSubscriber {
           : Number.NaN;
 
     if (!Number.isFinite(cfgVersion)) {
-      logger.warn('Received invalid cfgVersion on agent_cfg_invalidate channel', {
-        payload: parsed,
-      });
+      logger.warn(
+        'Received invalid cfgVersion on agent_cfg_invalidate channel',
+        {
+          payload: parsed,
+        }
+      );
       return null;
     }
 

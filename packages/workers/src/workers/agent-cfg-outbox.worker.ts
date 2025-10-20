@@ -2,7 +2,11 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { Postgres } from '@snakagent/database';
 import { RedisClient } from '@snakagent/database/redis';
-import { agentCfgOutbox, agents, redisAgents } from '@snakagent/database/queries';
+import {
+  agentCfgOutbox,
+  agents,
+  redisAgents,
+} from '@snakagent/database/queries';
 // Import will be done dynamically to avoid TypeScript issues
 import { DatabaseConfigService, logger } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
@@ -81,7 +85,9 @@ export class AgentCfgOutboxWorker {
     logger.info('AgentCfgOutboxWorker started');
 
     this.loopPromise = this.runLoop().catch((error) => {
-      logger.error('AgentCfgOutboxWorker loop terminated with error', { error });
+      logger.error('AgentCfgOutboxWorker loop terminated with error', {
+        error,
+      });
       outboxMetrics.recordAgentCfgOutboxError('loop');
       this.running = false;
     });
@@ -167,11 +173,9 @@ export class AgentCfgOutboxWorker {
         port:
           this.options?.redis?.port ??
           parseInt(process.env.REDIS_PORT ?? '6379', 10),
-        password:
-          this.options?.redis?.password ?? process.env.REDIS_PASSWORD,
+        password: this.options?.redis?.password ?? process.env.REDIS_PASSWORD,
         db:
-          this.options?.redis?.db ??
-          parseInt(process.env.REDIS_DB ?? '0', 10),
+          this.options?.redis?.db ?? parseInt(process.env.REDIS_DB ?? '0', 10),
       };
 
       await this.redisClient.connect(redisConfig);
@@ -195,7 +199,7 @@ export class AgentCfgOutboxWorker {
     for (const row of rows) {
       try {
         await this.syncAgentToRedis(row, redis);
-        
+
         // Also publish the event for any other listeners
         const payload = JSON.stringify({
           agent_id: row.agent_id,
@@ -210,10 +214,11 @@ export class AgentCfgOutboxWorker {
           (processedPerEvent.get(row.event) ?? 0) + 1
         );
       } catch (error) {
-        logger.error(
-          `Failed to process agent_cfg_outbox event ${row.id}`,
-          { error, event: row.event, agent_id: row.agent_id }
-        );
+        logger.error(`Failed to process agent_cfg_outbox event ${row.id}`, {
+          error,
+          event: row.event,
+          agent_id: row.agent_id,
+        });
         outboxMetrics.recordAgentCfgOutboxError(row.event);
         await this.requeue(row.id, row.event);
       }
@@ -244,7 +249,10 @@ export class AgentCfgOutboxWorker {
     }
   }
 
-  private async syncAgentToRedis(row: AgentCfgOutboxRow, redis: any): Promise<void> {
+  private async syncAgentToRedis(
+    row: AgentCfgOutboxRow,
+    redis: any
+  ): Promise<void> {
     const { agent_id, event } = row;
 
     switch (event) {
@@ -260,13 +268,18 @@ export class AgentCfgOutboxWorker {
     }
   }
 
-  private async syncAgentCreateOrUpdate(agentId: string, redis: any): Promise<void> {
+  private async syncAgentCreateOrUpdate(
+    agentId: string,
+    redis: any
+  ): Promise<void> {
     try {
       // Get the latest agent configuration from PostgreSQL
       const agent = await (agents as any).getAgentCfg(agentId);
-      
+
       if (!agent) {
-        logger.warn(`Agent ${agentId} not found in PostgreSQL, skipping Redis sync`);
+        logger.warn(
+          `Agent ${agentId} not found in PostgreSQL, skipping Redis sync`
+        );
         return;
       }
 
@@ -288,7 +301,7 @@ export class AgentCfgOutboxWorker {
 
       // Check if agent exists in Redis
       const exists = await redisAgents.agentExists(agentId, agent.user_id);
-      
+
       if (exists) {
         await redisAgents.updateAgent(agentData);
         logger.debug(`Updated agent ${agentId} in Redis`);
@@ -308,7 +321,7 @@ export class AgentCfgOutboxWorker {
       // For now, we'll try to find the agent in Redis first to get the user_id
       const agentKey = `agents:${agentId}`;
       const agentJson = await redis.get(agentKey);
-      
+
       if (!agentJson) {
         logger.debug(`Agent ${agentId} not found in Redis, skipping delete`);
         return;

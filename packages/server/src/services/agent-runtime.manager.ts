@@ -221,9 +221,7 @@ export class AgentRuntimeManager {
     }
 
     const task = op();
-    const sealed = task
-      .then(() => undefined)
-      .catch(() => undefined);
+    const sealed = task.then(() => undefined).catch(() => undefined);
 
     this.inflight.set(agentId, sealed);
 
@@ -301,8 +299,7 @@ export class AgentRuntimeManager {
   }
 
   private computeExpires(now: number, ttlOverride?: number): number {
-    const ttlMs =
-      ttlOverride != null ? ttlOverride : this.defaultTtlMs;
+    const ttlMs = ttlOverride != null ? ttlOverride : this.defaultTtlMs;
     if (ttlMs <= 0) {
       return Number.MAX_SAFE_INTEGER;
     }

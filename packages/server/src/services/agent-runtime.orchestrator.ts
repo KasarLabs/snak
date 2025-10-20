@@ -9,9 +9,7 @@ import AgentRuntimeManager from './agent-runtime.manager.js';
 import { AgentCfgInvalidationSubscriber } from './agent-cfg-invalidation.subscriber.js';
 
 @Injectable()
-export class AgentRuntimeOrchestrator
-  implements OnModuleInit, OnModuleDestroy
-{
+export class AgentRuntimeOrchestrator implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AgentRuntimeOrchestrator.name);
   private subscriber: AgentCfgInvalidationSubscriber | null = null;
 
@@ -23,17 +21,14 @@ export class AgentRuntimeOrchestrator
   async onModuleInit(): Promise<void> {
     const redisConfig = this.configurationService.redis;
 
-    this.subscriber = new AgentCfgInvalidationSubscriber(
-      this.runtimeManager,
-      {
-        redis: {
-          host: redisConfig.host,
-          port: redisConfig.port,
-          password: redisConfig.password || undefined,
-          db: redisConfig.db,
-        },
-      }
-    );
+    this.subscriber = new AgentCfgInvalidationSubscriber(this.runtimeManager, {
+      redis: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        password: redisConfig.password || undefined,
+        db: redisConfig.db,
+      },
+    });
 
     try {
       await this.subscriber.start();

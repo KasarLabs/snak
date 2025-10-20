@@ -42,7 +42,13 @@ export async function cleanupAgentCfgCache(): Promise<RedisGcStats> {
   let cursor = '0';
 
   do {
-    const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'agent_cfg:*', 'COUNT', '500');
+    const [nextCursor, keys] = await redis.scan(
+      cursor,
+      'MATCH',
+      'agent_cfg:*',
+      'COUNT',
+      '500'
+    );
     cursor = nextCursor;
     stats.scanned += keys.length;
 

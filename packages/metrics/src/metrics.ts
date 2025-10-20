@@ -346,7 +346,10 @@ class Metrics {
     );
   }
 
-  public recordAgentCfgOutboxProcessed(count: number, event = 'cfg_updated'): void {
+  public recordAgentCfgOutboxProcessed(
+    count: number,
+    event = 'cfg_updated'
+  ): void {
     if (!this.agentCfgOutboxProcessed) this.register();
     this.agentCfgOutboxProcessed!.labels({ event }).inc(count);
   }
@@ -361,7 +364,9 @@ class Metrics {
     this.agentCfgOutboxRequeued!.labels({ event }).inc();
   }
 
-  public recordAgentCfgCacheAccess(outcome: 'hit' | 'miss' | 'stale' | 'error'): void {
+  public recordAgentCfgCacheAccess(
+    outcome: 'hit' | 'miss' | 'stale' | 'error'
+  ): void {
     if (!this.agentCfgCacheAccess) this.register();
     this.agentCfgCacheAccess!.labels({ outcome }).inc();
   }

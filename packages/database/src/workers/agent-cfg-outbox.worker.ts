@@ -116,8 +116,7 @@ export class AgentCfgOutboxWorker {
         DatabaseConfigService.getInstance().initialize();
       }
 
-      const credentials =
-        DatabaseConfigService.getInstance().getCredentials();
+      const credentials = DatabaseConfigService.getInstance().getCredentials();
 
       await Postgres.connect(credentials);
       await this.redisClient.connect();

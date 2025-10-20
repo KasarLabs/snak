@@ -1,9 +1,5 @@
 import type { Redis } from 'ioredis';
-import {
-  supervisorAgentConfig,
-  AgentConfig,
-  logger,
-} from '@snakagent/core';
+import { supervisorAgentConfig, AgentConfig, logger } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '../../database.js';
 import { RedisClient } from '../../redis.js';
@@ -224,10 +220,13 @@ export namespace agents {
             } catch (error) {
               cacheOutcome = 'stale';
               metrics.recordAgentCfgCacheAccess(cacheOutcome);
-              logger.warn('Failed to parse agent configuration blob from cache', {
-                error,
-                agentId,
-              });
+              logger.warn(
+                'Failed to parse agent configuration blob from cache',
+                {
+                  error,
+                  agentId,
+                }
+              );
               await redis.del(blobKey);
               await redis.del(pointerKey);
             }
@@ -294,9 +293,12 @@ export namespace agents {
         const execResult = await pipeline.exec();
 
         if (!execResult) {
-          logger.warn('Redis pipeline for agent configuration cache returned null', {
-            agentId,
-          });
+          logger.warn(
+            'Redis pipeline for agent configuration cache returned null',
+            {
+              agentId,
+            }
+          );
         } else {
           const failed = execResult.find(([err]) => err != null);
           if (failed && failed[0]) {

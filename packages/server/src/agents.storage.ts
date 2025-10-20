@@ -576,7 +576,9 @@ export class AgentStorage implements OnModuleInit {
     }
   }
 
-  private async buildRuntimeSeed(agentId: string): Promise<AgentRuntimeSeed | null> {
+  private async buildRuntimeSeed(
+    agentId: string
+  ): Promise<AgentRuntimeSeed | null> {
     const canonical = await agents.getAgentCfg(agentId);
     if (!canonical) {
       return null;
@@ -617,7 +619,9 @@ export class AgentStorage implements OnModuleInit {
     if (!modelInstance) {
       throw new Error('Failed to initialize model for SnakAgent');
     }
-    const promptsFromDb = await this.getPromptsFromDatabase(canonical.prompts_id);
+    const promptsFromDb = await this.getPromptsFromDatabase(
+      canonical.prompts_id
+    );
     if (!promptsFromDb) {
       throw new Error(
         `Failed to load prompts for agent ${canonical.id}, prompts ID: ${canonical.prompts_id}`

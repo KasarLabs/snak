@@ -234,7 +234,6 @@ export class McpController {
     if (result.length === 0)
       throw new BadRequestException('Failed to update MCP servers');
 
-
     return ResponseFormatter.success({
       agent_id: result[0].id,
       mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
@@ -353,7 +352,6 @@ export class McpController {
       throw new BadRequestException('Agent not found');
     }
 
-
     const [updatedAgent] = result;
     return ResponseFormatter.success({
       id: updatedAgent.id,
@@ -421,7 +419,6 @@ export class McpController {
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
     if (result.length === 0)
       throw new BadRequestException('Failed to add env variable');
-
 
     return ResponseFormatter.success({
       agent_id: result[0].id,
@@ -586,7 +583,6 @@ export class McpController {
     if (result.length === 0)
       throw new BadRequestException('Failed to update MCP key');
 
-
     return ResponseFormatter.success({
       agent_id: result[0].id,
       mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
@@ -637,7 +633,6 @@ export class McpController {
       [updatedServers, agentId, userId]
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-
 
     const [updatedAgent] = result;
     return ResponseFormatter.success({
@@ -721,7 +716,6 @@ export class McpController {
     );
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
 
-
     return ResponseFormatter.success({
       agent_id: result[0].id,
       mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
@@ -779,7 +773,6 @@ export class McpController {
     );
 
     const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-
 
     const [updatedAgent] = result;
     return ResponseFormatter.success({
