@@ -151,7 +151,6 @@ export function createAgentTool(
         }
 
         const createdAgent = result[0];
-        // Redis synchronization happens asynchronously via outbox events
 
         const noteSuffix =
           notes.length > 0 ? `. Note: ${[...new Set(notes)].join('; ')}` : '';

@@ -132,8 +132,6 @@ export function addMcpServerTool(
             `Added MCP server(s) "${added.join(', ')}" to agent "${agent.profile.name}" successfully for user ${userId}`
           );
 
-          // Redis synchronization happens asynchronously via outbox events
-
           const message =
             added.length === 1
               ? `MCP server "${added[0]}" added successfully to agent "${agent.profile.name}"`

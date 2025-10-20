@@ -349,9 +349,6 @@ export function updateAgentTool(
         if (result.length > 0) {
           logger.info(`Updated agent "${agent.profile.name}" successfully`);
 
-          // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
-          // No direct Redis write needed - the outbox worker will handle synchronization
-
           let message = `Agent "${agent.profile.name}" updated successfully`;
           if (appliedDefaults.length > 0) {
             message += `. Note: ${appliedDefaults.join('; ')}`;

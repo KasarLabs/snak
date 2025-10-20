@@ -78,9 +78,6 @@ export function deleteAgentTool(
         );
         await Postgres.query(deleteQuery);
 
-        // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
-        // No direct Redis write needed - the outbox worker will handle synchronization
-
         logger.info(
           `Deleted agent "${agent.profile.name}" successfully for user ${userId}`
         );

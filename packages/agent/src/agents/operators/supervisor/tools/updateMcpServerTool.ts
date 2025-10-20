@@ -143,9 +143,6 @@ export function updateMcpServerTool(
             `Updated MCP server(s) "${updated.join(', ')}" for agent "${agent.profile.name}" successfully for user ${userId}`
           );
 
-          // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
-          // No direct Redis write needed - the outbox worker will handle synchronization
-
           const message =
             updated.length === 1
               ? `MCP server "${updated[0]}" updated successfully for agent "${agent.profile.name}"`
