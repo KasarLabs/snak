@@ -18,6 +18,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
 import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
 import { Annotation, messagesStateReducer } from '@langchain/langgraph';
+import { get } from 'http';
 
 const SupervisorStateAnnotation = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -195,7 +196,10 @@ export class SupervisorGraph {
       await agentConfigurationHelperSystemPrompt.format({});
     this.agentConfigurationHelper = createReactAgent({
       llm: this.supervisorConfig.graph.model,
-      tools: getAgentConfigurationHelperTools(this.supervisorConfig),
+      tools: [
+        ...getAgentConfigurationHelperTools(this.supervisorConfig),
+        ...getCommunicationHelperTools(),
+      ],
       name: 'agentConfigurationHelper',
       prompt: formattedAgentConfigurationHelperPrompt,
       // Apply the same transformation to the sub-agent

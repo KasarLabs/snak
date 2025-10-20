@@ -17,11 +17,6 @@ export function messageAskUserTool(): DynamicStructuredTool {
         `messageAskUserTool called with input: ${JSON.stringify(input)}`
       );
       // Prepare attachments if provided
-      const attachments = input.attachments
-        ? Array.isArray(input.attachments)
-          ? input.attachments
-          : [input.attachments]
-        : [];
 
       // Create interrupt - this will pause execution and wait for user response
       // The interrupt() function returns the user's response when they resume
