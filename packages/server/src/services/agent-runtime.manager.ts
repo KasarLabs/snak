@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { AgentConfig } from '@snakagent/core';
-
-const DEFAULT_MAX_ENTRIES = 64;
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
+import { getGuardValue, type AgentConfig } from '@snakagent/core';
 
 const parsePositiveInt = (
   value: string | undefined,
@@ -67,23 +64,32 @@ export class AgentRuntimeManager {
   private readonly defaultTtlMs: number;
 
   constructor() {
+    const guardMaxEntries = getGuardValue(
+      'agent_runtime.cache.max_entries'
+    ) as number;
+    const guardMaxTtlMs = getGuardValue(
+      'agent_runtime.cache.max_ttl_ms'
+    ) as number;
+
     this.maxEntries = parsePositiveInt(
       process.env.AGENT_RUNTIME_CACHE_MAX_ENTRIES,
-      DEFAULT_MAX_ENTRIES
+      guardMaxEntries
     );
-    this.defaultTtlMs = parseDurationMs(DEFAULT_TTL_MS);
-
-    if (this.maxEntries <= 0) {
+    if (this.maxEntries > guardMaxEntries) {
       this.logger.warn(
-        `AGENT_RUNTIME_CACHE_MAX_ENTRIES resolved to ${this.maxEntries}; falling back to ${DEFAULT_MAX_ENTRIES}`
+        `AGENT_RUNTIME_CACHE_MAX_ENTRIES resolved to ${this.maxEntries}; capping to guard limit ${guardMaxEntries}`
       );
-      this.maxEntries = DEFAULT_MAX_ENTRIES;
+      this.maxEntries = guardMaxEntries;
     }
-    if (this.defaultTtlMs < 0) {
+
+    const resolvedTtlMs = parseDurationMs(guardMaxTtlMs);
+    if (resolvedTtlMs > guardMaxTtlMs) {
       this.logger.warn(
-        `AGENT_RUNTIME_CACHE_TTL resolved to ${this.defaultTtlMs}; falling back to ${DEFAULT_TTL_MS}`
+        `AGENT_RUNTIME_CACHE_TTL resolved to ${resolvedTtlMs}; capping to guard limit ${guardMaxTtlMs}`
       );
-      this.defaultTtlMs = DEFAULT_TTL_MS;
+      this.defaultTtlMs = guardMaxTtlMs;
+    } else {
+      this.defaultTtlMs = resolvedTtlMs;
     }
   }
 
@@ -119,7 +125,11 @@ export class AgentRuntimeManager {
   /**
    * Acquire a runtime from cache, incrementing its reference count.
    */
-  acquire(agentId: string): AgentConfig.Runtime | null {
+  async acquire(agentId: string): Promise<AgentConfig.Runtime | null> {
+    return this.withInflight(agentId, async () => this.doAcquire(agentId));
+  }
+
+  private doAcquire(agentId: string): AgentConfig.Runtime | null {
     const now = Date.now();
     this.pruneExpired(now);
 

@@ -39,7 +39,7 @@ export const configSchema = z
       .object({
         fileIngestion: z.coerce.number().int().min(1).default(2),
         embeddings: z.coerce.number().int().min(1).default(2),
-        fallbackWorkers: z.coerce.number().int().min(0).default(8),
+        fallbackWorkers: z.coerce.number().int().min(0).default(2),
         workerIdleTimeout: z.coerce.number().int().min(0).default(30000),
       })
       .strict(),

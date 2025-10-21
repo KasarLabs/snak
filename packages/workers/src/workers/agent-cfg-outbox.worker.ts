@@ -7,7 +7,7 @@ import {
   agents,
   redisAgents,
 } from '@snakagent/database/queries';
-import { DatabaseConfigService, logger } from '@snakagent/core';
+import { DatabaseConfigService, logger, getGuardValue } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 
 interface AgentCfgOutboxMetrics {
@@ -21,8 +21,6 @@ const outboxMetrics = metrics as unknown as AgentCfgOutboxMetrics;
 
 type AgentCfgOutboxRow = agentCfgOutbox.OutboxRow;
 
-const DEFAULT_BATCH_SIZE = 200;
-const DEFAULT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_REDIS_CHANNEL = 'agent_cfg_updates';
 
 export interface AgentCfgOutboxWorkerOptions {
@@ -48,23 +46,13 @@ export class AgentCfgOutboxWorker {
   private loopPromise: Promise<void> | null = null;
 
   constructor(private readonly options?: AgentCfgOutboxWorkerOptions) {
-    const envBatchSize = parseInt(
-      process.env.AGENT_CFG_WORKER_BATCH_SIZE ?? '',
-      2
-    );
-    this.batchSize =
-      options?.batchSize ??
-      (!Number.isNaN(envBatchSize) ? envBatchSize : undefined) ??
-      DEFAULT_BATCH_SIZE;
+    const guardBatchSize = getGuardValue('agent_cfg_worker.batch_size') as number;
+    const guardPollInterval = getGuardValue(
+      'agent_cfg_worker.poll_interval_ms'
+    ) as number;
 
-    const envPollInterval = parseInt(
-      process.env.AGENT_CFG_WORKER_POLL_INTERVAL_MS ?? '',
-      10
-    );
-    this.pollIntervalMs =
-      options?.pollIntervalMs ??
-      (!Number.isNaN(envPollInterval) ? envPollInterval : undefined) ??
-      DEFAULT_POLL_INTERVAL_MS;
+    this.batchSize = options?.batchSize ?? guardBatchSize;
+    this.pollIntervalMs = options?.pollIntervalMs ?? guardPollInterval;
 
     this.redisChannel =
       options?.redisChannel ??

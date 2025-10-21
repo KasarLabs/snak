@@ -79,6 +79,23 @@ const ExecutionConfigSchema = z.object({
   max_description_length: positiveInteger,
 });
 
+// Agent runtime cache configuration schema
+const AgentRuntimeCacheConfigSchema = z.object({
+  max_entries: positiveInteger,
+  max_ttl_ms: nonNegativeInteger,
+});
+
+// Agent runtime configuration schema
+const AgentRuntimeConfigSchema = z.object({
+  cache: AgentRuntimeCacheConfigSchema,
+});
+
+// Agent configuration worker schema
+const AgentCfgWorkerConfigSchema = z.object({
+  batch_size: positiveInteger,
+  poll_interval_ms: positiveInteger,
+});
+
 // MCP configuration schema
 const McpConfigSchema = z.object({
   max_limit_tools: positiveInteger,
@@ -254,6 +271,8 @@ export const GuardsConfigSchema = z.object({
   user: UserConfigSchema,
   memory: MemoryConfigSchema,
   execution: ExecutionConfigSchema,
+  agent_runtime: AgentRuntimeConfigSchema,
+  agent_cfg_worker: AgentCfgWorkerConfigSchema,
   mcp: McpConfigSchema,
   agents: AgentsConfigSchema,
   rag: GuardsRagConfigSchema,

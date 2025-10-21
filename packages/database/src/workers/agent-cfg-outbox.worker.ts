@@ -2,14 +2,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DatabaseConfigService, logger } from '@snakagent/core';
+import { DatabaseConfigService, logger, getGuardValue } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 
 import { Postgres } from '../database.js';
 import { RedisClient } from '../redis.js';
 
-const DEFAULT_BATCH_SIZE = 200;
-const DEFAULT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_REDIS_CHANNEL = 'agent_cfg_updates';
 
 interface AgentCfgOutboxRow {
@@ -37,15 +35,13 @@ export class AgentCfgOutboxWorker {
   private readonly redisClient = RedisClient.getInstance();
 
   constructor(options?: AgentCfgOutboxWorkerOptions) {
-    this.batchSize =
-      options?.batchSize ??
-      (parseInt(process.env.AGENT_CFG_WORKER_BATCH_SIZE || '', 10) ||
-        DEFAULT_BATCH_SIZE);
+    const guardBatchSize = getGuardValue('agent_cfg_worker.batch_size') as number;
+    const guardPollInterval = getGuardValue(
+      'agent_cfg_worker.poll_interval_ms'
+    ) as number;
 
-    this.pollIntervalMs =
-      options?.pollIntervalMs ??
-      (parseInt(process.env.AGENT_CFG_WORKER_POLL_INTERVAL_MS || '', 10) ||
-        DEFAULT_POLL_INTERVAL_MS);
+    this.batchSize = options?.batchSize ?? guardBatchSize;
+    this.pollIntervalMs = options?.pollIntervalMs ?? guardPollInterval;
 
     this.redisChannel =
       options?.redisChannel ??

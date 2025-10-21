@@ -514,8 +514,8 @@ export class AgentStorage implements OnModuleInit {
       const seed = await this.buildRuntimeSeed(agentConfigOutputWithId.id);
       if (seed) {
         if (seed.userId !== agentConfigOutputWithId.user_id) {
-          logger.warn(
-            `Agent ${agentConfigOutputWithId.id} ownership mismatch between Redis (${agentConfigOutputWithId.user_id}) and Postgres (${seed.userId})`
+          throw new Error(
+            `Agent ${agentConfigOutputWithId.id} ownership mismatch: Redis has user ${agentConfigOutputWithId.user_id} but Postgres has ${seed.userId}`
           );
         }
         try {

@@ -23,8 +23,8 @@ const parseInteger = (value: string | undefined, fallback: number): number => {
   if (!value) {
     return fallback;
   }
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : fallback;
 };
 
 export class AgentCfgInvalidationSubscriber {
@@ -193,7 +193,7 @@ export class AgentCfgInvalidationSubscriber {
       typeof cfgVersionRaw === 'number'
         ? cfgVersionRaw
         : typeof cfgVersionRaw === 'string'
-          ? Number.parseInt(cfgVersionRaw, 10)
+          ? Number(cfgVersionRaw)
           : Number.NaN;
 
     if (!Number.isFinite(cfgVersion)) {
