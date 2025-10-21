@@ -35,7 +35,9 @@ export class AgentCfgOutboxWorker {
   private readonly redisClient = RedisClient.getInstance();
 
   constructor(options?: AgentCfgOutboxWorkerOptions) {
-    const guardBatchSize = getGuardValue('agent_cfg_worker.batch_size') as number;
+    const guardBatchSize = getGuardValue(
+      'agent_cfg_worker.batch_size'
+    ) as number;
     const guardPollInterval = getGuardValue(
       'agent_cfg_worker.poll_interval_ms'
     ) as number;
