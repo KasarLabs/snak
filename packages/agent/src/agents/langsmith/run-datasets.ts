@@ -129,9 +129,6 @@ async function main() {
       const specializedAgent = specializedAgents.find(
         (agent) => agent.name === nodeName
       );
-      for (const agent of specializedAgents) {
-        console.log(`Available specialized agent: ${agent.name}`);
-      }
       if (!specializedAgent) {
         throw new Error(
           `Specialized agent for node '${nodeName}' is not found`
