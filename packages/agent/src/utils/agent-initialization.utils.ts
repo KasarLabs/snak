@@ -39,13 +39,13 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
       case 'openai':
         modelInstance = new ChatOpenAI({
           ...commonConfig,
-          openAIApiKey: process.env.OPENAI_API_KEY,
+          apiKey: process.env.OPENAI_API_KEY,
         });
         break;
       case 'anthropic':
         modelInstance = new ChatAnthropic({
           ...commonConfig,
-          anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+          apiKey: process.env.ANTHROPIC_API_KEY,
         });
         break;
       case 'gemini':
