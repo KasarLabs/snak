@@ -24,6 +24,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME_LOWER: ${{ toLower(github.repository) }}
 
 jobs:
   bump-version:
@@ -162,7 +163,7 @@ jobs:
           push: false
           load: true
           platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.RELEASE_TAG }}-verify
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ env.RELEASE_TAG }}-verify
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -170,14 +171,14 @@ jobs:
         run: |
           docker run --rm \
             --entrypoint node \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.RELEASE_TAG }}-verify \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ env.RELEASE_TAG }}-verify \
             --version
 
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}
           tags: |
             type=raw,value=${{ env.RELEASE_TAG }}
             type=raw,value=latest
