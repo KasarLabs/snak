@@ -12,78 +12,84 @@ import {
   getAgentSelectorHelperTools,
   getCommunicationHelperTools,
   getMcpServerHelperTools,
-  getSupervisorConfigTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
-import {
-  AIMessage,
-  BaseMessage,
-  HumanMessage,
-  SystemMessage,
-  ToolMessage,
-  mapStoredMessageToChatMessage,
-} from '@langchain/core/messages';
+import { AIMessage, BaseMessage } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
 import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
 import { Annotation } from '@langchain/langgraph';
 import { redisAgents } from '@snakagent/database/queries';
+import { v4 as uuidv4 } from 'uuid';
+import { ms } from 'zod/v4/locales';
 const MAX_SUPERVISOR_MESSAGE = 30;
+
+function mergeMessagesWithoutDuplicates(
+  left: BaseMessage[],
+  right: BaseMessage[]
+): BaseMessage[] {
+  if (!left || left.length === 0) {
+    return right || [];
+  }
+  if (!right || right.length === 0) {
+    return left || [];
+  }
+
+  const messageMap = new Map<string, BaseMessage>();
+  const insertionOrder: string[] = []; // Garder l'ordre d'insertion
+
+  left.forEach((msg) => {
+    if (msg.id) {
+      messageMap.set(msg.id, msg);
+      insertionOrder.push(msg.id);
+    } else {
+      logger.debug(
+        `[SupervisorGraph] mergeMessagesWithoutDuplicates: Message without id found: ${JSON.stringify(msg)}`
+      );
+    }
+  });
+
+  right.forEach((msg) => {
+    if (!msg.id) {
+      msg.id = uuidv4();
+    }
+
+    if (messageMap.has(msg.id)) {
+      // Override: on garde la position originale mais on update le message
+      messageMap.set(msg.id, msg);
+    } else {
+      // Nouveau message: on l'ajoute à la fin
+      messageMap.set(msg.id, msg);
+      insertionOrder.push(msg.id);
+    }
+  });
+
+  // Retourner dans l'ordre d'insertion
+  return insertionOrder.map((id) => messageMap.get(id)!);
+}
 
 export function messagesStateReducerWithLimit(
   left: BaseMessage[],
   right: BaseMessage[]
 ): BaseMessage[] {
-  // Convert plain objects to proper BaseMessage instances
-  const ensureMessage = (msg: any): BaseMessage => {
-    // If already a proper BaseMessage instance, return as is
-    if (msg && typeof msg._getType === 'function') {
-      return msg;
-    }
-
-    // If it's a plain object, convert using mapStoredMessageToChatMessage
-    if (msg && typeof msg === 'object') {
-      try {
-        return mapStoredMessageToChatMessage(msg);
-      } catch (error) {
-        logger.warn(
-          `[messagesStateReducerWithLimit] Failed to convert message: ${error}`
-        );
-        // Fallback: try to create appropriate message type based on type field
-        const type = msg.type || msg._getType?.() || 'human';
-        switch (type) {
-          case 'ai':
-            return new AIMessage(msg.content || msg.kwargs?.content || '');
-          case 'system':
-            return new SystemMessage(msg.content || msg.kwargs?.content || '');
-          case 'tool':
-            return new ToolMessage({
-              content: msg.content || msg.kwargs?.content || '',
-              tool_call_id: msg.tool_call_id || msg.kwargs?.tool_call_id || '',
-            });
-          case 'human':
-          default:
-            return new HumanMessage(msg.content || msg.kwargs?.content || '');
-        }
-      }
-    }
-
-    // Last resort: create a HumanMessage with empty content
-    return new HumanMessage('');
-  };
-
-  const leftMessages = left.map(ensureMessage);
-  const rightMessages = right.map(ensureMessage);
-  const combined = [...leftMessages, ...rightMessages];
+  const combined = mergeMessagesWithoutDuplicates(left, right);
 
   if (combined.length <= MAX_SUPERVISOR_MESSAGE) {
     return combined;
   }
+
   console.log(
     `[SupervisorGraph] messagesStateReducerWithLimit: Limiting messages from ${combined.length} to ${MAX_SUPERVISOR_MESSAGE}`
   );
-  return combined.slice(combined.length - MAX_SUPERVISOR_MESSAGE);
+
+  let startIndex = combined.length - MAX_SUPERVISOR_MESSAGE;
+
+  while (startIndex > 0 && combined[startIndex].getType() === 'tool') {
+    startIndex--;
+  }
+
+  return combined.slice(startIndex);
 }
 const SupervisorStateAnnotation = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -145,7 +151,7 @@ export class SupervisorGraph {
   }
 
   /**
-   * Transforms messages to convert messages with 'name' field to standard AI messages.
+   * Transforms messages to remove the 'name' field from AI messages.
    * This ensures compatibility with Google Generative AI which doesn't support
    * custom author names as message types.
    */
@@ -156,10 +162,6 @@ export class SupervisorGraph {
 
     const transformedMessages = messages.map((msg: BaseMessage) => {
       // Skip if msg is not a valid BaseMessage instance
-      if (!msg || typeof msg.getType !== 'function') {
-        return msg;
-      }
-
       // Check if message has a 'name' property that's not standard
       const messageName = msg.name;
       const msgType = msg.getType();
@@ -170,10 +172,10 @@ export class SupervisorGraph {
           `[SupervisorGraph] Processing AI message with name '${messageName}'`
         );
 
-        // Remove the 'name' field to avoid Google API issues
         // The name is already preserved in the message history for routing
         return new AIMessage({
           content: msg.content,
+          name: msg.name === 'supervisor' ? 'supervisor' : 'ai',
           tool_calls: (msg as any).tool_calls || [],
           invalid_tool_calls: (msg as any).invalid_tool_calls || [],
           additional_kwargs: {
@@ -184,6 +186,7 @@ export class SupervisorGraph {
         });
       }
 
+      // Return the original message if no transformation is needed
       return msg;
     });
 
@@ -238,7 +241,6 @@ export class SupervisorGraph {
         ],
         name: 'agentConfigurationHelper',
         prompt: formattedAgentConfigurationHelperPrompt,
-        // Apply the same transformation to the sub-agent
         stateSchema: SupervisorStateAnnotation,
         preModelHook: this.transformMessagesHook.bind(this),
       })
@@ -292,6 +294,7 @@ export class SupervisorGraph {
         preModelHook: this.transformMessagesHook.bind(this),
       })
     );
+    console.log(avaibleAgents);
     const supervisorPrompt = ChatPromptTemplate.fromMessages([
       ['ai', SUPERVISOR_SYSTEM_PROMPT],
     ]);
