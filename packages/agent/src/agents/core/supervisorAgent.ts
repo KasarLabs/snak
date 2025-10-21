@@ -227,18 +227,6 @@ export class SupervisorAgent extends BaseAgent {
           yield chunkProcessed;
         }
       }
-
-      if (!this.pgCheckpointer) {
-        throw new Error('Checkpointer is not initialized');
-      }
-
-      if (!isInterruptHandle) {
-        const startTime = Date.now();
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        await this.pgCheckpointer.deleteThread(threadId);
-        logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
-      }
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
       }

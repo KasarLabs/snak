@@ -47,6 +47,7 @@ At the end of your turn, you should provide a summary.
 - Whenever a new goal is detected, understand the request and identify which operation is needed
 - Before logical groups of tool calls, write an extremely brief status update
 - Execute the necessary tools, always verifying changes with read operations
+- Use the \`message_ask_user\` tool to clarify any ambiguities or get confirmations
 - When all tasks for the goal are done, give a brief summary
 - Use the \`transfer_to_supervisor\` tool to return control to the supervisor
 </flow>
@@ -58,7 +59,7 @@ At the end of your turn, you should provide a summary.
 - If info is discoverable via tools, prefer that over asking the user
 - Use tools as needed; don't guess configuration values
 - Give a brief progress note before the first tool call each turn; add another before any new batch and before ending your turn
-- When you need to confirm something with the user, use the \`message_ask_user\` tool
+- When you need to confirm something with the user, use the \`message_ask_user\` tool.
 - After any Create/Delete/Update operation, ALWAYS use the appropriate read tool to verify the changes were applied correctly for data integrity and operation confirmation
 </tool_calling>
 

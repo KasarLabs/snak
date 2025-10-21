@@ -9,46 +9,91 @@ import { initializeDatabase } from '@agents/utils/database.utils.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import {
   getAgentConfigurationHelperTools,
+  getAgentSelectorHelperTools,
   getCommunicationHelperTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
-import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+  mapStoredMessageToChatMessage,
+} from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
 import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
-import { Annotation, messagesStateReducer } from '@langchain/langgraph';
-import { get } from 'http';
+import { Annotation } from '@langchain/langgraph';
+import { redisAgents } from '@snakagent/database/queries';
+const MAX_SUPERVISOR_MESSAGE = 30;
 
+export function messagesStateReducerWithLimit(
+  left: BaseMessage[],
+  right: BaseMessage[]
+): BaseMessage[] {
+  // Convert plain objects to proper BaseMessage instances
+  const ensureMessage = (msg: any): BaseMessage => {
+    // If already a proper BaseMessage instance, return as is
+    if (msg && typeof msg._getType === 'function') {
+      return msg;
+    }
+
+    // If it's a plain object, convert using mapStoredMessageToChatMessage
+    if (msg && typeof msg === 'object') {
+      try {
+        return mapStoredMessageToChatMessage(msg);
+      } catch (error) {
+        logger.warn(
+          `[messagesStateReducerWithLimit] Failed to convert message: ${error}`
+        );
+        // Fallback: try to create appropriate message type based on type field
+        const type = msg.type || msg._getType?.() || 'human';
+        switch (type) {
+          case 'ai':
+            return new AIMessage(msg.content || msg.kwargs?.content || '');
+          case 'system':
+            return new SystemMessage(msg.content || msg.kwargs?.content || '');
+          case 'tool':
+            return new ToolMessage({
+              content: msg.content || msg.kwargs?.content || '',
+              tool_call_id: msg.tool_call_id || msg.kwargs?.tool_call_id || '',
+            });
+          case 'human':
+          default:
+            return new HumanMessage(msg.content || msg.kwargs?.content || '');
+        }
+      }
+    }
+
+    // Last resort: create a HumanMessage with empty content
+    return new HumanMessage('');
+  };
+
+  const leftMessages = left.map(ensureMessage);
+  const rightMessages = right.map(ensureMessage);
+  const combined = [...leftMessages, ...rightMessages];
+
+  if (combined.length <= MAX_SUPERVISOR_MESSAGE) {
+    return combined;
+  }
+  console.log(
+    `[SupervisorGraph] messagesStateReducerWithLimit: Limiting messages from ${combined.length} to ${MAX_SUPERVISOR_MESSAGE}`
+  );
+  return combined.slice(combined.length - MAX_SUPERVISOR_MESSAGE);
+}
 const SupervisorStateAnnotation = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
-    reducer: messagesStateReducer,
+    reducer: messagesStateReducerWithLimit,
     default: () => [],
   }),
 });
+
 export class SupervisorGraph {
   private graph: CompiledStateGraph<any, any, any, any, any> | null = null;
-  private agentConfigurationHelper: CompiledStateGraph<
-    any,
-    any,
-    any,
-    any,
-    any
-  > | null = null;
-  private mcpConfigurationHelper: CompiledStateGraph<
-    any,
-    any,
-    any,
-    any,
-    any
-  > | null = null;
-  private snakRagAgentHelper: CompiledStateGraph<
-    any,
-    any,
-    any,
-    any,
-    any
-  > | null = null;
+  private specializedAgent: Array<CompiledStateGraph<any, any, any, any, any>> =
+    [];
   private checkpointer: PostgresSaver;
   private supervisorConfig: AgentConfig.Runtime;
 
@@ -79,26 +124,9 @@ export class SupervisorGraph {
   getcompiledGraph(): CompiledStateGraph<any, any, any, any, any> | null {
     return this.graph;
   }
-  getAgentConfigurationHelper(): CompiledStateGraph<
-    any,
-    any,
-    any,
-    any,
-    any
-  > | null {
-    return this.agentConfigurationHelper;
-  }
-  getMcpConfigurationHelper(): CompiledStateGraph<
-    any,
-    any,
-    any,
-    any,
-    any
-  > | null {
-    return this.mcpConfigurationHelper;
-  }
-  getSnakRagAgentHelper(): CompiledStateGraph<any, any, any, any, any> | null {
-    return this.snakRagAgentHelper;
+
+  getSpecializedAgents(): Array<CompiledStateGraph<any, any, any, any, any>> {
+    return this.specializedAgent;
   }
 
   private end_graph(state: typeof GraphState): {
@@ -125,6 +153,11 @@ export class SupervisorGraph {
     const messages = state.messages || [];
 
     const transformedMessages = messages.map((msg: BaseMessage) => {
+      // Skip if msg is not a valid BaseMessage instance
+      if (!msg || typeof msg.getType !== 'function') {
+        return msg;
+      }
+
       // Check if message has a 'name' property that's not standard
       const messageName = msg.name;
       const msgType = msg.getType();
@@ -194,42 +227,69 @@ export class SupervisorGraph {
       ]);
     const formattedAgentConfigurationHelperPrompt =
       await agentConfigurationHelperSystemPrompt.format({});
-    this.agentConfigurationHelper = createReactAgent({
-      llm: this.supervisorConfig.graph.model,
-      tools: [
-        ...getAgentConfigurationHelperTools(this.supervisorConfig),
-        ...getCommunicationHelperTools(),
-      ],
-      name: 'agentConfigurationHelper',
-      prompt: formattedAgentConfigurationHelperPrompt,
-      // Apply the same transformation to the sub-agent
-      stateSchema: SupervisorStateAnnotation,
-      preModelHook: this.transformMessagesHook.bind(this),
-    });
+    this.specializedAgent.push(
+      createReactAgent({
+        llm: this.supervisorConfig.graph.model,
+        tools: [
+          ...getAgentConfigurationHelperTools(this.supervisorConfig),
+          ...getCommunicationHelperTools(),
+        ],
+        name: 'agentConfigurationHelper',
+        prompt: formattedAgentConfigurationHelperPrompt,
+        // Apply the same transformation to the sub-agent
+        stateSchema: SupervisorStateAnnotation,
+        preModelHook: this.transformMessagesHook.bind(this),
+      })
+    );
 
     const mcpConfigurationHelperSystemPrompt = ChatPromptTemplate.fromMessages([
       ['ai', MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT],
     ]);
     const formattedMcpConfigurationHelperPrompt =
       await mcpConfigurationHelperSystemPrompt.format({});
-    this.mcpConfigurationHelper = createReactAgent({
-      llm: this.supervisorConfig.graph.model,
-      tools: [],
-      name: 'mcpConfigurationHelper',
-      prompt: formattedMcpConfigurationHelperPrompt,
-      stateSchema: SupervisorStateAnnotation,
-      preModelHook: this.transformMessagesHook.bind(this),
-    });
+    this.specializedAgent.push(
+      createReactAgent({
+        llm: this.supervisorConfig.graph.model,
+        tools: [],
+        name: 'mcpConfigurationHelper',
+        prompt: formattedMcpConfigurationHelperPrompt,
+        stateSchema: SupervisorStateAnnotation,
+        preModelHook: this.transformMessagesHook.bind(this),
+      })
+    );
 
-    this.snakRagAgentHelper = createReactAgent({
-      llm: this.supervisorConfig.graph.model,
-      tools: [],
-      name: 'snakRagAgentHelper',
-      prompt:
-        'You are an expert RAG agent configuration assistant. Your task is to help users create and modify RAG agent configurations based on their requirements. Always ensure that the configurations adhere to best practices and are optimized for performance.',
-      stateSchema: SupervisorStateAnnotation,
-      preModelHook: this.transformMessagesHook.bind(this),
-    });
+    this.specializedAgent.push(
+      createReactAgent({
+        llm: this.supervisorConfig.graph.model,
+        tools: [],
+        name: 'snakRagAgentHelper',
+        prompt:
+          'You are an expert RAG agent configuration assistant. Your task is to help users create and modify RAG agent configurations based on their requirements. Always ensure that the configurations adhere to best practices and are optimized for performance.',
+        stateSchema: SupervisorStateAnnotation,
+        preModelHook: this.transformMessagesHook.bind(this),
+      })
+    );
+
+    const avaibleAgents = await redisAgents.listAgentsByUser(
+      this.supervisorConfig.user_id
+    );
+    logger.info(
+      `[SupervisorGraph] Found ${avaibleAgents.length} avaible agents for user ${this.supervisorConfig.user_id}`
+    );
+    this.specializedAgent.push(
+      createReactAgent({
+        llm: this.supervisorConfig.graph.model,
+        tools: getAgentSelectorHelperTools(
+          this.supervisorConfig,
+          avaibleAgents.map((a) => a.profile)
+        ),
+        name: 'agentSelectorHelper',
+        prompt:
+          'You are an expert agent selection assistant. Your task is to help users choose the most suitable agent for their needs based on the provided requirements and context. Always consider the capabilities and specialties of each agent before making a recommendation.',
+        stateSchema: SupervisorStateAnnotation,
+        preModelHook: this.transformMessagesHook.bind(this),
+      })
+    );
     const supervisorPrompt = ChatPromptTemplate.fromMessages([
       ['ai', SUPERVISOR_SYSTEM_PROMPT],
     ]);
@@ -238,11 +298,7 @@ export class SupervisorGraph {
     });
     const workflow = createSupervisor({
       supervisorName: 'supervisor',
-      agents: [
-        this.agentConfigurationHelper,
-        this.mcpConfigurationHelper,
-        this.snakRagAgentHelper,
-      ],
+      agents: [...this.specializedAgent],
       tools: getCommunicationHelperTools(),
       llm: this.supervisorConfig.graph.model,
       prompt: formattedSupervisorPrompt,

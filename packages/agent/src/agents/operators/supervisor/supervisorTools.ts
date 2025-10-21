@@ -1,5 +1,5 @@
 import { Tool, DynamicStructuredTool } from '@langchain/core/tools';
-import { AgentConfig } from '@snakagent/core';
+import { AgentConfig, AgentProfile } from '@snakagent/core';
 import {
   createAgentTool,
   listAgentsTool,
@@ -11,6 +11,8 @@ import {
   updateMcpServerTool,
   messageAskUserTool,
 } from './tools/index.js';
+import { redisAgents } from '@snakagent/database/queries';
+import { createTransferAgentTool } from './transferAgentTools.js';
 
 /**
  * Shared configuration tools reserved for supervisor agents.
@@ -55,6 +57,21 @@ export function getMcpServerHelperTools(agentConfig: AgentConfig.Runtime) {
 
 export function getCommunicationHelperTools() {
   return [messageAskUserTool()];
+}
+
+export function getAgentSelectorHelperTools(
+  agentConfig: AgentConfig.Runtime,
+  agentsProfile: AgentProfile[]
+) {
+  const transferTools: Array<DynamicStructuredTool> = [];
+  for (const profile of agentsProfile) {
+    transferTools.push(createTransferAgentTool(profile.name));
+  }
+  return [
+    listAgentsTool(agentConfig),
+    readAgentTool(agentConfig),
+    ...transferTools,
+  ];
 }
 
 /**

@@ -121,29 +121,23 @@ async function main() {
     if (nodeName === 'supervisor') {
       targetNode = supervisorAgent.getCompiledStateGraph()?.nodes[nodeName];
     } else {
+      const specializedAgents = supervisorInstance.getSpecializedAgents();
+      if (!specializedAgents || specializedAgents.length === 0) {
+        throw new Error(`No specialized agents found in supervisor graph`);
+      }
       // Map node names to their corresponding getter methods
-      const specialistGetters: Record<string, () => any> = {
-        agentConfigurationHelper: () =>
-          supervisorInstance.getAgentConfigurationHelper(),
-        mcpConfigurationHelper: () =>
-          supervisorInstance.getMcpConfigurationHelper(),
-        snakRagAgentHelper: () => supervisorInstance.getSnakRagAgentHelper(),
-      };
-
-      const getSpecialistGraph = specialistGetters[nodeName];
-      if (!getSpecialistGraph) {
+      const specializedAgent = specializedAgents.find(
+        (agent) => agent.name === nodeName
+      );
+      for (const agent of specializedAgents) {
+        console.log(`Available specialized agent: ${agent.name}`);
+      }
+      if (!specializedAgent) {
         throw new Error(
-          `Unknown specialist node '${nodeName}'. Valid specialist nodes are: ${Object.keys(specialistGetters).join(', ')}`
+          `Specialized agent for node '${nodeName}' is not found`
         );
       }
-
-      const specialistGraph = getSpecialistGraph();
-      if (!specialistGraph) {
-        throw new Error(
-          `Specialist graph instance for node '${nodeName}' is not initialized`
-        );
-      }
-      targetNode = specialistGraph.nodes['agent'];
+      targetNode = specializedAgent.nodes['agent'];
     }
 
     if (!targetNode) {

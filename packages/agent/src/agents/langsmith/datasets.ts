@@ -1,5 +1,6 @@
 import { DatabaseConfigService, initializeGuards } from '@snakagent/core';
 import { LanggraphDatabase, Postgres } from '@snakagent/database';
+import { RedisClient } from '@snakagent/database/redis';
 
 // TODO Check if we ca have a better initialization
 
@@ -10,6 +11,7 @@ const guardsConfigPath = path.resolve(
 
 initializeGuards(guardsConfigPath);
 DatabaseConfigService.getInstance().initialize();
+RedisClient.getInstance().connect();
 const databaseConfig = DatabaseConfigService.getInstance().getCredentials();
 
 await Postgres.connect(databaseConfig);
