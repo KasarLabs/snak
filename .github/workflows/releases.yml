@@ -12,6 +12,8 @@ on:
           - minor
           - major
         default: patch
+  pull_request:
+    branches: ["main"]
 
 permissions:
   contents: write
