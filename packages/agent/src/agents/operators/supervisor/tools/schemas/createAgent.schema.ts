@@ -14,9 +14,13 @@ export const CreateAgentSchema = z
     mcp_servers: McpServersArraySchema.optional().describe(
       'MCP servers configuration'
     ),
-    memory: MemoryConfigSchema.partial().optional().describe('Memory configuration'),
+    memory: MemoryConfigSchema.partial()
+      .optional()
+      .describe('Memory configuration'),
     rag: RAGConfigSchema.partial().optional().describe('RAG configuration'),
-    graph: GraphConfigSchema.partial().optional().describe('Graph configuration'),
+    graph: GraphConfigSchema.partial()
+      .optional()
+      .describe('Graph configuration'),
   })
   .strict();
 

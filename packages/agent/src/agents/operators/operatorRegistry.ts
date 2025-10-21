@@ -30,7 +30,7 @@ export class OperatorRegistry {
     }
     this.registry.set(agentId, agent);
     logger.debug(`OperatorRegistry: Registered operator agent "${agentId}"`);
-  }¡¡
+  }
 
   /**
    * Unregister an operator agent
