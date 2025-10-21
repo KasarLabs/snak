@@ -45,9 +45,6 @@ export function messagesStateReducerWithLimit(
   if (combined.length <= MAX_SUPERVISOR_MESSAGE) {
     return combined;
   }
-  console.log(
-    `[SupervisorGraph] messagesStateReducerWithLimit: Limiting messages from ${combined.length} to ${MAX_SUPERVISOR_MESSAGE}`
-  );
 
   // Calculate start index to keep last MAX_SUPERVISOR_MESSAGE messages
   let startIndex = combined.length - MAX_SUPERVISOR_MESSAGE;
@@ -97,7 +94,6 @@ export class SupervisorGraph {
       // Build and compile the workflow
       const workflow = await this.buildWorkflow();
       this.graph = workflow.compile({ checkpointer: this.checkpointer });
-      console.log(this.graph.nodes);
       logger.info('[SupervisorAgent] Successfully initialized agent');
       return this.graph;
     } catch (error) {
@@ -113,20 +109,6 @@ export class SupervisorGraph {
   getSpecializedAgents(): Array<CompiledStateGraph<any, any, any, any, any>> {
     return this.specializedAgent;
   }
-
-  private end_graph(state: typeof GraphState): {
-    retry: number;
-    skipValidation: skipValidationType;
-    error: null;
-  } {
-    logger.info('[EndGraph] Cleaning up state for graph termination');
-    return {
-      retry: 0,
-      skipValidation: { skipValidation: false, goto: '' },
-      error: null,
-    };
-  }
-
   /**
    * Transforms messages to remove duplicates and transform AI messages.
    * Uses RemoveMessage pattern to overwrite messages and ensure deduplication.

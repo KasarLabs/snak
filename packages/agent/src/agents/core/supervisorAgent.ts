@@ -212,9 +212,7 @@ export class SupervisorAgent extends BaseAgent {
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve graph state during execution');
         }
-        console.log(JSON.stringify(stateSnapshot.values, null, 2));
         isTransferHandle = stateSnapshot.values.transfer_to.length > 0;
-        console.log(`isTransferHandle: ${isTransferHandle}`);
         currentCheckpointId = stateSnapshot.config.configurable?.checkpoint_id;
         lastChunk = chunk;
         if (
@@ -242,7 +240,6 @@ export class SupervisorAgent extends BaseAgent {
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
       }
-      console.log('Final state values:', stateSnapshot.values);
       yield {
         event: lastChunk.event,
         run_id: lastChunk.run_id,
