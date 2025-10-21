@@ -1,5 +1,5 @@
 import { Redis, type RedisOptions } from 'ioredis';
-import { logger } from '@snakagent/core';
+import { logger, DEFAULT_AGENT_CFG_REDIS_CHANNEL } from '@snakagent/core';
 import type AgentRuntimeManager from './agent-runtime.manager.js';
 
 export interface AgentCfgInvalidationSubscriberOptions {
@@ -17,7 +17,7 @@ interface InvalidationEvent {
   cfgVersion: number;
 }
 
-const DEFAULT_CHANNEL = 'agent_cfg_invalidate';
+const DEFAULT_CHANNEL = DEFAULT_AGENT_CFG_REDIS_CHANNEL;
 
 const parseInteger = (value: string | undefined, fallback: number): number => {
   if (!value) {
@@ -59,6 +59,7 @@ export class AgentCfgInvalidationSubscriber {
       this.handlePayload(payload).catch((error) => {
         logger.error('Failed to process agent_cfg_invalidate payload', {
           error,
+          payload,
         });
       });
     };
@@ -179,11 +180,11 @@ export class AgentCfgInvalidationSubscriber {
       return null;
     }
 
-    const agentId = Reflect.get(parsed, 'agentId');
-    const cfgVersionRaw = Reflect.get(parsed, 'cfgVersion');
+    const agentId = Reflect.get(parsed, 'agent_id');
+    const cfgVersionRaw = Reflect.get(parsed, 'cfg_version');
 
     if (typeof agentId !== 'string' || agentId.length === 0) {
-      logger.warn('Received invalid agentId on agent_cfg_invalidate channel', {
+      logger.warn('Received invalid agent_id on agent_cfg_invalidate channel', {
         payload: parsed,
       });
       return null;
@@ -198,7 +199,7 @@ export class AgentCfgInvalidationSubscriber {
 
     if (!Number.isFinite(cfgVersion)) {
       logger.warn(
-        'Received invalid cfgVersion on agent_cfg_invalidate channel',
+        'Received invalid cfg_version on agent_cfg_invalidate channel',
         {
           payload: parsed,
         }

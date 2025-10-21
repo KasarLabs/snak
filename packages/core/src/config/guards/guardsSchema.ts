@@ -82,7 +82,7 @@ const ExecutionConfigSchema = z.object({
 // Agent runtime cache configuration schema
 const AgentRuntimeCacheConfigSchema = z.object({
   max_entries: positiveInteger,
-  max_ttl_ms: nonNegativeInteger,
+  max_ttl_ms: positiveInteger,
 });
 
 // Agent runtime configuration schema

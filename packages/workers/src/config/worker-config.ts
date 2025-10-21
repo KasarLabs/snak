@@ -62,7 +62,7 @@ export function loadWorkerConfig(): WorkerConfig {
       fileIngestion: parseInt(process.env.CONCURRENCY_FILE_INGESTION ?? '2'),
       embeddings: parseInt(process.env.CONCURRENCY_EMBEDDINGS ?? '1'),
       fallbackWorkers: parseInt(
-        process.env.CONCURRENCY_FALLBACK_WORKERS ?? '1'
+        process.env.CONCURRENCY_FALLBACK_WORKERS ?? '2'
       ),
       workerIdleTimeout: parseInt(
         process.env.CONCURRENCY_WORKER_IDLE_TIMEOUT ?? '30000'

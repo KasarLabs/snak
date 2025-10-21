@@ -2,13 +2,16 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DatabaseConfigService, logger, getGuardValue } from '@snakagent/core';
+import {
+  DatabaseConfigService,
+  logger,
+  getGuardValue,
+  DEFAULT_AGENT_CFG_REDIS_CHANNEL,
+} from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 
 import { Postgres } from '../database.js';
 import { RedisClient } from '../redis.js';
-
-const DEFAULT_REDIS_CHANNEL = 'agent_cfg_updates';
 
 interface AgentCfgOutboxRow {
   id: number;
@@ -48,7 +51,7 @@ export class AgentCfgOutboxWorker {
     this.redisChannel =
       options?.redisChannel ??
       process.env.AGENT_CFG_WORKER_REDIS_CHANNEL ??
-      DEFAULT_REDIS_CHANNEL;
+      DEFAULT_AGENT_CFG_REDIS_CHANNEL;
   }
 
   public async start(): Promise<void> {

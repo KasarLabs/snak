@@ -7,7 +7,12 @@ import {
   agents,
   redisAgents,
 } from '@snakagent/database/queries';
-import { DatabaseConfigService, logger, getGuardValue } from '@snakagent/core';
+import {
+  DatabaseConfigService,
+  logger,
+  getGuardValue,
+  DEFAULT_AGENT_CFG_REDIS_CHANNEL,
+} from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 
 interface AgentCfgOutboxMetrics {
@@ -20,8 +25,6 @@ interface AgentCfgOutboxMetrics {
 const outboxMetrics = metrics as unknown as AgentCfgOutboxMetrics;
 
 type AgentCfgOutboxRow = agentCfgOutbox.OutboxRow;
-
-const DEFAULT_REDIS_CHANNEL = 'agent_cfg_updates';
 
 export interface AgentCfgOutboxWorkerOptions {
   batchSize?: number;
@@ -59,7 +62,7 @@ export class AgentCfgOutboxWorker {
     this.redisChannel =
       options?.redisChannel ??
       process.env.AGENT_CFG_WORKER_REDIS_CHANNEL ??
-      DEFAULT_REDIS_CHANNEL;
+      DEFAULT_AGENT_CFG_REDIS_CHANNEL;
   }
 
   async start(): Promise<void> {
@@ -182,6 +185,8 @@ export class AgentCfgOutboxWorker {
       return 0;
     }
 
+    logger.info(`AgentCfgOutboxWorker processing ${rows.length} rows`);
+
     const redis = this.redisClient.getClient();
     const processedPerEvent = new Map<string, number>();
 
@@ -194,7 +199,8 @@ export class AgentCfgOutboxWorker {
           agent_id: row.agent_id,
           cfg_version: row.cfg_version,
           event: row.event,
-          processed_at: row.processed_at.toISOString(),
+          processed_at:
+            row.processed_at?.toISOString() ?? new Date().toISOString(),
         });
         await redis.publish(this.redisChannel, payload);
 
@@ -266,6 +272,42 @@ export class AgentCfgOutboxWorker {
     redis: any
   ): Promise<void> {
     try {
+      // CRITICAL: Invalidate the agent_cfg cache before reading to ensure we get fresh data
+      const pointerKey = `agent_cfg:${agentId}:current`;
+      const blobKeyPattern = `agent_cfg:${agentId}:blob:*`;
+
+      logger.info(
+        `syncAgentCreateOrUpdate: Invalidating cache for agent ${agentId}`
+      );
+      await redis.del(pointerKey);
+
+      // Delete all blob keys for this agent using SCAN (non-blocking)
+      let cursor = '0';
+      let deletedCount = 0;
+      do {
+        const [nextCursor, keys] = await redis.scan(
+          cursor,
+          'MATCH',
+          blobKeyPattern,
+          'COUNT',
+          100
+        );
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          await redis.del(...keys);
+          deletedCount += keys.length;
+        }
+      } while (cursor !== '0');
+
+      if (deletedCount > 0) {
+        logger.info(
+          `syncAgentCreateOrUpdate: Deleted ${deletedCount} blob cache keys`
+        );
+      }
+
+      logger.info(
+        `syncAgentCreateOrUpdate: Fetching agent ${agentId} from PostgreSQL`
+      );
       // Get the latest agent configuration from PostgreSQL
       const agent = await (agents as any).getAgentCfg(agentId);
 
