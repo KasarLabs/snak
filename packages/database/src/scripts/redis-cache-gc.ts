@@ -59,6 +59,12 @@ export async function cleanupAgentCfgCache(): Promise<RedisGcStats> {
         continue; // Key vanished between SCAN and TTL check
       }
 
+      if (ttl === -1) {
+        await redis.expire(key, ttlSeconds);
+        stats.ttlReapplied += 1;
+        continue;
+      }
+
       if (ttl <= 0) {
         await redis.del(key);
         stats.removed += 1;
@@ -79,11 +85,6 @@ export async function cleanupAgentCfgCache(): Promise<RedisGcStats> {
           stats.pointersCleared += 1;
           continue;
         }
-      }
-
-      if (ttl === -1) {
-        await redis.expire(key, ttlSeconds);
-        stats.ttlReapplied += 1;
       }
     }
   } while (cursor !== '0');

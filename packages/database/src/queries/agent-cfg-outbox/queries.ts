@@ -6,7 +6,7 @@ export namespace agentCfgOutbox {
     agent_id: string;
     cfg_version: number;
     event: string;
-    processed_at: Date;
+    processed_at: Date | null;
   }
 
   /**

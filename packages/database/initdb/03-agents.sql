@@ -149,7 +149,7 @@ CREATE INDEX idx_agents_mcp_servers ON agents USING GIN (mcp_servers);
 
 CREATE TABLE agent_cfg_outbox (
     id BIGSERIAL PRIMARY KEY,
-    agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    agent_id UUID NOT NULL, -- Deliberately no FK: retains outbox events after agent deletion
     cfg_version INTEGER NOT NULL,
     event TEXT NOT NULL DEFAULT 'cfg_updated',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
