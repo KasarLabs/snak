@@ -24,7 +24,6 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  IMAGE_NAME_LOWER: ${{ toLower(github.repository) }}
 
 jobs:
   bump-version:
@@ -155,6 +154,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ env.RELEASE_TAG }}
+            type=raw,value=latest
+
       - name: Build server image for verification
         uses: docker/build-push-action@v6
         with:
@@ -163,7 +171,7 @@ jobs:
           push: false
           load: true
           platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ env.RELEASE_TAG }}-verify
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -171,17 +179,15 @@ jobs:
         run: |
           docker run --rm \
             --entrypoint node \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:${{ env.RELEASE_TAG }}-verify \
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ env.RELEASE_TAG }} \
             --version
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}
-          tags: |
-            type=raw,value=${{ env.RELEASE_TAG }}
-            type=raw,value=latest
+      - name: Check if image tag already exists
+        run: |
+          if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.RELEASE_TAG }} > /dev/null 2>&1; then
+            echo "Image tag ${{ env.RELEASE_TAG }} already exists in GHCR. Aborting."
+            exit 1
+          fi
 
       - name: Build & push server image
         uses: docker/build-push-action@v6
