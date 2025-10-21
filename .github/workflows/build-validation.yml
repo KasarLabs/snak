@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -28,5 +27,14 @@ jobs:
           file: ./packages/server/Dockerfile
           push: false
           platforms: linux/amd64
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-validation
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test server image
+        run: |
+          docker run --rm \
+            --entrypoint node \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-validation \
+            --version
