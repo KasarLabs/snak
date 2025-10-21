@@ -132,7 +132,8 @@
       "is-core-module": "2.13.1"
     },
     "patchedDependencies": {
-      "@google/generative-ai@0.24.1": "patches/@google__generative-ai@0.24.1.patch"
+      "@google/generative-ai@0.24.1": "patches/@google__generative-ai@0.24.1.patch",
+      "@langchain/langgraph-supervisor@0.0.20": "patches/@langchain__langgraph-supervisor@0.0.20.patch"
     }
   }
 }

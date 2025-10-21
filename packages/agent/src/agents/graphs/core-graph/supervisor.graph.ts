@@ -1,4 +1,9 @@
-import { CompiledStateGraph, StateGraph } from '@langchain/langgraph';
+import {
+  CompiledStateGraph,
+  END,
+  messagesStateReducer,
+  StateGraph,
+} from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { GraphError } from '../utils/error.utils.js';
 import { SupervisorAgent } from '@agents/core/supervisorAgent.js';
@@ -14,86 +19,57 @@ import {
   getMcpServerHelperTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
-import { AIMessage, BaseMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  BaseMessage,
+  RemoveMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
 import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
 import { Annotation } from '@langchain/langgraph';
 import { redisAgents } from '@snakagent/database/queries';
-import { v4 as uuidv4 } from 'uuid';
-import { ms } from 'zod/v4/locales';
+import { AGENT_SELECTOR_SYSTEM_PROMPT } from '@prompts/agents/agentSelector.prompt.js';
+import { REMOVE_ALL_MESSAGES } from '@langchain/langgraph';
 const MAX_SUPERVISOR_MESSAGE = 30;
-
-function mergeMessagesWithoutDuplicates(
-  left: BaseMessage[],
-  right: BaseMessage[]
-): BaseMessage[] {
-  if (!left || left.length === 0) {
-    return right || [];
-  }
-  if (!right || right.length === 0) {
-    return left || [];
-  }
-
-  const messageMap = new Map<string, BaseMessage>();
-  const insertionOrder: string[] = []; // Garder l'ordre d'insertion
-
-  left.forEach((msg) => {
-    if (msg.id) {
-      messageMap.set(msg.id, msg);
-      insertionOrder.push(msg.id);
-    } else {
-      logger.debug(
-        `[SupervisorGraph] mergeMessagesWithoutDuplicates: Message without id found: ${JSON.stringify(msg)}`
-      );
-    }
-  });
-
-  right.forEach((msg) => {
-    if (!msg.id) {
-      msg.id = uuidv4();
-    }
-
-    if (messageMap.has(msg.id)) {
-      // Override: on garde la position originale mais on update le message
-      messageMap.set(msg.id, msg);
-    } else {
-      // Nouveau message: on l'ajoute à la fin
-      messageMap.set(msg.id, msg);
-      insertionOrder.push(msg.id);
-    }
-  });
-
-  // Retourner dans l'ordre d'insertion
-  return insertionOrder.map((id) => messageMap.get(id)!);
-}
 
 export function messagesStateReducerWithLimit(
   left: BaseMessage[],
   right: BaseMessage[]
 ): BaseMessage[] {
-  const combined = mergeMessagesWithoutDuplicates(left, right);
+  // Simple append - deduplication will be handled in preModelHook
 
+  const combined = messagesStateReducer(left, right);
   if (combined.length <= MAX_SUPERVISOR_MESSAGE) {
     return combined;
   }
-
   console.log(
     `[SupervisorGraph] messagesStateReducerWithLimit: Limiting messages from ${combined.length} to ${MAX_SUPERVISOR_MESSAGE}`
   );
 
+  // Calculate start index to keep last MAX_SUPERVISOR_MESSAGE messages
   let startIndex = combined.length - MAX_SUPERVISOR_MESSAGE;
 
+  // Adjust startIndex if we're starting with a tool message (need its AI parent)
   while (startIndex > 0 && combined[startIndex].getType() === 'tool') {
     startIndex--;
   }
 
   return combined.slice(startIndex);
 }
+
 const SupervisorStateAnnotation = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
     reducer: messagesStateReducerWithLimit,
+    default: () => [],
+  }),
+  transfer_to: Annotation<Array<{ agent_name: string; query: string }>>({
+    reducer: (
+      left: Array<{ agent_name: string; query: string }>,
+      right: Array<{ agent_name: string; query: string }>
+    ) => right,
     default: () => [],
   }),
 });
@@ -121,6 +97,7 @@ export class SupervisorGraph {
       // Build and compile the workflow
       const workflow = await this.buildWorkflow();
       this.graph = workflow.compile({ checkpointer: this.checkpointer });
+      console.log(this.graph.nodes);
       logger.info('[SupervisorAgent] Successfully initialized agent');
       return this.graph;
     } catch (error) {
@@ -151,46 +128,55 @@ export class SupervisorGraph {
   }
 
   /**
-   * Transforms messages to remove the 'name' field from AI messages.
+   * Transforms messages to remove duplicates and transform AI messages.
+   * Uses RemoveMessage pattern to overwrite messages and ensure deduplication.
    * This ensures compatibility with Google Generative AI which doesn't support
    * custom author names as message types.
    */
   private transformMessagesHook(state: any): {
-    llmInputMessages: BaseMessage[];
+    messages: BaseMessage[];
   } {
     const messages = state.messages || [];
 
-    const transformedMessages = messages.map((msg: BaseMessage) => {
-      // Skip if msg is not a valid BaseMessage instance
-      // Check if message has a 'name' property that's not standard
-      const messageName = msg.name;
-      const msgType = msg.getType();
+    const transformedMessages: BaseMessage[] = messages.map(
+      (msg: BaseMessage) => {
+        // Check if message has a 'name' property that's not standard
+        const messageName = msg.name;
+        const msgType = msg.getType();
 
-      // If it's an AI message with a custom name, we need to handle it
-      if (messageName && msgType === 'ai') {
-        logger.debug(
-          `[SupervisorGraph] Processing AI message with name '${messageName}'`
-        );
+        // If it's an AI message with a custom name, we need to handle it
+        if (messageName && msgType === 'ai') {
+          logger.debug(
+            `[SupervisorGraph] Processing AI message with name '${messageName}'`
+          );
 
-        // The name is already preserved in the message history for routing
-        return new AIMessage({
-          content: msg.content,
-          name: msg.name === 'supervisor' ? 'supervisor' : 'ai',
-          tool_calls: (msg as any).tool_calls || [],
-          invalid_tool_calls: (msg as any).invalid_tool_calls || [],
-          additional_kwargs: {
-            ...msg.additional_kwargs,
-            from: messageName, // Preserve in metadata
-          },
-          response_metadata: msg.response_metadata,
-        });
+          // The name is already preserved in the message history for routing
+          return new AIMessage({
+            content: msg.content,
+            name: msg.name === 'supervisor' ? 'supervisor' : 'ai',
+            tool_calls: (msg as any).tool_calls || [],
+            invalid_tool_calls: (msg as any).invalid_tool_calls || [],
+            additional_kwargs: {
+              ...msg.additional_kwargs,
+              from: messageName, // Preserve in metadata
+            },
+            response_metadata: msg.response_metadata,
+            id: msg.id,
+          });
+        }
+
+        // Return the original message if no transformation is needed
+        return msg;
       }
+    );
 
-      // Return the original message if no transformation is needed
-      return msg;
-    });
-
-    return { llmInputMessages: transformedMessages };
+    // Use RemoveMessage pattern to overwrite all messages
+    return {
+      messages: [
+        new RemoveMessage({ id: REMOVE_ALL_MESSAGES }),
+        ...transformedMessages,
+      ],
+    };
   }
 
   private addAditionalKwargsToMessage(
@@ -288,13 +274,11 @@ export class SupervisorGraph {
           avaibleAgents.map((a) => a.profile)
         ),
         name: 'agentSelectorHelper',
-        prompt:
-          'You are an expert agent selection assistant. Your task is to help users choose the most suitable agent for their needs based on the provided requirements and context. Always consider the capabilities and specialties of each agent before making a recommendation.',
+        prompt: AGENT_SELECTOR_SYSTEM_PROMPT,
         stateSchema: SupervisorStateAnnotation,
         preModelHook: this.transformMessagesHook.bind(this),
       })
     );
-    console.log(avaibleAgents);
     const supervisorPrompt = ChatPromptTemplate.fromMessages([
       ['ai', SUPERVISOR_SYSTEM_PROMPT],
     ]);
@@ -308,7 +292,7 @@ export class SupervisorGraph {
       llm: this.supervisorConfig.graph.model,
       prompt: formattedSupervisorPrompt,
       stateSchema: SupervisorStateAnnotation,
-      // Apply transformation to the supervisor as well
+      addHandoffBackMessages: false,
       preModelHook: this.transformMessagesHook.bind(this),
       postModelHook: this.addAditionalKwargsToMessage.bind(this),
     });

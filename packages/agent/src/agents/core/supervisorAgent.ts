@@ -164,6 +164,7 @@ export class SupervisorAgent extends BaseAgent {
       let lastChunk: StreamEvent | undefined = undefined;
       let stateSnapshot: StateSnapshot;
       let isInterruptHandle = false;
+      let isTransferHandle = false;
       if (!this.compiledStateGraph) {
         throw new Error('SupervisorAgent is not initialized');
       }
@@ -187,7 +188,12 @@ export class SupervisorAgent extends BaseAgent {
         recursionLimit: 500,
         version: 'v2' as const,
       };
-      stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
+      await this.compiledStateGraph.updateState(executionConfig, {
+        transfer_to: [],
+      });
+      stateSnapshot = await this.compiledStateGraph.getState(executionConfig, {
+        subgraphs: true,
+      });
       if (!stateSnapshot) {
         throw new Error('Failed to retrieve initial graph state');
       }
@@ -199,10 +205,16 @@ export class SupervisorAgent extends BaseAgent {
         executionInput,
         executionConfig
       )) {
-        stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
+        stateSnapshot = await this.compiledStateGraph.getState(
+          executionConfig,
+          { subgraphs: true }
+        );
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve graph state during execution');
         }
+        console.log(JSON.stringify(stateSnapshot.values, null, 2));
+        isTransferHandle = stateSnapshot.values.transfer_to.length > 0;
+        console.log(`isTransferHandle: ${isTransferHandle}`);
         currentCheckpointId = stateSnapshot.config.configurable?.checkpoint_id;
         lastChunk = chunk;
         if (
@@ -230,6 +242,7 @@ export class SupervisorAgent extends BaseAgent {
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
       }
+      console.log('Final state values:', stateSnapshot.values);
       yield {
         event: lastChunk.event,
         run_id: lastChunk.run_id,
@@ -244,6 +257,9 @@ export class SupervisorAgent extends BaseAgent {
           final: true,
           is_human: isInterruptHandle,
           user_request: userRequest.request,
+          transfer_to: isTransferHandle
+            ? stateSnapshot.values.transfer_to
+            : null,
         },
         timestamp: new Date().toISOString(),
       };

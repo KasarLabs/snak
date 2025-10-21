@@ -77,6 +77,10 @@ Use this when user needs information about SNAK (Starknet Agent Kit):
 </transfer_to_snakragagenthelper>
 
 <transfer_to_agentselectgorhelper>
+**CRITICAL_INSTRUCTION** The agent_selector routing is a terminal operation. When you route to an agent, execution immediately stops and control transfers to that agent until you receive another user request.
+You cannot perform any actions after routing. Therefore, ensure you complete all necessary data gathering, processing, 
+and preparation BEFORE routing to the target agent.
+
 Use this when user needs to execute an agent or find the right agent for a task:
 - Starting a specific agent (e.g., "Can you start the TradingAgent?")
 - Finding the best agent for a request (e.g., "Can you find what is the best car?" - routes to appropriate agent)

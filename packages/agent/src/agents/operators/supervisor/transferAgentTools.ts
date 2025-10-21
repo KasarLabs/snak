@@ -1,6 +1,8 @@
+import { AIMessage, ToolMessage } from '@langchain/core/messages';
 import { DynamicStructuredTool } from '@langchain/core/tools';
+import { Command, END, ParentCommand } from '@langchain/langgraph';
 import { z } from 'zod';
-
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Sanitizes agent name to create a valid function name for Google Generative AI
  * Must start with a letter or underscore and contain only alphanumeric, underscores, dots, colons, or dashes
@@ -16,7 +18,7 @@ function sanitizeAgentName(name: string): string {
     sanitized = `agent_${sanitized}`;
   }
 
-  // Limit to 64 characters (Google AI requirement) minus the "transfer_to_" prefix (13 chars)
+  // Limit to 64 characters (Google AI re~quirement) minus the "execute_handoff_to_" prefix (13 chars)
   const maxLength = 64 - 13;
   if (sanitized.length > maxLength) {
     sanitized = sanitized.substring(0, maxLength);
@@ -36,14 +38,34 @@ export function createTransferAgentTool(
   const sanitizedName = sanitizeAgentName(agentName);
 
   return new DynamicStructuredTool({
-    name: `transfer_to_${sanitizedName}`,
-    description: `Transfer the conversation to ${agentName}`,
+    name: `execute_handoff_to_${sanitizedName}`,
+    description: `Executing handoff to ${agentName}`,
     schema: z.object({}),
     func: async () => {
-      return JSON.stringify({
-        success: true,
-        message: `Transferring to ${agentName}`,
-        transfer_to: agentName,
+      const tool_id = uuidv4();
+      const aiMessage = new AIMessage(`Executing handoff to ${agentName}`);
+      aiMessage.tool_calls = [
+        {
+          id: tool_id,
+          name: `execute_handoff_to_${sanitizedName}`,
+          args: {},
+        },
+      ];
+      // Log the tool message for auditing/debugging
+      const tMessage = new ToolMessage({
+        content: `Executing handoff to ${agentName}`,
+        tool_call_id: tool_id,
+        name: `execute_handoff_to_${sanitizedName}`,
+      });
+      // Return Command to end the graph using END constant
+      // This will terminate the supervisor graph when transfer is requested
+      return new Command({
+        update: {
+          messages: [aiMessage, tMessage],
+          transfer_to: [{ agent_name: agentName, query: '' }],
+        },
+        goto: END,
+        graph: Command.PARENT,
       });
     },
   });

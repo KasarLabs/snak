@@ -1,0 +1,68 @@
+--- a/dist/supervisor.js
++++ b/dist/supervisor.js
+@@ -1,4 +1,4 @@
+-import { START, StateGraph, } from "@langchain/langgraph";
++import { START, StateGraph, END, Command} from '@langchain/langgraph';
+ import { createReactAgent, createReactAgentAnnotation, withAgentName, } from "@langchain/langgraph/prebuilt";
+ import { v5 as uuidv5 } from "uuid";
+ import { createHandoffTool, createHandoffBackMessages } from "./handoff.js";
+\ No newline at end of file
+@@ -51,7 +51,28 @@
+         if (addHandoffBackMessages) {
+             messages.push(...createHandoffBackMessages(agent.name, supervisorName));
+         }
+-        return { ...output, messages };
++         const isCommand = output && (
++          ('goto' in output && output.goto !== undefined) ||
++          ('lg_name' in output && output.lg_name === 'Command')
++        );
++
++        if (isCommand) {
++          return {
++            ...output,
++            update: {
++              ...(output.update || {}),
++              messages,
++            },
++          };
++        }
++
++        return new Command({
++          update: {
++            ...output,
++            messages,
++          },
++          goto: supervisorName,
++        });
+     };
+ };
+ /**
+\ No newline at end of file
+@@ -141,13 +162,7 @@
+     const allTools = [...(tools ?? []), ...handoffTools];
+     let supervisorLLM = llm;
+     if (isChatModelWithBindTools(llm)) {
+-        if (isChatModelWithParallelToolCallsParam(llm) &&
+-            PROVIDERS_WITH_PARALLEL_TOOL_CALLS_PARAM.has(llm.getName())) {
+-            supervisorLLM = llm.bindTools(allTools, { parallel_tool_calls: false });
+-        }
+-        else {
+-            supervisorLLM = llm.bindTools(allTools);
+-        }
++        supervisorLLM = llm.bindTools(allTools, { parallel_tool_calls: true });
+         // hack: with newer version of LangChain we've started using `withConfig()` instead of `bind()`
+         // when binding tools, thus older version of LangGraph will incorrectly try to bind tools twice.
+         // TODO: remove when we start handling tools from config in @langchain/langgraph
+\ No newline at end of file
+@@ -186,8 +201,8 @@
+     })
+         .addEdge(START, supervisorAgent.name);
+     for (const agent of agents) {
+-        builder = builder.addNode(agent.name, makeCallAgent(agent, outputMode, addHandoffBackMessages, supervisorName), { subgraphs: isRemoteGraph(agent) ? undefined : [agent] });
+-        builder = builder.addEdge(agent.name, supervisorAgent.name);
++        builder = builder.addNode(agent.name, makeCallAgent(agent, outputMode, addHandoffBackMessages, supervisorName), { subgraphs: isRemoteGraph(agent) ? undefined : [agent], ends: [END] });
++        // builder = builder.addEdge(agent.name, supervisorAgent.name);
+     }
+     return builder;
+ };
+\ No newline at end of file
