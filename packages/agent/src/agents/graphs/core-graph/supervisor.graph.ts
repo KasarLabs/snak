@@ -11,6 +11,8 @@ import {
   getAgentConfigurationHelperTools,
   getAgentSelectorHelperTools,
   getCommunicationHelperTools,
+  getMcpServerHelperTools,
+  getSupervisorConfigTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
 import {
@@ -250,7 +252,7 @@ export class SupervisorGraph {
     this.specializedAgent.push(
       createReactAgent({
         llm: this.supervisorConfig.graph.model,
-        tools: [],
+        tools: getMcpServerHelperTools(this.supervisorConfig),
         name: 'mcpConfigurationHelper',
         prompt: formattedMcpConfigurationHelperPrompt,
         stateSchema: SupervisorStateAnnotation,

@@ -579,7 +579,7 @@ function normalizeRagConfig(
 /**
  * Normalizes MCP servers configuration
  */
-function normalizeMcpServersConfig(
+export function normalizeMcpServersConfig(
   mcpServers: Partial<AgentConfig.Input['mcp_servers']> | null | undefined
 ): {
   config: AgentConfig.Input['mcp_servers'];

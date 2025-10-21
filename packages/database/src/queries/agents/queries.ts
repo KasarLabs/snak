@@ -1,4 +1,4 @@
-import { AgentConfig, supervisorAgentConfig } from '@snakagent/core';
+import { supervisorAgentConfig, AgentConfig } from '@snakagent/core';
 import { Postgres } from '../../database.js';
 
 export namespace agents {
@@ -15,25 +15,34 @@ export namespace agents {
    * @param agentId - Agent ID
    * @param userId - User ID for ownership verification
    * @param mcpServers - MCP servers configuration
-   * @returns Promise<{id: string, mcp_servers: Record<string, any>} | null>
+   * @returns Promise<AgentConfig.OutputWithId | null>
    */
   export async function updateAgentMcp(
     agentId: string,
     userId: string,
     mcpServers: Record<string, any>
-  ): Promise<{ id: string; mcp_servers: Record<string, any> } | null> {
+  ): Promise<AgentConfig.OutputWithId | null> {
     const query = new Postgres.Query(
       `UPDATE agents
        SET "mcp_servers" = $1::jsonb
        WHERE id = $2 AND user_id = $3
-       RETURNING id, "mcp_servers"`,
+       RETURNING
+         id,
+         user_id,
+         row_to_json(profile)        AS profile,
+         mcp_servers,
+         prompts_id,
+         row_to_json(graph)          AS graph,
+         row_to_json(memory)         AS memory,
+         row_to_json(rag)            AS rag,
+         created_at,
+         updated_at,
+         avatar_image,
+         avatar_mime_type`,
       [mcpServers, agentId, userId]
     );
 
-    const result = await Postgres.query<{
-      id: string;
-      mcp_servers: Record<string, any>;
-    }>(query);
+    const result = await Postgres.query<AgentConfig.OutputWithId>(query);
     return result.length > 0 ? result[0] : null;
   }
 

@@ -36,8 +36,15 @@ import {
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
-import { BaseAgent } from '@snakagent/agents';
-import { notify, message, agents } from '@snakagent/database/queries';
+import { Postgres } from '@snakagent/database';
+import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
+import {
+  notify,
+  message,
+  agents,
+  redisAgents,
+} from '@snakagent/database/queries';
+
 import { supervisorAgentConfig } from '@snakagent/core';
 
 export interface SupervisorRequestDTO {
@@ -121,6 +128,15 @@ export class AgentsController {
 
     if (!updatedAgent) {
       throw new BadRequestException('Agent not found');
+    }
+
+    try {
+      await redisAgents.updateAgent(updatedAgent);
+    } catch (err) {
+      logger.warn(
+        `Redis sync failed for agent ${updatedAgent.id}: ${err instanceof Error ? err.message : String(err)}`
+      );
+      // Continue: PostgreSQL is the source of truth
     }
 
     return ResponseFormatter.success({

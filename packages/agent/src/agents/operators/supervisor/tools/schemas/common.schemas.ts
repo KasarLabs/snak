@@ -227,17 +227,17 @@ export const McpServerConfigSchema = z.object({
     .string()
     .min(1)
     .max(mcpServersGuardsValues.command_max_length)
-    .default('npx')
+    .optional()
     .describe('MCP server command'),
   args: z
     .array(z.string().max(mcpServersGuardsValues.args.max_length))
     .max(mcpServersGuardsValues.args.max_size)
-    .default([])
+    .optional()
     .describe('MCP server arguments'),
   env: z
     .array(EnvEntry)
     .max(mcpServersGuardsValues.env.max_size)
-    .default([])
+    .optional()
     .describe('MCP server environment variables'),
 });
 
