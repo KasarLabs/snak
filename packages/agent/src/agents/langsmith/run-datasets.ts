@@ -4,6 +4,7 @@ import { SupervisorAgent } from '../core/supervisorAgent.js';
 import { createAgentConfigRuntimeFromOutputWithId } from '../../utils/agent-initialization.utils.js';
 import { supervisorAgentConfig } from '@snakagent/core';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@snakagent/core';
 /**
  * Parse command line arguments
  */
@@ -31,25 +32,25 @@ async function main() {
   const args = parseArgs();
   // Validate required arguments
   if (!args.graph) {
-    console.error('Error: --graph parameter is required!');
-    console.log(
+    logger.error('Error: --graph parameter is required!');
+    logger.debug(
       '\nUsage: pnpm datasets --graph=<graph-name> --node=<node-name> [--csv_path=<path>]'
     );
-    console.log(
+    logger.debug(
       '\nExample: pnpm datasets --graph=supervisor --node=supervisor'
     );
-    console.log(
+    logger.debug(
       'Example: pnpm datasets --graph=supervisor --node=agentConfigurationHelper --csv_path=my-custom.csv'
     );
     process.exit(1);
   }
 
   if (!args.node) {
-    console.error('Error: --node parameter is required!');
-    console.log(
+    logger.error('Error: --node parameter is required!');
+    logger.debug(
       '\nUsage: pnpm datasets --graph=<graph-name> --node=<node-name> [--csv_path=<path>]'
     );
-    console.log(
+    logger.debug(
       '\nExample: pnpm datasets --graph=supervisor --node=supervisor'
     );
     process.exit(1);
@@ -60,7 +61,7 @@ async function main() {
 
   // Validate graph name
   if (graphName !== 'supervisor') {
-    console.error(
+    logger.error(
       `Error: Graph '${graphName}' not found. Only 'supervisor' graph is supported.`
     );
     process.exit(1);
@@ -74,7 +75,7 @@ async function main() {
     'supervisor',
   ];
   if (!validNodes.includes(nodeName)) {
-    console.error(
+    logger.error(
       `Error: Node '${nodeName}' is not valid. Valid nodes are: ${validNodes.join(', ')}`
     );
     process.exit(1);
@@ -87,11 +88,11 @@ async function main() {
 
   const csvFileName = args.csv_path || `${graphName}.${nodeName}.dataset.csv`;
 
-  console.log(`\nRunning evaluation for:`);
-  console.log(`   Graph: ${graphName}`);
-  console.log(`   Node: ${nodeName}`);
-  console.log(`   Dataset: ${datasetName}`);
-  console.log(`   CSV: ${csvFileName}\n`);
+  logger.debug(`\nRunning evaluation for:`);
+  logger.debug(`   Graph: ${graphName}`);
+  logger.debug(`   Node: ${nodeName}`);
+  logger.debug(`   Dataset: ${datasetName}`);
+  logger.debug(`   CSV: ${csvFileName}\n`);
 
   // Define the datasets directory path
   const datasetsPath = path.join(process.cwd(), 'datasets');
@@ -151,22 +152,22 @@ async function main() {
       experimentPrefix: `evaluation-${datasetName}`,
     });
 
-    console.log('\nEvaluation completed successfully!');
+    logger.debug('\nEvaluation completed successfully!');
     const summary = parseLangSmithResults(results);
-    console.log(displaySummary(summary));
+    logger.debug(displaySummary(summary));
   } catch (error) {
-    console.error('\nError running evaluation:');
+    logger.error('\nError running evaluation:');
     if (error instanceof Error) {
-      console.error(error.message);
+      logger.error(error.message);
 
       // Provide helpful error message if CSV is missing
       if (error.message.includes('CSV file not found')) {
-        console.log('\nTip: Make sure you have a CSV file named:');
-        console.log(`   ${csvFileName}`);
-        console.log(`   in the datasets directory: ${datasetsPath}`);
+        logger.debug('\nTip: Make sure you have a CSV file named:');
+        logger.debug(`   ${csvFileName}`);
+        logger.debug(`   in the datasets directory: ${datasetsPath}`);
       }
     } else {
-      console.error(error);
+      logger.error(error);
     }
     process.exit(1);
   }

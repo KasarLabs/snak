@@ -102,7 +102,7 @@ export class SupervisorGraph {
     }
   }
 
-  getcompiledGraph(): CompiledStateGraph<any, any, any, any, any> | null {
+  getCompiledGraph(): CompiledStateGraph<any, any, any, any, any> | null {
     return this.graph;
   }
 

@@ -1,4 +1,8 @@
-import { DatabaseConfigService, initializeGuards } from '@snakagent/core';
+import {
+  DatabaseConfigService,
+  initializeGuards,
+  logger,
+} from '@snakagent/core';
 import { LanggraphDatabase, Postgres } from '@snakagent/database';
 import { RedisClient } from '@snakagent/database/redis';
 
@@ -62,10 +66,10 @@ export class Dataset {
   static async getDataset(datasetName: string) {
     try {
       const dataset = await this.client.readDataset({ datasetName });
-      console.log(`Found existing dataset: ${datasetName}`);
+      logger.debug(`Found existing dataset: ${datasetName}`);
       return dataset;
     } catch (error) {
-      console.log(`Dataset ${datasetName} not found`);
+      logger.debug(`Dataset ${datasetName} not found`);
       return null;
     }
   }
@@ -88,7 +92,7 @@ export class Dataset {
     // Check if dataset already exists
     const existingDataset = await this.getDataset(datasetName);
     if (existingDataset) {
-      console.log(`Using existing dataset: ${datasetName}`);
+      logger.debug(`Using existing dataset: ${datasetName}`);
       return existingDataset;
     }
 
@@ -103,7 +107,7 @@ export class Dataset {
       );
     }
 
-    console.log(
+    logger.debug(
       `Creating dataset ${datasetName} from CSV file: ${csvFilePath}`
     );
 
@@ -126,12 +130,12 @@ export class Dataset {
       dataType: 'kv',
     });
 
-    console.log(`Successfully created dataset: ${datasetName}`);
+    logger.debug(`Successfully created dataset: ${datasetName}`);
     return dataset;
   }
 
   static async getEvaluator(): Promise<any> {
-    console.log(process.env.GEMINI_API_KEY);
+    logger.debug(process.env.GEMINI_API_KEY);
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY environment variable is not set');
     }
@@ -179,7 +183,7 @@ export class Dataset {
 
     // If dataset doesn't exist, try to create it from CSV
     if (!dataset) {
-      console.log(
+      logger.debug(
         `Dataset ${datasetName} not found. Attempting to create from CSV...`
       );
 
@@ -197,7 +201,7 @@ export class Dataset {
       );
 
       // Wait a moment for the dataset to be fully available
-      console.log('Waiting for dataset to be available...');
+      logger.debug('Waiting for dataset to be available...');
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Verify dataset exists
@@ -210,7 +214,7 @@ export class Dataset {
     }
     const evaluator = await this.getEvaluator();
     // Run evaluation
-    console.log(`Running evaluation on dataset: ${datasetName}`);
+    logger.debug(`Running evaluation on dataset: ${datasetName}`);
     const results = await evaluate(target, {
       data: datasetName,
       evaluators: [evaluator],
@@ -399,14 +403,14 @@ TEST DETAILS
  * // Run evaluation and analyze results
  * const results = await Dataset.runEvaluation('my-dataset', chain);
  * const summary = parseLangSmithResults(results);
- * console.log(displaySummary(summary));
+ * logger.debug(displaySummary(summary));
  *
  * // Access data programmatically
- * console.log(`Success rate: ${(summary.passedTests / summary.totalTests * 100).toFixed(1)}%`);
- * console.log(`Average score: ${(summary.averageScore * 100).toFixed(1)}%`);
+ * logger.debug(`Success rate: ${(summary.passedTests / summary.totalTests * 100).toFixed(1)}%`);
+ * logger.debug(`Average score: ${(summary.averageScore * 100).toFixed(1)}%`);
  *
  * // Check if experiment meets quality threshold
  * if (summary.averageScore >= 0.8) {
- *   console.log('✅ Experiment passed quality threshold');
+ *   logger.debug('✅ Experiment passed quality threshold');
  * }
  */

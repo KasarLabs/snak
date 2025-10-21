@@ -49,7 +49,7 @@ export class SupervisorAgent extends BaseAgent {
         throw new Error('Failed to create supervisor graph');
       }
 
-      this.compiledStateGraph = this.supervisorGraphInstance.getcompiledGraph();
+      this.compiledStateGraph = this.supervisorGraphInstance.getCompiledGraph();
       logger.info('[SupervisorAgent] Initialized successfully');
     } catch (error) {
       logger.error(`[SupervisorAgent] Initialization failed: ${error}`);
