@@ -12,7 +12,8 @@ import {
   messageAskUserTool,
 } from './tools/index.js';
 import { redisAgents } from '@snakagent/database/queries';
-import { createTransferAgentTool } from './transferAgentTools.js';
+import { createExecuteHandoffTools } from './executeHandoffTools.js';
+import { agent } from 'supertest';
 
 /**
  * Shared configuration tools reserved for supervisor agents.
@@ -61,11 +62,11 @@ export function getCommunicationHelperTools() {
 
 export function getAgentSelectorHelperTools(
   agentConfig: AgentConfig.Runtime,
-  agentsProfile: AgentProfile[]
+  agentsAvailable: AgentConfig.OutputWithId[]
 ) {
   const transferTools: Array<DynamicStructuredTool> = [];
-  for (const profile of agentsProfile) {
-    transferTools.push(createTransferAgentTool(profile.name));
+  for (const agent of agentsAvailable) {
+    transferTools.push(createExecuteHandoffTools(agent.profile.name, agent.id));
   }
   return [
     listAgentsTool(agentConfig),

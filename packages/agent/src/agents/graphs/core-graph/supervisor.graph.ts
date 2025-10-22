@@ -62,10 +62,12 @@ const SupervisorStateAnnotation = Annotation.Root({
     reducer: messagesStateReducerWithLimit,
     default: () => [],
   }),
-  transfer_to: Annotation<Array<{ agent_name: string; query: string }>>({
+  transfer_to: Annotation<
+    Array<{ agent_name: string; agent_id: string; query: string }>
+  >({
     reducer: (
-      left: Array<{ agent_name: string; query: string }>,
-      right: Array<{ agent_name: string; query: string }>
+      left: Array<{ agent_name: string; agent_id: string; query: string }>,
+      right: Array<{ agent_name: string; agent_id: string; query: string }>
     ) => right,
     default: () => [],
   }),
@@ -242,18 +244,18 @@ export class SupervisorGraph {
       })
     );
 
-    const avaibleAgents = await redisAgents.listAgentsByUser(
+    const agentsAvailable = await redisAgents.listAgentsByUser(
       this.supervisorConfig.user_id
     );
     logger.info(
-      `[SupervisorGraph] Found ${avaibleAgents.length} avaible agents for user ${this.supervisorConfig.user_id}`
+      `[SupervisorGraph] Found ${agentsAvailable.length} avaible agents for user ${this.supervisorConfig.user_id}`
     );
     this.specializedAgent.push(
       createReactAgent({
         llm: this.supervisorConfig.graph.model,
         tools: getAgentSelectorHelperTools(
           this.supervisorConfig,
-          avaibleAgents.map((a) => a.profile)
+          agentsAvailable
         ),
         name: 'agentSelectorHelper',
         prompt: AGENT_SELECTOR_SYSTEM_PROMPT,

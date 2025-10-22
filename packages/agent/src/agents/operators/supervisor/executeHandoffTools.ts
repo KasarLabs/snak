@@ -3,6 +3,8 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { Command, END, ParentCommand } from '@langchain/langgraph';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { RedisClient } from '@snakagent/database/redis';
+import { getAgentIdByName } from '../../../../../database/dist/queries/redis/queries.js';
 /**
  * Sanitizes agent name to create a valid function name for Google Generative AI
  * Must start with a letter or underscore and contain only alphanumeric, underscores, dots, colons, or dashes
@@ -32,16 +34,21 @@ function sanitizeAgentName(name: string): string {
  * @param agentName - The name of the agent to transfer to
  * @returns A DynamicStructuredTool for transferring to the specified agent
  */
-export function createTransferAgentTool(
-  agentName: string
+export function createExecuteHandoffTools(
+  agentName: string,
+  agentId: string
 ): DynamicStructuredTool {
   const sanitizedName = sanitizeAgentName(agentName);
 
   return new DynamicStructuredTool({
     name: `execute_handoff_to_${sanitizedName}`,
     description: `Executing handoff to ${agentName}`,
-    schema: z.object({}),
-    func: async () => {
+    schema: z
+      .object({
+        query: z.string().describe('Query to send to the agent upon handoff'),
+      })
+      .strict(),
+    func: async (query: string) => {
       const tool_id = uuidv4();
       const aiMessage = new AIMessage(`Executing handoff to ${agentName}`);
       aiMessage.tool_calls = [
@@ -57,12 +64,15 @@ export function createTransferAgentTool(
         tool_call_id: tool_id,
         name: `execute_handoff_to_${sanitizedName}`,
       });
+
       // Return Command to end the graph using END constant
       // This will terminate the supervisor graph when transfer is requested
       return new Command({
         update: {
           messages: [aiMessage, tMessage],
-          transfer_to: [{ agent_name: agentName, query: '' }],
+          transfer_to: [
+            { agent_name: agentName, agent_id: agentId, query: query },
+          ],
         },
         goto: END,
         graph: Command.PARENT,
