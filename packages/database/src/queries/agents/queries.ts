@@ -1,5 +1,10 @@
 import type { Redis } from 'ioredis';
-import { supervisorAgentConfig, AgentConfig, logger, AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS } from '@snakagent/core';
+import {
+  supervisorAgentConfig,
+  AgentConfig,
+  logger,
+  AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS,
+} from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '../../database.js';
 import { RedisClient } from '../../redis.js';
