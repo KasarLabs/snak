@@ -1,20 +1,18 @@
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
-import { logger } from '@snakagent/core';
+import { logger, AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS } from '@snakagent/core';
 
 import { RedisClient } from '../redis.js';
-
-const DEFAULT_CACHE_TTL_SECONDS = 300;
 
 const resolveTtlSeconds = (): number => {
   const raw = process.env.AGENT_CFG_CACHE_TTL_SECONDS;
   if (!raw) {
-    return DEFAULT_CACHE_TTL_SECONDS;
+    return AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS;
   }
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    return DEFAULT_CACHE_TTL_SECONDS;
+    return AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS;
   }
   return parsed;
 };

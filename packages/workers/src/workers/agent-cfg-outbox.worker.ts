@@ -273,37 +273,11 @@ export class AgentCfgOutboxWorker {
   ): Promise<void> {
     try {
       // CRITICAL: Invalidate the agent_cfg cache before reading to ensure we get fresh data
-      const pointerKey = `agent_cfg:${agentId}:current`;
-      const blobKeyPattern = `agent_cfg:${agentId}:blob:*`;
-
-      logger.info(
-        `syncAgentCreateOrUpdate: Invalidating cache for agent ${agentId}`
+      await this.invalidateAgentCfgCache(
+        agentId,
+        redis,
+        'syncAgentCreateOrUpdate'
       );
-      await redis.del(pointerKey);
-
-      // Delete all blob keys for this agent using SCAN (non-blocking)
-      let cursor = '0';
-      let deletedCount = 0;
-      do {
-        const [nextCursor, keys] = await redis.scan(
-          cursor,
-          'MATCH',
-          blobKeyPattern,
-          'COUNT',
-          100
-        );
-        cursor = nextCursor;
-        if (keys.length > 0) {
-          await redis.del(...keys);
-          deletedCount += keys.length;
-        }
-      } while (cursor !== '0');
-
-      if (deletedCount > 0) {
-        logger.info(
-          `syncAgentCreateOrUpdate: Deleted ${deletedCount} blob cache keys`
-        );
-      }
 
       logger.info(
         `syncAgentCreateOrUpdate: Fetching agent ${agentId} from PostgreSQL`
@@ -352,6 +326,9 @@ export class AgentCfgOutboxWorker {
 
   private async syncAgentDelete(agentId: string, redis: any): Promise<void> {
     try {
+      // Ensure cached agent_cfg payloads are purged alongside the agent document
+      await this.invalidateAgentCfgCache(agentId, redis, 'syncAgentDelete');
+
       // We need to get the user_id from the outbox event or from a previous Redis entry
       // For now, we'll try to find the agent in Redis first to get the user_id
       const agentKey = `agents:${agentId}`;
@@ -371,6 +348,42 @@ export class AgentCfgOutboxWorker {
     } catch (error) {
       logger.error(`Failed to delete agent ${agentId} from Redis`, { error });
       throw error;
+    }
+  }
+
+  private async invalidateAgentCfgCache(
+    agentId: string,
+    redis: any,
+    context: string
+  ): Promise<void> {
+    const pointerKey = `agent_cfg:${agentId}:current`;
+    const blobKeyPattern = `agent_cfg:${agentId}:blob:*`;
+
+    logger.info(`${context}: Invalidating cache for agent ${agentId}`);
+    await redis.del(pointerKey);
+
+    // Delete all blob keys for this agent using SCAN (non-blocking)
+    let cursor = '0';
+    let deletedCount = 0;
+    do {
+      const [nextCursor, keys] = await redis.scan(
+        cursor,
+        'MATCH',
+        blobKeyPattern,
+        'COUNT',
+        100
+      );
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        deletedCount += keys.length;
+      }
+    } while (cursor !== '0');
+
+    if (deletedCount > 0) {
+      logger.info(
+        `${context}: Deleted ${deletedCount} agent_cfg blob cache keys for agent ${agentId}`
+      );
     }
   }
 
