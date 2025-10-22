@@ -153,6 +153,7 @@ CREATE TABLE agent_cfg_outbox (
     cfg_version INTEGER NOT NULL,
     event TEXT NOT NULL DEFAULT 'cfg_updated',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_at TIMESTAMP WITH TIME ZONE,
     processed_at TIMESTAMP WITH TIME ZONE
 );
 

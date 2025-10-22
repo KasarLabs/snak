@@ -189,18 +189,20 @@ export class AgentCfgOutboxWorker {
 
     const redis = this.redisClient.getClient();
     const processedPerEvent = new Map<string, number>();
+    const processedRows: Array<{ id: number; event: string }> = [];
 
     for (const row of rows) {
       try {
         await this.syncAgentToRedis(row, redis);
 
         // Also publish the event for any other listeners
+        const processedAtDate =
+          this.parseTimestamp(row.processed_at) ?? new Date();
         const payload = JSON.stringify({
           agent_id: row.agent_id,
           cfg_version: row.cfg_version,
           event: row.event,
-          processed_at:
-            row.processed_at?.toISOString() ?? new Date().toISOString(),
+          processed_at: processedAtDate.toISOString(),
         });
         await redis.publish(this.redisChannel, payload);
 
@@ -208,6 +210,7 @@ export class AgentCfgOutboxWorker {
           row.event,
           (processedPerEvent.get(row.event) ?? 0) + 1
         );
+        processedRows.push({ id: row.id, event: row.event });
       } catch (error) {
         logger.error(`Failed to process agent_cfg_outbox event ${row.id}`, {
           error,
@@ -219,8 +222,21 @@ export class AgentCfgOutboxWorker {
       }
     }
 
-    for (const [event, count] of processedPerEvent.entries()) {
-      outboxMetrics.recordAgentCfgOutboxProcessed(count, event);
+    if (processedRows.length > 0) {
+      try {
+        await agentCfgOutbox.markProcessed(processedRows.map((row) => row.id));
+        for (const [event, count] of processedPerEvent.entries()) {
+          outboxMetrics.recordAgentCfgOutboxProcessed(count, event);
+        }
+      } catch (error) {
+        logger.error('Failed to mark agent_cfg_outbox rows as processed', {
+          error,
+          rows: processedRows,
+        });
+        for (const row of processedRows) {
+          await this.requeue(row.id, row.event);
+        }
+      }
     }
 
     return Array.from(processedPerEvent.values()).reduce(
@@ -403,6 +419,20 @@ export class AgentCfgOutboxWorker {
       });
       outboxMetrics.recordAgentCfgOutboxError('requeue');
     }
+  }
+
+  private parseTimestamp(value: unknown): Date | null {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
   }
 
   private async dispose(): Promise<void> {

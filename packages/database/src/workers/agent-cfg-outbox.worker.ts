@@ -12,13 +12,15 @@ import { metrics } from '@snakagent/metrics';
 
 import { Postgres } from '../database.js';
 import { RedisClient } from '../redis.js';
+import { agentCfgOutbox } from '../queries/agent-cfg-outbox/queries.js';
 
 interface AgentCfgOutboxRow {
   id: number;
   agent_id: string;
   cfg_version: number;
   event: string;
-  processed_at: Date;
+  claimed_at: Date | null;
+  processed_at: Date | null;
 }
 
 export interface AgentCfgOutboxWorkerOptions {
@@ -137,14 +139,17 @@ export class AgentCfgOutboxWorker {
 
     const redis = this.redisClient.getClient();
     const processedPerEvent = new Map<string, number>();
+    const processedRows: Array<{ id: number; event: string }> = [];
 
     for (const row of rows) {
       try {
+        const processedAtDate =
+          this.parseTimestamp(row.processed_at) ?? new Date();
         const payload = JSON.stringify({
           agent_id: row.agent_id,
           cfg_version: row.cfg_version,
           event: row.event,
-          processed_at: row.processed_at.toISOString(),
+          processed_at: processedAtDate.toISOString(),
         });
         await redis.publish(this.redisChannel, payload);
 
@@ -152,6 +157,7 @@ export class AgentCfgOutboxWorker {
           row.event,
           (processedPerEvent.get(row.event) ?? 0) + 1
         );
+        processedRows.push({ id: row.id, event: row.event });
       } catch (error) {
         logger.error(
           `Failed to publish agent_cfg_outbox event ${row.id} to Redis`,
@@ -162,8 +168,21 @@ export class AgentCfgOutboxWorker {
       }
     }
 
-    for (const [event, count] of processedPerEvent.entries()) {
-      metrics.recordAgentCfgOutboxProcessed(count, event);
+    if (processedRows.length > 0) {
+      try {
+        await agentCfgOutbox.markProcessed(processedRows.map((row) => row.id));
+        for (const [event, count] of processedPerEvent.entries()) {
+          metrics.recordAgentCfgOutboxProcessed(count, event);
+        }
+      } catch (error) {
+        logger.error('Failed to mark agent_cfg_outbox rows as processed', {
+          error,
+          rows: processedRows,
+        });
+        for (const row of processedRows) {
+          await this.requeue(row.id, row.event);
+        }
+      }
     }
 
     return Array.from(processedPerEvent.values()).reduce(
@@ -177,30 +196,7 @@ export class AgentCfgOutboxWorker {
       return await metrics.dbResponseTime(
         'agent_cfg_outbox_fetch',
         async () => {
-          const query = new Postgres.Query(
-            `
-            WITH locked AS (
-              SELECT id, agent_id, cfg_version, event
-              FROM agent_cfg_outbox
-              WHERE processed_at IS NULL
-              ORDER BY id
-              LIMIT $1
-              FOR UPDATE SKIP LOCKED
-            )
-            UPDATE agent_cfg_outbox ao
-            SET processed_at = NOW()
-            FROM locked
-            WHERE ao.id = locked.id
-            RETURNING ao.id,
-                     ao.agent_id,
-                     ao.cfg_version,
-                     ao.event,
-                     ao.processed_at;
-          `,
-            [this.batchSize]
-          );
-
-          return Postgres.query<AgentCfgOutboxRow>(query);
+          return agentCfgOutbox.fetchAndMarkBatch(this.batchSize);
         }
       );
     } catch (error) {
@@ -217,15 +213,7 @@ export class AgentCfgOutboxWorker {
   private async requeue(id: number, event: string): Promise<void> {
     try {
       await metrics.dbResponseTime('agent_cfg_outbox_requeue', async () => {
-        const query = new Postgres.Query(
-          `
-          UPDATE agent_cfg_outbox
-          SET processed_at = NULL
-          WHERE id = $1
-        `,
-          [id]
-        );
-        await Postgres.query(query);
+        await agentCfgOutbox.requeue(id);
         return true;
       });
       metrics.recordAgentCfgOutboxRequeued(event);
@@ -255,6 +243,20 @@ export class AgentCfgOutboxWorker {
     } catch (error) {
       logger.error('Failed to shutdown Postgres pool', { error });
     }
+  }
+
+  private parseTimestamp(value: unknown): Date | null {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
   }
 }
 
