@@ -11,7 +11,6 @@ import {
   updateMcpServerTool,
   messageAskUserTool,
 } from './tools/index.js';
-import { redisAgents } from '@snakagent/database/queries';
 import { createExecuteHandoffTools } from './executeHandoffTools.js';
 
 /**
