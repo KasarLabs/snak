@@ -1,0 +1,99 @@
+tls:
+  certificates:
+    - certFile: /certs/mysnakagent.crt
+      keyFile: /certs/mysnakagent.key
+
+http:
+  routers:
+    keycloak-public:
+      rule: "Host(`auth.mysnakagent.com`)"
+      entryPoints: [websecure]
+      service: keycloak
+      tls: {}
+
+    oauth2:
+      rule: "Host(`mysnakagent.com`) && PathPrefix(`/oauth2`)"
+      entryPoints: [websecure]
+      service: oauth2-proxy
+      tls: {}
+
+    backend:
+      rule: "Host(`mysnakagent.com`) && PathPrefix(`/api`)"
+      entryPoints: [websecure]
+      service: snak-api
+      middlewares: [oauth-auth]
+      tls: {}
+
+    bff:
+      rule: "Host(`mysnakagent.com`) && PathPrefix(`/bff`)"
+      entryPoints: [websecure]
+      service: snak-bff
+      middlewares: [oauth-auth, strip-bff]
+      tls: {}
+
+    frontend:
+      rule: "Host(`mysnakagent.com`)"
+      entryPoints: [websecure]
+      service: snak-frontend # change to snak-frontend for real app
+      tls: {}
+
+  services:
+    keycloak:
+      loadBalancer:
+        servers:
+          - url: "http://keycloak:8080"
+
+    oauth2-proxy:
+      loadBalancer:
+        servers:
+          - url: "http://oauth2-proxy:4180"
+
+    snak-api:
+      loadBalancer:
+        servers:
+          - url: "http://snak-api:3002"
+        
+    snak-bff:
+      loadBalancer:
+        servers:
+          - url: "http://snak-bff:3001"
+    
+    snak-frontend:
+      loadBalancer:
+        servers:
+          - url: "http://snak-frontend:3000"
+    
+    dummy-frontend:
+      loadBalancer:
+        servers:
+          - url: "http://dummy-frontend:8080"
+
+    deny-403:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:9" # invalid target → always 502/403
+
+  middlewares:
+    oauth-auth:
+      forwardAuth:
+        address: http://oauth2-proxy:4180/oauth2/auth
+        trustForwardHeader: true
+        authRequestHeaders:
+          - Cookie
+          - Authorization
+        authResponseHeaders:
+          - X-Auth-Request-User
+          - X-Auth-Request-Email
+          - X-Auth-Request-Preferred-Username
+          - X-Auth-Request-Name
+          - X-Auth-Request-Groups
+          - X-Auth-Request-Roles
+          - X-Auth-Request-Userinfo
+          - X-Auth-Request-Access-Token
+          - Authorization
+          - X-Forwarded-User
+          - X-Forwarded-Email
+    strip-bff:
+      stripPrefix:
+        prefixes:
+          - /bff

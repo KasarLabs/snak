@@ -29,7 +29,6 @@ COPY plugins   plugins
 COPY config    config
 COPY patches   patches
 
-
 # this tells Docker’s BuildKit to carve out a persistent, named cache volume \ -no-frozen-lockfile tells pnpm not to error out if pnpm-lock.yaml is out of sync with package.json files. It will install anyway (and may update the lockfile). --shamefully-hoist forces pnpm to flatten all binaries and dependencies into the top-level node_modules/.bin and node_modules folders
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --no-frozen-lockfile --shamefully-hoist
