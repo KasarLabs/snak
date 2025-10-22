@@ -13,7 +13,6 @@ import {
 } from './tools/index.js';
 import { redisAgents } from '@snakagent/database/queries';
 import { createExecuteHandoffTools } from './executeHandoffTools.js';
-import { agent } from 'supertest';
 
 /**
  * Shared configuration tools reserved for supervisor agents.
@@ -36,19 +35,21 @@ export function getSupervisorConfigTools(
   ];
 }
 
-export function getAgentConfigurationHelperTools(
+export function getSupervisorConfigModifierTools(
   agentConfig: AgentConfig.Runtime
 ) {
   return [
     createAgentTool(agentConfig),
-    listAgentsTool(agentConfig),
     deleteAgentTool(agentConfig),
-    readAgentTool(agentConfig),
     updateAgentTool(agentConfig),
   ];
 }
 
-export function getMcpServerHelperTools(agentConfig: AgentConfig.Runtime) {
+export function getSupervisorReadTools(agentConfig: AgentConfig.Runtime) {
+  return [readAgentTool(agentConfig), listAgentsTool(agentConfig)];
+}
+
+export function getSupervisorMcpModifier(agentConfig: AgentConfig.Runtime) {
   return [
     addMcpServerTool(agentConfig),
     removeMcpServerTool(agentConfig),
@@ -56,11 +57,7 @@ export function getMcpServerHelperTools(agentConfig: AgentConfig.Runtime) {
   ];
 }
 
-export function getCommunicationHelperTools() {
-  return [messageAskUserTool()];
-}
-
-export function getAgentSelectorHelperTools(
+export function getSupevisorHandoffTools(
   agentConfig: AgentConfig.Runtime,
   agentsAvailable: AgentConfig.OutputWithId[]
 ) {
@@ -68,11 +65,11 @@ export function getAgentSelectorHelperTools(
   for (const agent of agentsAvailable) {
     transferTools.push(createExecuteHandoffTools(agent.profile.name, agent.id));
   }
-  return [
-    listAgentsTool(agentConfig),
-    readAgentTool(agentConfig),
-    ...transferTools,
-  ];
+  return transferTools;
+}
+
+export function getSupervisorCommunicationTools() {
+  return [messageAskUserTool()];
 }
 
 /**

@@ -13,10 +13,11 @@ import { GraphState } from './agent.graph.js';
 import { initializeDatabase } from '@agents/utils/database.utils.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import {
-  getAgentConfigurationHelperTools,
-  getAgentSelectorHelperTools,
-  getCommunicationHelperTools,
-  getMcpServerHelperTools,
+  getSupervisorCommunicationTools,
+  getSupervisorConfigModifierTools,
+  getSupervisorMcpModifier,
+  getSupervisorReadTools,
+  getSupevisorHandoffTools,
 } from '@agents/operators/supervisor/supervisorTools.js';
 import { createSupervisor } from '@langchain/langgraph-supervisor';
 import {
@@ -33,6 +34,7 @@ import { Annotation } from '@langchain/langgraph';
 import { redisAgents } from '@snakagent/database/queries';
 import { AGENT_SELECTOR_SYSTEM_PROMPT } from '@prompts/agents/agentSelector.prompt.js';
 import { REMOVE_ALL_MESSAGES } from '@langchain/langgraph';
+import { get } from 'http';
 const MAX_SUPERVISOR_MESSAGE = 30;
 
 export function messagesStateReducerWithLimit(
@@ -206,8 +208,9 @@ export class SupervisorGraph {
       createReactAgent({
         llm: this.supervisorConfig.graph.model,
         tools: [
-          ...getAgentConfigurationHelperTools(this.supervisorConfig),
-          ...getCommunicationHelperTools(),
+          ...getSupervisorConfigModifierTools(this.supervisorConfig),
+          ...getSupervisorReadTools(this.supervisorConfig),
+          ...getSupervisorCommunicationTools(),
         ],
         name: 'agentConfigurationHelper',
         prompt: formattedAgentConfigurationHelperPrompt,
@@ -224,7 +227,11 @@ export class SupervisorGraph {
     this.specializedAgent.push(
       createReactAgent({
         llm: this.supervisorConfig.graph.model,
-        tools: getMcpServerHelperTools(this.supervisorConfig),
+        tools: [
+          ...getSupervisorMcpModifier(this.supervisorConfig),
+          ...getSupervisorReadTools(this.supervisorConfig),
+          ...getSupervisorCommunicationTools(),
+        ],
         name: 'mcpConfigurationHelper',
         prompt: formattedMcpConfigurationHelperPrompt,
         stateSchema: SupervisorStateAnnotation,
@@ -253,10 +260,11 @@ export class SupervisorGraph {
     this.specializedAgent.push(
       createReactAgent({
         llm: this.supervisorConfig.graph.model,
-        tools: getAgentSelectorHelperTools(
-          this.supervisorConfig,
-          agentsAvailable
-        ),
+        tools: [
+          ...getSupevisorHandoffTools(this.supervisorConfig, agentsAvailable),
+          ...getSupervisorReadTools(this.supervisorConfig),
+          ...getSupervisorCommunicationTools(),
+        ],
         name: 'agentSelectorHelper',
         prompt: AGENT_SELECTOR_SYSTEM_PROMPT,
         stateSchema: SupervisorStateAnnotation,
@@ -272,7 +280,7 @@ export class SupervisorGraph {
     const workflow = createSupervisor({
       supervisorName: 'supervisor',
       agents: [...this.specializedAgent],
-      tools: getCommunicationHelperTools(),
+      tools: getSupervisorCommunicationTools(),
       llm: this.supervisorConfig.graph.model,
       prompt: formattedSupervisorPrompt,
       stateSchema: SupervisorStateAnnotation,
