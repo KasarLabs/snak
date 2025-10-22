@@ -74,3 +74,5 @@ export const STRING_LIMITS = {
     'execution.max_description_length'
   ),
 } as const;
+
+export const MAX_SUPERVISOR_MESSAGE = 30;

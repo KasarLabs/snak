@@ -1,15 +1,12 @@
 import {
   CompiledStateGraph,
-  END,
   messagesStateReducer,
   StateGraph,
 } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { GraphError } from '../utils/error.utils.js';
 import { SupervisorAgent } from '@agents/core/supervisorAgent.js';
-import { skipValidationType } from '@stypes/graph.types.js';
 import { AgentConfig, logger } from '@snakagent/core';
-import { GraphState } from './agent.graph.js';
 import { initializeDatabase } from '@agents/utils/database.utils.js';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import {
@@ -24,7 +21,6 @@ import {
   AIMessage,
   BaseMessage,
   RemoveMessage,
-  ToolMessage,
 } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
@@ -34,24 +30,19 @@ import { Annotation } from '@langchain/langgraph';
 import { redisAgents } from '@snakagent/database/queries';
 import { AGENT_SELECTOR_SYSTEM_PROMPT } from '@prompts/agents/agentSelector.prompt.js';
 import { REMOVE_ALL_MESSAGES } from '@langchain/langgraph';
-import { get } from 'http';
-const MAX_SUPERVISOR_MESSAGE = 30;
+import { MAX_SUPERVISOR_MESSAGE } from '../constants/execution-constants.js';
 
 export function messagesStateReducerWithLimit(
   left: BaseMessage[],
   right: BaseMessage[]
 ): BaseMessage[] {
-  // Simple append - deduplication will be handled in preModelHook
-
   const combined = messagesStateReducer(left, right);
   if (combined.length <= MAX_SUPERVISOR_MESSAGE) {
     return combined;
   }
 
-  // Calculate start index to keep last MAX_SUPERVISOR_MESSAGE messages
   let startIndex = combined.length - MAX_SUPERVISOR_MESSAGE;
 
-  // Adjust startIndex if we're starting with a tool message (need its AI parent)
   while (startIndex > 0 && combined[startIndex].getType() === 'tool') {
     startIndex--;
   }
