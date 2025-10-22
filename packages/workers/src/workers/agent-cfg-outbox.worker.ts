@@ -199,6 +199,7 @@ export class AgentCfgOutboxWorker {
         const processedAtDate =
           this.parseTimestamp(row.processed_at) ?? new Date();
         const payload = JSON.stringify({
+          outbox_id: row.id,
           agent_id: row.agent_id,
           cfg_version: row.cfg_version,
           event: row.event,
