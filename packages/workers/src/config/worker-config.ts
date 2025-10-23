@@ -39,7 +39,7 @@ export const configSchema = z
       .object({
         fileIngestion: z.coerce.number().int().min(1).default(2),
         embeddings: z.coerce.number().int().min(1).default(2),
-        fallbackWorkers: z.coerce.number().int().min(0).default(8),
+        fallbackWorkers: z.coerce.number().int().min(0).default(2),
         workerIdleTimeout: z.coerce.number().int().min(0).default(30000),
       })
       .strict(),
@@ -62,7 +62,7 @@ export function loadWorkerConfig(): WorkerConfig {
       fileIngestion: parseInt(process.env.CONCURRENCY_FILE_INGESTION ?? '2'),
       embeddings: parseInt(process.env.CONCURRENCY_EMBEDDINGS ?? '1'),
       fallbackWorkers: parseInt(
-        process.env.CONCURRENCY_FALLBACK_WORKERS ?? '1'
+        process.env.CONCURRENCY_FALLBACK_WORKERS ?? '2'
       ),
       workerIdleTimeout: parseInt(
         process.env.CONCURRENCY_WORKER_IDLE_TIMEOUT ?? '30000'

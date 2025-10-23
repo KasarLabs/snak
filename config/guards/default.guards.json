@@ -49,6 +49,16 @@
     "max_summary_length": 350,
     "max_description_length": 1000
   },
+  "agent_runtime": {
+    "cache": {
+      "max_entries": 64,
+      "max_ttl_ms": 300000
+    }
+  },
+  "agent_cfg_worker": {
+    "batch_size": 200,
+    "poll_interval_ms": 2000
+  },
   "mcp": {
     "max_limit_tools": 100,
     "max_timeout": 30000,

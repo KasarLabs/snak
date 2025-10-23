@@ -1,5 +1,5 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { redisAgents, agents } from '@snakagent/database/queries';
+import { agents } from '@snakagent/database/queries';
 import { logger, AgentProfile, GraphConfig } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
@@ -173,16 +173,7 @@ export function updateAgentTool(
             `Updated agent "${result.agent_data.profile.name}" successfully`
           );
 
-          // Update Redis cache
-          try {
-            await redisAgents.updateAgent(result.agent_data);
-            logger.debug(`Agent ${result.updated_agent_id} updated in Redis`);
-          } catch (error) {
-            logger.error(`Failed to update agent in Redis: ${error}`);
-            // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
-          }
-
-          let message = result.message;
+          let message = `Agent "${result.updated_agent_id}" updated successfully`;
           if (appliedDefaults.length > 0) {
             message += `. Note: ${appliedDefaults.join('; ')}`;
           }

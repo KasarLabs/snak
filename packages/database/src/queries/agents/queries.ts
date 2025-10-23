@@ -1,10 +1,54 @@
+import type { Redis } from 'ioredis';
 import {
+  supervisorAgentConfig,
   AgentConfig,
   AgentProfile,
   McpServerConfig,
-  supervisorAgentConfig,
+  logger,
+  AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS,
 } from '@snakagent/core';
+import { metrics } from '@snakagent/metrics';
 import { Postgres } from '../../database.js';
+import { RedisClient } from '../../redis.js';
+
+const AGENT_CFG_CACHE_TTL_SECONDS = (() => {
+  const raw = process.env.AGENT_CFG_CACHE_TTL_SECONDS;
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS;
+})();
+
+const agentCfgPointerKey = (agentId: string): string =>
+  `agent_cfg:${agentId}:current`;
+
+const agentCfgBlobKey = (agentId: string, version: number): string =>
+  `agent_cfg:${agentId}:blob:${version}`;
+
+const agentCfgBlobKeyPrefix = (agentId: string): string =>
+  `agent_cfg:${agentId}:blob:`;
+
+export type AgentCfgCacheEntry = AgentConfig.OutputWithId & {
+  cfg_version: number;
+  created_at: string;
+  updated_at: string;
+  avatar_mime_type: string | null;
+};
+
+const redisClient = RedisClient.getInstance();
+
+async function resolveRedis(): Promise<Redis | null> {
+  try {
+    if (!redisClient.isConnected()) {
+      await redisClient.connect();
+    }
+    return redisClient.getClient();
+  } catch (error) {
+    logger.warn('Redis unavailable for agent configuration cache', { error });
+    return null;
+  }
+}
 
 export namespace agents {
   /**
@@ -141,6 +185,179 @@ export namespace agents {
     }
 
     return fields.join(',\n        ');
+  }
+
+  /**
+   * Retrieve an agent configuration with Redis cache-aside strategy.
+   * Uses a versioned pointer (current -> blob) with sliding TTL and metrics instrumentation.
+   * @param agentId - Agent identifier
+   */
+  export async function getAgentCfg(
+    agentId: string
+  ): Promise<AgentCfgCacheEntry | null> {
+    let cacheOutcome: 'hit' | 'miss' | 'stale' | 'error' = 'miss';
+    const redis = await resolveRedis();
+
+    if (!redis) {
+      cacheOutcome = 'error';
+      metrics.recordAgentCfgCacheAccess(cacheOutcome);
+    } else {
+      const pointerKey = agentCfgPointerKey(agentId);
+
+      try {
+        const blobKey = await redis.get(pointerKey);
+
+        if (!blobKey) {
+          cacheOutcome = 'miss';
+          metrics.recordAgentCfgCacheAccess(cacheOutcome);
+        } else if (!blobKey.startsWith(agentCfgBlobKeyPrefix(agentId))) {
+          // Pointer references an unexpected key format, remove it
+          cacheOutcome = 'stale';
+          metrics.recordAgentCfgCacheAccess(cacheOutcome);
+          await redis.del(pointerKey);
+        } else {
+          const cachedPayload = await redis.get(blobKey);
+
+          if (!cachedPayload) {
+            cacheOutcome = 'stale';
+            metrics.recordAgentCfgCacheAccess(cacheOutcome);
+            await redis.del(pointerKey);
+          } else {
+            try {
+              const parsed = JSON.parse(cachedPayload) as AgentCfgCacheEntry;
+              const expectedBlobKey = agentCfgBlobKey(
+                agentId,
+                parsed.cfg_version
+              );
+
+              if (blobKey !== expectedBlobKey) {
+                cacheOutcome = 'stale';
+                metrics.recordAgentCfgCacheAccess(cacheOutcome);
+                logger.warn(
+                  'Agent configuration cache pointer/version mismatch detected',
+                  {
+                    agentId,
+                    pointerKey,
+                    pointerValue: blobKey,
+                    expectedBlobKey,
+                  }
+                );
+                await redis.del(pointerKey);
+              } else {
+                cacheOutcome = 'hit';
+                metrics.recordAgentCfgCacheAccess(cacheOutcome);
+
+                if (AGENT_CFG_CACHE_TTL_SECONDS > 0) {
+                  const refreshPipeline = redis
+                    .multi()
+                    .expire(pointerKey, AGENT_CFG_CACHE_TTL_SECONDS)
+                    .expire(blobKey, AGENT_CFG_CACHE_TTL_SECONDS);
+                  await refreshPipeline.exec();
+                }
+
+                return parsed;
+              }
+            } catch (error) {
+              cacheOutcome = 'stale';
+              metrics.recordAgentCfgCacheAccess(cacheOutcome);
+              logger.warn(
+                'Failed to parse agent configuration blob from cache',
+                {
+                  error,
+                  agentId,
+                }
+              );
+              await redis.del(blobKey);
+              await redis.del(pointerKey);
+            }
+          }
+        }
+      } catch (error) {
+        cacheOutcome = 'error';
+        metrics.recordAgentCfgCacheAccess(cacheOutcome);
+        logger.warn('Failed to read agent configuration from Redis', {
+          error,
+          agentId,
+        });
+      }
+    }
+
+    const config = await metrics.dbResponseTime(
+      'agent_cfg_get',
+      async (): Promise<AgentCfgCacheEntry | null> => {
+        const query = new Postgres.Query(
+          `SELECT
+            id,
+            user_id,
+            row_to_json(profile)        AS profile,
+            mcp_servers,
+            prompts_id,
+            row_to_json(graph)          AS graph,
+            row_to_json(memory)         AS memory,
+            row_to_json(rag)            AS rag,
+            cfg_version,
+            created_at,
+            updated_at,
+            avatar_mime_type
+          FROM agents
+          WHERE id = $1`,
+          [agentId]
+        );
+
+        const rows = await Postgres.query<AgentCfgCacheEntry>(query);
+        return rows.length > 0 ? rows[0] : null;
+      }
+    );
+
+    if (!config) {
+      return null;
+    }
+
+    if (redis) {
+      const pointerKey = agentCfgPointerKey(agentId);
+      const blobKey = agentCfgBlobKey(agentId, config.cfg_version);
+      const ttl = AGENT_CFG_CACHE_TTL_SECONDS;
+      const serialized = JSON.stringify(config);
+
+      try {
+        const pipeline = redis.multi();
+
+        if (ttl > 0) {
+          pipeline.set(blobKey, serialized, 'EX', ttl);
+          pipeline.set(pointerKey, blobKey, 'EX', ttl);
+        } else {
+          pipeline.set(blobKey, serialized);
+          pipeline.set(pointerKey, blobKey);
+        }
+
+        const execResult = await pipeline.exec();
+
+        if (!execResult) {
+          logger.warn(
+            'Redis pipeline for agent configuration cache returned null',
+            {
+              agentId,
+            }
+          );
+        } else {
+          const failed = execResult.find(([err]) => err != null);
+          if (failed && failed[0]) {
+            throw failed[0];
+          }
+        }
+
+        metrics.recordAgentCfgCacheStore(
+          cacheOutcome === 'stale' ? 'refresh' : 'db_seed'
+        );
+      } catch (error) {
+        logger.warn('Failed to write agent configuration to Redis cache', {
+          error,
+          agentId,
+        });
+      }
+    }
+
+    return config;
   }
 
   /**
