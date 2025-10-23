@@ -17,7 +17,6 @@ import {
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
 import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
-import { Postgres } from '@snakagent/database';
 import {
   BaseAgent,
   ChunkOutput,

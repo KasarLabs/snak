@@ -2,6 +2,8 @@ import type { Redis } from 'ioredis';
 import {
   supervisorAgentConfig,
   AgentConfig,
+  AgentProfile,
+  McpServerConfig,
   logger,
   AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS,
 } from '@snakagent/core';
@@ -58,96 +60,131 @@ export namespace agents {
   }
 
   /**
-   * Update agent MCP configuration
-   * @param agentId - Agent ID
-   * @param userId - User ID for ownership verification
-   * @param mcpServers - MCP servers configuration
-   * @returns Promise<AgentConfig.OutputWithId | null>
+   * Model configuration data
    */
-  export async function updateAgentMcp(
-    agentId: string,
+  export interface ModelConfig {
+    provider: string;
+    model_name: string;
+    temperature: number;
+    max_tokens: number;
+  }
+
+  /**
+   * Prompts data
+   */
+  export interface PromptsData {
+    task_executor_prompt: string;
+    task_manager_prompt: string;
+    task_verifier_prompt: string;
+    task_memory_manager_prompt: string;
+  }
+
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Build WHERE clause for agent queries by ID or name
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @returns Object containing whereClause string and params array
+   */
+  function buildAgentWhereClause(
+    identifier: string,
     userId: string,
-    mcpServers: Record<string, any>
-  ): Promise<AgentConfig.OutputWithId | null> {
-    const query = new Postgres.Query(
-      `UPDATE agents
-       SET "mcp_servers" = $1::jsonb
-       WHERE id = $2 AND user_id = $3
-       RETURNING
-         id,
-         user_id,
-         row_to_json(profile)        AS profile,
-         mcp_servers,
-         prompts_id,
-         row_to_json(graph)          AS graph,
-         row_to_json(memory)         AS memory,
-         row_to_json(rag)            AS rag,
-         created_at,
-         updated_at,
-         avatar_image,
-         avatar_mime_type`,
-      [mcpServers, agentId, userId]
+    searchBy: 'id' | 'name'
+  ): { whereClause: string; params: string[] } {
+    if (searchBy === 'id') {
+      return {
+        whereClause: 'id = $1 AND user_id = $2',
+        params: [identifier, userId],
+      };
+    } else {
+      return {
+        whereClause: '(profile).name = $1 AND user_id = $2',
+        params: [identifier, userId],
+      };
+    }
+  }
+
+  /**
+   * Generic function to query a single agent by identifier (ID or name)
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @param selectClause - SQL SELECT clause (fields to retrieve)
+   * @returns Promise<T | null> where T is the result type
+   */
+  async function queryAgentByIdentifier<T>(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name',
+    selectClause: string
+  ): Promise<T | null> {
+    const { whereClause, params } = buildAgentWhereClause(
+      identifier,
+      userId,
+      searchBy
     );
 
-    const result = await Postgres.query<AgentConfig.OutputWithId>(query);
+    const query = new Postgres.Query(
+      `SELECT ${selectClause}
+       FROM agents
+       WHERE ${whereClause}
+       LIMIT 1`,
+      params
+    );
+
+    const result = await Postgres.query<T>(query);
     return result.length > 0 ? result[0] : null;
   }
 
   /**
-   * Update agent configuration using the update_agent_complete function
-   * @param agentId - Agent ID
-   * @param userId - User ID for ownership verification
-   * @param config - Complete agent configuration object
-   * @returns Promise<{success: boolean, message: string, updated_agent_id: string}>
+   * Build SELECT clause for agent queries
+   * @param options - Configuration options for the SELECT clause
+   * @returns SQL SELECT clause string
    */
-  export async function updateAgentComplete(
-    agentId: string,
-    userId: string,
-    config: any
-  ): Promise<{ success: boolean; message: string; updated_agent_id: string }> {
-    const query = new Postgres.Query(
-      `SELECT success, message, updated_agent_id
-       FROM update_agent_complete($1::UUID, $2::UUID, $3::JSONB)`,
-      [agentId, userId, JSON.stringify(config)]
-    );
+  function buildAgentSelectClause(
+    options: {
+      includeUserId?: boolean;
+      includeAvatar?: boolean;
+      includeAvatarUrl?: boolean;
+      includePromptsId?: boolean;
+    } = {}
+  ): string {
+    const {
+      includeUserId = false,
+      includeAvatar = false,
+      includeAvatarUrl = false,
+      includePromptsId = true,
+    } = options;
 
-    const result = await Postgres.query<{
-      success: boolean;
-      message: string;
-      updated_agent_id: string;
-    }>(query);
-    return result[0];
-  }
+    const fields = [
+      'id',
+      ...(includeUserId ? ['user_id'] : []),
+      'row_to_json(profile) as profile',
+      'mcp_servers',
+      ...(includePromptsId ? ['prompts_id'] : []),
+      'row_to_json(graph) as graph',
+      'row_to_json(memory) as memory',
+      'row_to_json(rag) as rag',
+      'created_at',
+      'updated_at',
+    ];
 
-  /**
-   * Get agent by ID and user ID
-   * @param agentId - Agent ID
-   * @param userId - User ID for ownership verification
-   * @returns Promise<any | null>
-   */
-  export async function getAgentById(
-    agentId: string,
-    userId: string
-  ): Promise<any | null> {
-    const query = new Postgres.Query(
-      `SELECT
-        id,
-        row_to_json(profile) as profile,
-        mcp_servers,
-        prompts_id,
-        row_to_json(graph) as graph,
-        row_to_json(memory) as memory,
-        row_to_json(rag) as rag,
-        created_at,
-        updated_at,
-        avatar_image,
-        avatar_mime_type
-      FROM agents WHERE id = $1 AND user_id = $2`,
-      [agentId, userId]
-    );
+    if (includeAvatar) {
+      fields.push('avatar_image', 'avatar_mime_type');
+    }
 
-    const result = await Postgres.query<any>(query);
-    return result.length > 0 ? result[0] : null;
+    if (includeAvatarUrl) {
+      fields.push(
+        "CASE\n          WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL\n          THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))\n          ELSE NULL\n        END as avatar_image",
+        'avatar_mime_type'
+      );
+    }
+
+    return fields.join(',\n        ');
   }
 
   /**
@@ -324,14 +361,12 @@ export namespace agents {
   }
 
   /**
-   * Get all agents for a user with avatar URL
-   * @param userId - User ID
-   * @returns Promise<any[]>
+   * Build SELECT clause with avatar URL encoding
+   * Converts binary avatar_image to data URL format
+   * @returns SQL SELECT clause string with avatar URL CASE statement
    */
-  export async function getAllAgentsByUser(userId: string): Promise<any[]> {
-    const query = new Postgres.Query(
-      `SELECT
-        id,
+  function buildAgentSelectWithAvatarUrl(): string {
+    return `id,
         row_to_json(profile) as profile,
         mcp_servers as "mcp_servers",
         prompts_id,
@@ -345,40 +380,273 @@ export namespace agents {
         END as "avatarUrl",
         avatar_mime_type,
         created_at,
-        updated_at
+        updated_at`;
+  }
+
+  // ============================================================================
+  // GET OPERATIONS - Retrieve agent data
+  // ============================================================================
+
+  /**
+   * Get agent profile by identifier (ID or name)
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @returns Promise<{id: string, profile: AgentProfile} | null>
+   */
+  export async function getAgentProfile(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): Promise<{ id: string; profile: AgentProfile } | null> {
+    return queryAgentByIdentifier<{ id: string; profile: AgentProfile }>(
+      identifier,
+      userId,
+      searchBy,
+      'id, row_to_json(profile) as profile'
+    );
+  }
+
+  /**
+   * Get agent with MCP servers configuration by identifier (ID or name)
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @returns Promise<{id: string, profile: AgentProfile, mcp_servers: Record<string, McpServerConfig>} | null>
+   */
+  export async function getAgentWithMcp(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): Promise<{
+    id: string;
+    profile: AgentProfile;
+    mcp_servers: Record<string, McpServerConfig>;
+  } | null> {
+    return queryAgentByIdentifier<{
+      id: string;
+      profile: AgentProfile;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(
+      identifier,
+      userId,
+      searchBy,
+      'id, row_to_json(profile) as profile, mcp_servers'
+    );
+  }
+
+  /**
+   * Get complete agent data by identifier (ID or name) - includes all fields
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Search by 'id' or 'name'
+   * @returns Promise<AgentConfig.Input | null>
+   */
+  export async function getAgentComplete(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): Promise<{ id: string; agentConfig: AgentConfig.Input } | null> {
+    const result =
+      await queryAgentByIdentifier<AgentConfig.OutputWithoutUserId>(
+        identifier,
+        userId,
+        searchBy,
+        buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })
+      );
+
+    if (result) {
+      const { id, user_id, prompts_id, ...agentConfig } = result;
+      return { id, agentConfig };
+    }
+
+    return null;
+  }
+
+  /**
+   * Get agent by ID and user ID
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @returns Promise<AgentConfig.OutputWithoutUserId | null>
+   */
+  export async function getAgentById(
+    agentId: string,
+    userId: string
+  ): Promise<AgentConfig.OutputWithoutUserId | null> {
+    const query = new Postgres.Query(
+      `SELECT ${buildAgentSelectClause()}
+      FROM agents WHERE id = $1 AND user_id = $2`,
+      [agentId, userId]
+    );
+
+    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Get all agents for a user with avatar URL
+   * @param userId - User ID
+   * @returns Promise<AgentConfig.OutputWithoutUserId[]>
+   */
+  export async function getAllAgentsByUser(
+    userId: string
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
+    const query = new Postgres.Query(
+      `SELECT ${buildAgentSelectWithAvatarUrl()}
       FROM agents
       WHERE user_id = $1`,
       [userId]
     );
 
-    const result = await Postgres.query<any>(query);
+    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
     return result;
   }
 
   /**
-   * Update agent avatar
-   * @param agentId - Agent ID
-   * @param userId - User ID for ownership verification
-   * @param buffer - Image buffer
-   * @param mimetype - Image MIME type
-   * @returns Promise<AgentAvatarData | null>
+   * List agents with filtering and pagination
+   * @param userId - User ID
+   * @param filters - Optional filters for group, mode, name_contains
+   * @param limit - Optional limit for pagination
+   * @param offset - Optional offset for pagination
+   * @returns Promise<AgentConfig.OutputWithoutUserId[]>
    */
-  export async function updateAgentAvatar(
-    agentId: string,
+  export async function listAgents(
     userId: string,
-    buffer: Buffer,
-    mimetype: string
-  ): Promise<AgentAvatarData | null> {
+    filters?: {
+      group?: string;
+      mode?: string;
+      name_contains?: string;
+    },
+    limit?: number,
+    offset?: number
+  ): Promise<AgentConfig.OutputWithoutUserId[]> {
+    let queryString = `SELECT ${buildAgentSelectWithAvatarUrl()}
+      FROM agents
+      WHERE user_id = $1`;
+
+    const queryParams: (string | number)[] = [userId];
+    let paramIndex = 2;
+
+    // Add filters
+    if (filters) {
+      if (
+        filters.group !== null &&
+        filters.group !== undefined &&
+        filters.group !== ''
+      ) {
+        queryString += ` AND (profile)."group" = $${paramIndex}`;
+        queryParams.push(filters.group);
+        paramIndex++;
+      }
+
+      if (
+        filters.mode !== null &&
+        filters.mode !== undefined &&
+        filters.mode !== ''
+      ) {
+        queryString += ` AND mode = $${paramIndex}`;
+        queryParams.push(filters.mode);
+        paramIndex++;
+      }
+
+      if (
+        filters.name_contains !== null &&
+        filters.name_contains !== undefined &&
+        filters.name_contains !== ''
+      ) {
+        queryString += ` AND (profile).name ILIKE $${paramIndex}`;
+        queryParams.push(`%${filters.name_contains}%`);
+        paramIndex++;
+      }
+    }
+
+    // Add ordering
+    queryString += ` ORDER BY created_at DESC`;
+
+    // Add pagination
+    if (limit !== undefined) {
+      queryString += ` LIMIT $${paramIndex}`;
+      queryParams.push(limit);
+      paramIndex++;
+    }
+
+    if (offset !== undefined) {
+      queryString += ` OFFSET $${paramIndex}`;
+      queryParams.push(offset);
+    }
+
+    const query = new Postgres.Query(queryString, queryParams);
+
+    const result = await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
+    return result;
+  }
+
+  /**
+   * Get all agents (for initialization/syncing)
+   * @returns Promise<Output[]>
+   */
+  export async function getAllAgents(): Promise<AgentConfig.Output[]> {
+    const query = new Postgres.Query(`
+      SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })}
+      FROM agents
+    `);
+
+    const result = await Postgres.query<AgentConfig.Output>(query);
+    return result;
+  }
+
+  /**
+   * Select agents with custom WHERE clause
+   * @param whereClause - WHERE clause for the query
+   * @param params - Parameters for the query
+   * @returns Promise<AgentConfig.Output[]>
+   */
+  export async function selectAgents(
+    whereClause: string,
+    params: any[]
+  ): Promise<AgentConfig.Output[]> {
     const query = new Postgres.Query(
-      `UPDATE agents
-       SET avatar_image = $1, avatar_mime_type = $2
-       WHERE id = $3 AND user_id = $4
-       RETURNING id, avatar_mime_type`,
-      [buffer, mimetype, agentId, userId]
+      `SELECT ${buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })}
+       FROM agents WHERE ${whereClause}`,
+      params
     );
 
-    const result = await Postgres.query<AgentAvatarData>(query);
-    return result.length > 0 ? result[0] : null;
+    const result = await Postgres.query<AgentConfig.Output>(query);
+    return result;
+  }
+
+  /**
+   * Read a single agent by ID or name with all metadata
+   * @param identifier - Agent ID or name
+   * @param userId - User ID for ownership verification
+   * @param searchBy - Whether to search by 'id' or 'name'
+   * @returns Promise<AgentConfig.OutputWithoutUserId | null>
+   */
+  export async function readAgent(
+    identifier: string,
+    userId: string,
+    searchBy: 'id' | 'name'
+  ): Promise<AgentConfig.OutputWithoutUserId | null> {
+    return queryAgentByIdentifier<AgentConfig.OutputWithoutUserId>(
+      identifier,
+      userId,
+      searchBy,
+      `id,
+       row_to_json(profile) as profile,
+       mcp_servers,
+       prompts_id,
+       row_to_json(graph) as graph,
+       row_to_json(memory) as memory,
+       row_to_json(rag) as rag,
+       created_at,
+       updated_at,
+       avatar_mime_type,
+       CASE
+         WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
+         THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
+         ELSE NULL
+       END as avatar_image`
+    );
   }
 
   /**
@@ -422,22 +690,22 @@ export namespace agents {
   }
 
   /**
-   * Delete agent by ID
-   * @param agentId - Agent ID
-   * @param userId - User ID for ownership verification
-   * @returns Promise<any[]> - Array of deleted agents
+   * Generic function to get count of agents with optional WHERE clause
+   * @param whereClause - Optional WHERE clause (without the WHERE keyword)
+   * @param params - Optional parameters for the WHERE clause
+   * @returns Promise<number>
    */
-  export async function deleteAgent(
-    agentId: string,
-    userId: string
-  ): Promise<any[]> {
-    const query = new Postgres.Query(
-      `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING *`,
-      [agentId, userId]
-    );
+  async function getAgentsCount(
+    whereClause?: string,
+    params?: any[]
+  ): Promise<number> {
+    const queryString = whereClause
+      ? `SELECT COUNT(*) as count FROM agents WHERE ${whereClause}`
+      : `SELECT COUNT(*) as count FROM agents`;
 
-    const result = await Postgres.query<any>(query);
-    return result;
+    const query = new Postgres.Query(queryString, params || []);
+    const result = await Postgres.query<{ count: string }>(query);
+    return parseInt(result[0].count, 10);
   }
 
   /**
@@ -445,10 +713,7 @@ export namespace agents {
    * @returns Promise<number>
    */
   export async function getTotalAgentsCount(): Promise<number> {
-    const query = new Postgres.Query(`SELECT COUNT(*) as count FROM agents`);
-
-    const result = await Postgres.query<{ count: string }>(query);
-    return parseInt(result[0].count, 10);
+    return getAgentsCount();
   }
 
   /**
@@ -457,13 +722,7 @@ export namespace agents {
    * @returns Promise<number>
    */
   export async function getUserAgentsCount(userId: string): Promise<number> {
-    const query = new Postgres.Query(
-      `SELECT COUNT(*) as count FROM agents WHERE user_id = $1`,
-      [userId]
-    );
-
-    const result = await Postgres.query<{ count: string }>(query);
-    return parseInt(result[0].count, 10);
+    return getAgentsCount('user_id = $1', [userId]);
   }
 
   /**
@@ -471,94 +730,24 @@ export namespace agents {
    * Used for ensuring unique agent names
    * @param userId - User ID
    * @param baseName - Base agent name
-   * @param group - Agent group
    * @returns Promise<{name: string} | null>
    */
   export async function checkAgentNameExists(
     userId: string,
-    baseName: string,
-    group: string
+    baseName: string
   ): Promise<{ name: string } | null> {
     const query = new Postgres.Query(
       `SELECT (profile).name as name
        FROM agents
        WHERE user_id = $1
-       AND (profile)."group" = $2
-       AND ((profile).name = $3 OR (profile).name LIKE $3 || '-%')
+       AND ((profile).name = $2 OR (profile).name LIKE $2 || '-%')
        ORDER BY LENGTH((profile).name) DESC, (profile).name DESC
        LIMIT 1`,
-      [userId, group, baseName]
+      [userId, baseName]
     );
 
     const result = await Postgres.query<{ name: string }>(query);
     return result.length > 0 ? result[0] : null;
-  }
-
-  /**
-   * Insert a new agent using the insert_agent_from_json function
-   * @param userId - User ID
-   * @param agentConfig - Agent configuration JSON
-   * @returns Promise<any | null>
-   */
-  export async function insertAgentFromJson(
-    userId: string,
-    agentConfig: any
-  ): Promise<any | null> {
-    const query = new Postgres.Query(
-      'SELECT * FROM insert_agent_from_json($1, $2)',
-      [userId, JSON.stringify(agentConfig)]
-    );
-
-    const result = await Postgres.query<any>(query);
-    return result.length > 0 ? result[0] : null;
-  }
-
-  /**
-   * Get all agents (for initialization/syncing)
-   * @returns Promise<any[]>
-   */
-  export async function getAllAgents(): Promise<any[]> {
-    const query = new Postgres.Query(`
-      SELECT
-        id,
-        user_id,
-        row_to_json(profile) as profile,
-        mcp_servers as "mcp_servers",
-        prompts_id,
-        row_to_json(graph) as graph,
-        row_to_json(memory) as memory,
-        row_to_json(rag) as rag,
-        created_at,
-        updated_at,
-        avatar_image,
-        avatar_mime_type
-      FROM agents
-    `);
-
-    const result = await Postgres.query<any>(query);
-    return result;
-  }
-
-  /**
-   * Select agents with custom WHERE clause
-   * @param whereClause - WHERE clause for the query
-   * @param params - Parameters for the query
-   * @returns Promise<any[]>
-   */
-  export async function selectAgents(
-    whereClause: string,
-    params: any[]
-  ): Promise<any[]> {
-    const query = new Postgres.Query(
-      `SELECT id, user_id, row_to_json(profile) as profile, mcp_servers, prompts_id,
-       row_to_json(graph) as graph, row_to_json(memory) as memory, row_to_json(rag) as rag,
-       created_at, updated_at, avatar_image, avatar_mime_type
-       FROM agents WHERE ${whereClause}`,
-      params
-    );
-
-    const result = await Postgres.query<any>(query);
-    return result;
   }
 
   /**
@@ -589,16 +778,6 @@ export namespace agents {
   }
 
   /**
-   * Model configuration data
-   */
-  export interface ModelConfig {
-    provider: string;
-    model_name: string;
-    temperature: number;
-    max_tokens: number;
-  }
-
-  /**
    * Get model configuration for a user
    * @param userId - User ID
    * @returns Promise<ModelConfig | null>
@@ -618,65 +797,6 @@ export namespace agents {
 
     const result = await Postgres.query<ModelConfig>(query);
     return result.length > 0 ? result[0] : null;
-  }
-
-  /**
-   * Create default model configuration for a user
-   * @param userId - User ID
-   * @param provider - Model provider
-   * @param modelName - Model name
-   * @param temperature - Temperature setting
-   * @param maxTokens - Max tokens setting
-   * @returns Promise<void>
-   */
-  export async function createModelConfig(
-    userId: string,
-    provider: string,
-    modelName: string,
-    temperature: number,
-    maxTokens: number
-  ): Promise<void> {
-    const query = new Postgres.Query(
-      'INSERT INTO models_config (user_id,model) VALUES ($1,ROW($2, $3, $4, $5)::model_config)',
-      [userId, provider, modelName, temperature, maxTokens]
-    );
-
-    await Postgres.query(query);
-  }
-
-  /**
-   * Update model configuration for a user
-   * @param userId - User ID
-   * @param provider - Model provider
-   * @param modelName - Model name
-   * @param temperature - Temperature setting
-   * @param maxTokens - Max tokens setting
-   * @returns Promise<any>
-   */
-  export async function updateModelConfig(
-    userId: string,
-    provider: string,
-    modelName: string,
-    temperature: number,
-    maxTokens: number
-  ): Promise<any> {
-    const query = new Postgres.Query(
-      `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
-      [provider, modelName, temperature, maxTokens, userId]
-    );
-
-    const result = await Postgres.query(query);
-    return result;
-  }
-
-  /**
-   * Prompts data
-   */
-  export interface PromptsData {
-    task_executor_prompt: string;
-    task_manager_prompt: string;
-    task_verifier_prompt: string;
-    task_memory_manager_prompt: string;
   }
 
   /**
@@ -718,6 +838,99 @@ export namespace agents {
 
     const result = await Postgres.query<{ id: string }>(query);
     return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Get agent MCP servers by ID and user ID
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @returns Promise<{id: string, mcp_servers: Record<string, McpServerConfig>} | null>
+   */
+  export async function getAgentMcpServers(
+    agentId: string,
+    userId: string
+  ): Promise<{
+    id: string;
+    mcp_servers: Record<string, McpServerConfig>;
+  } | null> {
+    const query = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
+      [agentId, userId]
+    );
+
+    const result = await Postgres.query<{
+      id: string;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Get all agents MCP servers for a user
+   * @param userId - User ID
+   * @returns Promise<{id: string, mcp_servers: Record<string, McpServerConfig>}[]>
+   */
+  export async function getAllAgentsMcpServers(
+    userId: string
+  ): Promise<{ id: string; mcp_servers: Record<string, McpServerConfig> }[]> {
+    const query = new Postgres.Query(
+      'SELECT id, "mcp_servers" FROM agents WHERE user_id = $1 ORDER BY created_at ASC',
+      [userId]
+    );
+
+    const result = await Postgres.query<{
+      id: string;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(query);
+    return result;
+  }
+
+  // ============================================================================
+  // INSERT OPERATIONS - Create new agents and related data
+  // ============================================================================
+
+  /**
+   * Insert a new agent using the insert_agent_from_json function
+   * @param userId - User ID
+   * @param agentConfig - Agent configuration JSON
+   * @returns Promise<AgentConfig.Output | null>
+   */
+  export async function insertAgentFromJson(
+    userId: string,
+    agentConfig: AgentConfig.Input
+  ): Promise<AgentConfig.Output | null> {
+    const query = new Postgres.Query(
+      `SELECT id, user_id, profile, mcp_servers, prompts_id, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type
+          FROM insert_agent_from_json($1, $2)`,
+      [userId, JSON.stringify(agentConfig)]
+    );
+
+    const result = await Postgres.query<AgentConfig.Output>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Create default model configuration for a user
+   * @param userId - User ID
+   * @param provider - Model provider
+   * @param modelName - Model name
+   * @param temperature - Temperature setting
+   * @param maxTokens - Max tokens setting
+   * @returns Promise<void>
+   */
+  export async function createModelConfig(
+    userId: string,
+    provider: string,
+    modelName: string,
+    temperature: number,
+    maxTokens: number
+  ): Promise<void> {
+    const query = new Postgres.Query(
+      'INSERT INTO models_config (user_id,model) VALUES ($1,ROW($2, $3, $4, $5)::model_config)',
+      [userId, provider, modelName, temperature, maxTokens]
+    );
+
+    await Postgres.query(query);
   }
 
   /**
@@ -763,5 +976,166 @@ export namespace agents {
       throw new Error('Failed to create default prompts - no ID returned');
     }
     return result[0].id;
+  }
+
+  // ============================================================================
+  // UPDATE OPERATIONS - Modify existing agents and related data
+  // ============================================================================
+
+  /**
+   * Update agent MCP configuration and return only id and mcp_servers
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @param mcpServers - MCP servers configuration
+   * @returns Promise<{id: string, mcp_servers: Record<string, McpServerConfig>} | null>
+   */
+  export async function updateAgentMcpServers(
+    agentId: string,
+    userId: string,
+    mcpServers: Record<string, McpServerConfig>
+  ): Promise<{
+    id: string;
+    mcp_servers: Record<string, McpServerConfig>;
+  } | null> {
+    const query = new Postgres.Query(
+      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
+      [mcpServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<{
+      id: string;
+      mcp_servers: Record<string, McpServerConfig>;
+    }>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Update agent MCP configuration
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @param mcpServers - MCP servers configuration
+   * @returns Promise<AgentConfig.Output | null>
+   */
+  export async function updateAgentMcp(
+    agentId: string,
+    userId: string,
+    mcpServers: Record<string, McpServerConfig>
+  ): Promise<AgentConfig.Output | null> {
+    const query = new Postgres.Query(
+      `UPDATE agents
+       SET "mcp_servers" = $1::jsonb
+       WHERE id = $2 AND user_id = $3
+       RETURNING ${buildAgentSelectClause({ includeUserId: true, includeAvatarUrl: true })}`,
+      [mcpServers, agentId, userId]
+    );
+
+    const result = await Postgres.query<AgentConfig.Output>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Update agent configuration using the update_agent_complete function
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @param config - Complete agent configuration object
+   * @returns Promise<{success: boolean, message: string, updated_agent_id: string, agent_data: AgentConfig.Output}>
+   */
+  export async function updateAgentComplete(
+    agentId: string,
+    userId: string,
+    config: AgentConfig.InputWithOptionalParam
+  ): Promise<{
+    success: boolean;
+    message: string;
+    updated_agent_id: string;
+    agent_data: AgentConfig.Output;
+  }> {
+    const query = new Postgres.Query(
+      `SELECT success, message, updated_agent_id, agent_data
+       FROM update_agent_complete($1::UUID, $2::UUID, $3::JSONB)`,
+      [agentId, userId, JSON.stringify(config)]
+    );
+
+    const result = await Postgres.query<{
+      success: boolean;
+      message: string;
+      updated_agent_id: string;
+      agent_data: AgentConfig.Output;
+    }>(query);
+    return result[0];
+  }
+
+  /**
+   * Update agent avatar
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @param buffer - Image buffer
+   * @param mimetype - Image MIME type
+   * @returns Promise<AgentAvatarData | null>
+   */
+  export async function updateAgentAvatar(
+    agentId: string,
+    userId: string,
+    buffer: Buffer,
+    mimetype: string
+  ): Promise<AgentAvatarData | null> {
+    const query = new Postgres.Query(
+      `UPDATE agents
+       SET avatar_image = $1, avatar_mime_type = $2
+       WHERE id = $3 AND user_id = $4
+       RETURNING id, avatar_mime_type`,
+      [buffer, mimetype, agentId, userId]
+    );
+
+    const result = await Postgres.query<AgentAvatarData>(query);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  /**
+   * Update model configuration for a user
+   * @param userId - User ID
+   * @param provider - Model provider
+   * @param modelName - Model name
+   * @param temperature - Temperature setting
+   * @param maxTokens - Max tokens setting
+   * @returns Promise<any>
+   */
+  export async function updateModelConfig(
+    userId: string,
+    provider: string,
+    modelName: string,
+    temperature: number,
+    maxTokens: number
+  ): Promise<any> {
+    const query = new Postgres.Query(
+      `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
+      [provider, modelName, temperature, maxTokens, userId]
+    );
+
+    const result = await Postgres.query(query);
+    return result;
+  }
+
+  // ============================================================================
+  // DELETE OPERATIONS - Remove agents and related data
+  // ============================================================================
+
+  /**
+   * Delete agent by ID
+   * @param agentId - Agent ID
+   * @param userId - User ID for ownership verification
+   * @returns Promise<{id: string}> - Deleted agent ID
+   */
+  export async function deleteAgent(
+    agentId: string,
+    userId: string
+  ): Promise<{ id: string } | null> {
+    const query = new Postgres.Query(
+      `DELETE FROM agents WHERE id = $1 AND user_id = $2 RETURNING id`,
+      [agentId, userId]
+    );
+
+    const result = await Postgres.query<{ id: string }>(query);
+    return result.length > 0 ? result[0] : null;
   }
 }

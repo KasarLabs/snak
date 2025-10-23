@@ -1,15 +1,13 @@
 import {
   BadRequestException,
-  UnprocessableEntityException,
   Controller,
   Get,
   Post,
   Body,
   Req,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import { FastifyRequest } from 'fastify';
-import { Postgres } from '@snakagent/database';
+import { agents } from '@snakagent/database/queries';
 
 import { AgentService } from '../services/agent.service.js';
 import { AgentStorage } from '../agents.storage.js';
@@ -34,12 +32,8 @@ import {
   DeleteMultipleMcpServersRequestDTO,
   UpdateMcpValueRequestDTO,
   logger,
+  McpServerConfig,
 } from '@snakagent/core';
-
-interface UpdateAgentMcpDTO {
-  id: string;
-  mcp_servers: Record<string, any>;
-}
 
 /**
  * All MCP-related endpoints, namespaced under /agents/mcp
@@ -63,18 +57,18 @@ export class McpController {
   async getUserMcps(@Req() req: FastifyRequest) {
     const userId = ControllerHelpers.getUserId(req);
 
-    const q = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE user_id = $1 ORDER BY created_at ASC',
-      [userId]
-    );
-
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
+    const agentsData = await agents.getAllAgentsMcpServers(userId);
 
     return ResponseFormatter.success(
-      agents.map((agent: { id: any; mcp_servers: Record<string, any> }) => ({
-        agent_id: agent.id,
-        mcp_servers: formatMcpServersForResponse(agent.mcp_servers),
-      }))
+      agentsData.map(
+        (agent: {
+          id: string;
+          mcp_servers: Record<string, McpServerConfig>;
+        }) => ({
+          agent_id: agent.id,
+          mcp_servers: formatMcpServersForResponse(agent.mcp_servers),
+        })
+      )
     );
   }
 
@@ -94,17 +88,11 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId } = body;
 
-    const q = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
+    const agent = await agents.getAgentMcpServers(agentId, userId);
 
-    if (agents.length === 0) {
+    if (!agent) {
       throw new BadRequestException('Agent not found');
     }
-
-    const agent = agents[0];
 
     return ResponseFormatter.success({
       agent_id: agent.id,
@@ -157,14 +145,10 @@ export class McpController {
       '',
     ];
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const current = agents[0].mcp_servers ?? {};
+    const current = agent.mcp_servers ?? {};
     const sanitizedCfg = {
       command: 'npx',
       args,
@@ -173,16 +157,14 @@ export class McpController {
 
     const updated = { ...current, [mcpId]: sanitizedCfg };
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updated, agentId, userId]
-    );
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    const result = await agents.updateAgentMcpServers(agentId, userId, updated);
+    if (!result) {
+      throw new BadRequestException('Failed to update MCP servers');
+    }
 
-    const [updatedAgent] = result;
     return ResponseFormatter.success({
-      id: updatedAgent.id,
-      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+      id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -216,27 +198,18 @@ export class McpController {
       normalized[id] = cleanCfg;
     }
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const current = agents[0].mcp_servers ?? {};
+    const current = agent.mcp_servers ?? {};
     const updated = { ...current, ...normalized };
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updated, agentId, userId]
-    );
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    if (result.length === 0)
-      throw new BadRequestException('Failed to update MCP servers');
+    const result = await agents.updateAgentMcpServers(agentId, userId, updated);
+    if (!result) throw new BadRequestException('Failed to update MCP servers');
 
     return ResponseFormatter.success({
-      agent_id: result[0].id,
-      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
+      agent_id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -254,34 +227,30 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId, mcp_id: mcpId } = body;
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) {
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) {
       throw new BadRequestException('Agent not found');
     }
 
-    const currentServers = agents[0].mcp_servers ?? {};
+    const currentServers = agent.mcp_servers ?? {};
     if (!(mcpId in currentServers)) {
       throw new BadRequestException(`MCP server "${mcpId}" not found`);
     }
 
     delete currentServers[mcpId];
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [currentServers, agentId, userId]
+    const result = await agents.updateAgentMcpServers(
+      agentId,
+      userId,
+      currentServers
     );
+    if (!result) {
+      throw new BadRequestException('Failed to update MCP servers');
+    }
 
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-
-    const [updatedAgent] = result;
     return ResponseFormatter.success({
-      id: updatedAgent.id,
-      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+      id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -299,32 +268,28 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId, mcp_ids } = body;
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) {
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) {
       throw new BadRequestException('Agent not found');
     }
 
-    const currentServers = agents[0].mcp_servers ?? {};
+    const currentServers = agent.mcp_servers ?? {};
     for (const mcpId of mcp_ids) {
       delete currentServers[mcpId];
     }
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [currentServers, agentId, userId]
+    const result = await agents.updateAgentMcpServers(
+      agentId,
+      userId,
+      currentServers
     );
+    if (!result) {
+      throw new BadRequestException('Failed to update MCP servers');
+    }
 
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-
-    const [updatedAgent] = result;
     return ResponseFormatter.success({
-      id: updatedAgent.id,
-      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+      id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -342,20 +307,14 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId } = body;
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [{}, agentId, userId]
-    );
-
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    if (result.length === 0) {
+    const result = await agents.updateAgentMcpServers(agentId, userId, {});
+    if (!result) {
       throw new BadRequestException('Agent not found');
     }
 
-    const [updatedAgent] = result;
     return ResponseFormatter.success({
-      id: updatedAgent.id,
-      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+      id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -384,14 +343,10 @@ export class McpController {
       );
     }
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const currentServers = agents[0].mcp_servers ?? {};
+    const currentServers = agent.mcp_servers ?? {};
     const currentConfig = currentServers[mcpId];
     if (!currentConfig) {
       throw new BadRequestException(`MCP server "${mcpId}" not found`);
@@ -412,17 +367,16 @@ export class McpController {
       },
     };
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updatedServers, agentId, userId]
+    const result = await agents.updateAgentMcpServers(
+      agentId,
+      userId,
+      updatedServers
     );
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    if (result.length === 0)
-      throw new BadRequestException('Failed to add env variable');
+    if (!result) throw new BadRequestException('Failed to add env variable');
 
     return ResponseFormatter.success({
-      agent_id: result[0].id,
-      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
+      agent_id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -444,14 +398,10 @@ export class McpController {
       throw new BadRequestException('agent_id and mcp_id are required');
     }
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const mcpServers = agents[0].mcp_servers ?? {};
+    const mcpServers = agent.mcp_servers ?? {};
     const mcpConfig = mcpServers[mcpId];
 
     if (!mcpConfig) {
@@ -482,14 +432,10 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId, mcp_id: mcpId } = body;
 
-    const q = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const mcp_servers = agents[0].mcp_servers ?? {};
+    const mcp_servers = agent.mcp_servers ?? {};
     const mcpConfig = mcp_servers[mcpId];
     if (!mcpConfig || !Array.isArray(mcpConfig.args)) {
       throw new BadRequestException('MCP server not found or invalid');
@@ -515,14 +461,10 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId, mcp_id: mcpId } = body;
 
-    const q = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(q);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const mcp_servers = agents[0].mcp_servers ?? {};
+    const mcp_servers = agent.mcp_servers ?? {};
     const mcpConfig = mcp_servers[mcpId];
     if (!mcpConfig || !Array.isArray(mcpConfig.args)) {
       throw new BadRequestException('MCP server not found or invalid');
@@ -555,14 +497,10 @@ export class McpController {
       );
     }
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const currentServers = agents[0].mcp_servers ?? {};
+    const currentServers = agent.mcp_servers ?? {};
     const currentConfig = currentServers[mcpId];
     if (!currentConfig || !Array.isArray(currentConfig.args)) {
       throw new BadRequestException('MCP not found or invalid configuration');
@@ -575,17 +513,16 @@ export class McpController {
       [mcpId]: { ...currentConfig, args: updatedArgs },
     };
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updatedServers, agentId, userId]
+    const result = await agents.updateAgentMcpServers(
+      agentId,
+      userId,
+      updatedServers
     );
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-    if (result.length === 0)
-      throw new BadRequestException('Failed to update MCP key');
+    if (!result) throw new BadRequestException('Failed to update MCP key');
 
     return ResponseFormatter.success({
-      agent_id: result[0].id,
-      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
+      agent_id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -603,19 +540,15 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId, mcp_id: mcpId, new_value: newProfile } = body;
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const currentServers = agents[0].mcp_servers ?? {};
+    const currentServers = agent.mcp_servers ?? {};
     const currentConfig = currentServers[mcpId];
     if (!currentConfig) throw new BadRequestException('MCP server not found');
 
     const updatedArgs = updateFlagValue(
-      currentConfig.args,
+      currentConfig.args || [],
       '--profile',
       newProfile
     );
@@ -628,16 +561,18 @@ export class McpController {
       },
     };
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updatedServers, agentId, userId]
+    const result = await agents.updateAgentMcpServers(
+      agentId,
+      userId,
+      updatedServers
     );
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    if (!result) {
+      throw new BadRequestException('Failed to update MCP profile');
+    }
 
-    const [updatedAgent] = result;
     return ResponseFormatter.success({
-      id: updatedAgent.id,
-      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+      id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -665,14 +600,10 @@ export class McpController {
         'agent_id, mcp_id and secret_name are required'
       );
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) throw new BadRequestException('Agent not found');
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) throw new BadRequestException('Agent not found');
 
-    const currentServers = agents[0].mcp_servers ?? {};
+    const currentServers = agent.mcp_servers ?? {};
     const currentConfig = currentServers[mcpId];
     if (!currentConfig || typeof currentConfig !== 'object')
       throw new BadRequestException('MCP server not found');
@@ -710,15 +641,18 @@ export class McpController {
       },
     };
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updatedServers, agentId, userId]
+    const result = await agents.updateAgentMcpServers(
+      agentId,
+      userId,
+      updatedServers
     );
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
+    if (!result) {
+      throw new BadRequestException('Failed to update MCP env value');
+    }
 
     return ResponseFormatter.success({
-      agent_id: result[0].id,
-      mcp_servers: formatMcpServersForResponse(result[0].mcp_servers),
+      agent_id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 
@@ -736,17 +670,12 @@ export class McpController {
     const userId = ControllerHelpers.getUserId(req);
     const { agent_id: agentId, mcp_id: mcpId, new_value } = body;
 
-    const selectQuery = new Postgres.Query(
-      'SELECT id, "mcp_servers" FROM agents WHERE id = $1 AND user_id = $2',
-      [agentId, userId]
-    );
-
-    const agents = await Postgres.query<UpdateAgentMcpDTO>(selectQuery);
-    if (agents.length === 0) {
+    const agent = await agents.getAgentMcpServers(agentId, userId);
+    if (!agent) {
       throw new BadRequestException('Agent not found');
     }
 
-    const currentServers = agents[0].mcp_servers ?? {};
+    const currentServers = agent.mcp_servers ?? {};
     const currentConfig = currentServers[mcpId];
 
     if (!currentConfig || typeof currentConfig !== 'object') {
@@ -767,17 +696,18 @@ export class McpController {
       },
     };
 
-    const updateQuery = new Postgres.Query(
-      'UPDATE agents SET "mcp_servers" = $1::jsonb WHERE id = $2 AND user_id = $3 RETURNING id, "mcp_servers"',
-      [updatedServers, agentId, userId]
+    const result = await agents.updateAgentMcpServers(
+      agentId,
+      userId,
+      updatedServers
     );
+    if (!result) {
+      throw new BadRequestException('Failed to delete MCP env');
+    }
 
-    const result = await Postgres.query<UpdateAgentMcpDTO>(updateQuery);
-
-    const [updatedAgent] = result;
     return ResponseFormatter.success({
-      id: updatedAgent.id,
-      mcp_servers: formatMcpServersForResponse(updatedAgent.mcp_servers),
+      id: result.id,
+      mcp_servers: formatMcpServersForResponse(result.mcp_servers),
     });
   }
 }

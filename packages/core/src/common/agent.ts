@@ -175,16 +175,15 @@ export namespace AgentConfig {
     user_id: string;
   }
 
-  export interface OutputWithoutUserId extends Omit<OutputWithId, 'user_id'> {
-    user_id?: string;
+  export interface Output extends OutputWithId {
+    created_at: string;
+    updated_at: string;
+    avatar_mime_type?: string;
+    avatar_image?: string;
   }
 
-  /**
-   * Output configuration with optional parameters for updates
-   */
-  export interface OutputWithOptionalParam extends Partial<OutputWithId> {
-    user_id: string;
-    id: string;
+  export interface OutputWithoutUserId extends Omit<Output, 'user_id'> {
+    user_id?: string;
   }
 
   /**
