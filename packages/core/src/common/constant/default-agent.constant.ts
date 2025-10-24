@@ -1,4 +1,4 @@
-import { AgentConfig, MemoryStrategy, ModelConfig } from '@common/agent.js';
+import { AgentConfig, MemoryStrategy, ModelConfig } from '@common/agent/interfaces/agent.interface.js';
 
 export const DEFAULT_AGENT_MODEL: ModelConfig = {
   provider: 'gemini',

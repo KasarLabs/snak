@@ -1,6 +1,6 @@
-export type * from './common/agent.js';
+export type * from './common/agent/interfaces/agent.interface.js';
 
-export * from './common/agent.js';
+export * from './common/agent/interfaces/agent.interface.js';
 
 export { default as logger } from './logger/logger.js';
 
@@ -12,8 +12,7 @@ export * from './common/constant/default-agent.constant.js';
 export * from './common/constant/agents.constants.js';
 export type { RagConfigSize } from './types/rag/ragConfig.js';
 export type { GuardsConfig } from './config/guards/guardsSchema.js';
-export * from './common/server/dto/agents.js';
-export * from './common/server/dto/websocket.js';
+export * from './common/server/dto/index.js';
 export {
   CustomHuggingFaceEmbeddings,
   type CustomHuggingFaceEmbeddingsParams,

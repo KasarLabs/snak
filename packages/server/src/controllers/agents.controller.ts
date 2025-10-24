@@ -33,12 +33,10 @@ import {
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
   MessageRequest,
-  MemoryStrategy,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
-import { Postgres } from '@snakagent/database';
-import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
+import { BaseAgent } from '@snakagent/agents';
 import {
   notify,
   message,
@@ -334,7 +332,7 @@ export class AgentsController {
 
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
-      request: userRequest.request.content ?? '',
+      content: userRequest.request.content ?? '',
     };
 
     const action = this.agentService.handleUserRequest(

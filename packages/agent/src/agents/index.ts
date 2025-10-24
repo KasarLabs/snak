@@ -1,8 +1,3 @@
-export interface MessageRequest {
-  agent_id: string;
-  user_request: string | null;
-}
-
 export interface Message {
   agent_id: string;
   user_request: string;
