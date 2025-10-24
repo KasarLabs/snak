@@ -12,7 +12,6 @@ import { memory } from '@snakagent/database/queries';
 import {
   EpisodicMemoryContext,
   HolisticMemoryContext,
-  MemoryItem,
   MemoryOperationResult,
   SemanticMemoryContext,
 } from '../../../../shared/types/memory.types.js';
@@ -113,6 +112,7 @@ export class MemoryDBManager {
       const h_memory: memory.HolisticMemory = {
         type: memories.type,
         user_id: memories.user_id,
+        thread_id: memories.thread_id,
         task_id: memories.task_id,
         step_id: memories.step_id,
         content: memories.content,
@@ -183,6 +183,7 @@ export class MemoryDBManager {
           const episodicRecord: memory.EpisodicMemory = {
             user_id: e_memory.user_id,
             task_id: e_memory.task_id,
+            thread_id: e_memory.thread_id,
             step_id: e_memory.step_id,
             content: e_memory.content,
             embedding: embedding,
@@ -232,6 +233,7 @@ export class MemoryDBManager {
 
           const semanticRecord: memory.SemanticMemory = {
             user_id: s_memory.user_id,
+            thread_id: s_memory.thread_id,
             task_id: s_memory.task_id,
             step_id: s_memory.step_id,
             fact: s_memory.fact,
@@ -305,7 +307,8 @@ export class MemoryDBManager {
    */
   async retrieveSimilarMemories(
     query: string,
-    userId: string
+    userId: string,
+    thread_id: string
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
     let attempt = 0;
     while (attempt < this.max_retries) {
@@ -318,7 +321,7 @@ export class MemoryDBManager {
           );
         });
         const result = await Promise.race([
-          this.performRetrieval(query, userId),
+          this.performRetrieval(query, userId, thread_id),
           timeoutPromise,
         ]);
 
@@ -353,7 +356,8 @@ export class MemoryDBManager {
    */
   private async performRetrieval(
     query: string,
-    userId: string
+    userId: string,
+    thread_id: string
   ): Promise<MemoryOperationResult<memory.Similarity[]>> {
     try {
       // Validate inputs
@@ -387,6 +391,7 @@ export class MemoryDBManager {
       const similarities = await memory.retrieve_memory(
         this.memoryStrategy,
         userId,
+        thread_id,
         embedding,
         this.memorySizeLimit.max_retrieve_memory_size,
         this.memoryThreshold.retrieve_memory_threshold
@@ -417,7 +422,8 @@ export class MemoryDBManager {
         timestamp: Date.now(),
       };
     }
-    if (!episodic_memory.content.trim()) {
+
+    if (!episodic_memory.content || !episodic_memory.content.trim()) {
       return {
         success: false,
         error: 'Episodic Content cannot be empty',
@@ -433,7 +439,7 @@ export class MemoryDBManager {
       };
     }
 
-    if (!episodic_memory.user_id.trim()) {
+    if (!episodic_memory.user_id || !episodic_memory.user_id.trim()) {
       return {
         success: false,
         error: 'User ID cannot be empty',
@@ -441,15 +447,39 @@ export class MemoryDBManager {
       };
     }
 
-    if (!episodic_memory.run_id.trim()) {
+    if (!episodic_memory.thread_id || !episodic_memory.thread_id.trim()) {
       return {
         success: false,
-        error: 'User ID cannot be empty',
+        error: 'Thread ID cannot be empty',
         timestamp: Date.now(),
       };
     }
 
-    if (episodic_memory.sources.length <= 0) {
+    if (!episodic_memory.task_id || !episodic_memory.task_id.trim()) {
+      return {
+        success: false,
+        error: 'Task ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!episodic_memory.step_id || !episodic_memory.step_id.trim()) {
+      return {
+        success: false,
+        error: 'Step ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!episodic_memory.run_id || !episodic_memory.run_id.trim()) {
+      return {
+        success: false,
+        error: 'Run ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!episodic_memory.sources || !Array.isArray(episodic_memory.sources) || episodic_memory.sources.length <= 0) {
       return {
         success: false,
         error: 'Sources Array cannot be empty',
@@ -469,7 +499,8 @@ export class MemoryDBManager {
         timestamp: Date.now(),
       };
     }
-    if (!semantic_memory.fact.trim()) {
+
+    if (!semantic_memory.fact || !semantic_memory.fact.trim()) {
       return {
         success: false,
         error: 'Semantic Fact cannot be empty',
@@ -485,7 +516,7 @@ export class MemoryDBManager {
       };
     }
 
-    if (!semantic_memory.user_id.trim()) {
+    if (!semantic_memory.user_id || !semantic_memory.user_id.trim()) {
       return {
         success: false,
         error: 'User ID cannot be empty',
@@ -493,18 +524,42 @@ export class MemoryDBManager {
       };
     }
 
-    if (!semantic_memory.run_id.trim()) {
+    if (!semantic_memory.thread_id || !semantic_memory.thread_id.trim()) {
       return {
         success: false,
-        error: 'User ID cannot be empty',
+        error: 'Thread ID cannot be empty',
         timestamp: Date.now(),
       };
     }
 
-    if (!semantic_memory.category.trim()) {
+    if (!semantic_memory.task_id || !semantic_memory.task_id.trim()) {
       return {
         success: false,
-        error: 'Sources Array cannot be empty',
+        error: 'Task ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!semantic_memory.step_id || !semantic_memory.step_id.trim()) {
+      return {
+        success: false,
+        error: 'Step ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!semantic_memory.run_id || !semantic_memory.run_id.trim()) {
+      return {
+        success: false,
+        error: 'Run ID cannot be empty',
+        timestamp: Date.now(),
+      };
+    }
+
+    if (!semantic_memory.category || !semantic_memory.category.trim()) {
+      return {
+        success: false,
+        error: 'Category cannot be empty',
         timestamp: Date.now(),
       };
     }

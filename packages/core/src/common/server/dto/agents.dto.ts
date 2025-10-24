@@ -58,6 +58,11 @@ export class MessageRequest {
   request: string;
 
   @IsOptional()
+  @IsString()
+  @IsUUID()
+  thread_id?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(1)
@@ -109,35 +114,23 @@ export class UpdateModelConfigDTO {
 }
 
 export class Message {
+  @IsString()
+  @IsUUID()
+  agent_id: string;
+
   @IsOptional()
   @IsString()
   @IsUUID()
-  agent_id?: string;
-
-  @IsNotEmpty()
-  @IsString()
-  @Length(1, 50)
-  @Matches(/^[a-zA-Z_]+$/, {
-    message: 'Sender type must contain only letters and underscores',
-  })
-  sender_type: string;
+  thread_id?: string;
 
   @IsOptional()
   @IsNotEmpty()
   @IsString()
   @Length(1, 10000)
   content?: string;
-
-  @IsNotEmpty()
-  @IsString()
-  @Length(1, 50)
-  @Matches(/^[a-zA-Z_]+$/, {
-    message: 'Status must contain only letters and underscores',
-  })
-  status: string;
 }
 
-export class AgentRequestDTO {
+export class AgentRequestDTO { 
   @IsNotEmpty()
   request: Message;
 }
@@ -217,3 +210,129 @@ export type AgentResponse<T = unknown> =
   | { status: 'success'; data: T }
   | { status: 'waiting_for_human_input'; data?: T }
   | { status: 'failure'; error: string; data?: T };
+
+  /**
+ * Request to get a specific agent’s MCP config
+ */
+export class GetAgentMcpsRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+}
+
+/**
+ * Request to get all MCP server of a specific agent
+ */
+export class AgentMCPRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+}
+
+/**
+ * Request to update the value of one secret in a given MCP server
+ */
+export class UpdateMcpEnvValueRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  secret_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  secret_value: string;
+}
+
+/**
+ * Request to rename a secret key in an MCP config
+ */
+export class UpdateMcpEnvNameRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  old_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  new_name: string;
+}
+
+/**
+ * Request to replace --key value or --profile with a new value
+ */
+export class UpdateMcpValueRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mcp_id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  new_value: string;
+}
+
+/**
+ * Request to delete multiple MCP servers
+ */
+export class DeleteMultipleMcpServersRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  mcp_ids: string[];
+}
+
+/**
+ * Request to add one or more new MCP servers
+ */
+export class AddMcpServerRequestDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  agent_id: string;
+
+  @IsNotEmpty()
+  mcpServers: Record<
+    string,
+    {
+      command: string;
+      args?: string[] | string;
+      env?: Record<string, string>;
+      [key: string]: any;
+    }
+  >;
+}
+
+/**
+ * Request to update an entire agent’s MCP server object
+ */
+export class UpdateAgentMcpDTO {
+  @IsNotEmpty()
+  @IsUUID()
+  id: string;
+
+  @IsNotEmpty()
+  mcp_servers: Record<string, any>; // Replace Record<string, McpServerConfig>
+}

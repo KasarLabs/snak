@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS holistic_memories (
     -- Step identifier linking memory to specific steps within a task
     step_id UUID NOT NULL,
 
+    -- Thread identifier linking memory to specific conversation threads
+    thread_id UUID NOT NULL,
+
     type memory_holistic_type NOT NULL,
 
     -- The actual memory content - what was remembered
@@ -54,6 +57,7 @@ CREATE OR REPLACE FUNCTION insert_holistic_memory_smart(
     p_user_id VARCHAR(100),
     p_task_id UUID,
     p_step_id UUID,
+    p_thread_id UUID,
     p_type memory_holistic_type,
     p_content TEXT,
     p_embedding vector(384),
@@ -76,7 +80,7 @@ DECLARE
     v_similarity FLOAT;
 BEGIN
     -- Input validation
-    IF p_user_id IS NULL OR p_task_id IS NULL OR p_step_id IS NULL OR
+    IF p_user_id IS NULL OR p_task_id IS NULL OR p_step_id IS NULL OR p_thread_id IS NULL OR
        p_type IS NULL OR p_content IS NULL OR p_embedding IS NULL OR p_request IS NULL THEN
         RAISE EXCEPTION 'Required fields cannot be null'
             USING ERRCODE = '23502';
@@ -92,6 +96,7 @@ BEGIN
     WHERE user_id = p_user_id
         AND task_id = p_task_id
         AND step_id = p_step_id
+        AND thread_id = p_thread_id
         AND type = p_type
         AND 1 - (embedding <=> p_embedding) >= p_similarity_threshold
     ORDER BY embedding <=> p_embedding
@@ -117,6 +122,7 @@ BEGIN
             user_id,
             task_id,
             step_id,
+            thread_id,
             type,
             content,
             embedding,
@@ -127,6 +133,7 @@ BEGIN
             p_user_id,
             p_task_id,
             p_step_id,
+            p_thread_id,
             p_type,
             p_content,
             p_embedding,
@@ -156,6 +163,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION retrieve_similar_holistic_memories(
     p_user_id VARCHAR(100),
+    p_thread_id UUID,
     p_embedding vector(384),
     p_similarity_threshold FLOAT,
     p_limit INTEGER
@@ -165,6 +173,7 @@ RETURNS TABLE (
     memory_id UUID,
     task_id UUID,
     step_id UUID,
+    thread_id UUID,
     content TEXT,
     similarity FLOAT,
     metadata JSONB
@@ -180,6 +189,7 @@ BEGIN
             id,
             hm.task_id,
             hm.step_id,
+            hm.thread_id,
             hm.type,
             hm.content,
             hm.request,
@@ -189,6 +199,7 @@ BEGIN
             hm.updated_at
         FROM holistic_memories hm
         WHERE user_id = p_user_id
+            AND thread_id = p_thread_id
             AND 1 - (embedding <=> p_embedding) >= p_similarity_threshold
         ORDER BY embedding <=> p_embedding
         LIMIT p_limit
@@ -207,6 +218,7 @@ BEGIN
             v_memory.id,
             v_memory.task_id,
             v_memory.step_id,
+            v_memory.thread_id,
             v_memory.content,
             v_memory.sim,
             jsonb_build_object(
@@ -224,6 +236,10 @@ $$;
 -- PERFORMANCE INDEXES
 -- ============================================================================
 
+-- Composite index for thread-based queries
+CREATE INDEX IF NOT EXISTS idx_holistic_user_thread
+    ON holistic_memories(user_id, thread_id);
+
 -- Composite index for task-based queries
 CREATE INDEX IF NOT EXISTS idx_holistic_user_task
     ON holistic_memories(user_id, task_id);
@@ -231,6 +247,10 @@ CREATE INDEX IF NOT EXISTS idx_holistic_user_task
 -- Composite index for step-based queries
 CREATE INDEX IF NOT EXISTS idx_holistic_user_task_step
     ON holistic_memories(user_id, task_id, step_id);
+
+-- Composite index for thread, task and step-based queries
+CREATE INDEX IF NOT EXISTS idx_holistic_user_thread_task_step
+    ON holistic_memories(user_id, thread_id, task_id, step_id);
 
 -- Index for type-based filtering
 CREATE INDEX IF NOT EXISTS idx_holistic_type

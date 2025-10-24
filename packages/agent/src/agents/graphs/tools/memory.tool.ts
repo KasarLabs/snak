@@ -97,9 +97,11 @@ export class MemoryToolRegistry {
         `[MemoryAgent] Retrieving memory for step ID: ${request.step_id}`
       );
       const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
+      const threadId = this.agentConfig.thread_id;
       const result = await memory.get_memories_by_step_id(
         userId,
         request.step_id,
+        threadId,
         request.limit ?? null
       );
       return result;
@@ -124,9 +126,11 @@ export class MemoryToolRegistry {
         `[MemoryAgent] Retrieving memory for task ID: ${request.task_id}`
       );
       const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
+      const threadId = this.agentConfig.thread_id;
       const result = await memory.get_memories_by_task_id(
         userId,
         request.task_id,
+        threadId,
         request.limit ?? null
       );
       return result;
@@ -150,10 +154,12 @@ export class MemoryToolRegistry {
         `[MemoryAgent] Retrieving memory for content with length ${request.content.length}`
       );
       const userId = this.agentConfig.user_id; // Replace with actual user ID retrieval logic
+      const threadId = this.agentConfig.thread_id;
       const embedding = await embeddingModel.embedQuery(request.content);
       const result = await memory.retrieve_memory(
         this.agentConfig.memory.strategy,
         userId,
+        threadId,
         embedding,
         request.topK,
         request.threshold

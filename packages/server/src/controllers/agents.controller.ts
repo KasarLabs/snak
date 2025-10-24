@@ -301,42 +301,18 @@ export class AgentsController {
 
     const route = this.reflector.get('path', this.handleUserRequest);
     let agent: BaseAgent | undefined = undefined;
-    if (userRequest.request.agent_id === undefined) {
-      logger.info(
-        'Agent ID not provided in request, Using agent Selector to select agent'
-      );
 
-      if (
-        !userRequest.request.content ||
-        userRequest.request.content?.length === 0
-      ) {
-        throw new ServerError('E01TA400'); // Bad request if no content
-      }
-      const agentSelector = this.agentFactory.getAgentSelector();
-      agent = await agentSelector.execute(userRequest.request.content, false, {
-        userId,
-      });
-      if (agent) {
-        const agentId = agent.getAgentConfig().id;
-        await ControllerHelpers.verifyAgentConfigOwnership(
-          this.agentFactory,
-          agentId,
-          userId
-        );
-      }
-    } else {
-      agent = await ControllerHelpers.verifyAgentOwnership(
-        this.agentFactory,
-        userRequest.request.agent_id,
-        userId
-      );
-    }
+    agent = await ControllerHelpers.verifyAgentOwnership(
+      this.agentFactory,
+      userRequest.request.agent_id,
+      userId
+    );
     if (!agent) {
       throw new ServerError('E01TA400');
     }
-
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
+      thread_id: userRequest.request.thread_id,
       request: userRequest.request.content ?? '',
     };
 
