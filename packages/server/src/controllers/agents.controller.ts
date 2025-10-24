@@ -316,6 +316,17 @@ export class AgentsController {
       request: userRequest.request.content ?? '',
     };
 
+    if (messageRequest.thread_id) {
+      const isThreadExists = await message.check_thread_exists_for_agent(
+        messageRequest.thread_id,
+        messageRequest.agent_id,
+        userId
+      );
+      if (isThreadExists === false) {
+        throw new ServerError('E01TA400');
+      } // TODO add specific error
+    }
+
     const action = this.agentService.handleUserRequest(
       agent,
       userId,
