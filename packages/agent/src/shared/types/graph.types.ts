@@ -83,6 +83,7 @@ export interface TasksType {
 
 export interface UserRequest {
   request: string;
+  thread_id?: string;
   hitl_threshold?: number;
 }
 

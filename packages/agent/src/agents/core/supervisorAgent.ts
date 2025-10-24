@@ -188,9 +188,6 @@ export class SupervisorAgent extends BaseAgent {
         recursionLimit: 500,
         version: 'v2' as const,
       };
-      await this.compiledStateGraph.updateState(executionConfig, {
-        transfer_to: [],
-      });
       stateSnapshot = await this.compiledStateGraph.getState(executionConfig, {
         subgraphs: true,
       });
@@ -201,6 +198,12 @@ export class SupervisorAgent extends BaseAgent {
         ? getInterruptCommand(userRequest.request)
         : { messages: [new HumanMessage(userRequest.request || '')] };
 
+      if (stateSnapshot.values.transfer_to && stateSnapshot.values.transfer_to.length > 0) {
+        await this.compiledStateGraph.updateState(executionConfig, {
+          transfer_to: [],
+        });
+      }
+      console.log(isInterrupt(stateSnapshot));
       for await (const chunk of this.compiledStateGraph.streamEvents(
         executionInput,
         executionConfig
@@ -212,7 +215,7 @@ export class SupervisorAgent extends BaseAgent {
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve graph state during execution');
         }
-        isTransferHandle = stateSnapshot.values.transfer_to.length > 0;
+        isTransferHandle = stateSnapshot.values.transfer_to && stateSnapshot.values.transfer_to.length > 0;
         currentCheckpointId = stateSnapshot.config.configurable?.checkpoint_id;
         lastChunk = chunk;
         if (
@@ -239,6 +242,14 @@ export class SupervisorAgent extends BaseAgent {
       }
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
+      }
+
+      const startTime = Date.now();
+      if (isInterruptHandle === false) {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        await this.pgCheckpointer.deleteThread(threadId);
+        logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
       }
       yield {
         event: lastChunk.event,

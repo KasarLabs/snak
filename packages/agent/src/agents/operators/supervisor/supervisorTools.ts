@@ -11,7 +11,7 @@ import {
   updateMcpServerTool,
   messageAskUserTool,
 } from './tools/index.js';
-import { createExecuteHandoffTools } from './executeHandoffTools.js';
+import { createExecuteHandoffTools } from './tools/executeHandoffTools.js';
 
 /**
  * Shared configuration tools reserved for supervisor agents.

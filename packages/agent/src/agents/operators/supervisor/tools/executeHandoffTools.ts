@@ -4,7 +4,7 @@ import { Command, END, ParentCommand } from '@langchain/langgraph';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { RedisClient } from '@snakagent/database/redis';
-import { getAgentIdByName } from '../../../../../database/dist/queries/redis/queries.js';
+import { getAgentIdByName } from '../../../../../../database/dist/queries/redis/queries.js';
 /**
  * Sanitizes agent name to create a valid function name for Google Generative AI
  * Must start with a letter or underscore and contain only alphanumeric, underscores, dots, colons, or dashes

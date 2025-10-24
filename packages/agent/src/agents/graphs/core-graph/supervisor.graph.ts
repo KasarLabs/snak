@@ -31,6 +31,7 @@ import { redisAgents } from '@snakagent/database/queries';
 import { AGENT_SELECTOR_SYSTEM_PROMPT } from '@prompts/agents/agentSelector.prompt.js';
 import { REMOVE_ALL_MESSAGES } from '@langchain/langgraph';
 import { MAX_SUPERVISOR_MESSAGE } from '../constants/execution-constants.js';
+import { transferBackToSupervisorTool } from '@agents/operators/supervisor/tools/schemas/transfer_to_supervisorTools.js';
 
 export function messagesStateReducerWithLimit(
   left: BaseMessage[],
@@ -202,6 +203,7 @@ export class SupervisorGraph {
           ...getSupervisorConfigModifierTools(this.supervisorConfig),
           ...getSupervisorReadTools(this.supervisorConfig),
           ...getSupervisorCommunicationTools(),
+          transferBackToSupervisorTool()
         ],
         name: 'agentConfigurationHelper',
         prompt: formattedAgentConfigurationHelperPrompt,
@@ -215,38 +217,38 @@ export class SupervisorGraph {
     ]);
     const formattedMcpConfigurationHelperPrompt =
       await mcpConfigurationHelperSystemPrompt.format({});
-    this.specializedAgent.push(
-      createReactAgent({
-        llm: this.supervisorConfig.graph.model,
-        tools: [
-          ...getSupervisorMcpModifier(this.supervisorConfig),
-          ...getSupervisorReadTools(this.supervisorConfig),
-          ...getSupervisorCommunicationTools(),
-        ],
-        name: 'mcpConfigurationHelper',
-        prompt: formattedMcpConfigurationHelperPrompt,
-        stateSchema: SupervisorStateAnnotation,
-        preModelHook: this.transformMessagesHook.bind(this),
-      })
-    );
+    // this.specializedAgent.push(
+    //   createReactAgent({
+    //     llm: this.supervisorConfig.graph.model,
+    //     tools: [
+    //       ...getSupervisorMcpModifier(this.supervisorConfig),
+    //       ...getSupervisorReadTools(this.supervisorConfig),
+    //       ...getSupervisorCommunicationTools(),
+    //     ],
+    //     name: 'mcpConfigurationHelper',
+    //     prompt: formattedMcpConfigurationHelperPrompt,
+    //     stateSchema: SupervisorStateAnnotation,
+    //     preModelHook: this.transformMessagesHook.bind(this),
+    //   })
+    // );
 
-    this.specializedAgent.push(
-      createReactAgent({
-        llm: this.supervisorConfig.graph.model,
-        tools: [],
-        name: 'snakRagAgentHelper',
-        prompt:
-          'You are an expert RAG agent configuration assistant. Your task is to help users create and modify RAG agent configurations based on their requirements. Always ensure that the configurations adhere to best practices and are optimized for performance.',
-        stateSchema: SupervisorStateAnnotation,
-        preModelHook: this.transformMessagesHook.bind(this),
-      })
-    );
+    // this.specializedAgent.push(
+    //   createReactAgent({
+    //     llm: this.supervisorConfig.graph.model,
+    //     tools: [],
+    //     name: 'snakRagAgentHelper',
+    //     prompt:
+    //       'You are an expert RAG agent configuration assistant. Your task is to help users create and modify RAG agent configurations based on their requirements. Always ensure that the configurations adhere to best practices and are optimized for performance.',
+    //     stateSchema: SupervisorStateAnnotation,
+    //     preModelHook: this.transformMessagesHook.bind(this),
+    //   })
+    // );
 
     const agentsAvailable = await redisAgents.listAgentsByUser(
       this.supervisorConfig.user_id
     );
     logger.info(
-      `[SupervisorGraph] Found ${agentsAvailable.length} avaible agents for user ${this.supervisorConfig.user_id}`
+      `[SupervisorGraph] Found ${agentsAvailable.length} avaible age1nts for user ${this.supervisorConfig.user_id}`
     );
     this.specializedAgent.push(
       createReactAgent({
@@ -255,6 +257,7 @@ export class SupervisorGraph {
           ...getSupevisorHandoffTools(this.supervisorConfig, agentsAvailable),
           ...getSupervisorReadTools(this.supervisorConfig),
           ...getSupervisorCommunicationTools(),
+          transferBackToSupervisorTool(),
         ],
         name: 'agentSelectorHelper',
         prompt: AGENT_SELECTOR_SYSTEM_PROMPT,
