@@ -5,7 +5,7 @@ import { Postgres } from '@snakagent/database';
 import { AnyZodObject } from 'zod';
 import { GraphError } from '../utils/error.utils.js';
 import { SupervisorAgent } from '@agents/core/supervisorAgent.js';
-import { skipValidationType } from '@stypes/graph.types.js';
+import { skipValidationType } from '@stypes/graph.type.js';
 import { AgentConfig, logger } from '@snakagent/core';
 import { GraphState } from './agent.graph.js';
 import { initializeDatabase } from '@agents/utils/database.utils.js';
@@ -19,8 +19,8 @@ import { createSupervisor } from '@langchain/langgraph-supervisor';
 import { AIMessage, BaseMessage } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
-import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
+import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/supervisor/specialist/agentConfigurationHelper.prompt.js';
+import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/supervisor/specialist/mcpConfigurationHelper.prompt.js';
 import { Annotation, messagesStateReducer } from '@langchain/langgraph';
 
 const SupervisorStateAnnotation = Annotation.Root({

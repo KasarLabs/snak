@@ -1,5 +1,5 @@
 import { BaseError } from './base.error.js';
-import { ErrorType, ErrorMetadata } from './error.types.js';
+import { ErrorType, ErrorMetadata } from './error.type.js';
 
 export class JobNotFoundError extends BaseError {
   constructor(jobId: string, metadata?: ErrorMetadata) {

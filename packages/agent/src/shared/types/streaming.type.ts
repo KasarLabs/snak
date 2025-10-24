@@ -1,7 +1,7 @@
 import { GraphNode, SupervisorNode } from '@enums/agent.enum.js';
 import { EventType } from '@enums/event.enums.js';
-import { ToolCall } from './tools.types.js';
-import { GraphErrorType } from './graph.types.js';
+import { ToolCall } from './tools.type.js';
+import { GraphErrorType } from './graph.type.js';
 
 export interface ChunkOutputMetadata {
   execution_mode?: string;

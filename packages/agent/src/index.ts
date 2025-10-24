@@ -13,26 +13,21 @@ export { initializeToolsList } from './tools/tools.js';
 export type {
   ChunkOutput,
   ChunkOutputMetadata,
-} from './shared/types/streaming.types.js';
+} from './shared/types/streaming.type.js';
 
 // Graph mode exports
 export { createGraph } from './agents/graphs/core-graph/agent.graph.js';
 
 // Agent operators
-export { AgentSelector } from './agents/operators/agentSelector.js';
 export * from './agents/operators/supervisor/index.js';
 
 // Agent types
-export type { AgentConfigResolver, AgentBuilder } from './types/agent.types.js';
+export type {
+  AgentConfigResolver,
+  AgentBuilder,
+} from './shared/types/agent.type.js';
 
 // Tool-related exports
-export type {
-  SnakAgentInterface,
-  StarknetTool,
-} from './shared/types/tools.types.js';
-
-export { createAllowedTools, registerTools } from './tools/tools.js';
-export type { SnakToolRegistry } from './tools/tools.js';
 
 // Consolidated exports from new structure
 export * from './shared/types/index.js'; // All types
@@ -41,4 +36,3 @@ export * from './shared/lib/memory/index.js'; // Memory utilities (if index.ts e
 export * from './shared/lib/token/index.js'; // Token tracking (if index.ts exists)
 export * from './shared/prompts/index.js'; // All prompts
 // Legacy exports for backward compatibility
-export type { IAgent } from './shared/types/agents.types.js';

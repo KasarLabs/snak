@@ -16,7 +16,6 @@ import {
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.storage.js';
 import {
-  AgentSelector,
   AgentConfigResolver,
   SnakAgent,
   TASK_EXECUTOR_SYSTEM_PROMPT,
@@ -37,7 +36,6 @@ const logger = new Logger('AgentStorage');
  */
 @Injectable()
 export class AgentStorage implements OnModuleInit {
-  private agentSelector: AgentSelector;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
   private agentValidationService: AgentValidationService;
@@ -184,14 +182,7 @@ export class AgentStorage implements OnModuleInit {
       }
     }
   }
-
-  public getAgentSelector(): AgentSelector {
-    if (!this.agentSelector) {
-      throw new Error('AgentSelector is not initialized');
-    }
-    return this.agentSelector;
-  }
-
+  
   public async getModelFromUser(userId: string): Promise<ModelConfig> {
     if (!userId || userId.length === 0) {
       throw new Error('User ID is required to fetch model configuration');

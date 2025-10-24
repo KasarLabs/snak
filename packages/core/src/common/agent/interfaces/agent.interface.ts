@@ -1,17 +1,7 @@
 import { RpcProvider } from 'starknet';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { z as Zod } from 'zod';
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
-
-export interface StarknetTool<P = unknown> {
-  name: string;
-  plugins: string;
-  description: string;
-  schema?: Zod.AnyZodObject;
-  response_format?: string;
-  execute: (agent: any, params: P, plugins_manager?: any) => Promise<unknown>;
-}
 
 export interface ModelConfig {
   provider: string;

@@ -2,26 +2,23 @@
  * Re-export all types from the types directory
  */
 
-// Agent-related types
-export * from './agents.types.js';
-
 // Memory-related types
-export * from './memory.types.js';
+export * from './memory.type.js';
 
 // Tool-related types
-export * from './tools.types.js';
+export * from './tools.type.js';
 
 // Graph-related types
-export * from './graph.types.js';
+export * from './graph.type.js';
 
 // Configuration types
-export * from './config.types.js';
+export * from './config.type.js';
 
 // Database types
-export * from './database.types.js';
-
-// Error Types
-export * from './error.types.js';
+export * from './database.type.js';
 
 // Streaming types
-export * from './streaming.types.js';
+export * from './streaming.type.js';
+
+// Agent-related types
+export * from './agent.type.js';

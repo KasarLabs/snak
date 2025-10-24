@@ -1,4 +1,4 @@
-import { ErrorType, ErrorMetadata, ErrorResponse } from './error.types.js';
+import { ErrorType, ErrorMetadata, ErrorResponse } from './error.type.js';
 
 export class BaseError extends Error {
   constructor(

@@ -7,7 +7,7 @@ import {
 } from '@langchain/core/messages';
 import { STMManager } from '@lib/memory/index.js';
 import { logger } from '@snakagent/core';
-import { STMContext } from '@stypes/memory.types.js';
+import { STMContext } from '@stypes/memory.type.js';
 
 function formatAiMessagetoXML(
   message: AIMessage | AIMessageChunk,

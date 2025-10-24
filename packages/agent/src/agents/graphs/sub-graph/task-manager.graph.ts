@@ -39,7 +39,7 @@ import {
   TASK_MANAGER_MEMORY_PROMPT_TASK_HISTORY,
   TASK_MANAGER_MEMORY_RAG_PROMPT,
   TASK_MANAGER_SYSTEM_PROMPT,
-} from '@prompts/agents/task-manager.prompts.js';
+} from '@prompts/agents/snak/core/task-manager.prompts.js';
 import { TaskManagerToolRegistryInstance } from '../tools/task-manager.tools.js';
 import { GraphError } from '../utils/error.utils.js';
 import { tasks_parser } from '../parser/tasks/tasks.parser.js';
